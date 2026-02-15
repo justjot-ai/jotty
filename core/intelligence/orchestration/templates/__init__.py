@@ -37,34 +37,38 @@ Usage:
     result = await Swarm.auto_solve(X, y)
 """
 
-from .base import SwarmTemplate, AgentConfig, StageConfig, FeedbackConfig, ModelTier
+from .base import AgentConfig, FeedbackConfig, ModelTier, StageConfig, SwarmTemplate
 from .registry import TemplateRegistry
-from .swarm_ml import SwarmML
 from .swarm_lean import SwarmLean
+from .swarm_ml import SwarmML
 from .swarm_ml_comprehensive import (
-    SwarmMLComprehensive, LearningConfig, LearningState,
-    MLflowConfig, ReportConfig, TelegramConfig
+    LearningConfig,
+    LearningState,
+    MLflowConfig,
+    ReportConfig,
+    SwarmMLComprehensive,
+    TelegramConfig,
 )
 from .swarm_science import SwarmScience
 
 __all__ = [
     # Base classes
-    'SwarmTemplate',
-    'AgentConfig',
-    'StageConfig',
-    'FeedbackConfig',
-    'ModelTier',
-    'TemplateRegistry',
+    "SwarmTemplate",
+    "AgentConfig",
+    "StageConfig",
+    "FeedbackConfig",
+    "ModelTier",
+    "TemplateRegistry",
     # ML Templates
-    'SwarmML',
-    'SwarmMLComprehensive',
-    'LearningConfig',
-    'LearningState',
-    'MLflowConfig',
-    'ReportConfig',
-    'TelegramConfig',
+    "SwarmML",
+    "SwarmMLComprehensive",
+    "LearningConfig",
+    "LearningState",
+    "MLflowConfig",
+    "ReportConfig",
+    "TelegramConfig",
     # Lean Template
-    'SwarmLean',
+    "SwarmLean",
     # Science Teaching Template
-    'SwarmScience',
+    "SwarmScience",
 ]

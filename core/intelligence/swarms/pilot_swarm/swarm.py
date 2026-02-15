@@ -20,25 +20,29 @@ import json
 import logging
 import os
 import subprocess
-from typing import Dict, Any, Optional, List
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 import dspy
 
+from ..base import AgentTeam, DomainSwarm, PhaseExecutor
 from ..base_swarm import (
-    BaseSwarm, SwarmBaseConfig, SwarmResult, AgentRole,
-    register_swarm, ExecutionTrace,
-)
-from ..base import DomainSwarm, AgentTeam, PhaseExecutor
-
-from .types import (
-    SubtaskType, SubtaskStatus, Subtask,
-    PilotConfig, PilotResult, AVAILABLE_SWARMS,
+    AgentRole,
+    BaseSwarm,
+    ExecutionTrace,
+    SwarmBaseConfig,
+    SwarmResult,
+    register_swarm,
 )
 from .agents import (
-    PilotPlannerAgent, PilotSearchAgent, PilotCoderAgent,
-    PilotTerminalAgent, PilotSkillWriterAgent, PilotValidatorAgent,
+    PilotCoderAgent,
+    PilotPlannerAgent,
+    PilotSearchAgent,
+    PilotSkillWriterAgent,
+    PilotTerminalAgent,
+    PilotValidatorAgent,
 )
+from .types import AVAILABLE_SWARMS, PilotConfig, PilotResult, Subtask, SubtaskStatus, SubtaskType
 
 logger = logging.getLogger(__name__)
 
@@ -109,15 +113,17 @@ class PilotSwarm(DomainSwarm):
             return await self._execute_phases(executor, goal, context, config, send_telegram)
 
         return await self._safe_execute_domain(
-            task_type='pilot_execution',
-            default_tools=['planning', 'search', 'code', 'terminal', 'skill_write', 'validate'],
+            task_type="pilot_execution",
+            default_tools=["planning", "search", "code", "terminal", "skill_write", "validate"],
             result_class=PilotResult,
             execute_fn=_run_phases,
             output_data_fn=lambda r: {
-                'subtasks_completed': r.subtasks_completed if hasattr(r, 'subtasks_completed') else 0,
-                'artifacts_count': len(r.artifacts) if hasattr(r, 'artifacts') else 0,
+                "subtasks_completed": (
+                    r.subtasks_completed if hasattr(r, "subtasks_completed") else 0
+                ),
+                "artifacts_count": len(r.artifacts) if hasattr(r, "artifacts") else 0,
             },
-            input_data_fn=lambda: {'goal': goal},
+            input_data_fn=lambda: {"goal": goal},
         )
 
     async def _execute_phases(
@@ -139,37 +145,42 @@ class PilotSwarm(DomainSwarm):
         # PHASE 1: Planning
         # ==============================================================
         plan = await executor.run_phase(
-            1, "Goal Decomposition", "Planner", AgentRole.PLANNER,
+            1,
+            "Goal Decomposition",
+            "Planner",
+            AgentRole.PLANNER,
             self._planner.plan(
                 goal=goal,
-                available_swarms='\n'.join(AVAILABLE_SWARMS),
+                available_swarms="\n".join(AVAILABLE_SWARMS),
                 context=context or "",
             ),
-            input_data={'goal': goal},
-            tools_used=['planning'],
+            input_data={"goal": goal},
+            tools_used=["planning"],
         )
 
-        subtasks_raw = plan.get('subtasks', []) if isinstance(plan, dict) else []
-        reasoning = plan.get('reasoning', '') if isinstance(plan, dict) else ''
+        subtasks_raw = plan.get("subtasks", []) if isinstance(plan, dict) else []
+        reasoning = plan.get("reasoning", "") if isinstance(plan, dict) else ""
 
         # Parse subtasks into Subtask objects
         subtasks = []
         for st in subtasks_raw:
             if isinstance(st, dict):
                 try:
-                    st_type = SubtaskType(st.get('type', 'analyze'))
+                    st_type = SubtaskType(st.get("type", "analyze"))
                 except ValueError:
                     st_type = SubtaskType.ANALYZE
-                subtasks.append(Subtask(
-                    id=st.get('id', f's{len(subtasks) + 1}'),
-                    type=st_type,
-                    description=st.get('description', ''),
-                    tool_hint=st.get('tool_hint', ''),
-                    depends_on=st.get('depends_on', []),
-                ))
+                subtasks.append(
+                    Subtask(
+                        id=st.get("id", f"s{len(subtasks) + 1}"),
+                        type=st_type,
+                        description=st.get("description", ""),
+                        tool_hint=st.get("tool_hint", ""),
+                        depends_on=st.get("depends_on", []),
+                    )
+                )
 
         # Limit subtasks
-        subtasks = subtasks[:config.max_subtasks]
+        subtasks = subtasks[: config.max_subtasks]
 
         logger.info(f"Plan: {len(subtasks)} subtasks — {reasoning[:100]}")
         for st in subtasks:
@@ -180,7 +191,7 @@ class PilotSwarm(DomainSwarm):
         # ==============================================================
         retry_count = 0
         success = False
-        assessment = ''
+        assessment = ""
 
         while True:
             # ---- Phase 2: Execute subtasks (parallel waves) ----
@@ -191,6 +202,7 @@ class PilotSwarm(DomainSwarm):
             semaphore = asyncio.Semaphore(config.max_concurrent)
 
             for wave in waves:
+
                 async def _run_in_wave(st: Subtask) -> None:
                     # Check dependencies
                     unmet = [d for d in st.depends_on if d not in completed_ids]
@@ -206,7 +218,9 @@ class PilotSwarm(DomainSwarm):
 
                     async with semaphore:
                         try:
-                            result = await self._execute_subtask_with_retry(st, prev_context, config)
+                            result = await self._execute_subtask_with_retry(
+                                st, prev_context, config
+                            )
                             all_results[st.id] = result
                             st.result = json.dumps(result, default=str)[:2000]
                             st.status = SubtaskStatus.COMPLETED
@@ -214,16 +228,16 @@ class PilotSwarm(DomainSwarm):
 
                             # Track artifacts and metadata
                             if st.type == SubtaskType.CODE:
-                                for op in result.get('file_operations', []):
-                                    if isinstance(op, dict) and op.get('file_path'):
-                                        artifacts.append(op['file_path'])
+                                for op in result.get("file_operations", []):
+                                    if isinstance(op, dict) and op.get("file_path"):
+                                        artifacts.append(op["file_path"])
                             elif st.type == SubtaskType.CREATE_SKILL:
-                                if result.get('skill_name'):
-                                    skills_created.append(result['skill_name'])
+                                if result.get("skill_name"):
+                                    skills_created.append(result["skill_name"])
                                     artifacts.append(f"skills/{result['skill_name']}/")
                             elif st.type == SubtaskType.DELEGATE:
-                                if result.get('swarm_used'):
-                                    delegated_to.append(result['swarm_used'])
+                                if result.get("swarm_used"):
+                                    delegated_to.append(result["swarm_used"])
 
                             logger.info(f"  [{st.id}] Completed")
 
@@ -231,7 +245,7 @@ class PilotSwarm(DomainSwarm):
                             st.status = SubtaskStatus.FAILED
                             st.error = str(e)
                             logger.error(f"  [{st.id}] Failed: {e}")
-                            all_results[st.id] = {'error': str(e)}
+                            all_results[st.id] = {"error": str(e)}
                             completed_ids.add(st.id)
 
                 tasks = [_run_in_wave(st) for st in wave]
@@ -241,35 +255,45 @@ class PilotSwarm(DomainSwarm):
             results_summary = self._build_results_summary(subtasks, all_results)
 
             validation = await executor.run_phase(
-                3, "Goal Validation", "Validator", AgentRole.REVIEWER,
+                3,
+                "Goal Validation",
+                "Validator",
+                AgentRole.REVIEWER,
                 self._validator.validate(goal=goal, results_summary=results_summary),
-                tools_used=['validation'],
+                tools_used=["validation"],
             )
 
-            success = validation.get('success', False) if isinstance(validation, dict) else False
-            assessment = validation.get('assessment', '') if isinstance(validation, dict) else ''
-            remaining_gaps = validation.get('remaining_gaps', []) if isinstance(validation, dict) else []
+            success = validation.get("success", False) if isinstance(validation, dict) else False
+            assessment = validation.get("assessment", "") if isinstance(validation, dict) else ""
+            remaining_gaps = (
+                validation.get("remaining_gaps", []) if isinstance(validation, dict) else []
+            )
 
             if success or retry_count >= config.max_retries:
                 break
 
             # ---- Phase 4: Re-plan from gaps ----
-            logger.info(f"  Retry {retry_count + 1}/{config.max_retries}: re-planning for gaps: {remaining_gaps}")
+            logger.info(
+                f"  Retry {retry_count + 1}/{config.max_retries}: re-planning for gaps: {remaining_gaps}"
+            )
 
             replan_context = self._build_replan_context(goal, subtasks, all_results, remaining_gaps)
 
             replan = await executor.run_phase(
-                4, "Re-planning", "Planner", AgentRole.PLANNER,
+                4,
+                "Re-planning",
+                "Planner",
+                AgentRole.PLANNER,
                 self._planner.plan(
                     goal=goal,
-                    available_swarms='\n'.join(AVAILABLE_SWARMS),
+                    available_swarms="\n".join(AVAILABLE_SWARMS),
                     context=replan_context,
                 ),
-                input_data={'retry': retry_count + 1, 'gaps': remaining_gaps},
-                tools_used=['planning'],
+                input_data={"retry": retry_count + 1, "gaps": remaining_gaps},
+                tools_used=["planning"],
             )
 
-            new_subtasks_raw = replan.get('subtasks', []) if isinstance(replan, dict) else []
+            new_subtasks_raw = replan.get("subtasks", []) if isinstance(replan, dict) else []
 
             # Guard: if replanner returned nothing, don't waste a retry
             if not new_subtasks_raw:
@@ -279,32 +303,39 @@ class PilotSwarm(DomainSwarm):
             for st_raw in new_subtasks_raw:
                 if isinstance(st_raw, dict):
                     try:
-                        st_type = SubtaskType(st_raw.get('type', 'analyze'))
+                        st_type = SubtaskType(st_raw.get("type", "analyze"))
                     except ValueError:
                         st_type = SubtaskType.ANALYZE
                     new_id = f"r{retry_count + 1}_{st_raw.get('id', f's{len(subtasks) + 1}')}"
                     # Remap depends_on to prefixed IDs
-                    raw_deps = st_raw.get('depends_on', [])
-                    deps = [f"r{retry_count + 1}_{d}" if d not in completed_ids else d for d in raw_deps]
-                    subtasks.append(Subtask(
-                        id=new_id,
-                        type=st_type,
-                        description=st_raw.get('description', ''),
-                        tool_hint=st_raw.get('tool_hint', ''),
-                        depends_on=deps,
-                    ))
+                    raw_deps = st_raw.get("depends_on", [])
+                    deps = [
+                        f"r{retry_count + 1}_{d}" if d not in completed_ids else d for d in raw_deps
+                    ]
+                    subtasks.append(
+                        Subtask(
+                            id=new_id,
+                            type=st_type,
+                            description=st_raw.get("description", ""),
+                            tool_hint=st_raw.get("tool_hint", ""),
+                            depends_on=deps,
+                        )
+                    )
 
             retry_count += 1
 
         completed_count = sum(1 for st in subtasks if st.status == SubtaskStatus.COMPLETED)
 
-        logger.info(f"PilotSwarm {'SUCCEEDED' if success else 'PARTIAL'}: "
-                    f"{completed_count}/{len(subtasks)} subtasks, "
-                    f"{len(artifacts)} artifacts")
+        logger.info(
+            f"PilotSwarm {'SUCCEEDED' if success else 'PARTIAL'}: "
+            f"{completed_count}/{len(subtasks)} subtasks, "
+            f"{len(artifacts)} artifacts"
+        )
 
         # Cost summary
         try:
             from Jotty.core.infrastructure.foundation.direct_anthropic_lm import get_cost_tracker
+
             tracker = get_cost_tracker()
             metrics = tracker.get_metrics()
             logger.info(f"COST: ${metrics.total_cost:.4f} | {metrics.total_calls} calls")
@@ -318,12 +349,12 @@ class PilotSwarm(DomainSwarm):
             swarm_name=config.name,
             domain=config.domain,
             output={
-                'goal': goal,
-                'assessment': assessment,
-                'reasoning': reasoning,
-                'subtasks_completed': completed_count,
-                'subtasks_total': len(subtasks),
-                'artifacts': artifacts,
+                "goal": goal,
+                "assessment": assessment,
+                "reasoning": reasoning,
+                "subtasks_completed": completed_count,
+                "subtasks_total": len(subtasks),
+                "artifacts": artifacts,
             },
             execution_time=exec_time,
             goal=goal,
@@ -360,36 +391,42 @@ class PilotSwarm(DomainSwarm):
         handler = dispatch.get(subtask.type, self._execute_analyze)
         return await handler(subtask, context, config)
 
-    async def _execute_search(self, subtask: Subtask, context: str, config: PilotConfig) -> Dict[str, Any]:
+    async def _execute_search(
+        self, subtask: Subtask, context: str, config: PilotConfig
+    ) -> Dict[str, Any]:
         """Execute a search subtask."""
         return await self._searcher.search(task=subtask.description, context=context)
 
-    async def _execute_code(self, subtask: Subtask, context: str, config: PilotConfig) -> Dict[str, Any]:
+    async def _execute_code(
+        self, subtask: Subtask, context: str, config: PilotConfig
+    ) -> Dict[str, Any]:
         """Execute a coding subtask — generates code, reads, edits, or writes files."""
         result = await self._coder.code(task=subtask.description, context=context)
 
-        if result.get('file_operations'):
-            for op in result['file_operations']:
+        if result.get("file_operations"):
+            for op in result["file_operations"]:
                 if not isinstance(op, dict):
                     continue
 
-                file_path = op.get('file_path', '')
-                content = op.get('content', '')
-                action = op.get('action', 'create')
+                file_path = op.get("file_path", "")
+                content = op.get("content", "")
+                action = op.get("action", "create")
 
-                if action == 'read' and file_path:
-                    op['read_content'] = self._read_file(file_path)
+                if action == "read" and file_path:
+                    op["read_content"] = self._read_file(file_path)
                     logger.info(f"    Read: {file_path}")
                     continue
 
-                if action == 'edit' and file_path and config.allow_file_write:
-                    old_content = op.get('old_content', '')
+                if action == "edit" and file_path and config.allow_file_write:
+                    old_content = op.get("old_content", "")
                     if old_content and content:
                         success = self._edit_file(file_path, old_content, content)
-                        op['edit_success'] = success
+                        op["edit_success"] = success
                     else:
-                        op['edit_success'] = False
-                        logger.warning(f"    Edit skipped — missing old_content or content for {file_path}")
+                        op["edit_success"] = False
+                        logger.warning(
+                            f"    Edit skipped — missing old_content or content for {file_path}"
+                        )
                     continue
 
                 if file_path and content and config.allow_file_write:
@@ -397,11 +434,11 @@ class PilotSwarm(DomainSwarm):
                         path = Path(file_path)
                         path.parent.mkdir(parents=True, exist_ok=True)
 
-                        if action == 'append' and path.exists():
-                            with open(path, 'a') as f:
-                                f.write('\n' + content)
+                        if action == "append" and path.exists():
+                            with open(path, "a") as f:
+                                f.write("\n" + content)
                         else:
-                            with open(path, 'w') as f:
+                            with open(path, "w") as f:
                                 f.write(content)
 
                         logger.info(f"    Wrote: {file_path} ({len(content)} chars)")
@@ -410,58 +447,73 @@ class PilotSwarm(DomainSwarm):
 
         return result
 
-    async def _execute_terminal(self, subtask: Subtask, context: str, config: PilotConfig) -> Dict[str, Any]:
+    async def _execute_terminal(
+        self, subtask: Subtask, context: str, config: PilotConfig
+    ) -> Dict[str, Any]:
         """Execute a terminal subtask — runs safe shell commands."""
         result = await self._terminal.execute(task=subtask.description, context=context)
 
         if not config.allow_terminal:
-            result['note'] = 'Terminal execution disabled — commands generated but not run'
+            result["note"] = "Terminal execution disabled — commands generated but not run"
             return result
 
         command_outputs = []
-        for cmd in result.get('commands', []):
+        for cmd in result.get("commands", []):
             if not isinstance(cmd, dict):
                 continue
 
-            command = cmd.get('command', '')
-            is_safe = cmd.get('safe', False)
+            command = cmd.get("command", "")
+            is_safe = cmd.get("safe", False)
 
             if not is_safe:
                 logger.warning(f"    Skipping unsafe command: {command}")
-                command_outputs.append({
-                    'command': command, 'skipped': True,
-                    'reason': 'Flagged as unsafe by TerminalAgent',
-                })
+                command_outputs.append(
+                    {
+                        "command": command,
+                        "skipped": True,
+                        "reason": "Flagged as unsafe by TerminalAgent",
+                    }
+                )
                 continue
 
             try:
                 cwd = config.working_directory or str(Path.cwd())
                 proc = subprocess.run(
-                    command, shell=True, capture_output=True,
-                    text=True, timeout=30, cwd=cwd,
+                    command,
+                    shell=True,
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                    cwd=cwd,
                 )
-                command_outputs.append({
-                    'command': command,
-                    'stdout': proc.stdout[:2000] if proc.stdout else '',
-                    'stderr': proc.stderr[:500] if proc.stderr else '',
-                    'returncode': proc.returncode,
-                })
+                command_outputs.append(
+                    {
+                        "command": command,
+                        "stdout": proc.stdout[:2000] if proc.stdout else "",
+                        "stderr": proc.stderr[:500] if proc.stderr else "",
+                        "returncode": proc.returncode,
+                    }
+                )
                 logger.info(f"    Ran: {command} (rc={proc.returncode})")
             except subprocess.TimeoutExpired:
-                command_outputs.append({'command': command, 'error': 'Timed out (30s)'})
+                command_outputs.append({"command": command, "error": "Timed out (30s)"})
             except Exception as e:
-                command_outputs.append({'command': command, 'error': str(e)})
+                command_outputs.append({"command": command, "error": str(e)})
 
-        result['command_outputs'] = command_outputs
+        result["command_outputs"] = command_outputs
         return result
 
-    async def _execute_create_skill(self, subtask: Subtask, context: str, config: PilotConfig) -> Dict[str, Any]:
+    async def _execute_create_skill(
+        self, subtask: Subtask, context: str, config: PilotConfig
+    ) -> Dict[str, Any]:
         """Execute a skill creation subtask."""
         # Derive skill name from tool_hint or description
         raw_name = subtask.tool_hint or subtask.description.split()[:3]
         if isinstance(raw_name, list):
-            raw_name = '-'.join(raw_name)
-        skill_name = ''.join(c for c in raw_name.lower().replace(' ', '-') if c.isalnum() or c == '-')[:30]
+            raw_name = "-".join(raw_name)
+        skill_name = "".join(
+            c for c in raw_name.lower().replace(" ", "-") if c.isalnum() or c == "-"
+        )[:30]
 
         result = await self._skill_writer.write_skill(
             description=subtask.description,
@@ -469,52 +521,59 @@ class PilotSwarm(DomainSwarm):
         )
 
         # Write skill files
-        if config.allow_file_write and result.get('skill_yaml') and result.get('tools_py'):
+        if config.allow_file_write and result.get("skill_yaml") and result.get("tools_py"):
             skills_dir = Path(__file__).parent.parent.parent.parent / "skills" / skill_name
             try:
                 skills_dir.mkdir(parents=True, exist_ok=True)
-                (skills_dir / "skill.yaml").write_text(result['skill_yaml'])
-                (skills_dir / "tools.py").write_text(result['tools_py'])
-                result['skill_name'] = skill_name
-                result['skill_path'] = str(skills_dir)
+                (skills_dir / "skill.yaml").write_text(result["skill_yaml"])
+                (skills_dir / "tools.py").write_text(result["tools_py"])
+                result["skill_name"] = skill_name
+                result["skill_path"] = str(skills_dir)
                 logger.info(f"    Created skill: {skills_dir}")
             except Exception as e:
                 logger.warning(f"    Failed to write skill files: {e}")
 
         return result
 
-    async def _execute_delegate(self, subtask: Subtask, context: str, config: PilotConfig) -> Dict[str, Any]:
+    async def _execute_delegate(
+        self, subtask: Subtask, context: str, config: PilotConfig
+    ) -> Dict[str, Any]:
         """Delegate to a specialized swarm."""
         if not config.allow_delegation:
-            return {'note': 'Delegation disabled', 'skipped': True}
+            return {"note": "Delegation disabled", "skipped": True}
 
-        swarm_name = subtask.tool_hint or 'coding'
+        swarm_name = subtask.tool_hint or "coding"
 
         try:
             from ..base_swarm import SwarmRegistry
+
             swarm_class = SwarmRegistry.get(swarm_name)
 
             if swarm_class is None:
-                return {'error': f'Swarm "{swarm_name}" not found in registry'}
+                return {"error": f'Swarm "{swarm_name}" not found in registry'}
 
             logger.info(f"    Delegating to {swarm_name} swarm...")
             swarm_instance = swarm_class()
             result = await swarm_instance.execute(subtask.description)
 
             return {
-                'swarm_used': swarm_name,
-                'success': getattr(result, 'success', False),
-                'output': str(getattr(result, 'output', {}))[:1000],
+                "swarm_used": swarm_name,
+                "success": getattr(result, "success", False),
+                "output": str(getattr(result, "output", {}))[:1000],
             }
         except Exception as e:
             logger.error(f"    Delegation to {swarm_name} failed: {e}")
-            return {'error': f'Delegation failed: {e}', 'swarm_used': swarm_name}
+            return {"error": f"Delegation failed: {e}", "swarm_used": swarm_name}
 
-    async def _execute_analyze(self, subtask: Subtask, context: str, config: PilotConfig) -> Dict[str, Any]:
+    async def _execute_analyze(
+        self, subtask: Subtask, context: str, config: PilotConfig
+    ) -> Dict[str, Any]:
         """Execute an analysis subtask using LLM reasoning."""
         return await self._searcher.search(task=subtask.description, context=context)
 
-    async def _execute_browse(self, subtask: Subtask, context: str, config: PilotConfig) -> Dict[str, Any]:
+    async def _execute_browse(
+        self, subtask: Subtask, context: str, config: PilotConfig
+    ) -> Dict[str, Any]:
         """Execute a browse subtask — smart dispatch based on target type.
 
         - URLs → web scraper / fetch_webpage to get content
@@ -523,18 +582,18 @@ class PilotSwarm(DomainSwarm):
         """
         import re
 
-        target = subtask.tool_hint or ''
+        target = subtask.tool_hint or ""
         if not target:
             # Extract URL or file path from description
             url_match = re.search(r'https?://[^\s\'"<>]+', subtask.description)
             if url_match:
                 target = url_match.group(0)
             else:
-                path_match = re.search(r'[/~][\w./\-]+\.\w+', subtask.description)
+                path_match = re.search(r"[/~][\w./\-]+\.\w+", subtask.description)
                 if path_match:
                     target = path_match.group(0)
 
-        is_url = target.startswith('http://') or target.startswith('https://')
+        is_url = target.startswith("http://") or target.startswith("https://")
 
         # URL → fetch webpage content
         if is_url:
@@ -552,81 +611,95 @@ class PilotSwarm(DomainSwarm):
         skills_root = Path(__file__).parent.parent.parent.parent / "skills"
 
         # Try web-search fetch_webpage_tool first (lighter weight)
-        fetch_tool = self._load_skill_tool(skills_root / "web-search" / "tools.py", "web_search_skill",
-                                           "fetch_webpage_tool")
+        fetch_tool = self._load_skill_tool(
+            skills_root / "web-search" / "tools.py", "web_search_skill", "fetch_webpage_tool"
+        )
         if fetch_tool:
             try:
-                result = fetch_tool({'url': url, 'max_length': 15000})
-                if isinstance(result, dict) and result.get('success'):
+                result = fetch_tool({"url": url, "max_length": 15000})
+                if isinstance(result, dict) and result.get("success"):
                     logger.info(f"    Fetched URL: {url} ({result.get('length', 0)} chars)")
                     return {
-                        'url': url,
-                        'title': result.get('title', ''),
-                        'content': result.get('content', '')[:5000],
-                        'synthesis': result.get('content', '')[:3000],
-                        'fetched_via': result.get('fetched_via', 'fetch_webpage'),
+                        "url": url,
+                        "title": result.get("title", ""),
+                        "content": result.get("content", "")[:5000],
+                        "synthesis": result.get("content", "")[:3000],
+                        "fetched_via": result.get("fetched_via", "fetch_webpage"),
                     }
             except Exception as e:
                 logger.debug(f"    fetch_webpage_tool failed: {e}")
 
         # Try web-scraper
-        scrape_tool = self._load_skill_tool(skills_root / "web-scraper" / "tools.py", "web_scraper_skill",
-                                            "scrape_website_tool")
+        scrape_tool = self._load_skill_tool(
+            skills_root / "web-scraper" / "tools.py", "web_scraper_skill", "scrape_website_tool"
+        )
         if scrape_tool:
             try:
-                result = scrape_tool({'url': url, 'output_format': 'markdown'})
-                if isinstance(result, dict) and result.get('success'):
+                result = scrape_tool({"url": url, "output_format": "markdown"})
+                if isinstance(result, dict) and result.get("success"):
                     logger.info(f"    Scraped URL: {url} ({result.get('content_length', 0)} chars)")
                     return {
-                        'url': url,
-                        'title': result.get('title', ''),
-                        'content': result.get('content', '')[:5000],
-                        'synthesis': result.get('content', '')[:3000],
-                        'fetched_via': 'web-scraper',
+                        "url": url,
+                        "title": result.get("title", ""),
+                        "content": result.get("content", "")[:5000],
+                        "synthesis": result.get("content", "")[:3000],
+                        "fetched_via": "web-scraper",
                     }
             except Exception as e:
                 logger.debug(f"    scrape_website_tool failed: {e}")
 
         # Try browser-automation as last resort
-        browser_tool = self._load_skill_tool(skills_root / "browser-automation" / "tools.py",
-                                             "browser_automation_skill", "browser_navigate_tool")
+        browser_tool = self._load_skill_tool(
+            skills_root / "browser-automation" / "tools.py",
+            "browser_automation_skill",
+            "browser_navigate_tool",
+        )
         if browser_tool:
             try:
-                result = browser_tool({'url': url, 'extract_text': True, 'screenshot': False})
-                if isinstance(result, dict) and result.get('success'):
+                result = browser_tool({"url": url, "extract_text": True, "screenshot": False})
+                if isinstance(result, dict) and result.get("success"):
                     logger.info(f"    Browsed URL: {url}")
                     return {
-                        'url': url,
-                        'title': result.get('title', ''),
-                        'content': result.get('text', '')[:5000],
-                        'synthesis': result.get('text', '')[:3000],
-                        'fetched_via': 'browser-automation',
+                        "url": url,
+                        "title": result.get("title", ""),
+                        "content": result.get("text", "")[:5000],
+                        "synthesis": result.get("text", "")[:3000],
+                        "fetched_via": "browser-automation",
                     }
             except Exception as e:
                 logger.debug(f"    browser_navigate_tool failed: {e}")
 
         logger.warning(f"    No web tool available for {url}, falling back to search")
-        return await self._searcher.search(task=f"Fetch content from {url}: {task}", context=context)
+        return await self._searcher.search(
+            task=f"Fetch content from {url}: {task}", context=context
+        )
 
     async def _browse_file(self, file_path: str, task: str, context: str) -> Dict[str, Any]:
         """Inspect a local file using VLM visual-inspector."""
         skills_root = Path(__file__).parent.parent.parent.parent / "skills"
-        tool = self._load_skill_tool(skills_root / "visual-inspector" / "tools.py",
-                                     "visual_inspector_skill",
-                                     "inspect_file_visually_tool", "visual_inspect_tool")
+        tool = self._load_skill_tool(
+            skills_root / "visual-inspector" / "tools.py",
+            "visual_inspector_skill",
+            "inspect_file_visually_tool",
+            "visual_inspect_tool",
+        )
         if tool:
             try:
-                result = tool({
-                    'image_path': file_path,
-                    'question': task,
-                    'task_context': context,
-                })
+                result = tool(
+                    {
+                        "image_path": file_path,
+                        "question": task,
+                        "task_context": context,
+                    }
+                )
                 logger.info(f"    VLM analyzed: {file_path}")
                 return {
-                    'visual_analysis': result.get('visual_state', result.get('result', str(result))),
-                    'model': result.get('model', 'unknown'),
-                    'file_path': file_path,
-                    'synthesis': result.get('visual_state', ''),
+                    "visual_analysis": result.get(
+                        "visual_state", result.get("result", str(result))
+                    ),
+                    "model": result.get("model", "unknown"),
+                    "file_path": file_path,
+                    "synthesis": result.get("visual_state", ""),
                 }
             except Exception as e:
                 logger.error(f"    VLM inspection failed: {e}")
@@ -635,8 +708,8 @@ class PilotSwarm(DomainSwarm):
         try:
             p = Path(file_path)
             if p.exists() and p.stat().st_size < 50000:
-                content = p.read_text(errors='replace')[:5000]
-                return {'file_path': file_path, 'content': content, 'synthesis': content[:3000]}
+                content = p.read_text(errors="replace")[:5000]
+                return {"file_path": file_path, "content": content, "synthesis": content[:3000]}
         except Exception:
             pass
 
@@ -651,6 +724,7 @@ class PilotSwarm(DomainSwarm):
         """Load a tool function from a skill's tools.py by absolute path."""
         try:
             import importlib.util
+
             spec = importlib.util.spec_from_file_location(module_name, str(tools_path))
             mod = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(mod)
@@ -691,7 +765,9 @@ class PilotSwarm(DomainSwarm):
             except self._TRANSIENT_ERRORS as e:
                 last_exc = e
                 if attempt < max_retries:
-                    logger.warning(f"  [{subtask.id}] Transient error (attempt {attempt + 1}): {e}, retrying...")
+                    logger.warning(
+                        f"  [{subtask.id}] Transient error (attempt {attempt + 1}): {e}, retrying..."
+                    )
                     await asyncio.sleep(backoff[min(attempt, len(backoff) - 1)])
                     continue
                 raise
@@ -699,7 +775,9 @@ class PilotSwarm(DomainSwarm):
                 err_str = str(e).lower()
                 if any(s in err_str for s in self._TRANSIENT_STRINGS) and attempt < max_retries:
                     last_exc = e
-                    logger.warning(f"  [{subtask.id}] Transient error (attempt {attempt + 1}): {e}, retrying...")
+                    logger.warning(
+                        f"  [{subtask.id}] Transient error (attempt {attempt + 1}): {e}, retrying..."
+                    )
                     await asyncio.sleep(backoff[min(attempt, len(backoff) - 1)])
                     continue
                 raise
@@ -767,9 +845,12 @@ class PilotSwarm(DomainSwarm):
             p = Path(file_path)
             if not p.exists():
                 return f"[ERROR] File not found: {file_path}"
-            content = p.read_text(errors='replace')
+            content = p.read_text(errors="replace")
             if len(content) > max_chars:
-                return content[:max_chars] + f"\n... [truncated at {max_chars} chars, total {len(content)}]"
+                return (
+                    content[:max_chars]
+                    + f"\n... [truncated at {max_chars} chars, total {len(content)}]"
+                )
             return content
         except Exception as e:
             return f"[ERROR] Could not read {file_path}: {e}"
@@ -785,7 +866,7 @@ class PilotSwarm(DomainSwarm):
             if not p.exists():
                 logger.warning(f"    Edit failed — file not found: {file_path}")
                 return False
-            text = p.read_text(errors='replace')
+            text = p.read_text(errors="replace")
             if old_content not in text:
                 logger.warning(f"    Edit failed — old_content not found in {file_path}")
                 return False
@@ -818,21 +899,30 @@ class PilotSwarm(DomainSwarm):
                 r = all_results[st.id]
                 if isinstance(r, dict):
                     # Check all meaningful result keys
-                    for key in ['synthesis', 'explanation', 'content', 'assessment',
-                                'key_findings', 'read_content', 'visual_analysis']:
+                    for key in [
+                        "synthesis",
+                        "explanation",
+                        "content",
+                        "assessment",
+                        "key_findings",
+                        "read_content",
+                        "visual_analysis",
+                    ]:
                         if r.get(key):
                             val = r[key]
                             if isinstance(val, list):
-                                val = '; '.join(str(v) for v in val[:5])
+                                val = "; ".join(str(v) for v in val[:5])
                             result_preview = f" — {str(val)[:300]}"
                             break
                     # Also check file operations for read_content
                     if not result_preview:
-                        for op in r.get('file_operations', []):
-                            if isinstance(op, dict) and op.get('read_content'):
+                        for op in r.get("file_operations", []):
+                            if isinstance(op, dict) and op.get("read_content"):
                                 result_preview = f" — read: {str(op['read_content'])[:300]}"
                                 break
-            parts.append(f"  [{st.id}] {st.type.value} ({status}): {st.description[:80]}{result_preview}")
+            parts.append(
+                f"  [{st.id}] {st.type.value} ({status}): {st.description[:80]}{result_preview}"
+            )
 
         parts.append("")
         parts.append("REMAINING GAPS (must be addressed):")
@@ -841,7 +931,7 @@ class PilotSwarm(DomainSwarm):
 
         parts.append("")
         parts.append("Re-plan to address ONLY the remaining gaps. Do NOT repeat completed work.")
-        return '\n'.join(parts)
+        return "\n".join(parts)
 
     # =========================================================================
     # HELPERS
@@ -858,68 +948,83 @@ class PilotSwarm(DomainSwarm):
                 summary_parts = []
 
                 # Direct keys
-                for key in ['synthesis', 'explanation', 'assessment', 'key_findings',
-                            'content', 'visual_analysis', 'skill_name', 'output',
-                            'title', 'read_content']:
+                for key in [
+                    "synthesis",
+                    "explanation",
+                    "assessment",
+                    "key_findings",
+                    "content",
+                    "visual_analysis",
+                    "skill_name",
+                    "output",
+                    "title",
+                    "read_content",
+                ]:
                     if key in result and result[key]:
                         val = result[key]
                         if isinstance(val, list):
-                            val = '; '.join(str(v) for v in val[:5])
+                            val = "; ".join(str(v) for v in val[:5])
                         summary_parts.append(f"{key}: {str(val)[:800]}")
 
                 # Extract read_content from file_operations
-                for op in result.get('file_operations', []):
-                    if isinstance(op, dict) and op.get('read_content'):
-                        summary_parts.append(f"read_content ({op.get('file_path', '?')}): "
-                                             f"{str(op['read_content'])[:800]}")
+                for op in result.get("file_operations", []):
+                    if isinstance(op, dict) and op.get("read_content"):
+                        summary_parts.append(
+                            f"read_content ({op.get('file_path', '?')}): "
+                            f"{str(op['read_content'])[:800]}"
+                        )
 
                 # Terminal command outputs
-                for cmd_out in result.get('command_outputs', []):
+                for cmd_out in result.get("command_outputs", []):
                     if isinstance(cmd_out, dict):
-                        cmd = cmd_out.get('command', '')
-                        stdout = cmd_out.get('stdout', '')
+                        cmd = cmd_out.get("command", "")
+                        stdout = cmd_out.get("stdout", "")
                         if stdout:
                             summary_parts.append(f"$ {cmd}\n{stdout[:1000]}")
-                        elif cmd_out.get('error'):
+                        elif cmd_out.get("error"):
                             summary_parts.append(f"$ {cmd} — ERROR: {cmd_out['error'][:200]}")
 
                 if summary_parts:
                     parts.append(f"[{sid}] {'; '.join(summary_parts)}")
 
-        return '\n'.join(parts[-8:]) if parts else "No usable results yet."
+        return "\n".join(parts[-8:]) if parts else "No usable results yet."
 
     def _build_results_summary(self, subtasks: List[Subtask], all_results: Dict) -> str:
         """Build a summary of all results for validation."""
         parts = []
         for st in subtasks:
             status = st.status.value
-            result_preview = ''
+            result_preview = ""
             if st.id in all_results:
                 r = all_results[st.id]
                 if isinstance(r, dict):
-                    if r.get('error'):
+                    if r.get("error"):
                         result_preview = f" — ERROR: {r['error'][:300]}"
-                    elif r.get('command_outputs'):
+                    elif r.get("command_outputs"):
                         # Terminal results: show actual command output
                         cmd_summaries = []
-                        for co in r['command_outputs']:
-                            if isinstance(co, dict) and co.get('stdout'):
-                                cmd_summaries.append(f"$ {co.get('command','')}: {co['stdout'][:300]}")
+                        for co in r["command_outputs"]:
+                            if isinstance(co, dict) and co.get("stdout"):
+                                cmd_summaries.append(
+                                    f"$ {co.get('command','')}: {co['stdout'][:300]}"
+                                )
                         if cmd_summaries:
                             result_preview = f" — {'; '.join(cmd_summaries)}"
-                    elif r.get('content'):
+                    elif r.get("content"):
                         result_preview = f" — {str(r['content'])[:400]}"
-                    elif r.get('synthesis'):
+                    elif r.get("synthesis"):
                         result_preview = f" — {str(r['synthesis'])[:400]}"
-                    elif r.get('visual_analysis'):
+                    elif r.get("visual_analysis"):
                         result_preview = f" — {str(r['visual_analysis'])[:400]}"
-                    elif r.get('explanation'):
+                    elif r.get("explanation"):
                         result_preview = f" — {str(r['explanation'])[:400]}"
-                    elif r.get('skill_name'):
+                    elif r.get("skill_name"):
                         result_preview = f" — Created skill: {r['skill_name']}"
-            parts.append(f"[{st.id}] {st.type.value} ({status}): {st.description[:100]}{result_preview}")
+            parts.append(
+                f"[{st.id}] {st.type.value} ({status}): {st.description[:100]}{result_preview}"
+            )
 
-        return '\n'.join(parts)
+        return "\n".join(parts)
 
     # =========================================================================
     # GOLD STANDARDS
@@ -929,18 +1034,18 @@ class PilotSwarm(DomainSwarm):
         """Seed default gold standards for evaluation."""
         self._init_agents()
         self.add_gold_standard(
-            task_type='pilot_execution',
-            input_data={'goal': 'any'},
+            task_type="pilot_execution",
+            input_data={"goal": "any"},
             expected_output={
-                'subtasks_completed': 1,
-                'has_plan': True,
-                'has_validation': True,
+                "subtasks_completed": 1,
+                "has_plan": True,
+                "has_validation": True,
             },
             evaluation_criteria={
-                'subtasks_completed': 0.5,
-                'has_plan': 0.25,
-                'has_validation': 0.25,
-            }
+                "subtasks_completed": 0.5,
+                "has_plan": 0.25,
+                "has_validation": 0.25,
+            },
         )
         logger.info("Seeded gold standards for PilotSwarm")
 
@@ -948,6 +1053,7 @@ class PilotSwarm(DomainSwarm):
 # =============================================================================
 # CONVENIENCE FUNCTIONS
 # =============================================================================
+
 
 async def pilot(
     goal: str,
@@ -988,13 +1094,22 @@ def pilot_sync(
 ) -> PilotResult:
     """Synchronous version of pilot."""
     import asyncio
-    return asyncio.run(pilot(
-        goal=goal, context=context, send_telegram=send_telegram,
-        allow_terminal=allow_terminal, allow_file_write=allow_file_write,
-    ))
+
+    return asyncio.run(
+        pilot(
+            goal=goal,
+            context=context,
+            send_telegram=send_telegram,
+            allow_terminal=allow_terminal,
+            allow_file_write=allow_file_write,
+        )
+    )
 
 
 __all__ = [
-    'PilotSwarm', 'PilotConfig', 'PilotResult',
-    'pilot', 'pilot_sync',
+    "PilotSwarm",
+    "PilotConfig",
+    "PilotResult",
+    "pilot",
+    "pilot_sync",
 ]

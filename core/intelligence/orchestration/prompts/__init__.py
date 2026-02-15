@@ -44,7 +44,7 @@ def get_swarm_architect_prompt() -> str:
 
 
 def get_swarm_auditor_prompt(
-    auditor_type: Literal['coordination', 'goal_alignment'] = 'coordination'
+    auditor_type: Literal["coordination", "goal_alignment"] = "coordination"
 ) -> str:
     """
     Get swarm auditor prompt for actor coordination or goal alignment.
@@ -57,9 +57,9 @@ def get_swarm_auditor_prompt(
     Returns:
         Markdown prompt text
     """
-    if auditor_type == 'coordination':
+    if auditor_type == "coordination":
         prompt_file = _PROMPTS_DIR / "swarm" / "auditor_coordination.md"
-    elif auditor_type == 'goal_alignment':
+    elif auditor_type == "goal_alignment":
         prompt_file = _PROMPTS_DIR / "swarm" / "auditor_goal_alignment.md"
     else:
         raise ValueError(f"Invalid auditor_type: {auditor_type}")
@@ -87,7 +87,7 @@ def get_generic_auditor_prompt() -> str:
 
 
 __all__ = [
-    'get_swarm_architect_prompt',
-    'get_swarm_auditor_prompt',
-    'get_generic_auditor_prompt',
+    "get_swarm_architect_prompt",
+    "get_swarm_auditor_prompt",
+    "get_generic_auditor_prompt",
 ]

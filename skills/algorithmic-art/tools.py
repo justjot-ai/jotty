@@ -1,12 +1,12 @@
-import os
-import tempfile
-import random
-import math
-from typing import Dict, Any, List, Tuple, Optional
 import logging
+import math
+import os
+import random
+import tempfile
+from typing import Any, Dict, List, Optional, Tuple
 
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("algorithmic-art")
@@ -24,11 +24,17 @@ class ColorPaletteManager:
         "forest": [(27, 94, 32), (56, 142, 60), (102, 187, 106), (165, 214, 167), (200, 230, 201)],
         "fire": [(255, 87, 34), (255, 138, 101), (255, 183, 77), (255, 213, 79), (255, 241, 118)],
         "neon": [(255, 0, 255), (0, 255, 255), (255, 255, 0), (0, 255, 0), (255, 0, 128)],
-        "pastel": [(255, 179, 186), (255, 223, 186), (255, 255, 186), (186, 255, 201), (186, 225, 255)],
+        "pastel": [
+            (255, 179, 186),
+            (255, 223, 186),
+            (255, 255, 186),
+            (186, 255, 201),
+            (186, 225, 255),
+        ],
         "monochrome": [(0, 0, 0), (64, 64, 64), (128, 128, 128), (192, 192, 192), (255, 255, 255)],
         "cyberpunk": [(15, 14, 23), (57, 21, 74), (148, 33, 106), (255, 0, 102), (0, 255, 255)],
         "earth": [(139, 90, 43), (160, 120, 60), (180, 160, 100), (200, 190, 140), (220, 220, 180)],
-        "cosmic": [(10, 10, 35), (30, 30, 80), (75, 30, 120), (140, 50, 160), (200, 100, 200)]
+        "cosmic": [(10, 10, 35), (30, 30, 80), (75, 30, 120), (140, 50, 160), (200, 100, 200)],
     }
 
     @classmethod
@@ -42,12 +48,14 @@ class ColorPaletteManager:
         return list(cls.PALETTES.keys())
 
     @classmethod
-    def interpolate_color(cls, color1: Tuple[int, int, int], color2: Tuple[int, int, int], t: float) -> Tuple[int, int, int]:
+    def interpolate_color(
+        cls, color1: Tuple[int, int, int], color2: Tuple[int, int, int], t: float
+    ) -> Tuple[int, int, int]:
         """Interpolate between two colors."""
         return (
             int(color1[0] + (color2[0] - color1[0]) * t),
             int(color1[1] + (color2[1] - color1[1]) * t),
-            int(color1[2] + (color2[2] - color1[2]) * t)
+            int(color1[2] + (color2[2] - color1[2]) * t),
         )
 
 
@@ -137,14 +145,14 @@ def create_noise_art_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - image_path (str): Path to generated image
             - error (str, optional): Error message if failed
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
     try:
-        from PIL import Image
         import numpy as np
+        from PIL import Image
     except ImportError as e:
         return {
             "success": False,
-            "error": f"Required libraries not installed: {str(e)}. Install with: pip install Pillow numpy"
+            "error": f"Required libraries not installed: {str(e)}. Install with: pip install Pillow numpy",
         }
 
     width = params.get("width", 800)
@@ -175,7 +183,9 @@ def create_noise_art_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             temp_dir = tempfile.gettempdir()
             output_path = os.path.join(temp_dir, f"noise_art_{os.getpid()}.png")
 
-        os.makedirs(os.path.dirname(output_path) if os.path.dirname(output_path) else ".", exist_ok=True)
+        os.makedirs(
+            os.path.dirname(output_path) if os.path.dirname(output_path) else ".", exist_ok=True
+        )
         img.save(output_path)
 
         logger.info(f"Noise art saved to: {output_path}")
@@ -186,15 +196,12 @@ def create_noise_art_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             "width": width,
             "height": height,
             "seed": noise_gen.seed,
-            "color_palette": color_palette
+            "color_palette": color_palette,
         }
 
     except Exception as e:
         logger.error(f"Error creating noise art: {str(e)}", exc_info=True)
-        return {
-            "success": False,
-            "error": f"Noise art generation failed: {str(e)}"
-        }
+        return {"success": False, "error": f"Noise art generation failed: {str(e)}"}
 
 
 @tool_wrapper()
@@ -217,14 +224,14 @@ def create_flow_field_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - image_path (str): Path to generated image
             - error (str, optional): Error message if failed
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
     try:
-        from PIL import Image, ImageDraw
         import numpy as np
+        from PIL import Image, ImageDraw
     except ImportError as e:
         return {
             "success": False,
-            "error": f"Required libraries not installed: {str(e)}. Install with: pip install Pillow numpy"
+            "error": f"Required libraries not installed: {str(e)}. Install with: pip install Pillow numpy",
         }
 
     width = params.get("width", 800)
@@ -279,7 +286,9 @@ def create_flow_field_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             temp_dir = tempfile.gettempdir()
             output_path = os.path.join(temp_dir, f"flow_field_{os.getpid()}.png")
 
-        os.makedirs(os.path.dirname(output_path) if os.path.dirname(output_path) else ".", exist_ok=True)
+        os.makedirs(
+            os.path.dirname(output_path) if os.path.dirname(output_path) else ".", exist_ok=True
+        )
         img.save(output_path)
 
         logger.info(f"Flow field art saved to: {output_path}")
@@ -291,15 +300,12 @@ def create_flow_field_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             "height": height,
             "seed": seed,
             "num_particles": num_particles,
-            "color_palette": color_palette
+            "color_palette": color_palette,
         }
 
     except Exception as e:
         logger.error(f"Error creating flow field: {str(e)}", exc_info=True)
-        return {
-            "success": False,
-            "error": f"Flow field generation failed: {str(e)}"
-        }
+        return {"success": False, "error": f"Flow field generation failed: {str(e)}"}
 
 
 @tool_wrapper()
@@ -322,12 +328,12 @@ def create_geometric_pattern_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - error (str, optional): Error message if failed
     """
     try:
-        from PIL import Image, ImageDraw
         import numpy as np
+        from PIL import Image, ImageDraw
     except ImportError as e:
         return {
             "success": False,
-            "error": f"Required libraries not installed: {str(e)}. Install with: pip install Pillow numpy"
+            "error": f"Required libraries not installed: {str(e)}. Install with: pip install Pillow numpy",
         }
 
     width = params.get("width", 800)
@@ -369,11 +375,7 @@ def create_geometric_pattern_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                     cy = y
                     color = random.choice(palette)
                     size = cell_size // 2
-                    points = [
-                        (cx, cy - size),
-                        (cx - size, cy + size),
-                        (cx + size, cy + size)
-                    ]
+                    points = [(cx, cy - size), (cx - size, cy + size), (cx + size, cy + size)]
                     if random.random() > 0.5:
                         points = [(cx, cy + size), (cx - size, cy - size), (cx + size, cy - size)]
                     draw.polygon(points, fill=color)
@@ -396,13 +398,15 @@ def create_geometric_pattern_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
         elif pattern == "voronoi":
             num_points = 50
-            points = [(random.randint(0, width), random.randint(0, height)) for _ in range(num_points)]
+            points = [
+                (random.randint(0, width), random.randint(0, height)) for _ in range(num_points)
+            ]
             point_colors = [random.choice(palette) for _ in range(num_points)]
 
             pixels = img.load()
             for y in range(height):
                 for x in range(width):
-                    min_dist = float('inf')
+                    min_dist = float("inf")
                     closest_idx = 0
                     for i, (px, py) in enumerate(points):
                         dist = (x - px) ** 2 + (y - py) ** 2
@@ -414,14 +418,16 @@ def create_geometric_pattern_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         else:
             return {
                 "success": False,
-                "error": f"Unknown pattern type: {pattern}. Supported: circles, triangles, hexagons, voronoi"
+                "error": f"Unknown pattern type: {pattern}. Supported: circles, triangles, hexagons, voronoi",
             }
 
         if output_path is None:
             temp_dir = tempfile.gettempdir()
             output_path = os.path.join(temp_dir, f"geometric_{pattern}_{os.getpid()}.png")
 
-        os.makedirs(os.path.dirname(output_path) if os.path.dirname(output_path) else ".", exist_ok=True)
+        os.makedirs(
+            os.path.dirname(output_path) if os.path.dirname(output_path) else ".", exist_ok=True
+        )
         img.save(output_path)
 
         logger.info(f"Geometric pattern saved to: {output_path}")
@@ -431,15 +437,12 @@ def create_geometric_pattern_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             "image_path": output_path,
             "width": width,
             "height": height,
-            "pattern": pattern
+            "pattern": pattern,
         }
 
     except Exception as e:
         logger.error(f"Error creating geometric pattern: {str(e)}", exc_info=True)
-        return {
-            "success": False,
-            "error": f"Geometric pattern generation failed: {str(e)}"
-        }
+        return {"success": False, "error": f"Geometric pattern generation failed: {str(e)}"}
 
 
 @tool_wrapper()
@@ -463,12 +466,12 @@ def create_fractal_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - error (str, optional): Error message if failed
     """
     try:
-        from PIL import Image
         import numpy as np
+        from PIL import Image
     except ImportError as e:
         return {
             "success": False,
-            "error": f"Required libraries not installed: {str(e)}. Install with: pip install Pillow numpy"
+            "error": f"Required libraries not installed: {str(e)}. Install with: pip install Pillow numpy",
         }
 
     width = params.get("width", 800)
@@ -510,7 +513,9 @@ def create_fractal_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                         idx1 = int(palette_idx)
                         idx2 = min(idx1 + 1, len(palette) - 1)
                         frac = palette_idx - idx1
-                        color = ColorPaletteManager.interpolate_color(palette[idx1], palette[idx2], frac)
+                        color = ColorPaletteManager.interpolate_color(
+                            palette[idx1], palette[idx2], frac
+                        )
                         pixels[px, py] = color
 
         elif fractal_type == "julia":
@@ -541,20 +546,24 @@ def create_fractal_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                         idx1 = int(palette_idx)
                         idx2 = min(idx1 + 1, len(palette) - 1)
                         frac = palette_idx - idx1
-                        color = ColorPaletteManager.interpolate_color(palette[idx1], palette[idx2], frac)
+                        color = ColorPaletteManager.interpolate_color(
+                            palette[idx1], palette[idx2], frac
+                        )
                         pixels[px, py] = color
 
         else:
             return {
                 "success": False,
-                "error": f"Unknown fractal type: {fractal_type}. Supported: mandelbrot, julia"
+                "error": f"Unknown fractal type: {fractal_type}. Supported: mandelbrot, julia",
             }
 
         if output_path is None:
             temp_dir = tempfile.gettempdir()
             output_path = os.path.join(temp_dir, f"fractal_{fractal_type}_{os.getpid()}.png")
 
-        os.makedirs(os.path.dirname(output_path) if os.path.dirname(output_path) else ".", exist_ok=True)
+        os.makedirs(
+            os.path.dirname(output_path) if os.path.dirname(output_path) else ".", exist_ok=True
+        )
         img.save(output_path)
 
         logger.info(f"Fractal saved to: {output_path}")
@@ -565,15 +574,12 @@ def create_fractal_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             "width": width,
             "height": height,
             "fractal_type": fractal_type,
-            "iterations": iterations
+            "iterations": iterations,
         }
 
     except Exception as e:
         logger.error(f"Error creating fractal: {str(e)}", exc_info=True)
-        return {
-            "success": False,
-            "error": f"Fractal generation failed: {str(e)}"
-        }
+        return {"success": False, "error": f"Fractal generation failed: {str(e)}"}
 
 
 @tool_wrapper()
@@ -596,12 +602,12 @@ def create_generative_landscape_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - error (str, optional): Error message if failed
     """
     try:
-        from PIL import Image, ImageDraw
         import numpy as np
+        from PIL import Image, ImageDraw
     except ImportError as e:
         return {
             "success": False,
-            "error": f"Required libraries not installed: {str(e)}. Install with: pip install Pillow numpy"
+            "error": f"Required libraries not installed: {str(e)}. Install with: pip install Pillow numpy",
         }
 
     width = params.get("width", 800)
@@ -631,14 +637,12 @@ def create_generative_landscape_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             sun_x = width * 0.7
             sun_y = height * 0.35
             sun_radius = 40
-            draw.ellipse([sun_x - sun_radius, sun_y - sun_radius, sun_x + sun_radius, sun_y + sun_radius], fill=(255, 200, 100))
+            draw.ellipse(
+                [sun_x - sun_radius, sun_y - sun_radius, sun_x + sun_radius, sun_y + sun_radius],
+                fill=(255, 200, 100),
+            )
 
-            mountain_colors = [
-                (30, 30, 50),
-                (50, 50, 80),
-                (70, 70, 100),
-                (90, 90, 120)
-            ]
+            mountain_colors = [(30, 30, 50), (50, 50, 80), (70, 70, 100), (90, 90, 120)]
 
             for layer, color in enumerate(mountain_colors):
                 base_y = height // 2 + layer * 30
@@ -660,11 +664,7 @@ def create_generative_landscape_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                 color = ColorPaletteManager.interpolate_color((0, 50, 100), (0, 100, 150), t)
                 draw.line([(0, y), (width, y)], fill=color)
 
-            wave_colors = [
-                (255, 255, 255, 100),
-                (200, 220, 255, 80),
-                (150, 200, 255, 60)
-            ]
+            wave_colors = [(255, 255, 255, 100), (200, 220, 255, 80), (150, 200, 255, 60)]
 
             draw_alpha = ImageDraw.Draw(img, "RGBA")
 
@@ -675,8 +675,14 @@ def create_generative_landscape_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
                 for x in range(width):
                     for offset in range(5):
-                        noise_val = noise_gen.noise2d(x * frequency + offset * 0.1, layer + offset * 0.05)
-                        y = base_y + amplitude * math.sin(noise_val * math.pi * 4 + x * 0.02) + offset * 3
+                        noise_val = noise_gen.noise2d(
+                            x * frequency + offset * 0.1, layer + offset * 0.05
+                        )
+                        y = (
+                            base_y
+                            + amplitude * math.sin(noise_val * math.pi * 4 + x * 0.02)
+                            + offset * 3
+                        )
                         alpha = max(0, color[3] - offset * 20)
                         draw_alpha.point((x, int(y)), fill=(color[0], color[1], color[2], alpha))
 
@@ -686,29 +692,39 @@ def create_generative_landscape_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                     noise_val = noise_gen.fractal_noise(x * 0.005, y * 0.005, octaves=6)
 
                     if noise_val < 0.3:
-                        color = ColorPaletteManager.interpolate_color((0, 50, 150), (0, 100, 200), noise_val / 0.3)
+                        color = ColorPaletteManager.interpolate_color(
+                            (0, 50, 150), (0, 100, 200), noise_val / 0.3
+                        )
                     elif noise_val < 0.4:
                         color = (238, 214, 175)
                     elif noise_val < 0.6:
-                        color = ColorPaletteManager.interpolate_color((34, 139, 34), (85, 170, 85), (noise_val - 0.4) / 0.2)
+                        color = ColorPaletteManager.interpolate_color(
+                            (34, 139, 34), (85, 170, 85), (noise_val - 0.4) / 0.2
+                        )
                     elif noise_val < 0.8:
-                        color = ColorPaletteManager.interpolate_color((85, 170, 85), (139, 90, 43), (noise_val - 0.6) / 0.2)
+                        color = ColorPaletteManager.interpolate_color(
+                            (85, 170, 85), (139, 90, 43), (noise_val - 0.6) / 0.2
+                        )
                     else:
-                        color = ColorPaletteManager.interpolate_color((139, 90, 43), (255, 255, 255), (noise_val - 0.8) / 0.2)
+                        color = ColorPaletteManager.interpolate_color(
+                            (139, 90, 43), (255, 255, 255), (noise_val - 0.8) / 0.2
+                        )
 
                     img.putpixel((x, y), color)
 
         else:
             return {
                 "success": False,
-                "error": f"Unknown style: {style}. Supported: mountains, waves, terrain"
+                "error": f"Unknown style: {style}. Supported: mountains, waves, terrain",
             }
 
         if output_path is None:
             temp_dir = tempfile.gettempdir()
             output_path = os.path.join(temp_dir, f"landscape_{style}_{os.getpid()}.png")
 
-        os.makedirs(os.path.dirname(output_path) if os.path.dirname(output_path) else ".", exist_ok=True)
+        os.makedirs(
+            os.path.dirname(output_path) if os.path.dirname(output_path) else ".", exist_ok=True
+        )
         img.save(output_path)
 
         logger.info(f"Landscape saved to: {output_path}")
@@ -719,15 +735,12 @@ def create_generative_landscape_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             "width": width,
             "height": height,
             "style": style,
-            "seed": seed
+            "seed": seed,
         }
 
     except Exception as e:
         logger.error(f"Error creating landscape: {str(e)}", exc_info=True)
-        return {
-            "success": False,
-            "error": f"Landscape generation failed: {str(e)}"
-        }
+        return {"success": False, "error": f"Landscape generation failed: {str(e)}"}
 
 
 @tool_wrapper()
@@ -748,26 +761,20 @@ def apply_artistic_filter_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - error (str, optional): Error message if failed
     """
     try:
-        from PIL import Image, ImageDraw, ImageFilter, ImageEnhance
         import numpy as np
+        from PIL import Image, ImageDraw, ImageEnhance, ImageFilter
     except ImportError as e:
         return {
             "success": False,
-            "error": f"Required libraries not installed: {str(e)}. Install with: pip install Pillow numpy"
+            "error": f"Required libraries not installed: {str(e)}. Install with: pip install Pillow numpy",
         }
 
     image_path = params.get("image_path")
     if not image_path:
-        return {
-            "success": False,
-            "error": "Missing required parameter: image_path"
-        }
+        return {"success": False, "error": "Missing required parameter: image_path"}
 
     if not os.path.exists(image_path):
-        return {
-            "success": False,
-            "error": f"Image not found: {image_path}"
-        }
+        return {"success": False, "error": f"Image not found: {image_path}"}
 
     filter_type = params.get("filter", "pointillism").lower()
     output_path = params.get("output_path")
@@ -791,7 +798,9 @@ def apply_artistic_filter_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                     cy = y + dot_size // 2 + random.randint(-2, 2)
                     radius = dot_size // 2 + random.randint(-1, 1)
 
-                    draw.ellipse([cx - radius, cy - radius, cx + radius, cy + radius], fill=avg_color)
+                    draw.ellipse(
+                        [cx - radius, cy - radius, cx + radius, cy + radius], fill=avg_color
+                    )
 
             img = output
 
@@ -826,7 +835,9 @@ def apply_artistic_filter_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                     if blur_pixels[x, y] == 0:
                         output_pixels[x, y] = 255
                     else:
-                        output_pixels[x, y] = min(255, int(gray_pixels[x, y] * 256 / (256 - blur_pixels[x, y])))
+                        output_pixels[x, y] = min(
+                            255, int(gray_pixels[x, y] * 256 / (256 - blur_pixels[x, y]))
+                        )
 
             img = output.convert("RGB")
 
@@ -860,14 +871,16 @@ def apply_artistic_filter_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         else:
             return {
                 "success": False,
-                "error": f"Unknown filter type: {filter_type}. Supported: pointillism, mosaic, sketch, watercolor"
+                "error": f"Unknown filter type: {filter_type}. Supported: pointillism, mosaic, sketch, watercolor",
             }
 
         if output_path is None:
             temp_dir = tempfile.gettempdir()
             output_path = os.path.join(temp_dir, f"filtered_{filter_type}_{os.getpid()}.png")
 
-        os.makedirs(os.path.dirname(output_path) if os.path.dirname(output_path) else ".", exist_ok=True)
+        os.makedirs(
+            os.path.dirname(output_path) if os.path.dirname(output_path) else ".", exist_ok=True
+        )
         img.save(output_path)
 
         logger.info(f"Filtered image saved to: {output_path}")
@@ -876,15 +889,12 @@ def apply_artistic_filter_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             "success": True,
             "image_path": output_path,
             "filter": filter_type,
-            "original_path": image_path
+            "original_path": image_path,
         }
 
     except Exception as e:
         logger.error(f"Error applying filter: {str(e)}", exc_info=True)
-        return {
-            "success": False,
-            "error": f"Filter application failed: {str(e)}"
-        }
+        return {"success": False, "error": f"Filter application failed: {str(e)}"}
 
 
 @tool_wrapper()
@@ -900,17 +910,16 @@ def list_color_palettes_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - success (bool): Always True
             - palettes (list): List of available palette names with colors
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     palettes = []
     for name, colors in ColorPaletteManager.PALETTES.items():
-        palettes.append({
-            "name": name,
-            "colors": colors,
-            "hex_colors": ["#{:02x}{:02x}{:02x}".format(r, g, b) for r, g, b in colors]
-        })
+        palettes.append(
+            {
+                "name": name,
+                "colors": colors,
+                "hex_colors": ["#{:02x}{:02x}{:02x}".format(r, g, b) for r, g, b in colors],
+            }
+        )
 
-    return {
-        "success": True,
-        "palettes": palettes
-    }
+    return {"success": True, "palettes": palettes}

@@ -33,16 +33,17 @@ Usage:
     )
 """
 
-from typing import Dict, Any, Optional, Union, List
-import pandas as pd
-import numpy as np
 import asyncio
-import time
 import logging
+import time
+from typing import Any, Dict, List, Optional, Union
 
-from .templates import TemplateRegistry, SwarmTemplate, SwarmML
-from .templates.base import TemplateExecutor
+import numpy as np
+import pandas as pd
+
 from .swarm_manager import Orchestrator
+from .templates import SwarmML, SwarmTemplate, TemplateRegistry
+from .templates.base import TemplateExecutor
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +55,18 @@ class TemplateSwarmResult:
     Contains all outputs from the template execution.
     """
 
-    def __init__(self, success: bool, score: float = 0.0, model: Any = None, data: Any = None, feature_count: int = 0, execution_time: float = 0.0, template_name: str = '', stage_results: Dict[str, Any] = None, metadata: Dict[str, Any] = None) -> None:
+    def __init__(
+        self,
+        success: bool,
+        score: float = 0.0,
+        model: Any = None,
+        data: Any = None,
+        feature_count: int = 0,
+        execution_time: float = 0.0,
+        template_name: str = "",
+        stage_results: Dict[str, Any] = None,
+        metadata: Dict[str, Any] = None,
+    ) -> None:
         self.success = success
         self.score = score
         self.model = model
@@ -71,12 +83,12 @@ class TemplateSwarmResult:
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
         return {
-            'success': self.success,
-            'score': self.score,
-            'feature_count': self.feature_count,
-            'execution_time': self.execution_time,
-            'template_name': self.template_name,
-            'metadata': self.metadata,
+            "success": self.success,
+            "score": self.score,
+            "feature_count": self.feature_count,
+            "execution_time": self.execution_time,
+            "template_name": self.template_name,
+            "metadata": self.metadata,
         }
 
 
@@ -108,7 +120,7 @@ class Swarm:
         )
     """
 
-    _instance: Optional['Swarm'] = None
+    _instance: Optional["Swarm"] = None
     _swarm_manager: Optional[Orchestrator] = None
     _mas_learning = None
 
@@ -132,13 +144,26 @@ class Swarm:
         if cls._mas_learning is None:
             try:
                 from .mas_learning import MASLearning
+
                 cls._mas_learning = MASLearning(config=None, workspace_path=None)
             except Exception:
                 pass
         return cls._mas_learning
 
     @classmethod
-    async def solve(cls, template: Union[str, SwarmTemplate] = 'ml', data: pd.DataFrame = None, target: str = None, X: pd.DataFrame = None, y: pd.Series = None, time_budget: int = 300, context: str = '', feedback_iterations: int = 2, show_progress: bool = True, **kwargs: Any) -> TemplateSwarmResult:
+    async def solve(
+        cls,
+        template: Union[str, SwarmTemplate] = "ml",
+        data: pd.DataFrame = None,
+        target: str = None,
+        X: pd.DataFrame = None,
+        y: pd.Series = None,
+        time_budget: int = 300,
+        context: str = "",
+        feedback_iterations: int = 2,
+        show_progress: bool = True,
+        **kwargs: Any,
+    ) -> TemplateSwarmResult:
         """
         Solve a problem using a swarm template.
 
@@ -164,8 +189,10 @@ class Swarm:
         # If data + target provided, split into X/y automatically
         if data is not None and target is not None:
             if target not in data.columns:
-                raise ValueError(f"Target column '{target}' not found in data. "
-                                 f"Available: {list(data.columns)}")
+                raise ValueError(
+                    f"Target column '{target}' not found in data. "
+                    f"Available: {list(data.columns)}"
+                )
             y = data[target]
             X = data.drop(columns=[target])
         elif data is not None and target is None:
@@ -198,13 +225,13 @@ class Swarm:
 
         # Build context
         execution_context = {
-            'X': X,
-            'y': y,
-            'time_budget': time_budget,
-            'business_context': context,
-            'problem_type': problem_type,
-            'feedback_iterations': feedback_iterations,
-            **kwargs
+            "X": X,
+            "y": y,
+            "time_budget": time_budget,
+            "business_context": context,
+            "problem_type": problem_type,
+            "feedback_iterations": feedback_iterations,
+            **kwargs,
         }
 
         # Set progress callback
@@ -218,9 +245,9 @@ class Swarm:
             execution_time = time.time() - start_time
 
             # Extract final results
-            score = results.get('final_score', 0)
-            model = results.get('final_model')
-            data = results.get('selected_X', X)
+            score = results.get("final_score", 0)
+            model = results.get("final_model")
+            data = results.get("selected_X", X)
 
             logger.info(f"{'='*60}")
             logger.info(f"COMPLETE | Score: {score:.4f} | Time: {execution_time:.1f}s")
@@ -231,7 +258,7 @@ class Swarm:
                 score=score,
                 model=model,
                 data=data,
-                feature_count=data.shape[1] if hasattr(data, 'shape') else 0,
+                feature_count=data.shape[1] if hasattr(data, "shape") else 0,
                 execution_time=execution_time,
                 template_name=template_instance.name,
                 stage_results=results,
@@ -242,11 +269,20 @@ class Swarm:
             return TemplateSwarmResult(
                 success=False,
                 template_name=template_instance.name,
-                metadata={'error': str(e)},
+                metadata={"error": str(e)},
             )
 
     @classmethod
-    async def _solve_ml(cls, X: pd.DataFrame, y: pd.Series, time_budget: int, context: str, feedback_iterations: int, show_progress: bool, **kwargs: Any) -> TemplateSwarmResult:
+    async def _solve_ml(
+        cls,
+        X: pd.DataFrame,
+        y: pd.Series,
+        time_budget: int,
+        context: str,
+        feedback_iterations: int,
+        show_progress: bool,
+        **kwargs: Any,
+    ) -> TemplateSwarmResult:
         """
         Solve ML problem using the existing SkillOrchestrator.
 
@@ -260,7 +296,7 @@ class Swarm:
         orchestrator = get_skill_orchestrator()
 
         # --- Initialize learning from Orchestrator ---
-        template_instance = kwargs.get('_template_instance', None)
+        template_instance = kwargs.get("_template_instance", None)
         if template_instance is None:
             template_instance = TemplateRegistry.get("ml")
 
@@ -288,10 +324,10 @@ class Swarm:
         try:
             await template_instance.after_execution(
                 results={
-                    'final_score': result.best_score,
-                    'best_model': type(result.best_model).__name__ if result.best_model else '',
-                    'feature_importance': result.feature_importance or {},
-                    'problem_type': result.problem_type.value,
+                    "final_score": result.best_score,
+                    "best_model": type(result.best_model).__name__ if result.best_model else "",
+                    "feature_importance": result.feature_importance or {},
+                    "problem_type": result.problem_type.value,
                 },
                 business_context=context,
             )
@@ -308,32 +344,39 @@ class Swarm:
             template_name="SwarmML",
             stage_results={r.skill_name: r.metrics for r in result.skill_results},
             metadata={
-                'problem_type': result.problem_type.value,
-                'feature_importance': result.feature_importance,
-                'y': y,
+                "problem_type": result.problem_type.value,
+                "feature_importance": result.feature_importance,
+                "y": y,
             },
         )
 
         # Auto-generate report if requested
-        if kwargs.get('generate_report', False) and result.best_model is not None:
+        if kwargs.get("generate_report", False) and result.best_model is not None:
             swarm_result = cls._generate_report(swarm_result, context, _manager=manager, **kwargs)
 
         return swarm_result
 
     @classmethod
-    def _generate_report(cls, swarm_result: 'TemplateSwarmResult', context: str, _manager: Any = None, **kwargs: Any) -> 'TemplateSwarmResult':
+    def _generate_report(
+        cls, swarm_result: "TemplateSwarmResult", context: str, _manager: Any = None, **kwargs: Any
+    ) -> "TemplateSwarmResult":
         """Generate world-class PDF report and optionally send to Telegram."""
         try:
-            from .templates.swarm_ml_comprehensive import SwarmMLComprehensive
-            from sklearn.metrics import (accuracy_score, precision_score,
-                                         recall_score, f1_score, roc_auc_score)
+            from sklearn.metrics import (
+                accuracy_score,
+                f1_score,
+                precision_score,
+                recall_score,
+                roc_auc_score,
+            )
+            from sklearn.preprocessing import StandardScaler
 
             from .skill_orchestrator import SkillOrchestrator
-            from sklearn.preprocessing import StandardScaler
+            from .templates.swarm_ml_comprehensive import SwarmMLComprehensive
 
             model = swarm_result.model
             X_processed = swarm_result.data
-            y = swarm_result.metadata['y']
+            y = swarm_result.metadata["y"]
 
             # Model was trained on scaled data — scale before predicting
             X_scaled = StandardScaler().fit_transform(X_processed)
@@ -343,32 +386,32 @@ class Swarm:
             # Detect binary vs multiclass for correct metric averaging
             n_classes = len(set(y))
             is_binary = n_classes <= 2
-            avg = 'binary' if is_binary else 'weighted'
+            avg = "binary" if is_binary else "weighted"
 
             y_prob = None
-            if hasattr(model, 'predict_proba'):
+            if hasattr(model, "predict_proba"):
                 proba = model.predict_proba(X_scaled)
                 y_prob = proba[:, 1] if is_binary else proba
 
             metrics = {
-                'accuracy': float(accuracy_score(y, y_pred)),
-                'precision': float(precision_score(y, y_pred, average=avg, zero_division=0)),
-                'recall': float(recall_score(y, y_pred, average=avg, zero_division=0)),
-                'f1': float(f1_score(y, y_pred, average=avg, zero_division=0)),
+                "accuracy": float(accuracy_score(y, y_pred)),
+                "precision": float(precision_score(y, y_pred, average=avg, zero_division=0)),
+                "recall": float(recall_score(y, y_pred, average=avg, zero_division=0)),
+                "f1": float(f1_score(y, y_pred, average=avg, zero_division=0)),
             }
             if y_prob is not None and is_binary:
                 try:
-                    metrics['roc_auc'] = float(roc_auc_score(y, y_prob))
+                    metrics["roc_auc"] = float(roc_auc_score(y, y_prob))
                 except Exception:
                     pass
 
             results_dict = {
-                'final_score': swarm_result.score,
-                'best_model': type(model).__name__,
-                'metrics': metrics,
-                'feature_importance': swarm_result.metadata.get('feature_importance', {}),
-                'problem_type': swarm_result.metadata.get('problem_type', 'Classification'),
-                'dataset': kwargs.get('dataset_name', 'Dataset'),
+                "final_score": swarm_result.score,
+                "best_model": type(model).__name__,
+                "metrics": metrics,
+                "feature_importance": swarm_result.metadata.get("feature_importance", {}),
+                "problem_type": swarm_result.metadata.get("problem_type", "Classification"),
+                "dataset": kwargs.get("dataset_name", "Dataset"),
             }
 
             swarm_comp = SwarmMLComprehensive()
@@ -379,20 +422,22 @@ class Swarm:
                 swarm_comp._swarm_manager = _manager
 
             pdf_path = swarm_comp.generate_world_class_report(
-                X=X_processed, y=y,
+                X=X_processed,
+                y=y,
                 model=model,
                 results=results_dict,
-                y_pred=y_pred, y_prob=y_prob,
-                title=kwargs.get('report_title', 'ML Analysis Report'),
+                y_pred=y_pred,
+                y_prob=y_prob,
+                title=kwargs.get("report_title", "ML Analysis Report"),
                 context=context,
-                filename=kwargs.get('report_filename', 'swarm_report.pdf'),
+                filename=kwargs.get("report_filename", "swarm_report.pdf"),
                 include_all=True,
-                theme=kwargs.get('report_theme', 'professional'),
-                generate_html=kwargs.get('generate_html', True),
+                theme=kwargs.get("report_theme", "professional"),
+                generate_html=kwargs.get("generate_html", True),
             )
 
-            swarm_result.metadata['report_path'] = pdf_path
-            swarm_result.metadata['metrics'] = metrics
+            swarm_result.metadata["report_path"] = pdf_path
+            swarm_result.metadata["metrics"] = metrics
 
         except Exception as e:
             logger.warning(f"Report generation failed: {e}")
@@ -423,12 +468,14 @@ class Swarm:
     @classmethod
     def _progress_callback(cls, stage_name: str, status: str, result: Dict = None) -> Any:
         """Progress callback for visual feedback."""
-        if status == 'start':
+        if status == "start":
             logger.info(f"  Stage starting: {stage_name}...")
-        elif status == 'complete':
+        elif status == "complete":
             metrics = result or {}
-            metric_str = ", ".join(f"{k}={v:.4f}" if isinstance(v, float) else f"{k}={v}"
-                                  for k, v in list(metrics.items())[:3])
+            metric_str = ", ".join(
+                f"{k}={v:.4f}" if isinstance(v, float) else f"{k}={v}"
+                for k, v in list(metrics.items())[:3]
+            )
             logger.info(f"  Stage complete: {stage_name} | {metric_str}")
 
     @classmethod
@@ -443,7 +490,7 @@ class Swarm:
 
 
 # Convenience functions for module-level access
-async def solve(template: str = 'ml', **kwargs: Any) -> TemplateSwarmResult:
+async def solve(template: str = "ml", **kwargs: Any) -> TemplateSwarmResult:
     """Solve using specified template."""
     return await Swarm.solve(template=template, **kwargs)
 
@@ -454,4 +501,4 @@ async def auto_solve(X: Any, y: Any = None, **kwargs: Any) -> TemplateSwarmResul
 
 
 # Make Swarm available at package level
-__all__ = ['Swarm', 'TemplateSwarmResult', 'solve', 'auto_solve']
+__all__ = ["Swarm", "TemplateSwarmResult", "solve", "auto_solve"]

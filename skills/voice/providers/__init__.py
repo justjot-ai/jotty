@@ -6,7 +6,7 @@ Multi-provider voice support following OpenClaw patterns.
 Auto-selects based on availability and configuration.
 """
 
-from typing import Optional, AsyncIterator
+from typing import AsyncIterator, Optional
 
 # Import config with fallback for standalone loading
 try:
@@ -15,7 +15,8 @@ except ImportError:
     try:
         import importlib.util
         from pathlib import Path
-        config_path = Path(__file__).parent.parent / 'config.py'
+
+        config_path = Path(__file__).parent.parent / "config.py"
         if config_path.exists():
             spec = importlib.util.spec_from_file_location("voice_config", config_path)
             config_module = importlib.util.module_from_spec(spec)
@@ -28,6 +29,7 @@ except ImportError:
             has_local_piper = False
             has_whisper_api = False
             has_local_whisper = False
+
         def get_config():
             return MinimalConfig()
 
@@ -38,27 +40,17 @@ class VoiceProviderBase:
     name: str = "base"
 
     async def text_to_speech(
-        self,
-        text: str,
-        voice_id: Optional[str] = None,
-        output_path: Optional[str] = None
+        self, text: str, voice_id: Optional[str] = None, output_path: Optional[str] = None
     ) -> dict:
         """Convert text to speech."""
         raise NotImplementedError
 
-    async def speech_to_text(
-        self,
-        audio_path: str,
-        language: Optional[str] = None
-    ) -> dict:
+    async def speech_to_text(self, audio_path: str, language: Optional[str] = None) -> dict:
         """Convert speech to text."""
         raise NotImplementedError
 
     async def stream_speech(
-        self,
-        text: str,
-        voice_id: Optional[str] = None,
-        chunk_size: int = 1024
+        self, text: str, voice_id: Optional[str] = None, chunk_size: int = 1024
     ) -> AsyncIterator[bytes]:
         """Stream text-to-speech audio."""
         raise NotImplementedError
@@ -98,8 +90,8 @@ def get_tts_provider(provider: str = "auto") -> VoiceProviderBase:
 
 def get_stt_provider(provider: str = "auto") -> VoiceProviderBase:
     """Get STT provider based on selection and availability."""
-    from .whisper import WhisperProvider
     from .local import LocalProvider
+    from .whisper import WhisperProvider
 
     config = get_config()
 
@@ -129,7 +121,7 @@ def get_stt_provider(provider: str = "auto") -> VoiceProviderBase:
 
 
 __all__ = [
-    'VoiceProviderBase',
-    'get_tts_provider',
-    'get_stt_provider',
+    "VoiceProviderBase",
+    "get_tts_provider",
+    "get_stt_provider",
 ]

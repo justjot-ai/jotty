@@ -7,7 +7,9 @@ Demonstrates:
 - Adding context chunks with priorities
 - Building context that fits within token limits
 """
+
 import asyncio
+
 from Jotty.core.infrastructure.context import get_context_manager
 from Jotty.core.infrastructure.context.context_manager import ContextPriority
 
@@ -16,6 +18,7 @@ async def main():
     # Create context manager (max 10,000 tokens, 85% safety margin)
     # Note: After consolidation, import SmartContextManager directly for custom params
     from Jotty.core.infrastructure.context import SmartContextManager
+
     ctx = SmartContextManager(max_tokens=10000, safety_margin=0.85)
 
     print("=== Token Budget Allocation ===\n")
@@ -35,19 +38,19 @@ async def main():
     ctx.add_chunk(
         content="Recent sales data shows 15% growth in Q4 2025",
         category="recent_data",
-        priority=ContextPriority.HIGH
+        priority=ContextPriority.HIGH,
     )
 
     ctx.add_chunk(
         content="Historical trend: Sales typically peak in Q4, drop in Q1",
         category="historical",
-        priority=ContextPriority.MEDIUM
+        priority=ContextPriority.MEDIUM,
     )
 
     ctx.add_chunk(
         content="Verbose logs from data processing...\n" + "x" * 5000,
         category="logs",
-        priority=ContextPriority.LOW
+        priority=ContextPriority.LOW,
     )
 
     print("✅ Added context chunks:")
@@ -59,7 +62,7 @@ async def main():
     # Build final context
     result = ctx.build_context(
         system_prompt="You are a data analyst",
-        user_input="Analyze sales trends and predict Q1 2026"
+        user_input="Analyze sales trends and predict Q1 2026",
     )
 
     print("=== Budget Allocation Result ===\n")
@@ -68,7 +71,9 @@ async def main():
     print(f"  - Task List: {result['preserved']['todo']}")
     print(f"  - Goal: {result['preserved']['goal']}")
     print(f"  - Critical memories: {result['preserved']['critical_memories']}")
-    print(f"  - Chunks included: {result['preserved']['chunks_included']}/{result['preserved']['chunks_total']}")
+    print(
+        f"  - Chunks included: {result['preserved']['chunks_included']}/{result['preserved']['chunks_total']}"
+    )
     print(f"\nToken usage:")
     print(f"  - Total: {result['stats']['total_tokens']}")
     print(f"  - Remaining: {result['stats']['budget_remaining']}")

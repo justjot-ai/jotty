@@ -10,9 +10,9 @@ from pathlib import Path
 def main():
     from Jotty.core.modes.workflow import OutputChannelManager
 
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("CHANNEL DELIVERY TEST: Telegram & WhatsApp")
-    print("="*80 + "\n")
+    print("=" * 80 + "\n")
 
     # Check if markdown exists
     markdown_path = Path.home() / "jotty" / "outputs" / "meditation_research.md"
@@ -26,7 +26,7 @@ def main():
     print(f"   Size: {file_size:,} bytes\n")
 
     # Read first 500 chars as preview
-    with open(markdown_path, 'r', encoding='utf-8') as f:
+    with open(markdown_path, "r", encoding="utf-8") as f:
         preview = f.read(500)
 
     print("📄 Content preview:")
@@ -52,7 +52,7 @@ def main():
             "✅ Channel delivery working\n\n"
             "Next: Will send actual file..."
         ),
-        parse_mode="HTML"
+        parse_mode="HTML",
     )
 
     if telegram_result.success:
@@ -77,7 +77,7 @@ def main():
             "🔗 Markdown format\n\n"
             "View on Telegram!"
         ),
-        parse_mode="HTML"
+        parse_mode="HTML",
     )
 
     if telegram_file_result.success:
@@ -93,7 +93,7 @@ def main():
     print("TEST 3: Send to WhatsApp")
     print("-" * 80 + "\n")
 
-    whatsapp_to = os.environ.get('WHATSAPP_TO')
+    whatsapp_to = os.environ.get("WHATSAPP_TO")
 
     if whatsapp_to:
         print(f"📤 Sending to WhatsApp: {whatsapp_to}")
@@ -108,7 +108,7 @@ def main():
                 "✅ Research complete\n"
                 "✅ File will follow..."
             ),
-            provider="auto"
+            provider="auto",
         )
 
         if whatsapp_msg_result.success:
@@ -124,7 +124,7 @@ def main():
             to=whatsapp_to,
             file_path=str(markdown_path),
             caption="📚 Meditation Research (Markdown)",
-            provider="auto"
+            provider="auto",
         )
 
         if whatsapp_file_result.success:
@@ -148,7 +148,7 @@ def main():
 
     if whatsapp_to:
         channels.append("whatsapp")
-        params['whatsapp_to'] = whatsapp_to
+        params["whatsapp_to"] = whatsapp_to
 
     print(f"📤 Sending to {len(channels)} channels: {', '.join(channels)}\n")
 
@@ -156,21 +156,21 @@ def main():
         channels=channels,
         file_path=str(markdown_path),
         caption="📚 Meditation Research - Multi-Channel Test",
-        **params
+        **params,
     )
 
     batch_summary = channel_manager.get_summary(batch_results)
     print(f"📊 Batch send complete:")
     print(f"   ✅ Successful: {batch_summary['successful']}/{batch_summary['total']}")
 
-    for ch in batch_summary['successful_channels']:
+    for ch in batch_summary["successful_channels"]:
         result = batch_results[ch]
         print(f"   ✅ {ch.upper()}: Message ID {result.message_id}")
 
-    if batch_summary['failed_channels']:
+    if batch_summary["failed_channels"]:
         print(f"\n   ❌ Failed:")
-        for ch in batch_summary['failed_channels']:
-            error = batch_summary['errors'].get(ch, 'Unknown')
+        for ch in batch_summary["failed_channels"]:
+            error = batch_summary["errors"].get(ch, "Unknown")
             print(f"   {ch.upper()}: {error}")
 
     print()
@@ -179,9 +179,9 @@ def main():
     # Summary
     # ═══════════════════════════════════════════════════════════════════════
 
-    print("="*80)
+    print("=" * 80)
     print("CHANNEL DELIVERY TEST COMPLETE")
-    print("="*80 + "\n")
+    print("=" * 80 + "\n")
 
     total_successful = 0
     if telegram_result.success:
@@ -189,9 +189,9 @@ def main():
     if telegram_file_result.success:
         total_successful += 1
     if whatsapp_to:
-        if 'whatsapp_msg_result' in locals() and whatsapp_msg_result.success:
+        if "whatsapp_msg_result" in locals() and whatsapp_msg_result.success:
             total_successful += 1
-        if 'whatsapp_file_result' in locals() and whatsapp_file_result.success:
+        if "whatsapp_file_result" in locals() and whatsapp_file_result.success:
             total_successful += 1
 
     print(f"✅ Successful deliveries: {total_successful}")
@@ -200,10 +200,14 @@ def main():
     print(f"   ✅ Telegram (message): {'✓' if telegram_result.success else '✗'}")
     print(f"   ✅ Telegram (file): {'✓' if telegram_file_result.success else '✗'}")
     if whatsapp_to:
-        print(f"   ✅ WhatsApp (message): {'✓' if 'whatsapp_msg_result' in locals() and whatsapp_msg_result.success else '✗'}")
-        print(f"   ✅ WhatsApp (file): {'✓' if 'whatsapp_file_result' in locals() and whatsapp_file_result.success else '✗'}")
+        print(
+            f"   ✅ WhatsApp (message): {'✓' if 'whatsapp_msg_result' in locals() and whatsapp_msg_result.success else '✗'}"
+        )
+        print(
+            f"   ✅ WhatsApp (file): {'✓' if 'whatsapp_file_result' in locals() and whatsapp_file_result.success else '✗'}"
+        )
     print()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

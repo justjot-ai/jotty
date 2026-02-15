@@ -12,34 +12,36 @@ WebSocket + HTTP server for receiving messages from:
 Inspired by OpenClaw's gateway architecture.
 """
 
-import os
 import asyncio
-import json
-import hmac
 import hashlib
+import hmac
+import json
 import logging
+import os
 from datetime import datetime
-from typing import Dict, Any, Optional, Set, List
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Set
 
 logger = logging.getLogger(__name__)
 
 # Try imports
 try:
+    import uvicorn
     from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
     from fastapi.middleware.cors import CORSMiddleware
-    from fastapi.staticfiles import StaticFiles
     from fastapi.responses import FileResponse, RedirectResponse
-    import uvicorn
+    from fastapi.staticfiles import StaticFiles
+
     FASTAPI_AVAILABLE = True
 except ImportError:
     FASTAPI_AVAILABLE = False
     logger.warning("FastAPI not installed. Run: pip install fastapi uvicorn")
 
 from .channels import ChannelRouter, ChannelType, MessageEvent, ResponseEvent
-from .trust import TrustManager
-from .responders import get_responder_registry, ChannelResponderRegistry
+from .responders import ChannelResponderRegistry
 from .responders import ResponseEvent as ResponderResponseEvent
+from .responders import get_responder_registry
+from .trust import TrustManager
 
 
 class UnifiedGateway:
@@ -53,7 +55,7 @@ class UnifiedGateway:
     - Response delivery back to channels
     """
 
-    def __init__(self, host: str = '0.0.0.0', port: int = 8766, enable_trust: bool = True) -> None:
+    def __init__(self, host: str = "0.0.0.0", port: int = 8766, enable_trust: bool = True) -> None:
         self.host = host
         self.port = port
         self.router = ChannelRouter()
@@ -84,11 +86,9 @@ class UnifiedGateway:
 
         # WebSocket responder needs access to _websocket_clients, so we keep it custom
         async def websocket_responder(response: ResponseEvent) -> Any:
-            message = json.dumps({
-                "type": "response",
-                "channel_id": response.channel_id,
-                "content": response.content
-            })
+            message = json.dumps(
+                {"type": "response", "channel_id": response.channel_id, "content": response.content}
+            )
             # Broadcast to all connected clients
             for ws in list(self._websocket_clients):
                 try:
@@ -102,7 +102,7 @@ class UnifiedGateway:
                 channel=ChannelType.TELEGRAM,
                 channel_id=response.channel_id,
                 content=response.content,
-                reply_to=response.reply_to
+                reply_to=response.reply_to,
             )
             await responder_registry.send(resp_event)
 
@@ -111,7 +111,7 @@ class UnifiedGateway:
                 channel=ChannelType.SLACK,
                 channel_id=response.channel_id,
                 content=response.content,
-                reply_to=response.reply_to
+                reply_to=response.reply_to,
             )
             await responder_registry.send(resp_event)
 
@@ -120,7 +120,7 @@ class UnifiedGateway:
                 channel=ChannelType.DISCORD,
                 channel_id=response.channel_id,
                 content=response.content,
-                reply_to=response.reply_to
+                reply_to=response.reply_to,
             )
             await responder_registry.send(resp_event)
 
@@ -129,7 +129,7 @@ class UnifiedGateway:
                 channel=ChannelType.WHATSAPP,
                 channel_id=response.channel_id,
                 content=response.content,
-                reply_to=response.reply_to
+                reply_to=response.reply_to,
             )
             await responder_registry.send(resp_event)
 
@@ -148,7 +148,7 @@ class UnifiedGateway:
             title="Jotty Gateway",
             description="Unified message gateway for Jotty AI",
             version="1.0.0",
-            docs_url="/docs"
+            docs_url="/docs",
         )
 
         # CORS
@@ -190,16 +190,20 @@ class UnifiedGateway:
             # Check LLM availability
             try:
                 import dspy
+
                 if dspy.settings.lm:
                     result["lm_configured"] = True
-                    result["lm_model"] = str(getattr(dspy.settings.lm, 'model', 'unknown'))
+                    result["lm_model"] = str(getattr(dspy.settings.lm, "model", "unknown"))
             except Exception:
                 pass
             # Check skills
             try:
                 from Jotty.core.capabilities.registry.unified_registry import get_unified_registry
+
                 registry = get_unified_registry()
-                result["skills_loaded"] = len(registry.list_skills()) if hasattr(registry, 'list_skills') else 0
+                result["skills_loaded"] = (
+                    len(registry.list_skills()) if hasattr(registry, "list_skills") else 0
+                )
             except Exception:
                 pass
             if self.trust:
@@ -208,10 +212,7 @@ class UnifiedGateway:
 
         @app.get("/stats")
         async def stats() -> Any:
-            return {
-                **self.router.stats,
-                "websocket_clients": len(self._websocket_clients)
-            }
+            return {**self.router.stats, "websocket_clients": len(self._websocket_clients)}
 
         # ============ REST API (for SDKs) ============
 
@@ -232,9 +233,8 @@ class UnifiedGateway:
                     return {"success": False, "error": "No message provided"}
 
                 from Jotty.core.interface.api.mode_router import get_mode_router
-                from Jotty.sdk import (
-                    ExecutionContext, ExecutionMode, ChannelType as CTType,
-                )
+                from Jotty.sdk import ChannelType as CTType
+                from Jotty.sdk import ExecutionContext, ExecutionMode
 
                 router = get_mode_router()
                 context = ExecutionContext(
@@ -262,9 +262,8 @@ class UnifiedGateway:
                     return {"success": False, "error": "No goal provided"}
 
                 from Jotty.core.interface.api.mode_router import get_mode_router
-                from Jotty.sdk import (
-                    ExecutionContext, ExecutionMode, ChannelType as CTType,
-                )
+                from Jotty.sdk import ChannelType as CTType
+                from Jotty.sdk import ExecutionContext, ExecutionMode
 
                 router = get_mode_router()
                 context = ExecutionContext(
@@ -290,9 +289,8 @@ class UnifiedGateway:
             async def event_generator() -> Any:
                 try:
                     from Jotty.core.interface.api.mode_router import get_mode_router
-                    from Jotty.sdk import (
-                        ExecutionContext, ExecutionMode, ChannelType as CTType,
-                    )
+                    from Jotty.sdk import ChannelType as CTType
+                    from Jotty.sdk import ExecutionContext, ExecutionMode
 
                     router = get_mode_router()
                     context = ExecutionContext(
@@ -314,6 +312,7 @@ class UnifiedGateway:
             """List available skills."""
             try:
                 from Jotty.core.capabilities.registry.unified_registry import get_unified_registry
+
                 registry = get_unified_registry()
                 skills = registry.list_skills()
                 return {"success": True, "skills": skills, "count": len(skills)}
@@ -327,6 +326,7 @@ class UnifiedGateway:
                 params = await request.json()
 
                 from Jotty.core.interface.api.mode_router import get_mode_router
+
                 router = get_mode_router()
                 result = await router.skill(name, params)
                 return result.to_sdk_response().to_dict()
@@ -338,14 +338,15 @@ class UnifiedGateway:
             """Get skill info."""
             try:
                 from Jotty.core.capabilities.registry.unified_registry import get_unified_registry
+
                 registry = get_unified_registry()
                 skill = registry.get_skill(name)
                 if skill:
                     return {
                         "name": skill.name,
-                        "description": getattr(skill, 'description', ''),
-                        "skill_type": getattr(skill, 'skill_type', 'base'),
-                        "capabilities": getattr(skill, 'capabilities', []),
+                        "description": getattr(skill, "description", ""),
+                        "skill_type": getattr(skill, "skill_type", "base"),
+                        "capabilities": getattr(skill, "capabilities", []),
                     }
                 return {"error": f"Skill not found: {name}"}
             except Exception as e:
@@ -359,9 +360,8 @@ class UnifiedGateway:
                 task = data.get("task", "")
 
                 from Jotty.core.interface.api.mode_router import get_mode_router
-                from Jotty.sdk import (
-                    ExecutionContext, ExecutionMode, ChannelType as CTType,
-                )
+                from Jotty.sdk import ChannelType as CTType
+                from Jotty.sdk import ExecutionContext, ExecutionMode
 
                 router = get_mode_router()
                 context = ExecutionContext(mode=ExecutionMode.AGENT, channel=CTType.HTTP)
@@ -386,12 +386,15 @@ class UnifiedGateway:
 
                 # Clean old entries
                 if client_ip in _rate_limits:
-                    _rate_limits[client_ip] = [t for t in _rate_limits[client_ip] if now - t < window]
+                    _rate_limits[client_ip] = [
+                        t for t in _rate_limits[client_ip] if now - t < window
+                    ]
                 else:
                     _rate_limits[client_ip] = []
 
                 if len(_rate_limits[client_ip]) >= max_requests:
                     from starlette.responses import JSONResponse
+
                     return JSONResponse(
                         {"success": False, "error": "Rate limit exceeded (60/min)"},
                         status_code=429,
@@ -428,7 +431,7 @@ class UnifiedGateway:
                     user_name=user.get("first_name", "Unknown"),
                     content=text,
                     message_id=str(message.get("message_id")),
-                    raw_data=data
+                    raw_data=data,
                 )
 
                 # Process async
@@ -458,11 +461,14 @@ class UnifiedGateway:
                     body = await request.body()
 
                     sig_basestring = f"v0:{timestamp}:{body.decode()}"
-                    my_sig = "v0=" + hmac.new(
-                        self._slack_signing_secret.encode(),
-                        sig_basestring.encode(),
-                        hashlib.sha256
-                    ).hexdigest()
+                    my_sig = (
+                        "v0="
+                        + hmac.new(
+                            self._slack_signing_secret.encode(),
+                            sig_basestring.encode(),
+                            hashlib.sha256,
+                        ).hexdigest()
+                    )
 
                     if not hmac.compare_digest(my_sig, sig_header):
                         raise HTTPException(status_code=401, detail="Invalid signature")
@@ -480,7 +486,7 @@ class UnifiedGateway:
                         content=event.get("text", ""),
                         message_id=event.get("ts"),
                         reply_to=event.get("thread_ts"),
-                        raw_data=data
+                        raw_data=data,
                     )
 
                     asyncio.create_task(self.router.handle_message(msg_event))
@@ -525,7 +531,7 @@ class UnifiedGateway:
                             user_name=user.get("username", "Unknown"),
                             content=content,
                             message_id=data.get("id"),
-                            raw_data=data
+                            raw_data=data,
                         )
 
                         asyncio.create_task(self.router.handle_message(event))
@@ -566,7 +572,7 @@ class UnifiedGateway:
                             user_name=contact.get("profile", {}).get("name", "Unknown"),
                             content=msg.get("text", {}).get("body", ""),
                             message_id=msg.get("id"),
-                            raw_data=data
+                            raw_data=data,
                         )
 
                         asyncio.create_task(self.router.handle_message(event))
@@ -611,16 +617,20 @@ class UnifiedGateway:
                         user_id=message.get("user_id", "ws_user"),
                         user_name=message.get("user_name", "WebSocket User"),
                         content=message.get("content", ""),
-                        raw_data=message
+                        raw_data=message,
                     )
 
                     response = await self.router.handle_message(event)
 
-                    await websocket.send_text(json.dumps({
-                        "type": "response",
-                        "content": response,
-                        "timestamp": datetime.now().isoformat()
-                    }))
+                    await websocket.send_text(
+                        json.dumps(
+                            {
+                                "type": "response",
+                                "content": response,
+                                "timestamp": datetime.now().isoformat(),
+                            }
+                        )
+                    )
 
             except WebSocketDisconnect:
                 self._websocket_clients.discard(websocket)
@@ -642,15 +652,12 @@ class UnifiedGateway:
                     user_id=data.get("user_id", "http_user"),
                     user_name=data.get("user_name", "HTTP User"),
                     content=data.get("content", ""),
-                    raw_data=data
+                    raw_data=data,
                 )
 
                 response = await self.router.handle_message(event)
 
-                return {
-                    "success": True,
-                    "response": response
-                }
+                return {"success": True, "response": response}
 
             except Exception as e:
                 logger.error(f"HTTP message error: {e}", exc_info=True)
@@ -678,7 +685,7 @@ class UnifiedGateway:
         uvicorn.run(app, host=self.host, port=self.port)
 
 
-def start_gateway(host: str = '0.0.0.0', port: int = 8766, cli: Any = None) -> Any:
+def start_gateway(host: str = "0.0.0.0", port: int = 8766, cli: Any = None) -> Any:
     """Start the unified gateway server."""
     gateway = UnifiedGateway(host, port)
     if cli:

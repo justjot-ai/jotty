@@ -22,7 +22,10 @@ def create_swarm(swarm_name: str, description: str):
         swarm_snake += "_swarm"
 
     # Convert to PascalCase
-    swarm_pascal = "".join(word.capitalize() for word in swarm_snake.replace("_swarm", "").split("_")) + "Swarm"
+    swarm_pascal = (
+        "".join(word.capitalize() for word in swarm_snake.replace("_swarm", "").split("_"))
+        + "Swarm"
+    )
 
     swarm_dir = Path(f"Jotty/core/swarms/{swarm_snake}")
 
@@ -139,7 +142,7 @@ class {swarm_pascal}(DomainSwarm):
 '''
 
     # README.md
-    readme_content = f'''# {swarm_pascal}
+    readme_content = f"""# {swarm_pascal}
 
 {description}
 
@@ -175,7 +178,7 @@ DESCRIBE: Add common use cases and examples.
 ## 📄 License
 
 Part of Jotty AI Framework
-'''
+"""
 
     # Write files
     files = {
@@ -202,7 +205,9 @@ Part of Jotty AI Framework
 if __name__ == "__main__":
     if len(sys.argv) < 3:
         print("Usage: python scripts/create_swarm.py <name> <description>")
-        print('\nExample: python scripts/create_swarm.py blog_writer "Content generation for blogs"')
+        print(
+            '\nExample: python scripts/create_swarm.py blog_writer "Content generation for blogs"'
+        )
         sys.exit(1)
 
     name = sys.argv[1]

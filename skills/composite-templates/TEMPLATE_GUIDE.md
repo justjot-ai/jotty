@@ -7,18 +7,18 @@ Templates are reusable composite skills built using `skill-composer`. They solve
 ## Available Templates
 
 ### 1. simple-pdf-generator
-**Use case:** Convert text/markdown to PDF  
-**Pattern:** Sequential (Write → Convert)  
+**Use case:** Convert text/markdown to PDF
+**Pattern:** Sequential (Write → Convert)
 **Best for:** Document generation, report creation
 
 ### 2. research-to-pdf
-**Use case:** Research topic and generate PDF report  
-**Pattern:** Parallel → Sequential (Search → Summarize → PDF)  
+**Use case:** Research topic and generate PDF report
+**Pattern:** Parallel → Sequential (Search → Summarize → PDF)
 **Best for:** Research reports, information gathering
 
 ### 3. multi-source-aggregator
-**Use case:** Collect from multiple sources and combine  
-**Pattern:** Parallel → Combine → Output  
+**Use case:** Collect from multiple sources and combine
+**Pattern:** Parallel → Combine → Output
 **Best for:** Data aggregation, multi-source reports
 
 ## Using Templates
@@ -90,13 +90,13 @@ async def my_template_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     # Get composer
     composer = registry.get_skill('skill-composer')
     compose_tool = composer.tools.get('compose_skills_tool')
-    
+
     # Build workflow from params
     workflow = build_workflow(params)
-    
+
     # Execute
     result = await compose_tool(workflow)
-    
+
     # Return formatted result
     return format_result(result)
 ```

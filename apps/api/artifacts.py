@@ -6,18 +6,19 @@ Handles extraction and management of generative UI artifacts from LLM responses.
 Supports code blocks, HTML, Mermaid diagrams, charts, and executable code.
 """
 
+import logging
 import re
 import uuid
-import logging
 from dataclasses import dataclass, field
-from typing import Optional, List, Dict, Any
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
 
 class ArtifactType(Enum):
     """Types of artifacts that can be extracted from LLM responses."""
+
     CODE = "code"
     HTML = "html"
     MERMAID = "mermaid"
@@ -36,6 +37,7 @@ class Artifact:
     Artifacts are renderable content blocks that can be displayed
     in special UI components (code editors, diagram viewers, etc.)
     """
+
     artifact_id: str
     artifact_type: str
     content: str
@@ -53,7 +55,7 @@ class Artifact:
             "language": self.language,
             "title": self.title,
             "executable": self.executable,
-            "metadata": self.metadata
+            "metadata": self.metadata,
         }
 
     @classmethod
@@ -66,7 +68,7 @@ class Artifact:
             language=data.get("language"),
             title=data.get("title"),
             executable=data.get("executable", False),
-            metadata=data.get("metadata", {})
+            metadata=data.get("metadata", {}),
         )
 
 
@@ -80,36 +82,30 @@ class ArtifactExtractor:
 
     # Languages that are executable in browser or server
     EXECUTABLE_LANGUAGES = {
-        "python", "py", "python3",
-        "javascript", "js", "node",
-        "typescript", "ts",
-        "bash", "sh", "shell",
-        "sql"
+        "python",
+        "py",
+        "python3",
+        "javascript",
+        "js",
+        "node",
+        "typescript",
+        "ts",
+        "bash",
+        "sh",
+        "shell",
+        "sql",
     }
 
     # Languages that render as diagrams
-    DIAGRAM_LANGUAGES = {
-        "mermaid", "mmd",
-        "plantuml", "uml",
-        "dot", "graphviz"
-    }
+    DIAGRAM_LANGUAGES = {"mermaid", "mmd", "plantuml", "uml", "dot", "graphviz"}
 
     # Languages that render as markup
-    MARKUP_LANGUAGES = {
-        "html", "htm",
-        "svg",
-        "markdown", "md",
-        "latex", "tex"
-    }
+    MARKUP_LANGUAGES = {"html", "htm", "svg", "markdown", "md", "latex", "tex"}
 
     def __init__(self):
-        self._code_block_pattern = re.compile(
-            r'```(\w+)?\n([\s\S]*?)```',
-            re.MULTILINE
-        )
+        self._code_block_pattern = re.compile(r"```(\w+)?\n([\s\S]*?)```", re.MULTILINE)
         self._inline_html_pattern = re.compile(
-            r'<(!DOCTYPE|html|body|div|span|p|table|form)[^>]*>[\s\S]*?</\1>',
-            re.IGNORECASE
+            r"<(!DOCTYPE|html|body|div|span|p|table|form)[^>]*>[\s\S]*?</\1>", re.IGNORECASE
         )
 
     def extract_artifacts(self, text: str) -> List[Artifact]:
@@ -138,24 +134,22 @@ class ArtifactExtractor:
 
         return artifacts
 
-    def _create_artifact_from_code_block(
-        self,
-        language: str,
-        content: str
-    ) -> Optional[Artifact]:
+    def _create_artifact_from_code_block(self, language: str, content: str) -> Optional[Artifact]:
         """Create an artifact from a code block."""
         language_lower = language.lower() if language else ""
 
         # Determine artifact type
         if language_lower in self.DIAGRAM_LANGUAGES:
-            artifact_type = ArtifactType.MERMAID.value if language_lower in ("mermaid", "mmd") else "diagram"
+            artifact_type = (
+                ArtifactType.MERMAID.value if language_lower in ("mermaid", "mmd") else "diagram"
+            )
             return Artifact(
                 artifact_id=str(uuid.uuid4())[:12],
                 artifact_type=artifact_type,
                 content=content,
                 language=language_lower,
                 title=f"{language.capitalize()} Diagram",
-                executable=False
+                executable=False,
             )
 
         if language_lower in ("html", "htm"):
@@ -165,7 +159,7 @@ class ArtifactExtractor:
                 content=content,
                 language="html",
                 title="HTML Preview",
-                executable=True  # Can be previewed in iframe
+                executable=True,  # Can be previewed in iframe
             )
 
         if language_lower == "svg":
@@ -175,7 +169,7 @@ class ArtifactExtractor:
                 content=content,
                 language="svg",
                 title="SVG Image",
-                executable=False
+                executable=False,
             )
 
         if language_lower == "json":
@@ -185,7 +179,7 @@ class ArtifactExtractor:
                 content=content,
                 language="json",
                 title="JSON Data",
-                executable=False
+                executable=False,
             )
 
         if language_lower in ("latex", "tex"):
@@ -195,7 +189,7 @@ class ArtifactExtractor:
                 content=content,
                 language="latex",
                 title="LaTeX Math",
-                executable=False
+                executable=False,
             )
 
         # Default: code block
@@ -206,7 +200,7 @@ class ArtifactExtractor:
             content=content,
             language=language_lower or None,
             title=f"{language.capitalize()} Code" if language else "Code",
-            executable=executable
+            executable=executable,
         )
 
     def extract_with_positions(self, text: str) -> List[Dict[str, Any]]:
@@ -229,12 +223,14 @@ class ArtifactExtractor:
 
             artifact = self._create_artifact_from_code_block(language, content)
             if artifact:
-                results.append({
-                    "artifact": artifact.to_dict(),
-                    "start": match.start(),
-                    "end": match.end(),
-                    "original": match.group(0)
-                })
+                results.append(
+                    {
+                        "artifact": artifact.to_dict(),
+                        "start": match.start(),
+                        "end": match.end(),
+                        "original": match.group(0),
+                    }
+                )
 
         return results
 
@@ -250,7 +246,7 @@ class SearchResult:
         url: str,
         snippet: str = "",
         source: str = "",
-        favicon: Optional[str] = None
+        favicon: Optional[str] = None,
     ):
         self.title = title
         self.url = url
@@ -262,6 +258,7 @@ class SearchResult:
         """Extract domain from URL."""
         try:
             from urllib.parse import urlparse
+
             parsed = urlparse(url)
             return parsed.netloc.replace("www.", "")
         except Exception:
@@ -274,7 +271,7 @@ class SearchResult:
             "url": self.url,
             "snippet": self.snippet,
             "source": self.source,
-            "favicon": self.favicon
+            "favicon": self.favicon,
         }
 
 
@@ -291,7 +288,7 @@ class ToolCallResult:
         result: Any = None,
         duration_ms: int = 0,
         success: bool = True,
-        error: Optional[str] = None
+        error: Optional[str] = None,
     ):
         self.tool_call_id = tool_call_id
         self.tool_name = tool_name
@@ -310,12 +307,13 @@ class ToolCallResult:
             "result": self.result,
             "duration_ms": self.duration_ms,
             "success": self.success,
-            "error": self.error
+            "error": self.error,
         }
 
 
 # Singleton extractor instance
 _extractor = None
+
 
 def get_artifact_extractor() -> ArtifactExtractor:
     """Get singleton artifact extractor."""

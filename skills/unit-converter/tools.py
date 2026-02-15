@@ -1,12 +1,32 @@
 """Unit converter — length, weight, temperature, volume, speed."""
-from typing import Dict, Any
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+
+from typing import Any, Dict
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
+
 status = SkillStatus("unit-converter")
 
-_LENGTH = {"m": 1, "ft": 0.3048, "in": 0.0254, "km": 1000, "mi": 1609.344, "cm": 0.01, "mm": 0.001, "yd": 0.9144}
+_LENGTH = {
+    "m": 1,
+    "ft": 0.3048,
+    "in": 0.0254,
+    "km": 1000,
+    "mi": 1609.344,
+    "cm": 0.01,
+    "mm": 0.001,
+    "yd": 0.9144,
+}
 _WEIGHT = {"kg": 1, "lb": 0.453592, "oz": 0.0283495, "g": 0.001, "mg": 1e-6, "ton": 907.185}
-_VOLUME = {"l": 1, "gal": 3.78541, "ml": 0.001, "cup": 0.236588, "pt": 0.473176, "qt": 0.946353, "fl_oz": 0.0295735}
+_VOLUME = {
+    "l": 1,
+    "gal": 3.78541,
+    "ml": 0.001,
+    "cup": 0.236588,
+    "pt": 0.473176,
+    "qt": 0.946353,
+    "fl_oz": 0.0295735,
+}
 _SPEED = {"km/h": 1, "mph": 1.60934, "m/s": 3.6, "kn": 1.852, "ft/s": 1.09728}
 
 

@@ -22,27 +22,28 @@ Fixtures:
 """
 
 import asyncio
-import pytest
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
+import pytest
+
+from Jotty.core.modes.execution.tier_detector import TierDetector
 from Jotty.core.modes.execution.types import (
     ExecutionConfig,
-    ExecutionTier,
     ExecutionResult,
+    ExecutionTier,
     StreamEventType,
 )
-from Jotty.core.modes.execution.tier_detector import TierDetector
-
 
 # =============================================================================
 # Helpers
 # =============================================================================
 
+
 def make_provider_response(content="response", input_tokens=100, output_tokens=50):
     """Build consistent mock provider responses."""
     return {
-        'content': content,
-        'usage': {'input_tokens': input_tokens, 'output_tokens': output_tokens},
+        "content": content,
+        "usage": {"input_tokens": input_tokens, "output_tokens": output_tokens},
     }
 
 
@@ -64,6 +65,7 @@ VALIDATION_CALL_COST = 0.0042
 # 1. TestEndToEndTierExecution
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestEndToEndTierExecution:
     """Full pipeline tests — executor wired with mocks, testing complete tier flows."""
@@ -78,24 +80,24 @@ class TestEndToEndTierExecution:
 
         assert result.success is True
         assert result.tier == ExecutionTier.DIRECT
-        assert result.output == 'Mock LLM response'
+        assert result.output == "Mock LLM response"
         assert result.llm_calls == 1
         assert result.cost_usd > 0
         assert result.trace is not None
-        v3_observability_helpers['assert_metrics_recorded']('tier_1')
+        v3_observability_helpers["assert_metrics_recorded"]("tier_1")
 
     @pytest.mark.asyncio
-    async def test_tier2_multistep_plan_end_to_end(
-        self, v3_executor, mock_provider, mock_planner
-    ):
+    async def test_tier2_multistep_plan_end_to_end(self, v3_executor, mock_provider, mock_planner):
         """Tier 2: planner returns 3 steps, each step calls provider.generate, cost accumulated."""
-        mock_planner.plan = AsyncMock(return_value={
-            'steps': [
-                {'description': 'Step 1: Research the market'},
-                {'description': 'Step 2: Analyze competitors'},
-                {'description': 'Step 3: Draft strategy document'},
-            ],
-        })
+        mock_planner.plan = AsyncMock(
+            return_value={
+                "steps": [
+                    {"description": "Step 1: Research the market"},
+                    {"description": "Step 2: Analyze competitors"},
+                    {"description": "Step 3: Draft strategy document"},
+                ],
+            }
+        )
 
         result = await v3_executor.execute(
             "Create a marketing plan for Q2",
@@ -138,19 +140,21 @@ class TestEndToEndTierExecution:
         # Planner received enriched goal (containing memory summaries)
         planner_call_args = mock_planner.plan.call_args
         enriched_goal = planner_call_args[0][0]
-        assert 'Previous analysis result' in enriched_goal
+        assert "Previous analysis result" in enriched_goal
 
     @pytest.mark.asyncio
     async def test_tier4_swarm_delegation(self, v3_executor):
         """Tier 4: _select_swarm called, swarm.execute invoked, result wrapped."""
         mock_swarm = AsyncMock()
-        mock_swarm.execute = AsyncMock(return_value=Mock(
-            success=True,
-            output={'result': 'Swarm output here'},
-        ))
-        mock_swarm.__class__.__name__ = 'CodingSwarm'
+        mock_swarm.execute = AsyncMock(
+            return_value=Mock(
+                success=True,
+                output={"result": "Swarm output here"},
+            )
+        )
+        mock_swarm.__class__.__name__ = "CodingSwarm"
 
-        with patch.object(v3_executor, '_select_swarm', return_value=mock_swarm):
+        with patch.object(v3_executor, "_select_swarm", return_value=mock_swarm):
             result = await v3_executor.execute(
                 "Implement a REST API for user management",
                 config=ExecutionConfig(tier=ExecutionTier.RESEARCH),
@@ -159,20 +163,22 @@ class TestEndToEndTierExecution:
         assert result.success is True
         assert result.tier == ExecutionTier.RESEARCH
         # _extract_output_text extracts the 'result' field from dict output
-        assert result.output == 'Swarm output here'
+        assert result.output == "Swarm output here"
         mock_swarm.execute.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_tier5_autonomous_with_swarm(self, v3_executor):
         """Tier 5: swarm selected, executed with autonomous metadata."""
         mock_swarm = AsyncMock()
-        mock_swarm.execute = AsyncMock(return_value=Mock(
-            success=True,
-            output={'analysis': 'Code analysis complete'},
-        ))
-        mock_swarm.__class__.__name__ = 'CodingSwarm'
+        mock_swarm.execute = AsyncMock(
+            return_value=Mock(
+                success=True,
+                output={"analysis": "Code analysis complete"},
+            )
+        )
+        mock_swarm.__class__.__name__ = "CodingSwarm"
 
-        with patch.object(v3_executor, '_select_swarm', return_value=mock_swarm):
+        with patch.object(v3_executor, "_select_swarm", return_value=mock_swarm):
             result = await v3_executor.execute(
                 "Run in sandbox mode with agent coalition",
                 config=ExecutionConfig(tier=ExecutionTier.AUTONOMOUS),
@@ -180,7 +186,7 @@ class TestEndToEndTierExecution:
 
         assert result.success is True
         assert result.tier == ExecutionTier.AUTONOMOUS
-        assert result.metadata.get('autonomous') is True
+        assert result.metadata.get("autonomous") is True
         mock_swarm.execute.assert_called_once()
 
     @pytest.mark.asyncio
@@ -190,9 +196,13 @@ class TestEndToEndTierExecution:
 
         jotty = Jotty(config=ExecutionConfig(), log_level="ERROR")
         mock_executor = AsyncMock()
-        mock_executor.execute = AsyncMock(return_value=ExecutionResult(
-            output="facade result", tier=ExecutionTier.DIRECT, success=True,
-        ))
+        mock_executor.execute = AsyncMock(
+            return_value=ExecutionResult(
+                output="facade result",
+                tier=ExecutionTier.DIRECT,
+                success=True,
+            )
+        )
         jotty.executor = mock_executor
 
         result = await jotty.run("What is GDP?", tier=ExecutionTier.DIRECT)
@@ -201,7 +211,7 @@ class TestEndToEndTierExecution:
         assert result.output == "facade result"
         mock_executor.execute.assert_called_once()
         call_kwargs = mock_executor.execute.call_args
-        assert call_kwargs.kwargs['goal'] == "What is GDP?"
+        assert call_kwargs.kwargs["goal"] == "What is GDP?"
 
     @pytest.mark.asyncio
     async def test_facade_stream_yields_events(self, v3_executor):
@@ -231,30 +241,31 @@ class TestEndToEndTierExecution:
             )
 
         from Jotty.core.infrastructure.monitoring.observability.metrics import get_metrics
-        am = get_metrics().get_agent_metrics('tier_1')
+
+        am = get_metrics().get_agent_metrics("tier_1")
         assert am is not None
         assert am.total_executions == 3
 
     @pytest.mark.asyncio
-    async def test_tier2_with_realistic_plan_output(
-        self, v3_executor, mock_planner, mock_provider
-    ):
+    async def test_tier2_with_realistic_plan_output(self, v3_executor, mock_planner, mock_provider):
         """Multi-step plan with descriptions — validate step execution order."""
-        mock_planner.plan = AsyncMock(return_value={
-            'steps': [
-                {'description': 'Gather requirements from stakeholders'},
-                {'description': 'Design the database schema'},
-                {'description': 'Implement the API endpoints'},
-                {'description': 'Write integration tests'},
-            ],
-        })
+        mock_planner.plan = AsyncMock(
+            return_value={
+                "steps": [
+                    {"description": "Gather requirements from stakeholders"},
+                    {"description": "Design the database schema"},
+                    {"description": "Implement the API endpoints"},
+                    {"description": "Write integration tests"},
+                ],
+            }
+        )
 
         # Track call order via side effect
         call_descriptions = []
         original_generate = mock_provider.generate
 
         async def _tracking_generate(**kwargs):
-            call_descriptions.append(kwargs.get('prompt', ''))
+            call_descriptions.append(kwargs.get("prompt", ""))
             return await original_generate(**kwargs)
 
         mock_provider.generate = AsyncMock(side_effect=_tracking_generate)
@@ -267,20 +278,32 @@ class TestEndToEndTierExecution:
         assert result.success is True
         assert len(result.steps) == 4
         # Steps executed in order
-        assert 'Gather requirements' in call_descriptions[0]
-        assert 'Design the database' in call_descriptions[1]
-        assert 'Implement the API' in call_descriptions[2]
-        assert 'Write integration tests' in call_descriptions[3]
+        assert "Gather requirements" in call_descriptions[0]
+        assert "Design the database" in call_descriptions[1]
+        assert "Implement the API" in call_descriptions[2]
+        assert "Write integration tests" in call_descriptions[3]
 
     @pytest.mark.asyncio
     async def test_tier3_validation_failure_triggers_retry(
         self, v3_executor, mock_validator, mock_planner
     ):
         """Validator returns success=False first, True second → retries once, validator called 2x."""
-        mock_validator.validate = AsyncMock(side_effect=[
-            {'success': False, 'confidence': 0.3, 'feedback': 'Incomplete analysis', 'reasoning': 'Missing data'},
-            {'success': True, 'confidence': 0.92, 'feedback': 'Looks good now', 'reasoning': 'Complete'},
-        ])
+        mock_validator.validate = AsyncMock(
+            side_effect=[
+                {
+                    "success": False,
+                    "confidence": 0.3,
+                    "feedback": "Incomplete analysis",
+                    "reasoning": "Missing data",
+                },
+                {
+                    "success": True,
+                    "confidence": 0.92,
+                    "feedback": "Looks good now",
+                    "reasoning": "Complete",
+                },
+            ]
+        )
 
         result = await v3_executor.execute(
             "Validate and optimize the pipeline",
@@ -305,72 +328,92 @@ class TestEndToEndTierExecution:
 # 2. TestTierDetectionAccuracy
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestTierDetectionAccuracy:
     """Parametrized tests verifying TierDetector picks the right tier."""
 
-    @pytest.mark.parametrize("goal", [
-        "What is GDP?",
-        "Calculate 15% of 230",
-        "Define recursion",
-        "Convert 5km to miles",
-        "Explain briefly what a hash table is",
-        "Translate hello to French",
-    ])
+    @pytest.mark.parametrize(
+        "goal",
+        [
+            "What is GDP?",
+            "Calculate 15% of 230",
+            "Define recursion",
+            "Convert 5km to miles",
+            "Explain briefly what a hash table is",
+            "Translate hello to French",
+        ],
+    )
     def test_direct_tier_detection(self, goal):
         """Simple queries should detect as DIRECT."""
         detector = TierDetector()
         tier = detector.detect(goal)
         assert tier == ExecutionTier.DIRECT, f"Expected DIRECT for '{goal}', got {tier.name}"
 
-    @pytest.mark.parametrize("goal", [
-        "Build a dashboard showing sales trends and then create a report",
-        "Create a marketing plan for Q2 and then compile the results",
-        "Analyze the data first and then summarize the findings",
-    ])
+    @pytest.mark.parametrize(
+        "goal",
+        [
+            "Build a dashboard showing sales trends and then create a report",
+            "Create a marketing plan for Q2 and then compile the results",
+            "Analyze the data first and then summarize the findings",
+        ],
+    )
     def test_agentic_tier_detection(self, goal):
         """Multi-step tasks should detect as AGENTIC."""
         detector = TierDetector()
         tier = detector.detect(goal)
         assert tier == ExecutionTier.AGENTIC, f"Expected AGENTIC for '{goal}', got {tier.name}"
 
-    @pytest.mark.parametrize("goal", [
-        "Learn from previous mistakes and improve output quality",
-        "Track performance of the model and optimize results",
-        "Validate the pipeline and remember what worked",
-    ])
+    @pytest.mark.parametrize(
+        "goal",
+        [
+            "Learn from previous mistakes and improve output quality",
+            "Track performance of the model and optimize results",
+            "Validate the pipeline and remember what worked",
+        ],
+    )
     def test_learning_tier_detection(self, goal):
         """Learning-related tasks should detect as LEARNING."""
         detector = TierDetector()
         tier = detector.detect(goal)
         assert tier == ExecutionTier.LEARNING, f"Expected LEARNING for '{goal}', got {tier.name}"
 
-    @pytest.mark.parametrize("goal", [
-        "Research thoroughly the impact of AI on healthcare",
-        "Benchmark different sorting algorithms and compare approaches",
-        "Experiment with different prompt strategies for multi-round evaluation",
-    ])
+    @pytest.mark.parametrize(
+        "goal",
+        [
+            "Research thoroughly the impact of AI on healthcare",
+            "Benchmark different sorting algorithms and compare approaches",
+            "Experiment with different prompt strategies for multi-round evaluation",
+        ],
+    )
     def test_research_tier_detection(self, goal):
         """Research tasks should detect as RESEARCH."""
         detector = TierDetector()
         tier = detector.detect(goal)
         assert tier == ExecutionTier.RESEARCH, f"Expected RESEARCH for '{goal}', got {tier.name}"
 
-    @pytest.mark.parametrize("goal", [
-        "Run in sandbox mode with agent coalition",
-        "Execute code in isolated environment with trust verification",
-        "Use autonomous multi-swarm coalition with consensus",
-    ])
+    @pytest.mark.parametrize(
+        "goal",
+        [
+            "Run in sandbox mode with agent coalition",
+            "Execute code in isolated environment with trust verification",
+            "Use autonomous multi-swarm coalition with consensus",
+        ],
+    )
     def test_autonomous_tier_detection(self, goal):
         """Autonomous tasks should detect as AUTONOMOUS."""
         detector = TierDetector()
         tier = detector.detect(goal)
-        assert tier == ExecutionTier.AUTONOMOUS, f"Expected AUTONOMOUS for '{goal}', got {tier.name}"
+        assert (
+            tier == ExecutionTier.AUTONOMOUS
+        ), f"Expected AUTONOMOUS for '{goal}', got {tier.name}"
 
     def test_ambiguous_defaults_to_agentic(self):
         """Ambiguous goals without clear indicators default to AGENTIC."""
         detector = TierDetector()
-        tier = detector.detect("Do something interesting with this moderately complex data set and then generate insights")
+        tier = detector.detect(
+            "Do something interesting with this moderately complex data set and then generate insights"
+        )
         assert tier == ExecutionTier.AGENTIC
 
     def test_short_queries_are_direct(self):
@@ -391,54 +434,60 @@ class TestTierDetectionAccuracy:
 # 3. TestSwarmSelectionAccuracy
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestSwarmSelectionAccuracy:
     """Parametrized tests verifying _select_swarm keyword matching."""
 
-    @pytest.mark.parametrize("goal,expected_swarm", [
-        # Coding swarm
-        ("Implement a REST API for users", "coding"),
-        ("Write a Python function to parse JSON", "coding"),
-        ("Develop a class for data processing", "coding"),
-        # Research swarm
-        ("Research the impact of climate change", "research"),
-        ("Analyze market trends in tech sector", "data_analysis"),
-        ("Investigate the root cause of the outage", "research"),
-        # Testing swarm
-        ("Write unit tests for the auth module", "testing"),
-        ("Increase test coverage to 90%", "testing"),
-        ("Run integration test suite for QA", "testing"),
-        # Review swarm
-        ("Review the pull request for security issues", "review"),
-        ("Audit the deployment for vulnerabilities", "review"),
-        ("Review the recent changes in the PR", "review"),
-        # Data analysis swarm
-        ("Generate statistics from the sales dataset", "data_analysis"),
-        ("Create a visualization of CSV data", "data_analysis"),
-        ("Compute statistics on user engagement data", "data_analysis"),
-        # DevOps swarm
-        ("Deploy the app to kubernetes cluster", "devops"),
-        ("Set up docker containers for CI/CD", "devops"),
-        ("Configure infrastructure for staging", "devops"),
-        # Idea writer swarm
-        ("Write a blog post about AI trends", "idea_writer"),
-        ("Draft an article on machine learning", "idea_writer"),
-        ("Create an essay about modern architecture", "idea_writer"),
-        # Fundamental swarm
-        ("Check stock valuation for AAPL", "fundamental"),
-        ("Evaluate financial earnings for Q4", "fundamental"),
-        ("Evaluate investment opportunities in tech", "fundamental"),
-        # Learning swarm
-        ("Build a curriculum for Python beginners", "learning"),
-        ("Teach the basics of machine learning to newcomers", "learning"),
-        ("Create a training plan for new engineers", "idea_writer"),
-    ])
+    @pytest.mark.parametrize(
+        "goal,expected_swarm",
+        [
+            # Coding swarm
+            ("Implement a REST API for users", "coding"),
+            ("Write a Python function to parse JSON", "coding"),
+            ("Develop a class for data processing", "coding"),
+            # Research swarm
+            ("Research the impact of climate change", "research"),
+            ("Analyze market trends in tech sector", "data_analysis"),
+            ("Investigate the root cause of the outage", "research"),
+            # Testing swarm
+            ("Write unit tests for the auth module", "testing"),
+            ("Increase test coverage to 90%", "testing"),
+            ("Run integration test suite for QA", "testing"),
+            # Review swarm
+            ("Review the pull request for security issues", "review"),
+            ("Audit the deployment for vulnerabilities", "review"),
+            ("Review the recent changes in the PR", "review"),
+            # Data analysis swarm
+            ("Generate statistics from the sales dataset", "data_analysis"),
+            ("Create a visualization of CSV data", "data_analysis"),
+            ("Compute statistics on user engagement data", "data_analysis"),
+            # DevOps swarm
+            ("Deploy the app to kubernetes cluster", "devops"),
+            ("Set up docker containers for CI/CD", "devops"),
+            ("Configure infrastructure for staging", "devops"),
+            # Idea writer swarm
+            ("Write a blog post about AI trends", "idea_writer"),
+            ("Draft an article on machine learning", "idea_writer"),
+            ("Create an essay about modern architecture", "idea_writer"),
+            # Fundamental swarm
+            ("Check stock valuation for AAPL", "fundamental"),
+            ("Evaluate financial earnings for Q4", "fundamental"),
+            ("Evaluate investment opportunities in tech", "fundamental"),
+            # Learning swarm
+            ("Build a curriculum for Python beginners", "learning"),
+            ("Teach the basics of machine learning to newcomers", "learning"),
+            ("Create a training plan for new engineers", "idea_writer"),
+        ],
+    )
     def test_swarm_keyword_matching(self, v3_executor, goal, expected_swarm):
         """Correct swarm selected for each goal based on keyword matching."""
         mock_swarm = Mock()
-        mock_swarm.__class__.__name__ = f'{expected_swarm.title()}Swarm'
+        mock_swarm.__class__.__name__ = f"{expected_swarm.title()}Swarm"
 
-        with patch('Jotty.core.swarms.registry.SwarmRegistry.create', return_value=mock_swarm) as mock_create:
+        with patch(
+            "Jotty.core.swarms.registry.SwarmRegistry.create", return_value=mock_swarm
+        ) as mock_create:
             result = v3_executor._select_swarm(goal)
 
         assert result is not None, f"Expected swarm '{expected_swarm}' for goal: {goal}"
@@ -449,7 +498,9 @@ class TestSwarmSelectionAccuracy:
         """Explicit swarm_name bypasses keyword detection."""
         mock_swarm = Mock()
 
-        with patch('Jotty.core.swarms.registry.SwarmRegistry.create', return_value=mock_swarm) as mock_create:
+        with patch(
+            "Jotty.core.swarms.registry.SwarmRegistry.create", return_value=mock_swarm
+        ) as mock_create:
             result = v3_executor._select_swarm("Random unrelated goal", swarm_name="coding")
 
         assert result is mock_swarm
@@ -457,7 +508,7 @@ class TestSwarmSelectionAccuracy:
 
     def test_no_match_returns_none(self, v3_executor):
         """Goal with no matching keywords returns None."""
-        with patch('Jotty.core.swarms.registry.SwarmRegistry.create', return_value=None):
+        with patch("Jotty.core.swarms.registry.SwarmRegistry.create", return_value=None):
             result = v3_executor._select_swarm("Something completely unrelated to any swarm xyz")
 
         assert result is None
@@ -470,18 +521,18 @@ class TestSwarmSelectionAccuracy:
             call_names.append(name)
             return Mock() if name == call_names[0] else None
 
-        with patch('Jotty.core.swarms.registry.SwarmRegistry.create', side_effect=_tracking_create):
+        with patch("Jotty.core.swarms.registry.SwarmRegistry.create", side_effect=_tracking_create):
             result = v3_executor._select_swarm("Implement code and research the API design")
 
         assert result is not None
         # "code" matches 'coding' first (before 'research')
-        assert call_names[0] == 'coding'
+        assert call_names[0] == "coding"
 
     def test_case_insensitive_matching(self, v3_executor):
         """Keyword matching is case-insensitive."""
         mock_swarm = Mock()
 
-        with patch('Jotty.core.swarms.registry.SwarmRegistry.create', return_value=mock_swarm):
+        with patch("Jotty.core.swarms.registry.SwarmRegistry.create", return_value=mock_swarm):
             result = v3_executor._select_swarm("IMPLEMENT a REST API")
 
         assert result is not None
@@ -490,25 +541,29 @@ class TestSwarmSelectionAccuracy:
         """Keywords are matched as substrings in the goal."""
         mock_swarm = Mock()
 
-        with patch('Jotty.core.swarms.registry.SwarmRegistry.create', return_value=mock_swarm) as mock_create:
+        with patch(
+            "Jotty.core.swarms.registry.SwarmRegistry.create", return_value=mock_swarm
+        ) as mock_create:
             result = v3_executor._select_swarm("dataset analysis for quarterly numbers")
 
         assert result is not None
         # "data" from keyword list matches "dataset"
-        mock_create.assert_called_with('data_analysis')
+        mock_create.assert_called_with("data_analysis")
 
     def test_swarm_registry_integration(self, v3_executor):
         """SwarmRegistry.create is actually called with detected name."""
         mock_swarm = Mock()
 
-        with patch('Jotty.core.swarms.registry.SwarmRegistry.create', return_value=mock_swarm) as mock_create:
+        with patch(
+            "Jotty.core.swarms.registry.SwarmRegistry.create", return_value=mock_swarm
+        ) as mock_create:
             v3_executor._select_swarm("Deploy to docker container")
 
-        mock_create.assert_called_once_with('devops')
+        mock_create.assert_called_once_with("devops")
 
     def test_fallback_when_registry_returns_none(self, v3_executor):
         """When registry returns None for all swarms → returns None."""
-        with patch('Jotty.core.swarms.registry.SwarmRegistry.create', return_value=None):
+        with patch("Jotty.core.swarms.registry.SwarmRegistry.create", return_value=None):
             result = v3_executor._select_swarm("Implement a REST API in code")
 
         assert result is None
@@ -517,6 +572,7 @@ class TestSwarmSelectionAccuracy:
 # =============================================================================
 # 4. TestCostAccumulation
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestCostAccumulation:
@@ -608,13 +664,15 @@ class TestCostAccumulation:
     @pytest.mark.asyncio
     async def test_partial_cost_on_step_failure(self, v3_executor, mock_provider, mock_planner):
         """2 of 3 steps succeed → cost = plan + 2 successful step costs."""
-        mock_planner.plan = AsyncMock(return_value={
-            'steps': [
-                {'description': 'Step 1: Gather data'},
-                {'description': 'Step 2: Process (will fail)'},
-                {'description': 'Step 3: Summarize'},
-            ],
-        })
+        mock_planner.plan = AsyncMock(
+            return_value={
+                "steps": [
+                    {"description": "Step 1: Gather data"},
+                    {"description": "Step 2: Process (will fail)"},
+                    {"description": "Step 3: Summarize"},
+                ],
+            }
+        )
 
         call_count = 0
         original_generate = mock_provider.generate
@@ -651,14 +709,15 @@ class TestCostAccumulation:
 
         metrics = v3_executor.cost_tracker.get_metrics()
         # All calls use claude-sonnet-4
-        assert 'claude-sonnet-4' in metrics.cost_by_model
+        assert "claude-sonnet-4" in metrics.cost_by_model
         # tier1: 1 call + tier2: 1 plan + 2 steps + synthesis = 5 total
-        assert metrics.calls_by_model['claude-sonnet-4'] >= 4
+        assert metrics.calls_by_model["claude-sonnet-4"] >= 4
 
 
 # =============================================================================
 # 5. TestMemoryLifecycle
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestMemoryLifecycle:
@@ -678,10 +737,12 @@ class TestMemoryLifecycle:
     @pytest.mark.asyncio
     async def test_memory_entries_enrich_prompt(self, v3_executor, mock_planner, mock_v3_memory):
         """When memory returns entries, planner receives enriched goal with memory summaries."""
-        mock_v3_memory.retrieve = AsyncMock(return_value=[
-            {'summary': 'Previous attempt failed on step 3', 'score': 0.9},
-            {'summary': 'Using batch processing was faster', 'score': 0.8},
-        ])
+        mock_v3_memory.retrieve = AsyncMock(
+            return_value=[
+                {"summary": "Previous attempt failed on step 3", "score": 0.9},
+                {"summary": "Using batch processing was faster", "score": 0.8},
+            ]
+        )
 
         await v3_executor.execute(
             "Optimize the data pipeline",
@@ -689,9 +750,9 @@ class TestMemoryLifecycle:
         )
 
         planner_goal = mock_planner.plan.call_args[0][0]
-        assert 'Relevant past experience' in planner_goal
-        assert 'Previous attempt failed on step 3' in planner_goal
-        assert 'Using batch processing was faster' in planner_goal
+        assert "Relevant past experience" in planner_goal
+        assert "Previous attempt failed on step 3" in planner_goal
+        assert "Using batch processing was faster" in planner_goal
 
     @pytest.mark.asyncio
     async def test_memory_store_called_after_success(self, v3_executor, mock_v3_memory):
@@ -703,16 +764,22 @@ class TestMemoryLifecycle:
 
         mock_v3_memory.store.assert_called_once()
         store_kwargs = mock_v3_memory.store.call_args.kwargs
-        assert store_kwargs['goal'] == "Do something useful"
-        assert store_kwargs['success'] is True
+        assert store_kwargs["goal"] == "Do something useful"
+        assert store_kwargs["success"] is True
 
     @pytest.mark.asyncio
-    async def test_memory_store_includes_validation(self, v3_executor, mock_v3_memory, mock_validator):
+    async def test_memory_store_includes_validation(
+        self, v3_executor, mock_v3_memory, mock_validator
+    ):
         """Stored entry includes validation confidence when validation is enabled."""
-        mock_validator.validate = AsyncMock(return_value={
-            'success': True, 'confidence': 0.95,
-            'feedback': 'Excellent', 'reasoning': 'All criteria met',
-        })
+        mock_validator.validate = AsyncMock(
+            return_value={
+                "success": True,
+                "confidence": 0.95,
+                "feedback": "Excellent",
+                "reasoning": "All criteria met",
+            }
+        )
 
         await v3_executor.execute(
             "Task with validation",
@@ -720,7 +787,7 @@ class TestMemoryLifecycle:
         )
 
         store_kwargs = mock_v3_memory.store.call_args.kwargs
-        assert store_kwargs['confidence'] == 0.95
+        assert store_kwargs["confidence"] == 0.95
 
     @pytest.mark.asyncio
     async def test_no_memory_ops_when_backend_none(self, v3_executor, mock_v3_memory):
@@ -774,12 +841,13 @@ class TestMemoryLifecycle:
         # Planner should receive the original goal without enrichment
         planner_goal = mock_planner.plan.call_args[0][0]
         assert planner_goal == goal
-        assert 'Relevant past experience' not in planner_goal
+        assert "Relevant past experience" not in planner_goal
 
 
 # =============================================================================
 # 6. TestErrorRecovery
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestErrorRecovery:
@@ -796,7 +864,7 @@ class TestErrorRecovery:
         )
 
         assert result.success is False
-        assert 'API key expired' in result.error
+        assert "API key expired" in result.error
 
     @pytest.mark.asyncio
     async def test_provider_timeout_returns_failure(self, v3_executor, mock_provider):
@@ -821,18 +889,20 @@ class TestErrorRecovery:
         )
 
         assert result.success is False
-        assert 'Planning service unavailable' in result.error
+        assert "Planning service unavailable" in result.error
 
     @pytest.mark.asyncio
     async def test_step_failure_records_error(self, v3_executor, mock_provider, mock_planner):
         """One of 3 steps fails → step marked with error, others complete."""
-        mock_planner.plan = AsyncMock(return_value={
-            'steps': [
-                {'description': 'Step 1: Succeed'},
-                {'description': 'Step 2: Fail'},
-                {'description': 'Step 3: Succeed'},
-            ],
-        })
+        mock_planner.plan = AsyncMock(
+            return_value={
+                "steps": [
+                    {"description": "Step 1: Succeed"},
+                    {"description": "Step 2: Fail"},
+                    {"description": "Step 3: Succeed"},
+                ],
+            }
+        )
 
         call_count = 0
         original_generate = mock_provider.generate
@@ -855,7 +925,7 @@ class TestErrorRecovery:
         assert result.success is False
         # Step 2 should have error recorded
         assert result.steps[1].error is not None
-        assert 'Step 2 processing error' in result.steps[1].error
+        assert "Step 2 processing error" in result.steps[1].error
         # Steps 1 and 3 should have completed
         assert result.steps[0].result is not None
         assert result.steps[2].result is not None
@@ -863,10 +933,17 @@ class TestErrorRecovery:
     @pytest.mark.asyncio
     async def test_validation_failure_triggers_retry(self, v3_executor, mock_validator):
         """Validator returns success=False first time, True second → result has retry."""
-        mock_validator.validate = AsyncMock(side_effect=[
-            {'success': False, 'confidence': 0.2, 'feedback': 'Needs work', 'reasoning': 'Poor'},
-            {'success': True, 'confidence': 0.88, 'feedback': 'Good', 'reasoning': 'Complete'},
-        ])
+        mock_validator.validate = AsyncMock(
+            side_effect=[
+                {
+                    "success": False,
+                    "confidence": 0.2,
+                    "feedback": "Needs work",
+                    "reasoning": "Poor",
+                },
+                {"success": True, "confidence": 0.88, "feedback": "Good", "reasoning": "Complete"},
+            ]
+        )
 
         result = await v3_executor.execute(
             "Task with retry",
@@ -883,9 +960,14 @@ class TestErrorRecovery:
     @pytest.mark.asyncio
     async def test_max_retries_respected(self, v3_executor, mock_validator):
         """Validator always fails → only config.validation_retries attempts."""
-        mock_validator.validate = AsyncMock(return_value={
-            'success': False, 'confidence': 0.1, 'feedback': 'Bad', 'reasoning': 'Failed',
-        })
+        mock_validator.validate = AsyncMock(
+            return_value={
+                "success": False,
+                "confidence": 0.1,
+                "feedback": "Bad",
+                "reasoning": "Failed",
+            }
+        )
 
         result = await v3_executor.execute(
             "Persistent failure task",
@@ -908,14 +990,14 @@ class TestErrorRecovery:
         mock_swarm = AsyncMock()
         mock_swarm.execute = AsyncMock(side_effect=RuntimeError("Swarm crashed"))
 
-        with patch.object(v3_executor, '_select_swarm', return_value=mock_swarm):
+        with patch.object(v3_executor, "_select_swarm", return_value=mock_swarm):
             result = await v3_executor.execute(
                 "Use swarm",
                 config=ExecutionConfig(tier=ExecutionTier.RESEARCH),
             )
 
         assert result.success is False
-        assert 'Swarm crashed' in result.error
+        assert "Swarm crashed" in result.error
 
     @pytest.mark.asyncio
     async def test_registry_discover_failure_non_fatal(self, v3_executor, mock_registry):
@@ -931,7 +1013,9 @@ class TestErrorRecovery:
         assert result.success is True
 
     @pytest.mark.asyncio
-    async def test_metrics_recorded_on_failure(self, v3_executor, mock_provider, v3_observability_helpers):
+    async def test_metrics_recorded_on_failure(
+        self, v3_executor, mock_provider, v3_observability_helpers
+    ):
         """After provider failure, metrics still show 1 execution with success=False."""
         mock_provider.generate = AsyncMock(side_effect=RuntimeError("Fail"))
 
@@ -941,12 +1025,15 @@ class TestErrorRecovery:
         )
 
         from Jotty.core.infrastructure.monitoring.observability.metrics import get_metrics
-        am = get_metrics().get_agent_metrics('tier_1')
+
+        am = get_metrics().get_agent_metrics("tier_1")
         assert am is not None
         assert am.total_executions >= 1
 
     @pytest.mark.asyncio
-    async def test_trace_completed_on_failure(self, v3_executor, mock_provider, v3_observability_helpers):
+    async def test_trace_completed_on_failure(
+        self, v3_executor, mock_provider, v3_observability_helpers
+    ):
         """After exception, trace is still ended cleanly."""
         mock_provider.generate = AsyncMock(side_effect=RuntimeError("Trace test fail"))
 
@@ -956,12 +1043,13 @@ class TestErrorRecovery:
         )
 
         # Trace should still exist (end_trace called in except block)
-        v3_observability_helpers['assert_trace_exists']()
+        v3_observability_helpers["assert_trace_exists"]()
 
 
 # =============================================================================
 # 7. TestConcurrentExecution
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestConcurrentExecution:
@@ -985,8 +1073,12 @@ class TestConcurrentExecution:
         """Tier 1 + tier 2 + tier 3 concurrent → all complete."""
         tasks = [
             v3_executor.execute("Simple query", config=ExecutionConfig(tier=ExecutionTier.DIRECT)),
-            v3_executor.execute("Multi step task", config=ExecutionConfig(tier=ExecutionTier.AGENTIC)),
-            v3_executor.execute("Learning task", config=ExecutionConfig(tier=ExecutionTier.LEARNING)),
+            v3_executor.execute(
+                "Multi step task", config=ExecutionConfig(tier=ExecutionTier.AGENTIC)
+            ),
+            v3_executor.execute(
+                "Learning task", config=ExecutionConfig(tier=ExecutionTier.LEARNING)
+            ),
         ]
         results = await asyncio.gather(*tasks)
 
@@ -1005,7 +1097,8 @@ class TestConcurrentExecution:
         await asyncio.gather(*tasks)
 
         from Jotty.core.infrastructure.monitoring.observability.metrics import get_metrics
-        am = get_metrics().get_agent_metrics('tier_1')
+
+        am = get_metrics().get_agent_metrics("tier_1")
         assert am is not None
         assert am.total_executions >= 5
 
@@ -1051,13 +1144,15 @@ class TestConcurrentExecution:
         assert all(r.success for r in results)
 
         from Jotty.core.infrastructure.monitoring.observability.metrics import get_metrics
-        am = get_metrics().get_agent_metrics('tier_1')
+
+        am = get_metrics().get_agent_metrics("tier_1")
         assert am.total_executions >= 10
 
 
 # =============================================================================
 # 8. TestEdgeCases
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestEdgeCases:
@@ -1134,11 +1229,14 @@ class TestEdgeCases:
         assert all(r.success for r in results)
         assert len(results) == 3
 
-    @pytest.mark.parametrize("tier", [
-        ExecutionTier.DIRECT,
-        ExecutionTier.AGENTIC,
-        ExecutionTier.LEARNING,
-    ])
+    @pytest.mark.parametrize(
+        "tier",
+        [
+            ExecutionTier.DIRECT,
+            ExecutionTier.AGENTIC,
+            ExecutionTier.LEARNING,
+        ],
+    )
     @pytest.mark.asyncio
     async def test_all_tiers_explicit_override(self, v3_executor, tier):
         """Force each tier explicitly → correct tier used regardless of goal content."""
@@ -1166,7 +1264,7 @@ class TestEdgeCases:
     @pytest.mark.asyncio
     async def test_empty_plan_steps(self, v3_executor, mock_planner):
         """planner returns {'steps': []} → tier 2 handles gracefully."""
-        mock_planner.plan = AsyncMock(return_value={'steps': []})
+        mock_planner.plan = AsyncMock(return_value={"steps": []})
 
         result = await v3_executor.execute(
             "Empty plan task",
@@ -1181,10 +1279,12 @@ class TestEdgeCases:
     @pytest.mark.asyncio
     async def test_provider_returns_empty_content(self, v3_executor, mock_provider):
         """provider returns {'content': '', 'usage': {...}} → handled."""
-        mock_provider.generate = AsyncMock(return_value={
-            'content': '',
-            'usage': {'input_tokens': 50, 'output_tokens': 10},
-        })
+        mock_provider.generate = AsyncMock(
+            return_value={
+                "content": "",
+                "usage": {"input_tokens": 50, "output_tokens": 10},
+            }
+        )
 
         result = await v3_executor.execute(
             "What is 2+2?",
@@ -1193,19 +1293,21 @@ class TestEdgeCases:
 
         assert isinstance(result, ExecutionResult)
         assert result.success is True
-        assert result.output == ''
+        assert result.output == ""
 
     @pytest.mark.asyncio
     async def test_swarm_returns_failure_result(self, v3_executor):
         """swarm.execute returns SwarmResult(success=False) → result.success=False."""
         mock_swarm = AsyncMock()
-        mock_swarm.execute = AsyncMock(return_value=Mock(
-            success=False,
-            output={'error': 'Swarm failed internally'},
-        ))
-        mock_swarm.__class__.__name__ = 'FailingSwarm'
+        mock_swarm.execute = AsyncMock(
+            return_value=Mock(
+                success=False,
+                output={"error": "Swarm failed internally"},
+            )
+        )
+        mock_swarm.__class__.__name__ = "FailingSwarm"
 
-        with patch.object(v3_executor, '_select_swarm', return_value=mock_swarm):
+        with patch.object(v3_executor, "_select_swarm", return_value=mock_swarm):
             result = await v3_executor.execute(
                 "Failing swarm task",
                 config=ExecutionConfig(tier=ExecutionTier.RESEARCH),

@@ -1,12 +1,13 @@
 """CSV Analyzer Skill — load, filter, aggregate CSV files."""
+
 import csv
 import io
 import statistics
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Any, Dict, List
 
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("csv-analyzer")
 
@@ -44,12 +45,20 @@ def csv_summary_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                 numeric.append(float(v.replace(",", "")))
             except ValueError:
                 pass
-        info = {"non_null": len(non_empty), "null": len(values) - len(non_empty),
-                "unique": len(set(non_empty))}
+        info = {
+            "non_null": len(non_empty),
+            "null": len(values) - len(non_empty),
+            "unique": len(set(non_empty)),
+        }
         if numeric:
-            info.update({"mean": round(statistics.mean(numeric), 2),
-                         "min": min(numeric), "max": max(numeric),
-                         "median": round(statistics.median(numeric), 2)})
+            info.update(
+                {
+                    "mean": round(statistics.mean(numeric), 2),
+                    "min": min(numeric),
+                    "max": max(numeric),
+                    "median": round(statistics.median(numeric), 2),
+                }
+            )
             if len(numeric) > 1:
                 info["stdev"] = round(statistics.stdev(numeric), 2)
         else:

@@ -24,15 +24,16 @@ Usage:
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import List, Dict, Optional
-
+from typing import Dict, List, Optional
 
 # =============================================================================
 # EXPERT DOMAINS (Categories)
 # =============================================================================
 
+
 class ExpertDomain(Enum):
     """Expert domain categories."""
+
     LOGIC_COMPUTATION = "logic_computation"
     RL_MARL = "rl_marl"
     GAME_THEORY = "game_theory"
@@ -45,6 +46,7 @@ class ExpertDomain(Enum):
 # =============================================================================
 # EXPERT DATA STRUCTURE
 # =============================================================================
+
 
 @dataclass
 class Expert:
@@ -59,6 +61,7 @@ class Expert:
         key_questions: Questions this expert always asks
         domain: Domain category
     """
+
     name: str
     title: str
     expertise: List[str]
@@ -91,9 +94,9 @@ ALAN_TURING = Expert(
     key_questions=[
         "Is this operation decidable?",
         "What is the computational complexity?",
-        "Are there edge cases that break the logic?"
+        "Are there edge cases that break the logic?",
     ],
-    domain=ExpertDomain.LOGIC_COMPUTATION
+    domain=ExpertDomain.LOGIC_COMPUTATION,
 )
 
 KURT_GODEL = Expert(
@@ -104,9 +107,9 @@ KURT_GODEL = Expert(
     key_questions=[
         "Can this system prove its own correctness?",
         "What are the fundamental limitations?",
-        "Are there circular dependencies?"
+        "Are there circular dependencies?",
     ],
-    domain=ExpertDomain.LOGIC_COMPUTATION
+    domain=ExpertDomain.LOGIC_COMPUTATION,
 )
 
 # Reinforcement Learning & MARL
@@ -118,9 +121,9 @@ RICHARD_SUTTON = Expert(
     key_questions=[
         "Will this learning algorithm converge?",
         "Is the reward signal sufficiently informative?",
-        "What's the sample efficiency?"
+        "What's the sample efficiency?",
     ],
-    domain=ExpertDomain.RL_MARL
+    domain=ExpertDomain.RL_MARL,
 )
 
 DAVID_SILVER = Expert(
@@ -131,9 +134,9 @@ DAVID_SILVER = Expert(
     key_questions=[
         "How do agents learn about each other?",
         "Is the credit assignment correct?",
-        "Will agents converge to cooperation or defection?"
+        "Will agents converge to cooperation or defection?",
     ],
-    domain=ExpertDomain.RL_MARL
+    domain=ExpertDomain.RL_MARL,
 )
 
 # Game Theory & Swarm Organization
@@ -145,9 +148,9 @@ JOHN_VON_NEUMANN = Expert(
     key_questions=[
         "What's the Nash equilibrium of this interaction?",
         "Is this a cooperative or competitive scenario?",
-        "What strategies are dominated?"
+        "What strategies are dominated?",
     ],
-    domain=ExpertDomain.GAME_THEORY
+    domain=ExpertDomain.GAME_THEORY,
 )
 
 JOHN_NASH = Expert(
@@ -158,9 +161,9 @@ JOHN_NASH = Expert(
     key_questions=[
         "Is this equilibrium stable?",
         "What's the bargaining solution?",
-        "How do we handle incomplete information?"
+        "How do we handle incomplete information?",
     ],
-    domain=ExpertDomain.GAME_THEORY
+    domain=ExpertDomain.GAME_THEORY,
 )
 
 JIM_SIMONS = Expert(
@@ -171,9 +174,9 @@ JIM_SIMONS = Expert(
     key_questions=[
         "Is the reward function correctly specified?",
         "What's the variance of this estimator?",
-        "Are there arbitrage opportunities in the swarm?"
+        "Are there arbitrage opportunities in the swarm?",
     ],
-    domain=ExpertDomain.GAME_THEORY
+    domain=ExpertDomain.GAME_THEORY,
 )
 
 # Linguistic Philosophy & Reasoning
@@ -185,9 +188,9 @@ RICHARD_THALER = Expert(
     key_questions=[
         "Is the prompt nudging towards correct behavior?",
         "What are the cognitive biases at play?",
-        "Is the choice architecture optimal?"
+        "Is the choice architecture optimal?",
     ],
-    domain=ExpertDomain.LINGUISTIC_PHILOSOPHY
+    domain=ExpertDomain.LINGUISTIC_PHILOSOPHY,
 )
 
 ARISTOTLE = Expert(
@@ -198,9 +201,9 @@ ARISTOTLE = Expert(
     key_questions=[
         "Is the reasoning valid and sound?",
         "Are the premises true?",
-        "Is the conclusion warranted by the evidence?"
+        "Is the conclusion warranted by the evidence?",
     ],
-    domain=ExpertDomain.LINGUISTIC_PHILOSOPHY
+    domain=ExpertDomain.LINGUISTIC_PHILOSOPHY,
 )
 
 SIGMUND_FREUD = Expert(
@@ -211,9 +214,9 @@ SIGMUND_FREUD = Expert(
     key_questions=[
         "What assumptions is the model making implicitly?",
         "What information is being suppressed or ignored?",
-        "What's the model's 'motivation' in this response?"
+        "What's the model's 'motivation' in this response?",
     ],
-    domain=ExpertDomain.LINGUISTIC_PHILOSOPHY
+    domain=ExpertDomain.LINGUISTIC_PHILOSOPHY,
 )
 
 # Information Theory & Signal Processing
@@ -225,9 +228,9 @@ CLAUDE_SHANNON = Expert(
     key_questions=[
         "What's the entropy of this message?",
         "Is there information loss in this transformation?",
-        "What's the channel capacity of this communication?"
+        "What's the channel capacity of this communication?",
     ],
-    domain=ExpertDomain.INFORMATION_THEORY
+    domain=ExpertDomain.INFORMATION_THEORY,
 )
 
 VANNEVAR_BUSH = Expert(
@@ -238,9 +241,9 @@ VANNEVAR_BUSH = Expert(
     key_questions=[
         "How is information organized for retrieval?",
         "What associations should be preserved?",
-        "Is the indexing scheme optimal?"
+        "Is the indexing scheme optimal?",
     ],
-    domain=ExpertDomain.INFORMATION_THEORY
+    domain=ExpertDomain.INFORMATION_THEORY,
 )
 
 # Software Engineering & Framework Design
@@ -252,9 +255,9 @@ CURSOR_STAFF_ENGINEER = Expert(
     key_questions=[
         "Is this interface intuitive for developers?",
         "Are the abstractions at the right level?",
-        "What's the learning curve?"
+        "What's the learning curve?",
     ],
-    domain=ExpertDomain.SOFTWARE_ENGINEERING
+    domain=ExpertDomain.SOFTWARE_ENGINEERING,
 )
 
 PANDAS_CORE_CONTRIBUTOR = Expert(
@@ -265,9 +268,9 @@ PANDAS_CORE_CONTRIBUTOR = Expert(
     key_questions=[
         "Is the data structure appropriate?",
         "Are there memory/performance issues?",
-        "Is the API consistent with conventions?"
+        "Is the API consistent with conventions?",
     ],
-    domain=ExpertDomain.SOFTWARE_ENGINEERING
+    domain=ExpertDomain.SOFTWARE_ENGINEERING,
 )
 
 APACHE_SENIOR_ENGINEER = Expert(
@@ -278,9 +281,9 @@ APACHE_SENIOR_ENGINEER = Expert(
     key_questions=[
         "How does this scale to N agents?",
         "What happens under partial failure?",
-        "Is there a single point of failure?"
+        "Is there a single point of failure?",
     ],
-    domain=ExpertDomain.SOFTWARE_ENGINEERING
+    domain=ExpertDomain.SOFTWARE_ENGINEERING,
 )
 
 ANTHROPIC_AGENT_SYSTEMS_ENGINEER = Expert(
@@ -291,9 +294,9 @@ ANTHROPIC_AGENT_SYSTEMS_ENGINEER = Expert(
     key_questions=[
         "Can agents violate their instructions?",
         "Is the goal specification robust?",
-        "What are the failure modes?"
+        "What are the failure modes?",
     ],
-    domain=ExpertDomain.SOFTWARE_ENGINEERING
+    domain=ExpertDomain.SOFTWARE_ENGINEERING,
 )
 
 OPENAI_GPT_AGENTS_CORE_TEAM = Expert(
@@ -304,9 +307,9 @@ OPENAI_GPT_AGENTS_CORE_TEAM = Expert(
     key_questions=[
         "Is the prompt optimally structured?",
         "Are tools correctly specified?",
-        "What's the token efficiency?"
+        "What's the token efficiency?",
     ],
-    domain=ExpertDomain.SOFTWARE_ENGINEERING
+    domain=ExpertDomain.SOFTWARE_ENGINEERING,
 )
 
 OMAR_KHATTAB = Expert(
@@ -317,9 +320,9 @@ OMAR_KHATTAB = Expert(
     key_questions=[
         "Is this the right DSPy module?",
         "Can this be optimized with DSPy?",
-        "Are signatures correctly defined?"
+        "Are signatures correctly defined?",
     ],
-    domain=ExpertDomain.SOFTWARE_ENGINEERING
+    domain=ExpertDomain.SOFTWARE_ENGINEERING,
 )
 
 # Product & Marketing
@@ -331,9 +334,9 @@ ALEX_CHEN = Expert(
     key_questions=[
         "Would a developer understand this immediately?",
         "Is this name memorable and accurate?",
-        "Does this feel like a quality product?"
+        "Does this feel like a quality product?",
     ],
-    domain=ExpertDomain.PRODUCT_MARKETING
+    domain=ExpertDomain.PRODUCT_MARKETING,
 )
 
 STANFORD_BERKELEY_DUO = Expert(
@@ -344,9 +347,9 @@ STANFORD_BERKELEY_DUO = Expert(
     key_questions=[
         "Is this documentation complete?",
         "Would this pass academic peer review?",
-        "Is the value proposition clear?"
+        "Is the value proposition clear?",
     ],
-    domain=ExpertDomain.PRODUCT_MARKETING
+    domain=ExpertDomain.PRODUCT_MARKETING,
 )
 
 
@@ -358,25 +361,20 @@ ALL_EXPERTS: Dict[str, Expert] = {
     # Logic & Computation
     "Alan Turing": ALAN_TURING,
     "Kurt Gödel": KURT_GODEL,
-
     # RL & MARL
     "Richard Sutton": RICHARD_SUTTON,
     "David Silver": DAVID_SILVER,
-
     # Game Theory
     "John von Neumann": JOHN_VON_NEUMANN,
     "John Nash": JOHN_NASH,
     "Jim Simons": JIM_SIMONS,
-
     # Linguistic Philosophy
     "Richard Thaler": RICHARD_THALER,
     "Aristotle": ARISTOTLE,
     "Sigmund Freud": SIGMUND_FREUD,
-
     # Information Theory
     "Claude Shannon": CLAUDE_SHANNON,
     "Vannevar Bush": VANNEVAR_BUSH,
-
     # Software Engineering
     "Cursor Staff Engineer": CURSOR_STAFF_ENGINEER,
     "Pandas Core Contributor": PANDAS_CORE_CONTRIBUTOR,
@@ -384,7 +382,6 @@ ALL_EXPERTS: Dict[str, Expert] = {
     "Anthropic Agent Systems Engineer": ANTHROPIC_AGENT_SYSTEMS_ENGINEER,
     "OpenAI GPT Agents Core Team": OPENAI_GPT_AGENTS_CORE_TEAM,
     "Omar Khattab": OMAR_KHATTAB,
-
     # Product & Marketing
     "Alex Chen": ALEX_CHEN,
     "Stanford CS/Berkeley MBA Duo": STANFORD_BERKELEY_DUO,
@@ -394,6 +391,7 @@ ALL_EXPERTS: Dict[str, Expert] = {
 # =============================================================================
 # HELPER FUNCTIONS
 # =============================================================================
+
 
 def get_expert(name: str) -> Optional[Expert]:
     """Get expert by name."""
@@ -425,12 +423,12 @@ def get_experts_by_names(names: List[str]) -> List[Expert]:
 # =============================================================================
 
 __all__ = [
-    'Expert',
-    'ExpertDomain',
-    'get_expert',
-    'get_all_experts',
-    'get_experts_by_domain',
-    'get_expert_names_by_domain',
-    'get_experts_by_names',
-    'ALL_EXPERTS',
+    "Expert",
+    "ExpertDomain",
+    "get_expert",
+    "get_all_experts",
+    "get_experts_by_domain",
+    "get_expert_names_by_domain",
+    "get_experts_by_names",
+    "ALL_EXPERTS",
 ]

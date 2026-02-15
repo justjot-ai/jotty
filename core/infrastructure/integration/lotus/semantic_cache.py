@@ -16,14 +16,14 @@ Cost Impact:
 """
 
 import hashlib
-import time
-import logging
-from dataclasses import dataclass, field
-from typing import Dict, Any, Optional, Tuple, List
-from collections import OrderedDict
 import json
+import logging
+import time
+from collections import OrderedDict
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional, Tuple
 
-from .config import LotusConfig, CacheConfig
+from .config import CacheConfig, LotusConfig
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class CacheEntry:
     """Single cache entry with metadata."""
+
     key: str
     instruction_hash: str
     content_hash: str
@@ -60,6 +61,7 @@ class CacheEntry:
 @dataclass
 class CacheStats:
     """Cache statistics."""
+
     hits: int = 0
     misses: int = 0
     semantic_hits: int = 0  # Hits via semantic similarity
@@ -103,7 +105,9 @@ class SemanticCache:
     DRY: Reuses CacheConfig from LotusConfig.
     """
 
-    def __init__(self, config: Optional[LotusConfig] = None, embedding_fn: Optional[callable] = None) -> None:
+    def __init__(
+        self, config: Optional[LotusConfig] = None, embedding_fn: Optional[callable] = None
+    ) -> None:
         """
         Initialize semantic cache.
 
@@ -133,14 +137,14 @@ class SemanticCache:
     def _hash_content(self, content: Any) -> str:
         """Generate hash for content."""
         if isinstance(content, str):
-            data = content.encode('utf-8')
+            data = content.encode("utf-8")
         else:
-            data = json.dumps(content, sort_keys=True, default=str).encode('utf-8')
+            data = json.dumps(content, sort_keys=True, default=str).encode("utf-8")
         return hashlib.sha256(data).hexdigest()[:16]
 
     def _hash_instruction(self, instruction: str) -> str:
         """Generate hash for instruction."""
-        return hashlib.sha256(instruction.encode('utf-8')).hexdigest()[:16]
+        return hashlib.sha256(instruction.encode("utf-8")).hexdigest()[:16]
 
     def _make_key(self, instruction_hash: str, content_hash: str) -> str:
         """Generate cache key from hashes."""
@@ -235,9 +239,7 @@ class SemanticCache:
         if self.cache_config.use_semantic_matching and self.embedding_fn:
             try:
                 instruction_embedding = self.embedding_fn(instruction)
-                self._instruction_embeddings[instruction_hash] = (
-                    key, instruction_embedding
-                )
+                self._instruction_embeddings[instruction_hash] = (key, instruction_embedding)
             except Exception as e:
                 logger.debug(f"Failed to generate embedding: {e}")
 
@@ -418,12 +420,13 @@ def cached_operation(cache: SemanticCache) -> Any:
         async def my_operation(instruction: str, content: str) -> str:
             return await llm.generate(instruction, content)
     """
+
     def decorator(fn: Any) -> Any:
         async def wrapper(instruction: str, content: Any, *args: Any, **kwargs: Any) -> Any:
             return await cache.get_or_compute_async(
-                instruction,
-                content,
-                lambda: fn(instruction, content, *args, **kwargs)
+                instruction, content, lambda: fn(instruction, content, *args, **kwargs)
             )
+
         return wrapper
+
     return decorator

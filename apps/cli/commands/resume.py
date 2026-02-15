@@ -48,7 +48,7 @@ class ResumeCommand(BaseCommand):
 
         if session_id:
             # Load specific session
-            matching = [s for s in sessions if s['session_id'].startswith(session_id)]
+            matching = [s for s in sessions if s["session_id"].startswith(session_id)]
             if not matching:
                 cli.renderer.error(f"Session not found: {session_id}")
                 cli.renderer.info("Use /resume list to see available sessions")
@@ -56,7 +56,7 @@ class ResumeCommand(BaseCommand):
             target_session = matching[0]
         else:
             # Load most recent (skip current)
-            other_sessions = [s for s in sessions if s['session_id'] != cli.session.session_id]
+            other_sessions = [s for s in sessions if s["session_id"] != cli.session.session_id]
             if not other_sessions:
                 cli.renderer.info("No previous sessions to resume.")
                 return CommandResult.ok()
@@ -64,7 +64,7 @@ class ResumeCommand(BaseCommand):
 
         # Load the session
         old_id = cli.session.session_id
-        cli.session.load(target_session['session_id'])
+        cli.session.load(target_session["session_id"])
 
         # Show summary
         msg_count = len(cli.session.conversation_history)
@@ -78,17 +78,17 @@ class ResumeCommand(BaseCommand):
             recent = cli.session.conversation_history[-3:]
             for msg in recent:
                 role_color = "cyan" if msg.role == "user" else "green"
-                preview = msg.content[:100].replace('\n', ' ')
+                preview = msg.content[:100].replace("\n", " ")
                 if len(msg.content) > 100:
                     preview += "..."
                 cli.renderer.print(f"  [{role_color}]{msg.role}:[/{role_color}] {preview}")
 
         # Restore output history if available
-        if hasattr(cli, '_output_history'):
+        if hasattr(cli, "_output_history"):
             cli._output_history = []
         for msg in cli.session.conversation_history:
             if msg.role == "assistant" and len(msg.content) > 100:
-                if not hasattr(cli, '_output_history'):
+                if not hasattr(cli, "_output_history"):
                     cli._output_history = []
                 cli._output_history.append(msg.content)
 
@@ -109,9 +109,9 @@ class ResumeCommand(BaseCommand):
         cli.renderer.print("[dim]" + "─" * 60 + "[/dim]")
 
         for i, session in enumerate(sessions[:10], 1):
-            session_id = session['session_id']
-            created = session.get('created_at', 'unknown')[:16]
-            msg_count = session.get('message_count', 0)
+            session_id = session["session_id"]
+            created = session.get("created_at", "unknown")[:16]
+            msg_count = session.get("message_count", 0)
 
             # Mark current session
             current = " [yellow](current)[/yellow]" if session_id == cli.session.session_id else ""

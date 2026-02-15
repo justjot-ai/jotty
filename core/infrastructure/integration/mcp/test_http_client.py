@@ -53,7 +53,11 @@ async def main():
                         if ev == "message" and data.startswith("{"):
                             try:
                                 obj = json.loads(data)
-                                if "result" in obj and isinstance(obj.get("result"), dict) and "tools" in obj["result"]:
+                                if (
+                                    "result" in obj
+                                    and isinstance(obj.get("result"), dict)
+                                    and "tools" in obj["result"]
+                                ):
                                     tools_result.append(obj)
                                     got_tools.set()
                             except Exception:
@@ -78,17 +82,29 @@ async def main():
             "jsonrpc": "2.0",
             "id": 1,
             "method": "initialize",
-            "params": {"protocolVersion": "2024-11-05", "capabilities": {}, "clientInfo": {"name": "test", "version": "1.0"}},
+            "params": {
+                "protocolVersion": "2024-11-05",
+                "capabilities": {},
+                "clientInfo": {"name": "test", "version": "1.0"},
+            },
         }
         print("POST initialize ...")
         post_headers = {k: v for k, v in headers.items() if k.lower() != "accept"}
         post_headers["Content-Type"] = "application/json"
         r = await client.post(post_url, json=init_body, headers=post_headers)
         print("Initialize:", r.status_code)
-        await client.post(post_url, json={"jsonrpc": "2.0", "method": "notifications/initialized"}, headers=post_headers)
+        await client.post(
+            post_url,
+            json={"jsonrpc": "2.0", "method": "notifications/initialized"},
+            headers=post_headers,
+        )
 
         print("POST tools/list ...")
-        r = await client.post(post_url, json={"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}}, headers=post_headers)
+        r = await client.post(
+            post_url,
+            json={"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}},
+            headers=post_headers,
+        )
         print("Tools/list POST:", r.status_code)
 
         try:

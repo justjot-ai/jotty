@@ -5,14 +5,22 @@ Extracted from SwarmIntelligence for modularity.
 These are mixed into SwarmIntelligence at class definition.
 """
 
-import time
 import logging
-from typing import Dict, List, Any, Optional, Tuple, Callable
+import time
 from collections import defaultdict
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from ..swarm_data_structures import (
-    AgentSpecialization, AgentProfile, ConsensusVote, SwarmDecision,
-    AgentSession, HandoffContext, Coalition, AuctionBid, GossipMessage, SupervisorNode,
+    AgentProfile,
+    AgentSession,
+    AgentSpecialization,
+    AuctionBid,
+    Coalition,
+    ConsensusVote,
+    GossipMessage,
+    HandoffContext,
+    SupervisorNode,
+    SwarmDecision,
 )
 
 logger = logging.getLogger(__name__)
@@ -20,7 +28,6 @@ logger = logging.getLogger(__name__)
 
 class ResilienceMixin:
     """Resilience protocol mixin: circuit breakers, failure tracking, backpressure, adaptive timeouts."""
-
 
     # =========================================================================
     # FAILURE RECOVERY (Auto-retry with different agent)
@@ -32,7 +39,7 @@ class ResilienceMixin:
         agent: str,
         task_type: str,
         error_type: str = "unknown",
-        context: Dict = None
+        context: Dict = None,
     ) -> Optional[str]:
         """
         Record task failure and auto-reassign to different agent.
@@ -70,13 +77,11 @@ class ResilienceMixin:
                 to_agent=new_agent,
                 task_type=task_type,
                 context={**(context or {}), "retry_reason": error_type, "failed_agent": agent},
-                progress=0.0
+                progress=0.0,
             )
             logger.info(f"Task {task_id} reassigned: {agent} (failed) → {new_agent}")
 
         return new_agent
-
-
 
     def get_failure_rate(self, agent: str, task_type: str = None) -> float:
         """Get failure rate for an agent (optionally for specific task type)."""
@@ -96,8 +101,6 @@ class ResilienceMixin:
     # PRIORITY QUEUE (Handle urgent tasks first)
     # =========================================================================
 
-
-
     # =========================================================================
     # CIRCUIT BREAKER (Stop sending to failing agents)
     # =========================================================================
@@ -105,11 +108,11 @@ class ResilienceMixin:
     def get_circuit_state(self, agent: str) -> str:
         """Get circuit breaker state: 'closed' (ok), 'open' (blocked), 'half-open' (testing)."""
         cb = self.circuit_breakers.get(agent, {})
-        return cb.get('state', 'closed')
+        return cb.get("state", "closed")
 
-
-
-    def record_circuit_failure(self, agent: str, threshold: int = 3, cooldown: float = 60.0) -> None:
+    def record_circuit_failure(
+        self, agent: str, threshold: int = 3, cooldown: float = 60.0
+    ) -> None:
         """
         Record failure for circuit breaker.
 
@@ -117,24 +120,20 @@ class ResilienceMixin:
         After `cooldown` seconds, circuit becomes half-open (allows one test).
         """
         if agent not in self.circuit_breakers:
-            self.circuit_breakers[agent] = {'state': 'closed', 'failures': 0, 'last_failure': 0}
+            self.circuit_breakers[agent] = {"state": "closed", "failures": 0, "last_failure": 0}
 
         cb = self.circuit_breakers[agent]
-        cb['failures'] += 1
-        cb['last_failure'] = time.time()
+        cb["failures"] += 1
+        cb["last_failure"] = time.time()
 
-        if cb['failures'] >= threshold:
-            cb['state'] = 'open'
+        if cb["failures"] >= threshold:
+            cb["state"] = "open"
             logger.warning(f"Circuit OPEN for {agent} after {cb['failures']} failures")
-
-
 
     def record_circuit_success(self, agent: str) -> None:
         """Record success - resets circuit breaker."""
         if agent in self.circuit_breakers:
-            self.circuit_breakers[agent] = {'state': 'closed', 'failures': 0, 'last_failure': 0}
-
-
+            self.circuit_breakers[agent] = {"state": "closed", "failures": 0, "last_failure": 0}
 
     def check_circuit(self, agent: str, cooldown: float = 60.0) -> bool:
         """
@@ -146,21 +145,19 @@ class ResilienceMixin:
         if not cb:
             return True
 
-        if cb['state'] == 'closed':
+        if cb["state"] == "closed":
             return True
 
-        if cb['state'] == 'open':
+        if cb["state"] == "open":
             # Check if cooldown passed
-            if time.time() - cb['last_failure'] > cooldown:
-                cb['state'] = 'half-open'
+            if time.time() - cb["last_failure"] > cooldown:
+                cb["state"] = "half-open"
                 logger.info(f"Circuit HALF-OPEN for {agent} (testing)")
                 return True
             return False
 
         # half-open - allow one test
         return True
-
-
 
     def get_available_agents(self, agents: List[str] = None) -> List[str]:
         """Get agents with closed or half-open circuits."""
@@ -170,8 +167,6 @@ class ResilienceMixin:
     # =========================================================================
     # BACKPRESSURE (Slow down when overwhelmed)
     # =========================================================================
-
-
 
     # =========================================================================
     # BACKPRESSURE (Slow down when overwhelmed)
@@ -187,14 +182,14 @@ class ResilienceMixin:
             return 0.0
 
         # Factors contributing to backpressure
-        avg_load = sum(self.get_agent_load(a) for a in self.agent_profiles) / len(self.agent_profiles)
+        avg_load = sum(self.get_agent_load(a) for a in self.agent_profiles) / len(
+            self.agent_profiles
+        )
         pending_ratio = min(1.0, len(self.pending_handoffs) / max(1, len(self.agent_profiles) * 3))
-        queue_pressure = min(1.0, len(getattr(self, 'priority_queue', [])) / 20)
+        queue_pressure = min(1.0, len(getattr(self, "priority_queue", [])) / 20)
 
-        backpressure = (avg_load * 0.4 + pending_ratio * 0.4 + queue_pressure * 0.2)
+        backpressure = avg_load * 0.4 + pending_ratio * 0.4 + queue_pressure * 0.2
         return min(1.0, backpressure)
-
-
 
     def should_accept_task(self, priority: int = 5) -> bool:
         """
@@ -217,18 +212,12 @@ class ResilienceMixin:
     # EMERGENT LEADERSHIP (Dynamic leader election)
     # =========================================================================
 
-
-
     # =========================================================================
     # BYZANTINE CONSENSUS (Fault-tolerant agreement)
     # =========================================================================
 
     def byzantine_vote(
-        self,
-        question: str,
-        options: List[str],
-        voters: List[str] = None,
-        threshold: float = 0.67
+        self, question: str, options: List[str], voters: List[str] = None, threshold: float = 0.67
     ) -> Dict[str, Any]:
         """
         Byzantine fault-tolerant voting.
@@ -268,11 +257,7 @@ class ResilienceMixin:
             # Weight vote by trust
             weight = profile.trust_score
             votes[best_option] += weight
-            vote_details.append({
-                "agent": agent,
-                "vote": best_option,
-                "weight": weight
-            })
+            vote_details.append({"agent": agent, "vote": best_option, "weight": weight})
 
         # Determine winner
         total_weight = sum(votes.values())
@@ -281,7 +266,7 @@ class ResilienceMixin:
                 "decision": options[0],
                 "consensus": False,
                 "reason": "no_votes",
-                "votes": vote_details
+                "votes": vote_details,
             }
 
         winner = max(votes.keys(), key=lambda k: votes[k])
@@ -295,17 +280,18 @@ class ResilienceMixin:
             "share": winner_share,
             "threshold": threshold,
             "votes": vote_details,
-            "distribution": dict(votes)
+            "distribution": dict(votes),
         }
 
         if consensus:
             logger.info(f"Byzantine consensus reached: {winner} ({winner_share:.0%})")
         else:
-            logger.warning(f"Byzantine consensus FAILED: {winner} only {winner_share:.0%} < {threshold:.0%}")
+            logger.warning(
+                f"Byzantine consensus FAILED: {winner} only {winner_share:.0%} < {threshold:.0%}"
+            )
 
         return result
 
     # =========================================================================
     # CIRCUIT BREAKER (Stop sending to failing agents)
     # =========================================================================
-

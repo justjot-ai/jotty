@@ -6,6 +6,7 @@ Help system for CLI.
 """
 
 from typing import TYPE_CHECKING
+
 from .base import BaseCommand, CommandResult, ParsedArgs
 
 if TYPE_CHECKING:
@@ -138,10 +139,6 @@ class HistoryCommand(BaseCommand):
             content = entry.get("content", "")[:60]
             lines.append(f"{i}. [{role}] {content}")
 
-        cli.renderer.panel(
-            "\n".join(lines),
-            title=f"History (last {len(history)})",
-            style="dim"
-        )
+        cli.renderer.panel("\n".join(lines), title=f"History (last {len(history)})", style="dim")
 
         return CommandResult.ok(data=history)

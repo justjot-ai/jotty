@@ -11,7 +11,7 @@ Usage:
     /model-chat --interactive
 """
 
-from typing import TYPE_CHECKING, List, Any
+from typing import TYPE_CHECKING, Any, List
 
 from .base import BaseCommand, CommandResult, ParsedArgs
 
@@ -60,7 +60,7 @@ class ModelChatCommand(BaseCommand):
 
         result = await agent.chat(query)
 
-        cli.renderer.info(result['response'])
+        cli.renderer.info(result["response"])
 
         return CommandResult.ok(data=result)
 
@@ -79,15 +79,15 @@ class ModelChatCommand(BaseCommand):
                 if not query:
                     continue
 
-                if query.lower() in ['exit', 'quit', 'q', '/exit', '/quit']:
+                if query.lower() in ["exit", "quit", "q", "/exit", "/quit"]:
                     cli.renderer.info("Goodbye!")
                     break
 
-                if query.lower() in ['help', '/help', '?']:
+                if query.lower() in ["help", "/help", "?"]:
                     self._show_inline_help(cli)
                     continue
 
-                if query.lower() in ['clear', '/clear']:
+                if query.lower() in ["clear", "/clear"]:
                     agent.clear_history()
                     cli.renderer.info("Conversation history cleared.")
                     continue
@@ -165,8 +165,16 @@ class ModelChatCommand(BaseCommand):
 
         # Stock symbol completions
         common_stocks = [
-            "RELIANCE", "TCS", "HDFCBANK", "INFY", "ICICIBANK",
-            "SBIN", "KOTAKBANK", "AXISBANK", "TATAMOTORS", "WIPRO"
+            "RELIANCE",
+            "TCS",
+            "HDFCBANK",
+            "INFY",
+            "ICICIBANK",
+            "SBIN",
+            "KOTAKBANK",
+            "AXISBANK",
+            "TATAMOTORS",
+            "WIPRO",
         ]
         if partial.isupper() or (len(partial) > 0 and partial[0].isupper()):
             completions.extend([s for s in common_stocks if s.startswith(partial.upper())])

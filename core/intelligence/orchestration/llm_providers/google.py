@@ -2,18 +2,18 @@
 Google Gemini LLM provider.
 """
 
-import os
 import asyncio
-from typing import Dict, Any, Optional, Callable, List
+import os
+from typing import Any, Callable, Dict, List, Optional
 
-from .base import LLMProvider, LLM_MAX_OUTPUT_TOKENS
+from .base import LLM_MAX_OUTPUT_TOKENS, LLMProvider
 from .types import LLMResponse, TextBlock, ToolUseBlock
 
 
 class GoogleProvider(LLMProvider):
     """Google Gemini provider."""
 
-    def __init__(self, model: str = 'gemini-2.0-flash-exp', api_key: Optional[str] = None) -> None:
+    def __init__(self, model: str = "gemini-2.0-flash-exp", api_key: Optional[str] = None) -> None:
         self.model = model
         self.api_key = api_key or os.environ.get("GOOGLE_API_KEY")
         self._client = None
@@ -22,6 +22,7 @@ class GoogleProvider(LLMProvider):
     def client(self) -> Any:
         if self._client is None:
             import google.generativeai as genai
+
             genai.configure(api_key=self.api_key)
             self._client = genai.GenerativeModel(self.model)
         return self._client
@@ -30,11 +31,13 @@ class GoogleProvider(LLMProvider):
         """Convert to Google format."""
         google_tools = []
         for tool in tools:
-            google_tools.append({
-                "name": tool["name"],
-                "description": tool.get("description", ""),
-                "parameters": tool.get("input_schema", {"type": "object", "properties": {}})
-            })
+            google_tools.append(
+                {
+                    "name": tool["name"],
+                    "description": tool.get("description", ""),
+                    "parameters": tool.get("input_schema", {"type": "object", "properties": {}}),
+                }
+            )
         return google_tools
 
     async def call(
@@ -42,7 +45,7 @@ class GoogleProvider(LLMProvider):
         messages: List[Dict],
         tools: List[Dict],
         system: str,
-        max_tokens: int = LLM_MAX_OUTPUT_TOKENS
+        max_tokens: int = LLM_MAX_OUTPUT_TOKENS,
     ) -> LLMResponse:
         import google.generativeai as genai
 
@@ -60,7 +63,7 @@ class GoogleProvider(LLMProvider):
                 genai.types.FunctionDeclaration(
                     name=t["name"],
                     description=t.get("description", ""),
-                    parameters=t.get("input_schema", {})
+                    parameters=t.get("input_schema", {}),
                 )
                 for t in tools
             ]
@@ -69,9 +72,7 @@ class GoogleProvider(LLMProvider):
         response = self.client.generate_content(
             contents,
             tools=[tool_config],
-            generation_config=genai.types.GenerationConfig(
-                max_output_tokens=max_tokens
-            )
+            generation_config=genai.types.GenerationConfig(max_output_tokens=max_tokens),
         )
 
         return self._parse_response(response)
@@ -82,13 +83,13 @@ class GoogleProvider(LLMProvider):
         tools: List[Dict],
         system: str,
         stream_callback: Callable[[str], Any],
-        max_tokens: int = LLM_MAX_OUTPUT_TOKENS
+        max_tokens: int = LLM_MAX_OUTPUT_TOKENS,
     ) -> tuple:
         # Google streaming is more complex, fall back to non-streaming
         response = await self.call(messages, tools, system, max_tokens)
         full_content = ""
         for block in response.content:
-            if hasattr(block, 'text'):
+            if hasattr(block, "text"):
                 result = stream_callback(block.text)
                 if asyncio.iscoroutine(result):
                     await result
@@ -100,15 +101,13 @@ class GoogleProvider(LLMProvider):
 
         for candidate in response.candidates:
             for part in candidate.content.parts:
-                if hasattr(part, 'text') and part.text:
+                if hasattr(part, "text") and part.text:
                     content.append(TextBlock(text=part.text))
-                if hasattr(part, 'function_call') and part.function_call:
+                if hasattr(part, "function_call") and part.function_call:
                     fc = part.function_call
-                    content.append(ToolUseBlock(
-                        id=f"fc_{fc.name}",
-                        name=fc.name,
-                        input=dict(fc.args)
-                    ))
+                    content.append(
+                        ToolUseBlock(id=f"fc_{fc.name}", name=fc.name, input=dict(fc.args))
+                    )
 
         has_tool_calls = any(isinstance(c, ToolUseBlock) for c in content)
         stop_reason = "tool_use" if has_tool_calls else "end_turn"

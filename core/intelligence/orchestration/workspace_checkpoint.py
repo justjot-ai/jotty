@@ -13,11 +13,11 @@ Usage:
     wc.list_checkpoints()           # See all checkpoints
 """
 
-import subprocess
 import logging
+import subprocess
 import time
-from typing import Optional, List, Dict, Any
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +28,7 @@ class WorkspaceCheckpoint:
     # Branch prefix for checkpoint refs (won't clutter normal branches)
     _REF_PREFIX = "refs/jotty-checkpoints/"
 
-    def __init__(self, workspace_dir: str = '.') -> None:
+    def __init__(self, workspace_dir: str = ".") -> None:
         self.cwd = str(Path(workspace_dir).resolve())
         self._git_available = self._check_git()
 
@@ -37,7 +37,10 @@ class WorkspaceCheckpoint:
         try:
             r = subprocess.run(
                 ["git", "rev-parse", "--git-dir"],
-                cwd=self.cwd, capture_output=True, text=True, timeout=5,
+                cwd=self.cwd,
+                capture_output=True,
+                text=True,
+                timeout=5,
             )
             return r.returncode == 0
         except Exception:
@@ -47,7 +50,10 @@ class WorkspaceCheckpoint:
         """Run git command and return stdout."""
         r = subprocess.run(
             ["git"] + list(args),
-            cwd=self.cwd, capture_output=True, text=True, timeout=30,
+            cwd=self.cwd,
+            capture_output=True,
+            text=True,
+            timeout=30,
         )
         if check and r.returncode != 0:
             raise RuntimeError(f"git {' '.join(args)} failed: {r.stderr.strip()}")
@@ -73,13 +79,19 @@ class WorkspaceCheckpoint:
         try:
             parent = self._run("rev-parse", "HEAD")
             commit = self._run(
-                "commit-tree", tree, "-p", parent,
-                "-m", f"jotty-checkpoint: {label or 'auto'} [{time.time():.0f}]"
+                "commit-tree",
+                tree,
+                "-p",
+                parent,
+                "-m",
+                f"jotty-checkpoint: {label or 'auto'} [{time.time():.0f}]",
             )
         except RuntimeError:
             commit = self._run(
-                "commit-tree", tree,
-                "-m", f"jotty-checkpoint: {label or 'auto'} [{time.time():.0f}]"
+                "commit-tree",
+                tree,
+                "-m",
+                f"jotty-checkpoint: {label or 'auto'} [{time.time():.0f}]",
             )
 
         # Store as a named ref
@@ -138,8 +150,10 @@ class WorkspaceCheckpoint:
 
         try:
             refs = self._run(
-                "for-each-ref", "--format=%(refname:short) %(objectname:short) %(subject)",
-                self._REF_PREFIX, check=False,
+                "for-each-ref",
+                "--format=%(refname:short) %(objectname:short) %(subject)",
+                self._REF_PREFIX,
+                check=False,
             )
             checkpoints = []
             for line in refs.strip().split("\n"):
@@ -147,11 +161,13 @@ class WorkspaceCheckpoint:
                     continue
                 parts = line.split(" ", 2)
                 if len(parts) >= 2:
-                    checkpoints.append({
-                        'ref': parts[0],
-                        'sha': parts[1],
-                        'message': parts[2] if len(parts) > 2 else '',
-                    })
+                    checkpoints.append(
+                        {
+                            "ref": parts[0],
+                            "sha": parts[1],
+                            "message": parts[2] if len(parts) > 2 else "",
+                        }
+                    )
             return checkpoints
         except Exception:
             return []

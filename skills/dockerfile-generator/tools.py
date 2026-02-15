@@ -1,8 +1,9 @@
 """Dockerfile Generator Skill — generate Dockerfiles from specs."""
-from typing import Dict, Any
 
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from typing import Any, Dict
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("dockerfile-generator")
 
@@ -16,7 +17,10 @@ TEMPLATES = {
         "frameworks": {
             "fastapi": {"cmd": "uvicorn main:app --host 0.0.0.0 --port {port}", "port": 8000},
             "flask": {"cmd": "gunicorn -w 4 -b 0.0.0.0:{port} app:app", "port": 5000},
-            "django": {"cmd": "gunicorn -w 4 -b 0.0.0.0:{port} project.wsgi:application", "port": 8000},
+            "django": {
+                "cmd": "gunicorn -w 4 -b 0.0.0.0:{port} project.wsgi:application",
+                "port": 8000,
+            },
             "default": {"cmd": "python main.py", "port": 8000},
         },
     },
@@ -49,7 +53,7 @@ TEMPLATES = {
         "base": "rust:{version}-slim",
         "default_version": "1.75",
         "default_port": 8080,
-        "install": "COPY Cargo.toml Cargo.lock ./\nRUN mkdir src && echo \"fn main() {}\" > src/main.rs && cargo build --release && rm -rf src",
+        "install": 'COPY Cargo.toml Cargo.lock ./\nRUN mkdir src && echo "fn main() {}" > src/main.rs && cargo build --release && rm -rf src',
         "copy": "COPY . .\nRUN cargo build --release",
         "frameworks": {
             "actix": {"cmd": "./target/release/app", "port": 8080},
@@ -117,7 +121,11 @@ def generate_dockerfile_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         else:
             lines.append("FROM debian:bookworm-slim")
         lines.append("WORKDIR /app")
-        lines.append("COPY --from=builder /build/target/release/app ./app" if lang == "rust" else "COPY --from=builder /build/app ./app")
+        lines.append(
+            "COPY --from=builder /build/target/release/app ./app"
+            if lang == "rust"
+            else "COPY --from=builder /build/app ./app"
+        )
     else:
         lines.append(f"FROM {base_image}")
         lines.append("WORKDIR /app")
@@ -137,8 +145,13 @@ def generate_dockerfile_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     lines.append(f"CMD [{cmd_json}]")
 
     dockerfile = "\n".join(lines)
-    return tool_response(dockerfile=dockerfile, dockerignore=DOCKERIGNORE,
-                         language=lang, framework=framework, port=port)
+    return tool_response(
+        dockerfile=dockerfile,
+        dockerignore=DOCKERIGNORE,
+        language=lang,
+        framework=framework,
+        port=port,
+    )
 
 
 __all__ = ["generate_dockerfile_tool"]

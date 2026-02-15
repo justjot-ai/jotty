@@ -1,20 +1,32 @@
 """Slug Generator Skill — create URL-friendly slugs from text."""
+
 import re
 import unicodedata
-from typing import Dict, Any
+from typing import Any, Dict
 
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("slug-generator")
 
 # Common unicode transliteration replacements
 _REPLACEMENTS = {
-    "\u00e4": "ae", "\u00f6": "oe", "\u00fc": "ue",
-    "\u00c4": "Ae", "\u00d6": "Oe", "\u00dc": "Ue",
-    "\u00df": "ss", "\u00e9": "e", "\u00e8": "e",
-    "\u00e0": "a", "\u00e2": "a", "\u00f4": "o",
-    "\u00e7": "c", "\u00f1": "n", "\u00ee": "i", "\u00f9": "u",
+    "\u00e4": "ae",
+    "\u00f6": "oe",
+    "\u00fc": "ue",
+    "\u00c4": "Ae",
+    "\u00d6": "Oe",
+    "\u00dc": "Ue",
+    "\u00df": "ss",
+    "\u00e9": "e",
+    "\u00e8": "e",
+    "\u00e0": "a",
+    "\u00e2": "a",
+    "\u00f4": "o",
+    "\u00e7": "c",
+    "\u00f1": "n",
+    "\u00ee": "i",
+    "\u00f9": "u",
 }
 
 

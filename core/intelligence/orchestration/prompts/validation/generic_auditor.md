@@ -31,7 +31,7 @@ If errors occurred, classify them:
 
 **Infrastructure Errors** (External - NOT our fault):
 - Timeouts
-- Connection errors  
+- Connection errors
 - Service unavailable
 - Resource unavailable
 
@@ -203,4 +203,3 @@ Decision:
 ---
 
 **This prompt is generic and works for any type of output validation, not just SQL!**
-

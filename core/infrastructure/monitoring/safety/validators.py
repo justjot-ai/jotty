@@ -12,12 +12,12 @@ Defines safety constraints that act as gates before/after execution:
 Each constraint returns ValidationResult (PASS/FAIL + explanation).
 """
 
-import re
 import logging
-from typing import Dict, List, Any, Optional
+import re
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from abc import ABC, abstractmethod
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -26,9 +26,11 @@ logger = logging.getLogger(__name__)
 # DATA STRUCTURES
 # =============================================================================
 
+
 @dataclass
 class ValidationResult:
     """Result of a single validation check."""
+
     passed: bool
     constraint: str
     message: str = ""
@@ -40,6 +42,7 @@ class ValidationResult:
 @dataclass
 class ValidationReport:
     """Comprehensive validation report for pre/post execution."""
+
     stage: str  # 'pre_execution' or 'post_execution'
     passed: bool  # Overall pass/fail
     blocking_failures: List[ValidationResult]
@@ -53,6 +56,7 @@ class ValidationReport:
 # BASE CONSTRAINT
 # =============================================================================
 
+
 class SafetyConstraint(ABC):
     """
     Base class for safety constraints.
@@ -63,7 +67,7 @@ class SafetyConstraint(ABC):
     3. Return ValidationResult (PASS/FAIL + explanation)
     """
 
-    def __init__(self, name: str, severity: str = 'blocking', enabled: bool = True) -> None:
+    def __init__(self, name: str, severity: str = "blocking", enabled: bool = True) -> None:
         """
         Args:
             name: Unique constraint identifier
@@ -92,6 +96,7 @@ class SafetyConstraint(ABC):
 # CONSTRAINT #1: PII DETECTION
 # =============================================================================
 
+
 class PIIConstraint(SafetyConstraint):
     """
     Detect Personally Identifiable Information (PII) in outputs.
@@ -117,11 +122,11 @@ class PIIConstraint(SafetyConstraint):
 
     # Regex patterns for common PII types
     PII_PATTERNS = {
-        'ssn': r'\b\d{3}-\d{2}-\d{4}\b',  # 123-45-6789
-        'credit_card': r'\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b',  # 1234-5678-9012-3456
-        'email': r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b',  # user@example.com
-        'phone': r'\b\d{3}[-.]\d{3}[-.]\d{4}\b',  # 555-123-4567
-        'ip_address': r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b',  # 192.168.1.1
+        "ssn": r"\b\d{3}-\d{2}-\d{4}\b",  # 123-45-6789
+        "credit_card": r"\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b",  # 1234-5678-9012-3456
+        "email": r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b",  # user@example.com
+        "phone": r"\b\d{3}[-.]\d{3}[-.]\d{4}\b",  # 555-123-4567
+        "ip_address": r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b",  # 192.168.1.1
     }
 
     def __init__(self, enabled: bool = True, redact_on_detect: bool = False) -> None:
@@ -130,14 +135,14 @@ class PIIConstraint(SafetyConstraint):
 
     def validate(self, context: Dict[str, Any]) -> ValidationResult:
         """Check output for PII."""
-        output = context.get('output', '')
+        output = context.get("output", "")
 
         if not output:
             return ValidationResult(
                 passed=True,
                 constraint=self.name,
                 message="No output to validate",
-                severity=self.severity
+                severity=self.severity,
             )
 
         # Scan for all PII types
@@ -158,20 +163,18 @@ class PIIConstraint(SafetyConstraint):
                 message=f"PII detected: {', '.join(violations)}",
                 severity=self.severity,
                 remediation="Redact PII using [REDACTED] placeholder or re-generate output",
-                metadata={'detected_pii': detected_pii}
+                metadata={"detected_pii": detected_pii},
             )
 
         return ValidationResult(
-            passed=True,
-            constraint=self.name,
-            message="No PII detected",
-            severity=self.severity
+            passed=True, constraint=self.name, message="No PII detected", severity=self.severity
         )
 
 
 # =============================================================================
 # CONSTRAINT #2: COST BUDGET
 # =============================================================================
+
 
 class CostBudgetConstraint(SafetyConstraint):
     """
@@ -202,12 +205,10 @@ class CostBudgetConstraint(SafetyConstraint):
 
     def validate(self, context: Dict[str, Any]) -> ValidationResult:
         """Check if cost exceeds budget."""
-        current_cost = context.get('cost_usd', 0.0)
+        current_cost = context.get("cost_usd", 0.0)
 
         if current_cost > self.max_cost_usd:
-            logger.error(
-                f"🚨 Cost budget exceeded: ${current_cost:.3f} > ${self.max_cost_usd:.3f}"
-            )
+            logger.error(f"🚨 Cost budget exceeded: ${current_cost:.3f} > ${self.max_cost_usd:.3f}")
             return ValidationResult(
                 passed=False,
                 constraint=self.name,
@@ -218,7 +219,7 @@ class CostBudgetConstraint(SafetyConstraint):
                     "2. Reduce task complexity, "
                     "3. Increase budget if necessary"
                 ),
-                metadata={'current_cost': current_cost, 'budget': self.max_cost_usd}
+                metadata={"current_cost": current_cost, "budget": self.max_cost_usd},
             )
 
         remaining = self.max_cost_usd - current_cost
@@ -227,13 +228,14 @@ class CostBudgetConstraint(SafetyConstraint):
             constraint=self.name,
             message=f"Cost ${current_cost:.3f} within budget (${remaining:.3f} remaining)",
             severity=self.severity,
-            metadata={'current_cost': current_cost, 'remaining': remaining}
+            metadata={"current_cost": current_cost, "remaining": remaining},
         )
 
 
 # =============================================================================
 # CONSTRAINT #3: QUALITY THRESHOLD
 # =============================================================================
+
 
 class QualityThresholdConstraint(SafetyConstraint):
     """
@@ -264,12 +266,10 @@ class QualityThresholdConstraint(SafetyConstraint):
 
     def validate(self, context: Dict[str, Any]) -> ValidationResult:
         """Check if quality meets threshold."""
-        quality = context.get('quality_score', 0.0)
+        quality = context.get("quality_score", 0.0)
 
         if quality < self.min_quality:
-            logger.warning(
-                f"⚠️  Quality {quality:.2f} below threshold {self.min_quality:.2f}"
-            )
+            logger.warning(f"⚠️  Quality {quality:.2f} below threshold {self.min_quality:.2f}")
             return ValidationResult(
                 passed=False,
                 constraint=self.name,
@@ -280,7 +280,7 @@ class QualityThresholdConstraint(SafetyConstraint):
                     "2. Add more detail to prompt, "
                     "3. Use chain-of-thought reasoning"
                 ),
-                metadata={'quality': quality, 'threshold': self.min_quality}
+                metadata={"quality": quality, "threshold": self.min_quality},
             )
 
         return ValidationResult(
@@ -288,13 +288,14 @@ class QualityThresholdConstraint(SafetyConstraint):
             constraint=self.name,
             message=f"Quality {quality:.2f} meets threshold",
             severity=self.severity,
-            metadata={'quality': quality}
+            metadata={"quality": quality},
         )
 
 
 # =============================================================================
 # CONSTRAINT #4: RATE LIMITING
 # =============================================================================
+
 
 class RateLimitConstraint(SafetyConstraint):
     """
@@ -330,8 +331,7 @@ class RateLimitConstraint(SafetyConstraint):
 
         # Remove calls older than 1 minute
         self.call_timestamps = [
-            ts for ts in self.call_timestamps
-            if (now - ts).total_seconds() < 60
+            ts for ts in self.call_timestamps if (now - ts).total_seconds() < 60
         ]
 
         # Check if limit exceeded
@@ -345,7 +345,10 @@ class RateLimitConstraint(SafetyConstraint):
                 message=f"Rate limit exceeded: {len(self.call_timestamps)}/{self.max_calls_per_minute} calls/min",
                 severity=self.severity,
                 remediation="Wait before making more requests (exponential backoff recommended)",
-                metadata={'current_rate': len(self.call_timestamps), 'limit': self.max_calls_per_minute}
+                metadata={
+                    "current_rate": len(self.call_timestamps),
+                    "limit": self.max_calls_per_minute,
+                },
             )
 
         # Record this call
@@ -356,13 +359,14 @@ class RateLimitConstraint(SafetyConstraint):
             constraint=self.name,
             message=f"Rate OK: {len(self.call_timestamps)}/{self.max_calls_per_minute} calls/min",
             severity=self.severity,
-            metadata={'current_rate': len(self.call_timestamps)}
+            metadata={"current_rate": len(self.call_timestamps)},
         )
 
 
 # =============================================================================
 # CONSTRAINT #5: MALICIOUS INPUT DETECTION
 # =============================================================================
+
 
 class MaliciousInputConstraint(SafetyConstraint):
     """
@@ -388,15 +392,15 @@ class MaliciousInputConstraint(SafetyConstraint):
     """
 
     MALICIOUS_PATTERNS = [
-        (r'ignore\s+previous\s+instructions', 'prompt_injection'),
-        (r'you\s+are\s+now\s+in\s+developer\s+mode', 'jailbreak'),
-        (r'disregard\s+all\s+prior', 'prompt_injection'),
-        (r'<\s*script\s*>', 'xss'),
-        (r'DROP\s+TABLE', 'sql_injection'),
-        (r'DELETE\s+FROM', 'sql_injection'),
-        (r';--', 'sql_injection'),
-        (r'<iframe', 'xss'),
-        (r'javascript:', 'xss'),
+        (r"ignore\s+previous\s+instructions", "prompt_injection"),
+        (r"you\s+are\s+now\s+in\s+developer\s+mode", "jailbreak"),
+        (r"disregard\s+all\s+prior", "prompt_injection"),
+        (r"<\s*script\s*>", "xss"),
+        (r"DROP\s+TABLE", "sql_injection"),
+        (r"DELETE\s+FROM", "sql_injection"),
+        (r";--", "sql_injection"),
+        (r"<iframe", "xss"),
+        (r"javascript:", "xss"),
     ]
 
     def __init__(self, enabled: bool = True) -> None:
@@ -404,14 +408,14 @@ class MaliciousInputConstraint(SafetyConstraint):
 
     def validate(self, context: Dict[str, Any]) -> ValidationResult:
         """Check input for malicious patterns."""
-        user_input = context.get('user_input', '')
+        user_input = context.get("user_input", "")
 
         if not user_input:
             return ValidationResult(
                 passed=True,
                 constraint=self.name,
                 message="No input to validate",
-                severity=self.severity
+                severity=self.severity,
             )
 
         # Scan for malicious patterns
@@ -428,14 +432,14 @@ class MaliciousInputConstraint(SafetyConstraint):
                 message=f"Malicious pattern detected: {', '.join(set(detected))}",
                 severity=self.severity,
                 remediation="Reject input, log security event, and alert if pattern repeats",
-                metadata={'attack_types': list(set(detected))}
+                metadata={"attack_types": list(set(detected))},
             )
 
         return ValidationResult(
             passed=True,
             constraint=self.name,
             message="No malicious patterns detected",
-            severity=self.severity
+            severity=self.severity,
         )
 
 
@@ -444,12 +448,12 @@ class MaliciousInputConstraint(SafetyConstraint):
 # =============================================================================
 
 __all__ = [
-    'SafetyConstraint',
-    'PIIConstraint',
-    'CostBudgetConstraint',
-    'QualityThresholdConstraint',
-    'RateLimitConstraint',
-    'MaliciousInputConstraint',
-    'ValidationResult',
-    'ValidationReport'
+    "SafetyConstraint",
+    "PIIConstraint",
+    "CostBudgetConstraint",
+    "QualityThresholdConstraint",
+    "RateLimitConstraint",
+    "MaliciousInputConstraint",
+    "ValidationResult",
+    "ValidationReport",
 ]

@@ -4,13 +4,14 @@ DOCX Tools Skill
 Word document toolkit using python-docx for reading, creating, and manipulating Word documents.
 Supports professional formatting with tables, colors, and beautiful styling.
 """
-import os
+
 import logging
+import os
 import re
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 logger = logging.getLogger(__name__)
 
@@ -20,13 +21,13 @@ logger = logging.getLogger(__name__)
 status = SkillStatus("docx-tools")
 
 COLORS = {
-    'primary': (41, 65, 114),      # Deep blue - headers
-    'secondary': (89, 89, 89),     # Dark gray - text
-    'accent': (0, 112, 192),       # Bright blue - links/highlights
-    'success': (84, 130, 53),      # Green - checked items
-    'light_bg': (242, 242, 242),   # Light gray - table header bg
-    'border': (191, 191, 191),     # Border gray
-    'white': (255, 255, 255),
+    "primary": (41, 65, 114),  # Deep blue - headers
+    "secondary": (89, 89, 89),  # Dark gray - text
+    "accent": (0, 112, 192),  # Bright blue - links/highlights
+    "success": (84, 130, 53),  # Green - checked items
+    "light_bg": (242, 242, 242),  # Light gray - table header bg
+    "border": (191, 191, 191),  # Border gray
+    "white": (255, 255, 255),
 }
 
 
@@ -48,30 +49,30 @@ def read_docx_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - tables (list): List of tables (if include_tables is True)
             - error (str, optional): Error message if failed
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     try:
         from docx import Document
     except ImportError:
         return {
-            'success': False,
-            'error': 'python-docx not installed. Install with: pip install python-docx'
+            "success": False,
+            "error": "python-docx not installed. Install with: pip install python-docx",
         }
 
-    file_path = params.get('file_path')
-    include_tables = params.get('include_tables', True)
+    file_path = params.get("file_path")
+    include_tables = params.get("include_tables", True)
 
     if not file_path:
-        return {'success': False, 'error': 'file_path parameter is required'}
+        return {"success": False, "error": "file_path parameter is required"}
 
     if not os.path.exists(file_path):
-        return {'success': False, 'error': f'File not found: {file_path}'}
+        return {"success": False, "error": f"File not found: {file_path}"}
 
     try:
         doc = Document(file_path)
 
         paragraphs = [para.text for para in doc.paragraphs]
-        full_text = '\n'.join(paragraphs)
+        full_text = "\n".join(paragraphs)
 
         tables_data = []
         if include_tables:
@@ -85,17 +86,17 @@ def read_docx_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         logger.info(f"Document read: {file_path}")
 
         return {
-            'success': True,
-            'text': full_text,
-            'paragraphs': paragraphs,
-            'tables': tables_data,
-            'paragraph_count': len(paragraphs),
-            'table_count': len(tables_data)
+            "success": True,
+            "text": full_text,
+            "paragraphs": paragraphs,
+            "tables": tables_data,
+            "paragraph_count": len(paragraphs),
+            "table_count": len(tables_data),
         }
 
     except Exception as e:
         logger.error(f"Failed to read document: {e}", exc_info=True)
-        return {'success': False, 'error': f'Failed to read document: {str(e)}'}
+        return {"success": False, "error": f"Failed to read document: {str(e)}"}
 
 
 @tool_wrapper()
@@ -126,29 +127,29 @@ def create_docx_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - file_path (str): Path to created document
             - error (str, optional): Error message if failed
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     try:
         from docx import Document
-        from docx.shared import Inches, Pt
         from docx.enum.text import WD_ALIGN_PARAGRAPH
+        from docx.shared import Inches, Pt
     except ImportError:
         return {
-            'success': False,
-            'error': 'python-docx not installed. Install with: pip install python-docx'
+            "success": False,
+            "error": "python-docx not installed. Install with: pip install python-docx",
         }
 
     import re
 
-    content = params.get('content')
-    output_path = params.get('output_path')
-    title = params.get('title')
+    content = params.get("content")
+    output_path = params.get("output_path")
+    title = params.get("title")
 
     if not content:
-        return {'success': False, 'error': 'content parameter is required'}
+        return {"success": False, "error": "content parameter is required"}
 
     if not output_path:
-        return {'success': False, 'error': 'output_path parameter is required'}
+        return {"success": False, "error": "output_path parameter is required"}
 
     try:
         doc = Document()
@@ -157,7 +158,7 @@ def create_docx_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             doc.add_heading(title, level=0)
 
         if isinstance(content, str):
-            lines = content.split('\n')
+            lines = content.split("\n")
         elif isinstance(content, list):
             lines = content
         else:
@@ -172,54 +173,58 @@ def create_docx_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                 continue
 
             # Heading 1: # Header
-            if line_stripped.startswith('# '):
+            if line_stripped.startswith("# "):
                 text = line_stripped[2:].strip()
                 doc.add_heading(text, level=1)
 
             # Heading 2: ## Header
-            elif line_stripped.startswith('## '):
+            elif line_stripped.startswith("## "):
                 text = line_stripped[3:].strip()
                 doc.add_heading(text, level=2)
 
             # Heading 3: ### Header
-            elif line_stripped.startswith('### '):
+            elif line_stripped.startswith("### "):
                 text = line_stripped[4:].strip()
                 doc.add_heading(text, level=3)
 
             # Heading 4: #### Header
-            elif line_stripped.startswith('#### '):
+            elif line_stripped.startswith("#### "):
                 text = line_stripped[5:].strip()
                 doc.add_heading(text, level=4)
 
             # Checkbox unchecked: - [ ] item
-            elif line_stripped.startswith('- [ ] ') or line_stripped.startswith('* [ ] '):
+            elif line_stripped.startswith("- [ ] ") or line_stripped.startswith("* [ ] "):
                 text = line_stripped[6:].strip()
-                para = doc.add_paragraph(style='List Bullet')
-                para.add_run('☐ ' + text)
+                para = doc.add_paragraph(style="List Bullet")
+                para.add_run("☐ " + text)
 
             # Checkbox checked: - [x] item
-            elif line_stripped.startswith('- [x] ') or line_stripped.startswith('- [X] ') or \
-                 line_stripped.startswith('* [x] ') or line_stripped.startswith('* [X] '):
+            elif (
+                line_stripped.startswith("- [x] ")
+                or line_stripped.startswith("- [X] ")
+                or line_stripped.startswith("* [x] ")
+                or line_stripped.startswith("* [X] ")
+            ):
                 text = line_stripped[6:].strip()
-                para = doc.add_paragraph(style='List Bullet')
-                para.add_run('☑ ' + text)
+                para = doc.add_paragraph(style="List Bullet")
+                para.add_run("☑ " + text)
 
             # Bullet point: - item or * item
-            elif line_stripped.startswith('- ') or line_stripped.startswith('* '):
+            elif line_stripped.startswith("- ") or line_stripped.startswith("* "):
                 text = line_stripped[2:].strip()
-                para = doc.add_paragraph(style='List Bullet')
+                para = doc.add_paragraph(style="List Bullet")
                 _add_formatted_text(para, text)
 
             # Numbered list: 1. item
-            elif re.match(r'^\d+\.\s', line_stripped):
-                text = re.sub(r'^\d+\.\s*', '', line_stripped)
-                para = doc.add_paragraph(style='List Number')
+            elif re.match(r"^\d+\.\s", line_stripped):
+                text = re.sub(r"^\d+\.\s*", "", line_stripped)
+                para = doc.add_paragraph(style="List Number")
                 _add_formatted_text(para, text)
 
             # Horizontal rule: --- or ***
-            elif line_stripped in ['---', '***', '___']:
+            elif line_stripped in ["---", "***", "___"]:
                 # Add a subtle separator
-                para = doc.add_paragraph('─' * 50)
+                para = doc.add_paragraph("─" * 50)
                 para.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
             # Regular paragraph with inline formatting
@@ -234,15 +239,11 @@ def create_docx_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         doc.save(output_path)
         logger.info(f"Document created: {output_path}")
 
-        return {
-            'success': True,
-            'file_path': output_path,
-            'line_count': len(lines)
-        }
+        return {"success": True, "file_path": output_path, "line_count": len(lines)}
 
     except Exception as e:
         logger.error(f"Failed to create document: {e}", exc_info=True)
-        return {'success': False, 'error': f'Failed to create document: {str(e)}'}
+        return {"success": False, "error": f"Failed to create document: {str(e)}"}
 
 
 def _add_formatted_text(paragraph, text: str):
@@ -258,25 +259,25 @@ def _add_formatted_text(paragraph, text: str):
 
     # Pattern for bold, italic, code
     # Process in order: bold first (** **), then italic (* *)
-    pattern = r'(\*\*(.+?)\*\*|\*(.+?)\*|`(.+?)`)'
+    pattern = r"(\*\*(.+?)\*\*|\*(.+?)\*|`(.+?)`)"
 
     last_end = 0
     for match in re.finditer(pattern, text):
         # Add text before this match
         if match.start() > last_end:
-            paragraph.add_run(text[last_end:match.start()])
+            paragraph.add_run(text[last_end : match.start()])
 
         full_match = match.group(0)
 
-        if full_match.startswith('**') and full_match.endswith('**'):
+        if full_match.startswith("**") and full_match.endswith("**"):
             # Bold
             run = paragraph.add_run(match.group(2))
             run.bold = True
-        elif full_match.startswith('`') and full_match.endswith('`'):
+        elif full_match.startswith("`") and full_match.endswith("`"):
             # Code - use different font
             run = paragraph.add_run(match.group(4))
-            run.font.name = 'Courier New'
-        elif full_match.startswith('*') and full_match.endswith('*'):
+            run.font.name = "Courier New"
+        elif full_match.startswith("*") and full_match.endswith("*"):
             # Italic
             run = paragraph.add_run(match.group(3))
             run.italic = True
@@ -312,31 +313,31 @@ def create_professional_checklist_tool(params: Dict[str, Any]) -> Dict[str, Any]
     Returns:
         Dictionary with success status and file path
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     try:
         from docx import Document
-        from docx.shared import Inches, Pt, RGBColor
-        from docx.enum.text import WD_ALIGN_PARAGRAPH
-        from docx.enum.table import WD_TABLE_ALIGNMENT
         from docx.enum.style import WD_STYLE_TYPE
-        from docx.oxml.ns import qn
+        from docx.enum.table import WD_TABLE_ALIGNMENT
+        from docx.enum.text import WD_ALIGN_PARAGRAPH
         from docx.oxml import OxmlElement
+        from docx.oxml.ns import qn
+        from docx.shared import Inches, Pt, RGBColor
     except ImportError:
         return {
-            'success': False,
-            'error': 'python-docx not installed. Install with: pip install python-docx'
+            "success": False,
+            "error": "python-docx not installed. Install with: pip install python-docx",
         }
 
-    content = params.get('content', '')
-    output_path = params.get('output_path')
-    title = params.get('title', 'Checklist')
-    subtitle = params.get('subtitle', '')
-    organization = params.get('organization', '')
-    include_form_fields = params.get('include_form_fields', True)
+    content = params.get("content", "")
+    output_path = params.get("output_path")
+    title = params.get("title", "Checklist")
+    subtitle = params.get("subtitle", "")
+    organization = params.get("organization", "")
+    include_form_fields = params.get("include_form_fields", True)
 
     if not output_path:
-        return {'success': False, 'error': 'output_path parameter is required'}
+        return {"success": False, "error": "output_path parameter is required"}
 
     try:
         doc = Document()
@@ -366,20 +367,17 @@ def create_professional_checklist_tool(params: Dict[str, Any]) -> Dict[str, Any]
         doc.save(output_path)
         logger.info(f"Professional checklist created: {output_path}")
 
-        return {
-            'success': True,
-            'file_path': output_path
-        }
+        return {"success": True, "file_path": output_path}
 
     except Exception as e:
         logger.error(f"Failed to create professional checklist: {e}", exc_info=True)
-        return {'success': False, 'error': str(e)}
+        return {"success": False, "error": str(e)}
 
 
 def _add_title_section(doc, title: str, subtitle: str, organization: str):
     """Add professional title section with colors."""
-    from docx.shared import Pt, RGBColor
     from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.shared import Pt, RGBColor
 
     # Main title
     title_para = doc.add_paragraph()
@@ -387,8 +385,8 @@ def _add_title_section(doc, title: str, subtitle: str, organization: str):
     title_run = title_para.add_run(title.upper())
     title_run.bold = True
     title_run.font.size = Pt(24)
-    title_run.font.color.rgb = RGBColor(*COLORS['primary'])
-    title_run.font.name = 'Calibri'
+    title_run.font.color.rgb = RGBColor(*COLORS["primary"])
+    title_run.font.name = "Calibri"
 
     # Subtitle
     if subtitle:
@@ -396,8 +394,8 @@ def _add_title_section(doc, title: str, subtitle: str, organization: str):
         sub_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
         sub_run = sub_para.add_run(subtitle)
         sub_run.font.size = Pt(14)
-        sub_run.font.color.rgb = RGBColor(*COLORS['secondary'])
-        sub_run.font.name = 'Calibri'
+        sub_run.font.color.rgb = RGBColor(*COLORS["secondary"])
+        sub_run.font.name = "Calibri"
 
     # Organization
     if organization:
@@ -405,32 +403,32 @@ def _add_title_section(doc, title: str, subtitle: str, organization: str):
         org_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
         org_run = org_para.add_run(organization)
         org_run.font.size = Pt(11)
-        org_run.font.color.rgb = RGBColor(*COLORS['accent'])
+        org_run.font.color.rgb = RGBColor(*COLORS["accent"])
         org_run.font.italic = True
 
     # Divider line
     div_para = doc.add_paragraph()
     div_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    div_run = div_para.add_run('━' * 60)
-    div_run.font.color.rgb = RGBColor(*COLORS['primary'])
+    div_run = div_para.add_run("━" * 60)
+    div_run.font.color.rgb = RGBColor(*COLORS["primary"])
 
     doc.add_paragraph()  # Spacing
 
 
 def _add_form_fields(doc):
     """Add form fields section at top of document."""
-    from docx.shared import Pt, RGBColor, Inches
     from docx.enum.table import WD_TABLE_ALIGNMENT
+    from docx.shared import Inches, Pt, RGBColor
 
     # Create a 2x4 table for form fields
     table = doc.add_table(rows=2, cols=4)
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
 
     fields = [
-        ('Entity/Fund Name:', ''),
-        ('Review Period:', ''),
-        ('Reviewer:', ''),
-        ('Date:', ''),
+        ("Entity/Fund Name:", ""),
+        ("Review Period:", ""),
+        ("Reviewer:", ""),
+        ("Date:", ""),
     ]
 
     for i, (label, _) in enumerate(fields):
@@ -443,25 +441,25 @@ def _add_form_fields(doc):
         label_run = label_para.add_run(label)
         label_run.bold = True
         label_run.font.size = Pt(10)
-        label_run.font.color.rgb = RGBColor(*COLORS['secondary'])
+        label_run.font.color.rgb = RGBColor(*COLORS["secondary"])
 
         # Value cell (underline for filling)
         value_cell = table.rows[row].cells[col + 1]
         value_para = value_cell.paragraphs[0]
-        value_run = value_para.add_run('_' * 25)
+        value_run = value_para.add_run("_" * 25)
         value_run.font.size = Pt(10)
-        value_run.font.color.rgb = RGBColor(*COLORS['border'])
+        value_run.font.color.rgb = RGBColor(*COLORS["border"])
 
     doc.add_paragraph()  # Spacing
 
 
 def _parse_and_add_content(doc, content: str):
     """Parse markdown content and add formatted sections."""
-    from docx.shared import Pt, RGBColor, Inches
-    from docx.enum.text import WD_ALIGN_PARAGRAPH
     from docx.enum.table import WD_TABLE_ALIGNMENT
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.shared import Inches, Pt, RGBColor
 
-    lines = content.split('\n')
+    lines = content.split("\n")
     current_section = None
     current_items = []
 
@@ -474,29 +472,29 @@ def _parse_and_add_content(doc, content: str):
             continue
 
         # Part header (e.g., "PART A:" or "## PART A")
-        if line.upper().startswith('PART ') or (line.startswith('## ') and 'PART' in line.upper()):
+        if line.upper().startswith("PART ") or (line.startswith("## ") and "PART" in line.upper()):
             # Flush previous section
             if current_items:
                 _add_checklist_table(doc, current_section, current_items)
                 current_items = []
 
             # Add part header
-            clean_title = re.sub(r'^##?\s*', '', line)
+            clean_title = re.sub(r"^##?\s*", "", line)
             _add_part_header(doc, clean_title)
             current_section = clean_title
             i += 1
             continue
 
         # Section header (e.g., "# Title" or "## 1. Section")
-        if line.startswith('# ') or line.startswith('## '):
+        if line.startswith("# ") or line.startswith("## "):
             # Flush previous items
             if current_items:
                 _add_checklist_table(doc, current_section, current_items)
                 current_items = []
 
-            clean_title = re.sub(r'^##?\s*', '', line)
+            clean_title = re.sub(r"^##?\s*", "", line)
 
-            if line.startswith('# '):
+            if line.startswith("# "):
                 _add_section_header(doc, clean_title, level=1)
             else:
                 _add_section_header(doc, clean_title, level=2)
@@ -506,7 +504,7 @@ def _parse_and_add_content(doc, content: str):
             continue
 
         # Subsection header (### )
-        if line.startswith('### '):
+        if line.startswith("### "):
             if current_items:
                 _add_checklist_table(doc, current_section, current_items)
                 current_items = []
@@ -518,43 +516,35 @@ def _parse_and_add_content(doc, content: str):
             continue
 
         # Checklist item with checkbox
-        if line.startswith('- [ ]') or line.startswith('- [x]') or line.startswith('- [X]'):
-            checked = '[x]' in line.lower()
-            item_text = re.sub(r'^-\s*\[[xX ]?\]\s*', '', line)
+        if line.startswith("- [ ]") or line.startswith("- [x]") or line.startswith("- [X]"):
+            checked = "[x]" in line.lower()
+            item_text = re.sub(r"^-\s*\[[xX ]?\]\s*", "", line)
 
             # Check if there's a reference (text after | or in parentheses)
-            reference = ''
-            if '|' in item_text:
-                parts = item_text.split('|', 1)
+            reference = ""
+            if "|" in item_text:
+                parts = item_text.split("|", 1)
                 item_text = parts[0].strip()
                 reference = parts[1].strip()
-            elif re.search(r'\(([^)]+)\)\s*$', item_text):
-                match = re.search(r'\(([^)]+)\)\s*$', item_text)
+            elif re.search(r"\(([^)]+)\)\s*$", item_text):
+                match = re.search(r"\(([^)]+)\)\s*$", item_text)
                 reference = match.group(1)
-                item_text = item_text[:match.start()].strip()
+                item_text = item_text[: match.start()].strip()
 
-            current_items.append({
-                'text': item_text,
-                'checked': checked,
-                'reference': reference
-            })
+            current_items.append({"text": item_text, "checked": checked, "reference": reference})
             i += 1
             continue
 
         # Regular bullet point (treat as checklist item)
-        if line.startswith('- ') or line.startswith('* '):
+        if line.startswith("- ") or line.startswith("* "):
             item_text = line[2:].strip()
-            reference = ''
-            if '|' in item_text:
-                parts = item_text.split('|', 1)
+            reference = ""
+            if "|" in item_text:
+                parts = item_text.split("|", 1)
                 item_text = parts[0].strip()
                 reference = parts[1].strip()
 
-            current_items.append({
-                'text': item_text,
-                'checked': False,
-                'reference': reference
-            })
+            current_items.append({"text": item_text, "checked": False, "reference": reference})
             i += 1
             continue
 
@@ -574,8 +564,8 @@ def _parse_and_add_content(doc, content: str):
 
 def _add_part_header(doc, title: str):
     """Add a PART header with professional styling."""
-    from docx.shared import Pt, RGBColor
     from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.shared import Pt, RGBColor
 
     doc.add_paragraph()  # Spacing
 
@@ -585,13 +575,13 @@ def _add_part_header(doc, title: str):
     run = para.add_run(title.upper())
     run.bold = True
     run.font.size = Pt(14)
-    run.font.color.rgb = RGBColor(*COLORS['primary'])
-    run.font.name = 'Calibri'
+    run.font.color.rgb = RGBColor(*COLORS["primary"])
+    run.font.name = "Calibri"
 
     # Add colored underline effect
     underline_para = doc.add_paragraph()
-    underline_run = underline_para.add_run('━' * 40)
-    underline_run.font.color.rgb = RGBColor(*COLORS['accent'])
+    underline_run = underline_para.add_run("━" * 40)
+    underline_run.font.color.rgb = RGBColor(*COLORS["accent"])
     underline_run.font.size = Pt(8)
 
 
@@ -600,44 +590,44 @@ def _add_section_header(doc, title: str, level: int = 2):
     from docx.shared import Pt, RGBColor
 
     sizes = {1: 16, 2: 13, 3: 11}
-    colors = {1: COLORS['primary'], 2: COLORS['secondary'], 3: COLORS['accent']}
+    colors = {1: COLORS["primary"], 2: COLORS["secondary"], 3: COLORS["accent"]}
 
     para = doc.add_paragraph()
     run = para.add_run(title)
     run.bold = True
     run.font.size = Pt(sizes.get(level, 12))
-    run.font.color.rgb = RGBColor(*colors.get(level, COLORS['secondary']))
-    run.font.name = 'Calibri'
+    run.font.color.rgb = RGBColor(*colors.get(level, COLORS["secondary"]))
+    run.font.name = "Calibri"
 
 
 def _add_checklist_table(doc, section_title: str, items: List[Dict]):
     """Add a professional checklist table."""
-    from docx.shared import Pt, RGBColor, Inches, Twips
-    from docx.enum.text import WD_ALIGN_PARAGRAPH
     from docx.enum.table import WD_TABLE_ALIGNMENT
-    from docx.oxml.ns import qn
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
     from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
+    from docx.shared import Inches, Pt, RGBColor, Twips
 
     if not items:
         return
 
     # Check if any items have references
-    has_references = any(item.get('reference') for item in items)
+    has_references = any(item.get("reference") for item in items)
 
     # Create table
     if has_references:
         table = doc.add_table(rows=len(items) + 1, cols=4)
         col_widths = [Inches(0.4), Inches(4.0), Inches(1.5), Inches(0.8)]
-        headers = ['', 'Checklist Item', 'Reference', 'Status']
+        headers = ["", "Checklist Item", "Reference", "Status"]
     else:
         table = doc.add_table(rows=len(items) + 1, cols=3)
         col_widths = [Inches(0.4), Inches(5.0), Inches(1.0)]
-        headers = ['', 'Checklist Item', 'Status']
+        headers = ["", "Checklist Item", "Status"]
 
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
 
     # Style table
-    table.style = 'Table Grid'
+    table.style = "Table Grid"
 
     # Set column widths
     for i, width in enumerate(col_widths):
@@ -653,11 +643,11 @@ def _add_checklist_table(doc, section_title: str, items: List[Dict]):
         run = para.add_run(header_text)
         run.bold = True
         run.font.size = Pt(10)
-        run.font.color.rgb = RGBColor(*COLORS['white'])
-        run.font.name = 'Calibri'
+        run.font.color.rgb = RGBColor(*COLORS["white"])
+        run.font.name = "Calibri"
 
         # Set cell background color
-        _set_cell_bg_color(cell, COLORS['primary'])
+        _set_cell_bg_color(cell, COLORS["primary"])
 
     # Data rows
     for row_idx, item in enumerate(items):
@@ -668,29 +658,29 @@ def _add_checklist_table(doc, section_title: str, items: List[Dict]):
         checkbox_para = checkbox_cell.paragraphs[0]
         checkbox_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-        if item.get('checked'):
-            checkbox_run = checkbox_para.add_run('☑')
-            checkbox_run.font.color.rgb = RGBColor(*COLORS['success'])
+        if item.get("checked"):
+            checkbox_run = checkbox_para.add_run("☑")
+            checkbox_run.font.color.rgb = RGBColor(*COLORS["success"])
         else:
-            checkbox_run = checkbox_para.add_run('☐')
-            checkbox_run.font.color.rgb = RGBColor(*COLORS['secondary'])
+            checkbox_run = checkbox_para.add_run("☐")
+            checkbox_run.font.color.rgb = RGBColor(*COLORS["secondary"])
         checkbox_run.font.size = Pt(12)
 
         # Item text column
         text_cell = row.cells[1]
         text_para = text_cell.paragraphs[0]
-        text_run = text_para.add_run(item.get('text', ''))
+        text_run = text_para.add_run(item.get("text", ""))
         text_run.font.size = Pt(10)
-        text_run.font.color.rgb = RGBColor(*COLORS['secondary'])
-        text_run.font.name = 'Calibri'
+        text_run.font.color.rgb = RGBColor(*COLORS["secondary"])
+        text_run.font.name = "Calibri"
 
         # Reference column (if applicable)
         if has_references:
             ref_cell = row.cells[2]
             ref_para = ref_cell.paragraphs[0]
-            ref_run = ref_para.add_run(item.get('reference', ''))
+            ref_run = ref_para.add_run(item.get("reference", ""))
             ref_run.font.size = Pt(9)
-            ref_run.font.color.rgb = RGBColor(*COLORS['accent'])
+            ref_run.font.color.rgb = RGBColor(*COLORS["accent"])
             ref_run.font.italic = True
 
             status_cell = row.cells[3]
@@ -704,18 +694,18 @@ def _add_checklist_table(doc, section_title: str, items: List[Dict]):
         # Alternate row colors
         if row_idx % 2 == 1:
             for cell in row.cells:
-                _set_cell_bg_color(cell, COLORS['light_bg'])
+                _set_cell_bg_color(cell, COLORS["light_bg"])
 
     doc.add_paragraph()  # Spacing after table
 
 
 def _set_cell_bg_color(cell, color: Tuple[int, int, int]):
     """Set background color of a table cell."""
-    from docx.oxml.ns import qn
     from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
 
-    shading = OxmlElement('w:shd')
-    shading.set(qn('w:fill'), '{:02X}{:02X}{:02X}'.format(*color))
+    shading = OxmlElement("w:shd")
+    shading.set(qn("w:fill"), "{:02X}{:02X}{:02X}".format(*color))
     cell._tc.get_or_add_tcPr().append(shading)
 
 
@@ -736,33 +726,33 @@ def add_paragraph_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - file_path (str): Path to modified document
             - error (str, optional): Error message if failed
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     try:
         from docx import Document
     except ImportError:
         return {
-            'success': False,
-            'error': 'python-docx not installed. Install with: pip install python-docx'
+            "success": False,
+            "error": "python-docx not installed. Install with: pip install python-docx",
         }
 
-    file_path = params.get('file_path')
-    text = params.get('text')
-    style = params.get('style', 'Normal')
+    file_path = params.get("file_path")
+    text = params.get("text")
+    style = params.get("style", "Normal")
 
     if not file_path:
-        return {'success': False, 'error': 'file_path parameter is required'}
+        return {"success": False, "error": "file_path parameter is required"}
 
     if not text:
-        return {'success': False, 'error': 'text parameter is required'}
+        return {"success": False, "error": "text parameter is required"}
 
     if not os.path.exists(file_path):
-        return {'success': False, 'error': f'File not found: {file_path}'}
+        return {"success": False, "error": f"File not found: {file_path}"}
 
     try:
         doc = Document(file_path)
 
-        if style.startswith('Heading'):
+        if style.startswith("Heading"):
             level = int(style[-1]) if style[-1].isdigit() else 1
             doc.add_heading(text, level=level)
         else:
@@ -770,21 +760,17 @@ def add_paragraph_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             try:
                 para.style = style
             except KeyError:
-                para.style = 'Normal'
+                para.style = "Normal"
                 logger.warning(f"Style '{style}' not found, using 'Normal'")
 
         doc.save(file_path)
         logger.info(f"Paragraph added to: {file_path}")
 
-        return {
-            'success': True,
-            'file_path': file_path,
-            'style_applied': style
-        }
+        return {"success": True, "file_path": file_path, "style_applied": style}
 
     except Exception as e:
         logger.error(f"Failed to add paragraph: {e}", exc_info=True)
-        return {'success': False, 'error': f'Failed to add paragraph: {str(e)}'}
+        return {"success": False, "error": f"Failed to add paragraph: {str(e)}"}
 
 
 @tool_wrapper()
@@ -806,32 +792,32 @@ def add_table_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - cols (int): Number of columns
             - error (str, optional): Error message if failed
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     try:
         from docx import Document
         from docx.shared import Inches
     except ImportError:
         return {
-            'success': False,
-            'error': 'python-docx not installed. Install with: pip install python-docx'
+            "success": False,
+            "error": "python-docx not installed. Install with: pip install python-docx",
         }
 
-    file_path = params.get('file_path')
-    data = params.get('data')
-    headers = params.get('headers')
+    file_path = params.get("file_path")
+    data = params.get("data")
+    headers = params.get("headers")
 
     if not file_path:
-        return {'success': False, 'error': 'file_path parameter is required'}
+        return {"success": False, "error": "file_path parameter is required"}
 
     if not data:
-        return {'success': False, 'error': 'data parameter is required'}
+        return {"success": False, "error": "data parameter is required"}
 
     if not isinstance(data, list) or not all(isinstance(row, list) for row in data):
-        return {'success': False, 'error': 'data must be a list of lists'}
+        return {"success": False, "error": "data must be a list of lists"}
 
     if not os.path.exists(file_path):
-        return {'success': False, 'error': f'File not found: {file_path}'}
+        return {"success": False, "error": f"File not found: {file_path}"}
 
     try:
         doc = Document(file_path)
@@ -842,13 +828,13 @@ def add_table_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         all_rows.extend(data)
 
         if not all_rows:
-            return {'success': False, 'error': 'No data to add'}
+            return {"success": False, "error": "No data to add"}
 
         num_cols = max(len(row) for row in all_rows)
         num_rows = len(all_rows)
 
         table = doc.add_table(rows=num_rows, cols=num_cols)
-        table.style = 'Table Grid'
+        table.style = "Table Grid"
 
         for i, row_data in enumerate(all_rows):
             row = table.rows[i]
@@ -865,16 +851,11 @@ def add_table_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         doc.save(file_path)
         logger.info(f"Table added to: {file_path}")
 
-        return {
-            'success': True,
-            'file_path': file_path,
-            'rows': num_rows,
-            'cols': num_cols
-        }
+        return {"success": True, "file_path": file_path, "rows": num_rows, "cols": num_cols}
 
     except Exception as e:
         logger.error(f"Failed to add table: {e}", exc_info=True)
-        return {'success': False, 'error': f'Failed to add table: {str(e)}'}
+        return {"success": False, "error": f"Failed to add table: {str(e)}"}
 
 
 @tool_wrapper()
@@ -895,32 +876,32 @@ def add_image_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - image_path (str): Path to the image that was added
             - error (str, optional): Error message if failed
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     try:
         from docx import Document
         from docx.shared import Inches
     except ImportError:
         return {
-            'success': False,
-            'error': 'python-docx not installed. Install with: pip install python-docx'
+            "success": False,
+            "error": "python-docx not installed. Install with: pip install python-docx",
         }
 
-    file_path = params.get('file_path')
-    image_path = params.get('image_path')
-    width = params.get('width', 6.0)
+    file_path = params.get("file_path")
+    image_path = params.get("image_path")
+    width = params.get("width", 6.0)
 
     if not file_path:
-        return {'success': False, 'error': 'file_path parameter is required'}
+        return {"success": False, "error": "file_path parameter is required"}
 
     if not image_path:
-        return {'success': False, 'error': 'image_path parameter is required'}
+        return {"success": False, "error": "image_path parameter is required"}
 
     if not os.path.exists(file_path):
-        return {'success': False, 'error': f'Document not found: {file_path}'}
+        return {"success": False, "error": f"Document not found: {file_path}"}
 
     if not os.path.exists(image_path):
-        return {'success': False, 'error': f'Image not found: {image_path}'}
+        return {"success": False, "error": f"Image not found: {image_path}"}
 
     try:
         doc = Document(file_path)
@@ -931,15 +912,15 @@ def add_image_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         logger.info(f"Image added to: {file_path}")
 
         return {
-            'success': True,
-            'file_path': file_path,
-            'image_path': image_path,
-            'width_inches': width
+            "success": True,
+            "file_path": file_path,
+            "image_path": image_path,
+            "width_inches": width,
         }
 
     except Exception as e:
         logger.error(f"Failed to add image: {e}", exc_info=True)
-        return {'success': False, 'error': f'Failed to add image: {str(e)}'}
+        return {"success": False, "error": f"Failed to add image: {str(e)}"}
 
 
 @tool_wrapper()
@@ -960,31 +941,31 @@ def replace_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - replacements (int): Number of replacements made
             - error (str, optional): Error message if failed
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     try:
         from docx import Document
     except ImportError:
         return {
-            'success': False,
-            'error': 'python-docx not installed. Install with: pip install python-docx'
+            "success": False,
+            "error": "python-docx not installed. Install with: pip install python-docx",
         }
 
-    file_path = params.get('file_path')
-    find_text = params.get('find')
-    replace_text = params.get('replace')
+    file_path = params.get("file_path")
+    find_text = params.get("find")
+    replace_text = params.get("replace")
 
     if not file_path:
-        return {'success': False, 'error': 'file_path parameter is required'}
+        return {"success": False, "error": "file_path parameter is required"}
 
     if not find_text:
-        return {'success': False, 'error': 'find parameter is required'}
+        return {"success": False, "error": "find parameter is required"}
 
     if replace_text is None:
-        return {'success': False, 'error': 'replace parameter is required'}
+        return {"success": False, "error": "replace parameter is required"}
 
     if not os.path.exists(file_path):
-        return {'success': False, 'error': f'File not found: {file_path}'}
+        return {"success": False, "error": f"File not found: {file_path}"}
 
     try:
         doc = Document(file_path)
@@ -1013,16 +994,16 @@ def replace_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         logger.info(f"Text replaced in: {file_path}, {replacements} replacements")
 
         return {
-            'success': True,
-            'file_path': file_path,
-            'replacements': replacements,
-            'find': find_text,
-            'replace': replace_text
+            "success": True,
+            "file_path": file_path,
+            "replacements": replacements,
+            "find": find_text,
+            "replace": replace_text,
         }
 
     except Exception as e:
         logger.error(f"Failed to replace text: {e}", exc_info=True)
-        return {'success': False, 'error': f'Failed to replace text: {str(e)}'}
+        return {"success": False, "error": f"Failed to replace text: {str(e)}"}
 
 
 @tool_wrapper()
@@ -1042,24 +1023,24 @@ def get_styles_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - character_styles (list): List of character style names
             - error (str, optional): Error message if failed
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     try:
         from docx import Document
         from docx.enum.style import WD_STYLE_TYPE
     except ImportError:
         return {
-            'success': False,
-            'error': 'python-docx not installed. Install with: pip install python-docx'
+            "success": False,
+            "error": "python-docx not installed. Install with: pip install python-docx",
         }
 
-    file_path = params.get('file_path')
+    file_path = params.get("file_path")
 
     if not file_path:
-        return {'success': False, 'error': 'file_path parameter is required'}
+        return {"success": False, "error": "file_path parameter is required"}
 
     if not os.path.exists(file_path):
-        return {'success': False, 'error': f'File not found: {file_path}'}
+        return {"success": False, "error": f"File not found: {file_path}"}
 
     try:
         doc = Document(file_path)
@@ -1071,8 +1052,8 @@ def get_styles_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
         for style in doc.styles:
             style_info = {
-                'name': style.name,
-                'type': str(style.type).split('.')[-1].replace('>', '')
+                "name": style.name,
+                "type": str(style.type).split(".")[-1].replace(">", ""),
             }
             all_styles.append(style_info)
 
@@ -1086,14 +1067,14 @@ def get_styles_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         logger.info(f"Styles listed from: {file_path}")
 
         return {
-            'success': True,
-            'styles': all_styles,
-            'paragraph_styles': sorted(paragraph_styles),
-            'character_styles': sorted(character_styles),
-            'table_styles': sorted(table_styles),
-            'total_count': len(all_styles)
+            "success": True,
+            "styles": all_styles,
+            "paragraph_styles": sorted(paragraph_styles),
+            "character_styles": sorted(character_styles),
+            "table_styles": sorted(table_styles),
+            "total_count": len(all_styles),
         }
 
     except Exception as e:
         logger.error(f"Failed to list styles: {e}", exc_info=True)
-        return {'success': False, 'error': f'Failed to list styles: {str(e)}'}
+        return {"success": False, "error": f"Failed to list styles: {str(e)}"}

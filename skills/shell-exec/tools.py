@@ -8,22 +8,20 @@ WARNING: This skill executes arbitrary code. Use with caution.
 """
 
 import os
-import sys
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
-from typing import Dict, Any
-
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from typing import Any, Dict
 
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("shell-exec")
 
 
-
-@tool_wrapper(required_params=['command'])
+@tool_wrapper(required_params=["command"])
 def execute_command_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Execute a shell command and return the output.
@@ -40,27 +38,38 @@ def execute_command_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, stdout, stderr, exit_code, command
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
-    timeout = int(params.get('timeout', 60))  # 60s default (was 30 — too low for network scripts)
-    working_directory = params.get('working_directory')
-    use_shell = params.get('shell', True)
+    timeout = int(params.get("timeout", 60))  # 60s default (was 30 — too low for network scripts)
+    working_directory = params.get("working_directory")
+    use_shell = params.get("shell", True)
 
     # Safety check: detect if command is a natural language task description
     # instead of an actual shell command. LLM planners sometimes pass the task
     # description directly (e.g., "Write a Python script that..." as a command).
-    command = params['command'].strip()
-    _nl_indicators = ('write a', 'create a', 'generate a', 'build a', 'make a',
-                      'develop a', 'implement a', 'design a', 'analyze the',
-                      'research the', 'scrape the', 'fetch the')
+    command = params["command"].strip()
+    _nl_indicators = (
+        "write a",
+        "create a",
+        "generate a",
+        "build a",
+        "make a",
+        "develop a",
+        "implement a",
+        "design a",
+        "analyze the",
+        "research the",
+        "scrape the",
+        "fetch the",
+    )
     if len(command) > 100 and any(command.lower().startswith(nl) for nl in _nl_indicators):
         # Auto-recovery: look for a recently written .py file in cwd
         import glob as _glob
         import time as _time
+
         _cwd = working_directory or os.getcwd()
         _recent_py = sorted(
-            _glob.glob(os.path.join(_cwd, '*.py')),
-            key=os.path.getmtime, reverse=True
+            _glob.glob(os.path.join(_cwd, "*.py")), key=os.path.getmtime, reverse=True
         )
         # Find a file written in the last 120 seconds
         _now = _time.time()
@@ -71,46 +80,49 @@ def execute_command_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                 break
         if _candidate:
             # Auto-fix: run the recently created script instead
-            params['command'] = f'{sys.executable} {_candidate}'
-            command = params['command']
-            status.emit("Auto-fixed", f"🔧 Running {os.path.basename(_candidate)} instead of task description")
+            params["command"] = f"{sys.executable} {_candidate}"
+            command = params["command"]
+            status.emit(
+                "Auto-fixed",
+                f"🔧 Running {os.path.basename(_candidate)} instead of task description",
+            )
         else:
             return tool_error(
-                f'Command appears to be a task description, not a shell command. '
-                f'Use execute_script_tool for Python code, or pass a real command like '
+                f"Command appears to be a task description, not a shell command. "
+                f"Use execute_script_tool for Python code, or pass a real command like "
                 f'"python script.py"',
-                command=command[:80] + '...'
+                command=command[:80] + "...",
             )
 
     cwd = None
     if working_directory:
         cwd_path = Path(working_directory)
         if not cwd_path.exists() or not cwd_path.is_dir():
-            return tool_error(f'Invalid working directory: {working_directory}')
+            return tool_error(f"Invalid working directory: {working_directory}")
         cwd = str(cwd_path)
 
     try:
         result = subprocess.run(
-            params['command'],
+            params["command"],
             shell=use_shell,
             capture_output=True,
             text=True,
             timeout=timeout,
-            cwd=cwd
+            cwd=cwd,
         )
 
         return tool_response(
             stdout=result.stdout,
             stderr=result.stderr,
             exit_code=result.returncode,
-            command=params['command']
+            command=params["command"],
         )
 
     except subprocess.TimeoutExpired:
-        return tool_error(f'Command timed out after {timeout} seconds', command=params['command'])
+        return tool_error(f"Command timed out after {timeout} seconds", command=params["command"])
 
 
-@tool_wrapper(required_params=['script'])
+@tool_wrapper(required_params=["script"])
 def execute_script_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Execute a Python script and return the output.
@@ -125,30 +137,27 @@ def execute_script_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, output, exit_code
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
-    timeout = int(params.get('timeout', 60))  # 60s default (was 30)
+    timeout = int(params.get("timeout", 60))  # 60s default (was 30)
 
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
-        f.write(params['script'])
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
+        f.write(params["script"])
         temp_script = f.name
 
     try:
         result = subprocess.run(
-            [sys.executable, temp_script],
-            capture_output=True,
-            text=True,
-            timeout=timeout
+            [sys.executable, temp_script], capture_output=True, text=True, timeout=timeout
         )
 
         return tool_response(
             output=result.stdout + result.stderr,
             exit_code=result.returncode,
-            error=result.stderr if result.returncode != 0 else None
+            error=result.stderr if result.returncode != 0 else None,
         )
 
     except subprocess.TimeoutExpired:
-        return tool_error(f'Script timed out after {timeout} seconds')
+        return tool_error(f"Script timed out after {timeout} seconds")
 
     finally:
         try:
@@ -157,4 +166,4 @@ def execute_script_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             pass
 
 
-__all__ = ['execute_command_tool', 'execute_script_tool']
+__all__ = ["execute_command_tool", "execute_script_tool"]

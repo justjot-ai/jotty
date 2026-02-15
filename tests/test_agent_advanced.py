@@ -19,14 +19,12 @@ from __future__ import annotations
 
 import asyncio
 import json
-import time
 import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-from unittest.mock import (
-    AsyncMock, MagicMock, Mock, PropertyMock, patch, call
-)
+from unittest.mock import AsyncMock, MagicMock, Mock, PropertyMock, call, patch
 
 import pytest
 
@@ -37,31 +35,47 @@ if _jotty_parent not in sys.path:
 
 # Try importing core modules with skipif fallback
 try:
-    from Jotty.core.modes.agent.base.base_agent import BaseAgent, AgentRuntimeConfig, AgentResult
-    from Jotty.core.modes.agent.agents.meta_agent import MetaAgent, MetaAgentConfig, create_meta_agent
-    from Jotty.core.modes.agent.agents.composite_agent import (
-        CompositeAgent, CompositeAgentConfig, UnifiedResult,
-    )
     from Jotty.core.intelligence.swarms.base.agent_team import CoordinationPattern, MergeStrategy
     from Jotty.core.modes.agent.agents.autonomous_agent import (
-        AutonomousAgent, AutonomousAgentConfig, ExecutionContextManager,
+        AutonomousAgent,
+        AutonomousAgentConfig,
+        ExecutionContextManager,
         create_autonomous_agent,
     )
-    from Jotty.core.modes.agent.executors.skill_plan_executor import SkillPlanExecutor, ToolCallCache
+    from Jotty.core.modes.agent.agents.composite_agent import (
+        CompositeAgent,
+        CompositeAgentConfig,
+        UnifiedResult,
+    )
+    from Jotty.core.modes.agent.agents.meta_agent import (
+        MetaAgent,
+        MetaAgentConfig,
+        create_meta_agent,
+    )
+    from Jotty.core.modes.agent.base.base_agent import AgentResult, AgentRuntimeConfig, BaseAgent
+    from Jotty.core.modes.agent.executors.skill_plan_executor import (
+        SkillPlanExecutor,
+        ToolCallCache,
+    )
+
     AGENTS_AVAILABLE = True
 except ImportError as e:
     AGENTS_AVAILABLE = False
 
 try:
     from Jotty.core.modes.agent.auto_agent import AutoAgent
+
     AUTO_AGENT_AVAILABLE = True
 except ImportError:
     AUTO_AGENT_AVAILABLE = False
 
 try:
     from Jotty.core.modes.agent._execution_types import (
-        ExecutionStep, TaskType, AgenticExecutionResult,
+        AgenticExecutionResult,
+        ExecutionStep,
+        TaskType,
     )
+
     EXEC_TYPES_AVAILABLE = True
 except ImportError:
     EXEC_TYPES_AVAILABLE = False
@@ -164,7 +178,7 @@ class TestMetaAgent:
 
     @pytest.mark.unit
     def test_init_defaults(self):
-        with patch.object(BaseAgent, '_ensure_initialized'):
+        with patch.object(BaseAgent, "_ensure_initialized"):
             agent = MetaAgent()
         assert agent.signature is None
         assert agent.gold_db is None
@@ -174,7 +188,7 @@ class TestMetaAgent:
     @pytest.mark.unit
     def test_init_with_custom_config(self):
         config = MetaAgentConfig(name="TestMeta", improvement_threshold=0.85)
-        with patch.object(BaseAgent, '_ensure_initialized'):
+        with patch.object(BaseAgent, "_ensure_initialized"):
             agent = MetaAgent(config=config)
         assert agent.config.name == "TestMeta"
         assert agent.config.improvement_threshold == 0.85
@@ -182,20 +196,20 @@ class TestMetaAgent:
     @pytest.mark.unit
     def test_init_with_gold_db(self):
         gold_db = MagicMock()
-        with patch.object(BaseAgent, '_ensure_initialized'):
+        with patch.object(BaseAgent, "_ensure_initialized"):
             agent = MetaAgent(gold_db=gold_db)
         assert agent.gold_db is gold_db
 
     @pytest.mark.unit
     def test_init_with_improvement_history(self):
         history = MagicMock()
-        with patch.object(BaseAgent, '_ensure_initialized'):
+        with patch.object(BaseAgent, "_ensure_initialized"):
             agent = MetaAgent(improvement_history=history)
         assert agent.improvement_history is history
 
     @pytest.mark.unit
     def test_ensure_initialized_no_signature(self):
-        with patch.object(BaseAgent, '_ensure_initialized'):
+        with patch.object(BaseAgent, "_ensure_initialized"):
             agent = MetaAgent()
         # Without DSPy, _dspy_module stays None
         agent._initialized = True
@@ -205,7 +219,7 @@ class TestMetaAgent:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_evaluate_against_gold_no_db(self):
-        with patch.object(BaseAgent, '_ensure_initialized'):
+        with patch.object(BaseAgent, "_ensure_initialized"):
             agent = MetaAgent()
         result = await agent.evaluate_against_gold("gold_1", {"answer": "yes"})
         assert result["overall_score"] == 0.5
@@ -217,7 +231,7 @@ class TestMetaAgent:
     async def test_evaluate_against_gold_missing_id(self):
         gold_db = MagicMock()
         gold_db.get.return_value = None
-        with patch.object(BaseAgent, '_ensure_initialized'):
+        with patch.object(BaseAgent, "_ensure_initialized"):
             agent = MetaAgent(gold_db=gold_db)
         result = await agent.evaluate_against_gold("nonexistent", {"answer": "x"})
         assert result["overall_score"] == 0.0
@@ -232,7 +246,7 @@ class TestMetaAgent:
         gold_standard.id = "gold_1"
         gold_db = MagicMock()
         gold_db.get.return_value = gold_standard
-        with patch.object(BaseAgent, '_ensure_initialized'):
+        with patch.object(BaseAgent, "_ensure_initialized"):
             agent = MetaAgent(gold_db=gold_db)
         result = await agent.evaluate_against_gold("gold_1", {"key": "value"})
         assert result["overall_score"] == 1.0
@@ -246,11 +260,9 @@ class TestMetaAgent:
         gold_standard.id = "gold_1"
         gold_db = MagicMock()
         gold_db.get.return_value = gold_standard
-        with patch.object(BaseAgent, '_ensure_initialized'):
+        with patch.object(BaseAgent, "_ensure_initialized"):
             agent = MetaAgent(gold_db=gold_db)
-        result = await agent.evaluate_against_gold(
-            "gold_1", {"summary": "hello world"}
-        )
+        result = await agent.evaluate_against_gold("gold_1", {"summary": "hello world"})
         # 2 out of 3 words match
         assert 0.5 < result["overall_score"] < 1.0
 
@@ -262,7 +274,7 @@ class TestMetaAgent:
         gold_standard.id = "gold_1"
         gold_db = MagicMock()
         gold_db.get.return_value = gold_standard
-        with patch.object(BaseAgent, '_ensure_initialized'):
+        with patch.object(BaseAgent, "_ensure_initialized"):
             agent = MetaAgent(gold_db=gold_db)
         result = await agent.evaluate_against_gold("gold_1", {"answer": None})
         assert result["overall_score"] == 0.0
@@ -272,7 +284,7 @@ class TestMetaAgent:
     async def test_evaluate_against_gold_exception(self):
         gold_db = MagicMock()
         gold_db.get.side_effect = RuntimeError("db error")
-        with patch.object(BaseAgent, '_ensure_initialized'):
+        with patch.object(BaseAgent, "_ensure_initialized"):
             agent = MetaAgent(gold_db=gold_db)
         result = await agent.evaluate_against_gold("gold_1", {"data": "x"})
         assert result["result"] == "failed"
@@ -283,7 +295,7 @@ class TestMetaAgent:
         gold_standard = MagicMock()
         gold_standard.expected_output = {"count": 42}
         gold_standard.id = "g1"
-        with patch.object(BaseAgent, '_ensure_initialized'):
+        with patch.object(BaseAgent, "_ensure_initialized"):
             agent = MetaAgent()
         result = agent._simple_evaluation(gold_standard, {"count": 99})
         assert result["scores"]["count"] == 0.5
@@ -293,7 +305,7 @@ class TestMetaAgent:
         gold_standard = MagicMock()
         gold_standard.expected_output = {}
         gold_standard.id = "g1"
-        with patch.object(BaseAgent, '_ensure_initialized'):
+        with patch.object(BaseAgent, "_ensure_initialized"):
             agent = MetaAgent()
         result = agent._simple_evaluation(gold_standard, {"key": "val"})
         assert result["overall_score"] == 0.0
@@ -301,7 +313,7 @@ class TestMetaAgent:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_analyze_and_suggest_no_evaluations(self):
-        with patch.object(BaseAgent, '_ensure_initialized'):
+        with patch.object(BaseAgent, "_ensure_initialized"):
             agent = MetaAgent()
         suggestions = await agent.analyze_and_suggest_improvements([])
         assert suggestions == []
@@ -309,7 +321,7 @@ class TestMetaAgent:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_analyze_and_suggest_no_dspy(self):
-        with patch.object(BaseAgent, '_ensure_initialized'):
+        with patch.object(BaseAgent, "_ensure_initialized"):
             agent = MetaAgent()
         evals = [{"result": "needs_improvement", "overall_score": 0.4}]
         suggestions = await agent.analyze_and_suggest_improvements(evals)
@@ -318,22 +330,26 @@ class TestMetaAgent:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_extract_learnings_not_excellent(self):
-        with patch.object(BaseAgent, '_ensure_initialized'):
+        with patch.object(BaseAgent, "_ensure_initialized"):
             agent = MetaAgent()
         learnings = await agent.extract_learnings(
-            {"task": "x"}, {"output": "y"},
-            {"result": "needs_improvement"}, "general",
+            {"task": "x"},
+            {"output": "y"},
+            {"result": "needs_improvement"},
+            "general",
         )
         assert learnings == []
 
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_extract_learnings_no_dspy_module(self):
-        with patch.object(BaseAgent, '_ensure_initialized'):
+        with patch.object(BaseAgent, "_ensure_initialized"):
             agent = MetaAgent()
         learnings = await agent.extract_learnings(
-            {"task": "x"}, {"output": "y"},
-            {"result": "excellent", "overall_score": 0.95}, "finance",
+            {"task": "x"},
+            {"output": "y"},
+            {"result": "excellent", "overall_score": 0.95},
+            "finance",
         )
         assert len(learnings) == 2
         assert "finance" in learnings[0]
@@ -341,7 +357,7 @@ class TestMetaAgent:
     @pytest.mark.unit
     def test_get_agent_state_no_context(self):
         config = MetaAgentConfig(name="test", enable_context=False)
-        with patch.object(BaseAgent, '_ensure_initialized'):
+        with patch.object(BaseAgent, "_ensure_initialized"):
             agent = MetaAgent(config=config)
         result = agent.get_agent_state("other_agent")
         assert result is None
@@ -350,7 +366,7 @@ class TestMetaAgent:
     def test_get_agent_state_with_context(self):
         ctx = MagicMock()
         ctx.get.return_value = {"agent1": {"status": "active"}}
-        with patch.object(BaseAgent, '_ensure_initialized'):
+        with patch.object(BaseAgent, "_ensure_initialized"):
             agent = MetaAgent()
         agent._context_manager = ctx
         result = agent.get_agent_state("agent1")
@@ -360,7 +376,7 @@ class TestMetaAgent:
     def test_publish_state_with_context(self):
         ctx = MagicMock()
         ctx.get.return_value = {}
-        with patch.object(BaseAgent, '_ensure_initialized'):
+        with patch.object(BaseAgent, "_ensure_initialized"):
             agent = MetaAgent()
         agent._context_manager = ctx
         agent.publish_state({"status": "done"})
@@ -369,7 +385,7 @@ class TestMetaAgent:
     @pytest.mark.unit
     def test_publish_state_no_context(self):
         config = MetaAgentConfig(name="test", enable_context=False)
-        with patch.object(BaseAgent, '_ensure_initialized'):
+        with patch.object(BaseAgent, "_ensure_initialized"):
             agent = MetaAgent(config=config)
         # Should not raise
         agent.publish_state({"status": "done"})
@@ -377,7 +393,7 @@ class TestMetaAgent:
     @pytest.mark.unit
     def test_get_all_agent_states_empty(self):
         config = MetaAgentConfig(name="test", enable_context=False)
-        with patch.object(BaseAgent, '_ensure_initialized'):
+        with patch.object(BaseAgent, "_ensure_initialized"):
             agent = MetaAgent(config=config)
         assert agent.get_all_agent_states() == {}
 
@@ -385,7 +401,7 @@ class TestMetaAgent:
     def test_get_all_agent_states_with_context(self):
         ctx = MagicMock()
         ctx.get.return_value = {"a": {"x": 1}, "b": {"y": 2}}
-        with patch.object(BaseAgent, '_ensure_initialized'):
+        with patch.object(BaseAgent, "_ensure_initialized"):
             agent = MetaAgent()
         agent._context_manager = ctx
         states = agent.get_all_agent_states()
@@ -394,7 +410,7 @@ class TestMetaAgent:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_execute_impl_no_dspy_module(self):
-        with patch.object(BaseAgent, '_ensure_initialized'):
+        with patch.object(BaseAgent, "_ensure_initialized"):
             agent = MetaAgent()
         with pytest.raises(NotImplementedError):
             await agent._execute_impl(task="test")
@@ -434,14 +450,16 @@ class TestCompositeAgentConfig:
     @pytest.mark.unit
     def test_custom_coordination_pattern(self):
         config = CompositeAgentConfig(
-            name="test", coordination_pattern=CoordinationPattern.PARALLEL,
+            name="test",
+            coordination_pattern=CoordinationPattern.PARALLEL,
         )
         assert config.coordination_pattern == CoordinationPattern.PARALLEL
 
     @pytest.mark.unit
     def test_custom_merge_strategy(self):
         config = CompositeAgentConfig(
-            name="test", merge_strategy=MergeStrategy.BEST,
+            name="test",
+            merge_strategy=MergeStrategy.BEST,
         )
         assert config.merge_strategy == MergeStrategy.BEST
 
@@ -462,7 +480,9 @@ class TestUnifiedResult:
     @pytest.mark.unit
     def test_creation_required_fields(self):
         ur = UnifiedResult(
-            success=True, output="data", name="agent1",
+            success=True,
+            output="data",
+            name="agent1",
             execution_time=1.5,
         )
         assert ur.success is True
@@ -473,43 +493,62 @@ class TestUnifiedResult:
     @pytest.mark.unit
     def test_default_metadata(self):
         ur = UnifiedResult(
-            success=True, output=None, name="a", execution_time=0.0,
+            success=True,
+            output=None,
+            name="a",
+            execution_time=0.0,
         )
         assert ur.metadata == {}
 
     @pytest.mark.unit
     def test_default_agent_traces(self):
         ur = UnifiedResult(
-            success=True, output=None, name="a", execution_time=0.0,
+            success=True,
+            output=None,
+            name="a",
+            execution_time=0.0,
         )
         assert ur.agent_traces == []
 
     @pytest.mark.unit
     def test_default_evaluation(self):
         ur = UnifiedResult(
-            success=True, output=None, name="a", execution_time=0.0,
+            success=True,
+            output=None,
+            name="a",
+            execution_time=0.0,
         )
         assert ur.evaluation is None
 
     @pytest.mark.unit
     def test_default_improvements(self):
         ur = UnifiedResult(
-            success=True, output=None, name="a", execution_time=0.0,
+            success=True,
+            output=None,
+            name="a",
+            execution_time=0.0,
         )
         assert ur.improvements == []
 
     @pytest.mark.unit
     def test_default_error(self):
         ur = UnifiedResult(
-            success=False, output=None, name="a", execution_time=0.0,
+            success=False,
+            output=None,
+            name="a",
+            execution_time=0.0,
         )
         assert ur.error is None
 
     @pytest.mark.unit
     def test_to_agent_result(self):
         ur = UnifiedResult(
-            success=True, output={"key": "val"}, name="test_agent",
-            execution_time=2.0, error=None, metadata={"m": 1},
+            success=True,
+            output={"key": "val"},
+            name="test_agent",
+            execution_time=2.0,
+            error=None,
+            metadata={"m": 1},
         )
         ar = ur.to_agent_result()
         assert isinstance(ar, AgentResult)
@@ -522,7 +561,10 @@ class TestUnifiedResult:
     @pytest.mark.unit
     def test_to_agent_result_with_error(self):
         ur = UnifiedResult(
-            success=False, output=None, name="a", execution_time=0.1,
+            success=False,
+            output=None,
+            name="a",
+            execution_time=0.1,
             error="something failed",
         )
         ar = ur.to_agent_result()
@@ -532,9 +574,13 @@ class TestUnifiedResult:
     @pytest.mark.unit
     def test_to_swarm_result(self):
         ur = UnifiedResult(
-            success=True, output={"result": "ok"}, name="swarm1",
-            execution_time=3.0, metadata={"domain": "coding"},
-            agent_traces=["t1"], evaluation={"score": 0.9},
+            success=True,
+            output={"result": "ok"},
+            name="swarm1",
+            execution_time=3.0,
+            metadata={"domain": "coding"},
+            agent_traces=["t1"],
+            evaluation={"score": 0.9},
             improvements=["i1"],
         )
         mock_sr_cls = MagicMock()
@@ -549,8 +595,11 @@ class TestUnifiedResult:
     @pytest.mark.unit
     def test_from_agent_result(self):
         ar = AgentResult(
-            success=True, output="hello", agent_name="agent1",
-            execution_time=1.0, metadata={"k": "v"},
+            success=True,
+            output="hello",
+            agent_name="agent1",
+            execution_time=1.0,
+            metadata={"k": "v"},
         )
         ur = UnifiedResult.from_agent_result(ar)
         assert ur.success is True
@@ -579,7 +628,9 @@ class TestUnifiedResult:
     @pytest.mark.unit
     def test_roundtrip_agent_result(self):
         ar_original = AgentResult(
-            success=True, output="roundtrip", agent_name="rt",
+            success=True,
+            output="roundtrip",
+            agent_name="rt",
             execution_time=0.5,
         )
         ur = UnifiedResult.from_agent_result(ar_original)
@@ -684,8 +735,10 @@ class TestCompositeAgent:
         s1 = _make_mock_sub_agent("s1")
         s2 = _make_mock_sub_agent("s2")
         agent = CompositeAgent.compose(
-            "Pipeline", coordination=CoordinationPattern.PIPELINE,
-            a=s1, b=s2,
+            "Pipeline",
+            coordination=CoordinationPattern.PIPELINE,
+            a=s1,
+            b=s2,
         )
         assert agent.config.name == "Pipeline"
         assert len(agent._sub_agents) == 2
@@ -698,8 +751,10 @@ class TestCompositeAgent:
         s2 = _make_mock_sub_agent("s2")
         s2.config.timeout = 200.0
         agent = CompositeAgent.compose(
-            "Par", coordination=CoordinationPattern.PARALLEL,
-            a=s1, b=s2,
+            "Par",
+            coordination=CoordinationPattern.PARALLEL,
+            a=s1,
+            b=s2,
         )
         # Parallel: max timeout
         assert agent.config.timeout == 200.0
@@ -711,8 +766,10 @@ class TestCompositeAgent:
         s2 = _make_mock_sub_agent("s2")
         s2.config.timeout = 200.0
         agent = CompositeAgent.compose(
-            "Pipe", coordination=CoordinationPattern.PIPELINE,
-            a=s1, b=s2,
+            "Pipe",
+            coordination=CoordinationPattern.PIPELINE,
+            a=s1,
+            b=s2,
         )
         # Pipeline: sum of timeouts
         assert agent.config.timeout == 300.0
@@ -739,8 +796,11 @@ class TestCompositeAgent:
     async def test_execute_pipeline_failure_stops(self):
         s1 = _make_mock_sub_agent("s1", success=False, output=None)
         s1.execute.return_value = AgentResult(
-            success=False, output=None, agent_name="s1",
-            execution_time=0.1, error="failed",
+            success=False,
+            output=None,
+            agent_name="s1",
+            execution_time=0.1,
+            error="failed",
         )
         s2 = _make_mock_sub_agent("s2")
         config = CompositeAgentConfig(
@@ -778,15 +838,19 @@ class TestCompositeAgent:
         s2 = _make_mock_sub_agent("s2", output="yes")
         s3 = _make_mock_sub_agent("s3", success=False)
         s3.execute.return_value = AgentResult(
-            success=False, output=None, agent_name="s3",
-            execution_time=0.1, error="nope",
+            success=False,
+            output=None,
+            agent_name="s3",
+            execution_time=0.1,
+            error="nope",
         )
         config = CompositeAgentConfig(
             name="ConsTest",
             coordination_pattern=CoordinationPattern.CONSENSUS,
         )
         agent = CompositeAgent(
-            config=config, sub_agents={"a": s1, "b": s2, "c": s3},
+            config=config,
+            sub_agents={"a": s1, "b": s2, "c": s3},
         )
         result = await agent._execute_consensus(task="test")
         # 2/3 succeed => majority success
@@ -797,13 +861,19 @@ class TestCompositeAgent:
     async def test_execute_consensus_majority_fail(self):
         s1 = _make_mock_sub_agent("s1", success=False)
         s1.execute.return_value = AgentResult(
-            success=False, output=None, agent_name="s1",
-            execution_time=0.1, error="err",
+            success=False,
+            output=None,
+            agent_name="s1",
+            execution_time=0.1,
+            error="err",
         )
         s2 = _make_mock_sub_agent("s2", success=False)
         s2.execute.return_value = AgentResult(
-            success=False, output=None, agent_name="s2",
-            execution_time=0.1, error="err",
+            success=False,
+            output=None,
+            agent_name="s2",
+            execution_time=0.1,
+            error="err",
         )
         s3 = _make_mock_sub_agent("s3", output="ok")
         config = CompositeAgentConfig(
@@ -811,7 +881,8 @@ class TestCompositeAgent:
             coordination_pattern=CoordinationPattern.CONSENSUS,
         )
         agent = CompositeAgent(
-            config=config, sub_agents={"a": s1, "b": s2, "c": s3},
+            config=config,
+            sub_agents={"a": s1, "b": s2, "c": s3},
         )
         result = await agent._execute_consensus(task="test")
         # 1/3 succeed => majority fail
@@ -820,7 +891,8 @@ class TestCompositeAgent:
     @pytest.mark.unit
     def test_merge_outputs_combine(self):
         config = CompositeAgentConfig(
-            name="test", merge_strategy=MergeStrategy.COMBINE,
+            name="test",
+            merge_strategy=MergeStrategy.COMBINE,
         )
         agent = CompositeAgent(config=config)
         outputs = {"a": "x", "b": "y"}
@@ -830,7 +902,8 @@ class TestCompositeAgent:
     @pytest.mark.unit
     def test_merge_outputs_first(self):
         config = CompositeAgentConfig(
-            name="test", merge_strategy=MergeStrategy.FIRST,
+            name="test",
+            merge_strategy=MergeStrategy.FIRST,
         )
         agent = CompositeAgent(config=config)
         outputs = {"a": "first_val", "b": "second_val"}
@@ -840,7 +913,8 @@ class TestCompositeAgent:
     @pytest.mark.unit
     def test_merge_outputs_concat(self):
         config = CompositeAgentConfig(
-            name="test", merge_strategy=MergeStrategy.CONCAT,
+            name="test",
+            merge_strategy=MergeStrategy.CONCAT,
         )
         agent = CompositeAgent(config=config)
         outputs = {"a": "hello", "b": "world"}
@@ -851,7 +925,8 @@ class TestCompositeAgent:
     @pytest.mark.unit
     def test_merge_outputs_best(self):
         config = CompositeAgentConfig(
-            name="test", merge_strategy=MergeStrategy.BEST,
+            name="test",
+            merge_strategy=MergeStrategy.BEST,
         )
         agent = CompositeAgent(config=config)
         outputs = {"a": "short", "b": "much longer output here"}
@@ -932,8 +1007,11 @@ class TestCompositeAgent:
     @pytest.mark.unit
     def test_extract_output_unified_result(self):
         ur = UnifiedResult(
-            success=True, output="inner", name="inner",
-            execution_time=0.1, metadata={"k": "v"},
+            success=True,
+            output="inner",
+            name="inner",
+            execution_time=0.1,
+            metadata={"k": "v"},
         )
         ar = AgentResult(success=True, output=ur, agent_name="a")
         out, meta = CompositeAgent._extract_output(ar)
@@ -980,8 +1058,11 @@ class TestAutonomousAgentConfig:
     @pytest.mark.unit
     def test_custom_values(self):
         config = AutonomousAgentConfig(
-            name="custom", max_steps=20, enable_replanning=True,
-            max_replans=5, skill_filter="coding",
+            name="custom",
+            max_steps=20,
+            enable_replanning=True,
+            max_replans=5,
+            skill_filter="coding",
         )
         assert config.max_steps == 20
         assert config.enable_replanning is True
@@ -1004,7 +1085,7 @@ class TestAutonomousAgent:
 
     @pytest.mark.unit
     def test_init_defaults(self):
-        with patch.object(BaseAgent, '_ensure_initialized'):
+        with patch.object(BaseAgent, "_ensure_initialized"):
             agent = AutonomousAgent()
         assert agent.config.enable_skills is True
         assert agent._planner is None
@@ -1012,7 +1093,7 @@ class TestAutonomousAgent:
 
     @pytest.mark.unit
     def test_planner_property_lazy_loads(self):
-        with patch.object(BaseAgent, '_ensure_initialized'):
+        with patch.object(BaseAgent, "_ensure_initialized"):
             agent = AutonomousAgent()
         agent._initialized = True
         # Directly set _planner to simulate lazy-load
@@ -1022,7 +1103,7 @@ class TestAutonomousAgent:
 
     @pytest.mark.unit
     def test_executor_property_lazy_loads(self):
-        with patch.object(BaseAgent, '_ensure_initialized'):
+        with patch.object(BaseAgent, "_ensure_initialized"):
             agent = AutonomousAgent()
         agent._initialized = True
         # Need skills_registry
@@ -1033,7 +1114,7 @@ class TestAutonomousAgent:
 
     @pytest.mark.unit
     def test_infer_task_type_delegates_to_executor(self):
-        with patch.object(BaseAgent, '_ensure_initialized'):
+        with patch.object(BaseAgent, "_ensure_initialized"):
             agent = AutonomousAgent()
         agent._initialized = True
         mock_executor = MagicMock()
@@ -1115,24 +1196,20 @@ class TestAutonomousAgent:
 
     @pytest.mark.unit
     def test_emit_sends_event(self):
-        with patch.object(BaseAgent, '_ensure_initialized'):
+        with patch.object(BaseAgent, "_ensure_initialized"):
             agent = AutonomousAgent()
         agent.config.name = "TestAgent"
         mock_broadcaster = MagicMock()
-        with patch(
-            "Jotty.core.agents.base.autonomous_agent.AgentEventBroadcaster"
-        ) as MockAEB:
+        with patch("Jotty.core.agents.base.autonomous_agent.AgentEventBroadcaster") as MockAEB:
             MockAEB.get_instance.return_value = mock_broadcaster
             agent._emit("step_start", phase="test")
         mock_broadcaster.emit.assert_called_once()
 
     @pytest.mark.unit
     def test_emit_silences_exceptions(self):
-        with patch.object(BaseAgent, '_ensure_initialized'):
+        with patch.object(BaseAgent, "_ensure_initialized"):
             agent = AutonomousAgent()
-        with patch(
-            "Jotty.core.agents.base.autonomous_agent.AgentEventBroadcaster"
-        ) as MockAEB:
+        with patch("Jotty.core.agents.base.autonomous_agent.AgentEventBroadcaster") as MockAEB:
             MockAEB.get_instance.side_effect = RuntimeError("boom")
             # Should not raise
             agent._emit("error", phase="test")
@@ -1144,7 +1221,8 @@ class TestAutonomousAgent:
             "step_other": {"content": "B" * 50, "success": True},
         }
         content = AutonomousAgent._find_best_content_for_file(
-            Path("report.txt"), outputs,
+            Path("report.txt"),
+            outputs,
         )
         assert len(content) == 200
 
@@ -1154,7 +1232,8 @@ class TestAutonomousAgent:
             "step_0": {"content": "X" * 150, "success": True},
         }
         content = AutonomousAgent._find_best_content_for_file(
-            Path("unknown.txt"), outputs,
+            Path("unknown.txt"),
+            outputs,
         )
         assert len(content) == 150
 
@@ -1234,7 +1313,7 @@ class TestAutoAgent:
 
     @pytest.mark.unit
     def test_init_defaults(self):
-        with patch.object(BaseAgent, '_ensure_initialized'):
+        with patch.object(BaseAgent, "_ensure_initialized"):
             agent = AutoAgent()
         assert agent.config.name == "AutoAgent"
         assert agent.config.enable_replanning is True
@@ -1243,10 +1322,12 @@ class TestAutoAgent:
 
     @pytest.mark.unit
     def test_init_custom_params(self):
-        with patch.object(BaseAgent, '_ensure_initialized'):
+        with patch.object(BaseAgent, "_ensure_initialized"):
             agent = AutoAgent(
-                max_steps=20, timeout=600,
-                name="CustomAgent", skill_filter="coding",
+                max_steps=20,
+                timeout=600,
+                name="CustomAgent",
+                skill_filter="coding",
             )
         assert agent.config.name == "CustomAgent"
         assert agent.config.max_steps == 20
@@ -1256,13 +1337,13 @@ class TestAutoAgent:
     @pytest.mark.unit
     def test_init_with_planner(self):
         mock_planner = MagicMock()
-        with patch.object(BaseAgent, '_ensure_initialized'):
+        with patch.object(BaseAgent, "_ensure_initialized"):
             agent = AutoAgent(planner=mock_planner)
         assert agent._planner is mock_planner
 
     @pytest.mark.unit
     def test_init_output_skill(self):
-        with patch.object(BaseAgent, '_ensure_initialized'):
+        with patch.object(BaseAgent, "_ensure_initialized"):
             agent = AutoAgent(
                 default_output_skill="telegram-sender",
                 enable_output=True,
@@ -1272,7 +1353,7 @@ class TestAutoAgent:
 
     @pytest.mark.unit
     def test_init_output_without_skill(self):
-        with patch.object(BaseAgent, '_ensure_initialized'):
+        with patch.object(BaseAgent, "_ensure_initialized"):
             agent = AutoAgent(enable_output=True)
         # enable_output requires a skill, so it should be False
         assert agent.enable_output is False
@@ -1283,7 +1364,7 @@ class TestAutoAgent:
         mock_task_type = MagicMock()
         mock_task_type.value = "research"
         mock_planner.infer_task_type.return_value = (mock_task_type, "reason", 0.9)
-        with patch.object(BaseAgent, '_ensure_initialized'):
+        with patch.object(BaseAgent, "_ensure_initialized"):
             agent = AutoAgent(planner=mock_planner)
         result = agent._infer_task_type("find AI papers")
         assert result == "research"
@@ -1292,7 +1373,7 @@ class TestAutoAgent:
     def test_infer_task_type_planner_fails(self):
         mock_planner = MagicMock()
         mock_planner.infer_task_type.side_effect = RuntimeError("fail")
-        with patch.object(BaseAgent, '_ensure_initialized'):
+        with patch.object(BaseAgent, "_ensure_initialized"):
             agent = AutoAgent(planner=mock_planner)
         # Set up executor for fallback
         mock_executor = MagicMock()
@@ -1303,7 +1384,7 @@ class TestAutoAgent:
 
     @pytest.mark.unit
     def test_should_auto_ensemble(self):
-        with patch.object(BaseAgent, '_ensure_initialized'):
+        with patch.object(BaseAgent, "_ensure_initialized"):
             agent = AutoAgent()
         with patch(
             "Jotty.core.orchestration.swarm_ensemble.should_auto_ensemble",
@@ -1315,21 +1396,21 @@ class TestAutoAgent:
 
     @pytest.mark.unit
     def test_get_mode_prompts_no_matching_skills(self):
-        with patch.object(BaseAgent, '_ensure_initialized'):
+        with patch.object(BaseAgent, "_ensure_initialized"):
             agent = AutoAgent()
         result = agent._get_mode_prompts({"web-search", "calculator"})
         assert result == ""
 
     @pytest.mark.unit
     def test_get_mode_prompts_terminal_session(self):
-        with patch.object(BaseAgent, '_ensure_initialized'):
+        with patch.object(BaseAgent, "_ensure_initialized"):
             agent = AutoAgent()
         result = agent._get_mode_prompts({"terminal-session"})
         assert "pexpect" in result
 
     @pytest.mark.unit
     def test_get_mode_prompts_browser_playwright(self):
-        with patch.object(BaseAgent, '_ensure_initialized'):
+        with patch.object(BaseAgent, "_ensure_initialized"):
             agent = AutoAgent()
         with patch.dict("os.environ", {"BROWSER_BACKEND": "playwright"}):
             result = agent._get_mode_prompts({"browser-automation"})
@@ -1344,14 +1425,17 @@ class TestAutoAgent:
     async def test_execute_returns_agentic_result(self):
         mock_planner = MagicMock()
         mock_planner.infer_task_type.return_value = (
-            TaskType.UNKNOWN, "reason", 0.5,
+            TaskType.UNKNOWN,
+            "reason",
+            0.5,
         )
-        with patch.object(BaseAgent, '_ensure_initialized'):
+        with patch.object(BaseAgent, "_ensure_initialized"):
             agent = AutoAgent(planner=mock_planner)
         agent._initialized = True
         # Mock the entire _execute_impl to avoid real execution
         with patch.object(
-            AutonomousAgent, '_execute_impl',
+            AutonomousAgent,
+            "_execute_impl",
             new_callable=AsyncMock,
             return_value={
                 "success": True,
@@ -1363,14 +1447,14 @@ class TestAutoAgent:
                 "stopped_early": False,
             },
         ):
-            with patch.object(agent, '_should_auto_ensemble', return_value=(False, 4)):
+            with patch.object(agent, "_should_auto_ensemble", return_value=(False, 4)):
                 result = await agent.execute("test task")
         assert isinstance(result, AgenticExecutionResult)
         assert result.success is True
 
     @pytest.mark.unit
     def test_init_with_system_prompt(self):
-        with patch.object(BaseAgent, '_ensure_initialized'):
+        with patch.object(BaseAgent, "_ensure_initialized"):
             agent = AutoAgent(system_prompt="You are a coding expert.")
         assert agent.config.system_prompt == "You are a coding expert."
 
@@ -1384,7 +1468,7 @@ class TestAutoAgent:
         mock_task_type = MagicMock()
         mock_task_type.value = "research"
         mock_planner.infer_task_type.return_value = (mock_task_type, "r", 0.9)
-        with patch.object(BaseAgent, '_ensure_initialized'):
+        with patch.object(BaseAgent, "_ensure_initialized"):
             agent = AutoAgent(planner=mock_planner)
         result = agent._infer_task_type_enum("find papers")
         assert isinstance(result, TaskType)
@@ -1397,7 +1481,7 @@ class TestAutoAgent:
     def test_infer_task_type_enum_unknown_fallback(self):
         mock_planner = MagicMock()
         mock_planner.infer_task_type.side_effect = RuntimeError("fail")
-        with patch.object(BaseAgent, '_ensure_initialized'):
+        with patch.object(BaseAgent, "_ensure_initialized"):
             agent = AutoAgent(planner=mock_planner)
         mock_executor = MagicMock()
         mock_executor.infer_task_type.return_value = "nonexistent_type"
@@ -1427,8 +1511,10 @@ class TestSkillPlanExecutor:
     def test_init_custom_params(self):
         registry = MagicMock()
         executor = SkillPlanExecutor(
-            skills_registry=registry, max_steps=20,
-            enable_replanning=False, max_replans=5,
+            skills_registry=registry,
+            max_steps=20,
+            enable_replanning=False,
+            max_replans=5,
         )
         assert executor._max_steps == 20
         assert executor._enable_replanning is False
@@ -1456,7 +1542,8 @@ class TestSkillPlanExecutor:
         registry = MagicMock()
         mock_planner = MagicMock()
         executor = SkillPlanExecutor(
-            skills_registry=registry, planner=mock_planner,
+            skills_registry=registry,
+            planner=mock_planner,
         )
         assert executor.planner is mock_planner
 
@@ -1487,8 +1574,10 @@ class TestSkillPlanExecutor:
         registry = MagicMock()
         executor = SkillPlanExecutor(skills_registry=registry)
         with patch.object(
-            type(executor), 'planner',
-            new_callable=PropertyMock, return_value=None,
+            type(executor),
+            "planner",
+            new_callable=PropertyMock,
+            return_value=None,
         ):
             result = executor.infer_task_type("compare RNN vs CNN")
         assert result == "comparison"
@@ -1498,8 +1587,10 @@ class TestSkillPlanExecutor:
         registry = MagicMock()
         executor = SkillPlanExecutor(skills_registry=registry)
         with patch.object(
-            type(executor), 'planner',
-            new_callable=PropertyMock, return_value=None,
+            type(executor),
+            "planner",
+            new_callable=PropertyMock,
+            return_value=None,
         ):
             result = executor.infer_task_type("create a web scraper")
         assert result == "creation"
@@ -1509,8 +1600,10 @@ class TestSkillPlanExecutor:
         registry = MagicMock()
         executor = SkillPlanExecutor(skills_registry=registry)
         with patch.object(
-            type(executor), 'planner',
-            new_callable=PropertyMock, return_value=None,
+            type(executor),
+            "planner",
+            new_callable=PropertyMock,
+            return_value=None,
         ):
             result = executor.infer_task_type("research AI trends")
         assert result == "research"
@@ -1520,8 +1613,10 @@ class TestSkillPlanExecutor:
         registry = MagicMock()
         executor = SkillPlanExecutor(skills_registry=registry)
         with patch.object(
-            type(executor), 'planner',
-            new_callable=PropertyMock, return_value=None,
+            type(executor),
+            "planner",
+            new_callable=PropertyMock,
+            return_value=None,
         ):
             result = executor.infer_task_type("analyze the dataset")
         assert result == "analysis"
@@ -1532,8 +1627,10 @@ class TestSkillPlanExecutor:
         executor = SkillPlanExecutor(skills_registry=registry)
         executor._planner = None
         with patch.object(
-            type(executor), 'planner',
-            new_callable=PropertyMock, return_value=None,
+            type(executor),
+            "planner",
+            new_callable=PropertyMock,
+            return_value=None,
         ):
             result = executor.infer_task_type("hello world")
         assert result == "unknown"
@@ -1545,10 +1642,13 @@ class TestSkillPlanExecutor:
         mock_task_type = MagicMock()
         mock_task_type.value = "automation"
         mock_planner.infer_task_type.return_value = (
-            mock_task_type, "reason", 0.95,
+            mock_task_type,
+            "reason",
+            0.95,
         )
         executor = SkillPlanExecutor(
-            skills_registry=registry, planner=mock_planner,
+            skills_registry=registry,
+            planner=mock_planner,
         )
         result = executor.infer_task_type("automate deployment")
         assert result == "automation"
@@ -1787,6 +1887,7 @@ class TestToolCallCache:
         # Should handle non-JSON-serializable params gracefully
         class Custom:
             pass
+
         key = ToolCallCache.make_key("s", "t", {"obj": Custom()})
         assert isinstance(key, str)
         assert len(key) == 32  # MD5 hex digest
@@ -1805,7 +1906,7 @@ class TestMetaAgentEdgeCases:
         gold_standard = MagicMock()
         gold_standard.expected_output = {"text": ""}
         gold_standard.id = "g1"
-        with patch.object(BaseAgent, '_ensure_initialized'):
+        with patch.object(BaseAgent, "_ensure_initialized"):
             agent = MetaAgent()
         result = agent._simple_evaluation(gold_standard, {"text": "something"})
         # Empty expected string -> expected_words is empty set -> score 0.5
@@ -1814,11 +1915,13 @@ class TestMetaAgentEdgeCases:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_extract_learnings_good_result_no_dspy(self):
-        with patch.object(BaseAgent, '_ensure_initialized'):
+        with patch.object(BaseAgent, "_ensure_initialized"):
             agent = MetaAgent()
         learnings = await agent.extract_learnings(
-            {"task": "build API"}, {"output": "code"},
-            {"result": "good", "overall_score": 0.85}, "coding",
+            {"task": "build API"},
+            {"output": "code"},
+            {"result": "good", "overall_score": 0.85},
+            "coding",
         )
         assert len(learnings) == 2
         assert "coding" in learnings[0]
@@ -1871,9 +1974,7 @@ class TestCompositeAgentEdgeCases:
         assert result.success is True
         # s2 should have been called with key="from_s1" in kwargs
         call_kwargs = s2.execute.call_args
-        assert "key" in call_kwargs.kwargs or (
-            call_kwargs[1] and "key" in call_kwargs[1]
-        )
+        assert "key" in call_kwargs.kwargs or (call_kwargs[1] and "key" in call_kwargs[1])
 
     @pytest.mark.unit
     @pytest.mark.asyncio
@@ -1952,7 +2053,9 @@ class TestSkillPlanExecutorEdgeCases:
         ]
         selected = [{"name": "web-search", "description": "Search the web"}]
         result = executor._inject_essential_skills(
-            "execute the script please", selected, available,
+            "execute the script please",
+            selected,
+            available,
         )
         names = [s["name"] for s in result]
         assert "shell-exec" in names
@@ -1967,7 +2070,9 @@ class TestSkillPlanExecutorEdgeCases:
         ]
         selected = [{"name": "shell-exec", "description": "Run shell"}]
         result = executor._inject_essential_skills(
-            "execute the script", selected, available,
+            "execute the script",
+            selected,
+            available,
         )
         # Should not duplicate
         assert len(result) == 1
@@ -1979,7 +2084,9 @@ class TestSkillPlanExecutorEdgeCases:
         available = [{"name": "web-search", "description": "Search"}]
         selected = [{"name": "web-search", "description": "Search"}]
         result = executor._inject_essential_skills(
-            "execute the script", selected, available,
+            "execute the script",
+            selected,
+            available,
         )
         # shell-exec not in available, should not be injected
         assert len(result) == 1
@@ -2002,8 +2109,10 @@ class TestSkillPlanExecutorEdgeCases:
         executor._planner = None
         # Patch the planner property to return None
         with patch.object(
-            type(executor), 'planner',
-            new_callable=PropertyMock, return_value=None,
+            type(executor),
+            "planner",
+            new_callable=PropertyMock,
+            return_value=None,
         ):
             skills = [{"name": f"s{i}"} for i in range(15)]
             result = await executor.select_skills("task", skills, max_skills=5)
@@ -2016,11 +2125,14 @@ class TestSkillPlanExecutorEdgeCases:
         executor = SkillPlanExecutor(skills_registry=registry)
         executor._planner = None
         with patch.object(
-            type(executor), 'planner',
-            new_callable=PropertyMock, return_value=None,
+            type(executor),
+            "planner",
+            new_callable=PropertyMock,
+            return_value=None,
         ):
             steps = await executor.create_plan(
-                "task", "research",
+                "task",
+                "research",
                 [{"name": "web-search"}],
             )
         assert steps == []
@@ -2031,7 +2143,8 @@ class TestSkillPlanExecutorEdgeCases:
         mock_planner = MagicMock()
         mock_planner.infer_task_type.side_effect = RuntimeError("LLM fail")
         executor = SkillPlanExecutor(
-            skills_registry=registry, planner=mock_planner,
+            skills_registry=registry,
+            planner=mock_planner,
         )
         result = executor.infer_task_type("create a web app")
         assert result == "creation"
@@ -2071,6 +2184,7 @@ class TestToolCallCacheEdgeCases:
     @pytest.mark.unit
     def test_concurrent_access(self):
         import threading
+
         cache = ToolCallCache(max_size=50)
         errors = []
 

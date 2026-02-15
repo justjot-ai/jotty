@@ -11,32 +11,34 @@ Core enums and data classes used throughout the swarm infrastructure:
 Extracted from base_swarm.py for modularity.
 """
 
-from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-
+from typing import Any, Dict, List, Optional
 
 # =============================================================================
 # ENUMS AND TYPES
 # =============================================================================
 
+
 class AgentRole(Enum):
     """Roles in the self-improving loop."""
-    EXPERT = "expert"          # Evaluates against gold standard
-    REVIEWER = "reviewer"      # Reviews agent performance
-    PLANNER = "planner"        # Plans task execution
-    ACTOR = "actor"            # Executes tasks
+
+    EXPERT = "expert"  # Evaluates against gold standard
+    REVIEWER = "reviewer"  # Reviews agent performance
+    PLANNER = "planner"  # Plans task execution
+    ACTOR = "actor"  # Executes tasks
     ORCHESTRATOR = "orchestrator"  # Coordinates agents
-    AUDITOR = "auditor"            # Verifies outputs (Byzantine + quality audit)
-    LEARNER = "learner"            # Extracts gold standards from successful runs
+    AUDITOR = "auditor"  # Verifies outputs (Byzantine + quality audit)
+    LEARNER = "learner"  # Extracts gold standards from successful runs
 
 
 class EvaluationResult(Enum):
     """Evaluation outcomes."""
-    EXCELLENT = "excellent"    # Exceeds gold standard
-    GOOD = "good"              # Meets gold standard
+
+    EXCELLENT = "excellent"  # Exceeds gold standard
+    GOOD = "good"  # Meets gold standard
     ACCEPTABLE = "acceptable"  # Minor issues
     NEEDS_IMPROVEMENT = "needs_improvement"
     FAILED = "failed"
@@ -44,6 +46,7 @@ class EvaluationResult(Enum):
 
 class ImprovementType(Enum):
     """Types of improvements suggested."""
+
     PROMPT_REFINEMENT = "prompt_refinement"
     PARAMETER_TUNING = "parameter_tuning"
     WORKFLOW_CHANGE = "workflow_change"
@@ -55,9 +58,11 @@ class ImprovementType(Enum):
 # DATA CLASSES
 # =============================================================================
 
+
 @dataclass
 class GoldStandard:
     """Gold standard for evaluation."""
+
     id: str
     domain: str
     task_type: str
@@ -71,6 +76,7 @@ class GoldStandard:
 @dataclass
 class Evaluation:
     """Result of expert evaluation."""
+
     gold_standard_id: str
     actual_output: Dict[str, Any]
     scores: Dict[str, float]  # criterion -> score (0-1)
@@ -83,6 +89,7 @@ class Evaluation:
 @dataclass
 class ImprovementSuggestion:
     """Suggestion from reviewer for improvement."""
+
     agent_role: AgentRole
     improvement_type: ImprovementType
     description: str
@@ -98,11 +105,12 @@ class SwarmAgentConfig:
 
     Sentinel defaults (0 / 0.0 / '') resolved from config_defaults in __post_init__.
     """
+
     role: AgentRole
     name: str
-    model: str = ""           # "" → DEFAULT_MODEL_ALIAS
+    model: str = ""  # "" → DEFAULT_MODEL_ALIAS
     temperature: float = 0.0  # 0.0 → LLM_TEMPERATURE
-    max_tokens: int = 0       # 0 → LLM_MAX_OUTPUT_TOKENS
+    max_tokens: int = 0  # 0 → LLM_MAX_OUTPUT_TOKENS
     system_prompt: str = ""
     tools: List[str] = field(default_factory=list)
     parameters: Dict[str, Any] = field(default_factory=dict)
@@ -110,6 +118,7 @@ class SwarmAgentConfig:
 
     def __post_init__(self) -> None:
         from Jotty.core.infrastructure.foundation.config_defaults import DEFAULTS
+
         if not self.model:
             self.model = DEFAULTS.DEFAULT_MODEL_ALIAS
         if self.temperature == 0.0:
@@ -121,6 +130,7 @@ class SwarmAgentConfig:
 @dataclass
 class ExecutionTrace:
     """Trace of agent execution for learning."""
+
     agent_name: str
     agent_role: AgentRole
     input_data: Dict[str, Any]
@@ -145,6 +155,7 @@ class SwarmConfig:
 
     If you see import errors, use: from ..swarm_types import SwarmConfig
     """
+
     name: str = "BaseSwarm"
     domain: str = "general"
     version: str = "1.0.0"
@@ -189,6 +200,7 @@ class SwarmConfig:
 @dataclass
 class SwarmResult:
     """Base result from any swarm."""
+
     success: bool
     swarm_name: str
     domain: str
@@ -205,7 +217,8 @@ class SwarmResult:
 # DEFENSIVE UTILITIES — safe LLM output parsing
 # =============================================================================
 
-def _split_field(value: Any, sep: Any = '|') -> List:
+
+def _split_field(value: Any, sep: Any = "|") -> List:
     """Safely split a DSPy output field into a list of strings.
     Handles: str (pipe-split), list (coerce items to str), dict (flatten), None.
     """
@@ -213,18 +226,19 @@ def _split_field(value: Any, sep: Any = '|') -> List:
         return []
     if isinstance(value, list):
         return [
-            item.get('name', str(item)) if isinstance(item, dict) else str(item).strip()
-            for item in value if item is not None
+            item.get("name", str(item)) if isinstance(item, dict) else str(item).strip()
+            for item in value
+            if item is not None
         ]
     if isinstance(value, dict):
         return [f"{k}: {v}" for k, v in value.items() if v]
     return [s.strip() for s in str(value).split(sep) if s.strip()]
 
 
-def _safe_join(items: Any, sep: Any = ', ') -> str:
+def _safe_join(items: Any, sep: Any = ", ") -> str:
     """Safely join items into a string, coercing non-string elements."""
     if not items:
-        return ''
+        return ""
     if isinstance(items, str):
         return items
     return sep.join(str(item) for item in items)
@@ -247,20 +261,20 @@ def _safe_num(value: Any, default: Any = 0) -> Any:
 
 
 __all__ = [
-    'AgentRole',
-    'EvaluationResult',
-    'ImprovementType',
-    'GoldStandard',
-    'Evaluation',
-    'ImprovementSuggestion',
-    'SwarmAgentConfig',
-    'ExecutionTrace',
-    'SwarmConfig',
-    'SwarmBaseConfig',  # Deprecated alias for SwarmConfig
-    'SwarmResult',
-    '_split_field',
-    '_safe_join',
-    '_safe_num',
+    "AgentRole",
+    "EvaluationResult",
+    "ImprovementType",
+    "GoldStandard",
+    "Evaluation",
+    "ImprovementSuggestion",
+    "SwarmAgentConfig",
+    "ExecutionTrace",
+    "SwarmConfig",
+    "SwarmBaseConfig",  # Deprecated alias for SwarmConfig
+    "SwarmResult",
+    "_split_field",
+    "_safe_join",
+    "_safe_num",
 ]
 
 
@@ -268,22 +282,23 @@ __all__ = [
 # BACKWARD COMPATIBILITY WITH HELPFUL ERROR
 # =============================================================================
 
+
 def __getattr__(name: str) -> Any:
     """Intercept attempts to import deprecated names and provide helpful errors."""
-    if name == 'SwarmBaseConfig':
+    if name == "SwarmBaseConfig":
         import warnings
+
         warnings.warn(
-            "\n" + "="*80 + "\n"
+            "\n" + "=" * 80 + "\n"
             "⚠️  DEPRECATED: 'SwarmBaseConfig' has been renamed to 'SwarmConfig'\n\n"
             "Fix your code:\n"
             "  ❌ from ..swarm_types import SwarmBaseConfig\n"
             "  ✅ from ..swarm_types import SwarmConfig\n\n"
             "  ❌ class MyConfig(SwarmBaseConfig):\n"
             "  ✅ class MyConfig(SwarmConfig):\n\n"
-            "See: Jotty/CLAUDE.md - Legacy Imports section\n"
-            + "="*80,
+            "See: Jotty/CLAUDE.md - Legacy Imports section\n" + "=" * 80,
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         # Return the correct class (backward compatible)
         return SwarmConfig

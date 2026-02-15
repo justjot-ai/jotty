@@ -20,48 +20,45 @@ Covers:
 - replan_with_reflection() replanning after failure
 """
 
-import json
-import pytest
 import asyncio
+import json
 from dataclasses import fields
-from unittest.mock import Mock, MagicMock, AsyncMock, patch, PropertyMock
+from unittest.mock import AsyncMock, MagicMock, Mock, PropertyMock, patch
+
+import pytest
 
 # Try importing DSPy -- tests skip if unavailable
 try:
     import dspy
+
     DSPY_AVAILABLE = True
 except ImportError:
     DSPY_AVAILABLE = False
 
 # Try importing the module under test
 try:
-    from Jotty.core.modes.agent.agentic_planner import (
-        TaskPlanner,
-        TaskPlan,
-        create_agentic_planner,
-        _get_dspy,
-        DSPY_AVAILABLE as MODULE_DSPY_AVAILABLE,
-    )
-    from Jotty.core.modes.agent._execution_types import (
-        ExecutionStep,
-        TaskType,
-    )
     from Jotty.core.infrastructure.foundation.exceptions import AgentExecutionError
+    from Jotty.core.modes.agent._execution_types import ExecutionStep, TaskType
+    from Jotty.core.modes.agent.agentic_planner import DSPY_AVAILABLE as MODULE_DSPY_AVAILABLE
+    from Jotty.core.modes.agent.agentic_planner import (
+        TaskPlan,
+        TaskPlanner,
+        _get_dspy,
+        create_agentic_planner,
+    )
+
     PLANNER_AVAILABLE = True
 except ImportError:
     PLANNER_AVAILABLE = False
 
-skip_no_dspy = pytest.mark.skipif(
-    not DSPY_AVAILABLE, reason="DSPy not installed"
-)
-skip_no_planner = pytest.mark.skipif(
-    not PLANNER_AVAILABLE, reason="Planner module not importable"
-)
+skip_no_dspy = pytest.mark.skipif(not DSPY_AVAILABLE, reason="DSPy not installed")
+skip_no_planner = pytest.mark.skipif(not PLANNER_AVAILABLE, reason="Planner module not importable")
 
 
 # =============================================================================
 # Helpers: build a mocked TaskPlanner without real LLM calls
 # =============================================================================
+
 
 def _make_mock_planner():
     """
@@ -71,7 +68,7 @@ def _make_mock_planner():
     mock ChainOfThought/Predict modules and fast_lm = None so that
     no real API calls are made.
     """
-    with patch.object(TaskPlanner, '__init__', lambda self, *a, **kw: None):
+    with patch.object(TaskPlanner, "__init__", lambda self, *a, **kw: None):
         planner = TaskPlanner.__new__(TaskPlanner)
 
     # Attach required attributes that __init__ normally sets
@@ -84,7 +81,7 @@ def _make_mock_planner():
     planner._compressor = None
     planner._max_compression_retries = 3
     planner._fast_lm = None
-    planner._fast_model = 'haiku'
+    planner._fast_model = "haiku"
     planner._use_typed_predictor = False
 
     # Reset class-level semaphore so tests are isolated
@@ -99,16 +96,16 @@ def _sample_skills():
     """Return a minimal list of skill dicts for planning tests."""
     return [
         {
-            'name': 'web-search',
-            'description': 'Search the web',
-            'tools': [{'name': 'search_web_tool'}],
+            "name": "web-search",
+            "description": "Search the web",
+            "tools": [{"name": "search_web_tool"}],
         },
         {
-            'name': 'file-operations',
-            'description': 'Read/write files',
-            'tools': [
-                {'name': 'write_file_tool'},
-                {'name': 'read_file_tool'},
+            "name": "file-operations",
+            "description": "Read/write files",
+            "tools": [
+                {"name": "write_file_tool"},
+                {"name": "read_file_tool"},
             ],
         },
     ]
@@ -117,6 +114,7 @@ def _sample_skills():
 # =============================================================================
 # TaskPlan dataclass tests
 # =============================================================================
+
 
 @pytest.mark.unit
 @skip_no_planner
@@ -135,34 +133,40 @@ class TestTaskPlan:
 
     def test_custom_fields(self):
         """TaskPlan stores custom values correctly."""
-        steps = [ExecutionStep(
-            skill_name='web-search',
-            tool_name='search_web_tool',
-            params={'query': 'test'},
-            description='Search',
-        )]
+        steps = [
+            ExecutionStep(
+                skill_name="web-search",
+                tool_name="search_web_tool",
+                params={"query": "test"},
+                description="Search",
+            )
+        ]
         plan = TaskPlan(
-            task_graph={'type': 'mock'},
+            task_graph={"type": "mock"},
             steps=steps,
-            estimated_time='4 minutes',
-            required_tools=['web-search'],
-            required_credentials=['api_key'],
-            metadata={'source': 'test'},
+            estimated_time="4 minutes",
+            required_tools=["web-search"],
+            required_credentials=["api_key"],
+            metadata={"source": "test"},
         )
-        assert plan.task_graph == {'type': 'mock'}
+        assert plan.task_graph == {"type": "mock"}
         assert len(plan.steps) == 1
-        assert plan.steps[0].skill_name == 'web-search'
-        assert plan.estimated_time == '4 minutes'
-        assert plan.required_tools == ['web-search']
-        assert plan.required_credentials == ['api_key']
-        assert plan.metadata['source'] == 'test'
+        assert plan.steps[0].skill_name == "web-search"
+        assert plan.estimated_time == "4 minutes"
+        assert plan.required_tools == ["web-search"]
+        assert plan.required_credentials == ["api_key"]
+        assert plan.metadata["source"] == "test"
 
     def test_dataclass_field_names(self):
         """TaskPlan has the expected set of field names."""
         field_names = {f.name for f in fields(TaskPlan)}
         expected = {
-            'task_graph', 'steps', 'estimated_time',
-            'required_tools', 'required_credentials', 'metadata',
+            "task_graph",
+            "steps",
+            "estimated_time",
+            "required_tools",
+            "required_credentials",
+            "metadata",
         }
         assert field_names == expected
 
@@ -171,28 +175,29 @@ class TestTaskPlan:
 # TaskPlanner initialization tests
 # =============================================================================
 
+
 @pytest.mark.unit
 @skip_no_planner
 @skip_no_dspy
 class TestTaskPlannerInit:
     """Test TaskPlanner initialization and factory function."""
 
-    @patch('Jotty.core.agents.agentic_planner._get_dspy', return_value=None)
+    @patch("Jotty.core.agents.agentic_planner._get_dspy", return_value=None)
     def test_init_raises_without_dspy(self, mock_dspy):
         """TaskPlanner raises AgentExecutionError when DSPy is missing."""
         with pytest.raises(AgentExecutionError, match="DSPy required"):
             TaskPlanner()
 
-    @patch('Jotty.core.agents.agentic_planner._get_dspy')
-    @patch('Jotty.core.agents.agentic_planner._load_signatures')
-    @patch.object(TaskPlanner, '_init_fast_lm')
+    @patch("Jotty.core.agents.agentic_planner._get_dspy")
+    @patch("Jotty.core.agents.agentic_planner._load_signatures")
+    @patch.object(TaskPlanner, "_init_fast_lm")
     def test_init_success(self, mock_fast_lm, mock_sigs, mock_dspy):
         """TaskPlanner initializes successfully with mocked DSPy."""
         mock_dspy_mod = MagicMock()
         mock_dspy.return_value = mock_dspy_mod
 
-        planner = TaskPlanner(fast_model='sonnet')
-        assert planner._fast_model == 'sonnet'
+        planner = TaskPlanner(fast_model="sonnet")
+        assert planner._fast_model == "sonnet"
         assert planner._max_compression_retries == 3
         assert planner._use_typed_predictor is False
         mock_sigs.assert_called_once()
@@ -200,7 +205,7 @@ class TestTaskPlannerInit:
 
     def test_create_agentic_planner_factory(self):
         """create_agentic_planner() returns a TaskPlanner instance."""
-        with patch.object(TaskPlanner, '__init__', return_value=None) as mock_init:
+        with patch.object(TaskPlanner, "__init__", return_value=None) as mock_init:
             planner = create_agentic_planner()
             assert isinstance(planner, TaskPlanner)
             mock_init.assert_called_once()
@@ -209,6 +214,7 @@ class TestTaskPlannerInit:
 # =============================================================================
 # Semaphore / concurrency control tests
 # =============================================================================
+
 
 @pytest.mark.unit
 @skip_no_planner
@@ -258,6 +264,7 @@ class TestSemaphore:
 # plan_execution() tests
 # =============================================================================
 
+
 @pytest.mark.unit
 @skip_no_planner
 class TestPlanExecution:
@@ -269,17 +276,19 @@ class TestPlanExecution:
 
         # Mock the execution_planner to return a plan
         mock_result = MagicMock()
-        mock_result.execution_plan = json.dumps([
-            {
-                'skill_name': 'web-search',
-                'tool_name': 'search_web_tool',
-                'params': {'query': 'AI trends'},
-                'description': 'Search for AI trends',
-                'depends_on': [],
-                'output_key': 'step_0',
-                'optional': False,
-            }
-        ])
+        mock_result.execution_plan = json.dumps(
+            [
+                {
+                    "skill_name": "web-search",
+                    "tool_name": "search_web_tool",
+                    "params": {"query": "AI trends"},
+                    "description": "Search for AI trends",
+                    "depends_on": [],
+                    "output_key": "step_0",
+                    "optional": False,
+                }
+            ]
+        )
         mock_result.reasoning = "Search first, then analyze"
         mock_result.estimated_complexity = "low"
         planner.execution_planner.return_value = mock_result
@@ -300,16 +309,18 @@ class TestPlanExecution:
         planner = _make_mock_planner()
 
         mock_result = MagicMock()
-        mock_result.execution_plan = json.dumps([
-            {
-                'skill_name': 'file-operations',
-                'tool_name': 'write_file_tool',
-                'params': {'path': 'test.py', 'content': 'print("hi")'},
-                'description': 'Create file',
-                'depends_on': [],
-                'output_key': 'step_0',
-            }
-        ])
+        mock_result.execution_plan = json.dumps(
+            [
+                {
+                    "skill_name": "file-operations",
+                    "tool_name": "write_file_tool",
+                    "params": {"path": "test.py", "content": 'print("hi")'},
+                    "description": "Create file",
+                    "depends_on": [],
+                    "output_key": "step_0",
+                }
+            ]
+        )
         mock_result.reasoning = "Create the file"
         planner.execution_planner.return_value = mock_result
 
@@ -371,6 +382,7 @@ class TestPlanExecution:
 # aplan_execution() async tests
 # =============================================================================
 
+
 @pytest.mark.unit
 @skip_no_planner
 class TestAsyncPlanExecution:
@@ -382,16 +394,18 @@ class TestAsyncPlanExecution:
         planner = _make_mock_planner()
 
         mock_result = MagicMock()
-        mock_result.execution_plan = json.dumps([
-            {
-                'skill_name': 'web-search',
-                'tool_name': 'search_web_tool',
-                'params': {'query': 'test'},
-                'description': 'Search',
-                'depends_on': [],
-                'output_key': 'step_0',
-            }
-        ])
+        mock_result.execution_plan = json.dumps(
+            [
+                {
+                    "skill_name": "web-search",
+                    "tool_name": "search_web_tool",
+                    "params": {"query": "test"},
+                    "description": "Search",
+                    "depends_on": [],
+                    "output_key": "step_0",
+                }
+            ]
+        )
         mock_result.reasoning = "Plan ready"
 
         # Mock _acall_with_retry to return the result directly
@@ -439,6 +453,7 @@ class TestAsyncPlanExecution:
 # _normalize_raw_plan() tests
 # =============================================================================
 
+
 @pytest.mark.unit
 @skip_no_planner
 class TestNormalizeRawPlan:
@@ -449,7 +464,7 @@ class TestNormalizeRawPlan:
 
     def test_already_list(self):
         """Returns list directly when input is already a list."""
-        data = [{'skill_name': 'web-search', 'tool_name': 'search_web_tool'}]
+        data = [{"skill_name": "web-search", "tool_name": "search_web_tool"}]
         result = self.planner._normalize_raw_plan(data)
         assert result == data
 
@@ -465,24 +480,26 @@ class TestNormalizeRawPlan:
 
     def test_json_string_parsed(self):
         """Parses direct JSON array string."""
-        json_str = json.dumps([
-            {'skill_name': 'web-search', 'tool_name': 'search_web_tool'},
-        ])
+        json_str = json.dumps(
+            [
+                {"skill_name": "web-search", "tool_name": "search_web_tool"},
+            ]
+        )
         result = self.planner._normalize_raw_plan(json_str)
         assert len(result) == 1
-        assert result[0]['skill_name'] == 'web-search'
+        assert result[0]["skill_name"] == "web-search"
 
     def test_markdown_code_block_parsed(self):
         """Extracts JSON from markdown code block."""
-        plan_data = [{'skill_name': 'file-operations', 'tool_name': 'write_file_tool'}]
+        plan_data = [{"skill_name": "file-operations", "tool_name": "write_file_tool"}]
         text = f"Here is the plan:\n```json\n{json.dumps(plan_data)}\n```\nDone."
         result = self.planner._normalize_raw_plan(text)
         assert len(result) == 1
-        assert result[0]['skill_name'] == 'file-operations'
+        assert result[0]["skill_name"] == "file-operations"
 
     def test_embedded_json_array_extracted(self):
         """Extracts JSON array embedded in prose text."""
-        plan_data = [{'skill_name': 'web-search', 'tool_name': 'search_web_tool'}]
+        plan_data = [{"skill_name": "web-search", "tool_name": "search_web_tool"}]
         text = f"I think the best plan is {json.dumps(plan_data)} for this task."
         result = self.planner._normalize_raw_plan(text)
         assert len(result) == 1
@@ -491,6 +508,7 @@ class TestNormalizeRawPlan:
 # =============================================================================
 # _create_fallback_plan() tests
 # =============================================================================
+
 
 @pytest.mark.unit
 @skip_no_planner
@@ -508,35 +526,33 @@ class TestFallbackPlan:
     def test_research_task_creates_steps(self):
         """Fallback for research task creates steps from available skills."""
         skills = _sample_skills()
-        result = self.planner._create_fallback_plan(
-            "Research AI trends", TaskType.RESEARCH, skills
-        )
+        result = self.planner._create_fallback_plan("Research AI trends", TaskType.RESEARCH, skills)
         assert isinstance(result, list)
         assert len(result) >= 1
         # Check each step is a dict with expected keys
         for step in result:
-            assert 'skill_name' in step
-            assert 'tool_name' in step
-            assert 'params' in step
+            assert "skill_name" in step
+            assert "tool_name" in step
+            assert "params" in step
 
     def test_creation_task_uses_file_operations(self):
         """Fallback for creation tasks includes file-operations."""
         skills = [
-            {'name': 'file-operations', 'description': 'File ops', 'tools': [{'name': 'write_file_tool'}]},
+            {
+                "name": "file-operations",
+                "description": "File ops",
+                "tools": [{"name": "write_file_tool"}],
+            },
         ]
-        result = self.planner._create_fallback_plan(
-            "Create a test file", TaskType.CREATION, skills
-        )
+        result = self.planner._create_fallback_plan("Create a test file", TaskType.CREATION, skills)
         assert len(result) >= 1
-        skill_names = [s['skill_name'] for s in result]
-        assert 'file-operations' in skill_names
+        skill_names = [s["skill_name"] for s in result]
+        assert "file-operations" in skill_names
 
     def test_fallback_limits_steps(self):
         """Fallback plan limits steps based on available skills count."""
         skills = _sample_skills()
-        result = self.planner._create_fallback_plan(
-            "Do something", TaskType.UNKNOWN, skills
-        )
+        result = self.planner._create_fallback_plan("Do something", TaskType.UNKNOWN, skills)
         # Max fallback steps = min(3, max(1, len(skills))) = min(3, 2) = 2
         assert len(result) <= 3
 
@@ -544,6 +560,7 @@ class TestFallbackPlan:
 # =============================================================================
 # _call_with_retry() tests
 # =============================================================================
+
 
 @pytest.mark.unit
 @skip_no_planner
@@ -556,9 +573,9 @@ class TestCallWithRetry:
     def test_success_first_try(self):
         """Successful call on first attempt returns result."""
         module = MagicMock(return_value="success")
-        result = self.planner._call_with_retry(module, {'key': 'val'})
+        result = self.planner._call_with_retry(module, {"key": "val"})
         assert result == "success"
-        module.assert_called_once_with(key='val')
+        module.assert_called_once_with(key="val")
 
     def test_non_retryable_error_raises(self):
         """Non-retryable error is raised immediately."""
@@ -574,11 +591,11 @@ class TestCallWithRetry:
         module = MagicMock(return_value="result")
         mock_lm = MagicMock()
 
-        with patch('Jotty.core.agents.agentic_planner._get_dspy') as mock_get:
+        with patch("Jotty.core.agents.agentic_planner._get_dspy") as mock_get:
             mock_dspy = MagicMock()
             mock_get.return_value = mock_dspy
 
-            result = planner._call_with_retry(module, {'a': 1}, lm=mock_lm)
+            result = planner._call_with_retry(module, {"a": 1}, lm=mock_lm)
             assert result == "result"
             mock_dspy.context.assert_called_once_with(lm=mock_lm)
 
@@ -586,6 +603,7 @@ class TestCallWithRetry:
 # =============================================================================
 # infer_task_type() tests (InferenceMixin)
 # =============================================================================
+
 
 @pytest.mark.unit
 @skip_no_planner
@@ -596,6 +614,7 @@ class TestInferTaskType:
         self.planner = _make_mock_planner()
         # Clear the per-session cache between tests
         from Jotty.core.modes.agent._inference_mixin import InferenceMixin
+
         InferenceMixin._task_type_cache.clear()
 
     def test_infer_creation_task(self):
@@ -652,6 +671,7 @@ class TestInferTaskType:
 # replan_with_reflection() tests
 # =============================================================================
 
+
 @pytest.mark.unit
 @skip_no_planner
 class TestReplanWithReflection:
@@ -662,23 +682,25 @@ class TestReplanWithReflection:
         planner = _make_mock_planner()
 
         mock_result = MagicMock()
-        mock_result.corrected_plan = json.dumps([
-            {
-                'skill_name': 'file-operations',
-                'tool_name': 'write_file_tool',
-                'params': {'path': 'out.txt', 'content': 'data'},
-                'description': 'Write output',
-                'depends_on': [],
-                'output_key': 'step_0',
-            }
-        ])
+        mock_result.corrected_plan = json.dumps(
+            [
+                {
+                    "skill_name": "file-operations",
+                    "tool_name": "write_file_tool",
+                    "params": {"path": "out.txt", "content": "data"},
+                    "description": "Write output",
+                    "depends_on": [],
+                    "output_key": "step_0",
+                }
+            ]
+        )
         mock_result.reflection = "web-search failed, using file-operations"
         mock_result.reasoning = "Alternative approach"
         planner.reflective_planner.return_value = mock_result
 
         skills = _sample_skills()
         failed_steps = [
-            {'skill_name': 'web-search', 'tool_name': 'search_web_tool', 'error': 'timeout'}
+            {"skill_name": "web-search", "tool_name": "search_web_tool", "error": "timeout"}
         ]
 
         steps, reflection, reasoning = planner.replan_with_reflection(
@@ -686,7 +708,7 @@ class TestReplanWithReflection:
             task_type=TaskType.RESEARCH,
             skills=skills,
             failed_steps=failed_steps,
-            excluded_skills=['web-search'],
+            excluded_skills=["web-search"],
         )
         assert isinstance(steps, list)
         assert isinstance(reflection, str)
@@ -702,16 +724,18 @@ class TestReplanWithReflection:
         # Regular plan_execution should also be called as fallback
         # Mock the execution_planner for the fallback path
         mock_result = MagicMock()
-        mock_result.execution_plan = json.dumps([
-            {
-                'skill_name': 'file-operations',
-                'tool_name': 'write_file_tool',
-                'params': {'path': 'out.txt'},
-                'description': 'Write file',
-                'depends_on': [],
-                'output_key': 'step_0',
-            }
-        ])
+        mock_result.execution_plan = json.dumps(
+            [
+                {
+                    "skill_name": "file-operations",
+                    "tool_name": "write_file_tool",
+                    "params": {"path": "out.txt"},
+                    "description": "Write file",
+                    "depends_on": [],
+                    "output_key": "step_0",
+                }
+            ]
+        )
         mock_result.reasoning = "Fallback plan"
         mock_result.estimated_complexity = "low"
         planner.execution_planner.return_value = mock_result
@@ -721,7 +745,7 @@ class TestReplanWithReflection:
             task="Write data to file",
             task_type=TaskType.CREATION,
             skills=skills,
-            failed_steps=[{'skill_name': 'web-search', 'error': 'timeout'}],
+            failed_steps=[{"skill_name": "web-search", "error": "timeout"}],
         )
         assert isinstance(steps, list)
         assert "fallback" in reflection.lower() or "Fallback" in reflection
@@ -730,6 +754,7 @@ class TestReplanWithReflection:
 # =============================================================================
 # _parse_plan_to_steps() tests
 # =============================================================================
+
 
 @pytest.mark.unit
 @skip_no_planner
@@ -743,13 +768,13 @@ class TestParsePlanToSteps:
         """Converts list of dicts to ExecutionStep objects."""
         raw_plan = [
             {
-                'skill_name': 'web-search',
-                'tool_name': 'search_web_tool',
-                'params': {'query': 'test'},
-                'description': 'Search for test',
-                'depends_on': [],
-                'output_key': 'step_0',
-                'optional': False,
+                "skill_name": "web-search",
+                "tool_name": "search_web_tool",
+                "params": {"query": "test"},
+                "description": "Search for test",
+                "depends_on": [],
+                "output_key": "step_0",
+                "optional": False,
             }
         ]
         steps = self.planner._parse_plan_to_steps(
@@ -760,9 +785,9 @@ class TestParsePlanToSteps:
         )
         assert len(steps) == 1
         assert isinstance(steps[0], ExecutionStep)
-        assert steps[0].skill_name == 'web-search'
-        assert steps[0].tool_name == 'search_web_tool'
-        assert steps[0].output_key == 'step_0'
+        assert steps[0].skill_name == "web-search"
+        assert steps[0].tool_name == "search_web_tool"
+        assert steps[0].output_key == "step_0"
 
     def test_empty_raw_plan_returns_empty(self):
         """Empty raw plan returns empty steps list."""
@@ -777,12 +802,12 @@ class TestParsePlanToSteps:
         """Limits number of parsed steps to max_steps."""
         raw_plan = [
             {
-                'skill_name': 'web-search',
-                'tool_name': 'search_web_tool',
-                'params': {'query': f'query_{i}'},
-                'description': f'Step {i}',
-                'depends_on': [],
-                'output_key': f'step_{i}',
+                "skill_name": "web-search",
+                "tool_name": "search_web_tool",
+                "params": {"query": f"query_{i}"},
+                "description": f"Step {i}",
+                "depends_on": [],
+                "output_key": f"step_{i}",
             }
             for i in range(20)
         ]
@@ -799,6 +824,7 @@ class TestParsePlanToSteps:
 # ExecutionStep tests
 # =============================================================================
 
+
 @pytest.mark.unit
 @skip_no_planner
 class TestExecutionStep:
@@ -807,10 +833,10 @@ class TestExecutionStep:
     def test_default_fields(self):
         """ExecutionStep has correct default values."""
         step = ExecutionStep(
-            skill_name='web-search',
-            tool_name='search_web_tool',
-            params={'query': 'test'},
-            description='Search',
+            skill_name="web-search",
+            tool_name="search_web_tool",
+            params={"query": "test"},
+            description="Search",
         )
         assert step.depends_on == []
         assert step.output_key == ""
@@ -821,19 +847,19 @@ class TestExecutionStep:
     def test_all_fields(self):
         """ExecutionStep stores all provided values."""
         step = ExecutionStep(
-            skill_name='web-search',
-            tool_name='search_web_tool',
-            params={'query': 'test'},
-            description='Search the web',
+            skill_name="web-search",
+            tool_name="search_web_tool",
+            params={"query": "test"},
+            description="Search the web",
             depends_on=[0, 1],
-            output_key='step_2',
+            output_key="step_2",
             optional=True,
-            verification='check results',
-            fallback_skill='http-client',
+            verification="check results",
+            fallback_skill="http-client",
         )
-        assert step.skill_name == 'web-search'
+        assert step.skill_name == "web-search"
         assert step.depends_on == [0, 1]
-        assert step.output_key == 'step_2'
+        assert step.output_key == "step_2"
         assert step.optional is True
-        assert step.verification == 'check results'
-        assert step.fallback_skill == 'http-client'
+        assert step.verification == "check results"
+        assert step.fallback_skill == "http-client"

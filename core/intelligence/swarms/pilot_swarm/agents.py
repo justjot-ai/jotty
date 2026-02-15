@@ -10,14 +10,19 @@
 """
 
 import logging
-from typing import Dict, Any
+from typing import Any, Dict
 
 import dspy
 
 from Jotty.core.intelligence.swarms.olympiad_learning_swarm.agents import BaseOlympiadAgent
+
 from .signatures import (
-    PlannerSignature, SearchSignature, CoderSignature,
-    TerminalSignature, SkillWriterSignature, ValidatorSignature,
+    CoderSignature,
+    PlannerSignature,
+    SearchSignature,
+    SkillWriterSignature,
+    TerminalSignature,
+    ValidatorSignature,
 )
 
 logger = logging.getLogger(__name__)
@@ -26,6 +31,7 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 # PLANNER AGENT
 # =============================================================================
+
 
 class PilotPlannerAgent(BaseOlympiadAgent):
     """Decomposes goals into ordered subtask plans.
@@ -42,7 +48,11 @@ class PilotPlannerAgent(BaseOlympiadAgent):
     def _ensure_sonnet_lm(self) -> Any:
         """Create Sonnet LM for planning."""
         try:
-            from Jotty.core.infrastructure.foundation.direct_anthropic_lm import DirectAnthropicLM, is_api_key_available
+            from Jotty.core.infrastructure.foundation.direct_anthropic_lm import (
+                DirectAnthropicLM,
+                is_api_key_available,
+            )
+
             if is_api_key_available():
                 self._lm = DirectAnthropicLM(model="sonnet", max_tokens=4096)
                 logger.info("PilotPlanner using Sonnet model")
@@ -51,7 +61,9 @@ class PilotPlannerAgent(BaseOlympiadAgent):
             logger.debug(f"Sonnet not available for PilotPlanner: {e}")
         self._get_lm()
 
-    async def plan(self, goal: str, available_swarms: str = "", context: str = "") -> Dict[str, Any]:
+    async def plan(
+        self, goal: str, available_swarms: str = "", context: str = ""
+    ) -> Dict[str, Any]:
         """Decompose a goal into an ordered subtask plan."""
         try:
             result = self._call_with_own_lm(
@@ -64,24 +76,28 @@ class PilotPlannerAgent(BaseOlympiadAgent):
             subtasks = self._parse_json_output(str(result.subtasks_json))
             reasoning = str(result.reasoning)
 
-            self._broadcast("plan_created", {
-                'goal': goal[:80],
-                'subtask_count': len(subtasks) if isinstance(subtasks, list) else 0,
-            })
+            self._broadcast(
+                "plan_created",
+                {
+                    "goal": goal[:80],
+                    "subtask_count": len(subtasks) if isinstance(subtasks, list) else 0,
+                },
+            )
 
             return {
-                'subtasks': subtasks if isinstance(subtasks, list) else [],
-                'reasoning': reasoning,
+                "subtasks": subtasks if isinstance(subtasks, list) else [],
+                "reasoning": reasoning,
             }
 
         except Exception as e:
             logger.error(f"Planning failed: {e}")
-            return {'subtasks': [], 'reasoning': f'Planning failed: {e}'}
+            return {"subtasks": [], "reasoning": f"Planning failed: {e}"}
 
 
 # =============================================================================
 # SEARCH AGENT
 # =============================================================================
+
 
 class PilotSearchAgent(BaseOlympiadAgent):
     """Searches for information and synthesizes findings.
@@ -103,28 +119,31 @@ class PilotSearchAgent(BaseOlympiadAgent):
                 context=context or "No previous context.",
             )
 
-            queries = [q.strip() for q in str(result.search_queries).split('|') if q.strip()]
-            findings = [f.strip() for f in str(result.key_findings).split('|') if f.strip()]
+            queries = [q.strip() for q in str(result.search_queries).split("|") if q.strip()]
+            findings = [f.strip() for f in str(result.key_findings).split("|") if f.strip()]
 
             # Try to execute actual web searches
             search_results = await self._execute_web_searches(queries)
 
-            self._broadcast("search_completed", {
-                'task': task[:50],
-                'queries': len(queries),
-                'web_results': len(search_results),
-            })
+            self._broadcast(
+                "search_completed",
+                {
+                    "task": task[:50],
+                    "queries": len(queries),
+                    "web_results": len(search_results),
+                },
+            )
 
             return {
-                'queries': queries,
-                'synthesis': str(result.synthesis),
-                'key_findings': findings,
-                'search_results': search_results,
+                "queries": queries,
+                "synthesis": str(result.synthesis),
+                "key_findings": findings,
+                "search_results": search_results,
             }
 
         except Exception as e:
             logger.error(f"Search failed: {e}")
-            return {'queries': [], 'synthesis': '', 'key_findings': [], 'search_results': []}
+            return {"queries": [], "synthesis": "", "key_findings": [], "search_results": []}
 
     async def _execute_web_searches(self, queries: list) -> list:
         """Execute web searches using the web-search skill if available."""
@@ -132,22 +151,27 @@ class PilotSearchAgent(BaseOlympiadAgent):
         try:
             import importlib.util
             from pathlib import Path
-            tools_path = str(Path(__file__).parent.parent.parent.parent / "skills" / "web-search" / "tools.py")
+
+            tools_path = str(
+                Path(__file__).parent.parent.parent.parent / "skills" / "web-search" / "tools.py"
+            )
             spec = importlib.util.spec_from_file_location("web_search_tools", tools_path)
             mod = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(mod)
-            search_web_tool = getattr(mod, 'search_web_tool')
+            search_web_tool = getattr(mod, "search_web_tool")
 
             for query in queries[:3]:
-                sr = search_web_tool({'query': query, 'max_results': 5})
-                if isinstance(sr, dict) and sr.get('results'):
-                    for r in sr['results'][:3]:
+                sr = search_web_tool({"query": query, "max_results": 5})
+                if isinstance(sr, dict) and sr.get("results"):
+                    for r in sr["results"][:3]:
                         if isinstance(r, dict):
-                            results.append({
-                                'title': r.get('title', ''),
-                                'url': r.get('url', r.get('link', '')),
-                                'snippet': r.get('snippet', r.get('description', ''))[:200],
-                            })
+                            results.append(
+                                {
+                                    "title": r.get("title", ""),
+                                    "url": r.get("url", r.get("link", "")),
+                                    "snippet": r.get("snippet", r.get("description", ""))[:200],
+                                }
+                            )
         except Exception as e:
             logger.debug(f"Web search skill not available: {e}")
         return results
@@ -156,6 +180,7 @@ class PilotSearchAgent(BaseOlympiadAgent):
 # =============================================================================
 # CODER AGENT
 # =============================================================================
+
 
 class PilotCoderAgent(BaseOlympiadAgent):
     """Generates code and file content.
@@ -171,7 +196,11 @@ class PilotCoderAgent(BaseOlympiadAgent):
     def _ensure_sonnet_lm(self) -> Any:
         """Create Sonnet LM for code generation."""
         try:
-            from Jotty.core.infrastructure.foundation.direct_anthropic_lm import DirectAnthropicLM, is_api_key_available
+            from Jotty.core.infrastructure.foundation.direct_anthropic_lm import (
+                DirectAnthropicLM,
+                is_api_key_available,
+            )
+
             if is_api_key_available():
                 self._lm = DirectAnthropicLM(model="sonnet", max_tokens=8192)
                 logger.info("PilotCoder using Sonnet model")
@@ -191,21 +220,22 @@ class PilotCoderAgent(BaseOlympiadAgent):
 
             file_ops = self._parse_json_output(str(result.file_operations_json))
 
-            self._broadcast("code_generated", {'task': task[:50]})
+            self._broadcast("code_generated", {"task": task[:50]})
 
             return {
-                'file_operations': file_ops if isinstance(file_ops, list) else [],
-                'explanation': str(result.explanation),
+                "file_operations": file_ops if isinstance(file_ops, list) else [],
+                "explanation": str(result.explanation),
             }
 
         except Exception as e:
             logger.error(f"Code generation failed: {e}")
-            return {'file_operations': [], 'explanation': f'Failed: {e}'}
+            return {"file_operations": [], "explanation": f"Failed: {e}"}
 
 
 # =============================================================================
 # TERMINAL AGENT
 # =============================================================================
+
 
 class PilotTerminalAgent(BaseOlympiadAgent):
     """Generates shell commands for system tasks.
@@ -230,16 +260,16 @@ class PilotTerminalAgent(BaseOlympiadAgent):
             commands = self._parse_json_output(str(result.commands_json))
             safety = str(result.safety_assessment)
 
-            self._broadcast("terminal_planned", {'task': task[:50]})
+            self._broadcast("terminal_planned", {"task": task[:50]})
 
             return {
-                'commands': commands if isinstance(commands, list) else [],
-                'safety_assessment': safety,
+                "commands": commands if isinstance(commands, list) else [],
+                "safety_assessment": safety,
             }
 
         except Exception as e:
             logger.error(f"Terminal planning failed: {e}")
-            return {'commands': [], 'safety_assessment': f'Failed: {e}'}
+            return {"commands": [], "safety_assessment": f"Failed: {e}"}
 
 
 # =============================================================================
@@ -299,7 +329,11 @@ class PilotSkillWriterAgent(BaseOlympiadAgent):
     def _ensure_sonnet_lm(self) -> Any:
         """Create Sonnet LM for skill writing."""
         try:
-            from Jotty.core.infrastructure.foundation.direct_anthropic_lm import DirectAnthropicLM, is_api_key_available
+            from Jotty.core.infrastructure.foundation.direct_anthropic_lm import (
+                DirectAnthropicLM,
+                is_api_key_available,
+            )
+
             if is_api_key_available():
                 self._lm = DirectAnthropicLM(model="sonnet", max_tokens=8192)
                 logger.info("PilotSkillWriter using Sonnet model")
@@ -323,22 +357,23 @@ class PilotSkillWriterAgent(BaseOlympiadAgent):
                 reference_patterns=reference_patterns or SKILL_REFERENCE,
             )
 
-            self._broadcast("skill_written", {'skill_name': skill_name})
+            self._broadcast("skill_written", {"skill_name": skill_name})
 
             return {
-                'skill_yaml': str(result.skill_yaml),
-                'tools_py': str(result.tools_py),
-                'usage_example': str(result.usage_example),
+                "skill_yaml": str(result.skill_yaml),
+                "tools_py": str(result.tools_py),
+                "usage_example": str(result.usage_example),
             }
 
         except Exception as e:
             logger.error(f"Skill writing failed: {e}")
-            return {'skill_yaml': '', 'tools_py': '', 'usage_example': ''}
+            return {"skill_yaml": "", "tools_py": "", "usage_example": ""}
 
 
 # =============================================================================
 # VALIDATOR AGENT
 # =============================================================================
+
 
 class PilotValidatorAgent(BaseOlympiadAgent):
     """Validates whether a goal has been achieved."""
@@ -356,24 +391,28 @@ class PilotValidatorAgent(BaseOlympiadAgent):
                 results_summary=results_summary,
             )
 
-            success = str(result.success).strip().lower() == 'true'
+            success = str(result.success).strip().lower() == "true"
             gaps_raw = str(result.remaining_gaps).strip()
-            gaps = [g.strip() for g in gaps_raw.split('|') if g.strip()] if gaps_raw else []
+            gaps = [g.strip() for g in gaps_raw.split("|") if g.strip()] if gaps_raw else []
 
-            self._broadcast("validation_completed", {'success': success})
+            self._broadcast("validation_completed", {"success": success})
 
             return {
-                'success': success,
-                'assessment': str(result.assessment),
-                'remaining_gaps': gaps,
+                "success": success,
+                "assessment": str(result.assessment),
+                "remaining_gaps": gaps,
             }
 
         except Exception as e:
             logger.error(f"Validation failed: {e}")
-            return {'success': False, 'assessment': f'Validation failed: {e}', 'remaining_gaps': []}
+            return {"success": False, "assessment": f"Validation failed: {e}", "remaining_gaps": []}
 
 
 __all__ = [
-    'PilotPlannerAgent', 'PilotSearchAgent', 'PilotCoderAgent',
-    'PilotTerminalAgent', 'PilotSkillWriterAgent', 'PilotValidatorAgent',
+    "PilotPlannerAgent",
+    "PilotSearchAgent",
+    "PilotCoderAgent",
+    "PilotTerminalAgent",
+    "PilotSkillWriterAgent",
+    "PilotValidatorAgent",
 ]

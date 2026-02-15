@@ -12,16 +12,17 @@ from typing import Dict, List, Optional
 
 from .enums import OutputTag, ValidationRound
 
-
 # =============================================================================
 # VALIDATION RESULTS (Enhanced)
 # =============================================================================
+
 
 @dataclass
 class ValidationResult:
     """
     Enhanced validation result with reasoning trace.
     """
+
     agent_name: str
     is_valid: bool
     confidence: float
@@ -48,4 +49,4 @@ class ValidationResult:
 
     # NEW: Multi-round info
     validation_round: ValidationRound = ValidationRound.INITIAL
-    previous_rounds: List['ValidationResult'] = field(default_factory=list)
+    previous_rounds: List["ValidationResult"] = field(default_factory=list)

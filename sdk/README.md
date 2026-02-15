@@ -121,18 +121,18 @@ func main() {
     cfg := jotty.NewConfiguration()
     cfg.BasePath = "http://localhost:8080"
     cfg.DefaultHeader["Authorization"] = "Bearer your-api-key"
-    
+
     client := jotty.NewAPIClient(cfg)
     chatApi := client.ChatApi
-    
+
     result, _, err := chatApi.ChatExecute(context.Background(), jotty.ChatExecuteRequest{
         Message: "Hello, how can you help?",
     })
-    
+
     if err != nil {
         panic(err)
     }
-    
+
     fmt.Println(result.FinalOutput)
 }
 ```
@@ -247,17 +247,17 @@ When contributing API changes:
 
 ## ❓ FAQ
 
-**Q: Do I need to manually update SDKs when the API changes?**  
+**Q: Do I need to manually update SDKs when the API changes?**
 A: No! The CI/CD pipeline automatically regenerates SDKs when the API changes.
 
-**Q: Can I customize the generated code?**  
+**Q: Can I customize the generated code?**
 A: Yes, use templates or post-processing scripts. See "Customizing Generated Code" above.
 
-**Q: Which language SDK should I use?**  
+**Q: Which language SDK should I use?**
 A: Use the SDK for your project's language. All SDKs have the same functionality.
 
-**Q: How do I publish SDKs to package registries?**  
+**Q: How do I publish SDKs to package registries?**
 A: The CI/CD pipeline handles publishing. See `.github/workflows/publish-sdks.yml`.
 
-**Q: Can I generate SDKs for a custom language?**  
+**Q: Can I generate SDKs for a custom language?**
 A: Yes! OpenAPI Generator supports 40+ languages. Add configuration to `generate_sdks.py`.

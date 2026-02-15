@@ -10,10 +10,12 @@ Complete semantic layer for database understanding and querying:
 
 All functionality consolidated into one skill.
 """
+
 import logging
-from typing import Dict, Any, Optional, List
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from typing import Any, Dict, List, Optional
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 logger = logging.getLogger(__name__)
 status = SkillStatus("semantic-layer")
@@ -22,6 +24,7 @@ status = SkillStatus("semantic-layer")
 # =============================================================================
 # SQL QUERY GENERATION
 # =============================================================================
+
 
 @tool_wrapper(required_params=["question"])
 def query_database_natural_language(params: Dict[str, Any]) -> Dict[str, Any]:
@@ -63,10 +66,7 @@ def query_database_natural_language(params: Dict[str, Any]) -> Dict[str, Any]:
 
         # Create semantic layer from params
         if ddl:
-            layer = SemanticLayer.from_ddl(
-                ddl=ddl,
-                dialect=params.get("dialect", "postgresql")
-            )
+            layer = SemanticLayer.from_ddl(ddl=ddl, dialect=params.get("dialect", "postgresql"))
         elif params.get("db_type") == "mongodb":
             layer = SemanticLayer.from_mongodb(
                 uri=params.get("connection_string"),
@@ -156,10 +156,7 @@ def suggest_related_queries(params: Dict[str, Any]) -> Dict[str, Any]:
 
         status.complete(f"Generated {len(suggestions)} suggestions")
 
-        return tool_response(
-            suggestions=suggestions,
-            count=len(suggestions)
-        )
+        return tool_response(suggestions=suggestions, count=len(suggestions))
 
     except Exception as e:
         logger.error(f"Suggestion generation failed: {e}")
@@ -170,6 +167,7 @@ def suggest_related_queries(params: Dict[str, Any]) -> Dict[str, Any]:
 # =============================================================================
 # SCHEMA ANALYSIS
 # =============================================================================
+
 
 @tool_wrapper(required_params=["ddl"])
 def analyze_ddl_schema(params: Dict[str, Any]) -> Dict[str, Any]:
@@ -213,20 +211,22 @@ def analyze_ddl_schema(params: Dict[str, Any]) -> Dict[str, Any]:
 
         for table in schema.tables:
             total_columns += len(table.columns)
-            tables_info.append({
-                "name": table.name,
-                "full_name": table.full_name,
-                "column_count": len(table.columns),
-                "primary_keys": table.primary_keys,
-                "foreign_keys": [
-                    {
-                        "columns": fk.columns,
-                        "referenced_table": fk.referenced_table,
-                        "referenced_columns": fk.referenced_columns
-                    }
-                    for fk in table.foreign_keys
-                ],
-            })
+            tables_info.append(
+                {
+                    "name": table.name,
+                    "full_name": table.full_name,
+                    "column_count": len(table.columns),
+                    "primary_keys": table.primary_keys,
+                    "foreign_keys": [
+                        {
+                            "columns": fk.columns,
+                            "referenced_table": fk.referenced_table,
+                            "referenced_columns": fk.referenced_columns,
+                        }
+                        for fk in table.foreign_keys
+                    ],
+                }
+            )
 
         relationships_info = [
             {
@@ -244,7 +244,7 @@ def analyze_ddl_schema(params: Dict[str, Any]) -> Dict[str, Any]:
             relationships=relationships_info,
             table_count=len(tables_info),
             total_columns=total_columns,
-            database_type=schema.database_type
+            database_type=schema.database_type,
         )
 
     except Exception as e:
@@ -375,6 +375,7 @@ def generate_lookml_from_ddl(params: Dict[str, Any]) -> Dict[str, Any]:
 # DATA VISUALIZATION
 # =============================================================================
 
+
 @tool_wrapper(required_params=["question"])
 def visualize_data_from_query(params: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -425,11 +426,7 @@ def visualize_data_from_query(params: Dict[str, Any]) -> Dict[str, Any]:
 
         status.update(f"Generating {n_charts} chart(s)...")
 
-        charts = viz_layer.visualize(
-            question=question,
-            library=library,
-            n=n_charts
-        )
+        charts = viz_layer.visualize(question=question, library=library, n=n_charts)
 
         chart_results = []
         for chart in charts:
@@ -438,17 +435,14 @@ def visualize_data_from_query(params: Dict[str, Any]) -> Dict[str, Any]:
 
             chart_data = {"library": library}
 
-            if output_format == "base64" and hasattr(chart, 'raster'):
+            if output_format == "base64" and hasattr(chart, "raster"):
                 chart_data["base64"] = chart.raster
 
             chart_results.append(chart_data)
 
         status.complete(f"Generated {len(chart_results)} chart(s)")
 
-        return tool_response(
-            charts=chart_results,
-            chart_count=len(chart_results)
-        )
+        return tool_response(charts=chart_results, chart_count=len(chart_results))
 
     except ImportError as e:
         return tool_error(f"Missing required library: {e}. Try: pip install lida")
@@ -516,9 +510,7 @@ def create_dashboard(params: Dict[str, Any]) -> Dict[str, Any]:
         status.complete(f"Dashboard created with {len(charts)} charts")
 
         return tool_response(
-            dashboard_html=render_result.output,
-            chart_count=len(charts),
-            title=title
+            dashboard_html=render_result.output, chart_count=len(charts), title=title
         )
 
     except Exception as e:
@@ -531,12 +523,10 @@ __all__ = [
     # SQL/MongoDB Queries
     "query_database_natural_language",
     "suggest_related_queries",
-
     # Schema Analysis
     "analyze_ddl_schema",
     "extract_database_schema",
     "generate_lookml_from_ddl",
-
     # Visualization
     "visualize_data_from_query",
     "create_dashboard",

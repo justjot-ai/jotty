@@ -4,13 +4,15 @@ Core Semantic Models
 Data models representing database schema, relationships, and semantic metadata.
 These models are database-agnostic and serve as the foundation for LookML generation.
 """
+
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List, Optional
 
 
 class ColumnType(Enum):
     """Normalized column types across databases."""
+
     STRING = "string"
     NUMBER = "number"
     INTEGER = "integer"
@@ -28,6 +30,7 @@ class ColumnType(Enum):
 
 class RelationType(Enum):
     """Types of table relationships."""
+
     ONE_TO_ONE = "one_to_one"
     ONE_TO_MANY = "one_to_many"
     MANY_TO_ONE = "many_to_one"
@@ -36,6 +39,7 @@ class RelationType(Enum):
 
 class MeasureType(Enum):
     """Types of measures for aggregations."""
+
     COUNT = "count"
     COUNT_DISTINCT = "count_distinct"
     SUM = "sum"
@@ -48,6 +52,7 @@ class MeasureType(Enum):
 @dataclass
 class Column:
     """Represents a database column with semantic metadata."""
+
     name: str
     data_type: str  # Original database type
     normalized_type: ColumnType = ColumnType.UNKNOWN
@@ -59,7 +64,7 @@ class Column:
 
     # Semantic hints
     is_dimension: bool = True  # Dimensions are groupable
-    is_measure: bool = False   # Measures are aggregatable
+    is_measure: bool = False  # Measures are aggregatable
     measure_type: Optional[MeasureType] = None
 
     # LookML hints
@@ -81,22 +86,39 @@ class Column:
 
         type_mapping = {
             ColumnType.STRING: [
-                'varchar', 'char', 'text', 'string', 'nvarchar', 'nchar', 'clob', 'nclob',
-                'str', 'objectid', 'uuid'  # MongoDB/Python types
+                "varchar",
+                "char",
+                "text",
+                "string",
+                "nvarchar",
+                "nchar",
+                "clob",
+                "nclob",
+                "str",
+                "objectid",
+                "uuid",  # MongoDB/Python types
             ],
             ColumnType.INTEGER: [
-                'int', 'integer', 'bigint', 'smallint', 'tinyint', 'serial', 'bigserial',
-                'int32', 'int64', 'long'  # MongoDB types
+                "int",
+                "integer",
+                "bigint",
+                "smallint",
+                "tinyint",
+                "serial",
+                "bigserial",
+                "int32",
+                "int64",
+                "long",  # MongoDB types
             ],
-            ColumnType.FLOAT: ['float', 'double', 'real', 'float4', 'float8'],
-            ColumnType.DECIMAL: ['decimal', 'numeric', 'number', 'money', 'decimal128'],
-            ColumnType.BOOLEAN: ['bool', 'boolean', 'bit'],
-            ColumnType.DATE: ['date'],
-            ColumnType.DATETIME: ['datetime', 'datetime2'],
-            ColumnType.TIMESTAMP: ['timestamp', 'timestamptz'],
-            ColumnType.TIME: ['time', 'timetz'],
-            ColumnType.JSON: ['json', 'jsonb', 'list', 'dict', 'array', 'object'],  # MongoDB types
-            ColumnType.BINARY: ['blob', 'binary', 'varbinary', 'bytea', 'raw', 'bytes'],
+            ColumnType.FLOAT: ["float", "double", "real", "float4", "float8"],
+            ColumnType.DECIMAL: ["decimal", "numeric", "number", "money", "decimal128"],
+            ColumnType.BOOLEAN: ["bool", "boolean", "bit"],
+            ColumnType.DATE: ["date"],
+            ColumnType.DATETIME: ["datetime", "datetime2"],
+            ColumnType.TIMESTAMP: ["timestamp", "timestamptz"],
+            ColumnType.TIME: ["time", "timetz"],
+            ColumnType.JSON: ["json", "jsonb", "list", "dict", "array", "object"],  # MongoDB types
+            ColumnType.BINARY: ["blob", "binary", "varbinary", "bytea", "raw", "bytes"],
         }
 
         for norm_type, patterns in type_mapping.items():
@@ -113,8 +135,20 @@ class Column:
         name_lower = self.name.lower()
 
         # Numeric types that look like measures
-        measure_patterns = ['amount', 'total', 'sum', 'count', 'qty', 'quantity',
-                           'price', 'cost', 'revenue', 'sales', 'profit', 'balance']
+        measure_patterns = [
+            "amount",
+            "total",
+            "sum",
+            "count",
+            "qty",
+            "quantity",
+            "price",
+            "cost",
+            "revenue",
+            "sales",
+            "profit",
+            "balance",
+        ]
 
         if self.normalized_type in [ColumnType.FLOAT, ColumnType.DECIMAL, ColumnType.NUMBER]:
             for pattern in measure_patterns:
@@ -125,7 +159,7 @@ class Column:
                     return
 
         # IDs and keys are dimensions
-        if name_lower.endswith('_id') or name_lower == 'id' or self.primary_key:
+        if name_lower.endswith("_id") or name_lower == "id" or self.primary_key:
             self.is_dimension = True
             self.is_measure = False
 
@@ -133,6 +167,7 @@ class Column:
 @dataclass
 class ForeignKey:
     """Represents a foreign key relationship."""
+
     columns: List[str]
     referenced_table: str
     referenced_columns: List[str]
@@ -142,6 +177,7 @@ class ForeignKey:
 @dataclass
 class Index:
     """Represents a database index."""
+
     name: str
     columns: List[str]
     unique: bool = False
@@ -150,6 +186,7 @@ class Index:
 @dataclass
 class Table:
     """Represents a database table with full schema."""
+
     name: str
     schema: Optional[str] = None
     columns: List[Column] = field(default_factory=list)
@@ -190,6 +227,7 @@ class Table:
 @dataclass
 class Relationship:
     """Represents a relationship between two tables."""
+
     from_table: str
     from_columns: List[str]
     to_table: str
@@ -209,6 +247,7 @@ class Relationship:
 @dataclass
 class Schema:
     """Represents a complete database schema with all tables and relationships."""
+
     name: str
     tables: List[Table] = field(default_factory=list)
     relationships: List[Relationship] = field(default_factory=list)
@@ -241,58 +280,60 @@ class Schema:
                     from_columns=fk.columns,
                     to_table=fk.referenced_table,
                     to_columns=fk.referenced_columns,
-                    relation_type=rel_type
+                    relation_type=rel_type,
                 )
 
                 # Avoid duplicates
-                if not any(r.from_table == rel.from_table and
-                          r.to_table == rel.to_table and
-                          r.from_columns == rel.from_columns
-                          for r in self.relationships):
+                if not any(
+                    r.from_table == rel.from_table
+                    and r.to_table == rel.to_table
+                    and r.from_columns == rel.from_columns
+                    for r in self.relationships
+                ):
                     self.relationships.append(rel)
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert schema to dictionary."""
         return {
-            'name': self.name,
-            'database_type': self.database_type,
-            'tables': [
+            "name": self.name,
+            "database_type": self.database_type,
+            "tables": [
                 {
-                    'name': t.name,
-                    'schema': t.schema,
-                    'columns': [
+                    "name": t.name,
+                    "schema": t.schema,
+                    "columns": [
                         {
-                            'name': c.name,
-                            'type': c.data_type,
-                            'normalized_type': c.normalized_type.value,
-                            'nullable': c.nullable,
-                            'primary_key': c.primary_key,
-                            'is_dimension': c.is_dimension,
-                            'is_measure': c.is_measure,
+                            "name": c.name,
+                            "type": c.data_type,
+                            "normalized_type": c.normalized_type.value,
+                            "nullable": c.nullable,
+                            "primary_key": c.primary_key,
+                            "is_dimension": c.is_dimension,
+                            "is_measure": c.is_measure,
                         }
                         for c in t.columns
                     ],
-                    'primary_keys': t.primary_keys,
-                    'foreign_keys': [
+                    "primary_keys": t.primary_keys,
+                    "foreign_keys": [
                         {
-                            'columns': fk.columns,
-                            'referenced_table': fk.referenced_table,
-                            'referenced_columns': fk.referenced_columns,
+                            "columns": fk.columns,
+                            "referenced_table": fk.referenced_table,
+                            "referenced_columns": fk.referenced_columns,
                         }
                         for fk in t.foreign_keys
                     ],
                 }
                 for t in self.tables
             ],
-            'relationships': [
+            "relationships": [
                 {
-                    'from_table': r.from_table,
-                    'from_columns': r.from_columns,
-                    'to_table': r.to_table,
-                    'to_columns': r.to_columns,
-                    'type': r.relation_type.value,
+                    "from_table": r.from_table,
+                    "from_columns": r.from_columns,
+                    "to_table": r.to_table,
+                    "to_columns": r.to_columns,
+                    "type": r.relation_type.value,
                 }
                 for r in self.relationships
             ],
-            'version': self.version,
+            "version": self.version,
         }

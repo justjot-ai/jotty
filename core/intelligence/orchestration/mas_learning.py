@@ -20,13 +20,13 @@ Usage:
     mas_learning.save_all()
 """
 
-import json
 import hashlib
+import json
 import logging
-from pathlib import Path
-from typing import Dict, Any, Optional, List, Tuple
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -35,9 +35,11 @@ logger = logging.getLogger(__name__)
 # Fix Database (UNIQUE to MAS Learning)
 # =============================================================================
 
+
 @dataclass
 class FixRecord:
     """Record of a successful fix."""
+
     error_pattern: str
     error_hash: str
     solution_commands: List[str]
@@ -58,9 +60,11 @@ class FixRecord:
 # Session History (UNIQUE to MAS Learning)
 # =============================================================================
 
+
 @dataclass
 class SessionLearning:
     """Learning from a single session."""
+
     session_id: str
     timestamp: str
     task_description: str
@@ -96,6 +100,7 @@ class SessionLearning:
 # MAS Learning (Coordinator - DRY)
 # =============================================================================
 
+
 class MASLearning:
     """
     Multi-Agent System Learning Manager (DRY Version).
@@ -111,7 +116,15 @@ class MASLearning:
     - TransferableLearningStore for pattern transfer
     """
 
-    def __init__(self, config: Any = None, workspace_path: Optional[Path] = None, learning_dir: Optional[Path] = None, swarm_intelligence: Any = None, learning_manager: Any = None, transfer_learning: Any = None) -> None:
+    def __init__(
+        self,
+        config: Any = None,
+        workspace_path: Optional[Path] = None,
+        learning_dir: Optional[Path] = None,
+        swarm_intelligence: Any = None,
+        learning_manager: Any = None,
+        transfer_learning: Any = None,
+    ) -> None:
         """
         Initialize MAS Learning.
 
@@ -135,17 +148,17 @@ class MASLearning:
         if learning_dir:
             self.learning_dir = Path(learning_dir)
         else:
-            base = getattr(config, 'base_path', None) if config else None
+            base = getattr(config, "base_path", None) if config else None
             if base:
-                self.learning_dir = Path(base) / 'mas_learning'
+                self.learning_dir = Path(base) / "mas_learning"
             else:
-                self.learning_dir = Path.home() / '.jotty' / 'mas_learning'
+                self.learning_dir = Path.home() / ".jotty" / "mas_learning"
 
         self.learning_dir.mkdir(parents=True, exist_ok=True)
 
         # Project-specific learning directory
         workspace_hash = hashlib.md5(str(self.workspace_path).encode()).hexdigest()[:8]
-        self.project_learning_dir = self.learning_dir / 'projects' / workspace_hash
+        self.project_learning_dir = self.learning_dir / "projects" / workspace_hash
         self.project_learning_dir.mkdir(parents=True, exist_ok=True)
 
         # UNIQUE data stores (not in other components)
@@ -159,8 +172,10 @@ class MASLearning:
         # Load existing learnings
         self._load_all()
 
-        logger.info(f" MASLearning initialized (DRY): {len(self.fix_database)} fixes, "
-                   f"{len(self.session_learnings)} sessions")
+        logger.info(
+            f" MASLearning initialized (DRY): {len(self.fix_database)} fixes, "
+            f"{len(self.session_learnings)} sessions"
+        )
 
     # =========================================================================
     # Fix Database (UNIQUE - error→solution mappings)
@@ -169,10 +184,11 @@ class MASLearning:
     def _error_hash(self, error: str) -> str:
         """Create hash of error for lookup."""
         import re
+
         normalized = error.lower()
-        normalized = re.sub(r'\d+', 'N', normalized)
-        normalized = re.sub(r'/[\w/.-]+', '/PATH', normalized)
-        normalized = re.sub(r'0x[0-9a-f]+', 'ADDR', normalized)
+        normalized = re.sub(r"\d+", "N", normalized)
+        normalized = re.sub(r"/[\w/.-]+", "/PATH", normalized)
+        normalized = re.sub(r"0x[0-9a-f]+", "ADDR", normalized)
         return hashlib.md5(normalized.encode()).hexdigest()
 
     def find_fix(self, error: str) -> Optional[FixRecord]:
@@ -191,7 +207,15 @@ class MASLearning:
 
         return None
 
-    def record_fix(self, error: str, solution_commands: List[str], solution_description: str, source: str, success: bool, context: Dict[str, Any] = None) -> Any:
+    def record_fix(
+        self,
+        error: str,
+        solution_commands: List[str],
+        solution_description: str,
+        source: str,
+        success: bool,
+        context: Dict[str, Any] = None,
+    ) -> Any:
         """Record a fix attempt (success or failure)."""
         error_hash = self._error_hash(error)
 
@@ -209,7 +233,7 @@ class MASLearning:
                 solution_commands=solution_commands,
                 solution_description=solution_description,
                 source=source,
-                context=context or {}
+                context=context or {},
             )
 
         if len(self.fix_database) % 10 == 0:
@@ -225,23 +249,63 @@ class MASLearning:
             return self._topic_cache[text]
 
         import re
-        words = re.findall(r'\b[a-zA-Z]{4,}\b', text.lower())
 
-        stopwords = {'this', 'that', 'with', 'from', 'have', 'will', 'would', 'could',
-                    'should', 'being', 'been', 'were', 'what', 'when', 'where', 'which',
-                    'their', 'them', 'then', 'than', 'these', 'those', 'some', 'such',
-                    'only', 'other', 'into', 'over', 'also', 'more', 'most', 'very'}
+        words = re.findall(r"\b[a-zA-Z]{4,}\b", text.lower())
+
+        stopwords = {
+            "this",
+            "that",
+            "with",
+            "from",
+            "have",
+            "will",
+            "would",
+            "could",
+            "should",
+            "being",
+            "been",
+            "were",
+            "what",
+            "when",
+            "where",
+            "which",
+            "their",
+            "them",
+            "then",
+            "than",
+            "these",
+            "those",
+            "some",
+            "such",
+            "only",
+            "other",
+            "into",
+            "over",
+            "also",
+            "more",
+            "most",
+            "very",
+        }
 
         topics = [w for w in words if w not in stopwords]
 
         from collections import Counter
+
         topic_counts = Counter(topics)
         top_topics = [t for t, _ in topic_counts.most_common(10)]
 
         self._topic_cache[text] = top_topics
         return top_topics
 
-    def record_session(self, task_description: str, agents_used: List[str], total_time: float, success: bool, stigmergy_signals: int = 0, output_quality: float = 0.0) -> Any:
+    def record_session(
+        self,
+        task_description: str,
+        agents_used: List[str],
+        total_time: float,
+        success: bool,
+        stigmergy_signals: int = 0,
+        output_quality: float = 0.0,
+    ) -> Any:
         """Record learning from a completed session."""
         session = SessionLearning(
             session_id=self.current_session_id,
@@ -254,7 +318,7 @@ class MASLearning:
             success=success,
             workspace=str(self.workspace_path),
             agent_count=len(agents_used),
-            output_quality=output_quality
+            output_quality=output_quality,
         )
 
         self.session_learnings.append(session)
@@ -265,10 +329,7 @@ class MASLearning:
         self._save_sessions()
 
     def load_relevant_learnings(
-        self,
-        task_description: str,
-        agent_types: List[str] = None,
-        top_k: int = 5
+        self, task_description: str, agent_types: List[str] = None, top_k: int = 5
     ) -> Dict[str, Any]:
         """
         Load learnings relevant to the current task.
@@ -292,12 +353,14 @@ class MASLearning:
         past_strategies = []
         for session in relevant_sessions:
             if session.success:
-                past_strategies.append({
-                    'task': session.task_description[:100],
-                    'agents_used': session.agents_used,
-                    'time': session.total_time,
-                    'stigmergy_signals': session.stigmergy_signals
-                })
+                past_strategies.append(
+                    {
+                        "task": session.task_description[:100],
+                        "agents_used": session.agents_used,
+                        "time": session.total_time,
+                        "stigmergy_signals": session.stigmergy_signals,
+                    }
+                )
 
         # Get agent recommendations from SwarmIntelligence (DELEGATE - DRY)
         suggested_agents = {}
@@ -305,13 +368,17 @@ class MASLearning:
         if self.swarm_intelligence:
             try:
                 # Use SwarmIntelligence's existing agent tracking
-                for agent_name in (agent_types or []):
+                for agent_name in agent_types or []:
                     profile = self.swarm_intelligence.get_agent_profile(agent_name)
                     if profile:
                         suggested_agents[agent_name] = {
-                            'success_rate': profile.success_rate,
-                            'specialization': profile.specialization.value if hasattr(profile, 'specialization') else 'unknown',
-                            'total_tasks': profile.total_tasks
+                            "success_rate": profile.success_rate,
+                            "specialization": (
+                                profile.specialization.value
+                                if hasattr(profile, "specialization")
+                                else "unknown"
+                            ),
+                            "total_tasks": profile.total_tasks,
                         }
                         if profile.success_rate < 0.6 and profile.total_tasks >= 2:
                             underperformers[agent_name] = profile.success_rate
@@ -319,35 +386,50 @@ class MASLearning:
                 logger.debug(f"Could not get SwarmIntelligence data: {e}")
 
         # Performance hints from session history
-        avg_time = sum(s.total_time for s in relevant_sessions) / len(relevant_sessions) if relevant_sessions else 60
-        success_rate = sum(1 for s in relevant_sessions if s.success) / len(relevant_sessions) if relevant_sessions else 0.5
+        avg_time = (
+            sum(s.total_time for s in relevant_sessions) / len(relevant_sessions)
+            if relevant_sessions
+            else 60
+        )
+        success_rate = (
+            sum(1 for s in relevant_sessions if s.success) / len(relevant_sessions)
+            if relevant_sessions
+            else 0.5
+        )
 
         performance_hints = {
-            'expected_time': avg_time,
-            'expected_success_rate': success_rate,
-            'similar_task_count': len(relevant_sessions),
+            "expected_time": avg_time,
+            "expected_success_rate": success_rate,
+            "similar_task_count": len(relevant_sessions),
         }
 
         # Get relevant fixes
         relevant_fixes = list(self.fix_database.values())[:10]
 
-        logger.info(f" Loaded learnings: {len(relevant_sessions)} sessions, "
-                   f"{len(suggested_agents)} agents, {len(relevant_fixes)} fixes")
+        logger.info(
+            f" Loaded learnings: {len(relevant_sessions)} sessions, "
+            f"{len(suggested_agents)} agents, {len(relevant_fixes)} fixes"
+        )
 
         return {
-            'suggested_agents': suggested_agents,
-            'underperformers': underperformers,
-            'relevant_fixes': [{'pattern': f.error_pattern[:50], 'solution': f.solution_description} for f in relevant_fixes],
-            'performance_hints': performance_hints,
-            'past_strategies': past_strategies[:5],
-            'query_topics': query_topics
+            "suggested_agents": suggested_agents,
+            "underperformers": underperformers,
+            "relevant_fixes": [
+                {"pattern": f.error_pattern[:50], "solution": f.solution_description}
+                for f in relevant_fixes
+            ],
+            "performance_hints": performance_hints,
+            "past_strategies": past_strategies[:5],
+            "query_topics": query_topics,
         }
 
     # =========================================================================
     # Execution Strategy (Combines learnings - UNIQUE)
     # =========================================================================
 
-    def get_execution_strategy(self, task_description: str, available_agents: List[str]) -> Dict[str, Any]:
+    def get_execution_strategy(
+        self, task_description: str, available_agents: List[str]
+    ) -> Dict[str, Any]:
         """
         Get recommended execution strategy based on all learnings.
 
@@ -363,36 +445,38 @@ class MASLearning:
         retry_agents = []
 
         for agent in available_agents:
-            if agent in learnings.get('underperformers', {}):
-                success_rate = learnings['underperformers'][agent]
+            if agent in learnings.get("underperformers", {}):
+                success_rate = learnings["underperformers"][agent]
                 if success_rate < 0.4:
-                    skip_agents.append({'agent': agent, 'reason': f'{success_rate*100:.0f}% success rate'})
+                    skip_agents.append(
+                        {"agent": agent, "reason": f"{success_rate*100:.0f}% success rate"}
+                    )
                 else:
-                    retry_agents.append({'agent': agent, 'success_rate': success_rate})
+                    retry_agents.append({"agent": agent, "success_rate": success_rate})
 
         # Order by success rate (use SwarmIntelligence data)
         agent_scores = {}
         for agent in available_agents:
-            if agent in learnings.get('suggested_agents', {}):
-                agent_scores[agent] = learnings['suggested_agents'][agent].get('success_rate', 0.5)
+            if agent in learnings.get("suggested_agents", {}):
+                agent_scores[agent] = learnings["suggested_agents"][agent].get("success_rate", 0.5)
             else:
                 agent_scores[agent] = 0.5
 
         recommended_order = sorted(
-            [a for a in available_agents if a not in [s['agent'] for s in skip_agents]],
+            [a for a in available_agents if a not in [s["agent"] for s in skip_agents]],
             key=lambda a: agent_scores.get(a, 0.5),
-            reverse=True
+            reverse=True,
         )
 
-        hints = learnings.get('performance_hints', {})
+        hints = learnings.get("performance_hints", {})
 
         return {
-            'recommended_order': recommended_order,
-            'skip_agents': skip_agents,
-            'retry_agents': retry_agents,
-            'expected_time': hints.get('expected_time', 60.0),
-            'confidence': min(1.0, hints.get('similar_task_count', 0) / 5),
-            'relevant_fixes': learnings.get('relevant_fixes', [])
+            "recommended_order": recommended_order,
+            "skip_agents": skip_agents,
+            "retry_agents": retry_agents,
+            "expected_time": hints.get("expected_time", 60.0),
+            "confidence": min(1.0, hints.get("similar_task_count", 0) / 5),
+            "relevant_fixes": learnings.get("relevant_fixes", []),
         }
 
     # =========================================================================
@@ -400,30 +484,30 @@ class MASLearning:
     # =========================================================================
 
     def _get_fix_db_path(self) -> Path:
-        return self.learning_dir / 'fix_database.json'
+        return self.learning_dir / "fix_database.json"
 
     def _get_sessions_path(self) -> Path:
-        return self.learning_dir / 'session_learnings.json'
+        return self.learning_dir / "session_learnings.json"
 
     def _save_fix_database(self) -> Any:
         """Save fix database to disk."""
         try:
             data = {
                 hash_: {
-                    'error_pattern': fix.error_pattern,
-                    'error_hash': fix.error_hash,
-                    'solution_commands': fix.solution_commands,
-                    'solution_description': fix.solution_description,
-                    'source': fix.source,
-                    'success_count': fix.success_count,
-                    'fail_count': fix.fail_count,
-                    'last_used': fix.last_used,
-                    'context': fix.context
+                    "error_pattern": fix.error_pattern,
+                    "error_hash": fix.error_hash,
+                    "solution_commands": fix.solution_commands,
+                    "solution_description": fix.solution_description,
+                    "source": fix.source,
+                    "success_count": fix.success_count,
+                    "fail_count": fix.fail_count,
+                    "last_used": fix.last_used,
+                    "context": fix.context,
                 }
                 for hash_, fix in self.fix_database.items()
             }
 
-            with open(self._get_fix_db_path(), 'w') as f:
+            with open(self._get_fix_db_path(), "w") as f:
                 json.dump(data, f, indent=2)
 
         except Exception as e:
@@ -441,15 +525,15 @@ class MASLearning:
 
             for hash_, fix_data in data.items():
                 self.fix_database[hash_] = FixRecord(
-                    error_pattern=fix_data['error_pattern'],
-                    error_hash=fix_data['error_hash'],
-                    solution_commands=fix_data['solution_commands'],
-                    solution_description=fix_data['solution_description'],
-                    source=fix_data['source'],
-                    success_count=fix_data.get('success_count', 1),
-                    fail_count=fix_data.get('fail_count', 0),
-                    last_used=fix_data.get('last_used', datetime.now().isoformat()),
-                    context=fix_data.get('context', {})
+                    error_pattern=fix_data["error_pattern"],
+                    error_hash=fix_data["error_hash"],
+                    solution_commands=fix_data["solution_commands"],
+                    solution_description=fix_data["solution_description"],
+                    source=fix_data["source"],
+                    success_count=fix_data.get("success_count", 1),
+                    fail_count=fix_data.get("fail_count", 0),
+                    last_used=fix_data.get("last_used", datetime.now().isoformat()),
+                    context=fix_data.get("context", {}),
                 )
 
             logger.info(f"Loaded {len(self.fix_database)} fixes from database")
@@ -461,7 +545,7 @@ class MASLearning:
         """Save session learnings to disk."""
         try:
             data = [asdict(s) for s in self.session_learnings]
-            with open(self._get_sessions_path(), 'w') as f:
+            with open(self._get_sessions_path(), "w") as f:
                 json.dump(data, f, indent=2, default=str)
 
         except Exception as e:
@@ -478,19 +562,21 @@ class MASLearning:
                 data = json.load(f)
 
             for session_data in data:
-                self.session_learnings.append(SessionLearning(
-                    session_id=session_data['session_id'],
-                    timestamp=session_data['timestamp'],
-                    task_description=session_data['task_description'],
-                    task_topics=session_data.get('task_topics', []),
-                    agents_used=session_data.get('agents_used', []),
-                    stigmergy_signals=session_data.get('stigmergy_signals', 0),
-                    total_time=session_data.get('total_time', 0),
-                    success=session_data.get('success', False),
-                    workspace=session_data.get('workspace', ''),
-                    agent_count=session_data.get('agent_count', 0),
-                    output_quality=session_data.get('output_quality', 0.0)
-                ))
+                self.session_learnings.append(
+                    SessionLearning(
+                        session_id=session_data["session_id"],
+                        timestamp=session_data["timestamp"],
+                        task_description=session_data["task_description"],
+                        task_topics=session_data.get("task_topics", []),
+                        agents_used=session_data.get("agents_used", []),
+                        stigmergy_signals=session_data.get("stigmergy_signals", 0),
+                        total_time=session_data.get("total_time", 0),
+                        success=session_data.get("success", False),
+                        workspace=session_data.get("workspace", ""),
+                        agent_count=session_data.get("agent_count", 0),
+                        output_quality=session_data.get("output_quality", 0.0),
+                    )
+                )
 
             logger.info(f"Loaded {len(self.session_learnings)} sessions")
 
@@ -521,13 +607,15 @@ class MASLearning:
         for fix in self.fix_database.values():
             if fix.success_rate >= 0.5:
                 swarm_terminal._fix_cache[fix.error_hash] = type(
-                    'ErrorSolution', (), {
-                        'error_pattern': fix.error_pattern,
-                        'solution': fix.solution_description,
-                        'source': 'database',
-                        'confidence': fix.success_rate,
-                        'commands': fix.solution_commands
-                    }
+                    "ErrorSolution",
+                    (),
+                    {
+                        "error_pattern": fix.error_pattern,
+                        "solution": fix.solution_description,
+                        "source": "database",
+                        "confidence": fix.success_rate,
+                        "commands": fix.solution_commands,
+                    },
                 )()
 
         logger.info(f"Integrated {len(self.fix_database)} fixes with SwarmTerminal")
@@ -539,18 +627,18 @@ class MASLearning:
 
         new_fixes = 0
 
-        for fix_entry in getattr(swarm_terminal, '_fix_history', []):
-            error = fix_entry.get('error', '')
+        for fix_entry in getattr(swarm_terminal, "_fix_history", []):
+            error = fix_entry.get("error", "")
             if not error:
                 continue
 
             self.record_fix(
                 error=error,
-                solution_commands=fix_entry.get('commands', []),
-                solution_description=fix_entry.get('description', ''),
-                source=fix_entry.get('source', 'terminal'),
-                success=fix_entry.get('success', True),
-                context=fix_entry.get('context', {})
+                solution_commands=fix_entry.get("commands", []),
+                solution_description=fix_entry.get("description", ""),
+                source=fix_entry.get("source", "terminal"),
+                success=fix_entry.get("success", True),
+                context=fix_entry.get("context", {}),
             )
             new_fixes += 1
 
@@ -567,24 +655,28 @@ class MASLearning:
     def get_statistics(self) -> Dict[str, Any]:
         """Get learning statistics."""
         return {
-            'fix_database': {
-                'total_fixes': len(self.fix_database),
-                'avg_success_rate': sum(f.success_rate for f in self.fix_database.values()) / max(len(self.fix_database), 1),
+            "fix_database": {
+                "total_fixes": len(self.fix_database),
+                "avg_success_rate": sum(f.success_rate for f in self.fix_database.values())
+                / max(len(self.fix_database), 1),
             },
-            'sessions': {
-                'total_sessions': len(self.session_learnings),
-                'successful_sessions': sum(1 for s in self.session_learnings if s.success),
-                'avg_time': sum(s.total_time for s in self.session_learnings) / max(len(self.session_learnings), 1)
+            "sessions": {
+                "total_sessions": len(self.session_learnings),
+                "successful_sessions": sum(1 for s in self.session_learnings if s.success),
+                "avg_time": sum(s.total_time for s in self.session_learnings)
+                / max(len(self.session_learnings), 1),
             },
-            'delegates_to': {
-                'swarm_intelligence': self.swarm_intelligence is not None,
-                'learning_manager': self.learning_manager is not None,
-                'transfer_learning': self.transfer_learning is not None
-            }
+            "delegates_to": {
+                "swarm_intelligence": self.swarm_intelligence is not None,
+                "learning_manager": self.learning_manager is not None,
+                "transfer_learning": self.transfer_learning is not None,
+            },
         }
 
 
 # Convenience function
-def get_mas_learning(config: Any = None, workspace_path: Any = None, **delegates: Any) -> MASLearning:
+def get_mas_learning(
+    config: Any = None, workspace_path: Any = None, **delegates: Any
+) -> MASLearning:
     """Get or create MAS Learning instance."""
     return MASLearning(config=config, workspace_path=workspace_path, **delegates)

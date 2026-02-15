@@ -21,7 +21,7 @@ I've tested the SDK generation system with real use cases. Here are the results:
 - **Status**: ✅ **PASSED**
 - **Generator**: `openapi-python-client`
 - **Location**: `sdk/generated/python/`
-- **Structure**: 
+- **Structure**:
   - ✅ Client classes (`Client`, `AuthenticatedClient`)
   - ✅ API modules (chat, workflow, agents, health)
   - ✅ Request/Response models (Pydantic)
@@ -160,7 +160,7 @@ To generate SDKs for all languages:
    ```bash
    # Python
    cd sdk/generated/python && pip install -e . && pytest
-   
+
    # TypeScript
    cd sdk/generated/typescript-node && npm install && npm test
    ```

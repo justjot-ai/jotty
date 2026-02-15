@@ -4,37 +4,39 @@ Test Evaluation Framework
 Tests reproducibility, benchmarks, evaluation protocol, ablation studies,
 and ConfigTuner hyperparameter tuning.
 """
-import sys
+
 import random
-import pytest
+import sys
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 # Add Jotty to path
 jotty_path = Path(__file__).parent.parent
 sys.path.insert(0, str(jotty_path))
 
 from core.evaluation import (
-    ReproducibilityConfig,
-    set_reproducible_seeds,
+    DEFAULT_SEARCH_GROUPS,
+    AblationStudy,
+    ComponentType,
+    ConfigSearchGroup,
+    ConfigTrialResult,
+    ConfigTuner,
     CustomBenchmark,
     EvaluationProtocol,
     EvaluationReport,
-    AblationStudy,
-    ComponentType,
-    ConfigTuner,
-    ConfigSearchGroup,
-    ConfigTrialResult,
+    ReproducibilityConfig,
     TuningResult,
-    DEFAULT_SEARCH_GROUPS,
+    set_reproducible_seeds,
 )
 from core.evaluation.benchmark import BenchmarkMetrics
 from core.foundation.data_structures import SwarmConfig
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_benchmark(tasks=None):
     """Create a simple benchmark for testing."""
@@ -45,11 +47,14 @@ def _make_benchmark(tasks=None):
 
 def _make_agent_factory(answer="4"):
     """Return a factory that builds a trivial agent returning *answer*."""
+
     def factory(config):
         class _Agent:
             def run(self, question):
                 return answer
+
         return _Agent()
+
     return factory
 
 
@@ -70,6 +75,7 @@ def _make_report(pass_rate=0.8, cost=0.5, time=1.0, n_runs=3):
 # ---------------------------------------------------------------------------
 # Existing tests (converted to pytest style)
 # ---------------------------------------------------------------------------
+
 
 class TestReproducibility:
     """Tests for reproducibility framework."""
@@ -139,9 +145,10 @@ class TestAblationStudy:
         def create_agent(config):
             class Agent:
                 def run(self, question):
-                    if hasattr(config, 'enable_rl') and config.enable_rl:
+                    if hasattr(config, "enable_rl") and config.enable_rl:
                         return "4"
                     return "5"
+
             return Agent()
 
         baseline_config = SwarmConfig(enable_rl=True)
@@ -149,7 +156,7 @@ class TestAblationStudy:
             {
                 "name": "learning",
                 "type": ComponentType.FEATURE,
-                "disable": lambda c: setattr(c, 'enable_rl', False),
+                "disable": lambda c: setattr(c, "enable_rl", False),
             },
         ]
 
@@ -170,6 +177,7 @@ class TestAblationStudy:
 # ---------------------------------------------------------------------------
 # ConfigTuner tests
 # ---------------------------------------------------------------------------
+
 
 class TestConfigSearchGroup:
     """Tests for ConfigSearchGroup dataclass."""
@@ -253,7 +261,8 @@ class TestConfigTuner:
         return ConfigTuner(
             benchmark=benchmark,
             agent_factory=_make_agent_factory("4"),
-            search_groups=groups or [
+            search_groups=groups
+            or [
                 ConfigSearchGroup(
                     name="small",
                     params={"gamma": [0.9, 0.99]},
@@ -285,9 +294,7 @@ class TestConfigTuner:
     def test_constraint_accepts_valid(self):
         """Valid overrides pass constraint checks."""
         constraints = [lambda c: c["alpha_min"] < c["alpha_max"]]
-        assert ConfigTuner._check_constraints(
-            {"alpha_min": 0.001, "alpha_max": 0.2}, constraints
-        )
+        assert ConfigTuner._check_constraints({"alpha_min": 0.001, "alpha_max": 0.2}, constraints)
 
     # -- trial generation --
 
@@ -423,9 +430,14 @@ class TestConfigTuner:
     def test_default_search_groups_names(self):
         """Default groups cover the 8 documented parameter families."""
         expected_names = {
-            "td_lambda_core", "adaptive_lr", "exploration",
-            "trust_adaptation", "stall_detection", "validation_quality",
-            "memory_budget", "execution_budget",
+            "td_lambda_core",
+            "adaptive_lr",
+            "exploration",
+            "trust_adaptation",
+            "stall_detection",
+            "validation_quality",
+            "memory_budget",
+            "execution_budget",
         }
         actual_names = {g.name for g in DEFAULT_SEARCH_GROUPS}
         assert actual_names == expected_names
@@ -436,9 +448,9 @@ class TestConfigTuner:
         config = SwarmConfig()
         for group in DEFAULT_SEARCH_GROUPS:
             for param_name in group.params:
-                assert hasattr(config, param_name), (
-                    f"SwarmConfig missing field '{param_name}' from group '{group.name}'"
-                )
+                assert hasattr(
+                    config, param_name
+                ), f"SwarmConfig missing field '{param_name}' from group '{group.name}'"
 
     # -- build_config --
 

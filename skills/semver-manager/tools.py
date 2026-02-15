@@ -1,9 +1,10 @@
 """Semver Manager Skill — parse, compare, bump semantic versions."""
-import re
-from typing import Dict, Any, Tuple, Optional
 
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+import re
+from typing import Any, Dict, Optional, Tuple
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("semver-manager")
 
@@ -74,8 +75,15 @@ def semver_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             return tool_error(f"Invalid constraint: {constraint}")
         op, cv = m[1], m[2]
         c = _cmp(ver, cv)
-        ok = {">=": c >= 0, "<=": c <= 0, ">": c > 0, "<": c < 0,
-              "==": c == 0, "!=": c != 0, "=": c == 0}.get(op)
+        ok = {
+            ">=": c >= 0,
+            "<=": c <= 0,
+            ">": c > 0,
+            "<": c < 0,
+            "==": c == 0,
+            "!=": c != 0,
+            "=": c == 0,
+        }.get(op)
         if ok is None:
             return tool_error(f"Unknown operator: {op}")
         return tool_response(version=ver, constraint=constraint, satisfies=ok)

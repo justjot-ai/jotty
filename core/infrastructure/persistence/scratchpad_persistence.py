@@ -16,11 +16,11 @@ Storage Format: JSON Lines (.jsonl)
 
 import json
 import logging
-from pathlib import Path
 from datetime import datetime
-from typing import Dict, Any, List, Optional
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
-from core.foundation.types.agent_types import SharedScratchpad, AgentMessage, CommunicationType
+from core.foundation.types.agent_types import AgentMessage, CommunicationType, SharedScratchpad
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +42,7 @@ class ScratchpadPersistence:
         {"timestamp": "...", "sender": "...", "receiver": "...", "type": "...", "content": {...}}
     """
 
-    def __init__(self, workspace_dir: str = 'workspace/scratchpads') -> None:
+    def __init__(self, workspace_dir: str = "workspace/scratchpads") -> None:
         """
         Initialize scratchpad persistence.
 
@@ -86,21 +86,23 @@ class ScratchpadPersistence:
         """
         # Convert message to dict
         message_dict = {
-            'timestamp': message.timestamp.isoformat(),
-            'sender': message.sender,
-            'receiver': message.receiver,
-            'message_type': message.message_type.value,
-            'content': message.content,
-            'tool_name': message.tool_name,
-            'tool_args': message.tool_args,
-            'tool_result': str(message.tool_result)[:500] if message.tool_result else None,  # Truncate large results
-            'insight': message.insight,
-            'confidence': message.confidence
+            "timestamp": message.timestamp.isoformat(),
+            "sender": message.sender,
+            "receiver": message.receiver,
+            "message_type": message.message_type.value,
+            "content": message.content,
+            "tool_name": message.tool_name,
+            "tool_args": message.tool_args,
+            "tool_result": (
+                str(message.tool_result)[:500] if message.tool_result else None
+            ),  # Truncate large results
+            "insight": message.insight,
+            "confidence": message.confidence,
         }
 
         # Append as JSON line
-        with session_file.open('a') as f:
-            f.write(json.dumps(message_dict) + '\n')
+        with session_file.open("a") as f:
+            f.write(json.dumps(message_dict) + "\n")
 
     def save_scratchpad(self, session_file: Path, scratchpad: SharedScratchpad) -> None:
         """
@@ -116,16 +118,16 @@ class ScratchpadPersistence:
 
         # Save metadata
         metadata = {
-            'timestamp': datetime.now().isoformat(),
-            'type': 'metadata',
-            'total_messages': len(scratchpad.messages),
-            'total_insights': len(scratchpad.shared_insights),
-            'tool_cache_size': len(scratchpad.tool_cache),
-            'shared_insights': scratchpad.shared_insights
+            "timestamp": datetime.now().isoformat(),
+            "type": "metadata",
+            "total_messages": len(scratchpad.messages),
+            "total_insights": len(scratchpad.shared_insights),
+            "tool_cache_size": len(scratchpad.tool_cache),
+            "shared_insights": scratchpad.shared_insights,
         }
 
-        with session_file.open('a') as f:
-            f.write(json.dumps(metadata) + '\n')
+        with session_file.open("a") as f:
+            f.write(json.dumps(metadata) + "\n")
 
         logger.info(f" Saved scratchpad: {len(scratchpad.messages)} messages to {session_file}")
 
@@ -146,28 +148,28 @@ class ScratchpadPersistence:
             return scratchpad
 
         # Read all lines
-        with session_file.open('r') as f:
+        with session_file.open("r") as f:
             for line in f:
                 data = json.loads(line)
 
                 # Skip metadata lines
-                if data.get('type') == 'metadata':
-                    if 'shared_insights' in data:
-                        scratchpad.shared_insights = data['shared_insights']
+                if data.get("type") == "metadata":
+                    if "shared_insights" in data:
+                        scratchpad.shared_insights = data["shared_insights"]
                     continue
 
                 # Reconstruct AgentMessage
                 message = AgentMessage(
-                    sender=data['sender'],
-                    receiver=data['receiver'],
-                    message_type=CommunicationType(data['message_type']),
-                    content=data['content'],
-                    timestamp=datetime.fromisoformat(data['timestamp']),
-                    tool_name=data.get('tool_name'),
-                    tool_args=data.get('tool_args'),
-                    tool_result=data.get('tool_result'),
-                    insight=data.get('insight'),
-                    confidence=data.get('confidence')
+                    sender=data["sender"],
+                    receiver=data["receiver"],
+                    message_type=CommunicationType(data["message_type"]),
+                    content=data["content"],
+                    timestamp=datetime.fromisoformat(data["timestamp"]),
+                    tool_name=data.get("tool_name"),
+                    tool_args=data.get("tool_args"),
+                    tool_result=data.get("tool_result"),
+                    insight=data.get("insight"),
+                    confidence=data.get("confidence"),
                 )
 
                 scratchpad.add_message(message)
@@ -185,7 +187,7 @@ class ScratchpadPersistence:
         """
         return sorted(self.workspace_dir.glob("*.jsonl"), reverse=True)
 
-    def export_session(self, session_file: Path, output_format: str = 'json') -> str:
+    def export_session(self, session_file: Path, output_format: str = "json") -> str:
         """
         Export session to readable format.
 
@@ -198,24 +200,27 @@ class ScratchpadPersistence:
         """
         scratchpad = self.load_scratchpad(session_file)
 
-        if output_format == 'json':
-            return json.dumps({
-                'messages': [
-                    {
-                        'timestamp': msg.timestamp.isoformat(),
-                        'sender': msg.sender,
-                        'receiver': msg.receiver,
-                        'type': msg.message_type.value,
-                        'content': msg.content,
-                        'insight': msg.insight
-                    }
-                    for msg in scratchpad.messages
-                ],
-                'shared_insights': scratchpad.shared_insights,
-                'total_messages': len(scratchpad.messages)
-            }, indent=2)
+        if output_format == "json":
+            return json.dumps(
+                {
+                    "messages": [
+                        {
+                            "timestamp": msg.timestamp.isoformat(),
+                            "sender": msg.sender,
+                            "receiver": msg.receiver,
+                            "type": msg.message_type.value,
+                            "content": msg.content,
+                            "insight": msg.insight,
+                        }
+                        for msg in scratchpad.messages
+                    ],
+                    "shared_insights": scratchpad.shared_insights,
+                    "total_messages": len(scratchpad.messages),
+                },
+                indent=2,
+            )
 
-        elif output_format == 'markdown':
+        elif output_format == "markdown":
             lines = [f"# Scratchpad Session: {session_file.stem}\n"]
             lines.append(f"**Total Messages**: {len(scratchpad.messages)}\n")
             lines.append(f"**Shared Insights**: {len(scratchpad.shared_insights)}\n")
@@ -234,7 +239,7 @@ class ScratchpadPersistence:
             for insight in scratchpad.shared_insights:
                 lines.append(f"- {insight}\n")
 
-            return ''.join(lines)
+            return "".join(lines)
 
         else:
             raise ValueError(f"Unknown format: {output_format}")
@@ -269,7 +274,9 @@ class ScratchpadPersistence:
 
         return [msg for msg in scratchpad.messages if msg.sender == agent_name]
 
-    def get_conversation(self, session_file: Path, agent_a: str, agent_b: str) -> List[AgentMessage]:
+    def get_conversation(
+        self, session_file: Path, agent_a: str, agent_b: str
+    ) -> List[AgentMessage]:
         """
         Get conversation between two agents.
 
@@ -284,9 +291,10 @@ class ScratchpadPersistence:
         scratchpad = self.load_scratchpad(session_file)
 
         return [
-            msg for msg in scratchpad.messages
-            if (msg.sender == agent_a and msg.receiver in [agent_b, "*"]) or
-               (msg.sender == agent_b and msg.receiver in [agent_a, "*"])
+            msg
+            for msg in scratchpad.messages
+            if (msg.sender == agent_a and msg.receiver in [agent_b, "*"])
+            or (msg.sender == agent_b and msg.receiver in [agent_a, "*"])
         ]
 
     def __repr__(self) -> str:

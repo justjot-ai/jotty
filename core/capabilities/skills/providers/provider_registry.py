@@ -8,22 +8,22 @@ using swarm intelligence (Q-learning, stigmergy, adaptive weights).
 Includes sandbox integration for secure execution of untrusted providers.
 """
 
-import json
-import time
-import logging
 import hashlib
-from pathlib import Path
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
+import json
+import logging
+import time
 from collections import defaultdict
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 from .base import (
-    SkillProvider,
-    SkillCategory,
-    ProviderResult,
-    JottyDefaultProvider,
     CATEGORY_KEYWORDS,
     ContributedSkill,
+    JottyDefaultProvider,
+    ProviderResult,
+    SkillCategory,
+    SkillProvider,
 )
 
 # Lazy import to avoid circular dependency
@@ -45,6 +45,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ProviderPerformance:
     """Tracks performance metrics for a provider on a specific task type."""
+
     provider_name: str
     category: SkillCategory
     task_pattern: str  # Hashed or simplified task pattern
@@ -119,12 +120,14 @@ class ProviderSelector:
 
         # Category weights: how much to weight different factors
         if AdaptiveWeightGroup:
-            self.selection_weights = AdaptiveWeightGroup({
-                'q_value': 0.4,        # Historical Q-value
-                'success_rate': 0.3,   # Recent success rate
-                'speed': 0.2,          # Execution speed
-                'stigmergy': 0.1,      # Swarm signals
-            })
+            self.selection_weights = AdaptiveWeightGroup(
+                {
+                    "q_value": 0.4,  # Historical Q-value
+                    "success_rate": 0.3,  # Recent success rate
+                    "speed": 0.2,  # Execution speed
+                    "stigmergy": 0.1,  # Swarm signals
+                }
+            )
         else:
             self.selection_weights = None
 
@@ -137,7 +140,7 @@ class ProviderSelector:
         category: SkillCategory,
         task: str,
         available_providers: List[SkillProvider],
-        context: Dict[str, Any] = None
+        context: Dict[str, Any] = None,
     ) -> SkillProvider:
         """
         Select the best provider for a task.
@@ -163,6 +166,7 @@ class ProviderSelector:
 
         # Epsilon-greedy exploration
         import random
+
         if random.random() < self.epsilon:
             self.exploration_count += 1
             selected = random.choice(available_providers)
@@ -189,7 +193,7 @@ class ProviderSelector:
         provider: SkillProvider,
         category: SkillCategory,
         task_hash: str,
-        context: Dict[str, Any] = None
+        context: Dict[str, Any] = None,
     ) -> float:
         """Calculate score for a provider."""
         key = (category.value, task_hash)
@@ -216,10 +220,10 @@ class ProviderSelector:
         # Weighted combination
         if self.selection_weights:
             score = (
-                self.selection_weights.get('q_value') * q_score +
-                self.selection_weights.get('success_rate') * success_score +
-                self.selection_weights.get('speed') * speed_score +
-                self.selection_weights.get('stigmergy') * stigmergy_score
+                self.selection_weights.get("q_value") * q_score
+                + self.selection_weights.get("success_rate") * success_score
+                + self.selection_weights.get("speed") * speed_score
+                + self.selection_weights.get("stigmergy") * stigmergy_score
             )
         else:
             # Fallback to simple average
@@ -227,7 +231,9 @@ class ProviderSelector:
 
         return score
 
-    def record_result(self, provider: SkillProvider, category: SkillCategory, task: str, result: ProviderResult) -> Any:
+    def record_result(
+        self, provider: SkillProvider, category: SkillCategory, task: str, result: ProviderResult
+    ) -> Any:
         """Record execution result for learning."""
         task_hash = self._hash_task(task)
         key = (category.value, task_hash)
@@ -246,8 +252,8 @@ class ProviderSelector:
         # Update stigmergy in swarm
         if self.swarm_intelligence and result.success:
             self.swarm_intelligence.stigmergy.deposit(
-                signal_type='route',
-                content={'provider': provider.name, 'task_type': category.value},
+                signal_type="route",
+                content={"provider": provider.name, "task_type": category.value},
                 agent=provider.name,
                 strength=0.8 if result.success else 0.3,
             )
@@ -256,9 +262,11 @@ class ProviderSelector:
         if self.selection_weights and result.success:
             # If Q-value was a good predictor, strengthen it
             if perf.q_value > 0.6:
-                self.selection_weights.update_from_feedback('q_value', 0.05, reward=1.0)
+                self.selection_weights.update_from_feedback("q_value", 0.05, reward=1.0)
 
-        logger.debug(f" Recorded {provider.name} result: success={result.success}, q={perf.q_value:.3f}")
+        logger.debug(
+            f" Recorded {provider.name} result: success={result.success}, q={perf.q_value:.3f}"
+        )
 
     def _hash_task(self, task: str) -> str:
         """Create a hash for task pattern matching."""
@@ -266,26 +274,27 @@ class ProviderSelector:
         normalized = task.lower().strip()
         # Extract key words (simple approach)
         words = sorted(set(normalized.split()[:10]))  # First 10 unique words
-        pattern = ' '.join(words)
+        pattern = " ".join(words)
         return hashlib.md5(pattern.encode()).hexdigest()[:12]
 
     def get_learning_summary(self) -> Dict[str, Any]:
         """Get summary of what the selector has learned."""
         summary = {
-            'exploration_count': self.exploration_count,
-            'exploitation_count': self.exploitation_count,
-            'exploration_rate': self.exploration_count / max(1, self.exploration_count + self.exploitation_count),
-            'providers_by_category': defaultdict(dict),
+            "exploration_count": self.exploration_count,
+            "exploitation_count": self.exploitation_count,
+            "exploration_rate": self.exploration_count
+            / max(1, self.exploration_count + self.exploitation_count),
+            "providers_by_category": defaultdict(dict),
         }
 
         for (category, task_hash), providers in self.performance.items():
             for name, perf in providers.items():
-                if category not in summary['providers_by_category']:
-                    summary['providers_by_category'][category] = {}
-                summary['providers_by_category'][category][name] = {
-                    'q_value': round(perf.q_value, 3),
-                    'success_rate': round(perf.success_rate, 3),
-                    'total_calls': perf.total_calls,
+                if category not in summary["providers_by_category"]:
+                    summary["providers_by_category"][category] = {}
+                summary["providers_by_category"][category][name] = {
+                    "q_value": round(perf.q_value, 3),
+                    "success_rate": round(perf.success_rate, 3),
+                    "total_calls": perf.total_calls,
                 }
 
         return summary
@@ -293,27 +302,29 @@ class ProviderSelector:
     def save_state(self, path: str) -> None:
         """Save learned state to file."""
         data = {
-            'epsilon': self.epsilon,
-            'exploration_count': self.exploration_count,
-            'exploitation_count': self.exploitation_count,
-            'performance': {},
-            'selection_weights': self.selection_weights.to_dict() if self.selection_weights else None,
+            "epsilon": self.epsilon,
+            "exploration_count": self.exploration_count,
+            "exploitation_count": self.exploitation_count,
+            "performance": {},
+            "selection_weights": (
+                self.selection_weights.to_dict() if self.selection_weights else None
+            ),
         }
 
         for (category, task_hash), providers in self.performance.items():
             key = f"{category}:{task_hash}"
-            data['performance'][key] = {}
+            data["performance"][key] = {}
             for name, perf in providers.items():
-                data['performance'][key][name] = {
-                    'total_calls': perf.total_calls,
-                    'successful_calls': perf.successful_calls,
-                    'total_execution_time': perf.total_execution_time,
-                    'total_reward': perf.total_reward,
-                    'q_value': perf.q_value,
+                data["performance"][key][name] = {
+                    "total_calls": perf.total_calls,
+                    "successful_calls": perf.successful_calls,
+                    "total_execution_time": perf.total_execution_time,
+                    "total_reward": perf.total_reward,
+                    "q_value": perf.q_value,
                 }
 
         Path(path).parent.mkdir(parents=True, exist_ok=True)
-        with open(path, 'w') as f:
+        with open(path, "w") as f:
             json.dump(data, f, indent=2)
 
         logger.info(f"Saved ProviderSelector state to {path}")
@@ -324,18 +335,18 @@ class ProviderSelector:
             return False
 
         try:
-            with open(path, 'r') as f:
+            with open(path, "r") as f:
                 data = json.load(f)
 
-            self.epsilon = data.get('epsilon', 0.1)
-            self.exploration_count = data.get('exploration_count', 0)
-            self.exploitation_count = data.get('exploitation_count', 0)
+            self.epsilon = data.get("epsilon", 0.1)
+            self.exploration_count = data.get("exploration_count", 0)
+            self.exploitation_count = data.get("exploitation_count", 0)
 
-            if data.get('selection_weights') and AdaptiveWeightGroup:
-                self.selection_weights = AdaptiveWeightGroup.from_dict(data['selection_weights'])
+            if data.get("selection_weights") and AdaptiveWeightGroup:
+                self.selection_weights = AdaptiveWeightGroup.from_dict(data["selection_weights"])
 
-            for key, providers in data.get('performance', {}).items():
-                category, task_hash = key.split(':', 1)
+            for key, providers in data.get("performance", {}).items():
+                category, task_hash = key.split(":", 1)
                 perf_key = (category, task_hash)
 
                 for name, perf_data in providers.items():
@@ -343,11 +354,11 @@ class ProviderSelector:
                         provider_name=name,
                         category=SkillCategory(category),
                         task_pattern=task_hash,
-                        total_calls=perf_data['total_calls'],
-                        successful_calls=perf_data['successful_calls'],
-                        total_execution_time=perf_data['total_execution_time'],
-                        total_reward=perf_data['total_reward'],
-                        q_value=perf_data['q_value'],
+                        total_calls=perf_data["total_calls"],
+                        successful_calls=perf_data["successful_calls"],
+                        total_execution_time=perf_data["total_execution_time"],
+                        total_reward=perf_data["total_reward"],
+                        q_value=perf_data["q_value"],
                     )
 
             logger.info(f"Loaded ProviderSelector state from {path}")
@@ -373,10 +384,23 @@ class ProviderRegistry:
 
     # Packages considered trusted (built-in or well-known)
     TRUSTED_PACKAGES = {
-        'jotty', 'browser-use', 'openhands', 'agent-s', 'open-interpreter',
-        'skyvern', 'playwright', 'selenium', 'requests', 'httpx', 'aiohttp',
-        'morph', 'morph-data', 'streamlit', 'gradio',
-        'n8n', 'activepieces',
+        "jotty",
+        "browser-use",
+        "openhands",
+        "agent-s",
+        "open-interpreter",
+        "skyvern",
+        "playwright",
+        "selenium",
+        "requests",
+        "httpx",
+        "aiohttp",
+        "morph",
+        "morph-data",
+        "streamlit",
+        "gradio",
+        "n8n",
+        "activepieces",
     }
 
     def __init__(self, swarm_intelligence: SwarmIntelligence = None) -> None:
@@ -395,16 +419,16 @@ class ProviderRegistry:
         self._category_index: Dict[SkillCategory, List[str]] = defaultdict(list)
 
         # Trust levels: provider_name -> TrustLevel
-        self._trust_levels: Dict[str, 'TrustLevel'] = {}
+        self._trust_levels: Dict[str, "TrustLevel"] = {}
 
         # Sandbox manager (lazy loaded)
-        self._sandbox_manager: Optional['SandboxManager'] = None
+        self._sandbox_manager: Optional["SandboxManager"] = None
 
         # Adaptive selector
         self.selector = ProviderSelector(swarm_intelligence=swarm_intelligence)
 
         # Register default Jotty provider
-        self.register(JottyDefaultProvider(), trust_level='trusted')
+        self.register(JottyDefaultProvider(), trust_level="trusted")
 
         # Register app building providers (Streamlit first as default)
         self._register_app_building_providers()
@@ -418,14 +442,16 @@ class ProviderRegistry:
         # StreamlitProvider - fully open source, no cloud needed (DEFAULT)
         try:
             from .streamlit_provider import StreamlitProvider
-            self.register(StreamlitProvider(), trust_level='trusted')
+
+            self.register(StreamlitProvider(), trust_level="trusted")
         except Exception as e:
             logger.debug(f"Could not register StreamlitProvider: {e}")
 
         # MorphProvider - requires cloud credentials (secondary option)
         try:
             from .morph_provider import MorphProvider
-            self.register(MorphProvider(), trust_level='trusted')
+
+            self.register(MorphProvider(), trust_level="trusted")
         except Exception as e:
             logger.debug(f"Could not register MorphProvider: {e}")
 
@@ -433,29 +459,33 @@ class ProviderRegistry:
         """Register n8n and Activepieces as skill providers (workflows as skills)."""
         try:
             from .n8n_provider import N8nProvider
-            self.register(N8nProvider(), trust_level='trusted')
+
+            self.register(N8nProvider(), trust_level="trusted")
         except Exception as e:
             logger.debug(f"Could not register N8nProvider: {e}")
         try:
             from .activepieces_provider import ActivepiecesProvider
-            self.register(ActivepiecesProvider(), trust_level='trusted')
+
+            self.register(ActivepiecesProvider(), trust_level="trusted")
         except Exception as e:
             logger.debug(f"Could not register ActivepiecesProvider: {e}")
 
-    def _get_sandbox_manager(self) -> 'SandboxManager':
+    def _get_sandbox_manager(self) -> "SandboxManager":
         """Lazy load sandbox manager."""
         if self._sandbox_manager is None:
             from Jotty.core.intelligence.orchestration.sandbox_manager import SandboxManager
+
             self._sandbox_manager = SandboxManager()
         return self._sandbox_manager
 
-    def _get_trust_level_enum(self, level: str) -> 'TrustLevel':
+    def _get_trust_level_enum(self, level: str) -> "TrustLevel":
         """Convert string to TrustLevel enum."""
         from Jotty.core.intelligence.orchestration.sandbox_manager import TrustLevel
+
         level_map = {
-            'trusted': TrustLevel.TRUSTED,
-            'sandboxed': TrustLevel.SANDBOXED,
-            'dangerous': TrustLevel.DANGEROUS,
+            "trusted": TrustLevel.TRUSTED,
+            "sandboxed": TrustLevel.SANDBOXED,
+            "dangerous": TrustLevel.DANGEROUS,
         }
         return level_map.get(level.lower(), TrustLevel.SANDBOXED)
 
@@ -482,9 +512,11 @@ class ProviderRegistry:
             self._trust_levels[provider.name] = self._detect_trust_level(provider)
 
         trust_str = self._trust_levels[provider.name].value
-        logger.info(f" Registered provider: {provider.name} (trust: {trust_str}, categories: {[c.value for c in provider.get_categories()]})")
+        logger.info(
+            f" Registered provider: {provider.name} (trust: {trust_str}, categories: {[c.value for c in provider.get_categories()]})"
+        )
 
-    def _detect_trust_level(self, provider: SkillProvider) -> 'TrustLevel':
+    def _detect_trust_level(self, provider: SkillProvider) -> "TrustLevel":
         """
         Auto-detect trust level for a provider.
 
@@ -513,7 +545,7 @@ class ProviderRegistry:
         # Default to sandboxed
         return TrustLevel.SANDBOXED
 
-    def get_trust_level(self, provider_name: str) -> Optional['TrustLevel']:
+    def get_trust_level(self, provider_name: str) -> Optional["TrustLevel"]:
         """Get trust level for a provider."""
         return self._trust_levels.get(provider_name)
 
@@ -588,7 +620,9 @@ class ProviderRegistry:
         # Return category with highest score
         return max(scores, key=scores.get)
 
-    def get_provider_for_task(self, task: str, context: Dict[str, Any] = None) -> Optional[SkillProvider]:
+    def get_provider_for_task(
+        self, task: str, context: Dict[str, Any] = None
+    ) -> Optional[SkillProvider]:
         """
         Auto-detect category and get best provider for a task.
 
@@ -612,9 +646,9 @@ class ProviderRegistry:
             return self.get_best_provider(category, task, context)
 
         logger.warning(f"Could not detect category for task: {task[:50]}...")
-        return self._providers.get('jotty')  # Fallback
+        return self._providers.get("jotty")  # Fallback
 
-    async def auto_execute(self, task: str, context: Dict[str, Any] = None) -> 'ProviderResult':
+    async def auto_execute(self, task: str, context: Dict[str, Any] = None) -> "ProviderResult":
         """
         Autonomously detect category, select provider, and execute task.
 
@@ -642,10 +676,7 @@ class ProviderRegistry:
         return await self.execute(category, task, context)
 
     def get_best_provider(
-        self,
-        category: SkillCategory,
-        task: str,
-        context: Dict[str, Any] = None
+        self, category: SkillCategory, task: str, context: Dict[str, Any] = None
     ) -> SkillProvider:
         """
         Get the best provider for a task using learned selection.
@@ -663,7 +694,7 @@ class ProviderRegistry:
         if not available:
             # Fall back to Jotty default
             logger.warning(f"No providers for {category}, using Jotty default")
-            return self._providers.get('jotty')
+            return self._providers.get("jotty")
 
         return self.selector.select_provider(category, task, available, context)
 
@@ -673,7 +704,7 @@ class ProviderRegistry:
         task: str,
         context: Dict[str, Any] = None,
         provider_name: str = None,
-        force_sandbox: bool = False
+        force_sandbox: bool = False,
     ) -> ProviderResult:
         """
         Execute a task using the best (or specified) provider.
@@ -714,9 +745,12 @@ class ProviderRegistry:
 
         # Check if sandboxed execution needed
         from Jotty.core.intelligence.orchestration.sandbox_manager import TrustLevel
+
         needs_sandbox = force_sandbox or (trust_level and trust_level != TrustLevel.TRUSTED)
 
-        logger.info(f" Executing via {provider.name}: {task[:50]}... (trust: {trust_level.value if trust_level else 'unknown'})")
+        logger.info(
+            f" Executing via {provider.name}: {task[:50]}... (trust: {trust_level.value if trust_level else 'unknown'})"
+        )
 
         if needs_sandbox and trust_level:
             result = await self._execute_sandboxed(provider, task, context, trust_level)
@@ -731,11 +765,7 @@ class ProviderRegistry:
         return result
 
     async def _execute_sandboxed(
-        self,
-        provider: SkillProvider,
-        task: str,
-        context: Dict[str, Any],
-        trust_level: 'TrustLevel'
+        self, provider: SkillProvider, task: str, context: Dict[str, Any], trust_level: "TrustLevel"
     ) -> ProviderResult:
         """
         Execute provider in appropriate sandbox.
@@ -752,8 +782,8 @@ class ProviderRegistry:
             result = await provider.execute(task, context)
 
             # Add sandbox metadata
-            result.metadata['trust_level'] = trust_level.value
-            result.metadata['sandboxed'] = True
+            result.metadata["trust_level"] = trust_level.value
+            result.metadata["sandboxed"] = True
 
             return result
 
@@ -764,7 +794,7 @@ class ProviderRegistry:
                 output=None,
                 error=str(e),
                 provider_name=provider.name,
-                metadata={'trust_level': trust_level.value, 'sandboxed': True},
+                metadata={"trust_level": trust_level.value, "sandboxed": True},
             )
 
     async def initialize_all(self) -> Any:
@@ -784,13 +814,13 @@ class ProviderRegistry:
     def get_registry_summary(self) -> Dict[str, Any]:
         """Get summary of registry state."""
         return {
-            'providers': list(self._providers.keys()),
-            'categories': {
+            "providers": list(self._providers.keys()),
+            "categories": {
                 cat.value: self._category_index[cat]
                 for cat in SkillCategory
                 if self._category_index[cat]
             },
-            'learning': self.selector.get_learning_summary(),
+            "learning": self.selector.get_learning_summary(),
         }
 
     def save_state(self, path: str) -> None:

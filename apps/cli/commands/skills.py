@@ -5,7 +5,8 @@ Skills Command
 List and search skills.
 """
 
-from typing import TYPE_CHECKING, List, Dict, Any
+from typing import TYPE_CHECKING, Any, Dict, List
+
 from .base import BaseCommand, CommandResult, ParsedArgs
 
 if TYPE_CHECKING:
@@ -39,10 +40,7 @@ class SkillsCommand(BaseCommand):
             return await self._list_skills(cli)
 
     async def _list_skills(
-        self,
-        cli: "JottyCLI",
-        category: str = None,
-        limit: int = 50
+        self, cli: "JottyCLI", category: str = None, limit: int = 50
     ) -> CommandResult:
         """List all skills."""
         try:
@@ -98,9 +96,11 @@ class SkillsCommand(BaseCommand):
                 desc = skill.get("description", "").lower()
                 tools = [t.lower() for t in skill.get("tools", [])]
 
-                if (query_lower in name or
-                    query_lower in desc or
-                    any(query_lower in t for t in tools)):
+                if (
+                    query_lower in name
+                    or query_lower in desc
+                    or any(query_lower in t for t in tools)
+                ):
                     matches.append(skill)
 
             if not matches:
@@ -174,7 +174,7 @@ class SkillsCommand(BaseCommand):
             cli.renderer.panel(
                 "\n".join([f"• {cat}: {count} skills" for cat, count in sorted_cats]),
                 title="Skill Categories",
-                style="blue"
+                style="blue",
             )
 
             return CommandResult.ok(data=dict(sorted_cats))

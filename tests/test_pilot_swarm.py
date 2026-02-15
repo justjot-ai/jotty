@@ -15,20 +15,25 @@ Tests cover:
 import asyncio
 import json
 import logging
-import pytest
-from unittest.mock import Mock, MagicMock, AsyncMock, patch
 from dataclasses import dataclass
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+
+import pytest
 
 # Import types
 from Jotty.core.intelligence.swarms.pilot_swarm.types import (
-    SubtaskType, SubtaskStatus, Subtask,
-    PilotConfig, PilotResult, AVAILABLE_SWARMS,
+    AVAILABLE_SWARMS,
+    PilotConfig,
+    PilotResult,
+    Subtask,
+    SubtaskStatus,
+    SubtaskType,
 )
-
 
 # =============================================================================
 # TYPE AND ENUM TESTS
 # =============================================================================
+
 
 class TestEnums:
     """Test all enums."""
@@ -149,6 +154,7 @@ class TestDataClasses:
 # AGENT TESTS (with mocked DSPy)
 # =============================================================================
 
+
 def _mock_dspy_result(**fields):
     """Create a mock DSPy prediction result."""
     mock = MagicMock()
@@ -163,8 +169,9 @@ class TestPilotPlannerAgent:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_plan_returns_subtasks(self):
-        with patch('Jotty.core.swarms.pilot_swarm.agents.BaseOlympiadAgent._get_lm'):
+        with patch("Jotty.core.swarms.pilot_swarm.agents.BaseOlympiadAgent._get_lm"):
             from Jotty.core.intelligence.swarms.pilot_swarm.agents import PilotPlannerAgent
+
             agent = PilotPlannerAgent.__new__(PilotPlannerAgent)
             agent.model = "sonnet"
             agent.use_fast_predict = True
@@ -174,23 +181,35 @@ class TestPilotPlannerAgent:
             agent._bus = None
 
             mock_result = _mock_dspy_result(
-                subtasks_json=json.dumps([
-                    {"id": "s1", "type": "search", "description": "Research Python frameworks",
-                     "tool_hint": "web-search", "depends_on": []},
-                    {"id": "s2", "type": "code", "description": "Create comparison table",
-                     "tool_hint": "", "depends_on": ["s1"]},
-                ]),
+                subtasks_json=json.dumps(
+                    [
+                        {
+                            "id": "s1",
+                            "type": "search",
+                            "description": "Research Python frameworks",
+                            "tool_hint": "web-search",
+                            "depends_on": [],
+                        },
+                        {
+                            "id": "s2",
+                            "type": "code",
+                            "description": "Create comparison table",
+                            "tool_hint": "",
+                            "depends_on": ["s1"],
+                        },
+                    ]
+                ),
                 reasoning="First research, then synthesize into code.",
             )
             agent._planner = MagicMock(return_value=mock_result)
 
             result = await agent.plan(goal="Compare Python web frameworks")
 
-            assert 'subtasks' in result
-            assert 'reasoning' in result
-            assert len(result['subtasks']) == 2
-            assert result['subtasks'][0]['type'] == 'search'
-            assert result['subtasks'][1]['depends_on'] == ['s1']
+            assert "subtasks" in result
+            assert "reasoning" in result
+            assert len(result["subtasks"]) == 2
+            assert result["subtasks"][0]["type"] == "search"
+            assert result["subtasks"][1]["depends_on"] == ["s1"]
 
 
 class TestPilotSearchAgent:
@@ -199,8 +218,9 @@ class TestPilotSearchAgent:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_search_returns_findings(self):
-        with patch('Jotty.core.swarms.pilot_swarm.agents.BaseOlympiadAgent._get_lm'):
+        with patch("Jotty.core.swarms.pilot_swarm.agents.BaseOlympiadAgent._get_lm"):
             from Jotty.core.intelligence.swarms.pilot_swarm.agents import PilotSearchAgent
+
             agent = PilotSearchAgent.__new__(PilotSearchAgent)
             agent.model = "haiku"
             agent.use_fast_predict = True
@@ -218,11 +238,11 @@ class TestPilotSearchAgent:
 
             result = await agent.search(task="Find Python web frameworks")
 
-            assert 'queries' in result
-            assert 'synthesis' in result
-            assert 'key_findings' in result
-            assert len(result['queries']) == 2
-            assert len(result['key_findings']) == 3
+            assert "queries" in result
+            assert "synthesis" in result
+            assert "key_findings" in result
+            assert len(result["queries"]) == 2
+            assert len(result["key_findings"]) == 3
 
 
 class TestPilotCoderAgent:
@@ -231,8 +251,9 @@ class TestPilotCoderAgent:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_code_returns_file_operations(self):
-        with patch('Jotty.core.swarms.pilot_swarm.agents.BaseOlympiadAgent._get_lm'):
+        with patch("Jotty.core.swarms.pilot_swarm.agents.BaseOlympiadAgent._get_lm"):
             from Jotty.core.intelligence.swarms.pilot_swarm.agents import PilotCoderAgent
+
             agent = PilotCoderAgent.__new__(PilotCoderAgent)
             agent.model = "sonnet"
             agent.use_fast_predict = True
@@ -242,21 +263,26 @@ class TestPilotCoderAgent:
             agent._bus = None
 
             mock_result = _mock_dspy_result(
-                file_operations_json=json.dumps([
-                    {"file_path": "/tmp/test_app.py", "action": "create",
-                     "content": "from fastapi import FastAPI\napp = FastAPI()",
-                     "description": "Main FastAPI application"},
-                ]),
+                file_operations_json=json.dumps(
+                    [
+                        {
+                            "file_path": "/tmp/test_app.py",
+                            "action": "create",
+                            "content": "from fastapi import FastAPI\napp = FastAPI()",
+                            "description": "Main FastAPI application",
+                        },
+                    ]
+                ),
                 explanation="Created a FastAPI app with a basic setup.",
             )
             agent._coder = MagicMock(return_value=mock_result)
 
             result = await agent.code(task="Create a FastAPI app")
 
-            assert 'file_operations' in result
-            assert 'explanation' in result
-            assert len(result['file_operations']) == 1
-            assert result['file_operations'][0]['file_path'] == '/tmp/test_app.py'
+            assert "file_operations" in result
+            assert "explanation" in result
+            assert len(result["file_operations"]) == 1
+            assert result["file_operations"][0]["file_path"] == "/tmp/test_app.py"
 
 
 class TestPilotTerminalAgent:
@@ -265,8 +291,9 @@ class TestPilotTerminalAgent:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_execute_returns_commands(self):
-        with patch('Jotty.core.swarms.pilot_swarm.agents.BaseOlympiadAgent._get_lm'):
+        with patch("Jotty.core.swarms.pilot_swarm.agents.BaseOlympiadAgent._get_lm"):
             from Jotty.core.intelligence.swarms.pilot_swarm.agents import PilotTerminalAgent
+
             agent = PilotTerminalAgent.__new__(PilotTerminalAgent)
             agent.model = "haiku"
             agent.use_fast_predict = True
@@ -276,21 +303,23 @@ class TestPilotTerminalAgent:
             agent._bus = None
 
             mock_result = _mock_dspy_result(
-                commands_json=json.dumps([
-                    {"command": "pip list", "purpose": "List installed packages", "safe": True},
-                    {"command": "rm -rf /", "purpose": "Delete everything", "safe": False},
-                ]),
+                commands_json=json.dumps(
+                    [
+                        {"command": "pip list", "purpose": "List installed packages", "safe": True},
+                        {"command": "rm -rf /", "purpose": "Delete everything", "safe": False},
+                    ]
+                ),
                 safety_assessment="pip list is safe. rm -rf / is extremely dangerous.",
             )
             agent._terminal = MagicMock(return_value=mock_result)
 
             result = await agent.execute(task="Check installed packages")
 
-            assert 'commands' in result
-            assert 'safety_assessment' in result
-            assert len(result['commands']) == 2
-            assert result['commands'][0]['safe'] is True
-            assert result['commands'][1]['safe'] is False
+            assert "commands" in result
+            assert "safety_assessment" in result
+            assert len(result["commands"]) == 2
+            assert result["commands"][0]["safe"] is True
+            assert result["commands"][1]["safe"] is False
 
 
 class TestPilotSkillWriterAgent:
@@ -299,8 +328,9 @@ class TestPilotSkillWriterAgent:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_write_skill_returns_files(self):
-        with patch('Jotty.core.swarms.pilot_swarm.agents.BaseOlympiadAgent._get_lm'):
+        with patch("Jotty.core.swarms.pilot_swarm.agents.BaseOlympiadAgent._get_lm"):
             from Jotty.core.intelligence.swarms.pilot_swarm.agents import PilotSkillWriterAgent
+
             agent = PilotSkillWriterAgent.__new__(PilotSkillWriterAgent)
             agent.model = "sonnet"
             agent.use_fast_predict = True
@@ -321,11 +351,11 @@ class TestPilotSkillWriterAgent:
                 skill_name="csv-to-json",
             )
 
-            assert 'skill_yaml' in result
-            assert 'tools_py' in result
-            assert 'usage_example' in result
-            assert 'csv-to-json' in result['skill_yaml']
-            assert 'def convert_csv_tool' in result['tools_py']
+            assert "skill_yaml" in result
+            assert "tools_py" in result
+            assert "usage_example" in result
+            assert "csv-to-json" in result["skill_yaml"]
+            assert "def convert_csv_tool" in result["tools_py"]
 
 
 class TestPilotValidatorAgent:
@@ -334,8 +364,9 @@ class TestPilotValidatorAgent:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_validate_success(self):
-        with patch('Jotty.core.swarms.pilot_swarm.agents.BaseOlympiadAgent._get_lm'):
+        with patch("Jotty.core.swarms.pilot_swarm.agents.BaseOlympiadAgent._get_lm"):
             from Jotty.core.intelligence.swarms.pilot_swarm.agents import PilotValidatorAgent
+
             agent = PilotValidatorAgent.__new__(PilotValidatorAgent)
             agent.model = "haiku"
             agent.use_fast_predict = True
@@ -356,15 +387,16 @@ class TestPilotValidatorAgent:
                 results_summary="[s1] code (completed): Created app.py",
             )
 
-            assert result['success'] is True
-            assert 'assessment' in result
-            assert result['remaining_gaps'] == []
+            assert result["success"] is True
+            assert "assessment" in result
+            assert result["remaining_gaps"] == []
 
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_validate_failure(self):
-        with patch('Jotty.core.swarms.pilot_swarm.agents.BaseOlympiadAgent._get_lm'):
+        with patch("Jotty.core.swarms.pilot_swarm.agents.BaseOlympiadAgent._get_lm"):
             from Jotty.core.intelligence.swarms.pilot_swarm.agents import PilotValidatorAgent
+
             agent = PilotValidatorAgent.__new__(PilotValidatorAgent)
             agent.model = "haiku"
             agent.use_fast_predict = True
@@ -385,13 +417,14 @@ class TestPilotValidatorAgent:
                 results_summary="[s1] code (completed): Created app.py",
             )
 
-            assert result['success'] is False
-            assert len(result['remaining_gaps']) == 2
+            assert result["success"] is False
+            assert len(result["remaining_gaps"]) == 2
 
 
 # =============================================================================
 # SWARM HELPER TESTS
 # =============================================================================
+
 
 class TestSwarmHelpers:
     """Test swarm helper methods."""
@@ -399,6 +432,7 @@ class TestSwarmHelpers:
     @pytest.mark.unit
     def test_build_context_empty(self):
         from Jotty.core.intelligence.swarms.pilot_swarm.swarm import PilotSwarm
+
         swarm = PilotSwarm.__new__(PilotSwarm)
         ctx = swarm._build_context({})
         assert ctx == "No previous results."
@@ -406,56 +440,80 @@ class TestSwarmHelpers:
     @pytest.mark.unit
     def test_build_context_with_results(self):
         from Jotty.core.intelligence.swarms.pilot_swarm.swarm import PilotSwarm
+
         swarm = PilotSwarm.__new__(PilotSwarm)
-        ctx = swarm._build_context({
-            's1': {'synthesis': 'FastAPI is fast', 'key_findings': ['async', 'fast']},
-            's2': {'explanation': 'Created app.py with endpoints'},
-        })
-        assert '[s1]' in ctx
-        assert '[s2]' in ctx
-        assert 'FastAPI' in ctx
+        ctx = swarm._build_context(
+            {
+                "s1": {"synthesis": "FastAPI is fast", "key_findings": ["async", "fast"]},
+                "s2": {"explanation": "Created app.py with endpoints"},
+            }
+        )
+        assert "[s1]" in ctx
+        assert "[s2]" in ctx
+        assert "FastAPI" in ctx
 
     @pytest.mark.unit
     def test_build_results_summary(self):
         from Jotty.core.intelligence.swarms.pilot_swarm.swarm import PilotSwarm
+
         swarm = PilotSwarm.__new__(PilotSwarm)
 
         subtasks = [
-            Subtask(id="s1", type=SubtaskType.SEARCH, description="Research frameworks",
-                    status=SubtaskStatus.COMPLETED),
-            Subtask(id="s2", type=SubtaskType.CODE, description="Write code",
-                    status=SubtaskStatus.FAILED),
+            Subtask(
+                id="s1",
+                type=SubtaskType.SEARCH,
+                description="Research frameworks",
+                status=SubtaskStatus.COMPLETED,
+            ),
+            Subtask(
+                id="s2",
+                type=SubtaskType.CODE,
+                description="Write code",
+                status=SubtaskStatus.FAILED,
+            ),
         ]
 
-        summary = swarm._build_results_summary(subtasks, {
-            's1': {'synthesis': 'Found 5 frameworks'},
-            's2': {'error': 'LLM timeout'},
-        })
+        summary = swarm._build_results_summary(
+            subtasks,
+            {
+                "s1": {"synthesis": "Found 5 frameworks"},
+                "s2": {"error": "LLM timeout"},
+            },
+        )
 
-        assert '[s1] search (completed)' in summary
-        assert '[s2] code (failed)' in summary
-        assert 'ERROR: LLM timeout' in summary
+        assert "[s1] search (completed)" in summary
+        assert "[s2] code (failed)" in summary
+        assert "ERROR: LLM timeout" in summary
 
     @pytest.mark.unit
     def test_build_results_summary_with_skill(self):
         from Jotty.core.intelligence.swarms.pilot_swarm.swarm import PilotSwarm
+
         swarm = PilotSwarm.__new__(PilotSwarm)
 
         subtasks = [
-            Subtask(id="s1", type=SubtaskType.CREATE_SKILL, description="Create CSV skill",
-                    status=SubtaskStatus.COMPLETED),
+            Subtask(
+                id="s1",
+                type=SubtaskType.CREATE_SKILL,
+                description="Create CSV skill",
+                status=SubtaskStatus.COMPLETED,
+            ),
         ]
 
-        summary = swarm._build_results_summary(subtasks, {
-            's1': {'skill_name': 'csv-converter'},
-        })
+        summary = swarm._build_results_summary(
+            subtasks,
+            {
+                "s1": {"skill_name": "csv-converter"},
+            },
+        )
 
-        assert 'Created skill: csv-converter' in summary
+        assert "Created skill: csv-converter" in summary
 
 
 # =============================================================================
 # SUBTASK DEPENDENCY TESTS
 # =============================================================================
+
 
 class TestSubtaskDependencies:
     """Test subtask dependency handling."""
@@ -468,8 +526,7 @@ class TestSubtaskDependencies:
     @pytest.mark.unit
     def test_subtask_with_unmet_dependency(self):
         """Subtasks with unmet dependencies should be skippable."""
-        st = Subtask(id="s2", type=SubtaskType.CODE, description="Code",
-                     depends_on=["s1"])
+        st = Subtask(id="s2", type=SubtaskType.CODE, description="Code", depends_on=["s1"])
         completed_ids = set()
         unmet = [d for d in st.depends_on if d not in completed_ids]
         assert unmet == ["s1"]
@@ -477,8 +534,7 @@ class TestSubtaskDependencies:
     @pytest.mark.unit
     def test_subtask_with_met_dependency(self):
         """Subtasks with met dependencies should be executable."""
-        st = Subtask(id="s2", type=SubtaskType.CODE, description="Code",
-                     depends_on=["s1"])
+        st = Subtask(id="s2", type=SubtaskType.CODE, description="Code", depends_on=["s1"])
         completed_ids = {"s1"}
         unmet = [d for d in st.depends_on if d not in completed_ids]
         assert unmet == []
@@ -488,29 +544,34 @@ class TestSubtaskDependencies:
 # SWARM REGISTRATION TESTS
 # =============================================================================
 
+
 class TestSwarmRegistration:
     """Test swarm registration."""
 
     @pytest.mark.unit
     def test_registered_in_swarm_registry(self):
-        from Jotty.core.intelligence.swarms.pilot_swarm import PilotSwarm
         from Jotty.core.intelligence.swarms.base_swarm import SwarmRegistry
+        from Jotty.core.intelligence.swarms.pilot_swarm import PilotSwarm
+
         swarm_class = SwarmRegistry.get("pilot")
         assert swarm_class is PilotSwarm
 
     @pytest.mark.unit
     def test_lazy_import_from_core_swarms(self):
         from Jotty.core.intelligence.swarms import PilotSwarm
+
         assert PilotSwarm is not None
 
     @pytest.mark.unit
     def test_lazy_import_pilot(self):
         from Jotty.core.intelligence.swarms import pilot
+
         assert callable(pilot)
 
     @pytest.mark.unit
     def test_lazy_import_types(self):
-        from Jotty.core.intelligence.swarms import SubtaskType, SubtaskStatus
+        from Jotty.core.intelligence.swarms import SubtaskStatus, SubtaskType
+
         assert len(SubtaskType) == 7
         assert len(SubtaskStatus) == 5
 
@@ -519,6 +580,7 @@ class TestSwarmRegistration:
 # SWARM EXECUTION TESTS
 # =============================================================================
 
+
 class TestSwarmExecution:
     """Test swarm instantiation and config."""
 
@@ -526,6 +588,7 @@ class TestSwarmExecution:
     @pytest.mark.asyncio
     async def test_swarm_instantiation(self):
         from Jotty.core.intelligence.swarms.pilot_swarm.swarm import PilotSwarm
+
         swarm = PilotSwarm()
         assert swarm.config.name == "PilotSwarm"
         assert swarm.config.domain == "pilot"
@@ -534,6 +597,7 @@ class TestSwarmExecution:
     @pytest.mark.asyncio
     async def test_swarm_with_custom_config(self):
         from Jotty.core.intelligence.swarms.pilot_swarm.swarm import PilotSwarm
+
         config = PilotConfig(max_subtasks=5, allow_terminal=False)
         swarm = PilotSwarm(config)
         assert swarm.config.max_subtasks == 5
@@ -544,17 +608,20 @@ class TestSwarmExecution:
 # CONVENIENCE FUNCTION TESTS
 # =============================================================================
 
+
 class TestConvenienceFunctions:
     """Test pilot and pilot_sync."""
 
     @pytest.mark.unit
     def test_pilot_is_callable(self):
         from Jotty.core.intelligence.swarms.pilot_swarm import pilot
+
         assert callable(pilot)
 
     @pytest.mark.unit
     def test_pilot_sync_is_callable(self):
         from Jotty.core.intelligence.swarms.pilot_swarm import pilot_sync
+
         assert callable(pilot_sync)
 
 
@@ -562,23 +629,37 @@ class TestConvenienceFunctions:
 # SIGNATURES TESTS
 # =============================================================================
 
+
 class TestSignatures:
     """Test DSPy signatures can be instantiated."""
 
     @pytest.mark.unit
     def test_all_signatures_importable(self):
-        from Jotty.core.intelligence.swarms.pilot_swarm.signatures import (
-            PlannerSignature, SearchSignature, CoderSignature,
-            TerminalSignature, SkillWriterSignature, ValidatorSignature,
-        )
         import dspy
-        for sig in [PlannerSignature, SearchSignature, CoderSignature,
-                     TerminalSignature, SkillWriterSignature, ValidatorSignature]:
+
+        from Jotty.core.intelligence.swarms.pilot_swarm.signatures import (
+            CoderSignature,
+            PlannerSignature,
+            SearchSignature,
+            SkillWriterSignature,
+            TerminalSignature,
+            ValidatorSignature,
+        )
+
+        for sig in [
+            PlannerSignature,
+            SearchSignature,
+            CoderSignature,
+            TerminalSignature,
+            SkillWriterSignature,
+            ValidatorSignature,
+        ]:
             assert issubclass(sig, dspy.Signature)
 
     @pytest.mark.unit
     def test_signature_count(self):
         from Jotty.core.intelligence.swarms.pilot_swarm import signatures
+
         all_sigs = signatures.__all__
         assert len(all_sigs) == 6
 
@@ -587,24 +668,37 @@ class TestSignatures:
 # AGENTS IMPORT TESTS
 # =============================================================================
 
+
 class TestAgentsImport:
     """Test all agents are importable."""
 
     @pytest.mark.unit
     def test_all_agents_importable(self):
-        from Jotty.core.intelligence.swarms.pilot_swarm.agents import (
-            PilotPlannerAgent, PilotSearchAgent, PilotCoderAgent,
-            PilotTerminalAgent, PilotSkillWriterAgent, PilotValidatorAgent,
-        )
         from Jotty.core.intelligence.swarms.olympiad_learning_swarm.agents import BaseOlympiadAgent
-        for agent_cls in [PilotPlannerAgent, PilotSearchAgent, PilotCoderAgent,
-                          PilotTerminalAgent, PilotSkillWriterAgent, PilotValidatorAgent]:
+        from Jotty.core.intelligence.swarms.pilot_swarm.agents import (
+            PilotCoderAgent,
+            PilotPlannerAgent,
+            PilotSearchAgent,
+            PilotSkillWriterAgent,
+            PilotTerminalAgent,
+            PilotValidatorAgent,
+        )
+
+        for agent_cls in [
+            PilotPlannerAgent,
+            PilotSearchAgent,
+            PilotCoderAgent,
+            PilotTerminalAgent,
+            PilotSkillWriterAgent,
+            PilotValidatorAgent,
+        ]:
             assert issubclass(agent_cls, BaseOlympiadAgent)
 
 
 # =============================================================================
 # TERMINAL SAFETY TESTS
 # =============================================================================
+
 
 class TestTerminalSafety:
     """Test terminal command safety handling."""
@@ -618,12 +712,12 @@ class TestTerminalSafety:
             {"command": "cat /etc/passwd", "purpose": "Read file", "safe": True},
         ]
 
-        safe_commands = [c for c in commands if c.get('safe', False)]
-        unsafe_commands = [c for c in commands if not c.get('safe', False)]
+        safe_commands = [c for c in commands if c.get("safe", False)]
+        unsafe_commands = [c for c in commands if not c.get("safe", False)]
 
         assert len(safe_commands) == 2
         assert len(unsafe_commands) == 1
-        assert unsafe_commands[0]['command'] == 'rm -rf /tmp/test'
+        assert unsafe_commands[0]["command"] == "rm -rf /tmp/test"
 
     @pytest.mark.unit
     def test_terminal_disabled_config(self):
@@ -636,13 +730,16 @@ class TestTerminalSafety:
 # SKILL WRITER VALIDATION TESTS
 # =============================================================================
 
+
 class TestSkillWriterValidation:
     """Test skill writer output validation."""
 
     @pytest.mark.unit
     def test_skill_yaml_format(self):
         """Verify expected skill.yaml fields."""
-        yaml_content = "name: test-skill\ndescription: A test skill\nversion: 1.0.0\ntools:\n  - test_tool"
+        yaml_content = (
+            "name: test-skill\ndescription: A test skill\nversion: 1.0.0\ntools:\n  - test_tool"
+        )
         assert "name:" in yaml_content
         assert "description:" in yaml_content
         assert "version:" in yaml_content
@@ -652,7 +749,9 @@ class TestSkillWriterValidation:
     def test_skill_name_sanitization(self):
         """Verify skill name is properly sanitized."""
         raw = "My Cool Skill!!"
-        sanitized = ''.join(c for c in raw.lower().replace(' ', '-') if c.isalnum() or c == '-')[:30]
+        sanitized = "".join(c for c in raw.lower().replace(" ", "-") if c.isalnum() or c == "-")[
+            :30
+        ]
         assert sanitized == "my-cool-skill"
         assert len(sanitized) <= 30
 
@@ -660,13 +759,16 @@ class TestSkillWriterValidation:
     def test_skill_name_truncation(self):
         """Verify long skill names are truncated."""
         raw = "this-is-a-very-long-skill-name-that-exceeds-thirty-characters"
-        sanitized = ''.join(c for c in raw.lower().replace(' ', '-') if c.isalnum() or c == '-')[:30]
+        sanitized = "".join(c for c in raw.lower().replace(" ", "-") if c.isalnum() or c == "-")[
+            :30
+        ]
         assert len(sanitized) <= 30
 
 
 # =============================================================================
 # BROWSE (VLM) HANDLER
 # =============================================================================
+
 
 class TestBrowseHandler:
     """Test the VLM browse subtask handler."""
@@ -675,6 +777,7 @@ class TestBrowseHandler:
     def test_browse_type_in_dispatch(self):
         """Verify BROWSE has its own handler, not a search fallback."""
         from Jotty.core.intelligence.swarms.pilot_swarm.swarm import PilotSwarm
+
         swarm = PilotSwarm()
         swarm._init_agents()
         dispatch = {
@@ -694,35 +797,42 @@ class TestBrowseHandler:
     async def test_browse_fallback_when_no_vlm(self):
         """When visual-inspector is unavailable, browse falls back to search."""
         from Jotty.core.intelligence.swarms.pilot_swarm.swarm import PilotSwarm
+
         swarm = PilotSwarm()
         swarm._init_agents()
 
-        subtask = Subtask(id='s1', type=SubtaskType.BROWSE, description='Analyze screenshot.png')
+        subtask = Subtask(id="s1", type=SubtaskType.BROWSE, description="Analyze screenshot.png")
 
         # Mock the search fallback
         swarm._searcher = MagicMock()
-        swarm._searcher.search = AsyncMock(return_value={
-            'queries': ['screenshot analysis'], 'synthesis': 'fallback', 'key_findings': [],
-        })
+        swarm._searcher.search = AsyncMock(
+            return_value={
+                "queries": ["screenshot analysis"],
+                "synthesis": "fallback",
+                "key_findings": [],
+            }
+        )
 
         # Patch importlib to fail (VLM not available)
-        with patch('importlib.util.spec_from_file_location', side_effect=ImportError("no vlm")):
+        with patch("importlib.util.spec_from_file_location", side_effect=ImportError("no vlm")):
             result = await swarm._execute_browse(subtask, "", PilotConfig())
 
         # Should have fallen back to search
-        assert result.get('synthesis') == 'fallback'
+        assert result.get("synthesis") == "fallback"
 
     @pytest.mark.unit
     def test_browse_in_planner_signature(self):
         """Verify planner signature mentions browse type."""
         from Jotty.core.intelligence.swarms.pilot_swarm.signatures import PlannerSignature
+
         # Check the docstring includes browse
-        assert 'browse' in PlannerSignature.__doc__.lower()
+        assert "browse" in PlannerSignature.__doc__.lower()
 
 
 # =============================================================================
 # RETRY LOOP TESTS (Phase 4)
 # =============================================================================
+
 
 class TestRetryLoop:
     """Test Phase 4 retry loop."""
@@ -733,18 +843,28 @@ class TestRetryLoop:
         from Jotty.core.intelligence.swarms.pilot_swarm.swarm import PilotSwarm
 
         subtasks = [
-            Subtask(id="s1", type=SubtaskType.SEARCH, description="Research frameworks",
-                    status=SubtaskStatus.COMPLETED),
-            Subtask(id="s2", type=SubtaskType.CODE, description="Write app code",
-                    status=SubtaskStatus.COMPLETED),
+            Subtask(
+                id="s1",
+                type=SubtaskType.SEARCH,
+                description="Research frameworks",
+                status=SubtaskStatus.COMPLETED,
+            ),
+            Subtask(
+                id="s2",
+                type=SubtaskType.CODE,
+                description="Write app code",
+                status=SubtaskStatus.COMPLETED,
+            ),
         ]
         all_results = {
-            's1': {'synthesis': 'Found FastAPI and Django'},
-            's2': {'explanation': 'Created app.py'},
+            "s1": {"synthesis": "Found FastAPI and Django"},
+            "s2": {"explanation": "Created app.py"},
         }
         gaps = ["Add unit tests", "Add documentation"]
 
-        ctx = PilotSwarm._build_replan_context("Build web app with tests", subtasks, all_results, gaps)
+        ctx = PilotSwarm._build_replan_context(
+            "Build web app with tests", subtasks, all_results, gaps
+        )
 
         assert "ORIGINAL GOAL: Build web app with tests" in ctx
         assert "COMPLETED WORK:" in ctx
@@ -761,20 +881,36 @@ class TestRetryLoop:
         from Jotty.core.intelligence.swarms.pilot_swarm.swarm import PilotSwarm
 
         subtasks = [
-            Subtask(id="s1", type=SubtaskType.SEARCH, description="Research",
-                    status=SubtaskStatus.COMPLETED),
-            Subtask(id="s2", type=SubtaskType.CODE, description="Read file",
-                    status=SubtaskStatus.COMPLETED),
-            Subtask(id="s3", type=SubtaskType.BROWSE, description="Inspect image",
-                    status=SubtaskStatus.COMPLETED),
+            Subtask(
+                id="s1",
+                type=SubtaskType.SEARCH,
+                description="Research",
+                status=SubtaskStatus.COMPLETED,
+            ),
+            Subtask(
+                id="s2",
+                type=SubtaskType.CODE,
+                description="Read file",
+                status=SubtaskStatus.COMPLETED,
+            ),
+            Subtask(
+                id="s3",
+                type=SubtaskType.BROWSE,
+                description="Inspect image",
+                status=SubtaskStatus.COMPLETED,
+            ),
         ]
         all_results = {
-            's1': {'key_findings': ['Python is popular', 'Rust is fast']},
-            's2': {'file_operations': [{'file_path': '/tmp/x.py', 'read_content': 'class Foo: pass'}]},
-            's3': {'visual_analysis': 'Screenshot shows a login form'},
+            "s1": {"key_findings": ["Python is popular", "Rust is fast"]},
+            "s2": {
+                "file_operations": [{"file_path": "/tmp/x.py", "read_content": "class Foo: pass"}]
+            },
+            "s3": {"visual_analysis": "Screenshot shows a login form"},
         }
 
-        ctx = PilotSwarm._build_replan_context("Analyze codebase", subtasks, all_results, ["Fix bug"])
+        ctx = PilotSwarm._build_replan_context(
+            "Analyze codebase", subtasks, all_results, ["Fix bug"]
+        )
 
         assert "Python is popular; Rust is fast" in ctx
         assert "class Foo: pass" in ctx
@@ -790,8 +926,8 @@ class TestRetryLoop:
         swarm.config = PilotConfig(max_retries=1)
 
         plan_result = {
-            'subtasks': [{'id': 's1', 'type': 'analyze', 'description': 'Think', 'depends_on': []}],
-            'reasoning': 'plan',
+            "subtasks": [{"id": "s1", "type": "analyze", "description": "Think", "depends_on": []}],
+            "reasoning": "plan",
         }
 
         # Track how many times each phase runs
@@ -799,8 +935,8 @@ class TestRetryLoop:
 
         # Validator: fail first time, succeed second
         validate_results = [
-            {'success': False, 'assessment': 'Not done', 'remaining_gaps': ['Missing tests']},
-            {'success': True, 'assessment': 'Done', 'remaining_gaps': []},
+            {"success": False, "assessment": "Not done", "remaining_gaps": ["Missing tests"]},
+            {"success": True, "assessment": "Done", "remaining_gaps": []},
         ]
         validate_idx = [0]
 
@@ -814,10 +950,13 @@ class TestRetryLoop:
 
         # Mock searcher for analyze subtask
         swarm._searcher = MagicMock()
-        swarm._searcher.search = AsyncMock(return_value={'synthesis': 'analyzed', 'key_findings': []})
+        swarm._searcher.search = AsyncMock(
+            return_value={"synthesis": "analyzed", "key_findings": []}
+        )
 
         # Mock executor — consumes the coroutine arg and returns our controlled dicts
         executor = MagicMock()
+
         async def mock_run_phase(phase_num, _name, _agent, _role, coro, **kwargs):
             # Consume the coroutine to avoid warnings
             if asyncio.iscoroutine(coro):
@@ -832,6 +971,7 @@ class TestRetryLoop:
             if phase_num == 4:
                 return plan_result
             return {}
+
         executor.run_phase = mock_run_phase
         executor.elapsed = MagicMock(return_value=1.0)
 
@@ -851,20 +991,27 @@ class TestRetryLoop:
         swarm.config = PilotConfig(max_retries=2)
 
         plan_result = {
-            'subtasks': [{'id': 's1', 'type': 'analyze', 'description': 'Think', 'depends_on': []}],
-            'reasoning': 'plan',
+            "subtasks": [{"id": "s1", "type": "analyze", "description": "Think", "depends_on": []}],
+            "reasoning": "plan",
         }
-        fail_validation = {'success': False, 'assessment': 'Still not done', 'remaining_gaps': ['gap']}
+        fail_validation = {
+            "success": False,
+            "assessment": "Still not done",
+            "remaining_gaps": ["gap"],
+        }
 
         swarm._planner = MagicMock()
         swarm._planner.plan = AsyncMock(return_value=plan_result)
         swarm._validator = MagicMock()
         swarm._validator.validate = AsyncMock(return_value=fail_validation)
         swarm._searcher = MagicMock()
-        swarm._searcher.search = AsyncMock(return_value={'synthesis': 'analyzed', 'key_findings': []})
+        swarm._searcher.search = AsyncMock(
+            return_value={"synthesis": "analyzed", "key_findings": []}
+        )
 
         validate_count = [0]
         executor = MagicMock()
+
         async def mock_run_phase(phase_num, _name, _agent, _role, coro, **kwargs):
             if asyncio.iscoroutine(coro):
                 coro.close()
@@ -876,6 +1023,7 @@ class TestRetryLoop:
             if phase_num == 4:
                 return plan_result
             return {}
+
         executor.run_phase = mock_run_phase
         executor.elapsed = MagicMock(return_value=2.0)
 
@@ -895,20 +1043,23 @@ class TestRetryLoop:
         swarm.config = PilotConfig(max_retries=3)
 
         plan_result = {
-            'subtasks': [{'id': 's1', 'type': 'analyze', 'description': 'Think', 'depends_on': []}],
-            'reasoning': 'plan',
+            "subtasks": [{"id": "s1", "type": "analyze", "description": "Think", "depends_on": []}],
+            "reasoning": "plan",
         }
-        empty_replan = {'subtasks': [], 'reasoning': 'nothing to do'}
-        fail_validation = {'success': False, 'assessment': 'Not done', 'remaining_gaps': ['gap']}
+        empty_replan = {"subtasks": [], "reasoning": "nothing to do"}
+        fail_validation = {"success": False, "assessment": "Not done", "remaining_gaps": ["gap"]}
 
         swarm._planner = MagicMock()
         swarm._planner.plan = AsyncMock(return_value=plan_result)
         swarm._validator = MagicMock()
         swarm._validator.validate = AsyncMock(return_value=fail_validation)
         swarm._searcher = MagicMock()
-        swarm._searcher.search = AsyncMock(return_value={'synthesis': 'analyzed', 'key_findings': []})
+        swarm._searcher.search = AsyncMock(
+            return_value={"synthesis": "analyzed", "key_findings": []}
+        )
 
         executor = MagicMock()
+
         async def mock_run_phase(phase_num, _name, _agent, _role, coro, **kwargs):
             if asyncio.iscoroutine(coro):
                 coro.close()
@@ -919,6 +1070,7 @@ class TestRetryLoop:
             if phase_num == 4:
                 return empty_replan  # replanner returns nothing
             return {}
+
         executor.run_phase = mock_run_phase
         executor.elapsed = MagicMock(return_value=1.0)
 
@@ -932,16 +1084,24 @@ class TestRetryLoop:
     def test_pilot_result_has_retry_count(self):
         """PilotResult has retry_count field."""
         result = PilotResult(
-            success=True, swarm_name="PilotSwarm", domain="pilot",
-            output={}, execution_time=1.0, goal="test",
+            success=True,
+            swarm_name="PilotSwarm",
+            domain="pilot",
+            output={},
+            execution_time=1.0,
+            goal="test",
             retry_count=3,
         )
         assert result.retry_count == 3
 
         # Default is 0
         result2 = PilotResult(
-            success=True, swarm_name="PilotSwarm", domain="pilot",
-            output={}, execution_time=1.0, goal="test",
+            success=True,
+            swarm_name="PilotSwarm",
+            domain="pilot",
+            output={},
+            execution_time=1.0,
+            goal="test",
         )
         assert result2.retry_count == 0
 
@@ -949,6 +1109,7 @@ class TestRetryLoop:
 # =============================================================================
 # FILE READ/EDIT TESTS
 # =============================================================================
+
 
 class TestFileReadEdit:
     """Test file read and edit static methods."""
@@ -967,6 +1128,7 @@ class TestFileReadEdit:
     def test_read_file_not_found(self):
         """Read non-existent file returns error message."""
         from Jotty.core.intelligence.swarms.pilot_swarm.swarm import PilotSwarm
+
         result = PilotSwarm._read_file("/nonexistent/path/abc.txt")
         assert "[ERROR]" in result
         assert "not found" in result.lower()
@@ -1009,6 +1171,7 @@ class TestFileReadEdit:
     def test_edit_file_missing_file(self):
         """Edit file returns False for non-existent file."""
         from Jotty.core.intelligence.swarms.pilot_swarm.swarm import PilotSwarm
+
         success = PilotSwarm._edit_file("/nonexistent/file.py", "old", "new")
         assert success is False
 
@@ -1016,6 +1179,7 @@ class TestFileReadEdit:
 # =============================================================================
 # PARALLEL EXECUTION TESTS
 # =============================================================================
+
 
 class TestParallelExecution:
     """Test wave computation for parallel execution."""
@@ -1088,6 +1252,7 @@ class TestParallelExecution:
     def test_compute_waves_empty(self):
         """Empty input returns empty waves."""
         from Jotty.core.intelligence.swarms.pilot_swarm.swarm import PilotSwarm
+
         waves = PilotSwarm._compute_waves([])
         assert waves == []
 
@@ -1099,6 +1264,7 @@ class TestParallelExecution:
         3 independent subtasks each sleep 0.2s. Sequential = 0.6s, parallel < 0.4s.
         """
         import time
+
         from Jotty.core.intelligence.swarms.pilot_swarm.swarm import PilotSwarm
 
         swarm = PilotSwarm.__new__(PilotSwarm)
@@ -1107,10 +1273,10 @@ class TestParallelExecution:
         execution_log = []
 
         async def mock_execute_subtask(subtask, context, config):
-            execution_log.append(('start', subtask.id, time.monotonic()))
+            execution_log.append(("start", subtask.id, time.monotonic()))
             await asyncio.sleep(0.2)
-            execution_log.append(('end', subtask.id, time.monotonic()))
-            return {'synthesis': f'done {subtask.id}'}
+            execution_log.append(("end", subtask.id, time.monotonic()))
+            return {"synthesis": f"done {subtask.id}"}
 
         swarm._execute_subtask = mock_execute_subtask
 
@@ -1126,11 +1292,13 @@ class TestParallelExecution:
 
         start = time.monotonic()
         for wave in waves:
+
             async def _run(st):
                 async with semaphore:
                     result = await mock_execute_subtask(st, "", swarm.config)
                     all_results[st.id] = result
                     st.status = SubtaskStatus.COMPLETED
+
             await asyncio.gather(*[_run(st) for st in wave])
         elapsed = time.monotonic() - start
 
@@ -1140,14 +1308,15 @@ class TestParallelExecution:
         assert elapsed < 0.45, f"Took {elapsed:.2f}s — not parallel!"
 
         # Verify all 3 started before any finished
-        starts = [t for ev, _, t in execution_log if ev == 'start']
-        ends = [t for ev, _, t in execution_log if ev == 'end']
+        starts = [t for ev, _, t in execution_log if ev == "start"]
+        ends = [t for ev, _, t in execution_log if ev == "end"]
         assert max(starts) < min(ends), "Tasks didn't overlap — not concurrent"
 
 
 # =============================================================================
 # IMPROVED CONTEXT TESTS
 # =============================================================================
+
 
 class TestImprovedContext:
     """Test improved context accumulation."""
@@ -1156,43 +1325,49 @@ class TestImprovedContext:
     def test_context_includes_read_content(self):
         """Context includes read_content from file operations."""
         from Jotty.core.intelligence.swarms.pilot_swarm.swarm import PilotSwarm
+
         swarm = PilotSwarm.__new__(PilotSwarm)
 
         results = {
-            's1': {
-                'file_operations': [
-                    {'file_path': '/tmp/test.py', 'action': 'read',
-                     'read_content': 'def hello(): return 42'},
+            "s1": {
+                "file_operations": [
+                    {
+                        "file_path": "/tmp/test.py",
+                        "action": "read",
+                        "read_content": "def hello(): return 42",
+                    },
                 ],
-                'explanation': 'Read file',
+                "explanation": "Read file",
             },
         }
         ctx = swarm._build_context(results)
-        assert 'read_content' in ctx
-        assert 'def hello(): return 42' in ctx
+        assert "read_content" in ctx
+        assert "def hello(): return 42" in ctx
 
     @pytest.mark.unit
     def test_context_uses_8_results(self):
         """Context keeps last 8 results (increased from 5)."""
         from Jotty.core.intelligence.swarms.pilot_swarm.swarm import PilotSwarm
+
         swarm = PilotSwarm.__new__(PilotSwarm)
 
         results = {}
         for i in range(10):
-            results[f's{i}'] = {'synthesis': f'Result {i}'}
+            results[f"s{i}"] = {"synthesis": f"Result {i}"}
 
         ctx = swarm._build_context(results)
         # Should have results s2..s9 (last 8)
-        assert '[s2]' in ctx
-        assert '[s9]' in ctx
+        assert "[s2]" in ctx
+        assert "[s9]" in ctx
         # s0 and s1 should be dropped
-        assert '[s0]' not in ctx
-        assert '[s1]' not in ctx
+        assert "[s0]" not in ctx
+        assert "[s1]" not in ctx
 
 
 # =============================================================================
 # SUBTASK RETRY TESTS
 # =============================================================================
+
 
 class TestSubtaskRetry:
     """Test subtask-level retry on transient errors."""
@@ -1212,15 +1387,17 @@ class TestSubtaskRetry:
             call_count[0] += 1
             if call_count[0] == 1:
                 raise TimeoutError("LLM timed out")
-            return {'synthesis': 'success'}
+            return {"synthesis": "success"}
 
         swarm._execute_subtask = mock_execute_subtask
 
         subtask = Subtask(id="s1", type=SubtaskType.SEARCH, description="Search")
-        with patch('asyncio.sleep', new_callable=AsyncMock):
-            result = await swarm._execute_subtask_with_retry(subtask, "", swarm.config, max_retries=2)
+        with patch("asyncio.sleep", new_callable=AsyncMock):
+            result = await swarm._execute_subtask_with_retry(
+                subtask, "", swarm.config, max_retries=2
+            )
 
-        assert result == {'synthesis': 'success'}
+        assert result == {"synthesis": "success"}
         assert call_count[0] == 2
 
     @pytest.mark.unit
@@ -1261,7 +1438,7 @@ class TestSubtaskRetry:
 
         subtask = Subtask(id="s1", type=SubtaskType.SEARCH, description="Search")
 
-        with patch('asyncio.sleep', new_callable=AsyncMock):
+        with patch("asyncio.sleep", new_callable=AsyncMock):
             with pytest.raises(ConnectionError, match="Connection refused"):
                 await swarm._execute_subtask_with_retry(subtask, "", swarm.config, max_retries=1)
 
@@ -1282,21 +1459,24 @@ class TestSubtaskRetry:
             call_count[0] += 1
             if call_count[0] == 1:
                 raise Exception("API returned 429 rate limit exceeded")
-            return {'synthesis': 'success after rate limit'}
+            return {"synthesis": "success after rate limit"}
 
         swarm._execute_subtask = mock_execute_subtask
 
         subtask = Subtask(id="s1", type=SubtaskType.SEARCH, description="Search")
-        with patch('asyncio.sleep', new_callable=AsyncMock):
-            result = await swarm._execute_subtask_with_retry(subtask, "", swarm.config, max_retries=2)
+        with patch("asyncio.sleep", new_callable=AsyncMock):
+            result = await swarm._execute_subtask_with_retry(
+                subtask, "", swarm.config, max_retries=2
+            )
 
-        assert result == {'synthesis': 'success after rate limit'}
+        assert result == {"synthesis": "success after rate limit"}
         assert call_count[0] == 2
 
 
 # =============================================================================
 # CODE HANDLER READ/EDIT INTEGRATION
 # =============================================================================
+
 
 class TestCodeHandlerReadEdit:
     """Test _execute_code with read/edit actions."""
@@ -1315,10 +1495,10 @@ class TestCodeHandlerReadEdit:
 
         async def mock_code(**kwargs):
             return {
-                'file_operations': [
-                    {'file_path': str(test_file), 'action': 'read'},
+                "file_operations": [
+                    {"file_path": str(test_file), "action": "read"},
                 ],
-                'explanation': 'Read the file',
+                "explanation": "Read the file",
             }
 
         swarm._coder = MagicMock()
@@ -1327,7 +1507,7 @@ class TestCodeHandlerReadEdit:
         subtask = Subtask(id="s1", type=SubtaskType.CODE, description="Read a file")
         result = await swarm._execute_code(subtask, "", config)
 
-        assert result['file_operations'][0]['read_content'] == "print('hello')"
+        assert result["file_operations"][0]["read_content"] == "print('hello')"
 
     @pytest.mark.unit
     @pytest.mark.asyncio
@@ -1343,12 +1523,16 @@ class TestCodeHandlerReadEdit:
 
         async def mock_code(**kwargs):
             return {
-                'file_operations': [
-                    {'file_path': str(test_file), 'action': 'edit',
-                     'old_content': 'return 1', 'content': 'return 42',
-                     'description': 'Change return value'},
+                "file_operations": [
+                    {
+                        "file_path": str(test_file),
+                        "action": "edit",
+                        "old_content": "return 1",
+                        "content": "return 42",
+                        "description": "Change return value",
+                    },
                 ],
-                'explanation': 'Edited code',
+                "explanation": "Edited code",
             }
 
         swarm._coder = MagicMock()
@@ -1357,7 +1541,7 @@ class TestCodeHandlerReadEdit:
         subtask = Subtask(id="s1", type=SubtaskType.CODE, description="Edit a file")
         result = await swarm._execute_code(subtask, "", config)
 
-        assert result['file_operations'][0]['edit_success'] is True
+        assert result["file_operations"][0]["edit_success"] is True
         assert "return 42" in test_file.read_text()
 
     @pytest.mark.unit
@@ -1374,11 +1558,15 @@ class TestCodeHandlerReadEdit:
 
         async def mock_code(**kwargs):
             return {
-                'file_operations': [
-                    {'file_path': str(test_file), 'action': 'edit',
-                     'old_content': 'original', 'content': 'modified'},
+                "file_operations": [
+                    {
+                        "file_path": str(test_file),
+                        "action": "edit",
+                        "old_content": "original",
+                        "content": "modified",
+                    },
                 ],
-                'explanation': 'Edit',
+                "explanation": "Edit",
             }
 
         swarm._coder = MagicMock()

@@ -6,16 +6,16 @@ import asyncio
 import logging
 import os
 from datetime import datetime
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 import dspy
 
-from .types import CodingConfig, CodingResult, CodeOutput
-from .signatures import TestFailureRefinementSignature
-from .workspace import WorkspaceManager
-from .agents import CodebaseAnalyzerAgent, EditPlannerAgent
 from . import utils as _coding_utils
-from .utils import _strip_code_fences, _progress, _stream_call
+from .agents import CodebaseAnalyzerAgent, EditPlannerAgent
+from .signatures import TestFailureRefinementSignature
+from .types import CodeOutput, CodingConfig, CodingResult
+from .utils import _progress, _stream_call, _strip_code_fences
+from .workspace import WorkspaceManager
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +28,7 @@ class EditMixin:
         requirements: str,
         test_output: str,
         iteration: int,
-        previous_attempts: List[str]
+        previous_attempts: List[str],
     ) -> Dict[str, Any]:
         """Refine code based on test failure feedback.
 
@@ -43,7 +43,7 @@ class EditMixin:
         Returns:
             Dict with 'fixed_code', 'analysis', 'confidence'
         """
-        if not hasattr(self, '_refinement_module') or self._refinement_module is None:
+        if not hasattr(self, "_refinement_module") or self._refinement_module is None:
             self._refinement_module = dspy.ChainOfThought(TestFailureRefinementSignature)
 
         _progress(f"Iter {iteration}", "Refiner", f"Analyzing test failure for {file_path}...")
@@ -58,7 +58,7 @@ class EditMixin:
                 original_requirements=requirements,
                 test_output=test_output[-3000:],  # Limit context
                 iteration=iteration,
-                previous_attempts="\n".join(previous_attempts[-3:]) or "No previous attempts"
+                previous_attempts="\n".join(previous_attempts[-3:]) or "No previous attempts",
             )
 
             fixed_code = _strip_code_fences(str(result.fixed_code))
@@ -67,19 +67,19 @@ class EditMixin:
             _progress(f"Iter {iteration}", "Refiner", f"Confidence: {confidence}")
 
             return {
-                'fixed_code': fixed_code,
-                'analysis': str(result.analysis),
-                'strategy': str(result.fix_strategy),
-                'confidence': confidence
+                "fixed_code": fixed_code,
+                "analysis": str(result.analysis),
+                "strategy": str(result.fix_strategy),
+                "confidence": confidence,
             }
 
         except Exception as e:
             logger.error(f"Refinement failed: {e}")
             return {
-                'fixed_code': current_code,
-                'analysis': f"Refinement error: {e}",
-                'strategy': '',
-                'confidence': 'LOW'
+                "fixed_code": current_code,
+                "analysis": f"Refinement error: {e}",
+                "strategy": "",
+                "confidence": "LOW",
             }
 
     async def _test_driven_edit_loop(
@@ -88,7 +88,7 @@ class EditMixin:
         edited_files: Dict[str, str],
         original_files: Dict[str, str],
         requirements: str,
-        affected_files: List[str]
+        affected_files: List[str],
     ) -> tuple:
         """Run test-driven iteration loop until tests pass or max iterations.
 
@@ -115,35 +115,45 @@ class EditMixin:
             for filepath, content in current_files.items():
                 full_path = os.path.join(codebase_path, filepath)
                 os.makedirs(os.path.dirname(full_path), exist_ok=True)
-                with open(full_path, 'w', encoding='utf-8') as f:
+                with open(full_path, "w", encoding="utf-8") as f:
                     f.write(content)
 
             # Run tests
             test_result = await self._run_tests(codebase_path)
 
-            if test_result['success']:
+            if test_result["success"]:
                 _progress("Test", "Loop", f"PASS on iteration {iteration}")
-                history.append({
-                    'iteration': iteration,
-                    'success': True,
-                    'passed': test_result['passed'],
-                    'failed': test_result['failed']
-                })
+                history.append(
+                    {
+                        "iteration": iteration,
+                        "success": True,
+                        "passed": test_result["passed"],
+                        "failed": test_result["failed"],
+                    }
+                )
                 return current_files, history
 
             # Tests failed - refine
-            history.append({
-                'iteration': iteration,
-                'success': False,
-                'passed': test_result['passed'],
-                'failed': test_result['failed'],
-                'errors': test_result['errors'][:2]
-            })
+            history.append(
+                {
+                    "iteration": iteration,
+                    "success": False,
+                    "passed": test_result["passed"],
+                    "failed": test_result["failed"],
+                    "errors": test_result["errors"][:2],
+                }
+            )
 
-            _progress("Test", "Loop", f"Iteration {iteration}/{max_iters}: {test_result['failed']} failures")
+            _progress(
+                "Test",
+                "Loop",
+                f"Iteration {iteration}/{max_iters}: {test_result['failed']} failures",
+            )
 
             # Refine each affected file
-            previous_attempts = [f"Iter {h['iteration']}: {h.get('errors', ['?'])[:1]}" for h in history[:-1]]
+            previous_attempts = [
+                f"Iter {h['iteration']}: {h.get('errors', ['?'])[:1]}" for h in history[:-1]
+            ]
 
             for filepath in affected_files:
                 if filepath not in current_files:
@@ -153,19 +163,25 @@ class EditMixin:
                     file_path=filepath,
                     current_code=current_files[filepath],
                     requirements=requirements,
-                    test_output=test_result['output'],
+                    test_output=test_result["output"],
                     iteration=iteration,
-                    previous_attempts=previous_attempts
+                    previous_attempts=previous_attempts,
                 )
 
-                if refine_result['fixed_code'] != current_files[filepath]:
-                    current_files[filepath] = refine_result['fixed_code']
+                if refine_result["fixed_code"] != current_files[filepath]:
+                    current_files[filepath] = refine_result["fixed_code"]
                     _progress(f"Iter {iteration}", "Refiner", f"Updated {filepath}")
 
         _progress("Test", "Loop", f"Max iterations ({max_iters}) reached")
         return current_files, history
 
-    async def edit(self, requirements: str, target_files: Dict[str, str] = None, progress_callback: Any = None, codebase_path: str = None) -> CodingResult:
+    async def edit(
+        self,
+        requirements: str,
+        target_files: Dict[str, str] = None,
+        progress_callback: Any = None,
+        codebase_path: str = None,
+    ) -> CodingResult:
         """
         Edit existing code based on requirements.
 
@@ -209,7 +225,7 @@ class EditMixin:
                     domain=config.domain,
                     output={},
                     execution_time=0,
-                    error="No target_files provided and codebase_path not set for auto-discovery"
+                    error="No target_files provided and codebase_path not set for auto-discovery",
                 )
 
         # Store original files for diff generation
@@ -222,7 +238,11 @@ class EditMixin:
         if config.preserve_tests:
             target_files, test_files = self._filter_test_files(target_files, preserve=True)
             if test_files:
-                _progress("Phase 0", "TestPreservation", f"Preserved {len(test_files)} test file(s) from editing")
+                _progress(
+                    "Phase 0",
+                    "TestPreservation",
+                    f"Preserved {len(test_files)} test file(s) from editing",
+                )
 
         # -----------------------------------------------------------------
         # GIT INTEGRATION: Create branch if enabled
@@ -234,12 +254,14 @@ class EditMixin:
         self._init_agents()
 
         # Initialize edit-specific agents
-        if not hasattr(self, '_codebase_analyzer') or self._codebase_analyzer is None:
+        if not hasattr(self, "_codebase_analyzer") or self._codebase_analyzer is None:
             self._codebase_analyzer = CodebaseAnalyzerAgent(
-                self._memory, self._context, self._bus, self._agent_context("Architect"))
-        if not hasattr(self, '_edit_planner') or self._edit_planner is None:
+                self._memory, self._context, self._bus, self._agent_context("Architect")
+            )
+        if not hasattr(self, "_edit_planner") or self._edit_planner is None:
             self._edit_planner = EditPlannerAgent(
-                self._memory, self._context, self._bus, self._agent_context("Developer"))
+                self._memory, self._context, self._bus, self._agent_context("Developer")
+            )
 
         config = self.config
         lang = config.language
@@ -254,35 +276,39 @@ class EditMixin:
             # =================================================================
             _progress("Phase 0", "CodebaseAnalyzer", f"Analyzing {len(target_files)} file(s)...")
 
-            all_code = "\n\n".join(f"# FILE: {fp}\n{content}" for fp, content in target_files.items())
+            all_code = "\n\n".join(
+                f"# FILE: {fp}\n{content}" for fp, content in target_files.items()
+            )
             file_paths = list(target_files.keys())
 
             analysis = await self._codebase_analyzer.analyze(
-                existing_code=all_code,
-                file_paths=file_paths,
-                requirements=requirements
+                existing_code=all_code, file_paths=file_paths, requirements=requirements
             )
 
-            if 'error' in analysis:
+            if "error" in analysis:
                 return CodingResult(
                     success=False,
                     swarm_name=self.config.name,
                     domain=self.config.domain,
                     output={},
                     execution_time=(datetime.now() - start_time).total_seconds(),
-                    error=analysis['error']
+                    error=analysis["error"],
                 )
 
-            affected_files = analysis.get('affected_files', file_paths)
+            affected_files = analysis.get("affected_files", file_paths)
             # CRITICAL FIX: If analyzer returns empty, fall back to first few files
             # This ensures test-driven loop can refine even when analyzer misses
             if not affected_files:
                 affected_files = file_paths[:3]  # Focus on top 3 most relevant files
-            style_conventions = analysis.get('style_conventions', '')
-            dependencies = analysis.get('dependencies', '')
-            change_scope = analysis.get('change_scope', 'moderate')
+            style_conventions = analysis.get("style_conventions", "")
+            dependencies = analysis.get("dependencies", "")
+            change_scope = analysis.get("change_scope", "moderate")
 
-            _progress("Phase 0", "CodebaseAnalyzer", f"Change scope: {change_scope}, affecting {len(affected_files)} file(s)")
+            _progress(
+                "Phase 0",
+                "CodebaseAnalyzer",
+                f"Change scope: {change_scope}, affecting {len(affected_files)} file(s)",
+            )
 
             # =================================================================
             # DEPENDENCY ANALYSIS: Determine optimal edit order
@@ -291,19 +317,25 @@ class EditMixin:
                 _progress("Phase 0.5", "DependencyAnalyzer", "Analyzing import graph...")
                 import_graph = self._analyze_import_graph(target_files)
                 affected_files = self._get_edit_order(target_files, affected_files)
-                _progress("Phase 0.5", "DependencyAnalyzer", f"Edit order determined: {len(affected_files)} file(s)")
+                _progress(
+                    "Phase 0.5",
+                    "DependencyAnalyzer",
+                    f"Edit order determined: {len(affected_files)} file(s)",
+                )
 
             # =================================================================
             # PHASE 1: EDIT PLANNING (parallel for each affected file)
             # =================================================================
-            _progress("Phase 1", "EditPlanner", f"Planning edits for {len(affected_files)} file(s)...")
+            _progress(
+                "Phase 1", "EditPlanner", f"Planning edits for {len(affected_files)} file(s)..."
+            )
 
             edited_files = {}
             edit_summaries = []
 
             async def _plan_and_apply_edit(file_path: str) -> Any:
                 if file_path not in target_files:
-                    return file_path, target_files.get(file_path, ''), {'skipped': True}
+                    return file_path, target_files.get(file_path, ""), {"skipped": True}
 
                 existing_code = target_files[file_path]
                 _progress("Phase 1", "EditPlanner", f"  Planning: {file_path}...")
@@ -313,28 +345,32 @@ class EditMixin:
                     file_path=file_path,
                     requirements=requirements,
                     style_conventions=style_conventions,
-                    dependencies=dependencies
+                    dependencies=dependencies,
                 )
 
-                if 'error' in edit_result:
+                if "error" in edit_result:
                     return file_path, existing_code, edit_result
 
-                edit_type = edit_result.get('edit_type', 'patch')
-                edits = edit_result.get('edits', [])
+                edit_type = edit_result.get("edit_type", "patch")
+                edits = edit_result.get("edits", [])
 
-                if edit_type == 'rewrite':
-                    new_code = _strip_code_fences(edit_result.get('new_code', existing_code))
+                if edit_type == "rewrite":
+                    new_code = _strip_code_fences(edit_result.get("new_code", existing_code))
                     _progress("Phase 1", "EditPlanner", f"  {file_path}: REWRITE")
                 else:
                     # Apply patch edits
                     new_code = existing_code
                     for edit in edits:
-                        if isinstance(edit, dict) and 'old' in edit and 'new' in edit:
-                            old_str = edit['old']
-                            new_str = edit['new']
+                        if isinstance(edit, dict) and "old" in edit and "new" in edit:
+                            old_str = edit["old"]
+                            new_str = edit["new"]
                             if old_str in new_code:
                                 new_code = new_code.replace(old_str, new_str, 1)
-                                _progress("Phase 1", "EditPlanner", f"  {file_path}: patched '{old_str[:30]}...'")
+                                _progress(
+                                    "Phase 1",
+                                    "EditPlanner",
+                                    f"  {file_path}: patched '{old_str[:30]}...'",
+                                )
 
                 return file_path, new_code, edit_result
 
@@ -347,12 +383,14 @@ class EditMixin:
                     continue
                 file_path, new_code, edit_info = result
                 edited_files[file_path] = new_code
-                if not edit_info.get('skipped'):
-                    edit_summaries.append({
-                        'file': file_path,
-                        'type': edit_info.get('edit_type', 'unknown'),
-                        'num_edits': len(edit_info.get('edits', [])),
-                    })
+                if not edit_info.get("skipped"):
+                    edit_summaries.append(
+                        {
+                            "file": file_path,
+                            "type": edit_info.get("edit_type", "unknown"),
+                            "num_edits": len(edit_info.get("edits", [])),
+                        }
+                    )
 
             # Include unchanged files
             for fp, content in target_files.items():
@@ -364,14 +402,14 @@ class EditMixin:
             # =================================================================
             # PHASE 4.5: VALIDATION
             # =================================================================
-            workspace = WorkspaceManager() if getattr(config, 'enable_workspace', True) else None
+            workspace = WorkspaceManager() if getattr(config, "enable_workspace", True) else None
             validation_metadata = {"validated": False, "fix_attempts": 0, "errors_fixed": []}
 
             if workspace and workspace.available:
                 _progress("Phase 4.5", "Validator", "Validating edited code...")
                 # Write and syntax check edited files
                 for fname, content in edited_files.items():
-                    if fname.endswith('.py'):
+                    if fname.endswith(".py"):
                         await workspace.write_file(fname, content)
                         check = await workspace.syntax_check(fname)
                         if check.success:
@@ -397,7 +435,7 @@ class EditMixin:
                     edited_files=files_for_testing,
                     original_files=original_files,
                     requirements=requirements,
-                    affected_files=affected_files
+                    affected_files=affected_files,
                 )
 
                 # Extract only source files (not test files) from refined result
@@ -405,7 +443,7 @@ class EditMixin:
                     if fp in refined_files:
                         edited_files[fp] = refined_files[fp]
 
-                if iteration_history and iteration_history[-1].get('success'):
+                if iteration_history and iteration_history[-1].get("success"):
                     _progress("Phase 3", "TestLoop", "Tests passing!")
                 else:
                     _progress("Phase 3", "TestLoop", "Max iterations reached, tests may still fail")
@@ -415,7 +453,11 @@ class EditMixin:
             # =================================================================
             if test_files:
                 edited_files.update(test_files)
-                _progress("Phase 2", "TestPreservation", f"Merged {len(test_files)} preserved test file(s)")
+                _progress(
+                    "Phase 2",
+                    "TestPreservation",
+                    f"Merged {len(test_files)} preserved test file(s)",
+                )
 
             # =================================================================
             # GENERATE DIFFS (if enabled)
@@ -424,7 +466,7 @@ class EditMixin:
             if config.output_diffs:
                 _progress("Phase 2", "DiffGenerator", "Generating unified diffs...")
                 for filepath, new_content in edited_files.items():
-                    old_content = original_files.get(filepath, '')
+                    old_content = original_files.get(filepath, "")
                     if old_content != new_content:
                         diff = self._generate_unified_diff(old_content, new_content, filepath)
                         if diff:
@@ -438,21 +480,27 @@ class EditMixin:
             if config.git_integration and codebase_path and git_branch:
                 # Write files to disk first
                 import os
-                modified_files = {fp: content for fp, content in edited_files.items()
-                                  if original_files.get(fp, '') != content}
+
+                modified_files = {
+                    fp: content
+                    for fp, content in edited_files.items()
+                    if original_files.get(fp, "") != content
+                }
                 if modified_files:
                     for filepath, content in modified_files.items():
                         full_path = os.path.join(codebase_path, filepath)
                         os.makedirs(os.path.dirname(full_path), exist_ok=True)
-                        with open(full_path, 'w', encoding='utf-8') as f:
+                        with open(full_path, "w", encoding="utf-8") as f:
                             f.write(content)
-                    git_committed = await self._git_commit_changes(codebase_path, modified_files, requirements)
+                    git_committed = await self._git_commit_changes(
+                        codebase_path, modified_files, requirements
+                    )
 
             # =================================================================
             # BUILD RESULT
             # =================================================================
             exec_time = (datetime.now() - start_time).total_seconds()
-            loc = sum(code.count('\n') + 1 for code in edited_files.values())
+            loc = sum(code.count("\n") + 1 for code in edited_files.values())
 
             code_output = CodeOutput(
                 files=edited_files,
@@ -461,36 +509,40 @@ class EditMixin:
                 dependencies=[],
                 tests=test_files,
                 docs="",
-                architecture=analysis.get('architecture_summary', '')
+                architecture=analysis.get("architecture_summary", ""),
             )
 
             result = CodingResult(
                 success=True,
                 swarm_name=self.config.name,
                 domain=self.config.domain,
-                output={'files': list(edited_files.keys()), 'mode': 'edit'},
+                output={"files": list(edited_files.keys()), "mode": "edit"},
                 execution_time=exec_time,
                 code=code_output,
                 language=lang.value,
                 loc=loc,
             )
 
-            result.metadata['edit_summaries'] = edit_summaries
-            result.metadata['change_scope'] = change_scope
-            result.metadata['validation'] = validation_metadata
-            result.metadata['diffs'] = diffs
-            result.metadata['preserved_tests'] = list(test_files.keys()) if test_files else []
-            result.metadata['git_branch'] = git_branch
-            result.metadata['git_committed'] = git_committed
-            result.metadata['test_iterations'] = iteration_history
-            result.metadata['tests_passing'] = iteration_history[-1].get('success', False) if iteration_history else None
+            result.metadata["edit_summaries"] = edit_summaries
+            result.metadata["change_scope"] = change_scope
+            result.metadata["validation"] = validation_metadata
+            result.metadata["diffs"] = diffs
+            result.metadata["preserved_tests"] = list(test_files.keys()) if test_files else []
+            result.metadata["git_branch"] = git_branch
+            result.metadata["git_committed"] = git_committed
+            result.metadata["test_iterations"] = iteration_history
+            result.metadata["tests_passing"] = (
+                iteration_history[-1].get("success", False) if iteration_history else None
+            )
 
             logger.info("=" * 56)
             logger.info("EDIT DONE | %d file(s) modified | %d LOC", len(edit_summaries), loc)
             if diffs:
-                logger.info("Diffs generated: %d | Tests preserved: %d", len(diffs), len(test_files))
+                logger.info(
+                    "Diffs generated: %d | Tests preserved: %d", len(diffs), len(test_files)
+                )
             if iteration_history:
-                tests_status = "PASSING" if iteration_history[-1].get('success') else "FAILING"
+                tests_status = "PASSING" if iteration_history[-1].get("success") else "FAILING"
                 logger.info("Test iterations: %d | Tests: %s", len(iteration_history), tests_status)
             if git_branch:
                 logger.info("Git branch: %s | Committed: %s", git_branch, git_committed)
@@ -502,6 +554,7 @@ class EditMixin:
         except Exception as e:
             logger.error(f"Edit mode error: {e}")
             import traceback
+
             traceback.print_exc()
             return CodingResult(
                 success=False,
@@ -509,11 +562,10 @@ class EditMixin:
                 domain=self.config.domain,
                 output={},
                 execution_time=(datetime.now() - start_time).total_seconds(),
-                error=str(e)
+                error=str(e),
             )
 
         finally:
             _coding_utils._active_progress_callback = None
             if workspace:
                 workspace.cleanup()
-

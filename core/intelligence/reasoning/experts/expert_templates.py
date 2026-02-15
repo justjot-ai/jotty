@@ -14,20 +14,26 @@ This module provides convenience factory functions for common expert types.
 """
 
 import logging
-from typing import List, Dict, Any, Optional
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-from Jotty.core.infrastructure.foundation import SwarmConfig
 import dspy
 
+from Jotty.core.infrastructure.foundation import SwarmConfig
 
 # =============================================================================
 # MERMAID EXPERT
 # =============================================================================
 
-def create_mermaid_expert(config: SwarmConfig = None, gold_standards: Optional[List[Dict[str, Any]]] = None, memory: Any = None, improvements: Optional[List[Dict[str, Any]]] = None) -> Any:
+
+def create_mermaid_expert(
+    config: SwarmConfig = None,
+    gold_standards: Optional[List[Dict[str, Any]]] = None,
+    memory: Any = None,
+    improvements: Optional[List[Dict[str, Any]]] = None,
+) -> Any:
     """
     Create Mermaid diagram generation expert.
 
@@ -44,8 +50,8 @@ def create_mermaid_expert(config: SwarmConfig = None, gold_standards: Optional[L
         >>> expert = create_mermaid_expert()
         >>> result = await expert.generate(task="Generate sequence diagram for user login")
     """
-    from .mermaid_expert import MermaidExpertAgent
     from .expert_agent import ExpertAgentConfig
+    from .mermaid_expert import MermaidExpertAgent
 
     expert_config = ExpertAgentConfig(
         name="mermaid_expert",
@@ -68,7 +74,13 @@ def create_mermaid_expert(config: SwarmConfig = None, gold_standards: Optional[L
 # PLANTUML EXPERT
 # =============================================================================
 
-def create_plantuml_expert(config: SwarmConfig = None, gold_standards: Optional[List[Dict[str, Any]]] = None, memory: Any = None, improvements: Optional[List[Dict[str, Any]]] = None) -> Any:
+
+def create_plantuml_expert(
+    config: SwarmConfig = None,
+    gold_standards: Optional[List[Dict[str, Any]]] = None,
+    memory: Any = None,
+    improvements: Optional[List[Dict[str, Any]]] = None,
+) -> Any:
     """
     Create PlantUML diagram generation expert.
 
@@ -85,8 +97,8 @@ def create_plantuml_expert(config: SwarmConfig = None, gold_standards: Optional[
         >>> expert = create_plantuml_expert()
         >>> result = await expert.generate(task="Generate UML class diagram for e-commerce")
     """
-    from .plantuml_expert import PlantUMLExpertAgent
     from .expert_agent import ExpertAgentConfig
+    from .plantuml_expert import PlantUMLExpertAgent
 
     expert_config = ExpertAgentConfig(
         name="plantuml_expert",
@@ -109,7 +121,14 @@ def create_plantuml_expert(config: SwarmConfig = None, gold_standards: Optional[
 # SQL EXPERT
 # =============================================================================
 
-def create_sql_expert(config: SwarmConfig = None, gold_standards: Optional[List[Dict[str, Any]]] = None, dialect: str = 'postgresql', memory: Any = None, improvements: Optional[List[Dict[str, Any]]] = None) -> Any:
+
+def create_sql_expert(
+    config: SwarmConfig = None,
+    gold_standards: Optional[List[Dict[str, Any]]] = None,
+    dialect: str = "postgresql",
+    memory: Any = None,
+    improvements: Optional[List[Dict[str, Any]]] = None,
+) -> Any:
     """
     Create SQL query generation expert.
 
@@ -135,6 +154,7 @@ def create_sql_expert(config: SwarmConfig = None, gold_standards: Optional[List[
     # SQL signature
     class SQLGenerationSignature(dspy.Signature):
         """Generate valid SQL query for the given question and schema."""
+
         task: str = dspy.InputField(desc="Natural language question")
         learned_improvements: str = dspy.InputField(desc="Previously learned patterns", default="")
         sql_query: str = dspy.OutputField(desc="Valid SQL query")
@@ -145,10 +165,12 @@ def create_sql_expert(config: SwarmConfig = None, gold_standards: Optional[List[
     def create_sql_teacher() -> Any:
         class SQLTeacherSignature(dspy.Signature):
             """Provide the correct SQL query."""
+
             task: str = dspy.InputField(desc="Task description")
             gold_standard: str = dspy.InputField(desc="The correct SQL query")
             student_output: str = dspy.InputField(desc="What the student generated")
             output: str = dspy.OutputField(desc="The correct SQL query")
+
         return dspy.Predict(SQLTeacherSignature)
 
     expert_config = ExpertAgentConfig(
@@ -164,6 +186,7 @@ def create_sql_expert(config: SwarmConfig = None, gold_standards: Optional[List[
     )
 
     import warnings
+
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", DeprecationWarning)
         return ExpertAgent(config=expert_config, memory=memory)
@@ -173,7 +196,13 @@ def create_sql_expert(config: SwarmConfig = None, gold_standards: Optional[List[
 # LATEX MATH EXPERT
 # =============================================================================
 
-def create_latex_math_expert(config: SwarmConfig = None, gold_standards: Optional[List[Dict[str, Any]]] = None, memory: Any = None, improvements: Optional[List[Dict[str, Any]]] = None) -> Any:
+
+def create_latex_math_expert(
+    config: SwarmConfig = None,
+    gold_standards: Optional[List[Dict[str, Any]]] = None,
+    memory: Any = None,
+    improvements: Optional[List[Dict[str, Any]]] = None,
+) -> Any:
     """
     Create LaTeX mathematical notation expert.
 
@@ -190,8 +219,8 @@ def create_latex_math_expert(config: SwarmConfig = None, gold_standards: Optiona
         >>> expert = create_latex_math_expert()
         >>> result = await expert.generate(task="Express the quadratic formula in LaTeX")
     """
-    from .math_latex_expert import MathLaTeXExpertAgent
     from .expert_agent import ExpertAgentConfig
+    from .math_latex_expert import MathLaTeXExpertAgent
 
     expert_config = ExpertAgentConfig(
         name="math_latex_expert",
@@ -214,7 +243,16 @@ def create_latex_math_expert(config: SwarmConfig = None, gold_standards: Optiona
 # CUSTOM EXPERT FACTORY
 # =============================================================================
 
-def create_custom_expert(domain: str, agent: Any = None, gold_standards: Optional[List[Dict[str, Any]]] = None, description: str = '', memory: Any = None, improvements: Optional[List[Dict[str, Any]]] = None, **kwargs: Any) -> Any:
+
+def create_custom_expert(
+    domain: str,
+    agent: Any = None,
+    gold_standards: Optional[List[Dict[str, Any]]] = None,
+    description: str = "",
+    memory: Any = None,
+    improvements: Optional[List[Dict[str, Any]]] = None,
+    **kwargs: Any,
+) -> Any:
     """
     Create a custom expert for any domain.
 
@@ -247,15 +285,16 @@ def create_custom_expert(domain: str, agent: Any = None, gold_standards: Optiona
         domain=domain,
         description=description or f"Expert agent for {domain}",
         training_gold_standards=gold_standards or [],
-        max_training_iterations=kwargs.get('max_training_iterations', 5),
-        min_validation_score=kwargs.get('min_validation_score', 1.0),
+        max_training_iterations=kwargs.get("max_training_iterations", 5),
+        min_validation_score=kwargs.get("min_validation_score", 1.0),
         agent_module=agent,
-        teacher_module=kwargs.get('teacher_module'),
-        evaluation_function=kwargs.get('evaluation_function'),
+        teacher_module=kwargs.get("teacher_module"),
+        evaluation_function=kwargs.get("evaluation_function"),
         use_memory_storage=memory is not None,
     )
 
     import warnings
+
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", DeprecationWarning)
         return ExpertAgent(config=expert_config, memory=memory)
@@ -266,9 +305,9 @@ def create_custom_expert(domain: str, agent: Any = None, gold_standards: Optiona
 # =============================================================================
 
 __all__ = [
-    'create_mermaid_expert',
-    'create_plantuml_expert',
-    'create_sql_expert',
-    'create_latex_math_expert',
-    'create_custom_expert',
+    "create_mermaid_expert",
+    "create_plantuml_expert",
+    "create_sql_expert",
+    "create_latex_math_expert",
+    "create_custom_expert",
 ]

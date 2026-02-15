@@ -1,13 +1,35 @@
 """Palindrome checker — check, find substrings, generate."""
+
 import re
-from typing import Dict, Any, List
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from typing import Any, Dict, List
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
+
 status = SkillStatus("palindrome-checker")
 
-_KNOWN = ["racecar", "level", "deified", "civic", "rotor", "kayak", "madam",
-           "refer", "noon", "radar", "repaper", "rotator", "reviver", "sagas",
-           "solos", "stats", "tenet", "wow", "deed", "peep"]
+_KNOWN = [
+    "racecar",
+    "level",
+    "deified",
+    "civic",
+    "rotor",
+    "kayak",
+    "madam",
+    "refer",
+    "noon",
+    "radar",
+    "repaper",
+    "rotator",
+    "reviver",
+    "sagas",
+    "solos",
+    "stats",
+    "tenet",
+    "wow",
+    "deed",
+    "peep",
+]
 
 
 def _clean(s: str) -> str:
@@ -27,14 +49,14 @@ def _find_palindromes(text: str, min_len: int = 2) -> List[str]:
         l, r = i, i
         while l >= 0 and r < n and clean[l] == clean[r]:
             if r - l + 1 >= min_len:
-                found.add(clean[l:r + 1])
+                found.add(clean[l : r + 1])
             l -= 1
             r += 1
         # even-length
         l, r = i, i + 1
         while l >= 0 and r < n and clean[l] == clean[r]:
             if r - l + 1 >= min_len:
-                found.add(clean[l:r + 1])
+                found.add(clean[l : r + 1])
             l -= 1
             r += 1
     return sorted(found, key=len, reverse=True)
@@ -51,8 +73,11 @@ def palindrome_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     substrings = _find_palindromes(text, min_len)[:20]
     longest = substrings[0] if substrings else ""
     return tool_response(
-        text=text, cleaned=clean, is_palindrome=is_palindrome,
-        palindromic_substrings=substrings, longest_palindrome=longest,
+        text=text,
+        cleaned=clean,
+        is_palindrome=is_palindrome,
+        palindromic_substrings=substrings,
+        longest_palindrome=longest,
         substring_count=len(substrings),
         examples=_KNOWN[:5],
     )

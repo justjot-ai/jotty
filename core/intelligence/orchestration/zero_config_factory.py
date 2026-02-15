@@ -5,10 +5,10 @@ ZeroConfigAgentFactory - Extracted from Orchestrator
 LLM-driven agent creation: analyzes task to decide single vs multi-agent.
 """
 
+import json
 import logging
 import re
-import json
-from typing import List, Optional, Any
+from typing import Any, List, Optional
 
 from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
 from Jotty.core.infrastructure.utils.async_utils import StatusReporter
@@ -25,16 +25,16 @@ class ZeroConfigAgentFactory:
 
     # Strategy hints: keywords -> recommended strategy (MAS-ZERO sub-MAS assignment)
     STRATEGY_HINTS = {
-        'compare': 'ensemble',
-        'vs': 'ensemble',
-        'analyze': 'ensemble',
-        'debate': 'ensemble',
-        'create': 'direct',
-        'generate': 'direct',
-        'build': 'direct',
-        'research': 'self_refine',
-        'investigate': 'self_refine',
-        'summarize': 'direct',
+        "compare": "ensemble",
+        "vs": "ensemble",
+        "analyze": "ensemble",
+        "debate": "ensemble",
+        "create": "direct",
+        "generate": "direct",
+        "build": "direct",
+        "research": "self_refine",
+        "investigate": "self_refine",
+        "summarize": "direct",
     }
 
     def create_agents(self, task: str, status_callback: Any = None) -> List[AgentConfig]:
@@ -45,13 +45,14 @@ class ZeroConfigAgentFactory:
         multiple for truly independent parallel sub-goals.
         MAS-ZERO: assigns per-subtask strategy via metadata.
         """
-        from Jotty.core.modes.agent.agents.auto_agent import AutoAgent
         import dspy
+
+        from Jotty.core.modes.agent.agents.auto_agent import AutoAgent
 
         _status = StatusReporter(status_callback, logger, emoji="")
 
         try:
-            if hasattr(dspy.settings, 'lm') and dspy.settings.lm:
+            if hasattr(dspy.settings, "lm") and dspy.settings.lm:
                 _status("LLM analyzing", "checking for parallel sub-goals")
                 decision = self._llm_decide_agents(task)
                 if decision and len(decision) > 1:
@@ -66,7 +67,7 @@ class ZeroConfigAgentFactory:
                             agent=agent,
                             capabilities=[sub_goal],
                             is_executor=True,
-                            metadata={'strategy': strategy},
+                            metadata={"strategy": strategy},
                         )
                         agents.append(agent_config)
                         _status(f"  {agent_name}", f"{sub_goal[:50]} (strategy={strategy})")
@@ -90,7 +91,7 @@ class ZeroConfigAgentFactory:
         for keyword, strategy in self.STRATEGY_HINTS.items():
             if keyword in goal_lower:
                 return strategy
-        return 'direct'
+        return "direct"
 
     def _llm_decide_agents(self, task: str) -> List[str]:
         """Use LLM to decide if task has parallel sub-goals."""
@@ -118,15 +119,22 @@ class ZeroConfigAgentFactory:
             - Tasks with a single entity examined from multiple angles
             - Tasks that will produce overlapping research
             """
+
             task: str = dspy.InputField(desc="The task to analyze")
-            is_parallel: bool = dspy.OutputField(desc="True if task has enumerable independent sub-goals (e.g., research N different items). Default False for ambiguous cases.")
-            sub_goals: str = dspy.OutputField(desc="If parallel, JSON list of 2-4 DISTINCT sub-goals (no duplicates). If sequential, empty list []")
+            is_parallel: bool = dspy.OutputField(
+                desc="True if task has enumerable independent sub-goals (e.g., research N different items). Default False for ambiguous cases."
+            )
+            sub_goals: str = dspy.OutputField(
+                desc="If parallel, JSON list of 2-4 DISTINCT sub-goals (no duplicates). If sequential, empty list []"
+            )
 
         try:
             predictor = dspy.Predict(AgentDecisionSignature)
             result = predictor(task=task)
 
-            logger.info(f" LLM decision: is_parallel={result.is_parallel}, sub_goals={result.sub_goals[:100]}")
+            logger.info(
+                f" LLM decision: is_parallel={result.is_parallel}, sub_goals={result.sub_goals[:100]}"
+            )
 
             if result.is_parallel:
                 sub_goals = self._parse_sub_goals(result.sub_goals)
@@ -134,7 +142,9 @@ class ZeroConfigAgentFactory:
                     sub_goals = self._deduplicate_sub_goals(sub_goals)
                     sub_goals = sub_goals[:4]
                     if len(sub_goals) > 1:
-                        logger.info(f" LLM detected {len(sub_goals)} parallel sub-goals: {sub_goals}")
+                        logger.info(
+                            f" LLM detected {len(sub_goals)} parallel sub-goals: {sub_goals}"
+                        )
                         return sub_goals
                     else:
                         logger.info(" After deduplication: single agent optimal")
@@ -148,6 +158,7 @@ class ZeroConfigAgentFactory:
     def _parse_sub_goals(self, raw: str) -> List[str]:
         """Parse sub-goals from LLM output — handles JSON, numbered lists, etc."""
         import re
+
         raw = str(raw).strip()
 
         # Method 1: JSON parse
@@ -159,7 +170,7 @@ class ZeroConfigAgentFactory:
             pass
 
         # Method 2: Extract JSON array from text
-        json_match = re.search(r'\[.*?\]', raw, re.DOTALL)
+        json_match = re.search(r"\[.*?\]", raw, re.DOTALL)
         if json_match:
             try:
                 parsed = json.loads(json_match.group(0))
@@ -169,12 +180,12 @@ class ZeroConfigAgentFactory:
                 pass
 
         # Method 3: Numbered list (1. ..., 2. ...)
-        numbered = re.findall(r'^\s*\d+[\.\)]\s*(.+)$', raw, re.MULTILINE)
+        numbered = re.findall(r"^\s*\d+[\.\)]\s*(.+)$", raw, re.MULTILINE)
         if len(numbered) >= 2:
             return [g.strip() for g in numbered if g.strip()]
 
         # Method 4: Bullet list (- ..., * ...)
-        bullets = re.findall(r'^\s*[-*]\s+(.+)$', raw, re.MULTILINE)
+        bullets = re.findall(r"^\s*[-*]\s+(.+)$", raw, re.MULTILINE)
         if len(bullets) >= 2:
             return [g.strip() for g in bullets if g.strip()]
 
@@ -186,14 +197,42 @@ class ZeroConfigAgentFactory:
             return sub_goals
 
         def get_key_words(text: str) -> set:
-            stop_words = {'the', 'a', 'an', 'and', 'or', 'for', 'to', 'of', 'in', 'on',
-                          'with', 'is', 'are', 'be', 'that', 'this',
-                          # Generic task words — exclude from similarity to avoid collapsing
-                          # "Research Python..." and "Research Rust..." as duplicates
-                          'research', 'analyze', 'compare', 'evaluate', 'investigate',
-                          'strengths', 'weaknesses', 'features', 'capabilities',
-                          'development', 'programming', 'language', 'languages'}
-            return set(w.lower() for w in text.split() if len(w) > 2 and w.lower() not in stop_words)
+            stop_words = {
+                "the",
+                "a",
+                "an",
+                "and",
+                "or",
+                "for",
+                "to",
+                "of",
+                "in",
+                "on",
+                "with",
+                "is",
+                "are",
+                "be",
+                "that",
+                "this",
+                # Generic task words — exclude from similarity to avoid collapsing
+                # "Research Python..." and "Research Rust..." as duplicates
+                "research",
+                "analyze",
+                "compare",
+                "evaluate",
+                "investigate",
+                "strengths",
+                "weaknesses",
+                "features",
+                "capabilities",
+                "development",
+                "programming",
+                "language",
+                "languages",
+            }
+            return set(
+                w.lower() for w in text.split() if len(w) > 2 and w.lower() not in stop_words
+            )
 
         def similarity(a: str, b: str) -> float:
             words_a, words_b = get_key_words(a), get_key_words(b)
@@ -219,7 +258,8 @@ class ZeroConfigAgentFactory:
 
         # Try LLM-based name extraction
         try:
-            if hasattr(dspy.settings, 'lm') and dspy.settings.lm:
+            if hasattr(dspy.settings, "lm") and dspy.settings.lm:
+
                 class AgentNameSignature(dspy.Signature):
                     """Extract a short, descriptive agent name from task description.
 
@@ -234,14 +274,17 @@ class ZeroConfigAgentFactory:
                     - "Compare EU vs US regulations" -> "eu_us_regs"
                     - "Generate summary of AI news" -> "ai_news"
                     """
+
                     task: str = dspy.InputField(desc="Task description")
-                    name: str = dspy.OutputField(desc="Short agent name (2-3 words, underscore separated, no generic words)")
+                    name: str = dspy.OutputField(
+                        desc="Short agent name (2-3 words, underscore separated, no generic words)"
+                    )
 
                 predictor = dspy.Predict(AgentNameSignature)
                 result = predictor(task=sub_goal)
                 name = result.name.strip().lower()
-                name = re.sub(r'["\']', '', name)
-                name = re.sub(r'\s+', '_', name)
+                name = re.sub(r'["\']', "", name)
+                name = re.sub(r"\s+", "_", name)
                 name = name[:20]
                 if name and len(name) >= 3:
                     return name
@@ -249,20 +292,20 @@ class ZeroConfigAgentFactory:
             logger.debug(f"LLM agent naming failed, using heuristics: {e}")
 
         # Heuristic fallback
-        entities = re.findall(r'\b([A-Z]{2,6})\b', sub_goal)
-        proper_nouns = re.findall(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\b', sub_goal)
+        entities = re.findall(r"\b([A-Z]{2,6})\b", sub_goal)
+        proper_nouns = re.findall(r"\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\b", sub_goal)
 
         domain_patterns = [
-            (r'fundamental', 'fundamentals'),
-            (r'technical', 'technicals'),
-            (r'sentiment', 'sentiment'),
-            (r'regulatory|regulation|compliance', 'regulatory'),
-            (r'risk\s*management', 'risk_mgmt'),
-            (r'market\s*analysis', 'market'),
-            (r'competitor', 'competitors'),
-            (r'valuation', 'valuation'),
-            (r'earnings', 'earnings'),
-            (r'news|headline', 'news'),
+            (r"fundamental", "fundamentals"),
+            (r"technical", "technicals"),
+            (r"sentiment", "sentiment"),
+            (r"regulatory|regulation|compliance", "regulatory"),
+            (r"risk\s*management", "risk_mgmt"),
+            (r"market\s*analysis", "market"),
+            (r"competitor", "competitors"),
+            (r"valuation", "valuation"),
+            (r"earnings", "earnings"),
+            (r"news|headline", "news"),
         ]
 
         for pattern, name in domain_patterns:
@@ -272,19 +315,22 @@ class ZeroConfigAgentFactory:
                 return name
 
         cleaned = re.sub(
-            r'^(research|analyze|generate|create|get|find|compare|evaluate|assess|review|summarize|identify)\s+',
-            '', goal_lower,
+            r"^(research|analyze|generate|create|get|find|compare|evaluate|assess|review|summarize|identify)\s+",
+            "",
+            goal_lower,
         )
-        cleaned = re.sub(r'\s+(analysis|report|data|information|research|requirements|framework)$', '', cleaned)
-        cleaned = re.sub(r'\b(the|a|an|and|or|for|with|from|to|of|on|in)\b', '', cleaned)
+        cleaned = re.sub(
+            r"\s+(analysis|report|data|information|research|requirements|framework)$", "", cleaned
+        )
+        cleaned = re.sub(r"\b(the|a|an|and|or|for|with|from|to|of|on|in)\b", "", cleaned)
 
         words = [w.strip() for w in cleaned.split() if len(w.strip()) > 2]
         if words:
-            return '_'.join(words[:2])[:18]
+            return "_".join(words[:2])[:18]
 
         if entities:
             return entities[0].lower()
         if proper_nouns:
-            return proper_nouns[0].lower().replace(' ', '_')[:15]
+            return proper_nouns[0].lower().replace(" ", "_")[:15]
 
-        return f'task_{index + 1}'
+        return f"task_{index + 1}"

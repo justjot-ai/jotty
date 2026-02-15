@@ -1,16 +1,29 @@
 """Expense Tracker Skill - track expenses with JSON storage."""
+
 import json
 import uuid
-from pathlib import Path
 from datetime import datetime, timezone
-from typing import Dict, Any, List
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from pathlib import Path
+from typing import Any, Dict, List
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("expense-tracker")
 
-CATEGORIES = {"food", "transport", "utilities", "entertainment", "shopping",
-              "health", "education", "housing", "insurance", "savings", "other"}
+CATEGORIES = {
+    "food",
+    "transport",
+    "utilities",
+    "entertainment",
+    "shopping",
+    "health",
+    "education",
+    "housing",
+    "insurance",
+    "savings",
+    "other",
+}
 DEFAULT_FILE = "expenses.json"
 
 
@@ -59,8 +72,7 @@ def add_expense_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
     running_total = round(sum(e["amount"] for e in expenses), 2)
 
-    return tool_response(expense=entry, running_total=running_total,
-                         total_entries=len(expenses))
+    return tool_response(expense=entry, running_total=running_total, total_entries=len(expenses))
 
 
 @tool_wrapper()
@@ -91,7 +103,8 @@ def expense_summary_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     by_category = dict(sorted(by_category.items(), key=lambda x: x[1]["total"], reverse=True))
 
     return tool_response(
-        total=total, count=len(expenses),
+        total=total,
+        count=len(expenses),
         by_category=by_category,
         filters={"month": month_filter, "category": cat_filter},
     )

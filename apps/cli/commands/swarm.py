@@ -7,7 +7,7 @@ Swarm intelligence status and management.
 
 import asyncio
 import traceback
-from typing import TYPE_CHECKING, Dict, Any
+from typing import TYPE_CHECKING, Any, Dict
 
 from .base import BaseCommand, CommandResult, ParsedArgs
 
@@ -63,15 +63,18 @@ class SwarmCommand(BaseCommand):
                 total_tasks = sum(p.total_tasks for p in profiles.values())
                 # Calculate successes from task_success dict
                 total_success = sum(
-                    sum(s for s, t in p.task_success.values())
-                    for p in profiles.values()
+                    sum(s for s, t in p.task_success.values()) for p in profiles.values()
                 )
 
                 status["Total Tasks"] = total_tasks
                 status["Success Rate"] = f"{total_success/max(1, total_tasks):.1%}"
 
                 # Specializations
-                specs = {p.agent_name: str(p.specialization) for p in profiles.values() if p.specialization}
+                specs = {
+                    p.agent_name: str(p.specialization)
+                    for p in profiles.values()
+                    if p.specialization
+                }
                 if specs:
                     status["Specializations"] = specs
 
@@ -144,11 +147,13 @@ class SwarmCommand(BaseCommand):
 
             # Get recent consensus decisions from cache
             for key, decision in list(si.consensus_cache.items())[:5]:
-                consensus_info["Recent Decisions"].append({
-                    "Query": key[:50] + "..." if len(key) > 50 else key,
-                    "Decision": decision.get("decision", "unknown"),
-                    "Confidence": f"{decision.get('confidence', 0):.2f}",
-                })
+                consensus_info["Recent Decisions"].append(
+                    {
+                        "Query": key[:50] + "..." if len(key) > 50 else key,
+                        "Decision": decision.get("decision", "unknown"),
+                        "Confidence": f"{decision.get('confidence', 0):.2f}",
+                    }
+                )
 
             cli.renderer.tree(consensus_info, title="Swarm Consensus")
             return CommandResult.ok(data=consensus_info)
@@ -193,9 +198,9 @@ class SwarmCommand(BaseCommand):
                 from Jotty.cli.ui.progress import SwarmDashboard
 
             try:
-                from Jotty.core.intelligence.swarms.coding_swarm import CodingSwarm, CodingConfig
+                from Jotty.core.intelligence.swarms.coding_swarm import CodingConfig, CodingSwarm
             except ImportError:
-                from Jotty.core.intelligence.swarms.coding_swarm import CodingSwarm, CodingConfig
+                from Jotty.core.intelligence.swarms.coding_swarm import CodingConfig, CodingSwarm
 
             # Parse config flags
             team = args.flags.get("team", "fullstack")
@@ -227,11 +232,11 @@ class SwarmCommand(BaseCommand):
                 )
             finally:
                 # Update final stats before closing
-                if result and hasattr(result, 'code') and result.code:
+                if result and hasattr(result, "code") and result.code:
                     dashboard.state.total_loc = result.loc
                     dashboard.state.main_file = result.code.main_file
                     for fname, content in result.code.files.items():
-                        loc = content.count('\n') + 1
+                        loc = content.count("\n") + 1
                         dashboard.state.files[fname] = {
                             "loc": loc,
                             "validated": True,
@@ -250,8 +255,8 @@ class SwarmCommand(BaseCommand):
 
             # Export menu
             output_path = ""
-            if result and hasattr(result, 'metadata'):
-                output_path = result.metadata.get('output_path', '')
+            if result and hasattr(result, "metadata"):
+                output_path = result.metadata.get("output_path", "")
             dashboard.show_export_menu(result, output_path)
 
             # Show generated files
@@ -259,18 +264,20 @@ class SwarmCommand(BaseCommand):
                 cli.renderer.newline()
                 cli.renderer.print("[bold green]Generated Files:[/bold green]")
                 for fname, content in result.code.files.items():
-                    loc = content.count('\n') + 1
+                    loc = content.count("\n") + 1
                     cli.renderer.print(f"  {fname} ({loc} lines)")
 
-            return CommandResult.ok(data={
-                "success": result.success,
-                "files": list(result.code.files.keys()) if result.code else [],
-                "loc": result.loc,
-            })
+            return CommandResult.ok(
+                data={
+                    "success": result.success,
+                    "files": list(result.code.files.keys()) if result.code else [],
+                    "loc": result.loc,
+                }
+            )
 
         except Exception as e:
             cli.renderer.error(f"Swarm run failed: {e}")
-            if hasattr(cli.config, 'debug') and cli.config.debug:
+            if hasattr(cli.config, "debug") and cli.config.debug:
                 traceback.print_exc()
             return CommandResult.fail(str(e))
 

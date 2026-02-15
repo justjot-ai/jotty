@@ -5,15 +5,15 @@ Configuration Loader
 Loads CLI configuration from YAML files.
 """
 
-import os
 import logging
+import os
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 import yaml
 
+from .defaults import DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILE, DEFAULT_CONFIG_YAML
 from .schema import CLIConfig
-from .defaults import DEFAULT_CONFIG_YAML, DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILE
 
 logger = logging.getLogger(__name__)
 

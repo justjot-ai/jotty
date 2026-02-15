@@ -21,10 +21,11 @@ Usage:
 """
 
 import logging
-import dspy
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional
 from enum import Enum
+from typing import Any, Dict, List, Optional
+
+import dspy
 
 from .ateam_roster import Expert
 
@@ -35,8 +36,10 @@ logger = logging.getLogger(__name__)
 # DEBATE STATES
 # =============================================================================
 
+
 class DebateState(Enum):
     """Debate state machine."""
+
     INITIAL_REVIEW = "initial_review"
     CONCERNS_RAISED = "concerns_raised"
     DISCUSSION = "discussion"
@@ -47,6 +50,7 @@ class DebateState(Enum):
 
 class ExpertVote(Enum):
     """Expert vote on a proposal."""
+
     APPROVE = "approve"
     CONCERNS = "concerns"
     REJECT = "reject"
@@ -56,9 +60,11 @@ class ExpertVote(Enum):
 # DATA STRUCTURES
 # =============================================================================
 
+
 @dataclass
 class ExpertResponse:
     """Single expert's response in a debate round."""
+
     expert_name: str
     vote: ExpertVote
     reasoning: str
@@ -69,6 +75,7 @@ class ExpertResponse:
 @dataclass
 class DebateRound:
     """A single round of debate."""
+
     round_number: int
     expert_responses: List[ExpertResponse]
     consensus_reached: bool
@@ -79,6 +86,7 @@ class DebateRound:
 @dataclass
 class ConsensusResult:
     """Final consensus decision."""
+
     consensus_reached: bool
     total_rounds: int
     final_decision: str
@@ -92,8 +100,10 @@ class ConsensusResult:
 # DSPY SIGNATURES FOR EXPERT REVIEWS
 # =============================================================================
 
+
 class ExpertReviewSignature(dspy.Signature):
     """Expert reviews a task proposal."""
+
     expert_name: str = dspy.InputField(desc="Expert's name")
     expert_role: str = dspy.InputField(desc="Expert's role and expertise")
     expert_questions: str = dspy.InputField(desc="Key questions this expert asks")
@@ -104,11 +114,14 @@ class ExpertReviewSignature(dspy.Signature):
     vote: str = dspy.OutputField(desc="Vote: 'approve', 'concerns', or 'reject'")
     reasoning: str = dspy.OutputField(desc="Detailed reasoning for this vote")
     concerns: str = dspy.OutputField(desc="Specific concerns (comma-separated, or 'none')")
-    suggestions: str = dspy.OutputField(desc="Specific suggestions for improvement (comma-separated, or 'none')")
+    suggestions: str = dspy.OutputField(
+        desc="Specific suggestions for improvement (comma-separated, or 'none')"
+    )
 
 
 class ConsensusSynthesisSignature(dspy.Signature):
     """Synthesize expert consensus into final decision."""
+
     task_description: str = dspy.InputField(desc="Original task/problem")
     goal_context: str = dspy.InputField(desc="Overall goal")
     expert_feedback: str = dspy.InputField(desc="All expert feedback from final round")
@@ -123,6 +136,7 @@ class ConsensusSynthesisSignature(dspy.Signature):
 # DEBATE MANAGER
 # =============================================================================
 
+
 class DebateManager:
     """
     Manages multi-round expert debates.
@@ -134,7 +148,9 @@ class DebateManager:
     4. DOCUMENTATION (track reasoning)
     """
 
-    def __init__(self, experts: List[Expert], max_rounds: int = 5, consensus_threshold: float = 1.0) -> None:
+    def __init__(
+        self, experts: List[Expert], max_rounds: int = 5, consensus_threshold: float = 1.0
+    ) -> None:
         """
         Initialize debate manager.
 
@@ -160,11 +176,7 @@ class DebateManager:
             f"max_rounds={max_rounds}, threshold={consensus_threshold*100}%"
         )
 
-    async def run_debate(
-        self,
-        task_description: str,
-        goal_context: str
-    ) -> ConsensusResult:
+    async def run_debate(self, task_description: str, goal_context: str) -> ConsensusResult:
         """
         Run multi-round debate until consensus.
 
@@ -190,7 +202,7 @@ class DebateManager:
             debate_round = await self._run_round(
                 task_description=task_description,
                 goal_context=goal_context,
-                previous_summary=previous_summary
+                previous_summary=previous_summary,
             )
 
             self.debate_history.append(debate_round)
@@ -207,8 +219,7 @@ class DebateManager:
 
         # Synthesize final decision
         final_result = await self._synthesize_consensus(
-            task_description=task_description,
-            goal_context=goal_context
+            task_description=task_description, goal_context=goal_context
         )
 
         logger.info(f"\n Debate complete: {final_result.total_rounds} rounds")
@@ -217,10 +228,7 @@ class DebateManager:
         return final_result
 
     async def _run_round(
-        self,
-        task_description: str,
-        goal_context: str,
-        previous_summary: str
+        self, task_description: str, goal_context: str, previous_summary: str
     ) -> DebateRound:
         """Run a single debate round."""
         expert_responses: List[ExpertResponse] = []
@@ -231,15 +239,11 @@ class DebateManager:
                 expert=expert,
                 task_description=task_description,
                 goal_context=goal_context,
-                previous_summary=previous_summary
+                previous_summary=previous_summary,
             )
             expert_responses.append(response)
 
-            vote_emoji = {
-                ExpertVote.APPROVE: "",
-                ExpertVote.CONCERNS: "",
-                ExpertVote.REJECT: ""
-            }
+            vote_emoji = {ExpertVote.APPROVE: "", ExpertVote.CONCERNS: "", ExpertVote.REJECT: ""}
             logger.info(f"   {vote_emoji[response.vote]} {expert.name}: {response.vote.value}")
 
         # Calculate consensus
@@ -251,17 +255,13 @@ class DebateManager:
             round_number=self.current_round,
             expert_responses=expert_responses,
             consensus_reached=consensus_reached,
-            consensus_percentage=consensus_percentage
+            consensus_percentage=consensus_percentage,
         )
 
         return debate_round
 
     async def _get_expert_response(
-        self,
-        expert: Expert,
-        task_description: str,
-        goal_context: str,
-        previous_summary: str
+        self, expert: Expert, task_description: str, goal_context: str, previous_summary: str
     ) -> ExpertResponse:
         """Get a single expert's response."""
         # Format expert context
@@ -275,7 +275,7 @@ class DebateManager:
                 expert_questions=expert_questions_str,
                 task_description=task_description,
                 goal_context=goal_context,
-                previous_round_summary=previous_summary
+                previous_round_summary=previous_summary,
             )
 
             # Parse vote
@@ -288,15 +288,23 @@ class DebateManager:
                 vote = ExpertVote.CONCERNS
 
             # Parse concerns and suggestions
-            concerns = [c.strip() for c in result.concerns.split(",") if c.strip() and c.strip().lower() != "none"]
-            suggestions = [s.strip() for s in result.suggestions.split(",") if s.strip() and s.strip().lower() != "none"]
+            concerns = [
+                c.strip()
+                for c in result.concerns.split(",")
+                if c.strip() and c.strip().lower() != "none"
+            ]
+            suggestions = [
+                s.strip()
+                for s in result.suggestions.split(",")
+                if s.strip() and s.strip().lower() != "none"
+            ]
 
             return ExpertResponse(
                 expert_name=expert.name,
                 vote=vote,
                 reasoning=result.reasoning,
                 concerns=concerns,
-                suggestions=suggestions
+                suggestions=suggestions,
             )
 
         except Exception as e:
@@ -307,7 +315,7 @@ class DebateManager:
                 vote=ExpertVote.CONCERNS,
                 reasoning=f"Error during review: {str(e)}",
                 concerns=["Unable to complete review due to error"],
-                suggestions=[]
+                suggestions=[],
             )
 
     def _generate_round_summary(self, debate_round: DebateRound) -> str:
@@ -336,9 +344,7 @@ class DebateManager:
         return summary
 
     async def _synthesize_consensus(
-        self,
-        task_description: str,
-        goal_context: str
+        self, task_description: str, goal_context: str
     ) -> ConsensusResult:
         """Synthesize final consensus from debate history."""
         # Get final round
@@ -359,10 +365,12 @@ class DebateManager:
         expert_feedback = "\n\n".join(expert_feedback_parts)
 
         # Format debate history
-        debate_history_str = "\n".join([
-            f"Round {r.round_number}: {r.consensus_percentage*100:.1f}% consensus"
-            for r in self.debate_history
-        ])
+        debate_history_str = "\n".join(
+            [
+                f"Round {r.round_number}: {r.consensus_percentage*100:.1f}% consensus"
+                for r in self.debate_history
+            ]
+        )
 
         # Synthesize final decision
         try:
@@ -370,7 +378,7 @@ class DebateManager:
                 task_description=task_description,
                 goal_context=goal_context,
                 expert_feedback=expert_feedback,
-                debate_history=debate_history_str
+                debate_history=debate_history_str,
             )
 
             final_decision = result.consensus_decision
@@ -390,7 +398,7 @@ class DebateManager:
             comprehensive_task=comprehensive_task,
             reasoning=reasoning,
             expert_votes=expert_votes,
-            debate_history=self.debate_history
+            debate_history=self.debate_history,
         )
 
 
@@ -399,10 +407,10 @@ class DebateManager:
 # =============================================================================
 
 __all__ = [
-    'DebateManager',
-    'DebateRound',
-    'ExpertResponse',
-    'ConsensusResult',
-    'DebateState',
-    'ExpertVote',
+    "DebateManager",
+    "DebateRound",
+    "ExpertResponse",
+    "ConsensusResult",
+    "DebateState",
+    "ExpertVote",
 ]

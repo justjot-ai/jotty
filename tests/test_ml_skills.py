@@ -20,53 +20,59 @@ All sklearn/lightgbm/xgboost calls are mocked -- no real ML needed.
 
 import asyncio
 from dataclasses import fields
-from typing import Dict, Any, List, Optional
-from unittest.mock import Mock, AsyncMock, MagicMock, patch
+from typing import Any, Dict, List, Optional
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
-import pytest
 import numpy as np
+import pytest
 
 # ---------------------------------------------------------------------------
 # Safe imports with pandas/sklearn guards
 # ---------------------------------------------------------------------------
 try:
     import pandas as pd
+
     HAS_PANDAS = True
 except ImportError:
     HAS_PANDAS = False
 
 try:
     from Jotty.core.capabilities.skills.ml.base import (
-        SkillCategory,
-        SkillResult,
         MLSkill,
+        SkillCategory,
         SkillPipeline,
         SkillRegistry,
+        SkillResult,
     )
+
     HAS_BASE = True
 except ImportError:
     HAS_BASE = False
 
 try:
     from Jotty.core.capabilities.skills.ml.eda import EDASkill
+
     HAS_EDA = True
 except ImportError:
     HAS_EDA = False
 
 try:
     from Jotty.core.capabilities.skills.ml.feature_engineering import FeatureEngineeringSkill
+
     HAS_FE = True
 except ImportError:
     HAS_FE = False
 
 try:
     from Jotty.core.capabilities.skills.ml.model_selection import ModelSelectionSkill
+
     HAS_MS = True
 except ImportError:
     HAS_MS = False
 
 try:
     from Jotty.core.capabilities.skills.ml.ensemble import EnsembleSkill
+
     HAS_ENS = True
 except ImportError:
     HAS_ENS = False
@@ -74,26 +80,28 @@ except ImportError:
 try:
     from Jotty.core.capabilities.skills.ml.backtest_report import (
         BacktestMetrics,
-        TradeStatistics,
-        ModelResults,
         BacktestResult,
+        ModelResults,
+        TradeStatistics,
     )
+
     HAS_BT_REPORT = True
 except ImportError:
     HAS_BT_REPORT = False
 
 try:
     from Jotty.core.capabilities.skills.ml.backtest_engine import (
-        TransactionCosts,
-        RiskMetrics,
-        StatisticalTests,
-        RegimeAnalysis,
+        ComprehensiveBacktestResult,
         FactorExposure,
-        WalkForwardResult,
         MonteCarloResult,
         PositionSizing,
-        ComprehensiveBacktestResult,
+        RegimeAnalysis,
+        RiskMetrics,
+        StatisticalTests,
+        TransactionCosts,
+        WalkForwardResult,
     )
+
     HAS_BT_ENGINE = True
 except ImportError:
     HAS_BT_ENGINE = False
@@ -115,6 +123,7 @@ skip_no_bt_engine = pytest.mark.skipif(not HAS_BT_ENGINE, reason="Backtest engin
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_mock_df(rows=10, cols=5, empty=False):
     """Create a mock pandas DataFrame for testing."""
@@ -154,6 +163,7 @@ def _make_concrete_skill(name="test_skill", category=None):
 # =============================================================================
 # TestSkillCategory
 # =============================================================================
+
 
 @pytest.mark.unit
 @skip_no_base
@@ -201,6 +211,7 @@ class TestSkillCategory:
 # =============================================================================
 # TestSkillResult
 # =============================================================================
+
 
 @pytest.mark.unit
 @skip_no_base
@@ -292,7 +303,15 @@ class TestSkillResult:
             success=True,
         )
         d = result.to_dict()
-        expected_keys = {"skill_name", "category", "success", "metrics", "metadata", "error", "execution_time_seconds"}
+        expected_keys = {
+            "skill_name",
+            "category",
+            "success",
+            "metrics",
+            "metadata",
+            "error",
+            "execution_time_seconds",
+        }
         assert expected_keys.issubset(set(d.keys()))
 
     def test_to_dict_category_is_string_value(self):
@@ -343,6 +362,7 @@ class TestSkillResult:
 # TestMLSkillAbstract
 # =============================================================================
 
+
 @pytest.mark.unit
 @skip_no_base
 class TestMLSkillAbstract:
@@ -382,6 +402,7 @@ class TestMLSkillAbstract:
 # TestMLSkillInit
 # =============================================================================
 
+
 @pytest.mark.unit
 @skip_no_base
 class TestMLSkillInit:
@@ -416,6 +437,7 @@ class TestMLSkillInit:
 # =============================================================================
 # TestMLSkillValidateInputs
 # =============================================================================
+
 
 @pytest.mark.unit
 @skip_no_base
@@ -461,6 +483,7 @@ class TestMLSkillValidateInputs:
 # =============================================================================
 # TestMLSkillCreateResult
 # =============================================================================
+
 
 @pytest.mark.unit
 @skip_no_base
@@ -514,6 +537,7 @@ class TestMLSkillCreateResult:
 # TestMLSkillCreateErrorResult
 # =============================================================================
 
+
 @pytest.mark.unit
 @skip_no_base
 class TestMLSkillCreateErrorResult:
@@ -547,6 +571,7 @@ class TestMLSkillCreateErrorResult:
 # =============================================================================
 # TestMLSkillGetInfo
 # =============================================================================
+
 
 @pytest.mark.unit
 @skip_no_base
@@ -606,6 +631,7 @@ class TestMLSkillGetInfo:
 # =============================================================================
 # TestSkillPipeline
 # =============================================================================
+
 
 @pytest.mark.unit
 @skip_no_base
@@ -701,6 +727,7 @@ class TestSkillPipeline:
 # TestSkillRegistry
 # =============================================================================
 
+
 @pytest.mark.unit
 @skip_no_base
 class TestSkillRegistry:
@@ -777,6 +804,7 @@ class TestSkillRegistry:
 # TestEDASkillMetadata
 # =============================================================================
 
+
 @pytest.mark.unit
 @skip_no_eda
 class TestEDASkillMetadata:
@@ -833,6 +861,7 @@ class TestEDASkillMetadata:
 # =============================================================================
 # TestFeatureEngineeringSkillMetadata
 # =============================================================================
+
 
 @pytest.mark.unit
 @skip_no_fe
@@ -895,6 +924,7 @@ class TestFeatureEngineeringSkillMetadata:
 # TestModelSelectionSkillMetadata
 # =============================================================================
 
+
 @pytest.mark.unit
 @skip_no_ms
 class TestModelSelectionSkillMetadata:
@@ -952,6 +982,7 @@ class TestModelSelectionSkillMetadata:
 # TestEnsembleSkillMetadata
 # =============================================================================
 
+
 @pytest.mark.unit
 @skip_no_ens
 class TestEnsembleSkillMetadata:
@@ -1008,6 +1039,7 @@ class TestEnsembleSkillMetadata:
 # =============================================================================
 # TestBacktestMetrics
 # =============================================================================
+
 
 @pytest.mark.unit
 @skip_no_bt_report
@@ -1075,6 +1107,7 @@ class TestBacktestMetrics:
 # =============================================================================
 # TestTradeStatistics
 # =============================================================================
+
 
 @pytest.mark.unit
 @skip_no_bt_report
@@ -1144,6 +1177,7 @@ class TestTradeStatistics:
 # =============================================================================
 # TestTransactionCosts
 # =============================================================================
+
 
 @pytest.mark.unit
 @skip_no_bt_engine
@@ -1221,6 +1255,7 @@ class TestTransactionCosts:
 # TestRiskMetrics
 # =============================================================================
 
+
 @pytest.mark.unit
 @skip_no_bt_engine
 class TestRiskMetrics:
@@ -1261,6 +1296,7 @@ class TestRiskMetrics:
 # TestModelResults
 # =============================================================================
 
+
 @pytest.mark.unit
 @skip_no_bt_report
 class TestModelResults:
@@ -1293,6 +1329,7 @@ class TestModelResults:
 # TestBacktestResult
 # =============================================================================
 
+
 @pytest.mark.unit
 @skip_no_bt_report
 class TestBacktestResult:
@@ -1322,6 +1359,7 @@ class TestBacktestResult:
 # =============================================================================
 # TestComprehensiveBacktestResult
 # =============================================================================
+
 
 @pytest.mark.unit
 @skip_no_bt_engine
@@ -1361,6 +1399,7 @@ class TestComprehensiveBacktestResult:
 # TestWalkForwardResult
 # =============================================================================
 
+
 @pytest.mark.unit
 @skip_no_bt_engine
 class TestWalkForwardResult:
@@ -1391,6 +1430,7 @@ class TestWalkForwardResult:
 # TestMonteCarloResult
 # =============================================================================
 
+
 @pytest.mark.unit
 @skip_no_bt_engine
 class TestMonteCarloResult:
@@ -1417,6 +1457,7 @@ class TestMonteCarloResult:
 # =============================================================================
 # TestPositionSizing
 # =============================================================================
+
 
 @pytest.mark.unit
 @skip_no_bt_engine
@@ -1445,6 +1486,7 @@ class TestPositionSizing:
 # TestFactorExposure
 # =============================================================================
 
+
 @pytest.mark.unit
 @skip_no_bt_engine
 class TestFactorExposure:
@@ -1472,6 +1514,7 @@ class TestFactorExposure:
 # TestStatisticalTests
 # =============================================================================
 
+
 @pytest.mark.unit
 @skip_no_bt_engine
 class TestStatisticalTests:
@@ -1496,6 +1539,7 @@ class TestStatisticalTests:
 # =============================================================================
 # TestRegimeAnalysis
 # =============================================================================
+
 
 @pytest.mark.unit
 @skip_no_bt_engine
@@ -1522,6 +1566,7 @@ class TestRegimeAnalysis:
 # =============================================================================
 # TestSkillResultIntegration
 # =============================================================================
+
 
 @pytest.mark.unit
 @skip_no_base
@@ -1624,6 +1669,7 @@ class TestSkillResultIntegration:
 # TestSkillPipelineIntegration
 # =============================================================================
 
+
 @pytest.mark.unit
 @skip_no_base
 @skip_no_pandas
@@ -1675,6 +1721,7 @@ class TestSkillPipelineIntegration:
     @pytest.mark.asyncio
     async def test_pipeline_with_failing_skill(self):
         """A skill that returns failure should still be in results."""
+
         class FailSkill(MLSkill):
             name = "fail_skill"
             category = SkillCategory.EVALUATION
@@ -1694,6 +1741,7 @@ class TestSkillPipelineIntegration:
     @pytest.mark.asyncio
     async def test_pipeline_failing_skill_excluded_from_metrics(self):
         """get_all_metrics only includes successful skills."""
+
         class FailSkill(MLSkill):
             name = "fail_metrics"
             category = SkillCategory.EVALUATION
@@ -1713,6 +1761,7 @@ class TestSkillPipelineIntegration:
 # =============================================================================
 # TestSkillResourceHints
 # =============================================================================
+
 
 @pytest.mark.unit
 @skip_no_base
@@ -1746,6 +1795,7 @@ class TestSkillResourceHints:
 # TestSkillDescriptions
 # =============================================================================
 
+
 @pytest.mark.unit
 @skip_no_base
 class TestSkillDescriptions:
@@ -1776,6 +1826,7 @@ class TestSkillDescriptions:
 # TestBacktestMetricsFieldCount
 # =============================================================================
 
+
 @pytest.mark.unit
 @skip_no_bt_report
 class TestBacktestMetricsFieldCount:
@@ -1801,6 +1852,7 @@ class TestBacktestMetricsFieldCount:
 # TestTradeStatisticsFieldCount
 # =============================================================================
 
+
 @pytest.mark.unit
 @skip_no_bt_report
 class TestTradeStatisticsFieldCount:
@@ -1820,6 +1872,7 @@ class TestTradeStatisticsFieldCount:
 # =============================================================================
 # TestCrossSkillCreateResult
 # =============================================================================
+
 
 @pytest.mark.unit
 @skip_no_base

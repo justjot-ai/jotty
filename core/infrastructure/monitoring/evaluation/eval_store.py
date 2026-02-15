@@ -17,12 +17,12 @@ Usage:
     # {'claude-sonnet-4-20250514': {'pass_rate': 0.5, ...}, ...}
 """
 
+import logging
 import sqlite3
 import time
 import uuid
-import logging
 from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +40,8 @@ class EvalStore:
         self._init_schema()
 
     def _init_schema(self) -> Any:
-        self._conn.executescript("""
+        self._conn.executescript(
+            """
             CREATE TABLE IF NOT EXISTS runs (
                 id TEXT PRIMARY KEY,
                 model TEXT NOT NULL,
@@ -64,15 +65,15 @@ class EvalStore:
             );
             CREATE INDEX IF NOT EXISTS idx_results_run ON results(run_id);
             CREATE INDEX IF NOT EXISTS idx_runs_model ON runs(model);
-        """)
+        """
+        )
         self._conn.commit()
 
-    def start_run(
-        self, model: str, benchmark: str, metadata: Optional[Dict] = None
-    ) -> str:
+    def start_run(self, model: str, benchmark: str, metadata: Optional[Dict] = None) -> str:
         """Start an eval run. Returns run_id."""
         run_id = str(uuid.uuid4())[:8]
         import json
+
         self._conn.execute(
             "INSERT INTO runs (id, model, benchmark, started_at, metadata) VALUES (?,?,?,?,?)",
             (run_id, model, benchmark, time.time(), json.dumps(metadata or {})),
@@ -81,12 +82,32 @@ class EvalStore:
         logger.info(f"Eval run started: {run_id} ({model} on {benchmark})")
         return run_id
 
-    def record_result(self, run_id: str, task_id: str, success: bool, answer: str = '', error: str = '', execution_time: float = 0, cost: float = 0, tokens_used: int = 0) -> Any:
+    def record_result(
+        self,
+        run_id: str,
+        task_id: str,
+        success: bool,
+        answer: str = "",
+        error: str = "",
+        execution_time: float = 0,
+        cost: float = 0,
+        tokens_used: int = 0,
+    ) -> Any:
         """Record a single task result."""
         self._conn.execute(
             "INSERT INTO results (run_id,task_id,success,answer,error,execution_time,cost,tokens_used,recorded_at) "
             "VALUES (?,?,?,?,?,?,?,?,?)",
-            (run_id, task_id, int(success), answer, error, execution_time, cost, tokens_used, time.time()),
+            (
+                run_id,
+                task_id,
+                int(success),
+                answer,
+                error,
+                execution_time,
+                cost,
+                tokens_used,
+                time.time(),
+            ),
         )
         self._conn.commit()
 
@@ -103,32 +124,31 @@ class EvalStore:
         run = self._conn.execute("SELECT * FROM runs WHERE id=?", (run_id,)).fetchone()
         if not run:
             return {}
-        results = self._conn.execute(
-            "SELECT * FROM results WHERE run_id=?", (run_id,)
-        ).fetchall()
+        results = self._conn.execute("SELECT * FROM results WHERE run_id=?", (run_id,)).fetchall()
         total = len(results)
-        passed = sum(1 for r in results if r['success'])
-        total_time = sum(r['execution_time'] for r in results)
-        total_cost = sum(r['cost'] for r in results)
-        total_tokens = sum(r['tokens_used'] for r in results)
+        passed = sum(1 for r in results if r["success"])
+        total_time = sum(r["execution_time"] for r in results)
+        total_cost = sum(r["cost"] for r in results)
+        total_tokens = sum(r["tokens_used"] for r in results)
         return {
-            'run_id': run_id,
-            'model': run['model'],
-            'benchmark': run['benchmark'],
-            'status': run['status'],
-            'total': total,
-            'passed': passed,
-            'pass_rate': passed / total if total else 0,
-            'avg_time': total_time / total if total else 0,
-            'total_cost': total_cost,
-            'total_tokens': total_tokens,
+            "run_id": run_id,
+            "model": run["model"],
+            "benchmark": run["benchmark"],
+            "status": run["status"],
+            "total": total,
+            "passed": passed,
+            "pass_rate": passed / total if total else 0,
+            "avg_time": total_time / total if total else 0,
+            "total_cost": total_cost,
+            "total_tokens": total_tokens,
         }
 
     def compare_models(self, benchmark: Optional[str] = None) -> Dict[str, Any]:
         """Compare all models across runs. Returns {model: {pass_rate, ...}}."""
         where = "WHERE r.benchmark=?" if benchmark else ""
         params = (benchmark,) if benchmark else ()
-        rows = self._conn.execute(f"""
+        rows = self._conn.execute(
+            f"""
             SELECT r.model,
                    COUNT(*) as total,
                    SUM(res.success) as passed,
@@ -140,15 +160,17 @@ class EvalStore:
             {where}
             GROUP BY r.model
             ORDER BY passed DESC
-        """, params).fetchall()
+        """,
+            params,
+        ).fetchall()
         return {
-            row['model']: {
-                'total': row['total'],
-                'passed': row['passed'],
-                'pass_rate': row['passed'] / row['total'] if row['total'] else 0,
-                'avg_time': row['avg_time'],
-                'total_cost': row['total_cost'],
-                'total_tokens': row['total_tokens'],
+            row["model"]: {
+                "total": row["total"],
+                "passed": row["passed"],
+                "pass_rate": row["passed"] / row["total"] if row["total"] else 0,
+                "avg_time": row["avg_time"],
+                "total_cost": row["total_cost"],
+                "total_tokens": row["total_tokens"],
             }
             for row in rows
         }

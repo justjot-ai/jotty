@@ -9,9 +9,9 @@ Extracted from app.py. Handles displaying execution results:
 - Export option prompts
 """
 
-import re
 import logging
-from typing import Any, List, Tuple, Dict, Optional
+import re
+from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -26,43 +26,41 @@ def extract_file_paths(result: Any) -> Tuple[List[Tuple[str, str]], Dict[str, An
     file_paths = []
     summary = {}
 
-    output = result.output if hasattr(result, 'output') else result
+    output = result.output if hasattr(result, "output") else result
 
     # LeanResult with direct output_path
-    if hasattr(result, 'output_path') and result.output_path:
-        fmt = getattr(result, 'output_format', 'file')
+    if hasattr(result, "output_path") and result.output_path:
+        fmt = getattr(result, "output_format", "file")
         file_paths.append((fmt.upper(), result.output_path))
 
     # ExecutionResult from AutoAgent
-    elif hasattr(output, 'outputs') and hasattr(output, 'final_output'):
+    elif hasattr(output, "outputs") and hasattr(output, "final_output"):
         outputs_dict = output.outputs or {}
         seen_paths = set()
         for step_key, step_result in outputs_dict.items():
             if isinstance(step_result, dict):
-                for key in ['pdf_path', 'md_path', 'output_path', 'file_path', 'image_path']:
+                for key in ["pdf_path", "md_path", "output_path", "file_path", "image_path"]:
                     if key in step_result and step_result[key]:
                         path = step_result[key]
                         if path not in seen_paths:
-                            file_paths.append((key.replace('_', ' ').title(), path))
+                            file_paths.append((key.replace("_", " ").title(), path))
                             seen_paths.add(path)
-                for key in ['success', 'ticker', 'company_name', 'word_count', 'telegram_sent']:
+                for key in ["success", "ticker", "company_name", "word_count", "telegram_sent"]:
                     if key in step_result and step_result[key]:
                         summary[key] = step_result[key]
 
     elif isinstance(output, dict):
-        for key in ['pdf_path', 'md_path', 'output_path', 'file_path', 'image_path']:
+        for key in ["pdf_path", "md_path", "output_path", "file_path", "image_path"]:
             if key in output and output[key]:
-                file_paths.append((key.replace('_', ' ').title(), output[key]))
-        for key in ['success', 'ticker', 'company_name', 'word_count', 'telegram_sent']:
+                file_paths.append((key.replace("_", " ").title(), output[key]))
+        for key in ["success", "ticker", "company_name", "word_count", "telegram_sent"]:
             if key in output and output[key]:
                 summary[key] = output[key]
 
     elif isinstance(output, str) and not file_paths:
-        path_matches = re.findall(
-            r'(/[\w/\-_.]+\.(pdf|md|txt|html|json|csv|png|jpg|docx))', output
-        )
+        path_matches = re.findall(r"(/[\w/\-_.]+\.(pdf|md|txt|html|json|csv|png|jpg|docx))", output)
         for match in path_matches:
-            file_paths.append(('Output', match[0]))
+            file_paths.append(("Output", match[0]))
 
     return file_paths, summary
 
@@ -81,10 +79,12 @@ def display_result(renderer: Any, result: Any, elapsed: float, output_history: l
 
     if result.success:
         # Show completion status
-        steps = getattr(result, 'steps_taken', None)
+        steps = getattr(result, "steps_taken", None)
         if steps:
-            arrow = ' \u2192 '
-            renderer.success(f"Completed in {elapsed:.1f}s ({len(steps)} steps: {arrow.join(steps)})")
+            arrow = " \u2192 "
+            renderer.success(
+                f"Completed in {elapsed:.1f}s ({len(steps)} steps: {arrow.join(steps)})"
+            )
         else:
             renderer.success(f"Completed in {elapsed:.1f}s")
 
@@ -103,11 +103,11 @@ def display_result(renderer: Any, result: Any, elapsed: float, output_history: l
             renderer.panel(
                 "\n".join([f"\u2022 {k}: {v}" for k, v in summary.items()]),
                 title="Summary",
-                style="green"
+                style="green",
             )
         elif not file_paths:
-            full_content = str(result.output if hasattr(result, 'output') else result)
-            was_streamed = getattr(result, 'was_streamed', False)
+            full_content = str(result.output if hasattr(result, "output") else result)
+            was_streamed = getattr(result, "was_streamed", False)
 
             if not was_streamed:
                 renderer.newline()
@@ -121,8 +121,8 @@ def display_result(renderer: Any, result: Any, elapsed: float, output_history: l
         return file_paths
     else:
         renderer.error(f"Failed after {elapsed:.1f}s")
-        error_msg = getattr(result, 'error', None)
-        if not error_msg and hasattr(result, 'alerts') and result.alerts:
+        error_msg = getattr(result, "error", None)
+        if not error_msg and hasattr(result, "alerts") and result.alerts:
             error_msg = "; ".join(result.alerts[:3])
         if error_msg:
             renderer.panel(error_msg, title="Error Details", style="red")

@@ -1,6 +1,6 @@
 # Jotty Web Gateway Requirements
 # For jotty.justjot.ai on cmd.dev
-# 
+#
 # Install: pip install -r requirements-web.txt
 
 # Core

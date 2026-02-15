@@ -12,13 +12,14 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 try:
     import dspy
+
     DSPY_AVAILABLE = True
 except ImportError:
     DSPY_AVAILABLE = False
     print("⚠️  DSPy not available. Install with: pip install dspy-ai")
     sys.exit(1)
 
-from core.experts import MermaidExpertAgent, ExpertAgentConfig
+from core.experts import ExpertAgentConfig, MermaidExpertAgent
 
 
 async def test_mermaid_expert_with_llm():
@@ -27,7 +28,7 @@ async def test_mermaid_expert_with_llm():
     print("TESTING MERMAID EXPERT WITH LLM (DSPy)")
     print("=" * 80)
     print()
-    
+
     # Configure DSPy (use default LM or configure Claude/Cursor)
     # For testing, we'll use the default configured LM
     print("📚 DSPy Configuration:")
@@ -39,27 +40,27 @@ async def test_mermaid_expert_with_llm():
         except:
             print("  LM: Not configured (will use default)")
     print()
-    
+
     # Create expert agent
     print("🔧 Creating Mermaid Expert Agent...")
     expert = MermaidExpertAgent()
-    
+
     # Check if agent uses DSPy
     main_agent = expert._create_domain_agent()
 
     print(f"  Agent Type: {type(main_agent).__name__}")
     print(f"  Is DSPy Module: {isinstance(main_agent, dspy.Module) if DSPY_AVAILABLE else False}")
     print()
-    
+
     # Train on simple examples first
     print("📚 Training on simple examples...")
     print()
-    
+
     simple_training_cases = [
         {
             "task": "Generate simple flowchart",
             "context": {"description": "Start to End flow", "diagram_type": "flowchart"},
-            "gold_standard": "graph TD\n    A[Start]\n    B[End]\n    A --> B"
+            "gold_standard": "graph TD\n    A[Start]\n    B[End]\n    A --> B",
         },
         {
             "task": "Generate decision flowchart",
@@ -71,10 +72,10 @@ async def test_mermaid_expert_with_llm():
     D[Show Error]
     A --> B
     B -->|Yes| C
-    B -->|No| D"""
-        }
+    B -->|No| D""",
+        },
     ]
-    
+
     try:
         # Verify training data (BaseExpert does not have .train())
         training_data = expert.get_training_data()
@@ -89,14 +90,11 @@ async def test_mermaid_expert_with_llm():
         print()
 
         test_cases = [
-            {
-                "description": "Simple workflow from start to end",
-                "diagram_type": "flowchart"
-            },
+            {"description": "Simple workflow from start to end", "diagram_type": "flowchart"},
             {
                 "description": "User login flow with validation decision",
-                "diagram_type": "flowchart"
-            }
+                "diagram_type": "flowchart",
+            },
         ]
 
         for i, test_case in enumerate(test_cases, 1):
@@ -105,8 +103,7 @@ async def test_mermaid_expert_with_llm():
 
             try:
                 diagram = await expert.generate_mermaid(
-                    description=test_case['description'],
-                    diagram_type=test_case['diagram_type']
+                    description=test_case["description"], diagram_type=test_case["diagram_type"]
                 )
 
                 print(f"Generated Diagram:")
@@ -129,6 +126,7 @@ async def test_mermaid_expert_with_llm():
             except Exception as e:
                 print(f"ERROR: {e}")
                 import traceback
+
                 traceback.print_exc()
                 print()
 
@@ -147,11 +145,12 @@ async def test_mermaid_expert_with_llm():
     except Exception as e:
         print(f"ERROR during testing: {e}")
         import traceback
+
         traceback.print_exc()
         print()
         print("Note: This test requires DSPy to be configured with an LLM.")
         print("Configure with: dspy.configure(lm=dspy.LM(model='claude-3-opus'))")
-    
+
     print("=" * 80)
     print("✅ TEST COMPLETE")
     print("=" * 80)

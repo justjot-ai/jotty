@@ -4,22 +4,26 @@ LLM Provider Implementations
 Individual provider implementations for different LLM backends.
 All providers use stdin for prompts to handle long inputs properly.
 """
-import subprocess
-import os
-import logging
-from typing import Dict, Any, Optional
 
-from Jotty.core.infrastructure.foundation.config_defaults import (
-    LLM_MAX_OUTPUT_TOKENS, LLM_TIMEOUT_SECONDS, DEFAULT_MODEL_ALIAS,
-)
+import logging
+import os
+import subprocess
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any, Dict, Optional
+
+from Jotty.core.infrastructure.foundation.config_defaults import (
+    DEFAULT_MODEL_ALIAS,
+    LLM_MAX_OUTPUT_TOKENS,
+    LLM_TIMEOUT_SECONDS,
+)
 
 logger = logging.getLogger(__name__)
 
 
 class ProviderType(Enum):
     """Supported LLM provider types."""
+
     CLAUDE_CLI = "claude-cli"
     ANTHROPIC_API = "anthropic"
     GEMINI = "gemini"
@@ -30,6 +34,7 @@ class ProviderType(Enum):
 @dataclass
 class LLMResponse:
     """Standardized LLM response."""
+
     success: bool
     text: str = ""
     error: str = ""
@@ -52,7 +57,12 @@ class LLMResponse:
 
 
 # Model mappings — centralized in config_defaults
-from Jotty.core.infrastructure.foundation.config_defaults import MODEL_SONNET, MODEL_OPUS, MODEL_HAIKU
+from Jotty.core.infrastructure.foundation.config_defaults import (
+    MODEL_HAIKU,
+    MODEL_OPUS,
+    MODEL_SONNET,
+)
+
 ANTHROPIC_MODELS = {
     "haiku": MODEL_HAIKU,
     "sonnet": MODEL_SONNET,
@@ -79,7 +89,12 @@ class ClaudeCLIProvider:
     """
 
     @staticmethod
-    def generate(prompt: str, model: str = DEFAULT_MODEL_ALIAS, timeout: int = LLM_TIMEOUT_SECONDS, **kwargs: Any) -> LLMResponse:
+    def generate(
+        prompt: str,
+        model: str = DEFAULT_MODEL_ALIAS,
+        timeout: int = LLM_TIMEOUT_SECONDS,
+        **kwargs: Any,
+    ) -> LLMResponse:
         """
         Generate text using Claude CLI.
 
@@ -109,12 +124,7 @@ class ClaudeCLIProvider:
 
             # Execute with prompt via stdin
             result = subprocess.run(
-                cmd,
-                input=prompt,
-                capture_output=True,
-                text=True,
-                env=env,
-                timeout=timeout
+                cmd, input=prompt, capture_output=True, text=True, env=env, timeout=timeout
             )
 
             if result.returncode != 0:
@@ -122,14 +132,11 @@ class ClaudeCLIProvider:
                     success=False,
                     error=f"Claude CLI error: {result.stderr}",
                     provider="claude-cli",
-                    model=model
+                    model=model,
                 )
 
             return LLMResponse(
-                success=True,
-                text=result.stdout.strip(),
-                provider="claude-cli",
-                model=model
+                success=True, text=result.stdout.strip(), provider="claude-cli", model=model
             )
 
         except subprocess.TimeoutExpired:
@@ -137,23 +144,18 @@ class ClaudeCLIProvider:
                 success=False,
                 error=f"Claude CLI timeout after {timeout} seconds",
                 provider="claude-cli",
-                model=model
+                model=model,
             )
         except FileNotFoundError:
             return LLMResponse(
                 success=False,
                 error="Claude CLI not found. Install with: npm install -g @anthropic-ai/claude-code",
                 provider="claude-cli",
-                model=model
+                model=model,
             )
         except Exception as e:
             logger.error(f"Claude CLI error: {e}", exc_info=True)
-            return LLMResponse(
-                success=False,
-                error=str(e),
-                provider="claude-cli",
-                model=model
-            )
+            return LLMResponse(success=False, error=str(e), provider="claude-cli", model=model)
 
 
 class AnthropicAPIProvider:
@@ -162,7 +164,12 @@ class AnthropicAPIProvider:
     """
 
     @staticmethod
-    def generate(prompt: str, model: str = DEFAULT_MODEL_ALIAS, max_tokens: int = LLM_MAX_OUTPUT_TOKENS, **kwargs: Any) -> LLMResponse:
+    def generate(
+        prompt: str,
+        model: str = DEFAULT_MODEL_ALIAS,
+        max_tokens: int = LLM_MAX_OUTPUT_TOKENS,
+        **kwargs: Any,
+    ) -> LLMResponse:
         """
         Generate text using Anthropic API.
 
@@ -181,17 +188,17 @@ class AnthropicAPIProvider:
                 success=False,
                 error="anthropic package not installed. Install with: pip install anthropic",
                 provider="anthropic",
-                model=model
+                model=model,
             )
 
-        from Jotty.core.infrastructure.foundation.anthropic_client_kwargs import get_anthropic_client_kwargs
+        from Jotty.core.infrastructure.foundation.anthropic_client_kwargs import (
+            get_anthropic_client_kwargs,
+        )
+
         client_kwargs = get_anthropic_client_kwargs()
         if not client_kwargs.get("api_key"):
             return LLMResponse(
-                success=False,
-                error="ANTHROPIC_API_KEY not set",
-                provider="anthropic",
-                model=model
+                success=False, error="ANTHROPIC_API_KEY not set", provider="anthropic", model=model
             )
 
         try:
@@ -203,7 +210,7 @@ class AnthropicAPIProvider:
             message = client.messages.create(
                 model=model_id,
                 max_tokens=max_tokens,
-                messages=[{"role": "user", "content": prompt}]
+                messages=[{"role": "user", "content": prompt}],
             )
 
             text = message.content[0].text if message.content else ""
@@ -215,18 +222,13 @@ class AnthropicAPIProvider:
                 model=model_id,
                 usage={
                     "input_tokens": message.usage.input_tokens,
-                    "output_tokens": message.usage.output_tokens
-                }
+                    "output_tokens": message.usage.output_tokens,
+                },
             )
 
         except Exception as e:
             logger.error(f"Anthropic API error: {e}", exc_info=True)
-            return LLMResponse(
-                success=False,
-                error=str(e),
-                provider="anthropic",
-                model=model
-            )
+            return LLMResponse(success=False, error=str(e), provider="anthropic", model=model)
 
 
 class GeminiProvider:
@@ -235,7 +237,7 @@ class GeminiProvider:
     """
 
     @staticmethod
-    def generate(prompt: str, model: str = 'flash', **kwargs: Any) -> LLMResponse:
+    def generate(prompt: str, model: str = "flash", **kwargs: Any) -> LLMResponse:
         """
         Generate text using Gemini API.
 
@@ -253,7 +255,7 @@ class GeminiProvider:
                 success=False,
                 error="google-generativeai package not installed. Install with: pip install google-generativeai",
                 provider="gemini",
-                model=model
+                model=model,
             )
 
         api_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
@@ -262,7 +264,7 @@ class GeminiProvider:
                 success=False,
                 error="GOOGLE_API_KEY or GEMINI_API_KEY not set",
                 provider="gemini",
-                model=model
+                model=model,
             )
 
         try:
@@ -274,21 +276,11 @@ class GeminiProvider:
             gen_model = genai.GenerativeModel(model_id)
             response = gen_model.generate_content(prompt)
 
-            return LLMResponse(
-                success=True,
-                text=response.text,
-                provider="gemini",
-                model=model_id
-            )
+            return LLMResponse(success=True, text=response.text, provider="gemini", model=model_id)
 
         except Exception as e:
             logger.error(f"Gemini API error: {e}", exc_info=True)
-            return LLMResponse(
-                success=False,
-                error=str(e),
-                provider="gemini",
-                model=model
-            )
+            return LLMResponse(success=False, error=str(e), provider="gemini", model=model)
 
 
 class OpenAIProvider:
@@ -297,7 +289,9 @@ class OpenAIProvider:
     """
 
     @staticmethod
-    def generate(prompt: str, model: str = 'gpt4o', max_tokens: int = LLM_MAX_OUTPUT_TOKENS, **kwargs: Any) -> LLMResponse:
+    def generate(
+        prompt: str, model: str = "gpt4o", max_tokens: int = LLM_MAX_OUTPUT_TOKENS, **kwargs: Any
+    ) -> LLMResponse:
         """
         Generate text using OpenAI API.
 
@@ -316,16 +310,13 @@ class OpenAIProvider:
                 success=False,
                 error="openai package not installed. Install with: pip install openai",
                 provider="openai",
-                model=model
+                model=model,
             )
 
         api_key = os.environ.get("OPENAI_API_KEY")
         if not api_key:
             return LLMResponse(
-                success=False,
-                error="OPENAI_API_KEY not set",
-                provider="openai",
-                model=model
+                success=False, error="OPENAI_API_KEY not set", provider="openai", model=model
             )
 
         try:
@@ -337,7 +328,7 @@ class OpenAIProvider:
             response = client.chat.completions.create(
                 model=model_id,
                 max_tokens=max_tokens,
-                messages=[{"role": "user", "content": prompt}]
+                messages=[{"role": "user", "content": prompt}],
             )
 
             text = response.choices[0].message.content if response.choices else ""
@@ -347,20 +338,19 @@ class OpenAIProvider:
                 text=text,
                 provider="openai",
                 model=model_id,
-                usage={
-                    "input_tokens": response.usage.prompt_tokens,
-                    "output_tokens": response.usage.completion_tokens
-                } if response.usage else None
+                usage=(
+                    {
+                        "input_tokens": response.usage.prompt_tokens,
+                        "output_tokens": response.usage.completion_tokens,
+                    }
+                    if response.usage
+                    else None
+                ),
             )
 
         except Exception as e:
             logger.error(f"OpenAI API error: {e}", exc_info=True)
-            return LLMResponse(
-                success=False,
-                error=str(e),
-                provider="openai",
-                model=model
-            )
+            return LLMResponse(success=False, error=str(e), provider="openai", model=model)
 
 
 # Provider registry

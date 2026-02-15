@@ -9,7 +9,7 @@ Defines the data structures for autonomous goal-completion:
 
 import enum
 from dataclasses import dataclass, field
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 from ..base_swarm import SwarmResult
 from ..swarm_types import SwarmConfig
@@ -17,6 +17,7 @@ from ..swarm_types import SwarmConfig
 
 class SubtaskType(enum.Enum):
     """Types of subtasks the Pilot can execute."""
+
     SEARCH = "search"
     CODE = "code"
     TERMINAL = "terminal"
@@ -28,6 +29,7 @@ class SubtaskType(enum.Enum):
 
 class SubtaskStatus(enum.Enum):
     """Execution status of a subtask."""
+
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -38,6 +40,7 @@ class SubtaskStatus(enum.Enum):
 @dataclass
 class Subtask:
     """A single subtask in the Pilot's execution plan."""
+
     id: str
     type: SubtaskType
     description: str
@@ -51,6 +54,7 @@ class Subtask:
 @dataclass
 class PilotConfig(SwarmConfig):
     """Configuration for PilotSwarm."""
+
     max_subtasks: int = 10
     max_retries: int = 2
     max_concurrent: int = 3
@@ -68,12 +72,14 @@ class PilotConfig(SwarmConfig):
         self.domain = "pilot"
         if self.llm_timeout <= 0:
             from Jotty.core.infrastructure.foundation.config_defaults import LLM_TIMEOUT_SECONDS
+
             self.llm_timeout = LLM_TIMEOUT_SECONDS
 
 
 @dataclass
 class PilotResult(SwarmResult):
     """Result from PilotSwarm."""
+
     goal: str = ""
     subtasks_completed: int = 0
     subtasks_total: int = 0
@@ -98,6 +104,10 @@ AVAILABLE_SWARMS = [
 
 
 __all__ = [
-    'SubtaskType', 'SubtaskStatus', 'Subtask',
-    'PilotConfig', 'PilotResult', 'AVAILABLE_SWARMS',
+    "SubtaskType",
+    "SubtaskStatus",
+    "Subtask",
+    "PilotConfig",
+    "PilotResult",
+    "AVAILABLE_SWARMS",
 ]

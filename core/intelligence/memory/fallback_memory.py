@@ -13,27 +13,29 @@ Features:
 - Minimal dependencies
 """
 
-import time
 import logging
 import threading
-from typing import Optional, Dict, List, Any, Tuple
-from dataclasses import dataclass, field
+import time
 from collections import OrderedDict
+from dataclasses import dataclass, field
 from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
 
 class MemoryType(Enum):
     """Types of memory for fallback system."""
-    EPISODIC = "episodic"       # Recent experiences
-    SEMANTIC = "semantic"       # General knowledge
-    PROCEDURAL = "procedural"   # How-to knowledge
+
+    EPISODIC = "episodic"  # Recent experiences
+    SEMANTIC = "semantic"  # General knowledge
+    PROCEDURAL = "procedural"  # How-to knowledge
 
 
 @dataclass
 class MemoryEntry:
     """A simple memory entry for fallback storage."""
+
     content: str
     memory_type: MemoryType = MemoryType.EPISODIC
     timestamp: float = field(default_factory=time.time)
@@ -50,26 +52,26 @@ class MemoryEntry:
     def to_dict(self) -> Dict[str, Any]:
         """Serialize to dictionary."""
         return {
-            'content': self.content,
-            'memory_type': self.memory_type.value,
-            'timestamp': self.timestamp,
-            'access_count': self.access_count,
-            'last_accessed': self.last_accessed,
-            'metadata': self.metadata,
-            'importance': self.importance,
+            "content": self.content,
+            "memory_type": self.memory_type.value,
+            "timestamp": self.timestamp,
+            "access_count": self.access_count,
+            "last_accessed": self.last_accessed,
+            "metadata": self.metadata,
+            "importance": self.importance,
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'MemoryEntry':
+    def from_dict(cls, data: Dict[str, Any]) -> "MemoryEntry":
         """Deserialize from dictionary."""
         return cls(
-            content=data['content'],
-            memory_type=MemoryType(data.get('memory_type', 'episodic')),
-            timestamp=data.get('timestamp', time.time()),
-            access_count=data.get('access_count', 0),
-            last_accessed=data.get('last_accessed', time.time()),
-            metadata=data.get('metadata', {}),
-            importance=data.get('importance', 0.5),
+            content=data["content"],
+            memory_type=MemoryType(data.get("memory_type", "episodic")),
+            timestamp=data.get("timestamp", time.time()),
+            access_count=data.get("access_count", 0),
+            last_accessed=data.get("last_accessed", time.time()),
+            metadata=data.get("metadata", {}),
+            importance=data.get("importance", 0.5),
         )
 
 
@@ -97,7 +99,13 @@ class SimpleFallbackMemory:
         recent = memory.get_recent(10)
     """
 
-    def __init__(self, max_entries: int = 500, episodic_capacity: int = 300, semantic_capacity: int = 150, procedural_capacity: int = 50) -> None:
+    def __init__(
+        self,
+        max_entries: int = 500,
+        episodic_capacity: int = 300,
+        semantic_capacity: int = 150,
+        procedural_capacity: int = 50,
+    ) -> None:
         """
         Initialize fallback memory.
 
@@ -140,7 +148,7 @@ class SimpleFallbackMemory:
         content: str,
         memory_type: MemoryType = MemoryType.EPISODIC,
         importance: float = 0.5,
-        metadata: Dict[str, Any] = None
+        metadata: Dict[str, Any] = None,
     ) -> str:
         """
         Store a memory entry.
@@ -160,6 +168,7 @@ class SimpleFallbackMemory:
         with self._lock:
             # Generate key based on content hash
             import hashlib
+
             key = hashlib.md5(content.encode()).hexdigest()[:16]
 
             # Create entry
@@ -211,10 +220,7 @@ class SimpleFallbackMemory:
         return lru_key
 
     def retrieve(
-        self,
-        query: str,
-        top_k: int = 5,
-        memory_type: Optional[MemoryType] = None
+        self, query: str, top_k: int = 5, memory_type: Optional[MemoryType] = None
     ) -> List[MemoryEntry]:
         """
         Retrieve relevant memories for a query.
@@ -271,10 +277,10 @@ class SimpleFallbackMemory:
 
                 # Combined score (weighted)
                 combined = (
-                    0.4 * keyword_score +
-                    0.2 * recency_score +
-                    0.1 * freq_score +
-                    0.3 * importance_score
+                    0.4 * keyword_score
+                    + 0.2 * recency_score
+                    + 0.1 * freq_score
+                    + 0.3 * importance_score
                 )
 
                 if combined > 0.1:  # Threshold
@@ -291,9 +297,7 @@ class SimpleFallbackMemory:
             return results
 
     def get_recent(
-        self,
-        count: int = 10,
-        memory_type: Optional[MemoryType] = None
+        self, count: int = 10, memory_type: Optional[MemoryType] = None
     ) -> List[MemoryEntry]:
         """
         Get most recently stored memories.
@@ -353,26 +357,30 @@ class SimpleFallbackMemory:
                 count = len(storage)
                 total_entries += count
                 type_stats[mem_type.value] = {
-                    'count': count,
-                    'capacity': self.capacities[mem_type],
-                    'utilization': count / self.capacities[mem_type] if self.capacities[mem_type] > 0 else 0,
+                    "count": count,
+                    "capacity": self.capacities[mem_type],
+                    "utilization": (
+                        count / self.capacities[mem_type] if self.capacities[mem_type] > 0 else 0
+                    ),
                 }
 
             return {
-                'total_entries': total_entries,
-                'max_entries': self.max_entries,
-                'utilization': total_entries / self.max_entries if self.max_entries > 0 else 0,
-                'total_stored': self._total_stored,
-                'total_retrieved': self._total_retrieved,
-                'total_evicted': self._total_evicted,
-                'by_type': type_stats,
+                "total_entries": total_entries,
+                "max_entries": self.max_entries,
+                "utilization": total_entries / self.max_entries if self.max_entries > 0 else 0,
+                "total_stored": self._total_stored,
+                "total_retrieved": self._total_retrieved,
+                "total_evicted": self._total_evicted,
+                "by_type": type_stats,
             }
 
     # =========================================================================
     # COMPATIBILITY METHODS (match BrainInspiredMemoryManager interface)
     # =========================================================================
 
-    def remember(self, content: str, level: str = 'episodic', importance: float = 0.5, **kwargs: Any) -> str:
+    def remember(
+        self, content: str, level: str = "episodic", importance: float = 0.5, **kwargs: Any
+    ) -> str:
         """
         Compatibility alias for store().
 
@@ -380,20 +388,19 @@ class SimpleFallbackMemory:
         """
         # Map level string to MemoryType
         type_map = {
-            'episodic': MemoryType.EPISODIC,
-            'semantic': MemoryType.SEMANTIC,
-            'procedural': MemoryType.PROCEDURAL,
+            "episodic": MemoryType.EPISODIC,
+            "semantic": MemoryType.SEMANTIC,
+            "procedural": MemoryType.PROCEDURAL,
         }
         memory_type = type_map.get(level.lower(), MemoryType.EPISODIC)
 
         return self.store(
-            content=content,
-            memory_type=memory_type,
-            importance=importance,
-            metadata=kwargs
+            content=content, memory_type=memory_type, importance=importance, metadata=kwargs
         )
 
-    def recall(self, query: str, top_k: int = 5, level: Optional[str] = None, **kwargs: Any) -> List[str]:
+    def recall(
+        self, query: str, top_k: int = 5, level: Optional[str] = None, **kwargs: Any
+    ) -> List[str]:
         """
         Compatibility alias for retrieve().
 
@@ -401,9 +408,9 @@ class SimpleFallbackMemory:
         Returns content strings instead of MemoryEntry objects.
         """
         type_map = {
-            'episodic': MemoryType.EPISODIC,
-            'semantic': MemoryType.SEMANTIC,
-            'procedural': MemoryType.PROCEDURAL,
+            "episodic": MemoryType.EPISODIC,
+            "semantic": MemoryType.SEMANTIC,
+            "procedural": MemoryType.PROCEDURAL,
         }
         memory_type = type_map.get(level.lower(), None) if level else None
 
@@ -441,25 +448,24 @@ class SimpleFallbackMemory:
 
             with self._lock:
                 data = {
-                    'max_entries': self.max_entries,
-                    'capacities': {k.value: v for k, v in self.capacities.items()},
-                    'memories': {},
-                    'statistics': {
-                        'total_stored': self._total_stored,
-                        'total_retrieved': self._total_retrieved,
-                        'total_evicted': self._total_evicted,
+                    "max_entries": self.max_entries,
+                    "capacities": {k.value: v for k, v in self.capacities.items()},
+                    "memories": {},
+                    "statistics": {
+                        "total_stored": self._total_stored,
+                        "total_retrieved": self._total_retrieved,
+                        "total_evicted": self._total_evicted,
                     },
-                    'timestamp': time.time(),
+                    "timestamp": time.time(),
                 }
 
                 # Serialize all memories
                 for mem_type, storage in self._memories.items():
-                    data['memories'][mem_type.value] = {
-                        key: entry.to_dict()
-                        for key, entry in storage.items()
+                    data["memories"][mem_type.value] = {
+                        key: entry.to_dict() for key, entry in storage.items()
                     }
 
-            with open(path, 'w') as f:
+            with open(path, "w") as f:
                 json.dump(data, f, indent=2, default=str)
 
             total = sum(len(s) for s in self._memories.values())
@@ -488,18 +494,18 @@ class SimpleFallbackMemory:
             return False
 
         try:
-            with open(path, 'r') as f:
+            with open(path, "r") as f:
                 data = json.load(f)
 
             with self._lock:
                 # Restore capacities
-                if 'capacities' in data:
-                    for type_str, capacity in data['capacities'].items():
+                if "capacities" in data:
+                    for type_str, capacity in data["capacities"].items():
                         mem_type = MemoryType(type_str)
                         self.capacities[mem_type] = capacity
 
                 # Restore memories
-                for type_str, memories in data.get('memories', {}).items():
+                for type_str, memories in data.get("memories", {}).items():
                     mem_type = MemoryType(type_str)
                     self._memories[mem_type] = OrderedDict()
 
@@ -508,10 +514,10 @@ class SimpleFallbackMemory:
                         self._memories[mem_type][key] = entry
 
                 # Restore statistics
-                stats = data.get('statistics', {})
-                self._total_stored = stats.get('total_stored', 0)
-                self._total_retrieved = stats.get('total_retrieved', 0)
-                self._total_evicted = stats.get('total_evicted', 0)
+                stats = data.get("statistics", {})
+                self._total_stored = stats.get("total_stored", 0)
+                self._total_retrieved = stats.get("total_retrieved", 0)
+                self._total_evicted = stats.get("total_evicted", 0)
 
             total = sum(len(s) for s in self._memories.values())
             logger.info(f" SimpleFallbackMemory loaded: {total} entries from {path}")
@@ -525,44 +531,41 @@ class SimpleFallbackMemory:
         """Serialize entire memory state to dictionary."""
         with self._lock:
             return {
-                'max_entries': self.max_entries,
-                'capacities': {k.value: v for k, v in self.capacities.items()},
-                'memories': {
-                    mem_type.value: {
-                        key: entry.to_dict()
-                        for key, entry in storage.items()
-                    }
+                "max_entries": self.max_entries,
+                "capacities": {k.value: v for k, v in self.capacities.items()},
+                "memories": {
+                    mem_type.value: {key: entry.to_dict() for key, entry in storage.items()}
                     for mem_type, storage in self._memories.items()
                 },
-                'statistics': {
-                    'total_stored': self._total_stored,
-                    'total_retrieved': self._total_retrieved,
-                    'total_evicted': self._total_evicted,
+                "statistics": {
+                    "total_stored": self._total_stored,
+                    "total_retrieved": self._total_retrieved,
+                    "total_evicted": self._total_evicted,
                 },
             }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'SimpleFallbackMemory':
+    def from_dict(cls, data: Dict[str, Any]) -> "SimpleFallbackMemory":
         """Deserialize from dictionary."""
-        capacities = data.get('capacities', {})
+        capacities = data.get("capacities", {})
         memory = cls(
-            max_entries=data.get('max_entries', 500),
-            episodic_capacity=capacities.get('episodic', 300),
-            semantic_capacity=capacities.get('semantic', 150),
-            procedural_capacity=capacities.get('procedural', 50),
+            max_entries=data.get("max_entries", 500),
+            episodic_capacity=capacities.get("episodic", 300),
+            semantic_capacity=capacities.get("semantic", 150),
+            procedural_capacity=capacities.get("procedural", 50),
         )
 
         # Restore memories
-        for type_str, memories in data.get('memories', {}).items():
+        for type_str, memories in data.get("memories", {}).items():
             mem_type = MemoryType(type_str)
             for key, entry_data in memories.items():
                 memory._memories[mem_type][key] = MemoryEntry.from_dict(entry_data)
 
         # Restore statistics
-        stats = data.get('statistics', {})
-        memory._total_stored = stats.get('total_stored', 0)
-        memory._total_retrieved = stats.get('total_retrieved', 0)
-        memory._total_evicted = stats.get('total_evicted', 0)
+        stats = data.get("statistics", {})
+        memory._total_stored = stats.get("total_stored", 0)
+        memory._total_retrieved = stats.get("total_retrieved", 0)
+        memory._total_evicted = stats.get("total_evicted", 0)
 
         return memory
 
@@ -570,6 +573,7 @@ class SimpleFallbackMemory:
 # =============================================================================
 # FACTORY FUNCTION
 # =============================================================================
+
 
 def get_fallback_memory(**kwargs: Any) -> SimpleFallbackMemory:
     """Get a SimpleFallbackMemory instance."""
@@ -581,8 +585,8 @@ def get_fallback_memory(**kwargs: Any) -> SimpleFallbackMemory:
 # =============================================================================
 
 __all__ = [
-    'SimpleFallbackMemory',
-    'MemoryEntry',
-    'MemoryType',
-    'get_fallback_memory',
+    "SimpleFallbackMemory",
+    "MemoryEntry",
+    "MemoryType",
+    "get_fallback_memory",
 ]

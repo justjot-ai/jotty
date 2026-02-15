@@ -12,21 +12,22 @@ Intelligent terminal that:
 Integrates terminal-session, web-search, and skill generation.
 """
 
+import asyncio
+import json
+import logging
 import os
 import re
-import json
-import asyncio
-import logging
-from typing import Dict, Any, Optional, List, Tuple
-from pathlib import Path
 from dataclasses import dataclass, field
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
 # Try to import DSPy for intelligent reasoning
 try:
     import dspy
+
     DSPY_AVAILABLE = True
 except ImportError:
     DSPY_AVAILABLE = False
@@ -35,6 +36,7 @@ except ImportError:
 @dataclass
 class CommandResult:
     """Result of a command execution."""
+
     success: bool
     command: str
     output: str
@@ -47,6 +49,7 @@ class CommandResult:
 @dataclass
 class ErrorSolution:
     """Solution found for an error."""
+
     error_pattern: str
     solution: str
     source: str  # 'web', 'cache', 'llm'
@@ -118,11 +121,14 @@ class ErrorPatternMatcher:
 
 class CommandAnalyzerSignature(dspy.Signature):
     """Analyze command failure and suggest fixes."""
+
     command: str = dspy.InputField(desc="The command that failed")
     error_output: str = dspy.InputField(desc="Error output from command")
     system_info: str = dspy.InputField(desc="System information (OS, shell)")
 
-    error_type: str = dspy.OutputField(desc="Type of error: package, permission, network, config, syntax, other")
+    error_type: str = dspy.OutputField(
+        desc="Type of error: package, permission, network, config, syntax, other"
+    )
     root_cause: str = dspy.OutputField(desc="Brief root cause analysis")
     fix_commands: List[str] = dspy.OutputField(desc="List of commands to fix the issue")
     confidence: float = dspy.OutputField(desc="Confidence in fix (0.0-1.0)")
@@ -130,6 +136,7 @@ class CommandAnalyzerSignature(dspy.Signature):
 
 class SkillGeneratorSignature(dspy.Signature):
     """Generate a new skill to solve a problem."""
+
     problem_description: str = dspy.InputField(desc="Problem that needs a skill")
     error_context: str = dspy.InputField(desc="Error context and failed attempts")
     available_tools: str = dspy.InputField(desc="Available tools/APIs")
@@ -152,7 +159,13 @@ class SwarmTerminal:
     - Generate new skills when needed
     """
 
-    def __init__(self, config: Optional[Any] = None, auto_fix: bool = True, max_fix_attempts: int = 3, skills_dir: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        config: Optional[Any] = None,
+        auto_fix: bool = True,
+        max_fix_attempts: int = 3,
+        skills_dir: Optional[str] = None,
+    ) -> None:
         """
         Initialize SwarmTerminal.
 
@@ -184,13 +197,14 @@ class SwarmTerminal:
         self._fix_history: List[Dict[str, Any]] = []
 
         # Fix persistence directory
-        self._fix_db_path = Path.home() / '.jotty' / 'fix_database.json'
+        self._fix_db_path = Path.home() / ".jotty" / "fix_database.json"
         self._load_fix_database()
 
         # Sandbox guard for untrusted code execution
         self._sandbox = None
         try:
             from .sandbox_manager import SandboxManager
+
             self._sandbox = SandboxManager()
             logger.debug("SandboxManager attached to SwarmTerminal")
         except Exception as e:
@@ -219,10 +233,11 @@ class SwarmTerminal:
         """Load web search capability."""
         try:
             from Jotty.core.capabilities.skills import get_skills_registry
+
             registry = get_skills_registry()
-            skill = registry.get_skill('web-search')
+            skill = registry.get_skill("web-search")
             if skill and skill.tools:
-                self._web_search = skill.tools.get('search_web_tool')
+                self._web_search = skill.tools.get("search_web_tool")
         except Exception:
             pass
 
@@ -230,10 +245,12 @@ class SwarmTerminal:
         if not self._web_search:
             try:
                 import sys
+
                 skills_path = str(self.skills_dir)
                 if skills_path not in sys.path:
                     sys.path.insert(0, skills_path)
-                from web_search.tools import search_web_tool, search_and_scrape_tool
+                from web_search.tools import search_and_scrape_tool, search_web_tool
+
                 self._web_search = search_web_tool
                 self._web_scrape = search_and_scrape_tool
             except ImportError:
@@ -243,12 +260,13 @@ class SwarmTerminal:
         """Load file operations for safe file writing (instead of shell echo/cat)."""
         try:
             from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
+
             registry = get_skills_registry()
             registry.init()  # Ensure registry is initialized
-            skill = registry.get_skill('file-operations')
+            skill = registry.get_skill("file-operations")
             if skill and skill.tools:
-                self._write_file = skill.tools.get('write_file_tool')
-                self._read_file = skill.tools.get('read_file_tool')
+                self._write_file = skill.tools.get("write_file_tool")
+                self._read_file = skill.tools.get("read_file_tool")
                 logger.debug("File operations tools loaded for SwarmTerminal")
         except Exception as e:
             logger.debug(f"Could not load file-operations from registry: {e}")
@@ -256,15 +274,18 @@ class SwarmTerminal:
         # Fallback: direct import from skills directory
         if not self._write_file:
             try:
-                import sys
                 import importlib.util
+                import sys
+
                 tools_path = self.skills_dir / "file-operations" / "tools.py"
                 if tools_path.exists():
-                    spec = importlib.util.spec_from_file_location("file_operations_tools", tools_path)
+                    spec = importlib.util.spec_from_file_location(
+                        "file_operations_tools", tools_path
+                    )
                     module = importlib.util.module_from_spec(spec)
                     spec.loader.exec_module(module)
-                    self._write_file = getattr(module, 'write_file_tool', None)
-                    self._read_file = getattr(module, 'read_file_tool', None)
+                    self._write_file = getattr(module, "write_file_tool", None)
+                    self._read_file = getattr(module, "read_file_tool", None)
                     if self._write_file:
                         logger.debug("File operations loaded via direct import")
             except Exception as e:
@@ -281,11 +302,12 @@ class SwarmTerminal:
 
             for hash_, fix_data in data.items():
                 self._fix_cache[hash_] = ErrorSolution(
-                    error_pattern=fix_data['error_pattern'],
-                    solution=fix_data['solution_description'],
-                    source=fix_data.get('source', 'database'),
-                    confidence=fix_data.get('success_count', 1) / max(fix_data.get('success_count', 1) + fix_data.get('fail_count', 0), 1),
-                    commands=fix_data.get('solution_commands', [])
+                    error_pattern=fix_data["error_pattern"],
+                    solution=fix_data["solution_description"],
+                    source=fix_data.get("source", "database"),
+                    confidence=fix_data.get("success_count", 1)
+                    / max(fix_data.get("success_count", 1) + fix_data.get("fail_count", 0), 1),
+                    commands=fix_data.get("solution_commands", []),
                 )
 
             logger.info(f"Loaded {len(self._fix_cache)} fixes from database")
@@ -301,33 +323,34 @@ class SwarmTerminal:
             data = {}
             for hash_, fix in self._fix_cache.items():
                 data[hash_] = {
-                    'error_pattern': fix.error_pattern,
-                    'solution_description': fix.solution,
-                    'solution_commands': fix.commands,
-                    'source': fix.source,
-                    'success_count': int(fix.confidence * 10),  # Approximate
-                    'fail_count': int((1 - fix.confidence) * 10) if fix.confidence < 1 else 0
+                    "error_pattern": fix.error_pattern,
+                    "solution_description": fix.solution,
+                    "solution_commands": fix.commands,
+                    "source": fix.source,
+                    "success_count": int(fix.confidence * 10),  # Approximate
+                    "fail_count": int((1 - fix.confidence) * 10) if fix.confidence < 1 else 0,
                 }
 
             # Also save from fix history
             for entry in self._fix_history:
-                error = entry.get('error', '')
+                error = entry.get("error", "")
                 if error:
                     import hashlib
-                    normalized = re.sub(r'\d+', 'N', error.lower())
-                    normalized = re.sub(r'/[\w/.-]+', '/PATH', normalized)
+
+                    normalized = re.sub(r"\d+", "N", error.lower())
+                    normalized = re.sub(r"/[\w/.-]+", "/PATH", normalized)
                     hash_ = hashlib.md5(normalized.encode()).hexdigest()
                     if hash_ not in data:
                         data[hash_] = {
-                            'error_pattern': error[:500],
-                            'solution_description': entry.get('description', ''),
-                            'solution_commands': entry.get('commands', []),
-                            'source': entry.get('source', 'terminal'),
-                            'success_count': 1 if entry.get('success', True) else 0,
-                            'fail_count': 0 if entry.get('success', True) else 1
+                            "error_pattern": error[:500],
+                            "solution_description": entry.get("description", ""),
+                            "solution_commands": entry.get("commands", []),
+                            "source": entry.get("source", "terminal"),
+                            "success_count": 1 if entry.get("success", True) else 0,
+                            "fail_count": 0 if entry.get("success", True) else 1,
                         }
 
-            with open(self._fix_db_path, 'w') as f:
+            with open(self._fix_db_path, "w") as f:
                 json.dump(data, f, indent=2)
 
             logger.info(f"Saved {len(data)} fixes to database")
@@ -335,16 +358,20 @@ class SwarmTerminal:
         except Exception as e:
             logger.warning(f"Could not save fix database: {e}")
 
-    def record_fix(self, error: str, commands: List[str], description: str, source: str, success: bool) -> None:
+    def record_fix(
+        self, error: str, commands: List[str], description: str, source: str, success: bool
+    ) -> None:
         """Record a fix for future use."""
-        self._fix_history.append({
-            'error': error,
-            'commands': commands,
-            'description': description,
-            'source': source,
-            'success': success,
-            'timestamp': datetime.now().isoformat()
-        })
+        self._fix_history.append(
+            {
+                "error": error,
+                "commands": commands,
+                "description": description,
+                "source": source,
+                "success": success,
+                "timestamp": datetime.now().isoformat(),
+            }
+        )
 
         # Auto-save periodically
         if len(self._fix_history) % 5 == 0:
@@ -358,14 +385,15 @@ class SwarmTerminal:
         try:
             # Try to use terminal-session skill
             from Jotty.core.capabilities.skills import get_skills_registry
+
             registry = get_skills_registry()
-            skill = registry.get_skill('terminal-session')
+            skill = registry.get_skill("terminal-session")
             if skill and skill.tools:
-                create_session = skill.tools.get('terminal_create_session_tool')
+                create_session = skill.tools.get("terminal_create_session_tool")
                 if create_session:
                     result = await create_session({})
-                    if result.get('success'):
-                        self._session_id = result.get('session_id')
+                    if result.get("success"):
+                        self._session_id = result.get("session_id")
                         self._session_manager = skill.tools
                         return self._session_id
         except Exception as e:
@@ -380,7 +408,7 @@ class SwarmTerminal:
         command: str,
         timeout: int = 60,
         auto_fix: Optional[bool] = None,
-        working_dir: Optional[str] = None
+        working_dir: Optional[str] = None,
     ) -> CommandResult:
         """
         Execute command with intelligent error handling.
@@ -448,7 +476,7 @@ class SwarmTerminal:
         code: str,
         language: str = "python",
         timeout: int = 30,
-    ) -> 'CommandResult':
+    ) -> "CommandResult":
         """
         Execute code in a sandbox (if SandboxManager is available).
 
@@ -465,6 +493,7 @@ class SwarmTerminal:
         if self._sandbox:
             try:
                 from .sandbox_manager import TrustLevel
+
                 # Override default timeout for this call
                 old_timeout = self._sandbox.default_timeout
                 self._sandbox.default_timeout = timeout
@@ -476,8 +505,8 @@ class SwarmTerminal:
                     )
                 finally:
                     self._sandbox.default_timeout = old_timeout
-                out_text = getattr(sb_result, 'stdout', '') or str(sb_result.output or '')
-                err_text = getattr(sb_result, 'stderr', '') or sb_result.error or ''
+                out_text = getattr(sb_result, "stdout", "") or str(sb_result.output or "")
+                err_text = getattr(sb_result, "stderr", "") or sb_result.error or ""
                 return CommandResult(
                     command=f"[sandbox:{language}] {code[:80]}...",
                     success=sb_result.success,
@@ -489,21 +518,18 @@ class SwarmTerminal:
 
         # Fallback: run via _execute_raw (less isolated, but with timeout)
         if language == "python":
-            cmd = f'python3 -c {repr(code)}'
+            cmd = f"python3 -c {repr(code)}"
         else:
             cmd = code
         return await self._execute_raw(cmd, timeout=timeout)
 
     async def _execute_raw(
-        self,
-        command: str,
-        timeout: int = 60,
-        working_dir: Optional[str] = None
+        self, command: str, timeout: int = 60, working_dir: Optional[str] = None
     ) -> CommandResult:
         """Execute command without error handling."""
-        import subprocess
         import asyncio
         import signal
+        import subprocess
 
         def _run_sync() -> Any:
             proc = None
@@ -520,8 +546,8 @@ class SwarmTerminal:
                 return CommandResult(
                     success=proc.returncode == 0,
                     command=command,
-                    output=stdout.decode(errors='replace') if stdout else "",
-                    error=stderr.decode(errors='replace') if stderr else "",
+                    output=stdout.decode(errors="replace") if stdout else "",
+                    error=stderr.decode(errors="replace") if stderr else "",
                     exit_code=proc.returncode,
                 )
             except subprocess.TimeoutExpired:
@@ -565,7 +591,7 @@ class SwarmTerminal:
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, _run_sync)
 
-    async def write_file(self, path: str, content: str, mode: str = 'w') -> CommandResult:
+    async def write_file(self, path: str, content: str, mode: str = "w") -> CommandResult:
         """
         Write content to file using file-operations tool (safer than shell commands).
 
@@ -577,27 +603,28 @@ class SwarmTerminal:
         """
         if self._write_file:
             try:
-                result = self._write_file({'path': path, 'content': content, 'mode': mode})
-                if result.get('success'):
+                result = self._write_file({"path": path, "content": content, "mode": mode})
+                if result.get("success"):
                     return CommandResult(
                         success=True,
                         command=f"write_file({path})",
                         output=f"Written {result.get('bytes_written', len(content))} bytes to {path}",
-                        exit_code=0
+                        exit_code=0,
                     )
                 else:
                     return CommandResult(
                         success=False,
                         command=f"write_file({path})",
                         output="",
-                        error=result.get('error', 'Unknown error'),
-                        exit_code=1
+                        error=result.get("error", "Unknown error"),
+                        exit_code=1,
                     )
             except Exception as e:
                 logger.warning(f"write_file tool failed, falling back to shell: {e}")
 
         # Fallback to shell (escape content properly)
         import shlex
+
         escaped_content = content.replace("'", "'\\''")
         command = f"printf '%s' '{escaped_content}' > {shlex.quote(path)}"
         return await self._execute_raw(command)
@@ -606,34 +633,31 @@ class SwarmTerminal:
         """Read file content using file-operations tool."""
         if self._read_file:
             try:
-                result = self._read_file({'path': path})
-                if result.get('success'):
+                result = self._read_file({"path": path})
+                if result.get("success"):
                     return CommandResult(
                         success=True,
                         command=f"read_file({path})",
-                        output=result.get('content', ''),
-                        exit_code=0
+                        output=result.get("content", ""),
+                        exit_code=0,
                     )
                 else:
                     return CommandResult(
                         success=False,
                         command=f"read_file({path})",
                         output="",
-                        error=result.get('error', 'Unknown error'),
-                        exit_code=1
+                        error=result.get("error", "Unknown error"),
+                        exit_code=1,
                     )
             except Exception as e:
                 logger.warning(f"read_file tool failed, falling back to shell: {e}")
 
         # Fallback to shell
         import shlex
+
         return await self._execute_raw(f"cat {shlex.quote(path)}")
 
-    async def _find_solution(
-        self,
-        command: str,
-        error: str
-    ) -> Optional[ErrorSolution]:
+    async def _find_solution(self, command: str, error: str) -> Optional[ErrorSolution]:
         """Find solution for error using multiple strategies."""
 
         # Strategy 1: Check cache
@@ -661,7 +685,7 @@ class SwarmTerminal:
                 solution=f"Pattern match: {pattern_match['type']}",
                 source="pattern",
                 confidence=0.8,
-                commands=[fix_template]
+                commands=[fix_template],
             )
 
         # Strategy 3: Web search for solution
@@ -678,44 +702,38 @@ class SwarmTerminal:
 
         return None
 
-    async def _search_web_for_solution(
-        self,
-        command: str,
-        error: str
-    ) -> Optional[ErrorSolution]:
+    async def _search_web_for_solution(self, command: str, error: str) -> Optional[ErrorSolution]:
         """Search web for solution to error."""
         if not self._web_search:
             return None
 
         try:
             # Extract key error message
-            error_lines = error.strip().split('\n')
+            error_lines = error.strip().split("\n")
             key_error = error_lines[-1] if error_lines else error[:100]
 
             # Search query
             query = f"fix {key_error} linux terminal"
 
-            result = self._web_search({'query': query, 'max_results': 5})
-            if not result.get('success') or not result.get('results'):
+            result = self._web_search({"query": query, "max_results": 5})
+            if not result.get("success") or not result.get("results"):
                 return None
 
             # Extract commands from search results
             commands = []
             solution_text = ""
 
-            for item in result['results'][:3]:
-                snippet = item.get('snippet', '')
+            for item in result["results"][:3]:
+                snippet = item.get("snippet", "")
                 solution_text += snippet + " "
 
                 # Extract commands from snippet (look for code-like patterns)
                 code_patterns = re.findall(
-                    r'`([^`]+)`|(?:run|execute|try|use):\s*([^\n.]+)',
-                    snippet,
-                    re.IGNORECASE
+                    r"`([^`]+)`|(?:run|execute|try|use):\s*([^\n.]+)", snippet, re.IGNORECASE
                 )
                 for groups in code_patterns:
                     cmd = groups[0] or groups[1]
-                    if cmd and len(cmd) > 3 and not cmd.startswith('http'):
+                    if cmd and len(cmd) > 3 and not cmd.startswith("http"):
                         commands.append(cmd.strip())
 
             if commands:
@@ -724,7 +742,7 @@ class SwarmTerminal:
                     solution=solution_text[:200],
                     source="web",
                     confidence=0.6,
-                    commands=commands[:3]  # Limit to 3 commands
+                    commands=commands[:3],  # Limit to 3 commands
                 )
 
         except Exception as e:
@@ -732,35 +750,32 @@ class SwarmTerminal:
 
         return None
 
-    async def _analyze_with_llm(
-        self,
-        command: str,
-        error: str
-    ) -> Optional[ErrorSolution]:
+    async def _analyze_with_llm(self, command: str, error: str) -> Optional[ErrorSolution]:
         """Use LLM to analyze error and suggest fix."""
         if not self.command_analyzer:
             return None
 
         try:
             import platform
+
             system_info = f"OS: {platform.system()} {platform.release()}, Shell: bash"
 
             result = self.command_analyzer(
                 command=command,
                 error_output=error[:1000],  # Limit error length
-                system_info=system_info
+                system_info=system_info,
             )
 
             fix_commands = result.fix_commands
             if isinstance(fix_commands, str):
                 # Parse if returned as string
-                fix_commands = [cmd.strip() for cmd in fix_commands.split('\n') if cmd.strip()]
+                fix_commands = [cmd.strip() for cmd in fix_commands.split("\n") if cmd.strip()]
 
             if fix_commands:
                 confidence = result.confidence
                 if isinstance(confidence, str):
                     try:
-                        confidence = float(re.search(r'[\d.]+', confidence).group())
+                        confidence = float(re.search(r"[\d.]+", confidence).group())
                     except (ValueError, AttributeError):
                         confidence = 0.5
 
@@ -769,7 +784,7 @@ class SwarmTerminal:
                     solution=f"{result.error_type}: {result.root_cause}",
                     source="llm",
                     confidence=min(1.0, max(0.0, confidence)),
-                    commands=fix_commands[:5]
+                    commands=fix_commands[:5],
                 )
 
         except Exception as e:
@@ -780,26 +795,25 @@ class SwarmTerminal:
     def _error_cache_key(self, error: str) -> str:
         """Generate cache key from error."""
         # Normalize error for caching
-        normalized = re.sub(r'\d+', 'N', error.lower())
-        normalized = re.sub(r'[/\\][\w./\\]+', 'PATH', normalized)
+        normalized = re.sub(r"\d+", "N", error.lower())
+        normalized = re.sub(r"[/\\][\w./\\]+", "PATH", normalized)
         return normalized[:200]
 
     def _cache_fix(self, error: str, solution: ErrorSolution) -> Any:
         """Cache successful fix."""
         cache_key = self._error_cache_key(error)
         self._fix_cache[cache_key] = solution
-        self._fix_history.append({
-            "timestamp": datetime.now().isoformat(),
-            "error": error[:200],
-            "solution": solution.solution,
-            "commands": solution.commands
-        })
+        self._fix_history.append(
+            {
+                "timestamp": datetime.now().isoformat(),
+                "error": error[:200],
+                "solution": solution.solution,
+                "commands": solution.commands,
+            }
+        )
 
     async def generate_skill(
-        self,
-        problem: str,
-        error_context: str = "",
-        skill_name: Optional[str] = None
+        self, problem: str, error_context: str = "", skill_name: Optional[str] = None
     ) -> Optional[Dict[str, Any]]:
         """
         Generate a new skill to solve a problem.
@@ -823,12 +837,12 @@ class SwarmTerminal:
             result = self.skill_generator(
                 problem_description=problem,
                 error_context=error_context[:500],
-                available_tools=available_tools
+                available_tools=available_tools,
             )
 
             # Use provided name or generated name
             final_name = skill_name or result.skill_name
-            final_name = re.sub(r'[^a-z0-9-]', '-', final_name.lower())
+            final_name = re.sub(r"[^a-z0-9-]", "-", final_name.lower())
 
             # Create skill directory
             skill_dir = self.skills_dir / final_name
@@ -871,7 +885,7 @@ Auto-generated skill to solve: {problem[:100]}
                 "name": final_name,
                 "path": str(skill_dir),
                 "description": result.skill_description,
-                "dependencies": result.dependencies
+                "dependencies": result.dependencies,
             }
 
         except Exception as e:
@@ -880,10 +894,7 @@ Auto-generated skill to solve: {problem[:100]}
 
     async def diagnose_system(self) -> Dict[str, Any]:
         """Run system diagnostics."""
-        diagnostics = {
-            "timestamp": datetime.now().isoformat(),
-            "checks": {}
-        }
+        diagnostics = {"timestamp": datetime.now().isoformat(), "checks": {}}
 
         # Check internet connectivity
         net_result = await self.execute("ping -c 1 8.8.8.8", timeout=10, auto_fix=False)
@@ -891,14 +902,18 @@ Auto-generated skill to solve: {problem[:100]}
 
         # Check disk space
         disk_result = await self.execute("df -h /", timeout=5, auto_fix=False)
-        diagnostics["checks"]["disk"] = disk_result.output if disk_result.success else disk_result.error
+        diagnostics["checks"]["disk"] = (
+            disk_result.output if disk_result.success else disk_result.error
+        )
 
         # Check memory
         mem_result = await self.execute("free -h", timeout=5, auto_fix=False)
         diagnostics["checks"]["memory"] = mem_result.output if mem_result.success else "N/A"
 
         # Check Python environment
-        py_result = await self.execute("python3 --version && pip --version", timeout=5, auto_fix=False)
+        py_result = await self.execute(
+            "python3 --version && pip --version", timeout=5, auto_fix=False
+        )
         diagnostics["checks"]["python"] = py_result.output if py_result.success else py_result.error
 
         # Check common tools

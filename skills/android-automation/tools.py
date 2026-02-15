@@ -26,10 +26,14 @@ import os
 import re
 import time
 import xml.etree.ElementTree as ET
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
+from Jotty.core.infrastructure.utils.tool_helpers import (
+    async_tool_wrapper,
+    tool_error,
+    tool_response,
+)
 
 logger = logging.getLogger(__name__)
 status = SkillStatus("android-automation")
@@ -38,6 +42,7 @@ status = SkillStatus("android-automation")
 U2_AVAILABLE = False
 try:
     import uiautomator2 as u2
+
     U2_AVAILABLE = True
 except ImportError:
     logger.info("uiautomator2 not installed. Run: pip install uiautomator2")
@@ -46,6 +51,7 @@ except ImportError:
 PIL_AVAILABLE = False
 try:
     from PIL import Image
+
     PIL_AVAILABLE = True
 except ImportError:
     pass
@@ -111,11 +117,11 @@ class AndroidDevice:
             return self._device
 
         target = (
-            url or
-            serial or
-            os.environ.get("ANDROID_DEVICE_URL") or
-            os.environ.get("ANDROID_SERIAL") or
-            None  # u2.connect() auto-detects
+            url
+            or serial
+            or os.environ.get("ANDROID_DEVICE_URL")
+            or os.environ.get("ANDROID_SERIAL")
+            or None  # u2.connect() auto-detects
         )
 
         logger.info(f"Connecting to Android device: {target or 'auto-detect'}")
@@ -128,7 +134,9 @@ class AndroidDevice:
             info.get("displayWidth", 1080),
             info.get("displayHeight", 2400),
         )
-        logger.info(f"Connected: {self._device.serial} ({self._screen_size[0]}x{self._screen_size[1]})")
+        logger.info(
+            f"Connected: {self._device.serial} ({self._screen_size[0]}x{self._screen_size[1]})"
+        )
         return self._device
 
     @property
@@ -157,8 +165,7 @@ class AndroidDevice:
         self.device.long_click(x, y, duration=duration)
         return {"x": x, "y": y, "duration": duration, "action": "long_press"}
 
-    def swipe(self, x1: int, y1: int, x2: int, y2: int,
-              duration: float = 0.5) -> Dict[str, Any]:
+    def swipe(self, x1: int, y1: int, x2: int, y2: int, duration: float = 0.5) -> Dict[str, Any]:
         """Swipe from (x1,y1) to (x2,y2)."""
         self.device.swipe(x1, y1, x2, y2, duration=duration)
         return {"from": [x1, y1], "to": [x2, y2], "duration": duration, "action": "swipe"}
@@ -201,8 +208,9 @@ class AndroidDevice:
             "format": "png",
         }
 
-    def launch_app(self, package: str, activity: Optional[str] = None,
-                   wait: bool = True) -> Dict[str, Any]:
+    def launch_app(
+        self, package: str, activity: Optional[str] = None, wait: bool = True
+    ) -> Dict[str, Any]:
         """Launch an app by package name.
 
         Args:
@@ -247,11 +255,14 @@ class AndroidDevice:
         xml_str = self.device.dump_hierarchy()
         return UITreeParser.parse(xml_str, max_depth=max_depth)
 
-    def find_element(self, text: Optional[str] = None,
-                     resource_id: Optional[str] = None,
-                     class_name: Optional[str] = None,
-                     description: Optional[str] = None,
-                     clickable: Optional[bool] = None) -> Dict[str, Any]:
+    def find_element(
+        self,
+        text: Optional[str] = None,
+        resource_id: Optional[str] = None,
+        class_name: Optional[str] = None,
+        description: Optional[str] = None,
+        clickable: Optional[bool] = None,
+    ) -> Dict[str, Any]:
         """Find UI element by attributes and return its info + bounds.
 
         Args:
@@ -303,9 +314,12 @@ class AndroidDevice:
             "enabled": info.get("enabled", True),
         }
 
-    def tap_element(self, text: Optional[str] = None,
-                    resource_id: Optional[str] = None,
-                    description: Optional[str] = None) -> Dict[str, Any]:
+    def tap_element(
+        self,
+        text: Optional[str] = None,
+        resource_id: Optional[str] = None,
+        description: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """Find an element and tap it.
 
         Combines find + tap in one call for efficiency.
@@ -337,9 +351,9 @@ class AndroidDevice:
             "center": {"x": center_x, "y": center_y},
         }
 
-    def wait_for_element(self, text: Optional[str] = None,
-                         resource_id: Optional[str] = None,
-                         timeout: float = 10.0) -> Dict[str, Any]:
+    def wait_for_element(
+        self, text: Optional[str] = None, resource_id: Optional[str] = None, timeout: float = 10.0
+    ) -> Dict[str, Any]:
         """Wait for an element to appear on screen.
 
         Args:
@@ -458,8 +472,12 @@ class UITreeParser:
         try:
             root = ET.fromstring(xml_str)
         except ET.ParseError as e:
-            return {"tree": {}, "node_count": 0, "interactive_elements": [],
-                    "error": f"XML parse error: {e}"}
+            return {
+                "tree": {},
+                "node_count": 0,
+                "interactive_elements": [],
+                "error": f"XML parse error: {e}",
+            }
 
         interactive = []
         node_count = [0]
@@ -473,8 +491,9 @@ class UITreeParser:
         }
 
     @classmethod
-    def _parse_node(cls, node: ET.Element, depth: int, max_depth: int,
-                    interactive: list, node_count: list) -> Dict[str, Any]:
+    def _parse_node(
+        cls, node: ET.Element, depth: int, max_depth: int, interactive: list, node_count: list
+    ) -> Dict[str, Any]:
         """Recursively parse an XML node into structured dict."""
         node_count[0] += 1
 
@@ -530,30 +549,38 @@ class UITreeParser:
             result["description"] = desc
 
         # Track interactive elements in flat list
-        is_interactive = (clickable or focusable or role in ("textbox", "button", "checkbox",
-                          "radio", "switch", "combobox", "slider")) and enabled
+        is_interactive = (
+            clickable
+            or focusable
+            or role in ("textbox", "button", "checkbox", "radio", "switch", "combobox", "slider")
+        ) and enabled
         if is_interactive and bounds:
             center_x = (bounds["left"] + bounds["right"]) // 2
             center_y = (bounds["top"] + bounds["bottom"]) // 2
-            interactive.append({
-                "role": role,
-                "name": name,
-                "resource_id": resource_id,
-                "bounds": bounds,
-                "center": {"x": center_x, "y": center_y},
-                "clickable": clickable,
-                "class": class_name,
-            })
+            interactive.append(
+                {
+                    "role": role,
+                    "name": name,
+                    "resource_id": resource_id,
+                    "bounds": bounds,
+                    "center": {"x": center_x, "y": center_y},
+                    "clickable": clickable,
+                    "class": class_name,
+                }
+            )
 
         # Recurse into children
         if depth < max_depth:
             children = []
             for child in node:
-                child_node = cls._parse_node(child, depth + 1, max_depth,
-                                             interactive, node_count)
+                child_node = cls._parse_node(child, depth + 1, max_depth, interactive, node_count)
                 # Skip empty group nodes with no name and no interactive children
-                if child_node.get("name") or child_node.get("children") or \
-                   child_node.get("clickable") or child_node.get("role") not in ("group", "generic"):
+                if (
+                    child_node.get("name")
+                    or child_node.get("children")
+                    or child_node.get("clickable")
+                    or child_node.get("role") not in ("group", "generic")
+                ):
                     children.append(child_node)
             if children:
                 result["children"] = children
@@ -565,7 +592,7 @@ class UITreeParser:
         """Parse UIAutomator bounds string '[x1,y1][x2,y2]' to dict."""
         if not bounds_str:
             return {}
-        match = re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', bounds_str)
+        match = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", bounds_str)
         if match:
             return {
                 "left": int(match.group(1)),
@@ -657,7 +684,8 @@ async def long_press_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     status.set_callback(params.pop("_status_callback", None))
     dev = AndroidDevice.get_instance()
     result = dev.long_press(
-        int(params["x"]), int(params["y"]),
+        int(params["x"]),
+        int(params["y"]),
         duration=float(params.get("duration", 1.0)),
     )
     return tool_response(**result)
@@ -686,8 +714,10 @@ async def swipe_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     status.set_callback(params.pop("_status_callback", None))
     dev = AndroidDevice.get_instance()
     result = dev.swipe(
-        int(params["x1"]), int(params["y1"]),
-        int(params["x2"]), int(params["y2"]),
+        int(params["x1"]),
+        int(params["y1"]),
+        int(params["x2"]),
+        int(params["y2"]),
         duration=float(params.get("duration", 0.5)),
     )
     return tool_response(**result)

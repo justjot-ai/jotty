@@ -4,43 +4,47 @@ Tests for Skills Registry Core Module
 Tests for SkillsRegistry, SkillDefinition, SkillType, TrustLevel,
 ToolMetadata, BaseSkill, get_skills_registry singleton, and discovery.
 """
-import pytest
+
+import os
 import sys
 import tempfile
-import os
 from pathlib import Path
-from unittest.mock import MagicMock, patch, AsyncMock
-from typing import Dict, Any, Callable
+from typing import Any, Callable, Dict
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 # Add parent for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from Jotty.core.capabilities.registry.skills_registry import (
-    SkillsRegistry,
-    SkillDefinition,
-    SkillType,
-    TrustLevel,
-    ToolMetadata,
     BaseSkill,
+    SkillDefinition,
+    SkillsRegistry,
+    SkillType,
+    ToolMetadata,
+    TrustLevel,
     _infer_trust_level,
-    get_skills_registry,
     _registry_instance,
+    get_skills_registry,
 )
-
 
 # =============================================================================
 # Helper: reset the global singleton between tests that exercise it
 # =============================================================================
 
+
 def _reset_skills_registry_singleton():
     """Reset the module-level singleton so each test starts fresh."""
     import Jotty.core.capabilities.registry.skills_registry as mod
+
     mod._registry_instance = None
 
 
 # =============================================================================
 # SkillType Enum Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestSkillTypeEnum:
@@ -60,6 +64,7 @@ class TestSkillTypeEnum:
 # =============================================================================
 # TrustLevel & _infer_trust_level Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestTrustLevelInference:
@@ -95,6 +100,7 @@ class TestTrustLevelInference:
 # =============================================================================
 # ToolMetadata Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestToolMetadata:
@@ -136,6 +142,7 @@ class TestToolMetadata:
 # =============================================================================
 # BaseSkill Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestBaseSkill:
@@ -187,6 +194,7 @@ class TestBaseSkill:
 # =============================================================================
 # SkillDefinition Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestSkillDefinition:
@@ -321,6 +329,7 @@ class TestSkillDefinition:
 
     def test_to_claude_tools(self):
         """to_claude_tools returns list of Claude API tool definitions."""
+
         async def my_tool(params):
             """My tool description."""
             return {}
@@ -344,6 +353,7 @@ class TestSkillDefinition:
 # =============================================================================
 # SkillsRegistry Initialization Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestSkillsRegistryInit:
@@ -391,6 +401,7 @@ class TestSkillsRegistryInit:
 # =============================================================================
 # SkillsRegistry Skill Management Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestSkillsRegistryManagement:
@@ -471,8 +482,10 @@ class TestSkillsRegistryManagement:
         # Add extra base skills
         for i in range(5):
             reg.loaded_skills[f"extra-{i}"] = SkillDefinition(
-                name=f"extra-{i}", description=f"Extra {i}",
-                tools={}, skill_type=SkillType.BASE,
+                name=f"extra-{i}",
+                description=f"Extra {i}",
+                tools={},
+                skill_type=SkillType.BASE,
             )
         results = reg.list_skills_by_type(SkillType.BASE, max_skills=3)
         assert len(results) == 3
@@ -495,6 +508,7 @@ class TestSkillsRegistryManagement:
 # =============================================================================
 # SkillsRegistry Discovery Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestSkillsRegistryDiscovery:
@@ -589,6 +603,7 @@ class TestSkillsRegistryDiscovery:
 # SkillsRegistry Capability Filtering Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestSkillsRegistryCapabilityFiltering:
     """Tests for filter_skills_by_capabilities method."""
@@ -598,16 +613,22 @@ class TestSkillsRegistryCapabilityFiltering:
         with tempfile.TemporaryDirectory() as tmpdir:
             reg = SkillsRegistry(skills_dir=tmpdir)
             reg.loaded_skills["fetcher"] = SkillDefinition(
-                name="fetcher", description="Fetches data",
-                tools={}, capabilities=["data-fetch"],
+                name="fetcher",
+                description="Fetches data",
+                tools={},
+                capabilities=["data-fetch"],
             )
             reg.loaded_skills["comm"] = SkillDefinition(
-                name="comm", description="Communication tool",
-                tools={}, capabilities=["communicate"],
+                name="comm",
+                description="Communication tool",
+                tools={},
+                capabilities=["communicate"],
             )
             reg.loaded_skills["multi"] = SkillDefinition(
-                name="multi", description="Multi-cap tool",
-                tools={}, capabilities=["data-fetch", "communicate"],
+                name="multi",
+                description="Multi-cap tool",
+                tools={},
+                capabilities=["data-fetch", "communicate"],
             )
             reg.initialized = True
             return reg
@@ -637,6 +658,7 @@ class TestSkillsRegistryCapabilityFiltering:
 # =============================================================================
 # get_skills_registry Singleton Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestGetSkillsRegistrySingleton:
@@ -676,6 +698,7 @@ class TestGetSkillsRegistrySingleton:
 # SkillsRegistry SKILL.md Metadata Parsing Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestSkillMetadataParsing:
     """Tests for _parse_skill_metadata from SKILL.md content."""
@@ -690,7 +713,9 @@ class TestSkillMetadataParsing:
         """Parsing a complete SKILL.md extracts all fields."""
         with tempfile.TemporaryDirectory() as tmpdir:
             reg = SkillsRegistry(skills_dir=tmpdir)
-            md = self._write_skill_md(tmpdir, """# Stock Research
+            md = self._write_skill_md(
+                tmpdir,
+                """# Stock Research
 
 Research stock prices and market data.
 
@@ -709,9 +734,12 @@ sequential
 
 ## Use When
 User wants stock market data
-""")
+""",
+            )
             meta = reg._parse_skill_metadata(md)
-            assert "stock" in meta["description"].lower() or "research" in meta["description"].lower()
+            assert (
+                "stock" in meta["description"].lower() or "research" in meta["description"].lower()
+            )
             assert meta["skill_type"] == "derived"
             assert meta["base_skills"] == ["web-search"]
             assert meta["execution_mode"] == "sequential"
@@ -733,14 +761,17 @@ User wants stock market data
         """When type is not specified, infer from base_skills count."""
         with tempfile.TemporaryDirectory() as tmpdir:
             reg = SkillsRegistry(skills_dir=tmpdir)
-            md = self._write_skill_md(tmpdir, """# Combo Skill
+            md = self._write_skill_md(
+                tmpdir,
+                """# Combo Skill
 
 Combines multiple skills.
 
 ## Base Skills
 - web-search
 - calculator
-""")
+""",
+            )
             meta = reg._parse_skill_metadata(md)
             # 2+ base skills -> composite
             assert meta["skill_type"] == "composite"
@@ -749,18 +780,25 @@ Combines multiple skills.
         """use_when is auto-populated from description when not explicit."""
         with tempfile.TemporaryDirectory() as tmpdir:
             reg = SkillsRegistry(skills_dir=tmpdir)
-            md = self._write_skill_md(tmpdir, """# Calculator
+            md = self._write_skill_md(
+                tmpdir,
+                """# Calculator
 
 Perform mathematical calculations and unit conversions.
-""")
+""",
+            )
             meta = reg._parse_skill_metadata(md)
             assert meta["use_when"] != ""
-            assert "mathematical" in meta["use_when"].lower() or "calculation" in meta["use_when"].lower()
+            assert (
+                "mathematical" in meta["use_when"].lower()
+                or "calculation" in meta["use_when"].lower()
+            )
 
 
 # =============================================================================
 # SkillsRegistry Load Collection Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestSkillsRegistryLoadCollection:
@@ -788,8 +826,16 @@ class TestSkillsRegistryLoadCollection:
         """list_collections returns info for loaded collections."""
         with tempfile.TemporaryDirectory() as tmpdir:
             reg = SkillsRegistry(skills_dir=tmpdir)
-            reg.loaded_collections["c1"] = {"source": "local", "tools": {"a": lambda: None}, "metadata": {}}
-            reg.loaded_collections["c2"] = {"source": "hub", "tools": {"b": lambda: None}, "metadata": {}}
+            reg.loaded_collections["c1"] = {
+                "source": "local",
+                "tools": {"a": lambda: None},
+                "metadata": {},
+            }
+            reg.loaded_collections["c2"] = {
+                "source": "hub",
+                "tools": {"b": lambda: None},
+                "metadata": {},
+            }
             result = reg.list_collections()
             assert len(result) == 2
             assert result[0]["source"] in ("local", "hub")
@@ -814,6 +860,7 @@ class TestSkillsRegistryLoadCollection:
 # SkillsRegistry Additional Methods Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestSkillsRegistryAdditionalMethods:
     """Tests for load_all_skills, get_registered_tools, and other methods."""
@@ -828,7 +875,8 @@ class TestSkillsRegistryAdditionalMethods:
             reg = SkillsRegistry(skills_dir=tmpdir)
             loader = MagicMock(return_value={"eager_tool": lambda p: p})
             reg.loaded_skills["lazy-skill"] = SkillDefinition(
-                name="lazy-skill", description="lazy",
+                name="lazy-skill",
+                description="lazy",
                 _tool_loader=loader,
             )
             result = reg.load_all_skills()
@@ -840,11 +888,13 @@ class TestSkillsRegistryAdditionalMethods:
         with tempfile.TemporaryDirectory() as tmpdir:
             reg = SkillsRegistry(skills_dir=tmpdir)
             reg.loaded_skills["s1"] = SkillDefinition(
-                name="s1", description="s1",
+                name="s1",
+                description="s1",
                 tools={"tool_a": lambda: None, "tool_b": lambda: None},
             )
             reg.loaded_skills["s2"] = SkillDefinition(
-                name="s2", description="s2",
+                name="s2",
+                description="s2",
                 tools={"tool_c": lambda: None},
             )
             all_tools = reg.get_registered_tools()
@@ -868,6 +918,7 @@ class TestSkillsRegistryAdditionalMethods:
 # SkillDefinition Additional Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestSkillDefinitionAdditional:
     """Additional tests for SkillDefinition edge cases."""
@@ -875,16 +926,20 @@ class TestSkillDefinitionAdditional:
     def test_trust_level_auto_inferred(self):
         """Trust level is auto-inferred from category."""
         sd = SkillDefinition(
-            name="safe-search", description="Search",
-            tools={}, category="search",
+            name="safe-search",
+            description="Search",
+            tools={},
+            category="search",
         )
         assert sd.trust_level == TrustLevel.SAFE
 
     def test_trust_level_explicit_overrides_infer(self):
         """Explicit trust_level overrides auto-inference."""
         sd = SkillDefinition(
-            name="safe-search", description="Search",
-            tools={}, category="search",
+            name="safe-search",
+            description="Search",
+            tools={},
+            category="search",
             trust_level=TrustLevel.DESTRUCTIVE,
         )
         assert sd.trust_level == TrustLevel.DESTRUCTIVE
@@ -929,8 +984,10 @@ class TestSkillDefinitionAdditional:
     def test_to_dict_use_when(self):
         """to_dict includes use_when when set."""
         sd = SkillDefinition(
-            name="test", description="test",
-            tools={}, use_when="When user needs tests",
+            name="test",
+            description="test",
+            tools={},
+            use_when="When user needs tests",
         )
         d = sd.to_dict()
         assert d["use_when"] == "When user needs tests"
@@ -938,11 +995,13 @@ class TestSkillDefinitionAdditional:
     def test_to_claude_tools_with_metadata(self):
         """to_claude_tools uses ToolMetadata when available."""
         meta = ToolMetadata(
-            name="rich_tool", description="Rich tool",
+            name="rich_tool",
+            description="Rich tool",
             parameters={"properties": {"q": {"type": "string"}}, "required": ["q"]},
         )
         sd = SkillDefinition(
-            name="test", description="test",
+            name="test",
+            description="test",
             tools={"rich_tool": lambda p: p},
             tool_metadata={"rich_tool": meta},
         )
@@ -953,12 +1012,14 @@ class TestSkillDefinitionAdditional:
 
     def test_to_claude_tools_no_metadata_uses_docstring(self):
         """to_claude_tools falls back to docstring when no metadata."""
+
         def my_tool(params):
             """My tool does stuff."""
             return {}
 
         sd = SkillDefinition(
-            name="test", description="test",
+            name="test",
+            description="test",
             tools={"my_tool": my_tool},
         )
         ct = sd.to_claude_tools()
@@ -969,6 +1030,7 @@ class TestSkillDefinitionAdditional:
 # =============================================================================
 # _infer_trust_level Additional Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestInferTrustLevelAdditional:

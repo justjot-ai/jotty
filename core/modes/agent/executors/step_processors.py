@@ -50,13 +50,25 @@ class ParameterResolver:
     """
 
     # Content-like field names to look for in step output dicts
-    _CONTENT_FIELDS = ('response', 'text', 'content', 'output', 'stdout', 'result')
+    _CONTENT_FIELDS = ("response", "text", "content", "output", "stdout", "result")
 
     # Instruction-like prefixes that indicate bad content
     _INSTRUCTION_PREFIXES = (
-        'filename:', 'parse ', "i'll help", "i'll create", "let me ",
-        'create a ', 'here is', "here's", 'this is', 'the following',
-        'i will ', 'we will ', 'step ', 'save ', 'write ',
+        "filename:",
+        "parse ",
+        "i'll help",
+        "i'll create",
+        "let me ",
+        "create a ",
+        "here is",
+        "here's",
+        "this is",
+        "the following",
+        "i will ",
+        "we will ",
+        "step ",
+        "save ",
+        "write ",
     )
 
     _MAX_RESOLVE_DEPTH = 10
@@ -69,7 +81,7 @@ class ParameterResolver:
         """Check if a value contains unresolved template references."""
         if not isinstance(value, str):
             return False
-        return '${' in value or ('{' in value and '}' in value)
+        return "${" in value or ("{" in value and "}" in value)
 
     def resolve(
         self,
@@ -87,7 +99,9 @@ class ParameterResolver:
         4. Validation errors are logged as warnings
         """
         if _depth > self._MAX_RESOLVE_DEPTH:
-            logger.warning(f"Parameter resolution exceeded max depth ({self._MAX_RESOLVE_DEPTH}), returning as-is")
+            logger.warning(
+                f"Parameter resolution exceeded max depth ({self._MAX_RESOLVE_DEPTH}), returning as-is"
+            )
             return params
 
         # Phase 0: resolve aliases via schema (before template substitution)
@@ -95,11 +109,11 @@ class ParameterResolver:
             params = tool_schema.resolve_aliases(params)
 
         # Phase -1: Direct resolution from inputs_needed (I/O contract)
-        if step and _depth == 0 and hasattr(step, 'inputs_needed') and step.inputs_needed:
+        if step and _depth == 0 and hasattr(step, "inputs_needed") and step.inputs_needed:
             for param_name, source in step.inputs_needed.items():
                 if param_name in params and self._is_template(params[param_name]):
                     continue  # Has template — will be resolved by Phase 1
-                if source.startswith('literal:'):
+                if source.startswith("literal:"):
                     params[param_name] = source[8:]  # Strip "literal:" prefix
                 else:
                     val = self.resolve_path(source)
@@ -134,17 +148,17 @@ class ParameterResolver:
         # Phase 2: auto-wire missing required params from outputs (scoped to dependencies)
         if tool_schema is not None and _depth == 0 and self._outputs:
             scoped_keys = None
-            if step and hasattr(step, 'depends_on') and step.depends_on:
+            if step and hasattr(step, "depends_on") and step.depends_on:
                 scoped_keys = []
                 for dep_idx in step.depends_on:
-                    scoped_keys.append(f'step_{dep_idx}')
+                    scoped_keys.append(f"step_{dep_idx}")
                     for k in self._outputs:
-                        if k.startswith(f'step_{dep_idx}') or k == f'step_{dep_idx}':
+                        if k.startswith(f"step_{dep_idx}") or k == f"step_{dep_idx}":
                             scoped_keys.append(k)
                     # Also include custom output_key-based keys
-                    if step and hasattr(step, 'inputs_needed') and step.inputs_needed:
+                    if step and hasattr(step, "inputs_needed") and step.inputs_needed:
                         for source in step.inputs_needed.values():
-                            base_key = source.split('.')[0]
+                            base_key = source.split(".")[0]
                             if base_key in self._outputs and base_key not in scoped_keys:
                                 scoped_keys.append(base_key)
             resolved = tool_schema.auto_wire(resolved, self._outputs, scoped_keys=scoped_keys)
@@ -160,17 +174,27 @@ class ParameterResolver:
 
     def _substitute_templates(self, param_name: str, value: str) -> str:
         """Replace ${ref} and {ref} template variables."""
+
         def replacer(match: Any, _param_name: Any = param_name) -> Any:
             ref_path = match.group(1)
             raw = self.resolve_path(ref_path)
-            if raw.startswith('{'):
+            if raw.startswith("{"):
                 extracted = self._smart_extract(raw, _param_name)
                 if extracted is not None:
-                    return extracted.replace('\\', '\\\\')
-            return raw.replace('\\', '\\\\')
+                    return extracted.replace("\\", "\\\\")
+            return raw.replace("\\", "\\\\")
 
         # Detect code content — f-strings use ${var:fmt} which collides with templates
-        _CODE_MARKERS = ('def ', 'class ', 'import ', 'from ', 'f"', "f'", 'async def ', 'if __name__')
+        _CODE_MARKERS = (
+            "def ",
+            "class ",
+            "import ",
+            "from ",
+            'f"',
+            "f'",
+            "async def ",
+            "if __name__",
+        )
         _is_code = any(marker in value for marker in _CODE_MARKERS)
 
         if _is_code:
@@ -179,25 +203,26 @@ class ParameterResolver:
             def _code_safe_replacer(match: Any, _param_name: Any = param_name) -> Any:
                 ref_path = match.group(1)
                 # F-string format specifiers contain : or ! — not template refs
-                if ':' in ref_path or '!' in ref_path:
+                if ":" in ref_path or "!" in ref_path:
                     return match.group(0)  # Return original unchanged
                 # Only resolve if it matches a known output key
-                base_key = ref_path.split('.')[0]
+                base_key = ref_path.split(".")[0]
                 if base_key not in self._outputs:
                     return match.group(0)  # Not a known output — leave as-is
                 return replacer(match, _param_name)
-            value = re.sub(r'\$\{([^}]+)\}', _code_safe_replacer, value)
+
+            value = re.sub(r"\$\{([^}]+)\}", _code_safe_replacer, value)
         else:
             # Non-code: substitute all ${ref} patterns (explicit template references)
-            value = re.sub(r'\$\{([^}]+)\}', replacer, value)
+            value = re.sub(r"\$\{([^}]+)\}", replacer, value)
             # Also substitute bare {ref} patterns
-            value = re.sub(r'\{([a-zA-Z_][a-zA-Z0-9_.\[\]]*)\}', replacer, value)
+            value = re.sub(r"\{([a-zA-Z_][a-zA-Z0-9_.\[\]]*)\}", replacer, value)
 
         # Aggregate unresolved research references
-        if '${research_' in value or '{research_' in value:
+        if "${research_" in value or "{research_" in value:
             aggregated = self._aggregate_research_outputs()
             if aggregated:
-                value = re.sub(r'\$\{research_\d+\.results\}', aggregated, value)
+                value = re.sub(r"\$\{research_\d+\.results\}", aggregated, value)
 
         return value
 
@@ -212,12 +237,12 @@ class ParameterResolver:
             if param_name in obj:
                 val = obj[param_name]
                 # Format list results (e.g. search results) into readable text
-                if isinstance(val, list) and param_name in ('content', 'text', 'body'):
+                if isinstance(val, list) and param_name in ("content", "text", "body"):
                     return self._format_list_results(val)
                 return str(val)
 
             # Content-like params: prefer rich text fields
-            if param_name in ('content', 'text', 'body'):
+            if param_name in ("content", "text", "body"):
                 for fk in self._CONTENT_FIELDS:
                     if fk in obj:
                         val = obj[fk]
@@ -228,43 +253,53 @@ class ParameterResolver:
                             return val_str
 
                 # Fallback for content: format 'results' list (search results, etc.)
-                if 'results' in obj and isinstance(obj['results'], list):
-                    formatted = self._format_list_results(obj['results'])
+                if "results" in obj and isinstance(obj["results"], list):
+                    formatted = self._format_list_results(obj["results"])
                     if formatted and len(formatted) > 50:
                         return formatted
 
             # URL param: extract first URL from nested search results
-            if param_name in ('url', 'link', 'webpage_url', 'page_url'):
+            if param_name in ("url", "link", "webpage_url", "page_url"):
                 # Direct match
-                if 'url' in obj:
-                    return str(obj['url'])
-                if 'link' in obj:
-                    return str(obj['link'])
+                if "url" in obj:
+                    return str(obj["url"])
+                if "link" in obj:
+                    return str(obj["link"])
                 # Nested in results list (search results)
-                if 'results' in obj and isinstance(obj['results'], list):
-                    for item in obj['results']:
+                if "results" in obj and isinstance(obj["results"], list):
+                    for item in obj["results"]:
                         if isinstance(item, dict):
-                            url = item.get('link') or item.get('url') or item.get('href', '')
-                            if url and url.startswith('http'):
+                            url = item.get("link") or item.get("url") or item.get("href", "")
+                            if url and url.startswith("http"):
                                 return str(url)
 
             # Common field mappings
-            for fk in ('path', 'filename', 'file_path', 'filepath', 'output', 'content', 'stdout', 'result', 'response'):
-                if param_name.lower() in (fk, f'file_{fk}', f'{fk}_path') and fk in obj:
+            for fk in (
+                "path",
+                "filename",
+                "file_path",
+                "filepath",
+                "output",
+                "content",
+                "stdout",
+                "result",
+                "response",
+            ):
+                if param_name.lower() in (fk, f"file_{fk}", f"{fk}_path") and fk in obj:
                     return str(obj[fk])
 
             # Path-like param: also check filename-related keys in the dict
-            if param_name.lower() in ('path', 'file_path', 'filepath', 'filename'):
-                for pk in ('path', 'filename', 'file_path', 'filepath'):
+            if param_name.lower() in ("path", "file_path", "filepath", "filename"):
+                for pk in ("path", "filename", "file_path", "filepath"):
                     if pk in obj:
                         return str(obj[pk])
 
             # Path param: scan all outputs for most recent path
-            if param_name in ('path', 'file_path'):
+            if param_name in ("path", "file_path"):
                 for k in reversed(list(self._outputs.keys())):
                     sd = self._outputs[k]
                     if isinstance(sd, dict):
-                        for pk in ('path', 'filename', 'file_path', 'filepath'):
+                        for pk in ("path", "filename", "file_path", "filepath"):
                             if pk in sd:
                                 return str(sd[pk])
 
@@ -284,9 +319,9 @@ class ParameterResolver:
         lines = []
         for i, item in enumerate(items, 1):
             if isinstance(item, dict):
-                title = item.get('title', item.get('name', ''))
-                snippet = item.get('snippet', item.get('description', item.get('text', '')))
-                url = item.get('link', item.get('url', ''))
+                title = item.get("title", item.get("name", ""))
+                snippet = item.get("snippet", item.get("description", item.get("text", "")))
+                url = item.get("link", item.get("url", ""))
                 parts = []
                 if title:
                     parts.append(f"{i}. {title}")
@@ -313,33 +348,39 @@ class ParameterResolver:
             logger.info(f"Resolved bare output key '{key}={value}' → {str(step_data[key])[:100]}")
             return str(step_data[key])
 
-        if key == 'path' and 'path' in step_data:
+        if key == "path" and "path" in step_data:
             logger.info(f"Resolved bare output key 'path={value}' → {step_data['path']}")
-            return str(step_data['path'])
+            return str(step_data["path"])
 
-        if key in ('content', 'text'):
+        if key in ("content", "text"):
             for fk in self._CONTENT_FIELDS:
                 if fk in step_data:
                     val = str(step_data[fk])[:50000]
-                    logger.info(f"Resolved bare output key '{key}={value}' → {fk} ({len(val)} chars)")
+                    logger.info(
+                        f"Resolved bare output key '{key}={value}' → {fk} ({len(val)} chars)"
+                    )
                     return val
 
-        if key == 'path':
+        if key == "path":
             for k in reversed(list(self._outputs.keys())):
                 sd = self._outputs[k]
-                if isinstance(sd, dict) and 'path' in sd:
-                    path_val = str(sd['path'])
-                    logger.info(f"Resolved bare output key 'path={value}' → path from '{k}': {path_val[:100]}")
+                if isinstance(sd, dict) and "path" in sd:
+                    path_val = str(sd["path"])
+                    logger.info(
+                        f"Resolved bare output key 'path={value}' → path from '{k}': {path_val[:100]}"
+                    )
                     return path_val
 
         # Serialize whole dict as fallback
         serialized = json.dumps(step_data, default=str)[:8000]
-        logger.info(f"Resolved bare output key '{key}={value}' → full dict ({len(serialized)} chars)")
+        logger.info(
+            f"Resolved bare output key '{key}={value}' → full dict ({len(serialized)} chars)"
+        )
         return serialized
 
     def _resolve_placeholder_strings(self, key: str, value: str) -> str:
         """Replace uppercase placeholder patterns like {CONTENT_FROM_STEP_1}."""
-        if not re.search(r'\{[A-Z_]+\}', value) or not self._outputs:
+        if not re.search(r"\{[A-Z_]+\}", value) or not self._outputs:
             return value
 
         last_output = list(self._outputs.values())[-1]
@@ -347,33 +388,33 @@ class ParameterResolver:
             replacement = json.dumps(last_output, default=str)[:8000]
         else:
             replacement = str(last_output)[:8000]
-        replacement = replacement.replace('\\', '\\\\')
-        value = re.sub(r'\{[A-Z_]+\}', replacement, value)
+        replacement = replacement.replace("\\", "\\\\")
+        value = re.sub(r"\{[A-Z_]+\}", replacement, value)
         logger.info(f"Resolved unrecognised placeholder in param '{key}' with last step output")
         return value
 
     def _sanitize_command_param(self, key: str, value: str, step: Any) -> str:
         """Detect 'command' params that are LLM output instead of shell commands."""
-        if key != 'command' or len(value) <= 150:
+        if key != "command" or len(value) <= 150:
             return value
 
         stripped = value.strip()
-        if stripped.startswith('{') and stripped.endswith('}'):
+        if stripped.startswith("{") and stripped.endswith("}"):
             try:
                 obj = json.loads(stripped)
-                if isinstance(obj, dict) and 'text' in obj:
+                if isinstance(obj, dict) and "text" in obj:
                     for k in reversed(list(self._outputs.keys())):
                         sd = self._outputs[k]
-                        if isinstance(sd, dict) and 'path' in sd and sd['path'].endswith('.py'):
+                        if isinstance(sd, dict) and "path" in sd and sd["path"].endswith(".py"):
                             value = f'python {sd["path"]}'
                             logger.info(f"Auto-fixed 'command' from LLM output → '{value}'")
                             return value
             except (ValueError, KeyError):
                 pass
-        elif value.count(' ') > 15:
+        elif value.count(" ") > 15:
             for k in reversed(list(self._outputs.keys())):
                 sd = self._outputs[k]
-                if isinstance(sd, dict) and 'path' in sd and sd['path'].endswith('.py'):
+                if isinstance(sd, dict) and "path" in sd and sd["path"].endswith(".py"):
                     value = f'python {sd["path"]}'
                     logger.info(f"Auto-fixed 'command' from task description → '{value}'")
                     return value
@@ -381,7 +422,7 @@ class ParameterResolver:
 
     def _sanitize_path_param(self, key: str, value: str, step: Any) -> str:
         """Detect 'path' params that are content instead of filenames."""
-        if key != 'path' or len(value) <= 200:
+        if key != "path" or len(value) <= 200:
             return value
 
         found = None
@@ -389,16 +430,19 @@ class ParameterResolver:
         # Extract filename from the content itself
         m = re.search(
             r'(?:saved?|wrot?e?|created?|output)\s+(?:to|as|in)\s+["\']?'
-            r'([a-zA-Z0-9_.-]+\.\w{1,5})', value, re.IGNORECASE,
+            r"([a-zA-Z0-9_.-]+\.\w{1,5})",
+            value,
+            re.IGNORECASE,
         )
         if m:
             found = m.group(1)
 
         # Extract from step description
-        if not found and step and getattr(step, 'description', None):
+        if not found and step and getattr(step, "description", None):
             m2 = re.search(
-                r'(?:read|verify|check|open)\s+(?:the\s+)?["\']?'
-                r'([a-zA-Z0-9_.-]+\.\w{1,5})', step.description, re.IGNORECASE,
+                r'(?:read|verify|check|open)\s+(?:the\s+)?["\']?' r"([a-zA-Z0-9_.-]+\.\w{1,5})",
+                step.description,
+                re.IGNORECASE,
             )
             if m2:
                 found = m2.group(1)
@@ -407,9 +451,9 @@ class ParameterResolver:
         if not found:
             for k in reversed(list(self._outputs.keys())):
                 sd = self._outputs[k]
-                if isinstance(sd, dict) and 'path' in sd:
-                    p = str(sd['path'])
-                    if len(p) < 200 and '.' in p:
+                if isinstance(sd, dict) and "path" in sd:
+                    p = str(sd["path"])
+                    if len(p) < 200 and "." in p:
                         found = p
                         break
 
@@ -423,13 +467,15 @@ class ParameterResolver:
 
         Also extracts code from LLM responses that contain preamble + code fences.
         """
-        if key != 'content':
+        if key != "content":
             return value
 
         # First: extract code from LLM responses with code fences
         extracted = self._extract_code_from_fences(value)
         if extracted != value:
-            logger.info(f"Extracted code from fenced LLM response ({len(value)} → {len(extracted)} chars)")
+            logger.info(
+                f"Extracted code from fenced LLM response ({len(value)} → {len(extracted)} chars)"
+            )
             return extracted
 
         vs = value.strip()
@@ -438,7 +484,9 @@ class ParameterResolver:
 
         replacement = self._find_best_content()
         if replacement:
-            logger.info(f"Auto-fixed 'content' from bad/short value → real content ({len(replacement)} chars)")
+            logger.info(
+                f"Auto-fixed 'content' from bad/short value → real content ({len(replacement)} chars)"
+            )
             return replacement
         return value
 
@@ -455,12 +503,12 @@ class ParameterResolver:
         Returns:
             Extracted code if fences found and preamble detected, original value otherwise.
         """
-        if '```' not in value:
+        if "```" not in value:
             return value
 
         # Find all fenced code blocks
         fence_pattern = re.compile(
-            r'```(?:\w+)?\s*\n(.*?)```',
+            r"```(?:\w+)?\s*\n(.*?)```",
             re.DOTALL,
         )
         blocks = fence_pattern.findall(value)
@@ -468,22 +516,38 @@ class ParameterResolver:
             return value
 
         # Check if there's conversational preamble before the first fence
-        first_fence_pos = value.find('```')
+        first_fence_pos = value.find("```")
         preamble = value[:first_fence_pos].strip()
 
         # Detect LLM preamble: conversational text before code fences
         # Must have at least some non-trivial preamble text
         _PREAMBLE_INDICATORS = (
-            "i'll", "i will", "here's", "here is", "let me", "below is",
-            "the following", "this script", "this code", "this program",
-            "creates a", "generate", "create a", "write a", "build a",
-            "implement", "develop", "design", "sure", "certainly",
-            "of course", "happy to",
+            "i'll",
+            "i will",
+            "here's",
+            "here is",
+            "let me",
+            "below is",
+            "the following",
+            "this script",
+            "this code",
+            "this program",
+            "creates a",
+            "generate",
+            "create a",
+            "write a",
+            "build a",
+            "implement",
+            "develop",
+            "design",
+            "sure",
+            "certainly",
+            "of course",
+            "happy to",
         )
         preamble_lower = preamble.lower()[:200]
-        has_preamble = (
-            len(preamble) > 10
-            and any(ind in preamble_lower for ind in _PREAMBLE_INDICATORS)
+        has_preamble = len(preamble) > 10 and any(
+            ind in preamble_lower for ind in _PREAMBLE_INDICATORS
         )
 
         if not has_preamble:
@@ -496,7 +560,7 @@ class ParameterResolver:
                 return extracted
 
         # Multiple code blocks: concatenate with newlines (multi-file LLM output)
-        combined = '\n\n'.join(block.strip() for block in blocks if block.strip())
+        combined = "\n\n".join(block.strip() for block in blocks if block.strip())
         return combined if combined else value
 
     def _schema_coerce_param(self, key: str, value: str, tool_schema: Any, step: Any) -> str:
@@ -511,8 +575,8 @@ class ParameterResolver:
         tp = tool_schema.get_param(key)
 
         # Path params: validate path-like, fallback to output search
-        if tp and tp.type_hint in ('path', 'file_path'):
-            coerced, error = TypeCoercer.coerce(value, 'path')
+        if tp and tp.type_hint in ("path", "file_path"):
+            coerced, error = TypeCoercer.coerce(value, "path")
             if error:
                 # Path looks like content — try to find real path from outputs
                 found = self._find_path_from_outputs(step)
@@ -524,21 +588,23 @@ class ParameterResolver:
             return coerced
 
         # Command params with suspiciously long values
-        if key == 'command' and len(value) > 150:
+        if key == "command" and len(value) > 150:
             return self._sanitize_command_param(key, value, step)
 
         # Content/script params: extract code from fences, then check for bad content
-        if key in ('content', 'script'):
+        if key in ("content", "script"):
             extracted = self._extract_code_from_fences(value)
             if extracted != value:
-                logger.info(f"Schema coercion: extracted code from fenced LLM response for '{key}' "
-                           f"({len(value)} → {len(extracted)} chars)")
+                logger.info(
+                    f"Schema coercion: extracted code from fenced LLM response for '{key}' "
+                    f"({len(value)} → {len(extracted)} chars)"
+                )
                 return extracted
-            if key == 'content' and self._is_bad_content(value.strip()):
+            if key == "content" and self._is_bad_content(value.strip()):
                 return self._sanitize_content_param(key, value)
 
         # All other typed params: coerce via TypeCoercer
-        if tp and tp.type_hint and tp.type_hint.lower() not in ('str', 'string', ''):
+        if tp and tp.type_hint and tp.type_hint.lower() not in ("str", "string", ""):
             coerced, error = TypeCoercer.coerce(value, tp.type_hint)
             if error:
                 logger.debug(f"Schema coercion warning for '{key}': {error}")
@@ -555,9 +621,9 @@ class ParameterResolver:
         """
         for k in reversed(list(self._outputs.keys())):
             sd = self._outputs[k]
-            if isinstance(sd, dict) and 'path' in sd:
-                p = str(sd['path'])
-                if len(p) < 300 and '.' in p and '\n' not in p:
+            if isinstance(sd, dict) and "path" in sd:
+                p = str(sd["path"])
+                if len(p) < 300 and "." in p and "\n" not in p:
                     return p
         return None
 
@@ -568,7 +634,9 @@ class ParameterResolver:
         if s.startswith('{"success"') and '"bytes_written"' in s and len(s) < 300:
             return True
         lower = s.lower()[:80]
-        if len(s) < 300 and any(lower.startswith(p) or lower.strip().startswith(p) for p in self._INSTRUCTION_PREFIXES):
+        if len(s) < 300 and any(
+            lower.startswith(p) or lower.strip().startswith(p) for p in self._INSTRUCTION_PREFIXES
+        ):
             return True
         return False
 
@@ -581,7 +649,11 @@ class ParameterResolver:
                 for cf in self._CONTENT_FIELDS:
                     if cf in sd:
                         c = str(sd[cf])
-                        if len(c) > best_len and not c.startswith('{"success"') and not self._is_bad_content(c):
+                        if (
+                            len(c) > best_len
+                            and not c.startswith('{"success"')
+                            and not self._is_bad_content(c)
+                        ):
                             best, best_len = c, len(c)
             elif isinstance(sd, str) and len(sd) > best_len and not self._is_bad_content(sd):
                 best, best_len = sd, len(sd)
@@ -589,16 +661,16 @@ class ParameterResolver:
 
     def resolve_path(self, path: str) -> str:
         """Resolve a dotted path like 'step_key.field' from outputs."""
-        parts = path.split('.')
+        parts = path.split(".")
         value = self._outputs
 
         for part in parts:
             if value is None:
                 break
-            if '[' in part:
-                arr_key = part.split('[')[0]
+            if "[" in part:
+                arr_key = part.split("[")[0]
                 try:
-                    idx = int(part.split('[')[1].split(']')[0])
+                    idx = int(part.split("[")[1].split("]")[0])
                     if isinstance(value, dict):
                         value = value.get(arr_key, [])
                     if isinstance(value, list) and idx < len(value):
@@ -624,7 +696,16 @@ class ParameterResolver:
             # If result is suspiciously large, it's likely a full tool response
             # not meant to be used as a single param value
             if len(json_str) > 500 and isinstance(value, dict):
-                for fk in ('path', 'filename', 'content', 'output', 'result', 'text', 'response', 'code'):
+                for fk in (
+                    "path",
+                    "filename",
+                    "content",
+                    "output",
+                    "result",
+                    "text",
+                    "response",
+                    "code",
+                ):
                     if fk in value and isinstance(value[fk], str):
                         return value[fk]
             return json_str
@@ -638,7 +719,7 @@ class ParameterResolver:
         2. Adjacent step (N-1) for field lookup
         3. Return unresolved path (not random content) so semantic fallback can handle it
         """
-        step_match = re.match(r'^step_(\d+)(?:\.(.+))?$', path)
+        step_match = re.match(r"^step_(\d+)(?:\.(.+))?$", path)
         if not step_match or not self._outputs:
             return path
 
@@ -646,7 +727,7 @@ class ParameterResolver:
         field = step_match.group(2)
 
         # Strategy 1: exact step key match
-        exact_key = f'step_{step_idx}'
+        exact_key = f"step_{step_idx}"
         if exact_key in self._outputs:
             v = self._outputs[exact_key]
             if isinstance(v, dict):
@@ -659,7 +740,7 @@ class ParameterResolver:
                 return str(v)
 
         # Strategy 2: try adjacent step (N-1) only
-        adj_key = f'step_{step_idx - 1}' if step_idx > 0 else None
+        adj_key = f"step_{step_idx - 1}" if step_idx > 0 else None
         if adj_key and adj_key in self._outputs:
             v = self._outputs[adj_key]
             if isinstance(v, dict) and field and field in v:
@@ -676,21 +757,21 @@ class ParameterResolver:
         """Aggregate all research_* outputs into a formatted string."""
         parts = []
         for key in sorted(self._outputs.keys()):
-            if key.startswith('research_') and isinstance(self._outputs[key], dict):
+            if key.startswith("research_") and isinstance(self._outputs[key], dict):
                 result = self._outputs[key]
-                query = result.get('query', key)
-                results_list = result.get('results', [])
+                query = result.get("query", key)
+                results_list = result.get("results", [])
                 if results_list:
                     part = f"\n## Research: {query}\n"
                     for i, r in enumerate(results_list[:5], 1):
-                        title = r.get('title', 'Untitled') if isinstance(r, dict) else str(r)
-                        snippet = r.get('snippet', '') if isinstance(r, dict) else ''
-                        url = r.get('url', '') if isinstance(r, dict) else ''
+                        title = r.get("title", "Untitled") if isinstance(r, dict) else str(r)
+                        snippet = r.get("snippet", "") if isinstance(r, dict) else ""
+                        url = r.get("url", "") if isinstance(r, dict) else ""
                         part += f"\n### {i}. {title}\n{snippet}\n"
                         if url:
                             part += f"Source: {url}\n"
                     parts.append(part)
-        return '\n'.join(parts) if parts else ''
+        return "\n".join(parts) if parts else ""
 
 
 class ToolResultProcessor:
@@ -708,18 +789,18 @@ class ToolResultProcessor:
 
     _DEFAULT_MAX_SIZE = 50_000  # character budget
     # Key names that typically contain binary/base64 data
-    _BINARY_KEY_PATTERNS = ('screenshot', 'image', 'base64', 'binary', 'png', 'jpeg', 'pdf_data')
+    _BINARY_KEY_PATTERNS = ("screenshot", "image", "base64", "binary", "png", "jpeg", "pdf_data")
 
     def process(self, result: dict, max_size: int = 0, elapsed: float = 0.0) -> dict:
         """Main entry — sanitize a tool result dict."""
         if not isinstance(result, dict):
-            result = {'output': result}
+            result = {"output": result}
         budget = max_size or self._DEFAULT_MAX_SIZE
         result = self._convert_sets(result)
         result = self._strip_binary(result)
         result = self._truncate_preserving_keys(result, budget)
         if elapsed > 0:
-            result['_execution_time_ms'] = round(elapsed * 1000, 1)
+            result["_execution_time_ms"] = round(elapsed * 1000, 1)
         return result
 
     def _truncate_preserving_keys(self, data: dict, max_chars: int) -> dict:
@@ -762,7 +843,9 @@ class ToolResultProcessor:
             share = max(200, int(remaining * (size / total_large)))
             value_str = value if isinstance(value, str) else json.dumps(value, default=str)
             if len(value_str) > share:
-                result[key] = value_str[:share] + f"\n... [truncated {len(value_str) - share} chars]"
+                result[key] = (
+                    value_str[:share] + f"\n... [truncated {len(value_str) - share} chars]"
+                )
             else:
                 result[key] = value
         return result
@@ -779,7 +862,7 @@ class ToolResultProcessor:
                     continue
                 # Slow path: high-diversity alphanumeric = likely base64
                 sample = value[:200]
-                if re.match(r'^[A-Za-z0-9+/=]{200}$', sample) and len(set(sample)) > 20:
+                if re.match(r"^[A-Za-z0-9+/=]{200}$", sample) and len(set(sample)) > 20:
                     result[key] = f"[binary data: {len(value)} chars]"
             elif isinstance(value, dict):
                 result[key] = self._strip_binary(value)
@@ -798,9 +881,9 @@ class ToolResultProcessor:
             lines.append(f"# {len(results)} results found\n")
         for i, item in enumerate(results, 1):
             if isinstance(item, dict):
-                title = item.get('title', item.get('name', f'Result {i}'))
-                snippet = item.get('snippet', item.get('description', ''))
-                url = item.get('link', item.get('url', ''))
+                title = item.get("title", item.get("name", f"Result {i}"))
+                snippet = item.get("snippet", item.get("description", ""))
+                url = item.get("link", item.get("url", ""))
                 lines.append(f"## {i}. {title}")
                 if snippet:
                     lines.append(f"{snippet}")
@@ -821,9 +904,11 @@ class ToolResultProcessor:
                 cleaned[key] = self._convert_sets(value)
             elif isinstance(value, list):
                 cleaned[key] = [
-                    self._convert_sets(item) if isinstance(item, dict)
-                    else sorted(str(v) for v in item) if isinstance(item, set)
-                    else item
+                    (
+                        self._convert_sets(item)
+                        if isinstance(item, dict)
+                        else sorted(str(v) for v in item) if isinstance(item, set) else item
+                    )
                     for item in value
                 ]
             else:
@@ -837,20 +922,28 @@ class ToolResultProcessor:
 
 try:
     import dspy
+
     _DSPY_AVAILABLE = True
 except ImportError:
     _DSPY_AVAILABLE = False
 
 
 if _DSPY_AVAILABLE:
+
     class ParameterMatchSignature(dspy.Signature):
         """Match a missing parameter to the best available data source by meaning."""
+
         parameter_name: str = dspy.InputField(desc="Name of missing parameter")
         parameter_purpose: str = dspy.InputField(desc="What the tool needs this for")
-        available_outputs: str = dspy.InputField(desc="JSON of available step outputs with previews")
+        available_outputs: str = dspy.InputField(
+            desc="JSON of available step outputs with previews"
+        )
 
-        best_source: str = dspy.OutputField(desc="Best source key (e.g., 'step_0.text') or 'NO_MATCH'")
+        best_source: str = dspy.OutputField(
+            desc="Best source key (e.g., 'step_0.text') or 'NO_MATCH'"
+        )
         confidence: float = dspy.OutputField(desc="0.0-1.0 confidence in the match")
+
 else:
     ParameterMatchSignature = None  # type: ignore[assignment,misc]
 
@@ -863,7 +956,7 @@ class SemanticParamResolver:
     """
 
     _CONFIDENCE_THRESHOLD = 0.7
-    _HIGH_STAKES_PARAMS = ('content', 'text', 'body', 'message')
+    _HIGH_STAKES_PARAMS = ("content", "text", "body", "message")
 
     def __init__(self) -> None:
         self._matcher = None
@@ -896,7 +989,8 @@ class SemanticParamResolver:
             for k, v in outputs.items():
                 if isinstance(v, dict):
                     previews[k] = {
-                        sk: str(sv)[:200] for sk, sv in v.items()
+                        sk: str(sv)[:200]
+                        for sk, sv in v.items()
                         if isinstance(sv, (str, int, float, bool))
                     }
 
@@ -906,19 +1000,21 @@ class SemanticParamResolver:
             result = self._matcher(
                 parameter_name=param_name,
                 parameter_purpose=step_desc,
-                available_outputs=json.dumps(previews, default=str)
+                available_outputs=json.dumps(previews, default=str),
             )
 
             confidence = float(result.confidence) if result.confidence else 0.0
             best_source = str(result.best_source).strip()
 
-            if confidence >= self._CONFIDENCE_THRESHOLD and best_source != 'NO_MATCH':
+            if confidence >= self._CONFIDENCE_THRESHOLD and best_source != "NO_MATCH":
                 # Resolve the path from outputs
                 resolver = ParameterResolver(outputs)
                 val = resolver.resolve_path(best_source)
                 if val != best_source:  # Successfully resolved
-                    logger.info(f"Semantic resolver matched '{param_name}' -> '{best_source}' "
-                               f"(confidence={confidence:.2f})")
+                    logger.info(
+                        f"Semantic resolver matched '{param_name}' -> '{best_source}' "
+                        f"(confidence={confidence:.2f})"
+                    )
                     return val
         except Exception as e:
             logger.debug(f"Semantic param resolver failed for '{param_name}': {e}")
@@ -927,8 +1023,8 @@ class SemanticParamResolver:
 
 
 __all__ = [
-    'ParameterResolver',
-    'ToolResultProcessor',
-    'SemanticParamResolver',
-    'ParameterMatchSignature',
+    "ParameterResolver",
+    "ToolResultProcessor",
+    "SemanticParamResolver",
+    "ParameterMatchSignature",
 ]

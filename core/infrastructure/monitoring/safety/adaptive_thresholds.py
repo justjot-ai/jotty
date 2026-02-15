@@ -9,10 +9,10 @@ DRY PRINCIPLE: Reuses existing SafetyConstraint classes.
 """
 
 import logging
-from typing import Dict, List, Any, Optional
+import statistics
 from dataclasses import dataclass, field
 from datetime import datetime
-import statistics
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ThresholdHistory:
     """Historical data for a single threshold."""
+
     constraint_name: str
     current_threshold: float
     violations: List[float] = field(default_factory=list)
@@ -51,7 +52,12 @@ class AdaptiveThresholdManager:
     → Lower threshold to $0.48 (catch anomalies sooner)
     """
 
-    def __init__(self, adaptation_interval: int = 100, percentile_margin: float = 0.1, max_adjustment: float = 0.2) -> None:
+    def __init__(
+        self,
+        adaptation_interval: int = 100,
+        percentile_margin: float = 0.1,
+        max_adjustment: float = 0.2,
+    ) -> None:
         """
         Args:
             adaptation_interval: Review thresholds every N observations
@@ -70,7 +76,9 @@ class AdaptiveThresholdManager:
             f"(interval={adaptation_interval}, margin={percentile_margin:.0%})"
         )
 
-    def record_observation(self, constraint_name: str, value: float, violated: bool, current_threshold: float) -> Any:
+    def record_observation(
+        self, constraint_name: str, value: float, violated: bool, current_threshold: float
+    ) -> Any:
         """
         Record an observation for threshold adaptation.
 
@@ -118,10 +126,7 @@ class AdaptiveThresholdManager:
             if p95_non_violations > threshold * (1 - self.percentile_margin):
                 # 95% of valid requests are close to threshold → too strict
                 # Raise threshold by 10%
-                new_threshold = min(
-                    threshold * (1 + self.max_adjustment),
-                    threshold * 1.10
-                )
+                new_threshold = min(threshold * (1 + self.max_adjustment), threshold * 1.10)
                 self._apply_adjustment(hist, new_threshold, "too_strict")
 
             # Check if threshold is too loose (if we have violations)
@@ -130,10 +135,7 @@ class AdaptiveThresholdManager:
                 if p5_violations < threshold * (1 + self.percentile_margin):
                     # Violations are close to threshold → too loose
                     # Lower threshold by 10%
-                    new_threshold = max(
-                        threshold * (1 - self.max_adjustment),
-                        threshold * 0.90
-                    )
+                    new_threshold = max(threshold * (1 - self.max_adjustment), threshold * 0.90)
                     self._apply_adjustment(hist, new_threshold, "too_loose")
 
             # Reset buffers (keep only recent history)
@@ -148,8 +150,7 @@ class AdaptiveThresholdManager:
         hist.adjustment_count += 1
 
         logger.info(
-            f"🔧 Adjusted {hist.constraint_name}: "
-            f"{old:.3f} → {new_threshold:.3f} ({reason})"
+            f"🔧 Adjusted {hist.constraint_name}: " f"{old:.3f} → {new_threshold:.3f} ({reason})"
         )
 
     def _percentile(self, values: List[float], percentile: int) -> float:
@@ -168,17 +169,17 @@ class AdaptiveThresholdManager:
     def get_stats(self) -> Dict[str, Any]:
         """Get adaptation statistics."""
         return {
-            'total_observations': self.observation_count,
-            'constraints_tracked': len(self.history),
-            'thresholds': {
+            "total_observations": self.observation_count,
+            "constraints_tracked": len(self.history),
+            "thresholds": {
                 name: {
-                    'current': hist.current_threshold,
-                    'adjustments': hist.adjustment_count,
-                    'last_adjusted': hist.last_adjusted,
-                    'observations': len(hist.violations) + len(hist.non_violations),
+                    "current": hist.current_threshold,
+                    "adjustments": hist.adjustment_count,
+                    "last_adjusted": hist.last_adjusted,
+                    "observations": len(hist.violations) + len(hist.non_violations),
                 }
                 for name, hist in self.history.items()
-            }
+            },
         }
 
 
@@ -195,7 +196,7 @@ def get_adaptive_threshold_manager() -> AdaptiveThresholdManager:
 
 
 __all__ = [
-    'AdaptiveThresholdManager',
-    'ThresholdHistory',
-    'get_adaptive_threshold_manager',
+    "AdaptiveThresholdManager",
+    "ThresholdHistory",
+    "get_adaptive_threshold_manager",
 ]

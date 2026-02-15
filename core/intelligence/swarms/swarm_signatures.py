@@ -30,6 +30,7 @@ class ExpertEvaluationSignature(dspy.Signature):
 
     Provide specific, actionable feedback.
     """
+
     gold_standard: str = dspy.InputField(desc="JSON of expected output and criteria")
     actual_output: str = dspy.InputField(desc="JSON of actual output to evaluate")
     context: str = dspy.InputField(desc="Additional context about the task")
@@ -53,6 +54,7 @@ class ReviewerAnalysisSignature(dspy.Signature):
     3. Workflow optimizations
     4. Parameter tuning opportunities
     """
+
     evaluations: str = dspy.InputField(desc="JSON list of recent evaluations")
     agent_configs: str = dspy.InputField(desc="JSON of current agent configurations")
     improvement_history: str = dspy.InputField(desc="JSON of past improvements and their outcomes")
@@ -74,6 +76,7 @@ class PlannerOptimizationSignature(dspy.Signature):
     3. Parallel execution opportunities
     4. Error recovery strategies
     """
+
     task_description: str = dspy.InputField(desc="Description of the task to plan")
     improvement_suggestions: str = dspy.InputField(desc="JSON of relevant improvements")
     past_plans: str = dspy.InputField(desc="JSON of similar past plans and their success rates")
@@ -94,6 +97,7 @@ class ActorExecutionSignature(dspy.Signature):
     2. Reviewer suggestions
     3. Quality standards
     """
+
     task: str = dspy.InputField(desc="Task to execute")
     context: str = dspy.InputField(desc="Execution context and requirements")
     learnings: str = dspy.InputField(desc="Relevant learnings from past executions")
@@ -113,6 +117,7 @@ class AuditorVerificationSignature(dspy.Signature):
     3. No contradictions in the evaluation reasoning
     4. Proper application of evaluation criteria
     """
+
     evaluation_data: str = dspy.InputField(desc="JSON of evaluation scores and feedback")
     output_data: str = dspy.InputField(desc="JSON of the output that was evaluated")
     context: str = dspy.InputField(desc="Additional context about the task and evaluation")
@@ -134,6 +139,7 @@ class LearnerExtractionSignature(dspy.Signature):
     3. Domain-specific quality factors
     4. Reusable techniques or approaches
     """
+
     input_data: str = dspy.InputField(desc="JSON of task input parameters")
     output_data: str = dspy.InputField(desc="JSON of task output")
     evaluation_data: str = dspy.InputField(desc="JSON of evaluation scores and feedback")
@@ -153,6 +159,7 @@ class LearnerExtractionSignature(dspy.Signature):
 
 class CodingSwarmSignature(dspy.Signature):
     """Generate production-quality code from requirements."""
+
     requirements: str = dspy.InputField(desc="Software requirements")
     code: str = dspy.OutputField(desc="Combined source code from all files")
     language: str = dspy.OutputField(desc="Programming language used")
@@ -162,6 +169,7 @@ class CodingSwarmSignature(dspy.Signature):
 
 class TestingSwarmSignature(dspy.Signature):
     """Generate comprehensive test suite for source code."""
+
     code: str = dspy.InputField(desc="Source code to test")
     language: str = dspy.InputField(desc="Programming language")
     tests: str = dspy.OutputField(desc="Combined test code")
@@ -173,6 +181,7 @@ class TestingSwarmSignature(dspy.Signature):
 
 class ReviewSwarmSignature(dspy.Signature):
     """Review code for quality, security, and performance."""
+
     code: str = dspy.InputField(desc="Code to review")
     language: str = dspy.InputField(desc="Programming language")
     summary: str = dspy.OutputField(desc="Review summary")
@@ -184,6 +193,7 @@ class ReviewSwarmSignature(dspy.Signature):
 
 class DataAnalysisSwarmSignature(dspy.Signature):
     """Analyze data with profiling, statistics, and insights."""
+
     data: str = dspy.InputField(desc="Data to analyze")
     summary: str = dspy.OutputField(desc="Analysis summary")
     insights: str = dspy.OutputField(desc="Key insights discovered")
@@ -194,6 +204,7 @@ class DataAnalysisSwarmSignature(dspy.Signature):
 
 class DevOpsSwarmSignature(dspy.Signature):
     """Generate infrastructure and deployment configuration."""
+
     app_name: str = dspy.InputField(desc="Application name")
     iac_code: str = dspy.OutputField(desc="Infrastructure as code files")
     deployment_steps: str = dspy.OutputField(desc="Deployment steps")
@@ -203,6 +214,7 @@ class DevOpsSwarmSignature(dspy.Signature):
 
 class FundamentalSwarmSignature(dspy.Signature):
     """Perform fundamental analysis on a stock ticker."""
+
     ticker: str = dspy.InputField(desc="Stock ticker symbol")
     rating: str = dspy.OutputField(desc="Investment rating")
     target_price: str = dspy.OutputField(desc="Target price")
@@ -213,6 +225,7 @@ class FundamentalSwarmSignature(dspy.Signature):
 
 class IdeaWriterSwarmSignature(dspy.Signature):
     """Write long-form content on a topic."""
+
     topic: str = dspy.InputField(desc="Topic to write about")
     content: str = dspy.OutputField(desc="Written content")
     title: str = dspy.OutputField(desc="Content title")
@@ -222,6 +235,7 @@ class IdeaWriterSwarmSignature(dspy.Signature):
 
 class LearningSwarmSignature(dspy.Signature):
     """Evaluate and optimize a swarm's performance."""
+
     swarm_name: str = dspy.InputField(desc="Swarm to evaluate")
     swarm_evaluated: str = dspy.OutputField(desc="Swarm that was evaluated")
     optimizations_count: str = dspy.OutputField(desc="Number of optimizations")
@@ -231,6 +245,7 @@ class LearningSwarmSignature(dspy.Signature):
 
 class ResearchSwarmSignature(dspy.Signature):
     """Research a stock with data, sentiment, and LLM analysis."""
+
     query: str = dspy.InputField(desc="Stock ticker or research query")
     rating: str = dspy.OutputField(desc="Investment rating")
     investment_thesis: str = dspy.OutputField(desc="Investment thesis points")
@@ -241,20 +256,20 @@ class ResearchSwarmSignature(dspy.Signature):
 
 __all__ = [
     # Learning loop signatures
-    'ExpertEvaluationSignature',
-    'ReviewerAnalysisSignature',
-    'PlannerOptimizationSignature',
-    'ActorExecutionSignature',
-    'AuditorVerificationSignature',
-    'LearnerExtractionSignature',
+    "ExpertEvaluationSignature",
+    "ReviewerAnalysisSignature",
+    "PlannerOptimizationSignature",
+    "ActorExecutionSignature",
+    "AuditorVerificationSignature",
+    "LearnerExtractionSignature",
     # Swarm I/O contracts
-    'CodingSwarmSignature',
-    'TestingSwarmSignature',
-    'ReviewSwarmSignature',
-    'DataAnalysisSwarmSignature',
-    'DevOpsSwarmSignature',
-    'FundamentalSwarmSignature',
-    'IdeaWriterSwarmSignature',
-    'LearningSwarmSignature',
-    'ResearchSwarmSignature',
+    "CodingSwarmSignature",
+    "TestingSwarmSignature",
+    "ReviewSwarmSignature",
+    "DataAnalysisSwarmSignature",
+    "DevOpsSwarmSignature",
+    "FundamentalSwarmSignature",
+    "IdeaWriterSwarmSignature",
+    "LearningSwarmSignature",
+    "ResearchSwarmSignature",
 ]

@@ -1,7 +1,9 @@
 """Look up HTTP status code meanings and categories."""
-from typing import Dict, Any
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+
+from typing import Any, Dict
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("http-status-lookup")
 
@@ -36,7 +38,13 @@ _CODES: Dict[int, tuple] = {
     503: ("Service Unavailable", "Server temporarily unavailable"),
     504: ("Gateway Timeout", "Upstream server timed out"),
 }
-_CATEGORIES = {1: "Informational", 2: "Success", 3: "Redirection", 4: "Client Error", 5: "Server Error"}
+_CATEGORIES = {
+    1: "Informational",
+    2: "Success",
+    3: "Redirection",
+    4: "Client Error",
+    5: "Server Error",
+}
 
 
 @tool_wrapper()
@@ -51,13 +59,23 @@ def lookup_http_status(params: Dict[str, Any]) -> Dict[str, Any]:
         info = _CODES.get(code)
         if not info:
             cat = _CATEGORIES.get(code // 100, "Unknown")
-            return tool_response(code=code, name="Unknown", category=cat,
-                                 description=f"Non-standard {cat.lower()} status code")
-        return tool_response(code=code, name=info[0], category=_CATEGORIES.get(code // 100, "Unknown"),
-                             description=info[1])
+            return tool_response(
+                code=code,
+                name="Unknown",
+                category=cat,
+                description=f"Non-standard {cat.lower()} status code",
+            )
+        return tool_response(
+            code=code,
+            name=info[0],
+            category=_CATEGORIES.get(code // 100, "Unknown"),
+            description=info[1],
+        )
 
     if category is not None:
-        cat_num = int(category[0]) if isinstance(category, str) and category[0].isdigit() else category
+        cat_num = (
+            int(category[0]) if isinstance(category, str) and category[0].isdigit() else category
+        )
         codes = {c: v[0] for c, v in _CODES.items() if c // 100 == int(cat_num)}
         return tool_response(category=_CATEGORIES.get(int(cat_num), "Unknown"), codes=codes)
 

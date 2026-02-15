@@ -14,13 +14,14 @@ SOTA: Treats prompt updates as weight updates.
 import json
 import logging
 import time
-from typing import Dict, List, Tuple, Optional, Any
+from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
 # Check for dspy availability
 try:
     import dspy
+
     DSPY_AVAILABLE = True
 except ImportError:
     DSPY_AVAILABLE = False
@@ -28,6 +29,7 @@ except ImportError:
 
 
 if DSPY_AVAILABLE:
+
     class SwarmLearnerSignature(dspy.Signature):
         """Update system prompts based on episode outcomes (online learning)."""
 
@@ -39,6 +41,7 @@ if DSPY_AVAILABLE:
         updated_prompt = dspy.OutputField(desc="Updated prompt incorporating learnings")
         changes_made = dspy.OutputField(desc="List of specific changes made")
         learning_summary = dspy.OutputField(desc="What the system learned")
+
 else:
     SwarmLearnerSignature = None
 
@@ -62,12 +65,16 @@ class SwarmLearner:
             config: SwarmConfig with policy_update_threshold
         """
         self.config = config
-        self.learner = dspy.ChainOfThought(SwarmLearnerSignature) if DSPY_AVAILABLE and SwarmLearnerSignature else None
+        self.learner = (
+            dspy.ChainOfThought(SwarmLearnerSignature)
+            if DSPY_AVAILABLE and SwarmLearnerSignature
+            else None
+        )
 
         # Learning state
         self.learned_patterns: List[Dict] = []
         self.prompt_versions: Dict[str, List[str]] = {}  # prompt_name -> versions
-        self.update_threshold = getattr(config, 'policy_update_threshold', 3)
+        self.update_threshold = getattr(config, "policy_update_threshold", 3)
         self.episode_buffer: List[Dict] = []
 
     def record_episode(self, trajectory: List[Dict], outcome: bool, insights: List[str]) -> Any:
@@ -79,30 +86,30 @@ class SwarmLearner:
             outcome: Whether episode succeeded
             insights: List of insights from episode
         """
-        self.episode_buffer.append({
-            'trajectory': trajectory,
-            'outcome': outcome,
-            'insights': insights,
-            'timestamp': time.time()
-        })
+        self.episode_buffer.append(
+            {
+                "trajectory": trajectory,
+                "outcome": outcome,
+                "insights": insights,
+                "timestamp": time.time(),
+            }
+        )
 
         # Extract patterns
-        pattern_type = 'success' if outcome else 'failure'
-        self.learned_patterns.append({
-            'type': pattern_type,
-            'pattern': self._extract_pattern(trajectory),
-            'timestamp': time.time()
-        })
+        pattern_type = "success" if outcome else "failure"
+        self.learned_patterns.append(
+            {
+                "type": pattern_type,
+                "pattern": self._extract_pattern(trajectory),
+                "timestamp": time.time(),
+            }
+        )
 
     def should_update_prompts(self) -> bool:
         """Check if we should update prompts."""
         return len(self.episode_buffer) >= self.update_threshold
 
-    def update_prompt(
-        self,
-        prompt_name: str,
-        current_prompt: str
-    ) -> Tuple[str, List[str]]:
+    def update_prompt(self, prompt_name: str, current_prompt: str) -> Tuple[str, List[str]]:
         """
         Update a prompt based on learned patterns.
 
@@ -117,8 +124,8 @@ class SwarmLearner:
             return current_prompt, []
 
         # Summarize episodes
-        successes = [e for e in self.episode_buffer if e['outcome']]
-        failures = [e for e in self.episode_buffer if not e['outcome']]
+        successes = [e for e in self.episode_buffer if e["outcome"]]
+        failures = [e for e in self.episode_buffer if not e["outcome"]]
 
         patterns = []
         for p in self.learned_patterns[-20:]:
@@ -127,17 +134,22 @@ class SwarmLearner:
         try:
             result = self.learner(
                 current_prompt=current_prompt[:3000],
-                episode_trajectory=json.dumps({
-                    'success_count': len(successes),
-                    'failure_count': len(failures),
-                    'recent_trajectories': [e['trajectory'][:3] for e in self.episode_buffer[-3:]]
-                }, default=str)[:1500],
+                episode_trajectory=json.dumps(
+                    {
+                        "success_count": len(successes),
+                        "failure_count": len(failures),
+                        "recent_trajectories": [
+                            e["trajectory"][:3] for e in self.episode_buffer[-3:]
+                        ],
+                    },
+                    default=str,
+                )[:1500],
                 outcome=f"Successes: {len(successes)}, Failures: {len(failures)}",
-                patterns_observed="\n".join(patterns[-10:])[:1000]
+                patterns_observed="\n".join(patterns[-10:])[:1000],
             )
 
             updated = result.updated_prompt or current_prompt
-            changes = result.changes_made.split('\n') if result.changes_made else []
+            changes = result.changes_made.split("\n") if result.changes_made else []
 
             # Track versions
             if prompt_name not in self.prompt_versions:
@@ -159,7 +171,7 @@ class SwarmLearner:
         steps = []
         for step in trajectory[:5]:
             if isinstance(step, dict):
-                steps.append(str(step.get('step', 'unknown')))
+                steps.append(str(step.get("step", "unknown")))
             else:
                 steps.append(str(step))
         return " -> ".join(steps)
@@ -177,4 +189,4 @@ class SwarmLearner:
         self.episode_buffer = []
 
 
-__all__ = ['SwarmLearner', 'SwarmLearnerSignature']
+__all__ = ["SwarmLearner", "SwarmLearnerSignature"]

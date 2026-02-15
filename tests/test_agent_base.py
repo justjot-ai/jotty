@@ -25,13 +25,7 @@ import time
 from dataclasses import asdict
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-from unittest.mock import (
-    AsyncMock,
-    MagicMock,
-    Mock,
-    patch,
-    PropertyMock,
-)
+from unittest.mock import AsyncMock, MagicMock, Mock, PropertyMock, patch
 
 import pytest
 
@@ -39,11 +33,8 @@ import pytest
 # Guarded imports with skip markers
 # ---------------------------------------------------------------------------
 try:
-    from Jotty.core.modes.agent.base.base_agent import (
-        AgentResult,
-        AgentRuntimeConfig,
-        BaseAgent,
-    )
+    from Jotty.core.modes.agent.base.base_agent import AgentResult, AgentRuntimeConfig, BaseAgent
+
     BASE_AGENT_AVAILABLE = True
 except ImportError:
     BASE_AGENT_AVAILABLE = False
@@ -54,43 +45,49 @@ try:
         DomainAgentConfig,
         create_domain_agent,
     )
+
     DOMAIN_AGENT_AVAILABLE = True
 except ImportError:
     DOMAIN_AGENT_AVAILABLE = False
 
 try:
     from Jotty.core.modes.agent.agents.swarm_agent import BaseSwarmAgent
+
     SWARM_AGENT_AVAILABLE = True
 except ImportError:
     SWARM_AGENT_AVAILABLE = False
 
 try:
+    from Jotty.core.infrastructure.foundation.types.enums import ValidationRound
+    from Jotty.core.infrastructure.foundation.types.validation_types import ValidationResult
     from Jotty.core.modes.agent.agents.validation_agent import (
         AgentMessage,
         SharedScratchpad,
         ValidationAgent,
         ValidationConfig,
     )
-    from Jotty.core.infrastructure.foundation.types.validation_types import ValidationResult
-    from Jotty.core.infrastructure.foundation.types.enums import ValidationRound
+
     VALIDATION_AGENT_AVAILABLE = True
 except ImportError:
     VALIDATION_AGENT_AVAILABLE = False
 
 try:
     from Jotty.core.modes.agent.executors.skill_plan_executor import ToolCallCache
+
     TOOL_CACHE_AVAILABLE = True
 except ImportError:
     TOOL_CACHE_AVAILABLE = False
 
 try:
     from Jotty.core.modes.agent.agents.autonomous_agent import ExecutionContextManager
+
     EXEC_CTX_AVAILABLE = True
 except ImportError:
     EXEC_CTX_AVAILABLE = False
 
 try:
     from Jotty.core.infrastructure.foundation.config_defaults import DEFAULTS
+
     DEFAULTS_AVAILABLE = True
 except ImportError:
     DEFAULTS_AVAILABLE = False
@@ -100,6 +97,7 @@ except ImportError:
 # Concrete subclass of BaseAgent for testing
 # ---------------------------------------------------------------------------
 if BASE_AGENT_AVAILABLE:
+
     class ConcreteAgent(BaseAgent):
         """Minimal concrete implementation for testing BaseAgent."""
 
@@ -116,6 +114,7 @@ _PATCH_DSPY = "Jotty.core.agents.base.base_agent.BaseAgent._init_dspy_lm"
 # =============================================================================
 # TestAgentRuntimeConfig
 # =============================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not BASE_AGENT_AVAILABLE, reason="BaseAgent not importable")
@@ -194,6 +193,7 @@ class TestAgentRuntimeConfig:
 # TestAgentResult
 # =============================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(not BASE_AGENT_AVAILABLE, reason="BaseAgent not importable")
 class TestAgentResult:
@@ -234,8 +234,14 @@ class TestAgentResult:
         result = AgentResult(success=True, output="ok", agent_name="X")
         d = result.to_dict()
         expected_keys = {
-            "success", "output", "agent_name", "execution_time",
-            "retries", "error", "metadata", "timestamp",
+            "success",
+            "output",
+            "agent_name",
+            "execution_time",
+            "retries",
+            "error",
+            "metadata",
+            "timestamp",
         }
         assert set(d.keys()) == expected_keys
 
@@ -265,6 +271,7 @@ class TestAgentResult:
 # =============================================================================
 # TestBaseAgent
 # =============================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not BASE_AGENT_AVAILABLE, reason="BaseAgent not importable")
@@ -459,8 +466,11 @@ class TestBaseAgent:
         agent = self._make_agent()
         mock_mem = MagicMock()
         agent._memory = mock_mem
-        with patch("Jotty.core.agents.base.base_agent.BaseAgent.memory",
-                    new_callable=PropertyMock, return_value=mock_mem):
+        with patch(
+            "Jotty.core.agents.base.base_agent.BaseAgent.memory",
+            new_callable=PropertyMock,
+            return_value=mock_mem,
+        ):
             agent.store_memory("hello", level="episodic", context={"a": 1})
         mock_mem.store.assert_called_once()
 
@@ -474,8 +484,11 @@ class TestBaseAgent:
         mock_mem = MagicMock()
         mock_mem.retrieve.return_value = ["entry1"]
         agent._memory = mock_mem
-        with patch("Jotty.core.agents.base.base_agent.BaseAgent.memory",
-                    new_callable=PropertyMock, return_value=mock_mem):
+        with patch(
+            "Jotty.core.agents.base.base_agent.BaseAgent.memory",
+            new_callable=PropertyMock,
+            return_value=mock_mem,
+        ):
             result = agent.retrieve_memory("query")
         assert result == ["entry1"]
 
@@ -640,8 +653,10 @@ class TestBaseAgent:
 
     def test_analyze_failure_returns_guidance_for_logic_error(self):
         agent = self._make_agent()
-        with patch("Jotty.core.agents.base.base_agent.BaseAgent._analyze_failure",
-                    wraps=agent._analyze_failure):
+        with patch(
+            "Jotty.core.agents.base.base_agent.BaseAgent._analyze_failure",
+            wraps=agent._analyze_failure,
+        ):
             result = agent._analyze_failure("KeyError: 'missing_field'", {})
             # May return guidance or empty depending on ErrorType availability
             assert isinstance(result, str)
@@ -678,6 +693,7 @@ class TestBaseAgent:
 # TestDomainAgent
 # =============================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(not DOMAIN_AGENT_AVAILABLE, reason="DomainAgent not importable")
 class TestDomainAgent:
@@ -685,7 +701,9 @@ class TestDomainAgent:
 
     def _make_agent(self, signature=None, **config_kwargs):
         with patch(_PATCH_DSPY):
-            config = DomainAgentConfig(name="TestDomain", **config_kwargs) if config_kwargs else None
+            config = (
+                DomainAgentConfig(name="TestDomain", **config_kwargs) if config_kwargs else None
+            )
             return DomainAgent(signature=signature, config=config)
 
     # -- DomainAgentConfig --
@@ -857,13 +875,13 @@ class TestDomainAgent:
 # TestBaseSwarmAgent
 # =============================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(not SWARM_AGENT_AVAILABLE, reason="BaseSwarmAgent not importable")
 class TestBaseSwarmAgent:
     """Tests for BaseSwarmAgent."""
 
-    def _make_agent(self, memory=None, context=None, bus=None,
-                    learned_context=""):
+    def _make_agent(self, memory=None, context=None, bus=None, learned_context=""):
         with patch(_PATCH_DSPY):
             return BaseSwarmAgent(
                 memory=memory,
@@ -921,6 +939,7 @@ class TestBaseSwarmAgent:
 # TestValidationConfig
 # =============================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(not VALIDATION_AGENT_AVAILABLE, reason="ValidationAgent not importable")
 class TestValidationConfig:
@@ -975,6 +994,7 @@ class TestValidationConfig:
 # =============================================================================
 # TestValidationAgent
 # =============================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not VALIDATION_AGENT_AVAILABLE, reason="ValidationAgent not importable")
@@ -1128,6 +1148,7 @@ class TestValidationAgent:
 # TestSharedScratchpad
 # =============================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(not VALIDATION_AGENT_AVAILABLE, reason="SharedScratchpad not importable")
 class TestSharedScratchpad:
@@ -1136,7 +1157,9 @@ class TestSharedScratchpad:
     def test_add_message(self):
         pad = SharedScratchpad()
         msg = AgentMessage(
-            sender="A", receiver="B", message_type="insight",
+            sender="A",
+            receiver="B",
+            message_type="insight",
             content={"text": "hello"},
         )
         pad.add_message(msg)
@@ -1144,17 +1167,14 @@ class TestSharedScratchpad:
 
     def test_get_messages_for_specific(self):
         pad = SharedScratchpad()
-        pad.add_message(AgentMessage(sender="A", receiver="B",
-                                     message_type="x", content={}))
-        pad.add_message(AgentMessage(sender="A", receiver="C",
-                                     message_type="x", content={}))
+        pad.add_message(AgentMessage(sender="A", receiver="B", message_type="x", content={}))
+        pad.add_message(AgentMessage(sender="A", receiver="C", message_type="x", content={}))
         msgs = pad.get_messages_for("B")
         assert len(msgs) == 1
 
     def test_get_messages_for_broadcast(self):
         pad = SharedScratchpad()
-        pad.add_message(AgentMessage(sender="A", receiver="*",
-                                     message_type="x", content={}))
+        pad.add_message(AgentMessage(sender="A", receiver="*", message_type="x", content={}))
         msgs = pad.get_messages_for("anyone")
         assert len(msgs) == 1
 
@@ -1169,8 +1189,7 @@ class TestSharedScratchpad:
 
     def test_clear(self):
         pad = SharedScratchpad()
-        pad.add_message(AgentMessage(sender="A", receiver="*",
-                                     message_type="x", content={}))
+        pad.add_message(AgentMessage(sender="A", receiver="*", message_type="x", content={}))
         pad.cache_result("t", {}, "r")
         pad.clear()
         assert len(pad.messages) == 0
@@ -1180,6 +1199,7 @@ class TestSharedScratchpad:
 # =============================================================================
 # TestToolCallCache
 # =============================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not TOOL_CACHE_AVAILABLE, reason="ToolCallCache not importable")
@@ -1257,6 +1277,7 @@ class TestToolCallCache:
 # TestExecutionContextManager
 # =============================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(not EXEC_CTX_AVAILABLE, reason="ExecutionContextManager not importable")
 class TestExecutionContextManager:
@@ -1328,6 +1349,7 @@ class TestExecutionContextManager:
 # TestAgentMessage
 # =============================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(not VALIDATION_AGENT_AVAILABLE, reason="AgentMessage not importable")
 class TestAgentMessage:
@@ -1346,7 +1368,10 @@ class TestAgentMessage:
 
     def test_defaults(self):
         msg = AgentMessage(
-            sender="A", receiver="B", message_type="x", content={},
+            sender="A",
+            receiver="B",
+            message_type="x",
+            content={},
         )
         assert msg.insight == ""
         assert msg.confidence == 0.0
@@ -1357,15 +1382,22 @@ class TestAgentMessage:
     def test_timestamp_auto_set(self):
         before = time.time()
         msg = AgentMessage(
-            sender="A", receiver="B", message_type="x", content={},
+            sender="A",
+            receiver="B",
+            message_type="x",
+            content={},
         )
         after = time.time()
         assert before <= msg.timestamp <= after
 
     def test_custom_fields(self):
         msg = AgentMessage(
-            sender="A", receiver="*", message_type="tool_result",
-            content={}, tool_name="search", tool_result={"data": 1},
+            sender="A",
+            receiver="*",
+            message_type="tool_result",
+            content={},
+            tool_name="search",
+            tool_result={"data": 1},
         )
         assert msg.tool_name == "search"
         assert msg.tool_result == {"data": 1}

@@ -1,9 +1,10 @@
 """Markdown to HTML Skill — convert markdown to styled HTML."""
-import re
-from typing import Dict, Any
 
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+import re
+from typing import Any, Dict
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("markdown-to-html")
 
@@ -23,7 +24,12 @@ a{color:#0366d6}
 def _md_to_html(md: str) -> str:
     html = md
     # Code blocks
-    html = re.sub(r"```(\w*)\n(.*?)```", lambda m: f"<pre><code class=\"{m.group(1)}\">{m.group(2)}</code></pre>", html, flags=re.DOTALL)
+    html = re.sub(
+        r"```(\w*)\n(.*?)```",
+        lambda m: f'<pre><code class="{m.group(1)}">{m.group(2)}</code></pre>',
+        html,
+        flags=re.DOTALL,
+    )
     # Inline code
     html = re.sub(r"`([^`]+)`", r"<code>\1</code>", html)
     # Headers

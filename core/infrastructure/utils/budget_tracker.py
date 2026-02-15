@@ -14,29 +14,32 @@ Features:
 - Integration with circuit breakers
 """
 
-import time
 import logging
 import threading
-from typing import Optional, Dict, Any, Callable
-from dataclasses import dataclass, field
+import time
 from collections import defaultdict
+from dataclasses import dataclass, field
 from enum import Enum
+from typing import Any, Callable, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
 
 class BudgetScope(Enum):
     """Scope levels for budget tracking."""
-    GLOBAL = "global"           # Total across everything
-    EPISODE = "episode"         # Per episode/session
-    AGENT = "agent"             # Per individual agent
-    OPERATION = "operation"     # Per operation type
+
+    GLOBAL = "global"  # Total across everything
+    EPISODE = "episode"  # Per episode/session
+    AGENT = "agent"  # Per individual agent
+    OPERATION = "operation"  # Per operation type
 
 
 class BudgetExceededError(Exception):
     """Raised when a budget limit is exceeded."""
 
-    def __init__(self, message: str, scope: BudgetScope, current: int, limit: int, resource: str = 'calls') -> None:
+    def __init__(
+        self, message: str, scope: BudgetScope, current: int, limit: int, resource: str = "calls"
+    ) -> None:
         super().__init__(message)
         self.scope = scope
         self.current = current
@@ -47,6 +50,7 @@ class BudgetExceededError(Exception):
 @dataclass
 class BudgetUsage:
     """Tracks usage for a single budget category."""
+
     calls: int = 0
     tokens_input: int = 0
     tokens_output: int = 0
@@ -62,19 +66,20 @@ class BudgetUsage:
     def to_dict(self) -> Dict[str, Any]:
         """Serialize to dictionary."""
         return {
-            'calls': self.calls,
-            'tokens_input': self.tokens_input,
-            'tokens_output': self.tokens_output,
-            'total_tokens': self.total_tokens,
-            'estimated_cost_usd': self.estimated_cost_usd,
-            'last_call_time': self.last_call_time,
-            'warnings_emitted': self.warnings_emitted,
+            "calls": self.calls,
+            "tokens_input": self.tokens_input,
+            "tokens_output": self.tokens_output,
+            "total_tokens": self.total_tokens,
+            "estimated_cost_usd": self.estimated_cost_usd,
+            "last_call_time": self.last_call_time,
+            "warnings_emitted": self.warnings_emitted,
         }
 
 
 @dataclass
 class BudgetConfig:
     """Configuration for budget limits."""
+
     # Call limits
     max_llm_calls_per_episode: int = 100
     max_llm_calls_per_agent: int = 50
@@ -97,34 +102,34 @@ class BudgetConfig:
     soft_limit_mode: bool = False  # If True, warn but don't block
 
     @classmethod
-    def from_swarm_config(cls, config: Any) -> 'BudgetConfig':
+    def from_swarm_config(cls, config: Any) -> "BudgetConfig":
         """Create BudgetConfig from SwarmConfig budget fields.
 
         Bridges SwarmConfig budget fields to BudgetConfig so users
         can set budget limits in one place (SwarmConfig).
         """
         return cls(
-            max_llm_calls_per_episode=getattr(config, 'max_llm_calls_per_episode', 100),
-            max_llm_calls_per_agent=getattr(config, 'max_llm_calls_per_agent', 50),
-            max_total_tokens_per_episode=getattr(config, 'max_total_tokens_per_episode', 500000),
-            warning_threshold=getattr(config, 'budget_warning_threshold', 0.8),
-            enable_enforcement=getattr(config, 'enable_budget_enforcement', True),
+            max_llm_calls_per_episode=getattr(config, "max_llm_calls_per_episode", 100),
+            max_llm_calls_per_agent=getattr(config, "max_llm_calls_per_agent", 50),
+            max_total_tokens_per_episode=getattr(config, "max_total_tokens_per_episode", 500000),
+            warning_threshold=getattr(config, "budget_warning_threshold", 0.8),
+            enable_enforcement=getattr(config, "enable_budget_enforcement", True),
         )
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize to dictionary."""
         return {
-            'max_llm_calls_per_episode': self.max_llm_calls_per_episode,
-            'max_llm_calls_per_agent': self.max_llm_calls_per_agent,
-            'max_llm_calls_global': self.max_llm_calls_global,
-            'max_total_tokens_per_episode': self.max_total_tokens_per_episode,
-            'max_tokens_per_agent': self.max_tokens_per_agent,
-            'max_tokens_per_call': self.max_tokens_per_call,
-            'max_cost_per_episode': self.max_cost_per_episode,
-            'max_cost_global': self.max_cost_global,
-            'warning_threshold': self.warning_threshold,
-            'enable_enforcement': self.enable_enforcement,
-            'soft_limit_mode': self.soft_limit_mode,
+            "max_llm_calls_per_episode": self.max_llm_calls_per_episode,
+            "max_llm_calls_per_agent": self.max_llm_calls_per_agent,
+            "max_llm_calls_global": self.max_llm_calls_global,
+            "max_total_tokens_per_episode": self.max_total_tokens_per_episode,
+            "max_tokens_per_agent": self.max_tokens_per_agent,
+            "max_tokens_per_call": self.max_tokens_per_call,
+            "max_cost_per_episode": self.max_cost_per_episode,
+            "max_cost_global": self.max_cost_global,
+            "warning_threshold": self.warning_threshold,
+            "enable_enforcement": self.enable_enforcement,
+            "soft_limit_mode": self.soft_limit_mode,
         }
 
 
@@ -166,10 +171,15 @@ class BudgetTracker:
         tracker.end_episode()
     """
 
-    _instances: Dict[str, 'BudgetTracker'] = {}
+    _instances: Dict[str, "BudgetTracker"] = {}
     _instances_lock = threading.Lock()
 
-    def __init__(self, config: Optional[BudgetConfig] = None, cost_per_1k_input: float = DEFAULT_COST_PER_1K_INPUT, cost_per_1k_output: float = DEFAULT_COST_PER_1K_OUTPUT) -> None:
+    def __init__(
+        self,
+        config: Optional[BudgetConfig] = None,
+        cost_per_1k_input: float = DEFAULT_COST_PER_1K_INPUT,
+        cost_per_1k_output: float = DEFAULT_COST_PER_1K_OUTPUT,
+    ) -> None:
         """
         Initialize budget tracker.
 
@@ -203,7 +213,7 @@ class BudgetTracker:
         )
 
     @classmethod
-    def get_instance(cls, name: str = 'default', **kwargs: Any) -> 'BudgetTracker':
+    def get_instance(cls, name: str = "default", **kwargs: Any) -> "BudgetTracker":
         """Get a singleton instance by name (thread-safe, double-checked locking)."""
         if name not in cls._instances:
             with cls._instances_lock:
@@ -239,13 +249,12 @@ class BudgetTracker:
         """
         with self._lock:
             summary = {
-                'episode_id': self._current_episode,
-                'episode_usage': self._episode_usage.to_dict(),
-                'agent_usage': {
-                    agent: usage.to_dict()
-                    for agent, usage in self._agent_usage.items()
+                "episode_id": self._current_episode,
+                "episode_usage": self._episode_usage.to_dict(),
+                "agent_usage": {
+                    agent: usage.to_dict() for agent, usage in self._agent_usage.items()
                 },
-                'global_usage': self._global_usage.to_dict(),
+                "global_usage": self._global_usage.to_dict(),
             }
 
             logger.info(
@@ -258,11 +267,7 @@ class BudgetTracker:
             self._current_episode = None
             return summary
 
-    def can_make_call(
-        self,
-        agent_name: str,
-        estimated_tokens: int = 0
-    ) -> bool:
+    def can_make_call(self, agent_name: str, estimated_tokens: int = 0) -> bool:
         """
         Check if an LLM call can be made within budget.
 
@@ -307,7 +312,7 @@ class BudgetTracker:
         tokens_input: int = 0,
         tokens_output: int = 0,
         model: str = "",
-        cost_override: Optional[float] = None
+        cost_override: Optional[float] = None,
     ) -> None:
         """
         Record an LLM call and update usage.
@@ -370,35 +375,28 @@ class BudgetTracker:
     def _check_limits(self, agent_name: str) -> None:
         """Check limits and emit warnings/errors."""
         # Check episode call limit
-        episode_call_ratio = (
-            self._episode_usage.calls / self.config.max_llm_calls_per_episode
-        )
+        episode_call_ratio = self._episode_usage.calls / self.config.max_llm_calls_per_episode
         if episode_call_ratio >= 1.0:
             self._handle_limit_exceeded(
                 BudgetScope.EPISODE,
                 self._episode_usage.calls,
                 self.config.max_llm_calls_per_episode,
-                "calls"
+                "calls",
             )
         elif episode_call_ratio >= self.config.warning_threshold:
             self._emit_warning(
                 BudgetScope.EPISODE,
                 "calls",
                 self._episode_usage.calls,
-                self.config.max_llm_calls_per_episode
+                self.config.max_llm_calls_per_episode,
             )
 
         # Check agent call limit
         agent_usage = self._agent_usage[agent_name]
-        agent_call_ratio = (
-            agent_usage.calls / self.config.max_llm_calls_per_agent
-        )
+        agent_call_ratio = agent_usage.calls / self.config.max_llm_calls_per_agent
         if agent_call_ratio >= 1.0:
             self._handle_limit_exceeded(
-                BudgetScope.AGENT,
-                agent_usage.calls,
-                self.config.max_llm_calls_per_agent,
-                "calls"
+                BudgetScope.AGENT, agent_usage.calls, self.config.max_llm_calls_per_agent, "calls"
             )
         elif agent_call_ratio >= self.config.warning_threshold:
             self._emit_warning(
@@ -406,87 +404,66 @@ class BudgetTracker:
                 "calls",
                 agent_usage.calls,
                 self.config.max_llm_calls_per_agent,
-                agent_name
+                agent_name,
             )
 
         # Check token limit
-        token_ratio = (
-            self._episode_usage.total_tokens /
-            self.config.max_total_tokens_per_episode
-        )
+        token_ratio = self._episode_usage.total_tokens / self.config.max_total_tokens_per_episode
         if token_ratio >= 1.0:
             self._handle_limit_exceeded(
                 BudgetScope.EPISODE,
                 self._episode_usage.total_tokens,
                 self.config.max_total_tokens_per_episode,
-                "tokens"
+                "tokens",
             )
         elif token_ratio >= self.config.warning_threshold:
             self._emit_warning(
                 BudgetScope.EPISODE,
                 "tokens",
                 self._episode_usage.total_tokens,
-                self.config.max_total_tokens_per_episode
+                self.config.max_total_tokens_per_episode,
             )
 
         # Check cost limits
         if self.config.max_cost_per_episode:
-            cost_ratio = (
-                self._episode_usage.estimated_cost_usd /
-                self.config.max_cost_per_episode
-            )
+            cost_ratio = self._episode_usage.estimated_cost_usd / self.config.max_cost_per_episode
             if cost_ratio >= 1.0:
                 self._handle_limit_exceeded(
                     BudgetScope.EPISODE,
                     int(self._episode_usage.estimated_cost_usd * 100),
                     int(self.config.max_cost_per_episode * 100),
-                    "cost_cents"
+                    "cost_cents",
                 )
             elif cost_ratio >= self.config.warning_threshold:
                 self._emit_warning(
                     BudgetScope.EPISODE,
                     "cost",
                     self._episode_usage.estimated_cost_usd,
-                    self.config.max_cost_per_episode
+                    self.config.max_cost_per_episode,
                 )
 
     def _handle_limit_exceeded(
-        self,
-        scope: BudgetScope,
-        current: int,
-        limit: int,
-        resource: str
+        self, scope: BudgetScope, current: int, limit: int, resource: str
     ) -> None:
         """Handle a limit being exceeded."""
-        message = (
-            f"Budget limit exceeded: {scope.value} {resource} "
-            f"({current}/{limit})"
-        )
+        message = f"Budget limit exceeded: {scope.value} {resource} " f"({current}/{limit})"
 
         if self.config.enable_enforcement and not self.config.soft_limit_mode:
             logger.error(f" {message}")
             raise BudgetExceededError(
-                message=message,
-                scope=scope,
-                current=current,
-                limit=limit,
-                resource=resource
+                message=message, scope=scope, current=current, limit=limit, resource=resource
             )
         else:
             logger.warning(f" {message} (soft limit mode)")
 
     def _emit_warning(
-        self,
-        scope: BudgetScope,
-        resource: str,
-        current: Any,
-        limit: Any,
-        context: str = ""
+        self, scope: BudgetScope, resource: str, current: Any, limit: Any, context: str = ""
     ) -> None:
         """Emit a warning about approaching limit."""
         # Track warnings to avoid spamming
         usage = (
-            self._episode_usage if scope == BudgetScope.EPISODE
+            self._episode_usage
+            if scope == BudgetScope.EPISODE
             else self._agent_usage.get(context, self._global_usage)
         )
 
@@ -498,8 +475,7 @@ class BudgetTracker:
             usage.warnings_emitted = warning_level
 
             message = (
-                f"Budget warning: {scope.value} {resource} at "
-                f"{ratio:.0%} ({current}/{limit})"
+                f"Budget warning: {scope.value} {resource} at " f"{ratio:.0%} ({current}/{limit})"
             )
             if context:
                 message += f" for {context}"
@@ -525,22 +501,24 @@ class BudgetTracker:
             elif scope == BudgetScope.EPISODE:
                 return self._episode_usage.to_dict()
             else:
-                return {
-                    agent: usage.to_dict()
-                    for agent, usage in self._agent_usage.items()
-                }
+                return {agent: usage.to_dict() for agent, usage in self._agent_usage.items()}
 
     def get_remaining(self, scope: BudgetScope = BudgetScope.EPISODE) -> Dict[str, int]:
         """Get remaining budget for a scope."""
         with self._lock:
             if scope == BudgetScope.EPISODE:
                 return {
-                    'calls': max(0, self.config.max_llm_calls_per_episode - self._episode_usage.calls),
-                    'tokens': max(0, self.config.max_total_tokens_per_episode - self._episode_usage.total_tokens),
+                    "calls": max(
+                        0, self.config.max_llm_calls_per_episode - self._episode_usage.calls
+                    ),
+                    "tokens": max(
+                        0,
+                        self.config.max_total_tokens_per_episode - self._episode_usage.total_tokens,
+                    ),
                 }
             elif scope == BudgetScope.GLOBAL:
                 return {
-                    'calls': max(0, self.config.max_llm_calls_global - self._global_usage.calls),
+                    "calls": max(0, self.config.max_llm_calls_global - self._global_usage.calls),
                 }
             return {}
 
@@ -555,7 +533,8 @@ class BudgetTracker:
 # CONVENIENCE FUNCTIONS
 # =============================================================================
 
-def get_budget_tracker(name: str = 'default', **kwargs: Any) -> BudgetTracker:
+
+def get_budget_tracker(name: str = "default", **kwargs: Any) -> BudgetTracker:
     """Get a named budget tracker instance."""
     return BudgetTracker.get_instance(name, **kwargs)
 
@@ -565,10 +544,10 @@ def get_budget_tracker(name: str = 'default', **kwargs: Any) -> BudgetTracker:
 # =============================================================================
 
 __all__ = [
-    'BudgetTracker',
-    'BudgetConfig',
-    'BudgetUsage',
-    'BudgetScope',
-    'BudgetExceededError',
-    'get_budget_tracker',
+    "BudgetTracker",
+    "BudgetConfig",
+    "BudgetUsage",
+    "BudgetScope",
+    "BudgetExceededError",
+    "get_budget_tracker",
 ]

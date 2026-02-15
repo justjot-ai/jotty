@@ -39,6 +39,7 @@ _dspy_lm_lock = threading.Lock()
 # CONFIGURATION AND RESULT DATACLASSES
 # =============================================================================
 
+
 @dataclass
 class AgentRuntimeConfig:
     """Unified runtime configuration for all agent types.
@@ -51,13 +52,14 @@ class AgentRuntimeConfig:
     For orchestration-level agent specification, see
     ``Jotty.core.foundation.agent_config.AgentConfig``.
     """
+
     name: str = ""
-    model: str = ""           # "" → DEFAULT_MODEL_ALIAS
+    model: str = ""  # "" → DEFAULT_MODEL_ALIAS
     temperature: float = 0.0  # 0.0 → LLM_TEMPERATURE
-    max_tokens: int = 0       # 0 → LLM_MAX_OUTPUT_TOKENS
-    max_retries: int = 0      # 0 → MAX_RETRIES
+    max_tokens: int = 0  # 0 → LLM_MAX_OUTPUT_TOKENS
+    max_retries: int = 0  # 0 → MAX_RETRIES
     retry_delay: float = 0.0  # 0.0 → RETRY_BACKOFF_SECONDS
-    timeout: float = 0.0      # 0.0 → LLM_TIMEOUT_SECONDS
+    timeout: float = 0.0  # 0.0 → LLM_TIMEOUT_SECONDS
     enable_memory: bool = True
     enable_context: bool = True
     enable_monitoring: bool = True
@@ -67,6 +69,7 @@ class AgentRuntimeConfig:
 
     def __post_init__(self) -> None:
         from Jotty.core.infrastructure.foundation.config_defaults import DEFAULTS
+
         if not self.name:
             self.name = self.__class__.__name__
         if not self.model:
@@ -86,6 +89,7 @@ class AgentRuntimeConfig:
 @dataclass
 class AgentResult:
     """Standardized result from any agent execution."""
+
     success: bool
     output: Any
     agent_name: str = ""
@@ -112,6 +116,7 @@ class AgentResult:
 # =============================================================================
 # BASE AGENT ABSTRACT CLASS
 # =============================================================================
+
 
 class BaseAgent(ABC):
     """
@@ -147,7 +152,7 @@ class BaseAgent(ABC):
     MAX_RETRY_DELAY = 60.0
 
     # Error patterns that are never worth LLM-analyzing (just retry)
-    _BLIND_RETRY_PATTERNS = ('rate limit', '429', 'overloaded', 'capacity')
+    _BLIND_RETRY_PATTERNS = ("rate limit", "429", "overloaded", "capacity")
 
     def __init__(self, config: AgentRuntimeConfig = None) -> None:
         """
@@ -187,7 +192,7 @@ class BaseAgent(ABC):
 
         self._initialized = False
 
-    def set_jotty_config(self, config: Any) -> 'BaseAgent':
+    def set_jotty_config(self, config: Any) -> "BaseAgent":
         """Inject a shared SwarmConfig so lazy-loaded components (memory, etc.)
         use the same configuration as the rest of the system.
 
@@ -219,16 +224,16 @@ class BaseAgent(ABC):
         from pathlib import Path
 
         # Look for .env.anthropic in project root (4 levels up from this file)
-        env_file = Path(__file__).parents[4] / '.env.anthropic'
+        env_file = Path(__file__).parents[4] / ".env.anthropic"
         if env_file.exists():
             try:
                 with open(env_file) as f:
                     for line in f:
                         line = line.strip()
-                        if not line or line.startswith('#'):
+                        if not line or line.startswith("#"):
                             continue
-                        if '=' in line:
-                            key_name, key_val = line.split('=', 1)
+                        if "=" in line:
+                            key_name, key_val = line.split("=", 1)
                             key_name, key_val = key_name.strip(), key_val.strip()
                             if key_val and key_name not in os.environ:
                                 os.environ[key_name] = key_val
@@ -254,35 +259,47 @@ class BaseAgent(ABC):
 
         with _dspy_lm_lock:
             # Re-check inside lock — another thread may have configured it
-            if hasattr(dspy.settings, 'lm') and dspy.settings.lm is not None:
+            if hasattr(dspy.settings, "lm") and dspy.settings.lm is not None:
                 self._lm = dspy.settings.lm
                 return
 
             # Load API keys from .env.anthropic if not in environment
             import os
-            if not os.environ.get('ANTHROPIC_API_KEY') or not os.environ.get('OPENROUTER_API_KEY'):
+
+            if not os.environ.get("ANTHROPIC_API_KEY") or not os.environ.get("OPENROUTER_API_KEY"):
                 self._load_api_keys()
 
             # Try direct API first (fastest)
             try:
-                from Jotty.core.infrastructure.foundation.direct_anthropic_lm import DirectAnthropicLM, is_api_key_available
+                from Jotty.core.infrastructure.foundation.direct_anthropic_lm import (
+                    DirectAnthropicLM,
+                    is_api_key_available,
+                )
+
                 if is_api_key_available():
                     self._lm = DirectAnthropicLM(
                         model=self.config.model,
                         max_tokens=min(int(self.config.max_tokens), 8192),
                     )
                     dspy.configure(lm=self._lm)
-                    logger.info(f"Auto-configured DSPy LM with DirectAnthropicLM ({self.config.model}) - fastest")
+                    logger.info(
+                        f"Auto-configured DSPy LM with DirectAnthropicLM ({self.config.model}) - fastest"
+                    )
                     return
             except Exception as e:
                 logger.debug(f"DirectAnthropicLM not available: {e}")
 
             # Fallback to Claude CLI
             try:
-                from Jotty.core.infrastructure.foundation.persistent_claude_lm import PersistentClaudeCLI
+                from Jotty.core.infrastructure.foundation.persistent_claude_lm import (
+                    PersistentClaudeCLI,
+                )
+
                 self._lm = PersistentClaudeCLI(model=self.config.model)
                 dspy.configure(lm=self._lm)
-                logger.info(f"Auto-configured DSPy LM with PersistentClaudeCLI ({self.config.model})")
+                logger.info(
+                    f"Auto-configured DSPy LM with PersistentClaudeCLI ({self.config.model})"
+                )
             except Exception as e:
                 logger.warning(f"Could not auto-configure DSPy LM: {e}")
 
@@ -291,16 +308,17 @@ class BaseAgent(ABC):
         """Lazy-load SwarmMemory."""
         if self._memory is None and self.config.enable_memory:
             try:
+                from Jotty.core.infrastructure.foundation.data_structures import (
+                    SwarmConfig,
+                    SwarmLearningConfig,
+                )
                 from Jotty.core.intelligence.memory.cortex import SwarmMemory
-                from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig, SwarmLearningConfig
+
                 # Use the shared _jotty_config if one was injected, otherwise
                 # fall back to a default. This prevents creating N independent
                 # SwarmConfig instances with potentially different defaults.
-                jotty_config = getattr(self, '_jotty_config', None) or SwarmConfig()
-                self._memory = SwarmMemory(
-                    config=jotty_config,
-                    agent_name=self.config.name
-                )
+                jotty_config = getattr(self, "_jotty_config", None) or SwarmConfig()
+                self._memory = SwarmMemory(config=jotty_config, agent_name=self.config.name)
                 logger.debug(f"Initialized SwarmMemory for {self.config.name}")
             except Exception as e:
                 logger.warning(f"Could not initialize memory: {e}")
@@ -312,6 +330,7 @@ class BaseAgent(ABC):
         if self._context_manager is None and self.config.enable_context:
             try:
                 from Jotty.core.infrastructure.persistence.shared_context import SharedContext
+
                 self._context_manager = SharedContext()
                 logger.debug(f"Initialized SharedContext for {self.config.name}")
             except Exception as e:
@@ -324,6 +343,7 @@ class BaseAgent(ABC):
         if self._skills_registry is None and self.config.enable_skills:
             try:
                 from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
+
                 self._skills_registry = get_skills_registry()
                 if not self._skills_registry.initialized:
                     self._skills_registry.init()
@@ -369,19 +389,17 @@ class BaseAgent(ABC):
             try:
                 # Inject trajectory context for retries
                 if trajectory:
-                    kwargs['_retry_trajectory'] = trajectory
-                    kwargs['_retry_guidance'] = trajectory[-1].get('guidance', '')
+                    kwargs["_retry_trajectory"] = trajectory
+                    kwargs["_retry_guidance"] = trajectory[-1].get("guidance", "")
 
                 # Execute the implementation
                 if asyncio.iscoroutinefunction(self._execute_impl):
                     output = await asyncio.wait_for(
-                        self._execute_impl(**kwargs),
-                        timeout=self.config.timeout
+                        self._execute_impl(**kwargs), timeout=self.config.timeout
                     )
                 else:
                     output = await asyncio.wait_for(
-                        asyncio.to_thread(self._execute_impl, **kwargs),
-                        timeout=self.config.timeout
+                        asyncio.to_thread(self._execute_impl, **kwargs), timeout=self.config.timeout
                     )
 
                 execution_time = time.time() - start_time
@@ -417,27 +435,31 @@ class BaseAgent(ABC):
                 logger.warning(f"Attempt {attempt + 1}/{self.config.max_retries} failed: {e}")
 
             # Record trajectory entry for this failed attempt
-            trajectory.append({
-                'attempt': attempt + 1,
-                'error': last_error,
-                'guidance': '',  # Filled by LLM analysis below
-            })
+            trajectory.append(
+                {
+                    "attempt": attempt + 1,
+                    "error": last_error,
+                    "guidance": "",  # Filled by LLM analysis below
+                }
+            )
 
             # Exponential backoff with max cap before retry
             if attempt < self.config.max_retries - 1:
                 retries += 1
                 delay = min(
-                    self.config.retry_delay * (2 ** attempt),
+                    self.config.retry_delay * (2**attempt),
                     self.MAX_RETRY_DELAY,
                 )
 
                 # LLM-analyzed retry: analyze failure for non-trivial errors
                 guidance = self._analyze_failure(last_error, kwargs)
                 if guidance:
-                    trajectory[-1]['guidance'] = guidance
+                    trajectory[-1]["guidance"] = guidance
                     logger.info(f"Retry guidance: {guidance[:100]}")
 
-                logger.info(f"Retrying in {delay:.1f}s (attempt {attempt + 2}/{self.config.max_retries})")
+                logger.info(
+                    f"Retrying in {delay:.1f}s (attempt {attempt + 2}/{self.config.max_retries})"
+                )
                 await asyncio.sleep(delay)
 
         # All retries exhausted
@@ -454,7 +476,7 @@ class BaseAgent(ABC):
             execution_time=execution_time,
             retries=retries,
             error=last_error,
-            metadata={'trajectory': trajectory},
+            metadata={"trajectory": trajectory},
         )
 
     def _analyze_failure(self, error: str, kwargs: Dict[str, Any]) -> str:
@@ -473,6 +495,7 @@ class BaseAgent(ABC):
 
         try:
             from Jotty.core.modes.execution.types import ErrorType
+
             error_type = ErrorType.classify(error)
 
             guidance_map = {
@@ -489,8 +512,7 @@ class BaseAgent(ABC):
                     "Consider SSL bypass, proxy settings, or alternative endpoints."
                 ),
                 ErrorType.INFRASTRUCTURE: (
-                    f"Infrastructure error: {error[:200]}. "
-                    "Retrying with same approach."
+                    f"Infrastructure error: {error[:200]}. " "Retrying with same approach."
                 ),
             }
             return guidance_map.get(error_type, "")
@@ -544,7 +566,9 @@ class BaseAgent(ABC):
     # MEMORY HELPERS
     # =========================================================================
 
-    def store_memory(self, content: str, level: str = 'episodic', context: Dict[str, Any] = None, goal: str = '') -> Any:
+    def store_memory(
+        self, content: str, level: str = "episodic", context: Dict[str, Any] = None, goal: str = ""
+    ) -> Any:
         """
         Store content in hierarchical memory.
 
@@ -560,22 +584,13 @@ class BaseAgent(ABC):
 
         try:
             from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
+
             level_enum = MemoryLevel[level.upper()] if isinstance(level, str) else level
-            self.memory.store(
-                content=content,
-                level=level_enum,
-                context=context or {},
-                goal=goal
-            )
+            self.memory.store(content=content, level=level_enum, context=context or {}, goal=goal)
         except Exception as e:
             logger.warning(f"Failed to store memory: {e}")
 
-    def retrieve_memory(
-        self,
-        query: str,
-        goal: str = "",
-        budget_tokens: int = 1000
-    ) -> List[Any]:
+    def retrieve_memory(self, query: str, goal: str = "", budget_tokens: int = 1000) -> List[Any]:
         """
         Retrieve relevant memories.
 
@@ -591,11 +606,7 @@ class BaseAgent(ABC):
             return []
 
         try:
-            return self.memory.retrieve(
-                query=query,
-                goal=goal,
-                budget_tokens=budget_tokens
-            )
+            return self.memory.retrieve(query=query, goal=goal, budget_tokens=budget_tokens)
         except Exception as e:
             logger.warning(f"Failed to retrieve memory: {e}")
             return []
@@ -623,12 +634,13 @@ class BaseAgent(ABC):
         try:
             # Get recent context and compress if needed
             all_context = {}
-            for key in ['current_task', 'current_goal', 'recent_outputs', 'agent_states']:
+            for key in ["current_task", "current_goal", "recent_outputs", "agent_states"]:
                 value = self.context.get(key)
                 if value:
                     all_context[key] = value
 
             import json
+
             context_str = json.dumps(all_context, default=str)
 
             # Truncate if too long (rough token estimate: 4 chars per token)
@@ -654,15 +666,17 @@ class BaseAgent(ABC):
         """
         from Jotty.core.modes.agent._execution_types import AgentIOSchema, ToolParam
 
-        if hasattr(self, '_io_schema') and self._io_schema is not None:
+        if hasattr(self, "_io_schema") and self._io_schema is not None:
             return self._io_schema
 
         self._io_schema = AgentIOSchema(
-            agent_name=getattr(self.config, 'name', self.__class__.__name__),
-            inputs=[ToolParam(name='task', description='Task to execute')],
+            agent_name=getattr(self.config, "name", self.__class__.__name__),
+            inputs=[ToolParam(name="task", description="Task to execute")],
             outputs=[
-                ToolParam(name='output', description='Execution result'),
-                ToolParam(name='success', type_hint='bool', description='Whether execution succeeded'),
+                ToolParam(name="output", description="Execution result"),
+                ToolParam(
+                    name="success", type_hint="bool", description="Whether execution succeeded"
+                ),
             ],
         )
         return self._io_schema
@@ -715,8 +729,8 @@ class BaseAgent(ABC):
 
         # Auto-append VVP when visual skills are available
         if discovered_skills:
-            visual_names = {'visual-inspector', 'browser-automation'}
-            if any(s.get('name', '') in visual_names for s in discovered_skills):
+            visual_names = {"visual-inspector", "browser-automation"}
+            if any(s.get("name", "") in visual_names for s in discovered_skills):
                 parts.append(self.VVP_PROMPT)
 
         return "\n\n".join(parts)
@@ -746,6 +760,7 @@ class BaseAgent(ABC):
             First non-empty env var value, or default.
         """
         import os
+
         for var in env_vars:
             value = os.environ.get(var, "").strip()
             if value:
@@ -777,24 +792,25 @@ class BaseAgent(ABC):
 
     def request_help(self, target_agent: str, query: str) -> None:
         """Post a help request to the agent slack for another agent."""
-        self._agent_slack.append({
-            'from': self.config.name,
-            'to': target_agent,
-            'query': query,
-            'timestamp': datetime.now().isoformat(),
-        })
-        self._collaboration_history.append({
-            'type': 'request',
-            'to': target_agent,
-            'query': query,
-        })
+        self._agent_slack.append(
+            {
+                "from": self.config.name,
+                "to": target_agent,
+                "query": query,
+                "timestamp": datetime.now().isoformat(),
+            }
+        )
+        self._collaboration_history.append(
+            {
+                "type": "request",
+                "to": target_agent,
+                "query": query,
+            }
+        )
 
     def get_pending_requests(self) -> List[Dict[str, Any]]:
         """Get help requests addressed to this agent."""
-        return [
-            msg for msg in self._agent_slack
-            if msg.get('to') == self.config.name
-        ]
+        return [msg for msg in self._agent_slack if msg.get("to") == self.config.name]
 
     # =========================================================================
     # METRICS
@@ -804,9 +820,7 @@ class BaseAgent(ABC):
         """Get agent execution metrics."""
         metrics = self._metrics.copy()
         if metrics["total_executions"] > 0:
-            metrics["success_rate"] = (
-                metrics["successful_executions"] / metrics["total_executions"]
-            )
+            metrics["success_rate"] = metrics["successful_executions"] / metrics["total_executions"]
             metrics["avg_execution_time"] = (
                 metrics["total_execution_time"] / metrics["total_executions"]
             )
@@ -836,17 +850,19 @@ class BaseAgent(ABC):
         outputs.  Subclasses (DomainAgent) override with signature-derived schemas.
         Cached after first call.
         """
-        if hasattr(self, '_io_schema') and self._io_schema is not None:
+        if hasattr(self, "_io_schema") and self._io_schema is not None:
             return self._io_schema
 
         from Jotty.core.modes.agent._execution_types import AgentIOSchema, ToolParam
 
         self._io_schema = AgentIOSchema(
-            agent_name=getattr(self.config, 'name', self.__class__.__name__),
-            inputs=[ToolParam(name='task', description='Task to execute')],
+            agent_name=getattr(self.config, "name", self.__class__.__name__),
+            inputs=[ToolParam(name="task", description="Task to execute")],
             outputs=[
-                ToolParam(name='output', description='Execution result'),
-                ToolParam(name='success', type_hint='bool', description='Whether execution succeeded'),
+                ToolParam(name="output", description="Execution result"),
+                ToolParam(
+                    name="success", type_hint="bool", description="Whether execution succeeded"
+                ),
             ],
         )
         return self._io_schema
@@ -874,7 +890,7 @@ class BaseAgent(ABC):
 
 
 __all__ = [
-    'AgentRuntimeConfig',
-    'AgentResult',
-    'BaseAgent',
+    "AgentRuntimeConfig",
+    "AgentResult",
+    "BaseAgent",
 ]

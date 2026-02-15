@@ -5,7 +5,7 @@ No-Op Memory Backend
 For testing or when memory is disabled.
 """
 
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 
 
 class NoOpMemory:

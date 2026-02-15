@@ -1,15 +1,23 @@
 """Invoice Generator Skill - generate structured invoice data."""
+
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Dict, Any, List
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from typing import Any, Dict, List
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("invoice-generator")
 
 CURRENCY_SYMBOLS = {
-    "USD": "$", "EUR": "\u20ac", "GBP": "\u00a3", "JPY": "\u00a5",
-    "CAD": "CA$", "AUD": "A$", "CHF": "CHF", "INR": "\u20b9",
+    "USD": "$",
+    "EUR": "\u20ac",
+    "GBP": "\u00a3",
+    "JPY": "\u00a5",
+    "CAD": "CA$",
+    "AUD": "A$",
+    "CHF": "CHF",
+    "INR": "\u20b9",
 }
 
 
@@ -40,14 +48,16 @@ def generate_invoice_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         rate = float(item.get("rate", 0))
         amount = round(qty * rate, 2)
         subtotal += amount
-        line_items.append({
-            "line": i + 1,
-            "description": desc,
-            "quantity": qty,
-            "rate": rate,
-            "amount": amount,
-            "formatted_amount": f"{symbol}{amount:,.2f}",
-        })
+        line_items.append(
+            {
+                "line": i + 1,
+                "description": desc,
+                "quantity": qty,
+                "rate": rate,
+                "amount": amount,
+                "formatted_amount": f"{symbol}{amount:,.2f}",
+            }
+        )
 
     subtotal = round(subtotal, 2)
     tax_amount = round(subtotal * tax_rate / 100, 2) if tax_rate else 0.0

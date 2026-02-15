@@ -19,17 +19,17 @@ This will take ~30 minutes but shows REAL learning, not simulation.
 """
 
 import asyncio
-import dspy
 import logging
 import os
-from pathlib import Path
-from typing import Dict, List, Any
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List
+
+import dspy
 import pytest
 
 pytestmark = pytest.mark.skipif(
-    not os.getenv('ANTHROPIC_API_KEY'),
-    reason="Requires ANTHROPIC_API_KEY for real LLM calls"
+    not os.getenv("ANTHROPIC_API_KEY"), reason="Requires ANTHROPIC_API_KEY for real LLM calls"
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -58,10 +58,10 @@ async def real_learning_test():
     print("[1/5] Configuring Real Claude CLI")
     print("-" * 90)
 
-    from core.integration.direct_claude_cli_lm import DirectClaudeCLI
     from core.experts.mermaid_expert import MermaidExpertAgent
+    from core.integration.direct_claude_cli_lm import DirectClaudeCLI
 
-    lm = DirectClaudeCLI(model='sonnet')
+    lm = DirectClaudeCLI(model="sonnet")
     dspy.configure(lm=lm)
 
     print("✅ Claude 3.5 Sonnet ready (real LLM)")
@@ -112,7 +112,9 @@ Requirements:
 
     for iteration in range(1, iterations + 1):
         print(f"\n{'='*90}")
-        print(f"ITERATION {iteration}/{iterations} - {'INITIAL' if iteration == 1 else 'LEARNING FROM FEEDBACK'}")
+        print(
+            f"ITERATION {iteration}/{iterations} - {'INITIAL' if iteration == 1 else 'LEARNING FROM FEEDBACK'}"
+        )
         print(f"{'='*90}")
 
         # Generate diagram with Claude CLI
@@ -125,6 +127,7 @@ Requirements:
 
         class MermaidGenerator(dspy.Signature):
             """Generate Mermaid diagram."""
+
             prompt: str = dspy.InputField()
             improvements: str = dspy.InputField(desc="Previous feedback to incorporate")
             diagram: str = dspy.OutputField(desc="Mermaid diagram")
@@ -132,14 +135,15 @@ Requirements:
         generator = dspy.ChainOfThought(MermaidGenerator)
 
         # Add accumulated improvements to prompt
-        improvement_text = "\n\n".join(improvements) if improvements else "First attempt - no previous feedback"
+        improvement_text = (
+            "\n\n".join(improvements) if improvements else "First attempt - no previous feedback"
+        )
 
         print(f"   🤖 Calling Claude CLI...")
         start_time = datetime.now()
 
         result = generator(
-            prompt=current_prompt,
-            improvements=f"Previous feedback:\n{improvement_text}"
+            prompt=current_prompt, improvements=f"Previous feedback:\n{improvement_text}"
         )
 
         generated_diagram = result.diagram
@@ -156,16 +160,13 @@ Requirements:
             output=generated_diagram,
             gold_standard="sequenceDiagram\n    participant User\n    participant Frontend\n    participant AuthService\n    participant Database\n    \n    User->>Frontend: Submit credentials\n    Frontend->>AuthService: POST /auth/login\n    AuthService->>Database: Validate user\n    Database-->>AuthService: User record\n    \n    alt Valid credentials\n        AuthService->>AuthService: Generate JWT\n        AuthService-->>Frontend: Return token\n        Frontend->>Frontend: Store token\n        Frontend-->>User: Redirect to Dashboard\n    else Invalid credentials\n        AuthService-->>Frontend: 401 Unauthorized\n        Frontend-->>User: Show error\n    end",
             task="User authentication sequence diagram",
-            context={
-                "diagram_type": "sequence",
-                "iteration": iteration
-            }
+            context={"diagram_type": "sequence", "iteration": iteration},
         )
 
-        score = evaluation.get('score', 0.0)
-        status = evaluation.get('status', 'UNKNOWN')
-        issues = evaluation.get('issues', [])
-        suggestions = evaluation.get('suggestions', '')
+        score = evaluation.get("score", 0.0)
+        status = evaluation.get("status", "UNKNOWN")
+        issues = evaluation.get("issues", [])
+        suggestions = evaluation.get("suggestions", "")
 
         print(f"   📈 Score: {score:.2f} / 1.00")
         print(f"   Status: {status}")
@@ -180,14 +181,16 @@ Requirements:
             print(f"      {suggestions[:200]}...")
 
         # Store results
-        learning_history.append({
-            'iteration': iteration,
-            'diagram': generated_diagram,
-            'score': score,
-            'status': status,
-            'evaluation': evaluation,
-            'generation_time': elapsed
-        })
+        learning_history.append(
+            {
+                "iteration": iteration,
+                "diagram": generated_diagram,
+                "score": score,
+                "status": status,
+                "evaluation": evaluation,
+                "generation_time": elapsed,
+            }
+        )
 
         # REAL learning: Extract feedback for next iteration
         if iteration < iterations:
@@ -210,7 +213,9 @@ Requirements:
                 else:
                     feedback_items.append("Nearly there - refine flow and add alt/else blocks")
 
-                improvement = f"Iteration {iteration} feedback (score {score:.2f}): " + "; ".join(feedback_items)
+                improvement = f"Iteration {iteration} feedback (score {score:.2f}): " + "; ".join(
+                    feedback_items
+                )
                 improvements.append(improvement)
 
                 print(f"   ✅ Learned from evaluation")
@@ -230,14 +235,16 @@ Requirements:
     for i, hist in enumerate(learning_history, 1):
         change = ""
         if i > 1:
-            delta = hist['score'] - learning_history[i-2]['score']
+            delta = hist["score"] - learning_history[i - 2]["score"]
             change = f" ({delta:+.2f})"
         print(f"  Iteration {i}: {hist['score']:.2f}{change} - {hist['status']}")
 
     # Calculate REAL improvement
-    initial_score = learning_history[0]['score']
-    final_score = learning_history[-1]['score']
-    improvement_pct = ((final_score - initial_score) / initial_score * 100) if initial_score > 0 else 0
+    initial_score = learning_history[0]["score"]
+    final_score = learning_history[-1]["score"]
+    improvement_pct = (
+        ((final_score - initial_score) / initial_score * 100) if initial_score > 0 else 0
+    )
 
     print(f"\n📊 Learning Metrics:")
     print(f"  Initial Score: {initial_score:.2f}")
@@ -413,7 +420,7 @@ if __name__ == "__main__":
     print("Estimated time: 15-30 minutes (3 iterations with real Claude CLI)\n")
 
     response = input("Ready to run? This will take time but shows REAL learning (y/n): ")
-    if response.lower() == 'y':
+    if response.lower() == "y":
         asyncio.run(main())
     else:
         print("Test cancelled")

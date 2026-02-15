@@ -5,19 +5,21 @@ Auto-generates OpenAPI spec from Jotty's API endpoints.
 
 Usage:
     from Jotty.core.interface.api.openapi_generator import generate_openapi_spec
-    
+
     spec = generate_openapi_spec()
     with open('openapi.yaml', 'w') as f:
         f.write(spec)
 """
-from typing import Dict, Any, List
+
+from typing import Any, Dict, List
+
 import yaml
 
 
 def generate_openapi_spec() -> str:
     """
     Generate OpenAPI 3.0 specification for Jotty API.
-    
+
     Returns:
         OpenAPI spec as YAML string
     """
@@ -27,14 +29,11 @@ def generate_openapi_spec() -> str:
             "title": "Jotty AI Agent Framework API",
             "version": "1.0.0",
             "description": "REST API for Jotty - AI agent framework with 164 skills, multi-level memory, and swarm intelligence.",
-            "contact": {
-                "name": "Jotty Support",
-                "url": "https://github.com/your-repo/jotty"
-            }
+            "contact": {"name": "Jotty Support", "url": "https://github.com/your-repo/jotty"},
         },
         "servers": [
             {"url": "http://localhost:8766", "description": "Local development"},
-            {"url": "https://api.jotty.ai", "description": "Production"}
+            {"url": "https://api.jotty.ai", "description": "Production"},
         ],
         "paths": {
             "/health": {
@@ -48,9 +47,9 @@ def generate_openapi_spec() -> str:
                                 "application/json": {
                                     "schema": {"$ref": "#/components/schemas/HealthStatus"}
                                 }
-                            }
+                            },
                         }
-                    }
+                    },
                 }
             },
             "/metrics": {
@@ -60,9 +59,9 @@ def generate_openapi_spec() -> str:
                     "responses": {
                         "200": {
                             "description": "Metrics in Prometheus format",
-                            "content": {"text/plain": {}}
+                            "content": {"text/plain": {}},
                         }
-                    }
+                    },
                 }
             },
             "/skills": {
@@ -76,9 +75,9 @@ def generate_openapi_spec() -> str:
                                 "application/json": {
                                     "schema": {"$ref": "#/components/schemas/SkillList"}
                                 }
-                            }
+                            },
                         }
-                    }
+                    },
                 }
             },
             "/skills/{skill_name}/execute": {
@@ -90,7 +89,7 @@ def generate_openapi_spec() -> str:
                             "name": "skill_name",
                             "in": "path",
                             "required": True,
-                            "schema": {"type": "string"}
+                            "schema": {"type": "string"},
                         }
                     ],
                     "requestBody": {
@@ -99,20 +98,22 @@ def generate_openapi_spec() -> str:
                             "application/json": {
                                 "schema": {"$ref": "#/components/schemas/SkillExecutionRequest"}
                             }
-                        }
+                        },
                     },
                     "responses": {
                         "200": {
                             "description": "Skill execution result",
                             "content": {
                                 "application/json": {
-                                    "schema": {"$ref": "#/components/schemas/SkillExecutionResponse"}
+                                    "schema": {
+                                        "$ref": "#/components/schemas/SkillExecutionResponse"
+                                    }
                                 }
-                            }
+                            },
                         },
                         "404": {"description": "Skill not found"},
-                        "429": {"description": "Rate limit exceeded"}
-                    }
+                        "429": {"description": "Rate limit exceeded"},
+                    },
                 }
             },
             "/agents/{agent_name}/execute": {
@@ -124,7 +125,7 @@ def generate_openapi_spec() -> str:
                             "name": "agent_name",
                             "in": "path",
                             "required": True,
-                            "schema": {"type": "string"}
+                            "schema": {"type": "string"},
                         }
                     ],
                     "requestBody": {
@@ -133,18 +134,20 @@ def generate_openapi_spec() -> str:
                             "application/json": {
                                 "schema": {"$ref": "#/components/schemas/AgentExecutionRequest"}
                             }
-                        }
+                        },
                     },
                     "responses": {
                         "200": {
                             "description": "Agent execution result",
                             "content": {
                                 "application/json": {
-                                    "schema": {"$ref": "#/components/schemas/AgentExecutionResponse"}
+                                    "schema": {
+                                        "$ref": "#/components/schemas/AgentExecutionResponse"
+                                    }
                                 }
-                            }
+                            },
                         }
-                    }
+                    },
                 }
             },
             "/memory/store": {
@@ -157,7 +160,7 @@ def generate_openapi_spec() -> str:
                             "application/json": {
                                 "schema": {"$ref": "#/components/schemas/MemoryStoreRequest"}
                             }
-                        }
+                        },
                     },
                     "responses": {
                         "200": {
@@ -166,9 +169,9 @@ def generate_openapi_spec() -> str:
                                 "application/json": {
                                     "schema": {"$ref": "#/components/schemas/MemoryStoreResponse"}
                                 }
-                            }
+                            },
                         }
-                    }
+                    },
                 }
             },
             "/memory/retrieve": {
@@ -181,20 +184,22 @@ def generate_openapi_spec() -> str:
                             "application/json": {
                                 "schema": {"$ref": "#/components/schemas/MemoryRetrieveRequest"}
                             }
-                        }
+                        },
                     },
                     "responses": {
                         "200": {
                             "description": "Retrieved memories",
                             "content": {
                                 "application/json": {
-                                    "schema": {"$ref": "#/components/schemas/MemoryRetrieveResponse"}
+                                    "schema": {
+                                        "$ref": "#/components/schemas/MemoryRetrieveResponse"
+                                    }
                                 }
-                            }
+                            },
                         }
-                    }
+                    },
                 }
-            }
+            },
         },
         "components": {
             "schemas": {
@@ -202,9 +207,12 @@ def generate_openapi_spec() -> str:
                     "type": "object",
                     "properties": {
                         "status": {"type": "string", "enum": ["healthy", "degraded", "unhealthy"]},
-                        "checks": {"type": "array", "items": {"$ref": "#/components/schemas/HealthCheck"}},
-                        "timestamp": {"type": "number"}
-                    }
+                        "checks": {
+                            "type": "array",
+                            "items": {"$ref": "#/components/schemas/HealthCheck"},
+                        },
+                        "timestamp": {"type": "number"},
+                    },
                 },
                 "HealthCheck": {
                     "type": "object",
@@ -212,15 +220,18 @@ def generate_openapi_spec() -> str:
                         "name": {"type": "string"},
                         "status": {"type": "string"},
                         "message": {"type": "string"},
-                        "duration_ms": {"type": "number"}
-                    }
+                        "duration_ms": {"type": "number"},
+                    },
                 },
                 "SkillList": {
                     "type": "object",
                     "properties": {
-                        "skills": {"type": "array", "items": {"$ref": "#/components/schemas/Skill"}},
-                        "count": {"type": "integer"}
-                    }
+                        "skills": {
+                            "type": "array",
+                            "items": {"$ref": "#/components/schemas/Skill"},
+                        },
+                        "count": {"type": "integer"},
+                    },
                 },
                 "Skill": {
                     "type": "object",
@@ -228,88 +239,80 @@ def generate_openapi_spec() -> str:
                         "name": {"type": "string"},
                         "description": {"type": "string"},
                         "category": {"type": "string"},
-                        "version": {"type": "string"}
-                    }
+                        "version": {"type": "string"},
+                    },
                 },
                 "SkillExecutionRequest": {
                     "type": "object",
-                    "properties": {
-                        "params": {"type": "object"}
-                    },
-                    "required": ["params"]
+                    "properties": {"params": {"type": "object"}},
+                    "required": ["params"],
                 },
                 "SkillExecutionResponse": {
                     "type": "object",
                     "properties": {
                         "success": {"type": "boolean"},
                         "result": {"type": "object"},
-                        "error": {"type": "string"}
-                    }
+                        "error": {"type": "string"},
+                    },
                 },
                 "AgentExecutionRequest": {
                     "type": "object",
-                    "properties": {
-                        "task": {"type": "string"},
-                        "context": {"type": "object"}
-                    },
-                    "required": ["task"]
+                    "properties": {"task": {"type": "string"}, "context": {"type": "object"}},
+                    "required": ["task"],
                 },
                 "AgentExecutionResponse": {
                     "type": "object",
-                    "properties": {
-                        "success": {"type": "boolean"},
-                        "result": {"type": "object"}
-                    }
+                    "properties": {"success": {"type": "boolean"}, "result": {"type": "object"}},
                 },
                 "MemoryStoreRequest": {
                     "type": "object",
                     "properties": {
                         "content": {"type": "string"},
-                        "level": {"type": "string", "enum": ["episodic", "semantic", "procedural", "meta", "causal"]},
+                        "level": {
+                            "type": "string",
+                            "enum": ["episodic", "semantic", "procedural", "meta", "causal"],
+                        },
                         "goal": {"type": "string"},
-                        "metadata": {"type": "object"}
+                        "metadata": {"type": "object"},
                     },
-                    "required": ["content", "level", "goal"]
+                    "required": ["content", "level", "goal"],
                 },
                 "MemoryStoreResponse": {
                     "type": "object",
-                    "properties": {
-                        "memory_id": {"type": "string"}
-                    }
+                    "properties": {"memory_id": {"type": "string"}},
                 },
                 "MemoryRetrieveRequest": {
                     "type": "object",
                     "properties": {
                         "query": {"type": "string"},
                         "goal": {"type": "string"},
-                        "top_k": {"type": "integer", "default": 5}
+                        "top_k": {"type": "integer", "default": 5},
                     },
-                    "required": ["query", "goal"]
+                    "required": ["query", "goal"],
                 },
                 "MemoryRetrieveResponse": {
                     "type": "object",
                     "properties": {
-                        "memories": {"type": "array", "items": {"$ref": "#/components/schemas/Memory"}}
-                    }
+                        "memories": {
+                            "type": "array",
+                            "items": {"$ref": "#/components/schemas/Memory"},
+                        }
+                    },
                 },
                 "Memory": {
                     "type": "object",
                     "properties": {
                         "content": {"type": "string"},
                         "level": {"type": "string"},
-                        "relevance": {"type": "number"}
-                    }
-                }
+                        "relevance": {"type": "number"},
+                    },
+                },
             },
             "securitySchemes": {
-                "ApiKeyAuth": {
-                    "type": "apiKey",
-                    "in": "header",
-                    "name": "X-API-Key"
-                }
-            }
+                "ApiKeyAuth": {"type": "apiKey", "in": "header", "name": "X-API-Key"}
+            },
         },
-        "security": [{"ApiKeyAuth": []}]
+        "security": [{"ApiKeyAuth": []}],
     }
 
     return yaml.dump(spec, default_flow_style=False, sort_keys=False)
@@ -318,9 +321,9 @@ def generate_openapi_spec() -> str:
 if __name__ == "__main__":
     spec = generate_openapi_spec()
     print(spec)
-    
+
     # Save to file
-    with open('openapi.yaml', 'w') as f:
+    with open("openapi.yaml", "w") as f:
         f.write(spec)
-    
+
     print("\n✅ OpenAPI spec generated: openapi.yaml")

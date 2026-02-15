@@ -1,10 +1,12 @@
 """Uptime Monitor Skill — check HTTP endpoint availability."""
-import time
-import requests
-from typing import Dict, Any
 
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+import time
+from typing import Any, Dict
+
+import requests
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("uptime-monitor")
 
@@ -40,12 +42,18 @@ def check_endpoint_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         )
     except requests.ConnectionError:
         elapsed_ms = round((time.monotonic() - start) * 1000, 1)
-        return tool_response(url=url, status_code=0, response_time_ms=elapsed_ms,
-                             available=False, error="Connection refused")
+        return tool_response(
+            url=url,
+            status_code=0,
+            response_time_ms=elapsed_ms,
+            available=False,
+            error="Connection refused",
+        )
     except requests.Timeout:
         elapsed_ms = round((time.monotonic() - start) * 1000, 1)
-        return tool_response(url=url, status_code=0, response_time_ms=elapsed_ms,
-                             available=False, error="Timeout")
+        return tool_response(
+            url=url, status_code=0, response_time_ms=elapsed_ms, available=False, error="Timeout"
+        )
     except requests.RequestException as e:
         return tool_error(f"Request failed: {e}")
 
@@ -64,8 +72,12 @@ def check_multiple_endpoints_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         results.append(result)
 
     available_count = sum(1 for r in results if r.get("available"))
-    return tool_response(results=results, total=len(results),
-                         available=available_count, unavailable=len(results) - available_count)
+    return tool_response(
+        results=results,
+        total=len(results),
+        available=available_count,
+        unavailable=len(results) - available_count,
+    )
 
 
 __all__ = ["check_endpoint_tool", "check_multiple_endpoints_tool"]

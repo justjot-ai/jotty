@@ -17,30 +17,31 @@ Focuses on areas NOT covered by test_v3_execution.py:
 - _fallback_aggregate
 """
 
-import pytest
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
 from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
-from Jotty.core.modes.execution.types import (
-    ExecutionConfig,
-    ExecutionTier,
-    ExecutionResult,
-    ExecutionPlan,
-    ExecutionStep,
-    TierValidationResult,
-    MemoryContext,
-)
+import pytest
+
 from Jotty.core.modes.execution.executor import (
-    TierExecutor,
-    LLMProvider,
     ComplexityGate,
+    LLMProvider,
+    TierExecutor,
     _FallbackValidator,
 )
-
+from Jotty.core.modes.execution.types import (
+    ExecutionConfig,
+    ExecutionPlan,
+    ExecutionResult,
+    ExecutionStep,
+    ExecutionTier,
+    MemoryContext,
+    TierValidationResult,
+)
 
 # =============================================================================
 # LLMProvider
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestLLMProvider:
@@ -49,26 +50,26 @@ class TestLLMProvider:
     def test_default_provider_is_anthropic(self):
         """LLMProvider defaults to anthropic provider and claude-sonnet model."""
         provider = LLMProvider()
-        assert provider._provider_name == 'anthropic'
-        assert 'claude' in provider._model
+        assert provider._provider_name == "anthropic"
+        assert "claude" in provider._model
         assert provider._client is None
 
     def test_custom_provider_and_model(self):
         """LLMProvider stores custom provider and model names."""
-        provider = LLMProvider(provider='openai', model='gpt-4o')
-        assert provider._provider_name == 'openai'
-        assert provider._model == 'gpt-4o'
+        provider = LLMProvider(provider="openai", model="gpt-4o")
+        assert provider._provider_name == "openai"
+        assert provider._model == "gpt-4o"
 
     def test_none_provider_defaults_to_anthropic(self):
         """Passing provider=None defaults to 'anthropic'."""
         provider = LLMProvider(provider=None, model=None)
-        assert provider._provider_name == 'anthropic'
-        assert 'claude' in provider._model
+        assert provider._provider_name == "anthropic"
+        assert "claude" in provider._model
 
     @pytest.mark.asyncio
     async def test_generate_anthropic_extracts_content(self):
         """generate() with anthropic provider extracts text blocks from response."""
-        provider = LLMProvider(provider='anthropic', model='claude-sonnet-4')
+        provider = LLMProvider(provider="anthropic", model="claude-sonnet-4")
 
         # Mock the anthropic client
         mock_block = Mock()
@@ -82,28 +83,29 @@ class TestLLMProvider:
         provider._client = mock_client
 
         result = await provider.generate("Say hello")
-        assert result['content'] == "Hello world"
-        assert result['usage']['input_tokens'] == 10
-        assert result['usage']['output_tokens'] == 5
+        assert result["content"] == "Hello world"
+        assert result["usage"]["input_tokens"] == 10
+        assert result["usage"]["output_tokens"] == 5
 
     @pytest.mark.asyncio
     async def test_generate_non_anthropic_fallback(self):
         """generate() with non-anthropic provider uses DSPy LM fallback."""
-        provider = LLMProvider(provider='openai', model='gpt-4o')
+        provider = LLMProvider(provider="openai", model="gpt-4o")
 
         # Mock the client as a callable (DSPy LM style)
         mock_client = Mock(return_value=["DSPy response text"])
         provider._client = mock_client
 
         result = await provider.generate("Test prompt")
-        assert result['content'] == "DSPy response text"
-        assert result['usage']['input_tokens'] == 250
-        assert result['usage']['output_tokens'] == 250
+        assert result["content"] == "DSPy response text"
+        assert result["usage"]["input_tokens"] == 250
+        assert result["usage"]["output_tokens"] == 250
 
 
 # =============================================================================
 # TierValidationResult
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestTierValidationResult:
@@ -139,18 +141,19 @@ class TestTierValidationResult:
 # ComplexityGate
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestComplexityGateInternal:
     """Test ComplexityGate prompt format and error handling."""
 
     def test_prompt_contains_goal_placeholder(self):
         """ComplexityGate._PROMPT has {goal} placeholder."""
-        assert '{goal}' in ComplexityGate._PROMPT
+        assert "{goal}" in ComplexityGate._PROMPT
 
     def test_prompt_asks_for_direct_or_tools(self):
         """Prompt instructs the LLM to respond DIRECT or TOOLS."""
-        assert 'DIRECT' in ComplexityGate._PROMPT
-        assert 'TOOLS' in ComplexityGate._PROMPT
+        assert "DIRECT" in ComplexityGate._PROMPT
+        assert "TOOLS" in ComplexityGate._PROMPT
 
     @pytest.mark.asyncio
     async def test_should_skip_planning_returns_true_on_direct(self):
@@ -186,9 +189,7 @@ class TestComplexityGateInternal:
         gate = ComplexityGate()
 
         mock_client = AsyncMock()
-        mock_client.messages.create = AsyncMock(
-            side_effect=RuntimeError("API unavailable")
-        )
+        mock_client.messages.create = AsyncMock(side_effect=RuntimeError("API unavailable"))
         gate._client = mock_client
 
         result = await gate.should_skip_planning("Any task")
@@ -198,6 +199,7 @@ class TestComplexityGateInternal:
 # =============================================================================
 # TierExecutor Initialization and Config
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestTierExecutorInit:
@@ -254,6 +256,7 @@ class TestTierExecutorInit:
 # Tier Routing Dispatch
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestTierRouting:
     """Test that execute() dispatches to the correct tier method."""
@@ -286,18 +289,19 @@ class TestTierRouting:
     async def test_auto_detect_tier_when_none(self, v3_executor):
         """When tier is None, execute() auto-detects via TierDetector."""
         with patch.object(
-            v3_executor._detector, 'adetect',
-            new_callable=AsyncMock, return_value=ExecutionTier.DIRECT
+            v3_executor._detector,
+            "adetect",
+            new_callable=AsyncMock,
+            return_value=ExecutionTier.DIRECT,
         ):
-            result = await v3_executor.execute(
-                "What is 2+2?", config=ExecutionConfig(tier=None)
-            )
+            result = await v3_executor.execute("What is 2+2?", config=ExecutionConfig(tier=None))
             assert result.tier == ExecutionTier.DIRECT
 
 
 # =============================================================================
 # Cost Tracking
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestCostTracking:
@@ -319,12 +323,13 @@ class TestCostTracking:
         tracker = executor.cost_tracker
         assert tracker is not None
         # CostTracker should have record_llm_call method
-        assert hasattr(tracker, 'record_llm_call')
+        assert hasattr(tracker, "record_llm_call")
 
 
 # =============================================================================
 # _FallbackValidator
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestFallbackValidator:
@@ -334,45 +339,48 @@ class TestFallbackValidator:
     async def test_validate_returns_parsed_json(self):
         """_FallbackValidator parses JSON from LLM response."""
         mock_provider = AsyncMock()
-        mock_provider.generate = AsyncMock(return_value={
-            'content': '{"success": true, "confidence": 0.85, "feedback": "Good", "reasoning": "Correct"}',
-        })
+        mock_provider.generate = AsyncMock(
+            return_value={
+                "content": '{"success": true, "confidence": 0.85, "feedback": "Good", "reasoning": "Correct"}',
+            }
+        )
         validator = _FallbackValidator(mock_provider)
         result = await validator.validate("Is this correct?")
-        assert result['success'] is True
-        assert result['confidence'] == 0.85
-        assert result['feedback'] == "Good"
+        assert result["success"] is True
+        assert result["confidence"] == 0.85
+        assert result["feedback"] == "Good"
 
     @pytest.mark.asyncio
     async def test_validate_handles_non_json_response(self):
         """_FallbackValidator returns default when LLM gives non-JSON."""
         mock_provider = AsyncMock()
-        mock_provider.generate = AsyncMock(return_value={
-            'content': 'This looks correct to me.',
-        })
+        mock_provider.generate = AsyncMock(
+            return_value={
+                "content": "This looks correct to me.",
+            }
+        )
         validator = _FallbackValidator(mock_provider)
         result = await validator.validate("Is this correct?")
         # Falls back to default values
-        assert result['success'] is True
-        assert result['confidence'] == 0.7
+        assert result["success"] is True
+        assert result["confidence"] == 0.7
 
     @pytest.mark.asyncio
     async def test_validate_handles_provider_error(self):
         """_FallbackValidator returns safe defaults on provider exception."""
         mock_provider = AsyncMock()
-        mock_provider.generate = AsyncMock(
-            side_effect=RuntimeError("LLM down")
-        )
+        mock_provider.generate = AsyncMock(side_effect=RuntimeError("LLM down"))
         validator = _FallbackValidator(mock_provider)
         result = await validator.validate("Validate this")
-        assert result['success'] is True
-        assert result['confidence'] == 0.5
-        assert 'skipped' in result['feedback'].lower()
+        assert result["success"] is True
+        assert result["confidence"] == 0.5
+        assert "skipped" in result["feedback"].lower()
 
 
 # =============================================================================
 # Helper Methods: _parse_plan, _enrich_with_memory, _fallback_aggregate
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestHelperMethods:
@@ -382,25 +390,25 @@ class TestHelperMethods:
         """_parse_plan converts dict steps into ExecutionPlan."""
         executor = TierExecutor()
         plan_result = {
-            'steps': [
-                {'description': 'Research topic', 'skill': 'web-search'},
-                {'description': 'Write summary', 'skill': None},
+            "steps": [
+                {"description": "Research topic", "skill": "web-search"},
+                {"description": "Write summary", "skill": None},
             ],
-            'estimated_cost': 0.05,
+            "estimated_cost": 0.05,
         }
         plan = executor._parse_plan("Test goal", plan_result)
         assert isinstance(plan, ExecutionPlan)
         assert plan.goal == "Test goal"
         assert plan.total_steps == 2
-        assert plan.steps[0].description == 'Research topic'
-        assert plan.steps[0].skill == 'web-search'
+        assert plan.steps[0].description == "Research topic"
+        assert plan.steps[0].skill == "web-search"
         assert plan.steps[1].step_num == 2
         assert plan.estimated_cost == 0.05
 
     def test_parse_plan_empty_steps(self):
         """_parse_plan handles empty step list gracefully."""
         executor = TierExecutor()
-        plan = executor._parse_plan("Goal", {'steps': []})
+        plan = executor._parse_plan("Goal", {"steps": []})
         assert plan.total_steps == 0
 
     def test_enrich_with_memory_adds_context(self):
@@ -408,8 +416,8 @@ class TestHelperMethods:
         executor = TierExecutor()
         context = MemoryContext(
             entries=[
-                {'summary': 'Past finding A'},
-                {'summary': 'Past finding B'},
+                {"summary": "Past finding A"},
+                {"summary": "Past finding B"},
             ],
             relevance_scores=[0.9, 0.8],
             total_retrieved=2,
@@ -434,15 +442,15 @@ class TestHelperMethods:
     def test_fallback_aggregate_single(self):
         """_fallback_aggregate with single result returns its output."""
         executor = TierExecutor()
-        result = executor._fallback_aggregate([{'output': 'Only one'}], "goal")
-        assert result == 'Only one'
+        result = executor._fallback_aggregate([{"output": "Only one"}], "goal")
+        assert result == "Only one"
 
     def test_fallback_aggregate_multiple(self):
         """_fallback_aggregate with multiple results concatenates them."""
         executor = TierExecutor()
         results = [
-            {'output': 'Result A'},
-            {'output': 'Result B'},
+            {"output": "Result A"},
+            {"output": "Result B"},
         ]
         aggregated = executor._fallback_aggregate(results, "My goal")
         assert "My goal" in aggregated

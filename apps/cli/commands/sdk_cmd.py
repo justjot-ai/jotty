@@ -13,8 +13,8 @@ Usage:
 
 import asyncio
 import logging
-from typing import Optional, Dict, Any
 from datetime import datetime
+from typing import Any, Dict, Optional
 
 from .base import BaseCommand, CommandResult, ParsedArgs
 
@@ -54,16 +54,20 @@ class SDKCommand(BaseCommand):
             "error": "",
         }
 
-    async def execute(
-        self,
-        args: ParsedArgs,
-        cli: "JottyCLI"
-    ) -> CommandResult:
+    async def execute(self, args: ParsedArgs, cli: "JottyCLI") -> CommandResult:
         """Execute SDK test command."""
         # Suppress noisy loggers and internal error tracebacks
-        for noisy in ['weasyprint', 'fontTools', 'PIL', 'httpx', 'urllib3',
-                      'Jotty.core.agents.agentic_planner', 'Jotty.core.agents',
-                      'dspy', 'pydantic']:
+        for noisy in [
+            "weasyprint",
+            "fontTools",
+            "PIL",
+            "httpx",
+            "urllib3",
+            "Jotty.core.agents.agentic_planner",
+            "Jotty.core.agents",
+            "dspy",
+            "pydantic",
+        ]:
             logging.getLogger(noisy).setLevel(logging.CRITICAL)
 
         if not args.positional:
@@ -94,7 +98,8 @@ class SDKCommand(BaseCommand):
 
     def _show_help(self, cli: Any) -> CommandResult:
         """Show SDK command help."""
-        cli.renderer.panel("""
+        cli.renderer.panel(
+            """
 [bold cyan]SDK Test Command[/bold cyan]
 
 Test the SDK client with real-time event visualization.
@@ -118,7 +123,10 @@ Test the SDK client with real-time event visualization.
    STREAM - Streaming content
    COMPLETE - Request complete
    ERROR - Error occurred
-""", title="SDK Help", style="cyan")
+""",
+            title="SDK Help",
+            style="cyan",
+        )
         return CommandResult.ok()
 
     def _toggle_events(self, cli: Any, setting: str) -> CommandResult:
@@ -135,11 +143,12 @@ Test the SDK client with real-time event visualization.
 
     def _create_event_callback(self, cli: Any) -> callable:
         """Create event callback for displaying events."""
+
         def event_callback(event: Any) -> Any:
             if not self._show_events:
                 return
 
-            event_type = event.type.value if hasattr(event.type, 'value') else str(event.type)
+            event_type = event.type.value if hasattr(event.type, "value") else str(event.type)
             icon = self._event_icons.get(event_type, "→")
 
             # Format timestamp
@@ -150,7 +159,7 @@ Test the SDK client with real-time event visualization.
             if event.data:
                 if isinstance(event.data, dict):
                     # Show key details only
-                    for key in ['message', 'goal', 'skill', 'agent', 'error']:
+                    for key in ["message", "goal", "skill", "agent", "error"]:
                         if key in event.data:
                             val = str(event.data[key])[:60]
                             data_str = f": {val}"
@@ -179,18 +188,19 @@ Test the SDK client with real-time event visualization.
         """World-class interactive chat with arrow keys, history, and rich UI."""
         try:
             from prompt_toolkit import PromptSession
-            from prompt_toolkit.history import InMemoryHistory
             from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
+            from prompt_toolkit.formatted_text import HTML
+            from prompt_toolkit.history import InMemoryHistory
             from prompt_toolkit.key_binding import KeyBindings
             from prompt_toolkit.styles import Style
-            from prompt_toolkit.formatted_text import HTML
         except ImportError:
             cli.renderer.warning("prompt_toolkit not installed. Using basic input.")
             return await self._test_chat_basic(cli, message)
 
         try:
-            from ...sdk.client import Jotty
             from Jotty.sdk import SDKEventType
+
+            from ...sdk.client import Jotty
 
             # Create client
             client = Jotty().use_local()
@@ -198,42 +208,43 @@ Test the SDK client with real-time event visualization.
             # Engaging status messages mapped from AutoAgent stages
             _status_messages = {
                 # AutoAgent stages
-                'AutoAgent': ' Starting agent...',
-                'Analyzing': ' Analyzing task...',
-                'Discovering': ' Finding skills...',
-                'Selecting': ' Selecting best approach...',
-                'Planning': ' Planning steps...',
-                'Generating': ' Generating content...',
-                'Processing': ' Processing...',
+                "AutoAgent": " Starting agent...",
+                "Analyzing": " Analyzing task...",
+                "Discovering": " Finding skills...",
+                "Selecting": " Selecting best approach...",
+                "Planning": " Planning steps...",
+                "Generating": " Generating content...",
+                "Processing": " Processing...",
                 # Skill loading/execution
-                'Loading': ' Loading skill...',
-                'Executing': ' Executing...',
-                'Done': ' Completed',
+                "Loading": " Loading skill...",
+                "Executing": " Executing...",
+                "Done": " Completed",
                 # Skill execution types (from skill_plan_executor)
-                'Step': ' Executing step...',
-                'Searching': ' Searching...',
-                'Researching': ' Researching...',
-                'Writing': ' Writing...',
-                'Creating': ' Creating...',
+                "Step": " Executing step...",
+                "Searching": " Searching...",
+                "Researching": " Researching...",
+                "Writing": " Writing...",
+                "Creating": " Creating...",
                 # Other
-                'Retrying': ' Retrying...',
-                'Replanning': ' Adapting...',
-                'Ensemble': ' Multi-perspective analysis...',
-                'Error': ' Error',
+                "Retrying": " Retrying...",
+                "Replanning": " Adapting...",
+                "Ensemble": " Multi-perspective analysis...",
+                "Error": " Error",
             }
             _last_status = [None]
             _last_print_time = [0]
 
             # Event callback for status updates
             def chat_event_callback(event: Any) -> Any:
-                import time
                 import sys
-                event_type = event.type.value if hasattr(event.type, 'value') else str(event.type)
+                import time
+
+                event_type = event.type.value if hasattr(event.type, "value") else str(event.type)
 
                 # Handle thinking events - show progress
-                if event_type == 'thinking' and event.data and isinstance(event.data, dict):
-                    status = event.data.get('status', '')
-                    detail = event.data.get('message', '')
+                if event_type == "thinking" and event.data and isinstance(event.data, dict):
+                    status = event.data.get("status", "")
+                    detail = event.data.get("message", "")
 
                     # Skip very frequent updates (throttle to every 0.3s)
                     now = time.time()
@@ -244,7 +255,7 @@ Test the SDK client with real-time event visualization.
                     msg = None
 
                     # If detail contains emoji, show it directly (already formatted)
-                    if detail and any(c in detail for c in ''):
+                    if detail and any(c in detail for c in ""):
                         msg = detail
                     else:
                         # Look up friendly message
@@ -254,7 +265,7 @@ Test the SDK client with real-time event visualization.
                                 break
 
                     # Show step progress with detail
-                    if status.startswith('Step '):
+                    if status.startswith("Step "):
                         msg = f" {status}"
                         if detail:
                             msg += f": {detail[:80]}"
@@ -266,13 +277,13 @@ Test the SDK client with real-time event visualization.
                     return
 
                 # Handle planning event
-                if event_type == 'planning':
+                if event_type == "planning":
                     print(f"\033[90m Planning execution...\033[0m", flush=True)
                     return
 
                 # Handle skill events
-                if event_type == 'skill_start' and event.data:
-                    skill = event.data.get('skill', 'skill')
+                if event_type == "skill_start" and event.data:
+                    skill = event.data.get("skill", "skill")
                     print(f"\033[90m Using {skill}...\033[0m", flush=True)
                     return
 
@@ -280,11 +291,11 @@ Test the SDK client with real-time event visualization.
                 if not self._show_events:
                     return
 
-                if event_type == 'error':
+                if event_type == "error":
                     error_msg = "Something went wrong"
                     if event.data and isinstance(event.data, dict):
-                        raw_error = event.data.get('error', '')
-                        if raw_error and 'Traceback' not in raw_error:
+                        raw_error = event.data.get("error", "")
+                        if raw_error and "Traceback" not in raw_error:
                             error_msg = raw_error[:80]
                     print(f"\033[91m {error_msg}\033[0m", flush=True)
 
@@ -297,21 +308,23 @@ Test the SDK client with real-time event visualization.
             # Custom key bindings
             kb = KeyBindings()
 
-            @kb.add('c-l')
+            @kb.add("c-l")
             def clear_screen(event: Any) -> Any:
                 """Clear screen with Ctrl+L."""
                 event.app.renderer.clear()
 
-            @kb.add('c-c')
+            @kb.add("c-c")
             def interrupt(event: Any) -> Any:
                 """Handle Ctrl+C gracefully."""
                 event.app.exit(result=None)
 
             # Prompt style
-            style = Style.from_dict({
-                'prompt': '#00ff00 bold',
-                'input': '#ffffff',
-            })
+            style = Style.from_dict(
+                {
+                    "prompt": "#00ff00 bold",
+                    "input": "#ffffff",
+                }
+            )
 
             # Create prompt session with history
             input_history = InMemoryHistory()
@@ -325,12 +338,24 @@ Test the SDK client with real-time event visualization.
 
             # Header
             print()
-            cli.renderer.print("[bold cyan]╔════════════════════════════════════════════════════════════════╗[/bold cyan]")
-            cli.renderer.print("[bold cyan]║                      Jotty Chat                                ║[/bold cyan]")
-            cli.renderer.print("[bold cyan]╠════════════════════════════════════════════════════════════════╣[/bold cyan]")
-            cli.renderer.print("[bold cyan]║[/bold cyan] [dim]↑/↓[/dim] History  [dim]Ctrl+L[/dim] Clear  [dim]Ctrl+C[/dim] Cancel  [dim]/exit[/dim] Quit       [bold cyan]║[/bold cyan]")
-            cli.renderer.print("[bold cyan]║[/bold cyan] [dim]/clear[/dim] Reset conversation  [dim]/events on|off[/dim] Toggle events  [bold cyan]║[/bold cyan]")
-            cli.renderer.print("[bold cyan]╚════════════════════════════════════════════════════════════════╝[/bold cyan]")
+            cli.renderer.print(
+                "[bold cyan]╔════════════════════════════════════════════════════════════════╗[/bold cyan]"
+            )
+            cli.renderer.print(
+                "[bold cyan]║                      Jotty Chat                                ║[/bold cyan]"
+            )
+            cli.renderer.print(
+                "[bold cyan]╠════════════════════════════════════════════════════════════════╣[/bold cyan]"
+            )
+            cli.renderer.print(
+                "[bold cyan]║[/bold cyan] [dim]↑/↓[/dim] History  [dim]Ctrl+L[/dim] Clear  [dim]Ctrl+C[/dim] Cancel  [dim]/exit[/dim] Quit       [bold cyan]║[/bold cyan]"
+            )
+            cli.renderer.print(
+                "[bold cyan]║[/bold cyan] [dim]/clear[/dim] Reset conversation  [dim]/events on|off[/dim] Toggle events  [bold cyan]║[/bold cyan]"
+            )
+            cli.renderer.print(
+                "[bold cyan]╚════════════════════════════════════════════════════════════════╝[/bold cyan]"
+            )
             print()
 
             # Process initial message if provided
@@ -343,8 +368,7 @@ Test the SDK client with real-time event visualization.
                 try:
                     # Get input with rich prompt
                     user_input = await asyncio.get_running_loop().run_in_executor(
-                        None,
-                        lambda: session.prompt(HTML('<prompt>you></prompt> '))
+                        None, lambda: session.prompt(HTML("<prompt>you></prompt> "))
                     )
 
                     if user_input is None:
@@ -353,33 +377,40 @@ Test the SDK client with real-time event visualization.
                     user_input = user_input.strip()
 
                     # Handle commands
-                    if user_input.lower() in ('/exit', '/quit', 'exit', 'quit', 'bye'):
+                    if user_input.lower() in ("/exit", "/quit", "exit", "quit", "bye"):
                         print("\n\033[90mGoodbye!\033[0m")
                         break
 
                     if not user_input:
                         continue
 
-                    if user_input.lower() == '/clear':
+                    if user_input.lower() == "/clear":
                         conv_history.clear()
                         # Clear screen
                         import os
-                        os.system('clear' if os.name != 'nt' else 'cls')
+
+                        os.system("clear" if os.name != "nt" else "cls")
                         # Reprint header
-                        cli.renderer.print("[bold cyan]╔════════════════════════════════════════════════════════════════╗[/bold cyan]")
-                        cli.renderer.print("[bold cyan]║                      Jotty Chat                                ║[/bold cyan]")
-                        cli.renderer.print("[bold cyan]╚════════════════════════════════════════════════════════════════╝[/bold cyan]")
+                        cli.renderer.print(
+                            "[bold cyan]╔════════════════════════════════════════════════════════════════╗[/bold cyan]"
+                        )
+                        cli.renderer.print(
+                            "[bold cyan]║                      Jotty Chat                                ║[/bold cyan]"
+                        )
+                        cli.renderer.print(
+                            "[bold cyan]╚════════════════════════════════════════════════════════════════╝[/bold cyan]"
+                        )
                         print("\033[90mConversation cleared.\033[0m\n")
                         continue
 
-                    if user_input.lower().startswith('/events'):
+                    if user_input.lower().startswith("/events"):
                         parts = user_input.split()
                         if len(parts) > 1:
-                            self._show_events = parts[1].lower() in ('on', 'true', '1')
+                            self._show_events = parts[1].lower() in ("on", "true", "1")
                         print(f"\033[90mEvents: {'ON' if self._show_events else 'OFF'}\033[0m")
                         continue
 
-                    if user_input.startswith('/'):
+                    if user_input.startswith("/"):
                         print(f"\033[90mUnknown command: {user_input}\033[0m")
                         continue
 
@@ -403,44 +434,45 @@ Test the SDK client with real-time event visualization.
     async def _test_chat_basic(self, cli: Any, message: str) -> CommandResult:
         """Basic chat fallback when prompt_toolkit is not available."""
         try:
-            from ...sdk.client import Jotty
             from Jotty.sdk import SDKEventType
+
+            from ...sdk.client import Jotty
 
             client = Jotty().use_local()
             conv_history = []
 
             _status_msgs = {
-                'Searching': ' Searching the web...',
-                'Analyzing': ' Analyzing...',
-                'Generating': ' Crafting response...',
-                'Processing': ' Processing...',
-                'Retrying': ' Refining response...',
-                'Thinking': ' Thinking...',
+                "Searching": " Searching the web...",
+                "Analyzing": " Analyzing...",
+                "Generating": " Crafting response...",
+                "Processing": " Processing...",
+                "Retrying": " Refining response...",
+                "Thinking": " Thinking...",
             }
-            _hidden = {'Decision', 'Generated', 'Preparing', 'step'}
+            _hidden = {"Decision", "Generated", "Preparing", "step"}
             _last_status = [None]
 
             def chat_event_callback(event: Any) -> Any:
-                event_type = event.type.value if hasattr(event.type, 'value') else str(event.type)
+                event_type = event.type.value if hasattr(event.type, "value") else str(event.type)
 
-                if event_type == 'thinking' and event.data and isinstance(event.data, dict):
-                    status = event.data.get('status', '')
+                if event_type == "thinking" and event.data and isinstance(event.data, dict):
+                    status = event.data.get("status", "")
                     # Skip technical statuses
-                    if status in _hidden or '=' in status:
+                    if status in _hidden or "=" in status:
                         return
                     if status in _status_msgs:
                         if _last_status[0] != status:
                             _last_status[0] = status
                             print(f"\033[90m  {_status_msgs[status]}\033[0m")
-                    elif 'search' in status.lower():
-                        if _last_status[0] != 'search':
-                            _last_status[0] = 'search'
+                    elif "search" in status.lower():
+                        if _last_status[0] != "search":
+                            _last_status[0] = "search"
                             print(f"\033[90m Searching the web...\033[0m")
                     return
 
                 if not self._show_events:
                     return
-                if event_type == 'error':
+                if event_type == "error":
                     print(f" Something went wrong. Please try again.")
 
             for event_type in SDKEventType:
@@ -455,10 +487,12 @@ Test the SDK client with real-time event visualization.
             while True:
                 try:
                     user_input = input("\033[92myou>\033[0m ")
-                    if user_input.lower() in ('/exit', 'exit', 'quit'):
+                    if user_input.lower() in ("/exit", "exit", "quit"):
                         break
                     if user_input.strip():
-                        await self._process_chat_message(cli, client, user_input.strip(), conv_history)
+                        await self._process_chat_message(
+                            cli, client, user_input.strip(), conv_history
+                        )
                 except (KeyboardInterrupt, EOFError):
                     break
 
@@ -470,29 +504,32 @@ Test the SDK client with real-time event visualization.
     def _format_research_result(self, cli: Any, result: dict) -> str:
         """Format research/skill result as a nice user-friendly message."""
         import os
+
         lines = []
 
         # Check for research report results (various field names)
-        pdf_path = result.get('pdf_path') or result.get('pdf') or result.get('output_path')
-        md_path = result.get('md_path') or result.get('markdown_path')
+        pdf_path = result.get("pdf_path") or result.get("pdf") or result.get("output_path")
+        md_path = result.get("md_path") or result.get("markdown_path")
 
         # Detect research result by presence of key fields
-        is_research = pdf_path or 'ticker' in result or 'rating' in result
+        is_research = pdf_path or "ticker" in result or "rating" in result
 
         if is_research:
             # Extract info with fallbacks
-            ticker = result.get('ticker') or result.get('symbol') or ''
-            company = result.get('company_name') or result.get('company') or result.get('name') or ''
-            rating = result.get('rating') or result.get('recommendation') or ''
-            current = result.get('current_price') or result.get('price') or 0
-            target = result.get('target_price') or result.get('target') or 0
-            upside = result.get('upside') or result.get('potential') or 0
+            ticker = result.get("ticker") or result.get("symbol") or ""
+            company = (
+                result.get("company_name") or result.get("company") or result.get("name") or ""
+            )
+            rating = result.get("rating") or result.get("recommendation") or ""
+            current = result.get("current_price") or result.get("price") or 0
+            target = result.get("target_price") or result.get("target") or 0
+            upside = result.get("upside") or result.get("potential") or 0
 
             # Extract ticker from path if not provided
             if not ticker and pdf_path:
                 filename = os.path.basename(pdf_path)
                 # Handle formats like "Paytm_research_..." or "PAYTM_research_..."
-                parts = filename.split('_')
+                parts = filename.split("_")
                 if parts:
                     ticker = parts[0].upper()
 
@@ -510,8 +547,14 @@ Test the SDK client with real-time event visualization.
             # Rating with color emoji
             if rating:
                 rating_upper = str(rating).upper()
-                rating_emoji = {'BUY': '', 'STRONG BUY': '', 'HOLD': '',
-                               'NEUTRAL': '', 'SELL': '', 'STRONG SELL': ''}.get(rating_upper, '')
+                rating_emoji = {
+                    "BUY": "",
+                    "STRONG BUY": "",
+                    "HOLD": "",
+                    "NEUTRAL": "",
+                    "SELL": "",
+                    "STRONG SELL": "",
+                }.get(rating_upper, "")
                 lines.append(f"  {rating_emoji} Rating: **{rating}**")
 
             # Price info in a clean format
@@ -521,7 +564,7 @@ Test the SDK client with real-time event visualization.
                 lines.append(f" Target: ₹{float(target):,.2f}")
             if upside:
                 upside_val = float(upside)
-                upside_emoji = '' if upside_val > 0 else ''
+                upside_emoji = "" if upside_val > 0 else ""
                 lines.append(f"  {upside_emoji} Upside: {upside_val:.1f}%")
 
             # Files section (PDF and MD only, no charts)
@@ -534,12 +577,12 @@ Test the SDK client with real-time event visualization.
                     lines.append(f" MD: {md_path}")
 
             # Telegram status
-            if result.get('telegram_sent'):
+            if result.get("telegram_sent"):
                 lines.append("")
                 lines.append(" Sent to Telegram")
 
             # Data sources
-            sources = result.get('data_sources', []) or result.get('sources', [])
+            sources = result.get("data_sources", []) or result.get("sources", [])
             if sources:
                 lines.append("")
                 lines.append(f"*Sources: {', '.join(sources)}*")
@@ -549,29 +592,31 @@ Test the SDK client with real-time event visualization.
         # Generic dict result - format nicely
         if isinstance(result, dict):
             # Check for success with content
-            if result.get('success') and 'content' in result:
-                return str(result['content'])
+            if result.get("success") and "content" in result:
+                return str(result["content"])
             # Try to extract meaningful content
-            for key in ['response', 'output', 'result', 'content', 'text', 'message']:
+            for key in ["response", "output", "result", "content", "text", "message"]:
                 if key in result and result[key]:
                     return str(result[key])
             # Check for errors first - don't show success if there were errors
-            errors = result.get('errors', [])
+            errors = result.get("errors", [])
             if errors:
                 error_msg = errors[0] if isinstance(errors[0], str) else str(errors[0])
                 return f" Task failed: {error_msg}"
 
             # If dict has success=True but only paths, format as completion message
-            if result.get('success'):
+            if result.get("success"):
                 return " Task completed successfully."
 
             # If stopped early, show that
-            if result.get('stopped_early'):
+            if result.get("stopped_early"):
                 return " Task stopped early due to errors."
 
         return str(result)
 
-    async def _process_chat_message(self, cli: Any, client: Any, message: str, history: list) -> Any:
+    async def _process_chat_message(
+        self, cli: Any, client: Any, message: str, history: list
+    ) -> Any:
         """Process a single chat message with status updates."""
         import sys
 
@@ -594,10 +639,11 @@ Test the SDK client with real-time event visualization.
                 # Format structured results (research reports, etc.)
                 if isinstance(content, dict):
                     formatted = self._format_research_result(cli, content)
-                elif isinstance(content, str) and content.startswith('{'):
+                elif isinstance(content, str) and content.startswith("{"):
                     # Try to parse JSON string
                     try:
                         import json
+
                         parsed = json.loads(content.replace("'", '"'))
                         formatted = self._format_research_result(cli, parsed)
                     except (json.JSONDecodeError, ValueError, KeyError):
@@ -616,8 +662,12 @@ Test the SDK client with real-time event visualization.
             else:
                 # Show error - prioritize errors list, then error field
                 error = None
-                if hasattr(response, 'errors') and response.errors:
-                    error = response.errors[0] if isinstance(response.errors[0], str) else str(response.errors[0])
+                if hasattr(response, "errors") and response.errors:
+                    error = (
+                        response.errors[0]
+                        if isinstance(response.errors[0], str)
+                        else str(response.errors[0])
+                    )
                 elif response.error:
                     error = response.error
                 else:
@@ -640,8 +690,9 @@ Test the SDK client with real-time event visualization.
         cli.renderer.print(f"[dim]Goal: {goal}[/dim]\n")
 
         try:
-            from ...sdk.client import Jotty
             from Jotty.sdk import SDKEventType
+
+            from ...sdk.client import Jotty
 
             client = Jotty().use_local()
 
@@ -689,16 +740,18 @@ Test the SDK client with real-time event visualization.
         cli.renderer.print(f"[dim]Message: {message}[/dim]\n")
 
         try:
-            from ...sdk.client import Jotty
             from Jotty.sdk import SDKEventType
+
+            from ...sdk.client import Jotty
 
             client = Jotty().use_local()
 
             cli.renderer.print("[dim]Streaming...[/dim]\n")
 
             import sys
+
             async for event in client.stream(message):
-                event_type = event.type.value if hasattr(event.type, 'value') else str(event.type)
+                event_type = event.type.value if hasattr(event.type, "value") else str(event.type)
                 icon = self._event_icons.get(event_type, "→")
 
                 if event_type == "stream" and event.data:
@@ -709,7 +762,7 @@ Test the SDK client with real-time event visualization.
                     cli.renderer.newline()
                     # Show result content if available
                     if event.data and isinstance(event.data, dict):
-                        content = event.data.get('content')
+                        content = event.data.get("content")
                         if content:
                             cli.renderer.print(f"\n[bold green]Result:[/bold green]\n{content}")
                     cli.renderer.success("Stream complete")
@@ -717,33 +770,37 @@ Test the SDK client with real-time event visualization.
                     # Show friendly error, hide tracebacks
                     error_msg = "Something went wrong"
                     if event.data and isinstance(event.data, dict):
-                        raw_error = event.data.get('error', '')
-                        if raw_error and 'Traceback' not in raw_error and 'File "/' not in raw_error:
+                        raw_error = event.data.get("error", "")
+                        if (
+                            raw_error
+                            and "Traceback" not in raw_error
+                            and 'File "/' not in raw_error
+                        ):
                             error_msg = raw_error[:100]  # Limit length
                     cli.renderer.print(f" [] {error_msg}")
                 elif event_type == "thinking":
                     # Show engaging status messages, hide technical ones
                     if event.data and isinstance(event.data, dict):
-                        status = event.data.get('status', '')
+                        status = event.data.get("status", "")
                         # Skip technical statuses
-                        if status in ('Decision', 'Generated', 'Preparing') or '=' in status:
+                        if status in ("Decision", "Generated", "Preparing") or "=" in status:
                             continue
-                        if 'search' in status.lower() or status == 'Searching':
+                        if "search" in status.lower() or status == "Searching":
                             cli.renderer.print(f" [] Searching the web...")
-                        elif status == 'Analyzing':
+                        elif status == "Analyzing":
                             cli.renderer.print(f" [] Analyzing...")
-                        elif status == 'Generating':
+                        elif status == "Generating":
                             cli.renderer.print(f" [] Crafting response...")
-                        elif status == 'Processing':
+                        elif status == "Processing":
                             cli.renderer.print(f" [] Processing...")
-                        elif status == 'Retrying':
+                        elif status == "Retrying":
                             cli.renderer.print(f" [] Refining response...")
-                        elif status == 'Thinking':
+                        elif status == "Thinking":
                             cli.renderer.print(f" [] Thinking...")
                 elif event_type in ("skill_start", "skill_complete"):
                     # Show skill events if enabled
                     if self._show_events and event.data and isinstance(event.data, dict):
-                        skill = event.data.get('skill', 'unknown')
+                        skill = event.data.get("skill", "unknown")
                         cli.renderer.print(f"  [{icon}] Using: {skill}")
                 elif self._show_events:
                     cli.renderer.print(f"  [{icon}] {event_type.upper()}")
@@ -769,8 +826,9 @@ Test the SDK client with real-time event visualization.
         cli.renderer.print(f"\n[bold green]═══ SDK Skill Test: {skill_name} ═══[/bold green]")
 
         try:
-            from ...sdk.client import Jotty
             from Jotty.sdk import SDKEventType
+
+            from ...sdk.client import Jotty
 
             client = Jotty().use_local()
 
@@ -781,8 +839,11 @@ Test the SDK client with real-time event visualization.
 
             # Parse params
             import json
+
             try:
-                params = json.loads(params_str) if params_str.startswith("{") else {"input": params_str}
+                params = (
+                    json.loads(params_str) if params_str.startswith("{") else {"input": params_str}
+                )
             except (json.JSONDecodeError, ValueError):
                 # JSON parsing failed, treat as plain string input
                 params = {"input": params_str}

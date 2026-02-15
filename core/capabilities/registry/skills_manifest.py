@@ -7,11 +7,12 @@ Provides:
 - Auto-discovery of new skills
 - Metadata for authentication requirements
 """
-import os
+
 import logging
-from pathlib import Path
-from typing import Dict, List, Optional, Set, Any
+import os
 from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Set
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +20,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class SkillInfo:
     """Information about a skill."""
+
     name: str
     category: str = "uncategorized"
     tags: List[str] = field(default_factory=list)
@@ -35,6 +37,7 @@ class SkillInfo:
 @dataclass
 class CategoryInfo:
     """Information about a category."""
+
     name: str
     description: str
     icon: str
@@ -52,7 +55,9 @@ class SkillsManifest:
     - Getting skill metadata
     """
 
-    def __init__(self, skills_dir: Optional[str] = None, manifest_path: Optional[str] = None) -> None:
+    def __init__(
+        self, skills_dir: Optional[str] = None, manifest_path: Optional[str] = None
+    ) -> None:
         """
         Initialize skills manifest.
 
@@ -94,35 +99,33 @@ class SkillsManifest:
             return
 
         try:
-            with open(self.manifest_path, 'r') as f:
+            with open(self.manifest_path, "r") as f:
                 data = yaml.safe_load(f)
 
-            self.auto_discover = data.get('auto_discover', True)
+            self.auto_discover = data.get("auto_discover", True)
 
             # Load categories
-            for cat_name, cat_data in data.get('categories', {}).items():
+            for cat_name, cat_data in data.get("categories", {}).items():
                 self.categories[cat_name] = CategoryInfo(
                     name=cat_name,
-                    description=cat_data.get('description', ''),
-                    icon=cat_data.get('icon', ''),
-                    skills=cat_data.get('skills', [])
+                    description=cat_data.get("description", ""),
+                    icon=cat_data.get("icon", ""),
+                    skills=cat_data.get("skills", []),
                 )
 
                 # Create skill entries for each skill in category
-                for skill_name in cat_data.get('skills', []):
+                for skill_name in cat_data.get("skills", []):
                     if skill_name not in self.skills:
                         self.skills[skill_name] = SkillInfo(
-                            name=skill_name,
-                            category=cat_name,
-                            icon=cat_data.get('icon', '')
+                            name=skill_name, category=cat_name, icon=cat_data.get("icon", "")
                         )
                     else:
                         self.skills[skill_name].category = cat_name
-                        self.skills[skill_name].icon = cat_data.get('icon', '')
+                        self.skills[skill_name].icon = cat_data.get("icon", "")
 
             # Load tags
-            for tag_name, tag_data in data.get('tags', {}).items():
-                tag_skills = tag_data.get('skills', [])
+            for tag_name, tag_data in data.get("tags", {}).items():
+                tag_skills = tag_data.get("skills", [])
                 self.tags[tag_name] = tag_skills
 
                 # Add tags to skill info
@@ -132,22 +135,22 @@ class SkillsManifest:
                             self.skills[skill_name].tags.append(tag_name)
 
             # Load skill metadata
-            for skill_name, meta in data.get('skill_metadata', {}).items():
+            for skill_name, meta in data.get("skill_metadata", {}).items():
                 if skill_name in self.skills:
-                    self.skills[skill_name].requires_auth = meta.get('requires_auth', False)
-                    self.skills[skill_name].env_vars = meta.get('env_vars', [])
-                    self.skills[skill_name].requires_cli = meta.get('requires_cli', [])
+                    self.skills[skill_name].requires_auth = meta.get("requires_auth", False)
+                    self.skills[skill_name].env_vars = meta.get("env_vars", [])
+                    self.skills[skill_name].requires_cli = meta.get("requires_cli", [])
 
             # Load skill type classifications
-            for type_name, type_skills in data.get('skill_types', {}).items():
-                if type_name in ('base', 'derived', 'composite'):
-                    for entry in (type_skills or []):
+            for type_name, type_skills in data.get("skill_types", {}).items():
+                if type_name in ("base", "derived", "composite"):
+                    for entry in type_skills or []:
                         if isinstance(entry, str):
                             skill_name = entry
                             base_skills_list = []
                         elif isinstance(entry, dict):
-                            skill_name = entry.get('name', '')
-                            base_skills_list = entry.get('base_skills', [])
+                            skill_name = entry.get("name", "")
+                            base_skills_list = entry.get("base_skills", [])
                         else:
                             continue
 
@@ -155,7 +158,9 @@ class SkillsManifest:
                             self.skills[skill_name].skill_type = type_name
                             self.skills[skill_name].base_skills = base_skills_list
 
-            logger.info(f"Loaded manifest: {len(self.categories)} categories, {len(self.skills)} skills")
+            logger.info(
+                f"Loaded manifest: {len(self.categories)} categories, {len(self.skills)} skills"
+            )
 
         except Exception as e:
             logger.error(f"Failed to load manifest: {e}")
@@ -168,16 +173,14 @@ class SkillsManifest:
         discovered = []
 
         for item in self.skills_dir.iterdir():
-            if item.is_dir() and not item.name.startswith(('.', '_')):
+            if item.is_dir() and not item.name.startswith((".", "_")):
                 skill_name = item.name
                 tools_file = item / "tools.py"
 
                 if tools_file.exists() and skill_name not in self.skills:
                     # New skill discovered
                     self.skills[skill_name] = SkillInfo(
-                        name=skill_name,
-                        category="uncategorized",
-                        is_discovered=True
+                        name=skill_name, category="uncategorized", is_discovered=True
                     )
                     discovered.append(skill_name)
 
@@ -188,7 +191,7 @@ class SkillsManifest:
                     name="uncategorized",
                     description="Newly discovered skills (not yet categorized)",
                     icon="🆕",
-                    skills=discovered
+                    skills=discovered,
                 )
             else:
                 self.categories["uncategorized"].skills.extend(discovered)
@@ -214,11 +217,7 @@ class SkillsManifest:
 
     def get_skills_by_category(self, category: str) -> List[SkillInfo]:
         """Get all skills in a category."""
-        return [
-            self.skills[name]
-            for name in self.skills
-            if self.skills[name].category == category
-        ]
+        return [self.skills[name] for name in self.skills if self.skills[name].category == category]
 
     def get_skills_by_tag(self, tag: str) -> List[SkillInfo]:
         """Get all skills with a specific tag."""
@@ -255,9 +254,11 @@ class SkillsManifest:
         results = []
 
         for skill in self.skills.values():
-            if (query in skill.name.lower() or
-                query in skill.category.lower() or
-                any(query in tag.lower() for tag in skill.tags)):
+            if (
+                query in skill.name.lower()
+                or query in skill.category.lower()
+                or any(query in tag.lower() for tag in skill.tags)
+            ):
                 results.append(skill)
 
         return results
@@ -267,7 +268,7 @@ class SkillsManifest:
         summary = {
             "total_skills": len(self.skills),
             "total_categories": len(self.categories),
-            "categories": {}
+            "categories": {},
         }
 
         for cat_name, cat_info in self.categories.items():
@@ -275,7 +276,7 @@ class SkillsManifest:
                 "icon": cat_info.icon,
                 "description": cat_info.description,
                 "skill_count": len(cat_info.skills),
-                "skills": cat_info.skills
+                "skills": cat_info.skills,
             }
 
         return summary
@@ -298,7 +299,9 @@ class SkillsManifest:
         # Add tags section
         lines.append("\n## Tags")
         for tag_name, tag_skills in self.tags.items():
-            lines.append(f"- **{tag_name}**: {', '.join(tag_skills[:5])}{'...' if len(tag_skills) > 5 else ''}")
+            lines.append(
+                f"- **{tag_name}**: {', '.join(tag_skills[:5])}{'...' if len(tag_skills) > 5 else ''}"
+            )
 
         return "\n".join(lines)
 
@@ -337,16 +340,16 @@ class SkillsManifest:
 
         try:
             # Read existing manifest to preserve structure
-            with open(self.manifest_path, 'r') as f:
+            with open(self.manifest_path, "r") as f:
                 data = yaml.safe_load(f)
 
             # Update categories
             for cat_name, cat_info in self.categories.items():
-                if cat_name in data.get('categories', {}):
-                    data['categories'][cat_name]['skills'] = cat_info.skills
+                if cat_name in data.get("categories", {}):
+                    data["categories"][cat_name]["skills"] = cat_info.skills
 
             # Write back
-            with open(self.manifest_path, 'w') as f:
+            with open(self.manifest_path, "w") as f:
                 yaml.dump(data, f, default_flow_style=False, sort_keys=False)
 
             logger.info("Manifest saved")

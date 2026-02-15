@@ -4,12 +4,13 @@ MongoDB Schema Extractor
 Extracts schema from MongoDB collections by sampling documents.
 Infers field types, relationships, and structure from actual data.
 """
-from typing import List, Optional, Dict, Any, Set
-from collections import defaultdict
-import logging
 
+import logging
+from collections import defaultdict
+from typing import Any, Dict, List, Optional, Set
+
+from ..models import Column, ColumnType, ForeignKey, Index
 from .base import BaseExtractor
-from ..models import Column, ForeignKey, Index, ColumnType
 
 logger = logging.getLogger(__name__)
 
@@ -26,28 +27,38 @@ class MongoDBExtractor(BaseExtractor):
 
     # Map Python/BSON types to normalized column types
     TYPE_MAP = {
-        'str': ColumnType.STRING,
-        'string': ColumnType.STRING,
-        'int': ColumnType.INTEGER,
-        'int64': ColumnType.INTEGER,
-        'int32': ColumnType.INTEGER,
-        'long': ColumnType.INTEGER,
-        'float': ColumnType.FLOAT,
-        'double': ColumnType.FLOAT,
-        'bool': ColumnType.BOOLEAN,
-        'datetime': ColumnType.DATETIME,
-        'date': ColumnType.DATE,
-        'ObjectId': ColumnType.STRING,
-        'objectid': ColumnType.STRING,
-        'list': ColumnType.JSON,
-        'dict': ColumnType.JSON,
-        'NoneType': ColumnType.STRING,  # Default to string for nulls
-        'Decimal128': ColumnType.DECIMAL,
-        'bytes': ColumnType.BINARY,
-        'Binary': ColumnType.BINARY,
+        "str": ColumnType.STRING,
+        "string": ColumnType.STRING,
+        "int": ColumnType.INTEGER,
+        "int64": ColumnType.INTEGER,
+        "int32": ColumnType.INTEGER,
+        "long": ColumnType.INTEGER,
+        "float": ColumnType.FLOAT,
+        "double": ColumnType.FLOAT,
+        "bool": ColumnType.BOOLEAN,
+        "datetime": ColumnType.DATETIME,
+        "date": ColumnType.DATE,
+        "ObjectId": ColumnType.STRING,
+        "objectid": ColumnType.STRING,
+        "list": ColumnType.JSON,
+        "dict": ColumnType.JSON,
+        "NoneType": ColumnType.STRING,  # Default to string for nulls
+        "Decimal128": ColumnType.DECIMAL,
+        "bytes": ColumnType.BINARY,
+        "Binary": ColumnType.BINARY,
     }
 
-    def __init__(self, uri: str = None, host: str = 'localhost', port: int = 27017, database: str = '', username: str = None, password: str = None, sample_size: int = 100, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        uri: str = None,
+        host: str = "localhost",
+        port: int = 27017,
+        database: str = "",
+        username: str = None,
+        password: str = None,
+        sample_size: int = 100,
+        **kwargs: Any,
+    ) -> None:
         """
         Initialize MongoDB extractor.
 
@@ -72,11 +83,11 @@ class MongoDBExtractor(BaseExtractor):
         if uri:
             self.uri = uri
             # Extract database name from URI if not provided
-            if not database and '/' in uri:
+            if not database and "/" in uri:
                 # mongodb://user:pass@host:port/database
-                parts = uri.split('/')
+                parts = uri.split("/")
                 if len(parts) > 3:
-                    db_part = parts[3].split('?')[0]
+                    db_part = parts[3].split("?")[0]
                     if db_part:
                         self.database_name = db_part
         else:
@@ -92,6 +103,7 @@ class MongoDBExtractor(BaseExtractor):
         """Get or create MongoDB client."""
         if self._client is None:
             from pymongo import MongoClient
+
             self._client = MongoClient(self.uri)
         return self._client
 
@@ -107,7 +119,7 @@ class MongoDBExtractor(BaseExtractor):
         try:
             # Get all collection names, excluding system collections
             collections = self.db.list_collection_names()
-            return [c for c in collections if not c.startswith('system.')]
+            return [c for c in collections if not c.startswith("system.")]
         except Exception as e:
             logger.error(f"Failed to list collections: {e}")
             return []
@@ -118,9 +130,7 @@ class MongoDBExtractor(BaseExtractor):
             collection = self.db[table_name]
 
             # Sample documents
-            sample = list(collection.aggregate([
-                {"$sample": {"size": self.sample_size}}
-            ]))
+            sample = list(collection.aggregate([{"$sample": {"size": self.sample_size}}]))
 
             if not sample:
                 # Try regular find if $sample fails (e.g., small collections)
@@ -137,17 +147,17 @@ class MongoDBExtractor(BaseExtractor):
             for field_name, type_info in field_types.items():
                 col = Column(
                     name=field_name,
-                    data_type=type_info['most_common_type'],
-                    normalized_type=type_info['normalized_type'],
-                    nullable=type_info['nullable'],
-                    primary_key=(field_name == '_id'),
+                    data_type=type_info["most_common_type"],
+                    normalized_type=type_info["normalized_type"],
+                    nullable=type_info["nullable"],
+                    primary_key=(field_name == "_id"),
                 )
                 columns.append(col)
 
             # Cache for relationship detection
             self._collection_schemas[table_name] = {
-                'fields': field_types,
-                'sample_doc': sample[0] if sample else {}
+                "fields": field_types,
+                "sample_doc": sample[0] if sample else {},
             }
 
             return columns
@@ -171,30 +181,32 @@ class MongoDBExtractor(BaseExtractor):
             }
         }
         """
-        field_info = defaultdict(lambda: {
-            'types': defaultdict(int),
-            'null_count': 0,
-            'total_count': 0,
-            'sample_values': []
-        })
+        field_info = defaultdict(
+            lambda: {
+                "types": defaultdict(int),
+                "null_count": 0,
+                "total_count": 0,
+                "sample_values": [],
+            }
+        )
 
         total_docs = len(documents)
 
         for doc in documents:
-            self._extract_fields_recursive(doc, '', field_info)
+            self._extract_fields_recursive(doc, "", field_info)
 
         # Process results
         result = {}
         for field_name, info in field_info.items():
             # Find most common type
-            types = info['types']
+            types = info["types"]
             if types:
                 most_common = max(types.keys(), key=lambda t: types[t])
             else:
-                most_common = 'str'  # Default to string
+                most_common = "str"  # Default to string
 
             # Determine if nullable (field missing or null in some docs)
-            nullable = info['null_count'] > 0 or info['total_count'] < total_docs
+            nullable = info["null_count"] > 0 or info["total_count"] < total_docs
 
             # Get normalized type, try lowercase version too
             normalized = self.TYPE_MAP.get(most_common)
@@ -202,16 +214,18 @@ class MongoDBExtractor(BaseExtractor):
                 normalized = self.TYPE_MAP.get(most_common.lower(), ColumnType.STRING)
 
             result[field_name] = {
-                'most_common_type': most_common,
-                'normalized_type': normalized,
-                'types': dict(types),
-                'nullable': nullable,
-                'sample_values': info['sample_values'][:5]
+                "most_common_type": most_common,
+                "normalized_type": normalized,
+                "types": dict(types),
+                "nullable": nullable,
+                "sample_values": info["sample_values"][:5],
             }
 
         return result
 
-    def _extract_fields_recursive(self, doc: Dict, prefix: str, field_info: Dict, max_depth: int = 3) -> Any:
+    def _extract_fields_recursive(
+        self, doc: Dict, prefix: str, field_info: Dict, max_depth: int = 3
+    ) -> Any:
         """Recursively extract fields from nested documents."""
         if max_depth <= 0:
             return
@@ -223,20 +237,23 @@ class MongoDBExtractor(BaseExtractor):
             type_name = type(value).__name__
 
             # Handle ObjectId specially
-            if type_name == 'ObjectId':
-                type_name = 'ObjectId'
+            if type_name == "ObjectId":
+                type_name = "ObjectId"
 
-            field_info[field_name]['total_count'] += 1
+            field_info[field_name]["total_count"] += 1
 
             if value is None:
-                field_info[field_name]['null_count'] += 1
-                field_info[field_name]['types']['NoneType'] += 1
+                field_info[field_name]["null_count"] += 1
+                field_info[field_name]["types"]["NoneType"] += 1
             else:
-                field_info[field_name]['types'][type_name] += 1
+                field_info[field_name]["types"][type_name] += 1
 
                 # Store sample values (not for nested objects)
-                if type_name not in ['dict', 'list'] and len(field_info[field_name]['sample_values']) < 5:
-                    field_info[field_name]['sample_values'].append(str(value)[:100])
+                if (
+                    type_name not in ["dict", "list"]
+                    and len(field_info[field_name]["sample_values"]) < 5
+                ):
+                    field_info[field_name]["sample_values"].append(str(value)[:100])
 
                 # Recurse into nested documents
                 if isinstance(value, dict):
@@ -244,7 +261,7 @@ class MongoDBExtractor(BaseExtractor):
 
     def _extract_primary_keys(self, table_name: str) -> List[str]:
         """MongoDB always has _id as primary key."""
-        return ['_id']
+        return ["_id"]
 
     def _extract_foreign_keys(self, table_name: str) -> List[ForeignKey]:
         """
@@ -257,35 +274,39 @@ class MongoDBExtractor(BaseExtractor):
         """
         foreign_keys = []
         schema = self._collection_schemas.get(table_name, {})
-        fields = schema.get('fields', {})
+        fields = schema.get("fields", {})
 
         # Get all collection names for matching
         all_collections = set(self._extract_tables())
 
         for field_name, info in fields.items():
             # Skip _id and nested fields
-            if field_name == '_id' or '.' in field_name:
+            if field_name == "_id" or "." in field_name:
                 continue
 
             # Check for ObjectId type fields (likely references)
-            if info['most_common_type'] == 'ObjectId' and field_name != '_id':
+            if info["most_common_type"] == "ObjectId" and field_name != "_id":
                 ref_collection = self._infer_collection_name(field_name, all_collections)
                 if ref_collection:
-                    foreign_keys.append(ForeignKey(
-                        columns=[field_name],
-                        referenced_table=ref_collection,
-                        referenced_columns=['_id']
-                    ))
+                    foreign_keys.append(
+                        ForeignKey(
+                            columns=[field_name],
+                            referenced_table=ref_collection,
+                            referenced_columns=["_id"],
+                        )
+                    )
 
             # Check for _id suffix pattern
-            elif field_name.endswith('_id') or field_name.endswith('Id'):
+            elif field_name.endswith("_id") or field_name.endswith("Id"):
                 ref_collection = self._infer_collection_name(field_name, all_collections)
                 if ref_collection:
-                    foreign_keys.append(ForeignKey(
-                        columns=[field_name],
-                        referenced_table=ref_collection,
-                        referenced_columns=['_id']
-                    ))
+                    foreign_keys.append(
+                        ForeignKey(
+                            columns=[field_name],
+                            referenced_table=ref_collection,
+                            referenced_columns=["_id"],
+                        )
+                    )
 
         return foreign_keys
 
@@ -293,22 +314,23 @@ class MongoDBExtractor(BaseExtractor):
         """Infer referenced collection from field name."""
         # Remove common suffixes
         base_name = field_name
-        for suffix in ['_id', 'Id', '_ids', 'Ids', 'ID', '_ID']:
+        for suffix in ["_id", "Id", "_ids", "Ids", "ID", "_ID"]:
             if base_name.endswith(suffix):
-                base_name = base_name[:-len(suffix)]
+                base_name = base_name[: -len(suffix)]
                 break
 
         # Convert camelCase to snake_case
         import re
-        base_name = re.sub('([a-z])([A-Z])', r'\1_\2', base_name).lower()
+
+        base_name = re.sub("([a-z])([A-Z])", r"\1_\2", base_name).lower()
 
         # Try various forms
         candidates = [
             base_name,
-            base_name + 's',
-            base_name + 'es',
-            base_name.rstrip('s'),
-            base_name.replace('_', ''),
+            base_name + "s",
+            base_name + "es",
+            base_name.rstrip("s"),
+            base_name.replace("_", ""),
         ]
 
         for candidate in candidates:
@@ -328,22 +350,18 @@ class MongoDBExtractor(BaseExtractor):
             collection = self.db[table_name]
             for idx_info in collection.index_information().values():
                 # Skip _id index
-                if idx_info.get('key') == [('_id', 1)]:
+                if idx_info.get("key") == [("_id", 1)]:
                     continue
 
-                idx_name = idx_info.get('name', '')
-                columns = [k[0] for k in idx_info.get('key', [])]
-                unique = idx_info.get('unique', False)
+                idx_name = idx_info.get("name", "")
+                columns = [k[0] for k in idx_info.get("key", [])]
+                unique = idx_info.get("unique", False)
 
                 if columns:
-                    indexes.append(Index(
-                        name=idx_name,
-                        columns=columns,
-                        unique=unique
-                    ))
+                    indexes.append(Index(name=idx_name, columns=columns, unique=unique))
         except Exception as e:
             # Suppress warnings for views (not collections)
-            if 'is a view' not in str(e):
+            if "is a view" not in str(e):
                 logger.warning(f"Failed to get indexes for {table_name}: {e}")
 
         return indexes
@@ -351,13 +369,13 @@ class MongoDBExtractor(BaseExtractor):
     def get_collection_stats(self, collection_name: str) -> Dict[str, Any]:
         """Get statistics for a collection."""
         try:
-            stats = self.db.command('collStats', collection_name)
+            stats = self.db.command("collStats", collection_name)
             return {
-                'count': stats.get('count', 0),
-                'size': stats.get('size', 0),
-                'avg_obj_size': stats.get('avgObjSize', 0),
-                'storage_size': stats.get('storageSize', 0),
-                'indexes': stats.get('nindexes', 0),
+                "count": stats.get("count", 0),
+                "size": stats.get("size", 0),
+                "avg_obj_size": stats.get("avgObjSize", 0),
+                "storage_size": stats.get("storageSize", 0),
+                "indexes": stats.get("nindexes", 0),
             }
         except Exception as e:
             logger.warning(f"Failed to get stats for {collection_name}: {e}")
@@ -367,12 +385,12 @@ class MongoDBExtractor(BaseExtractor):
         """Test MongoDB connection."""
         try:
             # Ping the server
-            self.client.admin.command('ping')
+            self.client.admin.command("ping")
             return {
                 "success": True,
                 "message": "Connected successfully",
                 "database": self.database_name,
-                "collections": len(self._extract_tables())
+                "collections": len(self._extract_tables()),
             }
         except Exception as e:
             return {"success": False, "error": str(e)}

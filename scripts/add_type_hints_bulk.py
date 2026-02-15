@@ -18,15 +18,15 @@ def add_return_hint_to_line(line: str, return_type: str = "None") -> str:
     line = line.rstrip()
 
     # Already has return hint
-    if '->' in line:
+    if "->" in line:
         return line
 
     # Find the colon
-    if ':' not in line:
+    if ":" not in line:
         return line
 
     # Insert -> None before the colon
-    parts = line.rsplit(':', 1)
+    parts = line.rsplit(":", 1)
     return f"{parts[0]} -> {return_type}:{parts[1]}"
 
 
@@ -40,7 +40,7 @@ def process_file(filepath: Path, dry_run: bool = True) -> Tuple[int, List[str]]:
     try:
         with open(filepath) as f:
             content = f.read()
-            lines = content.split('\n')
+            lines = content.split("\n")
 
         tree = ast.parse(content, filename=str(filepath))
     except Exception as e:
@@ -56,7 +56,7 @@ def process_file(filepath: Path, dry_run: bool = True) -> Tuple[int, List[str]]:
                 continue
 
             # Skip private/dunder methods (focus on public APIs first)
-            if node.name.startswith('_'):
+            if node.name.startswith("_"):
                 continue
 
             # Check if function has explicit return statements with values
@@ -81,8 +81,8 @@ def process_file(filepath: Path, dry_run: bool = True) -> Tuple[int, List[str]]:
         for lineno, return_type in lines_to_modify.items():
             lines[lineno] = add_return_hint_to_line(lines[lineno], return_type)
 
-        with open(filepath, 'w') as f:
-            f.write('\n'.join(lines))
+        with open(filepath, "w") as f:
+            f.write("\n".join(lines))
 
     return len(lines_to_modify), changes
 
@@ -90,10 +90,10 @@ def process_file(filepath: Path, dry_run: bool = True) -> Tuple[int, List[str]]:
 def main():
     import argparse
 
-    parser = argparse.ArgumentParser(description='Add missing type hints')
-    parser.add_argument('paths', nargs='+', help='Files or directories to process')
-    parser.add_argument('--dry-run', action='store_true', help='Show changes without applying')
-    parser.add_argument('--apply', action='store_true', help='Apply changes')
+    parser = argparse.ArgumentParser(description="Add missing type hints")
+    parser.add_argument("paths", nargs="+", help="Files or directories to process")
+    parser.add_argument("--dry-run", action="store_true", help="Show changes without applying")
+    parser.add_argument("--apply", action="store_true", help="Apply changes")
 
     args = parser.parse_args()
 
@@ -106,16 +106,16 @@ def main():
     for path_str in args.paths:
         path = Path(path_str)
 
-        if path.is_file() and path.suffix == '.py':
+        if path.is_file() and path.suffix == ".py":
             files = [path]
         elif path.is_dir():
-            files = list(path.rglob('*.py'))
+            files = list(path.rglob("*.py"))
         else:
             print(f"Skipping {path_str}")
             continue
 
         for filepath in files:
-            if '__pycache__' in str(filepath):
+            if "__pycache__" in str(filepath):
                 continue
 
             num_changes, change_list = process_file(filepath, dry_run=args.dry_run)
@@ -124,7 +124,11 @@ def main():
                 files_modified += 1
                 total_changes += num_changes
 
-                rel_path = filepath.relative_to(Path.cwd()) if filepath.is_relative_to(Path.cwd()) else filepath
+                rel_path = (
+                    filepath.relative_to(Path.cwd())
+                    if filepath.is_relative_to(Path.cwd())
+                    else filepath
+                )
                 print(f"\n{'[DRY RUN] ' if args.dry_run else ''}📝 {rel_path}")
                 print(f"   {num_changes} return hints added:")
                 for change in change_list[:10]:  # Show first 10
@@ -145,5 +149,5 @@ def main():
         return 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

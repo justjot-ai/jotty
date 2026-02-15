@@ -10,7 +10,6 @@ Covers:
 """
 
 import json
-import pytest
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
@@ -18,15 +17,18 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 # ── Import openapi module with fallback ──────────────────────────────────────
 
 try:
     from Jotty.core.interface.api.openapi import (
-        _python_type_to_openapi,
         _dataclass_to_schema,
+        _python_type_to_openapi,
         generate_openapi_spec,
         save_openapi_spec,
     )
+
     OPENAPI_AVAILABLE = True
 except ImportError:
     OPENAPI_AVAILABLE = False
@@ -35,9 +37,10 @@ except ImportError:
 
 try:
     from Jotty.core.intelligence.orchestration.swarm_code_generator import (
-        SwarmCodeGenerator,
         GeneratedCode,
+        SwarmCodeGenerator,
     )
+
     CODEGEN_AVAILABLE = True
 except ImportError:
     CODEGEN_AVAILABLE = False
@@ -45,8 +48,10 @@ except ImportError:
 
 # ── Test helpers: Enum and dataclass definitions ─────────────────────────────
 
+
 class Color(Enum):
     """Colour choices."""
+
     RED = "red"
     GREEN = "green"
     BLUE = "blue"
@@ -60,6 +65,7 @@ class Priority(Enum):
 @dataclass
 class SimpleRecord:
     """A simple record for testing."""
+
     name: str
     age: int
 
@@ -67,6 +73,7 @@ class SimpleRecord:
 @dataclass
 class RecordWithDefaults:
     """Record with default values."""
+
     title: str
     count: int = 0
     active: bool = True
@@ -76,6 +83,7 @@ class RecordWithDefaults:
 @dataclass
 class RecordWithCallback:
     """Record that has callback and private fields."""
+
     name: str
     on_callback: Any = None
     _private: str = "hidden"
@@ -85,12 +93,14 @@ class RecordWithCallback:
 @dataclass
 class RecordWithEnum:
     """Record with an enum default."""
+
     priority: Priority = Priority.LOW
 
 
 @dataclass
 class RecordWithComplexTypes:
     """Complex type record."""
+
     tags: List[str] = field(default_factory=list)
     metadata: Dict[str, Any] = field(default_factory=dict)
     color: Optional[Color] = None
@@ -100,6 +110,7 @@ class RecordWithComplexTypes:
 # =============================================================================
 # Section 1: _python_type_to_openapi
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestPythonTypeToOpenapi:
@@ -197,6 +208,7 @@ class TestPythonTypeToOpenapi:
 # Section 2: _dataclass_to_schema
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestDataclassToSchema:
     """Tests for _dataclass_to_schema conversion."""
@@ -266,6 +278,7 @@ class TestDataclassToSchema:
 # =============================================================================
 # Section 3: generate_openapi_spec
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestGenerateOpenapiSpec:
@@ -347,6 +360,7 @@ class TestGenerateOpenapiSpec:
 # Section 4: save_openapi_spec
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestSaveOpenapiSpec:
     """Tests for save_openapi_spec file writing."""
@@ -385,6 +399,7 @@ class TestSaveOpenapiSpec:
 # Section 5: SwarmCodeGenerator
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestGeneratedCodeDataclass:
     """Tests for the GeneratedCode dataclass."""
@@ -406,9 +421,7 @@ class TestGeneratedCodeDataclass:
         assert gc.description == "Hello script"
 
     def test_optional_fields_default(self):
-        gc = GeneratedCode(
-            code="x", language="py", dependencies=[], description="d"
-        )
+        gc = GeneratedCode(code="x", language="py", dependencies=[], description="d")
         assert gc.usage_example is None
         assert gc.file_path is None
         assert gc.metadata == {}
@@ -455,9 +468,7 @@ class TestSwarmCodeGenerator:
         gen = SwarmCodeGenerator()
         gen._planner = MagicMock()
 
-        result = gen.generate_glue_code(
-            "redis_cache", "postgres_db", transformation="flatten JSON"
-        )
+        result = gen.generate_glue_code("redis_cache", "postgres_db", transformation="flatten JSON")
 
         assert isinstance(result, GeneratedCode)
         assert "redis_cache" in result.code
@@ -484,18 +495,14 @@ class TestSwarmCodeGenerator:
         gen = SwarmCodeGenerator()
         gen._planner = MagicMock()
 
-        result = gen.generate_provider_adapter(
-            "my-package", {"description": "A pkg"}, ["data"]
-        )
+        result = gen.generate_provider_adapter("my-package", {"description": "A pkg"}, ["data"])
         assert result.file_path == "providers/my_package_provider.py"
 
     def test_generate_provider_adapter_metadata(self):
         gen = SwarmCodeGenerator()
         gen._planner = MagicMock()
 
-        result = gen.generate_provider_adapter(
-            "cool-lib", {"description": "Cool"}, ["ai", "nlp"]
-        )
+        result = gen.generate_provider_adapter("cool-lib", {"description": "Cool"}, ["ai", "nlp"])
         assert result.metadata["package_name"] == "cool-lib"
         assert result.metadata["categories"] == ["ai", "nlp"]
         assert result.metadata["generated_by"] == "template"

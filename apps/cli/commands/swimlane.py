@@ -5,8 +5,9 @@ Swimlane Command
 View tasks organized by swimlane/status.
 """
 
-import aiohttp
 from typing import TYPE_CHECKING, Dict, List
+
+import aiohttp
 
 from .base import BaseCommand, CommandResult, ParsedArgs
 
@@ -19,7 +20,9 @@ class SwimlaneCommand(BaseCommand):
 
     name = "swimlane"
     aliases = ["lane", "lanes"]
-    description = "View tasks organized by swimlane (backlog, pending, in_progress, completed, failed)"
+    description = (
+        "View tasks organized by swimlane (backlog, pending, in_progress, completed, failed)"
+    )
     usage = "/swimlane [lane_name]"
     category = "supervisor"
 
@@ -31,7 +34,7 @@ class SwimlaneCommand(BaseCommand):
         "pending": "pending_tasks",
         "in_progress": "in_progress_tasks",
         "completed": "completed_task_files",
-        "failed": "failed_task_files"
+        "failed": "failed_task_files",
     }
 
     LANE_STYLES = {
@@ -40,7 +43,7 @@ class SwimlaneCommand(BaseCommand):
         "pending": "cyan",
         "in_progress": "yellow",
         "completed": "green",
-        "failed": "red"
+        "failed": "red",
     }
 
     async def execute(self, args: ParsedArgs, cli: "JottyCLI") -> CommandResult:
@@ -135,7 +138,7 @@ class SwimlaneCommand(BaseCommand):
             cli.renderer.panel(
                 "\n".join(lines),
                 title=f"Swimlane: {lane_name.replace('_', ' ').title()} ({len(task_ids)} tasks)",
-                style=style
+                style=style,
             )
 
             return CommandResult.ok(data=tasks)

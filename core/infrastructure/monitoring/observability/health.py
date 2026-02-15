@@ -6,14 +6,16 @@ Provides health and readiness endpoints for:
 - Load balancer health checks
 - Monitoring systems
 """
-from typing import Dict, Any, List, Callable
+
+import time
 from dataclasses import dataclass
 from enum import Enum
-import time
+from typing import Any, Callable, Dict, List
 
 
 class HealthStatus(Enum):
     """Health check status."""
+
     HEALTHY = "healthy"
     DEGRADED = "degraded"
     UNHEALTHY = "unhealthy"
@@ -22,6 +24,7 @@ class HealthStatus(Enum):
 @dataclass
 class HealthCheckResult:
     """Result of a health check."""
+
     name: str
     status: HealthStatus
     message: str
@@ -32,12 +35,12 @@ class HealthCheckResult:
 class HealthCheck:
     """
     Health check system for Jotty.
-    
+
     Usage:
         health = HealthCheck()
         health.add_check("database", check_database_connection)
         health.add_check("llm_provider", check_llm_available)
-        
+
         status = health.check_all()
         if status['status'] == 'healthy':
             print("System healthy!")
@@ -50,7 +53,7 @@ class HealthCheck:
     def add_check(self, name: str, check_fn: Callable[[], bool]) -> None:
         """
         Add health check.
-        
+
         Args:
             name: Check name
             check_fn: Function returning True if healthy
@@ -60,10 +63,10 @@ class HealthCheck:
     def run_check(self, name: str) -> HealthCheckResult:
         """
         Run single health check.
-        
+
         Args:
             name: Check name
-        
+
         Returns:
             HealthCheckResult
         """
@@ -72,7 +75,7 @@ class HealthCheck:
                 name=name,
                 status=HealthStatus.UNHEALTHY,
                 message=f"Check '{name}' not found",
-                duration_ms=0
+                duration_ms=0,
             )
 
         start_time = time.time()
@@ -82,32 +85,26 @@ class HealthCheck:
 
             if result:
                 return HealthCheckResult(
-                    name=name,
-                    status=HealthStatus.HEALTHY,
-                    message="OK",
-                    duration_ms=duration
+                    name=name, status=HealthStatus.HEALTHY, message="OK", duration_ms=duration
                 )
             else:
                 return HealthCheckResult(
                     name=name,
                     status=HealthStatus.DEGRADED,
                     message="Check returned False",
-                    duration_ms=duration
+                    duration_ms=duration,
                 )
 
         except Exception as e:
             duration = (time.time() - start_time) * 1000
             return HealthCheckResult(
-                name=name,
-                status=HealthStatus.UNHEALTHY,
-                message=str(e),
-                duration_ms=duration
+                name=name, status=HealthStatus.UNHEALTHY, message=str(e), duration_ms=duration
             )
 
     def check_all(self) -> Dict[str, Any]:
         """
         Run all health checks.
-        
+
         Returns:
             Dict with overall status and individual check results
         """
@@ -128,11 +125,11 @@ class HealthCheck:
                     "name": r.name,
                     "status": r.status.value,
                     "message": r.message,
-                    "duration_ms": r.duration_ms
+                    "duration_ms": r.duration_ms,
                 }
                 for r in results
             ],
-            "timestamp": time.time()
+            "timestamp": time.time(),
         }
 
     def is_healthy(self) -> bool:
@@ -145,6 +142,7 @@ def check_memory_system() -> bool:
     """Check if memory system is available."""
     try:
         from Jotty.core.intelligence.memory import get_memory_system
+
         mem = get_memory_system()
         return mem is not None
     except Exception:
@@ -154,13 +152,17 @@ def check_memory_system() -> bool:
 def check_llm_provider() -> bool:
     """Check if LLM provider is configured."""
     import os
-    return bool(os.getenv('ANTHROPIC_API_KEY') or os.getenv('OPENAI_API_KEY') or os.getenv('GROQ_API_KEY'))
+
+    return bool(
+        os.getenv("ANTHROPIC_API_KEY") or os.getenv("OPENAI_API_KEY") or os.getenv("GROQ_API_KEY")
+    )
 
 
 def check_registry() -> bool:
     """Check if skill registry is available."""
     try:
         from Jotty.core.capabilities.registry import get_unified_registry
+
         registry = get_unified_registry()
         return registry is not None
     except Exception:
@@ -174,16 +176,16 @@ _health_check: HealthCheck = None
 def get_health_check() -> HealthCheck:
     """
     Get singleton health check instance with default checks.
-    
+
     Returns:
         HealthCheck instance
     """
     global _health_check
-    
+
     if _health_check is None:
         _health_check = HealthCheck()
         _health_check.add_check("memory_system", check_memory_system)
         _health_check.add_check("llm_provider", check_llm_provider)
         _health_check.add_check("skill_registry", check_registry)
-    
+
     return _health_check

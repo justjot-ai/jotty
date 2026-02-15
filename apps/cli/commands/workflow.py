@@ -5,12 +5,12 @@ Workflow Command
 /workflow - Manage n8n workflows and schedules
 """
 
+import asyncio
 import json
 import logging
-import asyncio
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, Any, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from .base import BaseCommand, CommandResult, ParsedArgs
 
@@ -59,26 +59,26 @@ class WorkflowCommand(BaseCommand):
             "name": "Daily Research Report",
             "description": "Research a topic daily and save to JustJot",
             "schedule": "0 9 * * *",  # 9 AM daily
-            "nodes": ["schedule", "jotty-research", "justjot-save"]
+            "nodes": ["schedule", "jotty-research", "justjot-save"],
         },
         "ml-monitor": {
             "name": "ML Model Monitor",
             "description": "Run ML pipeline and track metrics",
             "schedule": "0 */6 * * *",  # Every 6 hours
-            "nodes": ["schedule", "jotty-ml", "mlflow-log"]
+            "nodes": ["schedule", "jotty-ml", "mlflow-log"],
         },
         "news-digest": {
             "name": "News Digest",
             "description": "Research trending topics and create digest",
             "schedule": "0 8,18 * * *",  # 8 AM and 6 PM
-            "nodes": ["schedule", "jotty-research", "telegram-send"]
+            "nodes": ["schedule", "jotty-research", "telegram-send"],
         },
         "backup-sessions": {
             "name": "Session Backup",
             "description": "Export and backup Jotty sessions",
             "schedule": "0 0 * * *",  # Midnight daily
-            "nodes": ["schedule", "jotty-export", "file-save"]
-        }
+            "nodes": ["schedule", "jotty-export", "file-save"],
+        },
     }
 
     async def execute(self, args: ParsedArgs, cli: "JottyCLI") -> CommandResult:
@@ -142,15 +142,13 @@ class WorkflowCommand(BaseCommand):
 
         try:
             import aiohttp
+
             async with aiohttp.ClientSession() as session:
                 headers = {}
                 if N8N_API_KEY:
                     headers["X-N8N-API-KEY"] = N8N_API_KEY
 
-                async with session.get(
-                    f"{N8N_BASE_URL}/api/v1/workflows",
-                    headers=headers
-                ) as resp:
+                async with session.get(f"{N8N_BASE_URL}/api/v1/workflows", headers=headers) as resp:
                     if resp.status == 200:
                         data = await resp.json()
                         workflows = data.get("data", [])
@@ -198,11 +196,7 @@ class WorkflowCommand(BaseCommand):
         return CommandResult.ok()
 
     async def _create_workflow(
-        self,
-        cli: "JottyCLI",
-        template: Optional[str],
-        flags: dict,
-        nickname: Optional[str] = None
+        self, cli: "JottyCLI", template: Optional[str], flags: dict, nickname: Optional[str] = None
     ) -> CommandResult:
         """Create a new workflow from template."""
 
@@ -229,26 +223,25 @@ class WorkflowCommand(BaseCommand):
         # Try to create in n8n
         try:
             import aiohttp
+
             async with aiohttp.ClientSession() as session:
                 headers = {"Content-Type": "application/json"}
                 if N8N_API_KEY:
                     headers["X-N8N-API-KEY"] = N8N_API_KEY
 
                 async with session.post(
-                    f"{N8N_BASE_URL}/api/v1/workflows",
-                    headers=headers,
-                    json=workflow_json
+                    f"{N8N_BASE_URL}/api/v1/workflows", headers=headers, json=workflow_json
                 ) as resp:
                     if resp.status in [200, 201]:
                         data = await resp.json()
-                        workflow_id = data.get('id')
+                        workflow_id = data.get("id")
 
                         # Register nickname
                         registry = _load_workflow_registry()
                         registry["workflows"][workflow_name] = {
                             "id": workflow_id,
                             "template": template,
-                            "created": str(asyncio.get_running_loop().time())
+                            "created": str(asyncio.get_running_loop().time()),
                         }
                         _save_workflow_registry(registry)
 
@@ -282,9 +275,7 @@ class WorkflowCommand(BaseCommand):
             "nodes": [],
             "connections": {},
             "active": False,
-            "settings": {
-                "executionOrder": "v1"
-            }
+            "settings": {"executionOrder": "v1"},
         }
 
         # Add schedule trigger
@@ -297,7 +288,7 @@ class WorkflowCommand(BaseCommand):
             "name": "Schedule Trigger",
             "type": "n8n-nodes-base.scheduleTrigger",
             "position": [250, 300],
-            "typeVersion": 1
+            "typeVersion": 1,
         }
         workflow["nodes"].append(schedule_node)
 
@@ -311,24 +302,20 @@ class WorkflowCommand(BaseCommand):
                 "url": f"http://{api_host}:{api_port}/api/run",
                 "sendBody": True,
                 "bodyParameters": {
-                    "parameters": [
-                        {"name": "task", "value": self._get_task_for_template(name)}
-                    ]
+                    "parameters": [{"name": "task", "value": self._get_task_for_template(name)}]
                 },
-                "options": {}
+                "options": {},
             },
             "name": "Jotty API",
             "type": "n8n-nodes-base.httpRequest",
             "position": [450, 300],
-            "typeVersion": 3
+            "typeVersion": 3,
         }
         workflow["nodes"].append(http_node)
 
         # Connect nodes
         workflow["connections"] = {
-            "Schedule Trigger": {
-                "main": [[{"node": "Jotty API", "type": "main", "index": 0}]]
-            }
+            "Schedule Trigger": {"main": [[{"node": "Jotty API", "type": "main", "index": 0}]]}
         }
 
         return workflow
@@ -374,7 +361,7 @@ class WorkflowCommand(BaseCommand):
             "daily-research": "/research AI trends --deep",
             "ml-monitor": "/ml titanic --iterations 1",
             "news-digest": "/research technology news",
-            "backup-sessions": "/export history"
+            "backup-sessions": "/export history",
         }
         return tasks.get(template_name, "/help")
 
@@ -409,14 +396,14 @@ class WorkflowCommand(BaseCommand):
 
         try:
             import aiohttp
+
             async with aiohttp.ClientSession() as session:
                 headers = {}
                 if N8N_API_KEY:
                     headers["X-N8N-API-KEY"] = N8N_API_KEY
 
                 async with session.post(
-                    f"{N8N_BASE_URL}/api/v1/workflows/{workflow_id}/run",
-                    headers=headers
+                    f"{N8N_BASE_URL}/api/v1/workflows/{workflow_id}/run", headers=headers
                 ) as resp:
                     if resp.status == 200:
                         data = await resp.json()
@@ -456,7 +443,8 @@ class WorkflowCommand(BaseCommand):
     async def _show_help(self, cli: "JottyCLI") -> CommandResult:
         """Show workflow help."""
         cli.renderer.header("Workflow Command")
-        cli.renderer.print("""
+        cli.renderer.print(
+            """
 [bold]Usage:[/bold]
   /workflow [subcommand] [args]
 
@@ -476,15 +464,18 @@ class WorkflowCommand(BaseCommand):
   /workflow start               Start API server for n8n
   /workflow stop                Stop API server
 
-[bold]Templates:[/bold]""")
+[bold]Templates:[/bold]"""
+        )
         for name, tpl in self.WORKFLOW_TEMPLATES.items():
             cli.renderer.print(f"  {name}: {tpl['description']}")
 
-        cli.renderer.print("""
+        cli.renderer.print(
+            """
 [bold]Note:[/bold]
   Templates can run directly without n8n.
   For scheduling, install n8n: docker run -p 5678:5678 n8nio/n8n
-""")
+"""
+        )
         return CommandResult.ok()
 
     async def _export_workflow(self, cli: "JottyCLI", flags: dict) -> CommandResult:
@@ -507,9 +498,9 @@ class WorkflowCommand(BaseCommand):
 
     async def _start_api_server(self, cli: "JottyCLI", flags: dict) -> CommandResult:
         """Start the Jotty API server for n8n integration (runs in background)."""
+        import os
         import socket
         import subprocess
-        import os
 
         host = flags.get("host", "0.0.0.0")
         port = int(flags.get("port", 8765))
@@ -545,7 +536,7 @@ class WorkflowCommand(BaseCommand):
         jotty_path = str(Path(__file__).parent.parent.parent.resolve())
 
         # Create a simple server script
-        server_script = f'''
+        server_script = f"""
 import sys
 sys.path.insert(0, "{jotty_path}")
 from Jotty.apps.cli.api import JottyAPIServer
@@ -554,7 +545,7 @@ import uvicorn
 server = JottyAPIServer("{host}", {port})
 app = server.create_app()
 uvicorn.run(app, host="{host}", port={port}, log_level="warning")
-'''
+"""
 
         # Write to temp file
         script_path = Path.home() / ".jotty" / "api_server.py"
@@ -569,7 +560,7 @@ uvicorn.run(app, host="{host}", port={port}, log_level="warning")
             [sys.executable, str(script_path)],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            start_new_session=True
+            start_new_session=True,
         )
 
         # Save PID
@@ -601,8 +592,9 @@ uvicorn.run(app, host="{host}", port={port}, log_level="warning")
         cli.renderer.info("Press Ctrl+C to stop")
 
         try:
-            from ..api import JottyAPIServer
             import uvicorn
+
+            from ..api import JottyAPIServer
 
             server = JottyAPIServer(host, port)
             app = server.create_app()
@@ -646,12 +638,9 @@ uvicorn.run(app, host="{host}", port={port}, log_level="warning")
         if not stopped:
             try:
                 # Find process using port 8765
-                result = subprocess.run(
-                    ["lsof", "-ti", f":{port}"],
-                    capture_output=True, text=True
-                )
+                result = subprocess.run(["lsof", "-ti", f":{port}"], capture_output=True, text=True)
                 if result.stdout.strip():
-                    pids = result.stdout.strip().split('\n')
+                    pids = result.stdout.strip().split("\n")
                     for pid in pids:
                         try:
                             os.kill(int(pid), signal.SIGTERM)
@@ -663,8 +652,7 @@ uvicorn.run(app, host="{host}", port={port}, log_level="warning")
                 # lsof not available, try fuser
                 try:
                     result = subprocess.run(
-                        ["fuser", f"{port}/tcp"],
-                        capture_output=True, text=True
+                        ["fuser", f"{port}/tcp"], capture_output=True, text=True
                     )
                     if result.stdout.strip():
                         for pid in result.stdout.strip().split():
@@ -689,6 +677,7 @@ uvicorn.run(app, host="{host}", port={port}, log_level="warning")
 
         try:
             import aiohttp
+
             async with aiohttp.ClientSession() as session:
                 async with session.get(f"{N8N_BASE_URL}/healthz", timeout=5) as resp:
                     if resp.status == 200:
@@ -707,7 +696,18 @@ uvicorn.run(app, host="{host}", port={port}, log_level="warning")
 
     def get_completions(self, partial: str) -> list:
         """Get completions."""
-        subcommands = ["list", "templates", "create", "run", "export", "start", "server", "stop", "status", "alias"]
+        subcommands = [
+            "list",
+            "templates",
+            "create",
+            "run",
+            "export",
+            "start",
+            "server",
+            "stop",
+            "status",
+            "alias",
+        ]
         templates = list(self.WORKFLOW_TEMPLATES.keys())
         flags = ["--host", "--port", "--name", "--as"]
 

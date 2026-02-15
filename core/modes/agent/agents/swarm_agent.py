@@ -30,7 +30,14 @@ class BaseSwarmAgent(DomainAgent):
     - _broadcast() for event bus communication
     """
 
-    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '', signature: Any = None) -> None:
+    def __init__(
+        self,
+        memory: Any = None,
+        context: Any = None,
+        bus: Any = None,
+        learned_context: str = "",
+        signature: Any = None,
+    ) -> None:
         config = DomainAgentConfig(
             name=self.__class__.__name__,
             enable_memory=memory is not None,
@@ -52,12 +59,18 @@ class BaseSwarmAgent(DomainAgent):
     def _broadcast(self, event: str, data: Dict[str, Any]) -> Any:
         """Emit a status event via the singleton AgentEventBroadcaster."""
         try:
-            from Jotty.core.infrastructure.utils.async_utils import AgentEventBroadcaster, AgentEvent
+            from Jotty.core.infrastructure.utils.async_utils import (
+                AgentEvent,
+                AgentEventBroadcaster,
+            )
+
             broadcaster = AgentEventBroadcaster.get_instance()
-            broadcaster.emit(AgentEvent(
-                type="status",
-                data={'event': event, **data},
-                agent_id=self.__class__.__name__,
-            ))
+            broadcaster.emit(
+                AgentEvent(
+                    type="status",
+                    data={"event": event, **data},
+                    agent_id=self.__class__.__name__,
+                )
+            )
         except Exception:
             pass

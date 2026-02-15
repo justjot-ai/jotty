@@ -11,7 +11,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.experts import MermaidExpertAgent, ExpertAgentConfig
+from core.experts import ExpertAgentConfig, MermaidExpertAgent
 
 
 async def test_and_improve_mermaid_expert():
@@ -20,12 +20,14 @@ async def test_and_improve_mermaid_expert():
     print("TESTING AND IMPROVING MERMAID EXPERT WITH TOUGH EXAMPLES")
     print("=" * 80)
     print()
-    
+
     # Create expert with tough training cases
     tough_training_cases = [
         {
             "task": "Generate complex multi-branch decision tree",
-            "context": {"description": "Complex decision tree with multiple branches and conditions"},
+            "context": {
+                "description": "Complex decision tree with multiple branches and conditions"
+            },
             "gold_standard": """graph TD
     A[Start]
     B{Is User Logged In?}
@@ -43,7 +45,7 @@ async def test_and_improve_mermaid_expert():
     C -->|No| G
     D -->|Yes| E
     D -->|No| H
-    E --> I"""
+    E --> I""",
         },
         {
             "task": "Generate complex sequence diagram",
@@ -52,7 +54,7 @@ async def test_and_improve_mermaid_expert():
     participant U as User
     participant A as API
     participant D as Database
-    
+
     U->>A: POST /register
     A->>D: Check if user exists
     alt User exists
@@ -63,7 +65,7 @@ async def test_and_improve_mermaid_expert():
         A->>D: Create user
         D-->>A: User created
         A-->>U: Success: User registered
-    end"""
+    end""",
         },
         {
             "task": "Generate class diagram",
@@ -78,33 +80,33 @@ async def test_and_improve_mermaid_expert():
         +String breed
         +bark()
     }
-    Animal <|-- Dog"""
+    Animal <|-- Dog""",
         },
         {
             "task": "Generate flowchart with subgraphs",
             "context": {"description": "Flowchart with subgraphs/clusters"},
             "gold_standard": """graph TD
     A[Start]
-    
+
     subgraph Authentication
         B[Login]
         C[Verify Token]
     end
-    
+
     subgraph Processing
         D[Process Request]
         E[Validate Data]
     end
-    
+
     A --> Authentication
     Authentication --> Processing
     Processing --> F[End]
-    
+
     B --> C
-    D --> E"""
-        }
+    D --> E""",
+        },
     ]
-    
+
     # Create expert with custom config
     config = ExpertAgentConfig(
         name="mermaid_expert_improved",
@@ -115,9 +117,9 @@ async def test_and_improve_mermaid_expert():
         required_training_pass_count=1,
         enable_teacher_model=True,
         save_improvements=True,
-        expert_data_dir="./expert_data/mermaid_improved"
+        expert_data_dir="./expert_data/mermaid_improved",
     )
-    
+
     expert = MermaidExpertAgent(config=config)
 
     # Verify training data is accessible (BaseExpert does not have .train())
@@ -132,63 +134,66 @@ async def test_and_improve_mermaid_expert():
     for i, case in enumerate(training_data, 1):
         print(f"  Case {i}: {case.get('task', 'Unknown')}")
         print()
-    
+
     # Test on new tough examples
     print("=" * 80)
     print("TESTING ON NEW TOUGH EXAMPLES")
     print("=" * 80)
     print()
-    
+
     test_cases = [
         {
             "name": "Complex Decision Tree",
             "description": "Complex decision tree with multiple branches and conditions",
             "diagram_type": "flowchart",
-            "expected_pattern": "multi-branch decision"
+            "expected_pattern": "multi-branch decision",
         },
         {
             "name": "Sequence Diagram",
             "description": "Sequence diagram with loops and alt blocks",
             "diagram_type": "sequence",
-            "expected_pattern": "sequenceDiagram"
+            "expected_pattern": "sequenceDiagram",
         },
         {
             "name": "Class Diagram",
             "description": "Class diagram with inheritance and relationships",
             "diagram_type": "class",
-            "expected_pattern": "classDiagram"
-        }
+            "expected_pattern": "classDiagram",
+        },
     ]
-    
+
     for i, test_case in enumerate(test_cases, 1):
         print(f"Test {i}: {test_case['name']}")
         print(f"  Description: {test_case['description']}")
         print()
-        
+
         try:
             generated = await expert.generate_mermaid(
-                description=test_case['description'],
-                diagram_type=test_case['diagram_type']
+                description=test_case["description"], diagram_type=test_case["diagram_type"]
             )
-            
+
             print(f"  Generated:")
             print(f"  ```mermaid")
             print(f"  {generated[:200]}...")  # Show first 200 chars
             print(f"  ```")
             print()
-            
+
             # Check if it contains expected pattern
-            contains_pattern = test_case['expected_pattern'].lower() in generated.lower()
-            has_valid_syntax = "graph" in generated.lower() or "sequence" in generated.lower() or "class" in generated.lower()
-            
+            contains_pattern = test_case["expected_pattern"].lower() in generated.lower()
+            has_valid_syntax = (
+                "graph" in generated.lower()
+                or "sequence" in generated.lower()
+                or "class" in generated.lower()
+            )
+
             print(f"  Contains Expected Pattern: {'✅ YES' if contains_pattern else '❌ NO'}")
             print(f"  Has Valid Syntax: {'✅ YES' if has_valid_syntax else '❌ NO'}")
-            
+
         except Exception as e:
             print(f"  ❌ ERROR: {e}")
-        
+
         print()
-    
+
     # Show expert stats
     print("=" * 80)
     print("EXPERT STATS")

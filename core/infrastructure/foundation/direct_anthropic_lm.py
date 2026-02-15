@@ -25,8 +25,10 @@ import logging
 import os
 import time
 from typing import Any, Dict, List, Optional
+
 import dspy
-from Jotty.core.infrastructure.foundation.exceptions import LLMError, InputValidationError
+
+from Jotty.core.infrastructure.foundation.exceptions import InputValidationError, LLMError
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +41,7 @@ def get_cost_tracker() -> Any:
     global _cost_tracker
     if _cost_tracker is None:
         from Jotty.core.infrastructure.monitoring.monitoring.cost_tracker import CostTracker
+
         _cost_tracker = CostTracker(enable_tracking=True)
     return _cost_tracker
 
@@ -48,12 +51,19 @@ def reset_cost_tracker() -> None:
     global _cost_tracker
     _cost_tracker = None
 
+
+from Jotty.core.infrastructure.foundation.anthropic_client_kwargs import get_anthropic_client_kwargs
+
 # Model name mapping — centralized in config_defaults
 from Jotty.core.infrastructure.foundation.config_defaults import (
-    MODEL_SONNET, MODEL_OPUS, MODEL_HAIKU,
-    DEFAULT_MODEL_ALIAS, LLM_TEMPERATURE, LLM_TIMEOUT_SECONDS,
+    DEFAULT_MODEL_ALIAS,
+    LLM_TEMPERATURE,
+    LLM_TIMEOUT_SECONDS,
+    MODEL_HAIKU,
+    MODEL_OPUS,
+    MODEL_SONNET,
 )
-from Jotty.core.infrastructure.foundation.anthropic_client_kwargs import get_anthropic_client_kwargs
+
 MODEL_MAP = {
     "haiku": MODEL_HAIKU,
     "sonnet": MODEL_SONNET,
@@ -68,7 +78,16 @@ class DirectAnthropicLM(dspy.BaseLM):
     No subprocess overhead, direct HTTP calls to Anthropic API.
     """
 
-    def __init__(self, model: str = 'haiku', max_tokens: Optional[int] = None, temperature: float = LLM_TEMPERATURE, timeout: int = LLM_TIMEOUT_SECONDS, api_key: Optional[str] = None, base_url: Optional[str] = None, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        model: str = "haiku",
+        max_tokens: Optional[int] = None,
+        temperature: float = LLM_TEMPERATURE,
+        timeout: int = LLM_TIMEOUT_SECONDS,
+        api_key: Optional[str] = None,
+        base_url: Optional[str] = None,
+        **kwargs: Any,
+    ) -> None:
         """
         Initialize Direct Anthropic LM.
 
@@ -87,6 +106,7 @@ class DirectAnthropicLM(dspy.BaseLM):
         # Centralized default for max output tokens
         if max_tokens is None:
             from Jotty.core.infrastructure.foundation.config_defaults import LLM_MAX_OUTPUT_TOKENS
+
             max_tokens = LLM_MAX_OUTPUT_TOKENS
 
         super().__init__(model=f"anthropic-direct/{model}", **kwargs)
@@ -114,30 +134,34 @@ class DirectAnthropicLM(dspy.BaseLM):
         # Initialize client
         try:
             import anthropic
+
             if self._base_url:
                 logger.info(f"DirectAnthropicLM using router: {self._base_url}")
             self._client = anthropic.Anthropic(**client_kwargs)
             self._async_client = anthropic.AsyncAnthropic(**client_kwargs)
             logger.info(f"DirectAnthropicLM initialized (model={self.model_id})")
         except ImportError as e:
-            raise LLMError("anthropic package not installed. Install with: pip install anthropic", original_error=e)
+            raise LLMError(
+                "anthropic package not installed. Install with: pip install anthropic",
+                original_error=e,
+            )
 
     def __call__(self, prompt: str = None, messages: List[Dict] = None, **kwargs: Any) -> List[str]:
         """Synchronous call interface (required by DSPy)."""
         try:
             loop = asyncio.get_running_loop()
             import concurrent.futures
+
             with concurrent.futures.ThreadPoolExecutor() as executor:
-                future = executor.submit(
-                    asyncio.run,
-                    self._async_call(prompt, messages, **kwargs)
-                )
+                future = executor.submit(asyncio.run, self._async_call(prompt, messages, **kwargs))
                 return future.result(timeout=self.timeout + 10)
         except RuntimeError:
             # Not in async context - use sync client directly
             return self._sync_call(prompt, messages, **kwargs)
 
-    def _sync_call(self, prompt: str = None, messages: List[Dict] = None, **kwargs: Any) -> List[str]:
+    def _sync_call(
+        self, prompt: str = None, messages: List[Dict] = None, **kwargs: Any
+    ) -> List[str]:
         """Synchronous API call using sync client."""
         # Build messages and extract system prompt
         system_prompt = None
@@ -172,15 +196,17 @@ class DirectAnthropicLM(dspy.BaseLM):
             input_tokens = response.usage.input_tokens
             output_tokens = response.usage.output_tokens
 
-            self.history.append({
-                'prompt': str(api_messages)[:500],
-                'response': response_text[:500],
-                'model': self.model_id,
-                'usage': {
-                    'input_tokens': input_tokens,
-                    'output_tokens': output_tokens,
+            self.history.append(
+                {
+                    "prompt": str(api_messages)[:500],
+                    "response": response_text[:500],
+                    "model": self.model_id,
+                    "usage": {
+                        "input_tokens": input_tokens,
+                        "output_tokens": output_tokens,
+                    },
                 }
-            })
+            )
 
             # Live cost tracking
             tracker = get_cost_tracker()
@@ -215,7 +241,9 @@ class DirectAnthropicLM(dspy.BaseLM):
             logger.error(f"DirectAnthropicLM error: {e}")
             raise
 
-    async def _async_call(self, prompt: str = None, messages: List[Dict] = None, **kwargs: Any) -> List[str]:
+    async def _async_call(
+        self, prompt: str = None, messages: List[Dict] = None, **kwargs: Any
+    ) -> List[str]:
         """Async API call."""
         # Build messages and extract system prompt
         system_prompt = None
@@ -239,8 +267,7 @@ class DirectAnthropicLM(dspy.BaseLM):
                 request_kwargs["system"] = system_prompt
 
             response = await asyncio.wait_for(
-                self._async_client.messages.create(**request_kwargs),
-                timeout=self.timeout
+                self._async_client.messages.create(**request_kwargs), timeout=self.timeout
             )
             duration = time.time() - call_start
 
@@ -253,15 +280,17 @@ class DirectAnthropicLM(dspy.BaseLM):
             input_tokens = response.usage.input_tokens
             output_tokens = response.usage.output_tokens
 
-            self.history.append({
-                'prompt': str(api_messages)[:500],
-                'response': response_text[:500],
-                'model': self.model_id,
-                'usage': {
-                    'input_tokens': input_tokens,
-                    'output_tokens': output_tokens,
+            self.history.append(
+                {
+                    "prompt": str(api_messages)[:500],
+                    "response": response_text[:500],
+                    "model": self.model_id,
+                    "usage": {
+                        "input_tokens": input_tokens,
+                        "output_tokens": output_tokens,
+                    },
                 }
-            })
+            )
 
             # Live cost tracking
             tracker = get_cost_tracker()
@@ -322,13 +351,13 @@ class DirectAnthropicLM(dspy.BaseLM):
 
         for msg in messages:
             if isinstance(msg, dict):
-                role = msg.get('role', 'user')
-                content = msg.get('content', '')
+                role = msg.get("role", "user")
+                content = msg.get("content", "")
                 if not content:
                     continue
 
                 # Extract system messages for top-level system parameter
-                if role == 'system':
+                if role == "system":
                     system_parts.append(content)
                 else:
                     api_messages.append({"role": role, "content": content})
@@ -348,7 +377,7 @@ def is_api_key_available() -> bool:
     return bool(os.environ.get("ANTHROPIC_API_KEY"))
 
 
-def configure_direct_anthropic(model: str = 'haiku', **kwargs: Any) -> DirectAnthropicLM:
+def configure_direct_anthropic(model: str = "haiku", **kwargs: Any) -> DirectAnthropicLM:
     """
     Configure DSPy with DirectAnthropicLM.
 

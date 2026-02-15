@@ -8,7 +8,7 @@ DAG-based orchestration: TaskBreakdownAgent + TodoCreatorAgent + parallel stages
 import asyncio
 import logging
 import time
-from typing import Dict, Any, Optional, List, TYPE_CHECKING, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 from Jotty.core.infrastructure.foundation.data_structures import EpisodeResult
 
@@ -26,10 +26,16 @@ class SwarmDAGExecutor:
     executes in parallel stages, and records learnings.
     """
 
-    def __init__(self, swarm: 'Orchestrator') -> None:
+    def __init__(self, swarm: "Orchestrator") -> None:
         self.swarm = swarm
 
-    async def run(self, implementation_plan: str, available_actors: List[Dict[str, Any]] = None, status_callback: Any = None, **kwargs: Any) -> EpisodeResult:
+    async def run(
+        self,
+        implementation_plan: str,
+        available_actors: List[Dict[str, Any]] = None,
+        status_callback: Any = None,
+        **kwargs: Any,
+    ) -> EpisodeResult:
         """
         Execute a task using DAG-based orchestration.
 
@@ -41,10 +47,10 @@ class SwarmDAGExecutor:
         Returns:
             EpisodeResult with execution output and metadata
         """
-        from Jotty.core.modes.agent.dag_agents import TaskBreakdownAgent, TodoCreatorAgent
         from Jotty.core.modes.agent.auto_agent import AutoAgent
+        from Jotty.core.modes.agent.dag_agents import TaskBreakdownAgent, TodoCreatorAgent
 
-        def _status(stage: str, detail: str = '') -> Any:
+        def _status(stage: str, detail: str = "") -> Any:
             if status_callback:
                 try:
                     status_callback(stage, detail)
@@ -56,7 +62,8 @@ class SwarmDAGExecutor:
 
         # Ensure DSPy LM is configured
         import dspy
-        if not hasattr(dspy.settings, 'lm') or dspy.settings.lm is None:
+
+        if not hasattr(dspy.settings, "lm") or dspy.settings.lm is None:
             lm = self.swarm.swarm_provider_gateway.get_lm()
             if lm:
                 dspy.configure(lm=lm)
@@ -66,8 +73,8 @@ class SwarmDAGExecutor:
             available_actors = [
                 {
                     "name": agent.name,
-                    "capabilities": getattr(agent.agent, 'capabilities', ['coding', 'analysis']),
-                    "description": getattr(agent.agent, 'description', None),
+                    "capabilities": getattr(agent.agent, "capabilities", ["coding", "analysis"]),
+                    "description": getattr(agent.agent, "description", None),
                 }
                 for agent in self.swarm.agents
             ]
@@ -102,20 +109,22 @@ class SwarmDAGExecutor:
             _status(f"Stage {stage_idx}/{len(stages)}", f"{len(stage_task_ids)} tasks in parallel")
 
             stage_results = await self._execute_stage(
-                executable_dag, stage_task_ids, status_callback,
+                executable_dag,
+                stage_task_ids,
+                status_callback,
             )
 
             for task_id, result in stage_results.items():
-                outcomes[task_id] = result.get('success', False)
-                if result.get('output'):
+                outcomes[task_id] = result.get("success", False)
+                if result.get("output"):
                     all_outputs.append(f"[{task_id}]: {result['output']}")
 
                 executable_dag.add_trajectory_step(
                     task_id=task_id,
-                    action_type='execution',
+                    action_type="execution",
                     action_content=f"Executed by {result.get('actor', 'unknown')}",
-                    observation=str(result.get('output', ''))[:200],
-                    reward=1.0 if result.get('success') else -0.5,
+                    observation=str(result.get("output", ""))[:200],
+                    reward=1.0 if result.get("success") else -0.5,
                 )
 
         total_time = time.time() - total_start
@@ -134,8 +143,12 @@ class SwarmDAGExecutor:
             output="\n\n".join(all_outputs) if all_outputs else "No output",
             success=overall_success,
             trajectory=[
-                {'step': s.step_idx, 'action': s.action_content,
-                 'observation': s.observation, 'reward': s.reward}
+                {
+                    "step": s.step_idx,
+                    "action": s.action_content,
+                    "observation": s.observation,
+                    "reward": s.reward,
+                }
                 for s in executable_dag.trajectory
             ],
             tagged_outputs=[],
@@ -145,16 +158,18 @@ class SwarmDAGExecutor:
             auditor_results=[],
             agent_contributions={},
             override_metadata={
-                'mode': 'dag_orchestration',
-                'total_tasks': len(executable_dag.markovian_todo.subtasks),
-                'stages': len(stages),
-                'outcomes': outcomes,
-                'success_rate': success_rate,
-                'dag_serialized': executable_dag.to_dict(),
+                "mode": "dag_orchestration",
+                "total_tasks": len(executable_dag.markovian_todo.subtasks),
+                "stages": len(stages),
+                "outcomes": outcomes,
+                "success_rate": success_rate,
+                "dag_serialized": executable_dag.to_dict(),
             },
         )
 
-    async def _execute_stage(self, executable_dag: Any, task_ids: List[str], status_callback: Any = None) -> Dict[str, Dict[str, Any]]:
+    async def _execute_stage(
+        self, executable_dag: Any, task_ids: List[str], status_callback: Any = None
+    ) -> Dict[str, Dict[str, Any]]:
         """Execute a stage of tasks (potentially in parallel)."""
         from Jotty.core.modes.agent.auto_agent import AutoAgent
 
@@ -165,7 +180,7 @@ class SwarmDAGExecutor:
             actor = executable_dag.assignments.get(task_id)
 
             if not task or not actor:
-                return task_id, {'success': False, 'error': 'Task or actor not found'}
+                return task_id, {"success": False, "error": "Task or actor not found"}
 
             runner = self.swarm.runners.get(actor.name)
 
@@ -173,29 +188,41 @@ class SwarmDAGExecutor:
                 try:
                     task.start()
                     result = await runner.run(task.description)
-                    task.complete({'output': result.output if hasattr(result, 'output') else str(result)})
+                    task.complete(
+                        {"output": result.output if hasattr(result, "output") else str(result)}
+                    )
                     return task_id, {
-                        'success': result.success if hasattr(result, 'success') else True,
-                        'output': result.output if hasattr(result, 'output') else str(result),
-                        'actor': actor.name,
+                        "success": result.success if hasattr(result, "success") else True,
+                        "output": result.output if hasattr(result, "output") else str(result),
+                        "actor": actor.name,
                     }
                 except Exception as e:
                     task.fail(str(e))
-                    return task_id, {'success': False, 'error': str(e), 'actor': actor.name}
+                    return task_id, {"success": False, "error": str(e), "actor": actor.name}
             else:
                 try:
                     task.start()
                     auto_agent = AutoAgent()
                     result = await auto_agent.execute(task.description)
-                    task.complete({'output': result.final_output if hasattr(result, 'final_output') else str(result)})
+                    task.complete(
+                        {
+                            "output": (
+                                result.final_output
+                                if hasattr(result, "final_output")
+                                else str(result)
+                            )
+                        }
+                    )
                     return task_id, {
-                        'success': result.success if hasattr(result, 'success') else True,
-                        'output': result.final_output if hasattr(result, 'final_output') else str(result),
-                        'actor': actor.name,
+                        "success": result.success if hasattr(result, "success") else True,
+                        "output": (
+                            result.final_output if hasattr(result, "final_output") else str(result)
+                        ),
+                        "actor": actor.name,
                     }
                 except Exception as e:
                     task.fail(str(e))
-                    return task_id, {'success': False, 'error': str(e), 'actor': actor.name}
+                    return task_id, {"success": False, "error": str(e), "actor": actor.name}
 
         tasks = [execute_single_task(tid) for tid in task_ids]
         completed = await asyncio.gather(*tasks, return_exceptions=True)
@@ -211,10 +238,11 @@ class SwarmDAGExecutor:
 
     def get_agents(self) -> Tuple:
         """Get DAG agents for external use."""
-        from Jotty.core.modes.agent.dag_agents import TaskBreakdownAgent, TodoCreatorAgent
         import dspy
 
-        if not hasattr(dspy.settings, 'lm') or dspy.settings.lm is None:
+        from Jotty.core.modes.agent.dag_agents import TaskBreakdownAgent, TodoCreatorAgent
+
+        if not hasattr(dspy.settings, "lm") or dspy.settings.lm is None:
             lm = self.swarm.swarm_provider_gateway.get_lm()
             if lm:
                 dspy.configure(lm=lm)

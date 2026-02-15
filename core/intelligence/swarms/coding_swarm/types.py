@@ -7,14 +7,14 @@ Enums, configuration dataclasses, and result types for CodingSwarm.
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, Any, Optional, List
+from typing import Any, Dict, List, Optional
 
 from ..swarm_types import SwarmConfig, SwarmResult
-
 
 # =============================================================================
 # ENUMS
 # =============================================================================
+
 
 class CodeLanguage(Enum):
     PYTHON = "python"
@@ -36,6 +36,7 @@ class CodeStyle(Enum):
 
 class EditMode(Enum):
     """Mode for code generation/editing."""
+
     GENERATE = "generate"  # Greenfield generation (default)
     EDIT = "edit"  # Edit existing code
     REFACTOR = "refactor"  # Refactor without changing behavior
@@ -46,9 +47,11 @@ class EditMode(Enum):
 # CONFIGURATION
 # =============================================================================
 
+
 @dataclass
 class CodingConfig(SwarmConfig):
     """Configuration for CodingSwarm."""
+
     language: CodeLanguage = CodeLanguage.PYTHON
     style: CodeStyle = CodeStyle.STANDARD
     include_tests: bool = True
@@ -96,9 +99,11 @@ class CodingConfig(SwarmConfig):
 # DATA MODELS
 # =============================================================================
 
+
 @dataclass
 class CodeOutput:
     """Output from code generation."""
+
     files: Dict[str, str]  # filename -> content
     main_file: str
     entry_point: str
@@ -111,6 +116,7 @@ class CodeOutput:
 @dataclass
 class ResearchContext:
     """Context gathered from web research before code generation."""
+
     best_practices: List[str] = field(default_factory=list)
     library_docs: List[str] = field(default_factory=list)
     api_references: List[str] = field(default_factory=list)
@@ -120,11 +126,15 @@ class ResearchContext:
         """Format findings for injection into developer prompts."""
         sections = []
         if self.best_practices:
-            sections.append("BEST PRACTICES:\n" + "\n".join(f"- {bp}" for bp in self.best_practices))
+            sections.append(
+                "BEST PRACTICES:\n" + "\n".join(f"- {bp}" for bp in self.best_practices)
+            )
         if self.library_docs:
             sections.append("LIBRARY DOCS:\n" + "\n".join(f"- {ld}" for ld in self.library_docs))
         if self.api_references:
-            sections.append("API REFERENCES:\n" + "\n".join(f"- {ar}" for ar in self.api_references))
+            sections.append(
+                "API REFERENCES:\n" + "\n".join(f"- {ar}" for ar in self.api_references)
+            )
         if self.warnings:
             sections.append("WARNINGS:\n" + "\n".join(f"- {w}" for w in self.warnings))
         return "\n\n".join(sections)
@@ -133,12 +143,13 @@ class ResearchContext:
 @dataclass
 class FullStackContext:
     """Intermediate artifacts passed between full-stack pipeline phases."""
+
     data_model: str = ""
     api_contract: str = ""
     component_map: str = ""
-    tech_stack: Dict[str, str] = field(default_factory=lambda: {
-        "db_type": "sqlite", "backend": "fastapi", "frontend": "react"
-    })
+    tech_stack: Dict[str, str] = field(
+        default_factory=lambda: {"db_type": "sqlite", "backend": "fastapi", "frontend": "react"}
+    )
     orm_models: str = ""
     schema_sql: str = ""
     openapi_spec: str = ""
@@ -148,6 +159,7 @@ class FullStackContext:
 @dataclass
 class CodingResult(SwarmResult):
     """Result from CodingSwarm."""
+
     code: Optional[CodeOutput] = None
     language: str = "python"
     loc: int = 0  # lines of code

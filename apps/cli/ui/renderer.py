@@ -14,25 +14,26 @@ import threading
 import time
 from contextlib import contextmanager
 from enum import Enum
-from typing import Any, Optional, List, Dict, Iterator
 from pathlib import Path
+from typing import Any, Dict, Iterator, List, Optional
 
 try:
+    from rich import box
     from rich.console import Console
+    from rich.markdown import Markdown
     from rich.panel import Panel
     from rich.syntax import Syntax
-    from rich.markdown import Markdown
-    from rich.tree import Tree
     from rich.text import Text
-    from rich import box
+    from rich.tree import Tree
+
     RICH_AVAILABLE = True
 except ImportError:
     RICH_AVAILABLE = False
 
-from .themes import Theme, get_theme
+from ..config.schema import ColorDepth, TerminalDetector
 from .progress import ProgressManager
 from .tables import TableRenderer
-from ..config.schema import ColorDepth, TerminalDetector
+from .themes import Theme, get_theme
 
 
 class ShimmerEffect:
@@ -54,7 +55,7 @@ class ShimmerEffect:
         self._thread: Optional[threading.Thread] = None
         self._lock = threading.Lock()
 
-    def start(self, message: str = 'Working...') -> Any:
+    def start(self, message: str = "Working...") -> Any:
         """Start the shimmer animation."""
         self._message = message
         self._running = True
@@ -132,11 +133,11 @@ class MarkdownStreamRenderer:
     across chunk boundaries. Renders complete blocks via Rich Markdown.
     """
 
-    def __init__(self, console: 'Console' = None) -> None:
+    def __init__(self, console: "Console" = None) -> None:
         self._console = console
         self._buffer = ""
         self._in_code_block = False
-        self._code_fence_pattern = re.compile(r'^```')
+        self._code_fence_pattern = re.compile(r"^```")
         self._rendered_up_to = 0
 
     def feed(self, chunk: str) -> Any:
@@ -151,7 +152,7 @@ class MarkdownStreamRenderer:
 
     def _try_render(self) -> Any:
         """Attempt to render complete blocks from the buffer."""
-        remaining = self._buffer[self._rendered_up_to:]
+        remaining = self._buffer[self._rendered_up_to :]
 
         while remaining:
             # Track code fence toggles
@@ -175,25 +176,27 @@ class MarkdownStreamRenderer:
 
             # Check for code fence opening
             fence_match = self._code_fence_pattern.search(remaining)
-            if fence_match and (fence_match.start() == 0 or remaining[fence_match.start() - 1] == "\n"):
+            if fence_match and (
+                fence_match.start() == 0 or remaining[fence_match.start() - 1] == "\n"
+            ):
                 # Render any text before the fence
                 if fence_match.start() > 0:
-                    pre_text = remaining[:fence_match.start()]
+                    pre_text = remaining[: fence_match.start()]
                     if pre_text.strip():
                         self._render_block(pre_text)
                     self._rendered_up_to += fence_match.start()
-                    remaining = remaining[fence_match.start():]
+                    remaining = remaining[fence_match.start() :]
                 self._in_code_block = True
                 continue
 
             # Look for paragraph break (double newline)
             para_break = remaining.find("\n\n")
             if para_break != -1:
-                block = remaining[:para_break + 2]
+                block = remaining[: para_break + 2]
                 if block.strip():
                     self._render_block(block)
                 self._rendered_up_to += para_break + 2
-                remaining = remaining[para_break + 2:]
+                remaining = remaining[para_break + 2 :]
                 continue
 
             # No complete block found, wait for more data
@@ -215,7 +218,7 @@ class MarkdownStreamRenderer:
 
     def flush(self) -> Any:
         """Render any remaining buffer content."""
-        remaining = self._buffer[self._rendered_up_to:]
+        remaining = self._buffer[self._rendered_up_to :]
         if remaining.strip():
             self._render_block(remaining)
         self._buffer = ""
@@ -225,6 +228,7 @@ class MarkdownStreamRenderer:
 
 class REPLState(Enum):
     """REPL interaction states for footer hints."""
+
     INPUT = "input"
     EXECUTING = "executing"
     REVIEWING = "reviewing"
@@ -305,7 +309,7 @@ class FooterHints:
             parts.append(f"[bold]{key}[/bold]:{desc}")
         text = "  ".join(parts)
         if len(text) > max_width:
-            text = text[:max_width - 3] + "..."
+            text = text[: max_width - 3] + "..."
         return f"[dim]{text}[/dim]"
 
 
@@ -366,6 +370,7 @@ class DesktopNotifier:
         """Send notification via plyer on Windows."""
         try:
             from plyer import notification as plyer_notification
+
             plyer_notification.notify(
                 title=title,
                 message=message,
@@ -386,7 +391,9 @@ class RichRenderer:
     - Color theming
     """
 
-    def __init__(self, theme: Optional[str] = None, no_color: bool = False, max_width: int = 120) -> None:
+    def __init__(
+        self, theme: Optional[str] = None, no_color: bool = False, max_width: int = 120
+    ) -> None:
         """
         Initialize renderer.
 
@@ -463,9 +470,13 @@ class RichRenderer:
     def header(self, text: str) -> Any:
         """Print section header."""
         if self._console and not self.no_color:
-            self._console.print(f"\n[bold {self.theme.primary}]{'═' * 50}[/bold {self.theme.primary}]")
+            self._console.print(
+                f"\n[bold {self.theme.primary}]{'═' * 50}[/bold {self.theme.primary}]"
+            )
             self._console.print(f"[bold {self.theme.primary}]  {text}[/bold {self.theme.primary}]")
-            self._console.print(f"[bold {self.theme.primary}]{'═' * 50}[/bold {self.theme.primary}]")
+            self._console.print(
+                f"[bold {self.theme.primary}]{'═' * 50}[/bold {self.theme.primary}]"
+            )
         else:
             print(f"\n{'=' * 50}")
             print(f"  {text}")
@@ -474,7 +485,9 @@ class RichRenderer:
     def subheader(self, text: str) -> Any:
         """Print subsection header."""
         if self._console and not self.no_color:
-            self._console.print(f"\n[bold {self.theme.secondary}]── {text} ──[/bold {self.theme.secondary}]")
+            self._console.print(
+                f"\n[bold {self.theme.secondary}]── {text} ──[/bold {self.theme.secondary}]"
+            )
         else:
             print(f"\n── {text} ──")
 
@@ -485,7 +498,14 @@ class RichRenderer:
         else:
             print(f"⏳ {text}")
 
-    def panel(self, content: str, title: Optional[str] = None, subtitle: Optional[str] = None, style: Optional[str] = None, expand: bool = False) -> Any:
+    def panel(
+        self,
+        content: str,
+        title: Optional[str] = None,
+        subtitle: Optional[str] = None,
+        style: Optional[str] = None,
+        expand: bool = False,
+    ) -> Any:
         """
         Print content in a panel.
 
@@ -515,7 +535,13 @@ class RichRenderer:
         )
         self._console.print(panel)
 
-    def code(self, code: str, language: str = 'python', line_numbers: bool = False, title: Optional[str] = None) -> Any:
+    def code(
+        self,
+        code: str,
+        language: str = "python",
+        line_numbers: bool = False,
+        title: Optional[str] = None,
+    ) -> Any:
         """
         Print syntax-highlighted code.
 
@@ -574,51 +600,146 @@ class RichRenderer:
 
         # Greek letters
         greek = {
-            r'\\alpha': 'α', r'\\beta': 'β', r'\\gamma': 'γ', r'\\delta': 'δ',
-            r'\\epsilon': 'ε', r'\\zeta': 'ζ', r'\\eta': 'η', r'\\theta': 'θ',
-            r'\\iota': 'ι', r'\\kappa': 'κ', r'\\lambda': 'λ', r'\\mu': 'μ',
-            r'\\nu': 'ν', r'\\xi': 'ξ', r'\\pi': 'π', r'\\rho': 'ρ',
-            r'\\sigma': 'σ', r'\\tau': 'τ', r'\\upsilon': 'υ', r'\\phi': 'φ',
-            r'\\chi': 'χ', r'\\psi': 'ψ', r'\\omega': 'ω',
-            r'\\Alpha': 'Α', r'\\Beta': 'Β', r'\\Gamma': 'Γ', r'\\Delta': 'Δ',
-            r'\\Theta': 'Θ', r'\\Lambda': 'Λ', r'\\Xi': 'Ξ', r'\\Pi': 'Π',
-            r'\\Sigma': 'Σ', r'\\Phi': 'Φ', r'\\Psi': 'Ψ', r'\\Omega': 'Ω',
+            r"\\alpha": "α",
+            r"\\beta": "β",
+            r"\\gamma": "γ",
+            r"\\delta": "δ",
+            r"\\epsilon": "ε",
+            r"\\zeta": "ζ",
+            r"\\eta": "η",
+            r"\\theta": "θ",
+            r"\\iota": "ι",
+            r"\\kappa": "κ",
+            r"\\lambda": "λ",
+            r"\\mu": "μ",
+            r"\\nu": "ν",
+            r"\\xi": "ξ",
+            r"\\pi": "π",
+            r"\\rho": "ρ",
+            r"\\sigma": "σ",
+            r"\\tau": "τ",
+            r"\\upsilon": "υ",
+            r"\\phi": "φ",
+            r"\\chi": "χ",
+            r"\\psi": "ψ",
+            r"\\omega": "ω",
+            r"\\Alpha": "Α",
+            r"\\Beta": "Β",
+            r"\\Gamma": "Γ",
+            r"\\Delta": "Δ",
+            r"\\Theta": "Θ",
+            r"\\Lambda": "Λ",
+            r"\\Xi": "Ξ",
+            r"\\Pi": "Π",
+            r"\\Sigma": "Σ",
+            r"\\Phi": "Φ",
+            r"\\Psi": "Ψ",
+            r"\\Omega": "Ω",
         }
 
         # Math symbols
         symbols = {
-            r'\\times': '×', r'\\div': '÷', r'\\pm': '±', r'\\mp': '∓',
-            r'\\cdot': '·', r'\\ast': '∗', r'\\star': '⋆',
-            r'\\leq': '≤', r'\\geq': '≥', r'\\neq': '≠', r'\\approx': '≈',
-            r'\\equiv': '≡', r'\\sim': '∼', r'\\propto': '∝',
-            r'\\infty': '∞', r'\\partial': '∂', r'\\nabla': '∇',
-            r'\\sum': 'Σ', r'\\prod': 'Π', r'\\int': '∫',
-            r'\\forall': '∀', r'\\exists': '∃', r'\\in': '∈', r'\\notin': '∉',
-            r'\\subset': '⊂', r'\\supset': '⊃', r'\\cup': '∪', r'\\cap': '∩',
-            r'\\emptyset': '∅', r'\\therefore': '∴', r'\\because': '∵',
-            r'\\rightarrow': '→', r'\\leftarrow': '←', r'\\Rightarrow': '⇒',
-            r'\\Leftarrow': '⇐', r'\\leftrightarrow': '↔', r'\\Leftrightarrow': '⇔',
-            r'\\to': '→', r'\\gets': '←', r'\\implies': '⇒', r'\\iff': '⇔',
-            r'\\land': '∧', r'\\lor': '∨', r'\\neg': '¬', r'\\not': '¬',
-            r'\\ldots': '…', r'\\cdots': '⋯', r'\\vdots': '⋮', r'\\ddots': '⋱',
-            r'\\prime': '′', r'\\degree': '°',
+            r"\\times": "×",
+            r"\\div": "÷",
+            r"\\pm": "±",
+            r"\\mp": "∓",
+            r"\\cdot": "·",
+            r"\\ast": "∗",
+            r"\\star": "⋆",
+            r"\\leq": "≤",
+            r"\\geq": "≥",
+            r"\\neq": "≠",
+            r"\\approx": "≈",
+            r"\\equiv": "≡",
+            r"\\sim": "∼",
+            r"\\propto": "∝",
+            r"\\infty": "∞",
+            r"\\partial": "∂",
+            r"\\nabla": "∇",
+            r"\\sum": "Σ",
+            r"\\prod": "Π",
+            r"\\int": "∫",
+            r"\\forall": "∀",
+            r"\\exists": "∃",
+            r"\\in": "∈",
+            r"\\notin": "∉",
+            r"\\subset": "⊂",
+            r"\\supset": "⊃",
+            r"\\cup": "∪",
+            r"\\cap": "∩",
+            r"\\emptyset": "∅",
+            r"\\therefore": "∴",
+            r"\\because": "∵",
+            r"\\rightarrow": "→",
+            r"\\leftarrow": "←",
+            r"\\Rightarrow": "⇒",
+            r"\\Leftarrow": "⇐",
+            r"\\leftrightarrow": "↔",
+            r"\\Leftrightarrow": "⇔",
+            r"\\to": "→",
+            r"\\gets": "←",
+            r"\\implies": "⇒",
+            r"\\iff": "⇔",
+            r"\\land": "∧",
+            r"\\lor": "∨",
+            r"\\neg": "¬",
+            r"\\not": "¬",
+            r"\\ldots": "…",
+            r"\\cdots": "⋯",
+            r"\\vdots": "⋮",
+            r"\\ddots": "⋱",
+            r"\\prime": "′",
+            r"\\degree": "°",
         }
 
         # Superscripts
         superscripts = {
-            '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴',
-            '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹',
-            '+': '⁺', '-': '⁻', '=': '⁼', '(': '⁽', ')': '⁾',
-            'n': 'ⁿ', 'i': 'ⁱ', 'x': 'ˣ', 'y': 'ʸ',
+            "0": "⁰",
+            "1": "¹",
+            "2": "²",
+            "3": "³",
+            "4": "⁴",
+            "5": "⁵",
+            "6": "⁶",
+            "7": "⁷",
+            "8": "⁸",
+            "9": "⁹",
+            "+": "⁺",
+            "-": "⁻",
+            "=": "⁼",
+            "(": "⁽",
+            ")": "⁾",
+            "n": "ⁿ",
+            "i": "ⁱ",
+            "x": "ˣ",
+            "y": "ʸ",
         }
 
         # Subscripts
         subscripts = {
-            '0': '₀', '1': '₁', '2': '₂', '3': '₃', '4': '₄',
-            '5': '₅', '6': '₆', '7': '₇', '8': '₈', '9': '₉',
-            '+': '₊', '-': '₋', '=': '₌', '(': '₍', ')': '₎',
-            'a': 'ₐ', 'e': 'ₑ', 'i': 'ᵢ', 'o': 'ₒ', 'u': 'ᵤ',
-            'x': 'ₓ', 'n': 'ₙ', 'm': 'ₘ',
+            "0": "₀",
+            "1": "₁",
+            "2": "₂",
+            "3": "₃",
+            "4": "₄",
+            "5": "₅",
+            "6": "₆",
+            "7": "₇",
+            "8": "₈",
+            "9": "₉",
+            "+": "₊",
+            "-": "₋",
+            "=": "₌",
+            "(": "₍",
+            ")": "₎",
+            "a": "ₐ",
+            "e": "ₑ",
+            "i": "ᵢ",
+            "o": "ₒ",
+            "u": "ᵤ",
+            "x": "ₓ",
+            "n": "ₙ",
+            "m": "ₘ",
         }
 
         def process_math(match: Any) -> Any:
@@ -634,54 +755,56 @@ class RichRenderer:
                 math = math.replace(latex, unicode_char)
 
             # Handle sqrt
-            math = re.sub(r'\\sqrt\{([^}]+)\}', r'√(\1)', math)
-            math = re.sub(r'\\sqrt\s*(\w)', r'√\1', math)
+            math = re.sub(r"\\sqrt\{([^}]+)\}", r"√(\1)", math)
+            math = re.sub(r"\\sqrt\s*(\w)", r"√\1", math)
 
             # Handle fractions: \frac{a}{b} → a/b
-            math = re.sub(r'\\frac\{([^}]+)\}\{([^}]+)\}', r'(\1)/(\2)', math)
+            math = re.sub(r"\\frac\{([^}]+)\}\{([^}]+)\}", r"(\1)/(\2)", math)
 
             # Handle superscripts: x^2 or x^{2n}
             def convert_super(m: Any) -> Any:
-                base = m.group(1) if m.group(1) else ''
+                base = m.group(1) if m.group(1) else ""
                 exp = m.group(2)
                 result = base
                 for char in exp:
-                    result += superscripts.get(char, f'^{char}')
+                    result += superscripts.get(char, f"^{char}")
                 return result
-            math = re.sub(r'(\w?)\^{([^}]+)}', convert_super, math)
-            math = re.sub(r'(\w)\^(\w)', convert_super, math)
+
+            math = re.sub(r"(\w?)\^{([^}]+)}", convert_super, math)
+            math = re.sub(r"(\w)\^(\w)", convert_super, math)
 
             # Handle subscripts: x_2 or x_{2n}
             def convert_sub(m: Any) -> Any:
-                base = m.group(1) if m.group(1) else ''
+                base = m.group(1) if m.group(1) else ""
                 sub = m.group(2)
                 result = base
                 for char in sub:
-                    result += subscripts.get(char, f'_{char}')
+                    result += subscripts.get(char, f"_{char}")
                 return result
-            math = re.sub(r'(\w?)_{([^}]+)}', convert_sub, math)
-            math = re.sub(r'(\w)_(\w)', convert_sub, math)
+
+            math = re.sub(r"(\w?)_{([^}]+)}", convert_sub, math)
+            math = re.sub(r"(\w)_(\w)", convert_sub, math)
 
             # Clean up remaining backslashes for common commands
-            math = re.sub(r'\\text\{([^}]+)\}', r'\1', math)
-            math = re.sub(r'\\mathrm\{([^}]+)\}', r'\1', math)
-            math = re.sub(r'\\mathbf\{([^}]+)\}', r'\1', math)
-            math = math.replace(r'\ ', ' ')
-            math = math.replace(r'\,', ' ')
-            math = math.replace(r'\;', ' ')
-            math = math.replace(r'\!', '')
+            math = re.sub(r"\\text\{([^}]+)\}", r"\1", math)
+            math = re.sub(r"\\mathrm\{([^}]+)\}", r"\1", math)
+            math = re.sub(r"\\mathbf\{([^}]+)\}", r"\1", math)
+            math = math.replace(r"\ ", " ")
+            math = math.replace(r"\,", " ")
+            math = math.replace(r"\;", " ")
+            math = math.replace(r"\!", "")
 
             return math
 
         # Process block math: $$...$$
-        text = re.sub(r'\$\$(.+?)\$\$', lambda m: f'\n  {process_math(m)}\n', text, flags=re.DOTALL)
+        text = re.sub(r"\$\$(.+?)\$\$", lambda m: f"\n  {process_math(m)}\n", text, flags=re.DOTALL)
 
         # Process inline math: $...$
-        text = re.sub(r'\$(.+?)\$', process_math, text)
+        text = re.sub(r"\$(.+?)\$", process_math, text)
 
         # Process \[...\] and \(...\)
-        text = re.sub(r'\\\[(.+?)\\\]', lambda m: f'\n  {process_math(m)}\n', text, flags=re.DOTALL)
-        text = re.sub(r'\\\((.+?)\\\)', process_math, text)
+        text = re.sub(r"\\\[(.+?)\\\]", lambda m: f"\n  {process_math(m)}\n", text, flags=re.DOTALL)
+        text = re.sub(r"\\\((.+?)\\\)", process_math, text)
 
         return text
 
@@ -743,7 +866,7 @@ class RichRenderer:
         else:
             print(f"{prefix}{data}")
 
-    def result(self, result: Any, title: str = 'Result') -> Any:
+    def result(self, result: Any, title: str = "Result") -> Any:
         """
         Print execution result.
 
@@ -773,7 +896,11 @@ class RichRenderer:
         if "success" in data:
             status = "Success" if data["success"] else "Failed"
             status_style = self.theme.success if data["success"] else self.theme.error
-            output_lines.append(f"Status: [{status_style}]{status}[/{status_style}]" if RICH_AVAILABLE and not self.no_color else f"Status: {status}")
+            output_lines.append(
+                f"Status: [{status_style}]{status}[/{status_style}]"
+                if RICH_AVAILABLE and not self.no_color
+                else f"Status: {status}"
+            )
 
         if "output" in data and data["output"]:
             output = data["output"]
@@ -793,9 +920,13 @@ class RichRenderer:
             output_lines.append(f"Time: {data['execution_time']:.2f}s")
 
         content = "\n".join(output_lines)
-        self.panel(content, title=title, style=self.theme.primary if data.get("success", True) else self.theme.error)
+        self.panel(
+            content,
+            title=title,
+            style=self.theme.primary if data.get("success", True) else self.theme.error,
+        )
 
-    def welcome(self, version: str = '1.0.0') -> Any:
+    def welcome(self, version: str = "1.0.0") -> Any:
         """Print welcome banner."""
         banner = f"""
      ██╗ ██████╗ ████████╗████████╗██╗   ██╗
@@ -828,11 +959,13 @@ Multi-Agent AI Assistant v{version}
     def goodbye(self) -> Any:
         """Print goodbye message."""
         if RICH_AVAILABLE:
-            self._console.print(f"\n[{self.theme.muted}]Goodbye! Session saved.[/{self.theme.muted}]")
+            self._console.print(
+                f"\n[{self.theme.muted}]Goodbye! Session saved.[/{self.theme.muted}]"
+            )
         else:
             print("\nGoodbye! Session saved.")
 
-    def divider(self, char: str = '─', style: Optional[str] = None) -> Any:
+    def divider(self, char: str = "─", style: Optional[str] = None) -> Any:
         """Print horizontal divider."""
         style = style or self.theme.muted
         width = min(self.max_width, 80)
@@ -924,7 +1057,9 @@ Multi-Agent AI Assistant v{version}
         if RICH_AVAILABLE:
             self._console.print(f"\n[bold]{query}[/bold]")
             if result_count is not None:
-                self._console.print(f"[{self.theme.muted}]{result_count} results[/{self.theme.muted}]")
+                self._console.print(
+                    f"[{self.theme.muted}]{result_count} results[/{self.theme.muted}]"
+                )
         else:
             print(f"\n{query}")
             if result_count is not None:
@@ -947,15 +1082,16 @@ Multi-Agent AI Assistant v{version}
             return
 
         for result in results[:10]:  # Max 10 results
-            title = result.get('title', 'Untitled')
-            url = result.get('url', '')
+            title = result.get("title", "Untitled")
+            url = result.get("url", "")
 
             # Extract domain from URL
             try:
                 from urllib.parse import urlparse
-                domain = urlparse(url).netloc.replace('www.', '')
+
+                domain = urlparse(url).netloc.replace("www.", "")
             except Exception:
-                domain = url[:30] if url else ''
+                domain = url[:30] if url else ""
 
             if RICH_AVAILABLE:
                 self._console.print(f"\n[bold]🔗[/bold] [link={url}]{title}[/link]")
@@ -1001,11 +1137,15 @@ Multi-Agent AI Assistant v{version}
             Installing docx library for document creation
         """
         if RICH_AVAILABLE:
-            self._console.print(f"\n[{self.theme.muted}]📦 Installing {package}[/{self.theme.muted}]")
+            self._console.print(
+                f"\n[{self.theme.muted}]📦 Installing {package}[/{self.theme.muted}]"
+            )
         else:
             print(f"\n📦 Installing {package}")
 
-    def step_progress(self, step_num: int, total: int, description: str, status: str = 'running') -> Any:
+    def step_progress(
+        self, step_num: int, total: int, description: str, status: str = "running"
+    ) -> Any:
         """
         Show step progress like Claude Code.
 
@@ -1016,19 +1156,25 @@ Multi-Agent AI Assistant v{version}
             status: 'running', 'done', 'failed'
         """
         icons = {
-            'running': '⏳',
-            'done': '✓',
-            'failed': '✗',
+            "running": "⏳",
+            "done": "✓",
+            "failed": "✗",
         }
-        icon = icons.get(status, '→')
+        icon = icons.get(status, "→")
 
         if RICH_AVAILABLE:
-            if status == 'done':
-                self._console.print(f"[{self.theme.success}]{icon}[/{self.theme.success}] Step {step_num}/{total}: {description}")
-            elif status == 'failed':
-                self._console.print(f"[{self.theme.error}]{icon}[/{self.theme.error}] Step {step_num}/{total}: {description}")
+            if status == "done":
+                self._console.print(
+                    f"[{self.theme.success}]{icon}[/{self.theme.success}] Step {step_num}/{total}: {description}"
+                )
+            elif status == "failed":
+                self._console.print(
+                    f"[{self.theme.error}]{icon}[/{self.theme.error}] Step {step_num}/{total}: {description}"
+                )
             else:
-                self._console.print(f"[{self.theme.muted}]{icon}[/{self.theme.muted}] Step {step_num}/{total}: {description}")
+                self._console.print(
+                    f"[{self.theme.muted}]{icon}[/{self.theme.muted}] Step {step_num}/{total}: {description}"
+                )
         else:
             print(f"{icon} Step {step_num}/{total}: {description}")
 

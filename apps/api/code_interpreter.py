@@ -9,14 +9,14 @@ Supports both Docker-based isolation and subprocess fallback.
 import asyncio
 import logging
 import os
+import shutil
+import subprocess
 import sys
 import tempfile
 import uuid
-import shutil
-import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Dict, Any, List, AsyncGenerator
+from typing import Any, AsyncGenerator, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ExecutionResult:
     """Result of code execution."""
+
     execution_id: str
     success: bool
     output: str
@@ -47,41 +48,65 @@ class CodeInterpreter:
     # Safe imports whitelist for Python
     PYTHON_SAFE_IMPORTS = {
         # Built-ins
-        "math", "random", "datetime", "json", "re", "collections",
-        "itertools", "functools", "operator", "string", "textwrap",
-        "statistics", "decimal", "fractions", "cmath",
+        "math",
+        "random",
+        "datetime",
+        "json",
+        "re",
+        "collections",
+        "itertools",
+        "functools",
+        "operator",
+        "string",
+        "textwrap",
+        "statistics",
+        "decimal",
+        "fractions",
+        "cmath",
         # Data science
-        "numpy", "pandas", "scipy",
+        "numpy",
+        "pandas",
+        "scipy",
         # Visualization
-        "matplotlib", "seaborn", "plotly",
+        "matplotlib",
+        "seaborn",
+        "plotly",
         # ML (read-only operations)
         "sklearn",
     }
 
     # Blocked patterns in code
     BLOCKED_PATTERNS = [
-        "import os", "from os",
-        "import sys", "from sys",
-        "import subprocess", "from subprocess",
-        "import shutil", "from shutil",
+        "import os",
+        "from os",
+        "import sys",
+        "from sys",
+        "import subprocess",
+        "from subprocess",
+        "import shutil",
+        "from shutil",
         "__import__",
-        "exec(", "eval(",
-        "open(", "file(",
+        "exec(",
+        "eval(",
+        "open(",
+        "file(",
         "compile(",
-        "globals(", "locals(",
-        "getattr(", "setattr(", "delattr(",
-        "import socket", "from socket",
-        "import requests", "from requests",
-        "import urllib", "from urllib",
-        "import http", "from http",
+        "globals(",
+        "locals(",
+        "getattr(",
+        "setattr(",
+        "delattr(",
+        "import socket",
+        "from socket",
+        "import requests",
+        "from requests",
+        "import urllib",
+        "from urllib",
+        "import http",
+        "from http",
     ]
 
-    def __init__(
-        self,
-        timeout: int = 30,
-        max_output: int = 50000,
-        use_docker: bool = True
-    ):
+    def __init__(self, timeout: int = 30, max_output: int = 50000, use_docker: bool = True):
         """
         Initialize code interpreter.
 
@@ -99,11 +124,7 @@ class CodeInterpreter:
     def _check_docker(self) -> bool:
         """Check if Docker is available."""
         try:
-            result = subprocess.run(
-                ["docker", "version"],
-                capture_output=True,
-                timeout=5
-            )
+            result = subprocess.run(["docker", "version"], capture_output=True, timeout=5)
             return result.returncode == 0
         except Exception:
             return False
@@ -120,9 +141,7 @@ class CodeInterpreter:
         return None
 
     async def execute_python(
-        self,
-        code: str,
-        context: Optional[Dict[str, Any]] = None
+        self, code: str, context: Optional[Dict[str, Any]] = None
     ) -> ExecutionResult:
         """
         Execute Python code in sandbox.
@@ -135,6 +154,7 @@ class CodeInterpreter:
             ExecutionResult with output
         """
         import time
+
         start_time = time.time()
         execution_id = str(uuid.uuid4())[:12]
 
@@ -142,11 +162,7 @@ class CodeInterpreter:
         error = self._validate_python_code(code)
         if error:
             return ExecutionResult(
-                execution_id=execution_id,
-                success=False,
-                output="",
-                error=error,
-                language="python"
+                execution_id=execution_id, success=False, output="", error=error, language="python"
             )
 
         try:
@@ -166,23 +182,15 @@ class CodeInterpreter:
                 output="",
                 error=f"Execution timed out after {self.timeout} seconds",
                 language="python",
-                duration_ms=self.timeout * 1000
+                duration_ms=self.timeout * 1000,
             )
         except Exception as e:
             logger.error(f"Python execution error: {e}")
             return ExecutionResult(
-                execution_id=execution_id,
-                success=False,
-                output="",
-                error=str(e),
-                language="python"
+                execution_id=execution_id, success=False, output="", error=str(e), language="python"
             )
 
-    async def _execute_python_docker(
-        self,
-        code: str,
-        execution_id: str
-    ) -> ExecutionResult:
+    async def _execute_python_docker(self, code: str, execution_id: str) -> ExecutionResult:
         """Execute Python in Docker container."""
         # Create temp file with code
         code_file = self._temp_dir / f"{execution_id}.py"
@@ -191,42 +199,41 @@ class CodeInterpreter:
         try:
             # Run in Docker with resource limits
             cmd = [
-                "docker", "run",
+                "docker",
+                "run",
                 "--rm",
-                "--network", "none",  # No network access
-                "--memory", "256m",  # Memory limit
-                "--cpus", "0.5",  # CPU limit
+                "--network",
+                "none",  # No network access
+                "--memory",
+                "256m",  # Memory limit
+                "--cpus",
+                "0.5",  # CPU limit
                 "--read-only",  # Read-only filesystem
-                "--tmpfs", "/tmp:rw,noexec,nosuid,size=64m",  # Temp storage
-                "-v", f"{code_file}:/code.py:ro",  # Mount code read-only
+                "--tmpfs",
+                "/tmp:rw,noexec,nosuid,size=64m",  # Temp storage
+                "-v",
+                f"{code_file}:/code.py:ro",  # Mount code read-only
                 "python:3.11-slim",
-                "python", "/code.py"
+                "python",
+                "/code.py",
             ]
 
             process = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
             )
 
-            stdout, stderr = await asyncio.wait_for(
-                process.communicate(),
-                timeout=self.timeout
-            )
+            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=self.timeout)
 
             output = stdout.decode("utf-8", errors="replace")
             error_output = stderr.decode("utf-8", errors="replace")
 
             # Truncate if too long
             if len(output) > self.max_output:
-                output = output[:self.max_output] + "\n... (output truncated)"
+                output = output[: self.max_output] + "\n... (output truncated)"
 
             if process.returncode == 0:
                 return ExecutionResult(
-                    execution_id=execution_id,
-                    success=True,
-                    output=output,
-                    language="python"
+                    execution_id=execution_id, success=True, output=output, language="python"
                 )
             else:
                 return ExecutionResult(
@@ -234,24 +241,20 @@ class CodeInterpreter:
                     success=False,
                     output=output,
                     error=error_output or "Execution failed",
-                    language="python"
+                    language="python",
                 )
 
         finally:
             # Cleanup
             code_file.unlink(missing_ok=True)
 
-    async def _execute_python_subprocess(
-        self,
-        code: str,
-        execution_id: str
-    ) -> ExecutionResult:
+    async def _execute_python_subprocess(self, code: str, execution_id: str) -> ExecutionResult:
         """Execute Python in subprocess with limits."""
         # Create temp file with code
         code_file = self._temp_dir / f"{execution_id}.py"
 
         # Wrap code with output capture and limits
-        wrapped_code = f'''
+        wrapped_code = f"""
 import sys
 import resource
 
@@ -261,35 +264,30 @@ resource.setrlimit(resource.RLIMIT_AS, (256 * 1024 * 1024, 256 * 1024 * 1024))  
 
 # Execute user code
 {code}
-'''
+"""
         code_file.write_text(wrapped_code, encoding="utf-8")
 
         try:
             process = await asyncio.create_subprocess_exec(
-                sys.executable, str(code_file),
+                sys.executable,
+                str(code_file),
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd=str(self._temp_dir)
+                cwd=str(self._temp_dir),
             )
 
-            stdout, stderr = await asyncio.wait_for(
-                process.communicate(),
-                timeout=self.timeout
-            )
+            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=self.timeout)
 
             output = stdout.decode("utf-8", errors="replace")
             error_output = stderr.decode("utf-8", errors="replace")
 
             # Truncate if too long
             if len(output) > self.max_output:
-                output = output[:self.max_output] + "\n... (output truncated)"
+                output = output[: self.max_output] + "\n... (output truncated)"
 
             if process.returncode == 0:
                 return ExecutionResult(
-                    execution_id=execution_id,
-                    success=True,
-                    output=output,
-                    language="python"
+                    execution_id=execution_id, success=True, output=output, language="python"
                 )
             else:
                 return ExecutionResult(
@@ -297,7 +295,7 @@ resource.setrlimit(resource.RLIMIT_AS, (256 * 1024 * 1024, 256 * 1024 * 1024))  
                     success=False,
                     output=output,
                     error=error_output or "Execution failed",
-                    language="python"
+                    language="python",
                 )
 
         finally:
@@ -305,9 +303,7 @@ resource.setrlimit(resource.RLIMIT_AS, (256 * 1024 * 1024, 256 * 1024 * 1024))  
             code_file.unlink(missing_ok=True)
 
     async def execute_javascript(
-        self,
-        code: str,
-        context: Optional[Dict[str, Any]] = None
+        self, code: str, context: Optional[Dict[str, Any]] = None
     ) -> ExecutionResult:
         """
         Execute JavaScript code in sandbox.
@@ -320,6 +316,7 @@ resource.setrlimit(resource.RLIMIT_AS, (256 * 1024 * 1024, 256 * 1024 * 1024))  
             ExecutionResult with output
         """
         import time
+
         start_time = time.time()
         execution_id = str(uuid.uuid4())[:12]
 
@@ -331,7 +328,7 @@ resource.setrlimit(resource.RLIMIT_AS, (256 * 1024 * 1024, 256 * 1024 * 1024))  
                 success=False,
                 output="",
                 error="Node.js is not installed",
-                language="javascript"
+                language="javascript",
             )
 
         try:
@@ -347,7 +344,7 @@ resource.setrlimit(resource.RLIMIT_AS, (256 * 1024 * 1024, 256 * 1024 * 1024))  
                 output="",
                 error=f"Execution timed out after {self.timeout} seconds",
                 language="javascript",
-                duration_ms=self.timeout * 1000
+                duration_ms=self.timeout * 1000,
             )
         except Exception as e:
             logger.error(f"JavaScript execution error: {e}")
@@ -356,21 +353,18 @@ resource.setrlimit(resource.RLIMIT_AS, (256 * 1024 * 1024, 256 * 1024 * 1024))  
                 success=False,
                 output="",
                 error=str(e),
-                language="javascript"
+                language="javascript",
             )
 
     async def _execute_js_subprocess(
-        self,
-        code: str,
-        execution_id: str,
-        node_path: str
+        self, code: str, execution_id: str, node_path: str
     ) -> ExecutionResult:
         """Execute JavaScript in Node.js subprocess."""
         # Create temp file with code
         code_file = self._temp_dir / f"{execution_id}.js"
 
         # Wrap code with console capture
-        wrapped_code = f'''
+        wrapped_code = f"""
 // Sandbox setup
 const originalLog = console.log;
 const output = [];
@@ -388,35 +382,30 @@ try {{
 
 // Print collected output
 process.stdout.write(output.join('\\n'));
-'''
+"""
         code_file.write_text(wrapped_code, encoding="utf-8")
 
         try:
             process = await asyncio.create_subprocess_exec(
-                node_path, str(code_file),
+                node_path,
+                str(code_file),
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd=str(self._temp_dir)
+                cwd=str(self._temp_dir),
             )
 
-            stdout, stderr = await asyncio.wait_for(
-                process.communicate(),
-                timeout=self.timeout
-            )
+            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=self.timeout)
 
             output = stdout.decode("utf-8", errors="replace")
             error_output = stderr.decode("utf-8", errors="replace")
 
             # Truncate if too long
             if len(output) > self.max_output:
-                output = output[:self.max_output] + "\n... (output truncated)"
+                output = output[: self.max_output] + "\n... (output truncated)"
 
             if process.returncode == 0:
                 return ExecutionResult(
-                    execution_id=execution_id,
-                    success=True,
-                    output=output,
-                    language="javascript"
+                    execution_id=execution_id, success=True, output=output, language="javascript"
                 )
             else:
                 return ExecutionResult(
@@ -424,7 +413,7 @@ process.stdout.write(output.join('\\n'));
                     success=False,
                     output=output,
                     error=error_output or "Execution failed",
-                    language="javascript"
+                    language="javascript",
                 )
 
         finally:
@@ -432,10 +421,7 @@ process.stdout.write(output.join('\\n'));
             code_file.unlink(missing_ok=True)
 
     async def execute(
-        self,
-        code: str,
-        language: str,
-        context: Optional[Dict[str, Any]] = None
+        self, code: str, language: str, context: Optional[Dict[str, Any]] = None
     ) -> ExecutionResult:
         """
         Execute code in the specified language.
@@ -460,13 +446,11 @@ process.stdout.write(output.join('\\n'));
                 success=False,
                 output="",
                 error=f"Unsupported language: {language}. Supported: python, javascript",
-                language=language
+                language=language,
             )
 
     async def execute_streaming(
-        self,
-        code: str,
-        language: str
+        self, code: str, language: str
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """
         Execute code with streaming output.
@@ -475,11 +459,7 @@ process.stdout.write(output.join('\\n'));
         """
         execution_id = str(uuid.uuid4())[:12]
 
-        yield {
-            "type": "execution_start",
-            "execution_id": execution_id,
-            "language": language
-        }
+        yield {"type": "execution_start", "execution_id": execution_id, "language": language}
 
         result = await self.execute(code, language)
 
@@ -487,19 +467,15 @@ process.stdout.write(output.join('\\n'));
         output = result.output
         chunk_size = 1000
         for i in range(0, len(output), chunk_size):
-            chunk = output[i:i + chunk_size]
-            yield {
-                "type": "output",
-                "execution_id": execution_id,
-                "chunk": chunk
-            }
+            chunk = output[i : i + chunk_size]
+            yield {"type": "output", "execution_id": execution_id, "chunk": chunk}
 
         yield {
             "type": "execution_end",
             "execution_id": execution_id,
             "success": result.success,
             "error": result.error,
-            "duration_ms": result.duration_ms
+            "duration_ms": result.duration_ms,
         }
 
 
@@ -515,10 +491,7 @@ def get_code_interpreter() -> CodeInterpreter:
     return _interpreter
 
 
-async def execute_code(
-    code: str,
-    language: str = "python"
-) -> Dict[str, Any]:
+async def execute_code(code: str, language: str = "python") -> Dict[str, Any]:
     """
     Convenience function to execute code.
 
@@ -532,5 +505,5 @@ async def execute_code(
         "output": result.output,
         "error": result.error,
         "duration_ms": result.duration_ms,
-        "language": result.language
+        "language": result.language,
     }

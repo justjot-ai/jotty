@@ -27,16 +27,17 @@ Usage:
     result = await tracker.end_run()
 """
 
-import time
-from typing import Dict, List, Any, Optional, Union
-from pathlib import Path
-import pandas as pd
-import numpy as np
-import logging
 import json
+import logging
 import os
+import time
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
 
-from .base import MLSkill, SkillResult, SkillCategory
+import numpy as np
+import pandas as pd
+
+from .base import MLSkill, SkillCategory, SkillResult
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +84,7 @@ class MLflowTrackerSkill(MLSkill):
         """
         try:
             import mlflow
+
             self._mlflow = mlflow
         except ImportError:
             logger.warning("MLflow not installed. Install with: pip install mlflow")
@@ -92,22 +94,22 @@ class MLflowTrackerSkill(MLSkill):
 
         # Set tracking URI
         self._tracking_uri = tracking_uri or self.config.get(
-            'tracking_uri',
-            os.environ.get('MLFLOW_TRACKING_URI', self.DEFAULT_TRACKING_URI)
+            "tracking_uri", os.environ.get("MLFLOW_TRACKING_URI", self.DEFAULT_TRACKING_URI)
         )
         self._mlflow.set_tracking_uri(self._tracking_uri)
 
         # Set default experiment
         self._experiment_name = experiment_name or self.config.get(
-            'experiment_name',
-            os.environ.get('MLFLOW_EXPERIMENT_NAME', self.DEFAULT_EXPERIMENT)
+            "experiment_name", os.environ.get("MLFLOW_EXPERIMENT_NAME", self.DEFAULT_EXPERIMENT)
         )
         self._mlflow.set_experiment(self._experiment_name)
 
         self._initialized = True
         logger.info(f"MLflow initialized: {self._tracking_uri}")
 
-    async def execute(self, X: pd.DataFrame = None, y: Optional[pd.Series] = None, **context: Any) -> SkillResult:
+    async def execute(
+        self, X: pd.DataFrame = None, y: Optional[pd.Series] = None, **context: Any
+    ) -> SkillResult:
         """
         Execute tracking operation based on context.
 
@@ -124,32 +126,34 @@ class MLflowTrackerSkill(MLSkill):
         if self._mlflow is None:
             return self._create_error_result("MLflow not available")
 
-        operation = context.get('operation', 'status')
+        operation = context.get("operation", "status")
 
-        if operation == 'start_run':
+        if operation == "start_run":
             return await self._start_run_operation(context)
-        elif operation == 'log_params':
+        elif operation == "log_params":
             return await self._log_params_operation(context)
-        elif operation == 'log_metrics':
+        elif operation == "log_metrics":
             return await self._log_metrics_operation(context)
-        elif operation == 'log_model':
+        elif operation == "log_model":
             return await self._log_model_operation(context)
-        elif operation == 'log_artifact':
+        elif operation == "log_artifact":
             return await self._log_artifact_operation(context)
-        elif operation == 'end_run':
+        elif operation == "end_run":
             return await self._end_run_operation()
-        elif operation == 'load_model':
+        elif operation == "load_model":
             return await self._load_model_operation(context)
-        elif operation == 'list_runs':
+        elif operation == "list_runs":
             return await self._list_runs_operation(context)
         else:
             return await self._get_status()
 
-    async def start_run(self,
-                        run_name: str = None,
-                        experiment_name: str = None,
-                        tags: Dict[str, str] = None,
-                        nested: bool = False) -> Optional[str]:
+    async def start_run(
+        self,
+        run_name: str = None,
+        experiment_name: str = None,
+        tags: Dict[str, str] = None,
+        nested: bool = False,
+    ) -> Optional[str]:
         """
         Start a new MLflow run.
 
@@ -169,11 +173,7 @@ class MLflowTrackerSkill(MLSkill):
         if experiment_name:
             self._mlflow.set_experiment(experiment_name)
 
-        self._active_run = self._mlflow.start_run(
-            run_name=run_name,
-            tags=tags,
-            nested=nested
-        )
+        self._active_run = self._mlflow.start_run(run_name=run_name, tags=tags, nested=nested)
 
         run_id = self._active_run.info.run_id
         logger.info(f"Started MLflow run: {run_id}")
@@ -203,9 +203,7 @@ class MLflowTrackerSkill(MLSkill):
         self._mlflow.log_params(clean_params)
         return True
 
-    async def log_metrics(self,
-                          metrics: Dict[str, float],
-                          step: int = None) -> bool:
+    async def log_metrics(self, metrics: Dict[str, float], step: int = None) -> bool:
         """
         Log metrics to the active run.
 
@@ -221,7 +219,8 @@ class MLflowTrackerSkill(MLSkill):
 
         # Filter to numeric values only
         numeric_metrics = {
-            k: float(v) for k, v in metrics.items()
+            k: float(v)
+            for k, v in metrics.items()
             if isinstance(v, (int, float, np.number)) and not np.isnan(v)
         }
 
@@ -233,12 +232,14 @@ class MLflowTrackerSkill(MLSkill):
 
         return True
 
-    async def log_model(self,
-                        model: Any,
-                        model_name: str = "model",
-                        registered_name: str = None,
-                        signature: Any = None,
-                        input_example: Any = None) -> Optional[str]:
+    async def log_model(
+        self,
+        model: Any,
+        model_name: str = "model",
+        registered_name: str = None,
+        signature: Any = None,
+        input_example: Any = None,
+    ) -> Optional[str]:
         """
         Log a model to MLflow.
 
@@ -260,7 +261,7 @@ class MLflowTrackerSkill(MLSkill):
         model_module = type(model).__module__
 
         try:
-            if 'sklearn' in model_module or 'lightgbm' in model_module or 'xgboost' in model_module:
+            if "sklearn" in model_module or "lightgbm" in model_module or "xgboost" in model_module:
                 # Use sklearn flavor for most models
                 from mlflow import sklearn as mlflow_sklearn
 
@@ -269,50 +270,45 @@ class MLflowTrackerSkill(MLSkill):
                     artifact_path=model_name,  # Use artifact_path explicitly
                     registered_model_name=registered_name,
                     signature=signature,
-                    input_example=input_example
+                    input_example=input_example,
                 )
 
-            elif 'catboost' in model_module:
+            elif "catboost" in model_module:
                 # CatBoost has its own flavor
                 try:
                     from mlflow import catboost as mlflow_catboost
+
                     model_info = mlflow_catboost.log_model(
-                        model,
-                        artifact_path=model_name,
-                        registered_model_name=registered_name
+                        model, artifact_path=model_name, registered_model_name=registered_name
                     )
                 except ImportError:
                     # Fallback to sklearn flavor
                     from mlflow import sklearn as mlflow_sklearn
+
                     model_info = mlflow_sklearn.log_model(
-                        model,
-                        artifact_path=model_name,
-                        registered_model_name=registered_name
+                        model, artifact_path=model_name, registered_model_name=registered_name
                     )
 
-            elif 'tensorflow' in model_module or 'keras' in model_module:
+            elif "tensorflow" in model_module or "keras" in model_module:
                 from mlflow import tensorflow as mlflow_tf
+
                 model_info = mlflow_tf.log_model(
-                    model,
-                    artifact_path=model_name,
-                    registered_model_name=registered_name
+                    model, artifact_path=model_name, registered_model_name=registered_name
                 )
 
-            elif 'torch' in model_module:
+            elif "torch" in model_module:
                 from mlflow import pytorch as mlflow_pytorch
+
                 model_info = mlflow_pytorch.log_model(
-                    model,
-                    artifact_path=model_name,
-                    registered_model_name=registered_name
+                    model, artifact_path=model_name, registered_model_name=registered_name
                 )
 
             else:
                 # Generic pickle-based logging
                 from mlflow import sklearn as mlflow_sklearn
+
                 model_info = mlflow_sklearn.log_model(
-                    model,
-                    artifact_path=model_name,
-                    registered_model_name=registered_name
+                    model, artifact_path=model_name, registered_model_name=registered_name
                 )
 
             logger.info(f"Logged model: {model_name} ({model_type})")
@@ -322,9 +318,7 @@ class MLflowTrackerSkill(MLSkill):
             logger.error(f"Failed to log model: {e}")
             return None
 
-    async def log_feature_importance(self,
-                                     importance: Dict[str, float],
-                                     top_n: int = 20) -> bool:
+    async def log_feature_importance(self, importance: Dict[str, float], top_n: int = 20) -> bool:
         """
         Log feature importance as metrics and artifact.
 
@@ -350,7 +344,8 @@ class MLflowTrackerSkill(MLSkill):
 
         # Log full importance as artifact
         import tempfile
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(dict(sorted_importance), f, indent=2)
             temp_path = f.name
 
@@ -359,9 +354,7 @@ class MLflowTrackerSkill(MLSkill):
 
         return True
 
-    async def log_artifact(self,
-                           local_path: str,
-                           artifact_path: str = None) -> bool:
+    async def log_artifact(self, local_path: str, artifact_path: str = None) -> bool:
         """
         Log a file or directory as an artifact.
 
@@ -382,10 +375,9 @@ class MLflowTrackerSkill(MLSkill):
 
         return True
 
-    async def log_dataframe(self,
-                            df: pd.DataFrame,
-                            name: str = "data",
-                            format: str = "parquet") -> bool:
+    async def log_dataframe(
+        self, df: pd.DataFrame, name: str = "data", format: str = "parquet"
+    ) -> bool:
         """
         Log a DataFrame as an artifact.
 
@@ -411,7 +403,7 @@ class MLflowTrackerSkill(MLSkill):
                 df.to_csv(path, index=False)
             else:
                 path = os.path.join(tmpdir, f"{name}.json")
-                df.to_json(path, orient='records')
+                df.to_json(path, orient="records")
 
             self._mlflow.log_artifact(path)
 
@@ -451,24 +443,23 @@ class MLflowTrackerSkill(MLSkill):
         run = self._mlflow.get_run(run_id)
 
         result = {
-            'run_id': run_id,
-            'experiment_id': run.info.experiment_id,
-            'status': run.info.status,
-            'artifact_uri': run.info.artifact_uri,
-            'start_time': run.info.start_time,
-            'end_time': run.info.end_time,
-            'metrics': run.data.metrics,
-            'params': run.data.params,
+            "run_id": run_id,
+            "experiment_id": run.info.experiment_id,
+            "status": run.info.status,
+            "artifact_uri": run.info.artifact_uri,
+            "start_time": run.info.start_time,
+            "end_time": run.info.end_time,
+            "metrics": run.data.metrics,
+            "params": run.data.params,
         }
 
         self._active_run = None
         logger.info(f"Ended MLflow run: {run_id}")
         return result
 
-    async def load_model(self,
-                         model_uri: str = None,
-                         run_id: str = None,
-                         model_name: str = "model") -> Optional[Any]:
+    async def load_model(
+        self, model_uri: str = None, run_id: str = None, model_name: str = "model"
+    ) -> Optional[Any]:
         """
         Load a model from MLflow.
 
@@ -494,6 +485,7 @@ class MLflowTrackerSkill(MLSkill):
             # Try sklearn flavor first (most common)
             try:
                 from mlflow import sklearn as mlflow_sklearn
+
                 return mlflow_sklearn.load_model(uri)
             except Exception:
                 pass
@@ -505,11 +497,13 @@ class MLflowTrackerSkill(MLSkill):
             logger.error(f"Failed to load model: {e}")
             return None
 
-    async def list_runs(self,
-                        experiment_name: str = None,
-                        max_results: int = 100,
-                        filter_string: str = None,
-                        order_by: List[str] = None) -> List[Dict[str, Any]]:
+    async def list_runs(
+        self,
+        experiment_name: str = None,
+        max_results: int = 100,
+        filter_string: str = None,
+        order_by: List[str] = None,
+    ) -> List[Dict[str, Any]]:
         """
         List runs in an experiment.
 
@@ -535,15 +529,14 @@ class MLflowTrackerSkill(MLSkill):
             experiment_ids=[experiment.experiment_id],
             max_results=max_results,
             filter_string=filter_string,
-            order_by=order_by or ["metrics.accuracy DESC"]
+            order_by=order_by or ["metrics.accuracy DESC"],
         )
 
-        return runs.to_dict('records') if not runs.empty else []
+        return runs.to_dict("records") if not runs.empty else []
 
-    async def get_best_run(self,
-                           experiment_name: str = None,
-                           metric: str = "accuracy",
-                           ascending: bool = False) -> Optional[Dict[str, Any]]:
+    async def get_best_run(
+        self, experiment_name: str = None, metric: str = "accuracy", ascending: bool = False
+    ) -> Optional[Dict[str, Any]]:
         """
         Get the best run from an experiment.
 
@@ -557,15 +550,11 @@ class MLflowTrackerSkill(MLSkill):
         """
         order = "ASC" if ascending else "DESC"
         runs = await self.list_runs(
-            experiment_name=experiment_name,
-            max_results=1,
-            order_by=[f"metrics.{metric} {order}"]
+            experiment_name=experiment_name, max_results=1, order_by=[f"metrics.{metric} {order}"]
         )
         return runs[0] if runs else None
 
-    async def compare_runs(self,
-                           run_ids: List[str],
-                           metrics: List[str] = None) -> pd.DataFrame:
+    async def compare_runs(self, run_ids: List[str], metrics: List[str] = None) -> pd.DataFrame:
         """
         Compare multiple runs.
 
@@ -583,7 +572,7 @@ class MLflowTrackerSkill(MLSkill):
         for run_id in run_ids:
             try:
                 run = self._mlflow.get_run(run_id)
-                row = {'run_id': run_id, **run.data.metrics, **run.data.params}
+                row = {"run_id": run_id, **run.data.metrics, **run.data.params}
                 comparison.append(row)
             except Exception:
                 continue
@@ -591,7 +580,7 @@ class MLflowTrackerSkill(MLSkill):
         df = pd.DataFrame(comparison)
 
         if metrics and not df.empty:
-            cols = ['run_id'] + [m for m in metrics if m in df.columns]
+            cols = ["run_id"] + [m for m in metrics if m in df.columns]
             df = df[cols]
 
         return df
@@ -599,42 +588,33 @@ class MLflowTrackerSkill(MLSkill):
     # Internal operation handlers
     async def _start_run_operation(self, context: Dict) -> SkillResult:
         run_id = await self.start_run(
-            run_name=context.get('run_name'),
-            experiment_name=context.get('experiment_name'),
-            tags=context.get('tags')
+            run_name=context.get("run_name"),
+            experiment_name=context.get("experiment_name"),
+            tags=context.get("tags"),
         )
         return self._create_result(
-            success=run_id is not None,
-            data=run_id,
-            metadata={'run_id': run_id}
+            success=run_id is not None, data=run_id, metadata={"run_id": run_id}
         )
 
     async def _log_params_operation(self, context: Dict) -> SkillResult:
-        success = await self.log_params(context.get('params', {}))
+        success = await self.log_params(context.get("params", {}))
         return self._create_result(success=success)
 
     async def _log_metrics_operation(self, context: Dict) -> SkillResult:
-        success = await self.log_metrics(
-            context.get('metrics', {}),
-            step=context.get('step')
-        )
+        success = await self.log_metrics(context.get("metrics", {}), step=context.get("step"))
         return self._create_result(success=success)
 
     async def _log_model_operation(self, context: Dict) -> SkillResult:
         model_uri = await self.log_model(
-            model=context.get('model'),
-            model_name=context.get('model_name', 'model'),
-            registered_name=context.get('registered_name')
+            model=context.get("model"),
+            model_name=context.get("model_name", "model"),
+            registered_name=context.get("registered_name"),
         )
-        return self._create_result(
-            success=model_uri is not None,
-            data=model_uri
-        )
+        return self._create_result(success=model_uri is not None, data=model_uri)
 
     async def _log_artifact_operation(self, context: Dict) -> SkillResult:
         success = await self.log_artifact(
-            local_path=context.get('local_path'),
-            artifact_path=context.get('artifact_path')
+            local_path=context.get("local_path"), artifact_path=context.get("artifact_path")
         )
         return self._create_result(success=success)
 
@@ -643,38 +623,31 @@ class MLflowTrackerSkill(MLSkill):
         return self._create_result(
             success=run_info is not None,
             data=run_info,
-            metrics=run_info.get('metrics', {}) if run_info else {}
+            metrics=run_info.get("metrics", {}) if run_info else {},
         )
 
     async def _load_model_operation(self, context: Dict) -> SkillResult:
         model = await self.load_model(
-            model_uri=context.get('model_uri'),
-            run_id=context.get('run_id'),
-            model_name=context.get('model_name', 'model')
+            model_uri=context.get("model_uri"),
+            run_id=context.get("run_id"),
+            model_name=context.get("model_name", "model"),
         )
-        return self._create_result(
-            success=model is not None,
-            data=model
-        )
+        return self._create_result(success=model is not None, data=model)
 
     async def _list_runs_operation(self, context: Dict) -> SkillResult:
         runs = await self.list_runs(
-            experiment_name=context.get('experiment_name'),
-            max_results=context.get('max_results', 100)
+            experiment_name=context.get("experiment_name"),
+            max_results=context.get("max_results", 100),
         )
-        return self._create_result(
-            success=True,
-            data=runs,
-            metrics={'n_runs': len(runs)}
-        )
+        return self._create_result(success=True, data=runs, metrics={"n_runs": len(runs)})
 
     async def _get_status(self) -> SkillResult:
         return self._create_result(
             success=True,
             data={
-                'mlflow_available': self._mlflow is not None,
-                'tracking_uri': self._tracking_uri,
-                'experiment_name': self._experiment_name,
-                'active_run': self._active_run.info.run_id if self._active_run else None
-            }
+                "mlflow_available": self._mlflow is not None,
+                "tracking_uri": self._tracking_uri,
+                "experiment_name": self._experiment_name,
+                "active_run": self._active_run.info.run_id if self._active_run else None,
+            },
         )

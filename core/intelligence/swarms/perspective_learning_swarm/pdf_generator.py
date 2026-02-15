@@ -7,15 +7,20 @@ Each perspective gets a distinct visual treatment with unique colors and icons.
 Language sections use appropriate fonts (Noto Sans Devanagari, Noto Sans Kannada).
 """
 
-import logging
 import asyncio
+import logging
 import re
-from typing import Optional, Any
 from pathlib import Path
+from typing import Any, Optional
 
 from .types import (
-    PerspectiveType, Language, LessonContent, PerspectiveSection,
-    LanguageContent, PERSPECTIVE_LABELS, LANGUAGE_LABELS,
+    LANGUAGE_LABELS,
+    PERSPECTIVE_LABELS,
+    Language,
+    LanguageContent,
+    LessonContent,
+    PerspectiveSection,
+    PerspectiveType,
 )
 
 logger = logging.getLogger(__name__)
@@ -26,12 +31,42 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 PERSPECTIVE_COLORS = {
-    PerspectiveType.INTUITIVE_VISUAL: {"primary": "#1565C0", "bg": "#E3F2FD", "border": "#42A5F5", "label": "See It Clearly"},
-    PerspectiveType.STRUCTURED_FRAMEWORK: {"primary": "#2E7D32", "bg": "#E8F5E9", "border": "#66BB6A", "label": "Think It Through"},
-    PerspectiveType.STORYTELLING: {"primary": "#6A1B9A", "bg": "#F3E5F5", "border": "#CE93D8", "label": "Feel the Story"},
-    PerspectiveType.DEBATE_CRITICAL: {"primary": "#C62828", "bg": "#FFEBEE", "border": "#EF5350", "label": "Debate It"},
-    PerspectiveType.HANDS_ON_PROJECT: {"primary": "#E65100", "bg": "#FFF3E0", "border": "#FF9800", "label": "Build It"},
-    PerspectiveType.REAL_WORLD_APPLICATION: {"primary": "#00695C", "bg": "#E0F2F1", "border": "#4DB6AC", "label": "Live It"},
+    PerspectiveType.INTUITIVE_VISUAL: {
+        "primary": "#1565C0",
+        "bg": "#E3F2FD",
+        "border": "#42A5F5",
+        "label": "See It Clearly",
+    },
+    PerspectiveType.STRUCTURED_FRAMEWORK: {
+        "primary": "#2E7D32",
+        "bg": "#E8F5E9",
+        "border": "#66BB6A",
+        "label": "Think It Through",
+    },
+    PerspectiveType.STORYTELLING: {
+        "primary": "#6A1B9A",
+        "bg": "#F3E5F5",
+        "border": "#CE93D8",
+        "label": "Feel the Story",
+    },
+    PerspectiveType.DEBATE_CRITICAL: {
+        "primary": "#C62828",
+        "bg": "#FFEBEE",
+        "border": "#EF5350",
+        "label": "Debate It",
+    },
+    PerspectiveType.HANDS_ON_PROJECT: {
+        "primary": "#E65100",
+        "bg": "#FFF3E0",
+        "border": "#FF9800",
+        "label": "Build It",
+    },
+    PerspectiveType.REAL_WORLD_APPLICATION: {
+        "primary": "#00695C",
+        "bg": "#E0F2F1",
+        "border": "#4DB6AC",
+        "label": "Live It",
+    },
 }
 
 LANGUAGE_COLORS = {
@@ -352,10 +387,11 @@ li {{ margin-bottom: 4px; }}
 # HTML RENDERER
 # =============================================================================
 
+
 class PerspectiveHTMLRenderer:
     """Renders PerspectiveLearning LessonContent into styled HTML."""
 
-    def __init__(self, celebration_word: str = 'Wonderful!') -> None:
+    def __init__(self, celebration_word: str = "Wonderful!") -> None:
         self.celebration = celebration_word
 
     def render(self, content: LessonContent) -> str:
@@ -366,14 +402,16 @@ class PerspectiveHTMLRenderer:
         body_parts.append(self._render_toc(content))
 
         # Why This Matters section
-        body_parts.append('<h2>Why This Matters</h2>')
+        body_parts.append("<h2>Why This Matters</h2>")
         if content.running_example:
-            body_parts.append(f'<div class="breakthrough" style="border-left-color: #1a237e;">{self._md(content.running_example)}</div>')
+            body_parts.append(
+                f'<div class="breakthrough" style="border-left-color: #1a237e;">{self._md(content.running_example)}</div>'
+            )
         if content.learning_objectives:
-            body_parts.append('<h3>Learning Objectives</h3><ol>')
+            body_parts.append("<h3>Learning Objectives</h3><ol>")
             for obj in content.learning_objectives:
-                body_parts.append(f'<li>{self._md_inline(obj)}</li>')
-            body_parts.append('</ol>')
+                body_parts.append(f"<li>{self._md_inline(obj)}</li>")
+            body_parts.append("</ol>")
 
         # Perspective sections
         perspective_classes = {
@@ -392,10 +430,14 @@ class PerspectiveHTMLRenderer:
             body_parts.append(f'<div class="perspective-header">{label}</div>')
             body_parts.append(self._md(section.content))
             if section.key_takeaway:
-                body_parts.append(f'<div class="breakthrough">{self._md_inline(section.key_takeaway)}</div>')
+                body_parts.append(
+                    f'<div class="breakthrough">{self._md_inline(section.key_takeaway)}</div>'
+                )
             if section.activity:
-                body_parts.append(f'<div class="activity-box"><strong>Activity:</strong> {self._md_inline(section.activity)}</div>')
-            body_parts.append('</div>')
+                body_parts.append(
+                    f'<div class="activity-box"><strong>Activity:</strong> {self._md_inline(section.activity)}</div>'
+                )
+            body_parts.append("</div>")
 
         # Language sections
         language_classes = {
@@ -408,50 +450,58 @@ class PerspectiveHTMLRenderer:
             if lang_section.language == Language.ENGLISH:
                 continue
             css_class = language_classes.get(lang_section.language, "")
-            lang_label = LANGUAGE_LABELS.get(lang_section.language, lang_section.language.value.title())
+            lang_label = LANGUAGE_LABELS.get(
+                lang_section.language, lang_section.language.value.title()
+            )
             body_parts.append(f'<div class="language-section {css_class}">')
-            body_parts.append(f'<div class="language-header">{lang_label} \u2014 {content.topic}</div>')
+            body_parts.append(
+                f'<div class="language-header">{lang_label} \u2014 {content.topic}</div>'
+            )
             if lang_section.summary:
                 body_parts.append(self._md(lang_section.summary))
             if lang_section.key_vocabulary:
-                body_parts.append('<p>')
+                body_parts.append("<p>")
                 for term in lang_section.key_vocabulary:
                     body_parts.append(f'<span class="vocab-chip">{term}</span>')
-                body_parts.append('</p>')
+                body_parts.append("</p>")
             if lang_section.reflection_prompts:
-                body_parts.append('<h3>Reflection</h3><ul>')
+                body_parts.append("<h3>Reflection</h3><ul>")
                 for prompt in lang_section.reflection_prompts:
-                    body_parts.append(f'<li>{prompt}</li>')
-                body_parts.append('</ul>')
+                    body_parts.append(f"<li>{prompt}</li>")
+                body_parts.append("</ul>")
             if lang_section.activity:
-                body_parts.append(f'<div class="activity-box"><strong>Activity:</strong> {self._md_inline(lang_section.activity)}</div>')
+                body_parts.append(
+                    f'<div class="activity-box"><strong>Activity:</strong> {self._md_inline(lang_section.activity)}</div>'
+                )
             if lang_section.slogans:
                 for slogan in lang_section.slogans:
                     body_parts.append(f'<p class="slogan">\u201c{slogan}\u201d</p>')
-            body_parts.append('</div>')
+            body_parts.append("</div>")
 
         # Parent's Guide
         if content.parent_guide:
             body_parts.append('<div class="parent-guide">')
             body_parts.append("<h2>Parent's Guide</h2>")
             body_parts.append(self._md(content.parent_guide))
-            body_parts.append('</div>')
+            body_parts.append("</div>")
 
         # Key Insights & Reflection
         if content.key_insights and any(content.key_insights):
             body_parts.append('<div class="reflection-box">')
-            body_parts.append('<h2>Key Insights & Reflection</h2>')
-            body_parts.append('<ol>')
+            body_parts.append("<h2>Key Insights & Reflection</h2>")
+            body_parts.append("<ol>")
             for ins in content.key_insights:
                 if ins:
-                    body_parts.append(f'<li>{self._md_inline(ins)}</li>')
-            body_parts.append('</ol>')
+                    body_parts.append(f"<li>{self._md_inline(ins)}</li>")
+            body_parts.append("</ol>")
             if content.socratic_questions:
-                body_parts.append(f'<h3>Questions to Keep Thinking About, {content.student_name}</h3><ol>')
+                body_parts.append(
+                    f"<h3>Questions to Keep Thinking About, {content.student_name}</h3><ol>"
+                )
                 for q in content.socratic_questions:
-                    body_parts.append(f'<li>{self._md_inline(q)}</li>')
-                body_parts.append('</ol>')
-            body_parts.append('</div>')
+                    body_parts.append(f"<li>{self._md_inline(q)}</li>")
+                body_parts.append("</ol>")
+            body_parts.append("</div>")
 
         body_html = "\n".join(body_parts)
 
@@ -471,18 +521,20 @@ class PerspectiveHTMLRenderer:
     def _render_toc(self, content: LessonContent) -> str:
         """Render table of contents."""
         items = ['<div class="toc"><h3>Table of Contents</h3><ol>']
-        items.append('<li>Why This Matters</li>')
+        items.append("<li>Why This Matters</li>")
         for section in content.perspectives:
             label = PERSPECTIVE_LABELS.get(section.perspective, section.title)
-            items.append(f'<li>{label}</li>')
+            items.append(f"<li>{label}</li>")
         for lang_section in content.language_sections:
             if lang_section.language != Language.ENGLISH:
-                lang_label = LANGUAGE_LABELS.get(lang_section.language, lang_section.language.value.title())
-                items.append(f'<li>{lang_label}</li>')
+                lang_label = LANGUAGE_LABELS.get(
+                    lang_section.language, lang_section.language.value.title()
+                )
+                items.append(f"<li>{lang_label}</li>")
         items.append("<li>Parent's Guide</li>")
-        items.append('<li>Key Insights & Reflection</li>')
-        items.append('</ol></div>')
-        return '\n'.join(items)
+        items.append("<li>Key Insights & Reflection</li>")
+        items.append("</ol></div>")
+        return "\n".join(items)
 
     def _md(self, text: str) -> str:
         """Convert markdown text to HTML."""
@@ -490,10 +542,11 @@ class PerspectiveHTMLRenderer:
             return ""
         try:
             import markdown
-            return markdown.markdown(text, extensions=['tables', 'fenced_code'])
+
+            return markdown.markdown(text, extensions=["tables", "fenced_code"])
         except Exception:
-            text = text.replace('\n\n', '</p><p>')
-            text = text.replace('\n', '<br>')
+            text = text.replace("\n\n", "</p><p>")
+            text = text.replace("\n", "<br>")
             return f"<p>{text}</p>"
 
     def _md_inline(self, text: str) -> str:
@@ -510,6 +563,7 @@ class PerspectiveHTMLRenderer:
 # =============================================================================
 # PDF GENERATOR
 # =============================================================================
+
 
 async def generate_perspective_pdf(
     content: LessonContent,
@@ -528,10 +582,7 @@ async def generate_perspective_pdf(
         html_str = renderer.render(content)
 
         loop = asyncio.get_running_loop()
-        await loop.run_in_executor(
-            None,
-            lambda: HTML(string=html_str).write_pdf(output_path)
-        )
+        await loop.run_in_executor(None, lambda: HTML(string=html_str).write_pdf(output_path))
 
         if Path(output_path).exists():
             size_kb = Path(output_path).stat().st_size / 1024
@@ -561,7 +612,7 @@ async def generate_perspective_html(
         renderer = PerspectiveHTMLRenderer(celebration_word=celebration_word)
         html_str = renderer.render(content)
 
-        Path(output_path).write_text(html_str, encoding='utf-8')
+        Path(output_path).write_text(html_str, encoding="utf-8")
 
         if Path(output_path).exists():
             logger.info(f"Generated HTML: {output_path}")
@@ -580,35 +631,46 @@ async def _generate_pdf_reportlab(
 ) -> Optional[str]:
     """Fallback PDF generator using reportlab."""
     try:
-        from reportlab.lib.pagesizes import A4
-        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
         from reportlab.lib.colors import HexColor
-        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+        from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 
         loop = asyncio.get_running_loop()
 
         def _build() -> None:
-            doc = SimpleDocTemplate(output_path, pagesize=A4,
-                                    leftMargin=60, rightMargin=60,
-                                    topMargin=50, bottomMargin=50)
+            doc = SimpleDocTemplate(
+                output_path,
+                pagesize=A4,
+                leftMargin=60,
+                rightMargin=60,
+                topMargin=50,
+                bottomMargin=50,
+            )
             styles = getSampleStyleSheet()
-            title_style = ParagraphStyle('LessonTitle', parent=styles['Title'],
-                                         fontSize=22, textColor=HexColor('#1a237e'))
-            h2_style = ParagraphStyle('H2', parent=styles['Heading2'],
-                                       fontSize=16, textColor=HexColor('#283593'))
-            body_style = ParagraphStyle('Body', parent=styles['Normal'],
-                                         fontSize=11, leading=16)
+            title_style = ParagraphStyle(
+                "LessonTitle", parent=styles["Title"], fontSize=22, textColor=HexColor("#1a237e")
+            )
+            h2_style = ParagraphStyle(
+                "H2", parent=styles["Heading2"], fontSize=16, textColor=HexColor("#283593")
+            )
+            body_style = ParagraphStyle("Body", parent=styles["Normal"], fontSize=11, leading=16)
 
             story = []
             story.append(Paragraph(content.topic, title_style))
-            story.append(Paragraph(f"A Multi-Perspective Learning Journey for {content.student_name}", styles['Normal']))
+            story.append(
+                Paragraph(
+                    f"A Multi-Perspective Learning Journey for {content.student_name}",
+                    styles["Normal"],
+                )
+            )
             story.append(Spacer(1, 20))
 
             for section in content.perspectives:
                 label = PERSPECTIVE_LABELS.get(section.perspective, section.title)
                 story.append(Paragraph(label, h2_style))
                 story.append(Spacer(1, 6))
-                text = section.content.replace('\n\n', '<br/><br/>').replace('\n', '<br/>')
+                text = section.content.replace("\n\n", "<br/><br/>").replace("\n", "<br/>")
                 try:
                     story.append(Paragraph(text[:2000], body_style))
                 except Exception:
@@ -630,7 +692,7 @@ async def _generate_pdf_reportlab(
 
 
 __all__ = [
-    'generate_perspective_pdf',
-    'generate_perspective_html',
-    'PerspectiveHTMLRenderer',
+    "generate_perspective_pdf",
+    "generate_perspective_html",
+    "PerspectiveHTMLRenderer",
 ]

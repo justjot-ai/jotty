@@ -7,6 +7,7 @@ Demonstrates:
 - Tool implementation (tools.py)
 - Using the custom skill in an agent
 """
+
 import os
 from pathlib import Path
 
@@ -101,7 +102,8 @@ def get_forecast(city: str, days: int = 3) -> Dict[str, Any]:
     print("└── __init__.py      (package marker)")
 
     print("\n=== Using Your Custom Skill ===\n")
-    print("""
+    print(
+        """
 from Jotty.core.capabilities.registry import get_unified_registry
 from Jotty.core.modes.agent import AutoAgent
 
@@ -119,7 +121,8 @@ agent = AutoAgent(
 )
 
 result = await agent.execute("What's the weather in London?")
-    """)
+    """
+    )
 
     print("✅ Custom skill created!")
     print("\n💡 Tip: Skills are auto-discovered via plugin system")

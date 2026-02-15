@@ -1,9 +1,12 @@
 """Prime number tool — primality, sieve, factorization, nth prime."""
-from typing import Dict, Any, List
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+
+from typing import Any, Dict, List
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("prime-number-tool")
+
 
 def _is_prime(n: int) -> bool:
     if n < 2:
@@ -19,6 +22,7 @@ def _is_prime(n: int) -> bool:
         i += 6
     return True
 
+
 def _sieve(limit: int) -> List[int]:
     if limit < 2:
         return []
@@ -29,6 +33,7 @@ def _sieve(limit: int) -> List[int]:
             for j in range(i * i, limit + 1, i):
                 s[j] = False
     return [i for i, v in enumerate(s) if v]
+
 
 def _factorize(n: int) -> List[int]:
     if n < 2:
@@ -44,6 +49,7 @@ def _factorize(n: int) -> List[int]:
         factors.append(n)
     return factors
 
+
 def _nth_prime(n: int) -> int:
     if n < 1:
         return 2
@@ -53,6 +59,7 @@ def _nth_prime(n: int) -> int:
         if _is_prime(candidate):
             count += 1
     return candidate
+
 
 @tool_wrapper(required_params=["operation"])
 def prime_tool(params: Dict[str, Any]) -> Dict[str, Any]:
@@ -80,5 +87,6 @@ def prime_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return tool_error(f"Unknown op: {op}. Use is_prime/sieve/factorize/nth_prime")
     except Exception as e:
         return tool_error(str(e))
+
 
 __all__ = ["prime_tool"]

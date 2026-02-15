@@ -8,24 +8,31 @@ Shows how to use distributed tracing for multi-swarm execution.
 
 import asyncio
 import os
+
 from dotenv import load_dotenv
 
 # Load API key
 load_dotenv()
 
+
 async def main():
     import dspy
+
     from Jotty.core.infrastructure.foundation.direct_anthropic_lm import DirectAnthropicLM
     from Jotty.core.infrastructure.monitoring.observability import get_distributed_tracer
-    from Jotty.core.intelligence.orchestration import SwarmAdapter, get_multi_swarm_coordinator, MergeStrategy
+    from Jotty.core.intelligence.orchestration import (
+        MergeStrategy,
+        SwarmAdapter,
+        get_multi_swarm_coordinator,
+    )
 
     # Setup LLM
     lm = DirectAnthropicLM(model="haiku")
     dspy.configure(lm=lm)
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("EXAMPLE: Distributed Tracing")
-    print("="*70 + "\n")
+    print("=" * 70 + "\n")
 
     # Create tracer
     tracer = get_distributed_tracer("example-service")
@@ -51,16 +58,16 @@ async def main():
         print()
 
         # Create swarms
-        swarms = SwarmAdapter.quick_swarms([
-            ("Researcher", "Research AI trends. 1 sentence."),
-            ("Analyst", "Analyze AI trends. 1 sentence."),
-        ])
+        swarms = SwarmAdapter.quick_swarms(
+            [
+                ("Researcher", "Research AI trends. 1 sentence."),
+                ("Analyst", "Analyze AI trends. 1 sentence."),
+            ]
+        )
 
         # Execute with tracing
         result = await coordinator.execute_parallel(
-            swarms=swarms,
-            task="What are AI trends in 2026?",
-            merge_strategy=MergeStrategy.VOTING
+            swarms=swarms, task="What are AI trends in 2026?", merge_strategy=MergeStrategy.VOTING
         )
 
         print(f"✅ Execution complete")
@@ -75,9 +82,9 @@ async def main():
         print(f"   Duration: {context.get('duration_ms', 0):.0f}ms")
         print()
 
-    print("="*70)
+    print("=" * 70)
     print("✅ Example complete!")
-    print("="*70 + "\n")
+    print("=" * 70 + "\n")
 
     print("Key Takeaways:")
     print("  1. Trace ID propagates through all operations")
@@ -87,5 +94,5 @@ async def main():
     print()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     asyncio.run(main())

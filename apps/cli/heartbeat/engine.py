@@ -9,20 +9,21 @@ Like OpenClaw's heartbeat - Jotty can act WITHOUT being asked.
 """
 
 import asyncio
-import logging
-import json
-from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Dict, Any, Optional, List, Callable
-from dataclasses import dataclass, field
-from enum import Enum
 import hashlib
+import json
+import logging
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from enum import Enum
+from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
 
 class TaskFrequency(Enum):
     """How often a task runs."""
+
     EVERY_MINUTE = 60
     EVERY_5_MINUTES = 300
     EVERY_15_MINUTES = 900
@@ -35,6 +36,7 @@ class TaskFrequency(Enum):
 @dataclass
 class HeartbeatTask:
     """A task that runs on the heartbeat."""
+
     name: str
     description: str
     frequency: TaskFrequency
@@ -186,7 +188,7 @@ class HeartbeatEngine:
                     await self._send_notification(
                         title=result.get("title", task.name),
                         message=result.get("message", ""),
-                        priority=result.get("priority", "normal")
+                        priority=result.get("priority", "normal"),
                     )
 
             logger.debug(f"Task {task.name} completed")
@@ -196,7 +198,7 @@ class HeartbeatEngine:
             task.last_error = str(e)
             logger.error(f"Heartbeat task {task.name} failed: {e}")
 
-    async def _send_notification(self, title: str, message: str, priority: str = 'normal') -> Any:
+    async def _send_notification(self, title: str, message: str, priority: str = "normal") -> Any:
         """Send notification through all registered notifiers."""
         for notifier in self._notifiers:
             try:
@@ -208,7 +210,7 @@ class HeartbeatEngine:
                 logger.error(f"Notifier error: {e}")
 
         # Also print to CLI if available
-        if self._cli and hasattr(self._cli, 'renderer'):
+        if self._cli and hasattr(self._cli, "renderer"):
             icon = "" if priority == "urgent" else ""
             self._cli.renderer.print(f"\n{icon} [bold]{title}[/bold]: {message}")
 
@@ -219,7 +221,11 @@ class HeartbeatEngine:
                 data = json.loads(self._state_file.read_text())
                 for name, state in data.get("tasks", {}).items():
                     if name in self._tasks:
-                        self._tasks[name].last_run = datetime.fromisoformat(state["last_run"]) if state.get("last_run") else None
+                        self._tasks[name].last_run = (
+                            datetime.fromisoformat(state["last_run"])
+                            if state.get("last_run")
+                            else None
+                        )
                         self._tasks[name].run_count = state.get("run_count", 0)
                         self._tasks[name].error_count = state.get("error_count", 0)
         except Exception as e:
@@ -234,11 +240,11 @@ class HeartbeatEngine:
                     name: {
                         "last_run": task.last_run.isoformat() if task.last_run else None,
                         "run_count": task.run_count,
-                        "error_count": task.error_count
+                        "error_count": task.error_count,
                     }
                     for name, task in self._tasks.items()
                 },
-                "saved_at": datetime.now().isoformat()
+                "saved_at": datetime.now().isoformat(),
             }
             self._state_file.write_text(json.dumps(data, indent=2))
         except Exception as e:
@@ -255,14 +261,15 @@ class HeartbeatEngine:
                     "frequency": task.frequency.name,
                     "last_run": task.last_run.isoformat() if task.last_run else None,
                     "run_count": task.run_count,
-                    "error_count": task.error_count
+                    "error_count": task.error_count,
                 }
                 for name, task in self._tasks.items()
-            }
+            },
         }
 
 
 # ============ BUILT-IN HEARTBEAT TASKS ============
+
 
 async def morning_briefing_handler(cli: Any) -> Dict:
     """Generate and send morning briefing."""
@@ -283,7 +290,7 @@ async def morning_briefing_handler(cli: Any) -> Dict:
             "notify": True,
             "title": "Good Morning!",
             "message": str(result),
-            "priority": "normal"
+            "priority": "normal",
         }
     except Exception as e:
         logger.error(f"Morning briefing error: {e}")
@@ -319,7 +326,7 @@ async def reminder_handler(cli: Any) -> Dict:
                     "notify": True,
                     "title": "Reminder",
                     "message": reminder["message"],
-                    "priority": reminder.get("priority", "normal")
+                    "priority": reminder.get("priority", "normal"),
                 }
     except Exception as e:
         logger.error(f"Reminder check error: {e}")
@@ -337,7 +344,7 @@ def create_default_tasks() -> List[HeartbeatTask]:
             handler=morning_briefing_handler,
             enabled=False,  # Disabled by default
             run_on_start=False,
-            quiet_hours=(22, 7)  # No notifications 10 PM - 7 AM
+            quiet_hours=(22, 7),  # No notifications 10 PM - 7 AM
         ),
         HeartbeatTask(
             name="reminders",
@@ -345,6 +352,6 @@ def create_default_tasks() -> List[HeartbeatTask]:
             frequency=TaskFrequency.EVERY_MINUTE,
             handler=reminder_handler,
             enabled=True,
-            run_on_start=True
+            run_on_start=True,
         ),
     ]

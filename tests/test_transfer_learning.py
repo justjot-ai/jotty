@@ -8,13 +8,14 @@ Covers:
 - core/learning/reasoning_credit.py (ReasoningCreditAssigner)
 """
 
-import os
 import json
-import time
+import os
 import tempfile
-import pytest
-from unittest.mock import Mock, MagicMock, patch, PropertyMock
+import time
 from dataclasses import dataclass, field
+from unittest.mock import MagicMock, Mock, PropertyMock, patch
+
+import pytest
 
 # ---------------------------------------------------------------------------
 # Conditional imports with skipif support
@@ -22,32 +23,44 @@ from dataclasses import dataclass, field
 
 try:
     from core.learning.transfer_learning import (
-        AbstractPattern, RoleProfile, MetaPattern,
-        SemanticEmbedder, PatternExtractor, TransferableLearningStore,
+        AbstractPattern,
+        MetaPattern,
+        PatternExtractor,
+        RoleProfile,
+        SemanticEmbedder,
+        TransferableLearningStore,
     )
+
     HAS_TRANSFER = True
 except ImportError:
     HAS_TRANSFER = False
 
 try:
-    from core.learning.health_budget import (
-        LearningHealthMonitor, DynamicBudgetManager,
-    )
+    from core.learning.health_budget import DynamicBudgetManager, LearningHealthMonitor
+
     HAS_HEALTH = True
 except ImportError:
     HAS_HEALTH = False
 
 try:
     from core.learning.reasoning_credit import ReasoningCreditAssigner
+
     HAS_CREDIT = True
 except ImportError:
     HAS_CREDIT = False
 
 try:
     from core.foundation.data_structures import (
-        SwarmConfig, MemoryEntry, MemoryLevel, GoalValue,
-        ValidationResult, AgentContribution, LearningMetrics, AlertType,
+        AgentContribution,
+        AlertType,
+        GoalValue,
+        LearningMetrics,
+        MemoryEntry,
+        MemoryLevel,
+        SwarmConfig,
+        ValidationResult,
     )
+
     HAS_DATA_STRUCTURES = True
 except ImportError:
     HAS_DATA_STRUCTURES = False
@@ -56,6 +69,7 @@ except ImportError:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_swarm_config(**overrides):
     """Create a SwarmConfig with sensible test defaults, applying overrides."""
@@ -107,8 +121,9 @@ def _make_memory_entry(key, content, token_count=100, goal=None, value=0.5):
     return mock
 
 
-def _make_validation_result(agent_name, is_valid=True, should_proceed=True,
-                            confidence=0.8, reasoning="", tool_calls=None):
+def _make_validation_result(
+    agent_name, is_valid=True, should_proceed=True, confidence=0.8, reasoning="", tool_calls=None
+):
     """Create a ValidationResult for credit assignment tests."""
     if HAS_DATA_STRUCTURES:
         return ValidationResult(
@@ -133,6 +148,7 @@ def _make_validation_result(agent_name, is_valid=True, should_proceed=True,
 # 1. AbstractPattern tests
 # =============================================================================
 
+
 @pytest.mark.skipif(not HAS_TRANSFER, reason="transfer_learning not importable")
 class TestAbstractPattern:
     """Tests for the AbstractPattern dataclass."""
@@ -140,8 +156,10 @@ class TestAbstractPattern:
     @pytest.mark.unit
     def test_creation_defaults(self):
         p = AbstractPattern(
-            pattern_id="p1", level="task",
-            pattern_type="COUNT_QUERY", description="count queries",
+            pattern_id="p1",
+            level="task",
+            pattern_type="COUNT_QUERY",
+            description="count queries",
         )
         assert p.success_count == 0
         assert p.failure_count == 0
@@ -150,42 +168,56 @@ class TestAbstractPattern:
 
     @pytest.mark.unit
     def test_success_rate_no_data(self):
-        p = AbstractPattern(pattern_id="p1", level="task",
-                            pattern_type="X", description="x")
+        p = AbstractPattern(pattern_id="p1", level="task", pattern_type="X", description="x")
         assert p.success_rate == 0.5
 
     @pytest.mark.unit
     def test_success_rate_with_data(self):
-        p = AbstractPattern(pattern_id="p1", level="task",
-                            pattern_type="X", description="x",
-                            success_count=3, failure_count=1)
+        p = AbstractPattern(
+            pattern_id="p1",
+            level="task",
+            pattern_type="X",
+            description="x",
+            success_count=3,
+            failure_count=1,
+        )
         assert p.success_rate == pytest.approx(0.75)
 
     @pytest.mark.unit
     def test_success_rate_all_failures(self):
-        p = AbstractPattern(pattern_id="p1", level="task",
-                            pattern_type="X", description="x",
-                            success_count=0, failure_count=5)
+        p = AbstractPattern(
+            pattern_id="p1",
+            level="task",
+            pattern_type="X",
+            description="x",
+            success_count=0,
+            failure_count=5,
+        )
         assert p.success_rate == 0.0
 
     @pytest.mark.unit
     def test_avg_reward_no_data(self):
-        p = AbstractPattern(pattern_id="p1", level="task",
-                            pattern_type="X", description="x")
+        p = AbstractPattern(pattern_id="p1", level="task", pattern_type="X", description="x")
         assert p.avg_reward == 0.0
 
     @pytest.mark.unit
     def test_avg_reward_with_data(self):
-        p = AbstractPattern(pattern_id="p1", level="task",
-                            pattern_type="X", description="x",
-                            success_count=2, failure_count=2,
-                            total_reward=4.0)
+        p = AbstractPattern(
+            pattern_id="p1",
+            level="task",
+            pattern_type="X",
+            description="x",
+            success_count=2,
+            failure_count=2,
+            total_reward=4.0,
+        )
         assert p.avg_reward == pytest.approx(1.0)
 
 
 # =============================================================================
 # 2. RoleProfile tests
 # =============================================================================
+
 
 @pytest.mark.skipif(not HAS_TRANSFER, reason="transfer_learning not importable")
 class TestRoleProfile:
@@ -201,8 +233,7 @@ class TestRoleProfile:
 
     @pytest.mark.unit
     def test_success_by_task_type(self):
-        rp = RoleProfile(role="validator",
-                         success_by_task_type={"validation": (5, 6)})
+        rp = RoleProfile(role="validator", success_by_task_type={"validation": (5, 6)})
         succ, total = rp.success_by_task_type["validation"]
         assert succ == 5 and total == 6
 
@@ -211,21 +242,20 @@ class TestRoleProfile:
 # 3. MetaPattern tests
 # =============================================================================
 
+
 @pytest.mark.skipif(not HAS_TRANSFER, reason="transfer_learning not importable")
 class TestMetaPattern:
     """Tests for the MetaPattern dataclass."""
 
     @pytest.mark.unit
     def test_creation_defaults(self):
-        mp = MetaPattern(pattern_id="m1", trigger="3+ failures",
-                         strategy="change approach")
+        mp = MetaPattern(pattern_id="m1", trigger="3+ failures", strategy="change approach")
         assert mp.success_rate == 0.5
         assert mp.applications == 0
 
     @pytest.mark.unit
     def test_application_increment(self):
-        mp = MetaPattern(pattern_id="m1", trigger="t", strategy="s",
-                         applications=3)
+        mp = MetaPattern(pattern_id="m1", trigger="t", strategy="s", applications=3)
         mp.applications += 1
         assert mp.applications == 4
 
@@ -233,6 +263,7 @@ class TestMetaPattern:
 # =============================================================================
 # 4. SemanticEmbedder tests (fallback path)
 # =============================================================================
+
 
 @pytest.mark.skipif(not HAS_TRANSFER, reason="transfer_learning not importable")
 class TestSemanticEmbedder:
@@ -358,6 +389,7 @@ class TestSemanticEmbedder:
 # =============================================================================
 # 5. PatternExtractor tests
 # =============================================================================
+
 
 @pytest.mark.skipif(not HAS_TRANSFER, reason="transfer_learning not importable")
 class TestPatternExtractor:
@@ -493,12 +525,11 @@ class TestPatternExtractor:
     @pytest.mark.unit
     def test_extract_role_by_behavior(self):
         pe = PatternExtractor()
-        assert pe.extract_role("generic_agent",
-                               task_types_handled=["validation"]) == "validator"
-        assert pe.extract_role("generic_agent",
-                               task_types_handled=["analysis"]) == "analyzer"
-        assert pe.extract_role("generic_agent",
-                               task_types_handled=["transformation"]) == "transformer"
+        assert pe.extract_role("generic_agent", task_types_handled=["validation"]) == "validator"
+        assert pe.extract_role("generic_agent", task_types_handled=["analysis"]) == "analyzer"
+        assert (
+            pe.extract_role("generic_agent", task_types_handled=["transformation"]) == "transformer"
+        )
 
     @pytest.mark.unit
     def test_extract_role_general_fallback(self):
@@ -576,6 +607,7 @@ class TestPatternExtractor:
 # 6. TransferableLearningStore tests
 # =============================================================================
 
+
 @pytest.mark.skipif(not HAS_TRANSFER, reason="transfer_learning not importable")
 class TestTransferableLearningStore:
     """Tests for TransferableLearningStore."""
@@ -595,12 +627,17 @@ class TestTransferableLearningStore:
         assert store.meta_patterns == {}
 
     @pytest.mark.unit
-    @pytest.mark.skipif(not os.getenv('ANTHROPIC_API_KEY'), reason="Requires ANTHROPIC_API_KEY for real LLM calls")
+    @pytest.mark.skipif(
+        not os.getenv("ANTHROPIC_API_KEY"), reason="Requires ANTHROPIC_API_KEY for real LLM calls"
+    )
     def test_record_experience_stores_entry(self):
         store = self._store()
         store.record_experience(
-            query="count users", agent="sql_agent",
-            action="SELECT COUNT(*)", reward=1.0, success=True,
+            query="count users",
+            agent="sql_agent",
+            action="SELECT COUNT(*)",
+            reward=1.0,
+            success=True,
         )
         assert len(store.experiences) == 1
         assert store.experiences[0]["query"] == "count users"
@@ -609,8 +646,11 @@ class TestTransferableLearningStore:
     def test_record_experience_creates_task_pattern(self):
         store = self._store()
         store.record_experience(
-            query="count users", agent="sql_agent",
-            action="run", reward=1.0, success=True,
+            query="count users",
+            agent="sql_agent",
+            action="run",
+            reward=1.0,
+            success=True,
         )
         assert "aggregation" in store.task_patterns
         assert store.task_patterns["aggregation"].success_count == 1
@@ -619,8 +659,11 @@ class TestTransferableLearningStore:
     def test_record_experience_creates_error_pattern(self):
         store = self._store()
         store.record_experience(
-            query="count users", agent="sql_agent",
-            action="retry", reward=0.0, success=False,
+            query="count users",
+            agent="sql_agent",
+            action="retry",
+            reward=0.0,
+            success=False,
             error="column 'id' not found",
         )
         assert "COLUMN_NOT_FOUND" in store.error_patterns
@@ -630,8 +673,11 @@ class TestTransferableLearningStore:
     def test_record_experience_creates_role_profile(self):
         store = self._store()
         store.record_experience(
-            query="count users", agent="sql_agent",
-            action="run", reward=1.0, success=True,
+            query="count users",
+            agent="sql_agent",
+            action="run",
+            reward=1.0,
+            success=True,
         )
         assert "sql_generator" in store.role_profiles
 
@@ -640,25 +686,36 @@ class TestTransferableLearningStore:
         store = self._store()
         for _ in range(3):
             store.record_experience(
-                query="count users", agent="sql_agent",
-                action="run", reward=1.0, success=True,
+                query="count users",
+                agent="sql_agent",
+                action="run",
+                reward=1.0,
+                success=True,
             )
         store.record_experience(
-            query="count orders", agent="sql_agent",
-            action="run", reward=0.0, success=False,
+            query="count orders",
+            agent="sql_agent",
+            action="run",
+            reward=0.0,
+            success=False,
         )
         pattern = store.task_patterns["aggregation"]
         assert pattern.success_count == 3
         assert pattern.failure_count == 1
 
     @pytest.mark.unit
-    @pytest.mark.skipif(not os.getenv('ANTHROPIC_API_KEY'), reason="Requires ANTHROPIC_API_KEY for real LLM calls")
+    @pytest.mark.skipif(
+        not os.getenv("ANTHROPIC_API_KEY"), reason="Requires ANTHROPIC_API_KEY for real LLM calls"
+    )
     def test_record_experience_evicts_old(self):
         store = self._store()
         for i in range(1100):
             store.record_experience(
-                query=f"q{i}", agent="a", action="a",
-                reward=0.5, success=True,
+                query=f"q{i}",
+                agent="a",
+                action="a",
+                reward=0.5,
+                success=True,
             )
         assert len(store.experiences) <= 1000
 
@@ -667,8 +724,11 @@ class TestTransferableLearningStore:
         store = self._store()
         for i in range(5):
             store.record_experience(
-                query=f"fail {i}", agent="agent",
-                action="try", reward=0.0, success=False,
+                query=f"fail {i}",
+                agent="agent",
+                action="try",
+                reward=0.0,
+                success=False,
             )
         assert "retry_strategy_change" in store.meta_patterns
         assert store.meta_patterns["retry_strategy_change"].applications >= 1
@@ -677,8 +737,11 @@ class TestTransferableLearningStore:
     def test_meta_pattern_on_low_confidence(self):
         store = self._store()
         store.record_experience(
-            query="uncertain task", agent="agent",
-            action="act", reward=0.5, success=True,
+            query="uncertain task",
+            agent="agent",
+            action="act",
+            reward=0.5,
+            success=True,
             context={"confidence": 0.3},
         )
         assert "low_confidence_gather" in store.meta_patterns
@@ -695,8 +758,11 @@ class TestTransferableLearningStore:
     def test_get_relevant_learnings_with_data(self):
         store = self._store()
         store.record_experience(
-            query="count users", agent="sql_agent",
-            action="SELECT COUNT(*)", reward=1.0, success=True,
+            query="count users",
+            agent="sql_agent",
+            action="SELECT COUNT(*)",
+            reward=1.0,
+            success=True,
         )
         result = store.get_relevant_learnings("count users", agent="sql_agent")
         assert result["task_pattern"] is not None
@@ -715,8 +781,11 @@ class TestTransferableLearningStore:
         # Record enough for the threshold (total >= 2)
         for _ in range(3):
             store.record_experience(
-                query="count items", agent="sql_agent",
-                action="run", reward=1.0, success=True,
+                query="count items",
+                agent="sql_agent",
+                action="run",
+                reward=1.0,
+                success=True,
             )
         best = store.get_best_role_for_task("aggregation")
         assert best == "sql_generator"
@@ -725,8 +794,11 @@ class TestTransferableLearningStore:
     def test_format_context_for_agent(self):
         store = self._store()
         store.record_experience(
-            query="count users", agent="sql_agent",
-            action="run", reward=1.0, success=True,
+            query="count users",
+            agent="sql_agent",
+            action="run",
+            reward=1.0,
+            success=True,
         )
         context = store.format_context_for_agent("count users", agent="sql_agent")
         assert "Transferable Learnings" in context
@@ -754,7 +826,9 @@ class TestTransferableLearningStore:
         for i in range(110):
             store.record_session(
                 task_description=f"task {i}",
-                agents_used=["a"], total_time=1.0, success=True,
+                agents_used=["a"],
+                total_time=1.0,
+                success=True,
             )
         assert len(store.sessions) <= 100
 
@@ -762,12 +836,17 @@ class TestTransferableLearningStore:
     def test_save_and_load(self):
         store = self._store()
         store.record_experience(
-            query="count users", agent="sql_agent",
-            action="run", reward=1.0, success=True,
+            query="count users",
+            agent="sql_agent",
+            action="run",
+            reward=1.0,
+            success=True,
         )
         store.record_session(
             task_description="test task",
-            agents_used=["sql_agent"], total_time=2.0, success=True,
+            agents_used=["sql_agent"],
+            total_time=2.0,
+            success=True,
         )
 
         with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as f:
@@ -797,13 +876,19 @@ class TestTransferableLearningStore:
         # Build up enough data to trigger strength/weakness detection (need >= 3)
         for _ in range(4):
             store.record_experience(
-                query="count items", agent="sql_agent",
-                action="run", reward=1.0, success=True,
+                query="count items",
+                agent="sql_agent",
+                action="run",
+                reward=1.0,
+                success=True,
             )
         for _ in range(4):
             store.record_experience(
-                query="transform data", agent="sql_agent",
-                action="run", reward=0.0, success=False,
+                query="transform data",
+                agent="sql_agent",
+                action="run",
+                reward=0.0,
+                success=False,
             )
         profile = store.role_profiles["sql_generator"]
         assert "aggregation" in profile.strengths
@@ -814,8 +899,11 @@ class TestTransferableLearningStore:
         store = self._store()
         for i in range(30):
             store.record_experience(
-                query="query", agent="agent", action=f"action_{i}",
-                reward=1.0, success=True,
+                query="query",
+                agent="agent",
+                action=f"action_{i}",
+                reward=1.0,
+                success=True,
                 error="column 'x' not found",
             )
         pattern = store.error_patterns["COLUMN_NOT_FOUND"]
@@ -825,6 +913,7 @@ class TestTransferableLearningStore:
 # =============================================================================
 # 7. LearningHealthMonitor tests
 # =============================================================================
+
 
 @pytest.mark.skipif(not HAS_HEALTH, reason="health_budget not importable")
 class TestLearningHealthMonitor:
@@ -843,8 +932,10 @@ class TestLearningHealthMonitor:
     def test_record_episode_increments_count(self):
         m = self._monitor()
         m.record_episode(
-            success=True, goal="goal1",
-            architect_decisions=[True], auditor_decisions=[True],
+            success=True,
+            goal="goal1",
+            architect_decisions=[True],
+            auditor_decisions=[True],
             value_updates=[("k", 0.5, 0.6)],
         )
         assert m.metrics.episode_count == 1
@@ -853,8 +944,10 @@ class TestLearningHealthMonitor:
     def test_record_episode_tracks_success(self):
         m = self._monitor()
         m.record_episode(
-            success=True, goal="g",
-            architect_decisions=[True], auditor_decisions=[],
+            success=True,
+            goal="g",
+            architect_decisions=[True],
+            auditor_decisions=[],
             value_updates=[],
         )
         assert m.metrics.success_count == 1
@@ -933,8 +1026,10 @@ class TestLearningHealthMonitor:
     def test_get_health_summary(self):
         m = self._monitor()
         m.record_episode(
-            success=True, goal="g",
-            architect_decisions=[True], auditor_decisions=[],
+            success=True,
+            goal="g",
+            architect_decisions=[True],
+            auditor_decisions=[],
             value_updates=[("k", 0.5, 0.6)],
         )
         summary = m.get_health_summary()
@@ -952,7 +1047,8 @@ class TestLearningHealthMonitor:
         m.metrics.episode_count = 25
         m.metrics.recent_successes = [True] * 55
         alerts = m.record_episode(
-            success=True, goal="g",
+            success=True,
+            goal="g",
             architect_decisions=[False, False],  # low approval
             auditor_decisions=[],
             value_updates=[],
@@ -964,8 +1060,10 @@ class TestLearningHealthMonitor:
     def test_record_episode_tracks_value_changes(self):
         m = self._monitor()
         m.record_episode(
-            success=True, goal="g",
-            architect_decisions=[True], auditor_decisions=[],
+            success=True,
+            goal="g",
+            architect_decisions=[True],
+            auditor_decisions=[],
             value_updates=[("k1", 0.5, 0.7), ("k2", 0.3, 0.4)],
         )
         assert len(m.metrics.value_changes) == 2
@@ -976,13 +1074,17 @@ class TestLearningHealthMonitor:
     def test_record_episode_goals_seen(self):
         m = self._monitor()
         m.record_episode(
-            success=True, goal="goal_a",
-            architect_decisions=[True], auditor_decisions=[],
+            success=True,
+            goal="goal_a",
+            architect_decisions=[True],
+            auditor_decisions=[],
             value_updates=[],
         )
         m.record_episode(
-            success=True, goal="goal_b",
-            architect_decisions=[True], auditor_decisions=[],
+            success=True,
+            goal="goal_b",
+            architect_decisions=[True],
+            auditor_decisions=[],
             value_updates=[],
         )
         assert "goal_a" in m.metrics.goals_seen
@@ -992,6 +1094,7 @@ class TestLearningHealthMonitor:
 # =============================================================================
 # 8. DynamicBudgetManager tests
 # =============================================================================
+
 
 @pytest.mark.skipif(not HAS_HEALTH, reason="health_budget not importable")
 class TestDynamicBudgetManager:
@@ -1152,6 +1255,7 @@ class TestDynamicBudgetManager:
 # 9. ReasoningCreditAssigner tests
 # =============================================================================
 
+
 @pytest.mark.skipif(not HAS_CREDIT, reason="reasoning_credit not importable")
 class TestReasoningCreditAssigner:
     """Tests for ReasoningCreditAssigner."""
@@ -1194,7 +1298,8 @@ class TestReasoningCreditAssigner:
     def test_extract_evidence_with_tool_calls(self):
         a = self._assigner()
         vr = _make_validation_result(
-            "agent1", reasoning='found "evidence1" in data',
+            "agent1",
+            reasoning='found "evidence1" in data',
             tool_calls=[{"tool": "sql_query", "result": "42"}],
         )
         evidence = a._extract_evidence(vr)
@@ -1205,7 +1310,8 @@ class TestReasoningCreditAssigner:
     def test_extract_evidence_no_tool_result(self):
         a = self._assigner()
         vr = _make_validation_result(
-            "agent1", reasoning="plain reasoning",
+            "agent1",
+            reasoning="plain reasoning",
             tool_calls=[{"tool": "search"}],  # No 'result' key
         )
         evidence = a._extract_evidence(vr)
@@ -1224,7 +1330,9 @@ class TestReasoningCreditAssigner:
         a = self._assigner()
         reasoning = "This is a detailed analysis. " * 10  # ~300 chars
         vr = _make_validation_result(
-            "a", reasoning=reasoning, confidence=0.8,
+            "a",
+            reasoning=reasoning,
+            confidence=0.8,
             tool_calls=[{"tool": "check"}],
         )
         q = a._assess_reasoning_quality(vr)
@@ -1243,7 +1351,9 @@ class TestReasoningCreditAssigner:
         a = self._assigner()
         reasoning = "Step 1: analyzed data. Step 2: verified results. 3 checks passed."
         vr = _make_validation_result(
-            "a", reasoning=reasoning, confidence=0.75,
+            "a",
+            reasoning=reasoning,
+            confidence=0.75,
             tool_calls=[{"tool": "verify"}],
         )
         q = a._assess_reasoning_quality(vr)
@@ -1263,12 +1373,16 @@ class TestReasoningCreditAssigner:
     def test_analyze_single_agent_architect_approve_correct(self):
         a = self._assigner()
         vr = _make_validation_result(
-            "arch1", should_proceed=True, confidence=0.8,
+            "arch1",
+            should_proceed=True,
+            confidence=0.8,
             reasoning="good plan",
         )
         contrib = a._analyze_single_agent(
-            result=vr, episode_success=True,
-            is_architect=True, actor_succeeded=True,
+            result=vr,
+            episode_success=True,
+            is_architect=True,
+            actor_succeeded=True,
             step_position=0.5,
         )
         assert contrib.agent_name == "arch1"
@@ -1280,12 +1394,16 @@ class TestReasoningCreditAssigner:
     def test_analyze_single_agent_architect_approve_wrong(self):
         a = self._assigner()
         vr = _make_validation_result(
-            "arch1", should_proceed=True, confidence=0.8,
+            "arch1",
+            should_proceed=True,
+            confidence=0.8,
             reasoning="plan",
         )
         contrib = a._analyze_single_agent(
-            result=vr, episode_success=False,
-            is_architect=True, actor_succeeded=False,
+            result=vr,
+            episode_success=False,
+            is_architect=True,
+            actor_succeeded=False,
             step_position=0.5,
         )
         assert contrib.decision == "approve"
@@ -1296,12 +1414,16 @@ class TestReasoningCreditAssigner:
     def test_analyze_single_agent_architect_reject(self):
         a = self._assigner()
         vr = _make_validation_result(
-            "arch1", should_proceed=False, confidence=0.9,
+            "arch1",
+            should_proceed=False,
+            confidence=0.9,
             reasoning="bad",
         )
         contrib = a._analyze_single_agent(
-            result=vr, episode_success=False,
-            is_architect=True, actor_succeeded=False,
+            result=vr,
+            episode_success=False,
+            is_architect=True,
+            actor_succeeded=False,
             step_position=0.0,
         )
         assert contrib.decision == "reject"
@@ -1312,12 +1434,16 @@ class TestReasoningCreditAssigner:
     def test_analyze_single_agent_auditor_approve_correct(self):
         a = self._assigner()
         vr = _make_validation_result(
-            "aud1", is_valid=True, confidence=0.8,
+            "aud1",
+            is_valid=True,
+            confidence=0.8,
             reasoning="valid output",
         )
         contrib = a._analyze_single_agent(
-            result=vr, episode_success=True,
-            is_architect=False, actor_succeeded=True,
+            result=vr,
+            episode_success=True,
+            is_architect=False,
+            actor_succeeded=True,
             step_position=0.8,
         )
         assert contrib.decision == "approve"
@@ -1328,12 +1454,16 @@ class TestReasoningCreditAssigner:
     def test_analyze_single_agent_auditor_reject_wrong(self):
         a = self._assigner()
         vr = _make_validation_result(
-            "aud1", is_valid=False, confidence=0.7,
+            "aud1",
+            is_valid=False,
+            confidence=0.7,
             reasoning="invalid",
         )
         contrib = a._analyze_single_agent(
-            result=vr, episode_success=True,
-            is_architect=False, actor_succeeded=True,
+            result=vr,
+            episode_success=True,
+            is_architect=False,
+            actor_succeeded=True,
             step_position=0.5,
         )
         assert contrib.decision == "reject"
@@ -1345,13 +1475,17 @@ class TestReasoningCreditAssigner:
         a = self._assigner()
         vr = _make_validation_result("a", confidence=0.8, reasoning="r")
         early = a._analyze_single_agent(
-            result=vr, episode_success=True,
-            is_architect=True, actor_succeeded=True,
+            result=vr,
+            episode_success=True,
+            is_architect=True,
+            actor_succeeded=True,
             step_position=0.0,
         )
         late = a._analyze_single_agent(
-            result=vr, episode_success=True,
-            is_architect=True, actor_succeeded=True,
+            result=vr,
+            episode_success=True,
+            is_architect=True,
+            actor_succeeded=True,
             step_position=1.0,
         )
         assert late.temporal_weight > early.temporal_weight
@@ -1359,10 +1493,10 @@ class TestReasoningCreditAssigner:
     @pytest.mark.unit
     def test_analyze_contributions_full(self):
         a = self._assigner()
-        arch = _make_validation_result("arch", should_proceed=True,
-                                       confidence=0.8, reasoning="plan")
-        aud = _make_validation_result("aud", is_valid=True,
-                                      confidence=0.7, reasoning="looks good")
+        arch = _make_validation_result(
+            "arch", should_proceed=True, confidence=0.8, reasoning="plan"
+        )
+        aud = _make_validation_result("aud", is_valid=True, confidence=0.7, reasoning="looks good")
         contributions = a.analyze_contributions(
             success=True,
             architect_results=[arch],
@@ -1390,10 +1524,12 @@ class TestReasoningCreditAssigner:
     @pytest.mark.unit
     def test_analyze_contributions_multiple_agents(self):
         a = self._assigner()
-        arch1 = _make_validation_result("arch1", should_proceed=True,
-                                        confidence=0.8, reasoning="ok")
-        arch2 = _make_validation_result("arch2", should_proceed=False,
-                                        confidence=0.6, reasoning="no")
+        arch1 = _make_validation_result(
+            "arch1", should_proceed=True, confidence=0.8, reasoning="ok"
+        )
+        arch2 = _make_validation_result(
+            "arch2", should_proceed=False, confidence=0.6, reasoning="no"
+        )
         contributions = a.analyze_contributions(
             success=True,
             architect_results=[arch1, arch2],
@@ -1408,11 +1544,12 @@ class TestReasoningCreditAssigner:
     @pytest.mark.unit
     def test_counterfactual_impact_always_positive(self):
         a = self._assigner()
-        vr = _make_validation_result("a", should_proceed=True,
-                                     confidence=0.9, reasoning="r")
+        vr = _make_validation_result("a", should_proceed=True, confidence=0.9, reasoning="r")
         contrib = a._analyze_single_agent(
-            result=vr, episode_success=False,
-            is_architect=True, actor_succeeded=False,
+            result=vr,
+            episode_success=False,
+            is_architect=True,
+            actor_succeeded=False,
             step_position=0.5,
         )
         assert contrib.counterfactual_impact >= 0

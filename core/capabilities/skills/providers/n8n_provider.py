@@ -7,18 +7,12 @@ stays in n8n; we only list workflows and run by id. KISS: one provider, same
 env as CLI (N8N_BASE_URL, N8N_API_KEY).
 """
 
+import logging
 import os
 import time
-import logging
 from typing import Any, Dict, List
 
-from .base import (
-    SkillProvider,
-    SkillCategory,
-    ProviderCapability,
-    ProviderResult,
-    ContributedSkill,
-)
+from .base import ContributedSkill, ProviderCapability, ProviderResult, SkillCategory, SkillProvider
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +44,9 @@ async def _n8n_get_workflows(base_url: str) -> List[Dict[str, Any]]:
         return []
 
 
-async def _n8n_run_workflow(base_url: str, workflow_id: str, payload: Dict[str, Any] = None) -> Dict[str, Any]:
+async def _n8n_run_workflow(
+    base_url: str, workflow_id: str, payload: Dict[str, Any] = None
+) -> Dict[str, Any]:
     """Run workflow by id. Returns n8n response or raises."""
     try:
         import aiohttp
@@ -58,7 +54,9 @@ async def _n8n_run_workflow(base_url: str, workflow_id: str, payload: Dict[str, 
         raise RuntimeError("aiohttp required for n8n provider")
     url = f"{base_url.rstrip('/')}/api/v1/workflows/{workflow_id}/run"
     async with aiohttp.ClientSession() as session:
-        async with session.post(url, headers=_n8n_headers(), json=payload or {}, timeout=60) as resp:
+        async with session.post(
+            url, headers=_n8n_headers(), json=payload or {}, timeout=60
+        ) as resp:
             if resp.status != 200:
                 text = await resp.text()
                 raise RuntimeError(f"n8n run failed {resp.status}: {text}")

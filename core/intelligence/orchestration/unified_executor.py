@@ -1,4 +1,5 @@
 from typing import Any
+
 """
 ChatExecutor - Native LLM Tool-Calling Executor
 =================================================================================
@@ -44,29 +45,28 @@ Streaming Response + Tool Executions + A2UI Sections
 
 import asyncio
 import logging
-from typing import Dict, Any, Optional, Callable, List, AsyncGenerator, Tuple, Union
 from datetime import datetime
-
-from .tool_generator import UnifiedToolGenerator
+from typing import Any, AsyncGenerator, Callable, Dict, List, Optional, Tuple, Union
 
 # Import types and providers from extracted llm_providers package
 from .llm_providers import (
-    ToolResult,
-    LLMExecutionResult,
-    StreamEvent,
-    LLMResponse,
-    ToolUseBlock,
-    TextBlock,
-    LLMProvider,
     AnthropicProvider,
+    GoogleProvider,
+    GroqProvider,
+    JottyClaudeProviderAdapter,
+    LLMExecutionResult,
+    LLMProvider,
+    LLMResponse,
     OpenAIProvider,
     OpenRouterProvider,
-    GroqProvider,
-    GoogleProvider,
-    JottyClaudeProviderAdapter,
-    create_provider,
+    StreamEvent,
+    TextBlock,
+    ToolResult,
+    ToolUseBlock,
     auto_detect_provider,
+    create_provider,
 )
+from .tool_generator import UnifiedToolGenerator
 
 logger = logging.getLogger(__name__)
 
@@ -75,23 +75,32 @@ logger = logging.getLogger(__name__)
 # DSPy Signatures (for JottyClaudeProvider fallback)
 # =============================================================================
 
+
 def _get_dspy_signatures() -> Tuple:
     """Lazy import DSPy signatures to avoid import errors when DSPy not configured."""
     import dspy
 
     class TaskAnalysisSignature(dspy.Signature):
         """Analyze task requirements. You have web search capability."""
+
         task: str = dspy.InputField(desc="User's task/request")
-        is_web_search: bool = dspy.OutputField(desc="TRUE for weather/news/prices/current events. FALSE for concepts/coding.")
+        is_web_search: bool = dspy.OutputField(
+            desc="TRUE for weather/news/prices/current events. FALSE for concepts/coding."
+        )
         is_file_read: bool = dspy.OutputField(desc="True if task mentions a file path.")
-        output_format: str = dspy.OutputField(desc="'text', 'docx', 'pdf', 'slides', 'telegram', 'justjot'")
+        output_format: str = dspy.OutputField(
+            desc="'text', 'docx', 'pdf', 'slides', 'telegram', 'justjot'"
+        )
         output_path_hint: str = dspy.OutputField(desc="Suggested filename or 'none'")
         reasoning: str = dspy.OutputField(desc="Brief explanation")
 
     class ContentGenerationSignature(dspy.Signature):
         """Generate content using provided context."""
+
         task: str = dspy.InputField(desc="User's request")
-        context: str = dspy.InputField(desc="Data from web search/file. Use this as primary source.")
+        context: str = dspy.InputField(
+            desc="Data from web search/file. Use this as primary source."
+        )
         output_format: str = dspy.InputField(desc="Desired format")
         content: str = dspy.OutputField(desc="Generated content")
 
@@ -137,7 +146,7 @@ def get_output_format_tools() -> Dict[str, Optional[str]]:
         for section_type in schema_registry.list_sections():
             # Convert section-type to format name (kebab-case to simple name)
             # e.g., "kanban-board" -> "kanban", "data-table" -> "table"
-            format_name = section_type.replace('-board', '').replace('-', '_')
+            format_name = section_type.replace("-board", "").replace("-", "_")
 
             # Also add the original section type as format
             tool_name = f"return_{section_type.replace('-', '_')}"
@@ -153,14 +162,16 @@ def get_output_format_tools() -> Dict[str, Optional[str]]:
     except Exception as e:
         logger.warning(f"Failed to load section types from registry: {e}")
         # Fallback to hardcoded visualization tools
-        tools.update({
-            "kanban": "return_kanban_board",
-            "chart": "return_chart",
-            "mermaid": "return_mermaid",
-            "table": "return_data_table",
-            "image": "return_image",
-            "file_download": "return_file_download",
-        })
+        tools.update(
+            {
+                "kanban": "return_kanban_board",
+                "chart": "return_chart",
+                "mermaid": "return_mermaid",
+                "table": "return_data_table",
+                "image": "return_image",
+                "file_download": "return_file_download",
+            }
+        )
 
     return tools
 
@@ -232,11 +243,10 @@ UNIFIED_SYSTEM_PROMPT = """You are Jotty, a world-class AI assistant with access
 # All are re-imported at the top of this file for backward compatibility.
 
 
-
-
 # =============================================================================
 # Tool-Calling Executor
 # =============================================================================
+
 
 class ChatExecutor:
     """
@@ -259,7 +269,18 @@ class ChatExecutor:
         result = await executor.execute("Research AI trends and create a presentation")
     """
 
-    def __init__(self, provider: Optional[str] = None, model: Optional[str] = None, api_key: Optional[str] = None, status_callback: Optional[Callable[[str, str], None]] = None, stream_callback: Optional[Callable[[str], None]] = None, enabled_tools: Optional[List[str]] = None, output_format: str = 'auto', max_steps: int = 10, tool_timeout: float = 30.0) -> None:
+    def __init__(
+        self,
+        provider: Optional[str] = None,
+        model: Optional[str] = None,
+        api_key: Optional[str] = None,
+        status_callback: Optional[Callable[[str, str], None]] = None,
+        stream_callback: Optional[Callable[[str], None]] = None,
+        enabled_tools: Optional[List[str]] = None,
+        output_format: str = "auto",
+        max_steps: int = 10,
+        tool_timeout: float = 30.0,
+    ) -> None:
         """
         Initialize unified executor.
 
@@ -318,7 +339,6 @@ The user has requested PDF output. You MUST:
 1. Generate comprehensive content first
 2. ALWAYS call the `save_pdf` tool at the end with the content
 3. Do not skip the save_pdf tool - the user explicitly requested PDF format""",
-
             "save_docx": """
 
 ## IMPORTANT: Output Format Requirement
@@ -326,7 +346,6 @@ The user has requested Word document output. You MUST:
 1. Generate comprehensive content first
 2. ALWAYS call the `save_docx` tool at the end with the content
 3. Do not skip the save_docx tool - the user explicitly requested DOCX format""",
-
             "save_slides": """
 
 ## IMPORTANT: Output Format Requirement
@@ -334,7 +353,6 @@ The user has requested a PowerPoint presentation. You MUST:
 1. Organize content into clear slides with titles and bullet points
 2. ALWAYS call the `save_slides` tool with structured slide data
 3. Do not skip the save_slides tool - the user explicitly requested presentation format""",
-
             "send_telegram": """
 
 ## IMPORTANT: Output Format Requirement
@@ -342,7 +360,6 @@ The user has requested Telegram delivery. You MUST:
 1. Generate a concise message (max 4000 characters)
 2. ALWAYS call the `send_telegram` tool at the end
 3. Do not skip the send_telegram tool - the user explicitly requested Telegram delivery""",
-
             "return_kanban": """
 
 ## IMPORTANT: Output Format Requirement
@@ -350,7 +367,6 @@ The user has requested Kanban board visualization. You MUST:
 1. Organize content into columns and task items
 2. ALWAYS call the `return_kanban` tool with structured kanban data
 3. Do not use plain text - use the kanban board format""",
-
             "return_chart": """
 
 ## IMPORTANT: Output Format Requirement
@@ -358,7 +374,6 @@ The user has requested Chart visualization. You MUST:
 1. Organize data into chart-compatible format
 2. ALWAYS call the `return_chart` tool with chart data
 3. Do not use plain text - use the chart format""",
-
             "return_mermaid": """
 
 ## IMPORTANT: Output Format Requirement
@@ -366,7 +381,6 @@ The user has requested a diagram. You MUST:
 1. Create content in Mermaid diagram syntax
 2. ALWAYS call the `return_mermaid` tool with the diagram
 3. Do not use plain text - use the diagram format""",
-
             "return_data_table": """
 
 ## IMPORTANT: Output Format Requirement
@@ -391,11 +405,12 @@ The user has requested {section_name} visualization format. You MUST:
 
         return base_prompt + (instruction or "")
 
-    def _status(self, stage: str, detail: str = '') -> Any:
+    def _status(self, stage: str, detail: str = "") -> Any:
         """Report status update."""
         if self.status_callback:
             try:
                 import inspect
+
                 result = self.status_callback(stage, detail)
                 if inspect.iscoroutine(result):
                     try:
@@ -423,12 +438,32 @@ The user has requested {section_name} visualization format. You MUST:
 
         # Keywords that ALWAYS need web search
         web_search_keywords = [
-            'weather', 'temperature', 'forecast',
-            'news', 'headlines', 'latest', 'recent', 'today', 'current',
-            'stock price', 'market', 'crypto', 'bitcoin', 'price of',
-            'search for', 'search the web', 'web search', 'look up', 'find out',
-            'what is happening', 'what happened', 'score', 'results',
-            'trending', 'update', 'live',
+            "weather",
+            "temperature",
+            "forecast",
+            "news",
+            "headlines",
+            "latest",
+            "recent",
+            "today",
+            "current",
+            "stock price",
+            "market",
+            "crypto",
+            "bitcoin",
+            "price of",
+            "search for",
+            "search the web",
+            "web search",
+            "look up",
+            "find out",
+            "what is happening",
+            "what happened",
+            "score",
+            "results",
+            "trending",
+            "update",
+            "live",
         ]
 
         for keyword in web_search_keywords:
@@ -439,21 +474,20 @@ The user has requested {section_name} visualization format. You MUST:
     def _extract_content_from_error(self, error_msg: str) -> Optional[str]:
         """Try to extract usable content from a DSPy parsing error."""
         import re
+
         # DSPy errors often contain the raw LLM response which has good content
         # Pattern: "LM Response: {...content...}"
-        match = re.search(r'LM Response:\s*\{?\s*(.+?)\s*\}?\s*\n\nExpected', error_msg, re.DOTALL)
+        match = re.search(r"LM Response:\s*\{?\s*(.+?)\s*\}?\s*\n\nExpected", error_msg, re.DOTALL)
         if match:
             content = match.group(1).strip()
             # Clean up escape sequences
-            content = content.replace('\\n', '\n').replace('\\"', '"')
+            content = content.replace("\\n", "\n").replace('\\"', '"')
             if len(content) > 50:  # Only use if substantial
                 return content
         return None
 
     async def _execute_dspy(
-        self,
-        task: str,
-        history: Optional[List[Dict[str, Any]]] = None
+        self, task: str, history: Optional[List[Dict[str, Any]]] = None
     ) -> LLMExecutionResult:
         """
         Execute task using DSPy signatures (for JottyClaudeProvider).
@@ -462,6 +496,7 @@ The user has requested {section_name} visualization format. You MUST:
         Uses DSPy's ChainOfThought for task analysis and content generation.
         """
         import dspy
+
         TaskAnalysisSignature, ContentGenerationSignature = _get_dspy_signatures()
 
         steps = []
@@ -471,7 +506,9 @@ The user has requested {section_name} visualization format. You MUST:
         try:
             # Step 1: Keyword-based detection FIRST (override LLM decision)
             force_web_search = self._detect_web_search_needed(task)
-            logger.info(f"Keyword detection: force_web_search={force_web_search} for task: {task[:50]}")
+            logger.info(
+                f"Keyword detection: force_web_search={force_web_search} for task: {task[:50]}"
+            )
 
             # Step 2: Analyze task using DSPy (for output format, etc.)
             self._status("Analyzing", "understanding task requirements")
@@ -494,13 +531,17 @@ The user has requested {section_name} visualization format. You MUST:
 
             # Use keyword detection OR LLM decision (keyword takes priority)
             if analysis:
-                is_web_search = force_web_search or bool(getattr(analysis, 'is_web_search', False))
-                is_file_read = bool(getattr(analysis, 'is_file_read', False)) if not force_web_search else False
-                output_format = str(getattr(analysis, 'output_format', 'text')).lower().strip()
+                is_web_search = force_web_search or bool(getattr(analysis, "is_web_search", False))
+                is_file_read = (
+                    bool(getattr(analysis, "is_file_read", False))
+                    if not force_web_search
+                    else False
+                )
+                output_format = str(getattr(analysis, "output_format", "text")).lower().strip()
             else:
                 is_web_search = force_web_search
                 is_file_read = False
-                output_format = 'markdown'
+                output_format = "markdown"
 
             self._status("Processing", "preparing response")
 
@@ -511,11 +552,15 @@ The user has requested {section_name} visualization format. You MUST:
                 self._status("Searching", "gathering external information")
                 steps.append("web_search")
                 context = await self._do_web_search_dspy(task)
-                tool_results.append(ToolResult(
-                    tool_name="web_search",
-                    success=context != "Web search unavailable",
-                    result={"context": context[:500] + "..." if len(context) > 500 else context}
-                ))
+                tool_results.append(
+                    ToolResult(
+                        tool_name="web_search",
+                        success=context != "Web search unavailable",
+                        result={
+                            "context": context[:500] + "..." if len(context) > 500 else context
+                        },
+                    )
+                )
 
             elif is_file_read:
                 self._status("Reading", "loading file content")
@@ -558,7 +603,7 @@ The user has requested {section_name} visualization format. You MUST:
                     content=content,
                     tool_results=tool_results,
                     output_format=output_format,
-                    steps_taken=steps
+                    steps_taken=steps,
                 )
             else:
                 # Friendly error message, no tracebacks
@@ -568,7 +613,7 @@ The user has requested {section_name} visualization format. You MUST:
                     content="I encountered an issue generating the response. Please try again.",
                     error="Generation failed after retries",
                     steps_taken=steps,
-                    tool_results=tool_results
+                    tool_results=tool_results,
                 )
 
         except Exception as e:
@@ -579,7 +624,7 @@ The user has requested {section_name} visualization format. You MUST:
                 content="I encountered an unexpected issue. Please try again.",
                 error="Execution error",
                 steps_taken=steps,
-                tool_results=tool_results
+                tool_results=tool_results,
             )
 
     def _extract_search_query(self, task: str) -> str:
@@ -588,13 +633,20 @@ The user has requested {section_name} visualization format. You MUST:
 
         # If task contains "Current request:", extract just that
         if "Current request:" in task:
-            match = re.search(r'Current request:\s*(.+?)(?:\n|$)', task, re.DOTALL)
+            match = re.search(r"Current request:\s*(.+?)(?:\n|$)", task, re.DOTALL)
             if match:
                 query = match.group(1).strip()
                 # Check if we need context from conversation (e.g., "next week" without location)
-                if any(word in query.lower() for word in ['next', 'more', 'also', 'it', 'that', 'there']):
+                if any(
+                    word in query.lower()
+                    for word in ["next", "more", "also", "it", "that", "there"]
+                ):
                     # Extract location/topic from conversation context
-                    context_match = re.search(r'(?:weather|forecast|temperature).*?(?:in|for|at)\s+([A-Z][a-zA-Z\s]+?)(?:\.|,|\n|$)', task, re.IGNORECASE)
+                    context_match = re.search(
+                        r"(?:weather|forecast|temperature).*?(?:in|for|at)\s+([A-Z][a-zA-Z\s]+?)(?:\.|,|\n|$)",
+                        task,
+                        re.IGNORECASE,
+                    )
                     if context_match:
                         location = context_match.group(1).strip()
                         query = f"{query} {location}"
@@ -605,7 +657,7 @@ The user has requested {section_name} visualization format. You MUST:
         prefixes = ["search for", "find", "look up", "what is", "what's", "tell me about"]
         for prefix in prefixes:
             if query.lower().startswith(prefix):
-                query = query[len(prefix):].strip()
+                query = query[len(prefix) :].strip()
                 break
 
         return query[:200]
@@ -614,34 +666,36 @@ The user has requested {section_name} visualization format. You MUST:
         """Execute web search for DSPy execution path."""
         try:
             from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
+
             registry = get_skills_registry()
             registry.init()
 
-            skill = registry.get_skill('web-search')
+            skill = registry.get_skill("web-search")
             if not skill:
                 return "Web search skill not found"
 
-            search_tool = skill.tools.get('search_web_tool')
+            search_tool = skill.tools.get("search_web_tool")
             if not search_tool:
                 return "Search tool not found"
 
             # Extract search query intelligently
             query = self._extract_search_query(task)
             logger.info(f"Web search query: {query}")
-            result = search_tool({'query': query, 'max_results': 10})
+            result = search_tool({"query": query, "max_results": 10})
 
-            if result.get('success'):
-                results = result.get('results', [])
+            if result.get("success"):
+                results = result.get("results", [])
                 if not results:
                     return "No search results found"
 
                 from datetime import datetime
-                now = datetime.now().strftime('%Y-%m-%d %H:%M')
+
+                now = datetime.now().strftime("%Y-%m-%d %H:%M")
                 context_parts = [f"=== WEB SEARCH RESULTS (Retrieved: {now}) ===\n"]
                 for i, r in enumerate(results[:8], 1):
-                    title = r.get('title', 'Untitled')
-                    snippet = r.get('snippet', '')
-                    url = r.get('url', '')
+                    title = r.get("title", "Untitled")
+                    snippet = r.get("snippet", "")
+                    url = r.get("url", "")
                     context_parts.append(f"[{i}] {title}\n{snippet}\nSource: {url}\n")
                 context_parts.append("=== END OF SEARCH RESULTS ===")
                 return "\n".join(context_parts)
@@ -653,21 +707,20 @@ The user has requested {section_name} visualization format. You MUST:
     async def _do_file_read_dspy(self, task: str) -> str:
         """Read file content for DSPy execution path."""
         import re
+
         path_match = re.search(r'[\'"]?(/[^\s\'"]+|[A-Za-z]:\\[^\s\'"]+)[\'"]?', task)
         if not path_match:
             return "No file path found in task"
 
         file_path = path_match.group(1)
         try:
-            with open(file_path, 'r') as f:
+            with open(file_path, "r") as f:
                 return f.read()
         except Exception as e:
             return f"File read error: {e}"
 
     async def execute(
-        self,
-        task: str,
-        history: Optional[List[Dict[str, Any]]] = None
+        self, task: str, history: Optional[List[Dict[str, Any]]] = None
     ) -> LLMExecutionResult:
         """
         Execute task using unified tool-calling approach.
@@ -680,7 +733,7 @@ The user has requested {section_name} visualization format. You MUST:
             LLMExecutionResult with content, tool results, and sections
         """
         # If using JottyClaudeProvider (DSPy-based), use DSPy execution path
-        if self.provider_name == 'jotty-claude':
+        if self.provider_name == "jotty-claude":
             return await self._execute_dspy(task, history)
         steps = []
         tool_results = []
@@ -695,7 +748,7 @@ The user has requested {section_name} visualization format. You MUST:
 
             # Filter tools if enabled_tools is set
             if self.enabled_tools:
-                tools = [t for t in tools if t['name'] in self.enabled_tools]
+                tools = [t for t in tools if t["name"] in self.enabled_tools]
 
             logger.info(f"Loaded {len(tools)} tools")
             steps.append("prepare_tools")
@@ -704,8 +757,8 @@ The user has requested {section_name} visualization format. You MUST:
             messages = []
             if history:
                 for msg in history:
-                    role = msg.get('role', 'user')
-                    content = msg.get('content', '')
+                    role = msg.get("role", "user")
+                    content = msg.get("content", "")
                     if content:
                         messages.append({"role": role, "content": content})
 
@@ -723,14 +776,12 @@ The user has requested {section_name} visualization format. You MUST:
                         messages=messages,
                         tools=tools,
                         system=self._build_system_prompt(),
-                        stream_callback=self._stream
+                        stream_callback=self._stream,
                     )
                     full_content += content_chunk
                 else:
                     response = await self.llm_provider.call(
-                        messages=messages,
-                        tools=tools,
-                        system=self._build_system_prompt()
+                        messages=messages, tools=tools, system=self._build_system_prompt()
                     )
                     # Extract text content
                     for block in response.content:
@@ -745,15 +796,11 @@ The user has requested {section_name} visualization format. You MUST:
                 elif response.stop_reason == "tool_use":
                     # Execute tool calls
                     tool_use_blocks = [
-                        block for block in response.content
-                        if isinstance(block, ToolUseBlock)
+                        block for block in response.content if isinstance(block, ToolUseBlock)
                     ]
 
                     # Add assistant message with tool uses
-                    messages.append({
-                        "role": "assistant",
-                        "content": response.content
-                    })
+                    messages.append({"role": "assistant", "content": response.content})
 
                     # Execute each tool and collect results
                     tool_results_for_message = []
@@ -776,24 +823,21 @@ The user has requested {section_name} visualization format. You MUST:
 
                         # Check for output paths
                         if result.success and result.result:
-                            if 'file_path' in result.result:
-                                output_path = result.result['file_path']
-                            elif 'output_path' in result.result:
-                                output_path = result.result['output_path']
+                            if "file_path" in result.result:
+                                output_path = result.result["file_path"]
+                            elif "output_path" in result.result:
+                                output_path = result.result["output_path"]
 
                         # Prepare tool result for next message
                         tool_results_for_message.append(
                             self.llm_provider.format_tool_result(
                                 tool_use.id,
-                                str(result.result) if result.success else f"Error: {result.error}"
+                                str(result.result) if result.success else f"Error: {result.error}",
                             )
                         )
 
                     # Add tool results message
-                    messages.append({
-                        "role": "user",
-                        "content": tool_results_for_message
-                    })
+                    messages.append({"role": "user", "content": tool_results_for_message})
 
                 else:
                     # Unknown stop reason
@@ -817,7 +861,7 @@ The user has requested {section_name} visualization format. You MUST:
                 output_path=output_path,
                 output_format=output_format,
                 steps_taken=steps,
-                usage=response.usage if response else None
+                usage=response.usage if response else None,
             )
 
         except Exception as e:
@@ -827,13 +871,11 @@ The user has requested {section_name} visualization format. You MUST:
                 content="",
                 error=str(e),
                 steps_taken=steps,
-                tool_results=tool_results
+                tool_results=tool_results,
             )
 
     async def execute_stream(
-        self,
-        task: str,
-        history: Optional[List[Dict[str, Any]]] = None
+        self, task: str, history: Optional[List[Dict[str, Any]]] = None
     ) -> AsyncGenerator[StreamEvent, None]:
         """
         Execute task with full streaming support.
@@ -855,14 +897,14 @@ The user has requested {section_name} visualization format. You MUST:
             # Generate tools
             tools = self.tool_generator.generate_all_tools()
             if self.enabled_tools:
-                tools = [t for t in tools if t['name'] in self.enabled_tools]
+                tools = [t for t in tools if t["name"] in self.enabled_tools]
 
             # Build messages (include history if provided)
             messages = []
             if history:
                 for msg in history:
-                    role = msg.get('role', 'user')
-                    content = msg.get('content', '')
+                    role = msg.get("role", "user")
+                    content = msg.get("content", "")
                     if content:
                         messages.append({"role": role, "content": content})
 
@@ -880,7 +922,7 @@ The user has requested {section_name} visualization format. You MUST:
                     messages=messages,
                     tools=tools,
                     system=UNIFIED_SYSTEM_PROMPT,
-                    stream_callback=stream_handler
+                    stream_callback=stream_handler,
                 )
 
                 # Yield accumulated text
@@ -905,11 +947,14 @@ The user has requested {section_name} visualization format. You MUST:
                         result = await self._execute_tool(tool_name, tool_input)
                         tool_results.append(result)
 
-                        yield StreamEvent(type="tool_end", data={
-                            "name": tool_name,
-                            "success": result.success,
-                            "result": result.result
-                        })
+                        yield StreamEvent(
+                            type="tool_end",
+                            data={
+                                "name": tool_name,
+                                "success": result.success,
+                                "result": result.result,
+                            },
+                        )
 
                         # Emit section if visualization
                         if tool_name.startswith("return_") and result.success:
@@ -919,32 +964,30 @@ The user has requested {section_name} visualization format. You MUST:
                         tool_results_for_message.append(
                             self.llm_provider.format_tool_result(
                                 tool_use.id,
-                                str(result.result) if result.success else f"Error: {result.error}"
+                                str(result.result) if result.success else f"Error: {result.error}",
                             )
                         )
 
                     messages.append({"role": "user", "content": tool_results_for_message})
 
                 elif response.stop_reason == "end_turn":
-                    yield StreamEvent(type="complete", data={
-                        "steps": steps,
-                        "tool_results": [
-                            {"name": r.tool_name, "success": r.success}
-                            for r in tool_results
-                        ],
-                        "sections": sections
-                    })
+                    yield StreamEvent(
+                        type="complete",
+                        data={
+                            "steps": steps,
+                            "tool_results": [
+                                {"name": r.tool_name, "success": r.success} for r in tool_results
+                            ],
+                            "sections": sections,
+                        },
+                    )
                     return
 
         except Exception as e:
             logger.error(f"Streaming execution failed: {e}", exc_info=True)
             yield StreamEvent(type="error", data={"error": str(e)})
 
-    async def _execute_tool(
-        self,
-        tool_name: str,
-        tool_input: Dict[str, Any]
-    ) -> ToolResult:
+    async def _execute_tool(self, tool_name: str, tool_input: Dict[str, Any]) -> ToolResult:
         """Execute a tool with timeout and error handling."""
         try:
             executor = self.tool_generator.get_executor(tool_name)
@@ -952,47 +995,37 @@ The user has requested {section_name} visualization format. You MUST:
                 return ToolResult(
                     tool_name=tool_name,
                     success=False,
-                    error=f"No executor found for tool: {tool_name}"
+                    error=f"No executor found for tool: {tool_name}",
                 )
 
             # Execute with timeout
-            result = await asyncio.wait_for(
-                executor(tool_input),
-                timeout=self.tool_timeout
-            )
+            result = await asyncio.wait_for(executor(tool_input), timeout=self.tool_timeout)
 
             # Determine success
             success = True
             if isinstance(result, dict):
-                success = result.get('success', True)
-                if 'error' in result and result['error']:
+                success = result.get("success", True)
+                if "error" in result and result["error"]:
                     success = False
 
-            return ToolResult(
-                tool_name=tool_name,
-                success=success,
-                result=result
-            )
+            return ToolResult(tool_name=tool_name, success=success, result=result)
 
         except asyncio.TimeoutError:
             return ToolResult(
                 tool_name=tool_name,
                 success=False,
-                error=f"Tool execution timed out after {self.tool_timeout}s"
+                error=f"Tool execution timed out after {self.tool_timeout}s",
             )
 
         except Exception as e:
             logger.error(f"Tool execution error for {tool_name}: {e}")
-            return ToolResult(
-                tool_name=tool_name,
-                success=False,
-                error=str(e)
-            )
+            return ToolResult(tool_name=tool_name, success=False, error=str(e))
 
 
 # =============================================================================
 # Convenience Factory
 # =============================================================================
+
 
 def create_unified_executor(
     provider: Optional[str] = None,
@@ -1000,7 +1033,7 @@ def create_unified_executor(
     stream_callback: Optional[Callable[[str], None]] = None,
     status_callback: Optional[Callable[[str, str], None]] = None,
     enabled_tools: Optional[List[str]] = None,
-    output_format: str = "auto"
+    output_format: str = "auto",
 ) -> ChatExecutor:
     """
     Factory function to create ChatExecutor.
@@ -1037,7 +1070,5 @@ def create_unified_executor(
         stream_callback=stream_callback,
         status_callback=status_callback,
         enabled_tools=enabled_tools,
-        output_format=output_format
+        output_format=output_format,
     )
-
-

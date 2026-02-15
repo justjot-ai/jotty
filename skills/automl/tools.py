@@ -14,10 +14,15 @@ Consolidated from core ML infrastructure.
 
 import logging
 from typing import Any, Dict, List, Optional
+
 import pandas as pd
 
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
+from Jotty.core.infrastructure.utils.tool_helpers import (
+    async_tool_wrapper,
+    tool_error,
+    tool_response,
+)
 
 logger = logging.getLogger(__name__)
 status = SkillStatus("automl")
@@ -45,22 +50,22 @@ async def automl_train(params: Dict[str, Any]) -> Dict[str, Any]:
             "leaderboard": [...]
         }
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     try:
         from .automl_skill import AutoMLSkill
 
-        data = params.get('data')
+        data = params.get("data")
         if isinstance(data, str):
             data = pd.read_csv(data)
 
-        target = params.get('target', 'target')
+        target = params.get("target", "target")
         X = data.drop(columns=[target])
         y = data[target]
 
-        problem_type = params.get('problem_type', 'classification')
-        time_budget = params.get('time_budget', 120)
-        framework = params.get('framework', 'autogluon')
+        problem_type = params.get("problem_type", "classification")
+        time_budget = params.get("time_budget", 120)
+        framework = params.get("framework", "autogluon")
 
         status.update(f"Training {problem_type} model with {framework}...")
 
@@ -72,17 +77,17 @@ async def automl_train(params: Dict[str, Any]) -> Dict[str, Any]:
             y=y,
             problem_type=problem_type,
             time_budget=time_budget,
-            use_autogluon=(framework in ['autogluon', 'both']),
-            use_flaml=(framework in ['flaml', 'both'])
+            use_autogluon=(framework in ["autogluon", "both"]),
+            use_flaml=(framework in ["flaml", "both"]),
         )
 
         status.complete("Model trained successfully")
 
         return tool_response(
-            best_model=result.metadata.get('best_model'),
-            score=result.metadata.get('best_score'),
-            framework=result.metadata.get('best_framework'),
-            leaderboard=result.metadata.get('leaderboard', [])
+            best_model=result.metadata.get("best_model"),
+            score=result.metadata.get("best_score"),
+            framework=result.metadata.get("best_framework"),
+            leaderboard=result.metadata.get("leaderboard", []),
         )
 
     except ImportError as e:
@@ -112,35 +117,31 @@ async def hyperparameter_optimize(params: Dict[str, Any]) -> Dict[str, Any]:
             "optimization_history": [...]
         }
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     try:
         from .hyperopt import HyperparameterOptimizer
 
-        data = params.get('data')
+        data = params.get("data")
         if isinstance(data, str):
             data = pd.read_csv(data)
 
-        target = params.get('target')
+        target = params.get("target")
         X = data.drop(columns=[target])
         y = data[target]
 
-        model_type = params.get('model_type', 'xgboost')
-        n_trials = params.get('n_trials', 50)
+        model_type = params.get("model_type", "xgboost")
+        n_trials = params.get("n_trials", 50)
 
         status.update(f"Optimizing {model_type} hyperparameters...")
 
         optimizer = HyperparameterOptimizer(model_type=model_type)
-        best_params, best_score, history = optimizer.optimize(
-            X, y, n_trials=n_trials
-        )
+        best_params, best_score, history = optimizer.optimize(X, y, n_trials=n_trials)
 
         status.complete("Optimization complete")
 
         return tool_response(
-            best_params=best_params,
-            best_score=best_score,
-            optimization_history=history
+            best_params=best_params, best_score=best_score, optimization_history=history
         )
 
     except Exception as e:
@@ -170,17 +171,17 @@ async def backtest_strategy(params: Dict[str, Any]) -> Dict[str, Any]:
             "win_rate": 0.62
         }
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     try:
         from .backtest_engine import BacktestEngine
 
-        data = params.get('data')
+        data = params.get("data")
         if isinstance(data, str):
-            data = pd.read_csv(data, parse_dates=['date'], index_col='date')
+            data = pd.read_csv(data, parse_dates=["date"], index_col="date")
 
-        strategy_type = params.get('strategy_type', 'ml_classification')
-        initial_capital = params.get('initial_capital', 10000)
+        strategy_type = params.get("strategy_type", "ml_classification")
+        initial_capital = params.get("initial_capital", 10000)
 
         status.update(f"Backtesting {strategy_type} strategy...")
 
@@ -190,12 +191,12 @@ async def backtest_strategy(params: Dict[str, Any]) -> Dict[str, Any]:
         status.complete("Backtest complete")
 
         return tool_response(
-            total_return=results['total_return'],
-            sharpe_ratio=results['sharpe_ratio'],
-            max_drawdown=results['max_drawdown'],
-            trades=results['num_trades'],
-            win_rate=results['win_rate'],
-            equity_curve=results.get('equity_curve', [])
+            total_return=results["total_return"],
+            sharpe_ratio=results["sharpe_ratio"],
+            max_drawdown=results["max_drawdown"],
+            trades=results["num_trades"],
+            win_rate=results["win_rate"],
+            equity_curve=results.get("equity_curve", []),
         )
 
     except Exception as e:
@@ -222,18 +223,18 @@ async def feature_engineering(params: Dict[str, Any]) -> Dict[str, Any]:
             "new_data": DataFrame
         }
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     try:
         from .feature_engineering import FeatureEngineer
         from .feature_selection import FeatureSelector
 
-        data = params.get('data')
+        data = params.get("data")
         if isinstance(data, str):
             data = pd.read_csv(data)
 
-        target = params.get('target')
-        max_features = params.get('max_features', 50)
+        target = params.get("target")
+        max_features = params.get("max_features", 50)
 
         status.update("Engineering features...")
 
@@ -253,7 +254,7 @@ async def feature_engineering(params: Dict[str, Any]) -> Dict[str, Any]:
         return tool_response(
             engineered_features=list(selected_features),
             feature_importance=importance,
-            new_data=data_engineered[list(selected_features) + [target]].to_dict()
+            new_data=data_engineered[list(selected_features) + [target]].to_dict(),
         )
 
     except Exception as e:

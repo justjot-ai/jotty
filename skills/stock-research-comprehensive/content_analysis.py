@@ -19,21 +19,22 @@ Features:
 - Beautiful.ai-style research presentation templates
 """
 
+import hashlib
+import html
 import json
-import re
 import logging
 import random
-import hashlib
-from pathlib import Path
-from datetime import datetime
-from typing import Dict, List, Any, Optional, Tuple
+import re
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
-import html
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
 # DSPy for LLM-based slide selection
 try:
     import dspy
+
     DSPY_AVAILABLE = True
 except ImportError:
     DSPY_AVAILABLE = False
@@ -52,13 +53,14 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ComponentPattern:
     """A learned pattern for content→component mapping."""
-    content_hash: str           # Hash of content patterns detected
-    content_patterns: List[str] # ContentPattern names that triggered this
-    component: str              # Component that was selected
-    meta_schema: str            # Which meta-schema was used
+
+    content_hash: str  # Hash of content patterns detected
+    content_patterns: List[str]  # ContentPattern names that triggered this
+    component: str  # Component that was selected
+    meta_schema: str  # Which meta-schema was used
     success_score: float = 0.0  # 0-1, based on presentation feedback
-    usage_count: int = 1        # How many times this pattern was used
-    last_used: str = ""         # ISO timestamp
+    usage_count: int = 1  # How many times this pattern was used
+    last_used: str = ""  # ISO timestamp
     crystallized: bool = False  # True if pattern is proven (5+ uses, 70%+ success)
 
 
@@ -75,9 +77,9 @@ class PatternCrystallizer:
     Storage: JSON file in ~/.jotty/learned_patterns.json
     """
 
-    CRYSTALLIZATION_THRESHOLD = 5    # Min uses to crystallize
-    SUCCESS_THRESHOLD = 0.7          # Min success rate to crystallize
-    STALE_DAYS = 30                  # Prune patterns unused for this long
+    CRYSTALLIZATION_THRESHOLD = 5  # Min uses to crystallize
+    SUCCESS_THRESHOLD = 0.7  # Min success rate to crystallize
+    STALE_DAYS = 30  # Prune patterns unused for this long
 
     def __init__(self, storage_path: Optional[str] = None) -> None:
         self.storage_path = Path(storage_path or Path.home() / ".jotty" / "learned_patterns.json")
@@ -100,16 +102,19 @@ class PatternCrystallizer:
         try:
             self.storage_path.parent.mkdir(parents=True, exist_ok=True)
             data = {
-                "patterns": {k: {
-                    "content_hash": p.content_hash,
-                    "content_patterns": p.content_patterns,
-                    "component": p.component,
-                    "meta_schema": p.meta_schema,
-                    "success_score": p.success_score,
-                    "usage_count": p.usage_count,
-                    "last_used": p.last_used,
-                    "crystallized": p.crystallized,
-                } for k, p in self.patterns.items()},
+                "patterns": {
+                    k: {
+                        "content_hash": p.content_hash,
+                        "content_patterns": p.content_patterns,
+                        "component": p.component,
+                        "meta_schema": p.meta_schema,
+                        "success_score": p.success_score,
+                        "usage_count": p.usage_count,
+                        "last_used": p.last_used,
+                        "crystallized": p.crystallized,
+                    }
+                    for k, p in self.patterns.items()
+                },
                 "updated": datetime.now().isoformat(),
             }
             self.storage_path.write_text(json.dumps(data, indent=2))
@@ -123,7 +128,7 @@ class PatternCrystallizer:
 
     def record(self, content_patterns: List[str], component: str, meta_schema: str) -> None:
         """Record a content→component mapping."""
-        pattern_names = [p.name if hasattr(p, 'name') else str(p) for p in content_patterns]
+        pattern_names = [p.name if hasattr(p, "name") else str(p) for p in content_patterns]
         key = f"{self._hash_patterns(pattern_names)}_{component}"
 
         if key in self.patterns:
@@ -140,9 +145,11 @@ class PatternCrystallizer:
 
         # Check for crystallization
         pattern = self.patterns[key]
-        if (pattern.usage_count >= self.CRYSTALLIZATION_THRESHOLD and
-            pattern.success_score >= self.SUCCESS_THRESHOLD and
-            not pattern.crystallized):
+        if (
+            pattern.usage_count >= self.CRYSTALLIZATION_THRESHOLD
+            and pattern.success_score >= self.SUCCESS_THRESHOLD
+            and not pattern.crystallized
+        ):
             pattern.crystallized = True
             logger.info(f"✨ Crystallized pattern: {pattern_names} → {component}")
 
@@ -150,7 +157,7 @@ class PatternCrystallizer:
 
     def feedback(self, content_patterns: List[str], component: str, success: bool) -> None:
         """Provide feedback on a component selection."""
-        pattern_names = [p.name if hasattr(p, 'name') else str(p) for p in content_patterns]
+        pattern_names = [p.name if hasattr(p, "name") else str(p) for p in content_patterns]
         key = f"{self._hash_patterns(pattern_names)}_{component}"
 
         if key in self.patterns:
@@ -163,19 +170,20 @@ class PatternCrystallizer:
 
     def suggest(self, content_patterns: List[str]) -> Optional[str]:
         """Suggest a component based on crystallized patterns."""
-        pattern_names = [p.name if hasattr(p, 'name') else str(p) for p in content_patterns]
+        pattern_names = [p.name if hasattr(p, "name") else str(p) for p in content_patterns]
         content_hash = self._hash_patterns(pattern_names)
 
         # Find crystallized patterns matching this content
         candidates = [
-            p for p in self.patterns.values()
-            if p.content_hash == content_hash and p.crystallized
+            p for p in self.patterns.values() if p.content_hash == content_hash and p.crystallized
         ]
 
         if candidates:
             # Return highest success score
             best = max(candidates, key=lambda p: p.success_score)
-            logger.debug(f"💡 Suggesting crystallized: {best.component} (score: {best.success_score:.0%})")
+            logger.debug(
+                f"💡 Suggesting crystallized: {best.component} (score: {best.success_score:.0%})"
+            )
             return best.component
 
         return None
@@ -186,7 +194,8 @@ class PatternCrystallizer:
         return {
             "total_patterns": len(self.patterns),
             "crystallized": crystallized,
-            "avg_success": sum(p.success_score for p in self.patterns.values()) / max(len(self.patterns), 1),
+            "avg_success": sum(p.success_score for p in self.patterns.values())
+            / max(len(self.patterns), 1),
             "total_uses": sum(p.usage_count for p in self.patterns.values()),
         }
 
@@ -195,6 +204,7 @@ class PatternCrystallizer:
 # BEAUTIFUL.AI-STYLE RESEARCH TEMPLATES
 # =============================================================================
 # Professional research presentation structure with assertion-evidence approach.
+
 
 class ResearchTemplateStructure:
     """
@@ -277,6 +287,7 @@ class ResearchTemplateStructure:
 # These 6 simple formats are all the LLM needs to output.
 # ComponentMapper handles intelligent mapping to specific slide types.
 
+
 class MetaSchemaRegistry:
     """
     Minimal schema registry for LLM output.
@@ -289,21 +300,44 @@ class MetaSchemaRegistry:
         "points": {
             "description": "List of key points with optional descriptions",
             "format": {"title": "str", "points": [{"title": "str", "description": "str?"}]},
-            "maps_to": ["BULLET_POINTS", "KEY_TAKEAWAYS", "CHECKLIST", "ICON_GRID", "FEATURE_CARDS", "NUMBERED_LIST"],
+            "maps_to": [
+                "BULLET_POINTS",
+                "KEY_TAKEAWAYS",
+                "CHECKLIST",
+                "ICON_GRID",
+                "FEATURE_CARDS",
+                "NUMBERED_LIST",
+            ],
         },
         "comparison": {
             "description": "Two-sided comparison (before/after, pros/cons, left/right)",
-            "format": {"title": "str", "side_a": {"title": "str", "items": ["str"]}, "side_b": {"title": "str", "items": ["str"]}},
-            "maps_to": ["BEFORE_AFTER", "PROS_CONS", "TWO_COLUMN", "SIDE_BY_SIDE", "COMPARISON_TABLE"],
+            "format": {
+                "title": "str",
+                "side_a": {"title": "str", "items": ["str"]},
+                "side_b": {"title": "str", "items": ["str"]},
+            },
+            "maps_to": [
+                "BEFORE_AFTER",
+                "PROS_CONS",
+                "TWO_COLUMN",
+                "SIDE_BY_SIDE",
+                "COMPARISON_TABLE",
+            ],
         },
         "sequence": {
             "description": "Ordered steps or timeline events",
-            "format": {"title": "str", "items": [{"label": "str", "title": "str", "description": "str?"}]},
+            "format": {
+                "title": "str",
+                "items": [{"label": "str", "title": "str", "description": "str?"}],
+            },
             "maps_to": ["PROCESS_STEPS", "TIMELINE", "FLOWCHART", "NUMBERED_LIST"],
         },
         "metrics": {
             "description": "Numerical data with labels",
-            "format": {"title": "str", "stats": [{"value": "str", "label": "str", "trend": "str?"}]},
+            "format": {
+                "title": "str",
+                "stats": [{"value": "str", "label": "str", "trend": "str?"}],
+            },
             "maps_to": ["STATS_GRID", "STATS_INLINE", "PROGRESS_BARS", "CHART_BAR"],
         },
         "highlight": {
@@ -313,7 +347,10 @@ class MetaSchemaRegistry:
         },
         "cards": {
             "description": "Grid of feature cards with icons",
-            "format": {"title": "str", "cards": [{"icon": "str", "title": "str", "description": "str"}]},
+            "format": {
+                "title": "str",
+                "cards": [{"icon": "str", "title": "str", "description": "str"}],
+            },
             "maps_to": ["FEATURE_CARDS", "ICON_GRID", "ADVANTAGES", "TEAM_GRID"],
         },
     }
@@ -327,7 +364,7 @@ class MetaSchemaRegistry:
         return "\n".join(lines)
 
     @classmethod
-    def get_schema_for_content(cls, content: str, patterns: List['ContentPattern']) -> str:
+    def get_schema_for_content(cls, content: str, patterns: List["ContentPattern"]) -> str:
         """Suggest best meta-schema based on content patterns."""
         pattern_map = {
             ContentPattern.STEP_BY_STEP: "sequence",
@@ -379,10 +416,10 @@ class ComponentMapper:
         self,
         meta_schema: str,
         data: Dict,
-        content_patterns: List['ContentPattern'],
+        content_patterns: List["ContentPattern"],
         title: str = "",
         content: str = "",
-        force_variety: bool = True
+        force_variety: bool = True,
     ) -> Tuple[str, Dict]:
         """
         Map meta-schema output to a specific component type with variety.
@@ -441,7 +478,9 @@ class ComponentMapper:
 
         return selected, transformed
 
-    def provide_feedback(self, content_patterns: List['ContentPattern'], component: str, success: bool) -> None:
+    def provide_feedback(
+        self, content_patterns: List["ContentPattern"], component: str, success: bool
+    ) -> None:
         """Provide feedback on a component selection to improve learning."""
         if self.crystallizer:
             self.crystallizer.feedback(content_patterns, component, success)
@@ -452,7 +491,9 @@ class ComponentMapper:
             return self.crystallizer.get_stats()
         return {"learning_enabled": False}
 
-    def _get_pattern_preferences(self, patterns: List['ContentPattern'], meta_schema: str) -> List[str]:
+    def _get_pattern_preferences(
+        self, patterns: List["ContentPattern"], meta_schema: str
+    ) -> List[str]:
         """Get preferred components based on content patterns."""
         prefs = []
         for pattern in patterns:
@@ -484,16 +525,26 @@ class ComponentMapper:
                 "label": "Key Points",
                 "title": data.get("title", ""),
                 "items": [
-                    {"icon": icons[i % len(icons)], "title": p.get("title", ""), "description": p.get("description", "")}
+                    {
+                        "icon": icons[i % len(icons)],
+                        "title": p.get("title", ""),
+                        "description": p.get("description", ""),
+                    }
                     for i, p in enumerate(data.get("points", []))
-                ]
+                ],
             }
         elif meta_schema == "comparison" and component == "PROS_CONS":
             return {
                 "label": "Analysis",
                 "title": data.get("title", ""),
-                "pros": [{"title": item, "description": ""} for item in data.get("side_a", {}).get("items", [])],
-                "cons": [{"title": item, "description": ""} for item in data.get("side_b", {}).get("items", [])],
+                "pros": [
+                    {"title": item, "description": ""}
+                    for item in data.get("side_a", {}).get("items", [])
+                ],
+                "cons": [
+                    {"title": item, "description": ""}
+                    for item in data.get("side_b", {}).get("items", [])
+                ],
             }
         elif meta_schema == "highlight" and component == "QUOTE":
             return {
@@ -512,9 +563,13 @@ class ComponentMapper:
                 "label": "Timeline",
                 "title": data.get("title", ""),
                 "events": [
-                    {"year": item.get("label", ""), "title": item.get("title", ""), "description": item.get("description", "")}
+                    {
+                        "year": item.get("label", ""),
+                        "title": item.get("title", ""),
+                        "description": item.get("description", ""),
+                    }
                     for item in data.get("items", [])
-                ]
+                ],
             }
         # Default: return as-is with label added
         result = {"label": meta_schema.title(), **data}
@@ -532,28 +587,31 @@ class ComponentMapper:
 # INTELLIGENT SLIDE TYPE SELECTION SYSTEM
 # =============================================================================
 
+
 class ContentPattern(Enum):
     """Detected content patterns that influence slide type selection"""
-    MATH_FORMULA = "math_formula"           # Contains equations, formulas
-    STEP_BY_STEP = "step_by_step"           # Sequential steps or process
-    COMPARISON = "comparison"                # Before/after, A vs B
-    PROS_CONS = "pros_cons"                  # Advantages/disadvantages
-    TIMELINE = "timeline"                    # Historical progression
-    CODE_SNIPPET = "code_snippet"            # Programming code
-    STATISTICS = "statistics"                # Numbers, percentages, metrics
-    DEFINITION = "definition"                # Term definition
-    QUOTE = "quote"                          # Notable quote
-    LIST_ITEMS = "list_items"                # Bullet points
-    ARCHITECTURE = "architecture"            # System/model architecture
-    FLOWCHART = "flowchart"                  # Process flow
-    TABLE_DATA = "table_data"                # Tabular comparisons
-    VISUAL_CONCEPT = "visual_concept"        # Needs diagram/visualization
-    NARRATIVE = "narrative"                  # Story/explanation text
+
+    MATH_FORMULA = "math_formula"  # Contains equations, formulas
+    STEP_BY_STEP = "step_by_step"  # Sequential steps or process
+    COMPARISON = "comparison"  # Before/after, A vs B
+    PROS_CONS = "pros_cons"  # Advantages/disadvantages
+    TIMELINE = "timeline"  # Historical progression
+    CODE_SNIPPET = "code_snippet"  # Programming code
+    STATISTICS = "statistics"  # Numbers, percentages, metrics
+    DEFINITION = "definition"  # Term definition
+    QUOTE = "quote"  # Notable quote
+    LIST_ITEMS = "list_items"  # Bullet points
+    ARCHITECTURE = "architecture"  # System/model architecture
+    FLOWCHART = "flowchart"  # Process flow
+    TABLE_DATA = "table_data"  # Tabular comparisons
+    VISUAL_CONCEPT = "visual_concept"  # Needs diagram/visualization
+    NARRATIVE = "narrative"  # Story/explanation text
 
 
 @dataclass
 class ContentAnalysis:
     """Result of analyzing content for slide type selection"""
+
     patterns: List[ContentPattern]
     has_math: bool = False
     has_code: bool = False
@@ -576,69 +634,69 @@ class ContentAnalyzer:
 
     # Pattern definitions for content detection
     MATH_PATTERNS = [
-        r'\$[^$]+\$',                    # LaTeX inline: $...$
-        r'\$\$[^$]+\$\$',                # LaTeX display: $$...$$
-        r'\\[\[\(].+?\\[\]\)]',          # LaTeX \[...\] or \(...\)
-        r'[α-ωΑ-Ω∑∏∫∂∇×÷±≤≥≠≈∞]',       # Greek/math symbols
-        r'\b[a-z]\s*=\s*[^,\n]{3,}',     # Equations like x = ...
-        r'\b(?:sin|cos|tan|log|exp|sqrt)\b',  # Math functions
-        r'(?:\d+\s*[+\-*/^]\s*)+\d+',    # Arithmetic expressions
+        r"\$[^$]+\$",  # LaTeX inline: $...$
+        r"\$\$[^$]+\$\$",  # LaTeX display: $$...$$
+        r"\\[\[\(].+?\\[\]\)]",  # LaTeX \[...\] or \(...\)
+        r"[α-ωΑ-Ω∑∏∫∂∇×÷±≤≥≠≈∞]",  # Greek/math symbols
+        r"\b[a-z]\s*=\s*[^,\n]{3,}",  # Equations like x = ...
+        r"\b(?:sin|cos|tan|log|exp|sqrt)\b",  # Math functions
+        r"(?:\d+\s*[+\-*/^]\s*)+\d+",  # Arithmetic expressions
     ]
 
     STEP_PATTERNS = [
-        r'(?:step\s*\d+|first|second|third|finally|next|then)\s*[:,]',
-        r'^\s*\d+\.\s+\w',               # Numbered list
-        r'(?:begin|start)\s+(?:by|with)',
+        r"(?:step\s*\d+|first|second|third|finally|next|then)\s*[:,]",
+        r"^\s*\d+\.\s+\w",  # Numbered list
+        r"(?:begin|start)\s+(?:by|with)",
     ]
 
     COMPARISON_PATTERNS = [
-        r'\b(?:before|after)\b.*\b(?:before|after)\b',
-        r'\b(?:vs\.?|versus|compared to|in contrast)\b',
-        r'\b(?:traditional|conventional|previous)\b.*\b(?:new|proposed|our)\b',
-        r'\b(?:better|worse|faster|slower|more|less)\s+than\b',
+        r"\b(?:before|after)\b.*\b(?:before|after)\b",
+        r"\b(?:vs\.?|versus|compared to|in contrast)\b",
+        r"\b(?:traditional|conventional|previous)\b.*\b(?:new|proposed|our)\b",
+        r"\b(?:better|worse|faster|slower|more|less)\s+than\b",
     ]
 
     PROS_CONS_PATTERNS = [
-        r'\b(?:advantage|disadvantage|pro|con|benefit|drawback)\b',
-        r'\b(?:strength|weakness|positive|negative)\b',
-        r'(?:✓|✗|✔|✘|👍|👎)',
+        r"\b(?:advantage|disadvantage|pro|con|benefit|drawback)\b",
+        r"\b(?:strength|weakness|positive|negative)\b",
+        r"(?:✓|✗|✔|✘|👍|👎)",
     ]
 
     CODE_PATTERNS = [
-        r'```[\w]*\n',                   # Code block
-        r'\bdef\s+\w+\s*\(',             # Python function
-        r'\bclass\s+\w+',                # Class definition
-        r'\bimport\s+\w+',               # Import statement
-        r'\breturn\s+\w+',               # Return statement
-        r'(?:->|=>)\s*\{',               # Arrow functions
+        r"```[\w]*\n",  # Code block
+        r"\bdef\s+\w+\s*\(",  # Python function
+        r"\bclass\s+\w+",  # Class definition
+        r"\bimport\s+\w+",  # Import statement
+        r"\breturn\s+\w+",  # Return statement
+        r"(?:->|=>)\s*\{",  # Arrow functions
     ]
 
     QUOTE_PATTERNS = [
-        r'^["\'].*["\']$',               # Quoted text
-        r'—\s*\w+',                       # Attribution dash
-        r'\b(?:said|stated|wrote|argued)\b',
+        r'^["\'].*["\']$',  # Quoted text
+        r"—\s*\w+",  # Attribution dash
+        r"\b(?:said|stated|wrote|argued)\b",
     ]
 
     STATS_PATTERNS = [
-        r'\d+(?:\.\d+)?%',               # Percentages
-        r'\d+(?:,\d{3})+',               # Large numbers with commas
-        r'\b\d+x\b',                      # Multipliers (10x, 100x)
-        r'\b(?:billion|million|thousand)\b',
-        r'(?:accuracy|precision|recall|F1)\s*[:=]\s*\d+',
+        r"\d+(?:\.\d+)?%",  # Percentages
+        r"\d+(?:,\d{3})+",  # Large numbers with commas
+        r"\b\d+x\b",  # Multipliers (10x, 100x)
+        r"\b(?:billion|million|thousand)\b",
+        r"(?:accuracy|precision|recall|F1)\s*[:=]\s*\d+",
     ]
 
     TIMELINE_PATTERNS = [
-        r'\b(?:19|20)\d{2}\b',           # Years
-        r'\b(?:january|february|march|april|may|june|july|august|september|october|november|december)\b',
-        r'\b(?:evolution|history|timeline|progression)\b',
-        r'(?:first|then|later|finally|eventually)',
+        r"\b(?:19|20)\d{2}\b",  # Years
+        r"\b(?:january|february|march|april|may|june|july|august|september|october|november|december)\b",
+        r"\b(?:evolution|history|timeline|progression)\b",
+        r"(?:first|then|later|finally|eventually)",
     ]
 
     ARCHITECTURE_PATTERNS = [
-        r'\b(?:layer|module|component|block|encoder|decoder)\b',
-        r'\b(?:input|output|hidden)\s+(?:layer|size|dimension)\b',
-        r'\b(?:architecture|structure|design|framework)\b',
-        r'→|➜|->',                        # Arrows indicating flow
+        r"\b(?:layer|module|component|block|encoder|decoder)\b",
+        r"\b(?:input|output|hidden)\s+(?:layer|size|dimension)\b",
+        r"\b(?:architecture|structure|design|framework)\b",
+        r"→|➜|->",  # Arrows indicating flow
     ]
 
     def analyze(self, content: str, title: str = "") -> ContentAnalysis:
@@ -709,11 +767,12 @@ class ContentAnalyzer:
 
         # Count metrics
         word_count = len(content.split())
-        sentence_count = len(re.split(r'[.!?]+', content))
+        sentence_count = len(re.split(r"[.!?]+", content))
 
         # Check for list items
-        has_list = bool(re.search(r'(?:^|\n)\s*[-•*]\s+\w', content)) or \
-                   bool(re.search(r'(?:^|\n)\s*\d+\.\s+\w', content))
+        has_list = bool(re.search(r"(?:^|\n)\s*[-•*]\s+\w", content)) or bool(
+            re.search(r"(?:^|\n)\s*\d+\.\s+\w", content)
+        )
         if has_list:
             patterns.append(ContentPattern.LIST_ITEMS)
             suggested_types.append("BULLET_POINTS")
@@ -743,7 +802,7 @@ class ContentAnalyzer:
             sentence_count=sentence_count,
             complexity_score=complexity,
             suggested_types=suggested_types,
-            confidence=confidence
+            confidence=confidence,
         )
 
     def _matches_any(self, text: str, patterns: List[str]) -> bool:
@@ -755,5 +814,3 @@ class ContentAnalyzer:
             except re.error:
                 continue
         return False
-
-

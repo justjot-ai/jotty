@@ -12,14 +12,15 @@ Extracts duplicated functions from:
 Provides unified token estimation, compression, and chunking utilities.
 """
 
-import re
 import logging
-from typing import List, Optional, Dict, Any
+import re
+from typing import Any, Dict, List, Optional
 
 from ..utils.tokenizer import SmartTokenizer
 
 try:
     import dspy
+
     DSPY_AVAILABLE = True
 except ImportError:
     DSPY_AVAILABLE = False
@@ -30,6 +31,7 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 # TOKEN ESTIMATION (Unified - Single Source of Truth)
 # =============================================================================
+
 
 def estimate_tokens(text: str) -> int:
     """
@@ -52,6 +54,7 @@ def estimate_tokens(text: str) -> int:
 # SIMPLE COMPRESSION STRATEGIES
 # =============================================================================
 
+
 def simple_truncate(text: str, target_tokens: int, chars_per_token: int = 4) -> str:
     """
     Simple truncation with ellipsis.
@@ -72,7 +75,7 @@ def simple_truncate(text: str, target_tokens: int, chars_per_token: int = 4) -> 
         return text
 
     # Truncate with ellipsis
-    return text[:target_chars - 50] + "\n... (content truncated to fit context) ..."
+    return text[: target_chars - 50] + "\n... (content truncated to fit context) ..."
 
 
 def prefix_suffix_compress(text: str, target_tokens: int, chars_per_token: int = 4) -> str:
@@ -105,7 +108,7 @@ def structured_extract(
     text: str,
     target_tokens: int,
     preserve_keywords: Optional[List[str]] = None,
-    chars_per_token: int = 4
+    chars_per_token: int = 4,
 ) -> str:
     """
     Heuristic line-based compression preserving important lines.
@@ -122,9 +125,9 @@ def structured_extract(
         Structured extraction preserving critical lines
     """
     if not preserve_keywords:
-        preserve_keywords = ['CRITICAL', 'IMPORTANT', 'ERROR', 'MUST', 'NEVER']
+        preserve_keywords = ["CRITICAL", "IMPORTANT", "ERROR", "MUST", "NEVER"]
 
-    lines = text.split('\n')
+    lines = text.split("\n")
     critical_lines = []
     other_lines = []
 
@@ -137,7 +140,7 @@ def structured_extract(
             other_lines.append(line)
 
     # Always include critical lines
-    critical_text = '\n'.join(critical_lines)
+    critical_text = "\n".join(critical_lines)
     critical_tokens = estimate_tokens(critical_text)
 
     # Calculate remaining budget for other lines
@@ -148,28 +151,29 @@ def structured_extract(
         return simple_truncate(critical_text, target_tokens, chars_per_token)
 
     # Add other lines until budget exhausted
-    other_text = '\n'.join(other_lines)
+    other_text = "\n".join(other_lines)
     other_tokens = estimate_tokens(other_text)
 
     if other_tokens <= remaining_tokens:
         # Everything fits
-        return critical_text + '\n' + other_text
+        return critical_text + "\n" + other_text
 
     # Truncate other lines to fit
     truncated_other = simple_truncate(other_text, remaining_tokens, chars_per_token)
-    return critical_text + '\n' + truncated_other
+    return critical_text + "\n" + truncated_other
 
 
 # =============================================================================
 # INTELLIGENT COMPRESSION (LLM-based)
 # =============================================================================
 
+
 async def intelligent_compress(
     text: str,
     target_tokens: int,
     task_context: Optional[Dict[str, Any]] = None,
     preserve_keywords: Optional[List[str]] = None,
-    shapley_credits: Optional[Dict[str, float]] = None
+    shapley_credits: Optional[Dict[str, float]] = None,
 ) -> Dict[str, Any]:
     """
     LLM-powered intelligent compression.
@@ -195,15 +199,16 @@ async def intelligent_compress(
         logger.debug("DSPy not available, falling back to structured extraction")
         compressed = structured_extract(text, target_tokens, preserve_keywords)
         return {
-            'compressed_content': compressed,
-            'compression_ratio': len(compressed) / max(len(text), 1),
-            'quality_score': 7.0,  # Estimated
-            'what_was_removed': 'Used structured extraction (DSPy not available)'
+            "compressed_content": compressed,
+            "compression_ratio": len(compressed) / max(len(text), 1),
+            "quality_score": 7.0,  # Estimated
+            "what_was_removed": "Used structured extraction (DSPy not available)",
         }
 
     # Build DSPy signature for compression
     class CompressionSignature(dspy.Signature):
         """Intelligently compress content while preserving critical information."""
+
         full_content = dspy.InputField(desc="Full content to compress")
         task_description = dspy.InputField(desc="What the agent needs to do")
         target_tokens = dspy.InputField(desc="Target token count")
@@ -242,28 +247,28 @@ async def intelligent_compress(
         compressor = dspy.ChainOfThought(CompressionSignature)
         result = compressor(
             full_content=text,
-            task_description=task_context.get('goal', 'Process this content'),
+            task_description=task_context.get("goal", "Process this content"),
             target_tokens=str(target_tokens),
             priority_keywords=priority_keywords,
             high_impact_items=high_impact_items,
-            low_impact_items=low_impact_items
+            low_impact_items=low_impact_items,
         )
 
         return {
-            'compressed_content': result.compressed_content,
-            'compression_ratio': result.compression_ratio,
-            'quality_score': result.quality_score,
-            'what_was_removed': result.what_was_removed
+            "compressed_content": result.compressed_content,
+            "compression_ratio": result.compression_ratio,
+            "quality_score": result.quality_score,
+            "what_was_removed": result.what_was_removed,
         }
 
     except Exception as e:
         logger.warning(f"LLM compression failed: {e}, falling back to structured extraction")
         compressed = structured_extract(text, target_tokens, preserve_keywords)
         return {
-            'compressed_content': compressed,
-            'compression_ratio': len(compressed) / max(len(text), 1),
-            'quality_score': 6.0,
-            'what_was_removed': f'Fallback extraction (LLM failed: {e})'
+            "compressed_content": compressed,
+            "compression_ratio": len(compressed) / max(len(text), 1),
+            "quality_score": 6.0,
+            "what_was_removed": f"Fallback extraction (LLM failed: {e})",
         }
 
 
@@ -271,11 +276,12 @@ async def intelligent_compress(
 # CHUNKING UTILITIES
 # =============================================================================
 
+
 def create_chunks(
     content: str,
     max_chunk_tokens: int = 4000,
     overlap_tokens: int = 200,
-    preserve_sentences: bool = True
+    preserve_sentences: bool = True,
 ) -> List[str]:
     """
     Split content into chunks with optional sentence boundary preservation.
@@ -312,7 +318,7 @@ def create_chunks(
             search_region = content[search_start:end]
 
             # Find last sentence ending
-            sentence_ends = ['.', '!', '?', '\n\n']
+            sentence_ends = [".", "!", "?", "\n\n"]
             last_end = -1
 
             for ending in sentence_ends:
@@ -340,6 +346,7 @@ def create_chunks(
 # OVERFLOW ERROR DETECTION
 # =============================================================================
 
+
 def detect_overflow_error(error: Exception, max_tokens: int = 28000) -> bool:
     """
     Detect if an exception is a context overflow error.
@@ -356,9 +363,20 @@ def detect_overflow_error(error: Exception, max_tokens: int = 28000) -> bool:
     """
     # Structural indicators in class/type names
     overflow_indicators = {
-        'overflow', 'length', 'size', 'limit', 'exhausted',
-        'context', 'token', 'sequence', 'long', 'exceed',
-        'capacity', 'window', 'memory', 'oom'
+        "overflow",
+        "length",
+        "size",
+        "limit",
+        "exhausted",
+        "context",
+        "token",
+        "sequence",
+        "long",
+        "exceed",
+        "capacity",
+        "window",
+        "memory",
+        "oom",
     }
 
     # Method 1: Check error type hierarchy
@@ -369,7 +387,7 @@ def detect_overflow_error(error: Exception, max_tokens: int = 28000) -> bool:
 
     # Method 2: Numeric extraction
     error_str = str(error)
-    numbers = re.findall(r'\d+', error_str)
+    numbers = re.findall(r"\d+", error_str)
     for num_str in numbers:
         try:
             num = int(num_str)
@@ -379,9 +397,9 @@ def detect_overflow_error(error: Exception, max_tokens: int = 28000) -> bool:
             continue
 
     # Method 3: Check error attributes
-    for attr in ['code', 'error_code', 'status_code', 'message', 'type']:
+    for attr in ["code", "error_code", "status_code", "message", "type"]:
         if hasattr(error, attr):
-            value = str(getattr(error, attr, '')).lower()
+            value = str(getattr(error, attr, "")).lower()
             if any(indicator in value for indicator in overflow_indicators):
                 return True
 
@@ -393,11 +411,11 @@ def detect_overflow_error(error: Exception, max_tokens: int = 28000) -> bool:
 # =============================================================================
 
 __all__ = [
-    'estimate_tokens',
-    'simple_truncate',
-    'prefix_suffix_compress',
-    'structured_extract',
-    'intelligent_compress',
-    'create_chunks',
-    'detect_overflow_error',
+    "estimate_tokens",
+    "simple_truncate",
+    "prefix_suffix_compress",
+    "structured_extract",
+    "intelligent_compress",
+    "create_chunks",
+    "detect_overflow_error",
 ]

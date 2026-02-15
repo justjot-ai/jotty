@@ -10,10 +10,10 @@ Clients (like JustJot.ai) get this for free by using Jotty.
 """
 
 import logging
-from typing import Dict, Any, List, Optional
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 
-from Jotty.core.interface.ui.a2ui import format_task_list, format_card, format_text
+from Jotty.core.interface.ui.a2ui import format_card, format_task_list, format_text
 from Jotty.core.interface.ui.status_taxonomy import status_mapper
 
 logger = logging.getLogger(__name__)
@@ -63,16 +63,19 @@ class ChatAssistant:
         logger.debug(f"ChatAssistant.run() CALLED with kwargs: {list(kwargs.keys())}")
 
         # Extract goal/message from kwargs (try multiple keys)
-        goal = (kwargs.get('goal') or
-                kwargs.get('message') or
-                kwargs.get('task_description') or
-                kwargs.get('query') or "")
+        goal = (
+            kwargs.get("goal")
+            or kwargs.get("message")
+            or kwargs.get("task_description")
+            or kwargs.get("query")
+            or ""
+        )
 
         # If still empty, try to extract from context
-        if not goal and 'context' in kwargs:
-            context = kwargs['context']
+        if not goal and "context" in kwargs:
+            context = kwargs["context"]
             if isinstance(context, dict):
-                goal = context.get('ROOT_GOAL') or context.get('goal') or ""
+                goal = context.get("ROOT_GOAL") or context.get("goal") or ""
                 logger.debug(f"Extracted goal from context: {goal}")
 
         goal_lower = goal.lower() if goal else ""
@@ -87,7 +90,7 @@ class ChatAssistant:
         # Task-related queries
         if self._is_task_query(goal_lower):
             # Remove conflicting keys from kwargs to avoid parameter conflicts
-            clean_kwargs = {k: v for k, v in kwargs.items() if k != 'query'}
+            clean_kwargs = {k: v for k, v in kwargs.items() if k != "query"}
             return await self._handle_task_query(goal_lower, **clean_kwargs)
 
         # Status queries
@@ -103,17 +106,17 @@ class ChatAssistant:
 
     def _is_task_query(self, query: str) -> bool:
         """Detect if query is about tasks."""
-        keywords = ['task', 'backlog', 'pending', 'completed', 'done', 'todo', 'in progress']
+        keywords = ["task", "backlog", "pending", "completed", "done", "todo", "in progress"]
         return any(keyword in query for keyword in keywords)
 
     def _is_status_query(self, query: str) -> bool:
         """Detect if query is about system status."""
-        keywords = ['status', 'health', 'running', 'system']
+        keywords = ["status", "health", "running", "system"]
         return any(keyword in query for keyword in keywords)
 
     def _is_help_query(self, query: str) -> bool:
         """Detect if query is asking for help."""
-        keywords = ['help', 'how', 'what can', 'capabilities']
+        keywords = ["help", "how", "what can", "capabilities"]
         return any(keyword in query for keyword in keywords)
 
     async def _handle_task_query(self, query: str, **kwargs: Any) -> Dict[str, Any]:
@@ -136,16 +139,26 @@ class ChatAssistant:
         query_lower = query.lower()
 
         # Intent detection: Check if user wants markdown summary
-        markdown_keywords = ['markdown', 'summarize', 'summary in', 'write a summary', 'generate summary']
+        markdown_keywords = [
+            "markdown",
+            "summarize",
+            "summary in",
+            "write a summary",
+            "generate summary",
+        ]
         if any(keyword in query_lower for keyword in markdown_keywords):
             return await self._get_markdown_summary()
 
         # Specific status filters
-        if 'backlog' in query_lower and not ('all' in query_lower or 'summary' in query_lower):
+        if "backlog" in query_lower and not ("all" in query_lower or "summary" in query_lower):
             return await self._get_backlog_widget()
-        elif ('completed' in query_lower or 'done' in query_lower) and not ('all' in query_lower or 'summary' in query_lower):
+        elif ("completed" in query_lower or "done" in query_lower) and not (
+            "all" in query_lower or "summary" in query_lower
+        ):
             return await self._get_completed_widget()
-        elif ('pending' in query_lower or 'in progress' in query_lower) and not ('all' in query_lower or 'summary' in query_lower):
+        elif ("pending" in query_lower or "in progress" in query_lower) and not (
+            "all" in query_lower or "summary" in query_lower
+        ):
             return await self._get_pending_widget()
         else:
             # Default: show kanban board for overview/show/all queries
@@ -153,50 +166,50 @@ class ChatAssistant:
 
     async def _get_backlog_widget(self) -> Dict[str, Any]:
         """Get backlog tasks as A2UI widget."""
-        tasks = await self._fetch_tasks(status='backlog')
+        tasks = await self._fetch_tasks(status="backlog")
 
         if not tasks:
             return format_card(
                 title="Backlog",
                 subtitle="No tasks in backlog",
-                body="All clear! No pending tasks in the backlog."
+                body="All clear! No pending tasks in the backlog.",
             )
 
         return format_task_list(
             tasks=self._format_task_items(tasks),
-            title=f"Backlog ({len(tasks)} task{'s' if len(tasks) != 1 else ''})"
+            title=f"Backlog ({len(tasks)} task{'s' if len(tasks) != 1 else ''})",
         )
 
     async def _get_completed_widget(self) -> Dict[str, Any]:
         """Get completed tasks as A2UI widget."""
-        tasks = await self._fetch_tasks(status='completed')
+        tasks = await self._fetch_tasks(status="completed")
 
         if not tasks:
             return format_card(
                 title="Completed Tasks",
                 subtitle="No completed tasks yet",
-                body="No tasks have been completed yet."
+                body="No tasks have been completed yet.",
             )
 
         return format_task_list(
             tasks=self._format_task_items(tasks),
-            title=f"Completed ({len(tasks)} task{'s' if len(tasks) != 1 else ''})"
+            title=f"Completed ({len(tasks)} task{'s' if len(tasks) != 1 else ''})",
         )
 
     async def _get_pending_widget(self) -> Dict[str, Any]:
         """Get in-progress tasks as A2UI widget."""
-        tasks = await self._fetch_tasks(status='in_progress')
+        tasks = await self._fetch_tasks(status="in_progress")
 
         if not tasks:
             return format_card(
                 title="Active Tasks",
                 subtitle="No tasks in progress",
-                body="No tasks currently being worked on."
+                body="No tasks currently being worked on.",
             )
 
         return format_task_list(
             tasks=self._format_task_items(tasks),
-            title=f"In Progress ({len(tasks)} task{'s' if len(tasks) != 1 else ''})"
+            title=f"In Progress ({len(tasks)} task{'s' if len(tasks) != 1 else ''})",
         )
 
     async def _get_all_tasks_widget(self) -> Dict[str, Any]:
@@ -207,27 +220,24 @@ class ChatAssistant:
             return format_card(
                 title="All Tasks",
                 subtitle="No tasks found",
-                body="There are no tasks in the system."
+                body="There are no tasks in the system.",
             )
 
         # Group by status
         by_status = {}
         for task in all_tasks:
-            status = task.get('status', 'unknown')
+            status = task.get("status", "unknown")
             if status not in by_status:
                 by_status[status] = []
             by_status[status].append(task)
 
         # Format each group as a list
         all_items = []
-        for status in ['backlog', 'in_progress', 'completed', 'failed']:
+        for status in ["backlog", "in_progress", "completed", "failed"]:
             if status in by_status:
                 all_items.extend(self._format_task_items(by_status[status]))
 
-        return format_task_list(
-            tasks=all_items,
-            title=f"All Tasks ({len(all_tasks)} total)"
-        )
+        return format_task_list(tasks=all_items, title=f"All Tasks ({len(all_tasks)} total)")
 
     async def _get_task_summary_widget(self) -> Dict[str, Any]:
         """
@@ -248,12 +258,12 @@ class ChatAssistant:
             """Convert numeric priority to kanban string format."""
             if isinstance(priority_value, str):
                 # Already a string, validate it's correct
-                if priority_value in ['low', 'medium', 'high', 'urgent']:
+                if priority_value in ["low", "medium", "high", "urgent"]:
                     return priority_value
-                return 'medium'  # Default fallback
+                return "medium"  # Default fallback
             # Numeric priority mapping
-            priority_map = {1: 'low', 2: 'medium', 3: 'high', 4: 'urgent'}
-            return priority_map.get(priority_value, 'medium')
+            priority_map = {1: "low", 2: "medium", 3: "high", 4: "urgent"}
+            return priority_map.get(priority_value, "medium")
 
         def format_assignee(assignee_value: Any) -> Dict:
             """Convert assignee to kanban object format {name, avatar?, email?}."""
@@ -268,14 +278,14 @@ class ChatAssistant:
         for task in all_tasks:
             # Use status_mapper for generic status normalization
             # This handles any client status naming (todo/doing/done, pending/active/closed, etc.)
-            raw_status = task.get('status', 'backlog')
+            raw_status = task.get("status", "backlog")
             canonical_status = status_mapper.normalize(raw_status)
             column_id = status_mapper.to_kanban_column(canonical_status)
 
             # Find the column for this status
             target_column = None
             for col in columns:
-                if col['id'] == column_id:
+                if col["id"] == column_id:
                     target_column = col
                     break
 
@@ -285,21 +295,21 @@ class ChatAssistant:
 
             # Format card according to JustJot KanbanItem schema
             card = {
-                "id": task.get('task_id', task.get('id', str(len(all_tasks)))),
-                "title": task.get('title', task.get('description', 'Untitled Task')),
-                "priority": map_priority(task.get('priority', 2)),  # Default to 'medium'
+                "id": task.get("task_id", task.get("id", str(len(all_tasks)))),
+                "title": task.get("title", task.get("description", "Untitled Task")),
+                "priority": map_priority(task.get("priority", 2)),  # Default to 'medium'
             }
 
             # Add optional fields only if present
-            if task.get('description'):
-                card["description"] = task.get('description')
-            if task.get('assignee'):
-                card["assignee"] = format_assignee(task.get('assignee'))
-            if task.get('created_at'):
-                card["dueDate"] = task.get('created_at')
-            if task.get('labels'):
+            if task.get("description"):
+                card["description"] = task.get("description")
+            if task.get("assignee"):
+                card["assignee"] = format_assignee(task.get("assignee"))
+            if task.get("created_at"):
+                card["dueDate"] = task.get("created_at")
+            if task.get("labels"):
                 # Ensure labels is a string array
-                labels = task.get('labels', [])
+                labels = task.get("labels", [])
                 if isinstance(labels, list):
                     card["labels"] = [str(l) for l in labels]
 
@@ -308,57 +318,64 @@ class ChatAssistant:
         # Use return_kanban() helper (DRY way!)
         try:
             from Jotty.core.interface.ui import return_kanban
+
             logger.info(" Using return_kanban() - DRY section rendering")
-            return return_kanban(columns=columns, title=f'Task Summary ({len(all_tasks)} total)')
+            return return_kanban(columns=columns, title=f"Task Summary ({len(all_tasks)} total)")
         except Exception as e:
             logger.warning(f" return_kanban() not available, falling back: {e}")
             import traceback
+
             logger.debug(traceback.format_exc())
 
         # Fallback: Use default A2UI list format
         # Use status_mapper for counting (generic across all client status names)
-        backlog = sum(1 for t in all_tasks if status_mapper.normalize(t.get('status', '')) == 'backlog')
-        in_progress = sum(1 for t in all_tasks if status_mapper.normalize(t.get('status', '')) == 'in_progress')
-        completed = sum(1 for t in all_tasks if status_mapper.normalize(t.get('status', '')) == 'completed')
-        failed = sum(1 for t in all_tasks if status_mapper.normalize(t.get('status', '')) == 'failed')
+        backlog = sum(
+            1 for t in all_tasks if status_mapper.normalize(t.get("status", "")) == "backlog"
+        )
+        in_progress = sum(
+            1 for t in all_tasks if status_mapper.normalize(t.get("status", "")) == "in_progress"
+        )
+        completed = sum(
+            1 for t in all_tasks if status_mapper.normalize(t.get("status", "")) == "completed"
+        )
+        failed = sum(
+            1 for t in all_tasks if status_mapper.normalize(t.get("status", "")) == "failed"
+        )
 
         from Jotty.core.interface.ui.a2ui import format_task_list
 
         items = [
             {
-                'title': f'Backlog',
-                'subtitle': f'{backlog} tasks waiting to start',
-                'icon': 'circle',
-                'status': 'backlog',
-                'metadata': [{'label': 'Count', 'value': str(backlog)}]
+                "title": f"Backlog",
+                "subtitle": f"{backlog} tasks waiting to start",
+                "icon": "circle",
+                "status": "backlog",
+                "metadata": [{"label": "Count", "value": str(backlog)}],
             },
             {
-                'title': f'In Progress',
-                'subtitle': f'{in_progress} tasks currently being worked on',
-                'icon': 'circle',
-                'status': 'in_progress',
-                'metadata': [{'label': 'Count', 'value': str(in_progress)}]
+                "title": f"In Progress",
+                "subtitle": f"{in_progress} tasks currently being worked on",
+                "icon": "circle",
+                "status": "in_progress",
+                "metadata": [{"label": "Count", "value": str(in_progress)}],
             },
             {
-                'title': f'Completed',
-                'subtitle': f'{completed} tasks finished successfully',
-                'icon': 'check_circle',
-                'status': 'completed',
-                'metadata': [{'label': 'Count', 'value': str(completed)}]
+                "title": f"Completed",
+                "subtitle": f"{completed} tasks finished successfully",
+                "icon": "check_circle",
+                "status": "completed",
+                "metadata": [{"label": "Count", "value": str(completed)}],
             },
             {
-                'title': f'Failed',
-                'subtitle': f'{failed} tasks encountered errors',
-                'icon': 'error',
-                'status': 'failed',
-                'metadata': [{'label': 'Count', 'value': str(failed)}]
-            }
+                "title": f"Failed",
+                "subtitle": f"{failed} tasks encountered errors",
+                "icon": "error",
+                "status": "failed",
+                "metadata": [{"label": "Count", "value": str(failed)}],
+            },
         ]
 
-        return format_task_list(
-            tasks=items,
-            title=f"Task Summary ({len(all_tasks)} total)"
-        )
+        return format_task_list(tasks=items, title=f"Task Summary ({len(all_tasks)} total)")
 
     async def _get_markdown_summary(self) -> Dict[str, Any]:
         """
@@ -370,15 +387,10 @@ class ChatAssistant:
         all_tasks = await self._fetch_tasks()
 
         # Group tasks by canonical status (using status_mapper for normalization)
-        by_status = {
-            'backlog': [],
-            'in_progress': [],
-            'completed': [],
-            'failed': []
-        }
+        by_status = {"backlog": [], "in_progress": [], "completed": [], "failed": []}
 
         for task in all_tasks:
-            raw_status = task.get('status', 'backlog')
+            raw_status = task.get("status", "backlog")
             canonical_status = status_mapper.normalize(raw_status)
             if canonical_status in by_status:
                 by_status[canonical_status].append(task)
@@ -395,44 +407,37 @@ class ChatAssistant:
             f"- **Failed:** {len(by_status['failed'])} tasks encountered errors",
             "",
             f"**Progress:** {len(by_status['completed'])}/{len(all_tasks)} ({int(len(by_status['completed'])/len(all_tasks)*100) if all_tasks else 0}%) complete",
-            ""
+            "",
         ]
 
         # Add high-priority tasks if any
-        high_priority = [t for t in all_tasks if t.get('priority', 0) >= 3 and t.get('status') != 'completed']
+        high_priority = [
+            t for t in all_tasks if t.get("priority", 0) >= 3 and t.get("status") != "completed"
+        ]
         if high_priority:
-            summary_lines.extend([
-                "## High Priority Items",
-                ""
-            ])
+            summary_lines.extend(["## High Priority Items", ""])
             for task in high_priority[:5]:  # Top 5
-                status_emoji = "⏳" if task.get('status') == 'in_progress' else ""
+                status_emoji = "⏳" if task.get("status") == "in_progress" else ""
                 summary_lines.append(f"- {status_emoji} **{task.get('title', 'Untitled')}**")
             summary_lines.append("")
 
         # Add recent completions
         recent_completed = sorted(
-            by_status['completed'],
-            key=lambda t: t.get('updated_at', t.get('created_at', '')),
-            reverse=True
+            by_status["completed"],
+            key=lambda t: t.get("updated_at", t.get("created_at", "")),
+            reverse=True,
         )[:5]
 
         if recent_completed:
-            summary_lines.extend([
-                "## Recently Completed",
-                ""
-            ])
+            summary_lines.extend(["## Recently Completed", ""])
             for task in recent_completed:
                 summary_lines.append(f"- {task.get('title', 'Untitled')}")
             summary_lines.append("")
 
         # Add failed tasks if any
-        if by_status['failed']:
-            summary_lines.extend([
-                "## Failed Tasks (Need Attention)",
-                ""
-            ])
-            for task in by_status['failed'][:5]:
+        if by_status["failed"]:
+            summary_lines.extend(["## Failed Tasks (Need Attention)", ""])
+            for task in by_status["failed"][:5]:
                 summary_lines.append(f"- {task.get('title', 'Untitled')}")
             summary_lines.append("")
 
@@ -440,18 +445,15 @@ class ChatAssistant:
 
         # Return as text section (markdown renderer)
         from Jotty.core.interface.ui import return_section
-        return return_section(
-            section_type="text",
-            content=markdown_content,
-            title="Task Summary"
-        )
+
+        return return_section(section_type="text", content=markdown_content, title="Task Summary")
 
     async def _handle_status_query(self, query: str) -> Dict[str, Any]:
         """Handle system status queries."""
         return format_card(
             title="System Status",
             subtitle="All systems operational",
-            body=" Chat API: Online\n Task Manager: Online\n A2UI Widgets: Enabled"
+            body=" Chat API: Online\n Task Manager: Online\n A2UI Widgets: Enabled",
         )
 
     def _handle_help_query(self) -> Dict[str, Any]:
@@ -473,9 +475,7 @@ class ChatAssistant:
         """.strip()
 
         return format_card(
-            title="How I Can Help",
-            subtitle="Ask me questions about your tasks",
-            body=help_text
+            title="How I Can Help", subtitle="Ask me questions about your tasks", body=help_text
         )
 
     def _handle_general_query(self, query: str) -> Dict[str, Any]:
@@ -483,7 +483,7 @@ class ChatAssistant:
         return format_text(
             f"I understand you said: '{query}'. I'm a task management assistant. "
             "Try asking about tasks, status, or type 'help' to see what I can do!",
-            style=None
+            style=None,
         )
 
     async def _fetch_tasks(self, status: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -502,59 +502,64 @@ class ChatAssistant:
 
         try:
             # Check for SQLiteTaskQueue methods (Jotty's queue)
-            if hasattr(self.state_manager, 'get_tasks_by_status') and status:
+            if hasattr(self.state_manager, "get_tasks_by_status") and status:
                 # Direct status query (most efficient)
                 task_objects = await self.state_manager.get_tasks_by_status(status)
                 return [self._task_to_dict(task) for task in task_objects]
 
-            elif hasattr(self.state_manager, 'export_to_json'):
+            elif hasattr(self.state_manager, "export_to_json"):
                 # Get all tasks from export (fallback)
                 export_data = await self.state_manager.export_to_json()
 
                 # Extract tasks from export structure
                 all_tasks = []
-                task_details = export_data.get('task_details', {})
+                task_details = export_data.get("task_details", {})
 
                 # Get task IDs from status-specific lists
                 status_keys = {
-                    'backlog': 'backlog_tasks',
-                    'pending': 'pending_tasks',
-                    'in_progress': 'in_progress_tasks',
-                    'completed': 'completed_task_files',
-                    'failed': 'failed_task_files'
+                    "backlog": "backlog_tasks",
+                    "pending": "pending_tasks",
+                    "in_progress": "in_progress_tasks",
+                    "completed": "completed_task_files",
+                    "failed": "failed_task_files",
                 }
 
                 if status:
                     # Get specific status
-                    key = status_keys.get(status, f'{status}_tasks')
+                    key = status_keys.get(status, f"{status}_tasks")
                     task_ids = export_data.get(key, [])
                     all_tasks = [task_details.get(tid) for tid in task_ids if tid in task_details]
                 else:
                     # Get all tasks
                     for key in status_keys.values():
                         task_ids = export_data.get(key, [])
-                        all_tasks.extend([task_details.get(tid) for tid in task_ids if tid in task_details])
+                        all_tasks.extend(
+                            [task_details.get(tid) for tid in task_ids if tid in task_details]
+                        )
 
                 return [t for t in all_tasks if t]  # Filter out None values
 
             # Generic fallback methods
-            elif hasattr(self.state_manager, 'get_all_tasks'):
+            elif hasattr(self.state_manager, "get_all_tasks"):
                 all_tasks = await self.state_manager.get_all_tasks()
-            elif hasattr(self.state_manager, 'list_tasks'):
+            elif hasattr(self.state_manager, "list_tasks"):
                 all_tasks = await self.state_manager.list_tasks()
             else:
-                logger.warning(f"State manager has no task listing method: {type(self.state_manager)}")
+                logger.warning(
+                    f"State manager has no task listing method: {type(self.state_manager)}"
+                )
                 return []
 
             # Filter by status if provided and not already filtered
             if status and all_tasks:
-                return [t for t in all_tasks if t.get('status') == status]
+                return [t for t in all_tasks if t.get("status") == status]
 
             return all_tasks
 
         except Exception as e:
             logger.error(f"Failed to fetch tasks from state manager: {e}")
             import traceback
+
             logger.error(traceback.format_exc())
             return []
 
@@ -574,13 +579,13 @@ class ChatAssistant:
 
         # Convert Task object to dict
         return {
-            'task_id': getattr(task, 'task_id', getattr(task, 'id', 'Unknown')),
-            'title': getattr(task, 'title', getattr(task, 'description', 'Untitled')),
-            'description': getattr(task, 'description', ''),
-            'status': getattr(task, 'status', 'unknown'),
-            'priority': getattr(task, 'priority', None),
-            'created_at': getattr(task, 'created_at', None),
-            'updated_at': getattr(task, 'updated_at', None),
+            "task_id": getattr(task, "task_id", getattr(task, "id", "Unknown")),
+            "title": getattr(task, "title", getattr(task, "description", "Untitled")),
+            "description": getattr(task, "description", ""),
+            "status": getattr(task, "status", "unknown"),
+            "priority": getattr(task, "priority", None),
+            "created_at": getattr(task, "created_at", None),
+            "updated_at": getattr(task, "updated_at", None),
         }
 
     def _format_task_items(self, tasks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -597,49 +602,38 @@ class ChatAssistant:
 
         for task in tasks:
             # Extract task details
-            task_id = task.get('task_id', task.get('id', 'Unknown'))
-            title = task.get('title', task.get('description', 'Untitled Task'))
-            status = task.get('status', 'unknown')
+            task_id = task.get("task_id", task.get("id", "Unknown"))
+            title = task.get("title", task.get("description", "Untitled Task"))
+            status = task.get("status", "unknown")
 
             # Determine icon based on status
             icon = {
-                'completed': 'check_circle',
-                'in_progress': 'circle',
-                'backlog': 'circle',
-                'failed': 'error',
-                'pending': 'circle',
-            }.get(status, 'circle')
+                "completed": "check_circle",
+                "in_progress": "circle",
+                "backlog": "circle",
+                "failed": "error",
+                "pending": "circle",
+            }.get(status, "circle")
 
             # Create item
-            item = {
-                'title': title,
-                'subtitle': task_id,
-                'status': status,
-                'icon': icon
-            }
+            item = {"title": title, "subtitle": task_id, "status": status, "icon": icon}
 
             # Add metadata if available
             metadata = []
-            if task.get('created_at'):
+            if task.get("created_at"):
                 try:
-                    created = task['created_at']
+                    created = task["created_at"]
                     if isinstance(created, str):
-                        created = datetime.fromisoformat(created.replace('Z', '+00:00'))
-                    metadata.append({
-                        'label': 'Created',
-                        'value': created.strftime('%Y-%m-%d')
-                    })
+                        created = datetime.fromisoformat(created.replace("Z", "+00:00"))
+                    metadata.append({"label": "Created", "value": created.strftime("%Y-%m-%d")})
                 except Exception:
                     pass
 
-            if task.get('priority'):
-                metadata.append({
-                    'label': 'Priority',
-                    'value': str(task['priority'])
-                })
+            if task.get("priority"):
+                metadata.append({"label": "Priority", "value": str(task["priority"])})
 
             if metadata:
-                item['metadata'] = metadata
+                item["metadata"] = metadata
 
             items.append(item)
 
@@ -666,27 +660,28 @@ def create_chat_assistant(
     """
     import os
 
-    logger.error("="*80)
+    logger.error("=" * 80)
     logger.error(" DEBUG: create_chat_assistant() CALLED!")
-    logger.error("="*80)
+    logger.error("=" * 80)
 
     # Check if Anthropic API key is available for V2
-    api_key = os.getenv('ANTHROPIC_API_KEY')
+    api_key = os.getenv("ANTHROPIC_API_KEY")
 
-    logger.error(f" DEBUG create_chat_assistant: API key present={bool(api_key)}, value={'***' + api_key[-10:] if api_key else 'None'}")
+    logger.error(
+        f" DEBUG create_chat_assistant: API key present={bool(api_key)}, value={'***' + api_key[-10:] if api_key else 'None'}"
+    )
 
     if api_key:
         # Use V2 (LLM-driven, truly DRY!)
         try:
             from .chat_assistant_v2 import ChatAssistantV2
+
             logger.error(" Using ChatAssistant V2 (LLM-driven section selection)")
-            return ChatAssistantV2(
-                state_manager=state_manager,
-                anthropic_api_key=api_key
-            )
+            return ChatAssistantV2(state_manager=state_manager, anthropic_api_key=api_key)
         except Exception as e:
             logger.error(f" Failed to initialize ChatAssistant V2: {e}")
             import traceback
+
             logger.error(traceback.format_exc())
             # Fall through to V1
 

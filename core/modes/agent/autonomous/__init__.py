@@ -10,15 +10,15 @@ Zero-configuration autonomous agent that handles complex workflows:
 Uses TaskPlanner for all planning (single source of truth).
 """
 
-from .intent_parser import IntentParser, TaskGraph
-from ..agent.agentic_planner import TaskPlanner, TaskPlan
+from ..agent.agentic_planner import TaskPlan, TaskPlanner
 from .enhanced_executor import AutonomousExecutor, EnhancedExecutionResult
+from .intent_parser import IntentParser, TaskGraph
 
 __all__ = [
-    'IntentParser',
-    'TaskGraph',
-    'TaskPlanner',  # Unified planner (replaces AutonomousPlanner)
-    'TaskPlan',
-    'AutonomousExecutor',
-    'EnhancedExecutionResult',
+    "IntentParser",
+    "TaskGraph",
+    "TaskPlanner",  # Unified planner (replaces AutonomousPlanner)
+    "TaskPlan",
+    "AutonomousExecutor",
+    "EnhancedExecutionResult",
 ]

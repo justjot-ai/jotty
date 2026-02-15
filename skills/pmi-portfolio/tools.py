@@ -7,11 +7,15 @@ from PlanMyInvesting API.
 """
 
 import logging
-from typing import Dict, Any
+from typing import Any, Dict
 
 from Jotty.core.infrastructure.utils.env_loader import load_jotty_env
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import (
+    async_tool_wrapper,
+    tool_error,
+    tool_response,
+)
 
 load_jotty_env()
 logger = logging.getLogger(__name__)
@@ -22,6 +26,7 @@ def _get_pmi_client():
     """Lazy import to avoid circular deps with hyphenated directory."""
     import importlib.util
     from pathlib import Path
+
     spec = importlib.util.spec_from_file_location(
         "pmi_client",
         Path(__file__).resolve().parent.parent / "pmi-market-data" / "pmi_client.py",
@@ -61,10 +66,13 @@ async def get_portfolio_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
     status.emit("Fetching", "Loading portfolio holdings...")
 
-    result = client.get("/v2/portfolio", params={
-        "broker": params.get("broker", ""),
-        "include_closed": params.get("include_closed", False),
-    })
+    result = client.get(
+        "/v2/portfolio",
+        params={
+            "broker": params.get("broker", ""),
+            "include_closed": params.get("include_closed", False),
+        },
+    )
     if not result.get("success"):
         return tool_error(result.get("error", "Failed to get portfolio"))
 
@@ -100,9 +108,12 @@ async def get_pnl_summary_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
     status.emit("Calculating", "Computing P&L summary...")
 
-    result = client.post("/v2/get_pnl_summary", data={
-        "period": params.get("period", "all"),
-    })
+    result = client.post(
+        "/v2/get_pnl_summary",
+        data={
+            "period": params.get("period", "all"),
+        },
+    )
     if not result.get("success"):
         return tool_error(result.get("error", "Failed to get P&L summary"))
 

@@ -13,11 +13,12 @@ Note: SkillCategory and SkillResult are imported from core/skills/ml/base.py
 to follow DRY principles - single source of truth for ML skill types.
 """
 
-import time
 import logging
-from typing import Dict, List, Any, Optional
+import time
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Any, Dict, List, Optional
+
 import numpy as np
 
 logger = logging.getLogger(__name__)
@@ -33,6 +34,7 @@ except ImportError:
     # Fallback if skills module not available
     class SkillCategory(Enum):
         """Categories of ML skills in the pipeline."""
+
         DATA_PROFILING = "data_profiling"
         DATA_CLEANING = "data_cleaning"
         FEATURE_ENGINEERING = "feature_engineering"
@@ -46,6 +48,7 @@ except ImportError:
     @dataclass
     class SkillResult:
         """Result from a skill execution."""
+
         skill_name: str
         category: SkillCategory
         success: bool
@@ -59,8 +62,10 @@ except ImportError:
 # ORCHESTRATION-SPECIFIC TYPES
 # =============================================================================
 
+
 class ProblemType(Enum):
     """Types of machine learning problems."""
+
     CLASSIFICATION = "classification"
     REGRESSION = "regression"
     CLUSTERING = "clustering"
@@ -72,6 +77,7 @@ class ProblemType(Enum):
 @dataclass
 class PipelineResult:
     """Result from full pipeline execution."""
+
     problem_type: ProblemType
     best_score: float
     best_model: Any
@@ -86,20 +92,21 @@ class PipelineResult:
 # PROGRESS TRACKER
 # =============================================================================
 
+
 class ProgressTracker:
     """Visual progress tracking for ML pipeline stages."""
 
     STAGE_WEIGHTS = {
-        'DATA_PROFILING': 2,
-        'DATA_CLEANING': 3,
-        'LLM_FEATURE_REASONING': 10,
-        'FEATURE_ENGINEERING': 8,
-        'FEATURE_SELECTION': 5,
-        'MODEL_SELECTION': 25,
-        'HYPERPARAMETER_OPTIMIZATION': 30,
-        'ENSEMBLE': 15,
-        'EVALUATION': 1,
-        'EXPLANATION': 1,
+        "DATA_PROFILING": 2,
+        "DATA_CLEANING": 3,
+        "LLM_FEATURE_REASONING": 10,
+        "FEATURE_ENGINEERING": 8,
+        "FEATURE_SELECTION": 5,
+        "MODEL_SELECTION": 25,
+        "HYPERPARAMETER_OPTIMIZATION": 30,
+        "ENSEMBLE": 15,
+        "EVALUATION": 1,
+        "EXPLANATION": 1,
     }
 
     def __init__(self, total_stages: int = 9) -> None:
@@ -130,17 +137,19 @@ class ProgressTracker:
         pct = (self.completed_weight / self.total_weight) * 100
         bar_len = 30
         filled = int(bar_len * pct / 100)
-        bar = '█' * filled + '░' * (bar_len - filled)
+        bar = "█" * filled + "░" * (bar_len - filled)
         elapsed = time.time() - self.start_time
 
-        logger.info(f'[{bar}] {pct:5.1f}% | Stage {self.current_stage}/{self.total_stages}: {self.current_stage_name:<25} | {elapsed:.0f}s')
+        logger.info(
+            f"[{bar}] {pct:5.1f}% | Stage {self.current_stage}/{self.total_stages}: {self.current_stage_name:<25} | {elapsed:.0f}s"
+        )
 
     def _print_completion(self, stage_name: str, elapsed: float, metrics: Dict = None) -> Any:
         """Print stage completion."""
         pct = (self.completed_weight / self.total_weight) * 100
         bar_len = 30
         filled = int(bar_len * pct / 100)
-        bar = '█' * filled + '░' * (bar_len - filled)
+        bar = "█" * filled + "░" * (bar_len - filled)
 
         metric_str = ""
         if metrics:
@@ -150,19 +159,20 @@ class ProgressTracker:
                 for k, v in key_metrics.items()
             )
 
-        logger.info(f'[{bar}] {pct:5.1f}% | Done: {stage_name:<25} ({elapsed:.1f}s){metric_str}')
+        logger.info(f"[{bar}] {pct:5.1f}% | Done: {stage_name:<25} ({elapsed:.1f}s){metric_str}")
 
     def finish(self, final_score: float) -> None:
         """Log final summary."""
         total_time = time.time() - self.start_time
         logger.info(f'{"="*60}')
-        logger.info(f'COMPLETE | Score: {final_score:.4f} | Total time: {total_time:.1f}s')
+        logger.info(f"COMPLETE | Score: {final_score:.4f} | Total time: {total_time:.1f}s")
         logger.info(f'{"="*60}')
 
 
 # =============================================================================
 # SKILL ADAPTER
 # =============================================================================
+
 
 class SkillAdapter:
     """
@@ -180,30 +190,30 @@ class SkillAdapter:
         """Infer skill category from name/description."""
         name = self.skill_name.lower()
         # Handle both dict and SkillDefinition object
-        if hasattr(self.skill_def, 'description'):
+        if hasattr(self.skill_def, "description"):
             desc = str(self.skill_def.description).lower()
         elif isinstance(self.skill_def, dict):
-            desc = str(self.skill_def.get('description', '')).lower()
+            desc = str(self.skill_def.get("description", "")).lower()
         else:
-            desc = ''
+            desc = ""
 
-        if 'profil' in name or 'profil' in desc:
+        if "profil" in name or "profil" in desc:
             return SkillCategory.DATA_PROFILING
-        elif 'clean' in name or 'valid' in name:
+        elif "clean" in name or "valid" in name:
             return SkillCategory.DATA_CLEANING
-        elif 'feature' in name and 'select' in name:
+        elif "feature" in name and "select" in name:
             return SkillCategory.FEATURE_SELECTION
-        elif 'feature' in name or 'engineer' in name:
+        elif "feature" in name or "engineer" in name:
             return SkillCategory.FEATURE_ENGINEERING
-        elif 'hyper' in name or 'optim' in name or 'optuna' in name:
+        elif "hyper" in name or "optim" in name or "optuna" in name:
             return SkillCategory.HYPERPARAMETER_OPTIMIZATION
-        elif 'ensemble' in name or 'stack' in name or 'blend' in name:
+        elif "ensemble" in name or "stack" in name or "blend" in name:
             return SkillCategory.ENSEMBLE
-        elif 'automl' in name or 'auto-ml' in name or 'model' in name:
+        elif "automl" in name or "auto-ml" in name or "model" in name:
             return SkillCategory.MODEL_SELECTION
-        elif 'metric' in name or 'eval' in name:
+        elif "metric" in name or "eval" in name:
             return SkillCategory.EVALUATION
-        elif 'shap' in name or 'explain' in name or 'interpret' in name:
+        elif "shap" in name or "explain" in name or "interpret" in name:
             return SkillCategory.EXPLANATION
         else:
             return SkillCategory.FEATURE_ENGINEERING
@@ -212,10 +222,10 @@ class SkillAdapter:
         """Execute the skill with given context."""
         try:
             # Get tool functions from skill (handle both dict and SkillDefinition)
-            if hasattr(self.skill_def, 'tools'):
+            if hasattr(self.skill_def, "tools"):
                 tools = self.skill_def.tools or {}
             elif isinstance(self.skill_def, dict):
-                tools = self.skill_def.get('tools', {})
+                tools = self.skill_def.get("tools", {})
             else:
                 tools = {}
 
@@ -224,7 +234,7 @@ class SkillAdapter:
                     skill_name=self.skill_name,
                     category=self.category,
                     success=False,
-                    error="No tools defined"
+                    error="No tools defined",
                 )
 
             # Execute based on category
@@ -234,10 +244,7 @@ class SkillAdapter:
         except Exception as e:
             logger.warning(f"Skill {self.skill_name} failed: {e}")
             return SkillResult(
-                skill_name=self.skill_name,
-                category=self.category,
-                success=False,
-                error=str(e)
+                skill_name=self.skill_name, category=self.category, success=False, error=str(e)
             )
 
     async def _execute_by_category(self, context: Dict) -> SkillResult:
@@ -247,7 +254,7 @@ class SkillAdapter:
             skill_name=self.skill_name,
             category=self.category,
             success=False,
-            error="No real implementation — using builtin fallback"
+            error="No real implementation — using builtin fallback",
         )
 
 
@@ -256,10 +263,10 @@ class SkillAdapter:
 # =============================================================================
 
 __all__ = [
-    'ProblemType',
-    'SkillCategory',
-    'SkillResult',
-    'PipelineResult',
-    'ProgressTracker',
-    'SkillAdapter',
+    "ProblemType",
+    "SkillCategory",
+    "SkillResult",
+    "PipelineResult",
+    "ProgressTracker",
+    "SkillAdapter",
 ]

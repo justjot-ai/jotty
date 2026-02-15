@@ -17,14 +17,15 @@ The skill supports iterative feedback loops where the LLM learns
 from model performance to generate improved features.
 """
 
-import time
-import re
-from typing import Dict, List, Any, Optional
-import pandas as pd
-import numpy as np
 import logging
+import re
+import time
+from typing import Any, Dict, List, Optional
 
-from .base import MLSkill, SkillResult, SkillCategory
+import numpy as np
+import pandas as pd
+
+from .base import MLSkill, SkillCategory, SkillResult
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +79,6 @@ Generate ONLY executable Python code:
 X['new_feature'] = X['column'].str.extract(r'pattern', expand=False)
 
 Code only:""",
-
         "domain": """You are a **Principal Data Scientist** with domain expertise.
 
 ## Chain-of-Thought Analysis
@@ -109,7 +109,6 @@ Return ONLY executable Python code:
 X['family_size'] = X['SibSp'] + X['Parch'] + 1
 
 Code only:""",
-
         "ds": """You are a **Kaggle Grandmaster** with expertise in statistical feature engineering.
 
 ## Structured Analysis
@@ -139,7 +138,6 @@ Return ONLY executable Python code:
 X['Age_log'] = np.log1p(X['Age'].clip(lower=0))
 
 Code only:""",
-
         "feedback": """You are a **Kaggle Grandmaster** analyzing feature importance from a trained model.
 
 ## FEEDBACK FROM TRAINED MODEL (Iteration {iteration})
@@ -173,7 +171,6 @@ Return ONLY executable Python code:
 X['new_feature'] = ...
 
 Code only:""",
-
         "group_analyst": """You are a Group/Aggregation Feature Engineer for {problem_type} to predict {target}.
 
 Features: {features}
@@ -188,7 +185,6 @@ Return ONLY executable Python code:
 X['column_group_size'] = X.groupby('column')['column'].transform('count')
 
 Code only:""",
-
         "interaction_analyst": """You are a Feature Interaction Analyst for {problem_type} to predict {target}.
 
 Features: {features}
@@ -202,7 +198,6 @@ Return ONLY executable Python code:
 X['feat1_x_feat2'] = X['feat1'] * X['feat2']
 
 Code only:""",
-
         "binning_analyst": """You are a Binning Expert for {problem_type} to predict {target}.
 
 Features: {features}
@@ -230,6 +225,7 @@ Code only:""",
         if self._llm_available is None:
             try:
                 from core.llm import generate_text
+
                 self._llm = generate_text
                 self._llm_available = True
                 logger.info("LLM Feature Reasoner: Using Claude CLI")
@@ -238,7 +234,9 @@ Code only:""",
                 self._llm_available = False
         return self._llm_available
 
-    async def execute(self, X: pd.DataFrame, y: Optional[pd.Series] = None, **context: Any) -> SkillResult:
+    async def execute(
+        self, X: pd.DataFrame, y: Optional[pd.Series] = None, **context: Any
+    ) -> SkillResult:
         """
         Execute LLM feature reasoning.
 
@@ -258,15 +256,15 @@ Code only:""",
         self._init_llm()
 
         suggestions = []
-        problem_type = context.get('problem_type', 'classification')
-        business_context = context.get('business_context', '')
-        eda_insights = context.get('eda_insights', {})
-        feature_importance = context.get('feature_importance', {})
-        iteration = context.get('iteration', 0)
+        problem_type = context.get("problem_type", "classification")
+        business_context = context.get("business_context", "")
+        eda_insights = context.get("eda_insights", {})
+        feature_importance = context.get("feature_importance", {})
+        iteration = context.get("iteration", 0)
 
         # Build context for prompts
         features = list(X.columns)
-        target = y.name if y is not None and hasattr(y, 'name') else "target"
+        target = y.name if y is not None and hasattr(y, "name") else "target"
 
         # Get string column samples
         string_samples = self._get_string_samples(X)
@@ -274,15 +272,21 @@ Code only:""",
         # Determine which perspectives to use
         if iteration > 0 and feature_importance:
             # Feedback loop mode
-            perspectives = ['feedback']
+            perspectives = ["feedback"]
         else:
             # Initial mode - use all perspectives
-            perspectives = ['text_engineer', 'domain', 'ds', 'group_analyst',
-                           'interaction_analyst', 'binning_analyst']
+            perspectives = [
+                "text_engineer",
+                "domain",
+                "ds",
+                "group_analyst",
+                "interaction_analyst",
+                "binning_analyst",
+            ]
 
         # Generate features from each perspective
         for perspective in perspectives:
-            prompt_template = self.PROMPTS.get(perspective, '')
+            prompt_template = self.PROMPTS.get(perspective, "")
             if not prompt_template:
                 continue
 
@@ -321,20 +325,20 @@ Code only:""",
             success=True,
             data=X_enhanced,
             metrics={
-                'n_suggestions': len(suggestions),
-                'n_applied': X_enhanced.shape[1] - X.shape[1],
-                'n_perspectives': len(perspectives),
+                "n_suggestions": len(suggestions),
+                "n_applied": X_enhanced.shape[1] - X.shape[1],
+                "n_perspectives": len(perspectives),
             },
             metadata={
-                'suggestions': suggestions,
-                'perspectives_used': perspectives,
+                "suggestions": suggestions,
+                "perspectives_used": perspectives,
             },
             execution_time=execution_time,
         )
 
     def _get_string_samples(self, X: pd.DataFrame) -> str:
         """Get string column samples for prompts."""
-        string_cols = X.select_dtypes(include=['object']).columns.tolist()
+        string_cols = X.select_dtypes(include=["object"]).columns.tolist()
         samples = {}
         for col in string_cols[:5]:
             samples[col] = X[col].dropna().head(3).tolist()
@@ -342,26 +346,22 @@ Code only:""",
         if not samples:
             return "No string columns"
 
-        return "\n".join([
-            f"  {col}: {vals}" for col, vals in samples.items()
-        ])
+        return "\n".join([f"  {col}: {vals}" for col, vals in samples.items()])
 
     def _format_prompt(self, template: str, **kwargs: Any) -> str:
         """Format prompt template with context."""
         # Handle feature_importance for feedback loop
-        if 'feature_importance' in kwargs and kwargs['feature_importance']:
-            fi = kwargs['feature_importance']
+        if "feature_importance" in kwargs and kwargs["feature_importance"]:
+            fi = kwargs["feature_importance"]
             sorted_fi = sorted(fi.items(), key=lambda x: x[1], reverse=True)
 
-            kwargs['top_features'] = "\n".join([
-                f"  - {f}: importance={imp:.4f}"
-                for f, imp in sorted_fi[:10]
-            ])
-            kwargs['bottom_features'] = "\n".join([
-                f"  - {f}: importance={imp:.4f}"
-                for f, imp in sorted_fi[-10:]
-            ])
-            kwargs['columns'] = list(fi.keys())[:30]
+            kwargs["top_features"] = "\n".join(
+                [f"  - {f}: importance={imp:.4f}" for f, imp in sorted_fi[:10]]
+            )
+            kwargs["bottom_features"] = "\n".join(
+                [f"  - {f}: importance={imp:.4f}" for f, imp in sorted_fi[-10:]]
+            )
+            kwargs["columns"] = list(fi.keys())[:30]
 
         # Format with available kwargs
         try:
@@ -372,16 +372,12 @@ Code only:""",
     def _parse_response(self, response: str, perspective: str) -> List[Dict]:
         """Parse LLM response into feature suggestions."""
         suggestions = []
-        lines = response.split('\n')
+        lines = response.split("\n")
 
         for line in lines:
             line = line.strip()
-            if '=' in line and ('X[' in line or 'df[' in line):
-                suggestions.append({
-                    'perspective': perspective,
-                    'code': line,
-                    'source': 'llm'
-                })
+            if "=" in line and ("X[" in line or "df[" in line):
+                suggestions.append({"perspective": perspective, "code": line, "source": "llm"})
 
         return suggestions
 
@@ -394,7 +390,7 @@ Code only:""",
         created_features = set()
         dedup_suggestions = []
         for suggestion in suggestions:
-            code = suggestion.get('code', '')
+            code = suggestion.get("code", "")
             match = re.search(r"X\['([^']+)'\]\s*=", code)
             if match:
                 feat_name = match.group(1)
@@ -406,15 +402,15 @@ Code only:""",
 
         for suggestion in dedup_suggestions:
             try:
-                code = suggestion.get('code', '')
-                local_vars = {'X': X_new, 'np': np, 'pd': pd}
-                exec(code, {'__builtins__': {}}, local_vars)
-                X_new = local_vars.get('X', X_new)
+                code = suggestion.get("code", "")
+                local_vars = {"X": X_new, "np": np, "pd": pd}
+                exec(code, {"__builtins__": {}}, local_vars)
+                X_new = local_vars.get("X", X_new)
                 applied += 1
 
                 # Convert Categorical to numeric
                 for col in X_new.columns:
-                    if hasattr(X_new[col], 'cat') or X_new[col].dtype.name == 'category':
+                    if hasattr(X_new[col], "cat") or X_new[col].dtype.name == "category":
                         X_new[col] = X_new[col].cat.codes
 
             except Exception as e:
@@ -423,7 +419,14 @@ Code only:""",
         logger.info(f"Applied {applied}/{len(dedup_suggestions)} suggestions")
         return X_new
 
-    async def feedback_loop(self, X: pd.DataFrame, y: pd.Series, feature_importance: Dict[str, float], iteration: int = 1, **context: Any) -> SkillResult:
+    async def feedback_loop(
+        self,
+        X: pd.DataFrame,
+        y: pd.Series,
+        feature_importance: Dict[str, float],
+        iteration: int = 1,
+        **context: Any,
+    ) -> SkillResult:
         """
         Run feedback loop to generate improved features.
 
@@ -440,10 +443,7 @@ Code only:""",
             SkillResult with improved features
         """
         return await self.execute(
-            X, y,
-            feature_importance=feature_importance,
-            iteration=iteration,
-            **context
+            X, y, feature_importance=feature_importance, iteration=iteration, **context
         )
 
     # ========================================================================
@@ -451,11 +451,9 @@ Code only:""",
     # These provide simpler access patterns without the SkillResult wrapper
     # ========================================================================
 
-    async def reason_features(self,
-                              X: pd.DataFrame,
-                              y: pd.Series,
-                              problem_type: str,
-                              context: str = "") -> List[Dict]:
+    async def reason_features(
+        self, X: pd.DataFrame, y: pd.Series, problem_type: str, context: str = ""
+    ) -> List[Dict]:
         """
         Generate feature suggestions using LLM reasoning.
 
@@ -475,19 +473,22 @@ Code only:""",
         eda_insights = {}
         try:
             from .eda import EDASkill
+
             eda = EDASkill()
             eda_insights = eda.analyze(X, y, problem_type)
 
             # Also get EDA-based recommendations as suggestions
             eda_suggestions = []
-            for rec in eda_insights.get('recommendations', []):
-                if rec.get('code') and not rec['code'].startswith('#'):
-                    eda_suggestions.append({
-                        'perspective': 'eda_rule',
-                        'code': rec['code'],
-                        'source': 'eda',
-                        'reason': rec.get('reason', '')
-                    })
+            for rec in eda_insights.get("recommendations", []):
+                if rec.get("code") and not rec["code"].startswith("#"):
+                    eda_suggestions.append(
+                        {
+                            "perspective": "eda_rule",
+                            "code": rec["code"],
+                            "source": "eda",
+                            "reason": rec.get("reason", ""),
+                        }
+                    )
 
             logger.info(f"EDA generated {len(eda_suggestions)} rule-based suggestions")
         except Exception as e:
@@ -496,22 +497,18 @@ Code only:""",
 
         # Run LLM reasoning with EDA insights
         result = await self.execute(
-            X, y,
-            problem_type=problem_type,
-            business_context=context,
-            eda_insights=eda_insights
+            X, y, problem_type=problem_type, business_context=context, eda_insights=eda_insights
         )
 
         if result.success:
-            llm_suggestions = result.metadata.get('suggestions', [])
+            llm_suggestions = result.metadata.get("suggestions", [])
             # Combine EDA and LLM suggestions
             return eda_suggestions + llm_suggestions
         return eda_suggestions
 
-    def apply_suggestions(self,
-                          X: pd.DataFrame,
-                          suggestions: List[Dict],
-                          drop_text_cols: bool = True) -> pd.DataFrame:
+    def apply_suggestions(
+        self, X: pd.DataFrame, suggestions: List[Dict], drop_text_cols: bool = True
+    ) -> pd.DataFrame:
         """
         Apply feature suggestions to dataframe.
 
@@ -529,7 +526,7 @@ Code only:""",
 
         # Drop high-cardinality text columns to prevent leakage
         if drop_text_cols:
-            original_text_cols = X.select_dtypes(include=['object']).columns.tolist()
+            original_text_cols = X.select_dtypes(include=["object"]).columns.tolist()
             n_rows = len(X_new)
             threshold = max(50, int(n_rows * 0.1))
 
@@ -546,13 +543,15 @@ Code only:""",
 
         return X_new
 
-    async def reason_with_feedback(self,
-                                   X: pd.DataFrame,
-                                   y: pd.Series,
-                                   problem_type: str,
-                                   context: str,
-                                   feature_importance: Dict[str, float],
-                                   iteration: int = 1) -> List[Dict]:
+    async def reason_with_feedback(
+        self,
+        X: pd.DataFrame,
+        y: pd.Series,
+        problem_type: str,
+        context: str,
+        feature_importance: Dict[str, float],
+        iteration: int = 1,
+    ) -> List[Dict]:
         """
         Generate improved features based on model feedback.
 
@@ -570,13 +569,14 @@ Code only:""",
             List of suggestion dicts
         """
         result = await self.execute(
-            X, y,
+            X,
+            y,
             problem_type=problem_type,
             business_context=context,
             feature_importance=feature_importance,
-            iteration=iteration
+            iteration=iteration,
         )
 
         if result.success:
-            return result.metadata.get('suggestions', [])
+            return result.metadata.get("suggestions", [])
         return []

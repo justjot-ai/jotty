@@ -12,11 +12,11 @@ Key Features:
 - Format-aware output
 """
 
-import re
 import logging
-from enum import Enum
+import re
 from dataclasses import dataclass
-from typing import List, Dict, Any, Optional
+from enum import Enum
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -24,13 +24,13 @@ logger = logging.getLogger(__name__)
 class AnswerFormat(Enum):
     """Expected answer format types."""
 
-    TEXT = "text"            # Free-form text
-    NUMBER = "number"        # Numeric value
-    DATE = "date"            # Date or year
-    PERSON = "person"        # Person name
-    LOCATION = "location"    # Place or location
-    YES_NO = "yes_no"        # Boolean answer
-    LIST = "list"            # Multiple items
+    TEXT = "text"  # Free-form text
+    NUMBER = "number"  # Numeric value
+    DATE = "date"  # Date or year
+    PERSON = "person"  # Person name
+    LOCATION = "location"  # Place or location
+    YES_NO = "yes_no"  # Boolean answer
+    LIST = "list"  # Multiple items
 
 
 @dataclass
@@ -73,6 +73,7 @@ class FactRetrievalExecutor:
         """Lazy-load registry."""
         if self._registry is None:
             from Jotty.core.capabilities.registry import get_unified_registry
+
             self._registry = get_unified_registry()
         return self._registry
 
@@ -83,19 +84,25 @@ class FactRetrievalExecutor:
             # Use the already-configured DSPy LM (from benchmark setup)
             # This avoids interfering with existing DSPy configuration
             import dspy
+
             if dspy.settings.lm is not None:
                 self._lm = dspy.settings.lm
             else:
                 # Fallback: create new LM if DSPy not configured
-                from Jotty.core.infrastructure.foundation.unified_lm_provider import UnifiedLMProvider
-                self._lm = UnifiedLMProvider.create_lm('anthropic', model='claude-sonnet-4-5-20250929', temperature=0.0)
+                from Jotty.core.infrastructure.foundation.unified_lm_provider import (
+                    UnifiedLMProvider,
+                )
+
+                self._lm = UnifiedLMProvider.create_lm(
+                    "anthropic", model="claude-sonnet-4-5-20250929", temperature=0.0
+                )
         return self._lm
 
     async def execute(
         self,
         question: str,
         attachments: Optional[List[str]] = None,
-        context: Optional[Dict[str, Any]] = None
+        context: Optional[Dict[str, Any]] = None,
     ) -> str:
         """
         Execute fact-retrieval task with perfect accuracy.
@@ -119,11 +126,7 @@ class FactRetrievalExecutor:
             steps = await self._decompose_question(question, analysis)
             logger.info(f"Decomposed into {len(steps)} steps")
         else:
-            steps = [ExecutionStep(
-                text=question,
-                depends_on=[],
-                tools=analysis.tools_needed
-            )]
+            steps = [ExecutionStep(text=question, depends_on=[], tools=analysis.tools_needed)]
 
         # Step 3: Execute each step
         execution_context = {}
@@ -138,7 +141,7 @@ class FactRetrievalExecutor:
                 question=resolved_text,
                 tools=step.tools,
                 attachments=attachments if i == 0 else None,  # Attachments only for first step
-                context=execution_context
+                context=execution_context,
             )
 
             step.result = result
@@ -150,16 +153,14 @@ class FactRetrievalExecutor:
             question=question,
             steps=steps,
             expected_format=analysis.answer_format,
-            context=execution_context
+            context=execution_context,
         )
 
         logger.info(f"Final answer: {final_answer}")
         return final_answer
 
     async def _analyze_question(
-        self,
-        question: str,
-        attachments: Optional[List[str]]
+        self, question: str, attachments: Optional[List[str]]
     ) -> QuestionAnalysis:
         """Analyze question structure and requirements."""
 
@@ -184,51 +185,48 @@ Analysis:"""
         if isinstance(response, list):
             response_text = response[0] if response else ""
         elif isinstance(response, dict):
-            response_text = response.get('content', '') or response.get('text', '') or str(response)
+            response_text = response.get("content", "") or response.get("text", "") or str(response)
         else:
             response_text = str(response)
 
         return self._parse_question_analysis(response_text, question, attachments)
 
     def _parse_question_analysis(
-        self,
-        response: str,
-        question: str,
-        attachments: Optional[List[str]]
+        self, response: str, question: str, attachments: Optional[List[str]]
     ) -> QuestionAnalysis:
         """Parse question analysis from LLM response."""
 
-        lines = response.strip().split('\n')
+        lines = response.strip().split("\n")
         data = {}
 
         for line in lines:
-            if ':' in line:
-                key, value = line.split(':', 1)
+            if ":" in line:
+                key, value = line.split(":", 1)
                 data[key.strip().upper()] = value.strip()
 
         # Parse fields
-        is_multi_hop = data.get('MULTI_HOP', 'no').lower() == 'yes'
+        is_multi_hop = data.get("MULTI_HOP", "no").lower() == "yes"
 
-        format_str = data.get('FORMAT', 'text').lower()
+        format_str = data.get("FORMAT", "text").lower()
         format_map = {
-            'text': AnswerFormat.TEXT,
-            'number': AnswerFormat.NUMBER,
-            'date': AnswerFormat.DATE,
-            'person': AnswerFormat.PERSON,
-            'location': AnswerFormat.LOCATION,
-            'yes_no': AnswerFormat.YES_NO,
-            'list': AnswerFormat.LIST,
+            "text": AnswerFormat.TEXT,
+            "number": AnswerFormat.NUMBER,
+            "date": AnswerFormat.DATE,
+            "person": AnswerFormat.PERSON,
+            "location": AnswerFormat.LOCATION,
+            "yes_no": AnswerFormat.YES_NO,
+            "list": AnswerFormat.LIST,
         }
         answer_format = format_map.get(format_str, AnswerFormat.TEXT)
 
-        domain = data.get('DOMAIN', 'general')
+        domain = data.get("DOMAIN", "general")
 
-        tools_str = data.get('TOOLS', '')
-        if tools_str and tools_str.lower() != 'none':
+        tools_str = data.get("TOOLS", "")
+        if tools_str and tools_str.lower() != "none":
             # Extract tool names and clean up (remove explanations after '-')
             tools_needed = []
-            for t in tools_str.split(','):
-                tool_name = t.strip().split('-')[0].strip().split()[0].strip()
+            for t in tools_str.split(","):
+                tool_name = t.strip().split("-")[0].strip().split()[0].strip()
                 if tool_name:
                     tools_needed.append(tool_name)
         else:
@@ -241,14 +239,14 @@ Analysis:"""
         # Normalize tool names to registry format
         tools_needed = self._normalize_tool_names(tools_needed)
 
-        complexity = data.get('COMPLEXITY', 'medium')
+        complexity = data.get("COMPLEXITY", "medium")
 
         return QuestionAnalysis(
             is_multi_hop=is_multi_hop,
             answer_format=answer_format,
             domain=domain,
             tools_needed=tools_needed,
-            complexity=complexity
+            complexity=complexity,
         )
 
     def _auto_detect_tools(self, question: str, attachments: Optional[List[str]]) -> List[str]:
@@ -258,26 +256,29 @@ Analysis:"""
         q_lower = question.lower()
 
         # Math/calculation
-        if any(op in question for op in ['+', '-', '*', '/', '=']) or \
-           any(word in q_lower for word in ['calculate', 'compute', 'sum', 'multiply', 'divide']):
-            tools.append('calculator')
+        if any(op in question for op in ["+", "-", "*", "/", "="]) or any(
+            word in q_lower for word in ["calculate", "compute", "sum", "multiply", "divide"]
+        ):
+            tools.append("calculator")
 
         # Web search
-        if any(word in q_lower for word in ['what is', 'who is', 'when', 'where', 'find', 'search']):
-            tools.append('web-search')
+        if any(
+            word in q_lower for word in ["what is", "who is", "when", "where", "find", "search"]
+        ):
+            tools.append("web-search")
 
         # Attachments (use actual registry skill names)
         if attachments:
             for filename in attachments:
-                ext = filename.split('.')[-1].lower()
-                if ext in ['mp3', 'wav', 'm4a', 'ogg', 'flac']:
-                    tools.append('openai-whisper-api')
-                elif ext in ['pdf', 'docx', 'txt', 'doc']:
-                    tools.append('document-converter')
-                elif ext in ['jpg', 'png', 'jpeg', 'gif', 'bmp']:
-                    tools.append('image-generator')  # Vision/OCR
-                elif ext in ['csv', 'xlsx', 'json']:
-                    tools.append('file-operations')
+                ext = filename.split(".")[-1].lower()
+                if ext in ["mp3", "wav", "m4a", "ogg", "flac"]:
+                    tools.append("openai-whisper-api")
+                elif ext in ["pdf", "docx", "txt", "doc"]:
+                    tools.append("document-converter")
+                elif ext in ["jpg", "png", "jpeg", "gif", "bmp"]:
+                    tools.append("image-generator")  # Vision/OCR
+                elif ext in ["csv", "xlsx", "json"]:
+                    tools.append("file-operations")
 
         return tools
 
@@ -287,37 +288,32 @@ Analysis:"""
         # Map common aliases to actual registry skill names
         tool_map = {
             # Web search variations
-            'web_search': 'web-search',
-            'websearch': 'web-search',
-            'search': 'web-search',
-            'google': 'web-search',
-
+            "web_search": "web-search",
+            "websearch": "web-search",
+            "search": "web-search",
+            "google": "web-search",
             # Audio transcription
-            'voice_to_text': 'openai-whisper-api',
-            'voice_to_text_tool': 'openai-whisper-api',
-            'transcribe': 'openai-whisper-api',
-            'whisper': 'openai-whisper-api',
-            'audio': 'openai-whisper-api',
-
+            "voice_to_text": "openai-whisper-api",
+            "voice_to_text_tool": "openai-whisper-api",
+            "transcribe": "openai-whisper-api",
+            "whisper": "openai-whisper-api",
+            "audio": "openai-whisper-api",
             # File operations
-            'read_file': 'file-operations',
-            'readfile': 'file-operations',
-            'file': 'file-operations',
-
+            "read_file": "file-operations",
+            "readfile": "file-operations",
+            "file": "file-operations",
             # Document reading
-            'document_reader': 'document-converter',
-            'doc_reader': 'document-converter',
-            'pdf': 'document-converter',
-
+            "document_reader": "document-converter",
+            "doc_reader": "document-converter",
+            "pdf": "document-converter",
             # Calculator
-            'calculator': 'calculator',
-            'calc': 'calculator',
-            'math': 'calculator',
-
+            "calculator": "calculator",
+            "calc": "calculator",
+            "math": "calculator",
             # Vision/OCR
-            'vision': 'image-generator',  # Check if there's a vision skill
-            'image': 'image-generator',
-            'ocr': 'image-generator',
+            "vision": "image-generator",  # Check if there's a vision skill
+            "image": "image-generator",
+            "ocr": "image-generator",
         }
 
         normalized = []
@@ -330,10 +326,14 @@ Analysis:"""
                 if mapped not in normalized:  # Avoid duplicates
                     normalized.append(mapped)
             # Try with underscores/hyphens removed
-            elif tool_lower.replace('_', '').replace('-', '') in [k.replace('_', '').replace('-', '') for k in tool_map]:
+            elif tool_lower.replace("_", "").replace("-", "") in [
+                k.replace("_", "").replace("-", "") for k in tool_map
+            ]:
                 # Find matching key
                 for key, value in tool_map.items():
-                    if tool_lower.replace('_', '').replace('-', '') == key.replace('_', '').replace('-', ''):
+                    if tool_lower.replace("_", "").replace("-", "") == key.replace("_", "").replace(
+                        "-", ""
+                    ):
                         if value not in normalized:
                             normalized.append(value)
                         break
@@ -345,9 +345,7 @@ Analysis:"""
         return normalized
 
     async def _decompose_question(
-        self,
-        question: str,
-        analysis: QuestionAnalysis
+        self, question: str, analysis: QuestionAnalysis
     ) -> List[ExecutionStep]:
         """Decompose multi-hop question into atomic steps."""
 
@@ -373,7 +371,7 @@ Steps:"""
         if isinstance(response, list):
             response_text = response[0] if response else ""
         elif isinstance(response, dict):
-            response_text = response.get('content', '') or response.get('text', '') or str(response)
+            response_text = response.get("content", "") or response.get("text", "") or str(response)
         else:
             response_text = str(response)
 
@@ -383,7 +381,7 @@ Steps:"""
         """Parse step decomposition from LLM response."""
 
         steps = []
-        lines = response.strip().split('\n')
+        lines = response.strip().split("\n")
         current_step = None
         current_tools = []
 
@@ -392,34 +390,38 @@ Steps:"""
             if not line:
                 continue
 
-            if line.startswith('Step '):
+            if line.startswith("Step "):
                 # Save previous step
                 if current_step:
-                    steps.append(ExecutionStep(
-                        text=current_step,
-                        depends_on=self._extract_dependencies(current_step),
-                        tools=current_tools
-                    ))
+                    steps.append(
+                        ExecutionStep(
+                            text=current_step,
+                            depends_on=self._extract_dependencies(current_step),
+                            tools=current_tools,
+                        )
+                    )
 
                 # Extract new step text
-                match = re.match(r'Step \d+:\s*(.+)', line)
+                match = re.match(r"Step \d+:\s*(.+)", line)
                 if match:
                     current_step = match.group(1)
                     current_tools = []
 
-            elif line.startswith('Tools:'):
+            elif line.startswith("Tools:"):
                 # Extract tools
-                tools_str = line.replace('Tools:', '').strip()
-                if tools_str and tools_str.lower() != 'none':
-                    current_tools = [t.strip() for t in tools_str.split(',')]
+                tools_str = line.replace("Tools:", "").strip()
+                if tools_str and tools_str.lower() != "none":
+                    current_tools = [t.strip() for t in tools_str.split(",")]
 
         # Add last step
         if current_step:
-            steps.append(ExecutionStep(
-                text=current_step,
-                depends_on=self._extract_dependencies(current_step),
-                tools=current_tools
-            ))
+            steps.append(
+                ExecutionStep(
+                    text=current_step,
+                    depends_on=self._extract_dependencies(current_step),
+                    tools=current_tools,
+                )
+            )
 
         return steps
 
@@ -428,24 +430,21 @@ Steps:"""
 
         deps = []
         # Look for {Step N} references
-        for match in re.finditer(r'\{Step (\d+)\}', step_text):
+        for match in re.finditer(r"\{Step (\d+)\}", step_text):
             step_num = int(match.group(1))
             deps.append(step_num - 1)  # Convert to 0-indexed
 
         return deps
 
     def _resolve_dependencies(
-        self,
-        step_text: str,
-        steps: List[ExecutionStep],
-        context: Dict[str, Any]
+        self, step_text: str, steps: List[ExecutionStep], context: Dict[str, Any]
     ) -> str:
         """Replace {Step N} references with actual results."""
 
         resolved = step_text
 
         # Find all {Step N} patterns
-        for match in re.finditer(r'\{Step (\d+)\}', step_text):
+        for match in re.finditer(r"\{Step (\d+)\}", step_text):
             step_num = int(match.group(1))
             step_key = f"step_{step_num}"
 
@@ -461,7 +460,7 @@ Steps:"""
         question: str,
         tools: List[str],
         attachments: Optional[List[str]],
-        context: Dict[str, Any]
+        context: Dict[str, Any],
     ) -> str:
         """Execute single step with specified tools."""
 
@@ -502,7 +501,10 @@ Answer:"""
 
                 # Log tool names for debugging
                 if tool_defs:
-                    tool_names = [t.get('name', t.get('function', {}).get('name', 'unknown')) for t in tool_defs]
+                    tool_names = [
+                        t.get("name", t.get("function", {}).get("name", "unknown"))
+                        for t in tool_defs
+                    ]
                     logger.debug(f"Tool definitions: {tool_names}")
 
             except Exception as e:
@@ -515,18 +517,15 @@ Answer:"""
                 # Use tool-calling LLM (e.g., Claude with tools)
                 # Reuse the already-configured DSPy LM
                 import dspy
+
                 tool_lm = dspy.settings.lm if dspy.settings.lm else self.lm
 
                 # Let LLM use tools to answer the question
-                response = tool_lm(
-                    prompt,
-                    tools=tool_defs,
-                    tool_choice='auto'
-                )
+                response = tool_lm(prompt, tools=tool_defs, tool_choice="auto")
 
                 # Extract final answer from tool-calling response
-                if isinstance(response, dict) and 'content' in response:
-                    result = response['content']
+                if isinstance(response, dict) and "content" in response:
+                    result = response["content"]
                 else:
                     result = str(response)
 
@@ -540,7 +539,9 @@ Answer:"""
                 if isinstance(response, list):
                     response_text = response[0] if response else ""
                 elif isinstance(response, dict):
-                    response_text = response.get('content', '') or response.get('text', '') or str(response)
+                    response_text = (
+                        response.get("content", "") or response.get("text", "") or str(response)
+                    )
                 else:
                     response_text = str(response)
 
@@ -555,7 +556,9 @@ Answer:"""
             if isinstance(response, list):
                 response_text = response[0] if response else ""
             elif isinstance(response, dict):
-                response_text = response.get('content', '') or response.get('text', '') or str(response)
+                response_text = (
+                    response.get("content", "") or response.get("text", "") or str(response)
+                )
             else:
                 response_text = str(response)
 
@@ -566,14 +569,13 @@ Answer:"""
         question: str,
         steps: List[ExecutionStep],
         expected_format: AnswerFormat,
-        context: Dict[str, Any]
+        context: Dict[str, Any],
     ) -> str:
         """Extract exact answer in expected format."""
 
         # Collect all step results
         results_text = "\n\n".join(
-            f"Step {i+1}: {step.text}\nResult: {step.result}"
-            for i, step in enumerate(steps)
+            f"Step {i+1}: {step.text}\nResult: {step.result}" for i, step in enumerate(steps)
         )
 
         prompt = f"""Extract the exact answer to this question from the execution results.
@@ -596,7 +598,7 @@ Final Answer:"""
         if isinstance(response, list):
             response_text = response[0] if response else ""
         elif isinstance(response, dict):
-            response_text = response.get('content', '') or response.get('text', '') or str(response)
+            response_text = response.get("content", "") or response.get("text", "") or str(response)
         else:
             response_text = str(response)
 
@@ -627,21 +629,21 @@ Final Answer:"""
 
         if format == AnswerFormat.NUMBER:
             # Extract first number
-            match = re.search(r'-?\d+\.?\d*', answer)
+            match = re.search(r"-?\d+\.?\d*", answer)
             if match:
                 return match.group()
 
         elif format == AnswerFormat.YES_NO:
             # Normalize to Yes/No
             answer_lower = answer.lower()
-            if 'yes' in answer_lower or 'true' in answer_lower:
-                return 'Yes'
-            elif 'no' in answer_lower or 'false' in answer_lower:
-                return 'No'
+            if "yes" in answer_lower or "true" in answer_lower:
+                return "Yes"
+            elif "no" in answer_lower or "false" in answer_lower:
+                return "No"
 
         elif format == AnswerFormat.LOCATION:
             # Remove prefixes like "in", "at"
-            answer = re.sub(r'^(in|at|near)\s+', '', answer, flags=re.IGNORECASE)
+            answer = re.sub(r"^(in|at|near)\s+", "", answer, flags=re.IGNORECASE)
 
         return answer.strip()
 

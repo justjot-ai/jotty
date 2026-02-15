@@ -1,8 +1,11 @@
 """Calculate cyclomatic complexity, LOC, function count from Python source."""
+
 import ast
-from typing import Dict, Any, List
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from typing import Any, Dict, List
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
+
 status = SkillStatus("code-complexity-analyzer")
 
 
@@ -53,13 +56,15 @@ def analyze_complexity(params: Dict[str, Any]) -> Dict[str, Any]:
             cc = _cyclomatic(node)
             end = getattr(node, "end_lineno", node.lineno)
             func_lines = end - node.lineno + 1
-            functions.append({
-                "name": node.name,
-                "line": node.lineno,
-                "complexity": cc,
-                "lines": func_lines,
-                "high_complexity": cc > threshold,
-            })
+            functions.append(
+                {
+                    "name": node.name,
+                    "line": node.lineno,
+                    "complexity": cc,
+                    "lines": func_lines,
+                    "high_complexity": cc > threshold,
+                }
+            )
         elif isinstance(node, ast.ClassDef):
             classes.append(node.name)
         elif isinstance(node, (ast.Import, ast.ImportFrom)):

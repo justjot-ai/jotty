@@ -17,9 +17,9 @@ import json
 import logging
 import re
 from dataclasses import dataclass, field
-from typing import Dict, List, Any, Optional, Tuple
-from pathlib import Path
 from enum import Enum
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
 import dspy
 
@@ -42,6 +42,7 @@ def configure_dspy_with_claude_cli() -> bool:
 
 class ComponentCategory(Enum):
     """Categories of slide components"""
+
     TITLE = "title"
     CONTENT = "content"
     DATA = "data"
@@ -61,6 +62,7 @@ class ComponentCategory(Enum):
 @dataclass
 class ComponentSpec:
     """Specification for a slide component"""
+
     name: str
     category: ComponentCategory
     description: str
@@ -85,12 +87,14 @@ class ComponentSuggestionSignature(dspy.Signature):
 
     Be creative but practical. Each suggestion should be implementable.
     """
+
     paper_abstract: str = dspy.InputField(desc="The paper's abstract/summary")
     paper_concepts: str = dspy.InputField(desc="Key concepts from the paper as JSON")
     existing_components: str = dspy.InputField(desc="List of existing component names")
     category_focus: str = dspy.InputField(desc="Category to focus suggestions on, or 'all'")
 
-    suggestions_json: str = dspy.OutputField(desc='''JSON array of 5-10 component suggestions. Each: {
+    suggestions_json: str = dspy.OutputField(
+        desc="""JSON array of 5-10 component suggestions. Each: {
         "name": "component_name_snake_case",
         "category": "one of: title, content, data, visual, comparison, process, interactive, code, math, media, ending, specialized",
         "description": "What this component does and why it's valuable",
@@ -99,7 +103,8 @@ class ComponentSuggestionSignature(dspy.Signature):
         "visual_elements": ["element 1", "element 2"],
         "animation_style": "fade/slide/scale/bounce/none",
         "priority": 1-10
-    }''')
+    }"""
+    )
 
 
 class ComponentCodeGeneratorSignature(dspy.Signature):
@@ -115,11 +120,16 @@ class ComponentCodeGeneratorSignature(dspy.Signature):
     The code should be a Python method that returns an HTML string.
     Use the existing patterns from the codebase.
     """
+
     component_spec: str = dspy.InputField(desc="The component specification as JSON")
-    existing_component_code: str = dspy.InputField(desc="Example of an existing component method for reference")
+    existing_component_code: str = dspy.InputField(
+        desc="Example of an existing component method for reference"
+    )
     style_guide: str = dspy.InputField(desc="CSS color variables and style guide")
 
-    python_method_code: str = dspy.OutputField(desc="Complete Python method code that renders the component HTML. Include docstring.")
+    python_method_code: str = dspy.OutputField(
+        desc="Complete Python method code that renders the component HTML. Include docstring."
+    )
     example_data: str = dspy.OutputField(desc="Example data dict to test this component with")
 
 
@@ -138,15 +148,20 @@ class PaperComponentAnalyzerSignature(dspy.Signature):
 
     Be specific about what the paper needs, not generic suggestions.
     """
+
     paper_title: str = dspy.InputField()
     paper_abstract: str = dspy.InputField()
     paper_concepts: str = dspy.InputField(desc="Key concepts as JSON")
     paper_methodology: str = dspy.InputField(desc="Methodology description if available")
 
-    needed_components: str = dspy.OutputField(desc='''JSON array of components this specific paper needs: [
+    needed_components: str = dspy.OutputField(
+        desc="""JSON array of components this specific paper needs: [
         {"component_type": "existing or new", "name": "component_name", "reason": "why needed", "data_hint": "what data to show"}
-    ]''')
-    visualization_suggestions: str = dspy.OutputField(desc="Specific visualization suggestions for key concepts")
+    ]"""
+    )
+    visualization_suggestions: str = dspy.OutputField(
+        desc="Specific visualization suggestions for key concepts"
+    )
 
 
 class ComponentAutoGenerator:
@@ -165,211 +180,486 @@ class ComponentAutoGenerator:
     COMPONENT_IDEAS = {
         # Data Visualization (100+ variants)
         "data": [
-            "bar_chart_horizontal", "bar_chart_stacked", "bar_chart_grouped", "bar_chart_animated",
-            "line_chart_multi", "line_chart_area", "line_chart_sparkline", "line_chart_gradient",
-            "pie_chart_donut", "pie_chart_nested", "pie_chart_exploded", "pie_chart_progress",
-            "scatter_plot_bubble", "scatter_plot_connected", "scatter_plot_quadrant",
-            "heatmap_interactive", "heatmap_calendar", "heatmap_correlation",
-            "radar_chart", "radar_chart_filled", "radar_chart_comparison",
-            "treemap", "treemap_nested", "sunburst_chart",
-            "sankey_diagram", "chord_diagram", "network_graph",
-            "gauge_chart", "gauge_multi", "speedometer",
-            "funnel_chart", "pyramid_chart", "waterfall_chart",
-            "box_plot", "violin_plot", "histogram",
-            "candlestick", "ohlc_chart", "stock_chart",
-            "geo_map", "choropleth", "bubble_map",
-            "stream_graph", "ridgeline_plot", "density_plot",
+            "bar_chart_horizontal",
+            "bar_chart_stacked",
+            "bar_chart_grouped",
+            "bar_chart_animated",
+            "line_chart_multi",
+            "line_chart_area",
+            "line_chart_sparkline",
+            "line_chart_gradient",
+            "pie_chart_donut",
+            "pie_chart_nested",
+            "pie_chart_exploded",
+            "pie_chart_progress",
+            "scatter_plot_bubble",
+            "scatter_plot_connected",
+            "scatter_plot_quadrant",
+            "heatmap_interactive",
+            "heatmap_calendar",
+            "heatmap_correlation",
+            "radar_chart",
+            "radar_chart_filled",
+            "radar_chart_comparison",
+            "treemap",
+            "treemap_nested",
+            "sunburst_chart",
+            "sankey_diagram",
+            "chord_diagram",
+            "network_graph",
+            "gauge_chart",
+            "gauge_multi",
+            "speedometer",
+            "funnel_chart",
+            "pyramid_chart",
+            "waterfall_chart",
+            "box_plot",
+            "violin_plot",
+            "histogram",
+            "candlestick",
+            "ohlc_chart",
+            "stock_chart",
+            "geo_map",
+            "choropleth",
+            "bubble_map",
+            "stream_graph",
+            "ridgeline_plot",
+            "density_plot",
         ],
-
         # Content & Text (80+ variants)
         "content": [
-            "paragraph_highlight", "paragraph_callout", "paragraph_sidebar",
-            "bullet_icons", "bullet_checkmarks", "bullet_numbers_fancy",
-            "bullet_timeline_inline", "bullet_progress", "bullet_expandable",
-            "quote_large", "quote_sidebar", "quote_with_image",
-            "definition_card", "definition_inline", "definition_tooltip",
-            "fact_box", "fact_banner", "fact_counter",
-            "tip_box", "warning_box", "info_box", "success_box",
-            "callout_important", "callout_note", "callout_example",
-            "blockquote_fancy", "blockquote_author", "blockquote_source",
-            "text_columns_2", "text_columns_3", "text_with_sidebar",
-            "abstract_summary", "tldr_box", "key_points_box",
-            "annotation_text", "footnote_inline", "reference_card",
+            "paragraph_highlight",
+            "paragraph_callout",
+            "paragraph_sidebar",
+            "bullet_icons",
+            "bullet_checkmarks",
+            "bullet_numbers_fancy",
+            "bullet_timeline_inline",
+            "bullet_progress",
+            "bullet_expandable",
+            "quote_large",
+            "quote_sidebar",
+            "quote_with_image",
+            "definition_card",
+            "definition_inline",
+            "definition_tooltip",
+            "fact_box",
+            "fact_banner",
+            "fact_counter",
+            "tip_box",
+            "warning_box",
+            "info_box",
+            "success_box",
+            "callout_important",
+            "callout_note",
+            "callout_example",
+            "blockquote_fancy",
+            "blockquote_author",
+            "blockquote_source",
+            "text_columns_2",
+            "text_columns_3",
+            "text_with_sidebar",
+            "abstract_summary",
+            "tldr_box",
+            "key_points_box",
+            "annotation_text",
+            "footnote_inline",
+            "reference_card",
         ],
-
         # Visual & Diagrams (150+ variants)
         "visual": [
-            "architecture_horizontal", "architecture_vertical", "architecture_circular",
-            "architecture_layered", "architecture_microservices", "architecture_pipeline",
-            "flowchart_decision", "flowchart_process", "flowchart_swimlane",
-            "flowchart_circular", "flowchart_branching", "flowchart_parallel",
-            "diagram_venn_2", "diagram_venn_3", "diagram_venn_4",
-            "diagram_tree", "diagram_tree_horizontal", "diagram_org_chart",
-            "diagram_mind_map", "diagram_concept_map", "diagram_spider",
-            "diagram_sequence", "diagram_state_machine", "diagram_entity_relationship",
-            "diagram_class", "diagram_component", "diagram_deployment",
-            "diagram_activity", "diagram_use_case", "diagram_data_flow",
-            "neural_network_simple", "neural_network_detailed", "neural_network_animated",
-            "transformer_attention", "transformer_encoder", "transformer_decoder",
-            "cnn_layers", "rnn_unrolled", "lstm_cell", "gru_cell",
-            "matrix_visualization", "tensor_3d", "embedding_space",
-            "attention_heatmap", "attention_heads", "attention_pattern",
-            "gradient_flow", "backprop_visual", "loss_landscape",
-            "image_grid", "image_comparison", "image_before_after",
-            "image_gallery", "image_carousel", "image_lightbox",
-            "icon_feature_grid", "icon_process", "icon_benefits",
-            "logo_grid", "partner_logos", "tech_stack",
-            "infographic_vertical", "infographic_horizontal", "infographic_circular",
+            "architecture_horizontal",
+            "architecture_vertical",
+            "architecture_circular",
+            "architecture_layered",
+            "architecture_microservices",
+            "architecture_pipeline",
+            "flowchart_decision",
+            "flowchart_process",
+            "flowchart_swimlane",
+            "flowchart_circular",
+            "flowchart_branching",
+            "flowchart_parallel",
+            "diagram_venn_2",
+            "diagram_venn_3",
+            "diagram_venn_4",
+            "diagram_tree",
+            "diagram_tree_horizontal",
+            "diagram_org_chart",
+            "diagram_mind_map",
+            "diagram_concept_map",
+            "diagram_spider",
+            "diagram_sequence",
+            "diagram_state_machine",
+            "diagram_entity_relationship",
+            "diagram_class",
+            "diagram_component",
+            "diagram_deployment",
+            "diagram_activity",
+            "diagram_use_case",
+            "diagram_data_flow",
+            "neural_network_simple",
+            "neural_network_detailed",
+            "neural_network_animated",
+            "transformer_attention",
+            "transformer_encoder",
+            "transformer_decoder",
+            "cnn_layers",
+            "rnn_unrolled",
+            "lstm_cell",
+            "gru_cell",
+            "matrix_visualization",
+            "tensor_3d",
+            "embedding_space",
+            "attention_heatmap",
+            "attention_heads",
+            "attention_pattern",
+            "gradient_flow",
+            "backprop_visual",
+            "loss_landscape",
+            "image_grid",
+            "image_comparison",
+            "image_before_after",
+            "image_gallery",
+            "image_carousel",
+            "image_lightbox",
+            "icon_feature_grid",
+            "icon_process",
+            "icon_benefits",
+            "logo_grid",
+            "partner_logos",
+            "tech_stack",
+            "infographic_vertical",
+            "infographic_horizontal",
+            "infographic_circular",
         ],
-
         # Comparison & Analysis (60+ variants)
         "comparison": [
-            "before_after_split", "before_after_overlay", "before_after_slider",
-            "comparison_table_simple", "comparison_table_feature", "comparison_table_pricing",
-            "comparison_cards_2", "comparison_cards_3", "comparison_cards_4",
-            "pros_cons_split", "pros_cons_cards", "pros_cons_table",
-            "versus_battle", "versus_stats", "versus_features",
-            "old_new_paradigm", "problem_solution", "challenge_approach",
-            "side_by_side_code", "side_by_side_images", "side_by_side_stats",
-            "benchmark_table", "benchmark_chart", "benchmark_radar",
-            "feature_matrix", "compatibility_matrix", "support_matrix",
-            "rating_comparison", "score_comparison", "rank_comparison",
-            "ablation_study", "experiment_results", "performance_table",
+            "before_after_split",
+            "before_after_overlay",
+            "before_after_slider",
+            "comparison_table_simple",
+            "comparison_table_feature",
+            "comparison_table_pricing",
+            "comparison_cards_2",
+            "comparison_cards_3",
+            "comparison_cards_4",
+            "pros_cons_split",
+            "pros_cons_cards",
+            "pros_cons_table",
+            "versus_battle",
+            "versus_stats",
+            "versus_features",
+            "old_new_paradigm",
+            "problem_solution",
+            "challenge_approach",
+            "side_by_side_code",
+            "side_by_side_images",
+            "side_by_side_stats",
+            "benchmark_table",
+            "benchmark_chart",
+            "benchmark_radar",
+            "feature_matrix",
+            "compatibility_matrix",
+            "support_matrix",
+            "rating_comparison",
+            "score_comparison",
+            "rank_comparison",
+            "ablation_study",
+            "experiment_results",
+            "performance_table",
         ],
-
         # Process & Steps (50+ variants)
         "process": [
-            "steps_horizontal", "steps_vertical", "steps_circular",
-            "steps_numbered", "steps_icons", "steps_timeline",
-            "steps_branching", "steps_parallel", "steps_nested",
-            "workflow_linear", "workflow_branching", "workflow_loop",
-            "pipeline_horizontal", "pipeline_vertical", "pipeline_stages",
-            "roadmap_horizontal", "roadmap_vertical", "roadmap_milestones",
-            "journey_map", "user_flow", "decision_tree",
-            "algorithm_steps", "pseudocode_steps", "method_breakdown",
-            "training_pipeline", "inference_pipeline", "data_pipeline",
-            "lifecycle_stages", "phase_diagram", "sprint_timeline",
+            "steps_horizontal",
+            "steps_vertical",
+            "steps_circular",
+            "steps_numbered",
+            "steps_icons",
+            "steps_timeline",
+            "steps_branching",
+            "steps_parallel",
+            "steps_nested",
+            "workflow_linear",
+            "workflow_branching",
+            "workflow_loop",
+            "pipeline_horizontal",
+            "pipeline_vertical",
+            "pipeline_stages",
+            "roadmap_horizontal",
+            "roadmap_vertical",
+            "roadmap_milestones",
+            "journey_map",
+            "user_flow",
+            "decision_tree",
+            "algorithm_steps",
+            "pseudocode_steps",
+            "method_breakdown",
+            "training_pipeline",
+            "inference_pipeline",
+            "data_pipeline",
+            "lifecycle_stages",
+            "phase_diagram",
+            "sprint_timeline",
         ],
-
         # Interactive Elements (40+ variants)
         "interactive": [
-            "tabs_horizontal", "tabs_vertical", "tabs_pills",
-            "accordion_simple", "accordion_nested", "accordion_faq",
-            "toggle_switch", "toggle_comparison", "toggle_view",
-            "slider_range", "slider_comparison", "slider_timeline",
-            "modal_popup", "modal_lightbox", "modal_gallery",
-            "tooltip_hover", "tooltip_click", "tooltip_tour",
-            "dropdown_menu", "dropdown_filter", "dropdown_select",
-            "search_box", "filter_tags", "sort_options",
-            "pagination_dots", "pagination_numbers", "pagination_infinite",
-            "progress_linear", "progress_circular", "progress_steps",
+            "tabs_horizontal",
+            "tabs_vertical",
+            "tabs_pills",
+            "accordion_simple",
+            "accordion_nested",
+            "accordion_faq",
+            "toggle_switch",
+            "toggle_comparison",
+            "toggle_view",
+            "slider_range",
+            "slider_comparison",
+            "slider_timeline",
+            "modal_popup",
+            "modal_lightbox",
+            "modal_gallery",
+            "tooltip_hover",
+            "tooltip_click",
+            "tooltip_tour",
+            "dropdown_menu",
+            "dropdown_filter",
+            "dropdown_select",
+            "search_box",
+            "filter_tags",
+            "sort_options",
+            "pagination_dots",
+            "pagination_numbers",
+            "pagination_infinite",
+            "progress_linear",
+            "progress_circular",
+            "progress_steps",
         ],
-
         # Code & Technical (60+ variants)
         "code": [
-            "code_block_python", "code_block_javascript", "code_block_rust",
-            "code_block_multiline", "code_block_highlighted", "code_block_diff",
-            "code_inline", "code_variable", "code_function",
-            "code_comparison", "code_before_after", "code_evolution",
-            "terminal_output", "terminal_animated", "terminal_interactive",
-            "api_endpoint", "api_request", "api_response",
-            "json_viewer", "xml_viewer", "yaml_viewer",
-            "schema_definition", "type_definition", "interface_definition",
-            "algorithm_pseudocode", "algorithm_complexity", "algorithm_trace",
-            "regex_explainer", "sql_query", "graphql_query",
-            "git_diff", "git_history", "git_branch",
-            "config_file", "env_variables", "package_json",
+            "code_block_python",
+            "code_block_javascript",
+            "code_block_rust",
+            "code_block_multiline",
+            "code_block_highlighted",
+            "code_block_diff",
+            "code_inline",
+            "code_variable",
+            "code_function",
+            "code_comparison",
+            "code_before_after",
+            "code_evolution",
+            "terminal_output",
+            "terminal_animated",
+            "terminal_interactive",
+            "api_endpoint",
+            "api_request",
+            "api_response",
+            "json_viewer",
+            "xml_viewer",
+            "yaml_viewer",
+            "schema_definition",
+            "type_definition",
+            "interface_definition",
+            "algorithm_pseudocode",
+            "algorithm_complexity",
+            "algorithm_trace",
+            "regex_explainer",
+            "sql_query",
+            "graphql_query",
+            "git_diff",
+            "git_history",
+            "git_branch",
+            "config_file",
+            "env_variables",
+            "package_json",
         ],
-
         # Math & Formulas (50+ variants)
         "math": [
-            "formula_block", "formula_inline", "formula_numbered",
-            "formula_derivation", "formula_step_by_step", "formula_annotated",
-            "equation_system", "equation_matrix", "equation_integral",
-            "matrix_display", "matrix_operation", "matrix_transformation",
-            "vector_notation", "vector_operations", "vector_space",
-            "graph_function", "graph_3d", "graph_parametric",
-            "probability_distribution", "probability_tree", "probability_table",
-            "statistics_summary", "statistics_test", "statistics_confidence",
-            "proof_block", "theorem_box", "lemma_box",
-            "notation_table", "symbol_legend", "variable_definitions",
+            "formula_block",
+            "formula_inline",
+            "formula_numbered",
+            "formula_derivation",
+            "formula_step_by_step",
+            "formula_annotated",
+            "equation_system",
+            "equation_matrix",
+            "equation_integral",
+            "matrix_display",
+            "matrix_operation",
+            "matrix_transformation",
+            "vector_notation",
+            "vector_operations",
+            "vector_space",
+            "graph_function",
+            "graph_3d",
+            "graph_parametric",
+            "probability_distribution",
+            "probability_tree",
+            "probability_table",
+            "statistics_summary",
+            "statistics_test",
+            "statistics_confidence",
+            "proof_block",
+            "theorem_box",
+            "lemma_box",
+            "notation_table",
+            "symbol_legend",
+            "variable_definitions",
         ],
-
         # Results & Metrics (40+ variants)
         "results": [
-            "metrics_grid", "metrics_cards", "metrics_dashboard",
-            "kpi_single", "kpi_comparison", "kpi_trend",
-            "score_card", "score_breakdown", "score_radar",
-            "accuracy_display", "precision_recall", "f1_breakdown",
-            "confusion_matrix", "roc_curve", "pr_curve",
-            "loss_curve", "training_progress", "validation_metrics",
-            "benchmark_results", "sota_comparison", "ablation_results",
-            "experiment_table", "hyperparameter_table", "result_summary",
-            "improvement_delta", "percentage_change", "trend_indicator",
+            "metrics_grid",
+            "metrics_cards",
+            "metrics_dashboard",
+            "kpi_single",
+            "kpi_comparison",
+            "kpi_trend",
+            "score_card",
+            "score_breakdown",
+            "score_radar",
+            "accuracy_display",
+            "precision_recall",
+            "f1_breakdown",
+            "confusion_matrix",
+            "roc_curve",
+            "pr_curve",
+            "loss_curve",
+            "training_progress",
+            "validation_metrics",
+            "benchmark_results",
+            "sota_comparison",
+            "ablation_results",
+            "experiment_table",
+            "hyperparameter_table",
+            "result_summary",
+            "improvement_delta",
+            "percentage_change",
+            "trend_indicator",
         ],
-
         # Timeline & History (30+ variants)
         "timeline": [
-            "timeline_vertical", "timeline_horizontal", "timeline_alternating",
-            "timeline_compact", "timeline_detailed", "timeline_milestones",
-            "timeline_branching", "timeline_parallel", "timeline_connected",
-            "history_cards", "history_timeline", "history_eras",
-            "evolution_stages", "version_history", "changelog",
-            "roadmap_future", "roadmap_past", "roadmap_both",
-            "event_sequence", "story_timeline", "career_path",
+            "timeline_vertical",
+            "timeline_horizontal",
+            "timeline_alternating",
+            "timeline_compact",
+            "timeline_detailed",
+            "timeline_milestones",
+            "timeline_branching",
+            "timeline_parallel",
+            "timeline_connected",
+            "history_cards",
+            "history_timeline",
+            "history_eras",
+            "evolution_stages",
+            "version_history",
+            "changelog",
+            "roadmap_future",
+            "roadmap_past",
+            "roadmap_both",
+            "event_sequence",
+            "story_timeline",
+            "career_path",
         ],
-
         # Team & Credits (25+ variants)
         "team": [
-            "author_card", "author_grid", "author_list",
-            "team_photo_grid", "team_cards", "team_org_chart",
-            "contributor_list", "contributor_stats", "contributor_avatars",
-            "acknowledgments", "funding_sources", "institution_logos",
-            "citation_card", "bibtex_display", "reference_list",
+            "author_card",
+            "author_grid",
+            "author_list",
+            "team_photo_grid",
+            "team_cards",
+            "team_org_chart",
+            "contributor_list",
+            "contributor_stats",
+            "contributor_avatars",
+            "acknowledgments",
+            "funding_sources",
+            "institution_logos",
+            "citation_card",
+            "bibtex_display",
+            "reference_list",
         ],
-
         # Ending & CTA (25+ variants)
         "ending": [
-            "thank_you_simple", "thank_you_animated", "thank_you_contact",
-            "qa_slide", "qa_with_links", "qa_timer",
-            "summary_bullets", "summary_cards", "summary_visual",
-            "next_steps_list", "next_steps_cards", "next_steps_timeline",
-            "cta_single", "cta_multiple", "cta_with_qr",
-            "contact_info", "social_links", "follow_up",
-            "resources_list", "further_reading", "related_papers",
+            "thank_you_simple",
+            "thank_you_animated",
+            "thank_you_contact",
+            "qa_slide",
+            "qa_with_links",
+            "qa_timer",
+            "summary_bullets",
+            "summary_cards",
+            "summary_visual",
+            "next_steps_list",
+            "next_steps_cards",
+            "next_steps_timeline",
+            "cta_single",
+            "cta_multiple",
+            "cta_with_qr",
+            "contact_info",
+            "social_links",
+            "follow_up",
+            "resources_list",
+            "further_reading",
+            "related_papers",
         ],
-
         # Specialized Research (100+ domain-specific)
         "specialized": [
             # NLP
-            "tokenization_visual", "embedding_comparison", "attention_weights",
-            "word_cloud", "sentiment_analysis", "ner_highlight",
-            "translation_parallel", "summarization_comparison", "qa_example",
-
+            "tokenization_visual",
+            "embedding_comparison",
+            "attention_weights",
+            "word_cloud",
+            "sentiment_analysis",
+            "ner_highlight",
+            "translation_parallel",
+            "summarization_comparison",
+            "qa_example",
             # Computer Vision
-            "image_classification", "object_detection", "segmentation_mask",
-            "feature_maps", "convolution_visual", "pooling_visual",
-            "augmentation_examples", "dataset_samples", "class_distribution",
-
+            "image_classification",
+            "object_detection",
+            "segmentation_mask",
+            "feature_maps",
+            "convolution_visual",
+            "pooling_visual",
+            "augmentation_examples",
+            "dataset_samples",
+            "class_distribution",
             # Reinforcement Learning
-            "environment_visual", "reward_curve", "policy_diagram",
-            "state_action_space", "trajectory_visual", "q_table",
-
+            "environment_visual",
+            "reward_curve",
+            "policy_diagram",
+            "state_action_space",
+            "trajectory_visual",
+            "q_table",
             # Generative AI
-            "generation_samples", "interpolation_grid", "latent_space",
-            "diffusion_steps", "vae_diagram", "gan_architecture",
-
+            "generation_samples",
+            "interpolation_grid",
+            "latent_space",
+            "diffusion_steps",
+            "vae_diagram",
+            "gan_architecture",
             # Graphs & Networks
-            "knowledge_graph", "social_network", "citation_network",
-            "molecule_structure", "protein_structure", "pathway_diagram",
-
+            "knowledge_graph",
+            "social_network",
+            "citation_network",
+            "molecule_structure",
+            "protein_structure",
+            "pathway_diagram",
             # Time Series
-            "forecast_chart", "seasonality_decomposition", "anomaly_detection",
-            "correlation_matrix", "lag_plot", "autocorrelation",
-
+            "forecast_chart",
+            "seasonality_decomposition",
+            "anomaly_detection",
+            "correlation_matrix",
+            "lag_plot",
+            "autocorrelation",
             # Optimization
-            "loss_surface", "gradient_descent", "hyperparameter_search",
-            "pareto_front", "convergence_plot", "learning_rate_schedule",
+            "loss_surface",
+            "gradient_descent",
+            "hyperparameter_search",
+            "pareto_front",
+            "convergence_plot",
+            "learning_rate_schedule",
         ],
     }
 
@@ -384,13 +674,34 @@ class ComponentAutoGenerator:
         """Get list of all existing component names"""
         # Base components from HTMLSlideGenerator
         base_components = [
-            "title_hero", "title_minimal", "title_centered", "title_split",
-            "stats_grid", "stats_inline", "feature_cards", "feature_icons",
-            "comparison_table", "process_steps", "quote", "code_block",
-            "timeline", "diagram", "icon_grid", "formula", "before_after",
-            "bullet_points", "definition", "pros_cons", "checklist",
-            "authors", "qa", "key_takeaways", "two_column", "architecture",
-            "chart_bar", "chart_line",
+            "title_hero",
+            "title_minimal",
+            "title_centered",
+            "title_split",
+            "stats_grid",
+            "stats_inline",
+            "feature_cards",
+            "feature_icons",
+            "comparison_table",
+            "process_steps",
+            "quote",
+            "code_block",
+            "timeline",
+            "diagram",
+            "icon_grid",
+            "formula",
+            "before_after",
+            "bullet_points",
+            "definition",
+            "pros_cons",
+            "checklist",
+            "authors",
+            "qa",
+            "key_takeaways",
+            "two_column",
+            "architecture",
+            "chart_bar",
+            "chart_line",
         ]
 
         # Add generated components
@@ -407,43 +718,41 @@ class ComponentAutoGenerator:
         """Analyze what components a specific paper needs"""
         try:
             result = self.paper_analyzer(
-                paper_title=paper_data.get('paper_title', ''),
-                paper_abstract=paper_data.get('hook', paper_data.get('abstract', '')),
-                paper_concepts=json.dumps(paper_data.get('concepts', [])[:5]),
-                paper_methodology=paper_data.get('methodology', '')[:500]
+                paper_title=paper_data.get("paper_title", ""),
+                paper_abstract=paper_data.get("hook", paper_data.get("abstract", "")),
+                paper_concepts=json.dumps(paper_data.get("concepts", [])[:5]),
+                paper_methodology=paper_data.get("methodology", "")[:500],
             )
 
             return {
                 "needed_components": json.loads(result.needed_components),
-                "visualization_suggestions": result.visualization_suggestions
+                "visualization_suggestions": result.visualization_suggestions,
             }
         except Exception as e:
             logger.error(f"Paper analysis failed: {e}")
             return {"needed_components": [], "visualization_suggestions": ""}
 
     async def suggest_new_components(
-        self,
-        paper_data: Dict[str, Any],
-        category_focus: str = "all",
-        num_suggestions: int = 10
+        self, paper_data: Dict[str, Any], category_focus: str = "all", num_suggestions: int = 10
     ) -> List[Dict[str, Any]]:
         """Suggest new components based on paper patterns"""
         try:
             existing = self.get_existing_components()
 
             result = self.suggestion_module(
-                paper_abstract=paper_data.get('hook', paper_data.get('abstract', ''))[:500],
-                paper_concepts=json.dumps(paper_data.get('concepts', [])[:5]),
+                paper_abstract=paper_data.get("hook", paper_data.get("abstract", ""))[:500],
+                paper_concepts=json.dumps(paper_data.get("concepts", [])[:5]),
                 existing_components=", ".join(existing[:30]),
-                category_focus=category_focus
+                category_focus=category_focus,
             )
 
             suggestions = json.loads(result.suggestions_json)
 
             # Filter out already existing components
             new_suggestions = [
-                s for s in suggestions
-                if s.get('name', '').lower() not in [c.lower() for c in existing]
+                s
+                for s in suggestions
+                if s.get("name", "").lower() not in [c.lower() for c in existing]
             ]
 
             return new_suggestions[:num_suggestions]
@@ -453,9 +762,7 @@ class ComponentAutoGenerator:
             return []
 
     async def generate_component_code(
-        self,
-        component_spec: Dict[str, Any],
-        reference_component: str = None
+        self, component_spec: Dict[str, Any], reference_component: str = None
     ) -> Tuple[str, Dict[str, Any]]:
         """Generate Python code for a new component"""
         try:
@@ -468,7 +775,7 @@ class ComponentAutoGenerator:
             result = self.code_generator(
                 component_spec=json.dumps(component_spec),
                 existing_component_code=reference_component,
-                style_guide=style_guide
+                style_guide=style_guide,
             )
 
             # Parse example data
@@ -518,7 +825,7 @@ class ComponentAutoGenerator:
 
     def _get_style_guide(self) -> str:
         """Get the style guide for component generation"""
-        return '''
+        return """
 CSS Color Variables:
 - bg_primary: #0a1929 (darkest navy)
 - bg_secondary: #102a43 (dark navy)
@@ -550,12 +857,10 @@ Animation Pattern:
 - Use opacity-0 with animation class
 - Stagger delays: delay-{(index+1)*100}
 - Common: animate-slide-up opacity-0 delay-200
-'''
+"""
 
     async def auto_discover_and_generate(
-        self,
-        paper_data: Dict[str, Any],
-        max_new_components: int = 5
+        self, paper_data: Dict[str, Any], max_new_components: int = 5
     ) -> List[Dict[str, Any]]:
         """
         Main auto-discovery loop: analyze paper, suggest components, generate code.
@@ -571,8 +876,7 @@ Animation Pattern:
         # Step 2: Suggest new components
         logger.info(" Suggesting new components...")
         suggestions = await self.suggest_new_components(
-            paper_data,
-            num_suggestions=max_new_components
+            paper_data, num_suggestions=max_new_components
         )
 
         # Step 3: Generate code for top suggestions
@@ -608,13 +912,13 @@ Animation Pattern:
             "current_count": existing,
             "total_planned": total_ideas,
             "progress_percent": round(existing / 1000 * 100, 1),
-            "categories": {}
+            "categories": {},
         }
 
         for category, components in self.COMPONENT_IDEAS.items():
             roadmap["categories"][category] = {
                 "planned": len(components),
-                "examples": components[:5]
+                "examples": components[:5],
             }
 
         return roadmap
@@ -627,14 +931,15 @@ class ComponentLibraryExpander:
 
     def __init__(self, output_dir: str = None) -> None:
         self.auto_generator = ComponentAutoGenerator()
-        self.output_dir = Path(output_dir) if output_dir else Path(__file__).parent.parent / "generated_components"
+        self.output_dir = (
+            Path(output_dir)
+            if output_dir
+            else Path(__file__).parent.parent / "generated_components"
+        )
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
     async def expand_category(
-        self,
-        category: str,
-        sample_paper_data: Dict[str, Any],
-        num_components: int = 10
+        self, category: str, sample_paper_data: Dict[str, Any], num_components: int = 10
     ) -> List[Dict[str, Any]]:
         """Generate multiple components for a specific category"""
         logger.info(f" Expanding category: {category}")
@@ -660,28 +965,26 @@ class ComponentLibraryExpander:
             code, example = await self.auto_generator.generate_component_code(spec)
 
             if code:
-                generated.append({
-                    "name": component_name,
-                    "category": category,
-                    "code": code,
-                    "example_data": example
-                })
+                generated.append(
+                    {
+                        "name": component_name,
+                        "category": category,
+                        "code": code,
+                        "example_data": example,
+                    }
+                )
 
         return generated
 
     async def generate_all_categories(
-        self,
-        sample_paper_data: Dict[str, Any],
-        components_per_category: int = 5
+        self, sample_paper_data: Dict[str, Any], components_per_category: int = 5
     ) -> Dict[str, List[Dict]]:
         """Generate components for all categories"""
         all_generated = {}
 
         for category in ComponentAutoGenerator.COMPONENT_IDEAS.keys():
             generated = await self.expand_category(
-                category,
-                sample_paper_data,
-                components_per_category
+                category, sample_paper_data, components_per_category
             )
             all_generated[category] = generated
 
@@ -695,17 +998,17 @@ class ComponentLibraryExpander:
         """Save generated components to a Python file"""
         code_parts = [
             '"""Auto-generated slide components"""\n',
-            'from typing import Dict, Any\n',
-            'import html\n\n',
+            "from typing import Dict, Any\n",
+            "import html\n\n",
         ]
 
         for comp in components:
             code_parts.append(f"\n# Component: {comp['name']}\n")
-            code_parts.append(comp.get('code', '# Code generation failed\n'))
+            code_parts.append(comp.get("code", "# Code generation failed\n"))
             code_parts.append("\n")
 
-        with open(output_file, 'w') as f:
-            f.write('\n'.join(code_parts))
+        with open(output_file, "w") as f:
+            f.write("\n".join(code_parts))
 
         logger.info(f" Saved {len(components)} components to {output_file}")
 
@@ -717,10 +1020,13 @@ async def test_auto_generation() -> Any:
         "paper_title": "Attention Is All You Need",
         "hook": "The dominant sequence transduction models are based on complex recurrent or convolutional neural networks. We propose a new simple network architecture, the Transformer, based solely on attention mechanisms.",
         "concepts": [
-            {"name": "Self-Attention", "description": "Mechanism relating different positions of a sequence"},
+            {
+                "name": "Self-Attention",
+                "description": "Mechanism relating different positions of a sequence",
+            },
             {"name": "Multi-Head Attention", "description": "Parallel attention layers"},
             {"name": "Positional Encoding", "description": "Inject sequence order"},
-        ]
+        ],
     }
 
     generator = ComponentAutoGenerator()
@@ -732,7 +1038,7 @@ async def test_auto_generation() -> Any:
     logger.info(f"   Progress: {roadmap['progress_percent']}% toward 1000")
 
     logger.info("Categories:")
-    for cat, info in roadmap['categories'].items():
+    for cat, info in roadmap["categories"].items():
         logger.info(f"   {cat}: {info['planned']} planned - {info['examples'][:3]}...")
 
     logger.info("Running auto-discovery...")

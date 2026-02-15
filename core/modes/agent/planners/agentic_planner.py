@@ -11,13 +11,15 @@ Supports both:
 
 import json
 import logging
-from typing import Dict, Any, List, Optional
 from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional
+
 from Jotty.core.infrastructure.foundation.exceptions import AgentExecutionError
 
 # DSPy loaded lazily to avoid ~6s import at module level
 DSPY_AVAILABLE = True  # Assumed; checked on first use
 _dspy_module = None
+
 
 def _get_dspy() -> Any:
     """Lazy-load DSPy on first use."""
@@ -25,6 +27,7 @@ def _get_dspy() -> Any:
     if _dspy_module is None:
         try:
             import dspy as _dspy
+
             _dspy_module = _dspy
         except ImportError:
             DSPY_AVAILABLE = False
@@ -43,6 +46,7 @@ try:
         ExecutionTrajectory,
         detect_error_type,
     )
+
     CONTEXT_UTILS_AVAILABLE = True
 except ImportError:
     CONTEXT_UTILS_AVAILABLE = False
@@ -57,6 +61,7 @@ logger = logging.getLogger(__name__)
 # Import TaskGraph if available (for enhanced planning)
 try:
     from ..autonomous.intent_parser import TaskGraph
+
     TASK_GRAPH_AVAILABLE = True
 except ImportError:
     TASK_GRAPH_AVAILABLE = False
@@ -75,6 +80,7 @@ ExecutionPlanningSignature = None
 SkillSelectionSignature = None
 ReflectivePlanningSignature = None
 
+
 def _load_signatures() -> None:
     """Load DSPy signatures on first use."""
     global _signatures_loaded, TaskTypeInferenceSignature, CapabilityInferenceSignature
@@ -82,13 +88,12 @@ def _load_signatures() -> None:
     if _signatures_loaded:
         return
     _signatures_loaded = True
-    from .planner_signatures import (
-        TaskTypeInferenceSignature as _TT,
-        CapabilityInferenceSignature as _CI,
-        ExecutionPlanningSignature as _EP,
-        SkillSelectionSignature as _SS,
-        ReflectivePlanningSignature as _RP,
-    )
+    from .planner_signatures import CapabilityInferenceSignature as _CI
+    from .planner_signatures import ExecutionPlanningSignature as _EP
+    from .planner_signatures import ReflectivePlanningSignature as _RP
+    from .planner_signatures import SkillSelectionSignature as _SS
+    from .planner_signatures import TaskTypeInferenceSignature as _TT
+
     TaskTypeInferenceSignature = _TT
     CapabilityInferenceSignature = _CI
     ExecutionPlanningSignature = _EP
@@ -102,8 +107,9 @@ def _load_signatures() -> None:
 
 
 from ..mixins.inference import InferenceMixin
-from ..mixins.skill_selection import SkillSelectionMixin
 from ..mixins.plan_utils import PlanUtilsMixin
+from ..mixins.skill_selection import SkillSelectionMixin
+
 
 class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
     """
@@ -133,6 +139,7 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
         if cls._llm_semaphore is not None:
             return cls._llm_semaphore
         import threading
+
         if cls._semaphore_lock is None:
             cls._semaphore_lock = threading.Lock()
         with cls._semaphore_lock:
@@ -141,7 +148,7 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
                 cls._llm_semaphore = threading.Semaphore(cls._max_concurrent_llm_calls)
         return cls._llm_semaphore
 
-    def __init__(self, fast_model: str = 'haiku') -> None:
+    def __init__(self, fast_model: str = "haiku") -> None:
         """Initialize agentic planner.
 
         Args:
@@ -166,11 +173,11 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
 
         # Store signatures for JSON schema extraction
         self._signatures = {
-            'task_type': TaskTypeInferenceSignature,
-            'execution': ExecutionPlanningSignature,
-            'skill_selection': SkillSelectionSignature,
-            'capability': CapabilityInferenceSignature,
-            'reflective': ReflectivePlanningSignature,
+            "task_type": TaskTypeInferenceSignature,
+            "execution": ExecutionPlanningSignature,
+            "skill_selection": SkillSelectionSignature,
+            "capability": CapabilityInferenceSignature,
+            "reflective": ReflectivePlanningSignature,
         }
 
         # Context compression for handling context length errors
@@ -198,30 +205,32 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
         from Jotty.core.infrastructure.foundation.config_defaults import LLM_PLANNING_MAX_TOKENS
 
         # 1. Try Gemini Flash via OpenRouter (35% faster than Haiku, 8x cheaper)
-        or_key = os.environ.get('OPENROUTER_API_KEY')
+        or_key = os.environ.get("OPENROUTER_API_KEY")
         if or_key:
             try:
                 import dspy
+
                 self._fast_lm = dspy.LM(
-                    'openrouter/google/gemini-2.0-flash-001',
+                    "openrouter/google/gemini-2.0-flash-001",
                     api_key=or_key,
                     max_tokens=LLM_PLANNING_MAX_TOKENS,
                 )
-                self._fast_model = 'gemini-2.0-flash'
+                self._fast_model = "gemini-2.0-flash"
                 logger.info(f"Fast LM: Gemini 2.0 Flash via OpenRouter (routing/classification)")
                 return
             except Exception as e:
                 logger.debug(f"Gemini Flash not available: {e}")
 
         # 2. Try DirectAnthropicLM Haiku (fast, reliable)
-        if os.environ.get('ANTHROPIC_API_KEY'):
+        if os.environ.get("ANTHROPIC_API_KEY"):
             try:
                 from ..foundation.direct_anthropic_lm import DirectAnthropicLM
+
                 self._fast_lm = DirectAnthropicLM(
-                    model='haiku',
+                    model="haiku",
                     max_tokens=LLM_PLANNING_MAX_TOKENS,
                 )
-                self._fast_model = 'haiku'
+                self._fast_model = "haiku"
                 logger.info(f"Fast LM: Anthropic Haiku (routing/classification)")
                 return
             except Exception as e:
@@ -231,7 +240,14 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
         self._fast_lm = None
         logger.info(f"Fast LM: using default DSPy LM (no dedicated routing model)")
 
-    def _call_with_retry(self, module: Any, kwargs: Dict[str, Any], compressible_fields: Optional[List[str]] = None, max_retries: int = 5, lm: Optional[Any] = None) -> Any:
+    def _call_with_retry(
+        self,
+        module: Any,
+        kwargs: Dict[str, Any],
+        compressible_fields: Optional[List[str]] = None,
+        max_retries: int = 5,
+        lm: Optional[Any] = None,
+    ) -> Any:
         """
         Call a DSPy module with automatic retry and context compression.
 
@@ -284,53 +300,71 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
                     error_str = str(e).lower()
                     error_type_str = type(e).__name__.lower()
 
-                    if any(p in error_str for p in ['context', 'token', 'too long']):
-                        error_type = 'context_length'
-                        strategy = {'should_retry': True, 'action': 'compress'}
-                    elif any(p in error_str for p in ['rate limit', 'rate_limit', 'ratelimit', 'too many requests', '429']) or 'ratelimit' in error_type_str:
+                    if any(p in error_str for p in ["context", "token", "too long"]):
+                        error_type = "context_length"
+                        strategy = {"should_retry": True, "action": "compress"}
+                    elif (
+                        any(
+                            p in error_str
+                            for p in [
+                                "rate limit",
+                                "rate_limit",
+                                "ratelimit",
+                                "too many requests",
+                                "429",
+                            ]
+                        )
+                        or "ratelimit" in error_type_str
+                    ):
                         # Rate limit error - wait longer before retry
-                        error_type = 'rate_limit'
+                        error_type = "rate_limit"
                         # Extract wait time from error message if available (e.g., "Try again in 60 seconds")
                         import re
-                        wait_match = re.search(r'(\d+)\s*seconds?', error_str)
-                        wait_time = int(wait_match.group(1)) if wait_match else 60
-                        strategy = {'should_retry': True, 'action': 'wait', 'delay_seconds': wait_time}
-                        logger.warning(f"Rate limit hit, will wait {wait_time}s before retry")
-                    elif 'timeout' in error_str:
-                        error_type = 'timeout'
-                        strategy = {'should_retry': True, 'action': 'backoff', 'delay_seconds': 2}
-                    else:
-                        error_type = 'unknown'
-                        strategy = {'should_retry': False}
 
-                if not strategy.get('should_retry') or attempt >= max_retries:
+                        wait_match = re.search(r"(\d+)\s*seconds?", error_str)
+                        wait_time = int(wait_match.group(1)) if wait_match else 60
+                        strategy = {
+                            "should_retry": True,
+                            "action": "wait",
+                            "delay_seconds": wait_time,
+                        }
+                        logger.warning(f"Rate limit hit, will wait {wait_time}s before retry")
+                    elif "timeout" in error_str:
+                        error_type = "timeout"
+                        strategy = {"should_retry": True, "action": "backoff", "delay_seconds": 2}
+                    else:
+                        error_type = "unknown"
+                        strategy = {"should_retry": False}
+
+                if not strategy.get("should_retry") or attempt >= max_retries:
                     raise
 
-                action = strategy.get('action', 'fail')
+                action = strategy.get("action", "fail")
 
-                if action == 'compress' and compressible_fields and self._compressor:
+                if action == "compress" and compressible_fields and self._compressor:
                     # Compress specified fields
                     for field in compressible_fields:
                         if field in kwargs and kwargs[field]:
                             original = kwargs[field]
                             if isinstance(original, str) and len(original) > 1000:
                                 result = self._compressor.compress(
-                                    original,
-                                    target_ratio=compression_ratio
+                                    original, target_ratio=compression_ratio
                                 )
                                 kwargs[field] = result.content
-                                logger.info(f"   Compressed {field}: {result.original_length} → {result.compressed_length} chars")
+                                logger.info(
+                                    f"   Compressed {field}: {result.original_length} → {result.compressed_length} chars"
+                                )
 
                     compression_ratio *= 0.7  # More aggressive next time
 
-                elif action == 'backoff':
-                    delay = strategy.get('delay_seconds', 1) * (2 ** attempt)
+                elif action == "backoff":
+                    delay = strategy.get("delay_seconds", 1) * (2**attempt)
                     delay = min(delay, 30)  # Cap at 30s
                     logger.info(f"   Backing off for {delay}s...")
                     time.sleep(delay)
 
-                elif action == 'wait':
-                    delay = strategy.get('delay_seconds', 30)
+                elif action == "wait":
+                    delay = strategy.get("delay_seconds", 30)
                     logger.info(f"   Rate limited, waiting {delay}s...")
                     time.sleep(delay)
 
@@ -339,7 +373,14 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
             raise last_error
         raise AgentExecutionError("Unexpected state in retry logic")
 
-    async def _acall_with_retry(self, module: Any, kwargs: Dict[str, Any], compressible_fields: Optional[List[str]] = None, max_retries: int = 5, lm: Optional[Any] = None) -> Any:
+    async def _acall_with_retry(
+        self,
+        module: Any,
+        kwargs: Dict[str, Any],
+        compressible_fields: Optional[List[str]] = None,
+        max_retries: int = 5,
+        lm: Optional[Any] = None,
+    ) -> Any:
         """
         Async version of _call_with_retry using DSPy's native .acall().
 
@@ -353,7 +394,7 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
         import asyncio
 
         # Fallback if module doesn't support async
-        if not hasattr(module, 'acall'):
+        if not hasattr(module, "acall"):
             loop = asyncio.get_running_loop()
             return await loop.run_in_executor(
                 None,
@@ -386,48 +427,66 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
                     error_str = str(e).lower()
                     error_type_str = type(e).__name__.lower()
 
-                    if any(p in error_str for p in ['context', 'token', 'too long']):
-                        error_type = 'context_length'
-                        strategy = {'should_retry': True, 'action': 'compress'}
-                    elif any(p in error_str for p in ['rate limit', 'rate_limit', 'ratelimit', 'too many requests', '429']) or 'ratelimit' in error_type_str:
+                    if any(p in error_str for p in ["context", "token", "too long"]):
+                        error_type = "context_length"
+                        strategy = {"should_retry": True, "action": "compress"}
+                    elif (
+                        any(
+                            p in error_str
+                            for p in [
+                                "rate limit",
+                                "rate_limit",
+                                "ratelimit",
+                                "too many requests",
+                                "429",
+                            ]
+                        )
+                        or "ratelimit" in error_type_str
+                    ):
                         import re
-                        wait_match = re.search(r'(\d+)\s*seconds?', error_str)
-                        wait_time = int(wait_match.group(1)) if wait_match else 60
-                        strategy = {'should_retry': True, 'action': 'wait', 'delay_seconds': wait_time}
-                        logger.warning(f"Rate limit hit, will wait {wait_time}s before retry")
-                    elif 'timeout' in error_str:
-                        error_type = 'timeout'
-                        strategy = {'should_retry': True, 'action': 'backoff', 'delay_seconds': 2}
-                    else:
-                        error_type = 'unknown'
-                        strategy = {'should_retry': False}
 
-                if not strategy.get('should_retry') or attempt >= max_retries:
+                        wait_match = re.search(r"(\d+)\s*seconds?", error_str)
+                        wait_time = int(wait_match.group(1)) if wait_match else 60
+                        strategy = {
+                            "should_retry": True,
+                            "action": "wait",
+                            "delay_seconds": wait_time,
+                        }
+                        logger.warning(f"Rate limit hit, will wait {wait_time}s before retry")
+                    elif "timeout" in error_str:
+                        error_type = "timeout"
+                        strategy = {"should_retry": True, "action": "backoff", "delay_seconds": 2}
+                    else:
+                        error_type = "unknown"
+                        strategy = {"should_retry": False}
+
+                if not strategy.get("should_retry") or attempt >= max_retries:
                     raise
 
-                action = strategy.get('action', 'fail')
+                action = strategy.get("action", "fail")
 
-                if action == 'compress' and compressible_fields and self._compressor:
+                if action == "compress" and compressible_fields and self._compressor:
                     for field in compressible_fields:
                         if field in kwargs and kwargs[field]:
                             original = kwargs[field]
                             if isinstance(original, str) and len(original) > 1000:
                                 result = self._compressor.compress(
-                                    original,
-                                    target_ratio=compression_ratio
+                                    original, target_ratio=compression_ratio
                                 )
                                 kwargs[field] = result.content
-                                logger.info(f"   Compressed {field}: {result.original_length} → {result.compressed_length} chars")
+                                logger.info(
+                                    f"   Compressed {field}: {result.original_length} → {result.compressed_length} chars"
+                                )
                     compression_ratio *= 0.7
 
-                elif action == 'backoff':
-                    delay = strategy.get('delay_seconds', 1) * (2 ** attempt)
+                elif action == "backoff":
+                    delay = strategy.get("delay_seconds", 1) * (2**attempt)
                     delay = min(delay, 30)
                     logger.info(f"   Backing off for {delay}s...")
                     await asyncio.sleep(delay)
 
-                elif action == 'wait':
-                    delay = strategy.get('delay_seconds', 30)
+                elif action == "wait":
+                    delay = strategy.get("delay_seconds", 30)
                     logger.info(f"   Rate limited, waiting {delay}s...")
                     await asyncio.sleep(delay)
 
@@ -435,7 +494,14 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
             raise last_error
         raise AgentExecutionError("Unexpected state in async retry logic")
 
-    def plan_execution(self, task: str, task_type: Any, skills: List[Dict[str, Any]], previous_outputs: Optional[Dict[str, Any]] = None, max_steps: int = 10) -> Any:
+    def plan_execution(
+        self,
+        task: str,
+        task_type: Any,
+        skills: List[Dict[str, Any]],
+        previous_outputs: Optional[Dict[str, Any]] = None,
+        max_steps: int = 10,
+    ) -> Any:
         """
         Plan execution steps using LLM reasoning.
 
@@ -452,17 +518,22 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
         try:
             # If no skills provided, add default file-operations skill for creation tasks
             if not skills:
-                task_type_value = task_type.value if hasattr(task_type, 'value') else str(task_type)
-                if task_type_value in ['creation', 'unknown']:
+                task_type_value = task_type.value if hasattr(task_type, "value") else str(task_type)
+                if task_type_value in ["creation", "unknown"]:
                     logger.info("No skills provided, adding default file-operations skill")
-                    skills = [{
-                        'name': 'file-operations',
-                        'description': 'Create, read, write files',
-                        'tools': [
-                            {'name': 'write_file_tool', 'params': {'path': 'string', 'content': 'string'}},
-                            {'name': 'read_file_tool', 'params': {'path': 'string'}}
-                        ]
-                    }]
+                    skills = [
+                        {
+                            "name": "file-operations",
+                            "description": "Create, read, write files",
+                            "tools": [
+                                {
+                                    "name": "write_file_tool",
+                                    "params": {"path": "string", "content": "string"},
+                                },
+                                {"name": "read_file_tool", "params": {"path": "string"}},
+                            ],
+                        }
+                    ]
                 else:
                     logger.warning(f"No skills available for task type '{task_type_value}'")
                     return [], f"No skills available for task type '{task_type_value}'"
@@ -479,28 +550,30 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
             logger.debug(f"   Task: {abstracted_task[:100]}")
             logger.debug(f"   Skills count: {len(skills)}")
 
-            task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
+            task_type_str = task_type.value if hasattr(task_type, "value") else str(task_type)
             planner_kwargs = {
-                'task_description': abstracted_task,
-                'task_type': task_type_str,
-                'available_skills': skills_json,
-                'previous_outputs': outputs_json,
-                'max_steps': max_steps,
-                'config': {"response_format": {"type": "json_object"}}
+                "task_description": abstracted_task,
+                "task_type": task_type_str,
+                "available_skills": skills_json,
+                "previous_outputs": outputs_json,
+                "max_steps": max_steps,
+                "config": {"response_format": {"type": "json_object"}},
             }
 
             result = self._call_with_retry(
                 module=self.execution_planner,
                 kwargs=planner_kwargs,
-                compressible_fields=['available_skills', 'previous_outputs'],
+                compressible_fields=["available_skills", "previous_outputs"],
                 max_retries=self._max_compression_retries,
                 lm=self._fast_lm,
             )
 
             logger.info(f"LLM response received")
-            raw_plan = getattr(result, 'execution_plan', None)
+            raw_plan = getattr(result, "execution_plan", None)
             logger.debug(f"   Raw execution_plan type: {type(raw_plan)}")
-            logger.debug(f"   Raw execution_plan (first 500 chars): {str(raw_plan)[:500] if raw_plan else 'NONE'}")
+            logger.debug(
+                f"   Raw execution_plan (first 500 chars): {str(raw_plan)[:500] if raw_plan else 'NONE'}"
+            )
 
             # All normalization + parsing in one place
             steps = self._parse_plan_to_steps(raw_plan, skills, task, task_type, max_steps)
@@ -510,7 +583,9 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
                 # Try fallback plan
                 logger.warning("Execution plan resulted in 0 steps, using fallback plan")
                 fallback_plan_data = self._create_fallback_plan(task, task_type, skills)
-                steps = self._parse_plan_to_steps(fallback_plan_data, skills, task, task_type, max_steps)
+                steps = self._parse_plan_to_steps(
+                    fallback_plan_data, skills, task, task_type, max_steps
+                )
                 reasoning = f"Fallback plan created: {len(steps)} steps"
             else:
                 reasoning = result.reasoning or f"Planned {len(steps)} steps"
@@ -533,7 +608,7 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
 
             logger.info(f" Planned {len(steps)} execution steps")
             logger.debug(f"   Reasoning: {reasoning}")
-            if hasattr(result, 'estimated_complexity'):
+            if hasattr(result, "estimated_complexity"):
                 logger.debug(f"   Complexity: {result.estimated_complexity}")
 
             return steps, reasoning
@@ -543,25 +618,38 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
             logger.warning("Attempting fallback plan due to execution planning failure")
             try:
                 fallback_plan_data = self._create_fallback_plan(task, task_type, skills)
-                logger.info(f" Fallback plan generated {len(fallback_plan_data)} steps: {fallback_plan_data}")
+                logger.info(
+                    f" Fallback plan generated {len(fallback_plan_data)} steps: {fallback_plan_data}"
+                )
 
                 if not fallback_plan_data:
                     logger.error("Fallback plan returned empty list!")
                     return [], f"Planning failed: {e}"
 
-                steps = self._parse_plan_to_steps(fallback_plan_data, skills, task, task_type, max_steps)
+                steps = self._parse_plan_to_steps(
+                    fallback_plan_data, skills, task, task_type, max_steps
+                )
 
                 if steps:
                     logger.info(f" Fallback plan created: {len(steps)} steps")
                     return steps, f"Fallback plan (planning failed: {str(e)[:100]})"
                 else:
-                    logger.error(f" Fallback plan generated steps but 0 were converted to ExecutionStep objects")
+                    logger.error(
+                        f" Fallback plan generated steps but 0 were converted to ExecutionStep objects"
+                    )
             except Exception as fallback_e:
                 logger.error(f"Fallback plan also failed: {fallback_e}", exc_info=True)
 
             return [], f"Planning failed: {e}"
 
-    async def aplan_execution(self, task: str, task_type: Any, skills: List[Dict[str, Any]], previous_outputs: Optional[Dict[str, Any]] = None, max_steps: int = 10) -> Any:
+    async def aplan_execution(
+        self,
+        task: str,
+        task_type: Any,
+        skills: List[Dict[str, Any]],
+        previous_outputs: Optional[Dict[str, Any]] = None,
+        max_steps: int = 10,
+    ) -> Any:
         """
         Async version of plan_execution using DSPy .acall().
 
@@ -573,16 +661,21 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
         try:
             # Pre-processing (CPU-only, identical to sync version)
             if not skills:
-                task_type_value = task_type.value if hasattr(task_type, 'value') else str(task_type)
-                if task_type_value in ['creation', 'unknown']:
-                    skills = [{
-                        'name': 'file-operations',
-                        'description': 'Create, read, write files',
-                        'tools': [
-                            {'name': 'write_file_tool', 'params': {'path': 'string', 'content': 'string'}},
-                            {'name': 'read_file_tool', 'params': {'path': 'string'}}
-                        ]
-                    }]
+                task_type_value = task_type.value if hasattr(task_type, "value") else str(task_type)
+                if task_type_value in ["creation", "unknown"]:
+                    skills = [
+                        {
+                            "name": "file-operations",
+                            "description": "Create, read, write files",
+                            "tools": [
+                                {
+                                    "name": "write_file_tool",
+                                    "params": {"path": "string", "content": "string"},
+                                },
+                                {"name": "read_file_tool", "params": {"path": "string"}},
+                            ],
+                        }
+                    ]
                 else:
                     return [], f"No skills available for task type '{task_type_value}'"
 
@@ -592,15 +685,15 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
             outputs_json = json.dumps(previous_outputs or {}, indent=2)
 
             abstracted_task = self._abstract_task_for_planning(task)
-            task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
+            task_type_str = task_type.value if hasattr(task_type, "value") else str(task_type)
 
             planner_kwargs = {
-                'task_description': abstracted_task,
-                'task_type': task_type_str,
-                'available_skills': skills_json,
-                'previous_outputs': outputs_json,
-                'max_steps': max_steps,
-                'config': {"response_format": {"type": "json_object"}}
+                "task_description": abstracted_task,
+                "task_type": task_type_str,
+                "available_skills": skills_json,
+                "previous_outputs": outputs_json,
+                "max_steps": max_steps,
+                "config": {"response_format": {"type": "json_object"}},
             }
 
             logger.info(f" Calling LLM for execution plan (async)...")
@@ -609,7 +702,7 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
             result = await self._acall_with_retry(
                 module=self.execution_planner,
                 kwargs=planner_kwargs,
-                compressible_fields=['available_skills', 'previous_outputs'],
+                compressible_fields=["available_skills", "previous_outputs"],
                 max_retries=self._max_compression_retries,
                 lm=self._fast_lm,
             )
@@ -617,13 +710,15 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
             logger.info(f" LLM response received (async)")
 
             # Post-processing: parse plan (reuse sync method — pure CPU)
-            raw_plan = getattr(result, 'execution_plan', None)
+            raw_plan = getattr(result, "execution_plan", None)
             steps = self._parse_plan_to_steps(raw_plan, skills, task, task_type, max_steps)
 
             if not steps:
                 logger.warning("Async plan resulted in 0 steps, using fallback plan")
                 fallback_plan_data = self._create_fallback_plan(task, task_type, skills)
-                steps = self._parse_plan_to_steps(fallback_plan_data, skills, task, task_type, max_steps)
+                steps = self._parse_plan_to_steps(
+                    fallback_plan_data, skills, task, task_type, max_steps
+                )
                 reasoning = f"Fallback plan created: {len(steps)} steps"
             else:
                 reasoning = result.reasoning or f"Planned {len(steps)} steps"
@@ -645,31 +740,44 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
             logger.error(f"Async execution planning failed: {e}", exc_info=True)
             try:
                 fallback_plan_data = self._create_fallback_plan(task, task_type, skills)
-                steps = self._parse_plan_to_steps(fallback_plan_data, skills, task, task_type, max_steps)
+                steps = self._parse_plan_to_steps(
+                    fallback_plan_data, skills, task, task_type, max_steps
+                )
                 if steps:
                     return steps, f"Fallback plan (async planning failed: {str(e)[:100]})"
             except Exception as fallback_e:
                 logger.error(f"Async fallback plan also failed: {fallback_e}")
             return [], f"Planning failed: {e}"
 
-    async def areplan_with_reflection(self, task: str, task_type: Any, skills: List[Dict[str, Any]], failed_steps: List[Dict[str, Any]], completed_outputs: Optional[Dict[str, Any]] = None, excluded_skills: Optional[List[str]] = None, max_steps: int = 5) -> Any:
+    async def areplan_with_reflection(
+        self,
+        task: str,
+        task_type: Any,
+        skills: List[Dict[str, Any]],
+        failed_steps: List[Dict[str, Any]],
+        completed_outputs: Optional[Dict[str, Any]] = None,
+        excluded_skills: Optional[List[str]] = None,
+        max_steps: int = 5,
+    ) -> Any:
         """
         Async version of replan_with_reflection using DSPy .acall().
 
         Non-blocking: uses _acall_with_retry for the LLM call.
         """
         excluded_set = set(excluded_skills or [])
-        filtered_skills = [s for s in skills if s.get('name') not in excluded_set]
+        filtered_skills = [s for s in skills if s.get("name") not in excluded_set]
         abstracted_task = self._abstract_task_for_planning(task)
-        task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
+        task_type_str = task_type.value if hasattr(task_type, "value") else str(task_type)
 
         formatted_skills = []
         for s in filtered_skills:
-            formatted_skills.append({
-                'name': s.get('name', ''),
-                'description': s.get('description', ''),
-                'tools': s.get('tools', []),
-            })
+            formatted_skills.append(
+                {
+                    "name": s.get("name", ""),
+                    "description": s.get("description", ""),
+                    "tools": s.get("tools", []),
+                }
+            )
         skills_json = json.dumps(formatted_skills, indent=2)
         failed_json = json.dumps(failed_steps, default=str)
         outputs_json = json.dumps(completed_outputs or {}, default=str)
@@ -680,22 +788,22 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
             result = await self._acall_with_retry(
                 module=self.reflective_planner,
                 kwargs={
-                    'task_description': abstracted_task,
-                    'task_type': task_type_str,
-                    'available_skills': skills_json,
-                    'failed_steps': failed_json,
-                    'completed_outputs': outputs_json,
-                    'excluded_skills': excluded_json,
-                    'max_steps': max_steps,
+                    "task_description": abstracted_task,
+                    "task_type": task_type_str,
+                    "available_skills": skills_json,
+                    "failed_steps": failed_json,
+                    "completed_outputs": outputs_json,
+                    "excluded_skills": excluded_json,
+                    "max_steps": max_steps,
                 },
-                compressible_fields=['available_skills', 'completed_outputs'],
+                compressible_fields=["available_skills", "completed_outputs"],
                 max_retries=self._max_compression_retries,
                 lm=self._fast_lm,
             )
 
-            raw_plan = getattr(result, 'corrected_plan', None)
-            reflection = str(getattr(result, 'reflection', ''))
-            reasoning = str(getattr(result, 'reasoning', ''))
+            raw_plan = getattr(result, "corrected_plan", None)
+            reflection = str(getattr(result, "reflection", ""))
+            reasoning = str(getattr(result, "reasoning", ""))
             steps = self._parse_plan_to_steps(raw_plan, filtered_skills, task, task_type, max_steps)
             steps = self._enrich_io_contracts(steps)
 
@@ -731,52 +839,49 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
         """
         formatted_skills = []
         for s in skills:
-            skill_name = s.get('name', '')
-            skill_dict = {
-                'name': skill_name,
-                'description': s.get('description', ''),
-                'tools': []
-            }
+            skill_name = s.get("name", "")
+            skill_dict = {"name": skill_name, "description": s.get("description", ""), "tools": []}
 
             # Propagate executor_type from skill metadata for hybrid routing
-            if s.get('executor_type'):
-                skill_dict['executor_type'] = s['executor_type']
+            if s.get("executor_type"):
+                skill_dict["executor_type"] = s["executor_type"]
 
-            tools_raw = s.get('tools', [])
+            tools_raw = s.get("tools", [])
             if isinstance(tools_raw, dict):
                 tool_names = list(tools_raw.keys())
             elif isinstance(tools_raw, list):
-                tool_names = [t.get('name') if isinstance(t, dict) else t for t in tools_raw]
+                tool_names = [t.get("name") if isinstance(t, dict) else t for t in tools_raw]
             else:
                 tool_names = []
 
             try:
                 from ..registry.skills_registry import get_skills_registry
+
                 registry = get_skills_registry()
                 if registry:
                     skill_obj = registry.get_skill(skill_name)
-                    if skill_obj and hasattr(skill_obj, 'tools') and skill_obj.tools:
+                    if skill_obj and hasattr(skill_obj, "tools") and skill_obj.tools:
                         if not tool_names:
                             tool_names = list(skill_obj.tools.keys())
                         for tool_name in tool_names:
                             tool_func = skill_obj.tools.get(tool_name)
                             if tool_func:
                                 tool_schema = self._extract_tool_schema(tool_func, tool_name)
-                                skill_dict['tools'].append(tool_schema)
+                                skill_dict["tools"].append(tool_schema)
                             else:
-                                skill_dict['tools'].append({'name': tool_name})
+                                skill_dict["tools"].append({"name": tool_name})
                         # Extract executor_type from loaded skill if not in metadata
-                        if 'executor_type' not in skill_dict:
-                            etype = getattr(skill_obj, 'executor_type', '')
+                        if "executor_type" not in skill_dict:
+                            etype = getattr(skill_obj, "executor_type", "")
                             if etype:
-                                skill_dict['executor_type'] = etype
+                                skill_dict["executor_type"] = etype
                     else:
-                        skill_dict['tools'] = [{'name': name} for name in tool_names]
+                        skill_dict["tools"] = [{"name": name} for name in tool_names]
                 else:
-                    skill_dict['tools'] = [{'name': name} for name in tool_names]
+                    skill_dict["tools"] = [{"name": name} for name in tool_names]
             except Exception as e:
                 logger.warning(f"Could not enrich tool schemas for {skill_name}: {e}")
-                skill_dict['tools'] = [{'name': name} for name in tool_names]
+                skill_dict["tools"] = [{"name": name} for name in tool_names]
 
             formatted_skills.append(skill_dict)
 
@@ -785,7 +890,16 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
 
     # _normalize_raw_plan, _parse_plan_to_steps → moved to PlanUtilsMixin
 
-    def replan_with_reflection(self, task: str, task_type: Any, skills: List[Dict[str, Any]], failed_steps: List[Dict[str, Any]], completed_outputs: Optional[Dict[str, Any]] = None, excluded_skills: Optional[List[str]] = None, max_steps: int = 10) -> tuple:
+    def replan_with_reflection(
+        self,
+        task: str,
+        task_type: Any,
+        skills: List[Dict[str, Any]],
+        failed_steps: List[Dict[str, Any]],
+        completed_outputs: Optional[Dict[str, Any]] = None,
+        excluded_skills: Optional[List[str]] = None,
+        max_steps: int = 10,
+    ) -> tuple:
         """
         Replan after failure using Reflexion-style analysis.
 
@@ -808,19 +922,21 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
         excluded_set = set(excluded_skills or [])
 
         # Filter excluded skills from available set
-        filtered_skills = [s for s in skills if s.get('name') not in excluded_set]
+        filtered_skills = [s for s in skills if s.get("name") not in excluded_set]
 
         # Format inputs for reflective planner
         abstracted_task = self._abstract_task_for_planning(task)
-        task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
+        task_type_str = task_type.value if hasattr(task_type, "value") else str(task_type)
 
         formatted_skills = []
         for s in filtered_skills:
-            formatted_skills.append({
-                'name': s.get('name', ''),
-                'description': s.get('description', ''),
-                'tools': s.get('tools', []),
-            })
+            formatted_skills.append(
+                {
+                    "name": s.get("name", ""),
+                    "description": s.get("description", ""),
+                    "tools": s.get("tools", []),
+                }
+            )
         skills_json = json.dumps(formatted_skills, indent=2)
         failed_json = json.dumps(failed_steps, default=str)
         outputs_json = json.dumps(completed_outputs or {}, default=str)
@@ -830,22 +946,22 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
             result = self._call_with_retry(
                 module=self.reflective_planner,
                 kwargs={
-                    'task_description': abstracted_task,
-                    'task_type': task_type_str,
-                    'available_skills': skills_json,
-                    'failed_steps': failed_json,
-                    'completed_outputs': outputs_json,
-                    'excluded_skills': excluded_json,
-                    'max_steps': max_steps,
+                    "task_description": abstracted_task,
+                    "task_type": task_type_str,
+                    "available_skills": skills_json,
+                    "failed_steps": failed_json,
+                    "completed_outputs": outputs_json,
+                    "excluded_skills": excluded_json,
+                    "max_steps": max_steps,
                 },
-                compressible_fields=['available_skills', 'completed_outputs'],
+                compressible_fields=["available_skills", "completed_outputs"],
                 max_retries=self._max_compression_retries,
                 lm=self._fast_lm,  # Use fast LM for replanning (routing task)
             )
 
-            raw_plan = getattr(result, 'corrected_plan', None)
-            reflection = str(getattr(result, 'reflection', ''))
-            reasoning = str(getattr(result, 'reasoning', ''))
+            raw_plan = getattr(result, "corrected_plan", None)
+            reflection = str(getattr(result, "reflection", ""))
+            reasoning = str(getattr(result, "reasoning", ""))
 
             logger.info(f" Reflective replanning: reflection='{reflection[:100]}...'")
 
@@ -879,7 +995,14 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
     # POLICY EXPLORER — Alternative plan generation when stuck
     # =========================================================================
 
-    def explore_alternative_plans(self, task: str, task_type: Any, skills: List[Dict[str, Any]], failed_approaches: List[str], max_alternatives: int = 3) -> List[tuple]:
+    def explore_alternative_plans(
+        self,
+        task: str,
+        task_type: Any,
+        skills: List[Dict[str, Any]],
+        failed_approaches: List[str],
+        max_alternatives: int = 3,
+    ) -> List[tuple]:
         """Generate alternative approaches when the current plan is stuck.
 
         Uses LLM to brainstorm fundamentally different strategies, not just
@@ -900,8 +1023,12 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
             return []
 
         failed_summary = "\n".join(f"- FAILED: {a}" for a in failed_approaches[-5:])
-        task_type_str = task_type.value if hasattr(task_type, 'value') else str(task_type)
-        formatted_skills = self._format_skills_for_planner(skills) if hasattr(self, '_format_skills_for_planner') else skills
+        task_type_str = task_type.value if hasattr(task_type, "value") else str(task_type)
+        formatted_skills = (
+            self._format_skills_for_planner(skills)
+            if hasattr(self, "_format_skills_for_planner")
+            else skills
+        )
         skills_json = json.dumps(formatted_skills, indent=2)
 
         prompt = (
@@ -918,19 +1045,19 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
                 result = self._call_with_retry(
                     module=self.execution_planner,
                     kwargs={
-                        'task_description': prompt,
-                        'task_type': task_type_str,
-                        'available_skills': skills_json,
-                        'previous_outputs': json.dumps({"failed": failed_approaches}),
-                        'max_steps': 5,
+                        "task_description": prompt,
+                        "task_type": task_type_str,
+                        "available_skills": skills_json,
+                        "previous_outputs": json.dumps({"failed": failed_approaches}),
+                        "max_steps": 5,
                     },
                     max_retries=1,
                     lm=self._fast_lm,
                 )
-                raw_plan = getattr(result, 'execution_plan', None)
+                raw_plan = getattr(result, "execution_plan", None)
                 steps = self._parse_plan_to_steps(raw_plan, skills, task, task_type, 5)
                 if steps:
-                    reasoning = getattr(result, 'reasoning', f'Alternative plan {i+1}')
+                    reasoning = getattr(result, "reasoning", f"Alternative plan {i+1}")
                     alternatives.append((steps, str(reasoning)))
             except Exception as e:
                 logger.debug(f"Alternative plan {i+1} generation failed: {e}")
@@ -960,13 +1087,13 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
         # Build a map of output_key → step_index
         output_map: Dict[str, int] = {}
         for i, step in enumerate(steps):
-            out_key = getattr(step, 'output_key', None) or f'step_{i}'
+            out_key = getattr(step, "output_key", None) or f"step_{i}"
             output_map[out_key] = i
 
         # For each step, check if its params reference earlier step outputs
         for i, step in enumerate(steps):
-            params = getattr(step, 'params', {}) or {}
-            inferred_deps = set(getattr(step, 'depends_on', None) or [])
+            params = getattr(step, "params", {}) or {}
+            inferred_deps = set(getattr(step, "depends_on", None) or [])
 
             for param_value in params.values():
                 if not isinstance(param_value, str):
@@ -985,7 +1112,7 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
                 # If it can't be determined, leave depends_on empty (= parallelizable)
                 pass
 
-            if hasattr(step, 'depends_on'):
+            if hasattr(step, "depends_on"):
                 step.depends_on = sorted(inferred_deps)
 
         return steps
@@ -994,6 +1121,7 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
 @dataclass
 class TaskPlan:
     """Execution plan with enhanced metadata."""
+
     task_graph: Optional[Any] = None  # TaskGraph if available
     steps: List[Any] = field(default_factory=list)  # List[ExecutionStep] - imported lazily
     estimated_time: Optional[str] = None
@@ -1005,6 +1133,7 @@ class TaskPlan:
 # =============================================================================
 # Convenience Functions
 # =============================================================================
+
 
 def create_agentic_planner() -> TaskPlanner:
     """Create a new agentic planner instance."""

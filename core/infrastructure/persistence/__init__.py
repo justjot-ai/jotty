@@ -16,7 +16,7 @@ from .session_manager import SessionManager
 from .shared_context import SharedContext
 
 __all__ = [
-    'Vault',
-    'SessionManager',
-    'SharedContext',
+    "Vault",
+    "SessionManager",
+    "SharedContext",
 ]

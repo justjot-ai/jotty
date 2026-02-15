@@ -13,18 +13,19 @@ Capabilities:
 - Natural language to code conversion
 """
 
-import time
-import logging
 import asyncio
+import logging
+import time
 from typing import Any, Dict, List, Optional
 
-from .base import SkillProvider, SkillCategory, ProviderCapability, ProviderResult
+from .base import ProviderCapability, ProviderResult, SkillCategory, SkillProvider
 
 logger = logging.getLogger(__name__)
 
 # Try to import Open Interpreter
 try:
     from interpreter import Interpreter
+
     INTERPRETER_AVAILABLE = True
 except ImportError:
     INTERPRETER_AVAILABLE = False
@@ -69,10 +70,10 @@ class OpenInterpreterProvider(SkillProvider):
         ]
 
         # Configuration
-        self.model = config.get('model', 'gpt-4') if config else 'gpt-4'
-        self.safe_mode = config.get('safe_mode', False) if config else False
-        self.auto_run = config.get('auto_run', True) if config else True
-        self.timeout = config.get('timeout', 120) if config else 120
+        self.model = config.get("model", "gpt-4") if config else "gpt-4"
+        self.safe_mode = config.get("safe_mode", False) if config else False
+        self.auto_run = config.get("auto_run", True) if config else True
+        self.timeout = config.get("timeout", 120) if config else 120
 
         # Interpreter instance
         self._interpreter = None
@@ -152,27 +153,28 @@ class OpenInterpreterProvider(SkillProvider):
                 return messages
 
             messages = await asyncio.wait_for(
-                loop.run_in_executor(None, run_interpreter),
-                timeout=self.timeout
+                loop.run_in_executor(None, run_interpreter), timeout=self.timeout
             )
 
             # Extract results
             output = {
-                'task': task,
-                'messages': messages,
-                'code_executed': [],
-                'outputs': [],
+                "task": task,
+                "messages": messages,
+                "code_executed": [],
+                "outputs": [],
             }
 
             # Parse messages for code and outputs
             for msg in messages:
-                if msg.get('type') == 'code':
-                    output['code_executed'].append({
-                        'language': msg.get('format', 'python'),
-                        'code': msg.get('content', ''),
-                    })
-                elif msg.get('type') == 'console':
-                    output['outputs'].append(msg.get('content', ''))
+                if msg.get("type") == "code":
+                    output["code_executed"].append(
+                        {
+                            "language": msg.get("format", "python"),
+                            "code": msg.get("content", ""),
+                        }
+                    )
+                elif msg.get("type") == "console":
+                    output["outputs"].append(msg.get("content", ""))
 
             execution_time = time.time() - start_time
 
@@ -207,11 +209,11 @@ class OpenInterpreterProvider(SkillProvider):
             task_lower = task.lower()
 
             # Determine what kind of execution
-            if 'python' in task_lower or context.get('language') == 'python':
+            if "python" in task_lower or context.get("language") == "python":
                 return await self._run_python(task, context)
-            elif 'shell' in task_lower or 'bash' in task_lower:
+            elif "shell" in task_lower or "bash" in task_lower:
                 return await self._run_shell(task, context)
-            elif 'javascript' in task_lower or 'js' in task_lower:
+            elif "javascript" in task_lower or "js" in task_lower:
                 return await self._run_javascript(task, context)
             else:
                 # Default to Python
@@ -228,11 +230,11 @@ class OpenInterpreterProvider(SkillProvider):
 
     async def _run_python(self, task: str, context: Dict) -> ProviderResult:
         """Run Python code."""
-        code = context.get('code')
+        code = context.get("code")
 
         if not code:
             # Try to extract code from task
-            code = self._extract_code(task, 'python')
+            code = self._extract_code(task, "python")
 
         if not code:
             return ProviderResult(
@@ -245,14 +247,14 @@ class OpenInterpreterProvider(SkillProvider):
         try:
             # Execute Python code
             local_vars = {}
-            exec(code, {'__builtins__': __builtins__}, local_vars)
+            exec(code, {"__builtins__": __builtins__}, local_vars)
 
             return ProviderResult(
                 success=True,
                 output={
-                    'language': 'python',
-                    'code': code,
-                    'result': local_vars,
+                    "language": "python",
+                    "code": code,
+                    "result": local_vars,
                 },
                 category=SkillCategory.CODE_EXECUTION,
             )
@@ -260,14 +262,14 @@ class OpenInterpreterProvider(SkillProvider):
         except Exception as e:
             return ProviderResult(
                 success=False,
-                output={'code': code},
+                output={"code": code},
                 error=str(e),
                 category=SkillCategory.CODE_EXECUTION,
             )
 
     async def _run_shell(self, task: str, context: Dict) -> ProviderResult:
         """Run shell command."""
-        command = context.get('command') or self._extract_code(task, 'shell')
+        command = context.get("command") or self._extract_code(task, "shell")
 
         if not command:
             return ProviderResult(
@@ -289,11 +291,11 @@ class OpenInterpreterProvider(SkillProvider):
             return ProviderResult(
                 success=process.returncode == 0,
                 output={
-                    'language': 'shell',
-                    'command': command,
-                    'stdout': stdout.decode(),
-                    'stderr': stderr.decode(),
-                    'return_code': process.returncode,
+                    "language": "shell",
+                    "command": command,
+                    "stdout": stdout.decode(),
+                    "stderr": stderr.decode(),
+                    "return_code": process.returncode,
                 },
                 error=stderr.decode() if process.returncode != 0 else "",
                 category=SkillCategory.TERMINAL,
@@ -302,14 +304,14 @@ class OpenInterpreterProvider(SkillProvider):
         except Exception as e:
             return ProviderResult(
                 success=False,
-                output={'command': command},
+                output={"command": command},
                 error=str(e),
                 category=SkillCategory.TERMINAL,
             )
 
     async def _run_javascript(self, task: str, context: Dict) -> ProviderResult:
         """Run JavaScript code via Node.js."""
-        code = context.get('code') or self._extract_code(task, 'javascript')
+        code = context.get("code") or self._extract_code(task, "javascript")
 
         if not code:
             return ProviderResult(
@@ -322,7 +324,9 @@ class OpenInterpreterProvider(SkillProvider):
         try:
             # Run via node
             process = await asyncio.create_subprocess_exec(
-                'node', '-e', code,
+                "node",
+                "-e",
+                code,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
@@ -332,10 +336,10 @@ class OpenInterpreterProvider(SkillProvider):
             return ProviderResult(
                 success=process.returncode == 0,
                 output={
-                    'language': 'javascript',
-                    'code': code,
-                    'stdout': stdout.decode(),
-                    'stderr': stderr.decode(),
+                    "language": "javascript",
+                    "code": code,
+                    "stdout": stdout.decode(),
+                    "stderr": stderr.decode(),
                 },
                 error=stderr.decode() if process.returncode != 0 else "",
                 category=SkillCategory.CODE_EXECUTION,
@@ -344,7 +348,7 @@ class OpenInterpreterProvider(SkillProvider):
         except Exception as e:
             return ProviderResult(
                 success=False,
-                output={'code': code},
+                output={"code": code},
                 error=str(e),
                 category=SkillCategory.CODE_EXECUTION,
             )
@@ -355,9 +359,9 @@ class OpenInterpreterProvider(SkillProvider):
 
         # Look for code blocks
         patterns = [
-            rf'```{language}\n?(.*?)```',
-            rf'```\n?(.*?)```',
-            r'`([^`]+)`',
+            rf"```{language}\n?(.*?)```",
+            rf"```\n?(.*?)```",
+            r"`([^`]+)`",
         ]
 
         for pattern in patterns:
@@ -369,19 +373,20 @@ class OpenInterpreterProvider(SkillProvider):
 
     # Convenience methods
 
-    async def run_code(self, code: str, language: str = 'python') -> ProviderResult:
+    async def run_code(self, code: str, language: str = "python") -> ProviderResult:
         """Run code in specified language."""
-        return await self.execute(f"Run {language} code", context={'code': code, 'language': language})
+        return await self.execute(
+            f"Run {language} code", context={"code": code, "language": language}
+        )
 
     async def analyze_data(self, data_path: str) -> ProviderResult:
         """Analyze a data file."""
         return await self.execute(f"Analyze the data in {data_path} and provide insights")
 
-    async def create_chart(self, data: Dict, chart_type: str = 'bar') -> ProviderResult:
+    async def create_chart(self, data: Dict, chart_type: str = "bar") -> ProviderResult:
         """Create a chart from data."""
         return await self.execute(
-            f"Create a {chart_type} chart from the provided data",
-            context={'data': data}
+            f"Create a {chart_type} chart from the provided data", context={"data": data}
         )
 
     def reset(self) -> None:

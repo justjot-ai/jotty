@@ -5,18 +5,18 @@ Demonstrates how to use the LOTUS optimization layer for cost-efficient LLM oper
 """
 
 import asyncio
-from typing import List, Tuple, Any
-
+from typing import Any, List, Tuple
 
 # =============================================================================
 # Example 1: Basic LOTUS Optimizer Usage
 # =============================================================================
 
+
 async def example_basic_optimizer() -> Any:
     """
     Basic usage of LotusOptimizer for cost-efficient LLM operations.
     """
-    from Jotty.core.infrastructure.integration.lotus import LotusOptimizer, LotusConfig
+    from Jotty.core.infrastructure.integration.lotus import LotusConfig, LotusOptimizer
 
     # Create optimizer with default config
     config = LotusConfig()
@@ -54,11 +54,12 @@ async def example_basic_optimizer() -> Any:
 # Example 2: Using Semantic Operators (LOTUS-style API)
 # =============================================================================
 
+
 async def example_semantic_operators() -> Any:
     """
     Using LOTUS-style semantic operators for declarative data processing.
     """
-    from Jotty.core.infrastructure.integration.lotus import SemanticDataFrame, LotusConfig
+    from Jotty.core.infrastructure.integration.lotus import LotusConfig, SemanticDataFrame
 
     # Sample data
     articles = [
@@ -75,8 +76,7 @@ async def example_semantic_operators() -> Any:
 
     # Chain operations (lazy evaluation)
     result = await (
-        sdf
-        .sem_filter("about artificial intelligence or machine learning")
+        sdf.sem_filter("about artificial intelligence or machine learning")
         .sem_map("summarize in one sentence")
         .sem_topk(3, "most informative about AI trends")
         .execute()
@@ -91,22 +91,23 @@ async def example_semantic_operators() -> Any:
 # Example 3: Model Cascade for Cost Optimization
 # =============================================================================
 
+
 async def example_model_cascade() -> Any:
     """
     Demonstrates model cascade for 10x cost reduction.
     """
-    from Jotty.core.infrastructure.integration.lotus import ModelCascade, LotusConfig
+    from Jotty.core.infrastructure.integration.lotus import LotusConfig, ModelCascade
 
     config = LotusConfig()
     cascade = ModelCascade(config)
 
     # Items to classify
     items = [
-        "This is clearly spam",           # Easy - proxy can handle
-        "Buy now! Limited offer!",        # Easy
-        "Meeting tomorrow at 3pm",        # Easy - clearly not spam
-        "Congratulations, you won!!!",    # Ambiguous - may need oracle
-        "Please review the attached doc", # Moderate
+        "This is clearly spam",  # Easy - proxy can handle
+        "Buy now! Limited offer!",  # Easy
+        "Meeting tomorrow at 3pm",  # Easy - clearly not spam
+        "Congratulations, you won!!!",  # Ambiguous - may need oracle
+        "Please review the attached doc",  # Moderate
     ]
 
     def prompt_fn(item: Any) -> Any:
@@ -132,11 +133,12 @@ async def example_model_cascade() -> Any:
 # Example 4: Semantic Cache for Repeat Queries
 # =============================================================================
 
+
 async def example_semantic_cache() -> Any:
     """
     Demonstrates semantic caching for zero-cost repeat queries.
     """
-    from Jotty.core.infrastructure.integration.lotus import SemanticCache, LotusConfig
+    from Jotty.core.infrastructure.integration.lotus import LotusConfig, SemanticCache
 
     config = LotusConfig()
     cache = SemanticCache(config)
@@ -166,6 +168,7 @@ async def example_semantic_cache() -> Any:
 # =============================================================================
 # Example 5: Adaptive Validation
 # =============================================================================
+
 
 async def example_adaptive_validation() -> Any:
     """
@@ -203,12 +206,13 @@ async def example_adaptive_validation() -> Any:
 # Example 6: Enhancing Existing Orchestrator
 # =============================================================================
 
+
 def example_enhance_swarm() -> None:
     """
     Shows how to add LOTUS optimization to existing Orchestrator.
     """
     # Option 1: Enable during initialization
-    code1 = '''
+    code1 = """
 from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
 
 # LOTUS is enabled by default
@@ -223,10 +227,10 @@ result = await swarm.run(goal="Analyze Q4 sales trends")
 # Check optimization stats
 print(swarm.get_lotus_stats())
 print(swarm.get_lotus_savings())
-'''
+"""
 
     # Option 2: Enhance existing swarm
-    code2 = '''
+    code2 = """
 from Jotty.core.infrastructure.integration.lotus.integration import enhance_swarm_manager
 
 # Existing swarm without LOTUS
@@ -237,7 +241,7 @@ enhanced_swarm = enhance_swarm_manager(swarm)
 
 # Now has optimization
 print(enhanced_swarm.lotus_stats())
-'''
+"""
 
     print("Option 1 - Enable during init:")
     print(code1)

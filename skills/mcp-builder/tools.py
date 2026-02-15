@@ -4,14 +4,20 @@ MCP Builder Skill - Create and validate MCP servers.
 Helps build MCP (Model Context Protocol) servers with templates,
 validation, and best practices.
 """
+
 import asyncio
 import logging
-from pathlib import Path
-from typing import Dict, Any, Optional, List
-from datetime import datetime
 import os
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
+from Jotty.core.infrastructure.utils.tool_helpers import (
+    async_tool_wrapper,
+    tool_error,
+    tool_response,
+)
 
 # Status emitter for progress updates
 status = SkillStatus("mcp-builder")
@@ -24,71 +30,64 @@ logger = logging.getLogger(__name__)
 async def create_mcp_server_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Create a new MCP server project.
-    
+
     Args:
         params:
             - server_name (str): Name of server
             - language (str, optional): 'python' or 'node'
             - output_directory (str, optional): Output directory
             - include_examples (bool, optional): Include examples
-    
+
     Returns:
         Dictionary with created files and paths
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
-    server_name = params.get('server_name', '')
-    language = params.get('language', 'python')
-    output_directory = params.get('output_directory', '.')
-    include_examples = params.get('include_examples', True)
-    
+    server_name = params.get("server_name", "")
+    language = params.get("language", "python")
+    output_directory = params.get("output_directory", ".")
+    include_examples = params.get("include_examples", True)
+
     if not server_name:
-        return {
-            'success': False,
-            'error': 'server_name is required'
-        }
-    
-    if language not in ['python', 'node']:
-        return {
-            'success': False,
-            'error': 'language must be "python" or "node"'
-        }
-    
+        return {"success": False, "error": "server_name is required"}
+
+    if language not in ["python", "node"]:
+        return {"success": False, "error": 'language must be "python" or "node"'}
+
     try:
         output_path = Path(os.path.expanduser(output_directory))
         server_path = output_path / server_name
         server_path.mkdir(parents=True, exist_ok=True)
-        
+
         files_created = []
-        
-        if language == 'python':
+
+        if language == "python":
             # Create Python MCP server
-            files_created.extend(await _create_python_server(server_path, server_name, include_examples))
+            files_created.extend(
+                await _create_python_server(server_path, server_name, include_examples)
+            )
         else:
             # Create Node.js MCP server
-            files_created.extend(await _create_node_server(server_path, server_name, include_examples))
-        
-        return {
-            'success': True,
-            'server_path': str(server_path),
-            'files_created': files_created
-        }
-        
+            files_created.extend(
+                await _create_node_server(server_path, server_name, include_examples)
+            )
+
+        return {"success": True, "server_path": str(server_path), "files_created": files_created}
+
     except Exception as e:
         logger.error(f"MCP server creation failed: {e}", exc_info=True)
-        return {
-            'success': False,
-            'error': str(e)
-        }
+        return {"success": False, "error": str(e)}
 
 
-async def _create_python_server(server_path: Path, server_name: str, include_examples: bool) -> List[str]:
+async def _create_python_server(
+    server_path: Path, server_name: str, include_examples: bool
+) -> List[str]:
     """Create Python MCP server structure."""
-    
+
     files_created = []
-    
+
     # Create main server file
-    server_py = server_path / 'server.py'
+    server_py = server_path / "server.py"
     server_content = f'''"""
 {server_name} MCP Server
 
@@ -126,7 +125,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             type="text",
             text=f"Example tool called with: {{input_value}}"
         )]
-    
+
     raise ValueError(f"Unknown tool: {{name}}")
 
 async def main():
@@ -142,18 +141,18 @@ if __name__ == "__main__":
     import asyncio
     asyncio.run(main())
 '''
-    
-    server_py.write_text(server_content, encoding='utf-8')
-    files_created.append('server.py')
-    
+
+    server_py.write_text(server_content, encoding="utf-8")
+    files_created.append("server.py")
+
     # Create requirements.txt
-    requirements = server_path / 'requirements.txt'
-    requirements.write_text('mcp>=0.1.0\n', encoding='utf-8')
-    files_created.append('requirements.txt')
-    
+    requirements = server_path / "requirements.txt"
+    requirements.write_text("mcp>=0.1.0\n", encoding="utf-8")
+    files_created.append("requirements.txt")
+
     # Create README
-    readme = server_path / 'README.md'
-    readme_content = f'''# {server_name}
+    readme = server_path / "README.md"
+    readme_content = f"""# {server_name}
 
 MCP Server implementation.
 
@@ -172,22 +171,24 @@ python server.py
 ## Tools
 
 - `example_tool`: Example tool description
-'''
-    
-    readme.write_text(readme_content, encoding='utf-8')
-    files_created.append('README.md')
-    
+"""
+
+    readme.write_text(readme_content, encoding="utf-8")
+    files_created.append("README.md")
+
     return files_created
 
 
-async def _create_node_server(server_path: Path, server_name: str, include_examples: bool) -> List[str]:
+async def _create_node_server(
+    server_path: Path, server_name: str, include_examples: bool
+) -> List[str]:
     """Create Node.js MCP server structure."""
-    
+
     files_created = []
-    
+
     # Create package.json
-    package_json = server_path / 'package.json'
-    package_content = '''{
+    package_json = server_path / "package.json"
+    package_content = """{
   "name": "mcp-server",
   "version": "1.0.0",
   "description": "MCP Server",
@@ -200,14 +201,14 @@ async def _create_node_server(server_path: Path, server_name: str, include_examp
     "@modelcontextprotocol/sdk": "^0.1.0"
   }
 }
-'''
-    
-    package_json.write_text(package_content, encoding='utf-8')
-    files_created.append('package.json')
-    
+"""
+
+    package_json.write_text(package_content, encoding="utf-8")
+    files_created.append("package.json")
+
     # Create server.js
-    server_js = server_path / 'server.js'
-    server_content = '''import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+    server_js = server_path / "server.js"
+    server_content = """import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
@@ -252,7 +253,7 @@ server.setRequestHandler("tools/call", async (request) => {
       ],
     };
   }
-  
+
   throw new Error(`Unknown tool: ${request.params.name}`);
 });
 
@@ -263,14 +264,14 @@ async function main() {
 }
 
 main().catch(console.error);
-'''
-    
-    server_js.write_text(server_content, encoding='utf-8')
-    files_created.append('server.js')
-    
+"""
+
+    server_js.write_text(server_content, encoding="utf-8")
+    files_created.append("server.js")
+
     # Create README
-    readme = server_path / 'README.md'
-    readme_content = f'''# {server_name}
+    readme = server_path / "README.md"
+    readme_content = f"""# {server_name}
 
 MCP Server implementation.
 
@@ -289,11 +290,11 @@ npm start
 ## Tools
 
 - `example_tool`: Example tool description
-'''
-    
-    readme.write_text(readme_content, encoding='utf-8')
-    files_created.append('README.md')
-    
+"""
+
+    readme.write_text(readme_content, encoding="utf-8")
+    files_created.append("README.md")
+
     return files_created
 
 
@@ -301,63 +302,52 @@ npm start
 async def validate_mcp_server_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Validate an MCP server structure.
-    
+
     Args:
         params:
             - server_path (str): Path to server directory
-    
+
     Returns:
         Dictionary with validation results
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
-    server_path = params.get('server_path', '')
-    
+    server_path = params.get("server_path", "")
+
     if not server_path:
-        return {
-            'success': False,
-            'error': 'server_path is required'
-        }
-    
+        return {"success": False, "error": "server_path is required"}
+
     server_dir = Path(os.path.expanduser(server_path))
-    
+
     if not server_dir.exists():
-        return {
-            'success': False,
-            'error': f'Server directory not found: {server_path}'
-        }
-    
+        return {"success": False, "error": f"Server directory not found: {server_path}"}
+
     issues = []
     warnings = []
-    
+
     # Check for main server file
-    python_server = server_dir / 'server.py'
-    node_server = server_dir / 'server.js'
-    
+    python_server = server_dir / "server.py"
+    node_server = server_dir / "server.js"
+
     if not python_server.exists() and not node_server.exists():
-        issues.append('No server file found (server.py or server.js)')
-    
+        issues.append("No server file found (server.py or server.js)")
+
     # Check for package files
     if python_server.exists():
-        requirements = server_dir / 'requirements.txt'
+        requirements = server_dir / "requirements.txt"
         if not requirements.exists():
-            warnings.append('requirements.txt not found (recommended for Python)')
-    
+            warnings.append("requirements.txt not found (recommended for Python)")
+
     if node_server.exists():
-        package_json = server_dir / 'package.json'
+        package_json = server_dir / "package.json"
         if not package_json.exists():
-            issues.append('package.json is required for Node.js servers')
-    
+            issues.append("package.json is required for Node.js servers")
+
     # Check for README
-    readme = server_dir / 'README.md'
+    readme = server_dir / "README.md"
     if not readme.exists():
-        warnings.append('README.md not found (recommended)')
-    
+        warnings.append("README.md not found (recommended)")
+
     valid = len(issues) == 0
-    
-    return {
-        'success': True,
-        'valid': valid,
-        'issues': issues,
-        'warnings': warnings
-    }
+
+    return {"success": True, "valid": valid, "issues": issues, "warnings": warnings}

@@ -6,9 +6,10 @@ Integration Tests for All Overnight Enhancements
 Tests that all 5 enhancements work together in production scenarios.
 """
 
-import pytest
 import asyncio
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
 
 
 @pytest.mark.integration
@@ -19,9 +20,13 @@ class TestOvernightEnhancementsIntegration:
     async def test_full_stack_integration(self):
         """Test all enhancements: tracing + multi-swarm + cost-aware + adaptive."""
         from Jotty.core.infrastructure.monitoring.observability import get_distributed_tracer
-        from Jotty.core.intelligence.orchestration import SwarmAdapter, get_multi_swarm_coordinator, MergeStrategy
-        from Jotty.core.intelligence.learning import get_cost_aware_td_lambda
         from Jotty.core.infrastructure.monitoring.safety import get_adaptive_threshold_manager
+        from Jotty.core.intelligence.learning import get_cost_aware_td_lambda
+        from Jotty.core.intelligence.orchestration import (
+            MergeStrategy,
+            SwarmAdapter,
+            get_multi_swarm_coordinator,
+        )
 
         # Initialize all components
         tracer = get_distributed_tracer("integration-test")
@@ -41,15 +46,10 @@ class TestOvernightEnhancementsIntegration:
 
             # Inject headers
             headers = tracer.inject_headers(trace_id)
-            assert 'traceparent' in headers
+            assert "traceparent" in headers
 
             # Record observation
-            threshold_manager.record_observation(
-                "test_threshold",
-                0.5,
-                False,
-                1.0
-            )
+            threshold_manager.record_observation("test_threshold", 0.5, False, 1.0)
 
             # Update learner
             learner.update(
@@ -57,27 +57,31 @@ class TestOvernightEnhancementsIntegration:
                 action={"do": "something"},
                 reward=1.0,
                 next_state={"test": 2},
-                cost_usd=0.1
+                cost_usd=0.1,
             )
 
             # Get context
             context = tracer.get_context(trace_id)
-            assert context['operation'] == 'test_operation'
+            assert context["operation"] == "test_operation"
 
         # Verify stats
         stats = learner.get_stats()
-        assert stats['updates'] == 1
+        assert stats["updates"] == 1
 
         threshold_stats = threshold_manager.get_stats()
-        assert threshold_stats['total_observations'] >= 1
+        assert threshold_stats["total_observations"] >= 1
 
     @pytest.mark.asyncio
-    @patch('os.getenv')
-    @patch('anthropic.AsyncAnthropic')
+    @patch("os.getenv")
+    @patch("anthropic.AsyncAnthropic")
     async def test_multi_swarm_with_cost_tracking(self, mock_anthropic, mock_getenv):
         """Test multi-swarm execution with cost-aware learning."""
-        from Jotty.core.intelligence.orchestration import SwarmAdapter, get_multi_swarm_coordinator, MergeStrategy
         from Jotty.core.intelligence.learning import get_cost_aware_td_lambda
+        from Jotty.core.intelligence.orchestration import (
+            MergeStrategy,
+            SwarmAdapter,
+            get_multi_swarm_coordinator,
+        )
 
         # Mock API
         mock_getenv.return_value = "sk-test"
@@ -91,25 +95,23 @@ class TestOvernightEnhancementsIntegration:
         mock_anthropic.return_value = mock_client
 
         # Create swarms
-        swarms = SwarmAdapter.quick_swarms([
-            ("S1", "Test 1"),
-            ("S2", "Test 2"),
-        ])
+        swarms = SwarmAdapter.quick_swarms(
+            [
+                ("S1", "Test 1"),
+                ("S2", "Test 2"),
+            ]
+        )
 
         # Execute
         coordinator = get_multi_swarm_coordinator()
         result = await coordinator.execute_parallel(
-            swarms=swarms,
-            task="test",
-            merge_strategy=MergeStrategy.VOTING
+            swarms=swarms, task="test", merge_strategy=MergeStrategy.VOTING
         )
 
         # Track cost
         learner = get_cost_aware_td_lambda()
         total_cost = sum(
-            s.metadata.get('cost_usd', 0)
-            for s in [result]
-            if hasattr(result, 'metadata')
+            s.metadata.get("cost_usd", 0) for s in [result] if hasattr(result, "metadata")
         )
 
         learner.update(
@@ -117,18 +119,22 @@ class TestOvernightEnhancementsIntegration:
             action={"swarms": 2},
             reward=1.0 if result.success else 0.0,
             next_state={"done": True},
-            cost_usd=total_cost if total_cost > 0 else 0.001  # Estimated
+            cost_usd=total_cost if total_cost > 0 else 0.001,  # Estimated
         )
 
         # Verify learning happened
         stats = learner.get_stats()
-        assert stats['updates'] >= 1
+        assert stats["updates"] >= 1
 
     @pytest.mark.asyncio
     async def test_distributed_tracing_with_multi_swarm(self):
         """Test distributed tracing propagates through multi-swarm."""
         from Jotty.core.infrastructure.monitoring.observability import get_distributed_tracer
-        from Jotty.core.intelligence.orchestration import SwarmAdapter, get_multi_swarm_coordinator, MergeStrategy
+        from Jotty.core.intelligence.orchestration import (
+            MergeStrategy,
+            SwarmAdapter,
+            get_multi_swarm_coordinator,
+        )
 
         tracer = get_distributed_tracer("test-service")
         coordinator = get_multi_swarm_coordinator()
@@ -139,13 +145,16 @@ class TestOvernightEnhancementsIntegration:
                 self.name = name
 
             async def execute(self, task):
-                from Jotty.core.intelligence.orchestration.multi_swarm_coordinator import SwarmResult
+                from Jotty.core.intelligence.orchestration.multi_swarm_coordinator import (
+                    SwarmResult,
+                )
+
                 await asyncio.sleep(0.01)  # Simulate work
                 return SwarmResult(
                     swarm_name=self.name,
                     output=f"Result from {self.name}",
                     success=True,
-                    confidence=0.8
+                    confidence=0.8,
                 )
 
         swarms = [MockSwarm("M1"), MockSwarm("M2")]
@@ -153,15 +162,13 @@ class TestOvernightEnhancementsIntegration:
         # Execute with tracing
         with tracer.trace("multi_swarm_test") as trace_id:
             result = await coordinator.execute_parallel(
-                swarms=swarms,
-                task="test",
-                merge_strategy=MergeStrategy.VOTING
+                swarms=swarms, task="test", merge_strategy=MergeStrategy.VOTING
             )
 
             # Verify trace context
             context = tracer.get_context(trace_id)
             assert context is not None
-            assert context['operation'] == 'multi_swarm_test'
+            assert context["operation"] == "multi_swarm_test"
 
             # Verify execution succeeded
             assert result.success is True
@@ -170,7 +177,11 @@ class TestOvernightEnhancementsIntegration:
     async def test_adaptive_thresholds_with_multi_swarm(self):
         """Test adaptive thresholds adjust based on multi-swarm usage."""
         from Jotty.core.infrastructure.monitoring.safety import get_adaptive_threshold_manager
-        from Jotty.core.intelligence.orchestration import SwarmAdapter, get_multi_swarm_coordinator, MergeStrategy
+        from Jotty.core.intelligence.orchestration import (
+            MergeStrategy,
+            SwarmAdapter,
+            get_multi_swarm_coordinator,
+        )
 
         manager = get_adaptive_threshold_manager()
 
@@ -180,17 +191,12 @@ class TestOvernightEnhancementsIntegration:
             cost = 0.001 + (i * 0.00001)  # Increasing costs
             violated = cost > 0.01  # $0.01 threshold
 
-            manager.record_observation(
-                "swarm_cost",
-                cost,
-                violated,
-                0.01
-            )
+            manager.record_observation("swarm_cost", cost, violated, 0.01)
 
         # Check adaptation happened
         stats = manager.get_stats()
-        assert stats['total_observations'] >= 100
-        assert 'swarm_cost' in stats['thresholds']
+        assert stats["total_observations"] >= 100
+        assert "swarm_cost" in stats["thresholds"]
 
         # Get adapted threshold
         threshold = manager.get_threshold("swarm_cost")
@@ -204,8 +210,10 @@ class TestIndividualEnhancements:
     def test_distributed_tracer_initialization(self):
         """Test distributed tracer initializes correctly."""
         from Jotty.core.infrastructure.monitoring.observability.distributed_tracing import (
-            get_distributed_tracer, reset_distributed_tracer,
+            get_distributed_tracer,
+            reset_distributed_tracer,
         )
+
         reset_distributed_tracer()
         tracer = get_distributed_tracer("test")
         assert tracer.service_name == "test"
@@ -229,8 +237,10 @@ class TestIndividualEnhancements:
     def test_multi_swarm_coordinator_initialization(self):
         """Test multi-swarm coordinator initializes correctly."""
         from Jotty.core.intelligence.orchestration.multi_swarm_coordinator import (
-            get_multi_swarm_coordinator, reset_multi_swarm_coordinator,
+            get_multi_swarm_coordinator,
+            reset_multi_swarm_coordinator,
         )
+
         reset_multi_swarm_coordinator()
         coordinator = get_multi_swarm_coordinator()
         assert coordinator.execution_count == 0
@@ -245,5 +255,5 @@ class TestIndividualEnhancements:
         assert len(consolidator.queue) == 0
 
 
-if __name__ == '__main__':
-    pytest.main([__file__, '-v', '-m', 'integration or unit'])
+if __name__ == "__main__":
+    pytest.main([__file__, "-v", "-m", "integration or unit"])

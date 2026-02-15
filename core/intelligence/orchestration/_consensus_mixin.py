@@ -16,8 +16,8 @@ MALLM-inspired decision protocols (Becker et al., EMNLP 2025):
 """
 
 import logging
-from typing import Dict, List, Any, Tuple, Callable, Optional
 from collections import defaultdict
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from .swarm_data_structures import ConsensusVote, SwarmDecision
 
@@ -25,12 +25,12 @@ logger = logging.getLogger(__name__)
 
 # Supported protocols (MALLM-inspired)
 DECISION_PROTOCOLS = (
-    'weighted',       # Original: confidence × trust (default)
-    'majority',       # >50% of votes
-    'supermajority',  # ≥2/3 of votes
-    'unanimity',      # 100% agreement
-    'ranked',         # Ranked-choice (instant runoff)
-    'approval',       # Each agent approves multiple options
+    "weighted",  # Original: confidence × trust (default)
+    "majority",  # >50% of votes
+    "supermajority",  # ≥2/3 of votes
+    "unanimity",  # 100% agreement
+    "ranked",  # Ranked-choice (instant runoff)
+    "approval",  # Each agent approves multiple options
 )
 
 
@@ -43,7 +43,7 @@ class ConsensusMixin:
         options: List[str],
         agents: List[str],
         vote_func: Callable[[str, str, List[str]], Tuple[str, float, str]],
-        protocol: str = 'weighted',
+        protocol: str = "weighted",
     ) -> SwarmDecision:
         """
         Gather consensus from multiple agents using configurable protocol.
@@ -71,12 +71,14 @@ class ConsensusMixin:
         for agent_name in agents:
             try:
                 decision, confidence, reasoning = vote_func(agent_name, question, options)
-                votes.append(ConsensusVote(
-                    agent_name=agent_name,
-                    decision=decision,
-                    confidence=confidence,
-                    reasoning=reasoning
-                ))
+                votes.append(
+                    ConsensusVote(
+                        agent_name=agent_name,
+                        decision=decision,
+                        confidence=confidence,
+                        reasoning=reasoning,
+                    )
+                )
             except Exception as e:
                 logger.warning(f"Agent {agent_name} failed to vote: {e}")
 
@@ -86,21 +88,21 @@ class ConsensusMixin:
                 votes=[],
                 final_decision=options[0] if options else "",
                 consensus_strength=0.0,
-                dissenting_views=[]
+                dissenting_views=[],
             )
 
         # ---- Tally votes based on protocol ----
-        if protocol == 'weighted':
+        if protocol == "weighted":
             final_decision, consensus_strength = self._tally_weighted(votes)
-        elif protocol == 'majority':
+        elif protocol == "majority":
             final_decision, consensus_strength = self._tally_threshold(votes, threshold=0.5)
-        elif protocol == 'supermajority':
-            final_decision, consensus_strength = self._tally_threshold(votes, threshold=2/3)
-        elif protocol == 'unanimity':
+        elif protocol == "supermajority":
+            final_decision, consensus_strength = self._tally_threshold(votes, threshold=2 / 3)
+        elif protocol == "unanimity":
             final_decision, consensus_strength = self._tally_threshold(votes, threshold=1.0)
-        elif protocol == 'ranked':
+        elif protocol == "ranked":
             final_decision, consensus_strength = self._tally_ranked(votes, options)
-        elif protocol == 'approval':
+        elif protocol == "approval":
             final_decision, consensus_strength = self._tally_approval(votes)
         else:
             logger.warning(f"Unknown protocol '{protocol}', falling back to weighted")
@@ -108,9 +110,7 @@ class ConsensusMixin:
 
         # ---- Dissenting views (shared) ----
         dissenting = [
-            f"{v.agent_name}: {v.reasoning}"
-            for v in votes
-            if v.decision != final_decision
+            f"{v.agent_name}: {v.reasoning}" for v in votes if v.decision != final_decision
         ]
 
         decision = SwarmDecision(
@@ -118,7 +118,7 @@ class ConsensusMixin:
             votes=votes,
             final_decision=final_decision,
             consensus_strength=consensus_strength,
-            dissenting_views=dissenting
+            dissenting_views=dissenting,
         )
 
         # ---- Update consensus stats (shared) ----
@@ -150,9 +150,7 @@ class ConsensusMixin:
         strength = vote_weights[winner] / total if total > 0 else 0.0
         return winner, strength
 
-    def _tally_threshold(
-        self, votes: List[ConsensusVote], threshold: float
-    ) -> Tuple[str, float]:
+    def _tally_threshold(self, votes: List[ConsensusVote], threshold: float) -> Tuple[str, float]:
         """
         Threshold consensus: majority (>50%), supermajority (≥66%), unanimity (100%).
 
@@ -173,9 +171,7 @@ class ConsensusMixin:
             # Below threshold — return best option but low strength
             return winner, fraction * 0.5  # penalize for not meeting threshold
 
-    def _tally_ranked(
-        self, votes: List[ConsensusVote], options: List[str]
-    ) -> Tuple[str, float]:
+    def _tally_ranked(self, votes: List[ConsensusVote], options: List[str]) -> Tuple[str, float]:
         """
         Ranked-choice / instant-runoff voting.
 

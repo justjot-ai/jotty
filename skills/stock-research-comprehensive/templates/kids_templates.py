@@ -1,4 +1,5 @@
 from typing import Any
+
 """
 Kids Book Templates
 ===================
@@ -9,7 +10,13 @@ Fun, colorful templates for children's books:
 - Activity Book: Interactive elements, puzzles, games
 """
 
-from .base_template import BaseTemplate, TemplateColors, TemplateTypography, TemplateLayout, TemplateRegistry
+from .base_template import (
+    BaseTemplate,
+    TemplateColors,
+    TemplateLayout,
+    TemplateRegistry,
+    TemplateTypography,
+)
 
 
 class StorybookTemplate(BaseTemplate):
@@ -22,17 +29,17 @@ class StorybookTemplate(BaseTemplate):
         self.category = "kids"
 
         self.colors = TemplateColors(
-            primary="#7c3aed",        # Purple
+            primary="#7c3aed",  # Purple
             primary_dark="#5b21b6",
             primary_light="#a78bfa",
-            secondary="#06b6d4",      # Cyan
-            accent="#f59e0b",         # Amber
-            success="#10b981",        # Green
+            secondary="#06b6d4",  # Cyan
+            accent="#f59e0b",  # Amber
+            success="#10b981",  # Green
             warning="#f59e0b",
             danger="#ef4444",
             text="#1f2937",
             text_light="#6b7280",
-            background="#fefce8",     # Warm cream
+            background="#fefce8",  # Warm cream
             background_alt="#fef3c7",
             border="#fcd34d",
         )
@@ -56,7 +63,9 @@ class StorybookTemplate(BaseTemplate):
         )
 
     def get_css(self) -> str:
-        return self.get_base_css() + f"""
+        return (
+            self.get_base_css()
+            + f"""
 /* Storybook Style */
 @page {{
     background: linear-gradient(180deg, #fefce8 0%, #fef3c7 100%);
@@ -179,6 +188,7 @@ img {{
     box-shadow: 6pt 6pt 0 {self.colors.primary_light};
 }}
 """
+        )
 
     def get_html_wrapper(self, content: str, title: str) -> str:
         return f"""<!DOCTYPE html>
@@ -206,17 +216,17 @@ class EducationalTemplate(BaseTemplate):
         self.category = "kids"
 
         self.colors = TemplateColors(
-            primary="#2563eb",        # Blue
+            primary="#2563eb",  # Blue
             primary_dark="#1d4ed8",
             primary_light="#60a5fa",
-            secondary="#16a34a",      # Green
-            accent="#eab308",         # Yellow
+            secondary="#16a34a",  # Green
+            accent="#eab308",  # Yellow
             success="#16a34a",
             warning="#f59e0b",
             danger="#dc2626",
             text="#1e293b",
             text_light="#64748b",
-            background="#f0f9ff",     # Light blue
+            background="#f0f9ff",  # Light blue
             background_alt="#e0f2fe",
             border="#93c5fd",
         )
@@ -232,7 +242,9 @@ class EducationalTemplate(BaseTemplate):
         )
 
     def get_css(self) -> str:
-        return self.get_base_css() + f"""
+        return (
+            self.get_base_css()
+            + f"""
 /* Educational Style */
 body {{
     background: {self.colors.background};
@@ -369,6 +381,7 @@ th {{
     height: 100%;
 }}
 """
+        )
 
     def get_html_wrapper(self, content: str, title: str) -> str:
         return f"""<!DOCTYPE html>
@@ -392,17 +405,17 @@ class ActivityBookTemplate(BaseTemplate):
         self.category = "kids"
 
         self.colors = TemplateColors(
-            primary="#e11d48",        # Rose
+            primary="#e11d48",  # Rose
             primary_dark="#be123c",
             primary_light="#fb7185",
-            secondary="#8b5cf6",      # Violet
-            accent="#14b8a6",         # Teal
+            secondary="#8b5cf6",  # Violet
+            accent="#14b8a6",  # Teal
             success="#22c55e",
             warning="#f59e0b",
             danger="#ef4444",
             text="#1f2937",
             text_light="#6b7280",
-            background="#fdf2f8",     # Pink tint
+            background="#fdf2f8",  # Pink tint
             background_alt="#fce7f3",
             border="#f9a8d4",
         )
@@ -418,7 +431,9 @@ class ActivityBookTemplate(BaseTemplate):
         )
 
     def get_css(self) -> str:
-        return self.get_base_css() + f"""
+        return (
+            self.get_base_css()
+            + f"""
 /* Activity Book Style */
 body {{
     background: {self.colors.background};
@@ -591,6 +606,7 @@ h3 {{
     margin-right: 10pt;
 }}
 """
+        )
 
     def get_html_wrapper(self, content: str, title: str) -> str:
         return f"""<!DOCTYPE html>

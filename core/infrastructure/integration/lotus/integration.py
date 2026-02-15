@@ -22,15 +22,15 @@ Usage:
 
 import asyncio
 import logging
-from typing import Dict, Any, Optional, List, Tuple
 from functools import wraps
+from typing import Any, Dict, List, Optional, Tuple
 
+from .adaptive_validator import AdaptiveValidator
+from .batch_executor import BatchExecutor
 from .config import LotusConfig, ModelTier
 from .model_cascade import ModelCascade
-from .semantic_cache import SemanticCache
-from .batch_executor import BatchExecutor
-from .adaptive_validator import AdaptiveValidator
 from .optimizer import LotusOptimizer
+from .semantic_cache import SemanticCache
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +42,13 @@ class LotusEnhancement:
     DRY: Composes with existing swarm without modifying its code.
     """
 
-    def __init__(self, config: Optional[LotusConfig] = None, enable_cascade: bool = True, enable_cache: bool = True, enable_adaptive_validation: bool = True) -> None:
+    def __init__(
+        self,
+        config: Optional[LotusConfig] = None,
+        enable_cascade: bool = True,
+        enable_cache: bool = True,
+        enable_adaptive_validation: bool = True,
+    ) -> None:
         """
         Initialize LOTUS enhancement.
 
@@ -101,7 +107,7 @@ def enhance_swarm_manager(swarm_manager: Any, config: Optional[LotusConfig] = No
     swarm_manager.lotus_optimizer = enhancement.lotus_optimizer
 
     # Enhance agent runners with adaptive validation
-    for name, runner in getattr(swarm_manager, 'runners', {}).items():
+    for name, runner in getattr(swarm_manager, "runners", {}).items():
         _enhance_agent_runner(runner, enhancement)
 
     logger.info(f"Orchestrator enhanced with LOTUS optimization")
@@ -116,17 +122,19 @@ def _enhance_agent_runner(runner: Any, enhancement: LotusEnhancement) -> Tuple:
     DRY: Wraps validation calls without modifying runner code.
     """
     # Store original validators
-    original_architect = getattr(runner, 'architect_validator', None)
-    original_auditor = getattr(runner, 'auditor_validator', None)
+    original_architect = getattr(runner, "architect_validator", None)
+    original_auditor = getattr(runner, "auditor_validator", None)
 
     if not enhancement.enable_adaptive_validation:
         return
 
     # Import ValidationResult for creating skip results
     try:
-        from ..foundation.data_structures import ValidationResult, OutputTag, ValidationRound
+        from ..foundation.data_structures import OutputTag, ValidationResult, ValidationRound
     except ImportError:
-        logger.warning("Could not import ValidationResult, skipping adaptive validation enhancement")
+        logger.warning(
+            "Could not import ValidationResult, skipping adaptive validation enhancement"
+        )
         return
 
     # Wrap validation calls with adaptive skipping
@@ -134,7 +142,9 @@ def _enhance_agent_runner(runner: Any, enhancement: LotusEnhancement) -> Tuple:
         runner._original_architect_validator = original_architect
         original_validate = original_architect.validate
 
-        async def adaptive_architect_validate(goal: str, inputs: dict, trajectory: list, is_architect: bool = True) -> Any:
+        async def adaptive_architect_validate(
+            goal: str, inputs: dict, trajectory: list, is_architect: bool = True
+        ) -> Any:
             """Wrapped architect validation with adaptive skipping."""
             agent_name = runner.agent_name
             decision = enhancement.adaptive_validator.should_validate(agent_name, "architect")
@@ -172,7 +182,9 @@ def _enhance_agent_runner(runner: Any, enhancement: LotusEnhancement) -> Tuple:
         runner._original_auditor_validator = original_auditor
         original_validate = original_auditor.validate
 
-        async def adaptive_auditor_validate(goal: str, inputs: dict, trajectory: list, is_architect: bool = False) -> Any:
+        async def adaptive_auditor_validate(
+            goal: str, inputs: dict, trajectory: list, is_architect: bool = False
+        ) -> Any:
             """Wrapped auditor validation with adaptive skipping."""
             agent_name = runner.agent_name
             decision = enhancement.adaptive_validator.should_validate(agent_name, "auditor")
@@ -214,7 +226,13 @@ class CascadedLM:
     DRY: Wraps any DSPy LM with cascade logic.
     """
 
-    def __init__(self, base_lm: Any, cascade: ModelCascade, cache: Optional[SemanticCache] = None, default_operation: str = 'default') -> None:
+    def __init__(
+        self,
+        base_lm: Any,
+        cascade: ModelCascade,
+        cache: Optional[SemanticCache] = None,
+        default_operation: str = "default",
+    ) -> None:
         """
         Initialize cascaded LM.
 
@@ -230,7 +248,7 @@ class CascadedLM:
         self.default_operation = default_operation
 
         # Copy attributes from base LM
-        for attr in ['model_name', 'api_key', 'provider']:
+        for attr in ["model_name", "api_key", "provider"]:
             if hasattr(base_lm, attr):
                 setattr(self, attr, getattr(base_lm, attr))
 
@@ -307,7 +325,13 @@ class LotusSwarmMixin:
         swarm = MySwarm(agents=[...], enable_lotus=True)
     """
 
-    def _init_lotus(self, config: Optional[LotusConfig] = None, enable_cascade: bool = True, enable_cache: bool = True, enable_adaptive_validation: bool = True) -> Any:
+    def _init_lotus(
+        self,
+        config: Optional[LotusConfig] = None,
+        enable_cascade: bool = True,
+        enable_cache: bool = True,
+        enable_adaptive_validation: bool = True,
+    ) -> Any:
         """Initialize LOTUS optimization components."""
         self.lotus = LotusEnhancement(
             config=config,
@@ -317,18 +341,18 @@ class LotusSwarmMixin:
         )
 
         # Enhance runners
-        for name, runner in getattr(self, 'runners', {}).items():
+        for name, runner in getattr(self, "runners", {}).items():
             _enhance_agent_runner(runner, self.lotus)
 
     def lotus_stats(self) -> Dict[str, Any]:
         """Get LOTUS optimization statistics."""
-        if hasattr(self, 'lotus'):
+        if hasattr(self, "lotus"):
             return self.lotus.get_stats()
         return {}
 
     def lotus_savings(self) -> Dict[str, float]:
         """Get estimated cost savings from LOTUS optimization."""
-        if hasattr(self, 'lotus'):
+        if hasattr(self, "lotus"):
             return self.lotus.get_savings()
         return {}
 
@@ -346,6 +370,7 @@ def cached_signature(cache: SemanticCache) -> Any:
             query = dspy.InputField()
             answer = dspy.OutputField()
     """
+
     def decorator(sig_class: Any) -> Any:
         original_init = sig_class.__init__
 
@@ -380,12 +405,12 @@ def setup_lotus_optimization(
 
     if config:
         # Apply custom config
-        if 'skip_threshold' in config:
-            lotus_config.validation_skip_threshold = config['skip_threshold']
-        if 'cache_enabled' in config:
-            lotus_config.cache.enabled = config['cache_enabled']
-        if 'batch_size' in config:
-            lotus_config.batch.max_batch_size = config['batch_size']
+        if "skip_threshold" in config:
+            lotus_config.validation_skip_threshold = config["skip_threshold"]
+        if "cache_enabled" in config:
+            lotus_config.cache.enabled = config["cache_enabled"]
+        if "batch_size" in config:
+            lotus_config.batch.max_batch_size = config["batch_size"]
 
     optimizer = LotusOptimizer(lotus_config)
 

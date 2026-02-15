@@ -1,19 +1,26 @@
 """Log Analyzer Skill — parse and summarize log files (pure Python)."""
-import re
-from pathlib import Path
-from collections import Counter
-from typing import Dict, Any, List
 
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+import re
+from collections import Counter
+from pathlib import Path
+from typing import Any, Dict, List
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("log-analyzer")
 
 LOG_PATTERNS = [
     # Standard: 2024-01-01 10:00:00 ERROR message
-    re.compile(r"^(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}[^ ]*)\s+(ERROR|WARN(?:ING)?|INFO|DEBUG|FATAL|CRITICAL|TRACE)\s+(.+)$", re.IGNORECASE),
+    re.compile(
+        r"^(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}[^ ]*)\s+(ERROR|WARN(?:ING)?|INFO|DEBUG|FATAL|CRITICAL|TRACE)\s+(.+)$",
+        re.IGNORECASE,
+    ),
     # Bracketed: [2024-01-01 10:00:00] [ERROR] message
-    re.compile(r"^\[(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}[^\]]*)\]\s*\[(ERROR|WARN(?:ING)?|INFO|DEBUG|FATAL|CRITICAL)\]\s+(.+)$", re.IGNORECASE),
+    re.compile(
+        r"^\[(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}[^\]]*)\]\s*\[(ERROR|WARN(?:ING)?|INFO|DEBUG|FATAL|CRITICAL)\]\s+(.+)$",
+        re.IGNORECASE,
+    ),
     # Syslog-ish: Jan  1 10:00:00 hostname service: message
     re.compile(r"^(\w{3}\s+\d+\s+\d{2}:\d{2}:\d{2})\s+\S+\s+(\S+):\s+(.+)$"),
     # Nginx/Apache access log
@@ -88,8 +95,10 @@ def analyze_log_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         errors=errors[:50],
         warnings=warnings[:50],
         common_errors=[{"message": msg, "count": cnt} for msg, cnt in common_errors],
-        time_range={"start": timestamps[0] if timestamps else None,
-                     "end": timestamps[-1] if timestamps else None},
+        time_range={
+            "start": timestamps[0] if timestamps else None,
+            "end": timestamps[-1] if timestamps else None,
+        },
     )
 
 

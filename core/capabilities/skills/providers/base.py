@@ -6,9 +6,9 @@ Defines the abstract base class for all skill providers and common types.
 Includes skill-to-category mapping for routing tasks to appropriate skills.
 """
 
-import time
 import logging
 import re
+import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
@@ -19,22 +19,23 @@ logger = logging.getLogger(__name__)
 
 class SkillCategory(Enum):
     """Categories of skills that can have multiple providers."""
-    BROWSER = "browser"           # Web browsing, scraping, automation
-    TERMINAL = "terminal"         # Shell commands, CLI operations
-    COMPUTER_USE = "computer_use" # GUI control, mouse/keyboard
+
+    BROWSER = "browser"  # Web browsing, scraping, automation
+    TERMINAL = "terminal"  # Shell commands, CLI operations
+    COMPUTER_USE = "computer_use"  # GUI control, mouse/keyboard
     CODE_EXECUTION = "code_exec"  # Running code locally
     FILE_OPERATIONS = "file_ops"  # File read/write/edit
-    WEB_SEARCH = "web_search"     # Search engines, research
+    WEB_SEARCH = "web_search"  # Search engines, research
     DATA_EXTRACTION = "data_extract"  # Scraping, parsing
-    FORM_AUTOMATION = "form_auto" # Form filling, RPA
-    API_CALLS = "api_calls"       # REST/GraphQL API interactions
+    FORM_AUTOMATION = "form_auto"  # Form filling, RPA
+    API_CALLS = "api_calls"  # REST/GraphQL API interactions
     COMMUNICATION = "communication"  # Email, messaging, notifications
-    DOCUMENT = "document"         # PDF, document processing
-    MEDIA = "media"               # Image, audio, video processing
-    DATABASE = "database"         # Database operations
-    SCHEDULING = "scheduling"     # Cron, scheduling tasks
-    ANALYTICS = "analytics"       # Data analysis, reporting
-    APP_BUILDING = "app_building" # App creation frameworks (Morph, Streamlit, Gradio)
+    DOCUMENT = "document"  # PDF, document processing
+    MEDIA = "media"  # Image, audio, video processing
+    DATABASE = "database"  # Database operations
+    SCHEDULING = "scheduling"  # Cron, scheduling tasks
+    ANALYTICS = "analytics"  # Data analysis, reporting
+    APP_BUILDING = "app_building"  # App creation frameworks (Morph, Streamlit, Gradio)
 
 
 # =============================================================================
@@ -43,229 +44,313 @@ class SkillCategory(Enum):
 
 # Maps skill names (from SkillsRegistry) to SkillCategory
 # Used by JottyDefaultProvider to route tasks to appropriate skills
-SKILL_CATEGORY_MAP: Dict[str, 'SkillCategory'] = {
+SKILL_CATEGORY_MAP: Dict[str, "SkillCategory"] = {
     # Web Search & Research
-    'web-search': SkillCategory.WEB_SEARCH,
-    'google-search': SkillCategory.WEB_SEARCH,
-    'bing-search': SkillCategory.WEB_SEARCH,
-    'duckduckgo': SkillCategory.WEB_SEARCH,
-    'arxiv-search': SkillCategory.WEB_SEARCH,
-    'wikipedia': SkillCategory.WEB_SEARCH,
-    'scholar-search': SkillCategory.WEB_SEARCH,
-    'perplexity': SkillCategory.WEB_SEARCH,
-    'tavily': SkillCategory.WEB_SEARCH,
-    'exa-search': SkillCategory.WEB_SEARCH,
-    'serper': SkillCategory.WEB_SEARCH,
-    'last30days': SkillCategory.WEB_SEARCH,
-
+    "web-search": SkillCategory.WEB_SEARCH,
+    "google-search": SkillCategory.WEB_SEARCH,
+    "bing-search": SkillCategory.WEB_SEARCH,
+    "duckduckgo": SkillCategory.WEB_SEARCH,
+    "arxiv-search": SkillCategory.WEB_SEARCH,
+    "wikipedia": SkillCategory.WEB_SEARCH,
+    "scholar-search": SkillCategory.WEB_SEARCH,
+    "perplexity": SkillCategory.WEB_SEARCH,
+    "tavily": SkillCategory.WEB_SEARCH,
+    "exa-search": SkillCategory.WEB_SEARCH,
+    "serper": SkillCategory.WEB_SEARCH,
+    "last30days": SkillCategory.WEB_SEARCH,
     # Web Scraping & Data Extraction
-    'web-scraper': SkillCategory.DATA_EXTRACTION,
-    'html-parser': SkillCategory.DATA_EXTRACTION,
-    'json-parser': SkillCategory.DATA_EXTRACTION,
-    'xml-parser': SkillCategory.DATA_EXTRACTION,
-    'csv-parser': SkillCategory.DATA_EXTRACTION,
-    'table-extractor': SkillCategory.DATA_EXTRACTION,
-    'firecrawl': SkillCategory.DATA_EXTRACTION,
-    'crawl4ai': SkillCategory.DATA_EXTRACTION,
-    'beautifulsoup': SkillCategory.DATA_EXTRACTION,
-    'scrapy': SkillCategory.DATA_EXTRACTION,
-
+    "web-scraper": SkillCategory.DATA_EXTRACTION,
+    "html-parser": SkillCategory.DATA_EXTRACTION,
+    "json-parser": SkillCategory.DATA_EXTRACTION,
+    "xml-parser": SkillCategory.DATA_EXTRACTION,
+    "csv-parser": SkillCategory.DATA_EXTRACTION,
+    "table-extractor": SkillCategory.DATA_EXTRACTION,
+    "firecrawl": SkillCategory.DATA_EXTRACTION,
+    "crawl4ai": SkillCategory.DATA_EXTRACTION,
+    "beautifulsoup": SkillCategory.DATA_EXTRACTION,
+    "scrapy": SkillCategory.DATA_EXTRACTION,
     # Browser Automation
-    'browser-use': SkillCategory.BROWSER,
-    'playwright': SkillCategory.BROWSER,
-    'selenium': SkillCategory.BROWSER,
-    'puppeteer': SkillCategory.BROWSER,
-    'browserbase': SkillCategory.BROWSER,
-    'steel': SkillCategory.BROWSER,
-    'multion': SkillCategory.BROWSER,
-
+    "browser-use": SkillCategory.BROWSER,
+    "playwright": SkillCategory.BROWSER,
+    "selenium": SkillCategory.BROWSER,
+    "puppeteer": SkillCategory.BROWSER,
+    "browserbase": SkillCategory.BROWSER,
+    "steel": SkillCategory.BROWSER,
+    "multion": SkillCategory.BROWSER,
     # File Operations
-    'file-operations': SkillCategory.FILE_OPERATIONS,
-    'file-reader': SkillCategory.FILE_OPERATIONS,
-    'file-writer': SkillCategory.FILE_OPERATIONS,
-    'file-manager': SkillCategory.FILE_OPERATIONS,
-    'directory-ops': SkillCategory.FILE_OPERATIONS,
-    'zip-handler': SkillCategory.FILE_OPERATIONS,
-
+    "file-operations": SkillCategory.FILE_OPERATIONS,
+    "file-reader": SkillCategory.FILE_OPERATIONS,
+    "file-writer": SkillCategory.FILE_OPERATIONS,
+    "file-manager": SkillCategory.FILE_OPERATIONS,
+    "directory-ops": SkillCategory.FILE_OPERATIONS,
+    "zip-handler": SkillCategory.FILE_OPERATIONS,
     # PDF & Document Processing
-    'pdf-tools': SkillCategory.DOCUMENT,
-    'pdf-reader': SkillCategory.DOCUMENT,
-    'pdf-writer': SkillCategory.DOCUMENT,
-    'pdf-extractor': SkillCategory.DOCUMENT,
-    'docx-handler': SkillCategory.DOCUMENT,
-    'excel-handler': SkillCategory.DOCUMENT,
-    'markdown': SkillCategory.DOCUMENT,
-    'latex': SkillCategory.DOCUMENT,
-    'ocr': SkillCategory.DOCUMENT,
-    'tesseract': SkillCategory.DOCUMENT,
-
+    "pdf-tools": SkillCategory.DOCUMENT,
+    "pdf-reader": SkillCategory.DOCUMENT,
+    "pdf-writer": SkillCategory.DOCUMENT,
+    "pdf-extractor": SkillCategory.DOCUMENT,
+    "docx-handler": SkillCategory.DOCUMENT,
+    "excel-handler": SkillCategory.DOCUMENT,
+    "markdown": SkillCategory.DOCUMENT,
+    "latex": SkillCategory.DOCUMENT,
+    "ocr": SkillCategory.DOCUMENT,
+    "tesseract": SkillCategory.DOCUMENT,
     # Terminal & Shell
-    'shell-exec': SkillCategory.TERMINAL,
-    'bash': SkillCategory.TERMINAL,
-    'terminal': SkillCategory.TERMINAL,
-    'ssh': SkillCategory.TERMINAL,
-    'command-runner': SkillCategory.TERMINAL,
-    'shell-automation': SkillCategory.TERMINAL,
-
+    "shell-exec": SkillCategory.TERMINAL,
+    "bash": SkillCategory.TERMINAL,
+    "terminal": SkillCategory.TERMINAL,
+    "ssh": SkillCategory.TERMINAL,
+    "command-runner": SkillCategory.TERMINAL,
+    "shell-automation": SkillCategory.TERMINAL,
     # Code Execution
-    'python-executor': SkillCategory.CODE_EXECUTION,
-    'javascript-executor': SkillCategory.CODE_EXECUTION,
-    'code-interpreter': SkillCategory.CODE_EXECUTION,
-    'jupyter': SkillCategory.CODE_EXECUTION,
-    'repl': SkillCategory.CODE_EXECUTION,
-    'calculator': SkillCategory.CODE_EXECUTION,
-    'math-solver': SkillCategory.CODE_EXECUTION,
-    'e2b': SkillCategory.CODE_EXECUTION,
-    'open-interpreter': SkillCategory.CODE_EXECUTION,
-
+    "python-executor": SkillCategory.CODE_EXECUTION,
+    "javascript-executor": SkillCategory.CODE_EXECUTION,
+    "code-interpreter": SkillCategory.CODE_EXECUTION,
+    "jupyter": SkillCategory.CODE_EXECUTION,
+    "repl": SkillCategory.CODE_EXECUTION,
+    "calculator": SkillCategory.CODE_EXECUTION,
+    "math-solver": SkillCategory.CODE_EXECUTION,
+    "e2b": SkillCategory.CODE_EXECUTION,
+    "open-interpreter": SkillCategory.CODE_EXECUTION,
     # API & Communication
-    'telegram-sender': SkillCategory.COMMUNICATION,
-    'telegram-bot': SkillCategory.COMMUNICATION,
-    'slack-sender': SkillCategory.COMMUNICATION,
-    'discord-bot': SkillCategory.COMMUNICATION,
-    'email-sender': SkillCategory.COMMUNICATION,
-    'smtp': SkillCategory.COMMUNICATION,
-    'twilio': SkillCategory.COMMUNICATION,
-    'sendgrid': SkillCategory.COMMUNICATION,
-    'pushover': SkillCategory.COMMUNICATION,
-
+    "telegram-sender": SkillCategory.COMMUNICATION,
+    "telegram-bot": SkillCategory.COMMUNICATION,
+    "slack-sender": SkillCategory.COMMUNICATION,
+    "discord-bot": SkillCategory.COMMUNICATION,
+    "email-sender": SkillCategory.COMMUNICATION,
+    "smtp": SkillCategory.COMMUNICATION,
+    "twilio": SkillCategory.COMMUNICATION,
+    "sendgrid": SkillCategory.COMMUNICATION,
+    "pushover": SkillCategory.COMMUNICATION,
     # API Calls & Integrations
-    'rest-client': SkillCategory.API_CALLS,
-    'graphql-client': SkillCategory.API_CALLS,
-    'api-client': SkillCategory.API_CALLS,
-    'http-client': SkillCategory.API_CALLS,
-    'webhook': SkillCategory.API_CALLS,
-    'notion-client': SkillCategory.API_CALLS,
-    'github': SkillCategory.API_CALLS,
-    'gitlab': SkillCategory.API_CALLS,
-    'jira': SkillCategory.API_CALLS,
-    'trello': SkillCategory.API_CALLS,
-    'asana': SkillCategory.API_CALLS,
-    'linear': SkillCategory.API_CALLS,
-    'stripe': SkillCategory.API_CALLS,
-    'openai': SkillCategory.API_CALLS,
-    'anthropic': SkillCategory.API_CALLS,
-    'praw': SkillCategory.API_CALLS,
-    'reddit': SkillCategory.API_CALLS,
-    'twitter': SkillCategory.API_CALLS,
-    'x-api': SkillCategory.API_CALLS,
-
+    "rest-client": SkillCategory.API_CALLS,
+    "graphql-client": SkillCategory.API_CALLS,
+    "api-client": SkillCategory.API_CALLS,
+    "http-client": SkillCategory.API_CALLS,
+    "webhook": SkillCategory.API_CALLS,
+    "notion-client": SkillCategory.API_CALLS,
+    "github": SkillCategory.API_CALLS,
+    "gitlab": SkillCategory.API_CALLS,
+    "jira": SkillCategory.API_CALLS,
+    "trello": SkillCategory.API_CALLS,
+    "asana": SkillCategory.API_CALLS,
+    "linear": SkillCategory.API_CALLS,
+    "stripe": SkillCategory.API_CALLS,
+    "openai": SkillCategory.API_CALLS,
+    "anthropic": SkillCategory.API_CALLS,
+    "praw": SkillCategory.API_CALLS,
+    "reddit": SkillCategory.API_CALLS,
+    "twitter": SkillCategory.API_CALLS,
+    "x-api": SkillCategory.API_CALLS,
     # Form Automation & RPA
-    'form-filler': SkillCategory.FORM_AUTOMATION,
-    'rpa': SkillCategory.FORM_AUTOMATION,
-    'skyvern': SkillCategory.FORM_AUTOMATION,
-    'autofill': SkillCategory.FORM_AUTOMATION,
-
+    "form-filler": SkillCategory.FORM_AUTOMATION,
+    "rpa": SkillCategory.FORM_AUTOMATION,
+    "skyvern": SkillCategory.FORM_AUTOMATION,
+    "autofill": SkillCategory.FORM_AUTOMATION,
     # Computer Use & GUI
-    'computer-use': SkillCategory.COMPUTER_USE,
-    'desktop-automation': SkillCategory.COMPUTER_USE,
-    'mouse-keyboard': SkillCategory.COMPUTER_USE,
-    'screenshot': SkillCategory.COMPUTER_USE,
-    'screen-capture': SkillCategory.COMPUTER_USE,
-    'agent-s': SkillCategory.COMPUTER_USE,
-    'pyautogui': SkillCategory.COMPUTER_USE,
-
+    "computer-use": SkillCategory.COMPUTER_USE,
+    "desktop-automation": SkillCategory.COMPUTER_USE,
+    "mouse-keyboard": SkillCategory.COMPUTER_USE,
+    "screenshot": SkillCategory.COMPUTER_USE,
+    "screen-capture": SkillCategory.COMPUTER_USE,
+    "agent-s": SkillCategory.COMPUTER_USE,
+    "pyautogui": SkillCategory.COMPUTER_USE,
     # Media Processing
-    'image-processor': SkillCategory.MEDIA,
-    'image-generator': SkillCategory.MEDIA,
-    'audio-processor': SkillCategory.MEDIA,
-    'video-processor': SkillCategory.MEDIA,
-    'whisper': SkillCategory.MEDIA,
-    'tts': SkillCategory.MEDIA,
-    'dalle': SkillCategory.MEDIA,
-    'stable-diffusion': SkillCategory.MEDIA,
-    'ffmpeg': SkillCategory.MEDIA,
-    'pillow': SkillCategory.MEDIA,
-
+    "image-processor": SkillCategory.MEDIA,
+    "image-generator": SkillCategory.MEDIA,
+    "audio-processor": SkillCategory.MEDIA,
+    "video-processor": SkillCategory.MEDIA,
+    "whisper": SkillCategory.MEDIA,
+    "tts": SkillCategory.MEDIA,
+    "dalle": SkillCategory.MEDIA,
+    "stable-diffusion": SkillCategory.MEDIA,
+    "ffmpeg": SkillCategory.MEDIA,
+    "pillow": SkillCategory.MEDIA,
     # Database
-    'sql-client': SkillCategory.DATABASE,
-    'postgres': SkillCategory.DATABASE,
-    'mysql': SkillCategory.DATABASE,
-    'sqlite': SkillCategory.DATABASE,
-    'mongodb': SkillCategory.DATABASE,
-    'redis': SkillCategory.DATABASE,
-    'elasticsearch': SkillCategory.DATABASE,
-    'supabase': SkillCategory.DATABASE,
-    'firebase': SkillCategory.DATABASE,
-
+    "sql-client": SkillCategory.DATABASE,
+    "postgres": SkillCategory.DATABASE,
+    "mysql": SkillCategory.DATABASE,
+    "sqlite": SkillCategory.DATABASE,
+    "mongodb": SkillCategory.DATABASE,
+    "redis": SkillCategory.DATABASE,
+    "elasticsearch": SkillCategory.DATABASE,
+    "supabase": SkillCategory.DATABASE,
+    "firebase": SkillCategory.DATABASE,
     # Scheduling & Automation
-    'scheduler': SkillCategory.SCHEDULING,
-    'cron': SkillCategory.SCHEDULING,
-    'task-scheduler': SkillCategory.SCHEDULING,
-    'workflow': SkillCategory.SCHEDULING,
-
+    "scheduler": SkillCategory.SCHEDULING,
+    "cron": SkillCategory.SCHEDULING,
+    "task-scheduler": SkillCategory.SCHEDULING,
+    "workflow": SkillCategory.SCHEDULING,
     # Analytics & Reporting
-    'analytics': SkillCategory.ANALYTICS,
-    'charts': SkillCategory.ANALYTICS,
-    'visualization': SkillCategory.ANALYTICS,
-    'matplotlib': SkillCategory.ANALYTICS,
-    'plotly': SkillCategory.ANALYTICS,
-    'pandas': SkillCategory.ANALYTICS,
-    'numpy': SkillCategory.ANALYTICS,
-
+    "analytics": SkillCategory.ANALYTICS,
+    "charts": SkillCategory.ANALYTICS,
+    "visualization": SkillCategory.ANALYTICS,
+    "matplotlib": SkillCategory.ANALYTICS,
+    "plotly": SkillCategory.ANALYTICS,
+    "pandas": SkillCategory.ANALYTICS,
+    "numpy": SkillCategory.ANALYTICS,
     # App Building Frameworks
-    'morph': SkillCategory.APP_BUILDING,
-    'morph-data': SkillCategory.APP_BUILDING,
-    'streamlit': SkillCategory.APP_BUILDING,
-    'gradio': SkillCategory.APP_BUILDING,
-    'dash': SkillCategory.APP_BUILDING,
-    'reflex': SkillCategory.APP_BUILDING,
-    'nicegui': SkillCategory.APP_BUILDING,
+    "morph": SkillCategory.APP_BUILDING,
+    "morph-data": SkillCategory.APP_BUILDING,
+    "streamlit": SkillCategory.APP_BUILDING,
+    "gradio": SkillCategory.APP_BUILDING,
+    "dash": SkillCategory.APP_BUILDING,
+    "reflex": SkillCategory.APP_BUILDING,
+    "nicegui": SkillCategory.APP_BUILDING,
 }
 
 
 # Keywords for category inference from task descriptions
-CATEGORY_KEYWORDS: Dict['SkillCategory', List[str]] = {
+CATEGORY_KEYWORDS: Dict["SkillCategory", List[str]] = {
     SkillCategory.WEB_SEARCH: [
-        'search', 'find', 'lookup', 'google', 'research', 'discover', 'query'
+        "search",
+        "find",
+        "lookup",
+        "google",
+        "research",
+        "discover",
+        "query",
     ],
     SkillCategory.DATA_EXTRACTION: [
-        'extract', 'parse', 'scrape', 'crawl', 'fetch', 'html', 'json', 'xml'
+        "extract",
+        "parse",
+        "scrape",
+        "crawl",
+        "fetch",
+        "html",
+        "json",
+        "xml",
     ],
     SkillCategory.BROWSER: [
-        'browse', 'navigate', 'click', 'website', 'page', 'browser', 'web page'
+        "browse",
+        "navigate",
+        "click",
+        "website",
+        "page",
+        "browser",
+        "web page",
     ],
     SkillCategory.FILE_OPERATIONS: [
-        'file', 'read', 'write', 'save', 'load', 'directory', 'folder', 'copy', 'move'
+        "file",
+        "read",
+        "write",
+        "save",
+        "load",
+        "directory",
+        "folder",
+        "copy",
+        "move",
     ],
     SkillCategory.DOCUMENT: [
-        'pdf', 'document', 'docx', 'excel', 'spreadsheet', 'ocr', 'text extract'
+        "pdf",
+        "document",
+        "docx",
+        "excel",
+        "spreadsheet",
+        "ocr",
+        "text extract",
     ],
     SkillCategory.TERMINAL: [
-        'shell', 'command', 'bash', 'terminal', 'cli', 'execute', 'run command'
+        "shell",
+        "command",
+        "bash",
+        "terminal",
+        "cli",
+        "execute",
+        "run command",
     ],
     SkillCategory.CODE_EXECUTION: [
-        'code', 'python', 'javascript', 'execute', 'calculate', 'compute', 'eval'
+        "code",
+        "python",
+        "javascript",
+        "execute",
+        "calculate",
+        "compute",
+        "eval",
     ],
     SkillCategory.COMMUNICATION: [
-        'send', 'message', 'email', 'telegram', 'slack', 'notify', 'alert'
+        "send",
+        "message",
+        "email",
+        "telegram",
+        "slack",
+        "notify",
+        "alert",
     ],
     SkillCategory.API_CALLS: [
-        'api', 'rest', 'graphql', 'endpoint', 'request', 'post', 'get', 'webhook'
+        "api",
+        "rest",
+        "graphql",
+        "endpoint",
+        "request",
+        "post",
+        "get",
+        "webhook",
     ],
-    SkillCategory.FORM_AUTOMATION: [
-        'form', 'fill', 'submit', 'input', 'autofill', 'rpa'
-    ],
+    SkillCategory.FORM_AUTOMATION: ["form", "fill", "submit", "input", "autofill", "rpa"],
     SkillCategory.COMPUTER_USE: [
-        'desktop', 'gui', 'mouse', 'keyboard', 'screenshot', 'screen', 'click'
+        "desktop",
+        "gui",
+        "mouse",
+        "keyboard",
+        "screenshot",
+        "screen",
+        "click",
     ],
     SkillCategory.MEDIA: [
-        'image', 'audio', 'video', 'picture', 'photo', 'sound', 'music', 'generate image'
+        "image",
+        "audio",
+        "video",
+        "picture",
+        "photo",
+        "sound",
+        "music",
+        "generate image",
     ],
     SkillCategory.DATABASE: [
-        'database', 'sql', 'query', 'table', 'record', 'mongodb', 'postgres', 'insert', 'select'
+        "database",
+        "sql",
+        "query",
+        "table",
+        "record",
+        "mongodb",
+        "postgres",
+        "insert",
+        "select",
     ],
-    SkillCategory.SCHEDULING: [
-        'schedule', 'cron', 'timer', 'recurring', 'periodic', 'automate'
-    ],
+    SkillCategory.SCHEDULING: ["schedule", "cron", "timer", "recurring", "periodic", "automate"],
     SkillCategory.ANALYTICS: [
-        'analyze', 'chart', 'graph', 'plot', 'visualize', 'statistics', 'report', 'dashboard'
+        "analyze",
+        "chart",
+        "graph",
+        "plot",
+        "visualize",
+        "statistics",
+        "report",
+        "dashboard",
     ],
     SkillCategory.APP_BUILDING: [
-        'app', 'dashboard', 'build', 'create', 'deploy', 'ui', 'interface',
-        'frontend', 'fullstack', 'streamlit', 'gradio', 'morph', 'web app',
-        'add feature', 'modify app', 'update app', 'edit app', 'arxiv_searcher',
-        'stock_dashboard', 'to the app', 'to app'
+        "app",
+        "dashboard",
+        "build",
+        "create",
+        "deploy",
+        "ui",
+        "interface",
+        "frontend",
+        "fullstack",
+        "streamlit",
+        "gradio",
+        "morph",
+        "web app",
+        "add feature",
+        "modify app",
+        "update app",
+        "edit app",
+        "arxiv_searcher",
+        "stock_dashboard",
+        "to the app",
+        "to app",
     ],
 }
 
@@ -273,6 +358,7 @@ CATEGORY_KEYWORDS: Dict['SkillCategory', List[str]] = {
 @dataclass
 class ProviderCapability:
     """Describes what a provider can do."""
+
     category: SkillCategory
     actions: List[str]  # e.g., ["click", "type", "scroll", "screenshot"]
     max_concurrent: int = 1
@@ -285,6 +371,7 @@ class ProviderCapability:
 @dataclass
 class ProviderResult:
     """Result from a provider execution."""
+
     success: bool
     output: Any
     error: str = ""
@@ -299,13 +386,13 @@ class ProviderResult:
 
     def to_dict(self) -> Dict[str, Any]:
         return {
-            'success': self.success,
-            'output': str(self.output)[:500] if self.output else None,
-            'error': self.error,
-            'execution_time': self.execution_time,
-            'provider_name': self.provider_name,
-            'category': self.category.value if self.category else None,
-            'confidence': self.confidence,
+            "success": self.success,
+            "output": str(self.output)[:500] if self.output else None,
+            "error": self.error,
+            "execution_time": self.execution_time,
+            "provider_name": self.provider_name,
+            "category": self.category.value if self.category else None,
+            "confidence": self.confidence,
         }
 
 
@@ -315,6 +402,7 @@ class ContributedSkill:
     Skill contributed by a provider (e.g. n8n workflow, Activepieces flow).
     Used for unified skill list: Jotty skills + workflow-engine skills.
     """
+
     id: str
     name: str
     description: str = ""
@@ -351,12 +439,12 @@ class SkillProvider(ABC):
         """
         self.config = config or {}
         self._stats = {
-            'total_calls': 0,
-            'successful_calls': 0,
-            'failed_calls': 0,
-            'total_execution_time': 0.0,
-            'last_error': None,
-            'last_success_time': None,
+            "total_calls": 0,
+            "successful_calls": 0,
+            "failed_calls": 0,
+            "total_execution_time": 0.0,
+            "last_error": None,
+            "last_success_time": None,
         }
 
     @abstractmethod
@@ -402,25 +490,25 @@ class SkillProvider(ABC):
     def get_stats(self) -> Dict[str, Any]:
         """Get provider statistics."""
         stats = self._stats.copy()
-        if stats['total_calls'] > 0:
-            stats['success_rate'] = stats['successful_calls'] / stats['total_calls']
-            stats['avg_execution_time'] = stats['total_execution_time'] / stats['total_calls']
+        if stats["total_calls"] > 0:
+            stats["success_rate"] = stats["successful_calls"] / stats["total_calls"]
+            stats["avg_execution_time"] = stats["total_execution_time"] / stats["total_calls"]
         else:
-            stats['success_rate'] = 0.0
-            stats['avg_execution_time'] = 0.0
+            stats["success_rate"] = 0.0
+            stats["avg_execution_time"] = 0.0
         return stats
 
     def record_execution(self, result: ProviderResult) -> None:
         """Record execution statistics."""
-        self._stats['total_calls'] += 1
-        self._stats['total_execution_time'] += result.execution_time
+        self._stats["total_calls"] += 1
+        self._stats["total_execution_time"] += result.execution_time
 
         if result.success:
-            self._stats['successful_calls'] += 1
-            self._stats['last_success_time'] = time.time()
+            self._stats["successful_calls"] += 1
+            self._stats["last_success_time"] = time.time()
         else:
-            self._stats['failed_calls'] += 1
-            self._stats['last_error'] = result.error
+            self._stats["failed_calls"] += 1
+            self._stats["last_error"] = result.error
 
     def supports_category(self, category: SkillCategory) -> bool:
         """Check if provider supports a category."""
@@ -498,7 +586,13 @@ class JottyDefaultProvider(SkillProvider):
             SkillCategory.DATABASE: ["query", "insert", "update", "delete"],
             SkillCategory.SCHEDULING: ["schedule", "cron", "delay", "recurring"],
             SkillCategory.ANALYTICS: ["analyze", "chart", "visualize", "report"],
-            SkillCategory.APP_BUILDING: ["create_app", "generate_workflow", "generate_page", "serve", "deploy"],
+            SkillCategory.APP_BUILDING: [
+                "create_app",
+                "generate_workflow",
+                "generate_page",
+                "serve",
+                "deploy",
+            ],
         }
         return action_map.get(category, ["execute"])
 
@@ -531,10 +625,13 @@ class JottyDefaultProvider(SkillProvider):
 
         try:
             from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
+
             self._skills_registry = get_skills_registry()
             self._skills_registry.init()
             self._build_category_index()
-            logger.debug(f"Initialized SkillsRegistry with {len(self._skills_registry.loaded_skills)} skills")
+            logger.debug(
+                f"Initialized SkillsRegistry with {len(self._skills_registry.loaded_skills)} skills"
+            )
         except Exception as e:
             logger.warning(f"Could not initialize SkillsRegistry: {e}")
             self._skills_registry = None
@@ -564,7 +661,7 @@ class JottyDefaultProvider(SkillProvider):
 
     def _infer_skill_category(self, skill_name: str) -> Optional[SkillCategory]:
         """Infer category from skill name using keyword matching."""
-        skill_lower = skill_name.lower().replace('-', ' ').replace('_', ' ')
+        skill_lower = skill_name.lower().replace("-", " ").replace("_", " ")
 
         best_category = None
         best_score = 0
@@ -647,10 +744,7 @@ class JottyDefaultProvider(SkillProvider):
             return result
 
     async def _execute_via_skill(
-        self,
-        task: str,
-        category: SkillCategory,
-        context: Dict[str, Any]
+        self, task: str, category: SkillCategory, context: Dict[str, Any]
     ) -> Optional[ProviderResult]:
         """
         Try to execute task via a matching skill from SkillsRegistry.
@@ -696,20 +790,21 @@ class JottyDefaultProvider(SkillProvider):
 
             # Execute tool
             import asyncio
+
             if asyncio.iscoroutinefunction(tool_func):
                 result = await tool_func(params)
             else:
                 result = tool_func(params)
 
             # Wrap result
-            success = result.get('success', True) if isinstance(result, dict) else True
+            success = result.get("success", True) if isinstance(result, dict) else True
             return ProviderResult(
                 success=success,
                 output=result,
                 category=category,
                 metadata={
-                    'skill': skill_name,
-                    'tool': tool_name,
+                    "skill": skill_name,
+                    "tool": tool_name,
                 },
             )
 
@@ -720,7 +815,7 @@ class JottyDefaultProvider(SkillProvider):
                 output=None,
                 error=str(e),
                 category=category,
-                metadata={'skill': skill_name},
+                metadata={"skill": skill_name},
                 retryable=True,
             )
 
@@ -737,18 +832,18 @@ class JottyDefaultProvider(SkillProvider):
             return skill_names[0]
 
         task_lower = task.lower()
-        task_words = set(re.split(r'\W+', task_lower))
+        task_words = set(re.split(r"\W+", task_lower))
 
         best_skill = None
         best_score = -1
 
         for skill_name in skill_names:
             # Score based on skill name matching task words
-            skill_words = set(skill_name.lower().replace('-', ' ').replace('_', ' ').split())
+            skill_words = set(skill_name.lower().replace("-", " ").replace("_", " ").split())
             overlap = len(task_words & skill_words)
 
             # Bonus for exact substring match
-            if skill_name.lower().replace('-', ' ') in task_lower:
+            if skill_name.lower().replace("-", " ") in task_lower:
                 overlap += 2
 
             # Consider cached performance scores
@@ -762,9 +857,7 @@ class JottyDefaultProvider(SkillProvider):
         return best_skill
 
     def _select_tool(
-        self,
-        tools: Dict[str, Callable],
-        task: str
+        self, tools: Dict[str, Callable], task: str
     ) -> Tuple[Optional[str], Optional[Callable]]:
         """Select the best tool from a skill's tools based on task."""
         if not tools:
@@ -782,7 +875,7 @@ class JottyDefaultProvider(SkillProvider):
 
         for tool_name, tool_func in tools.items():
             score = 0
-            tool_lower = tool_name.lower().replace('_', ' ')
+            tool_lower = tool_name.lower().replace("_", " ")
 
             # Direct match in task
             if tool_lower in task_lower:
@@ -807,27 +900,24 @@ class JottyDefaultProvider(SkillProvider):
     def _extract_params(self, task: str, context: Dict[str, Any]) -> Dict[str, Any]:
         """Extract parameters from task and context for skill execution."""
         params = dict(context)
-        params['task'] = task
-        params['query'] = task  # Common param name
+        params["task"] = task
+        params["query"] = task  # Common param name
 
         # Extract URLs
-        url_match = re.search(r'https?://[^\s]+', task)
+        url_match = re.search(r"https?://[^\s]+", task)
         if url_match:
-            params['url'] = url_match.group(0)
+            params["url"] = url_match.group(0)
 
         # Extract file paths
-        path_match = re.search(r'(?:^|\s)([/~][^\s]+|[A-Za-z]:\\[^\s]+)', task)
+        path_match = re.search(r"(?:^|\s)([/~][^\s]+|[A-Za-z]:\\[^\s]+)", task)
         if path_match:
-            params['path'] = path_match.group(1)
-            params['file_path'] = path_match.group(1)
+            params["path"] = path_match.group(1)
+            params["file_path"] = path_match.group(1)
 
         return params
 
     async def _execute_builtin(
-        self,
-        task: str,
-        category: SkillCategory,
-        context: Dict[str, Any]
+        self, task: str, category: SkillCategory, context: Dict[str, Any]
     ) -> ProviderResult:
         """Execute using built-in handlers when no skill matches."""
         handler_map = {

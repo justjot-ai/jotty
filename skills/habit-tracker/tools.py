@@ -1,10 +1,12 @@
 """Habit Tracker Skill - track habits with streaks."""
+
 import json
-from pathlib import Path
 from datetime import datetime, timedelta, timezone
-from typing import Dict, Any, List
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from pathlib import Path
+from typing import Any, Dict, List
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("habit-tracker")
 DEFAULT_FILE = "habits.json"
@@ -74,11 +76,13 @@ def log_habit_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
     # Remove existing entry for same date
     data[habit]["entries"] = [e for e in data[habit]["entries"] if e.get("date") != date]
-    data[habit]["entries"].append({
-        "date": date,
-        "completed": completed,
-        "notes": notes,
-    })
+    data[habit]["entries"].append(
+        {
+            "date": date,
+            "completed": completed,
+            "notes": notes,
+        }
+    )
 
     _save(storage, data)
 
@@ -86,7 +90,9 @@ def log_habit_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     streak = _calc_streak(completed_dates)
 
     return tool_response(
-        habit=habit, date=date, completed=completed,
+        habit=habit,
+        date=date,
+        completed=completed,
         current_streak=streak,
         total_completions=len(completed_dates),
     )

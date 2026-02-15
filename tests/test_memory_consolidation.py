@@ -21,18 +21,19 @@ All external dependencies (LLM calls, DSPy, file I/O) are mocked.
 Each test is fast (<1s), offline, and requires no real LLM calls.
 """
 
+import asyncio
+import hashlib
+import json
 import sys
 import time
-import json
-import hashlib
-import asyncio
-import pytest
-from pathlib import Path
-from datetime import datetime, timedelta
-from dataclasses import dataclass, field
-from unittest.mock import Mock, MagicMock, patch, AsyncMock
 from collections import defaultdict
-from typing import Dict, List, Any, Optional
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+
+import pytest
 
 # Path setup
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -40,6 +41,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 # Try importing DSPy — many classes depend on it
 try:
     import dspy
+
     DSPY_AVAILABLE = True
 except ImportError:
     DSPY_AVAILABLE = False
@@ -47,9 +49,16 @@ except ImportError:
 # Try importing core data structures
 try:
     from core.foundation.data_structures import (
-        MemoryEntry, MemoryLevel, GoalValue, SwarmConfig,
-        GoalHierarchy, GoalNode, CausalLink, StoredEpisode
+        CausalLink,
+        GoalHierarchy,
+        GoalNode,
+        GoalValue,
+        MemoryEntry,
+        MemoryLevel,
+        StoredEpisode,
+        SwarmConfig,
     )
+
     DATA_STRUCTURES_AVAILABLE = True
 except ImportError:
     DATA_STRUCTURES_AVAILABLE = False
@@ -58,9 +67,10 @@ except ImportError:
 try:
     from core.memory.consolidation import (
         ConsolidationValidator,
-        MemoryLevelClassifier,
         MemoryCluster,
+        MemoryLevelClassifier,
     )
+
     CONSOLIDATION_AVAILABLE = True
 except ImportError:
     CONSOLIDATION_AVAILABLE = False
@@ -68,16 +78,17 @@ except ImportError:
 # Try importing consolidation engine
 try:
     from core.memory.consolidation_engine import (
+        AgentAbstractor,
+        AgentRole,
         BrainMode,
         BrainModeConfig,
-        MemoryCandidate,
-        HippocampalExtractor,
-        ConsolidationResult,
-        SharpWaveRippleConsolidator,
         BrainStateMachine,
-        AgentRole,
-        AgentAbstractor,
+        ConsolidationResult,
+        HippocampalExtractor,
+        MemoryCandidate,
+        SharpWaveRippleConsolidator,
     )
+
     ENGINE_AVAILABLE = True
 except ImportError:
     ENGINE_AVAILABLE = False
@@ -85,6 +96,7 @@ except ImportError:
 # Try importing consolidation mixin
 try:
     from core.memory._consolidation_mixin import ConsolidationMixin
+
     MIXIN_AVAILABLE = True
 except ImportError:
     MIXIN_AVAILABLE = False
@@ -93,6 +105,7 @@ except ImportError:
 # =============================================================================
 # HELPERS
 # =============================================================================
+
 
 def _make_memory_entry(
     key="test_key",
@@ -150,6 +163,7 @@ def _make_stored_episode(
 # =============================================================================
 # 1. CONSOLIDATION VALIDATOR TESTS
 # =============================================================================
+
 
 @pytest.mark.skipif(not CONSOLIDATION_AVAILABLE, reason="consolidation module not importable")
 @pytest.mark.unit
@@ -370,6 +384,7 @@ class TestConsolidationValidator:
 # 2. MEMORY LEVEL CLASSIFIER TESTS
 # =============================================================================
 
+
 @pytest.mark.skipif(not CONSOLIDATION_AVAILABLE, reason="consolidation module not importable")
 @pytest.mark.unit
 class TestMemoryLevelClassifier:
@@ -393,7 +408,13 @@ class TestMemoryLevelClassifier:
         """Level map covers all five memory levels."""
         with patch("dspy.ChainOfThought"):
             classifier = MemoryLevelClassifier()
-        assert set(classifier.level_map.keys()) == {"EPISODIC", "SEMANTIC", "PROCEDURAL", "META", "CAUSAL"}
+        assert set(classifier.level_map.keys()) == {
+            "EPISODIC",
+            "SEMANTIC",
+            "PROCEDURAL",
+            "META",
+            "CAUSAL",
+        }
 
     def test_classify_success(self):
         """classify returns correct level from LLM result."""
@@ -471,6 +492,7 @@ class TestMemoryLevelClassifier:
 # 3. MEMORY CLUSTER TESTS
 # =============================================================================
 
+
 @pytest.mark.skipif(not CONSOLIDATION_AVAILABLE, reason="consolidation module not importable")
 @pytest.mark.unit
 class TestMemoryCluster:
@@ -524,6 +546,7 @@ class TestMemoryCluster:
 # 4. CONSOLIDATION ENGINE — BrainModeConfig TESTS
 # =============================================================================
 
+
 @pytest.mark.skipif(not ENGINE_AVAILABLE, reason="consolidation_engine not importable")
 @pytest.mark.unit
 class TestBrainModeConfig:
@@ -551,6 +574,7 @@ class TestBrainModeConfig:
 # =============================================================================
 # 5. HIPPOCAMPAL EXTRACTOR TESTS
 # =============================================================================
+
 
 @pytest.mark.skipif(not ENGINE_AVAILABLE, reason="consolidation_engine not importable")
 @pytest.mark.unit
@@ -675,6 +699,7 @@ class TestHippocampalExtractor:
 # =============================================================================
 # 6. SHARP WAVE RIPPLE CONSOLIDATOR TESTS
 # =============================================================================
+
 
 @pytest.mark.skipif(not ENGINE_AVAILABLE, reason="consolidation_engine not importable")
 @pytest.mark.unit
@@ -818,6 +843,7 @@ class TestSharpWaveRippleConsolidator:
 # 7. BRAIN STATE MACHINE TESTS
 # =============================================================================
 
+
 @pytest.mark.skipif(not ENGINE_AVAILABLE, reason="consolidation_engine not importable")
 @pytest.mark.unit
 class TestBrainStateMachine:
@@ -928,6 +954,7 @@ class TestBrainStateMachine:
 # 8. AGENT ABSTRACTOR TESTS
 # =============================================================================
 
+
 @pytest.mark.skipif(not ENGINE_AVAILABLE, reason="consolidation_engine not importable")
 @pytest.mark.unit
 class TestAgentAbstractor:
@@ -999,6 +1026,7 @@ class TestAgentAbstractor:
 # 9. AGENT ROLE TESTS
 # =============================================================================
 
+
 @pytest.mark.skipif(not ENGINE_AVAILABLE, reason="consolidation_engine not importable")
 @pytest.mark.unit
 class TestAgentRole:
@@ -1022,6 +1050,7 @@ class TestAgentRole:
 # =============================================================================
 # 10. CONSOLIDATION MIXIN TESTS
 # =============================================================================
+
 
 @pytest.mark.skipif(
     not (MIXIN_AVAILABLE and DATA_STRUCTURES_AVAILABLE),
@@ -1188,14 +1217,18 @@ class TestConsolidationMixin:
 
         # Create 5+ memories so that 20% allows at least 1 removal
         mem_old_low = _make_memory_entry(
-            key="old_low", content="old low value memory", default_value=0.1,
+            key="old_low",
+            content="old low value memory",
+            default_value=0.1,
         )
         mem_old_low.created_at = old_time
 
         memories_dict = {"old_low": mem_old_low}
         for i in range(5):
             mem = _make_memory_entry(
-                key=f"filler_{i}", content=f"filler memory {i}", default_value=0.7,
+                key=f"filler_{i}",
+                content=f"filler memory {i}",
+                default_value=0.7,
             )
             mem.created_at = datetime.now()
             memories_dict[f"filler_{i}"] = mem

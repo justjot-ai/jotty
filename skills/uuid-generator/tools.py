@@ -1,11 +1,12 @@
 """UUID Generator Skill — generate UUIDs and ULIDs."""
-import uuid
-import time
-import secrets
-from typing import Dict, Any
 
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+import secrets
+import time
+import uuid
+from typing import Any, Dict
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("uuid-generator")
 
@@ -39,9 +40,12 @@ def generate_uuid_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         elif version == 5:
             namespace = params.get("namespace", "dns")
             name = params.get("name", "example.com")
-            ns = {"dns": uuid.NAMESPACE_DNS, "url": uuid.NAMESPACE_URL,
-                  "oid": uuid.NAMESPACE_OID, "x500": uuid.NAMESPACE_X500}.get(
-                namespace, uuid.NAMESPACE_DNS)
+            ns = {
+                "dns": uuid.NAMESPACE_DNS,
+                "url": uuid.NAMESPACE_URL,
+                "oid": uuid.NAMESPACE_OID,
+                "x500": uuid.NAMESPACE_X500,
+            }.get(namespace, uuid.NAMESPACE_DNS)
             u = str(uuid.uuid5(ns, name))
         else:
             return tool_error(f"Unsupported version: {version}. Use 1, 4, or 5")

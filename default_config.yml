@@ -19,7 +19,7 @@ jotty:
   # ===========================================================================
   # JOTTY uses 5-level hierarchical memory (Cortex):
   # EPISODIC → SEMANTIC → PROCEDURAL → META → CAUSAL
-  
+
   memory:
     # Maximum entries per level
     episodic_capacity: 10000      # Raw experiences (high turnover)
@@ -27,7 +27,7 @@ jotty:
     procedural_capacity: 2000     # How-to knowledge
     meta_capacity: 1000           # Wisdom about approach
     causal_capacity: 1500         # Why things work
-    
+
     # Memory decay rates (per episode)
     # Lower = faster decay, Higher = slower decay
     episodic_decay: 0.95          # Fast decay
@@ -35,7 +35,7 @@ jotty:
     procedural_decay: 0.97        # Medium decay
     meta_decay: 1.0               # No decay (kept forever)
     causal_decay: 1.0             # No decay (kept forever)
-    
+
     # Consolidation settings
     consolidation_threshold: 5    # Memories needed to trigger consolidation
     similarity_threshold: 0.8     # For deduplication
@@ -44,18 +44,18 @@ jotty:
   # LEARNING CONFIGURATION
   # ===========================================================================
   # JOTTY learns from experience using TD(λ) and cooperative credit assignment
-  
+
   learning:
     # TD(λ) parameters
     learning_rate: 0.1            # α - how fast to learn
     discount_factor: 0.95         # γ - future reward importance
     eligibility_trace_decay: 0.8  # λ - eligibility trace decay
-    
+
     # Adaptive learning rate
     adaptive_lr: true             # Enable adaptive learning rate
     min_lr: 0.01                  # Minimum learning rate
     max_lr: 0.5                   # Maximum learning rate
-    
+
     # Exploration
     initial_epsilon: 0.3          # Initial exploration rate
     min_epsilon: 0.05             # Minimum exploration rate
@@ -65,17 +65,17 @@ jotty:
   # COOPERATIVE REWARD CONFIGURATION
   # ===========================================================================
   # JOTTY uses cooperative rewards to encourage swarm cooperation
-  
+
   reward:
     # Reward component weights (must sum to 1.0)
     own_performance: 0.3          # Agent's own output quality
     helped_others: 0.4            # How much agent helped others succeed
     predictability: 0.3           # How predictable agent was (reduces coordination cost)
-    
+
     # Intermediate rewards
     architect_pass_reward: 0.1    # Reward for passing Architect check
     tool_success_reward: 0.05     # Reward for successful tool use
-    
+
     # Penalty settings
     failure_penalty: -0.2         # Penalty for task failure
     timeout_penalty: -0.1         # Penalty for timeout
@@ -84,20 +84,20 @@ jotty:
   # CONTEXT PROTECTION CONFIGURATION
   # ===========================================================================
   # JOTTY protects against context overflow - NEVER runs out of tokens
-  
+
   context:
     # Token limits (adjust based on your model)
     max_tokens: 28000             # Max context tokens (GPT-4.1: 128k, but leave headroom)
-    
+
     # Chunking settings (Segmenter)
     chunk_size: 5000              # Default chunk size for large documents
     min_chunk_size: 500           # Minimum chunk size
     overlap: 200                  # Overlap between chunks
-    
+
     # Compression settings (Distiller)
     compression_threshold: 0.7    # Trigger compression at 70% capacity
     compression_ratio: 0.6        # Target 60% of original after compression
-    
+
     # Auto-chunking
     auto_chunk_threshold: 0.75    # Auto-chunk documents > 75% of context
 
@@ -105,15 +105,15 @@ jotty:
   # BRAIN MODE CONFIGURATION (Hippocampus)
   # ===========================================================================
   # Brain-inspired learning with hippocampal filtering and consolidation
-  
+
   brain:
     # Preset: fast, balanced, deep
     preset: balanced
-    
+
     # Consolidation settings
     consolidation_interval: 50    # Episodes between consolidation
     sleep_mode_threshold: 100     # Episodes to trigger deep consolidation
-    
+
     # Hippocampal filter
     filter_threshold: 0.4         # Novelty threshold for memory storage
     importance_weight: 0.6        # Weight for importance in filtering
@@ -122,7 +122,7 @@ jotty:
   # ROADMAP CONFIGURATION (Task Planning)
   # ===========================================================================
   # Long-horizon task tracking across 100s of steps
-  
+
   roadmap:
     max_items: 100                # Maximum Roadmap items
     priority_decay: 0.9           # Priority decay per step
@@ -133,7 +133,7 @@ jotty:
   # PERSISTENCE CONFIGURATION (Vault)
   # ===========================================================================
   # Save and load JOTTY state
-  
+
   persistence:
     enabled: true
     format: json                  # json or sqlite
@@ -144,7 +144,7 @@ jotty:
   # ===========================================================================
   # LOGGING CONFIGURATION
   # ===========================================================================
-  
+
   logging:
     level: INFO                   # DEBUG, INFO, WARNING, ERROR
     log_architect: true           # Log Architect decisions
@@ -156,7 +156,7 @@ jotty:
   # MODEL CONFIGURATION
   # ===========================================================================
   # LLM model settings for internal agents
-  
+
   model:
     name: gpt-4.1                 # Model name
     temperature: 0.7              # Temperature for generation
@@ -172,12 +172,12 @@ agent_defaults:
   # Validation
   architect_enabled: true         # Enable Architect for this agent
   auditor_enabled: true           # Enable Auditor for this agent
-  
+
   # Timeouts
   architect_timeout: 30
   auditor_timeout: 30
   execution_timeout: 120
-  
+
   # Retries
   max_retries: 3
   retry_with_context: true        # Retry with failure context

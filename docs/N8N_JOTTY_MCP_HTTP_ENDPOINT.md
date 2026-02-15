@@ -48,9 +48,9 @@ If `JOTTY_MCP_TOKEN` is **not** set, no auth is required (use only on trusted ne
 If n8n supports **MCP over HTTP/SSE** (URL + headers):
 
 1. **URL:** `http://<host>:8767/sse` (or your public/internal URL, e.g. `https://mcp.justjot.ai/sse` if you put the server behind nginx with TLS).
-2. **Headers:**  
-   `Authorization: Bearer your-secret-token`  
-   or  
+2. **Headers:**
+   `Authorization: Bearer your-secret-token`
+   or
    `X-MCP-Token: your-secret-token`
 
 If n8n only supports “command” (stdio) MCP, keep using the stdio server and the spawn approach; the HTTP endpoint is for clients that support URL-based MCP.
@@ -58,8 +58,8 @@ If n8n only supports “command” (stdio) MCP, keep using the stdio server and 
 ## Deploy on workspace (e.g. behind nginx)
 
 1. Run the HTTP MCP server on the host or in a container (e.g. port 8767).
-2. Optionally put nginx in front:  
-   `https://mcp.justjot.ai/sse` → `http://127.0.0.1:8767/sse`  
+2. Optionally put nginx in front:
+   `https://mcp.justjot.ai/sse` → `http://127.0.0.1:8767/sse`
    and forward `/messages/` to `http://127.0.0.1:8767/messages/`.
 3. Clients use `https://mcp.justjot.ai/sse` with the token; nginx does not need to validate the token if the server is not publicly listed (or add a small auth snippet in nginx and keep `JOTTY_MCP_TOKEN` as a second layer).
 

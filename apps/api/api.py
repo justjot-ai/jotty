@@ -15,26 +15,22 @@ logger = logging.getLogger(__name__)
 def create_app() -> "FastAPI":
     """Create FastAPI application with all route groups."""
     from fastapi import FastAPI
-    from fastapi.staticfiles import StaticFiles
     from fastapi.middleware.cors import CORSMiddleware
+    from fastapi.staticfiles import StaticFiles
 
     from .jotty_api import JottyAPI
     from .routes import (
-        register_system_routes,
-        register_chat_routes,
-        register_sessions_routes,
-        register_document_routes,
         register_agui_routes,
-        register_tools_routes,
+        register_chat_routes,
+        register_document_routes,
+        register_sessions_routes,
         register_sharing_routes,
+        register_system_routes,
+        register_tools_routes,
         register_voice_routes,
     )
 
-    app = FastAPI(
-        title="Jotty API",
-        description="Jotty AI Assistant API",
-        version="1.0.0"
-    )
+    app = FastAPI(title="Jotty API", description="Jotty AI Assistant API", version="1.0.0")
 
     # CORS
     app.add_middleware(

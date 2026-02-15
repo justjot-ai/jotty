@@ -51,4 +51,3 @@ suggested_actors: List of actor types that might help
 "Output syntax might be incorrect." ← This is actor-level, not swarm-level!
 
 Remember: You validate COORDINATION, not correctness.
-

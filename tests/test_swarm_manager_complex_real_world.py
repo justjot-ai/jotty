@@ -19,11 +19,11 @@ import asyncio
 import os
 import time
 from pathlib import Path
+
 import pytest
 
 pytestmark = pytest.mark.skipif(
-    not os.getenv('ANTHROPIC_API_KEY'),
-    reason="Requires ANTHROPIC_API_KEY for real LLM calls"
+    not os.getenv("ANTHROPIC_API_KEY"), reason="Requires ANTHROPIC_API_KEY for real LLM calls"
 )
 
 # Load env from project root or tests dir
@@ -43,6 +43,7 @@ for env_file in [
                         os.environ[k] = v
 
 import logging
+
 import pytest
 
 logging.basicConfig(level=logging.WARNING, format="%(levelname)-8s %(name)s: %(message)s")
@@ -52,10 +53,10 @@ logger.setLevel(logging.INFO)
 
 def _make_four_agent_relay_swarm():
     """4 agents in relay order: Researcher → Analyst → Writer → Editor."""
-    from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
     from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
-    from Jotty.core.modes.agent.auto_agent import AutoAgent
     from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
+    from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
+    from Jotty.core.modes.agent.auto_agent import AutoAgent
 
     agents = [
         AgentConfig(
@@ -105,10 +106,10 @@ def _make_four_agent_relay_swarm():
 
 def _make_three_agent_fanout_swarm():
     """3 agents for parallel fanout: each gets a distinct sub-goal."""
-    from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
     from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
-    from Jotty.core.modes.agent.auto_agent import AutoAgent
     from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
+    from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
+    from Jotty.core.modes.agent.auto_agent import AutoAgent
 
     agents = [
         AgentConfig(
@@ -222,7 +223,18 @@ async def test_complex_relay_four_agents_executive_brief():
     assert result is not None, "Result must not be None"
     assert len(output) > 200, f"Expected substantial output, got {len(output)} chars"
     # At least one of: AI/code assistant context, comparison, risk, or file
-    keywords = ["ai", "copilot", "cursor", "code", "assistant", "comparison", "risk", "summary", "markdown", ".md"]
+    keywords = [
+        "ai",
+        "copilot",
+        "cursor",
+        "code",
+        "assistant",
+        "comparison",
+        "risk",
+        "summary",
+        "markdown",
+        ".md",
+    ]
     found = sum(1 for k in keywords if k in output.lower())
     assert found >= 2, f"Output should mention at least 2 of {keywords}; got: {output[:500]}"
 
@@ -233,8 +245,14 @@ async def test_complex_relay_four_agents_executive_brief():
         logger.info(f"  [{t:.1f}s] {stage}: {detail}")
 
     # Verify relay stages appeared in status
-    relay_stages = [s for s in [x[1] for x in trail] if "Relay" in s or any(a in s for a in ["Researcher", "Analyst", "Writer", "Editor"])]
-    assert len(relay_stages) >= 2, f"Expected relay stage messages in trail: {[x[1] for x in trail]}"
+    relay_stages = [
+        s
+        for s in [x[1] for x in trail]
+        if "Relay" in s or any(a in s for a in ["Researcher", "Analyst", "Writer", "Editor"])
+    ]
+    assert (
+        len(relay_stages) >= 2
+    ), f"Expected relay stage messages in trail: {[x[1] for x in trail]}"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -291,21 +309,25 @@ async def test_complex_debate_two_agents_then_synthesize():
     Debate: two agents take opposing sides, then we get a combined view.
     Real-world: decision support (e.g. build vs buy, architecture choice).
     """
-    from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
     from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
-    from Jotty.core.modes.agent.auto_agent import AutoAgent
     from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
+    from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
+    from Jotty.core.modes.agent.auto_agent import AutoAgent
 
     agents = [
         AgentConfig(
             name="ProMicroservices",
             agent=AutoAgent(),
-            capabilities=["Argue for microservices: benefits for scaling, team autonomy, and tech diversity. No web search."],
+            capabilities=[
+                "Argue for microservices: benefits for scaling, team autonomy, and tech diversity. No web search."
+            ],
         ),
         AgentConfig(
             name="ProMonolith",
             agent=AutoAgent(),
-            capabilities=["Argue for monolith first: simplicity, lower ops cost, and faster iteration. No web search."],
+            capabilities=[
+                "Argue for monolith first: simplicity, lower ops cost, and faster iteration. No web search."
+            ],
         ),
     ]
 
@@ -353,21 +375,25 @@ async def test_complex_refinement_draft_then_edit():
     """
     Refinement: one agent drafts, the other edits. Real-world: content pipeline.
     """
-    from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
     from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
-    from Jotty.core.modes.agent.auto_agent import AutoAgent
     from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
+    from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
+    from Jotty.core.modes.agent.auto_agent import AutoAgent
 
     agents = [
         AgentConfig(
             name="Drafter",
             agent=AutoAgent(),
-            capabilities=["Draft a short 3-paragraph blog intro on 'Why automated testing saves time in the long run'. No web search."],
+            capabilities=[
+                "Draft a short 3-paragraph blog intro on 'Why automated testing saves time in the long run'. No web search."
+            ],
         ),
         AgentConfig(
             name="Editor",
             agent=AutoAgent(),
-            capabilities=["Improve the draft: clearer structure, stronger opening sentence, and one concrete example. No web search."],
+            capabilities=[
+                "Improve the draft: clearer structure, stronger opening sentence, and one concrete example. No web search."
+            ],
         ),
     ]
 
@@ -411,8 +437,14 @@ async def test_complex_refinement_draft_then_edit():
 async def _run_all():
     cases = [
         ("Relay 4-agent executive brief", test_complex_relay_four_agents_executive_brief),
-        ("Fanout 3-agent framework comparison", test_complex_fanout_three_agents_compare_frameworks),
-        ("Debate 2-agent monolith vs microservices", test_complex_debate_two_agents_then_synthesize),
+        (
+            "Fanout 3-agent framework comparison",
+            test_complex_fanout_three_agents_compare_frameworks,
+        ),
+        (
+            "Debate 2-agent monolith vs microservices",
+            test_complex_debate_two_agents_then_synthesize,
+        ),
         ("Refinement 2-agent draft then edit", test_complex_refinement_draft_then_edit),
     ]
     print("\n" + "=" * 60)

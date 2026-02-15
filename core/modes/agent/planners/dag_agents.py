@@ -6,26 +6,25 @@ This module re-exports from the decomposed submodules:
 - task_breakdown_agent: TaskBreakdownAgent
 - todo_creator_agent: TodoCreatorAgent
 """
+
 from typing import Optional
 
-from .dag_types import (                         # noqa: F401
-    DAGAgentMixin,
-    SwarmResources,
-    TaskType,
-    ExecutableDAG,
+from ..foundation.data_structures import SwarmConfig, SwarmLearningConfig
+from .dag_types import (  # noqa: F401
     Actor,
+    ActorAssignmentSignature,
+    DAGAgentMixin,
+    DAGValidationSignature,
+    ExecutableDAG,
     ExtractTasksSignature,
     IdentifyDependenciesSignature,
-    OptimizeWorkflowSignature,
-    ActorAssignmentSignature,
-    DAGValidationSignature,
     OptimizeDAGSignature,
+    OptimizeWorkflowSignature,
+    SwarmResources,
+    TaskType,
 )
-
-from .task_breakdown_agent import TaskBreakdownAgent   # noqa: F401
-from .todo_creator_agent import TodoCreatorAgent       # noqa: F401
-
-from ..foundation.data_structures import SwarmConfig, SwarmLearningConfig
+from .task_breakdown_agent import TaskBreakdownAgent  # noqa: F401
+from .todo_creator_agent import TodoCreatorAgent  # noqa: F401
 
 
 def get_swarm_resources(config: Optional[SwarmConfig] = None) -> SwarmResources:
@@ -38,7 +37,9 @@ def create_task_breakdown_agent(config: Optional[SwarmConfig] = None) -> TaskBre
     return TaskBreakdownAgent(resources=get_swarm_resources(config))
 
 
-def create_todo_creator_agent(config: Optional[SwarmConfig] = None, resources: Optional[SwarmResources] = None) -> TodoCreatorAgent:
+def create_todo_creator_agent(
+    config: Optional[SwarmConfig] = None, resources: Optional[SwarmResources] = None
+) -> TodoCreatorAgent:
     """Create a TodoCreatorAgent with shared resources."""
     return TodoCreatorAgent(resources=resources or get_swarm_resources(config))
 

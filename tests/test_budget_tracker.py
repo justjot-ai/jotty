@@ -9,26 +9,27 @@ warning callbacks, multi-agent tracking, singleton pattern, thread safety,
 edge cases, serialization, and reset behaviour.
 """
 
-import time
 import threading
+import time
+from unittest.mock import MagicMock, Mock, patch
+
 import pytest
-from unittest.mock import Mock, patch, MagicMock
 
 from Jotty.core.infrastructure.utils.budget_tracker import (
-    BudgetScope,
-    BudgetExceededError,
-    BudgetUsage,
-    BudgetConfig,
-    BudgetTracker,
-    get_budget_tracker,
     DEFAULT_COST_PER_1K_INPUT,
     DEFAULT_COST_PER_1K_OUTPUT,
+    BudgetConfig,
+    BudgetExceededError,
+    BudgetScope,
+    BudgetTracker,
+    BudgetUsage,
+    get_budget_tracker,
 )
-
 
 # =============================================================================
 # BudgetScope Enum Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestBudgetScope:
@@ -64,6 +65,7 @@ class TestBudgetScope:
 # =============================================================================
 # BudgetExceededError Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestBudgetExceededError:
@@ -127,6 +129,7 @@ class TestBudgetExceededError:
 # BudgetUsage Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestBudgetUsage:
     """Tests for the BudgetUsage dataclass."""
@@ -162,19 +165,24 @@ class TestBudgetUsage:
             warnings_emitted=2,
         )
         d = usage.to_dict()
-        assert d['calls'] == 5
-        assert d['tokens_input'] == 1000
-        assert d['tokens_output'] == 500
-        assert d['total_tokens'] == 1500
-        assert d['estimated_cost_usd'] == 0.025
-        assert d['last_call_time'] == 1700000000.0
-        assert d['warnings_emitted'] == 2
+        assert d["calls"] == 5
+        assert d["tokens_input"] == 1000
+        assert d["tokens_output"] == 500
+        assert d["total_tokens"] == 1500
+        assert d["estimated_cost_usd"] == 0.025
+        assert d["last_call_time"] == 1700000000.0
+        assert d["warnings_emitted"] == 2
 
     def test_to_dict_keys(self):
         """to_dict has exactly the expected keys."""
         expected_keys = {
-            'calls', 'tokens_input', 'tokens_output', 'total_tokens',
-            'estimated_cost_usd', 'last_call_time', 'warnings_emitted',
+            "calls",
+            "tokens_input",
+            "tokens_output",
+            "total_tokens",
+            "estimated_cost_usd",
+            "last_call_time",
+            "warnings_emitted",
         }
         assert set(BudgetUsage().to_dict().keys()) == expected_keys
 
@@ -191,6 +199,7 @@ class TestBudgetUsage:
 # =============================================================================
 # BudgetConfig Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestBudgetConfig:
@@ -247,11 +256,17 @@ class TestBudgetConfig:
         config = BudgetConfig()
         d = config.to_dict()
         expected_keys = {
-            'max_llm_calls_per_episode', 'max_llm_calls_per_agent',
-            'max_llm_calls_global', 'max_total_tokens_per_episode',
-            'max_tokens_per_agent', 'max_tokens_per_call',
-            'max_cost_per_episode', 'max_cost_global',
-            'warning_threshold', 'enable_enforcement', 'soft_limit_mode',
+            "max_llm_calls_per_episode",
+            "max_llm_calls_per_agent",
+            "max_llm_calls_global",
+            "max_total_tokens_per_episode",
+            "max_tokens_per_agent",
+            "max_tokens_per_call",
+            "max_cost_per_episode",
+            "max_cost_global",
+            "warning_threshold",
+            "enable_enforcement",
+            "soft_limit_mode",
         }
         assert set(d.keys()) == expected_keys
 
@@ -259,12 +274,13 @@ class TestBudgetConfig:
         """to_dict returns values matching the config."""
         config = BudgetConfig(max_llm_calls_per_episode=42)
         d = config.to_dict()
-        assert d['max_llm_calls_per_episode'] == 42
+        assert d["max_llm_calls_per_episode"] == 42
 
 
 # =============================================================================
 # Constants Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestConstants:
@@ -282,6 +298,7 @@ class TestConstants:
 # =============================================================================
 # BudgetTracker Initialization Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestBudgetTrackerInit:
@@ -321,6 +338,7 @@ class TestBudgetTrackerInit:
 # =============================================================================
 # Singleton Pattern Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestSingletonPattern:
@@ -388,6 +406,7 @@ class TestSingletonPattern:
 # Episode Lifecycle Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestEpisodeLifecycle:
     """Tests for start_episode and end_episode."""
@@ -435,11 +454,11 @@ class TestEpisodeLifecycle:
         self.tracker.record_call("agent1", tokens_input=100, tokens_output=50)
         summary = self.tracker.end_episode()
 
-        assert summary['episode_id'] == "ep_001"
-        assert 'episode_usage' in summary
-        assert 'agent_usage' in summary
-        assert 'global_usage' in summary
-        assert summary['episode_usage']['calls'] == 1
+        assert summary["episode_id"] == "ep_001"
+        assert "episode_usage" in summary
+        assert "agent_usage" in summary
+        assert "global_usage" in summary
+        assert summary["episode_usage"]["calls"] == 1
 
     def test_end_episode_clears_episode_id(self):
         """end_episode sets current episode to None."""
@@ -454,10 +473,10 @@ class TestEpisodeLifecycle:
         self.tracker.record_call("agentB", tokens_input=200, tokens_output=100)
         summary = self.tracker.end_episode()
 
-        assert "agentA" in summary['agent_usage']
-        assert "agentB" in summary['agent_usage']
-        assert summary['agent_usage']['agentA']['calls'] == 1
-        assert summary['agent_usage']['agentB']['calls'] == 1
+        assert "agentA" in summary["agent_usage"]
+        assert "agentB" in summary["agent_usage"]
+        assert summary["agent_usage"]["agentA"]["calls"] == 1
+        assert summary["agent_usage"]["agentB"]["calls"] == 1
 
     def test_multiple_episodes(self):
         """Multiple episodes can run sequentially with independent usage."""
@@ -470,15 +489,16 @@ class TestEpisodeLifecycle:
         self.tracker.record_call("a", tokens_input=200, tokens_output=100)
         summary2 = self.tracker.end_episode()
 
-        assert summary1['episode_usage']['calls'] == 1
-        assert summary2['episode_usage']['calls'] == 2
+        assert summary1["episode_usage"]["calls"] == 1
+        assert summary2["episode_usage"]["calls"] == 2
         # Global accumulates across episodes
-        assert summary2['global_usage']['calls'] == 3
+        assert summary2["global_usage"]["calls"] == 3
 
 
 # =============================================================================
 # Record Call Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestRecordCall:
@@ -525,7 +545,9 @@ class TestRecordCall:
     def test_record_call_cost_override(self):
         """cost_override bypasses automatic cost calculation."""
         self.tracker.record_call(
-            "agent1", tokens_input=1000, tokens_output=1000,
+            "agent1",
+            tokens_input=1000,
+            tokens_output=1000,
             cost_override=0.50,
         )
         assert self.tracker._global_usage.estimated_cost_usd == 0.50
@@ -547,6 +569,7 @@ class TestRecordCall:
 # =============================================================================
 # Cost Estimation Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestCostEstimation:
@@ -590,7 +613,9 @@ class TestCostEstimation:
     def test_cost_override_ignores_tokens(self):
         """cost_override is used instead of token-based calculation."""
         self.tracker.record_call(
-            "agent1", tokens_input=1000, tokens_output=1000,
+            "agent1",
+            tokens_input=1000,
+            tokens_output=1000,
             cost_override=0.001,
         )
         assert self.tracker._global_usage.estimated_cost_usd == 0.001
@@ -613,6 +638,7 @@ class TestCostEstimation:
 # =============================================================================
 # Budget Limits / Enforcement Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestBudgetLimits:
@@ -703,6 +729,7 @@ class TestBudgetLimits:
 # can_make_call Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestCanMakeCall:
     """Tests for the can_make_call pre-check method."""
@@ -780,6 +807,7 @@ class TestCanMakeCall:
 # Soft Limit Mode Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestSoftLimitMode:
     """Tests for soft limit (warn but don't block) mode."""
@@ -853,6 +881,7 @@ class TestSoftLimitMode:
 # Warning Callback Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestWarningCallbacks:
     """Tests for warning threshold and callback mechanism."""
@@ -900,7 +929,7 @@ class TestWarningCallbacks:
         assert callback.called
         args = callback.call_args[0]
         assert args[0] == BudgetScope.EPISODE  # scope
-        assert args[1] == "calls"               # resource
+        assert args[1] == "calls"  # resource
 
     def test_multiple_callbacks(self):
         """Multiple registered callbacks are all invoked."""
@@ -990,6 +1019,7 @@ class TestWarningCallbacks:
 # Multi-Agent Tracking Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestMultiAgentTracking:
     """Tests for tracking multiple agents independently."""
@@ -1057,6 +1087,7 @@ class TestMultiAgentTracking:
 # get_usage Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestGetUsage:
     """Tests for the get_usage method."""
@@ -1070,26 +1101,26 @@ class TestGetUsage:
     def test_get_usage_global(self):
         """get_usage for GLOBAL scope returns global stats."""
         usage = self.tracker.get_usage(BudgetScope.GLOBAL)
-        assert usage['calls'] == 1
-        assert usage['tokens_input'] == 100
-        assert usage['tokens_output'] == 50
+        assert usage["calls"] == 1
+        assert usage["tokens_input"] == 100
+        assert usage["tokens_output"] == 50
 
     def test_get_usage_episode(self):
         """get_usage for EPISODE scope returns episode stats."""
         usage = self.tracker.get_usage(BudgetScope.EPISODE)
-        assert usage['calls'] == 1
-        assert usage['total_tokens'] == 150
+        assert usage["calls"] == 1
+        assert usage["total_tokens"] == 150
 
     def test_get_usage_agent(self):
         """get_usage for AGENT scope returns per-agent breakdown."""
         usage = self.tracker.get_usage(BudgetScope.AGENT)
         assert "agent1" in usage
-        assert usage["agent1"]['calls'] == 1
+        assert usage["agent1"]["calls"] == 1
 
     def test_get_usage_default_is_episode(self):
         """get_usage defaults to EPISODE scope."""
         usage = self.tracker.get_usage()
-        assert usage['calls'] == 1
+        assert usage["calls"] == 1
 
     def test_get_usage_operation_returns_empty(self):
         """get_usage for OPERATION scope returns agent dict (fallthrough)."""
@@ -1102,6 +1133,7 @@ class TestGetUsage:
 # get_remaining Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestGetRemaining:
     """Tests for the get_remaining method."""
@@ -1113,23 +1145,23 @@ class TestGetRemaining:
 
     def test_remaining_episode_calls(self):
         """Remaining episode calls decreases with usage."""
-        remaining_before = self.tracker.get_remaining(BudgetScope.EPISODE)['calls']
+        remaining_before = self.tracker.get_remaining(BudgetScope.EPISODE)["calls"]
         self.tracker.record_call("agent1")
-        remaining_after = self.tracker.get_remaining(BudgetScope.EPISODE)['calls']
+        remaining_after = self.tracker.get_remaining(BudgetScope.EPISODE)["calls"]
         assert remaining_after == remaining_before - 1
 
     def test_remaining_episode_tokens(self):
         """Remaining episode tokens decreases with usage."""
-        remaining_before = self.tracker.get_remaining(BudgetScope.EPISODE)['tokens']
+        remaining_before = self.tracker.get_remaining(BudgetScope.EPISODE)["tokens"]
         self.tracker.record_call("agent1", tokens_input=100, tokens_output=50)
-        remaining_after = self.tracker.get_remaining(BudgetScope.EPISODE)['tokens']
+        remaining_after = self.tracker.get_remaining(BudgetScope.EPISODE)["tokens"]
         assert remaining_after == remaining_before - 150
 
     def test_remaining_global_calls(self):
         """Remaining global calls decreases with usage."""
-        remaining_before = self.tracker.get_remaining(BudgetScope.GLOBAL)['calls']
+        remaining_before = self.tracker.get_remaining(BudgetScope.GLOBAL)["calls"]
         self.tracker.record_call("agent1")
-        remaining_after = self.tracker.get_remaining(BudgetScope.GLOBAL)['calls']
+        remaining_after = self.tracker.get_remaining(BudgetScope.GLOBAL)["calls"]
         assert remaining_after == remaining_before - 1
 
     def test_remaining_never_negative(self):
@@ -1145,13 +1177,13 @@ class TestGetRemaining:
         tracker.record_call("agent1")
 
         remaining = tracker.get_remaining(BudgetScope.EPISODE)
-        assert remaining['calls'] == 0  # clamped at 0, not -1
+        assert remaining["calls"] == 0  # clamped at 0, not -1
 
     def test_remaining_default_is_episode(self):
         """get_remaining defaults to EPISODE scope."""
         remaining = self.tracker.get_remaining()
-        assert 'calls' in remaining
-        assert 'tokens' in remaining
+        assert "calls" in remaining
+        assert "tokens" in remaining
 
     def test_remaining_agent_returns_empty(self):
         """get_remaining for AGENT scope returns empty dict."""
@@ -1164,12 +1196,13 @@ class TestGetRemaining:
         tracker = BudgetTracker(config=config)
         tracker.start_episode("ep")
         remaining = tracker.get_remaining(BudgetScope.EPISODE)
-        assert remaining['calls'] == 100
+        assert remaining["calls"] == 100
 
 
 # =============================================================================
 # reset_global Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestResetGlobal:
@@ -1213,6 +1246,7 @@ class TestResetGlobal:
 # =============================================================================
 # Thread Safety Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestThreadSafety:
@@ -1280,6 +1314,7 @@ class TestThreadSafety:
 # Edge Cases and Miscellaneous Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestEdgeCases:
     """Tests for edge cases and boundary conditions."""
@@ -1298,8 +1333,8 @@ class TestEdgeCases:
         """end_episode returns summary even when no episode was started."""
         tracker = BudgetTracker()
         summary = tracker.end_episode()
-        assert summary['episode_id'] is None
-        assert summary['episode_usage']['calls'] == 0
+        assert summary["episode_id"] is None
+        assert summary["episode_usage"]["calls"] == 0
 
     def test_exactly_at_limit_triggers_exceeded(self):
         """Reaching exactly the limit triggers BudgetExceededError."""
@@ -1319,7 +1354,9 @@ class TestEdgeCases:
         tracker = BudgetTracker()
         tracker.start_episode("ep")
         tracker.record_call(
-            "agent1", tokens_input=100, tokens_output=50,
+            "agent1",
+            tokens_input=100,
+            tokens_output=50,
             model="claude-3-sonnet",
         )
         assert tracker._episode_usage.calls == 1
@@ -1397,6 +1434,7 @@ class TestEdgeCases:
 # _check_limits Internal Logic Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestCheckLimitsInternal:
     """Tests for the internal _check_limits logic paths."""
@@ -1422,10 +1460,7 @@ class TestCheckLimitsInternal:
             tracker.record_call("agent1")
 
         # Check that callback was invoked with AGENT scope
-        agent_scope_calls = [
-            c for c in callback.call_args_list
-            if c[0][0] == BudgetScope.AGENT
-        ]
+        agent_scope_calls = [c for c in callback.call_args_list if c[0][0] == BudgetScope.AGENT]
         assert len(agent_scope_calls) > 0
 
     def test_token_warning_emitted(self):
@@ -1445,10 +1480,7 @@ class TestCheckLimitsInternal:
         # 800 tokens = 80% of 1000
         tracker.record_call("agent1", tokens_input=800, tokens_output=0)
 
-        token_calls = [
-            c for c in callback.call_args_list
-            if c[0][1] == "tokens"
-        ]
+        token_calls = [c for c in callback.call_args_list if c[0][1] == "tokens"]
         assert len(token_calls) > 0
 
     def test_cost_warning_emitted(self):
@@ -1470,10 +1502,7 @@ class TestCheckLimitsInternal:
         # $0.01 per 1K input => need 80K input tokens
         tracker.record_call("agent1", tokens_input=80000, tokens_output=0)
 
-        cost_calls = [
-            c for c in callback.call_args_list
-            if c[0][1] == "cost"
-        ]
+        cost_calls = [c for c in callback.call_args_list if c[0][1] == "cost"]
         assert len(cost_calls) > 0
 
     def test_no_cost_check_when_limit_is_none(self):
@@ -1492,16 +1521,14 @@ class TestCheckLimitsInternal:
 
         tracker.record_call("agent1", tokens_input=100000, tokens_output=100000)
 
-        cost_calls = [
-            c for c in callback.call_args_list
-            if len(c[0]) > 1 and c[0][1] == "cost"
-        ]
+        cost_calls = [c for c in callback.call_args_list if len(c[0]) > 1 and c[0][1] == "cost"]
         assert len(cost_calls) == 0
 
 
 # =============================================================================
 # Serialization / to_dict Round-trip Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestSerialization:
@@ -1519,14 +1546,23 @@ class TestSerialization:
         summary = tracker.end_episode()
 
         # Top-level keys
-        assert set(summary.keys()) == {'episode_id', 'episode_usage', 'agent_usage', 'global_usage'}
+        assert set(summary.keys()) == {"episode_id", "episode_usage", "agent_usage", "global_usage"}
 
         # Episode usage has all expected fields
-        ep = summary['episode_usage']
-        assert all(k in ep for k in ['calls', 'tokens_input', 'tokens_output', 'total_tokens', 'estimated_cost_usd'])
+        ep = summary["episode_usage"]
+        assert all(
+            k in ep
+            for k in [
+                "calls",
+                "tokens_input",
+                "tokens_output",
+                "total_tokens",
+                "estimated_cost_usd",
+            ]
+        )
 
         # Agent usage has entries for both agents
-        assert set(summary['agent_usage'].keys()) == {'a1', 'a2'}
+        assert set(summary["agent_usage"].keys()) == {"a1", "a2"}
 
     def test_budget_config_roundtrip(self):
         """BudgetConfig to_dict values match field values."""
@@ -1536,9 +1572,9 @@ class TestSerialization:
             warning_threshold=0.95,
         )
         d = config.to_dict()
-        assert d['max_llm_calls_per_episode'] == 42
-        assert d['soft_limit_mode'] is True
-        assert d['warning_threshold'] == 0.95
+        assert d["max_llm_calls_per_episode"] == 42
+        assert d["soft_limit_mode"] is True
+        assert d["warning_threshold"] == 0.95
 
     def test_budget_usage_roundtrip(self):
         """BudgetUsage to_dict values match field values after mutation."""
@@ -1548,6 +1584,6 @@ class TestSerialization:
         usage.tokens_output = 2000
         usage.estimated_cost_usd = 0.11
         d = usage.to_dict()
-        assert d['calls'] == 10
-        assert d['total_tokens'] == 7000
-        assert d['estimated_cost_usd'] == 0.11
+        assert d["calls"] == 10
+        assert d["total_tokens"] == 7000
+        assert d["estimated_cost_usd"] == 0.11

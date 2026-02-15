@@ -1,4 +1,5 @@
 from typing import Any
+
 """
 SwarmLean - Claude Code-like Lean Execution Template
 =====================================================
@@ -40,32 +41,33 @@ Usage:
     )
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Any, Optional
 import re
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional
 
 try:
     import dspy
+
     DSPY_AVAILABLE = True
 except ImportError:
     DSPY_AVAILABLE = False
 
-from .base import (
-    SwarmTemplate, AgentConfig, StageConfig, FeedbackConfig, ModelTier
-)
 from Jotty.core.infrastructure.utils.context_utils import strip_enrichment_context
 
+from .base import AgentConfig, FeedbackConfig, ModelTier, StageConfig, SwarmTemplate
 
 # =============================================================================
 # LLM-Based Task Classification (No Keyword Matching)
 # =============================================================================
 
 if DSPY_AVAILABLE:
+
     class TaskClassificationSignature(dspy.Signature):
         """Classify a task - LLM decides, no keywords.
 
         Classify what type of task this is and what it needs.
         """
+
         task: str = dspy.InputField(desc="The user's task/request")
 
         task_type: str = dspy.OutputField(
@@ -120,16 +122,13 @@ class SwarmLean(SwarmTemplate):
                 "web-search",
                 "claude-cli-llm",
                 "content-research-writer",
-
                 # Document creation
                 "docx-document-generator",
                 "markdown-writer",
-
                 # File operations
                 "file-read",
                 "file-write",
                 "file-edit",
-
                 # Utilities
                 "shell-exec",
             ],
@@ -154,7 +153,6 @@ class SwarmLean(SwarmTemplate):
             weight=5,
             description="Parse task and identify requirements",
         ),
-
         # Stage 2: Research/Gather information
         StageConfig(
             name="RESEARCH",
@@ -166,7 +164,6 @@ class SwarmLean(SwarmTemplate):
             description="Search and gather relevant information",
             skip_on_failure=False,  # Research is optional for some tasks
         ),
-
         # Stage 3: Execute main task
         StageConfig(
             name="EXECUTE",
@@ -177,7 +174,6 @@ class SwarmLean(SwarmTemplate):
             weight=50,
             description="Execute the main task",
         ),
-
         # Stage 4: Generate output
         StageConfig(
             name="OUTPUT",
@@ -216,14 +212,12 @@ Be concise. Output JSON:
     "output_format": "...",
     "key_terms": ["...", "..."]
 }}""",
-
         "search_query": """Create a focused search query for:
 
 Task: {task}
 
 Return ONLY the search query, nothing else. Keep it under 10 words.
 Focus on the core topic, exclude meta-instructions.""",
-
         "synthesize": """Based on the research results below, create a comprehensive response.
 
 Task: {task}
@@ -233,7 +227,6 @@ Research Results:
 
 Create a well-structured response that directly addresses the task.
 Be thorough but concise. Use bullet points and sections where appropriate.""",
-
         "document_create": """Create a professional document based on:
 
 Task: {task}
@@ -256,28 +249,35 @@ Use clear headings, bullet points, and professional formatting.""",
         """
         # Use cached result if available
         cache_key = hash(task)
-        if hasattr(self, '_classification_cache') and cache_key in self._classification_cache:
+        if hasattr(self, "_classification_cache") and cache_key in self._classification_cache:
             return self._classification_cache[cache_key]
 
-        if not hasattr(self, '_classification_cache'):
+        if not hasattr(self, "_classification_cache"):
             self._classification_cache = {}
 
         # LLM decides
-        if DSPY_AVAILABLE and hasattr(dspy.settings, 'lm') and dspy.settings.lm:
+        if DSPY_AVAILABLE and hasattr(dspy.settings, "lm") and dspy.settings.lm:
             try:
                 classifier = dspy.Predict(TaskClassificationSignature)
                 result = classifier(task=task)
 
                 classification = {
-                    'task_type': str(result.task_type).lower().strip(),
-                    'needs_web_search': bool(result.needs_web_search),
-                    'output_format': str(result.output_format).lower().strip()
+                    "task_type": str(result.task_type).lower().strip(),
+                    "needs_web_search": bool(result.needs_web_search),
+                    "output_format": str(result.output_format).lower().strip(),
                 }
 
                 # Validate task_type
-                valid_types = ['checklist', 'document', 'summary', 'research', 'analysis', 'file_operation']
-                if classification['task_type'] not in valid_types:
-                    classification['task_type'] = 'research'
+                valid_types = [
+                    "checklist",
+                    "document",
+                    "summary",
+                    "research",
+                    "analysis",
+                    "file_operation",
+                ]
+                if classification["task_type"] not in valid_types:
+                    classification["task_type"] = "research"
 
                 self._classification_cache[cache_key] = classification
                 return classification
@@ -286,27 +286,23 @@ Use clear headings, bullet points, and professional formatting.""",
                 pass
 
         # Fallback (only if LLM unavailable)
-        return {
-            'task_type': 'research',
-            'needs_web_search': True,
-            'output_format': 'text'
-        }
+        return {"task_type": "research", "needs_web_search": True, "output_format": "text"}
 
     def detect_task_type(self, task: str) -> str:
         """LLM decides task type - no keywords."""
-        return self._classify_task(task)['task_type']
+        return self._classify_task(task)["task_type"]
 
     def needs_web_search(self, task: str) -> bool:
         """LLM decides if web search needed - no keywords."""
-        return self._classify_task(task)['needs_web_search']
+        return self._classify_task(task)["needs_web_search"]
 
     def get_output_format(self, task: str) -> str:
         """LLM decides output format - no keywords."""
-        return self._classify_task(task)['output_format']
+        return self._classify_task(task)["output_format"]
 
     def validate_inputs(self, **kwargs: Any) -> bool:
         """Validate that required inputs are provided."""
-        task = kwargs.get('task')
+        task = kwargs.get("task")
         return task is not None and len(str(task).strip()) > 0
 
     def clean_task_for_execution(self, task: str) -> str:
@@ -324,27 +320,38 @@ Use clear headings, bullet points, and professional formatting.""",
 
         # Remove common prefixes
         prefixes_to_strip = [
-            'create a ', 'create ', 'make a ', 'make ',
-            'help me ', 'please ', 'can you ',
-            'i need ', 'i want ', 'generate a ', 'generate ',
-            'write a ', 'write ', 'draft a ', 'draft ',
+            "create a ",
+            "create ",
+            "make a ",
+            "make ",
+            "help me ",
+            "please ",
+            "can you ",
+            "i need ",
+            "i want ",
+            "generate a ",
+            "generate ",
+            "write a ",
+            "write ",
+            "draft a ",
+            "draft ",
         ]
 
         query = clean_task.lower()
         for prefix in prefixes_to_strip:
             if query.startswith(prefix):
-                query = query[len(prefix):]
+                query = query[len(prefix) :]
 
         # Extract key topic (usually first clause)
-        if ' for ' in query:
+        if " for " in query:
             # "checklist for oversight over SPVs" -> "oversight over SPVs"
-            parts = query.split(' for ', 1)
+            parts = query.split(" for ", 1)
             query = parts[1] if len(parts) > 1 else parts[0]
 
         # Limit query length
         words = query.split()
         if len(words) > 15:
-            query = ' '.join(words[:15])
+            query = " ".join(words[:15])
 
         return query.strip()
 
@@ -359,5 +366,3 @@ Use clear headings, bullet points, and professional formatting.""",
             "file_operation": ["file-read", "file-write", "file-edit"],
         }
         return skill_map.get(task_type, ["claude-cli-llm"])
-
-

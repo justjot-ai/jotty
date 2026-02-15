@@ -1,9 +1,12 @@
 """Matrix calculator — add, multiply, transpose, determinant, inverse."""
-from typing import Dict, Any, List
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+
+from typing import Any, Dict, List
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("matrix-calculator")
+
 
 def _det(m: List[List[float]]) -> float:
     n = len(m)
@@ -17,11 +20,14 @@ def _det(m: List[List[float]]) -> float:
         d += ((-1) ** c) * m[0][c] * _det(sub)
     return d
 
+
 def _transpose(m: List[List[float]]) -> List[List[float]]:
     return [list(row) for row in zip(*m)]
 
+
 def _minor(m: List[List[float]], i: int, j: int) -> List[List[float]]:
     return [[m[r][c] for c in range(len(m)) if c != j] for r in range(len(m)) if r != i]
+
 
 def _inverse(m: List[List[float]]) -> List[List[float]]:
     n = len(m)
@@ -33,6 +39,7 @@ def _inverse(m: List[List[float]]) -> List[List[float]]:
     cofactors = [[(-1) ** (i + j) * _det(_minor(m, i, j)) for j in range(n)] for i in range(n)]
     adj = _transpose(cofactors)
     return [[adj[i][j] / d for j in range(n)] for i in range(n)]
+
 
 @tool_wrapper(required_params=["operation"])
 def matrix_tool(params: Dict[str, Any]) -> Dict[str, Any]:
@@ -60,10 +67,15 @@ def matrix_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             if not b:
                 return tool_error("matrix_b required for multiply")
             ra, ca, cb = len(a), len(a[0]), len(b[0])
-            result = [[sum(a[i][k] * b[k][j] for k in range(ca)) for j in range(cb)] for i in range(ra)]
+            result = [
+                [sum(a[i][k] * b[k][j] for k in range(ca)) for j in range(cb)] for i in range(ra)
+            ]
             return tool_response(result=result)
-        return tool_error(f"Unknown operation: {op}. Use add/subtract/multiply/transpose/determinant/inverse")
+        return tool_error(
+            f"Unknown operation: {op}. Use add/subtract/multiply/transpose/determinant/inverse"
+        )
     except Exception as e:
         return tool_error(str(e))
+
 
 __all__ = ["matrix_tool"]

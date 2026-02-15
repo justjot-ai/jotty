@@ -10,9 +10,9 @@ Usage:
     python -m Jotty.web --host 0.0.0.0 --port 8080 --debug
 """
 
-import sys
 import argparse
 import logging
+import sys
 
 
 def setup_logging(debug: bool = False):
@@ -21,41 +21,21 @@ def setup_logging(debug: bool = False):
     logging.basicConfig(
         level=level,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        handlers=[logging.StreamHandler(sys.stdout)]
+        handlers=[logging.StreamHandler(sys.stdout)],
     )
 
 
 def main():
     """Main entry point."""
-    parser = argparse.ArgumentParser(
-        description="Run Jotty Web Server"
-    )
+    parser = argparse.ArgumentParser(description="Run Jotty Web Server")
+    parser.add_argument("--host", default="0.0.0.0", help="Host to bind to (default: 0.0.0.0)")
     parser.add_argument(
-        "--host",
-        default="0.0.0.0",
-        help="Host to bind to (default: 0.0.0.0)"
+        "--port", "-p", type=int, default=8080, help="Port to bind to (default: 8080)"
     )
+    parser.add_argument("--debug", "-d", action="store_true", help="Enable debug mode")
+    parser.add_argument("--reload", action="store_true", help="Enable auto-reload (development)")
     parser.add_argument(
-        "--port", "-p",
-        type=int,
-        default=8080,
-        help="Port to bind to (default: 8080)"
-    )
-    parser.add_argument(
-        "--debug", "-d",
-        action="store_true",
-        help="Enable debug mode"
-    )
-    parser.add_argument(
-        "--reload",
-        action="store_true",
-        help="Enable auto-reload (development)"
-    )
-    parser.add_argument(
-        "--workers", "-w",
-        type=int,
-        default=1,
-        help="Number of workers (default: 1)"
+        "--workers", "-w", type=int, default=1, help="Number of workers (default: 1)"
     )
 
     args = parser.parse_args()
@@ -84,8 +64,7 @@ def main():
         sys.exit(0)
     except ImportError as e:
         logger.error(
-            f"Missing dependency: {e}\n"
-            "Install with: pip install fastapi uvicorn websockets"
+            f"Missing dependency: {e}\n" "Install with: pip install fastapi uvicorn websockets"
         )
         sys.exit(1)
     except Exception as e:

@@ -1,5 +1,8 @@
 """Batch 2: Skills 21-40 (networking, data, devops, generators)."""
-import sys, os
+
+import os
+import sys
+
 sys.path.insert(0, os.path.dirname(__file__))
 from generate_skills import create_skill
 
@@ -100,7 +103,8 @@ def check_ssl_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["check_ssl_tool"]
-''')
+''',
+)
 
 # ── 22. uptime-monitor ────────────────────────────────────────────
 create_skill(
@@ -197,7 +201,8 @@ def check_multiple_endpoints_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["check_endpoint_tool", "check_multiple_endpoints_tool"]
-''')
+''',
+)
 
 # ── 23. webhook-dispatcher ────────────────────────────────────────
 create_skill(
@@ -291,7 +296,8 @@ def send_webhook_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["send_webhook_tool"]
-''')
+''',
+)
 
 print(f"\nBatch 2 progress: skills 21-23 created.")
 
@@ -392,7 +398,8 @@ def list_rates_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["convert_currency_tool", "list_rates_tool"]
-''')
+''',
+)
 
 # ── 25. crypto-price-tracker ──────────────────────────────────────
 create_skill(
@@ -506,7 +513,8 @@ def crypto_top_coins_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["crypto_price_tool", "crypto_top_coins_tool"]
-''')
+''',
+)
 
 # ── 26. qr-code-generator ────────────────────────────────────────
 create_skill(
@@ -804,7 +812,8 @@ def generate_qr_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["generate_qr_tool"]
-''')
+''',
+)
 
 print(f"Batch 2 progress: skills 24-26 created.")
 
@@ -931,7 +940,8 @@ def line_chart_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["bar_chart_tool", "line_chart_tool"]
-''')
+''',
+)
 
 # ── 28. data-schema-inferrer ──────────────────────────────────────
 create_skill(
@@ -1098,7 +1108,8 @@ def validate_against_schema_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["infer_schema_tool", "validate_against_schema_tool"]
-''')
+''',
+)
 
 # ── 29. ab-test-analyzer ─────────────────────────────────────────
 create_skill(
@@ -1245,7 +1256,8 @@ def sample_size_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["ab_test_tool", "sample_size_tool"]
-''')
+''',
+)
 
 # ── 30. pivot-table-builder ──────────────────────────────────────
 create_skill(
@@ -1256,7 +1268,17 @@ create_skill(
     capabilities=["analyze"],
     triggers=["pivot", "pivot table", "group by", "aggregate", "crosstab"],
     eval_tool="pivot_table_tool",
-    eval_input={"data": [{"region": "North", "product": "A", "sales": 100}, {"region": "North", "product": "B", "sales": 150}, {"region": "South", "product": "A", "sales": 200}], "rows": "region", "columns": "product", "values": "sales", "aggfunc": "sum"},
+    eval_input={
+        "data": [
+            {"region": "North", "product": "A", "sales": 100},
+            {"region": "North", "product": "B", "sales": 150},
+            {"region": "South", "product": "A", "sales": 200},
+        ],
+        "rows": "region",
+        "columns": "product",
+        "values": "sales",
+        "aggfunc": "sum",
+    },
     tool_docs="""### pivot_table_tool
 Create a pivot table from data.
 
@@ -1363,7 +1385,8 @@ def pivot_table_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["pivot_table_tool"]
-''')
+''',
+)
 
 print(f"Batch 2 progress: skills 27-30 created.")
 
@@ -1376,7 +1399,9 @@ create_skill(
     capabilities=["analyze", "code"],
     triggers=["log", "analyze log", "log file", "error log", "parse logs"],
     eval_tool="analyze_log_tool",
-    eval_input={"content": "2024-01-01 10:00:00 ERROR Database connection failed\\n2024-01-01 10:00:01 INFO Retrying...\\n2024-01-01 10:00:02 ERROR Database connection failed\\n2024-01-01 10:00:03 INFO Connected successfully"},
+    eval_input={
+        "content": "2024-01-01 10:00:00 ERROR Database connection failed\\n2024-01-01 10:00:01 INFO Retrying...\\n2024-01-01 10:00:02 ERROR Database connection failed\\n2024-01-01 10:00:03 INFO Connected successfully"
+    },
     tool_docs="""### analyze_log_tool
 Parse and summarize log content.
 
@@ -1508,7 +1533,8 @@ def search_log_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["analyze_log_tool", "search_log_tool"]
-''')
+''',
+)
 
 # ── 32. nginx-config-generator ────────────────────────────────────
 create_skill(
@@ -1681,7 +1707,8 @@ def nginx_static_site_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["nginx_reverse_proxy_tool", "nginx_static_site_tool"]
-''')
+''',
+)
 
 # ── 33. ci-cd-pipeline-builder ────────────────────────────────────
 create_skill(
@@ -1864,7 +1891,8 @@ def github_actions_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["github_actions_tool"]
-''')
+''',
+)
 
 # ── 34. dockerfile-generator ─────────────────────────────────────
 create_skill(
@@ -2033,6 +2061,7 @@ def generate_dockerfile_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["generate_dockerfile_tool"]
-''')
+''',
+)
 
 print(f"Batch 2 progress: skills 31-34 created.")

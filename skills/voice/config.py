@@ -7,8 +7,8 @@ Configuration for multi-provider voice capabilities.
 
 import os
 from dataclasses import dataclass, field
-from typing import Optional, List
 from pathlib import Path
+from typing import List, Optional
 
 
 @dataclass
@@ -72,6 +72,7 @@ class VoiceConfig:
         # Check Python whisper package first (openai-whisper)
         try:
             import whisper
+
             return True
         except ImportError:
             pass
@@ -86,6 +87,7 @@ class VoiceConfig:
         # Check if piper-tts is installed as Python package
         try:
             import piper
+
             return True
         except ImportError:
             pass

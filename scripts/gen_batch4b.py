@@ -1,6 +1,8 @@
 """Batch 4b — 10 utility skills with real implementations."""
 
-import sys, os
+import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from scripts.generate_skills import create_skill
 
@@ -12,7 +14,13 @@ create_skill(
     frontmatter_name="text-statistics",
     description="Compute word count, character count, sentence count, reading time, and Flesch-Kincaid grade level from text.",
     category="text-analysis",
-    capabilities=["Word count", "Character count", "Sentence count", "Reading time estimate", "Flesch-Kincaid grade level"],
+    capabilities=[
+        "Word count",
+        "Character count",
+        "Sentence count",
+        "Reading time estimate",
+        "Flesch-Kincaid grade level",
+    ],
     triggers=["analyze text statistics", "word count", "reading time", "readability score"],
     eval_tool="analyze_text_tool",
     eval_input={"text": "Hello world. This is a test."},
@@ -156,7 +164,13 @@ create_skill(
     frontmatter_name="unit-converter",
     description="Convert between length, weight, temperature, volume, and speed units.",
     category="utility",
-    capabilities=["Length conversion", "Weight conversion", "Temperature conversion", "Volume conversion", "Speed conversion"],
+    capabilities=[
+        "Length conversion",
+        "Weight conversion",
+        "Temperature conversion",
+        "Volume conversion",
+        "Speed conversion",
+    ],
     triggers=["convert units", "meters to feet", "kg to lbs", "celsius to fahrenheit"],
     eval_tool="convert_unit_tool",
     eval_input={"value": 100, "from_unit": "km", "to_unit": "mi"},

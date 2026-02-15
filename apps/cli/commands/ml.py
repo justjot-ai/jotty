@@ -21,17 +21,17 @@ MLflow Integration:
     /ml titanic --mlflow --experiment myexp # Custom experiment name
 """
 
-from typing import TYPE_CHECKING, Dict, Any, Optional
-from pathlib import Path
 import asyncio
-import warnings
-import os
 import json
+import os
+import warnings
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 # Suppress sklearn warnings about feature names
-warnings.filterwarnings('ignore', message='.*feature names.*')
-warnings.filterwarnings('ignore', message='.*does not have valid feature names.*')
-warnings.filterwarnings('ignore', category=UserWarning, module='sklearn')
+warnings.filterwarnings("ignore", message=".*feature names.*")
+warnings.filterwarnings("ignore", message=".*does not have valid feature names.*")
+warnings.filterwarnings("ignore", category=UserWarning, module="sklearn")
 
 from .base import BaseCommand, CommandResult, ParsedArgs
 
@@ -64,21 +64,89 @@ class MLCommand(BaseCommand):
 
     # Dataset leaderboard - best known scores
     DATASET_LEADERBOARD = {
-        "titanic": {"type": "classification", "target": "survived", "baseline": 0.78, "best": 0.87, "samples": 891},
-        "iris": {"type": "classification", "target": "species", "baseline": 0.93, "best": 0.98, "samples": 150},
-        "breast_cancer": {"type": "classification", "target": "target", "baseline": 0.94, "best": 0.99, "samples": 569},
-        "wine": {"type": "classification", "target": "target", "baseline": 0.95, "best": 0.99, "samples": 178},
-        "digits": {"type": "classification", "target": "target", "baseline": 0.95, "best": 0.99, "samples": 1797},
-        "penguins": {"type": "classification", "target": "species", "baseline": 0.95, "best": 0.99, "samples": 344},
-        "tips": {"type": "regression", "target": "tip", "baseline": 0.40, "best": 0.65, "samples": 244},
-        "diamonds": {"type": "regression", "target": "price", "baseline": 0.90, "best": 0.98, "samples": 53940},
-        "mpg": {"type": "regression", "target": "mpg", "baseline": 0.75, "best": 0.92, "samples": 398},
-        "california": {"type": "regression", "target": "target", "baseline": 0.60, "best": 0.85, "samples": 20640},
-        "diabetes": {"type": "regression", "target": "target", "baseline": 0.40, "best": 0.55, "samples": 442},
+        "titanic": {
+            "type": "classification",
+            "target": "survived",
+            "baseline": 0.78,
+            "best": 0.87,
+            "samples": 891,
+        },
+        "iris": {
+            "type": "classification",
+            "target": "species",
+            "baseline": 0.93,
+            "best": 0.98,
+            "samples": 150,
+        },
+        "breast_cancer": {
+            "type": "classification",
+            "target": "target",
+            "baseline": 0.94,
+            "best": 0.99,
+            "samples": 569,
+        },
+        "wine": {
+            "type": "classification",
+            "target": "target",
+            "baseline": 0.95,
+            "best": 0.99,
+            "samples": 178,
+        },
+        "digits": {
+            "type": "classification",
+            "target": "target",
+            "baseline": 0.95,
+            "best": 0.99,
+            "samples": 1797,
+        },
+        "penguins": {
+            "type": "classification",
+            "target": "species",
+            "baseline": 0.95,
+            "best": 0.99,
+            "samples": 344,
+        },
+        "tips": {
+            "type": "regression",
+            "target": "tip",
+            "baseline": 0.40,
+            "best": 0.65,
+            "samples": 244,
+        },
+        "diamonds": {
+            "type": "regression",
+            "target": "price",
+            "baseline": 0.90,
+            "best": 0.98,
+            "samples": 53940,
+        },
+        "mpg": {
+            "type": "regression",
+            "target": "mpg",
+            "baseline": 0.75,
+            "best": 0.92,
+            "samples": 398,
+        },
+        "california": {
+            "type": "regression",
+            "target": "target",
+            "baseline": 0.60,
+            "best": 0.85,
+            "samples": 20640,
+        },
+        "diabetes": {
+            "type": "regression",
+            "target": "target",
+            "baseline": 0.40,
+            "best": 0.55,
+            "samples": 442,
+        },
     }
 
     @classmethod
-    def save_mlflow_state(cls, experiment_name: str, run_id: str = None, tracking_uri: str = None) -> Any:
+    def save_mlflow_state(
+        cls, experiment_name: str, run_id: str = None, tracking_uri: str = None
+    ) -> Any:
         """Save MLflow state for later retrieval."""
         cls.MLFLOW_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
         state = {
@@ -86,7 +154,7 @@ class MLCommand(BaseCommand):
             "last_run_id": run_id,
             "tracking_uri": tracking_uri,
         }
-        with open(cls.MLFLOW_STATE_FILE, 'w') as f:
+        with open(cls.MLFLOW_STATE_FILE, "w") as f:
             json.dump(state, f)
 
     @classmethod
@@ -94,36 +162,46 @@ class MLCommand(BaseCommand):
         """Load saved MLflow state."""
         if cls.MLFLOW_STATE_FILE.exists():
             try:
-                with open(cls.MLFLOW_STATE_FILE, 'r') as f:
+                with open(cls.MLFLOW_STATE_FILE, "r") as f:
                     return json.load(f)
             except (OSError, json.JSONDecodeError):
                 # State file corrupted or unreadable, use defaults
                 pass
         return {"experiment_name": "jotty_ml", "last_run_id": None, "tracking_uri": None}
 
-    def _show_leaderboard(self, cli: 'JottyCLI') -> Any:
+    def _show_leaderboard(self, cli: "JottyCLI") -> Any:
         """Display dataset leaderboard."""
         cli.renderer.header("Dataset Leaderboard")
         cli.renderer.info("")
-        cli.renderer.info("┌────────────────┬────────────────┬──────────┬──────────┬──────────┬─────────┐")
-        cli.renderer.info("│    Dataset     │      Type      │ Baseline │   Best   │  Target  │ Samples │")
-        cli.renderer.info("├────────────────┼────────────────┼──────────┼──────────┼──────────┼─────────┤")
+        cli.renderer.info(
+            "┌────────────────┬────────────────┬──────────┬──────────┬──────────┬─────────┐"
+        )
+        cli.renderer.info(
+            "│    Dataset     │      Type      │ Baseline │   Best   │  Target  │ Samples │"
+        )
+        cli.renderer.info(
+            "├────────────────┼────────────────┼──────────┼──────────┼──────────┼─────────┤"
+        )
         for name, info in self.DATASET_LEADERBOARD.items():
-            dtype = info['type'][:14]
+            dtype = info["type"][:14]
             baseline = f"{info['baseline']*100:.1f}%"
             best = f"{info['best']*100:.1f}%"
-            target = info['target'][:8]
-            samples = info['samples']
-            cli.renderer.info(f"│ {name:<14} │ {dtype:<14} │ {baseline:>8} │ {best:>8} │ {target:<8} │ {samples:>7} │")
-        cli.renderer.info("└────────────────┴────────────────┴──────────┴──────────┴──────────┴─────────┘")
+            target = info["target"][:8]
+            samples = info["samples"]
+            cli.renderer.info(
+                f"│ {name:<14} │ {dtype:<14} │ {baseline:>8} │ {best:>8} │ {target:<8} │ {samples:>7} │"
+            )
+        cli.renderer.info(
+            "└────────────────┴────────────────┴──────────┴──────────┴──────────┴─────────┘"
+        )
         cli.renderer.info("")
         cli.renderer.info("Baseline: Simple model (LogisticRegression/Ridge)")
         cli.renderer.info("Best: Known best score achievable with AutoML")
 
     async def execute(self, args: ParsedArgs, cli: "JottyCLI") -> CommandResult:
         """Execute ML pipeline."""
-        import pandas as pd
         import numpy as np
+        import pandas as pd
 
         # Check for leaderboard flag
         if "leaderboard" in args.flags or "lb" in args.flags:
@@ -165,7 +243,7 @@ class MLCommand(BaseCommand):
                     database=db_name,
                     user=db_user,
                     password=db_password,
-                    cli=cli
+                    cli=cli,
                 )
                 if X is None:
                     return CommandResult.fail("Failed to load from database")
@@ -212,20 +290,37 @@ class MLCommand(BaseCommand):
 
         try:
             result = await self._run_swarm_ml(
-                X, y, context, iterations, cli,
+                X,
+                y,
+                context,
+                iterations,
+                cli,
                 use_mlflow=use_mlflow,
                 experiment_name=experiment_name,
                 tracking_uri=tracking_uri,
-                dataset_name=dataset or "database_query"
+                dataset_name=dataset or "database_query",
             )
             return CommandResult.ok(data=result)
         except Exception as e:
             cli.renderer.error(f"Pipeline failed: {e}")
             import traceback
+
             traceback.print_exc()
             return CommandResult.fail(str(e))
 
-    async def _load_from_database(self, query: str, target_col: str, connection: str = None, db_type: str = None, host: str = 'localhost', port: int = None, database: str = None, user: str = None, password: str = None, cli: 'JottyCLI' = None) -> Any:
+    async def _load_from_database(
+        self,
+        query: str,
+        target_col: str,
+        connection: str = None,
+        db_type: str = None,
+        host: str = "localhost",
+        port: int = None,
+        database: str = None,
+        user: str = None,
+        password: str = None,
+        cli: "JottyCLI" = None,
+    ) -> Any:
         """Load dataset from database using ConnectorX."""
         import pandas as pd
 
@@ -252,7 +347,10 @@ class MLCommand(BaseCommand):
 
         # Use ConnectorX loader
         try:
-            from Jotty.core.capabilities.semantic.query.data_loader import DataLoaderFactory, OutputFormat
+            from Jotty.core.capabilities.semantic.query.data_loader import (
+                DataLoaderFactory,
+                OutputFormat,
+            )
 
             loader = DataLoaderFactory.create(
                 db_type=db_type,
@@ -260,7 +358,7 @@ class MLCommand(BaseCommand):
                 port=port,
                 database=database,
                 user=user,
-                password=password
+                password=password,
             )
 
             cli.renderer.info(f"Executing query on {db_type}://{host}/{database}...")
@@ -285,19 +383,19 @@ class MLCommand(BaseCommand):
 
         # Encode categoricals
         for col in X.columns:
-            if X[col].dtype == 'object' or X[col].dtype.name == 'category':
+            if X[col].dtype == "object" or X[col].dtype.name == "category":
                 X[col] = pd.Categorical(X[col]).codes
 
         # Fill missing values
-        numeric_cols = X.select_dtypes(include=['int64', 'float64']).columns
+        numeric_cols = X.select_dtypes(include=["int64", "float64"]).columns
         X[numeric_cols] = X[numeric_cols].fillna(X[numeric_cols].median())
 
         return X, y, target_col
 
-    async def _load_dataset(self, dataset: str, target_col: Optional[str], cli: 'JottyCLI') -> Any:
+    async def _load_dataset(self, dataset: str, target_col: Optional[str], cli: "JottyCLI") -> Any:
         """Load dataset from various sources."""
-        import pandas as pd
         import numpy as np
+        import pandas as pd
 
         dataset_lower = dataset.lower()
 
@@ -310,9 +408,9 @@ class MLCommand(BaseCommand):
 
             # Handle specific datasets
             if dataset_lower == "titanic":
-                leaky_cols = ['alive', 'adult_male', 'who', 'alone']
+                leaky_cols = ["alive", "adult_male", "who", "alone"]
                 df = df.drop(columns=[c for c in leaky_cols if c in df.columns])
-                df = df.dropna(subset=['age', 'fare', 'embarked'])
+                df = df.dropna(subset=["age", "fare", "embarked"])
                 target_col = target_col or "survived"
 
             elif dataset_lower == "iris":
@@ -341,21 +439,21 @@ class MLCommand(BaseCommand):
             if dataset_lower == "breast_cancer":
                 data = sklearn_datasets.load_breast_cancer()
                 df = pd.DataFrame(data.data, columns=data.feature_names)
-                df['target'] = data.target
+                df["target"] = data.target
                 target_col = target_col or "target"
                 cli.renderer.info("Loaded sklearn breast_cancer (classification)")
 
             elif dataset_lower == "wine":
                 data = sklearn_datasets.load_wine()
                 df = pd.DataFrame(data.data, columns=data.feature_names)
-                df['target'] = data.target
+                df["target"] = data.target
                 target_col = target_col or "target"
                 cli.renderer.info("Loaded sklearn wine (classification)")
 
             elif dataset_lower == "digits":
                 data = sklearn_datasets.load_digits()
-                df = pd.DataFrame(data.data, columns=[f'pixel_{i}' for i in range(64)])
-                df['target'] = data.target
+                df = pd.DataFrame(data.data, columns=[f"pixel_{i}" for i in range(64)])
+                df["target"] = data.target
                 target_col = target_col or "target"
                 # Sample for speed
                 if len(df) > 1000:
@@ -365,7 +463,7 @@ class MLCommand(BaseCommand):
             elif dataset_lower == "california":
                 data = sklearn_datasets.fetch_california_housing()
                 df = pd.DataFrame(data.data, columns=data.feature_names)
-                df['target'] = data.target
+                df["target"] = data.target
                 target_col = target_col or "target"
                 # Sample for speed
                 if len(df) > 5000:
@@ -375,19 +473,19 @@ class MLCommand(BaseCommand):
             elif dataset_lower == "diabetes":
                 data = sklearn_datasets.load_diabetes()
                 df = pd.DataFrame(data.data, columns=data.feature_names)
-                df['target'] = data.target
+                df["target"] = data.target
                 target_col = target_col or "target"
                 cli.renderer.info("Loaded sklearn diabetes (regression)")
 
         elif Path(dataset).exists():
             # Load from file
-            if dataset.endswith('.csv'):
+            if dataset.endswith(".csv"):
                 df = pd.read_csv(dataset)
-            elif dataset.endswith('.parquet'):
+            elif dataset.endswith(".parquet"):
                 df = pd.read_parquet(dataset)
-            elif dataset.endswith('.json'):
+            elif dataset.endswith(".json"):
                 df = pd.read_json(dataset)
-            elif dataset.endswith('.xlsx') or dataset.endswith('.xls'):
+            elif dataset.endswith(".xlsx") or dataset.endswith(".xls"):
                 df = pd.read_excel(dataset)
             else:
                 cli.renderer.error(f"Unsupported file format: {dataset}")
@@ -396,7 +494,9 @@ class MLCommand(BaseCommand):
             cli.renderer.info(f"Loaded file: {dataset}")
 
             if not target_col:
-                cli.renderer.error("Target column required for custom datasets. Use --target <column>")
+                cli.renderer.error(
+                    "Target column required for custom datasets. Use --target <column>"
+                )
                 return None, None, None
 
         else:
@@ -420,42 +520,55 @@ class MLCommand(BaseCommand):
 
         # Encode categoricals
         for col in X.columns:
-            if X[col].dtype == 'object' or X[col].dtype.name == 'category':
+            if X[col].dtype == "object" or X[col].dtype.name == "category":
                 X[col] = pd.Categorical(X[col]).codes
 
         # Fill missing values
-        numeric_cols = X.select_dtypes(include=['int64', 'float64']).columns
+        numeric_cols = X.select_dtypes(include=["int64", "float64"]).columns
         X[numeric_cols] = X[numeric_cols].fillna(X[numeric_cols].median())
 
         return X, y, target_col
 
-    async def _run_swarm_ml(self, X: Any, y: Any, context: str, max_iterations: int, cli: 'JottyCLI', use_mlflow: bool = False, experiment_name: str = 'jotty_ml', tracking_uri: str = None, dataset_name: str = 'unknown') -> Dict[str, Any]:
+    async def _run_swarm_ml(
+        self,
+        X: Any,
+        y: Any,
+        context: str,
+        max_iterations: int,
+        cli: "JottyCLI",
+        use_mlflow: bool = False,
+        experiment_name: str = "jotty_ml",
+        tracking_uri: str = None,
+        dataset_name: str = "unknown",
+    ) -> Dict[str, Any]:
         """Run the full SwarmML pipeline with optional MLflow tracking."""
-        import pandas as pd
-        import numpy as np
         import warnings
 
-        # Suppress all sklearn/lightgbm feature name warnings
-        warnings.filterwarnings('ignore', category=UserWarning)
-        warnings.filterwarnings('ignore', message='.*feature names.*')
+        import numpy as np
+        import pandas as pd
 
-        from sklearn.model_selection import cross_val_score, StratifiedKFold, KFold
+        # Suppress all sklearn/lightgbm feature name warnings
+        warnings.filterwarnings("ignore", category=UserWarning)
+        warnings.filterwarnings("ignore", message=".*feature names.*")
+
+        from sklearn.model_selection import KFold, StratifiedKFold, cross_val_score
 
         # Import skills
         from Jotty.core.capabilities.skills.ml import (
-            FeatureEngineeringSkill, FeatureSelectionSkill,
-            ModelSelectionSkill, HyperoptSkill, EnsembleSkill,
-            LLMFeatureReasonerSkill, MLflowTrackerSkill
+            EnsembleSkill,
+            FeatureEngineeringSkill,
+            FeatureSelectionSkill,
+            HyperoptSkill,
+            LLMFeatureReasonerSkill,
+            MLflowTrackerSkill,
+            ModelSelectionSkill,
         )
 
         # Initialize MLflow tracker if enabled
         mlflow_tracker = None
         if use_mlflow:
             mlflow_tracker = MLflowTrackerSkill()
-            await mlflow_tracker.init(
-                tracking_uri=tracking_uri,
-                experiment_name=experiment_name
-            )
+            await mlflow_tracker.init(tracking_uri=tracking_uri, experiment_name=experiment_name)
             run_name = f"{dataset_name}_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}"
             await mlflow_tracker.start_run(run_name=run_name)
             cli.renderer.info(f"MLflow run started: {run_name}")
@@ -472,14 +585,16 @@ class MLCommand(BaseCommand):
 
         # Log initial params to MLflow
         if mlflow_tracker:
-            await mlflow_tracker.log_params({
-                'dataset': dataset_name,
-                'problem_type': problem_type,
-                'n_samples': X.shape[0],
-                'n_features_original': X.shape[1],
-                'max_iterations': max_iterations,
-                'business_context': context[:200],
-            })
+            await mlflow_tracker.log_params(
+                {
+                    "dataset": dataset_name,
+                    "problem_type": problem_type,
+                    "n_samples": X.shape[0],
+                    "n_features_original": X.shape[1],
+                    "max_iterations": max_iterations,
+                    "business_context": context[:200],
+                }
+            )
 
         # Initialize skills
         llm_skill = LLMFeatureReasonerSkill()
@@ -514,9 +629,7 @@ class MLCommand(BaseCommand):
             if iteration == 0:
                 cli.renderer.status("LLM Feature Reasoning (6 personas)...")
                 llm_result = await llm_skill.execute(
-                    X, y,
-                    problem_type=problem_type,
-                    business_context=context
+                    X, y, problem_type=problem_type, business_context=context
                 )
             else:
                 cli.renderer.status("LLM Feedback Loop...")
@@ -526,7 +639,7 @@ class MLCommand(BaseCommand):
                     feature_importance=feature_importance,
                     iteration=iteration,
                     problem_type=problem_type,
-                    business_context=context
+                    business_context=context,
                 )
 
             X_llm = llm_result.data
@@ -547,31 +660,35 @@ class MLCommand(BaseCommand):
             # Step 4: Model Selection
             cli.renderer.status("Model Selection (8+ algorithms)...")
             ms_result = await ms_skill.execute(X_fs, y, problem_type=problem_type)
-            all_scores = ms_result.metadata.get('all_scores', {})
-            cli.renderer.info(f"  Best model: {ms_result.metadata.get('best_model')} = {ms_result.metrics.get('score'):.4f}")
+            all_scores = ms_result.metadata.get("all_scores", {})
+            cli.renderer.info(
+                f"  Best model: {ms_result.metadata.get('best_model')} = {ms_result.metrics.get('score'):.4f}"
+            )
 
             # Step 5: Hyperparameter Optimization
             cli.renderer.status("Hyperparameter Optimization...")
             ho_result = await ho_skill.execute(
-                X_fs, y,
+                X_fs,
+                y,
                 problem_type=problem_type,
                 all_scores=all_scores,
-                model_ranking=ms_result.metadata.get('model_ranking', []),
-                tune_all=True
+                model_ranking=ms_result.metadata.get("model_ranking", []),
+                tune_all=True,
             )
             cli.renderer.info(f"  Best after tuning: {ho_result.metrics.get('score'):.4f}")
 
             # Step 6: Ensemble
             cli.renderer.status("Ensemble (multi-level stacking)...")
             ens_result = await ens_skill.execute(
-                X_fs, y,
+                X_fs,
+                y,
                 problem_type=problem_type,
                 optimized_model=ho_result.data,
-                best_single_score=ho_result.metrics.get('score', 0),
-                all_scores=ho_result.metadata.get('all_tuned_scores', all_scores)
+                best_single_score=ho_result.metrics.get("score", 0),
+                all_scores=ho_result.metadata.get("all_tuned_scores", all_scores),
             )
 
-            iteration_score = ens_result.metrics.get('score', 0)
+            iteration_score = ens_result.metrics.get("score", 0)
             cli.renderer.info(f"  Iteration {iteration + 1} Score: {iteration_score:.4f}")
 
             # Extract feature importance for next iteration
@@ -581,18 +698,23 @@ class MLCommand(BaseCommand):
 
             # Log iteration metrics to MLflow
             if mlflow_tracker:
-                await mlflow_tracker.log_metrics({
-                    f'iter_{iteration+1}_score': iteration_score,
-                    f'iter_{iteration+1}_n_features': X_fs.shape[1],
-                    f'iter_{iteration+1}_llm_features': llm_result.metrics.get('n_applied', 0),
-                }, step=iteration)
+                await mlflow_tracker.log_metrics(
+                    {
+                        f"iter_{iteration+1}_score": iteration_score,
+                        f"iter_{iteration+1}_n_features": X_fs.shape[1],
+                        f"iter_{iteration+1}_llm_features": llm_result.metrics.get("n_applied", 0),
+                    },
+                    step=iteration,
+                )
 
-            results.append({
-                'iteration': iteration + 1,
-                'score': iteration_score,
-                'features': X_fs.shape[1],
-                'strategy': ens_result.metrics.get('strategy', 'unknown')
-            })
+            results.append(
+                {
+                    "iteration": iteration + 1,
+                    "score": iteration_score,
+                    "features": X_fs.shape[1],
+                    "strategy": ens_result.metrics.get("strategy", "unknown"),
+                }
+            )
 
             if iteration_score > best_score:
                 best_score = iteration_score
@@ -610,8 +732,10 @@ class MLCommand(BaseCommand):
         cli.renderer.info("│  Iteration  │  Score   │ Features │    Strategy     │")
         cli.renderer.info("├─────────────┼──────────┼──────────┼─────────────────┤")
         for r in results:
-            marker = " " if r['iteration'] == best_iteration else " "
-            cli.renderer.info(f"│{marker} {r['iteration']:^9} │ {r['score']:^8.4f} │ {r['features']:^8} │ {r['strategy'][:15]:^15} │")
+            marker = " " if r["iteration"] == best_iteration else " "
+            cli.renderer.info(
+                f"│{marker} {r['iteration']:^9} │ {r['score']:^8.4f} │ {r['features']:^8} │ {r['strategy'][:15]:^15} │"
+            )
         cli.renderer.info("└─────────────┴──────────┴──────────┴─────────────────┘")
 
         cli.renderer.info("")
@@ -621,15 +745,17 @@ class MLCommand(BaseCommand):
         # Compare to leaderboard if dataset is known
         if dataset_name.lower() in self.DATASET_LEADERBOARD:
             lb_info = self.DATASET_LEADERBOARD[dataset_name.lower()]
-            baseline = lb_info['baseline']
-            known_best = lb_info['best']
+            baseline = lb_info["baseline"]
+            known_best = lb_info["best"]
             improvement = ((best_score - baseline) / baseline) * 100
             gap_to_best = ((known_best - best_score) / known_best) * 100
 
             cli.renderer.info("")
             cli.renderer.info("Leaderboard Comparison:")
             cli.renderer.info(f"  Baseline:     {baseline*100:.1f}%")
-            cli.renderer.info(f"  Your Score:   {best_score*100:.1f}% ({'+' if improvement > 0 else ''}{improvement:.1f}% vs baseline)")
+            cli.renderer.info(
+                f"  Your Score:   {best_score*100:.1f}% ({'+' if improvement > 0 else ''}{improvement:.1f}% vs baseline)"
+            )
             cli.renderer.info(f"  Known Best:   {known_best*100:.1f}% ({gap_to_best:.1f}% gap)")
 
         sorted_fi = []
@@ -647,11 +773,13 @@ class MLCommand(BaseCommand):
 
         # Log final results to MLflow
         if mlflow_tracker:
-            await mlflow_tracker.log_metrics({
-                'best_score': best_score,
-                'best_iteration': best_iteration,
-                'final_n_features': X_fs.shape[1],
-            })
+            await mlflow_tracker.log_metrics(
+                {
+                    "best_score": best_score,
+                    "best_iteration": best_iteration,
+                    "final_n_features": X_fs.shape[1],
+                }
+            )
 
             # Log feature importance
             if feature_importance:
@@ -662,7 +790,7 @@ class MLCommand(BaseCommand):
                 model_uri = await mlflow_tracker.log_model(
                     best_model,
                     model_name="best_ensemble",
-                    registered_name=f"{dataset_name}_model" if dataset_name != "unknown" else None
+                    registered_name=f"{dataset_name}_model" if dataset_name != "unknown" else None,
                 )
                 if model_uri:
                     cli.renderer.info(f"Model logged to MLflow: {model_uri}")
@@ -676,26 +804,26 @@ class MLCommand(BaseCommand):
                 # Save MLflow state for later retrieval
                 MLCommand.save_mlflow_state(
                     experiment_name=experiment_name,
-                    run_id=run_info['run_id'],
-                    tracking_uri=tracking_uri
+                    run_id=run_info["run_id"],
+                    tracking_uri=tracking_uri,
                 )
 
         # Prepare result
         result_data = {
-            'best_score': best_score,
-            'best_iteration': best_iteration,
-            'problem_type': problem_type,
-            'iterations': results,
-            'top_features': sorted_fi[:10] if feature_importance else [],
+            "best_score": best_score,
+            "best_iteration": best_iteration,
+            "problem_type": problem_type,
+            "iterations": results,
+            "top_features": sorted_fi[:10] if feature_importance else [],
         }
 
         # Add MLflow run ID if available
         if mlflow_tracker:
             try:
-                result_data['mlflow_run_id'] = run_info.get('run_id') if run_info else None
+                result_data["mlflow_run_id"] = run_info.get("run_id") if run_info else None
             except (AttributeError, KeyError):
                 # run_info invalid or missing
-                result_data['mlflow_run_id'] = None
+                result_data["mlflow_run_id"] = None
 
         return result_data
 
@@ -703,9 +831,21 @@ class MLCommand(BaseCommand):
         """Get dataset completions."""
         datasets = self.SEABORN_DATASETS + self.SKLEARN_DATASETS
         flags = [
-            "--target", "--context", "--iterations", "--mlflow", "--leaderboard",
-            "--experiment", "--tracking-uri", "--query", "--connection",
-            "--db-type", "--host", "--port", "--database", "--user", "--password"
+            "--target",
+            "--context",
+            "--iterations",
+            "--mlflow",
+            "--leaderboard",
+            "--experiment",
+            "--tracking-uri",
+            "--query",
+            "--connection",
+            "--db-type",
+            "--host",
+            "--port",
+            "--database",
+            "--user",
+            "--password",
         ]
         all_completions = datasets + flags
         return [s for s in all_completions if s.startswith(partial)]

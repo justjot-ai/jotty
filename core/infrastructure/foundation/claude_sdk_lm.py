@@ -16,8 +16,10 @@ Features:
 import asyncio
 import logging
 from typing import Any, Dict, List, Optional
+
 import dspy
-from Jotty.core.infrastructure.foundation.exceptions import LLMError, InputValidationError
+
+from Jotty.core.infrastructure.foundation.exceptions import InputValidationError, LLMError
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +32,9 @@ class ClaudeSDKLM(dspy.BaseLM):
     Uses existing `claude auth login` credentials.
     """
 
-    def __init__(self, model: str = '', max_turns: int = 1, timeout: int = 0, **kwargs: Any) -> None:
+    def __init__(
+        self, model: str = "", max_turns: int = 1, timeout: int = 0, **kwargs: Any
+    ) -> None:
         """
         Initialize Claude SDK LM.
 
@@ -40,7 +44,11 @@ class ClaudeSDKLM(dspy.BaseLM):
             timeout: Timeout in seconds
             **kwargs: Additional arguments
         """
-        from Jotty.core.infrastructure.foundation.config_defaults import DEFAULT_MODEL_ALIAS, LLM_TIMEOUT_SECONDS
+        from Jotty.core.infrastructure.foundation.config_defaults import (
+            DEFAULT_MODEL_ALIAS,
+            LLM_TIMEOUT_SECONDS,
+        )
+
         model = model or DEFAULT_MODEL_ALIAS
         timeout = timeout or LLM_TIMEOUT_SECONDS
 
@@ -53,15 +61,15 @@ class ClaudeSDKLM(dspy.BaseLM):
 
         # Verify SDK is available
         try:
-            from claude_agent_sdk import query, ClaudeAgentOptions
+            from claude_agent_sdk import ClaudeAgentOptions, query
+
             self._query = query
             self._options_class = ClaudeAgentOptions
             logger.info(" Claude Agent SDK available")
         except ImportError as e:
             raise LLMError(
-                "claude-agent-sdk not installed. "
-                "Install with: pip install claude-agent-sdk",
-                original_error=e
+                "claude-agent-sdk not installed. " "Install with: pip install claude-agent-sdk",
+                original_error=e,
             )
 
     def __call__(self, prompt: str = None, messages: List[Dict] = None, **kwargs: Any) -> List[str]:
@@ -75,17 +83,17 @@ class ClaudeSDKLM(dspy.BaseLM):
             loop = asyncio.get_running_loop()
             # In async context - use thread pool
             import concurrent.futures
+
             with concurrent.futures.ThreadPoolExecutor() as executor:
-                future = executor.submit(
-                    asyncio.run,
-                    self._async_call(prompt, messages, **kwargs)
-                )
+                future = executor.submit(asyncio.run, self._async_call(prompt, messages, **kwargs))
                 return future.result(timeout=self.timeout + 10)
         except RuntimeError:
             # Not in async context - safe to use asyncio.run
             return asyncio.run(self._async_call(prompt, messages, **kwargs))
 
-    async def _async_call(self, prompt: str = None, messages: List[Dict] = None, **kwargs: Any) -> List[str]:
+    async def _async_call(
+        self, prompt: str = None, messages: List[Dict] = None, **kwargs: Any
+    ) -> List[str]:
         """
         Async implementation using Claude Agent SDK.
         """
@@ -96,7 +104,7 @@ class ClaudeSDKLM(dspy.BaseLM):
             parts = []
             for msg in messages:
                 if isinstance(msg, dict):
-                    content = msg.get('content', '')
+                    content = msg.get("content", "")
                     if content:
                         parts.append(content)
                 elif isinstance(msg, str):
@@ -121,30 +129,30 @@ class ClaudeSDKLM(dspy.BaseLM):
             response_text = ""
             async for message in self._query(prompt=input_text, options=options):
                 # Handle different message types
-                if hasattr(message, 'type'):
-                    if message.type == 'assistant':
+                if hasattr(message, "type"):
+                    if message.type == "assistant":
                         # Extract text content
-                        if hasattr(message, 'message') and hasattr(message.message, 'content'):
+                        if hasattr(message, "message") and hasattr(message.message, "content"):
                             for block in message.message.content:
-                                if hasattr(block, 'text'):
+                                if hasattr(block, "text"):
                                     response_text += block.text
-                        elif hasattr(message, 'content'):
+                        elif hasattr(message, "content"):
                             response_text += str(message.content)
-                    elif message.type == 'text':
-                        if hasattr(message, 'text'):
+                    elif message.type == "text":
+                        if hasattr(message, "text"):
                             response_text += message.text
-                    elif message.type == 'result':
-                        if hasattr(message, 'result'):
+                    elif message.type == "result":
+                        if hasattr(message, "result"):
                             response_text = message.result
                             break
                 elif isinstance(message, dict):
-                    if message.get('type') == 'assistant':
-                        content = message.get('message', {}).get('content', [])
+                    if message.get("type") == "assistant":
+                        content = message.get("message", {}).get("content", [])
                         for block in content:
-                            if isinstance(block, dict) and block.get('type') == 'text':
-                                response_text += block.get('text', '')
-                    elif message.get('type') == 'result':
-                        response_text = message.get('result', '')
+                            if isinstance(block, dict) and block.get("type") == "text":
+                                response_text += block.get("text", "")
+                    elif message.get("type") == "result":
+                        response_text = message.get("result", "")
                         break
                 elif isinstance(message, str):
                     response_text += message
@@ -156,11 +164,13 @@ class ClaudeSDKLM(dspy.BaseLM):
             logger.debug(f"ClaudeSDK: Response length: {len(response_text)} chars")
 
             # Store in history
-            self.history.append({
-                'prompt': input_text[:500],
-                'response': response_text[:500],
-                'model': self.cli_model
-            })
+            self.history.append(
+                {
+                    "prompt": input_text[:500],
+                    "response": response_text[:500],
+                    "model": self.cli_model,
+                }
+            )
 
             return [response_text]
 
@@ -179,14 +189,15 @@ class ClaudeSDKLM(dspy.BaseLM):
 def is_sdk_available() -> bool:
     """Check if claude-agent-sdk is installed and working."""
     try:
-        from claude_agent_sdk import query, ClaudeAgentOptions
+        from claude_agent_sdk import ClaudeAgentOptions, query
+
         return True
     except ImportError:
         return False
 
 
 # Convenience function
-def configure_claude_sdk(model: str = '', **kwargs: Any) -> ClaudeSDKLM:
+def configure_claude_sdk(model: str = "", **kwargs: Any) -> ClaudeSDKLM:
     """
     Configure DSPy with ClaudeSDKLM.
 

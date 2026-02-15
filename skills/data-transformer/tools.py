@@ -14,9 +14,10 @@ Transforms between: JSON ↔ CSV ↔ Dict ↔ List ↔ String
 """
 
 import logging
-from typing import Dict, Any, get_type_hints
+from typing import Any, Dict, get_type_hints
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 logger = logging.getLogger(__name__)
 status = SkillStatus("data-transformer")
@@ -61,7 +62,7 @@ def transform_data_format(params: Dict[str, Any]) -> Dict[str, Any]:
             "str": str,
             "string": str,
             "json": dict,  # JSON typically becomes dict
-            "csv": list,   # CSV becomes list of dicts
+            "csv": list,  # CSV becomes list of dicts
         }
 
         if target_format not in format_type_map:
@@ -77,10 +78,7 @@ def transform_data_format(params: Dict[str, Any]) -> Dict[str, Any]:
 
         transformer = SmartDataTransformer()
         result = transformer.transform(
-            source=source,
-            target_type=target_type,
-            context=context,
-            param_name=param_name
+            source=source, target_type=target_type, context=context, param_name=param_name
         )
 
         transformations_tried = len(transformer.transformation_history)
@@ -92,7 +90,9 @@ def transform_data_format(params: Dict[str, Any]) -> Dict[str, Any]:
             source_type=source_type,
             target_type=target_format,
             transformations_tried=transformations_tried,
-            transformation_history=transformer.transformation_history[-3:] if transformations_tried > 0 else []
+            transformation_history=(
+                transformer.transformation_history[-3:] if transformations_tried > 0 else []
+            ),
         )
 
     except Exception as e:
@@ -135,10 +135,7 @@ def parse_json_string(params: Dict[str, Any]) -> Dict[str, Any]:
 
         status.complete("JSON parsed successfully")
 
-        return tool_response(
-            result=result,
-            fixes_applied=len(transformer.transformation_history)
-        )
+        return tool_response(result=result, fixes_applied=len(transformer.transformation_history))
 
     except Exception as e:
         logger.error(f"JSON parsing failed: {e}")
@@ -185,11 +182,7 @@ def parse_csv_string(params: Dict[str, Any]) -> Dict[str, Any]:
 
         status.complete(f"Parsed {len(result)} rows")
 
-        return tool_response(
-            result=result,
-            row_count=len(result),
-            has_header=has_header
-        )
+        return tool_response(result=result, row_count=len(result), has_header=has_header)
 
     except Exception as e:
         logger.error(f"CSV parsing failed: {e}")
@@ -229,11 +222,7 @@ def convert_to_json(params: Dict[str, Any]) -> Dict[str, Any]:
 
         status.complete(f"Converted to JSON ({len(result)} bytes)")
 
-        return tool_response(
-            result=result,
-            size_bytes=len(result),
-            pretty=pretty
-        )
+        return tool_response(result=result, size_bytes=len(result), pretty=pretty)
 
     except TypeError as e:
         return tool_error(f"Data not JSON serializable: {e}")

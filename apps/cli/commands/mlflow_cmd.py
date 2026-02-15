@@ -13,8 +13,8 @@ Usage:
     /mlflow ui                      # Launch MLflow UI
 """
 
-from typing import TYPE_CHECKING, Dict, Any, Optional, List
 import asyncio
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from .base import BaseCommand, CommandResult, ParsedArgs
 from .ml import MLCommand  # Import to access MLflow state
@@ -57,7 +57,7 @@ class MLflowCommand(BaseCommand):
         tracker = MLflowTrackerSkill()
         await tracker.init(
             tracking_uri=state.get("tracking_uri"),
-            experiment_name=self._get_default_experiment(args)
+            experiment_name=self._get_default_experiment(args),
         )
 
         if tracker._mlflow is None:
@@ -86,17 +86,14 @@ class MLflowCommand(BaseCommand):
             self._show_help(cli)
             return CommandResult.fail(f"Unknown subcommand: {subcommand}")
 
-    async def _list_runs(self, args: ParsedArgs, cli: 'JottyCLI', tracker: Any) -> CommandResult:
+    async def _list_runs(self, args: ParsedArgs, cli: "JottyCLI", tracker: Any) -> CommandResult:
         """List runs in an experiment."""
         experiment = self._get_default_experiment(args)
         max_results = int(args.flags.get("limit", args.flags.get("n", "10")))
 
         cli.renderer.header(f"MLflow Runs - {experiment}")
 
-        runs = await tracker.list_runs(
-            experiment_name=experiment,
-            max_results=max_results
-        )
+        runs = await tracker.list_runs(experiment_name=experiment, max_results=max_results)
 
         if not runs:
             cli.renderer.info("No runs found.")
@@ -107,21 +104,24 @@ class MLflowCommand(BaseCommand):
         cli.renderer.info("-" * 80)
 
         for run in runs:
-            run_id = run.get('run_id', run.get('run_uuid', 'N/A'))[:36]
-            score = run.get('metrics.best_score', run.get('metrics.accuracy', 'N/A'))
+            run_id = run.get("run_id", run.get("run_uuid", "N/A"))[:36]
+            score = run.get("metrics.best_score", run.get("metrics.accuracy", "N/A"))
             if isinstance(score, float):
                 score = f"{score:.4f}"
-            status = run.get('status', 'N/A')
-            start_time = run.get('start_time', 'N/A')
+            status = run.get("status", "N/A")
+            start_time = run.get("start_time", "N/A")
             if isinstance(start_time, (int, float)):
                 import datetime
-                start_time = datetime.datetime.fromtimestamp(start_time/1000).strftime('%Y-%m-%d %H:%M')
+
+                start_time = datetime.datetime.fromtimestamp(start_time / 1000).strftime(
+                    "%Y-%m-%d %H:%M"
+                )
 
             cli.renderer.info(f"{run_id:<36} {str(score):<10} {status:<10} {str(start_time):<20}")
 
         return CommandResult.ok(data=runs)
 
-    async def _get_best_run(self, args: ParsedArgs, cli: 'JottyCLI', tracker: Any) -> CommandResult:
+    async def _get_best_run(self, args: ParsedArgs, cli: "JottyCLI", tracker: Any) -> CommandResult:
         """Get the best run by metric."""
         experiment = self._get_default_experiment(args)
         metric = args.flags.get("metric", args.flags.get("m", "best_score"))
@@ -130,16 +130,14 @@ class MLflowCommand(BaseCommand):
         cli.renderer.header(f"Best Run - {experiment}")
 
         best = await tracker.get_best_run(
-            experiment_name=experiment,
-            metric=metric,
-            ascending=ascending
+            experiment_name=experiment, metric=metric, ascending=ascending
         )
 
         if not best:
             cli.renderer.info("No runs found.")
             return CommandResult.ok(data=None)
 
-        run_id = best.get('run_id', best.get('run_uuid', 'N/A'))
+        run_id = best.get("run_id", best.get("run_uuid", "N/A"))
         cli.renderer.info(f"Run ID: {run_id}")
         cli.renderer.info(f"Score ({metric}): {best.get(f'metrics.{metric}', 'N/A')}")
         cli.renderer.info(f"Status: {best.get('status', 'N/A')}")
@@ -148,8 +146,8 @@ class MLflowCommand(BaseCommand):
         cli.renderer.info("")
         cli.renderer.subheader("Metrics")
         for key, value in best.items():
-            if key.startswith('metrics.'):
-                metric_name = key.replace('metrics.', '')
+            if key.startswith("metrics."):
+                metric_name = key.replace("metrics.", "")
                 if isinstance(value, float):
                     cli.renderer.info(f"  {metric_name}: {value:.4f}")
                 else:
@@ -159,13 +157,13 @@ class MLflowCommand(BaseCommand):
         cli.renderer.info("")
         cli.renderer.subheader("Parameters")
         for key, value in best.items():
-            if key.startswith('params.'):
-                param_name = key.replace('params.', '')
+            if key.startswith("params."):
+                param_name = key.replace("params.", "")
                 cli.renderer.info(f"  {param_name}: {value}")
 
         return CommandResult.ok(data=best)
 
-    async def _load_model(self, args: ParsedArgs, cli: 'JottyCLI', tracker: Any) -> CommandResult:
+    async def _load_model(self, args: ParsedArgs, cli: "JottyCLI", tracker: Any) -> CommandResult:
         """Load a model from a run."""
         if len(args.positional) < 2:
             cli.renderer.error("Run ID required. Usage: /mlflow load <run_id>")
@@ -186,14 +184,16 @@ class MLflowCommand(BaseCommand):
         cli.renderer.info(f"Type: {type(model).__name__}")
 
         # Store in CLI context for later use
-        return CommandResult.ok(data={'model': model, 'run_id': run_id})
+        return CommandResult.ok(data={"model": model, "run_id": run_id})
 
-    async def _compare_runs(self, args: ParsedArgs, cli: 'JottyCLI', tracker: Any) -> CommandResult:
+    async def _compare_runs(self, args: ParsedArgs, cli: "JottyCLI", tracker: Any) -> CommandResult:
         """Compare multiple runs."""
         run_ids = args.positional[1:] if len(args.positional) > 1 else []
 
         if len(run_ids) < 2:
-            cli.renderer.error("At least 2 run IDs required. Usage: /mlflow compare <id1> <id2> ...")
+            cli.renderer.error(
+                "At least 2 run IDs required. Usage: /mlflow compare <id1> <id2> ..."
+            )
             return CommandResult.fail("Need at least 2 run IDs")
 
         cli.renderer.header("Run Comparison")
@@ -207,12 +207,12 @@ class MLflowCommand(BaseCommand):
         # Display comparison
         cli.renderer.info(comparison.to_string())
 
-        return CommandResult.ok(data=comparison.to_dict('records'))
+        return CommandResult.ok(data=comparison.to_dict("records"))
 
-    async def _launch_ui(self, args: ParsedArgs, cli: 'JottyCLI', tracker: Any) -> CommandResult:
+    async def _launch_ui(self, args: ParsedArgs, cli: "JottyCLI", tracker: Any) -> CommandResult:
         """Launch MLflow UI."""
-        import subprocess
         import os
+        import subprocess
 
         port = args.flags.get("port", args.flags.get("p", "5000"))
         tracking_uri = tracker._tracking_uri or "mlruns"
@@ -227,10 +227,10 @@ class MLflowCommand(BaseCommand):
                 ["mlflow", "ui", "--port", str(port), "--backend-store-uri", tracking_uri],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
-                start_new_session=True
+                start_new_session=True,
             )
             cli.renderer.success(f"MLflow UI started (PID: {process.pid})")
-            return CommandResult.ok(data={'pid': process.pid, 'port': port})
+            return CommandResult.ok(data={"pid": process.pid, "port": port})
 
         except FileNotFoundError:
             cli.renderer.error("MLflow CLI not found. Install with: pip install mlflow")
@@ -239,7 +239,9 @@ class MLflowCommand(BaseCommand):
             cli.renderer.error(f"Failed to launch MLflow UI: {e}")
             return CommandResult.fail(str(e))
 
-    async def _list_experiments(self, args: ParsedArgs, cli: 'JottyCLI', tracker: Any) -> CommandResult:
+    async def _list_experiments(
+        self, args: ParsedArgs, cli: "JottyCLI", tracker: Any
+    ) -> CommandResult:
         """List all experiments."""
         cli.renderer.header("MLflow Experiments")
 
@@ -251,13 +253,15 @@ class MLflowCommand(BaseCommand):
                 cli.renderer.info(f"     Artifact Location: {exp.artifact_location}")
                 cli.renderer.info("")
 
-            return CommandResult.ok(data=[{'id': e.experiment_id, 'name': e.name} for e in experiments])
+            return CommandResult.ok(
+                data=[{"id": e.experiment_id, "name": e.name} for e in experiments]
+            )
 
         except Exception as e:
             cli.renderer.error(f"Failed to list experiments: {e}")
             return CommandResult.fail(str(e))
 
-    async def _show_status(self, args: ParsedArgs, cli: 'JottyCLI', tracker: Any) -> CommandResult:
+    async def _show_status(self, args: ParsedArgs, cli: "JottyCLI", tracker: Any) -> CommandResult:
         """Show current MLflow status and saved state."""
         state = self._get_saved_state()
 
@@ -265,7 +269,9 @@ class MLflowCommand(BaseCommand):
         cli.renderer.info("")
         cli.renderer.info(f"Current Experiment: {state.get('experiment_name', 'jotty_ml')}")
         cli.renderer.info(f"Last Run ID:        {state.get('last_run_id', 'None')}")
-        cli.renderer.info(f"Tracking URI:       {state.get('tracking_uri') or tracker._tracking_uri or 'mlruns (local)'}")
+        cli.renderer.info(
+            f"Tracking URI:       {state.get('tracking_uri') or tracker._tracking_uri or 'mlruns (local)'}"
+        )
         cli.renderer.info("")
 
         # Show tip
@@ -274,10 +280,10 @@ class MLflowCommand(BaseCommand):
 
         return CommandResult.ok(data=state)
 
-    def _show_help(self, cli: 'JottyCLI') -> Any:
+    def _show_help(self, cli: "JottyCLI") -> Any:
         """Show command help."""
         state = self._get_saved_state()
-        current_exp = state.get('experiment_name', 'jotty_ml')
+        current_exp = state.get("experiment_name", "jotty_ml")
 
         cli.renderer.info("")
         cli.renderer.info(f"Current experiment: {current_exp}")
@@ -299,7 +305,17 @@ class MLflowCommand(BaseCommand):
 
     def get_completions(self, partial: str) -> list:
         """Get completions."""
-        subcommands = ["list", "runs", "best", "load", "compare", "experiments", "status", "ui", "help"]
+        subcommands = [
+            "list",
+            "runs",
+            "best",
+            "load",
+            "compare",
+            "experiments",
+            "status",
+            "ui",
+            "help",
+        ]
         flags = ["--experiment", "--metric", "--limit", "--model", "--port", "--ascending"]
         all_completions = subcommands + flags
         return [s for s in all_completions if s.startswith(partial)]

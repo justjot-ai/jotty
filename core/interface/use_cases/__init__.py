@@ -27,8 +27,8 @@ MIGRATION:
 This backward compatibility shim will be removed in a future release.
 """
 
-import warnings
 import sys
+import warnings
 
 
 def __getattr__(name):
@@ -52,12 +52,13 @@ def __getattr__(name):
         f"See LAYER3_ANALYSIS.md for details.\n"
         f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n",
         DeprecationWarning,
-        stacklevel=2
+        stacklevel=2,
     )
 
     # Try to import from new location
     try:
         import importlib
+
         new_module = importlib.import_module(f"Jotty.core.modes.use_cases.{name}")
         return new_module
     except ImportError:
@@ -90,5 +91,5 @@ warnings.warn(
     "See LAYER3_ANALYSIS.md for details.\n"
     "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n",
     DeprecationWarning,
-    stacklevel=2
+    stacklevel=2,
 )

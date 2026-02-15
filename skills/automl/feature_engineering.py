@@ -17,14 +17,15 @@ Techniques used:
 10. Row-level statistics
 """
 
-import time
-import re
-from typing import Dict, List, Any, Optional
-import pandas as pd
-import numpy as np
 import logging
+import re
+import time
+from typing import Any, Dict, List, Optional
 
-from .base import MLSkill, SkillResult, SkillCategory
+import numpy as np
+import pandas as pd
+
+from .base import MLSkill, SkillCategory, SkillResult
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +50,9 @@ class FeatureEngineeringSkill(MLSkill):
         super().__init__(config)
         self._techniques_used = []
 
-    async def execute(self, X: pd.DataFrame, y: Optional[pd.Series] = None, **context: Any) -> SkillResult:
+    async def execute(
+        self, X: pd.DataFrame, y: Optional[pd.Series] = None, **context: Any
+    ) -> SkillResult:
         """
         Execute feature engineering.
 
@@ -66,7 +69,7 @@ class FeatureEngineeringSkill(MLSkill):
         if not self.validate_inputs(X, y):
             return self._create_error_result("Invalid inputs")
 
-        problem_type = context.get('problem_type', 'classification')
+        problem_type = context.get("problem_type", "classification")
 
         X_eng = X.copy()
         original_cols = list(X_eng.columns)
@@ -79,7 +82,7 @@ class FeatureEngineeringSkill(MLSkill):
 
             # Identify column types
             numeric_cols = X_eng.select_dtypes(include=[np.number]).columns.tolist()
-            cat_cols = X_eng.select_dtypes(include=['object']).columns.tolist()
+            cat_cols = X_eng.select_dtypes(include=["object"]).columns.tolist()
             cat_cols_original = cat_cols.copy()
 
             # Apply all techniques
@@ -89,7 +92,9 @@ class FeatureEngineeringSkill(MLSkill):
             # Update numeric cols after encoding
             numeric_cols = X_eng.select_dtypes(include=[np.number]).columns.tolist()
 
-            X_eng = self._groupby_aggregations(X_eng, cat_cols_original, original_cols, numeric_cols)
+            X_eng = self._groupby_aggregations(
+                X_eng, cat_cols_original, original_cols, numeric_cols
+            )
             X_eng = self._binning(X_eng, numeric_cols)
             X_eng = self._polynomial_features(X_eng, numeric_cols)
             X_eng = self._log_transforms(X_eng, numeric_cols)
@@ -102,7 +107,9 @@ class FeatureEngineeringSkill(MLSkill):
             # CV-based target encoding (no leakage)
             if y is not None:
                 X_eng = self._target_encoding_cv(X_eng, y, cat_cols_original)
-                X_eng = self._cv_validated_interactions(X_eng, y, original_cols, numeric_cols, problem_type)
+                X_eng = self._cv_validated_interactions(
+                    X_eng, y, original_cols, numeric_cols, problem_type
+                )
 
             # Early feature pruning
             X_eng = self._early_pruning(X_eng)
@@ -124,14 +131,14 @@ class FeatureEngineeringSkill(MLSkill):
             success=True,
             data=X_eng,
             metrics={
-                'original_features': n_original,
-                'engineered_features': len(X_eng.columns),
-                'new_features': len(X_eng.columns) - n_original,
-                'techniques_used': len(self._techniques_used),
+                "original_features": n_original,
+                "engineered_features": len(X_eng.columns),
+                "new_features": len(X_eng.columns) - n_original,
+                "techniques_used": len(self._techniques_used),
             },
             metadata={
-                'techniques': self._techniques_used,
-                'original_columns': original_cols,
+                "techniques": self._techniques_used,
+                "original_columns": original_cols,
             },
             execution_time=execution_time,
         )
@@ -139,7 +146,7 @@ class FeatureEngineeringSkill(MLSkill):
     def _convert_categorical_to_numeric(self, X: pd.DataFrame) -> pd.DataFrame:
         """Convert Categorical dtype to numeric codes."""
         for col in X.columns:
-            if X[col].dtype.name == 'category':
+            if X[col].dtype.name == "category":
                 X[col] = X[col].cat.codes
         return X
 
@@ -147,21 +154,27 @@ class FeatureEngineeringSkill(MLSkill):
         """Frequency encoding for categorical columns."""
         for col in cat_cols[:5]:
             freq = X[col].value_counts(normalize=True)
-            X[f'{col}_freq'] = X[col].map(freq).fillna(0)
-        self._techniques_used.append('frequency_encoding')
+            X[f"{col}_freq"] = X[col].map(freq).fillna(0)
+        self._techniques_used.append("frequency_encoding")
         return X
 
     def _label_encode_categoricals(self, X: pd.DataFrame, cat_cols: List[str]) -> pd.DataFrame:
         """Label encode categorical columns."""
         from sklearn.preprocessing import LabelEncoder
+
         for col in cat_cols:
             le = LabelEncoder()
             X[col] = le.fit_transform(X[col].astype(str))
-        self._techniques_used.append('label_encoding')
+        self._techniques_used.append("label_encoding")
         return X
 
-    def _groupby_aggregations(self, X: pd.DataFrame, cat_cols: List[str],
-                               original_cols: List[str], numeric_cols: List[str]) -> pd.DataFrame:
+    def _groupby_aggregations(
+        self,
+        X: pd.DataFrame,
+        cat_cols: List[str],
+        original_cols: List[str],
+        numeric_cols: List[str],
+    ) -> pd.DataFrame:
         """Groupby aggregations - THE MOST POWERFUL technique."""
         groupby_cols = [c for c in cat_cols if c in X.columns][:3]
         agg_cols = [c for c in original_cols if c in numeric_cols][:5]
@@ -170,51 +183,51 @@ class FeatureEngineeringSkill(MLSkill):
             for agg_col in agg_cols:
                 if grp_col != agg_col:
                     try:
-                        grp_mean = X.groupby(grp_col)[agg_col].transform('mean')
-                        grp_std = X.groupby(grp_col)[agg_col].transform('std').fillna(0)
-                        grp_count = X.groupby(grp_col)[agg_col].transform('count')
+                        grp_mean = X.groupby(grp_col)[agg_col].transform("mean")
+                        grp_std = X.groupby(grp_col)[agg_col].transform("std").fillna(0)
+                        grp_count = X.groupby(grp_col)[agg_col].transform("count")
 
-                        X[f'{grp_col}_{agg_col}_grp_mean'] = grp_mean
-                        X[f'{grp_col}_{agg_col}_grp_std'] = grp_std
-                        X[f'{grp_col}_{agg_col}_grp_cnt'] = grp_count
-                        X[f'{grp_col}_{agg_col}_dev'] = X[agg_col] - grp_mean
+                        X[f"{grp_col}_{agg_col}_grp_mean"] = grp_mean
+                        X[f"{grp_col}_{agg_col}_grp_std"] = grp_std
+                        X[f"{grp_col}_{agg_col}_grp_cnt"] = grp_count
+                        X[f"{grp_col}_{agg_col}_dev"] = X[agg_col] - grp_mean
                     except Exception:
                         pass
 
-        self._techniques_used.append('groupby_aggregations')
+        self._techniques_used.append("groupby_aggregations")
         return X
 
     def _binning(self, X: pd.DataFrame, numeric_cols: List[str]) -> pd.DataFrame:
         """Binning / Discretization."""
         for col in numeric_cols[:5]:
             try:
-                X[f'{col}_qbin'] = pd.qcut(X[col], q=5, labels=False, duplicates='drop')
+                X[f"{col}_qbin"] = pd.qcut(X[col], q=5, labels=False, duplicates="drop")
             except Exception:
                 pass
 
             if X[col].std() > 0:
-                X[f'{col}_round1'] = X[col].round(1)
-                X[f'{col}_round0'] = X[col].round(0)
+                X[f"{col}_round1"] = X[col].round(1)
+                X[f"{col}_round0"] = X[col].round(0)
 
-        self._techniques_used.append('binning')
+        self._techniques_used.append("binning")
         return X
 
     def _polynomial_features(self, X: pd.DataFrame, numeric_cols: List[str]) -> pd.DataFrame:
         """Polynomial features (squared, sqrt)."""
         for col in numeric_cols[:5]:
-            X[f'{col}_sq'] = X[col] ** 2
-            X[f'{col}_sqrt'] = np.sqrt(np.abs(X[col]))
+            X[f"{col}_sq"] = X[col] ** 2
+            X[f"{col}_sqrt"] = np.sqrt(np.abs(X[col]))
 
-        self._techniques_used.append('polynomial')
+        self._techniques_used.append("polynomial")
         return X
 
     def _log_transforms(self, X: pd.DataFrame, numeric_cols: List[str]) -> pd.DataFrame:
         """Log transforms for skewed data."""
         for col in numeric_cols[:5]:
             if (X[col] >= 0).all():
-                X[f'{col}_log'] = np.log1p(X[col])
+                X[f"{col}_log"] = np.log1p(X[col])
 
-        self._techniques_used.append('log_transform')
+        self._techniques_used.append("log_transform")
         return X
 
     def _nan_pattern_encoding(self, X: pd.DataFrame, X_original: pd.DataFrame) -> pd.DataFrame:
@@ -222,14 +235,14 @@ class FeatureEngineeringSkill(MLSkill):
         nan_cols = X_original.columns[X_original.isnull().any()].tolist()
         if len(nan_cols) > 0:
             for col in nan_cols[:10]:
-                X[f'{col}_isna'] = X_original[col].isnull().astype(int)
+                X[f"{col}_isna"] = X_original[col].isnull().astype(int)
 
-            X['_nan_pattern'] = 0
+            X["_nan_pattern"] = 0
             for i, col in enumerate(nan_cols[:10]):
-                X['_nan_pattern'] += X_original[col].isnull().astype(int) * (2 ** i)
+                X["_nan_pattern"] += X_original[col].isnull().astype(int) * (2**i)
 
-            X['_nan_count'] = X_original[nan_cols].isnull().sum(axis=1)
-            self._techniques_used.append('nan_patterns')
+            X["_nan_count"] = X_original[nan_cols].isnull().sum(axis=1)
+            self._techniques_used.append("nan_patterns")
 
         return X
 
@@ -237,44 +250,46 @@ class FeatureEngineeringSkill(MLSkill):
         """Categorical combinations."""
         encoded_cats = [c for c in cat_cols if c in X.columns][:3]
         for i, col1 in enumerate(encoded_cats):
-            for col2 in encoded_cats[i+1:]:
+            for col2 in encoded_cats[i + 1 :]:
                 try:
                     max_val = X[col2].max() + 1
-                    X[f'{col1}_{col2}_comb'] = (X[col1] + 1) + (X[col2] + 1) / max_val
+                    X[f"{col1}_{col2}_comb"] = (X[col1] + 1) + (X[col2] + 1) / max_val
                 except Exception:
                     pass
 
-        self._techniques_used.append('cat_combinations')
+        self._techniques_used.append("cat_combinations")
         return X
 
-    def _interaction_features(self, X: pd.DataFrame, original_cols: List[str],
-                               numeric_cols: List[str]) -> pd.DataFrame:
+    def _interaction_features(
+        self, X: pd.DataFrame, original_cols: List[str], numeric_cols: List[str]
+    ) -> pd.DataFrame:
         """Interaction features (multiply & divide)."""
         interact_cols = [c for c in original_cols if c in numeric_cols][:6]
 
         for i, col1 in enumerate(interact_cols):
-            for col2 in interact_cols[i+1:]:
-                X[f'{col1}_x_{col2}'] = X[col1] * X[col2]
+            for col2 in interact_cols[i + 1 :]:
+                X[f"{col1}_x_{col2}"] = X[col1] * X[col2]
                 denom = X[col2].abs() + 0.001
-                X[f'{col1}_div_{col2}'] = X[col1] / denom
+                X[f"{col1}_div_{col2}"] = X[col1] / denom
 
-        self._techniques_used.append('interactions')
+        self._techniques_used.append("interactions")
         return X
 
-    def _row_level_stats(self, X: pd.DataFrame, original_cols: List[str],
-                          numeric_cols: List[str]) -> pd.DataFrame:
+    def _row_level_stats(
+        self, X: pd.DataFrame, original_cols: List[str], numeric_cols: List[str]
+    ) -> pd.DataFrame:
         """Row-level aggregations."""
         if len(numeric_cols) >= 3:
             orig_numeric = [c for c in original_cols if c in numeric_cols]
             if len(orig_numeric) >= 3:
-                X['_row_sum'] = X[orig_numeric].sum(axis=1)
-                X['_row_mean'] = X[orig_numeric].mean(axis=1)
-                X['_row_std'] = X[orig_numeric].std(axis=1)
-                X['_row_max'] = X[orig_numeric].max(axis=1)
-                X['_row_min'] = X[orig_numeric].min(axis=1)
-                X['_row_range'] = X['_row_max'] - X['_row_min']
-                X['_row_skew'] = X[orig_numeric].skew(axis=1)
-                self._techniques_used.append('row_stats')
+                X["_row_sum"] = X[orig_numeric].sum(axis=1)
+                X["_row_mean"] = X[orig_numeric].mean(axis=1)
+                X["_row_std"] = X[orig_numeric].std(axis=1)
+                X["_row_max"] = X[orig_numeric].max(axis=1)
+                X["_row_min"] = X[orig_numeric].min(axis=1)
+                X["_row_range"] = X["_row_max"] - X["_row_min"]
+                X["_row_skew"] = X[orig_numeric].skew(axis=1)
+                self._techniques_used.append("row_stats")
 
         return X
 
@@ -284,18 +299,20 @@ class FeatureEngineeringSkill(MLSkill):
             try:
                 q25 = X[col].quantile(0.25)
                 q75 = X[col].quantile(0.75)
-                X[f'{col}_below_q25'] = (X[col] < q25).astype(int)
-                X[f'{col}_above_q75'] = (X[col] > q75).astype(int)
+                X[f"{col}_below_q25"] = (X[col] < q25).astype(int)
+                X[f"{col}_above_q75"] = (X[col] > q75).astype(int)
             except Exception:
                 pass
 
-        self._techniques_used.append('quantiles')
+        self._techniques_used.append("quantiles")
         return X
 
-    def _target_encoding_cv(self, X: pd.DataFrame, y: pd.Series,
-                             cat_cols: List[str]) -> pd.DataFrame:
+    def _target_encoding_cv(
+        self, X: pd.DataFrame, y: pd.Series, cat_cols: List[str]
+    ) -> pd.DataFrame:
         """CV-based target encoding (no leakage)."""
         from sklearn.model_selection import KFold
+
         kf = KFold(n_splits=5, shuffle=True, random_state=42)
 
         for col in cat_cols[:5]:
@@ -305,47 +322,60 @@ class FeatureEngineeringSkill(MLSkill):
                     col_encoded = X[col]
 
                     for train_idx, val_idx in kf.split(X):
-                        train_means = pd.Series(y.iloc[train_idx].values).groupby(
-                            col_encoded.iloc[train_idx].values
-                        ).mean()
-                        target_enc[val_idx] = col_encoded.iloc[val_idx].map(train_means).fillna(y.mean()).values
+                        train_means = (
+                            pd.Series(y.iloc[train_idx].values)
+                            .groupby(col_encoded.iloc[train_idx].values)
+                            .mean()
+                        )
+                        target_enc[val_idx] = (
+                            col_encoded.iloc[val_idx].map(train_means).fillna(y.mean()).values
+                        )
 
-                    X[f'{col}_target_enc_cv'] = target_enc
+                    X[f"{col}_target_enc_cv"] = target_enc
                 except Exception as e:
                     logger.debug(f"Target encoding failed for {col}: {e}")
 
-        self._techniques_used.append('target_encoding_cv')
+        self._techniques_used.append("target_encoding_cv")
         return X
 
-    def _cv_validated_interactions(self, X: pd.DataFrame, y: pd.Series,
-                                    original_cols: List[str], numeric_cols: List[str],
-                                    problem_type: str) -> pd.DataFrame:
+    def _cv_validated_interactions(
+        self,
+        X: pd.DataFrame,
+        y: pd.Series,
+        original_cols: List[str],
+        numeric_cols: List[str],
+        problem_type: str,
+    ) -> pd.DataFrame:
         """CV-validated interactions (only keep if improves score)."""
         try:
-            from sklearn.model_selection import cross_val_score
             import lightgbm as lgb
+            from sklearn.model_selection import cross_val_score
 
             X_temp = X.fillna(0).replace([np.inf, -np.inf], 0)
 
-            if problem_type == 'classification':
+            if problem_type == "classification":
                 baseline_model = lgb.LGBMClassifier(n_estimators=50, random_state=42, verbose=-1)
-                scoring = 'accuracy'
+                scoring = "accuracy"
             else:
                 baseline_model = lgb.LGBMRegressor(n_estimators=50, random_state=42, verbose=-1)
-                scoring = 'r2'
+                scoring = "r2"
 
-            baseline_score = cross_val_score(baseline_model, X_temp, y, cv=3, scoring=scoring).mean()
+            baseline_score = cross_val_score(
+                baseline_model, X_temp, y, cv=3, scoring=scoring
+            ).mean()
 
             orig_numeric = [c for c in original_cols if c in numeric_cols][:4]
             validated_interactions = 0
 
             for i, col1 in enumerate(orig_numeric):
-                for col2 in orig_numeric[i+1:]:
-                    interaction_name = f'{col1}_x_{col2}_validated'
+                for col2 in orig_numeric[i + 1 :]:
+                    interaction_name = f"{col1}_x_{col2}_validated"
                     X_test = X_temp.copy()
                     X_test[interaction_name] = X_test[col1] * X_test[col2]
 
-                    test_score = cross_val_score(baseline_model, X_test, y, cv=3, scoring=scoring).mean()
+                    test_score = cross_val_score(
+                        baseline_model, X_test, y, cv=3, scoring=scoring
+                    ).mean()
 
                     if test_score > baseline_score + 0.001:
                         X[interaction_name] = X[col1] * X[col2]
@@ -353,7 +383,7 @@ class FeatureEngineeringSkill(MLSkill):
                         validated_interactions += 1
 
             if validated_interactions > 0:
-                self._techniques_used.append('validated_interactions')
+                self._techniques_used.append("validated_interactions")
 
         except Exception as e:
             logger.debug(f"CV-validated interactions failed: {e}")
@@ -371,13 +401,17 @@ class FeatureEngineeringSkill(MLSkill):
             # Remove near-constant features
             near_constant = []
             for col in X.columns:
-                top_freq = X[col].value_counts(normalize=True).iloc[0] if len(X[col].value_counts()) > 0 else 0
+                top_freq = (
+                    X[col].value_counts(normalize=True).iloc[0]
+                    if len(X[col].value_counts()) > 0
+                    else 0
+                )
                 if top_freq > 0.99:
                     near_constant.append(col)
             if near_constant:
                 X = X.drop(columns=near_constant)
 
-            self._techniques_used.append('early_pruning')
+            self._techniques_used.append("early_pruning")
         except Exception as e:
             logger.debug(f"Early pruning failed: {e}")
 
@@ -385,9 +419,10 @@ class FeatureEngineeringSkill(MLSkill):
 
     def _encode_remaining_categoricals(self, X: pd.DataFrame) -> pd.DataFrame:
         """Encode any remaining categorical columns."""
-        remaining_cats = X.select_dtypes(include=['object', 'category']).columns.tolist()
+        remaining_cats = X.select_dtypes(include=["object", "category"]).columns.tolist()
         if remaining_cats:
             from sklearn.preprocessing import LabelEncoder
+
             for col in remaining_cats:
                 try:
                     le = LabelEncoder()

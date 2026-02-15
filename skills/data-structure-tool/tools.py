@@ -1,9 +1,12 @@
 """Data structure tool — stack, queue, linked list, BST demonstrations."""
-from typing import Dict, Any, List, Optional
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+
+from typing import Any, Dict, List, Optional
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("data-structure-tool")
+
 
 def _run_stack(ops: List[Dict]) -> Dict:
     stack: List = []
@@ -23,6 +26,7 @@ def _run_stack(ops: List[Dict]) -> Dict:
             steps.append(f"peek() -> {stack[-1] if stack else 'EMPTY'}")
     return {"final": stack[:], "steps": steps, "size": len(stack)}
 
+
 def _run_queue(ops: List[Dict]) -> Dict:
     queue: List = []
     steps = []
@@ -40,6 +44,7 @@ def _run_queue(ops: List[Dict]) -> Dict:
         elif action == "peek":
             steps.append(f"peek() -> {queue[0] if queue else 'EMPTY'}")
     return {"final": queue[:], "steps": steps, "size": len(queue)}
+
 
 def _run_linked_list(ops: List[Dict]) -> Dict:
     ll: List = []
@@ -62,31 +67,47 @@ def _run_linked_list(ops: List[Dict]) -> Dict:
         elif action == "search":
             val = o["value"]
             idx = ll.index(val) if val in ll else -1
-            steps.append(f"search({val}) -> {'found at index ' + str(idx) if idx >= 0 else 'not found'}")
-    return {"final": ll[:], "steps": steps, "representation": " -> ".join(map(str, ll)) + " -> None" if ll else "empty"}
+            steps.append(
+                f"search({val}) -> {'found at index ' + str(idx) if idx >= 0 else 'not found'}"
+            )
+    return {
+        "final": ll[:],
+        "steps": steps,
+        "representation": " -> ".join(map(str, ll)) + " -> None" if ll else "empty",
+    }
+
 
 def _run_bst(ops: List[Dict]) -> Dict:
     nodes: Dict[int, Dict] = {}
     root: Optional[int] = None
     steps = []
+
     def insert(val: int) -> None:
         nonlocal root
         if root is None:
-            root = val; nodes[val] = {"left": None, "right": None}; return
+            root = val
+            nodes[val] = {"left": None, "right": None}
+            return
         cur = root
         while True:
             if val < cur:
                 if nodes[cur]["left"] is None:
-                    nodes[cur]["left"] = val; nodes[val] = {"left": None, "right": None}; return
+                    nodes[cur]["left"] = val
+                    nodes[val] = {"left": None, "right": None}
+                    return
                 cur = nodes[cur]["left"]
             else:
                 if nodes[cur]["right"] is None:
-                    nodes[cur]["right"] = val; nodes[val] = {"left": None, "right": None}; return
+                    nodes[cur]["right"] = val
+                    nodes[val] = {"left": None, "right": None}
+                    return
                 cur = nodes[cur]["right"]
+
     def inorder(n: Optional[int]) -> List[int]:
         if n is None:
             return []
         return inorder(nodes[n]["left"]) + [n] + inorder(nodes[n]["right"])
+
     for o in ops:
         action = o.get("op", "").lower()
         if action == "insert":
@@ -107,6 +128,7 @@ def _run_bst(ops: List[Dict]) -> Dict:
             steps.append(f"inorder() -> {inorder(root)}")
     return {"inorder": inorder(root), "steps": steps, "root": root}
 
+
 @tool_wrapper(required_params=["structure", "operations"])
 def data_structure_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """Demonstrate data structures: stack, queue, linked_list, bst."""
@@ -125,5 +147,6 @@ def data_structure_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return tool_error(f"Unknown structure: {struct}. Use stack/queue/linked_list/bst")
     except Exception as e:
         return tool_error(str(e))
+
 
 __all__ = ["data_structure_tool"]

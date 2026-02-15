@@ -5,17 +5,26 @@ Usage:
     python scripts/generate_skills.py
 """
 
-import os
 import json
+import os
 from pathlib import Path
 
 SKILLS_DIR = Path(__file__).parent.parent / "skills"
 
 
-def create_skill(name: str, frontmatter_name: str, description: str,
-                 category: str, capabilities: list, triggers: list,
-                 tools_code: str, tool_docs: str, eval_tool: str,
-                 eval_input: dict, deps: str = "None"):
+def create_skill(
+    name: str,
+    frontmatter_name: str,
+    description: str,
+    category: str,
+    capabilities: list,
+    triggers: list,
+    tools_code: str,
+    tool_docs: str,
+    eval_tool: str,
+    eval_input: dict,
+    deps: str = "None",
+):
     """Create a complete skill directory with all files."""
     skill_dir = SKILLS_DIR / name
     skill_dir.mkdir(parents=True, exist_ok=True)
@@ -80,22 +89,22 @@ Task Progress:
                 "prompt": f"I need to {frontmatter_name.replace('-', ' ')}",
                 "expected_skill": name,
                 "should_match": True,
-                "notes": f"Should discover {name} in top-3 results"
+                "notes": f"Should discover {name} in top-3 results",
             },
             {
                 "type": "functional",
                 "tool": eval_tool,
                 "input": eval_input,
                 "expected_output_keys": ["success"],
-                "notes": f"Basic invocation of {eval_tool}"
+                "notes": f"Basic invocation of {eval_tool}",
             },
             {
                 "type": "edge_case",
                 "prompt": f"Use {name} with missing required parameters",
                 "expected_behavior": "graceful_error",
-                "notes": "Should handle invalid input gracefully"
-            }
-        ]
+                "notes": "Should handle invalid input gracefully",
+            },
+        ],
     }
     (skill_dir / "eval.json").write_text(json.dumps(eval_data, indent=2) + "\n")
 

@@ -1,9 +1,10 @@
 """Number Base Converter Skill — arbitrary base conversion (2-36)."""
-import string
-from typing import Dict, Any
 
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+import string
+from typing import Any, Dict
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("number-base-converter")
 
@@ -50,8 +51,11 @@ def base_convert_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     decimal_val = _to_decimal(number, fb, digits)
     result = _from_decimal(decimal_val, tb, digits)
     return tool_response(
-        original=number, from_base=fb, to_base=tb,
-        result=result, decimal_value=decimal_val,
+        original=number,
+        from_base=fb,
+        to_base=tb,
+        result=result,
+        decimal_value=decimal_val,
     )
 
 

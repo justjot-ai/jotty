@@ -13,12 +13,12 @@ This is the actual value of stigmergy: emergent routing from accumulated
 experience, not a fancy name for a TTL cache.
 """
 
-import time
 import hashlib
 import logging
-from typing import Dict, List, Any, Optional, Tuple
-from dataclasses import dataclass, field
+import time
 from collections import defaultdict
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class StigmergySignal:
     """A pheromone-like signal in the shared environment."""
+
     signal_id: str
     signal_type: str  # 'success', 'warning', 'route', 'resource'
     content: Any
@@ -63,8 +64,14 @@ class StigmergyLayer:
         # Index by type for efficient querying
         self._type_index: Dict[str, List[str]] = defaultdict(list)
 
-    def deposit(self, signal_type: str, content: Any, agent: str,
-                strength: float = 1.0, metadata: Dict = None) -> str:
+    def deposit(
+        self,
+        signal_type: str,
+        content: Any,
+        agent: str,
+        strength: float = 1.0,
+        metadata: Dict = None,
+    ) -> str:
         """
         Deposit a pheromone signal.
 
@@ -88,7 +95,7 @@ class StigmergyLayer:
             content=content,
             strength=min(1.0, max(0.0, strength)),
             created_by=agent,
-            metadata=metadata or {}
+            metadata=metadata or {},
         )
 
         self.signals[signal_id] = signal
@@ -146,8 +153,9 @@ class StigmergyLayer:
         signal.created_at = time.time()  # Reset decay timer
         return True
 
-    def record_outcome(self, agent: str, task_type: str, success: bool,
-                       quality: float = 0.0, metadata: Dict = None) -> str:
+    def record_outcome(
+        self, agent: str, task_type: str, success: bool, quality: float = 0.0, metadata: Dict = None
+    ) -> str:
         """
         Record a task outcome as a signal. Call this after every execution.
 
@@ -168,20 +176,22 @@ class StigmergyLayer:
         """
         if success:
             strength = 0.5 + 0.5 * max(0.0, min(1.0, quality))  # 0.5-1.0
-            signal_type = 'route'
-            content = {'task_type': task_type, 'agent': agent, 'success': True}
+            signal_type = "route"
+            content = {"task_type": task_type, "agent": agent, "success": True}
         else:
             strength = 0.3
-            signal_type = 'warning'
-            content = {'task_type': task_type, 'agent': agent, 'success': False}
+            signal_type = "warning"
+            content = {"task_type": task_type, "agent": agent, "success": False}
 
         # Check if there's an existing route signal for this agent+task_type
         # If so, reinforce it instead of creating a new one (DRY: single signal per pairing)
         for sid, signal in self.signals.items():
-            if (signal.signal_type == 'route'
-                    and isinstance(signal.content, dict)
-                    and signal.content.get('agent') == agent
-                    and signal.content.get('task_type') == task_type):
+            if (
+                signal.signal_type == "route"
+                and isinstance(signal.content, dict)
+                and signal.content.get("agent") == agent
+                and signal.content.get("task_type") == task_type
+            ):
                 if success:
                     self.reinforce(sid, amount=0.15 + 0.1 * quality)
                 else:
@@ -197,7 +207,9 @@ class StigmergyLayer:
             metadata=metadata or {},
         )
 
-    def recommend_agent(self, task_type: str, candidates: List[str] = None) -> List[Tuple[str, float]]:
+    def recommend_agent(
+        self, task_type: str, candidates: List[str] = None
+    ) -> List[Tuple[str, float]]:
         """
         Recommend agents for a task type based on accumulated signals.
 
@@ -273,8 +285,8 @@ class StigmergyLayer:
         self._apply_decay()
 
         # STEP 2: Initialize score accumulators
-        scores: Dict[str, float] = defaultdict(float)      # Positive evidence
-        penalties: Dict[str, float] = defaultdict(float)   # Negative evidence
+        scores: Dict[str, float] = defaultdict(float)  # Positive evidence
+        penalties: Dict[str, float] = defaultdict(float)  # Negative evidence
 
         # =====================================================================
         # STEP 3: ACCUMULATE SIGNALS
@@ -298,10 +310,10 @@ class StigmergyLayer:
                 continue
 
             # Skip signals for different task types
-            if signal.content.get('task_type') != task_type:
+            if signal.content.get("task_type") != task_type:
                 continue
 
-            agent = signal.content.get('agent', '')
+            agent = signal.content.get("agent", "")
             if not agent:
                 continue
 
@@ -310,11 +322,11 @@ class StigmergyLayer:
                 continue
 
             # Accumulate positive signals (successful executions)
-            if signal.signal_type == 'route' and signal.content.get('success'):
+            if signal.signal_type == "route" and signal.content.get("success"):
                 scores[agent] += signal.strength
 
             # Accumulate negative signals (failures), weighted 0.5×
-            elif signal.signal_type == 'warning':
+            elif signal.signal_type == "warning":
                 penalties[agent] += signal.strength * 0.5
 
         # =====================================================================
@@ -397,27 +409,29 @@ class StigmergyLayer:
             Signal ID
         """
         content = {
-            'task_type': task_type,
-            'approach': approach_summary[:200],
-            'tools': tools_used[:10],
-            'success': success,
-            'quality': quality,
+            "task_type": task_type,
+            "approach": approach_summary[:200],
+            "tools": tools_used[:10],
+            "success": success,
+            "quality": quality,
         }
 
         if success:
             strength = 0.5 + 0.5 * max(0.0, min(1.0, quality))
-            signal_type = 'approach_success'
+            signal_type = "approach_success"
         else:
             strength = 0.3
-            signal_type = 'approach_warning'
+            signal_type = "approach_warning"
 
         # Check for existing approach signal for this task_type + approach combo
         approach_key = f"{task_type}:{approach_summary[:50]}"
         for sid, signal in self.signals.items():
-            if (signal.signal_type in ('approach_success', 'approach_warning')
-                    and isinstance(signal.content, dict)
-                    and signal.content.get('task_type') == task_type
-                    and signal.content.get('approach', '')[:50] == approach_summary[:50]):
+            if (
+                signal.signal_type in ("approach_success", "approach_warning")
+                and isinstance(signal.content, dict)
+                and signal.content.get("task_type") == task_type
+                and signal.content.get("approach", "")[:50] == approach_summary[:50]
+            ):
                 if success:
                     self.reinforce(sid, amount=0.15 + 0.1 * quality)
                 else:
@@ -455,29 +469,29 @@ class StigmergyLayer:
         for signal in self.signals.values():
             if not isinstance(signal.content, dict):
                 continue
-            if signal.content.get('task_type') != task_type:
+            if signal.content.get("task_type") != task_type:
                 continue
             if signal.strength < 0.05:
                 continue
 
             entry = {
-                'approach': signal.content.get('approach', ''),
-                'tools': signal.content.get('tools', []),
-                'quality': signal.content.get('quality', 0.5),
-                'strength': signal.strength,
+                "approach": signal.content.get("approach", ""),
+                "tools": signal.content.get("tools", []),
+                "quality": signal.content.get("quality", 0.5),
+                "strength": signal.strength,
             }
 
-            if signal.signal_type == 'approach_success':
+            if signal.signal_type == "approach_success":
                 successes.append(entry)
-            elif signal.signal_type == 'approach_warning':
+            elif signal.signal_type == "approach_warning":
                 failures.append(entry)
 
-        successes.sort(key=lambda x: x['strength'], reverse=True)
-        failures.sort(key=lambda x: x['strength'], reverse=True)
+        successes.sort(key=lambda x: x["strength"], reverse=True)
+        failures.sort(key=lambda x: x["strength"], reverse=True)
 
         return {
-            'use': successes[:top_k],
-            'avoid': failures[:top_k],
+            "use": successes[:top_k],
+            "avoid": failures[:top_k],
         }
 
     def evaporate(self, decay_rate: float = None) -> int:
@@ -507,7 +521,9 @@ class StigmergyLayer:
 
         pruned = before - len(self.signals)
         if pruned > 0:
-            logger.debug(f"Stigmergy evaporation: pruned {pruned} signals ({len(self.signals)} remaining)")
+            logger.debug(
+                f"Stigmergy evaporation: pruned {pruned} signals ({len(self.signals)} remaining)"
+            )
         return pruned
 
     def _apply_decay(self) -> Any:
@@ -524,10 +540,7 @@ class StigmergyLayer:
 
         # If still over limit, remove weakest
         if len(self.signals) > self.max_signals:
-            sorted_signals = sorted(
-                self.signals.items(),
-                key=lambda x: x[1].strength
-            )
+            sorted_signals = sorted(self.signals.items(), key=lambda x: x[1].strength)
             excess = len(self.signals) - self.max_signals
             for sid, _ in sorted_signals[:excess]:
                 del self.signals[sid]
@@ -540,35 +553,35 @@ class StigmergyLayer:
     def to_dict(self) -> Dict:
         """Serialize for persistence."""
         return {
-            'signals': {
+            "signals": {
                 sid: {
-                    'signal_id': s.signal_id,
-                    'signal_type': s.signal_type,
-                    'content': s.content,
-                    'strength': s.strength,
-                    'created_at': s.created_at,
-                    'created_by': s.created_by,
-                    'metadata': s.metadata
+                    "signal_id": s.signal_id,
+                    "signal_type": s.signal_type,
+                    "content": s.content,
+                    "strength": s.strength,
+                    "created_at": s.created_at,
+                    "created_by": s.created_by,
+                    "metadata": s.metadata,
                 }
                 for sid, s in self.signals.items()
             },
-            'decay_rate': self.decay_rate
+            "decay_rate": self.decay_rate,
         }
 
     @classmethod
-    def from_dict(cls, data: Dict) -> 'StigmergyLayer':
+    def from_dict(cls, data: Dict) -> "StigmergyLayer":
         """Deserialize from persistence."""
-        instance = cls(decay_rate=data.get('decay_rate', 0.1))
+        instance = cls(decay_rate=data.get("decay_rate", 0.1))
 
-        for sid, s_data in data.get('signals', {}).items():
+        for sid, s_data in data.get("signals", {}).items():
             signal = StigmergySignal(
-                signal_id=s_data['signal_id'],
-                signal_type=s_data['signal_type'],
-                content=s_data['content'],
-                strength=s_data['strength'],
-                created_at=s_data['created_at'],
-                created_by=s_data['created_by'],
-                metadata=s_data.get('metadata', {})
+                signal_id=s_data["signal_id"],
+                signal_type=s_data["signal_type"],
+                content=s_data["content"],
+                strength=s_data["strength"],
+                created_at=s_data["created_at"],
+                created_by=s_data["created_by"],
+                metadata=s_data.get("metadata", {}),
             )
             instance.signals[sid] = signal
             instance._type_index[signal.signal_type].append(sid)
@@ -579,6 +592,7 @@ class StigmergyLayer:
 # =============================================================================
 # CROSS-SWARM STIGMERGY (Shared coordination across swarm instances)
 # =============================================================================
+
 
 class CrossSwarmStigmergy:
     """
@@ -601,7 +615,7 @@ class CrossSwarmStigmergy:
     """
 
     # Singleton shared layer for all swarms in this process
-    _shared_instance: 'CrossSwarmStigmergy' = None
+    _shared_instance: "CrossSwarmStigmergy" = None
     _lock = None
 
     def __init__(self, decay_rate: float = 0.05, max_signals: int = 1000) -> None:
@@ -609,34 +623,33 @@ class CrossSwarmStigmergy:
         self._swarm_registry: Dict[str, Dict[str, Any]] = {}  # swarm_name -> info
 
     @classmethod
-    def get_shared(cls) -> 'CrossSwarmStigmergy':
+    def get_shared(cls) -> "CrossSwarmStigmergy":
         """Get the process-wide shared stigmergy layer."""
         if cls._shared_instance is None:
             cls._shared_instance = cls()
         return cls._shared_instance
 
-    def register_swarm(self, swarm_name: str, domain: str = 'general', capabilities: List[str] = None) -> Any:
+    def register_swarm(
+        self, swarm_name: str, domain: str = "general", capabilities: List[str] = None
+    ) -> Any:
         """Register a swarm for cross-swarm coordination."""
         self._swarm_registry[swarm_name] = {
-            'domain': domain,
-            'capabilities': capabilities or [],
-            'registered_at': time.time()
+            "domain": domain,
+            "capabilities": capabilities or [],
+            "registered_at": time.time(),
         }
         # Announce capabilities
         if capabilities:
             self._layer.deposit(
-                signal_type='capability',
-                content={
-                    'swarm': swarm_name,
-                    'domain': domain,
-                    'capabilities': capabilities
-                },
+                signal_type="capability",
+                content={"swarm": swarm_name, "domain": domain, "capabilities": capabilities},
                 agent=swarm_name,
-                strength=1.0
+                strength=1.0,
             )
 
-    def share_insight(self, from_swarm: str, insight_type: str,
-                      content: Any, strength: float = 0.8) -> str:
+    def share_insight(
+        self, from_swarm: str, insight_type: str, content: Any, strength: float = 0.8
+    ) -> str:
         """
         Share an insight from one swarm to all others.
 
@@ -650,19 +663,16 @@ class CrossSwarmStigmergy:
             Signal ID
         """
         return self._layer.deposit(
-            signal_type='insight',
-            content={
-                'from_swarm': from_swarm,
-                'insight_type': insight_type,
-                'data': content
-            },
+            signal_type="insight",
+            content={"from_swarm": from_swarm, "insight_type": insight_type, "data": content},
             agent=from_swarm,
             strength=strength,
-            metadata={'insight_type': insight_type}
+            metadata={"insight_type": insight_type},
         )
 
-    def request_delegation(self, from_swarm: str, task_type: str,
-                           task_description: str, urgency: float = 0.5) -> str:
+    def request_delegation(
+        self, from_swarm: str, task_type: str, task_description: str, urgency: float = 0.5
+    ) -> str:
         """
         Request another swarm to handle a sub-task.
 
@@ -676,15 +686,15 @@ class CrossSwarmStigmergy:
             Signal ID for tracking
         """
         return self._layer.deposit(
-            signal_type='delegation',
+            signal_type="delegation",
             content={
-                'from_swarm': from_swarm,
-                'task_type': task_type,
-                'description': task_description,
-                'urgency': urgency
+                "from_swarm": from_swarm,
+                "task_type": task_type,
+                "description": task_description,
+                "urgency": urgency,
             },
             agent=from_swarm,
-            strength=urgency
+            strength=urgency,
         )
 
     def check_delegations(self, for_swarm: str) -> List[Dict]:
@@ -693,33 +703,36 @@ class CrossSwarmStigmergy:
 
         Returns delegation requests where the swarm has matching capabilities.
         """
-        delegations = self._layer.sense(signal_type='delegation', min_strength=0.1)
+        delegations = self._layer.sense(signal_type="delegation", min_strength=0.1)
         swarm_info = self._swarm_registry.get(for_swarm, {})
-        capabilities = swarm_info.get('capabilities', [])
+        capabilities = swarm_info.get("capabilities", [])
 
         relevant = []
         for signal in delegations:
             content = signal.content
             if isinstance(content, dict):
                 # Don't return own delegations
-                if content.get('from_swarm') == for_swarm:
+                if content.get("from_swarm") == for_swarm:
                     continue
                 # Check capability match
-                task_type = content.get('task_type', '')
+                task_type = content.get("task_type", "")
                 if any(cap in task_type for cap in capabilities) or not capabilities:
-                    relevant.append({
-                        'signal_id': signal.signal_id,
-                        'from_swarm': content.get('from_swarm'),
-                        'task_type': task_type,
-                        'description': content.get('description', ''),
-                        'urgency': content.get('urgency', 0.5),
-                        'strength': signal.strength
-                    })
+                    relevant.append(
+                        {
+                            "signal_id": signal.signal_id,
+                            "from_swarm": content.get("from_swarm"),
+                            "task_type": task_type,
+                            "description": content.get("description", ""),
+                            "urgency": content.get("urgency", 0.5),
+                            "strength": signal.strength,
+                        }
+                    )
 
-        return sorted(relevant, key=lambda x: x['urgency'], reverse=True)
+        return sorted(relevant, key=lambda x: x["urgency"], reverse=True)
 
-    def get_insights_for(self, swarm_name: str, insight_type: str = None,
-                         min_strength: float = 0.2) -> List[Dict]:
+    def get_insights_for(
+        self, swarm_name: str, insight_type: str = None, min_strength: float = 0.2
+    ) -> List[Dict]:
         """
         Get cross-swarm insights relevant to a swarm.
 
@@ -731,21 +744,23 @@ class CrossSwarmStigmergy:
         Returns:
             List of insight dicts
         """
-        signals = self._layer.sense(signal_type='insight', min_strength=min_strength)
+        signals = self._layer.sense(signal_type="insight", min_strength=min_strength)
         insights = []
         for signal in signals:
             content = signal.content
             if isinstance(content, dict):
-                if content.get('from_swarm') == swarm_name:
+                if content.get("from_swarm") == swarm_name:
                     continue  # Skip own insights
-                if insight_type and content.get('insight_type') != insight_type:
+                if insight_type and content.get("insight_type") != insight_type:
                     continue
-                insights.append({
-                    'from_swarm': content.get('from_swarm'),
-                    'insight_type': content.get('insight_type'),
-                    'data': content.get('data'),
-                    'strength': signal.strength
-                })
+                insights.append(
+                    {
+                        "from_swarm": content.get("from_swarm"),
+                        "insight_type": content.get("insight_type"),
+                        "data": content.get("data"),
+                        "strength": signal.strength,
+                    }
+                )
 
         return insights
 
@@ -755,9 +770,7 @@ class CrossSwarmStigmergy:
 
         Uses capability announcements to match task to swarm.
         """
-        capability_signals = self._layer.sense(
-            signal_type='capability', min_strength=0.3
-        )
+        capability_signals = self._layer.sense(signal_type="capability", min_strength=0.3)
 
         best_swarm = None
         best_strength = 0.0
@@ -765,11 +778,11 @@ class CrossSwarmStigmergy:
         for signal in capability_signals:
             content = signal.content
             if isinstance(content, dict):
-                capabilities = content.get('capabilities', [])
+                capabilities = content.get("capabilities", [])
                 if any(cap in task_type or task_type in cap for cap in capabilities):
                     if signal.strength > best_strength:
                         best_strength = signal.strength
-                        best_swarm = content.get('swarm')
+                        best_swarm = content.get("swarm")
 
         return best_swarm
 
@@ -784,7 +797,7 @@ class CrossSwarmStigmergy:
 
 
 __all__ = [
-    'StigmergySignal',
-    'StigmergyLayer',
-    'CrossSwarmStigmergy',
+    "StigmergySignal",
+    "StigmergyLayer",
+    "CrossSwarmStigmergy",
 ]

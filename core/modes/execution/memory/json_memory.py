@@ -6,12 +6,12 @@ Simple file-based memory with TTL.
 Stores memories as JSON in ~/jotty/memory/
 """
 
-import json
 import hashlib
+import json
 import logging
-from pathlib import Path
-from typing import List, Dict, Any
 from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Any, Dict, List
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +51,15 @@ class JSONMemory:
 
         logger.info(f"JSONMemory initialized at {self.base_path}")
 
-    async def store(self, goal: str, result: str, success: bool = True, confidence: float = 1.0, ttl_hours: int = 24, **kwargs: Any) -> Any:
+    async def store(
+        self,
+        goal: str,
+        result: str,
+        success: bool = True,
+        confidence: float = 1.0,
+        ttl_hours: int = 24,
+        **kwargs: Any,
+    ) -> Any:
         """
         Store memory entry.
 
@@ -69,19 +77,19 @@ class JSONMemory:
 
             # Create entry
             entry = {
-                'goal': goal,
-                'result': result,
-                'success': success,
-                'confidence': confidence,
-                'created_at': datetime.now().isoformat(),
-                'expires_at': (datetime.now() + timedelta(hours=ttl_hours)).isoformat(),
+                "goal": goal,
+                "result": result,
+                "success": success,
+                "confidence": confidence,
+                "created_at": datetime.now().isoformat(),
+                "expires_at": (datetime.now() + timedelta(hours=ttl_hours)).isoformat(),
             }
 
             # Add to entries
-            data['entries'].append(entry)
+            data["entries"].append(entry)
 
             # Limit entries per file (keep last 10)
-            data['entries'] = data['entries'][-10:]
+            data["entries"] = data["entries"][-10:]
 
             # Save
             self._save_file(file_path, data)
@@ -91,11 +99,7 @@ class JSONMemory:
         except Exception as e:
             logger.error(f"Failed to store memory: {e}", exc_info=True)
 
-    async def retrieve(
-        self,
-        goal: str,
-        limit: int = 5
-    ) -> List[Dict[str, Any]]:
+    async def retrieve(self, goal: str, limit: int = 5) -> List[Dict[str, Any]]:
         """
         Retrieve relevant memory entries.
 
@@ -118,8 +122,8 @@ class JSONMemory:
             now = datetime.now()
             valid_entries = []
 
-            for entry in data['entries']:
-                expires_at = datetime.fromisoformat(entry['expires_at'])
+            for entry in data["entries"]:
+                expires_at = datetime.fromisoformat(entry["expires_at"])
                 if expires_at > now:
                     valid_entries.append(entry)
 
@@ -128,8 +132,8 @@ class JSONMemory:
 
             # Add relevance scores (simple: exact match = 1.0, else 0.8)
             for entry in valid_entries[:limit]:
-                entry['score'] = 1.0 if entry['goal'] == goal else 0.8
-                entry['summary'] = f"Previous result: {entry['result'][:100]}..."
+                entry["score"] = 1.0 if entry["goal"] == goal else 0.8
+                entry["summary"] = f"Previous result: {entry['result'][:100]}..."
 
             logger.debug(f"Retrieved {len(valid_entries[:limit])} memories for: {goal[:50]}...")
 
@@ -159,16 +163,16 @@ class JSONMemory:
     def _load_file(self, file_path: Path) -> Dict:
         """Load or create file."""
         if file_path.exists():
-            with open(file_path, 'r') as f:
+            with open(file_path, "r") as f:
                 return json.load(f)
         else:
-            return {'entries': []}
+            return {"entries": []}
 
     def _save_file(self, file_path: Path, data: Dict) -> Any:
         """Save file atomically."""
-        temp_path = file_path.with_suffix('.tmp')
+        temp_path = file_path.with_suffix(".tmp")
 
-        with open(temp_path, 'w') as f:
+        with open(temp_path, "w") as f:
             json.dump(data, f, indent=2)
 
         temp_path.replace(file_path)

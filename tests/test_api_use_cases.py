@@ -12,10 +12,11 @@ Tests for:
 Target: ~150 tests across all classes.
 """
 
-import pytest
 import time
-from unittest.mock import Mock, MagicMock, AsyncMock, patch
 from dataclasses import asdict
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+
+import pytest
 
 # ---------------------------------------------------------------------------
 # Guarded imports
@@ -23,48 +24,54 @@ from dataclasses import asdict
 
 try:
     from Jotty.core.interface.use_cases.base import (
-        UseCaseType,
+        BaseUseCase,
         UseCaseConfig,
         UseCaseResult,
-        BaseUseCase,
+        UseCaseType,
     )
+
     HAS_USE_CASE_BASE = True
 except ImportError:
     HAS_USE_CASE_BASE = False
 
 try:
-    from Jotty.core.interface.use_cases.chat.chat_context import ChatMessage, ChatContext
+    from Jotty.core.interface.use_cases.chat.chat_context import ChatContext, ChatMessage
+
     HAS_CHAT_CONTEXT = True
 except ImportError:
     HAS_CHAT_CONTEXT = False
 
 try:
     from Jotty.core.interface.use_cases.workflow.workflow_context import (
-        WorkflowTask,
         WorkflowContext,
+        WorkflowTask,
     )
+
     HAS_WORKFLOW_CONTEXT = True
 except ImportError:
     HAS_WORKFLOW_CONTEXT = False
 
 try:
     from Jotty.core.infrastructure.foundation.types import TaskStatus
+
     HAS_TASK_STATUS = True
 except ImportError:
     HAS_TASK_STATUS = False
 
 try:
     from Jotty.core.infrastructure.services.command_service import (
-        CommandInfo,
         CommandExecutionResult,
+        CommandInfo,
         CommandService,
     )
+
     HAS_COMMAND_SERVICE = True
 except ImportError:
     HAS_COMMAND_SERVICE = False
 
 try:
     from Jotty.core.interface.api.unified import JottyAPI
+
     HAS_JOTTY_API = True
 except ImportError:
     HAS_JOTTY_API = False
@@ -75,6 +82,7 @@ except ImportError:
 # ---------------------------------------------------------------------------
 
 if HAS_USE_CASE_BASE:
+
     class _ChatUseCaseStub(BaseUseCase):
         """Concrete chat use case stub for testing BaseUseCase."""
 
@@ -84,7 +92,8 @@ if HAS_USE_CASE_BASE:
         async def execute(self, goal, context=None, **kwargs):
             start = time.time()
             return self._create_result(
-                True, f"Executed: {goal}",
+                True,
+                f"Executed: {goal}",
                 execution_time=self._get_execution_time(start),
             )
 
@@ -100,7 +109,8 @@ if HAS_USE_CASE_BASE:
         async def execute(self, goal, context=None, **kwargs):
             start = time.time()
             return self._create_result(
-                True, {"result": goal},
+                True,
+                {"result": goal},
                 metadata={"steps": 3},
                 execution_time=self._get_execution_time(start),
             )
@@ -113,6 +123,7 @@ if HAS_USE_CASE_BASE:
 # ===========================================================================
 # 1. UseCaseType Enum Tests
 # ===========================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_USE_CASE_BASE, reason="UseCaseType import failed")
@@ -149,6 +160,7 @@ class TestUseCaseType:
 # ===========================================================================
 # 2. UseCaseConfig Dataclass Tests
 # ===========================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_USE_CASE_BASE, reason="UseCaseConfig import failed")
@@ -216,6 +228,7 @@ class TestUseCaseConfig:
 # 3. UseCaseResult Dataclass Tests
 # ===========================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_USE_CASE_BASE, reason="UseCaseResult import failed")
 class TestUseCaseResult:
@@ -223,8 +236,11 @@ class TestUseCaseResult:
 
     def test_creation_success(self):
         result = UseCaseResult(
-            success=True, output="Hello", metadata={"tokens": 10},
-            execution_time=1.5, use_case_type=UseCaseType.CHAT,
+            success=True,
+            output="Hello",
+            metadata={"tokens": 10},
+            execution_time=1.5,
+            use_case_type=UseCaseType.CHAT,
         )
         assert result.success is True
         assert result.output == "Hello"
@@ -234,16 +250,22 @@ class TestUseCaseResult:
 
     def test_creation_failure(self):
         result = UseCaseResult(
-            success=False, output=None, metadata={"error": "timeout"},
-            execution_time=30.0, use_case_type=UseCaseType.WORKFLOW,
+            success=False,
+            output=None,
+            metadata={"error": "timeout"},
+            execution_time=30.0,
+            use_case_type=UseCaseType.WORKFLOW,
         )
         assert result.success is False
         assert result.output is None
 
     def test_to_dict_string_output(self):
         result = UseCaseResult(
-            success=True, output=42, metadata={},
-            execution_time=0.5, use_case_type=UseCaseType.CHAT,
+            success=True,
+            output=42,
+            metadata={},
+            execution_time=0.5,
+            use_case_type=UseCaseType.CHAT,
         )
         d = result.to_dict()
         assert d["success"] is True
@@ -253,8 +275,11 @@ class TestUseCaseResult:
 
     def test_to_dict_dict_output(self):
         result = UseCaseResult(
-            success=True, output={"key": "val"}, metadata={"m": 1},
-            execution_time=1.0, use_case_type=UseCaseType.WORKFLOW,
+            success=True,
+            output={"key": "val"},
+            metadata={"m": 1},
+            execution_time=1.0,
+            use_case_type=UseCaseType.WORKFLOW,
         )
         d = result.to_dict()
         assert d["output"] == {"key": "val"}
@@ -263,32 +288,44 @@ class TestUseCaseResult:
 
     def test_to_dict_list_output(self):
         result = UseCaseResult(
-            success=True, output=[1, 2, 3], metadata={},
-            execution_time=0.1, use_case_type=UseCaseType.CHAT,
+            success=True,
+            output=[1, 2, 3],
+            metadata={},
+            execution_time=0.1,
+            use_case_type=UseCaseType.CHAT,
         )
         d = result.to_dict()
         assert d["output"] == [1, 2, 3]
 
     def test_to_dict_none_output_becomes_string(self):
         result = UseCaseResult(
-            success=False, output=None, metadata={},
-            execution_time=0.0, use_case_type=UseCaseType.WORKFLOW,
+            success=False,
+            output=None,
+            metadata={},
+            execution_time=0.0,
+            use_case_type=UseCaseType.WORKFLOW,
         )
         d = result.to_dict()
         assert d["output"] == "None"
 
     def test_to_dict_bool_output_becomes_string(self):
         result = UseCaseResult(
-            success=True, output=True, metadata={},
-            execution_time=0.0, use_case_type=UseCaseType.CHAT,
+            success=True,
+            output=True,
+            metadata={},
+            execution_time=0.0,
+            use_case_type=UseCaseType.CHAT,
         )
         d = result.to_dict()
         assert d["output"] == "True"
 
     def test_to_dict_contains_all_keys(self):
         result = UseCaseResult(
-            success=True, output="x", metadata={},
-            execution_time=0.0, use_case_type=UseCaseType.CHAT,
+            success=True,
+            output="x",
+            metadata={},
+            execution_time=0.0,
+            use_case_type=UseCaseType.CHAT,
         )
         d = result.to_dict()
         assert set(d.keys()) == {"success", "output", "metadata", "execution_time", "use_case_type"}
@@ -297,6 +334,7 @@ class TestUseCaseResult:
 # ===========================================================================
 # 4. BaseUseCase Tests
 # ===========================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_USE_CASE_BASE, reason="BaseUseCase import failed")
@@ -457,6 +495,7 @@ class TestBaseUseCaseExecute:
 # 5. ChatMessage Tests
 # ===========================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_CHAT_CONTEXT, reason="ChatMessage import failed")
 class TestChatMessage:
@@ -529,6 +568,7 @@ class TestChatMessage:
 # ===========================================================================
 # 6. ChatContext Tests
 # ===========================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_CHAT_CONTEXT, reason="ChatContext import failed")
@@ -779,6 +819,7 @@ class TestChatContextSerialization:
 # 7. WorkflowTask Tests
 # ===========================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(
     not HAS_WORKFLOW_CONTEXT or not HAS_TASK_STATUS,
@@ -837,6 +878,7 @@ class TestWorkflowTask:
 # ===========================================================================
 # 8. WorkflowContext Tests
 # ===========================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(
@@ -1246,6 +1288,7 @@ class TestWorkflowContextMaxTasks:
 # 9. CommandInfo Tests
 # ===========================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_COMMAND_SERVICE, reason="CommandInfo import failed")
 class TestCommandInfo:
@@ -1282,16 +1325,22 @@ class TestCommandInfo:
 
     def test_to_dict_keys(self):
         info = CommandInfo(
-            name="test", description="d", usage="/test",
-            category="c", aliases=[],
+            name="test",
+            description="d",
+            usage="/test",
+            category="c",
+            aliases=[],
         )
         d = info.to_dict()
         assert set(d.keys()) == {"name", "description", "usage", "category", "aliases"}
 
     def test_empty_aliases(self):
         info = CommandInfo(
-            name="cmd", description="desc", usage="/cmd",
-            category="cat", aliases=[],
+            name="cmd",
+            description="desc",
+            usage="/cmd",
+            category="cat",
+            aliases=[],
         )
         assert info.aliases == []
         assert info.to_dict()["aliases"] == []
@@ -1300,6 +1349,7 @@ class TestCommandInfo:
 # ===========================================================================
 # 10. CommandExecutionResult Tests
 # ===========================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_COMMAND_SERVICE, reason="CommandExecutionResult import failed")
@@ -1315,20 +1365,27 @@ class TestCommandExecutionResult:
 
     def test_creation_failure(self):
         result = CommandExecutionResult(
-            success=False, output="", error="Command not found",
+            success=False,
+            output="",
+            error="Command not found",
         )
         assert result.success is False
         assert result.error == "Command not found"
 
     def test_creation_with_data(self):
         result = CommandExecutionResult(
-            success=True, output="OK", data={"count": 5},
+            success=True,
+            output="OK",
+            data={"count": 5},
         )
         assert result.data == {"count": 5}
 
     def test_to_dict(self):
         result = CommandExecutionResult(
-            success=True, output="output", error=None, data={"k": "v"},
+            success=True,
+            output="output",
+            error=None,
+            data={"k": "v"},
         )
         d = result.to_dict()
         assert d["success"] is True
@@ -1345,6 +1402,7 @@ class TestCommandExecutionResult:
 # ===========================================================================
 # 11. CommandService Tests
 # ===========================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_COMMAND_SERVICE, reason="CommandService import failed")
@@ -1412,6 +1470,7 @@ class TestCommandService:
 # ===========================================================================
 # 12. JottyAPI Tests
 # ===========================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_JOTTY_API, reason="JottyAPI import failed")
@@ -1621,6 +1680,7 @@ class TestJottyAPIWorkflowEnqueue:
 # 13. Integration / Cross-Class Tests
 # ===========================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(
     not HAS_USE_CASE_BASE or not HAS_CHAT_CONTEXT,
@@ -1635,7 +1695,8 @@ class TestUseCaseWithChatContext:
         conductor = MagicMock()
         uc = _ChatUseCaseStub(conductor)
         result = uc._create_result(
-            True, "Hi there",
+            True,
+            "Hi there",
             metadata={"context": ctx.to_dict()},
         )
         assert "context" in result.metadata
@@ -1675,7 +1736,8 @@ class TestUseCaseWithWorkflowContext:
         conductor = MagicMock()
         uc = _WorkflowUseCaseStub(conductor)
         result = uc._create_result(
-            True, "complete",
+            True,
+            "complete",
             metadata={"summary": wf_ctx.get_summary()},
         )
         assert result.metadata["summary"]["workflow_id"] == "wf-int"

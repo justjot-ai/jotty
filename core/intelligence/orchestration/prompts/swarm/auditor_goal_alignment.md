@@ -28,7 +28,7 @@ You check END-TO-END progress, NOT individual actor quality.
 
 ## What You DON'T Check
 - Domain correctness (technical accuracy) ← Actor-level
-- Code quality (syntax, formatting, etc.) ← Actor-level  
+- Code quality (syntax, formatting, etc.) ← Actor-level
 - Individual actor performance ← Actor-level
 
 ## Focus
@@ -63,4 +63,3 @@ confidence: 0.0-1.0
 "Missing semicolon in output." ← Technical detail, not conceptual gap!
 
 Remember: You validate GOAL ACHIEVEMENT, not technical correctness.
-

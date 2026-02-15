@@ -4,6 +4,7 @@ File Logging Setup for Jotty
 
 Configures Python logging to write to files based on SwarmConfig.
 """
+
 import logging
 from pathlib import Path
 from typing import Optional
@@ -13,7 +14,7 @@ def setup_file_logging(
     output_dir: str,
     enable_beautified: bool = True,
     enable_debug: bool = True,
-    log_level: str = "INFO"
+    log_level: str = "INFO",
 ) -> None:
     """
     Setup file logging for Jotty.
@@ -43,13 +44,12 @@ def setup_file_logging(
     # Beautified log (human-readable)
     if enable_beautified:
         beautified_path = logs_dir / "beautified.log"
-        beautified_handler = logging.FileHandler(beautified_path, mode='w', encoding='utf-8')
+        beautified_handler = logging.FileHandler(beautified_path, mode="w", encoding="utf-8")
         beautified_handler.setLevel(logging.INFO)
 
         # Clean format
         beautified_formatter = logging.Formatter(
-            fmt='%(asctime)s | %(levelname)-8s | %(message)s',
-            datefmt='%H:%M:%S'
+            fmt="%(asctime)s | %(levelname)-8s | %(message)s", datefmt="%H:%M:%S"
         )
         beautified_handler.setFormatter(beautified_formatter)
         root_logger.addHandler(beautified_handler)
@@ -57,13 +57,13 @@ def setup_file_logging(
     # Debug log (detailed)
     if enable_debug:
         debug_path = logs_dir / "debug.log"
-        debug_handler = logging.FileHandler(debug_path, mode='w', encoding='utf-8')
+        debug_handler = logging.FileHandler(debug_path, mode="w", encoding="utf-8")
         debug_handler.setLevel(logging.DEBUG)
 
         # Detailed format
         debug_formatter = logging.Formatter(
-            fmt='%(asctime)s | %(levelname)-8s | %(name)s:%(lineno)d | %(message)s',
-            datefmt='%Y-%m-%d %H:%M:%S'
+            fmt="%(asctime)s | %(levelname)-8s | %(name)s:%(lineno)d | %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
         )
         debug_handler.setFormatter(debug_formatter)
         root_logger.addHandler(debug_handler)

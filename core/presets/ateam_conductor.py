@@ -31,19 +31,20 @@ Usage:
 """
 
 import logging
-import dspy
-from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
 
-from .ateam_roster import Expert, get_experts_by_names, get_all_experts, ExpertDomain
+import dspy
+
 from .ateam_presets import (
     ATeamPreset,
+    build_custom_team,
     get_preset_config,
     get_preset_config_by_name,
     get_preset_experts,
-    build_custom_team
 )
-from .debate_manager import DebateManager, ConsensusResult
+from .ateam_roster import Expert, ExpertDomain, get_all_experts, get_experts_by_names
+from .debate_manager import ConsensusResult, DebateManager
 
 logger = logging.getLogger(__name__)
 
@@ -52,8 +53,10 @@ logger = logging.getLogger(__name__)
 # AUTO SELECTION (Jotty analyzes task and selects experts)
 # =============================================================================
 
+
 class AutoTeamSelectionSignature(dspy.Signature):
     """Automatically select optimal expert team for a task."""
+
     task_description: str = dspy.InputField(desc="Task/problem description")
     goal_context: str = dspy.InputField(desc="Overall goal and context")
     available_experts: str = dspy.InputField(desc="All available experts (JSON)")
@@ -67,9 +70,11 @@ class AutoTeamSelectionSignature(dspy.Signature):
 # A-TEAM CONDUCTOR
 # =============================================================================
 
+
 @dataclass
 class TaskGenerationResult:
     """Result from A-TEAM task generation."""
+
     consensus_decision: str
     comprehensive_task: str
     reasoning: str
@@ -94,7 +99,13 @@ class ATeamConductor:
     4. 100% CONSENSUS required
     """
 
-    def __init__(self, experts: List[Expert], max_rounds: int = 5, consensus_threshold: float = 1.0, mode: str = 'template') -> None:
+    def __init__(
+        self,
+        experts: List[Expert],
+        max_rounds: int = 5,
+        consensus_threshold: float = 1.0,
+        mode: str = "template",
+    ) -> None:
         """
         Initialize A-TEAM Conductor.
 
@@ -113,7 +124,7 @@ class ATeamConductor:
         self.debate_manager = DebateManager(
             experts=self.experts,
             max_rounds=self.max_rounds,
-            consensus_threshold=self.consensus_threshold
+            consensus_threshold=self.consensus_threshold,
         )
 
         # Auto-selection module (for automatic mode)
@@ -129,7 +140,7 @@ class ATeamConductor:
     # =========================================================================
 
     @classmethod
-    def from_preset(cls, preset_name: str) -> 'ATeamConductor':
+    def from_preset(cls, preset_name: str) -> "ATeamConductor":
         """
         Create conductor from preset name (TEMPLATE MODE).
 
@@ -160,18 +171,15 @@ class ATeamConductor:
 
         return cls(
             experts=experts,
-            max_rounds=config['max_rounds'],
-            consensus_threshold=config['consensus_threshold'],
-            mode="template"
+            max_rounds=config["max_rounds"],
+            consensus_threshold=config["consensus_threshold"],
+            mode="template",
         )
 
     @classmethod
     def from_custom_team(
-        cls,
-        expert_names: List[str],
-        max_rounds: int = 5,
-        consensus_threshold: float = 1.0
-    ) -> 'ATeamConductor':
+        cls, expert_names: List[str], max_rounds: int = 5, consensus_threshold: float = 1.0
+    ) -> "ATeamConductor":
         """
         Create conductor from custom expert selection (CUSTOM MODE).
 
@@ -196,15 +204,13 @@ class ATeamConductor:
             experts=experts,
             max_rounds=max_rounds,
             consensus_threshold=consensus_threshold,
-            mode="custom"
+            mode="custom",
         )
 
     @classmethod
     def from_auto_selection(
-        cls,
-        max_rounds: int = 5,
-        consensus_threshold: float = 1.0
-    ) -> 'ATeamConductor':
+        cls, max_rounds: int = 5, consensus_threshold: float = 1.0
+    ) -> "ATeamConductor":
         """
         Create conductor with automatic expert selection (AUTOMATIC MODE - DEFAULT).
 
@@ -227,7 +233,7 @@ class ATeamConductor:
             experts=experts,
             max_rounds=max_rounds,
             consensus_threshold=consensus_threshold,
-            mode="automatic"
+            mode="automatic",
         )
 
     # =========================================================================
@@ -235,9 +241,7 @@ class ATeamConductor:
     # =========================================================================
 
     async def generate_task(
-        self,
-        task_description: str,
-        goal_context: str = ""
+        self, task_description: str, goal_context: str = ""
     ) -> TaskGenerationResult:
         """
         Generate comprehensive task via A-TEAM consensus.
@@ -267,16 +271,14 @@ class ATeamConductor:
         # Automatic mode: Select experts first
         if self.mode == "automatic":
             selected_experts = await self._auto_select_experts(
-                task_description=task_description,
-                goal_context=goal_context
+                task_description=task_description, goal_context=goal_context
             )
             # Update debate manager with selected experts
             self.debate_manager.experts = selected_experts
 
         # Run debate
         consensus_result: ConsensusResult = await self.debate_manager.run_debate(
-            task_description=task_description,
-            goal_context=goal_context
+            task_description=task_description, goal_context=goal_context
         )
 
         # Package result
@@ -287,7 +289,7 @@ class ATeamConductor:
             expert_votes=consensus_result.expert_votes,
             total_rounds=consensus_result.total_rounds,
             consensus_reached=consensus_result.consensus_reached,
-            mode=self.mode
+            mode=self.mode,
         )
 
         logger.info(f" Task generation complete!")
@@ -296,11 +298,7 @@ class ATeamConductor:
 
         return result
 
-    async def _auto_select_experts(
-        self,
-        task_description: str,
-        goal_context: str
-    ) -> List[Expert]:
+    async def _auto_select_experts(self, task_description: str, goal_context: str) -> List[Expert]:
         """
         Automatically select optimal experts for the task (AUTOMATIC MODE).
 
@@ -310,12 +308,13 @@ class ATeamConductor:
 
         # Format available experts for LLM
         import json
+
         available_experts_data = [
             {
                 "name": expert.name,
                 "title": expert.title,
                 "domain": expert.domain.value,
-                "expertise": expert.expertise
+                "expertise": expert.expertise,
             }
             for expert in self.experts
         ]
@@ -326,7 +325,7 @@ class ATeamConductor:
             result = self.auto_selector(
                 task_description=task_description,
                 goal_context=goal_context,
-                available_experts=available_experts_str
+                available_experts=available_experts_str,
             )
 
             # Parse selected expert names
@@ -335,10 +334,14 @@ class ATeamConductor:
 
             # Ensure we have at least 3 experts
             if len(selected_experts) < 3:
-                logger.warning(f"Auto-selection returned only {len(selected_experts)} experts, using minimal preset")
+                logger.warning(
+                    f"Auto-selection returned only {len(selected_experts)} experts, using minimal preset"
+                )
                 selected_experts = get_preset_experts(ATeamPreset.MINIMAL)
 
-            logger.info(f"   Selected {len(selected_experts)} experts: {', '.join([e.name for e in selected_experts])}")
+            logger.info(
+                f"   Selected {len(selected_experts)} experts: {', '.join([e.name for e in selected_experts])}"
+            )
             logger.info(f"   Reasoning: {result.reasoning[:200]}...")
 
             return selected_experts
@@ -354,11 +357,11 @@ class ATeamConductor:
     def get_team_info(self) -> Dict[str, Any]:
         """Get information about current expert team."""
         return {
-            'mode': self.mode,
-            'expert_count': len(self.experts),
-            'expert_names': [e.name for e in self.experts],
-            'max_rounds': self.max_rounds,
-            'consensus_threshold': self.consensus_threshold
+            "mode": self.mode,
+            "expert_count": len(self.experts),
+            "expert_names": [e.name for e in self.experts],
+            "max_rounds": self.max_rounds,
+            "consensus_threshold": self.consensus_threshold,
         }
 
 
@@ -366,10 +369,9 @@ class ATeamConductor:
 # CONVENIENCE FUNCTIONS
 # =============================================================================
 
+
 async def generate_task_with_preset(
-    preset_name: str,
-    task_description: str,
-    goal_context: str = ""
+    preset_name: str, task_description: str, goal_context: str = ""
 ) -> TaskGenerationResult:
     """
     Convenience function for one-shot task generation with preset.
@@ -385,10 +387,7 @@ async def generate_task_with_preset(
     return await conductor.generate_task(task_description, goal_context)
 
 
-async def generate_task_auto(
-    task_description: str,
-    goal_context: str = ""
-) -> TaskGenerationResult:
+async def generate_task_auto(task_description: str, goal_context: str = "") -> TaskGenerationResult:
     """
     Convenience function for automatic expert selection (DEFAULT for JustJot.ai).
 
@@ -407,8 +406,8 @@ async def generate_task_auto(
 # =============================================================================
 
 __all__ = [
-    'ATeamConductor',
-    'TaskGenerationResult',
-    'generate_task_with_preset',
-    'generate_task_auto',
+    "ATeamConductor",
+    "TaskGenerationResult",
+    "generate_task_with_preset",
+    "generate_task_auto",
 ]

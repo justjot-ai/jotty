@@ -58,7 +58,6 @@ class Theme:
 # Built-in themes
 THEMES: Dict[str, Theme] = {
     "default": Theme(),
-
     "dark": Theme(
         primary="bright_cyan",
         secondary="bright_green",
@@ -66,7 +65,6 @@ THEMES: Dict[str, Theme] = {
         prompt="bold bright_cyan",
         table_header="bold bright_white",
     ),
-
     "light": Theme(
         primary="blue",
         secondary="green",
@@ -75,7 +73,6 @@ THEMES: Dict[str, Theme] = {
         prompt="bold blue",
         table_border="grey70",
     ),
-
     "minimal": Theme(
         primary="white",
         secondary="white",
@@ -88,7 +85,6 @@ THEMES: Dict[str, Theme] = {
         prompt="bold white",
         table_header="bold",
     ),
-
     "matrix": Theme(
         primary="green",
         secondary="bright_green",
@@ -101,7 +97,6 @@ THEMES: Dict[str, Theme] = {
         command="green",
         code="bright_green",
     ),
-
     "ocean": Theme(
         primary="cyan",
         secondary="blue",
@@ -110,7 +105,6 @@ THEMES: Dict[str, Theme] = {
         agent_name="bold bright_blue",
         skill_name="bold cyan",
     ),
-
     "muted": Theme(
         primary="rgb(200,200,200)",
         secondary="rgb(120,150,120)",
@@ -150,6 +144,7 @@ class ColorDistance:
     @staticmethod
     def srgb_to_xyz(r: int, g: int, b: int) -> Tuple[float, float, float]:
         """Convert sRGB (0-255) to CIE XYZ."""
+
         # Linearize sRGB
         def linearize(c: int) -> float:
             c_norm = c / 255.0
@@ -173,9 +168,9 @@ class ColorDistance:
 
         def f(t: float) -> float:
             delta = 6.0 / 29.0
-            if t > delta ** 3:
+            if t > delta**3:
                 return t ** (1.0 / 3.0)
-            return t / (3.0 * delta ** 2) + 4.0 / 29.0
+            return t / (3.0 * delta**2) + 4.0 / 29.0
 
         fx, fy, fz = f(x / xn), f(y / yn), f(z / zn)
         l_star = 116.0 * fy - 16.0

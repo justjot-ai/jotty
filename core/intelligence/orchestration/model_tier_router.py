@@ -25,23 +25,29 @@ Usage:
     # → Returns highest quality available LM (Opus, Sonnet, etc.)
 """
 
-import os
 import logging
-from enum import Enum
-from typing import Optional, Dict, Any, List
+import os
 from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, Dict, List, Optional
+
+from Jotty.core.infrastructure.foundation.config_defaults import (
+    MODEL_HAIKU,
+    MODEL_OPUS,
+    MODEL_SONNET,
+)
 
 from .validation_gate import ValidationMode
-from Jotty.core.infrastructure.foundation.config_defaults import MODEL_SONNET, MODEL_OPUS, MODEL_HAIKU
 
 logger = logging.getLogger(__name__)
 
 
 class ModelTier(Enum):
     """Model quality tiers."""
-    CHEAP = "cheap"        # Haiku, Flash, GPT-4o-mini, Llama-8b
+
+    CHEAP = "cheap"  # Haiku, Flash, GPT-4o-mini, Llama-8b
     BALANCED = "balanced"  # Sonnet, GPT-4o, Gemini Pro
-    QUALITY = "quality"    # Opus, GPT-4-turbo, Gemini Ultra
+    QUALITY = "quality"  # Opus, GPT-4-turbo, Gemini Ultra
 
 
 # Mapping: ValidationMode -> ModelTier
@@ -55,39 +61,40 @@ MODE_TO_TIER: Dict[ValidationMode, ModelTier] = {
 # IMPORTANT: First model in each list is the primary pick.
 # Anthropic model names centralized in config_defaults.py
 TIER_MODELS: Dict[str, Dict[ModelTier, List[str]]] = {
-    'anthropic': {
-        ModelTier.CHEAP: [MODEL_HAIKU, 'claude-haiku'],
-        ModelTier.BALANCED: [MODEL_SONNET, 'claude-3-5-sonnet-latest'],
+    "anthropic": {
+        ModelTier.CHEAP: [MODEL_HAIKU, "claude-haiku"],
+        ModelTier.BALANCED: [MODEL_SONNET, "claude-3-5-sonnet-latest"],
         ModelTier.QUALITY: [MODEL_OPUS, MODEL_SONNET],
     },
-    'openai': {
-        ModelTier.CHEAP: ['gpt-4o-mini'],
-        ModelTier.BALANCED: ['gpt-4o'],
-        ModelTier.QUALITY: ['gpt-4-turbo', 'gpt-4o'],
+    "openai": {
+        ModelTier.CHEAP: ["gpt-4o-mini"],
+        ModelTier.BALANCED: ["gpt-4o"],
+        ModelTier.QUALITY: ["gpt-4-turbo", "gpt-4o"],
     },
-    'google': {
-        ModelTier.CHEAP: ['gemini-2.0-flash'],
-        ModelTier.BALANCED: ['gemini-2.5-pro', 'gemini-1.5-pro'],
-        ModelTier.QUALITY: ['gemini-2.5-pro', 'gemini-1.5-pro'],
+    "google": {
+        ModelTier.CHEAP: ["gemini-2.0-flash"],
+        ModelTier.BALANCED: ["gemini-2.5-pro", "gemini-1.5-pro"],
+        ModelTier.QUALITY: ["gemini-2.5-pro", "gemini-1.5-pro"],
     },
-    'groq': {
-        ModelTier.CHEAP: ['llama-3.1-8b-instant'],
-        ModelTier.BALANCED: ['llama-3.3-70b-versatile', 'llama-3.1-70b-versatile'],
-        ModelTier.QUALITY: ['llama-3.3-70b-versatile', 'llama-3.1-70b-versatile'],
+    "groq": {
+        ModelTier.CHEAP: ["llama-3.1-8b-instant"],
+        ModelTier.BALANCED: ["llama-3.3-70b-versatile", "llama-3.1-70b-versatile"],
+        ModelTier.QUALITY: ["llama-3.3-70b-versatile", "llama-3.1-70b-versatile"],
     },
 }
 
 # Approximate cost per 1M tokens (input) for quick estimation
 TIER_COST_PER_1M: Dict[ModelTier, float] = {
-    ModelTier.CHEAP: 0.25,     # ~$0.25/1M (Haiku)
-    ModelTier.BALANCED: 3.0,   # ~$3/1M (Sonnet)
-    ModelTier.QUALITY: 15.0,   # ~$15/1M (Opus)
+    ModelTier.CHEAP: 0.25,  # ~$0.25/1M (Haiku)
+    ModelTier.BALANCED: 3.0,  # ~$3/1M (Sonnet)
+    ModelTier.QUALITY: 15.0,  # ~$15/1M (Opus)
 }
 
 
 @dataclass
 class TierDecision:
     """Result of model tier routing."""
+
     tier: ModelTier
     model: str
     provider: str
@@ -125,11 +132,11 @@ class ModelTierRouter:
 
         # Auto-detect by checking API keys
         provider_keys = [
-            ('anthropic', 'ANTHROPIC_API_KEY'),
-            ('openai', 'OPENAI_API_KEY'),
-            ('google', 'GOOGLE_API_KEY'),
-            ('google', 'GEMINI_API_KEY'),
-            ('groq', 'GROQ_API_KEY'),
+            ("anthropic", "ANTHROPIC_API_KEY"),
+            ("openai", "OPENAI_API_KEY"),
+            ("google", "GOOGLE_API_KEY"),
+            ("google", "GEMINI_API_KEY"),
+            ("groq", "GROQ_API_KEY"),
         ]
         for provider, key in provider_keys:
             if os.environ.get(key):
@@ -137,8 +144,8 @@ class ModelTierRouter:
                 return provider
 
         # Fallback
-        self._detected_provider = 'anthropic'
-        return 'anthropic'
+        self._detected_provider = "anthropic"
+        return "anthropic"
 
     def get_tier_for_mode(self, mode: ValidationMode) -> ModelTier:
         """Map a ValidationMode to a ModelTier."""
@@ -207,6 +214,7 @@ class ModelTierRouter:
 
         try:
             from Jotty.core.infrastructure.foundation.unified_lm_provider import UnifiedLMProvider
+
             lm = UnifiedLMProvider.create_lm(
                 provider=decision.provider,
                 model=decision.model,
@@ -218,9 +226,7 @@ class ModelTierRouter:
             )
             return lm
         except Exception as e:
-            logger.warning(
-                f"ModelTierRouter: could not create {decision.tier.value} LM: {e}"
-            )
+            logger.warning(f"ModelTierRouter: could not create {decision.tier.value} LM: {e}")
             return None
 
     def get_savings_estimate(self) -> Dict[str, Any]:
@@ -232,27 +238,26 @@ class ModelTierRouter:
         """
         total_calls = sum(self._call_counts.values())
         if total_calls == 0:
-            return {'total_calls': 0, 'savings_pct': '0%'}
+            return {"total_calls": 0, "savings_pct": "0%"}
 
         # Baseline: all calls at QUALITY cost (worst case without routing)
         baseline_cost = total_calls * TIER_COST_PER_1M[ModelTier.QUALITY]
 
         # Actual: calls at their respective tier costs
         actual_cost = sum(
-            count * TIER_COST_PER_1M[tier]
-            for tier, count in self._call_counts.items()
+            count * TIER_COST_PER_1M[tier] for tier, count in self._call_counts.items()
         )
 
         savings = baseline_cost - actual_cost
         savings_pct = savings / baseline_cost if baseline_cost > 0 else 0
 
         return {
-            'total_calls': total_calls,
-            'tier_distribution': {t.value: c for t, c in self._call_counts.items()},
-            'baseline_cost_units': round(baseline_cost, 2),
-            'actual_cost_units': round(actual_cost, 2),
-            'savings_units': round(savings, 2),
-            'savings_pct': f"{savings_pct:.0%}",
+            "total_calls": total_calls,
+            "tier_distribution": {t.value: c for t, c in self._call_counts.items()},
+            "baseline_cost_units": round(baseline_cost, 2),
+            "actual_cost_units": round(actual_cost, 2),
+            "savings_units": round(savings, 2),
+            "savings_pct": f"{savings_pct:.0%}",
         }
 
     # =========================================================================
@@ -265,7 +270,7 @@ class ModelTierRouter:
         cost_budget_usd: Optional[float] = None,
         latency_budget_ms: Optional[float] = None,
         quality_target: Optional[float] = None,
-        estimated_tokens: int = 2000
+        estimated_tokens: int = 2000,
     ) -> str:
         """
         Select model tier based on task complexity AND constraints.
@@ -321,7 +326,7 @@ class ModelTierRouter:
             cost_budget_usd=cost_budget_usd,
             latency_budget_ms=latency_budget_ms,
             quality_target=quality_target,
-            estimated_tokens=estimated_tokens
+            estimated_tokens=estimated_tokens,
         )
 
         # STEP 4: Select cheapest viable tier
@@ -346,14 +351,20 @@ class ModelTierRouter:
 
         # Keywords indicating complex tasks
         complex_keywords = [
-            'analyze', 'research', 'comprehensive', 'design', 'architect',
-            'multi-step', 'complex', 'detailed', 'expert', 'advanced'
+            "analyze",
+            "research",
+            "comprehensive",
+            "design",
+            "architect",
+            "multi-step",
+            "complex",
+            "detailed",
+            "expert",
+            "advanced",
         ]
 
         # Keywords indicating simple tasks
-        simple_keywords = [
-            'list', 'what is', 'define', 'summarize', 'lookup', 'find'
-        ]
+        simple_keywords = ["list", "what is", "define", "summarize", "lookup", "find"]
 
         # Length-based heuristic
         if len(task) > 500:
@@ -377,7 +388,7 @@ class ModelTierRouter:
         cost_budget_usd: Optional[float],
         latency_budget_ms: Optional[float],
         quality_target: Optional[float],
-        estimated_tokens: int
+        estimated_tokens: int,
     ) -> List[ModelTier]:
         """
         Filter tiers based on cost/latency/quality constraints.
@@ -386,15 +397,15 @@ class ModelTierRouter:
         """
         # Estimated performance per tier (learned from production data)
         TIER_QUALITY = {
-            ModelTier.CHEAP: 0.75,      # Haiku, Flash: good for simple tasks
-            ModelTier.BALANCED: 0.85,   # Sonnet, GPT-4o: solid quality
-            ModelTier.QUALITY: 0.95,    # Opus, GPT-4: best quality
+            ModelTier.CHEAP: 0.75,  # Haiku, Flash: good for simple tasks
+            ModelTier.BALANCED: 0.85,  # Sonnet, GPT-4o: solid quality
+            ModelTier.QUALITY: 0.95,  # Opus, GPT-4: best quality
         }
 
         TIER_LATENCY_MS = {
-            ModelTier.CHEAP: 300,       # Fast models (Haiku ~300ms)
-            ModelTier.BALANCED: 600,    # Mid-tier (Sonnet ~600ms)
-            ModelTier.QUALITY: 1200,    # Slow models (Opus ~1200ms)
+            ModelTier.CHEAP: 300,  # Fast models (Haiku ~300ms)
+            ModelTier.BALANCED: 600,  # Mid-tier (Sonnet ~600ms)
+            ModelTier.QUALITY: 1200,  # Slow models (Opus ~1200ms)
         }
 
         viable = []

@@ -17,12 +17,14 @@ Covers:
 
 All registry lookups and tool executions are mocked.
 """
-import sys
+
 import asyncio
-import pytest
+import sys
 from pathlib import Path
-from unittest.mock import Mock, MagicMock, AsyncMock, patch
-from typing import Dict, Any
+from typing import Any, Dict
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+
+import pytest
 
 # Ensure project root is importable
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -34,6 +36,7 @@ try:
         StepType,
         create_pipeline_skill,
     )
+
     PIPELINE_AVAILABLE = True
 except ImportError:
     PIPELINE_AVAILABLE = False
@@ -42,6 +45,7 @@ except ImportError:
 # =============================================================================
 # Helper: create a mock registry with configurable skills/tools
 # =============================================================================
+
 
 def _make_mock_registry(skills_config: Dict[str, Dict[str, Any]] = None):
     """
@@ -94,6 +98,7 @@ def _make_basic_pipeline():
 # StepType Enum Tests
 # =============================================================================
 
+
 @pytest.mark.skipif(not PIPELINE_AVAILABLE, reason="PipelineSkill not importable")
 @pytest.mark.unit
 class TestStepTypeEnum:
@@ -119,6 +124,7 @@ class TestStepTypeEnum:
 # =============================================================================
 # PipelineSkill Initialization Tests
 # =============================================================================
+
 
 @pytest.mark.skipif(not PIPELINE_AVAILABLE, reason="PipelineSkill not importable")
 @pytest.mark.unit
@@ -185,6 +191,7 @@ class TestPipelineSkillInit:
 # =============================================================================
 # Template Resolution Tests
 # =============================================================================
+
 
 @pytest.mark.skipif(not PIPELINE_AVAILABLE, reason="PipelineSkill not importable")
 @pytest.mark.unit
@@ -331,6 +338,7 @@ class TestTemplateResolution:
 # Pipeline Execution Tests
 # =============================================================================
 
+
 @pytest.mark.skipif(not PIPELINE_AVAILABLE, reason="PipelineSkill not importable")
 @pytest.mark.unit
 class TestPipelineExecution:
@@ -355,14 +363,16 @@ class TestPipelineExecution:
         ]
         skill = PipelineSkill("basic", "Basic pipeline", pipeline)
 
-        registry = _make_mock_registry({
-            "fetcher": {
-                "fetch": lambda p: {"success": True, "content": "hello"},
-            },
-            "writer": {
-                "write": lambda p: {"success": True, "written": True},
-            },
-        })
+        registry = _make_mock_registry(
+            {
+                "fetcher": {
+                    "fetch": lambda p: {"success": True, "content": "hello"},
+                },
+                "writer": {
+                    "write": lambda p: {"success": True, "written": True},
+                },
+            }
+        )
 
         result = await skill.execute({"content": "initial"}, registry)
         assert result["_success"] is True
@@ -373,10 +383,12 @@ class TestPipelineExecution:
         pipeline = _make_basic_pipeline()
         skill = PipelineSkill("test", "test", pipeline)
 
-        registry = _make_mock_registry({
-            "data-fetcher": {"fetch_tool": lambda p: {"success": True, "result": "ok"}},
-            "output-writer": {"write_tool": lambda p: {"success": True}},
-        })
+        registry = _make_mock_registry(
+            {
+                "data-fetcher": {"fetch_tool": lambda p: {"success": True, "result": "ok"}},
+                "output-writer": {"write_tool": lambda p: {"success": True}},
+            }
+        )
 
         result = await skill.execute({"target_url": "http://x.com"}, registry)
         assert result["_initial"]["target_url"] == "http://x.com"
@@ -401,14 +413,16 @@ class TestPipelineExecution:
         ]
         skill = PipelineSkill("fail-test", "Failure test", pipeline)
 
-        registry = _make_mock_registry({
-            "fetcher": {
-                "fetch": lambda p: {"success": False, "error": "network down"},
-            },
-            "writer": {
-                "write": lambda p: {"success": True},
-            },
-        })
+        registry = _make_mock_registry(
+            {
+                "fetcher": {
+                    "fetch": lambda p: {"success": False, "error": "network down"},
+                },
+                "writer": {
+                    "write": lambda p: {"success": True},
+                },
+            }
+        )
 
         result = await skill.execute({}, registry)
         assert result["_success"] is False
@@ -440,11 +454,13 @@ class TestPipelineExecution:
         ]
         skill = PipelineSkill("opt-fail", "Optional failure", pipeline)
 
-        registry = _make_mock_registry({
-            "fetcher": {"fetch": lambda p: {"success": True, "data": "raw"}},
-            "enricher": {"enrich": lambda p: {"success": False, "error": "optional fail"}},
-            "writer": {"write": lambda p: {"success": True}},
-        })
+        registry = _make_mock_registry(
+            {
+                "fetcher": {"fetch": lambda p: {"success": True, "data": "raw"}},
+                "enricher": {"enrich": lambda p: {"success": False, "error": "optional fail"}},
+                "writer": {"write": lambda p: {"success": True}},
+            }
+        )
 
         result = await skill.execute({}, registry)
         assert result["_success"] is True
@@ -452,6 +468,7 @@ class TestPipelineExecution:
     @pytest.mark.asyncio
     async def test_execute_with_async_tool(self):
         """execute handles async tool functions."""
+
         async def async_fetch(params):
             return {"success": True, "data": "async result"}
 
@@ -461,10 +478,12 @@ class TestPipelineExecution:
         ]
         skill = PipelineSkill("async-test", "Async test", pipeline)
 
-        registry = _make_mock_registry({
-            "async-src": {"afetch": async_fetch},
-            "sync-sink": {"swrite": lambda p: {"success": True}},
-        })
+        registry = _make_mock_registry(
+            {
+                "async-src": {"afetch": async_fetch},
+                "sync-sink": {"swrite": lambda p: {"success": True}},
+            }
+        )
 
         result = await skill.execute({}, registry)
         assert result["_success"] is True
@@ -484,10 +503,12 @@ class TestPipelineExecution:
         ]
         skill = PipelineSkill("chain", "Chain test", pipeline)
 
-        registry = _make_mock_registry({
-            "src": {"src_tool": lambda p: {"success": True, "output": "chained_value"}},
-            "sink": {"sink_tool": sink_fn},
-        })
+        registry = _make_mock_registry(
+            {
+                "src": {"src_tool": lambda p: {"success": True, "output": "chained_value"}},
+                "sink": {"sink_tool": sink_fn},
+            }
+        )
 
         result = await skill.execute({"initial": "val"}, registry)
         assert result["_success"] is True
@@ -507,10 +528,12 @@ class TestPipelineExecution:
         ]
         skill = PipelineSkill("outkey", "Output key test", pipeline)
 
-        registry = _make_mock_registry({
-            "src": {"src_tool": lambda p: {"success": True, "value": "keyed"}},
-            "sink": {"sink_tool": lambda p: {"success": True}},
-        })
+        registry = _make_mock_registry(
+            {
+                "src": {"src_tool": lambda p: {"success": True, "value": "keyed"}},
+                "sink": {"sink_tool": lambda p: {"success": True}},
+            }
+        )
 
         result = await skill.execute({}, registry)
         assert "my_source" in result
@@ -525,10 +548,12 @@ class TestPipelineExecution:
         ]
         skill = PipelineSkill("defkey", "Default key", pipeline)
 
-        registry = _make_mock_registry({
-            "src": {"st": lambda p: {"success": True}},
-            "sink": {"sk": lambda p: {"success": True}},
-        })
+        registry = _make_mock_registry(
+            {
+                "src": {"st": lambda p: {"success": True}},
+                "sink": {"sk": lambda p: {"success": True}},
+            }
+        )
 
         result = await skill.execute({}, registry)
         assert "source_0" in result
@@ -538,6 +563,7 @@ class TestPipelineExecution:
 # =============================================================================
 # _execute_step Tests
 # =============================================================================
+
 
 @pytest.mark.skipif(not PIPELINE_AVAILABLE, reason="PipelineSkill not importable")
 @pytest.mark.unit
@@ -601,9 +627,11 @@ class TestExecuteStep:
         def crash(params):
             raise RuntimeError("Tool crashed!")
 
-        registry = _make_mock_registry({
-            "buggy": {"crash_tool": crash},
-        })
+        registry = _make_mock_registry(
+            {
+                "buggy": {"crash_tool": crash},
+            }
+        )
 
         result = await skill._execute_step(step, {}, registry, {})
         assert result["success"] is False
@@ -615,9 +643,11 @@ class TestExecuteStep:
         skill = self._make_skill()
         step = {"skill": "sync", "tool": "sync_tool"}
 
-        registry = _make_mock_registry({
-            "sync": {"sync_tool": lambda p: {"success": True, "result": "sync ok"}},
-        })
+        registry = _make_mock_registry(
+            {
+                "sync": {"sync_tool": lambda p: {"success": True, "result": "sync ok"}},
+            }
+        )
 
         result = await skill._execute_step(step, {}, registry, {})
         assert result["success"] is True
@@ -632,9 +662,11 @@ class TestExecuteStep:
         async def async_handler(params):
             return {"success": True, "result": "async ok"}
 
-        registry = _make_mock_registry({
-            "async-skill": {"async_tool": async_handler},
-        })
+        registry = _make_mock_registry(
+            {
+                "async-skill": {"async_tool": async_handler},
+            }
+        )
 
         result = await skill._execute_step(step, {}, registry, {})
         assert result["success"] is True
@@ -644,6 +676,7 @@ class TestExecuteStep:
 # =============================================================================
 # Factory Function Tests
 # =============================================================================
+
 
 @pytest.mark.skipif(not PIPELINE_AVAILABLE, reason="PipelineSkill not importable")
 @pytest.mark.unit
@@ -679,6 +712,7 @@ class TestCreatePipelineSkill:
 # Integration-Style Tests (Still Mocked)
 # =============================================================================
 
+
 @pytest.mark.skipif(not PIPELINE_AVAILABLE, reason="PipelineSkill not importable")
 @pytest.mark.unit
 class TestPipelineIntegration:
@@ -709,23 +743,25 @@ class TestPipelineIntegration:
         ]
         skill = PipelineSkill("full-pipe", "Full pipeline", pipeline)
 
-        registry = _make_mock_registry({
-            "web-search": {
-                "search_tool": lambda p: {
-                    "success": True,
-                    "results": "Search results about AI",
+        registry = _make_mock_registry(
+            {
+                "web-search": {
+                    "search_tool": lambda p: {
+                        "success": True,
+                        "results": "Search results about AI",
+                    },
                 },
-            },
-            "summarizer": {
-                "summarize_tool": lambda p: {
-                    "success": True,
-                    "summary": "AI is advancing rapidly",
+                "summarizer": {
+                    "summarize_tool": lambda p: {
+                        "success": True,
+                        "summary": "AI is advancing rapidly",
+                    },
                 },
-            },
-            "telegram": {
-                "send_tool": lambda p: {"success": True, "sent": True},
-            },
-        })
+                "telegram": {
+                    "send_tool": lambda p: {"success": True, "sent": True},
+                },
+            }
+        )
 
         result = await skill.execute({"topic": "AI trends"}, registry)
         assert result["_success"] is True
@@ -751,14 +787,16 @@ class TestPipelineIntegration:
         ]
         skill = PipelineSkill("ref-pipe", "Reference pipeline", pipeline)
 
-        registry = _make_mock_registry({
-            "fetcher": {
-                "fetch": lambda p: {"success": True, "payload": "important data"},
-            },
-            "sender": {
-                "send": lambda p: {"success": True, "delivered": True},
-            },
-        })
+        registry = _make_mock_registry(
+            {
+                "fetcher": {
+                    "fetch": lambda p: {"success": True, "payload": "important data"},
+                },
+                "sender": {
+                    "send": lambda p: {"success": True, "delivered": True},
+                },
+            }
+        )
 
         result = await skill.execute({}, registry)
         assert result["_success"] is True
@@ -775,11 +813,13 @@ class TestPipelineIntegration:
         ]
         skill = PipelineSkill("default-type", "Default type test", pipeline)
 
-        registry = _make_mock_registry({
-            "src": {"st": lambda p: {"success": True}},
-            "proc": {"pt": lambda p: {"success": True}},
-            "sink": {"sk": lambda p: {"success": True}},
-        })
+        registry = _make_mock_registry(
+            {
+                "src": {"st": lambda p: {"success": True}},
+                "proc": {"pt": lambda p: {"success": True}},
+                "sink": {"sk": lambda p: {"success": True}},
+            }
+        )
 
         result = await skill.execute({}, registry)
         assert result["_success"] is True

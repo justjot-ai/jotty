@@ -7,13 +7,14 @@ Automatically selects appropriate swarms based on task type.
 Maps stage types to actual Jotty swarms with best practices built-in.
 """
 
-from typing import Dict, List, Any, Optional, Type
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any, Dict, List, Optional, Type
 
 
 class StageType(Enum):
     """Common stage types in workflows."""
+
     # Analysis & Research
     REQUIREMENTS_ANALYSIS = "requirements_analysis"
     MARKET_RESEARCH = "market_research"
@@ -47,6 +48,7 @@ class StageType(Enum):
 @dataclass
 class SwarmConfig:
     """Configuration for a swarm."""
+
     swarm_type: str
     description: str
     default_prompts: List[str]
@@ -84,14 +86,14 @@ class SmartSwarmRegistry:
             default_prompts=[
                 "Analyze functional and non-functional requirements",
                 "Define user stories and acceptance criteria",
-                "Identify constraints and dependencies"
+                "Identify constraints and dependencies",
             ],
             merge_strategy="CONCATENATE",
             best_practices=[
                 "Be specific and measurable",
                 "Include edge cases",
-                "Consider security and performance"
-            ]
+                "Consider security and performance",
+            ],
         )
 
         self._registry[StageType.MARKET_RESEARCH] = SwarmConfig(
@@ -100,9 +102,9 @@ class SmartSwarmRegistry:
             default_prompts=[
                 "Research market size and trends",
                 "Analyze competitive landscape",
-                "Identify opportunities and threats"
+                "Identify opportunities and threats",
             ],
-            merge_strategy="CONCATENATE"
+            merge_strategy="CONCATENATE",
         )
 
         # Design
@@ -113,14 +115,14 @@ class SmartSwarmRegistry:
                 "Design scalable system architecture",
                 "Select appropriate tech stack",
                 "Define API contracts and data models",
-                "Consider deployment and infrastructure"
+                "Consider deployment and infrastructure",
             ],
             merge_strategy="BEST_OF_N",
             best_practices=[
                 "Use proven patterns",
                 "Design for scalability",
-                "Consider security from the start"
-            ]
+                "Consider security from the start",
+            ],
         )
 
         # Development
@@ -133,7 +135,7 @@ class SmartSwarmRegistry:
                 "Follow language/framework best practices",
                 "Make code runnable and complete",
                 "Include necessary imports and dependencies",
-                "Add inline comments for complex logic"
+                "Add inline comments for complex logic",
             ],
             merge_strategy="BEST_OF_N",
             best_practices=[
@@ -142,8 +144,8 @@ class SmartSwarmRegistry:
                 "Runnable (all imports included)",
                 "Error handling included",
                 "Security considerations applied",
-                "Output only code in ```language blocks"
-            ]
+                "Output only code in ```language blocks",
+            ],
         )
 
         self._registry[StageType.TEST_GENERATION] = SwarmConfig(
@@ -154,15 +156,15 @@ class SmartSwarmRegistry:
                 "Include unit tests for all functions",
                 "Add integration tests for workflows",
                 "Test edge cases and error conditions",
-                "Make tests runnable and independent"
+                "Make tests runnable and independent",
             ],
             merge_strategy="BEST_OF_N",
             best_practices=[
                 "Use proper test framework (pytest, unittest)",
                 "Tests are independent and isolated",
                 "Good coverage (>80%)",
-                "Test both success and failure paths"
-            ]
+                "Test both success and failure paths",
+            ],
         )
 
         self._registry[StageType.DOCUMENTATION] = SwarmConfig(
@@ -173,9 +175,9 @@ class SmartSwarmRegistry:
                 "Include setup and installation guide",
                 "Document API endpoints with examples",
                 "Add troubleshooting section",
-                "Include configuration options"
+                "Include configuration options",
             ],
-            merge_strategy="BEST_OF_N"
+            merge_strategy="BEST_OF_N",
         )
 
         # Quality & Review
@@ -187,14 +189,14 @@ class SmartSwarmRegistry:
                 "Check for performance issues",
                 "Verify best practices are followed",
                 "Identify bugs and edge cases",
-                "Provide actionable feedback"
+                "Provide actionable feedback",
             ],
             merge_strategy="VOTING",
             best_practices=[
                 "Focus on critical issues first",
                 "Provide specific examples",
-                "Suggest concrete improvements"
-            ]
+                "Suggest concrete improvements",
+            ],
         )
 
         self._registry[StageType.SECURITY_AUDIT] = SwarmConfig(
@@ -205,9 +207,9 @@ class SmartSwarmRegistry:
                 "Check authentication and authorization",
                 "Review input validation and sanitization",
                 "Identify data exposure risks",
-                "Provide risk rating and remediation"
+                "Provide risk rating and remediation",
             ],
-            merge_strategy="VOTING"
+            merge_strategy="VOTING",
         )
 
         # Deployment
@@ -219,9 +221,9 @@ class SmartSwarmRegistry:
                 "Include Dockerfile and docker-compose",
                 "Add CI/CD configuration",
                 "Include environment configuration",
-                "Make scripts runnable and complete"
+                "Make scripts runnable and complete",
             ],
-            merge_strategy="BEST_OF_N"
+            merge_strategy="BEST_OF_N",
         )
 
         # Validation
@@ -233,15 +235,13 @@ class SmartSwarmRegistry:
                 "Check completeness of deliverables",
                 "Assess production readiness",
                 "Identify missing or incomplete items",
-                "Provide go/no-go recommendation"
+                "Provide go/no-go recommendation",
             ],
-            merge_strategy="VOTING"
+            merge_strategy="VOTING",
         )
 
     def get_swarms_for_stage(
-        self,
-        stage_type: StageType,
-        context: Optional[Dict[str, Any]] = None
+        self, stage_type: StageType, context: Optional[Dict[str, Any]] = None
     ) -> List[tuple]:
         """
         Get appropriate swarms for a stage type.
@@ -278,7 +278,11 @@ class SmartSwarmRegistry:
                 full_prompt = f"{full_prompt}\n\nBest Practices:\n{practices}"
 
             # Create swarm name
-            swarm_name = f"{config.swarm_type.title()} {i+1}" if len(config.default_prompts) > 1 else config.swarm_type.title()
+            swarm_name = (
+                f"{config.swarm_type.title()} {i+1}"
+                if len(config.default_prompts) > 1
+                else config.swarm_type.title()
+            )
 
             swarms.append((swarm_name, full_prompt))
 

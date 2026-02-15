@@ -3,18 +3,20 @@ Tests for core/validation.py
 ==============================
 Covers: ParamValidator, validate_params, ValidationError re-export.
 """
-import pytest
-import tempfile
+
 import os
+import tempfile
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
-from Jotty.core.validation import ParamValidator, validate_params, ValidationError
+import pytest
 
+from Jotty.core.validation import ParamValidator, ValidationError, validate_params
 
 # ===========================================================================
 # ParamValidator — Initialization
 # ===========================================================================
+
 
 @pytest.mark.unit
 class TestParamValidatorInit:
@@ -53,6 +55,7 @@ class TestParamValidatorInit:
 # ===========================================================================
 # ParamValidator — require()
 # ===========================================================================
+
 
 @pytest.mark.unit
 class TestParamValidatorRequire:
@@ -100,6 +103,7 @@ class TestParamValidatorRequire:
 # ===========================================================================
 # ParamValidator — optional()
 # ===========================================================================
+
 
 @pytest.mark.unit
 class TestParamValidatorOptional:
@@ -172,6 +176,7 @@ class TestParamValidatorOptional:
 # ParamValidator — require_one_of()
 # ===========================================================================
 
+
 @pytest.mark.unit
 class TestParamValidatorRequireOneOf:
     """Tests for ParamValidator.require_one_of()."""
@@ -205,6 +210,7 @@ class TestParamValidatorRequireOneOf:
 # ===========================================================================
 # ParamValidator — validate_pattern()
 # ===========================================================================
+
 
 @pytest.mark.unit
 class TestParamValidatorPattern:
@@ -263,6 +269,7 @@ class TestParamValidatorPattern:
 # ParamValidator — validate_url() / validate_email()
 # ===========================================================================
 
+
 @pytest.mark.unit
 class TestParamValidatorUrlEmail:
     """Tests for validate_url and validate_email convenience methods."""
@@ -293,6 +300,7 @@ class TestParamValidatorUrlEmail:
 # ===========================================================================
 # ParamValidator — validate_file_exists()
 # ===========================================================================
+
 
 @pytest.mark.unit
 class TestParamValidatorFileExists:
@@ -329,6 +337,7 @@ class TestParamValidatorFileExists:
 # ===========================================================================
 # ParamValidator — validate_dir_exists()
 # ===========================================================================
+
 
 @pytest.mark.unit
 class TestParamValidatorDirExists:
@@ -378,6 +387,7 @@ class TestParamValidatorDirExists:
 # ===========================================================================
 # ParamValidator — validate_range()
 # ===========================================================================
+
 
 @pytest.mark.unit
 class TestParamValidatorRange:
@@ -446,6 +456,7 @@ class TestParamValidatorRange:
 # ParamValidator — is_valid() / get_errors()
 # ===========================================================================
 
+
 @pytest.mark.unit
 class TestParamValidatorState:
     """Tests for is_valid and get_errors."""
@@ -486,16 +497,14 @@ class TestParamValidatorState:
 # validate_params() — Schema-based validation
 # ===========================================================================
 
+
 @pytest.mark.unit
 class TestValidateParams:
     """Tests for the validate_params() function."""
 
     def test_required_field(self):
         """validate_params with required field."""
-        result = validate_params(
-            {"name": "test"},
-            {"name": {"required": True, "type": str}}
-        )
+        result = validate_params({"name": "test"}, {"name": {"required": True, "type": str}})
         assert result["name"] == "test"
 
     def test_missing_required_raises(self):
@@ -505,17 +514,13 @@ class TestValidateParams:
 
     def test_optional_with_default(self):
         """validate_params uses default for missing optional."""
-        result = validate_params(
-            {},
-            {"format": {"type": str, "default": "pdf"}}
-        )
+        result = validate_params({}, {"format": {"type": str, "default": "pdf"}})
         assert result["format"] == "pdf"
 
     def test_choices_validation(self):
         """validate_params validates choices."""
         result = validate_params(
-            {"format": "pdf"},
-            {"format": {"type": str, "choices": ["pdf", "html"]}}
+            {"format": "pdf"}, {"format": {"type": str, "choices": ["pdf", "html"]}}
         )
         assert result["format"] == "pdf"
 
@@ -523,39 +528,32 @@ class TestValidateParams:
         """validate_params raises for invalid choice."""
         with pytest.raises(ValidationError):
             validate_params(
-                {"format": "docx"},
-                {"format": {"type": str, "choices": ["pdf", "html"]}}
+                {"format": "docx"}, {"format": {"type": str, "choices": ["pdf", "html"]}}
             )
 
     def test_range_validation(self):
         """validate_params validates numeric ranges."""
-        result = validate_params(
-            {"count": 5},
-            {"count": {"min": 1, "max": 10}}
-        )
+        result = validate_params({"count": 5}, {"count": {"min": 1, "max": 10}})
         assert result["count"] == 5
 
     def test_url_validation(self):
         """validate_params validates URLs."""
         result = validate_params(
-            {"link": "https://example.com"},
-            {"link": {"url": True, "required": True}}
+            {"link": "https://example.com"}, {"link": {"url": True, "required": True}}
         )
         assert result["link"] == "https://example.com"
 
     def test_email_validation(self):
         """validate_params validates emails."""
         result = validate_params(
-            {"mail": "u@test.com"},
-            {"mail": {"email": True, "required": True}}
+            {"mail": "u@test.com"}, {"mail": {"email": True, "required": True}}
         )
         assert result["mail"] == "u@test.com"
 
     def test_pattern_validation(self):
         """validate_params validates patterns."""
         result = validate_params(
-            {"code": "ABC-123"},
-            {"code": {"pattern": r"^[A-Z]+-\d+$", "required": True}}
+            {"code": "ABC-123"}, {"code": {"pattern": r"^[A-Z]+-\d+$", "required": True}}
         )
         assert result["code"] == "ABC-123"
 
@@ -564,8 +562,7 @@ class TestValidateParams:
         f = tmp_path / "test.txt"
         f.write_text("data")
         result = validate_params(
-            {"path": str(f)},
-            {"path": {"file_exists": True, "required": True}}
+            {"path": str(f)}, {"path": {"file_exists": True, "required": True}}
         )
         assert result["path"] == f
 
@@ -573,8 +570,7 @@ class TestValidateParams:
         """validate_params creates directory when specified."""
         new_dir = tmp_path / "output"
         result = validate_params(
-            {"dir": str(new_dir)},
-            {"dir": {"dir_exists": True, "create": True}}
+            {"dir": str(new_dir)}, {"dir": {"dir_exists": True, "create": True}}
         )
         assert result["dir"] == new_dir
         assert new_dir.exists()
@@ -587,7 +583,7 @@ class TestValidateParams:
                 "name": {"required": True, "type": str},
                 "count": {"min": 1, "max": 100},
                 "format": {"type": str, "choices": ["pdf", "html"], "default": "html"},
-            }
+            },
         )
         assert result["name"] == "test"
         assert result["count"] == 5
@@ -597,6 +593,7 @@ class TestValidateParams:
 # ===========================================================================
 # PATTERNS constant
 # ===========================================================================
+
 
 @pytest.mark.unit
 class TestParamValidatorPatterns:

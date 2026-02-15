@@ -12,15 +12,16 @@ Pipelines tested:
 4. Config: focused config → SwarmConfig bridge → subsystem acceptance
 """
 
-import time
 import threading
+import time
 from contextlib import nullcontext
-import pytest
 
+import pytest
 
 # =============================================================================
 # 1. Memory Pipeline Integration
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestMemoryPipelineIntegration:
@@ -29,6 +30,7 @@ class TestMemoryPipelineIntegration:
     def test_memory_system_store_and_retrieve(self):
         """Store a memory and retrieve it."""
         from Jotty.core.intelligence.memory.memory_system import MemorySystem
+
         mem = MemorySystem()
         mem_id = mem.store(
             "Task X succeeded with approach Y",
@@ -44,14 +46,16 @@ class TestMemoryPipelineIntegration:
     def test_memory_system_status(self):
         """Memory system reports its status."""
         from Jotty.core.intelligence.memory.memory_system import MemorySystem
+
         mem = MemorySystem()
         status = mem.status()
         assert isinstance(status, dict)
-        assert 'backend' in status
+        assert "backend" in status
 
     def test_memory_system_multi_level_storage(self):
         """Store across all 5 memory levels."""
         from Jotty.core.intelligence.memory.memory_system import MemorySystem
+
         mem = MemorySystem()
         levels = ["episodic", "semantic", "procedural", "meta", "causal"]
         ids = []
@@ -63,8 +67,9 @@ class TestMemoryPipelineIntegration:
 
     def test_memory_facade_singleton_consistency(self):
         """Facade returns same MemorySystem instance."""
-        from Jotty.core.intelligence.memory.facade import get_memory_system
         import Jotty.core.intelligence.memory.facade as mf
+        from Jotty.core.intelligence.memory.facade import get_memory_system
+
         mf._singletons.clear()
         m1 = get_memory_system()
         m2 = get_memory_system()
@@ -72,17 +77,19 @@ class TestMemoryPipelineIntegration:
 
     def test_brain_manager_instantiation(self):
         """BrainInspiredMemoryManager can be created and queried."""
-        from Jotty.core.intelligence.memory.facade import get_brain_manager
         import Jotty.core.intelligence.memory.facade as mf
+        from Jotty.core.intelligence.memory.facade import get_brain_manager
+
         mf._singletons.clear()
         brain = get_brain_manager()
         assert brain is not None
-        assert hasattr(brain, 'store_experience')
+        assert hasattr(brain, "store_experience")
 
     def test_memory_config_to_rag_retriever(self):
         """MemoryConfig flows through to RAG retriever."""
         from Jotty.core.infrastructure.foundation.configs import MemoryConfig
         from Jotty.core.intelligence.memory.facade import get_rag_retriever
+
         cfg = MemoryConfig(
             rag_window_size=10,
             rag_relevance_threshold=0.8,
@@ -96,6 +103,7 @@ class TestMemoryPipelineIntegration:
 # 2. Learning Pipeline Integration
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestLearningPipelineIntegration:
     """Test TD-Lambda → credit → reward pipeline."""
@@ -103,6 +111,7 @@ class TestLearningPipelineIntegration:
     def test_td_lambda_update_cycle(self):
         """Full TD-Lambda update cycle: state → action → reward → next_state."""
         from Jotty.core.intelligence.learning.facade import get_td_lambda
+
         td = get_td_lambda()
         assert td is not None
 
@@ -117,13 +126,15 @@ class TestLearningPipelineIntegration:
     def test_credit_assigner_creation(self):
         """Credit assigner can be created through facade."""
         from Jotty.core.intelligence.learning.facade import get_credit_assigner
+
         credit = get_credit_assigner()
         assert credit is not None
-        assert hasattr(credit, 'analyze_contributions')
+        assert hasattr(credit, "analyze_contributions")
 
     def test_reward_manager_creation(self):
         """Reward manager can be created through facade."""
         from Jotty.core.intelligence.learning.facade import get_reward_manager
+
         rm = get_reward_manager()
         assert rm is not None
 
@@ -131,6 +142,7 @@ class TestLearningPipelineIntegration:
         """Learning facade accepts LearningConfig."""
         from Jotty.core.infrastructure.foundation.configs import LearningConfig
         from Jotty.core.intelligence.learning.facade import get_td_lambda
+
         cfg = LearningConfig(gamma=0.5, alpha=0.05)
         td = get_td_lambda(config=cfg)
         assert td is not None
@@ -138,6 +150,7 @@ class TestLearningPipelineIntegration:
     def test_td_lambda_multiple_updates(self):
         """Multiple TD-Lambda updates build state-action values."""
         from Jotty.core.intelligence.learning.facade import get_td_lambda
+
         td = get_td_lambda()
 
         for i in range(5):
@@ -151,15 +164,17 @@ class TestLearningPipelineIntegration:
     def test_learning_system_full_pipeline(self):
         """Full learning system pipeline."""
         from Jotty.core.intelligence.learning.facade import get_learning_system
+
         ls = get_learning_system()
         assert ls is not None
-        assert hasattr(ls, 'q_learner')
-        assert hasattr(ls, 'record_experience')
+        assert hasattr(ls, "q_learner")
+        assert hasattr(ls, "record_experience")
 
 
 # =============================================================================
 # 3. Observability Pipeline Integration
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestObservabilityPipelineIntegration:
@@ -168,6 +183,7 @@ class TestObservabilityPipelineIntegration:
     def test_tracing_full_pipeline(self):
         """Create trace, add spans, add costs, get summary."""
         from Jotty.core.infrastructure.monitoring.observability.tracing import TracingContext
+
         ctx = TracingContext()
         trace = ctx.new_trace(metadata={"goal": "integration test"})
 
@@ -177,15 +193,15 @@ class TestObservabilityPipelineIntegration:
                 time.sleep(0.01)
 
             with ctx.span("agent_execute", agent="auto") as agent:
-                ctx.add_cost_to_current(
-                    input_tokens=500, output_tokens=200, cost_usd=0.003
-                )
+                ctx.add_cost_to_current(input_tokens=500, output_tokens=200, cost_usd=0.003)
                 time.sleep(0.01)
 
             with ctx.span("validation") as val:
                 val.set_status(
-                    __import__('Jotty.core.observability.tracing', fromlist=['SpanStatus']).SpanStatus.OK,
-                    "passed"
+                    __import__(
+                        "Jotty.core.observability.tracing", fromlist=["SpanStatus"]
+                    ).SpanStatus.OK,
+                    "passed",
                 )
 
         # Verify trace structure
@@ -202,12 +218,13 @@ class TestObservabilityPipelineIntegration:
 
         # Verify serialization
         d = trace.to_dict()
-        assert d['trace_id'] == trace.trace_id
-        assert d['summary']['span_count'] == 4
+        assert d["trace_id"] == trace.trace_id
+        assert d["summary"]["span_count"] == 4
 
     def test_profiler_full_pipeline(self):
         """Profile operations, get report with slowest segments."""
         from Jotty.core.infrastructure.monitoring.monitoring.profiler import PerformanceProfiler
+
         p = PerformanceProfiler()
 
         with p.profile("llm_call", metadata={"model": "claude"}):
@@ -227,6 +244,7 @@ class TestObservabilityPipelineIntegration:
     def test_budget_tracker_full_pipeline(self):
         """Track LLM costs across multiple agents."""
         from Jotty.core.infrastructure.utils.budget_tracker import BudgetTracker
+
         BudgetTracker.reset_instances()
 
         bt = BudgetTracker.get_instance("integration_test")
@@ -235,15 +253,16 @@ class TestObservabilityPipelineIntegration:
         bt.record_call("researcher", tokens_input=800, tokens_output=300, model="gpt-4o")
 
         usage = bt.get_usage()
-        assert usage['calls'] == 3
-        assert usage['tokens_input'] == 2300
-        assert usage['tokens_output'] == 1000
+        assert usage["calls"] == 3
+        assert usage["tokens_input"] == 2300
+        assert usage["tokens_output"] == 1000
 
         BudgetTracker.reset_instances()
 
     def test_llm_cache_full_pipeline(self):
         """Cache LLM responses, verify hits and misses."""
         from Jotty.core.infrastructure.utils.llm_cache import LLMCallCache
+
         LLMCallCache.reset_instances()
 
         cache = LLMCallCache(max_size=100, default_ttl=60)
@@ -271,14 +290,14 @@ class TestObservabilityPipelineIntegration:
         stats = cache.stats()
         assert stats.hits == 1
         assert stats.misses == 2
-        assert stats.hit_rate == pytest.approx(1/3)
+        assert stats.hit_rate == pytest.approx(1 / 3)
 
         LLMCallCache.reset_instances()
 
     def test_tracing_and_profiler_combined(self):
         """Use tracing and profiling together on same operation."""
-        from Jotty.core.infrastructure.monitoring.observability.tracing import TracingContext
         from Jotty.core.infrastructure.monitoring.monitoring.profiler import PerformanceProfiler
+        from Jotty.core.infrastructure.monitoring.observability.tracing import TracingContext
 
         tracer = TracingContext()
         profiler = PerformanceProfiler()
@@ -302,6 +321,7 @@ class TestObservabilityPipelineIntegration:
 # =============================================================================
 # 4. Config Pipeline Integration
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestConfigPipelineIntegration:
@@ -335,8 +355,11 @@ class TestConfigPipelineIntegration:
         from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
 
         original = LearningConfig(
-            gamma=0.8, alpha=0.05, lambda_trace=0.9,
-            alpha_min=0.01, alpha_max=0.1,
+            gamma=0.8,
+            alpha=0.05,
+            lambda_trace=0.9,
+            alpha_min=0.01,
+            alpha_max=0.1,
         )
         swarm_cfg = SwarmConfig.from_configs(learning=original)
         assert swarm_cfg.gamma == 0.8
@@ -350,7 +373,10 @@ class TestConfigPipelineIntegration:
     def test_multi_config_compose(self):
         """Compose multiple focused configs into single SwarmConfig."""
         from Jotty.core.infrastructure.foundation.configs import (
-            MemoryConfig, LearningConfig, ExecutionConfig, MonitoringConfig,
+            ExecutionConfig,
+            LearningConfig,
+            MemoryConfig,
+            MonitoringConfig,
         )
         from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
 
@@ -368,7 +394,9 @@ class TestConfigPipelineIntegration:
     def test_config_validation_catches_invalid(self):
         """Validation prevents creating invalid configs."""
         from Jotty.core.infrastructure.foundation.configs import (
-            LearningConfig, MemoryConfig, ContextBudgetConfig,
+            ContextBudgetConfig,
+            LearningConfig,
+            MemoryConfig,
         )
 
         # Invalid gamma
@@ -381,6 +409,7 @@ class TestConfigPipelineIntegration:
 
         # Budget over-allocation (now logs warning instead of raising)
         import logging
+
         with pytest.warns(None) if False else nullcontext():
             # Verify it doesn't raise - it logs a warning instead
             cfg = ContextBudgetConfig(
@@ -413,14 +442,15 @@ class TestConfigPipelineIntegration:
 # 5. Cross-Subsystem Integration
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestCrossSubsystemIntegration:
     """Test that different subsystems work together."""
 
     def test_memory_with_tracing(self):
         """Memory operations can be traced."""
-        from Jotty.core.intelligence.memory.memory_system import MemorySystem
         from Jotty.core.infrastructure.monitoring.observability.tracing import TracingContext
+        from Jotty.core.intelligence.memory.memory_system import MemorySystem
 
         tracer = TracingContext()
         tracer.new_trace()
@@ -439,8 +469,9 @@ class TestCrossSubsystemIntegration:
 
     def test_learning_with_budget_tracking(self):
         """Learning operations tracked with budget."""
-        from Jotty.core.intelligence.learning.facade import get_td_lambda
         from Jotty.core.infrastructure.utils.budget_tracker import BudgetTracker
+        from Jotty.core.intelligence.learning.facade import get_td_lambda
+
         BudgetTracker.reset_instances()
 
         td = get_td_lambda()
@@ -456,18 +487,23 @@ class TestCrossSubsystemIntegration:
         bt.record_call("learner", tokens_input=100, tokens_output=50, model="internal")
 
         usage = bt.get_usage()
-        assert usage['calls'] == 1
+        assert usage["calls"] == 1
         BudgetTracker.reset_instances()
 
     def test_facades_all_accessible(self):
         """All 6 subsystem facades return valid objects."""
-        from Jotty.core.intelligence.memory.facade import get_memory_system
-        from Jotty.core.intelligence.learning.facade import get_td_lambda, get_credit_assigner
-        from Jotty.core.intelligence.orchestration.facade import (
-            get_swarm_intelligence, get_ensemble_manager, get_swarm_router,
-        )
         from Jotty.core.infrastructure.utils.facade import (
-            get_budget_tracker, get_circuit_breaker, get_llm_cache, get_tokenizer,
+            get_budget_tracker,
+            get_circuit_breaker,
+            get_llm_cache,
+            get_tokenizer,
+        )
+        from Jotty.core.intelligence.learning.facade import get_credit_assigner, get_td_lambda
+        from Jotty.core.intelligence.memory.facade import get_memory_system
+        from Jotty.core.intelligence.orchestration.facade import (
+            get_ensemble_manager,
+            get_swarm_intelligence,
+            get_swarm_router,
         )
 
         # Memory
@@ -501,6 +537,7 @@ class TestCrossSubsystemIntegration:
     def test_tokenizer_counts_real_text(self):
         """Tokenizer counts tokens in real text."""
         from Jotty.core.infrastructure.utils.facade import get_tokenizer
+
         tok = get_tokenizer()
         count = tok.count_tokens("Hello world, this is a test of the tokenizer")
         assert isinstance(count, int)
@@ -510,6 +547,7 @@ class TestCrossSubsystemIntegration:
     def test_circuit_breaker_state_machine(self):
         """Circuit breaker transitions through states."""
         from Jotty.core.infrastructure.utils.facade import get_circuit_breaker
+
         cb = get_circuit_breaker("integration_test")
 
         # Start closed

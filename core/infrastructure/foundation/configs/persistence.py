@@ -7,6 +7,7 @@ from typing import Any
 @dataclass
 class PersistenceConfig:
     """Storage and persistence settings."""
+
     output_base_dir: str = "./outputs"
     create_run_folder: bool = True
     auto_save_interval: int = 3
@@ -30,11 +31,11 @@ class PersistenceConfig:
     def __post_init__(self) -> None:
         # Positive integer fields
         _pos_int_fields = {
-            'auto_save_interval': self.auto_save_interval,
-            'save_interval': self.save_interval,
-            'max_runs_to_keep': self.max_runs_to_keep,
-            'backup_interval': self.backup_interval,
-            'max_backups': self.max_backups,
+            "auto_save_interval": self.auto_save_interval,
+            "save_interval": self.save_interval,
+            "max_runs_to_keep": self.max_runs_to_keep,
+            "backup_interval": self.backup_interval,
+            "max_backups": self.max_backups,
         }
         for name, val in _pos_int_fields.items():
             if val < 1:

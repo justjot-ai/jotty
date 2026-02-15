@@ -21,33 +21,41 @@ import os
 import sys
 import time
 from pathlib import Path
+
 import pytest
 
 pytestmark = pytest.mark.skipif(
-    not os.getenv('ANTHROPIC_API_KEY'),
-    reason="Requires ANTHROPIC_API_KEY for real LLM calls"
+    not os.getenv("ANTHROPIC_API_KEY"), reason="Requires ANTHROPIC_API_KEY for real LLM calls"
 )
 
 # ── Load API keys ──
-for env_file in [Path(__file__).parents[2] / '.env.anthropic',
-                 Path(__file__).parents[1] / '.env.anthropic',
-                 Path(__file__).parents[1] / '.env']:
+for env_file in [
+    Path(__file__).parents[2] / ".env.anthropic",
+    Path(__file__).parents[1] / ".env.anthropic",
+    Path(__file__).parents[1] / ".env",
+]:
     if env_file.exists():
         with open(env_file) as f:
             for line in f:
                 line = line.strip()
-                if '=' in line and not line.startswith('#'):
-                    k, v = line.split('=', 1)
+                if "=" in line and not line.startswith("#"):
+                    k, v = line.split("=", 1)
                     k, v = k.strip(), v.strip()
                     if v and k not in os.environ:
                         os.environ[k] = v
 
 import logging
-logging.basicConfig(level=logging.WARNING, format='%(levelname)-8s %(name)s: %(message)s')
-logger = logging.getLogger('complex_eval')
+
+logging.basicConfig(level=logging.WARNING, format="%(levelname)-8s %(name)s: %(message)s")
+logger = logging.getLogger("complex_eval")
 logger.setLevel(logging.INFO)
 
-B = '\033[1m'; G = '\033[92m'; R = '\033[91m'; Y = '\033[93m'; D = '\033[2m'; E = '\033[0m'
+B = "\033[1m"
+G = "\033[92m"
+R = "\033[91m"
+Y = "\033[93m"
+D = "\033[2m"
+E = "\033[0m"
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -78,15 +86,21 @@ async def scenario_1_codegen():
     out_len = len(output)
 
     # Quality checks
-    has_fastapi = 'fastapi' in output.lower() or 'FastAPI' in output
-    has_crud = sum(1 for kw in ['get', 'post', 'put', 'delete'] if kw in output.lower()) >= 3
-    has_pydantic = 'BaseModel' in output or 'pydantic' in output.lower()
-    has_code = 'def ' in output or 'async def' in output
-    saved_py = any('app.py' in str(d) for _, s, d in trail if 'file' in s.lower() or 'write' in s.lower() or 'done' in s.lower())
+    has_fastapi = "fastapi" in output.lower() or "FastAPI" in output
+    has_crud = sum(1 for kw in ["get", "post", "put", "delete"] if kw in output.lower()) >= 3
+    has_pydantic = "BaseModel" in output or "pydantic" in output.lower()
+    has_code = "def " in output or "async def" in output
+    saved_py = any(
+        "app.py" in str(d)
+        for _, s, d in trail
+        if "file" in s.lower() or "write" in s.lower() or "done" in s.lower()
+    )
 
     quality = sum([has_fastapi, has_crud, has_pydantic, has_code]) / 4
 
-    print(f"  {'PASS' if result.success else 'FAIL'} | {elapsed:.0f}s | {out_len:,} chars | quality={quality:.0%}")
+    print(
+        f"  {'PASS' if result.success else 'FAIL'} | {elapsed:.0f}s | {out_len:,} chars | quality={quality:.0%}"
+    )
     print(f"  FastAPI={has_fastapi} CRUD={has_crud} Pydantic={has_pydantic} Code={has_code}")
     for ts, s, d in trail[-5:]:
         print(f"  {D}  [{ts:.1f}s] {s}: {d[:80]}{E}")
@@ -125,17 +139,28 @@ async def scenario_2_architecture():
     out_len = len(output)
 
     # Quality checks — should have deep architecture content
-    has_services = sum(1 for kw in ['order', 'inventory', 'payment', 'notification'] if kw in output.lower()) >= 3
-    has_patterns = sum(1 for kw in ['saga', 'cqrs', 'event', 'kafka', 'rabbitmq'] if kw in output.lower()) >= 3
-    has_code = 'def ' in output or 'class ' in output or 'async' in output
+    has_services = (
+        sum(1 for kw in ["order", "inventory", "payment", "notification"] if kw in output.lower())
+        >= 3
+    )
+    has_patterns = (
+        sum(1 for kw in ["saga", "cqrs", "event", "kafka", "rabbitmq"] if kw in output.lower()) >= 3
+    )
+    has_code = "def " in output or "class " in output or "async" in output
     has_depth = out_len > 2000  # Architecture doc should be substantial
-    no_web_used = not any('web-search' in str(d) or 'scrape' in str(d) for _, s, d in trail)
+    no_web_used = not any("web-search" in str(d) or "scrape" in str(d) for _, s, d in trail)
 
     quality = sum([has_services, has_patterns, has_code, has_depth]) / 4
 
-    print(f"  {'PASS' if result.success else 'FAIL'} | {elapsed:.0f}s | {out_len:,} chars | quality={quality:.0%}")
+    print(
+        f"  {'PASS' if result.success else 'FAIL'} | {elapsed:.0f}s | {out_len:,} chars | quality={quality:.0%}"
+    )
     print(f"  Services={has_services} Patterns={has_patterns} Code={has_code} Depth={has_depth}")
-    print(f"  {G}Web skipped={no_web_used}{E}" if no_web_used else f"  {R}Web used (should have been skipped){E}")
+    print(
+        f"  {G}Web skipped={no_web_used}{E}"
+        if no_web_used
+        else f"  {R}Web used (should have been skipped){E}"
+    )
     for ts, s, d in trail[-5:]:
         print(f"  {D}  [{ts:.1f}s] {s}: {d[:80]}{E}")
 
@@ -147,9 +172,9 @@ async def scenario_2_architecture():
 # Tests: multi-agent coordination, parallel execution, synthesis
 # ══════════════════════════════════════════════════════════════════
 async def scenario_3_multi_agent():
+    from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
     from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
     from Jotty.core.modes.agent.auto_agent import AutoAgent
-    from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
 
     print(f"\n{B}SCENARIO 3: Multi-Agent AI Market Analysis{E}")
     print(f"{D}  Goal: 3 specialized agents produce coordinated analysis{E}")
@@ -158,15 +183,24 @@ async def scenario_3_multi_agent():
     agents = [
         AgentConfig(
             name="TechAnalyst",
-            agent=AutoAgent(name="TechAnalyst", system_prompt="You are a technical analyst specializing in AI/ML technology trends. Focus on architectures, benchmarks, and capabilities."),
+            agent=AutoAgent(
+                name="TechAnalyst",
+                system_prompt="You are a technical analyst specializing in AI/ML technology trends. Focus on architectures, benchmarks, and capabilities.",
+            ),
         ),
         AgentConfig(
             name="MarketAnalyst",
-            agent=AutoAgent(name="MarketAnalyst", system_prompt="You are a market analyst specializing in AI industry dynamics. Focus on market size, growth rates, key players, and competitive landscape."),
+            agent=AutoAgent(
+                name="MarketAnalyst",
+                system_prompt="You are a market analyst specializing in AI industry dynamics. Focus on market size, growth rates, key players, and competitive landscape.",
+            ),
         ),
         AgentConfig(
             name="StrategyAdvisor",
-            agent=AutoAgent(name="StrategyAdvisor", system_prompt="You are a strategy advisor. Synthesize technical and market insights into actionable business recommendations."),
+            agent=AutoAgent(
+                name="StrategyAdvisor",
+                system_prompt="You are a strategy advisor. Synthesize technical and market insights into actionable business recommendations.",
+            ),
         ),
     ]
 
@@ -191,15 +225,23 @@ async def scenario_3_multi_agent():
     output = str(result.output) if result.output else ""
     out_len = len(output)
 
-    has_frameworks = sum(1 for kw in ['langchain', 'crewai', 'autogen'] if kw in output.lower()) >= 2
-    has_analysis = any(kw in output.lower() for kw in ['market', 'strategy', 'recommendation', 'competitive'])
+    has_frameworks = (
+        sum(1 for kw in ["langchain", "crewai", "autogen"] if kw in output.lower()) >= 2
+    )
+    has_analysis = any(
+        kw in output.lower() for kw in ["market", "strategy", "recommendation", "competitive"]
+    )
     has_depth = out_len > 3000
-    multi_agent_used = any('agents' in str(d) for _, s, d in trail)
+    multi_agent_used = any("agents" in str(d) for _, s, d in trail)
 
     quality = sum([has_frameworks, has_analysis, has_depth, multi_agent_used]) / 4
 
-    print(f"  {'PASS' if result.success else 'FAIL'} | {elapsed:.0f}s | {out_len:,} chars | quality={quality:.0%}")
-    print(f"  Frameworks={has_frameworks} Analysis={has_analysis} Depth={has_depth} MultiAgent={multi_agent_used}")
+    print(
+        f"  {'PASS' if result.success else 'FAIL'} | {elapsed:.0f}s | {out_len:,} chars | quality={quality:.0%}"
+    )
+    print(
+        f"  Frameworks={has_frameworks} Analysis={has_analysis} Depth={has_depth} MultiAgent={multi_agent_used}"
+    )
     for ts, s, d in trail[-5:]:
         print(f"  {D}  [{ts:.1f}s] {s}: {d[:80]}{E}")
 
@@ -235,15 +277,21 @@ async def scenario_4_code_execute():
     output = str(result.output) if result.output else ""
     out_len = len(output)
 
-    has_monte_carlo = 'monte carlo' in output.lower() or 'simulation' in output.lower()
-    has_numbers = any(c.isdigit() for c in output) and ('$' in output or 'price' in output.lower() or '%' in output)
-    has_code = 'numpy' in output.lower() or 'np.' in output or 'import' in output
-    saved_py = any('.py' in str(d) for _, s, d in trail)
+    has_monte_carlo = "monte carlo" in output.lower() or "simulation" in output.lower()
+    has_numbers = any(c.isdigit() for c in output) and (
+        "$" in output or "price" in output.lower() or "%" in output
+    )
+    has_code = "numpy" in output.lower() or "np." in output or "import" in output
+    saved_py = any(".py" in str(d) for _, s, d in trail)
 
     quality = sum([has_monte_carlo, has_numbers, has_code, saved_py]) / 4
 
-    print(f"  {'PASS' if result.success else 'FAIL'} | {elapsed:.0f}s | {out_len:,} chars | quality={quality:.0%}")
-    print(f"  MonteCarlo={has_monte_carlo} Numbers={has_numbers} Code={has_code} SavedPy={saved_py}")
+    print(
+        f"  {'PASS' if result.success else 'FAIL'} | {elapsed:.0f}s | {out_len:,} chars | quality={quality:.0%}"
+    )
+    print(
+        f"  MonteCarlo={has_monte_carlo} Numbers={has_numbers} Code={has_code} SavedPy={saved_py}"
+    )
     for ts, s, d in trail[-5:]:
         print(f"  {D}  [{ts:.1f}s] {s}: {d[:80]}{E}")
 
@@ -261,10 +309,10 @@ async def main():
     print(f"{'='*70}")
 
     scenarios = [
-        ("FastAPI REST API Code Gen",           scenario_1_codegen),
-        ("Architecture Design (no web)",        scenario_2_architecture),
-        ("Multi-Agent Market Analysis",         scenario_3_multi_agent),
-        ("Stock Simulation + Execution",        scenario_4_code_execute),
+        ("FastAPI REST API Code Gen", scenario_1_codegen),
+        ("Architecture Design (no web)", scenario_2_architecture),
+        ("Multi-Agent Market Analysis", scenario_3_multi_agent),
+        ("Stock Simulation + Execution", scenario_4_code_execute),
     ]
 
     results = []
@@ -298,8 +346,10 @@ async def main():
 
     avg_quality = total_quality / len(results) if results else 0
 
-    print(f"\n  {B}Result: {total_pass}/{len(results)} passed | "
-          f"Total: {total_time:.0f}s | Avg Quality: {avg_quality:.0%}{E}")
+    print(
+        f"\n  {B}Result: {total_pass}/{len(results)} passed | "
+        f"Total: {total_time:.0f}s | Avg Quality: {avg_quality:.0%}{E}"
+    )
 
     # Grade
     if total_pass == 4 and avg_quality >= 0.7:
@@ -315,7 +365,7 @@ async def main():
     return total_pass, len(results)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     try:
         passed, total = asyncio.run(main())
         sys.exit(0 if passed >= 2 else 1)

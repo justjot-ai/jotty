@@ -21,23 +21,24 @@ Requirements:
 - npm/node for frontend components
 """
 
-import os
-import time
-import logging
 import asyncio
-import subprocess
+import logging
+import os
 import shutil
+import subprocess
+import time
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-from dataclasses import dataclass, field
 
-from .base import SkillProvider, SkillCategory, ProviderCapability, ProviderResult
+from .base import ProviderCapability, ProviderResult, SkillCategory, SkillProvider
 
 logger = logging.getLogger(__name__)
 
 # Check if morph-data is available
 try:
     import morph
+
     MORPH_AVAILABLE = True
 except ImportError:
     MORPH_AVAILABLE = False
@@ -72,7 +73,7 @@ def {name}(context: MorphGlobalContext{params}):
 {body}
 '''
 
-PAGE_TEMPLATE = '''---
+PAGE_TEMPLATE = """---
 title: {title}
 description: {description}
 ---
@@ -82,26 +83,26 @@ description: {description}
 {content}
 
 {components}
-'''
+"""
 
 COMPONENT_TEMPLATES = {
-    'chat': '<Chat postData="{workflow}" height={{300}} />',
-    'form': '<Form postData="{workflow}" />',
-    'table': '<DataTable postData="{workflow}" />',
-    'chart': '<Chart postData="{workflow}" type="{chart_type}" />',
-    'input': '<Input name="{name}" label="{label}" />',
-    'button': '<Button onClick={{() => run("{workflow}")}}>{{children}}</Button>',
-    'markdown': '<Markdown>{content}</Markdown>',
+    "chat": '<Chat postData="{workflow}" height={{300}} />',
+    "form": '<Form postData="{workflow}" />',
+    "table": '<DataTable postData="{workflow}" />',
+    "chart": '<Chart postData="{workflow}" type="{chart_type}" />',
+    "input": '<Input name="{name}" label="{label}" />',
+    "button": '<Button onClick={{() => run("{workflow}")}}>{{children}}</Button>',
+    "markdown": "<Markdown>{content}</Markdown>",
 }
 
 DEFAULT_PROJECT_STRUCTURE = {
-    'src': [],              # Morph source directory
-    'src/python': [],       # Python workflows
-    'src/pages': [],        # MDX pages
-    'morph_project.yml': None,  # Required config
+    "src": [],  # Morph source directory
+    "src/python": [],  # Python workflows
+    "src/pages": [],  # MDX pages
+    "morph_project.yml": None,  # Required config
 }
 
-MORPH_PROJECT_YML_TEMPLATE = '''version: '1'
+MORPH_PROJECT_YML_TEMPLATE = """version: '1'
 
 # Framework Settings
 default_connection: morph-duckdb
@@ -121,12 +122,13 @@ build:
 # Deployment Settings
 deployment:
     provider: aws
-'''
+"""
 
 
 @dataclass
 class MorphProject:
     """Represents a Morph project."""
+
     name: str
     path: Path
     workflows: List[str] = field(default_factory=list)
@@ -197,10 +199,20 @@ class MorphProvider(SkillProvider):
         ]
 
         # Configuration
-        self.workspace_dir = Path(config.get('workspace_dir', './morph_apps')) if config else Path('./morph_apps')
-        self.api_key = config.get('api_key', os.getenv('MORPH_API_KEY')) if config else os.getenv('MORPH_API_KEY')
-        self.workspace_id = config.get('workspace_id', os.getenv('MORPH_WORKSPACE_ID')) if config else os.getenv('MORPH_WORKSPACE_ID')
-        self.default_port = config.get('default_port', 8080) if config else 8080
+        self.workspace_dir = (
+            Path(config.get("workspace_dir", "./morph_apps")) if config else Path("./morph_apps")
+        )
+        self.api_key = (
+            config.get("api_key", os.getenv("MORPH_API_KEY"))
+            if config
+            else os.getenv("MORPH_API_KEY")
+        )
+        self.workspace_id = (
+            config.get("workspace_id", os.getenv("MORPH_WORKSPACE_ID"))
+            if config
+            else os.getenv("MORPH_WORKSPACE_ID")
+        )
+        self.default_port = config.get("default_port", 8080) if config else 8080
 
         # Active projects
         self._projects: Dict[str, MorphProject] = {}
@@ -250,9 +262,11 @@ class MorphProvider(SkillProvider):
         """Install morph-data package."""
         try:
             process = await asyncio.create_subprocess_exec(
-                'pip', 'install', 'morph-data',
+                "pip",
+                "install",
+                "morph-data",
                 stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                stderr=asyncio.subprocess.PIPE,
             )
             stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=120)
 
@@ -274,9 +288,7 @@ class MorphProvider(SkillProvider):
         """Check if morph CLI is available."""
         try:
             process = await asyncio.create_subprocess_exec(
-                'morph', '--version',
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                "morph", "--version", stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
             )
             await asyncio.wait_for(process.communicate(), timeout=10)
             return process.returncode == 0
@@ -306,17 +318,21 @@ class MorphProvider(SkillProvider):
 
         try:
             # Route to appropriate handler
-            if any(kw in task_lower for kw in ['new', 'create', 'build', 'start project', 'make app']):
+            if any(
+                kw in task_lower for kw in ["new", "create", "build", "start project", "make app"]
+            ):
                 result = await self._create_full_app(task, context)
-            elif any(kw in task_lower for kw in ['workflow', 'function', 'backend', 'api']):
+            elif any(kw in task_lower for kw in ["workflow", "function", "backend", "api"]):
                 result = await self._generate_workflow_from_task(task, context)
-            elif any(kw in task_lower for kw in ['page', 'ui', 'frontend', 'interface', 'component']):
+            elif any(
+                kw in task_lower for kw in ["page", "ui", "frontend", "interface", "component"]
+            ):
                 result = await self._generate_page_from_task(task, context)
-            elif any(kw in task_lower for kw in ['serve', 'run', 'start server', 'launch']):
+            elif any(kw in task_lower for kw in ["serve", "run", "start server", "launch"]):
                 result = await self._serve(context)
-            elif any(kw in task_lower for kw in ['stop', 'shutdown', 'kill server']):
+            elif any(kw in task_lower for kw in ["stop", "shutdown", "kill server"]):
                 result = await self._stop_server(context)
-            elif any(kw in task_lower for kw in ['deploy', 'publish', 'cloud']):
+            elif any(kw in task_lower for kw in ["deploy", "publish", "cloud"]):
                 result = await self._deploy(context)
             else:
                 # Default: create full app
@@ -347,7 +363,7 @@ class MorphProvider(SkillProvider):
         This is the main entry point for app creation.
         """
         # Extract project name from task or context
-        project_name = context.get('project_name') or self._extract_project_name(task)
+        project_name = context.get("project_name") or self._extract_project_name(task)
 
         # Create project structure
         project_result = await self.create_project(project_name)
@@ -360,27 +376,27 @@ class MorphProvider(SkillProvider):
         app_spec = self._analyze_task_for_app(task)
 
         # Generate workflows
-        for workflow_spec in app_spec.get('workflows', []):
+        for workflow_spec in app_spec.get("workflows", []):
             workflow_result = await self.generate_workflow(
-                workflow_name=workflow_spec['name'],
+                workflow_name=workflow_spec["name"],
                 workflow_spec=workflow_spec,
             )
             if workflow_result.success:
-                project.workflows.append(workflow_spec['name'])
+                project.workflows.append(workflow_spec["name"])
 
         # Generate pages
-        for page_spec in app_spec.get('pages', []):
+        for page_spec in app_spec.get("pages", []):
             page_result = await self.generate_page(
-                page_name=page_spec['name'],
-                workflows=page_spec.get('workflows', project.workflows),
-                components=page_spec.get('components', []),
-                title=page_spec.get('title', project_name),
+                page_name=page_spec["name"],
+                workflows=page_spec.get("workflows", project.workflows),
+                components=page_spec.get("components", []),
+                title=page_spec.get("title", project_name),
             )
             if page_result.success:
-                project.pages.append(page_spec['name'])
+                project.pages.append(page_spec["name"])
 
         # Start server if requested
-        auto_serve = context.get('auto_serve', True)
+        auto_serve = context.get("auto_serve", True)
         if auto_serve:
             serve_result = await self._serve(context)
             if not serve_result.success:
@@ -389,16 +405,18 @@ class MorphProvider(SkillProvider):
         return ProviderResult(
             success=True,
             output={
-                'project_name': project_name,
-                'project_path': str(project.path),
-                'workflows': project.workflows,
-                'pages': project.pages,
-                'server_running': project.is_running(),
-                'server_url': f"http://localhost:{project.server_port}" if project.is_running() else None,
-                'message': f"Created Morph app '{project_name}' at {project.path}",
+                "project_name": project_name,
+                "project_path": str(project.path),
+                "workflows": project.workflows,
+                "pages": project.pages,
+                "server_running": project.is_running(),
+                "server_url": (
+                    f"http://localhost:{project.server_port}" if project.is_running() else None
+                ),
+                "message": f"Created Morph app '{project_name}' at {project.path}",
             },
             category=SkillCategory.APP_BUILDING,
-            metadata={'task': task},
+            metadata={"task": task},
         )
 
     def _extract_project_name(self, task: str) -> str:
@@ -408,16 +426,16 @@ class MorphProvider(SkillProvider):
         # Look for quoted names
         quoted = re.search(r'["\']([^"\']+)["\']', task)
         if quoted:
-            return quoted.group(1).lower().replace(' ', '_')
+            return quoted.group(1).lower().replace(" ", "_")
 
         # Look for "called X" or "named X"
-        named = re.search(r'(?:called|named)\s+(\w+)', task, re.IGNORECASE)
+        named = re.search(r"(?:called|named)\s+(\w+)", task, re.IGNORECASE)
         if named:
             return named.group(1).lower()
 
         # Extract key nouns
         words = task.lower().split()
-        keywords = ['app', 'dashboard', 'chat', 'analyzer', 'tool', 'interface']
+        keywords = ["app", "dashboard", "chat", "analyzer", "tool", "interface"]
         for i, word in enumerate(words):
             if word in keywords and i > 0:
                 return f"{words[i-1]}_{word}"
@@ -435,72 +453,92 @@ class MorphProvider(SkillProvider):
 
         # Default spec
         spec = {
-            'workflows': [],
-            'pages': [{'name': 'index', 'title': 'Home', 'components': []}],
+            "workflows": [],
+            "pages": [{"name": "index", "title": "Home", "components": []}],
         }
 
         # Detect app type and add appropriate workflows/components
-        if any(kw in task_lower for kw in ['chat', 'conversation', 'assistant', 'chatbot']):
-            spec['workflows'].append({
-                'name': 'chat',
-                'description': 'Chat workflow for conversational AI',
-                'streaming': True,
-                'type': 'chat',
-            })
-            spec['pages'][0]['components'].append({
-                'type': 'chat',
-                'workflow': 'chat',
-            })
+        if any(kw in task_lower for kw in ["chat", "conversation", "assistant", "chatbot"]):
+            spec["workflows"].append(
+                {
+                    "name": "chat",
+                    "description": "Chat workflow for conversational AI",
+                    "streaming": True,
+                    "type": "chat",
+                }
+            )
+            spec["pages"][0]["components"].append(
+                {
+                    "type": "chat",
+                    "workflow": "chat",
+                }
+            )
 
-        if any(kw in task_lower for kw in ['stock', 'finance', 'trading', 'market']):
-            spec['workflows'].append({
-                'name': 'analyze_stock',
-                'description': 'Analyze stock data and provide insights',
-                'streaming': True,
-                'type': 'analysis',
-                'params': ['ticker', 'period'],
-            })
-            spec['pages'][0]['components'].extend([
-                {'type': 'input', 'name': 'ticker', 'label': 'Stock Ticker'},
-                {'type': 'chart', 'workflow': 'analyze_stock', 'chart_type': 'line'},
-            ])
+        if any(kw in task_lower for kw in ["stock", "finance", "trading", "market"]):
+            spec["workflows"].append(
+                {
+                    "name": "analyze_stock",
+                    "description": "Analyze stock data and provide insights",
+                    "streaming": True,
+                    "type": "analysis",
+                    "params": ["ticker", "period"],
+                }
+            )
+            spec["pages"][0]["components"].extend(
+                [
+                    {"type": "input", "name": "ticker", "label": "Stock Ticker"},
+                    {"type": "chart", "workflow": "analyze_stock", "chart_type": "line"},
+                ]
+            )
 
-        if any(kw in task_lower for kw in ['dashboard', 'analytics', 'metrics', 'visualization']):
-            spec['workflows'].append({
-                'name': 'get_metrics',
-                'description': 'Get dashboard metrics and data',
-                'streaming': False,
-                'type': 'data',
-            })
-            spec['pages'][0]['components'].extend([
-                {'type': 'chart', 'workflow': 'get_metrics', 'chart_type': 'bar'},
-                {'type': 'table', 'workflow': 'get_metrics'},
-            ])
+        if any(kw in task_lower for kw in ["dashboard", "analytics", "metrics", "visualization"]):
+            spec["workflows"].append(
+                {
+                    "name": "get_metrics",
+                    "description": "Get dashboard metrics and data",
+                    "streaming": False,
+                    "type": "data",
+                }
+            )
+            spec["pages"][0]["components"].extend(
+                [
+                    {"type": "chart", "workflow": "get_metrics", "chart_type": "bar"},
+                    {"type": "table", "workflow": "get_metrics"},
+                ]
+            )
 
-        if any(kw in task_lower for kw in ['form', 'input', 'submit', 'data entry']):
-            spec['workflows'].append({
-                'name': 'process_form',
-                'description': 'Process form submission',
-                'streaming': False,
-                'type': 'form',
-            })
-            spec['pages'][0]['components'].append({
-                'type': 'form',
-                'workflow': 'process_form',
-            })
+        if any(kw in task_lower for kw in ["form", "input", "submit", "data entry"]):
+            spec["workflows"].append(
+                {
+                    "name": "process_form",
+                    "description": "Process form submission",
+                    "streaming": False,
+                    "type": "form",
+                }
+            )
+            spec["pages"][0]["components"].append(
+                {
+                    "type": "form",
+                    "workflow": "process_form",
+                }
+            )
 
         # Default: add a basic chat if nothing detected
-        if not spec['workflows']:
-            spec['workflows'].append({
-                'name': 'main',
-                'description': 'Main workflow',
-                'streaming': True,
-                'type': 'chat',
-            })
-            spec['pages'][0]['components'].append({
-                'type': 'chat',
-                'workflow': 'main',
-            })
+        if not spec["workflows"]:
+            spec["workflows"].append(
+                {
+                    "name": "main",
+                    "description": "Main workflow",
+                    "streaming": True,
+                    "type": "chat",
+                }
+            )
+            spec["pages"][0]["components"].append(
+                {
+                    "type": "chat",
+                    "workflow": "main",
+                }
+            )
 
         return spec
 
@@ -520,12 +558,12 @@ class MorphProvider(SkillProvider):
         try:
             # Create directory structure (Morph expects src/python and src/pages)
             project_path.mkdir(parents=True, exist_ok=True)
-            (project_path / 'src').mkdir(exist_ok=True)
-            (project_path / 'src' / 'python').mkdir(exist_ok=True)
-            (project_path / 'src' / 'pages').mkdir(exist_ok=True)
+            (project_path / "src").mkdir(exist_ok=True)
+            (project_path / "src" / "python").mkdir(exist_ok=True)
+            (project_path / "src" / "pages").mkdir(exist_ok=True)
 
             # Create morph_project.yml (required by Morph CLI)
-            project_yml = project_path / 'morph_project.yml'
+            project_yml = project_path / "morph_project.yml"
             project_yml.write_text(MORPH_PROJECT_YML_TEMPLATE)
 
             # Create project object
@@ -544,9 +582,9 @@ class MorphProvider(SkillProvider):
             return ProviderResult(
                 success=True,
                 output={
-                    'name': name,
-                    'path': str(project_path),
-                    'structure': list(DEFAULT_PROJECT_STRUCTURE.keys()),
+                    "name": name,
+                    "path": str(project_path),
+                    "structure": list(DEFAULT_PROJECT_STRUCTURE.keys()),
                 },
                 category=SkillCategory.APP_BUILDING,
             )
@@ -590,10 +628,10 @@ class MorphProvider(SkillProvider):
 
         try:
             # Build workflow code
-            workflow_type = workflow_spec.get('type', 'chat')
-            streaming = workflow_spec.get('streaming', True)
-            description = workflow_spec.get('description', f'{workflow_name} workflow')
-            params = workflow_spec.get('params', [])
+            workflow_type = workflow_spec.get("type", "chat")
+            streaming = workflow_spec.get("streaming", True)
+            description = workflow_spec.get("description", f"{workflow_name} workflow")
+            params = workflow_spec.get("params", [])
 
             # Generate imports based on type
             imports = self._generate_workflow_imports(workflow_type)
@@ -602,15 +640,15 @@ class MorphProvider(SkillProvider):
             body = self._generate_workflow_body(workflow_type, workflow_name, streaming)
 
             # Generate parameter annotations
-            param_str = ''
-            param_docs = ''
+            param_str = ""
+            param_docs = ""
             if params:
-                param_annotations = [f'{p}: str = None' for p in params]
-                param_str = ', ' + ', '.join(param_annotations)
-                param_docs = '\n'.join([f'        {p}: Parameter description' for p in params])
+                param_annotations = [f"{p}: str = None" for p in params]
+                param_str = ", " + ", ".join(param_annotations)
+                param_docs = "\n".join([f"        {p}: Parameter description" for p in params])
 
             # Apply template
-            return_doc = 'Streamed response chunks' if streaming else 'Result dictionary'
+            return_doc = "Streamed response chunks" if streaming else "Result dictionary"
 
             code = WORKFLOW_TEMPLATE.format(
                 name=workflow_name,
@@ -618,13 +656,13 @@ class MorphProvider(SkillProvider):
                 imports=imports,
                 params=param_str,
                 docstring=description,
-                param_docs=param_docs or '        None',
+                param_docs=param_docs or "        None",
                 return_doc=return_doc,
                 body=body,
             )
 
             # Write to file (Morph expects src/python/)
-            workflow_file = project.path / 'src' / 'python' / f'{workflow_name}.py'
+            workflow_file = project.path / "src" / "python" / f"{workflow_name}.py"
             workflow_file.write_text(code)
 
             logger.info(f"Generated workflow: {workflow_name}")
@@ -632,10 +670,10 @@ class MorphProvider(SkillProvider):
             return ProviderResult(
                 success=True,
                 output={
-                    'workflow_name': workflow_name,
-                    'file_path': str(workflow_file),
-                    'code': code,
-                    'streaming': streaming,
+                    "workflow_name": workflow_name,
+                    "file_path": str(workflow_file),
+                    "code": code,
+                    "streaming": streaming,
                 },
                 category=SkillCategory.APP_BUILDING,
             )
@@ -651,29 +689,33 @@ class MorphProvider(SkillProvider):
         """Generate import statements based on workflow type."""
         imports = []
 
-        if workflow_type == 'chat':
-            imports.append('from morph_lib.stream import stream_chat')
-        elif workflow_type == 'analysis':
-            imports.extend([
-                'import json',
-                'import pandas as pd',
-                'from typing import Dict, Any',
-            ])
-        elif workflow_type == 'data':
-            imports.extend([
-                'import json',
-                'from typing import Dict, Any, List',
-            ])
+        if workflow_type == "chat":
+            imports.append("from morph_lib.stream import stream_chat")
+        elif workflow_type == "analysis":
+            imports.extend(
+                [
+                    "import json",
+                    "import pandas as pd",
+                    "from typing import Dict, Any",
+                ]
+            )
+        elif workflow_type == "data":
+            imports.extend(
+                [
+                    "import json",
+                    "from typing import Dict, Any, List",
+                ]
+            )
 
-        return '\n'.join(imports)
+        return "\n".join(imports)
 
     def _generate_workflow_body(self, workflow_type: str, name: str, streaming: bool) -> str:
         """Generate workflow body based on type."""
-        indent = '    '
+        indent = "    "
 
-        if workflow_type == 'chat':
+        if workflow_type == "chat":
             if streaming:
-                return f'''{indent}# Get user message from context
+                return f"""{indent}# Get user message from context
 {indent}user_message = context.vars.get("message", "Hello")
 {indent}
 {indent}# Stream chat response
@@ -681,17 +723,17 @@ class MorphProvider(SkillProvider):
 {indent}# Example with simple response:
 {indent}response = f"You said: {{user_message}}"
 {indent}for word in response.split():
-{indent}    yield stream_chat(word + " ")'''
+{indent}    yield stream_chat(word + " ")"""
             else:
-                return f'''{indent}# Get user message from context
+                return f"""{indent}# Get user message from context
 {indent}user_message = context.vars.get("message", "Hello")
 {indent}
 {indent}# Return response
-{indent}return {{"response": f"Received: {{user_message}}"}}'''
+{indent}return {{"response": f"Received: {{user_message}}"}}"""
 
-        elif workflow_type == 'analysis':
+        elif workflow_type == "analysis":
             if streaming:
-                return f'''{indent}# Get parameters from context
+                return f"""{indent}# Get parameters from context
 {indent}ticker = context.vars.get("ticker", "AAPL")
 {indent}period = context.vars.get("period", "1mo")
 {indent}
@@ -705,9 +747,9 @@ class MorphProvider(SkillProvider):
 {indent}    "data": [],
 {indent}}}
 {indent}
-{indent}yield json.dumps(result)'''
+{indent}yield json.dumps(result)"""
             else:
-                return f'''{indent}# Get parameters from context
+                return f"""{indent}# Get parameters from context
 {indent}ticker = context.vars.get("ticker", "AAPL")
 {indent}period = context.vars.get("period", "1mo")
 {indent}
@@ -721,10 +763,10 @@ class MorphProvider(SkillProvider):
 {indent}    "data": [],
 {indent}}}
 {indent}
-{indent}return result'''
+{indent}return result"""
 
-        elif workflow_type == 'data':
-            return f'''{indent}# Get data based on context
+        elif workflow_type == "data":
+            return f"""{indent}# Get data based on context
 {indent}
 {indent}# Task List: Implement data fetching
 {indent}data = {{
@@ -732,19 +774,19 @@ class MorphProvider(SkillProvider):
 {indent}    "charts": [],
 {indent}}}
 {indent}
-{indent}return data'''
+{indent}return data"""
 
-        elif workflow_type == 'form':
-            return f'''{indent}# Get form data from context
+        elif workflow_type == "form":
+            return f"""{indent}# Get form data from context
 {indent}form_data = context.vars
 {indent}
 {indent}# Task List: Process form submission
 {indent}
-{indent}return {{"success": True, "message": "Form submitted", "data": form_data}}'''
+{indent}return {{"success": True, "message": "Form submitted", "data": form_data}}"""
 
         else:
-            return f'''{indent}# Default workflow implementation
-{indent}return {{"message": "Workflow executed successfully"}}'''
+            return f"""{indent}# Default workflow implementation
+{indent}return {{"message": "Workflow executed successfully"}}"""
 
     async def generate_page(
         self,
@@ -787,18 +829,18 @@ class MorphProvider(SkillProvider):
             # Generate component MDX
             component_mdx = []
             for comp in components:
-                comp_type = comp.get('type', 'chat')
-                template = COMPONENT_TEMPLATES.get(comp_type, '')
+                comp_type = comp.get("type", "chat")
+                template = COMPONENT_TEMPLATES.get(comp_type, "")
 
                 if template:
                     # Fill in template
                     filled = template.format(
-                        workflow=comp.get('workflow', workflows[0] if workflows else 'main'),
-                        chart_type=comp.get('chart_type', 'line'),
-                        name=comp.get('name', 'input'),
-                        label=comp.get('label', 'Input'),
-                        content=comp.get('content', ''),
-                        children=comp.get('children', 'Click'),
+                        workflow=comp.get("workflow", workflows[0] if workflows else "main"),
+                        chart_type=comp.get("chart_type", "line"),
+                        name=comp.get("name", "input"),
+                        label=comp.get("label", "Input"),
+                        content=comp.get("content", ""),
+                        children=comp.get("children", "Click"),
                     )
                     component_mdx.append(filled)
 
@@ -810,11 +852,11 @@ class MorphProvider(SkillProvider):
                 title=title,
                 description=description,
                 content=content,
-                components='\n\n'.join(component_mdx),
+                components="\n\n".join(component_mdx),
             )
 
             # Write to file (Morph expects src/pages/)
-            page_file = project.path / 'src' / 'pages' / f'{page_name}.mdx'
+            page_file = project.path / "src" / "pages" / f"{page_name}.mdx"
             page_file.write_text(mdx)
 
             logger.info(f"Generated page: {page_name}")
@@ -822,11 +864,11 @@ class MorphProvider(SkillProvider):
             return ProviderResult(
                 success=True,
                 output={
-                    'page_name': page_name,
-                    'file_path': str(page_file),
-                    'mdx': mdx,
-                    'workflows': workflows,
-                    'components': [c.get('type') for c in components],
+                    "page_name": page_name,
+                    "file_path": str(page_file),
+                    "mdx": mdx,
+                    "workflows": workflows,
+                    "components": [c.get("type") for c in components],
                 },
                 category=SkillCategory.APP_BUILDING,
             )
@@ -842,10 +884,10 @@ class MorphProvider(SkillProvider):
         """Generate page content description based on components."""
         content_parts = []
 
-        has_chat = any(c.get('type') == 'chat' for c in components)
-        has_chart = any(c.get('type') == 'chart' for c in components)
-        has_form = any(c.get('type') == 'form' for c in components)
-        has_table = any(c.get('type') == 'table' for c in components)
+        has_chat = any(c.get("type") == "chat" for c in components)
+        has_chart = any(c.get("type") == "chart" for c in components)
+        has_form = any(c.get("type") == "form" for c in components)
+        has_table = any(c.get("type") == "table" for c in components)
 
         if has_chat:
             content_parts.append("Start a conversation below:")
@@ -854,7 +896,7 @@ class MorphProvider(SkillProvider):
         if has_chart or has_table:
             content_parts.append("View your data and insights:")
 
-        return '\n\n'.join(content_parts) if content_parts else f"Welcome to {title}!"
+        return "\n\n".join(content_parts) if content_parts else f"Welcome to {title}!"
 
     async def _serve(self, context: Dict[str, Any] = None) -> ProviderResult:
         """Start the Morph development server."""
@@ -870,8 +912,8 @@ class MorphProvider(SkillProvider):
             return ProviderResult(
                 success=True,
                 output={
-                    'message': 'Server already running',
-                    'url': f"http://localhost:{project.server_port}",
+                    "message": "Server already running",
+                    "url": f"http://localhost:{project.server_port}",
                 },
                 category=SkillCategory.APP_BUILDING,
             )
@@ -884,7 +926,7 @@ class MorphProvider(SkillProvider):
             # Start server
             if self._cli_available:
                 project.server_process = subprocess.Popen(
-                    ['morph', 'serve', '--port', str(port)],
+                    ["morph", "serve", "--port", str(port)],
                     cwd=str(project.path),
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
@@ -892,7 +934,7 @@ class MorphProvider(SkillProvider):
             else:
                 # Fallback: try python -m morph
                 project.server_process = subprocess.Popen(
-                    ['python', '-m', 'morph', 'serve', '--port', str(port)],
+                    ["python", "-m", "morph", "serve", "--port", str(port)],
                     cwd=str(project.path),
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
@@ -906,9 +948,9 @@ class MorphProvider(SkillProvider):
                 return ProviderResult(
                     success=True,
                     output={
-                        'message': 'Server started',
-                        'url': f"http://localhost:{port}",
-                        'project': project.name,
+                        "message": "Server started",
+                        "url": f"http://localhost:{port}",
+                        "project": project.name,
                     },
                     category=SkillCategory.APP_BUILDING,
                 )
@@ -934,7 +976,7 @@ class MorphProvider(SkillProvider):
         if not project or not project.is_running():
             return ProviderResult(
                 success=True,
-                output={'message': 'No server running'},
+                output={"message": "No server running"},
                 category=SkillCategory.APP_BUILDING,
             )
 
@@ -947,7 +989,7 @@ class MorphProvider(SkillProvider):
 
             return ProviderResult(
                 success=True,
-                output={'message': 'Server stopped'},
+                output={"message": "Server stopped"},
                 category=SkillCategory.APP_BUILDING,
             )
 
@@ -978,9 +1020,10 @@ class MorphProvider(SkillProvider):
         try:
             if self._cli_available:
                 process = await asyncio.create_subprocess_exec(
-                    'morph', 'deploy',
+                    "morph",
+                    "deploy",
                     cwd=str(project.path),
-                    env={**os.environ, 'MORPH_API_KEY': self.api_key},
+                    env={**os.environ, "MORPH_API_KEY": self.api_key},
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                 )
@@ -990,8 +1033,8 @@ class MorphProvider(SkillProvider):
                     return ProviderResult(
                         success=True,
                         output={
-                            'message': 'Deployed successfully',
-                            'output': stdout.decode(),
+                            "message": "Deployed successfully",
+                            "output": stdout.decode(),
                         },
                         category=SkillCategory.APP_BUILDING,
                     )
@@ -1021,29 +1064,34 @@ class MorphProvider(SkillProvider):
                 error=f"Deploy failed: {e}",
             )
 
-    async def _generate_workflow_from_task(self, task: str, context: Dict[str, Any]) -> ProviderResult:
+    async def _generate_workflow_from_task(
+        self, task: str, context: Dict[str, Any]
+    ) -> ProviderResult:
         """Generate workflow from natural language task."""
         # Extract workflow name
         import re
-        name_match = re.search(r'(?:workflow|function|api)\s+(?:called|named)?\s*["\']?(\w+)', task, re.IGNORECASE)
-        workflow_name = name_match.group(1) if name_match else 'workflow'
+
+        name_match = re.search(
+            r'(?:workflow|function|api)\s+(?:called|named)?\s*["\']?(\w+)', task, re.IGNORECASE
+        )
+        workflow_name = name_match.group(1) if name_match else "workflow"
 
         # Determine type from task
         task_lower = task.lower()
-        if 'chat' in task_lower:
-            workflow_type = 'chat'
-        elif 'analyz' in task_lower or 'data' in task_lower:
-            workflow_type = 'analysis'
-        elif 'form' in task_lower:
-            workflow_type = 'form'
+        if "chat" in task_lower:
+            workflow_type = "chat"
+        elif "analyz" in task_lower or "data" in task_lower:
+            workflow_type = "analysis"
+        elif "form" in task_lower:
+            workflow_type = "form"
         else:
-            workflow_type = 'chat'
+            workflow_type = "chat"
 
         spec = {
-            'name': workflow_name,
-            'description': task,
-            'streaming': 'stream' in task_lower or workflow_type == 'chat',
-            'type': workflow_type,
+            "name": workflow_name,
+            "description": task,
+            "streaming": "stream" in task_lower or workflow_type == "chat",
+            "type": workflow_type,
         }
 
         return await self.generate_workflow(workflow_name, spec)
@@ -1053,32 +1101,34 @@ class MorphProvider(SkillProvider):
         import re
 
         # Extract page name
-        name_match = re.search(r'(?:page|ui|interface)\s+(?:called|named)?\s*["\']?(\w+)', task, re.IGNORECASE)
-        page_name = name_match.group(1) if name_match else 'page'
+        name_match = re.search(
+            r'(?:page|ui|interface)\s+(?:called|named)?\s*["\']?(\w+)', task, re.IGNORECASE
+        )
+        page_name = name_match.group(1) if name_match else "page"
 
         # Determine components from task
         task_lower = task.lower()
         components = []
 
-        if 'chat' in task_lower:
-            components.append({'type': 'chat', 'workflow': 'chat'})
-        if 'form' in task_lower:
-            components.append({'type': 'form', 'workflow': 'form'})
-        if 'chart' in task_lower or 'graph' in task_lower:
-            components.append({'type': 'chart', 'workflow': 'data', 'chart_type': 'line'})
-        if 'table' in task_lower:
-            components.append({'type': 'table', 'workflow': 'data'})
+        if "chat" in task_lower:
+            components.append({"type": "chat", "workflow": "chat"})
+        if "form" in task_lower:
+            components.append({"type": "form", "workflow": "form"})
+        if "chart" in task_lower or "graph" in task_lower:
+            components.append({"type": "chart", "workflow": "data", "chart_type": "line"})
+        if "table" in task_lower:
+            components.append({"type": "table", "workflow": "data"})
 
         if not components:
-            components.append({'type': 'chat', 'workflow': 'main'})
+            components.append({"type": "chat", "workflow": "main"})
 
-        workflows = list(set(c.get('workflow', 'main') for c in components))
+        workflows = list(set(c.get("workflow", "main") for c in components))
 
         return await self.generate_page(
             page_name=page_name,
             workflows=workflows,
             components=components,
-            title=page_name.replace('_', ' ').title(),
+            title=page_name.replace("_", " ").title(),
         )
 
     def _find_available_port(self, start_port: int = None) -> int:
@@ -1091,7 +1141,7 @@ class MorphProvider(SkillProvider):
         for _ in range(max_attempts):
             try:
                 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                    s.bind(('localhost', port))
+                    s.bind(("localhost", port))
                     return port
             except OSError:
                 port += 1

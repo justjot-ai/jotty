@@ -13,19 +13,19 @@ Usage:
 """
 
 import threading
-from typing import Optional, Dict, TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict, Optional
 
 if TYPE_CHECKING:
     from Jotty.core.infrastructure.utils.budget_tracker import BudgetTracker
-    from Jotty.core.infrastructure.utils.timeouts import CircuitBreaker
     from Jotty.core.infrastructure.utils.llm_cache import LLMCallCache
+    from Jotty.core.infrastructure.utils.timeouts import CircuitBreaker
     from Jotty.core.infrastructure.utils.tokenizer import SmartTokenizer
 
 _lock = threading.Lock()
 _singletons: Dict[str, object] = {}
 
 
-def get_budget_tracker(name: str = "default") -> 'BudgetTracker':
+def get_budget_tracker(name: str = "default") -> "BudgetTracker":
     """
     Return a BudgetTracker instance for LLM spending control.
 
@@ -36,10 +36,11 @@ def get_budget_tracker(name: str = "default") -> 'BudgetTracker':
         BudgetTracker instance.
     """
     from Jotty.core.infrastructure.utils.budget_tracker import get_budget_tracker as _get
+
     return _get(name)
 
 
-def get_circuit_breaker(name: str = "default") -> 'CircuitBreaker':
+def get_circuit_breaker(name: str = "default") -> "CircuitBreaker":
     """
     Return a CircuitBreaker instance for fail-fast patterns.
 
@@ -50,10 +51,11 @@ def get_circuit_breaker(name: str = "default") -> 'CircuitBreaker':
         CircuitBreaker instance.
     """
     from Jotty.core.infrastructure.utils.timeouts import CircuitBreaker, CircuitBreakerConfig
+
     return CircuitBreaker(config=CircuitBreakerConfig(name=name))
 
 
-def get_llm_cache() -> 'LLMCallCache':
+def get_llm_cache() -> "LLMCallCache":
     """
     Return an LLMCallCache instance for semantic caching.
 
@@ -61,10 +63,11 @@ def get_llm_cache() -> 'LLMCallCache':
         LLMCallCache instance.
     """
     from Jotty.core.infrastructure.utils.llm_cache import get_cache
+
     return get_cache()
 
 
-def get_tokenizer(encoding_name: Optional[str] = None) -> 'SmartTokenizer':
+def get_tokenizer(encoding_name: Optional[str] = None) -> "SmartTokenizer":
     """
     Return a SmartTokenizer singleton for model-aware token counting.
 
@@ -76,11 +79,12 @@ def get_tokenizer(encoding_name: Optional[str] = None) -> 'SmartTokenizer':
     Returns:
         SmartTokenizer instance.
     """
-    key = f'tokenizer_{encoding_name}'
+    key = f"tokenizer_{encoding_name}"
     if key not in _singletons:
         with _lock:
             if key not in _singletons:
                 from Jotty.core.infrastructure.utils.tokenizer import SmartTokenizer
+
                 _singletons[key] = SmartTokenizer(encoding_name=encoding_name)
     return _singletons[key]
 

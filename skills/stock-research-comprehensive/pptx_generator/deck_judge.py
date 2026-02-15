@@ -19,14 +19,15 @@ Inspired by:
 import json
 import logging
 from dataclasses import dataclass, field
-from typing import Dict, Any, List, Optional, Tuple
 from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
 # Try to import DSPy for LLM-based decisions
 try:
     import dspy
+
     DSPY_AVAILABLE = True
 except ImportError:
     DSPY_AVAILABLE = False
@@ -35,11 +36,13 @@ except ImportError:
 # Try to import Jotty's DirectClaudeCLI (DSPy-compatible LM using Claude CLI)
 try:
     from Jotty.core.infrastructure.integration.direct_claude_cli_lm import DirectClaudeCLI
+
     CLAUDE_CLI_AVAILABLE = True
 except ImportError:
     try:
         # Fallback: relative import if running from within Jotty
         from Jotty.core.infrastructure.integration.direct_claude_cli_lm import DirectClaudeCLI
+
         CLAUDE_CLI_AVAILABLE = True
     except ImportError:
         CLAUDE_CLI_AVAILABLE = False
@@ -69,17 +72,19 @@ def get_default_lm() -> None:
 
 class DiagramType(Enum):
     """Types of diagrams that can be generated."""
-    ARCHITECTURE = "architecture"      # System/model architecture
-    FLOW = "flow"                      # Process/pipeline flow
-    CONCEPT_MAP = "concept_map"        # Concept relationships
-    COMPARISON = "comparison"          # Before/after, old/new
-    TIMELINE = "timeline"              # Historical evolution
-    METRICS = "metrics"                # Key statistics/numbers
+
+    ARCHITECTURE = "architecture"  # System/model architecture
+    FLOW = "flow"  # Process/pipeline flow
+    CONCEPT_MAP = "concept_map"  # Concept relationships
+    COMPARISON = "comparison"  # Before/after, old/new
+    TIMELINE = "timeline"  # Historical evolution
+    METRICS = "metrics"  # Key statistics/numbers
 
 
 @dataclass
 class DiagramDecision:
     """Decision about whether to include a diagram."""
+
     diagram_type: DiagramType
     should_include: bool
     confidence: float  # 0-1
@@ -90,6 +95,7 @@ class DiagramDecision:
 @dataclass
 class DeckScore:
     """Scoring results for a presentation deck."""
+
     # Individual dimension scores (1-10)
     content_accuracy: float = 0.0
     content_depth: float = 0.0
@@ -137,13 +143,17 @@ if DSPY_AVAILABLE:
         - timeline: STRICT - Only if paper contains actual dates/years for historical context
         - metrics: Only if there are meaningful quantitative statistics to display
         """
+
         paper_title: str = dspy.InputField(desc="Title of the research paper")
         paper_hook: str = dspy.InputField(desc="Opening hook explaining why the paper matters")
         paper_summary: str = dspy.InputField(desc="Summary of the paper's contributions")
-        concepts: str = dspy.InputField(desc="JSON list of key concepts with names and descriptions")
+        concepts: str = dspy.InputField(
+            desc="JSON list of key concepts with names and descriptions"
+        )
         sections: str = dspy.InputField(desc="JSON list of sections with titles")
 
-        recommendations: str = dspy.OutputField(desc="""JSON object with diagram recommendations:
+        recommendations: str = dspy.OutputField(
+            desc="""JSON object with diagram recommendations:
 {
     "architecture": {"include": true/false, "confidence": 0.0-1.0, "reasoning": "why"},
     "flow": {"include": true/false, "confidence": 0.0-1.0, "reasoning": "why"},
@@ -152,19 +162,21 @@ if DSPY_AVAILABLE:
     "timeline": {"include": true/false, "confidence": 0.0-1.0, "reasoning": "why"},
     "metrics": {"include": true/false, "confidence": 0.0-1.0, "reasoning": "why"}
 }
-Be strict - only include:true when there's genuine data to support the diagram.""")
-
+Be strict - only include:true when there's genuine data to support the diagram."""
+        )
 
     class DeckQualitySignature(dspy.Signature):
         """
         Evaluate a presentation deck's quality on multiple dimensions.
         Be critical and provide specific, actionable feedback.
         """
+
         paper_content: str = dspy.InputField(desc="Summary of paper content")
         diagrams_included: str = dspy.InputField(desc="List of diagrams that were included")
         slide_count: int = dspy.InputField(desc="Number of slides in the deck")
 
-        scores: str = dspy.OutputField(desc="""JSON object with scores (1-10) and feedback:
+        scores: str = dspy.OutputField(
+            desc="""JSON object with scores (1-10) and feedback:
 {
     "content_accuracy": 8.5,
     "content_depth": 7.0,
@@ -177,8 +189,8 @@ Be strict - only include:true when there's genuine data to support the diagram."
     "improvements": ["specific improvement 1", "specific improvement 2"],
     "diagrams_to_remove": [],
     "diagrams_to_add": []
-}""")
-
+}"""
+        )
 
     class LLMDiagramDecider:
         """
@@ -201,6 +213,7 @@ Be strict - only include:true when there's genuine data to support the diagram."
         def _extract_json(self, text: str) -> Optional[dict]:
             """Extract JSON object from text that may contain extra content."""
             import re
+
             # Try direct parse first
             try:
                 return json.loads(text)
@@ -209,9 +222,9 @@ Be strict - only include:true when there's genuine data to support the diagram."
 
             # Try to find JSON object in the text
             patterns = [
-                r'\{[\s\S]*\}',  # Match outermost braces
-                r'```json\s*([\s\S]*?)\s*```',  # JSON in code block
-                r'```\s*([\s\S]*?)\s*```',  # Any code block
+                r"\{[\s\S]*\}",  # Match outermost braces
+                r"```json\s*([\s\S]*?)\s*```",  # JSON in code block
+                r"```\s*([\s\S]*?)\s*```",  # Any code block
             ]
 
             for pattern in patterns:
@@ -236,15 +249,18 @@ Be strict - only include:true when there's genuine data to support the diagram."
             """
             try:
                 # Prepare inputs
-                concepts_json = json.dumps([
-                    {"name": c.get("name", ""), "description": c.get("description", "")[:100]}
-                    for c in paper_data.get("concepts", [])[:6]
-                ], ensure_ascii=False)
+                concepts_json = json.dumps(
+                    [
+                        {"name": c.get("name", ""), "description": c.get("description", "")[:100]}
+                        for c in paper_data.get("concepts", [])[:6]
+                    ],
+                    ensure_ascii=False,
+                )
 
-                sections_json = json.dumps([
-                    {"title": s.get("title", "")}
-                    for s in paper_data.get("sections", [])[:5]
-                ], ensure_ascii=False)
+                sections_json = json.dumps(
+                    [{"title": s.get("title", "")} for s in paper_data.get("sections", [])[:5]],
+                    ensure_ascii=False,
+                )
 
                 # Call LLM
                 result = self.predictor(
@@ -252,13 +268,15 @@ Be strict - only include:true when there's genuine data to support the diagram."
                     paper_hook=paper_data.get("hook", "")[:500],
                     paper_summary=paper_data.get("summary", "")[:500],
                     concepts=concepts_json,
-                    sections=sections_json
+                    sections=sections_json,
                 )
 
                 # Parse response - try to extract JSON from potentially messy output
                 recommendations = self._extract_json(result.recommendations)
                 if not recommendations:
-                    logger.warning(f"Could not parse LLM response as JSON: {result.recommendations[:200]}")
+                    logger.warning(
+                        f"Could not parse LLM response as JSON: {result.recommendations[:200]}"
+                    )
                     return None
 
                 decisions = {}
@@ -269,7 +287,9 @@ Be strict - only include:true when there's genuine data to support the diagram."
                         should_include=rec.get("include", False),
                         confidence=rec.get("confidence", 0.5),
                         reasoning=rec.get("reasoning", "No reasoning provided"),
-                        data_available=rec.get("include", False)  # Assume if LLM says include, data exists
+                        data_available=rec.get(
+                            "include", False
+                        ),  # Assume if LLM says include, data exists
                     )
 
                 logger.info(" LLM diagram decisions generated successfully")
@@ -278,7 +298,6 @@ Be strict - only include:true when there's genuine data to support the diagram."
             except Exception as e:
                 logger.warning(f"LLM diagram decision failed: {e}. Falling back to rules.")
                 return None  # Signal to use fallback
-
 
     class LLMDeckJudge:
         """
@@ -292,6 +311,7 @@ Be strict - only include:true when there's genuine data to support the diagram."
         def _extract_json(self, text: str) -> Optional[dict]:
             """Extract JSON object from text that may contain extra content."""
             import re
+
             # Try direct parse first
             try:
                 return json.loads(text)
@@ -300,9 +320,9 @@ Be strict - only include:true when there's genuine data to support the diagram."
 
             # Try to find JSON object in the text
             patterns = [
-                r'\{[\s\S]*\}',  # Match outermost braces
-                r'```json\s*([\s\S]*?)\s*```',  # JSON in code block
-                r'```\s*([\s\S]*?)\s*```',  # Any code block
+                r"\{[\s\S]*\}",  # Match outermost braces
+                r"```json\s*([\s\S]*?)\s*```",  # JSON in code block
+                r"```\s*([\s\S]*?)\s*```",  # Any code block
             ]
 
             for pattern in patterns:
@@ -315,7 +335,9 @@ Be strict - only include:true when there's genuine data to support the diagram."
 
             return None
 
-        def evaluate(self, paper_data: Dict[str, Any], deck_info: Dict[str, Any]) -> Optional[DeckScore]:
+        def evaluate(
+            self, paper_data: Dict[str, Any], deck_info: Dict[str, Any]
+        ) -> Optional[DeckScore]:
             """
             Use LLM to evaluate deck quality.
 
@@ -326,7 +348,7 @@ Be strict - only include:true when there's genuine data to support the diagram."
                 result = self.predictor(
                     paper_content=f"{paper_data.get('paper_title', '')}: {paper_data.get('summary', '')[:300]}",
                     diagrams_included=", ".join(deck_info.get("diagrams_included", [])),
-                    slide_count=deck_info.get("slide_count", 15)
+                    slide_count=deck_info.get("slide_count", 15),
                 )
 
                 scores = self._extract_json(result.scores)
@@ -347,7 +369,7 @@ Be strict - only include:true when there's genuine data to support the diagram."
                     weaknesses=scores.get("weaknesses", []),
                     improvements=scores.get("improvements", []),
                     diagrams_to_remove=scores.get("diagrams_to_remove", []),
-                    diagrams_to_add=scores.get("diagrams_to_add", [])
+                    diagrams_to_add=scores.get("diagrams_to_add", []),
                 )
 
             except Exception as e:
@@ -363,6 +385,7 @@ else:
 # =============================================================================
 # RULE-BASED DIAGRAM DECISION (Fallback)
 # =============================================================================
+
 
 class DiagramDecisionEngine:
     """
@@ -394,25 +417,44 @@ class DiagramDecisionEngine:
         """Get list of diagrams that should be included."""
         if not self.decisions:
             self.analyze_all()
-        return [dt for dt, decision in self.decisions.items()
-                if decision.should_include and decision.confidence >= 0.7]
+        return [
+            dt
+            for dt, decision in self.decisions.items()
+            if decision.should_include and decision.confidence >= 0.7
+        ]
 
     def _analyze_architecture(self) -> DiagramDecision:
         """Decide if architecture diagram makes sense."""
-        hook = self.paper_data.get('hook', '').lower()
-        summary = self.paper_data.get('summary', '').lower()
-        text = hook + ' ' + summary
+        hook = self.paper_data.get("hook", "").lower()
+        summary = self.paper_data.get("summary", "").lower()
+        text = hook + " " + summary
 
         # Architecture keywords
-        arch_keywords = ['architecture', 'encoder', 'decoder', 'layer', 'model',
-                        'network', 'module', 'component', 'structure', 'stack']
+        arch_keywords = [
+            "architecture",
+            "encoder",
+            "decoder",
+            "layer",
+            "model",
+            "network",
+            "module",
+            "component",
+            "structure",
+            "stack",
+        ]
 
         keyword_count = sum(1 for kw in arch_keywords if kw in text)
 
         # Check if concepts describe architectural components
-        concepts = self.paper_data.get('concepts', [])
-        arch_concepts = [c for c in concepts if any(kw in c.get('name', '').lower()
-                        for kw in ['encoder', 'decoder', 'layer', 'attention', 'embedding'])]
+        concepts = self.paper_data.get("concepts", [])
+        arch_concepts = [
+            c
+            for c in concepts
+            if any(
+                kw in c.get("name", "").lower()
+                for kw in ["encoder", "decoder", "layer", "attention", "embedding"]
+            )
+        ]
 
         has_arch_data = keyword_count >= 2 or len(arch_concepts) >= 2
         confidence = min(1.0, (keyword_count * 0.15) + (len(arch_concepts) * 0.2))
@@ -422,49 +464,60 @@ class DiagramDecisionEngine:
             should_include=has_arch_data and confidence >= 0.5,
             confidence=confidence,
             reasoning=f"Found {keyword_count} architecture keywords, {len(arch_concepts)} architectural concepts",
-            data_available=has_arch_data
+            data_available=has_arch_data,
         )
 
     def _analyze_flow(self) -> DiagramDecision:
         """Decide if flow/process diagram makes sense."""
-        sections = self.paper_data.get('sections', [])
+        sections = self.paper_data.get("sections", [])
 
         # Flow diagrams need sequential sections/steps
         has_sequential_content = len(sections) >= 3
 
         # Check for process-oriented language
-        text = ' '.join([s.get('title', '') + ' ' + s.get('content', '') for s in sections]).lower()
-        flow_keywords = ['step', 'then', 'next', 'first', 'finally', 'process',
-                        'pipeline', 'sequence', 'stage', 'phase']
+        text = " ".join([s.get("title", "") + " " + s.get("content", "") for s in sections]).lower()
+        flow_keywords = [
+            "step",
+            "then",
+            "next",
+            "first",
+            "finally",
+            "process",
+            "pipeline",
+            "sequence",
+            "stage",
+            "phase",
+        ]
         keyword_count = sum(1 for kw in flow_keywords if kw in text)
 
         confidence = min(1.0, 0.3 + (keyword_count * 0.1) + (0.1 if has_sequential_content else 0))
 
         # Don't include if sections are just explanatory (not sequential process)
-        section_titles = [s.get('title', '') for s in sections]
-        is_truly_sequential = any(kw in ' '.join(section_titles).lower()
-                                  for kw in ['how', 'step', 'process', 'works'])
+        section_titles = [s.get("title", "") for s in sections]
+        is_truly_sequential = any(
+            kw in " ".join(section_titles).lower() for kw in ["how", "step", "process", "works"]
+        )
 
         return DiagramDecision(
             diagram_type=DiagramType.FLOW,
             should_include=has_sequential_content and is_truly_sequential and confidence >= 0.5,
             confidence=confidence if is_truly_sequential else confidence * 0.5,
             reasoning=f"Found {len(sections)} sections, {keyword_count} flow keywords, sequential={is_truly_sequential}",
-            data_available=has_sequential_content
+            data_available=has_sequential_content,
         )
 
     def _analyze_concept_map(self) -> DiagramDecision:
         """Decide if concept map makes sense."""
-        concepts = self.paper_data.get('concepts', [])
+        concepts = self.paper_data.get("concepts", [])
 
         # Need at least 4 interrelated concepts for a meaningful map
         has_enough_concepts = len(concepts) >= 4
 
         # Check if concepts are actually related (share words/themes)
         if has_enough_concepts:
-            concept_names = [c.get('name', '').lower() for c in concepts]
+            concept_names = [c.get("name", "").lower() for c in concepts]
             # Check for shared terminology indicating relationships
-            all_words = ' '.join(concept_names).split()
+            all_words = " ".join(concept_names).split()
             word_freq = {}
             for w in all_words:
                 if len(w) > 3:  # Skip short words
@@ -481,19 +534,32 @@ class DiagramDecisionEngine:
             should_include=has_enough_concepts and confidence >= 0.6,
             confidence=confidence,
             reasoning=f"Found {len(concepts)} concepts, interrelated={interrelated}",
-            data_available=has_enough_concepts
+            data_available=has_enough_concepts,
         )
 
     def _analyze_comparison(self) -> DiagramDecision:
         """Decide if comparison diagram makes sense."""
-        hook = self.paper_data.get('hook', '').lower()
-        summary = self.paper_data.get('summary', '').lower()
-        text = hook + ' ' + summary
+        hook = self.paper_data.get("hook", "").lower()
+        summary = self.paper_data.get("summary", "").lower()
+        text = hook + " " + summary
 
         # Comparison keywords
-        compare_keywords = ['compared to', 'versus', 'vs', 'unlike', 'traditional',
-                          'previous', 'existing', 'before', 'after', 'better than',
-                          'faster than', 'improvement', 'outperform', 'instead of']
+        compare_keywords = [
+            "compared to",
+            "versus",
+            "vs",
+            "unlike",
+            "traditional",
+            "previous",
+            "existing",
+            "before",
+            "after",
+            "better than",
+            "faster than",
+            "improvement",
+            "outperform",
+            "instead of",
+        ]
 
         keyword_count = sum(1 for kw in compare_keywords if kw in text)
 
@@ -506,23 +572,31 @@ class DiagramDecisionEngine:
             should_include=has_comparison,
             confidence=confidence,
             reasoning=f"Found {keyword_count} comparison keywords",
-            data_available=has_comparison
+            data_available=has_comparison,
         )
 
     def _analyze_timeline(self) -> DiagramDecision:
         """Decide if timeline makes sense - STRICT criteria."""
-        hook = self.paper_data.get('hook', '').lower()
-        summary = self.paper_data.get('summary', '').lower()
-        text = hook + ' ' + summary
+        hook = self.paper_data.get("hook", "").lower()
+        summary = self.paper_data.get("summary", "").lower()
+        text = hook + " " + summary
 
         # Timeline REQUIRES actual dates/years or historical progression
         import re
-        years = re.findall(r'\b(19|20)\d{2}\b', text)
+
+        years = re.findall(r"\b(19|20)\d{2}\b", text)
         unique_years = set(years)
 
         # Timeline keywords (but not sufficient on their own)
-        timeline_keywords = ['evolution', 'history', 'developed', 'introduced',
-                           'pioneered', 'breakthrough', 'milestone']
+        timeline_keywords = [
+            "evolution",
+            "history",
+            "developed",
+            "introduced",
+            "pioneered",
+            "breakthrough",
+            "milestone",
+        ]
         keyword_count = sum(1 for kw in timeline_keywords if kw in text)
 
         # STRICT: Need actual years/dates to justify a timeline
@@ -535,19 +609,19 @@ class DiagramDecisionEngine:
             should_include=has_timeline_data,  # Only if we have actual dates
             confidence=confidence if has_timeline_data else 0.2,
             reasoning=f"Found {len(unique_years)} years: {unique_years}, {keyword_count} timeline keywords",
-            data_available=has_timeline_data
+            data_available=has_timeline_data,
         )
 
     def _analyze_metrics(self) -> DiagramDecision:
         """Decide if metrics/stats diagram makes sense."""
         # Check for quantitative data
-        concepts = self.paper_data.get('concepts', [])
-        insights = self.paper_data.get('key_insights', [])
+        concepts = self.paper_data.get("concepts", [])
+        insights = self.paper_data.get("key_insights", [])
 
         has_concepts = len(concepts) >= 3
         has_insights = len(insights) >= 3
-        has_time = bool(self.paper_data.get('learning_time'))
-        has_words = bool(self.paper_data.get('total_words'))
+        has_time = bool(self.paper_data.get("learning_time"))
+        has_words = bool(self.paper_data.get("total_words"))
 
         # Metrics diagram makes sense if we have actual numbers to show
         data_points = sum([has_concepts, has_insights, has_time, has_words])
@@ -559,7 +633,7 @@ class DiagramDecisionEngine:
             should_include=data_points >= 3,
             confidence=confidence,
             reasoning=f"Found {data_points} data points for metrics",
-            data_available=data_points >= 3
+            data_available=data_points >= 3,
         )
 
 
@@ -572,13 +646,13 @@ class DeckJudge:
 
     # Scoring criteria with descriptions
     CRITERIA = {
-        'content_accuracy': "How accurately does the deck represent the paper's content?",
-        'content_depth': "Does the deck provide sufficient depth without overwhelming?",
-        'visual_design': "Is the visual design professional and consistent?",
-        'diagram_relevance': "Are diagrams meaningful and necessary, or forced/generic?",
-        'flow_coherence': "Does the deck flow logically from section to section?",
-        'clarity': "Is the content clear and easy to understand?",
-        'engagement': "Does the deck engage the audience and maintain interest?",
+        "content_accuracy": "How accurately does the deck represent the paper's content?",
+        "content_depth": "Does the deck provide sufficient depth without overwhelming?",
+        "visual_design": "Is the visual design professional and consistent?",
+        "diagram_relevance": "Are diagrams meaningful and necessary, or forced/generic?",
+        "flow_coherence": "Does the deck flow logically from section to section?",
+        "clarity": "Is the content clear and easy to understand?",
+        "engagement": "Does the deck engage the audience and maintain interest?",
     }
 
     def __init__(self, lm: Any = None) -> None:
@@ -590,9 +664,12 @@ class DeckJudge:
         """
         self.lm = lm
 
-    def evaluate(self, paper_data: Dict[str, Any],
-                 deck_info: Dict[str, Any],
-                 diagram_decisions: Optional[Dict[DiagramType, DiagramDecision]] = None) -> DeckScore:
+    def evaluate(
+        self,
+        paper_data: Dict[str, Any],
+        deck_info: Dict[str, Any],
+        diagram_decisions: Optional[Dict[DiagramType, DiagramDecision]] = None,
+    ) -> DeckScore:
         """
         Evaluate a presentation deck.
 
@@ -610,26 +687,25 @@ class DeckJudge:
         score.content_accuracy = self._score_content_accuracy(paper_data, deck_info)
         score.content_depth = self._score_content_depth(paper_data, deck_info)
         score.visual_design = self._score_visual_design(deck_info)
-        score.diagram_relevance = self._score_diagram_relevance(paper_data, deck_info, diagram_decisions)
+        score.diagram_relevance = self._score_diagram_relevance(
+            paper_data, deck_info, diagram_decisions
+        )
         score.flow_coherence = self._score_flow_coherence(deck_info)
         score.clarity = self._score_clarity(paper_data, deck_info)
         score.engagement = self._score_engagement(deck_info)
 
         # Calculate overall score (weighted average)
         weights = {
-            'content_accuracy': 0.20,
-            'content_depth': 0.15,
-            'visual_design': 0.10,
-            'diagram_relevance': 0.20,  # Important - no force-fit!
-            'flow_coherence': 0.15,
-            'clarity': 0.10,
-            'engagement': 0.10,
+            "content_accuracy": 0.20,
+            "content_depth": 0.15,
+            "visual_design": 0.10,
+            "diagram_relevance": 0.20,  # Important - no force-fit!
+            "flow_coherence": 0.15,
+            "clarity": 0.10,
+            "engagement": 0.10,
         }
 
-        score.overall = sum(
-            getattr(score, dim) * weight
-            for dim, weight in weights.items()
-        )
+        score.overall = sum(getattr(score, dim) * weight for dim, weight in weights.items())
 
         # Generate feedback
         self._generate_feedback(score, paper_data, deck_info, diagram_decisions)
@@ -639,27 +715,27 @@ class DeckJudge:
     def _score_content_accuracy(self, paper_data: Dict, deck_info: Dict) -> float:
         """Score how accurately content represents the paper."""
         # Check if key elements are present
-        has_title = bool(paper_data.get('paper_title'))
-        has_concepts = len(paper_data.get('concepts', [])) > 0
-        has_insights = len(paper_data.get('key_insights', [])) > 0
-        has_summary = bool(paper_data.get('summary'))
+        has_title = bool(paper_data.get("paper_title"))
+        has_concepts = len(paper_data.get("concepts", [])) > 0
+        has_insights = len(paper_data.get("key_insights", [])) > 0
+        has_summary = bool(paper_data.get("summary"))
 
         base_score = (has_title + has_concepts * 2 + has_insights * 2 + has_summary) / 6 * 10
         return min(10, base_score)
 
     def _score_content_depth(self, paper_data: Dict, deck_info: Dict) -> float:
         """Score depth of content coverage based on quality, not just quantity."""
-        concepts = paper_data.get('concepts', [])
-        sections = paper_data.get('sections', [])
-        insights = paper_data.get('key_insights', [])
+        concepts = paper_data.get("concepts", [])
+        sections = paper_data.get("sections", [])
+        insights = paper_data.get("key_insights", [])
 
         score = 5.0  # Base score
 
         # Concepts: quality over quantity (max +2.5)
         if concepts:
-            avg_desc_len = sum(len(c.get('description', '')) for c in concepts) / len(concepts)
-            has_difficulty = sum(1 for c in concepts if c.get('difficulty'))
-            has_why_matters = sum(1 for c in concepts if c.get('why_it_matters'))
+            avg_desc_len = sum(len(c.get("description", "")) for c in concepts) / len(concepts)
+            has_difficulty = sum(1 for c in concepts if c.get("difficulty"))
+            has_why_matters = sum(1 for c in concepts if c.get("why_it_matters"))
 
             if avg_desc_len >= 100:  # Detailed descriptions
                 score += 1.0
@@ -670,9 +746,9 @@ class DeckJudge:
 
         # Sections: depth and code examples (max +2.0)
         if sections:
-            avg_content_len = sum(len(s.get('content', '')) for s in sections) / len(sections)
-            has_code = sum(1 for s in sections if s.get('code_example'))
-            has_bingo = sum(1 for s in sections if s.get('has_bingo_moment'))
+            avg_content_len = sum(len(s.get("content", "")) for s in sections) / len(sections)
+            has_code = sum(1 for s in sections if s.get("code_example"))
+            has_bingo = sum(1 for s in sections if s.get("has_bingo_moment"))
 
             if avg_content_len >= 200:  # Substantial content
                 score += 1.0
@@ -692,8 +768,8 @@ class DeckJudge:
         score = 7.0  # Base for any generated deck
 
         # Premium design system bonuses
-        slide_count = deck_info.get('slide_count', 0)
-        diagrams_included = deck_info.get('diagrams_included', [])
+        slide_count = deck_info.get("slide_count", 0)
+        diagrams_included = deck_info.get("diagrams_included", [])
 
         # Professional slide count (10-20 is ideal)
         if 10 <= slide_count <= 25:
@@ -706,13 +782,14 @@ class DeckJudge:
             score += 1.0
 
         # Has code examples (visual variety)
-        if deck_info.get('has_code_examples'):
+        if deck_info.get("has_code_examples"):
             score += 0.5
 
         return min(10.0, score)
 
-    def _score_diagram_relevance(self, paper_data: Dict, deck_info: Dict,
-                                 diagram_decisions: Optional[Dict] = None) -> float:
+    def _score_diagram_relevance(
+        self, paper_data: Dict, deck_info: Dict, diagram_decisions: Optional[Dict] = None
+    ) -> float:
         """
         Score diagram relevance - CRITICAL for avoiding force-fit.
 
@@ -726,7 +803,7 @@ class DeckJudge:
             return 5.0  # Neutral score
 
         score = 10.0
-        included_diagrams = deck_info.get('diagrams_included', [])
+        included_diagrams = deck_info.get("diagrams_included", [])
 
         for dt, decision in diagram_decisions.items():
             diagram_name = dt.value
@@ -751,8 +828,8 @@ class DeckJudge:
         """Score logical flow based on deck structure."""
         score = 7.0  # Base for structured deck
 
-        slide_count = deck_info.get('slide_count', 0)
-        diagrams_included = deck_info.get('diagrams_included', [])
+        slide_count = deck_info.get("slide_count", 0)
+        diagrams_included = deck_info.get("diagrams_included", [])
 
         # Has proper length (not too short, not too long)
         if slide_count >= 15:
@@ -761,22 +838,23 @@ class DeckJudge:
             score += 1.0
 
         # Has flow diagram (shows logical progression)
-        if 'flow' in diagrams_included:
+        if "flow" in diagrams_included:
             score += 1.0
 
         # Has concept map (connects ideas coherently)
-        if 'concept_map' in diagrams_included:
+        if "concept_map" in diagrams_included:
             score += 0.5
 
         return min(10.0, score)
 
     def _score_clarity(self, paper_data: Dict, deck_info: Dict) -> float:
         """Score clarity of explanations."""
-        concepts = paper_data.get('concepts', [])
+        concepts = paper_data.get("concepts", [])
 
         # Check for good explanations
-        well_explained = sum(1 for c in concepts
-                           if c.get('description') and len(c.get('description', '')) > 50)
+        well_explained = sum(
+            1 for c in concepts if c.get("description") and len(c.get("description", "")) > 50
+        )
 
         if len(concepts) > 0:
             clarity_ratio = well_explained / len(concepts)
@@ -788,15 +866,15 @@ class DeckJudge:
         score = 7.0  # Base for educational deck
 
         # Code examples add practical value
-        if deck_info.get('has_code_examples'):
+        if deck_info.get("has_code_examples"):
             score += 1.0
 
         # Eureka moments add excitement
-        if deck_info.get('has_eureka_moments'):
+        if deck_info.get("has_eureka_moments"):
             score += 1.0
 
         # Visual diagrams increase engagement
-        diagrams = deck_info.get('diagrams_included', [])
+        diagrams = deck_info.get("diagrams_included", [])
         if len(diagrams) >= 4:
             score += 1.0  # Rich visual variety
         elif len(diagrams) >= 2:
@@ -804,8 +882,9 @@ class DeckJudge:
 
         return min(10.0, score)
 
-    def _generate_feedback(self, score: DeckScore, paper_data: Dict,
-                          deck_info: Dict, diagram_decisions: Optional[Dict]) -> None:
+    def _generate_feedback(
+        self, score: DeckScore, paper_data: Dict, deck_info: Dict, diagram_decisions: Optional[Dict]
+    ) -> None:
         """Generate detailed feedback based on scores."""
 
         # Identify strengths (scores >= 8)
@@ -818,7 +897,9 @@ class DeckJudge:
         for dim, desc in self.CRITERIA.items():
             dim_score = getattr(score, dim)
             if dim_score < 7:
-                score.weaknesses.append(f"{dim.replace('_', ' ').title()} ({dim_score:.1f}/10): Needs improvement")
+                score.weaknesses.append(
+                    f"{dim.replace('_', ' ').title()} ({dim_score:.1f}/10): Needs improvement"
+                )
 
         # Diagram-specific feedback
         if diagram_decisions:
@@ -826,8 +907,12 @@ class DeckJudge:
                 if not decision.should_include and not decision.data_available:
                     score.diagrams_to_remove.append(dt.value)
                     score.diagram_feedback[dt.value] = f"Remove: {decision.reasoning}"
-                elif decision.should_include and decision.data_available and decision.confidence >= 0.7:
-                    included = deck_info.get('diagrams_included', [])
+                elif (
+                    decision.should_include
+                    and decision.data_available
+                    and decision.confidence >= 0.7
+                ):
+                    included = deck_info.get("diagrams_included", [])
                     if dt.value not in included:
                         score.diagrams_to_add.append(dt.value)
                         score.diagram_feedback[dt.value] = f"Consider adding: {decision.reasoning}"
@@ -868,31 +953,33 @@ class AutoImprovementLoop:
     def get_improvement_plan(self, score: DeckScore) -> Dict[str, Any]:
         """Generate a plan for improving the deck based on feedback."""
         plan = {
-            'diagrams_to_remove': score.diagrams_to_remove,
-            'diagrams_to_add': score.diagrams_to_add,
-            'content_improvements': score.improvements,
-            'priority_areas': [],
+            "diagrams_to_remove": score.diagrams_to_remove,
+            "diagrams_to_add": score.diagrams_to_add,
+            "content_improvements": score.improvements,
+            "priority_areas": [],
         }
 
         # Prioritize areas with lowest scores
         dimensions = [
-            ('diagram_relevance', score.diagram_relevance),
-            ('content_depth', score.content_depth),
-            ('clarity', score.clarity),
-            ('engagement', score.engagement),
+            ("diagram_relevance", score.diagram_relevance),
+            ("content_depth", score.content_depth),
+            ("clarity", score.clarity),
+            ("engagement", score.engagement),
         ]
         dimensions.sort(key=lambda x: x[1])
 
-        plan['priority_areas'] = [dim for dim, sc in dimensions[:2] if sc < 8]
+        plan["priority_areas"] = [dim for dim, sc in dimensions[:2] if sc < 8]
 
         return plan
 
     def record_iteration(self, iteration: int, score: DeckScore) -> None:
         """Record iteration results for tracking progress."""
         self.history.append((iteration, score))
-        logger.info(f" Iteration {iteration}: {score.overall:.1f}/10 "
-                   f"(diagram_relevance={score.diagram_relevance:.1f}, "
-                   f"content={score.content_depth:.1f})")
+        logger.info(
+            f" Iteration {iteration}: {score.overall:.1f}/10 "
+            f"(diagram_relevance={score.diagram_relevance:.1f}, "
+            f"content={score.content_depth:.1f})"
+        )
 
     def get_progress_report(self) -> str:
         """Generate a progress report across all iterations."""
@@ -915,14 +1002,17 @@ class AutoImprovementLoop:
         else:
             lines.append(f" Current best: {final_score:.1f}/10 (target: {self.target_score})")
 
-        return '\n'.join(lines)
+        return "\n".join(lines)
 
 
 # =============================================================================
 # MAIN API - LLM-first with rule-based fallback
 # =============================================================================
 
-def analyze_and_decide_diagrams(paper_data: Dict[str, Any], use_llm: bool = True, lm: Any = None) -> Tuple[Dict[DiagramType, DiagramDecision], List[str]]:
+
+def analyze_and_decide_diagrams(
+    paper_data: Dict[str, Any], use_llm: bool = True, lm: Any = None
+) -> Tuple[Dict[DiagramType, DiagramDecision], List[str]]:
     """
     Analyze paper and return diagram decisions using LLM (primary) or rules (fallback).
 
@@ -972,12 +1062,15 @@ def analyze_and_decide_diagrams(paper_data: Dict[str, Any], use_llm: bool = True
 
     # Extract approved diagrams (confidence >= 0.7)
     approved = [
-        dt.value for dt, decision in decisions.items()
+        dt.value
+        for dt, decision in decisions.items()
         if decision.should_include and decision.confidence >= 0.7
     ]
 
     # Log results
-    logger.info(f" Diagram analysis ({method_used}): {len(approved)} approved out of {len(decisions)}")
+    logger.info(
+        f" Diagram analysis ({method_used}): {len(approved)} approved out of {len(decisions)}"
+    )
     for dt, decision in decisions.items():
         status = "OK" if decision.should_include and decision.confidence >= 0.7 else "SKIP"
         logger.info(f"  {status} {dt.value}: {decision.reasoning} (conf={decision.confidence:.2f})")
@@ -985,7 +1078,13 @@ def analyze_and_decide_diagrams(paper_data: Dict[str, Any], use_llm: bool = True
     return decisions, approved
 
 
-def evaluate_deck_quality(paper_data: Dict[str, Any], deck_info: Dict[str, Any], diagram_decisions: Optional[Dict[DiagramType, DiagramDecision]] = None, use_llm: bool = True, lm: Any = None) -> DeckScore:
+def evaluate_deck_quality(
+    paper_data: Dict[str, Any],
+    deck_info: Dict[str, Any],
+    diagram_decisions: Optional[Dict[DiagramType, DiagramDecision]] = None,
+    use_llm: bool = True,
+    lm: Any = None,
+) -> DeckScore:
     """
     Evaluate deck quality using LLM (primary) or rules (fallback).
 
@@ -1028,20 +1127,20 @@ def evaluate_deck_quality(paper_data: Dict[str, Any], deck_info: Dict[str, Any],
 
 __all__ = [
     # Types
-    'DiagramType',
-    'DiagramDecision',
-    'DeckScore',
+    "DiagramType",
+    "DiagramDecision",
+    "DeckScore",
     # Engines
-    'DiagramDecisionEngine',  # Rule-based
-    'DeckJudge',              # Rule-based
-    'AutoImprovementLoop',
+    "DiagramDecisionEngine",  # Rule-based
+    "DeckJudge",  # Rule-based
+    "AutoImprovementLoop",
     # LLM-based (when available)
-    'LLMDiagramDecider',
-    'LLMDeckJudge',
-    'DSPY_AVAILABLE',
-    'CLAUDE_CLI_AVAILABLE',
-    'get_default_lm',
+    "LLMDiagramDecider",
+    "LLMDeckJudge",
+    "DSPY_AVAILABLE",
+    "CLAUDE_CLI_AVAILABLE",
+    "get_default_lm",
     # Main API functions
-    'analyze_and_decide_diagrams',  # LLM-first with fallback
-    'evaluate_deck_quality',        # LLM-first with fallback
+    "analyze_and_decide_diagrams",  # LLM-first with fallback
+    "evaluate_deck_quality",  # LLM-first with fallback
 ]

@@ -10,12 +10,14 @@ from typing import List
 
 try:
     import dspy
+
     DSPY_AVAILABLE = True
 except ImportError:
     DSPY_AVAILABLE = False
 
 try:
     from pydantic import BaseModel
+
     PYDANTIC_AVAILABLE = True
 except ImportError:
     PYDANTIC_AVAILABLE = False
@@ -55,7 +57,10 @@ if DSPY_AVAILABLE:
         4. NEVER output questions or ask for clarification
         5. Default to 'analysis' for ambiguous tasks (NOT 'unknown')
         """
-        task_description: str = dspy.InputField(desc="The task description to classify. May be vague - classify it anyway.")
+
+        task_description: str = dspy.InputField(
+            desc="The task description to classify. May be vague - classify it anyway."
+        )
 
         task_type: str = dspy.OutputField(
             desc="Output EXACTLY one word: creation, research, comparison, analysis, communication, automation, or unknown. For vague tasks, default to 'analysis'. NEVER ask questions."
@@ -66,7 +71,6 @@ if DSPY_AVAILABLE:
         confidence: float = dspy.OutputField(
             desc="A number between 0.0 and 1.0. Use 0.5 for vague tasks."
         )
-
 
     class CapabilityInferenceSignature(dspy.Signature):
         """Infer what capabilities are needed to complete a task.
@@ -93,6 +97,7 @@ if DSPY_AVAILABLE:
 
         Output 1-4 capabilities that best match the task requirements.
         """
+
         task_description: str = dspy.InputField(desc="The task to analyze")
 
         capabilities: str = dspy.OutputField(
@@ -101,7 +106,6 @@ if DSPY_AVAILABLE:
         reasoning: str = dspy.OutputField(
             desc="Brief explanation of why these capabilities are needed"
         )
-
 
     class ExecutionPlanningSignature(dspy.Signature):
         """Create an executable plan using the available skills. Audience: senior engineer.
@@ -227,8 +231,12 @@ if DSPY_AVAILABLE:
 
         task_description: str = dspy.InputField(desc="Task to accomplish")
         task_type: str = dspy.InputField(desc="Task type: research, analysis, creation, etc.")
-        available_skills: str = dspy.InputField(desc="JSON array of available skills. ONLY use skill_name values from this list!")
-        previous_outputs: str = dspy.InputField(desc="JSON dict of outputs from previous steps. May contain '_learning_guidance' with lessons from past executions — use these to avoid known failures and replicate successful approaches.")
+        available_skills: str = dspy.InputField(
+            desc="JSON array of available skills. ONLY use skill_name values from this list!"
+        )
+        previous_outputs: str = dspy.InputField(
+            desc="JSON dict of outputs from previous steps. May contain '_learning_guidance' with lessons from past executions — use these to avoid known failures and replicate successful approaches."
+        )
         max_steps: int = dspy.InputField(desc="Maximum number of steps")
 
         # Use typed Pydantic model - DSPy JSONAdapter enforces schema
@@ -240,9 +248,10 @@ if DSPY_AVAILABLE:
             execution_plan: List[dict] = dspy.OutputField(
                 desc='Steps array. Each: {"skill_name": "...", "tool_name": "...", "params": {...}, "description": "..."}'
             )
-        reasoning: str = dspy.OutputField(desc="Brief explanation of the plan including why alternative approaches were rejected")
+        reasoning: str = dspy.OutputField(
+            desc="Brief explanation of the plan including why alternative approaches were rejected"
+        )
         estimated_complexity: str = dspy.OutputField(desc="simple, medium, or complex")
-
 
     class SkillSelectionSignature(dspy.Signature):
         """Select the BEST skills for the task from the full skill catalog.
@@ -263,13 +272,12 @@ if DSPY_AVAILABLE:
 
         You are selecting skills, NOT executing. Justify each choice.
         """
+
         task_description: str = dspy.InputField(desc="The task to complete")
         available_skills: str = dspy.InputField(
             desc="JSON skill catalog. Each: {name, description, type, caps, combines/extends}"
         )
-        max_skills: int = dspy.InputField(
-            desc="Maximum number of skills to select"
-        )
+        max_skills: int = dspy.InputField(desc="Maximum number of skills to select")
 
         selected_skills: str = dspy.OutputField(
             desc='Return ONLY a JSON array like ["skill-name-1", "skill-name-2"]. No markdown, no explanation, just the JSON array.'
@@ -280,7 +288,6 @@ if DSPY_AVAILABLE:
         skill_priorities: str = dspy.OutputField(
             desc="JSON dict mapping skill names to priority (0.0-1.0). Higher = execute earlier. Order by logical workflow."
         )
-
 
     class ReflectivePlanningSignature(dspy.Signature):
         """Replan after failure using Reflexion-style analysis. Audience: senior engineer.
@@ -312,12 +319,21 @@ if DSPY_AVAILABLE:
           Use the ACTUAL filename, NOT a step reference like "step_2".
         - If a step wrote a file, reference it by its ACTUAL filename in later steps.
         """
+
         task_description: str = dspy.InputField(desc="Original task to accomplish")
         task_type: str = dspy.InputField(desc="Task type: research, analysis, creation, etc.")
-        available_skills: str = dspy.InputField(desc="JSON array of available skills (excluding blacklisted ones)")
-        failed_steps: str = dspy.InputField(desc="JSON array of failed steps with error details: [{skill_name, tool_name, error, params}]")
-        completed_outputs: str = dspy.InputField(desc="JSON dict of outputs from successfully completed steps")
-        excluded_skills: str = dspy.InputField(desc="JSON array of skill names to NEVER use (blacklisted due to structural failures)")
+        available_skills: str = dspy.InputField(
+            desc="JSON array of available skills (excluding blacklisted ones)"
+        )
+        failed_steps: str = dspy.InputField(
+            desc="JSON array of failed steps with error details: [{skill_name, tool_name, error, params}]"
+        )
+        completed_outputs: str = dspy.InputField(
+            desc="JSON dict of outputs from successfully completed steps"
+        )
+        excluded_skills: str = dspy.InputField(
+            desc="JSON array of skill names to NEVER use (blacklisted due to structural failures)"
+        )
         max_steps: int = dspy.InputField(desc="Maximum number of remaining steps")
 
         if PYDANTIC_AVAILABLE:
@@ -328,5 +344,9 @@ if DSPY_AVAILABLE:
             corrected_plan: List[dict] = dspy.OutputField(
                 desc='Corrected steps array. Each: {"skill_name": "...", "tool_name": "...", "params": {...}, "description": "...", "verification": "...", "fallback_skill": "..."}'
             )
-        reflection: str = dspy.OutputField(desc="Analysis of WHY each step failed and what to do differently")
-        reasoning: str = dspy.OutputField(desc="Explanation of the corrected plan and how it avoids previous failures")
+        reflection: str = dspy.OutputField(
+            desc="Analysis of WHY each step failed and what to do differently"
+        )
+        reasoning: str = dspy.OutputField(
+            desc="Explanation of the corrected plan and how it avoids previous failures"
+        )

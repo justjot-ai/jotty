@@ -13,17 +13,20 @@ from pathlib import Path
 # Add Jotty to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from Jotty.sdk.client import Jotty
 from Jotty.core.infrastructure.foundation.types.sdk_types import (
-    SDKResponse, SDKVoiceResponse, ExecutionMode, SDKEventType
+    ExecutionMode,
+    SDKEventType,
+    SDKResponse,
+    SDKVoiceResponse,
 )
+from Jotty.sdk.client import Jotty
 
 
 async def test_sdk_basic():
     """Test basic SDK functionality."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("SDK Integration Test")
-    print("="*60)
+    print("=" * 60)
 
     # Initialize SDK client in local mode
     print("\n1. Initializing SDK client...")
@@ -86,10 +89,7 @@ async def test_sdk_basic():
 
     # Test SDKResponse
     response = SDKResponse(
-        success=True,
-        content="Test content",
-        mode=ExecutionMode.CHAT,
-        execution_time=0.5
+        success=True, content="Test content", mode=ExecutionMode.CHAT, execution_time=0.5
     )
     response_dict = response.to_dict()
     print(f"✓ SDKResponse serialized:")
@@ -103,7 +103,7 @@ async def test_sdk_basic():
         user_text="User input",
         confidence=0.95,
         provider="groq",
-        mode=ExecutionMode.VOICE
+        mode=ExecutionMode.VOICE,
     )
     voice_dict = voice_response.to_dict()
     print(f"✓ SDKVoiceResponse serialized:")
@@ -111,18 +111,18 @@ async def test_sdk_basic():
     print(f"  - Confidence: {voice_dict['confidence']}")
     print(f"  - Provider: {voice_dict['provider']}")
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("✅ All basic SDK tests passed!")
-    print("="*60 + "\n")
+    print("=" * 60 + "\n")
 
     return True
 
 
 async def test_sdk_chat():
     """Test SDK chat method."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("SDK Chat Test")
-    print("="*60)
+    print("=" * 60)
 
     print("\n1. Initializing SDK client...")
     client = Jotty().use_local()
@@ -147,16 +147,16 @@ async def test_sdk_chat():
     except Exception as e:
         print(f"⚠ Chat test skipped (no LLM configured): {e}")
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("✅ Chat test completed")
-    print("="*60 + "\n")
+    print("=" * 60 + "\n")
 
 
 async def test_sdk_memory():
     """Test SDK memory methods."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("SDK Memory Test")
-    print("="*60)
+    print("=" * 60)
 
     print("\n1. Initializing SDK client...")
     client = Jotty().use_local()
@@ -165,9 +165,7 @@ async def test_sdk_memory():
     try:
         print("\n2. Testing memory_store...")
         store_result = await client.memory_store(
-            content="Test memory content",
-            level="episodic",
-            goal="testing"
+            content="Test memory content", level="episodic", goal="testing"
         )
 
         print(f"✓ Memory stored:")
@@ -176,10 +174,7 @@ async def test_sdk_memory():
             print(f"  - Memory ID: {store_result.content}")
 
         print("\n3. Testing memory_retrieve...")
-        retrieve_result = await client.memory_retrieve(
-            query="test memory",
-            top_k=5
-        )
+        retrieve_result = await client.memory_retrieve(query="test memory", top_k=5)
 
         print(f"✓ Memory retrieved:")
         print(f"  - Success: {retrieve_result.success}")
@@ -198,9 +193,9 @@ async def test_sdk_memory():
     except Exception as e:
         print(f"⚠ Memory test failed: {e}")
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("✅ Memory test completed")
-    print("="*60 + "\n")
+    print("=" * 60 + "\n")
 
 
 async def main():
@@ -215,15 +210,16 @@ async def main():
         # Run memory test
         await test_sdk_memory()
 
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("✅ ALL SDK INTEGRATION TESTS PASSED!")
-        print("="*60 + "\n")
+        print("=" * 60 + "\n")
 
         return 0
 
     except Exception as e:
         print(f"\n❌ Test failed: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
 

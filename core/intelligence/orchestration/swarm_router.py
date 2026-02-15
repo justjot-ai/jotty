@@ -17,7 +17,7 @@ This is one of the focused sub-managers that reduces Orchestrator's
 
 import logging
 import math
-from typing import Dict, List, Any, Optional, Callable, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +33,13 @@ class SwarmRouter:
     - Task complexity estimation for mode selection (single vs multi)
     """
 
-    def __init__(self, get_swarm_intelligence: Callable = None, get_agents: Callable = None, get_model_tier_router: Callable = None, get_learning: Callable = None) -> None:
+    def __init__(
+        self,
+        get_swarm_intelligence: Callable = None,
+        get_agents: Callable = None,
+        get_model_tier_router: Callable = None,
+        get_learning: Callable = None,
+    ) -> None:
         """
         Args:
             get_swarm_intelligence: Callable returning SwarmIntelligence instance
@@ -58,10 +64,7 @@ class SwarmRouter:
         self.agent_task_counts: Dict[Tuple[str, str], int] = {}  # (agent, task_type) -> count
 
     def select_agent(
-        self,
-        task: str,
-        task_type: str = "general",
-        prefer_coalition: bool = False
+        self, task: str, task_type: str = "general", prefer_coalition: bool = False
     ) -> Dict[str, Any]:
         """
         Select the best agent for a task using all available routing strategies.
@@ -110,11 +113,11 @@ class SwarmRouter:
         # Initialize result dict with safe defaults
         # These will be overwritten if routing strategies succeed
         result = {
-            'agent': None,              # Agent name (str) or None
-            'method': 'fallback',       # How agent was selected
-            'confidence': 0.5,          # How confident we are (0-1)
-            'model_tier': None,         # LLM tier: 'cheap'/'balanced'/'quality'
-            'rl_advantage': 0.0,        # RL advantage over random (0-1)
+            "agent": None,  # Agent name (str) or None
+            "method": "fallback",  # How agent was selected
+            "confidence": 0.5,  # How confident we are (0-1)
+            "model_tier": None,  # LLM tier: 'cheap'/'balanced'/'quality'
+            "rl_advantage": 0.0,  # RL advantage over random (0-1)
         }
 
         agents = self._get_agents()
@@ -157,11 +160,11 @@ class SwarmRouter:
                     task_description=task[:200],  # Truncate for efficiency
                     prefer_coalition=prefer_coalition,
                 )
-                if route.get('assigned_agent'):
-                    result['agent'] = route['assigned_agent']
-                    result['method'] = route.get('method', 'smart_route')
-                    result['confidence'] = route.get('confidence', 0.7)
-                    result['rl_advantage'] = route.get('rl_advantage', 0.0)
+                if route.get("assigned_agent"):
+                    result["agent"] = route["assigned_agent"]
+                    result["method"] = route.get("method", "smart_route")
+                    result["confidence"] = route.get("confidence", 0.7)
+                    result["rl_advantage"] = route.get("rl_advantage", 0.0)
             except Exception as e:
                 logger.debug(f"Smart route failed, using fallback: {e}")
 
@@ -199,7 +202,7 @@ class SwarmRouter:
         if mtr:
             try:
                 tier = mtr.select_tier(task)
-                result['model_tier'] = tier
+                result["model_tier"] = tier
             except Exception as e:
                 logger.debug(f"Model tier routing failed: {e}")
 
@@ -224,10 +227,10 @@ class SwarmRouter:
         # No RL data available
         # → Returns 'researcher' with confidence=0.5, method='fallback'
         # =====================================================================
-        if not result['agent'] and agents:
-            result['agent'] = agents[0].name if hasattr(agents[0], 'name') else str(agents[0])
-            result['method'] = 'fallback'
-            result['confidence'] = 0.5
+        if not result["agent"] and agents:
+            result["agent"] = agents[0].name if hasattr(agents[0], "name") else str(agents[0])
+            result["method"] = "fallback"
+            result["confidence"] = 0.5
 
         return result
 
@@ -258,8 +261,14 @@ class SwarmRouter:
 
         # Indicators of complex tasks
         complex_keywords = [
-            'research', 'analyze', 'compare', 'multi-step',
-            'comprehensive', 'investigate', 'design', 'architect'
+            "research",
+            "analyze",
+            "compare",
+            "multi-step",
+            "comprehensive",
+            "investigate",
+            "design",
+            "architect",
         ]
         for kw in complex_keywords:
             if kw in task_lower:
@@ -274,9 +283,9 @@ class SwarmRouter:
         complexity = min(1.0, complexity)
 
         return {
-            'complexity': complexity,
-            'recommended_mode': 'multi' if complexity >= 0.6 else 'single',
-            'recommended_agents': min(5, max(1, int(complexity * 5))),
+            "complexity": complexity,
+            "recommended_mode": "multi" if complexity >= 0.6 else "single",
+            "recommended_agents": min(5, max(1, int(complexity * 5))),
         }
 
     def route_by_executor_type(
@@ -291,7 +300,7 @@ class SwarmRouter:
         """
         groups: Dict[str, List[Dict[str, Any]]] = {}
         for skill in available_skills:
-            etype = skill.get('executor_type', 'general') or 'general'
+            etype = skill.get("executor_type", "general") or "general"
             groups.setdefault(etype, []).append(skill)
         return groups
 
@@ -299,15 +308,15 @@ class SwarmRouter:
         """Get routing statistics from SwarmIntelligence."""
         si = self._get_si()
         if not si:
-            return {'status': 'no_swarm_intelligence'}
+            return {"status": "no_swarm_intelligence"}
 
         return {
-            'agent_count': len(si.agent_profiles),
-            'has_td_learner': si._td_learner is not None,
-            'rl_loop_closed': si._td_learner is not None,
-            'tree_built': si._tree_built,
-            'active_coalitions': len(si.coalitions),
-            'collective_memory_size': len(si.collective_memory),
+            "agent_count": len(si.agent_profiles),
+            "has_td_learner": si._td_learner is not None,
+            "rl_loop_closed": si._td_learner is not None,
+            "tree_built": si._tree_built,
+            "active_coalitions": len(si.coalitions),
+            "collective_memory_size": len(si.collective_memory),
         }
 
     # =====================================================================
@@ -341,21 +350,19 @@ class SwarmRouter:
             # Linear warmup from cold start to full confidence
             warmup_ratio = self.episode_count / self.warmup_episodes
             return {
-                'tras': 0.7 - 0.3 * warmup_ratio,       # 0.7 → 0.4 (starts high, decreases)
-                'rl': 0.15 + 0.25 * warmup_ratio,       # 0.15 → 0.4 (starts low, increases)
-                'stigmergy': 0.15 + 0.05 * warmup_ratio # 0.15 → 0.2 (gradual increase)
+                "tras": 0.7 - 0.3 * warmup_ratio,  # 0.7 → 0.4 (starts high, decreases)
+                "rl": 0.15 + 0.25 * warmup_ratio,  # 0.15 → 0.4 (starts low, increases)
+                "stigmergy": 0.15 + 0.05 * warmup_ratio,  # 0.15 → 0.2 (gradual increase)
             }
         # After warmup: balanced weighting
-        return {'tras': 0.4, 'rl': 0.4, 'stigmergy': 0.2}
+        return {"tras": 0.4, "rl": 0.4, "stigmergy": 0.2}
 
     # =====================================================================
     # ENHANCEMENT #2: CURIOSITY EXPLORATION BONUS
     # =====================================================================
 
     def add_exploration_bonus(
-        self,
-        agent_scores: Dict[str, float],
-        task_type: str
+        self, agent_scores: Dict[str, float], task_type: str
     ) -> Dict[str, float]:
         """
         Add UCB-style exploration bonus for under-explored agents.
@@ -409,9 +416,7 @@ class SwarmRouter:
             # Only boost under-explored agents (visits < 5)
             if visits < 5:
                 # UCB formula: bonus increases with uncertainty
-                bonus = self.exploration_coef * math.sqrt(
-                    math.log(total_visits + 1) / (visits + 1)
-                )
+                bonus = self.exploration_coef * math.sqrt(math.log(total_visits + 1) / (visits + 1))
                 agent_scores[agent] += bonus
                 logger.debug(
                     f"Exploration bonus for {agent} on {task_type}: "

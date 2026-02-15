@@ -18,16 +18,20 @@ Usage:
     ctx = get_context_manager()
 """
 
-from typing import Dict, TYPE_CHECKING
+import threading
+from typing import TYPE_CHECKING, Dict
 
 if TYPE_CHECKING:
-    from Jotty.core.infrastructure.context.context_manager import SmartContextManager
     from Jotty.core.infrastructure.context.content_gate import ContentGate
+    from Jotty.core.infrastructure.context.context_manager import SmartContextManager
+
+_lock = threading.Lock()
+_singletons: Dict[str, object] = {}
 
 
-def get_context_manager() -> 'SmartContextManager':
+def get_context_manager() -> "SmartContextManager":
     """
-    Return a SmartContextManager (unified context management).
+    Return a SmartContextManager singleton (unified context management).
 
     Features:
     - Priority-based context budgeting
@@ -38,11 +42,17 @@ def get_context_manager() -> 'SmartContextManager':
     Returns:
         SmartContextManager instance with all features.
     """
-    from Jotty.core.infrastructure.context.context_manager import SmartContextManager
-    return SmartContextManager()
+    key = "context_manager"
+    if key not in _singletons:
+        with _lock:
+            if key not in _singletons:
+                from Jotty.core.infrastructure.context.context_manager import SmartContextManager
+
+                _singletons[key] = SmartContextManager()
+    return _singletons[key]
 
 
-def get_context_guard() -> 'SmartContextManager':
+def get_context_guard() -> "SmartContextManager":
     """
     Return a context guard (alias for get_context_manager).
 
@@ -55,15 +65,27 @@ def get_context_guard() -> 'SmartContextManager':
     return get_context_manager()
 
 
-def get_content_gate() -> 'ContentGate':
+def get_content_gate() -> "ContentGate":
     """
-    Return a ContentGate for relevance-based content filtering.
+    Return a ContentGate singleton for relevance-based content filtering.
 
     Returns:
         ContentGate instance.
     """
-    from Jotty.core.infrastructure.context.content_gate import ContentGate
-    return ContentGate()
+    key = "content_gate"
+    if key not in _singletons:
+        with _lock:
+            if key not in _singletons:
+                from Jotty.core.infrastructure.context.content_gate import ContentGate
+
+                _singletons[key] = ContentGate()
+    return _singletons[key]
+
+
+def reset_singletons() -> None:
+    """Reset all singletons. Used in tests to ensure clean state."""
+    with _lock:
+        _singletons.clear()
 
 
 def list_components() -> Dict[str, str]:

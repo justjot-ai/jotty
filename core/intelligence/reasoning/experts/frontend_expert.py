@@ -8,16 +8,21 @@ Evaluates frontend architecture for:
 - Performance and best practices
 """
 
+from typing import Any, Dict, List, Optional
+
 import dspy
-from typing import Dict, Any, List, Optional
+
 from .base_expert import BaseExpert
 
 
 class FrontendArchitectureGenerator(dspy.Signature):
     """Generate frontend architecture with React components and state management."""
+
     design: str = dspy.InputField(desc="UI/UX design from designer")
     previous_feedback: str = dspy.InputField(desc="Feedback from previous iterations")
-    architecture: str = dspy.OutputField(desc="Frontend architecture with React components, state management, API integration")
+    architecture: str = dspy.OutputField(
+        desc="Frontend architecture with React components, state management, API integration"
+    )
 
 
 class FrontendExpertAgent(BaseExpert):
@@ -39,7 +44,9 @@ class FrontendExpertAgent(BaseExpert):
         """Create teacher agent (not used for Frontend)."""
         return None
 
-    async def _evaluate_domain(self, output: Any, gold_standard: str, task: str, context: Dict[str, Any]) -> Dict[str, Any]:
+    async def _evaluate_domain(
+        self, output: Any, gold_standard: str, task: str, context: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Evaluate frontend architecture quality."""
 
         score = 0.0
@@ -47,10 +54,21 @@ class FrontendExpertAgent(BaseExpert):
 
         # Check for key components
         has_components = "component" in output.lower() or "react" in output.lower()
-        has_state_mgmt = "state" in output.lower() or "redux" in output.lower() or "context" in output.lower() or "zustand" in output.lower()
-        has_hooks = "hook" in output.lower() or "usestate" in output.lower() or "useeffect" in output.lower()
+        has_state_mgmt = (
+            "state" in output.lower()
+            or "redux" in output.lower()
+            or "context" in output.lower()
+            or "zustand" in output.lower()
+        )
+        has_hooks = (
+            "hook" in output.lower()
+            or "usestate" in output.lower()
+            or "useeffect" in output.lower()
+        )
         has_api = "api" in output.lower() or "fetch" in output.lower() or "axios" in output.lower()
-        has_props = "props" in output.lower() or "interface" in output.lower() or "type" in output.lower()
+        has_props = (
+            "props" in output.lower() or "interface" in output.lower() or "type" in output.lower()
+        )
 
         # Scoring
         if has_components:
@@ -83,18 +101,19 @@ class FrontendExpertAgent(BaseExpert):
             score *= 0.8
             issues.append("Architecture spec too brief (< 800 chars)")
 
-        status = "EXCELLENT" if score >= 0.9 else "GOOD" if score >= 0.7 else "NEEDS_IMPROVEMENT" if score >= 0.5 else "POOR"
+        status = (
+            "EXCELLENT"
+            if score >= 0.9
+            else "GOOD" if score >= 0.7 else "NEEDS_IMPROVEMENT" if score >= 0.5 else "POOR"
+        )
 
         suggestions = ""
         if score < 0.9:
-            suggestions = "Add: " + ", ".join(issues[:3]) if issues else "Expand architecture details"
+            suggestions = (
+                "Add: " + ", ".join(issues[:3]) if issues else "Expand architecture details"
+            )
 
-        return {
-            'score': score,
-            'status': status,
-            'issues': issues,
-            'suggestions': suggestions
-        }
+        return {"score": score, "status": status, "issues": issues, "suggestions": suggestions}
 
     def _get_default_training_cases(self) -> List[Dict[str, Any]]:
         return []

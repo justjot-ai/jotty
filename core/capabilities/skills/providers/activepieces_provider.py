@@ -8,18 +8,12 @@ provider, same pattern as N8nProvider. Config: ACTIVEPIECES_BASE_URL,
 ACTIVEPIECES_API_KEY (or apiKey in config).
 """
 
+import logging
 import os
 import time
-import logging
 from typing import Any, Dict, List
 
-from .base import (
-    SkillProvider,
-    SkillCategory,
-    ProviderCapability,
-    ProviderResult,
-    ContributedSkill,
-)
+from .base import ContributedSkill, ProviderCapability, ProviderResult, SkillCategory, SkillProvider
 
 logger = logging.getLogger(__name__)
 

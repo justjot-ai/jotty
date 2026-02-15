@@ -16,35 +16,13 @@ Unified Architecture:
 - context_gradient: Context-as-gradient learning
 """
 
-# Import unified models (single source of truth)
-from .models import (
-    ContextChunk,
-    ContextPriority,
-    ProcessedContent,
-    ContextOverflowInfo,
-    CompressionConfig,
-    ChunkingConfig,
-)
-
 # Import shared utilities
 from . import utils as context_utils
 
 # Import specific components
-from .chunker import (
-    ContextChunker,
-    ChunkingSignature,
-    CombiningSignature,
-)
-from .compressor import (
-    AgenticCompressor,
-    CompressionSignature,
-)
-from .content_gate import (
-    ContentGate,
-    RelevanceEstimator,
-    RelevanceSignature,
-    with_content_gate,
-)
+from .chunker import ChunkingSignature, CombiningSignature, ContextChunker
+from .compressor import AgenticCompressor, CompressionSignature
+from .content_gate import ContentGate, RelevanceEstimator, RelevanceSignature, with_content_gate
 from .context_gradient import (
     ContextApplier,
     ContextGradient,
@@ -53,55 +31,60 @@ from .context_gradient import (
     MemoryGradientSignature,
 )
 from .context_manager import (
-    SmartContextManager,
     OverflowDetector,
-    with_smart_context,
+    SmartContextManager,
     patch_dspy_with_guard,
     unpatch_dspy,
+    with_smart_context,
 )
+from .facade import get_content_gate, get_context_guard, get_context_manager
 
-from .facade import (
-    get_context_manager,
-    get_context_guard,
-    get_content_gate,
+# Import unified models (single source of truth)
+from .models import (
+    ChunkingConfig,
+    CompressionConfig,
+    ContextChunk,
+    ContextOverflowInfo,
+    ContextPriority,
+    ProcessedContent,
 )
 
 __all__ = [
     # Unified models (no duplicates!)
-    'ContextChunk',
-    'ContextPriority',
-    'ProcessedContent',
-    'ContextOverflowInfo',
-    'CompressionConfig',
-    'ChunkingConfig',
+    "ContextChunk",
+    "ContextPriority",
+    "ProcessedContent",
+    "ContextOverflowInfo",
+    "CompressionConfig",
+    "ChunkingConfig",
     # Shared utilities
-    'context_utils',
+    "context_utils",
     # Facades
-    'get_context_manager',
-    'get_context_guard',
-    'get_content_gate',
+    "get_context_manager",
+    "get_context_guard",
+    "get_content_gate",
     # Chunker
-    'ContextChunker',
-    'ChunkingSignature',
-    'CombiningSignature',
+    "ContextChunker",
+    "ChunkingSignature",
+    "CombiningSignature",
     # Compressor
-    'AgenticCompressor',
-    'CompressionSignature',
+    "AgenticCompressor",
+    "CompressionSignature",
     # Content gate
-    'ContentGate',
-    'RelevanceEstimator',
-    'RelevanceSignature',
-    'with_content_gate',
+    "ContentGate",
+    "RelevanceEstimator",
+    "RelevanceSignature",
+    "with_content_gate",
     # Context gradient
-    'ContextApplier',
-    'ContextGradient',
-    'ContextUpdate',
-    'CooperationGradientSignature',
-    'MemoryGradientSignature',
+    "ContextApplier",
+    "ContextGradient",
+    "ContextUpdate",
+    "CooperationGradientSignature",
+    "MemoryGradientSignature",
     # Unified context manager (includes all guard features)
-    'SmartContextManager',
-    'OverflowDetector',
-    'with_smart_context',
-    'patch_dspy_with_guard',
-    'unpatch_dspy',
+    "SmartContextManager",
+    "OverflowDetector",
+    "with_smart_context",
+    "patch_dspy_with_guard",
+    "unpatch_dspy",
 ]

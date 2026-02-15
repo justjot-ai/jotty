@@ -6,11 +6,15 @@ Create, manage, and monitor price/event alerts via PlanMyInvesting API.
 """
 
 import logging
-from typing import Dict, Any
+from typing import Any, Dict
 
 from Jotty.core.infrastructure.utils.env_loader import load_jotty_env
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import (
+    async_tool_wrapper,
+    tool_error,
+    tool_response,
+)
 
 load_jotty_env()
 logger = logging.getLogger(__name__)
@@ -21,6 +25,7 @@ def _get_pmi_client():
     """Lazy import to avoid circular deps with hyphenated directory."""
     import importlib.util
     from pathlib import Path
+
     spec = importlib.util.spec_from_file_location(
         "pmi_client",
         Path(__file__).resolve().parent.parent / "pmi-market-data" / "pmi_client.py",
@@ -58,10 +63,13 @@ async def list_alerts_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
     status.emit("Fetching", "Loading alerts...")
 
-    result = client.get("/api/alerts", params={
-        "symbol": params.get("symbol", ""),
-        "alert_type": params.get("alert_type", ""),
-    })
+    result = client.get(
+        "/api/alerts",
+        params={
+            "symbol": params.get("symbol", ""),
+            "alert_type": params.get("alert_type", ""),
+        },
+    )
     if not result.get("success"):
         return tool_error(result.get("error", "Failed to list alerts"))
 
@@ -101,14 +109,17 @@ async def create_alert_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     value = params["value"]
     status.emit("Creating", f"Creating alert: {symbol} {condition} {value}...")
 
-    result = client.post("/api/alerts", data={
-        "symbol": symbol,
-        "condition": condition,
-        "value": value,
-        "alert_type": params.get("alert_type", "price"),
-        "message": params.get("message"),
-        "notify_via": params.get("notify_via", "telegram"),
-    })
+    result = client.post(
+        "/api/alerts",
+        data={
+            "symbol": symbol,
+            "condition": condition,
+            "value": value,
+            "alert_type": params.get("alert_type", "price"),
+            "message": params.get("message"),
+            "notify_via": params.get("notify_via", "telegram"),
+        },
+    )
     if not result.get("success"):
         return tool_error(result.get("error", f"Failed to create alert for {symbol}"))
 

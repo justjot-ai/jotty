@@ -18,14 +18,14 @@ Usage:
     audio = await processor.text_to_speech("Hello world")
 """
 
-import os
+import asyncio
 import io
 import logging
-import asyncio
-import tempfile
+import os
 import re
-from typing import Optional, AsyncIterator, Tuple, List
+import tempfile
 from dataclasses import dataclass, field
+from typing import AsyncIterator, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -41,12 +41,12 @@ logger = logging.getLogger(__name__)
 # Available voices for edge-tts (high quality neural voices)
 VOICES = {
     # English
-    "en-us-female": "en-US-AvaNeural",      # Natural, warm
-    "en-us-male": "en-US-AndrewNeural",     # Professional
-    "en-gb-female": "en-GB-SoniaNeural",    # British
-    "en-gb-male": "en-GB-RyanNeural",       # British male
+    "en-us-female": "en-US-AvaNeural",  # Natural, warm
+    "en-us-male": "en-US-AndrewNeural",  # Professional
+    "en-gb-female": "en-GB-SoniaNeural",  # British
+    "en-gb-male": "en-GB-RyanNeural",  # British male
     "en-au-female": "en-AU-NatashaNeural",  # Australian
-    "en-in-female": "en-IN-NeerjaNeural",   # Indian English
+    "en-in-female": "en-IN-NeerjaNeural",  # Indian English
     # Spanish
     "es-es-female": "es-ES-ElviraNeural",
     "es-mx-female": "es-MX-DaliaNeural",
@@ -150,15 +150,22 @@ DEFAULT_VOICE = "en-US-AvaNeural"
 @dataclass
 class VoiceConfig:
     """Voice processing configuration."""
+
     voice: str = DEFAULT_VOICE
-    rate: str = "+0%"      # Speech rate: -50% to +100%
-    pitch: str = "+0Hz"    # Pitch adjustment
-    volume: str = "+0%"    # Volume adjustment
+    rate: str = "+0%"  # Speech rate: -50% to +100%
+    pitch: str = "+0Hz"  # Pitch adjustment
+    volume: str = "+0%"  # Volume adjustment
     # New low-latency features (configurable)
-    use_local_whisper: bool = field(default_factory=lambda: os.environ.get("LOCAL_WHISPER", "0") == "1")
+    use_local_whisper: bool = field(
+        default_factory=lambda: os.environ.get("LOCAL_WHISPER", "0") == "1"
+    )
     whisper_model: str = field(default_factory=lambda: os.environ.get("WHISPER_MODEL", "base"))
-    speculative_tts: bool = field(default_factory=lambda: os.environ.get("SPECULATIVE_TTS", "0") == "1")
-    websocket_voice: bool = field(default_factory=lambda: os.environ.get("WEBSOCKET_VOICE", "0") == "1")
+    speculative_tts: bool = field(
+        default_factory=lambda: os.environ.get("SPECULATIVE_TTS", "0") == "1"
+    )
+    websocket_voice: bool = field(
+        default_factory=lambda: os.environ.get("WEBSOCKET_VOICE", "0") == "1"
+    )
 
 
 class VoiceProcessor:
@@ -203,15 +210,16 @@ class VoiceProcessor:
         for wrong, correct in ONOMATOPOEIA_CORRECTIONS.items():
             # Replace at word boundaries
             import re
+
             pattern = re.compile(re.escape(wrong), re.IGNORECASE)
             result = pattern.sub(correct, result)
 
         # Fix common Whisper artifacts
         # Remove excessive repeated words (stuttering over-correction)
-        result = re.sub(r'\b(\w+)(\s+\1){2,}\b', r'\1', result, flags=re.IGNORECASE)
+        result = re.sub(r"\b(\w+)(\s+\1){2,}\b", r"\1", result, flags=re.IGNORECASE)
 
         # Clean up multiple spaces
-        result = re.sub(r'\s+', ' ', result).strip()
+        result = re.sub(r"\s+", " ", result).strip()
 
         return result
 
@@ -225,6 +233,7 @@ class VoiceProcessor:
                 return None
             try:
                 from groq import Groq
+
                 self._groq_client = Groq(api_key=api_key)
                 logger.info("Groq Whisper client initialized")
             except ImportError:
@@ -238,6 +247,7 @@ class VoiceProcessor:
         if self._deepgram_client is None:
             try:
                 from deepgram import DeepgramClient
+
                 api_key = os.environ.get("DEEPGRAM_API_KEY")
                 if not api_key:
                     return None
@@ -264,7 +274,7 @@ class VoiceProcessor:
                     model_size,
                     device=device,
                     compute_type=compute_type,
-                    download_root=os.path.expanduser("~/.cache/whisper")
+                    download_root=os.path.expanduser("~/.cache/whisper"),
                 )
                 logger.info(f"Local Whisper model loaded: {model_size}")
             except ImportError:
@@ -280,11 +290,14 @@ class VoiceProcessor:
         """Check if CUDA is available."""
         try:
             import torch
+
             return torch.cuda.is_available()
         except ImportError:
             return False
 
-    async def speech_to_text(self, audio_data: bytes, mime_type: str = "audio/webm") -> Tuple[str, float]:
+    async def speech_to_text(
+        self, audio_data: bytes, mime_type: str = "audio/webm"
+    ) -> Tuple[str, float]:
         """
         Convert speech audio to text.
 
@@ -354,11 +367,8 @@ class VoiceProcessor:
                         language="en",
                         beam_size=5,
                         vad_filter=True,  # Filter out non-speech
-                        vad_parameters=dict(
-                            min_silence_duration_ms=500,
-                            speech_pad_ms=200
-                        ),
-                        initial_prompt=WHISPER_PROMPT
+                        vad_parameters=dict(min_silence_duration_ms=500, speech_pad_ms=200),
+                        initial_prompt=WHISPER_PROMPT,
                     )
                     # Collect all segments
                     text_parts = []
@@ -425,11 +435,13 @@ class VoiceProcessor:
                             language="en",
                             response_format="text",
                             prompt=WHISPER_PROMPT,  # Helps with onomatopoeia
-                            temperature=0.0  # More deterministic
+                            temperature=0.0,  # More deterministic
                         )
                     )
 
-                transcript = response.strip() if isinstance(response, str) else str(response).strip()
+                transcript = (
+                    response.strip() if isinstance(response, str) else str(response).strip()
+                )
 
                 # Apply post-processing for onomatopoeia corrections
                 transcript = self._post_process_transcript(transcript)
@@ -463,8 +475,7 @@ class VoiceProcessor:
 
             response = await asyncio.to_thread(
                 lambda: client.listen.prerecorded.v("1").transcribe_file(
-                    {"buffer": audio_data, "mimetype": mime_type},
-                    options
+                    {"buffer": audio_data, "mimetype": mime_type}, options
                 )
             )
 
@@ -500,8 +511,8 @@ class VoiceProcessor:
         result = text
 
         # Fix multiple exclamation/question marks (Edge-TTS issue)
-        result = re.sub(r'!+', '.', result)  # Replace ! with .
-        result = re.sub(r'\?+', '?', result)  # Keep single ?
+        result = re.sub(r"!+", ".", result)  # Replace ! with .
+        result = re.sub(r"\?+", "?", result)  # Keep single ?
 
         # Convert ALL CAPS to title case (Edge-TTS fails on all caps)
         if result.isupper() and len(result) > 3:
@@ -513,11 +524,13 @@ class VoiceProcessor:
             result = f"{result} "  # Add trailing space
 
         # Remove any control characters that might break TTS
-        result = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', result)
+        result = re.sub(r"[\x00-\x1f\x7f-\x9f]", "", result)
 
         return result
 
-    async def text_to_speech(self, text: str, voice: Optional[str] = None, speed: Optional[float] = None) -> bytes:
+    async def text_to_speech(
+        self, text: str, voice: Optional[str] = None, speed: Optional[float] = None
+    ) -> bytes:
         """
         Convert text to speech using edge-tts.
 
@@ -549,11 +562,7 @@ class VoiceProcessor:
 
             # Create communicate object with voice settings
             communicate = edge_tts.Communicate(
-                text,
-                voice_id,
-                rate=rate,
-                pitch=self.config.pitch,
-                volume=self.config.volume
+                text, voice_id, rate=rate, pitch=self.config.pitch, volume=self.config.volume
             )
 
             # Collect audio chunks
@@ -573,7 +582,9 @@ class VoiceProcessor:
             logger.error(f"TTS failed: {e}")
             return b""
 
-    async def text_to_speech_stream(self, text: str, voice: Optional[str] = None) -> AsyncIterator[bytes]:
+    async def text_to_speech_stream(
+        self, text: str, voice: Optional[str] = None
+    ) -> AsyncIterator[bytes]:
         """
         Stream TTS audio chunks for lower latency.
 
@@ -591,7 +602,7 @@ class VoiceProcessor:
                 voice_id,
                 rate=self.config.rate,
                 pitch=self.config.pitch,
-                volume=self.config.volume
+                volume=self.config.volume,
             )
 
             async for chunk in communicate.stream():
@@ -602,10 +613,7 @@ class VoiceProcessor:
             logger.error(f"TTS stream failed: {e}")
 
     async def process_voice_message(
-        self,
-        audio_data: bytes,
-        mime_type: str = "audio/webm",
-        process_text_fn=None
+        self, audio_data: bytes, mime_type: str = "audio/webm", process_text_fn=None
     ) -> Tuple[str, str, bytes, float]:
         """
         Full voice-to-voice pipeline.
@@ -635,10 +643,7 @@ class VoiceProcessor:
         return user_text, response_text, response_audio, confidence
 
     async def process_voice_message_streaming(
-        self,
-        audio_data: bytes,
-        mime_type: str = "audio/webm",
-        process_text_fn=None
+        self, audio_data: bytes, mime_type: str = "audio/webm", process_text_fn=None
     ) -> AsyncIterator[Tuple[str, bytes, float]]:
         """
         Streaming voice-to-voice pipeline for lower latency.
@@ -669,7 +674,7 @@ class VoiceProcessor:
 
         # 3. Split into sentences and generate TTS for each
         # This allows streaming audio back sentence by sentence
-        sentences = re.split(r'(?<=[.!?])\s+', response_text)
+        sentences = re.split(r"(?<=[.!?])\s+", response_text)
 
         for i, sentence in enumerate(sentences):
             if sentence.strip():
@@ -685,7 +690,7 @@ class VoiceProcessor:
         self,
         text_generator: AsyncIterator[str],
         voice: Optional[str] = None,
-        speed: Optional[float] = None
+        speed: Optional[float] = None,
     ) -> AsyncIterator[Tuple[str, bytes]]:
         """
         Speculative TTS: Generate audio as text streams in.
@@ -702,7 +707,7 @@ class VoiceProcessor:
             Tuples of (sentence_text, audio_bytes)
         """
         buffer = ""
-        sentence_endings = re.compile(r'([.!?])\s*')
+        sentence_endings = re.compile(r"([.!?])\s*")
 
         async for token in text_generator:
             buffer += token
@@ -731,7 +736,7 @@ class VoiceProcessor:
         text_generator: AsyncIterator[str],
         voice: Optional[str] = None,
         speed: Optional[float] = None,
-        lookahead: int = 2
+        lookahead: int = 2,
     ) -> AsyncIterator[Tuple[str, bytes]]:
         """
         Advanced speculative TTS with parallel generation.
@@ -751,7 +756,7 @@ class VoiceProcessor:
         buffer = ""
         pending_sentences: List[str] = []
         tts_tasks: List[Tuple[str, asyncio.Task]] = []
-        sentence_endings = re.compile(r'([.!?])\s*')
+        sentence_endings = re.compile(r"([.!?])\s*")
 
         async def generate_tts(text: str) -> bytes:
             return await self.text_to_speech(text, voice, speed)
@@ -808,7 +813,7 @@ class VoiceProcessor:
         audio_data: bytes,
         mime_type: str = "audio/webm",
         process_text_fn=None,
-        max_response_chars: int = 200
+        max_response_chars: int = 200,
     ) -> Tuple[str, str, bytes, float]:
         """
         Optimized voice pipeline for minimum latency.
@@ -843,12 +848,10 @@ class VoiceProcessor:
             # Find last sentence boundary before limit
             truncated = response_text[:max_response_chars]
             last_sentence_end = max(
-                truncated.rfind('.'),
-                truncated.rfind('!'),
-                truncated.rfind('?')
+                truncated.rfind("."), truncated.rfind("!"), truncated.rfind("?")
             )
             if last_sentence_end > 50:
-                response_text = truncated[:last_sentence_end + 1]
+                response_text = truncated[: last_sentence_end + 1]
             else:
                 response_text = truncated + "..."
 
@@ -857,17 +860,18 @@ class VoiceProcessor:
             voice=self.config.voice,
             rate="+15%",  # 15% faster speech
             pitch=self.config.pitch,
-            volume=self.config.volume
+            volume=self.config.volume,
         )
 
         try:
             import edge_tts
+
             communicate = edge_tts.Communicate(
                 response_text,
                 fast_config.voice,
                 rate=fast_config.rate,
                 pitch=fast_config.pitch,
-                volume=fast_config.volume
+                volume=fast_config.volume,
             )
 
             audio_data = io.BytesIO()

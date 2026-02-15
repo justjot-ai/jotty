@@ -4,27 +4,28 @@ Pytest configuration and shared fixtures for JOTTY tests.
 This module provides common fixtures and setup/teardown logic
 for all test modules in the JOTTY framework.
 """
-import os
-import sys
-import asyncio
-import tempfile
-import shutil
-from pathlib import Path
-from typing import Dict, Any, List
-from unittest.mock import Mock, MagicMock, AsyncMock
-import pytest
 
+import asyncio
+import os
+import shutil
+import sys
+import tempfile
+from pathlib import Path
+from typing import Any, Dict, List
+from unittest.mock import AsyncMock, MagicMock, Mock
+
+import pytest
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Import JOTTY components
 try:
-    from core.foundation.data_structures import SwarmConfig, MemoryLevel, EpisodeResult
     from core.foundation.agent_config import AgentConfig
-    from core.orchestration import Orchestrator
+    from core.foundation.data_structures import EpisodeResult, MemoryLevel, SwarmConfig
     from core.memory.cortex import SwarmMemory
-    from core.orchestration import SwarmTaskBoard
+    from core.orchestration import Orchestrator, SwarmTaskBoard
+
     JOTTY_AVAILABLE = True
 except ImportError as e:
     print(f"JOTTY import failed: {e}")
@@ -33,6 +34,7 @@ except ImportError as e:
 # Import DSPy if available
 try:
     import dspy
+
     DSPY_AVAILABLE = True
 except ImportError:
     DSPY_AVAILABLE = False
@@ -41,6 +43,7 @@ except ImportError:
 # =============================================================================
 # Session-level Fixtures
 # =============================================================================
+
 
 @pytest.fixture(scope="session")
 def event_loop():
@@ -61,6 +64,7 @@ def temp_dir():
 # =============================================================================
 # Configuration Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def default_jotty_config():
@@ -108,6 +112,7 @@ def minimal_jotty_config():
 # =============================================================================
 # Mock Agent Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def mock_dspy_agent():
@@ -183,6 +188,7 @@ def multi_agent_configs(mock_dspy_agent):
 # Component Fixtures
 # =============================================================================
 
+
 @pytest.fixture
 def mock_memory():
     """Create a mock SwarmMemory instance."""
@@ -217,7 +223,7 @@ async def conductor_instance(simple_agent_config, minimal_jotty_config):
     yield conductor
 
     # Cleanup
-    if hasattr(conductor, 'cleanup'):
+    if hasattr(conductor, "cleanup"):
         await conductor.cleanup()
 
 
@@ -225,16 +231,13 @@ async def conductor_instance(simple_agent_config, minimal_jotty_config):
 # Mock LLM Fixtures
 # =============================================================================
 
+
 @pytest.fixture
 def mock_llm_response():
     """Create a mock LLM response."""
     return Mock(
         content="This is a test response",
-        usage=Mock(
-            prompt_tokens=10,
-            completion_tokens=5,
-            total_tokens=15
-        )
+        usage=Mock(prompt_tokens=10, completion_tokens=5, total_tokens=15),
     )
 
 
@@ -252,6 +255,7 @@ def mock_dspy_lm():
 # =============================================================================
 # Test Data Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def sample_context():
@@ -283,9 +287,11 @@ def sample_episode_result():
 # Utility Functions
 # =============================================================================
 
+
 @pytest.fixture
 def assert_async():
     """Helper for asserting async operations."""
+
     async def _assert_async(coro, expected=None, error=None):
         """Execute coroutine and assert result or error."""
         if error:
@@ -296,12 +302,14 @@ def assert_async():
             if expected is not None:
                 assert result == expected
             return result
+
     return _assert_async
 
 
 # =============================================================================
 # Auto-use Fixtures
 # =============================================================================
+
 
 @pytest.fixture(autouse=True)
 def reset_singletons():
@@ -310,32 +318,40 @@ def reset_singletons():
     # Observability
     from Jotty.core.infrastructure.monitoring.observability.metrics import reset_metrics
     from Jotty.core.infrastructure.monitoring.observability.tracing import reset_tracer
+
     reset_metrics()
     reset_tracer()
     # Cost tracker
     from Jotty.core.infrastructure.foundation.direct_anthropic_lm import reset_cost_tracker
+
     reset_cost_tracker()
     # Integration
     from Jotty.core.infrastructure.integration.integration import JottyIntegration
+
     JottyIntegration.reset_instance()
     # Event broadcaster
     from Jotty.core.infrastructure.utils.async_utils import AgentEventBroadcaster
+
     AgentEventBroadcaster.reset_instance()
     # Prompt selector
     from Jotty.core.infrastructure.utils.prompt_selector import reset_prompt_selector
+
     reset_prompt_selector()
     # Skill orchestrator
     from Jotty.core.intelligence.orchestration.skill_orchestrator import reset_skill_orchestrator
+
     reset_skill_orchestrator()
     # Dict-based caches
     from Jotty.core.infrastructure.utils.budget_tracker import BudgetTracker
     from Jotty.core.infrastructure.utils.llm_cache import LLMCallCache
     from Jotty.core.infrastructure.utils.tokenizer import SmartTokenizer
+
     BudgetTracker.reset_instances()
     LLMCallCache.reset_instances()
     SmartTokenizer.reset_instances()
     # Claude provider
     from Jotty.core.infrastructure.foundation.jotty_claude_provider import JottyClaudeProvider
+
     JottyClaudeProvider.reset_instance()
 
 
@@ -353,17 +369,12 @@ def cleanup_temp_files():
 # Markers and Skip Conditions
 # =============================================================================
 
+
 def pytest_configure(config):
     """Configure pytest with custom markers."""
-    config.addinivalue_line(
-        "markers", "requires_dspy: mark test as requiring DSPy"
-    )
-    config.addinivalue_line(
-        "markers", "requires_llm: mark test as requiring LLM API access"
-    )
-    config.addinivalue_line(
-        "markers", "unit: mark test as a fast, offline unit test"
-    )
+    config.addinivalue_line("markers", "requires_dspy: mark test as requiring DSPy")
+    config.addinivalue_line("markers", "requires_llm: mark test as requiring LLM API access")
+    config.addinivalue_line("markers", "unit: mark test as a fast, offline unit test")
 
 
 def pytest_collection_modifyitems(config, items):
@@ -382,22 +393,25 @@ def pytest_collection_modifyitems(config, items):
 # Tiered Execution Fixtures
 # =============================================================================
 
+
 @pytest.fixture
 def mock_provider():
     """Mock LLM provider with generate() and stream() support."""
     provider = AsyncMock()
 
     # generate() returns a dict matching UnifiedLMProvider contract
-    provider.generate = AsyncMock(return_value={
-        'content': 'Mock LLM response',
-        'usage': {'input_tokens': 100, 'output_tokens': 50},
-    })
+    provider.generate = AsyncMock(
+        return_value={
+            "content": "Mock LLM response",
+            "usage": {"input_tokens": 100, "output_tokens": 50},
+        }
+    )
 
     # stream() yields token chunks as an async generator
     async def _stream(**kwargs):
-        for token in ['Mock', ' streamed', ' response']:
-            yield {'content': token}
-        yield {'content': '', 'usage': {'input_tokens': 100, 'output_tokens': 50}}
+        for token in ["Mock", " streamed", " response"]:
+            yield {"content": token}
+        yield {"content": "", "usage": {"input_tokens": 100, "output_tokens": 50}}
 
     provider.stream = _stream
     return provider
@@ -407,15 +421,21 @@ def mock_provider():
 def mock_registry():
     """Mock UnifiedRegistry with skill discovery."""
     registry = Mock()
-    registry.discover_for_task = Mock(return_value={
-        'skills': ['web-search', 'calculator'],
-    })
-    registry.get_claude_tools = Mock(return_value=[
-        {'name': 'web_search', 'description': 'Search the web'},
-    ])
-    registry.get_skill = Mock(return_value=Mock(
-        to_claude_tools=Mock(return_value=[{'name': 'tool1'}]),
-    ))
+    registry.discover_for_task = Mock(
+        return_value={
+            "skills": ["web-search", "calculator"],
+        }
+    )
+    registry.get_claude_tools = Mock(
+        return_value=[
+            {"name": "web_search", "description": "Search the web"},
+        ]
+    )
+    registry.get_skill = Mock(
+        return_value=Mock(
+            to_claude_tools=Mock(return_value=[{"name": "tool1"}]),
+        )
+    )
     return registry
 
 
@@ -423,12 +443,14 @@ def mock_registry():
 def mock_planner():
     """Mock TaskPlanner."""
     planner = AsyncMock()
-    planner.plan = AsyncMock(return_value={
-        'steps': [
-            {'description': 'Step 1: Research the topic'},
-            {'description': 'Step 2: Summarize findings'},
-        ],
-    })
+    planner.plan = AsyncMock(
+        return_value={
+            "steps": [
+                {"description": "Step 1: Research the topic"},
+                {"description": "Step 2: Summarize findings"},
+            ],
+        }
+    )
     return planner
 
 
@@ -436,12 +458,14 @@ def mock_planner():
 def mock_validator():
     """Mock ValidatorAgent for validation."""
     validator = AsyncMock()
-    validator.validate = AsyncMock(return_value={
-        'success': True,
-        'confidence': 0.9,
-        'feedback': 'Looks good',
-        'reasoning': 'Output matches expected criteria',
-    })
+    validator.validate = AsyncMock(
+        return_value={
+            "success": True,
+            "confidence": 0.9,
+            "feedback": "Looks good",
+            "reasoning": "Output matches expected criteria",
+        }
+    )
     return validator
 
 
@@ -449,10 +473,12 @@ def mock_validator():
 def mock_v3_memory():
     """Mock async memory backend for tier execution."""
     memory = AsyncMock()
-    memory.retrieve = AsyncMock(return_value=[
-        {'summary': 'Previous analysis result', 'score': 0.85},
-        {'summary': 'Earlier research finding', 'score': 0.72},
-    ])
+    memory.retrieve = AsyncMock(
+        return_value=[
+            {"summary": "Previous analysis result", "score": 0.85},
+            {"summary": "Earlier research finding", "score": 0.72},
+        ]
+    )
     memory.store = AsyncMock()
     return memory
 
@@ -466,7 +492,9 @@ def mock_complexity_gate():
 
 
 @pytest.fixture
-def v3_executor(mock_provider, mock_registry, mock_planner, mock_validator, mock_v3_memory, mock_complexity_gate):
+def v3_executor(
+    mock_provider, mock_registry, mock_planner, mock_validator, mock_v3_memory, mock_complexity_gate
+):
     """Pre-wired TierExecutor with all mocks injected."""
     from Jotty.core.modes.execution.executor import TierExecutor
     from Jotty.core.modes.execution.types import ExecutionConfig
@@ -487,26 +515,28 @@ def v3_observability_helpers():
 
     def assert_metrics_recorded(agent_name):
         from Jotty.core.infrastructure.monitoring.observability.metrics import get_metrics
+
         am = get_metrics().get_agent_metrics(agent_name)
         assert am is not None, f"No metrics for agent '{agent_name}'"
         assert am.total_executions >= 1, f"Expected >=1 executions, got {am.total_executions}"
 
     def assert_trace_exists():
         from Jotty.core.infrastructure.monitoring.observability.tracing import get_tracer
+
         traces = get_tracer().get_trace_history()
         assert len(traces) > 0, "No traces recorded"
         assert len(traces[-1].root_spans) > 0, "Trace has no root spans"
 
     def assert_cost_tracked(tracker, min_calls=1):
         metrics = tracker.get_metrics()
-        assert metrics.total_calls >= min_calls, (
-            f"Expected >= {min_calls} calls, got {metrics.total_calls}"
-        )
+        assert (
+            metrics.total_calls >= min_calls
+        ), f"Expected >= {min_calls} calls, got {metrics.total_calls}"
 
     return {
-        'assert_metrics_recorded': assert_metrics_recorded,
-        'assert_trace_exists': assert_trace_exists,
-        'assert_cost_tracked': assert_cost_tracked,
+        "assert_metrics_recorded": assert_metrics_recorded,
+        "assert_trace_exists": assert_trace_exists,
+        "assert_cost_tracked": assert_cost_tracked,
     }
 
 
@@ -514,10 +544,11 @@ def v3_observability_helpers():
 # Agent & Swarm Fixtures
 # =============================================================================
 
+
 @pytest.fixture
 def make_concrete_agent():
     """Factory to create a concrete BaseAgent subclass with controllable _execute_impl."""
-    from Jotty.core.modes.agent.base.base_agent import BaseAgent, AgentRuntimeConfig
+    from Jotty.core.modes.agent.base.base_agent import AgentRuntimeConfig, BaseAgent
 
     def _factory(name="TestAgent", output="agent output", raises=None, **config_kw):
         class ConcreteAgent(BaseAgent):
@@ -563,7 +594,7 @@ def make_swarm_result():
             success=success,
             swarm_name=name,
             domain=domain,
-            output=output or {'result': 'done'},
+            output=output or {"result": "done"},
             execution_time=1.0,
             **kw,
         )

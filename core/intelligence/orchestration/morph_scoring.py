@@ -15,15 +15,16 @@ Key adaptations:
 Extracted from swarm_intelligence.py for modularity.
 """
 
-import time
 import hashlib
-import math
 import logging
-from typing import Dict, List, Any, Optional, Tuple
+import math
+import time
 from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional, Tuple
 
 try:
     import dspy
+
     DSPY_AVAILABLE = True
 except ImportError:
     DSPY_AVAILABLE = False
@@ -34,11 +35,13 @@ logger = logging.getLogger(__name__)
 
 
 if DSPY_AVAILABLE:
+
     class TaskAgentAlignmentSignature(dspy.Signature):
         """
         LLM-based task-agent alignment scoring (replaces embedding similarity).
         MorphAgent TRAS semantic component adapted for Jotty.
         """
+
         task_description: str = dspy.InputField(desc="The task to be executed")
         agent_profile: str = dspy.InputField(desc="Agent's capabilities and specialization")
         agent_history: str = dspy.InputField(desc="Agent's task success history summary")
@@ -51,6 +54,7 @@ if DSPY_AVAILABLE:
 @dataclass
 class MorphScores:
     """MorphAgent-inspired scores for an agent or swarm."""
+
     rcs: float = 0.5  # Role Clarity Score
     rds: float = 0.5  # Role Differentiation Score (swarm-level)
     tras: float = 0.5  # Task-Role Alignment Score
@@ -89,9 +93,9 @@ class MorphScorer:
 
         # Weights for RCS (Role Clarity Score)
         self.rcs_weights = {
-            'focus': 0.4,        # How concentrated on specific task types
-            'consistency': 0.3,  # How consistent success rate is
-            'specialization': 0.3  # Has clear specialization emerged
+            "focus": 0.4,  # How concentrated on specific task types
+            "consistency": 0.3,  # How consistent success rate is
+            "specialization": 0.3,  # Has clear specialization emerged
         }
 
         # Weight for TRAS (Task-Role Alignment)
@@ -110,7 +114,7 @@ class MorphScorer:
     # RCS: ROLE CLARITY SCORE (Per-Agent)
     # =========================================================================
 
-    def compute_rcs(self, profile: 'AgentProfile') -> Tuple[float, Dict[str, float]]:
+    def compute_rcs(self, profile: "AgentProfile") -> Tuple[float, Dict[str, float]]:
         """
         Compute Role Clarity Score for an agent.
 
@@ -121,26 +125,26 @@ class MorphScorer:
 
         # 1. FOCUS: Task concentration (inverse entropy)
         focus = self._compute_focus(profile)
-        components['focus'] = focus
+        components["focus"] = focus
 
         # 2. CONSISTENCY: Success rate stability
         consistency = self._compute_consistency(profile)
-        components['consistency'] = consistency
+        components["consistency"] = consistency
 
         # 3. SPECIALIZATION: Has clear role emerged
         specialization = self._compute_specialization_clarity(profile)
-        components['specialization'] = specialization
+        components["specialization"] = specialization
 
         # Weighted combination
         rcs = (
-            self.rcs_weights['focus'] * focus +
-            self.rcs_weights['consistency'] * consistency +
-            self.rcs_weights['specialization'] * specialization
+            self.rcs_weights["focus"] * focus
+            + self.rcs_weights["consistency"] * consistency
+            + self.rcs_weights["specialization"] * specialization
         )
 
         return rcs, components
 
-    def _compute_focus(self, profile: 'AgentProfile') -> float:
+    def _compute_focus(self, profile: "AgentProfile") -> float:
         """
         Compute task focus using inverse normalized entropy.
 
@@ -173,7 +177,7 @@ class MorphScorer:
 
         return max(0.0, min(1.0, focus))
 
-    def _compute_consistency(self, profile: 'AgentProfile') -> float:
+    def _compute_consistency(self, profile: "AgentProfile") -> float:
         """
         Compute success rate consistency (low variance = high consistency).
         """
@@ -198,7 +202,7 @@ class MorphScorer:
 
         return max(0.0, min(1.0, consistency))
 
-    def _compute_specialization_clarity(self, profile: 'AgentProfile') -> float:
+    def _compute_specialization_clarity(self, profile: "AgentProfile") -> float:
         """
         Compute how clearly an agent has specialized.
         """
@@ -227,7 +231,7 @@ class MorphScorer:
     # RDS: ROLE DIFFERENTIATION SCORE (Swarm-Level)
     # =========================================================================
 
-    def compute_rds(self, profiles: Dict[str, 'AgentProfile']) -> float:
+    def compute_rds(self, profiles: Dict[str, "AgentProfile"]) -> float:
         """
         Compute Role Differentiation Score for the swarm.
 
@@ -267,7 +271,7 @@ class MorphScorer:
 
         return rds
 
-    def _compute_pairwise_dissimilarity(self, p1: 'AgentProfile', p2: 'AgentProfile') -> float:
+    def _compute_pairwise_dissimilarity(self, p1: "AgentProfile", p2: "AgentProfile") -> float:
         """
         Compute dissimilarity between two agent profiles.
 
@@ -301,8 +305,8 @@ class MorphScorer:
 
         # Compute cosine similarity
         dot_product = sum(a * b for a, b in zip(v1, v2))
-        norm1 = math.sqrt(sum(a ** 2 for a in v1)) or 1.0
-        norm2 = math.sqrt(sum(b ** 2 for b in v2)) or 1.0
+        norm1 = math.sqrt(sum(a**2 for a in v1)) or 1.0
+        norm2 = math.sqrt(sum(b**2 for b in v2)) or 1.0
 
         cosine_sim = dot_product / (norm1 * norm2)
 
@@ -314,13 +318,13 @@ class MorphScorer:
 
         return min(1.0, dissimilarity + spec_diff)
 
-    def _get_profiles_hash(self, profiles: Dict[str, 'AgentProfile']) -> str:
+    def _get_profiles_hash(self, profiles: Dict[str, "AgentProfile"]) -> str:
         """Create hash for cache key."""
         key_parts = []
         for name in sorted(profiles.keys()):
             p = profiles[name]
             key_parts.append(f"{name}:{p.total_tasks}:{p.specialization.value}")
-        return hashlib.md5('|'.join(key_parts).encode()).hexdigest()
+        return hashlib.md5("|".join(key_parts).encode()).hexdigest()
 
     def _sigmoid_normalize(self, x: float, k: float = 5.0) -> float:
         """Sigmoid normalization h3(x) = 1 / (1 + exp(-k*(x - 0.5)))"""
@@ -331,11 +335,7 @@ class MorphScorer:
     # =========================================================================
 
     def compute_tras(
-        self,
-        task: str,
-        task_type: str,
-        profile: 'AgentProfile',
-        use_llm: bool = True
+        self, task: str, task_type: str, profile: "AgentProfile", use_llm: bool = True
     ) -> Tuple[float, Dict[str, float]]:
         """
         Compute Task-Role Alignment Score (TRAS).
@@ -435,7 +435,7 @@ class MorphScorer:
         # Output range: 0.0 (never succeeded) to 1.0 (always succeeded)
         # =====================================================================
         capability_match = self._compute_capability_match(task_type, profile)
-        components['capability_match'] = capability_match
+        components["capability_match"] = capability_match
 
         # =====================================================================
         # COMPONENT 2: SEMANTIC ALIGNMENT (LLM-based or keyword fallback)
@@ -459,15 +459,15 @@ class MorphScorer:
         if use_llm and DSPY_AVAILABLE:
             try:
                 semantic_align = self._compute_llm_alignment(task, profile)
-                components['semantic_alignment'] = semantic_align
+                components["semantic_alignment"] = semantic_align
             except Exception as e:
                 logger.debug(f"LLM alignment failed, using fallback: {e}")
                 semantic_align = capability_match  # Fallback to capability
-                components['semantic_alignment'] = semantic_align
+                components["semantic_alignment"] = semantic_align
         else:
             # Fallback: use keyword matching
             semantic_align = self._compute_keyword_alignment(task, task_type, profile)
-            components['semantic_alignment'] = semantic_align
+            components["semantic_alignment"] = semantic_align
 
         # =====================================================================
         # FINAL TRAS SCORE: WEIGHTED COMBINATION
@@ -496,25 +496,22 @@ class MorphScorer:
         #    semantic=0.20, capability=0.30
         #    TRAS = 0.6×0.20 + 0.4×0.30 = 0.12 + 0.12 = 0.24
         # =====================================================================
-        tras = (
-            self.tras_alpha * semantic_align +
-            (1 - self.tras_alpha) * capability_match
-        )
+        tras = self.tras_alpha * semantic_align + (1 - self.tras_alpha) * capability_match
 
         return tras, components
 
-    def _compute_capability_match(self, task_type: str, profile: 'AgentProfile') -> float:
+    def _compute_capability_match(self, task_type: str, profile: "AgentProfile") -> float:
         """
         Compute capability match: does agent's capability match task requirements?
         """
         # Estimate task complexity by type
         task_complexity = {
-            'aggregation': 0.3,
-            'filtering': 0.3,
-            'analysis': 0.6,
-            'transformation': 0.5,
-            'validation': 0.4,
-            'planning': 0.7,
+            "aggregation": 0.3,
+            "filtering": 0.3,
+            "analysis": 0.6,
+            "transformation": 0.5,
+            "validation": 0.4,
+            "planning": 0.7,
         }.get(task_type, 0.5)
 
         # Agent capability = success rate for this type (or overall)
@@ -540,7 +537,7 @@ class MorphScorer:
 
         return max(0.0, min(1.0, capability_match))
 
-    def _compute_llm_alignment(self, task: str, profile: 'AgentProfile') -> float:
+    def _compute_llm_alignment(self, task: str, profile: "AgentProfile") -> float:
         """Compute semantic alignment using LLM."""
         if self._llm_scorer is None:
             self._llm_scorer = dspy.ChainOfThought(TaskAgentAlignmentSignature)
@@ -553,13 +550,15 @@ class MorphScorer:
             result = self._llm_scorer(
                 task_description=task[:500],
                 agent_profile=profile_desc,
-                agent_history=history_summary
+                agent_history=history_summary,
             )
             return float(result.alignment_score)
         except Exception:
             return 0.5
 
-    def _compute_keyword_alignment(self, task: str, task_type: str, profile: 'AgentProfile') -> float:
+    def _compute_keyword_alignment(
+        self, task: str, task_type: str, profile: "AgentProfile"
+    ) -> float:
         """Fallback keyword-based alignment when LLM unavailable."""
         if task_type in profile.task_success:
             s, t = profile.task_success[task_type]
@@ -569,7 +568,7 @@ class MorphScorer:
                 return 0.4  # Poor match
         return 0.5  # Unknown
 
-    def _format_profile_for_llm(self, profile: 'AgentProfile') -> str:
+    def _format_profile_for_llm(self, profile: "AgentProfile") -> str:
         """Format agent profile for LLM input."""
         parts = [
             f"Agent: {profile.agent_name}",
@@ -579,7 +578,7 @@ class MorphScorer:
         ]
         return "; ".join(parts)
 
-    def _format_history_for_llm(self, profile: 'AgentProfile') -> str:
+    def _format_history_for_llm(self, profile: "AgentProfile") -> str:
         """Format task history for LLM input."""
         if not profile.task_success:
             return "No task history yet"
@@ -595,10 +594,7 @@ class MorphScorer:
     # =========================================================================
 
     def compute_all_scores(
-        self,
-        profiles: Dict[str, 'AgentProfile'],
-        task: str = None,
-        task_type: str = None
+        self, profiles: Dict[str, "AgentProfile"], task: str = None, task_type: str = None
     ) -> Dict[str, MorphScores]:
         """
         Compute all MorphAgent scores for the swarm.
@@ -624,17 +620,13 @@ class MorphScorer:
                 tras=tras,
                 rcs_components=rcs_components,
                 tras_components=tras_components,
-                task_context=task[:100] if task else ""
+                task_context=task[:100] if task else "",
             )
 
         return results
 
     def get_best_agent_by_tras(
-        self,
-        profiles: Dict[str, 'AgentProfile'],
-        task: str,
-        task_type: str,
-        min_rcs: float = 0.3
+        self, profiles: Dict[str, "AgentProfile"], task: str, task_type: str, min_rcs: float = 0.3
     ) -> Optional[str]:
         """
         Get best agent for task using TRAS scoring.
@@ -661,10 +653,10 @@ class MorphScorer:
 
 
 __all__ = [
-    'MorphScores',
-    'MorphScorer',
+    "MorphScores",
+    "MorphScorer",
 ]
 
 # Conditionally export TaskAgentAlignmentSignature
 if DSPY_AVAILABLE:
-    __all__.append('TaskAgentAlignmentSignature')
+    __all__.append("TaskAgentAlignmentSignature")

@@ -1,7 +1,9 @@
 """Decision Matrix Builder Skill - weighted multi-criteria comparison."""
-from typing import Dict, Any, List
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+
+from typing import Any, Dict, List
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("decision-matrix-builder")
 
@@ -42,13 +44,15 @@ def build_decision_matrix_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             detail[name] = {"score": score, "weight": weight, "weighted": ws}
 
         normalized = round(weighted_total / total_weight, 2) if total_weight else 0
-        results.append({
-            "option": option,
-            "weighted_total": round(weighted_total, 2),
-            "normalized_score": normalized,
-            "raw_total": raw_total,
-            "detail": detail,
-        })
+        results.append(
+            {
+                "option": option,
+                "weighted_total": round(weighted_total, 2),
+                "normalized_score": normalized,
+                "raw_total": raw_total,
+                "detail": detail,
+            }
+        )
 
     # Sort by weighted total descending
     results.sort(key=lambda x: x["weighted_total"], reverse=True)
@@ -57,7 +61,9 @@ def build_decision_matrix_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     # Build text matrix
     col_width = max(len(o) for o in options) + 2
     crit_width = max(len(c["name"]) for c in criteria) + 2
-    header = "Criterion".ljust(crit_width) + "Wt  " + "  ".join(o.center(col_width) for o in options)
+    header = (
+        "Criterion".ljust(crit_width) + "Wt  " + "  ".join(o.center(col_width) for o in options)
+    )
     sep = "-" * len(header)
     rows = [header, sep]
     for crit in criteria:
@@ -77,7 +83,8 @@ def build_decision_matrix_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     matrix_text = "\n".join(rows)
 
     return tool_response(
-        results=results, winner=winner,
+        results=results,
+        winner=winner,
         matrix=matrix_text,
         criteria_count=len(criteria),
         option_count=len(options),

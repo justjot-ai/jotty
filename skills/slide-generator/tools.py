@@ -3,13 +3,19 @@ Slide Generator Skill
 
 Generates actual PowerPoint (.pptx) slides using python-pptx.
 """
-import os
+
 import logging
-from typing import Dict, Any, List
+import os
 from datetime import datetime
+from typing import Any, Dict, List
 
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper, async_tool_wrapper
+from Jotty.core.infrastructure.utils.tool_helpers import (
+    async_tool_wrapper,
+    tool_error,
+    tool_response,
+    tool_wrapper,
+)
 
 # Status emitter for progress updates
 status = SkillStatus("slide-generator")
@@ -34,63 +40,70 @@ def generate_slides_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, file_path, slide_count
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     try:
-        from reportlab.lib.pagesizes import landscape, A4
         from reportlab.lib.colors import HexColor
-        from reportlab.pdfgen import canvas
+        from reportlab.lib.pagesizes import A4, landscape
         from reportlab.lib.units import inch
+        from reportlab.pdfgen import canvas
     except ImportError:
-        return {'success': False, 'error': 'reportlab not installed. Install with: pip install reportlab'}
+        return {
+            "success": False,
+            "error": "reportlab not installed. Install with: pip install reportlab",
+        }
 
-    title = params.get('title')
-    slides_data = params.get('slides', [])
+    title = params.get("title")
+    slides_data = params.get("slides", [])
 
     if not title or not slides_data:
-        return {'success': False, 'error': 'title and slides parameters are required'}
+        return {"success": False, "error": "title and slides parameters are required"}
 
     # Handle string slides (convert to proper list structure)
     if isinstance(slides_data, str):
         import json
+
         slides_text = slides_data.strip()
         try:
             slides_data = json.loads(slides_text)
         except json.JSONDecodeError:
             # Convert plain text to slides
-            lines = [l.strip() for l in slides_text.split('\n') if l.strip()]
+            lines = [l.strip() for l in slides_text.split("\n") if l.strip()]
             if lines:
-                slides_data = [{'title': f'Slide {i+1}', 'bullets': [l.lstrip('•-*0123456789.) ')]}
-                               for i, l in enumerate(lines[:10]) if l.lstrip('•-*0123456789.) ')]
+                slides_data = [
+                    {"title": f"Slide {i+1}", "bullets": [l.lstrip("•-*0123456789.) ")]}
+                    for i, l in enumerate(lines[:10])
+                    if l.lstrip("•-*0123456789.) ")
+                ]
             else:
-                slides_data = [{'title': 'Content', 'bullets': [slides_text[:500]]}]
+                slides_data = [{"title": "Content", "bullets": [slides_text[:500]]}]
 
     # Validate slide structure
     validated = []
     for i, slide in enumerate(slides_data):
         if isinstance(slide, str):
-            validated.append({'title': f'Slide {i+1}', 'bullets': [slide]})
+            validated.append({"title": f"Slide {i+1}", "bullets": [slide]})
         elif isinstance(slide, dict):
             validated.append(slide)
         else:
-            validated.append({'title': f'Slide {i+1}', 'bullets': [str(slide)]})
+            validated.append({"title": f"Slide {i+1}", "bullets": [str(slide)]})
     slides_data = validated
 
     status.emit("Creating", f"📊 Creating PDF slides: {title[:40]}...")
 
-    subtitle = params.get('subtitle', '')
-    template = params.get('template', 'dark')
-    output_dir = params.get('output_path', os.path.expanduser('~/jotty/presentations'))
+    subtitle = params.get("subtitle", "")
+    template = params.get("template", "dark")
+    output_dir = params.get("output_path", os.path.expanduser("~/jotty/presentations"))
 
     os.makedirs(output_dir, exist_ok=True)
 
     # Color themes
     themes = {
-        'dark': {'bg': '#1e1e1e', 'title': '#ffffff', 'text': '#dcdcdc', 'accent': '#0096ff'},
-        'light': {'bg': '#ffffff', 'title': '#1e1e1e', 'text': '#3c3c3c', 'accent': '#0078c8'},
-        'blue': {'bg': '#003366', 'title': '#ffffff', 'text': '#c8dcff', 'accent': '#64c8ff'}
+        "dark": {"bg": "#1e1e1e", "title": "#ffffff", "text": "#dcdcdc", "accent": "#0096ff"},
+        "light": {"bg": "#ffffff", "title": "#1e1e1e", "text": "#3c3c3c", "accent": "#0078c8"},
+        "blue": {"bg": "#003366", "title": "#ffffff", "text": "#c8dcff", "accent": "#64c8ff"},
     }
-    theme = themes.get(template, themes['dark'])
+    theme = themes.get(template, themes["dark"])
 
     import textwrap
 
@@ -99,8 +112,8 @@ def generate_slides_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return textwrap.wrap(text, width=max_width_chars)
 
     try:
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        safe_title = "".join(c if c.isalnum() or c in ' -_' else '' for c in title)[:30]
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        safe_title = "".join(c if c.isalnum() or c in " -_" else "" for c in title)[:30]
         filename = f"{safe_title.replace(' ', '_')}_{timestamp}.pdf"
         file_path = os.path.join(output_dir, filename)
 
@@ -108,12 +121,12 @@ def generate_slides_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         c = canvas.Canvas(file_path, pagesize=landscape(A4))
 
         def draw_background():
-            c.setFillColor(HexColor(theme['bg']))
+            c.setFillColor(HexColor(theme["bg"]))
             c.rect(0, 0, page_width, page_height, fill=True, stroke=False)
 
         # Title slide
         draw_background()
-        c.setFillColor(HexColor(theme['title']))
+        c.setFillColor(HexColor(theme["title"]))
 
         # Wrap title if too long
         title_lines = wrap_pdf_text(title, 40)
@@ -125,7 +138,7 @@ def generate_slides_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             c.drawCentredString(page_width / 2, y_start - i * 55, line)
 
         if subtitle:
-            c.setFillColor(HexColor(theme['text']))
+            c.setFillColor(HexColor(theme["text"]))
             c.setFont("Helvetica", 22)
             subtitle_lines = wrap_pdf_text(subtitle, 60)
             sub_y = page_height / 2 - 80
@@ -138,11 +151,11 @@ def generate_slides_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         for slide_data in slides_data:
             draw_background()
 
-            slide_title = slide_data.get('title', 'Untitled')
-            bullets = slide_data.get('bullets', [])
+            slide_title = slide_data.get("title", "Untitled")
+            bullets = slide_data.get("bullets", [])
 
             # Slide title - with wrapping
-            c.setFillColor(HexColor(theme['accent']))
+            c.setFillColor(HexColor(theme["accent"]))
             title_lines = wrap_pdf_text(slide_title, 50)
             title_font = 32 if len(title_lines) > 1 else 36
             c.setFont("Helvetica-Bold", title_font)
@@ -153,7 +166,7 @@ def generate_slides_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
             # Accent line
             line_y = title_y - len(title_lines[:2]) * 40 - 10
-            c.setStrokeColor(HexColor(theme['accent']))
+            c.setStrokeColor(HexColor(theme["accent"]))
             c.setLineWidth(3)
             c.line(0.5 * inch, line_y, 3.5 * inch, line_y)
 
@@ -172,13 +185,15 @@ def generate_slides_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                 line_spacing = 0.42 * inch
                 max_chars = 80
 
-            c.setFillColor(HexColor(theme['text']))
+            c.setFillColor(HexColor(theme["text"]))
             c.setFont("Helvetica", font_size)
             y_pos = line_y - 0.5 * inch
 
             for bullet in bullets[:8]:  # Max 8 bullets
                 # Wrap long bullets
-                bullet_text = bullet if len(bullet) <= max_chars else bullet[:max_chars-3] + "..."
+                bullet_text = (
+                    bullet if len(bullet) <= max_chars else bullet[: max_chars - 3] + "..."
+                )
                 bullet_lines = wrap_pdf_text(bullet_text, max_chars)
 
                 for j, bline in enumerate(bullet_lines[:2]):  # Max 2 lines per bullet
@@ -196,15 +211,11 @@ def generate_slides_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         c.save()
         logger.info(f"PDF slides generated: {file_path}")
 
-        return {
-            'success': True,
-            'file_path': file_path,
-            'slide_count': len(slides_data) + 1
-        }
+        return {"success": True, "file_path": file_path, "slide_count": len(slides_data) + 1}
 
     except Exception as e:
         logger.error(f"PDF slide generation failed: {e}", exc_info=True)
-        return {'success': False, 'error': f'PDF generation failed: {str(e)}'}
+        return {"success": False, "error": f"PDF generation failed: {str(e)}"}
 
 
 @tool_wrapper()
@@ -228,31 +239,32 @@ def generate_slides_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - slide_count (int): Number of slides created
             - error (str, optional): Error message if failed
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     try:
         from pptx import Presentation
-        from pptx.util import Inches, Pt
         from pptx.dml.color import RGBColor
-        from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
+        from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
+        from pptx.util import Inches, Pt
     except ImportError:
         return {
-            'success': False,
-            'error': 'python-pptx not installed. Install with: pip install python-pptx'
+            "success": False,
+            "error": "python-pptx not installed. Install with: pip install python-pptx",
         }
 
-    title = params.get('title')
-    slides_data = params.get('slides', [])
+    title = params.get("title")
+    slides_data = params.get("slides", [])
 
     if not title:
-        return {'success': False, 'error': 'title parameter is required'}
+        return {"success": False, "error": "title parameter is required"}
 
     if not slides_data:
-        return {'success': False, 'error': 'slides parameter is required (list of slide dicts)'}
+        return {"success": False, "error": "slides parameter is required (list of slide dicts)"}
 
     # Handle case where slides_data is a string instead of list
     if isinstance(slides_data, str):
         import json
+
         slides_text = slides_data.strip()
 
         # Try 1: Parse as JSON
@@ -260,9 +272,13 @@ def generate_slides_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             slides_data = json.loads(slides_text)
         except json.JSONDecodeError:
             # Try 2: Check if it's markdown code block with JSON
-            if '```' in slides_text:
-                json_part = slides_text.split('```')[1] if len(slides_text.split('```')) > 1 else slides_text
-                if json_part.startswith('json'):
+            if "```" in slides_text:
+                json_part = (
+                    slides_text.split("```")[1]
+                    if len(slides_text.split("```")) > 1
+                    else slides_text
+                )
+                if json_part.startswith("json"):
                     json_part = json_part[4:]
                 try:
                     slides_data = json.loads(json_part.strip())
@@ -272,63 +288,63 @@ def generate_slides_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             # Try 3: Convert plain text to slides structure
             if isinstance(slides_data, str):
                 # Split by newlines or numbered items
-                lines = [l.strip() for l in slides_data.split('\n') if l.strip()]
+                lines = [l.strip() for l in slides_data.split("\n") if l.strip()]
                 if lines:
                     # Create slides from each line
                     slides_data = []
                     for i, line in enumerate(lines[:10]):  # Max 10 slides
                         # Clean up bullet markers, numbers
-                        line = line.lstrip('•-*0123456789.) ')
+                        line = line.lstrip("•-*0123456789.) ")
                         if line:
-                            slides_data.append({'title': f'Slide {i+1}', 'bullets': [line]})
+                            slides_data.append({"title": f"Slide {i+1}", "bullets": [line]})
                 else:
                     # Single slide with all content
-                    slides_data = [{'title': 'Content', 'bullets': [slides_text[:500]]}]
+                    slides_data = [{"title": "Content", "bullets": [slides_text[:500]]}]
 
     # Validate each slide is a dict with title and bullets
     validated_slides = []
     for i, slide in enumerate(slides_data):
         if isinstance(slide, str):
             # Convert string slide to proper format
-            validated_slides.append({'title': f'Slide {i+1}', 'bullets': [slide]})
+            validated_slides.append({"title": f"Slide {i+1}", "bullets": [slide]})
         elif isinstance(slide, dict):
             validated_slides.append(slide)
         else:
-            validated_slides.append({'title': f'Slide {i+1}', 'bullets': [str(slide)]})
+            validated_slides.append({"title": f"Slide {i+1}", "bullets": [str(slide)]})
     slides_data = validated_slides
 
     status.emit("Creating", f"📊 Creating PowerPoint: {title[:40]}...")
 
-    subtitle = params.get('subtitle', '')
-    author = params.get('author', 'Jotty Slide Generator')
-    template = params.get('template', 'dark')
-    output_dir = params.get('output_path', os.path.expanduser('~/jotty/presentations'))
+    subtitle = params.get("subtitle", "")
+    author = params.get("author", "Jotty Slide Generator")
+    template = params.get("template", "dark")
+    output_dir = params.get("output_path", os.path.expanduser("~/jotty/presentations"))
 
     os.makedirs(output_dir, exist_ok=True)
 
     # Color themes
     themes = {
-        'dark': {
-            'bg': RGBColor(30, 30, 30),
-            'title_color': RGBColor(255, 255, 255),
-            'text_color': RGBColor(220, 220, 220),
-            'accent': RGBColor(0, 150, 255)
+        "dark": {
+            "bg": RGBColor(30, 30, 30),
+            "title_color": RGBColor(255, 255, 255),
+            "text_color": RGBColor(220, 220, 220),
+            "accent": RGBColor(0, 150, 255),
         },
-        'light': {
-            'bg': RGBColor(255, 255, 255),
-            'title_color': RGBColor(30, 30, 30),
-            'text_color': RGBColor(60, 60, 60),
-            'accent': RGBColor(0, 120, 200)
+        "light": {
+            "bg": RGBColor(255, 255, 255),
+            "title_color": RGBColor(30, 30, 30),
+            "text_color": RGBColor(60, 60, 60),
+            "accent": RGBColor(0, 120, 200),
         },
-        'blue': {
-            'bg': RGBColor(0, 51, 102),
-            'title_color': RGBColor(255, 255, 255),
-            'text_color': RGBColor(200, 220, 255),
-            'accent': RGBColor(100, 200, 255)
-        }
+        "blue": {
+            "bg": RGBColor(0, 51, 102),
+            "title_color": RGBColor(255, 255, 255),
+            "text_color": RGBColor(200, 220, 255),
+            "accent": RGBColor(100, 200, 255),
+        },
     }
 
-    theme = themes.get(template, themes['dark'])
+    theme = themes.get(template, themes["dark"])
 
     def wrap_text(text, max_chars=80):
         """Wrap long text to multiple lines."""
@@ -344,12 +360,12 @@ def generate_slides_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                 current_len += len(word) + 1
             else:
                 if current_line:
-                    lines.append(' '.join(current_line))
+                    lines.append(" ".join(current_line))
                 current_line = [word]
                 current_len = len(word)
         if current_line:
-            lines.append(' '.join(current_line))
-        return '\n'.join(lines)
+            lines.append(" ".join(current_line))
+        return "\n".join(lines)
 
     try:
         from pptx.enum.text import MSO_AUTO_SIZE
@@ -368,7 +384,7 @@ def generate_slides_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             1, Inches(0), Inches(0), prs.slide_width, prs.slide_height
         )
         background.fill.solid()
-        background.fill.fore_color.rgb = theme['bg']
+        background.fill.fore_color.rgb = theme["bg"]
         background.line.fill.background()
 
         # Title text - with word wrap
@@ -379,7 +395,7 @@ def generate_slides_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         title_para.text = wrap_text(title, 50)
         title_para.font.size = Pt(48)
         title_para.font.bold = True
-        title_para.font.color.rgb = theme['title_color']
+        title_para.font.color.rgb = theme["title_color"]
         title_para.alignment = PP_ALIGN.CENTER
 
         # Subtitle
@@ -390,13 +406,13 @@ def generate_slides_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             sub_para = sub_frame.paragraphs[0]
             sub_para.text = wrap_text(subtitle, 70)
             sub_para.font.size = Pt(24)
-            sub_para.font.color.rgb = theme['text_color']
+            sub_para.font.color.rgb = theme["text_color"]
             sub_para.alignment = PP_ALIGN.CENTER
 
         # Content slides
         for slide_data in slides_data:
-            slide_title = slide_data.get('title', 'Untitled')
-            bullets = slide_data.get('bullets', [])
+            slide_title = slide_data.get("title", "Untitled")
+            bullets = slide_data.get("bullets", [])
 
             slide = prs.slides.add_slide(slide_layout)
 
@@ -405,25 +421,25 @@ def generate_slides_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                 1, Inches(0), Inches(0), prs.slide_width, prs.slide_height
             )
             background.fill.solid()
-            background.fill.fore_color.rgb = theme['bg']
+            background.fill.fore_color.rgb = theme["bg"]
             background.line.fill.background()
 
             # Slide title - with word wrap
-            title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(12.333), Inches(1.2))
+            title_box = slide.shapes.add_textbox(
+                Inches(0.5), Inches(0.3), Inches(12.333), Inches(1.2)
+            )
             title_frame = title_box.text_frame
             title_frame.word_wrap = True
             title_para = title_frame.paragraphs[0]
             title_para.text = wrap_text(slide_title, 60)
             title_para.font.size = Pt(32)
             title_para.font.bold = True
-            title_para.font.color.rgb = theme['accent']
+            title_para.font.color.rgb = theme["accent"]
 
             # Accent line under title
-            line = slide.shapes.add_shape(
-                1, Inches(0.5), Inches(1.4), Inches(3), Inches(0.04)
-            )
+            line = slide.shapes.add_shape(1, Inches(0.5), Inches(1.4), Inches(3), Inches(0.04))
             line.fill.solid()
-            line.fill.fore_color.rgb = theme['accent']
+            line.fill.fore_color.rgb = theme["accent"]
             line.line.fill.background()
 
             # Bullets - with proper sizing based on count
@@ -443,7 +459,9 @@ def generate_slides_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                     font_size = 18
                     spacing = 12
 
-                content_box = slide.shapes.add_textbox(Inches(0.6), Inches(1.7), Inches(12), Inches(5.5))
+                content_box = slide.shapes.add_textbox(
+                    Inches(0.6), Inches(1.7), Inches(12), Inches(5.5)
+                )
                 text_frame = content_box.text_frame
                 text_frame.word_wrap = True
 
@@ -457,13 +475,13 @@ def generate_slides_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                     bullet_text = bullet if len(bullet) <= 150 else bullet[:147] + "..."
                     para.text = f"•  {bullet_text}"
                     para.font.size = Pt(font_size)
-                    para.font.color.rgb = theme['text_color']
+                    para.font.color.rgb = theme["text_color"]
                     para.space_after = Pt(spacing)
                     para.line_spacing = 1.2
 
         # Save
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        safe_title = "".join(c if c.isalnum() or c in ' -_' else '' for c in title)[:30]
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        safe_title = "".join(c if c.isalnum() or c in " -_" else "" for c in title)[:30]
         filename = f"{safe_title.replace(' ', '_')}_{timestamp}.pptx"
         file_path = os.path.join(output_dir, filename)
 
@@ -472,18 +490,15 @@ def generate_slides_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         logger.info(f"Slides generated: {file_path}")
 
         return {
-            'success': True,
-            'file_path': file_path,
-            'slide_count': len(slides_data) + 1,  # +1 for title slide
-            'title': title
+            "success": True,
+            "file_path": file_path,
+            "slide_count": len(slides_data) + 1,  # +1 for title slide
+            "title": title,
         }
 
     except Exception as e:
         logger.error(f"Slide generation failed: {e}", exc_info=True)
-        return {
-            'success': False,
-            'error': f'Slide generation failed: {str(e)}'
-        }
+        return {"success": False, "error": f"Slide generation failed: {str(e)}"}
 
 
 @async_tool_wrapper()
@@ -508,19 +523,19 @@ async def generate_slides_from_topic_tool(params: Dict[str, Any]) -> Dict[str, A
             - slide_count (int): Number of slides
             - telegram_sent (bool): Whether sent to Telegram
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     import inspect
     import json
 
-    topic = params.get('topic')
+    topic = params.get("topic")
     if not topic:
-        return {'success': False, 'error': 'topic parameter is required'}
+        return {"success": False, "error": "topic parameter is required"}
 
-    n_slides = params.get('n_slides', 10)
-    template = params.get('template', 'dark')
-    send_telegram = params.get('send_telegram', True)
-    export_as = params.get('export_as', 'pptx').lower()  # 'pptx', 'pdf', or 'both'
+    n_slides = params.get("n_slides", 10)
+    template = params.get("template", "dark")
+    send_telegram = params.get("send_telegram", True)
+    export_as = params.get("export_as", "pptx").lower()  # 'pptx', 'pdf', or 'both'
 
     status.emit("Generating", f"🧠 Generating slide content for: {topic[:40]}...")
 
@@ -533,11 +548,11 @@ async def generate_slides_from_topic_tool(params: Dict[str, Any]) -> Dict[str, A
         registry = get_skills_registry()
         registry.init()
 
-        claude_skill = registry.get_skill('claude-cli-llm')
-        telegram_skill = registry.get_skill('telegram-sender')
+        claude_skill = registry.get_skill("claude-cli-llm")
+        telegram_skill = registry.get_skill("telegram-sender")
 
         if not claude_skill:
-            return {'success': False, 'error': 'claude-cli-llm skill not available'}
+            return {"success": False, "error": "claude-cli-llm skill not available"}
 
         # Generate slide content with Claude
         prompt = f"""Create slide content for a presentation about: {topic}
@@ -564,61 +579,68 @@ STRICT Requirements:
 
 Return ONLY the JSON, nothing else."""
 
-        generate_tool = claude_skill.tools.get('generate_text_tool')
+        generate_tool = claude_skill.tools.get("generate_text_tool")
 
         if inspect.iscoroutinefunction(generate_tool):
-            result = await generate_tool({
-                'prompt': prompt,
-                'model': 'sonnet',
-                'timeout': 120
-            })
+            result = await generate_tool({"prompt": prompt, "model": "sonnet", "timeout": 120})
         else:
-            result = generate_tool({
-                'prompt': prompt,
-                'model': 'sonnet',
-                'timeout': 120
-            })
+            result = generate_tool({"prompt": prompt, "model": "sonnet", "timeout": 120})
 
-        if not result.get('success'):
-            return {'success': False, 'error': f"AI generation failed: {result.get('error')}"}
+        if not result.get("success"):
+            return {"success": False, "error": f"AI generation failed: {result.get('error')}"}
 
         # Parse JSON response - try multiple field names
-        text = (result.get('text') or result.get('response') or
-                result.get('content') or result.get('output') or '').strip()
+        text = (
+            result.get("text")
+            or result.get("response")
+            or result.get("content")
+            or result.get("output")
+            or ""
+        ).strip()
 
         if not text:
             # Fallback: create basic slides from topic
             logger.warning(f"Empty AI response, creating basic slides for: {topic}")
             slide_data = {
-                'title': topic[:60],
-                'subtitle': 'Generated Presentation',
-                'slides': [
-                    {'title': 'Overview', 'bullets': [f'Information about {topic}', 'Key points to cover', 'Summary details']},
-                    {'title': 'Details', 'bullets': ['Main aspects', 'Important considerations', 'Key takeaways']},
-                ]
+                "title": topic[:60],
+                "subtitle": "Generated Presentation",
+                "slides": [
+                    {
+                        "title": "Overview",
+                        "bullets": [
+                            f"Information about {topic}",
+                            "Key points to cover",
+                            "Summary details",
+                        ],
+                    },
+                    {
+                        "title": "Details",
+                        "bullets": ["Main aspects", "Important considerations", "Key takeaways"],
+                    },
+                ],
             }
         else:
             # Clean up response if needed
-            if '```' in text:
-                parts = text.split('```')
+            if "```" in text:
+                parts = text.split("```")
                 for part in parts:
                     part = part.strip()
-                    if part.startswith('json'):
+                    if part.startswith("json"):
                         part = part[4:].strip()
-                    if part.startswith('{'):
+                    if part.startswith("{"):
                         text = part
                         break
 
             # Find JSON object in response
-            if '{' in text:
-                start = text.find('{')
+            if "{" in text:
+                start = text.find("{")
                 # Find matching closing brace
                 depth = 0
                 end = start
                 for i, c in enumerate(text[start:], start):
-                    if c == '{':
+                    if c == "{":
                         depth += 1
-                    elif c == '}':
+                    elif c == "}":
                         depth -= 1
                         if depth == 0:
                             end = i + 1
@@ -630,60 +652,88 @@ Return ONLY the JSON, nothing else."""
             except json.JSONDecodeError as e:
                 # Fallback: create slides from the raw text
                 logger.warning(f"JSON parse failed, creating slides from raw text: {e}")
-                lines = [l.strip() for l in text.split('\n') if l.strip() and not l.startswith('{')][:8]
+                lines = [
+                    l.strip() for l in text.split("\n") if l.strip() and not l.startswith("{")
+                ][:8]
                 slide_data = {
-                    'title': topic[:60],
-                    'subtitle': 'Generated Presentation',
-                    'slides': [{'title': f'Point {i+1}', 'bullets': [line[:200]]} for i, line in enumerate(lines)]
-                              if lines else [{'title': 'Content', 'bullets': [topic]}]
+                    "title": topic[:60],
+                    "subtitle": "Generated Presentation",
+                    "slides": (
+                        [
+                            {"title": f"Point {i+1}", "bullets": [line[:200]]}
+                            for i, line in enumerate(lines)
+                        ]
+                        if lines
+                        else [{"title": "Content", "bullets": [topic]}]
+                    ),
                 }
 
         # Validate parsed structure
         if not isinstance(slide_data, dict):
-            return {'success': False, 'error': f'AI response is not a dict: {type(slide_data).__name__}', 'raw_response': text[:500]}
+            return {
+                "success": False,
+                "error": f"AI response is not a dict: {type(slide_data).__name__}",
+                "raw_response": text[:500],
+            }
 
-        slides = slide_data.get('slides', [])
+        slides = slide_data.get("slides", [])
         if not isinstance(slides, list):
-            return {'success': False, 'error': f'slides field is not a list: {type(slides).__name__}', 'raw_response': text[:500]}
+            return {
+                "success": False,
+                "error": f"slides field is not a list: {type(slides).__name__}",
+                "raw_response": text[:500],
+            }
 
         if not slides:
-            return {'success': False, 'error': 'AI generated empty slides list', 'raw_response': text[:500]}
+            return {
+                "success": False,
+                "error": "AI generated empty slides list",
+                "raw_response": text[:500],
+            }
 
         status.emit("Creating", f"📊 Building {len(slides)} slides...")
 
         # Generate PPTX
-        pptx_result = generate_slides_tool({
-            'title': slide_data.get('title', topic),
-            'subtitle': slide_data.get('subtitle', ''),
-            'slides': slide_data.get('slides', []),
-            'template': template,
-            'output_path': params.get('output_path', os.path.expanduser('~/jotty/presentations'))
-        })
+        pptx_result = generate_slides_tool(
+            {
+                "title": slide_data.get("title", topic),
+                "subtitle": slide_data.get("subtitle", ""),
+                "slides": slide_data.get("slides", []),
+                "template": template,
+                "output_path": params.get(
+                    "output_path", os.path.expanduser("~/jotty/presentations")
+                ),
+            }
+        )
 
-        if not pptx_result.get('success'):
+        if not pptx_result.get("success"):
             return pptx_result
 
-        pptx_path = pptx_result.get('file_path')
+        pptx_path = pptx_result.get("file_path")
         pdf_path = None
 
         # Generate PDF directly if requested (using reportlab, not conversion)
-        if export_as in ('pdf', 'both'):
-            pdf_result = generate_slides_pdf_tool({
-                'title': slide_data.get('title', topic),
-                'subtitle': slide_data.get('subtitle', ''),
-                'slides': slide_data.get('slides', []),
-                'template': template,
-                'output_path': params.get('output_path', os.path.expanduser('~/jotty/presentations'))
-            })
+        if export_as in ("pdf", "both"):
+            pdf_result = generate_slides_pdf_tool(
+                {
+                    "title": slide_data.get("title", topic),
+                    "subtitle": slide_data.get("subtitle", ""),
+                    "slides": slide_data.get("slides", []),
+                    "template": template,
+                    "output_path": params.get(
+                        "output_path", os.path.expanduser("~/jotty/presentations")
+                    ),
+                }
+            )
 
-            if pdf_result.get('success'):
-                pdf_path = pdf_result.get('file_path')
+            if pdf_result.get("success"):
+                pdf_path = pdf_result.get("file_path")
                 logger.info(f"PDF slides created: {pdf_path}")
             else:
                 logger.warning(f"PDF generation failed: {pdf_result.get('error')}")
 
         # Determine which file to send to Telegram
-        if export_as == 'pdf' and pdf_path:
+        if export_as == "pdf" and pdf_path:
             telegram_file = pdf_path
         else:
             telegram_file = pptx_path
@@ -692,38 +742,32 @@ Return ONLY the JSON, nothing else."""
         telegram_sent = False
         if send_telegram and telegram_skill:
             status.emit("Sending", "📤 Sending to Telegram...")
-            send_tool = telegram_skill.tools.get('send_telegram_file_tool')
+            send_tool = telegram_skill.tools.get("send_telegram_file_tool")
             if send_tool:
-                file_type = "PDF" if telegram_file.endswith('.pdf') else "PPTX"
+                file_type = "PDF" if telegram_file.endswith(".pdf") else "PPTX"
                 caption = f"📊 {slide_data.get('title', topic)}\n\n🎯 {n_slides + 1} slides\n📝 Topic: {topic}\n📄 Format: {file_type}"
 
                 if inspect.iscoroutinefunction(send_tool):
-                    tg_result = await send_tool({
-                        'file_path': telegram_file,
-                        'caption': caption
-                    })
+                    tg_result = await send_tool({"file_path": telegram_file, "caption": caption})
                 else:
-                    tg_result = send_tool({
-                        'file_path': telegram_file,
-                        'caption': caption
-                    })
+                    tg_result = send_tool({"file_path": telegram_file, "caption": caption})
 
-                telegram_sent = tg_result.get('success', False)
+                telegram_sent = tg_result.get("success", False)
 
         result = {
-            'success': True,
-            'file_path': pptx_path,
-            'slide_count': pptx_result.get('slide_count'),
-            'title': slide_data.get('title'),
-            'telegram_sent': telegram_sent,
-            'export_as': export_as
+            "success": True,
+            "file_path": pptx_path,
+            "slide_count": pptx_result.get("slide_count"),
+            "title": slide_data.get("title"),
+            "telegram_sent": telegram_sent,
+            "export_as": export_as,
         }
 
         if pdf_path:
-            result['pdf_path'] = pdf_path
+            result["pdf_path"] = pdf_path
 
         return result
 
     except Exception as e:
         logger.error(f"Topic slide generation failed: {e}", exc_info=True)
-        return {'success': False, 'error': f'Generation failed: {str(e)}'}
+        return {"success": False, "error": f"Generation failed: {str(e)}"}

@@ -23,11 +23,12 @@ Example:
     viz = VisualizationLayer.from_dataframe(df)
     charts = viz.visualize("Distribution of sales by category")
 """
-from typing import Dict, Any, Optional, List, Union
-from dataclasses import dataclass, field
-from enum import Enum
+
 import logging
 import os
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, Dict, List, Optional, Union
 
 from .data_source import DataSource, DataSourceFactory, DataSourceResult
 
@@ -36,6 +37,7 @@ logger = logging.getLogger(__name__)
 
 class ChartLibrary(Enum):
     """Supported visualization libraries."""
+
     MATPLOTLIB = "matplotlib"
     SEABORN = "seaborn"
     ALTAIR = "altair"
@@ -46,6 +48,7 @@ class ChartLibrary(Enum):
 @dataclass
 class DataSummary:
     """Summary of data characteristics for LIDA."""
+
     name: str
     file_path: str = None
     n_rows: int = 0
@@ -55,21 +58,22 @@ class DataSummary:
     raw_summary: Dict = field(default_factory=dict)
 
     @classmethod
-    def from_lida(cls, lida_summary: Dict) -> 'DataSummary':
+    def from_lida(cls, lida_summary: Dict) -> "DataSummary":
         """Create from LIDA summary dict."""
         return cls(
-            name=lida_summary.get('name', 'data'),
-            file_path=lida_summary.get('file_name'),
-            n_rows=lida_summary.get('n_rows', 0),
-            n_columns=lida_summary.get('n_columns', 0),
-            columns=lida_summary.get('fields', []),
-            raw_summary=lida_summary
+            name=lida_summary.get("name", "data"),
+            file_path=lida_summary.get("file_name"),
+            n_rows=lida_summary.get("n_rows", 0),
+            n_columns=lida_summary.get("n_columns", 0),
+            columns=lida_summary.get("fields", []),
+            raw_summary=lida_summary,
         )
 
 
 @dataclass
 class VisualizationGoal:
     """A visualization goal/objective."""
+
     question: str
     visualization_type: str = None
     rationale: str = None
@@ -77,20 +81,21 @@ class VisualizationGoal:
     raw_goal: Any = None
 
     @classmethod
-    def from_lida(cls, lida_goal: Any, index: int = 0) -> 'VisualizationGoal':
+    def from_lida(cls, lida_goal: Any, index: int = 0) -> "VisualizationGoal":
         """Create from LIDA Goal object."""
         return cls(
-            question=getattr(lida_goal, 'question', str(lida_goal)),
-            visualization_type=getattr(lida_goal, 'visualization', None),
-            rationale=getattr(lida_goal, 'rationale', None),
+            question=getattr(lida_goal, "question", str(lida_goal)),
+            visualization_type=getattr(lida_goal, "visualization", None),
+            rationale=getattr(lida_goal, "rationale", None),
             index=index,
-            raw_goal=lida_goal
+            raw_goal=lida_goal,
         )
 
 
 @dataclass
 class ChartResult:
     """Result of chart generation."""
+
     success: bool
     code: str = None
     raster: bytes = None  # PNG image bytes
@@ -108,24 +113,27 @@ class ChartResult:
             data = self.raster
             if isinstance(data, str):
                 import base64
+
                 data = base64.b64decode(data)
-            with open(path, 'wb') as f:
+            with open(path, "wb") as f:
                 f.write(data)
         elif self.svg:
-            with open(path, 'w') as f:
+            with open(path, "w") as f:
                 f.write(self.svg)
 
     def to_base64(self) -> str:
         """Get base64 encoded image for web display."""
         import base64
+
         if self.raster:
-            return base64.b64encode(self.raster).decode('utf-8')
+            return base64.b64encode(self.raster).decode("utf-8")
         return None
 
     def display(self) -> None:
         """Display chart in Jupyter/IPython."""
         try:
-            from IPython.display import display, Image, SVG
+            from IPython.display import SVG, Image, display
+
             if self.raster:
                 display(Image(self.raster))
             elif self.svg:
@@ -147,7 +155,14 @@ class VisualizationLayer:
     Uses Claude CLI by default (no API keys required).
     """
 
-    def __init__(self, data_source: DataSource, llm_provider: str = 'claude-cli', llm_model: str = '', default_library: ChartLibrary = ChartLibrary.MATPLOTLIB, **llm_kwargs: Any) -> None:
+    def __init__(
+        self,
+        data_source: DataSource,
+        llm_provider: str = "claude-cli",
+        llm_model: str = "",
+        default_library: ChartLibrary = ChartLibrary.MATPLOTLIB,
+        **llm_kwargs: Any,
+    ) -> None:
         """
         Initialize visualization layer.
 
@@ -159,6 +174,7 @@ class VisualizationLayer:
             **llm_kwargs: Additional LLM configuration
         """
         from Jotty.core.infrastructure.foundation.config_defaults import DEFAULT_MODEL_ALIAS
+
         self.data_source = data_source
         self.llm_provider = llm_provider
         self.llm_model = llm_model or DEFAULT_MODEL_ALIAS
@@ -169,7 +185,13 @@ class VisualizationLayer:
         self._summary_cache: Dict[str, DataSummary] = {}
 
     @classmethod
-    def from_semantic_layer(cls, semantic_layer: Any, llm_provider: str = 'claude-cli', llm_model: str = '', **kwargs: Any) -> 'VisualizationLayer':
+    def from_semantic_layer(
+        cls,
+        semantic_layer: Any,
+        llm_provider: str = "claude-cli",
+        llm_model: str = "",
+        **kwargs: Any,
+    ) -> "VisualizationLayer":
         """
         Create VisualizationLayer from SemanticLayer.
 
@@ -186,7 +208,14 @@ class VisualizationLayer:
         return cls(data_source, llm_provider=llm_provider, llm_model=llm_model, **kwargs)
 
     @classmethod
-    def from_dataframe(cls, dataframe: Any, name: str = 'data', llm_provider: str = 'claude-cli', llm_model: str = '', **kwargs: Any) -> 'VisualizationLayer':
+    def from_dataframe(
+        cls,
+        dataframe: Any,
+        name: str = "data",
+        llm_provider: str = "claude-cli",
+        llm_model: str = "",
+        **kwargs: Any,
+    ) -> "VisualizationLayer":
         """
         Create VisualizationLayer from DataFrame.
 
@@ -204,7 +233,9 @@ class VisualizationLayer:
         return cls(data_source, llm_provider=llm_provider, llm_model=llm_model, **kwargs)
 
     @classmethod
-    def from_csv(cls, path: str, llm_provider: str = 'claude-cli', llm_model: str = '', **kwargs: Any) -> 'VisualizationLayer':
+    def from_csv(
+        cls, path: str, llm_provider: str = "claude-cli", llm_model: str = "", **kwargs: Any
+    ) -> "VisualizationLayer":
         """
         Create VisualizationLayer from CSV file.
 
@@ -230,9 +261,7 @@ class VisualizationLayer:
             from .llm_provider import ClaudeLLMTextGenerator
 
             text_gen = ClaudeLLMTextGenerator(
-                provider=self.llm_provider,
-                model=self.llm_model,
-                **self._llm_kwargs
+                provider=self.llm_provider, model=self.llm_model, **self._llm_kwargs
             )
             self._manager = Manager(text_gen=text_gen)
 
@@ -258,6 +287,7 @@ class VisualizationLayer:
             df = result.to_dataframe()
         elif data is not None:
             import pandas as pd
+
             df = data if isinstance(data, pd.DataFrame) else pd.DataFrame(data)
         else:
             result = self.data_source.query("")
@@ -276,7 +306,14 @@ class VisualizationLayer:
             logger.error(f"Summarization failed: {e}")
             raise
 
-    def goals(self, summary: DataSummary = None, n: int = 5, question: str = None, persona: str = None, **kwargs: Any) -> List[VisualizationGoal]:
+    def goals(
+        self,
+        summary: DataSummary = None,
+        n: int = 5,
+        question: str = None,
+        persona: str = None,
+        **kwargs: Any,
+    ) -> List[VisualizationGoal]:
         """
         Generate visualization goals for data exploration.
 
@@ -294,18 +331,22 @@ class VisualizationLayer:
             summary = self.summarize(question=question)
 
         try:
-            lida_goals = self.manager.goals(
-                summary.raw_summary,
-                n=n,
-                persona=persona,
-                **kwargs
-            )
+            lida_goals = self.manager.goals(summary.raw_summary, n=n, persona=persona, **kwargs)
             return [VisualizationGoal.from_lida(g, i) for i, g in enumerate(lida_goals)]
         except Exception as e:
             logger.error(f"Goal generation failed: {e}")
             raise
 
-    def visualize(self, question: str = None, goal: Union[VisualizationGoal, str] = None, summary: DataSummary = None, library: Union[ChartLibrary, str] = None, n: int = 1, return_code: bool = True, **kwargs: Any) -> List[ChartResult]:
+    def visualize(
+        self,
+        question: str = None,
+        goal: Union[VisualizationGoal, str] = None,
+        summary: DataSummary = None,
+        library: Union[ChartLibrary, str] = None,
+        n: int = 1,
+        return_code: bool = True,
+        **kwargs: Any,
+    ) -> List[ChartResult]:
         """
         Generate visualizations from NL question or goal.
 
@@ -376,16 +417,16 @@ class VisualizationLayer:
                     textgen_config=LLMXConfig(temperature=0.2),  # Slight variation
                     library=library.value,
                     return_error=True,
-                    **kwargs
+                    **kwargs,
                 )
                 if chart_list:
                     charts.extend(chart_list if isinstance(chart_list, list) else [chart_list])
 
             results = []
             for chart in charts:
-                code = getattr(chart, 'code', None)
-                raster = getattr(chart, 'raster', None)
-                error = getattr(chart, 'error', None)
+                code = getattr(chart, "code", None)
+                raster = getattr(chart, "raster", None)
+                error = getattr(chart, "error", None)
 
                 # For interactive libraries (plotly, altair), code is sufficient
                 # They don't need raster images - we'll render them interactively
@@ -397,34 +438,40 @@ class VisualizationLayer:
                 is_success = (not error) or (code and is_interactive)
 
                 if is_success:
-                    results.append(ChartResult(
-                        success=True,
-                        code=code if return_code else None,
-                        raster=raster,
-                        spec=getattr(chart, 'spec', None),
-                        goal=VisualizationGoal(question=str(lida_goal)),
-                        library=library,
-                        raw_chart=chart
-                    ))
+                    results.append(
+                        ChartResult(
+                            success=True,
+                            code=code if return_code else None,
+                            raster=raster,
+                            spec=getattr(chart, "spec", None),
+                            goal=VisualizationGoal(question=str(lida_goal)),
+                            library=library,
+                            raw_chart=chart,
+                        )
+                    )
                 else:
-                    results.append(ChartResult(
-                        success=False,
-                        code=code if return_code else None,  # Still include code if available
-                        error=error,
-                        goal=VisualizationGoal(question=str(lida_goal)),
-                        library=library
-                    ))
+                    results.append(
+                        ChartResult(
+                            success=False,
+                            code=code if return_code else None,  # Still include code if available
+                            error=error,
+                            goal=VisualizationGoal(question=str(lida_goal)),
+                            library=library,
+                        )
+                    )
 
             return results
 
         except Exception as e:
             logger.error(f"Visualization failed: {e}")
-            return [ChartResult(
-                success=False,
-                error=str(e),
-                goal=VisualizationGoal(question=str(lida_goal)) if lida_goal else None,
-                library=library
-            )]
+            return [
+                ChartResult(
+                    success=False,
+                    error=str(e),
+                    goal=VisualizationGoal(question=str(lida_goal)) if lida_goal else None,
+                    library=library,
+                )
+            ]
 
     def explain(self, chart: ChartResult, **kwargs: Any) -> str:
         """
@@ -441,10 +488,7 @@ class VisualizationLayer:
             return "Cannot explain chart without raw chart data"
 
         try:
-            explanations = self.manager.explain(
-                code=chart.code,
-                **kwargs
-            )
+            explanations = self.manager.explain(code=chart.code, **kwargs)
             return explanations[0] if explanations else "No explanation available"
         except Exception as e:
             logger.error(f"Explanation failed: {e}")
@@ -466,20 +510,16 @@ class VisualizationLayer:
             return ChartResult(success=False, error="Cannot edit without raw chart")
 
         try:
-            edited = self.manager.edit(
-                code=chart.code,
-                instructions=instructions,
-                **kwargs
-            )
+            edited = self.manager.edit(code=chart.code, instructions=instructions, **kwargs)
 
             if edited:
                 return ChartResult(
                     success=True,
-                    code=getattr(edited[0], 'code', None),
-                    raster=getattr(edited[0], 'raster', None),
+                    code=getattr(edited[0], "code", None),
+                    raster=getattr(edited[0], "raster", None),
                     goal=chart.goal,
                     library=chart.library,
-                    raw_chart=edited[0]
+                    raw_chart=edited[0],
                 )
 
             return ChartResult(success=False, error="Edit returned no results")
@@ -488,7 +528,13 @@ class VisualizationLayer:
             logger.error(f"Edit failed: {e}")
             return ChartResult(success=False, error=str(e))
 
-    def dashboard(self, questions: List[str] = None, n_goals: int = 4, library: Union[ChartLibrary, str] = None, **kwargs: Any) -> List[ChartResult]:
+    def dashboard(
+        self,
+        questions: List[str] = None,
+        n_goals: int = 4,
+        library: Union[ChartLibrary, str] = None,
+        **kwargs: Any,
+    ) -> List[ChartResult]:
         """
         Generate a multi-chart dashboard.
 
@@ -513,17 +559,15 @@ class VisualizationLayer:
             goals = self.goals(summary, n=n_goals)
             for goal in goals:
                 chart_results = self.visualize(
-                    goal=goal,
-                    summary=summary,
-                    library=library,
-                    n=1,
-                    **kwargs
+                    goal=goal, summary=summary, library=library, n=1, **kwargs
                 )
                 charts.extend(chart_results)
 
         return charts
 
-    def query_and_visualize(self, question: str, library: Union[ChartLibrary, str] = None, n: int = 1, **kwargs: Any) -> Dict[str, Any]:
+    def query_and_visualize(
+        self, question: str, library: Union[ChartLibrary, str] = None, n: int = 1, **kwargs: Any
+    ) -> Dict[str, Any]:
         """
         Complete pipeline: Query data and visualize in one call.
 
@@ -542,35 +586,26 @@ class VisualizationLayer:
         query_result = self.data_source.query(question)
 
         if not query_result.success:
-            return {
-                'success': False,
-                'error': query_result.error,
-                'query': question
-            }
+            return {"success": False, "error": query_result.error, "query": question}
 
         # Visualize
-        charts = self.visualize(
-            question=question,
-            library=library,
-            n=n,
-            **kwargs
-        )
+        charts = self.visualize(question=question, library=library, n=n, **kwargs)
 
         return {
-            'success': True,
-            'query': question,
-            'generated_query': query_result.generated_query,
-            'data': query_result.data,
-            'row_count': len(query_result.to_dataframe()),
-            'charts': charts,
-            'metadata': query_result.metadata
+            "success": True,
+            "query": question,
+            "generated_query": query_result.generated_query,
+            "data": query_result.data,
+            "row_count": len(query_result.to_dataframe()),
+            "charts": charts,
+            "metadata": query_result.metadata,
         }
 
 
 __all__ = [
-    'VisualizationLayer',
-    'ChartResult',
-    'VisualizationGoal',
-    'DataSummary',
-    'ChartLibrary',
+    "VisualizationLayer",
+    "ChartResult",
+    "VisualizationGoal",
+    "DataSummary",
+    "ChartLibrary",
 ]

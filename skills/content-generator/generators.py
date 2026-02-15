@@ -7,11 +7,11 @@ Provides PDF, HTML, Markdown, DOCX, and PPTX generation
 """
 
 import logging
-from pathlib import Path
-from typing import Optional, Dict, Any
-import subprocess
 import re
+import subprocess
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -20,15 +20,18 @@ from .document import Document, Section, SectionType
 # Optional dependencies
 try:
     from docx import Document as DocxDocument
-    from docx.shared import Inches, Pt
     from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.shared import Inches, Pt
+
     HAS_DOCX = True
 except ImportError:
     HAS_DOCX = False
 
 try:
     from pptx import Presentation
-    from pptx.util import Inches as PptxInches, Pt as PptxPt
+    from pptx.util import Inches as PptxInches
+    from pptx.util import Pt as PptxPt
+
     HAS_PPTX = True
 except ImportError:
     HAS_PPTX = False
@@ -48,24 +51,21 @@ class ContentGenerators:
     def _sanitize_filename(self, filename: str) -> str:
         """Sanitize filename to be safe for filesystem"""
         # Remove/replace unsafe characters
-        filename = re.sub(r'[<>:"/\\|?*]', '', filename)
+        filename = re.sub(r'[<>:"/\\|?*]', "", filename)
         # Replace spaces with underscores
-        filename = filename.replace(' ', '_')
+        filename = filename.replace(" ", "_")
         # Remove leading/trailing dots and spaces
-        filename = filename.strip('. ')
+        filename = filename.strip(". ")
         # Limit length
         filename = filename[:200]
-        return filename if filename else 'document'
+        return filename if filename else "document"
 
     # =========================================================================
     # PDF Generation (via Pandoc + XeLaTeX)
     # =========================================================================
 
     def generate_pdf(
-        self,
-        document: Document,
-        output_path: Optional[Path] = None,
-        format: str = 'a4'
+        self, document: Document, output_path: Optional[Path] = None, format: str = "a4"
     ) -> Path:
         """
         Generate PDF from document using pandoc + XeLaTeX
@@ -83,16 +83,17 @@ class ContentGenerators:
         """
         # Format mapping
         FORMAT_MAP = {
-            'a4': 'a4',
-            'a5': 'a5',
-            'a6': 'a6',
-            'letter': 'letter',
+            "a4": "a4",
+            "a5": "a5",
+            "a6": "a6",
+            "letter": "letter",
         }
 
         pdf_format = format.lower()
         if pdf_format not in FORMAT_MAP:
-            raise ValueError(f"Unknown PDF format: {pdf_format}. "
-                           f"Must be one of: {list(FORMAT_MAP.keys())}")
+            raise ValueError(
+                f"Unknown PDF format: {pdf_format}. " f"Must be one of: {list(FORMAT_MAP.keys())}"
+            )
 
         pandoc_page_size = FORMAT_MAP[pdf_format]
 
@@ -115,7 +116,7 @@ class ContentGenerators:
         # Save temporary markdown file
         temp_md = output_path / f"{filename}_temp.md"
         try:
-            with open(temp_md, 'w', encoding='utf-8') as f:
+            with open(temp_md, "w", encoding="utf-8") as f:
                 f.write(f"# {document.title}\n\n")
                 if document.author:
                     f.write(f"**Author:** {document.author}\n\n")
@@ -127,23 +128,28 @@ class ContentGenerators:
 
             # Use pandoc to convert to PDF with optimized settings
             cmd = [
-                'pandoc',
+                "pandoc",
                 str(temp_md),
-                '-f', 'markdown',
-                '-t', 'pdf',
-                '--pdf-engine=xelatex',
-                f'--variable=papersize:{pandoc_page_size}',
-                '--variable=geometry:margin=0.75in',  # Reduce padding (0.75 inch margins, better than default 1.5in)
-                '--variable=urlcolor=blue',  # Color links blue
-                '--variable=linkcolor=blue',
-                '-o', str(pdf_path)
+                "-f",
+                "markdown",
+                "-t",
+                "pdf",
+                "--pdf-engine=xelatex",
+                f"--variable=papersize:{pandoc_page_size}",
+                "--variable=geometry:margin=0.75in",  # Reduce padding (0.75 inch margins, better than default 1.5in)
+                "--variable=urlcolor=blue",  # Color links blue
+                "--variable=linkcolor=blue",
+                "-o",
+                str(pdf_path),
             ]
 
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
 
             if result.returncode != 0:
                 error_output = result.stderr if result.stderr else result.stdout
-                raise RuntimeError(f"Pandoc failed with exit code {result.returncode}: {error_output}")
+                raise RuntimeError(
+                    f"Pandoc failed with exit code {result.returncode}: {error_output}"
+                )
 
         except subprocess.TimeoutExpired:
             raise RuntimeError("Pandoc conversion timed out (>60 seconds)")
@@ -182,7 +188,7 @@ class ContentGenerators:
         document: Document,
         output_path: Optional[Path] = None,
         standalone: bool = True,
-        include_toc: bool = True
+        include_toc: bool = True,
     ) -> Path:
         """
         Generate HTML from document using pandoc
@@ -213,7 +219,7 @@ class ContentGenerators:
         # Save temporary markdown file
         temp_md = output_path / f"{filename}_temp.md"
         try:
-            with open(temp_md, 'w', encoding='utf-8') as f:
+            with open(temp_md, "w", encoding="utf-8") as f:
                 f.write(f"# {document.title}\n\n")
                 if document.author:
                     f.write(f"**Author:** {document.author}\n\n")
@@ -225,36 +231,35 @@ class ContentGenerators:
 
             # Use pandoc to convert markdown to HTML
             cmd = [
-                'pandoc',
+                "pandoc",
                 str(temp_md),
-                '-o', str(html_path),
-                '--mathml',  # Use MathML for math
+                "-o",
+                str(html_path),
+                "--mathml",  # Use MathML for math
             ]
 
             # Add standalone HTML with CSS if requested
             if standalone:
-                cmd.append('--standalone')
-                cmd.append('--self-contained')
+                cmd.append("--standalone")
+                cmd.append("--self-contained")
 
             # Add table of contents if requested
             if include_toc:
-                cmd.extend(['--toc', '--toc-depth=3'])
+                cmd.extend(["--toc", "--toc-depth=3"])
 
             # Add metadata
-            cmd.extend([
-                '--metadata', f'title={document.title}',
-            ])
+            cmd.extend(
+                [
+                    "--metadata",
+                    f"title={document.title}",
+                ]
+            )
 
             if document.author:
-                cmd.extend(['--metadata', f'author={document.author}'])
+                cmd.extend(["--metadata", f"author={document.author}"])
 
             # Run pandoc
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=60
-            )
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
 
             if result.returncode != 0:
                 raise RuntimeError(f"Pandoc failed: {result.stderr}")
@@ -267,7 +272,9 @@ class ContentGenerators:
             return html_path
 
         except FileNotFoundError:
-            raise RuntimeError("pandoc not found. Please install pandoc: https://pandoc.org/installing.html")
+            raise RuntimeError(
+                "pandoc not found. Please install pandoc: https://pandoc.org/installing.html"
+            )
         except subprocess.TimeoutExpired:
             raise RuntimeError("HTML conversion timed out")
         except Exception as e:
@@ -281,10 +288,7 @@ class ContentGenerators:
     # =========================================================================
 
     def export_markdown(
-        self,
-        document: Document,
-        output_path: Optional[Path] = None,
-        include_metadata: bool = True
+        self, document: Document, output_path: Optional[Path] = None, include_metadata: bool = True
     ) -> Path:
         """
         Export document to Markdown file
@@ -306,7 +310,7 @@ class ContentGenerators:
 
         # Generate filename
         filename = self._sanitize_filename(document.title)
-        date_prefix = document.created.strftime('%Y-%m-%d')
+        date_prefix = document.created.strftime("%Y-%m-%d")
         md_path = output_path / f"{date_prefix}-{filename}.md"
 
         logger.info("Exporting to Markdown...")
@@ -336,8 +340,8 @@ class ContentGenerators:
         md_content.append(document.full_content)
 
         # Write file
-        with open(md_path, 'w', encoding='utf-8') as f:
-            f.write('\n'.join(md_content))
+        with open(md_path, "w", encoding="utf-8") as f:
+            f.write("\n".join(md_content))
 
         logger.info(f"Markdown created: {md_path.name}")
 
@@ -347,11 +351,7 @@ class ContentGenerators:
     # DOCX Generation (via python-docx)
     # =========================================================================
 
-    def generate_docx(
-        self,
-        document: Document,
-        output_path: Optional[Path] = None
-    ) -> Path:
+    def generate_docx(self, document: Document, output_path: Optional[Path] = None) -> Path:
         """
         Generate Word document from Document
 
@@ -366,9 +366,7 @@ class ContentGenerators:
             RuntimeError: If python-docx not installed
         """
         if not HAS_DOCX:
-            raise RuntimeError(
-                "python-docx not installed. Install with: pip install python-docx"
-            )
+            raise RuntimeError("python-docx not installed. Install with: pip install python-docx")
 
         # Determine output path
         if output_path is None:
@@ -409,28 +407,28 @@ class ContentGenerators:
 
             if section.type == SectionType.TEXT:
                 # Add paragraphs
-                for para in section.content.split('\n\n'):
+                for para in section.content.split("\n\n"):
                     if para.strip():
                         doc.add_paragraph(para.strip())
 
             elif section.type == SectionType.CODE:
                 # Add code block
                 code_para = doc.add_paragraph(section.content)
-                code_para.style = 'No Spacing'
+                code_para.style = "No Spacing"
                 for run in code_para.runs:
-                    run.font.name = 'Courier New'
+                    run.font.name = "Courier New"
                     run.font.size = Pt(10)
 
             elif section.type == SectionType.MATH:
                 # Math as preformatted text (DOCX doesn't support LaTeX natively)
                 math_para = doc.add_paragraph(section.content)
-                math_para.style = 'Intense Quote'
+                math_para.style = "Intense Quote"
 
             elif section.type == SectionType.MERMAID:
                 # Mermaid diagrams as code blocks
-                doc.add_paragraph("Diagram:", style='Intense Quote')
+                doc.add_paragraph("Diagram:", style="Intense Quote")
                 diagram_para = doc.add_paragraph(section.content)
-                diagram_para.style = 'No Spacing'
+                diagram_para.style = "No Spacing"
 
             else:
                 # Default: plain text
@@ -438,7 +436,7 @@ class ContentGenerators:
 
         # If no sections, use flat content
         if not document.sections and document.content:
-            for para in document.content.split('\n\n'):
+            for para in document.content.split("\n\n"):
                 if para.strip():
                     doc.add_paragraph(para.strip())
 
@@ -453,11 +451,7 @@ class ContentGenerators:
     # PPTX Generation (via python-pptx)
     # =========================================================================
 
-    def generate_pptx(
-        self,
-        document: Document,
-        output_path: Optional[Path] = None
-    ) -> Path:
+    def generate_pptx(self, document: Document, output_path: Optional[Path] = None) -> Path:
         """
         Generate PowerPoint presentation from Document
 
@@ -472,9 +466,7 @@ class ContentGenerators:
             RuntimeError: If python-pptx not installed
         """
         if not HAS_PPTX:
-            raise RuntimeError(
-                "python-pptx not installed. Install with: pip install python-pptx"
-            )
+            raise RuntimeError("python-pptx not installed. Install with: pip install python-pptx")
 
         # Determine output path
         if output_path is None:
@@ -523,7 +515,7 @@ class ContentGenerators:
                 # Make it monospace-like
                 for paragraph in text_frame.paragraphs:
                     for run in paragraph.runs:
-                        run.font.name = 'Courier New'
+                        run.font.name = "Courier New"
                         run.font.size = PptxPt(10)
 
             elif section.type == SectionType.MERMAID:

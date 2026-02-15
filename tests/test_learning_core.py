@@ -11,28 +11,37 @@ Covers:
 import json
 import math
 import time
-import pytest
-from dataclasses import dataclass, field, asdict
-from unittest.mock import Mock, MagicMock, patch, AsyncMock
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+
+import pytest
 
 try:
-    from core.learning.learning_coordinator import (
-        LearningManager, LearningSession, LearningUpdate,
-        get_learning_coordinator, reset_learning_coordinator,
-        _NoOpLearner, _NoOpMemory,
-    )
-    from core.learning.td_lambda import (
-        TDLambdaLearner, GroupedValueBaseline, SkillQTable, COMACredit,
-        get_learned_context,
-    )
+    from core.foundation.data_structures import GoalValue, MemoryEntry, MemoryLevel, SwarmConfig
     from core.learning.adaptive_components import (
-        AdaptiveLearningRate, IntermediateRewardCalculator, AdaptiveExploration,
+        AdaptiveExploration,
+        AdaptiveLearningRate,
+        IntermediateRewardCalculator,
+    )
+    from core.learning.learning_coordinator import (
+        LearningManager,
+        LearningSession,
+        LearningUpdate,
+        _NoOpLearner,
+        _NoOpMemory,
+        get_learning_coordinator,
+        reset_learning_coordinator,
     )
     from core.learning.rl_components import RLComponents
-    from core.foundation.data_structures import (
-        SwarmConfig, MemoryEntry, MemoryLevel, GoalValue,
+    from core.learning.td_lambda import (
+        COMACredit,
+        GroupedValueBaseline,
+        SkillQTable,
+        TDLambdaLearner,
+        get_learned_context,
     )
+
     HAS_LEARNING = True
 except ImportError:
     HAS_LEARNING = False
@@ -47,6 +56,7 @@ pytestmark = [
 # Shared helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_config(**overrides):
     """Create a SwarmConfig with sensible test defaults."""
     cfg = SwarmConfig()
@@ -55,8 +65,9 @@ def _make_config(**overrides):
     return cfg
 
 
-def _make_memory_entry(key="mem_1", content="test content", level=MemoryLevel.EPISODIC,
-                       goal="test_goal", value=0.5):
+def _make_memory_entry(
+    key="mem_1", content="test content", level=MemoryLevel.EPISODIC, goal="test_goal", value=0.5
+):
     """Create a lightweight MemoryEntry for tests."""
     entry = MemoryEntry(
         key=key,
@@ -72,15 +83,22 @@ def _make_memory_entry(key="mem_1", content="test content", level=MemoryLevel.EP
 # 1. LearningSession and LearningUpdate dataclasses
 # ============================================================================
 
+
 class TestLearningSessionDataclass:
     """Tests for the LearningSession dataclass."""
 
     @pytest.mark.unit
     def test_creation_with_all_fields(self):
         session = LearningSession(
-            session_id="s1", created_at=100.0, updated_at=200.0,
-            episode_count=5, total_experiences=42, domains=["ml", "data"],
-            agents=["Planner", "Coder"], avg_reward=0.82, path="/tmp/s1",
+            session_id="s1",
+            created_at=100.0,
+            updated_at=200.0,
+            episode_count=5,
+            total_experiences=42,
+            domains=["ml", "data"],
+            agents=["Planner", "Coder"],
+            avg_reward=0.82,
+            path="/tmp/s1",
         )
         assert session.session_id == "s1"
         assert session.avg_reward == 0.82
@@ -89,9 +107,15 @@ class TestLearningSessionDataclass:
     @pytest.mark.unit
     def test_equality(self):
         kwargs = dict(
-            session_id="s2", created_at=0, updated_at=0,
-            episode_count=0, total_experiences=0, domains=[],
-            agents=[], avg_reward=0.0, path="",
+            session_id="s2",
+            created_at=0,
+            updated_at=0,
+            episode_count=0,
+            total_experiences=0,
+            domains=[],
+            agents=[],
+            avg_reward=0.0,
+            path="",
         )
         assert LearningSession(**kwargs) == LearningSession(**kwargs)
 
@@ -115,6 +139,7 @@ class TestLearningUpdateDataclass:
 # ============================================================================
 # 2. _NoOpLearner and _NoOpMemory fallbacks
 # ============================================================================
+
 
 class TestNoOpLearner:
     """Tests for _NoOpLearner fallback class."""
@@ -175,6 +200,7 @@ class TestNoOpMemory:
 # ============================================================================
 # 3. LearningManager
 # ============================================================================
+
 
 class TestLearningManagerInit:
     """LearningManager initialization and directory setup."""
@@ -252,9 +278,15 @@ class TestLearningManagerInitializeAndLoad:
             p = tmp_path / sid
             p.mkdir()
             mgr.registry[sid] = LearningSession(
-                session_id=sid, created_at=1, updated_at=updated,
-                episode_count=0, total_experiences=0, domains=[],
-                agents=[], avg_reward=0, path=str(p),
+                session_id=sid,
+                created_at=1,
+                updated_at=updated,
+                episode_count=0,
+                total_experiences=0,
+                domains=[],
+                agents=[],
+                avg_reward=0,
+                path=str(p),
             )
         result = mgr.load_latest()
         # No actual data to load, but code path is exercised
@@ -269,9 +301,15 @@ class TestLearningManagerInitializeAndLoad:
     def test_load_session_missing_path(self, tmp_path):
         mgr = self._make_manager(tmp_path)
         mgr.registry["s1"] = LearningSession(
-            session_id="s1", created_at=0, updated_at=0,
-            episode_count=0, total_experiences=0, domains=[],
-            agents=[], avg_reward=0, path="/nonexistent/path",
+            session_id="s1",
+            created_at=0,
+            updated_at=0,
+            episode_count=0,
+            total_experiences=0,
+            domains=[],
+            agents=[],
+            avg_reward=0,
+            path="/nonexistent/path",
         )
         assert mgr.load_session("s1") is False
 
@@ -285,9 +323,15 @@ class TestLearningManagerInitializeAndLoad:
         mock_q = Mock()
         mgr._shared_q_learner = mock_q
         mgr.registry["test"] = LearningSession(
-            session_id="test", created_at=0, updated_at=0,
-            episode_count=0, total_experiences=0, domains=[],
-            agents=[], avg_reward=0, path=str(session_path),
+            session_id="test",
+            created_at=0,
+            updated_at=0,
+            episode_count=0,
+            total_experiences=0,
+            domains=[],
+            agents=[],
+            avg_reward=0,
+            path=str(session_path),
         )
         result = mgr.load_session("test")
         mock_q.load_state.assert_called_once()
@@ -528,14 +572,26 @@ class TestLearningManagerContextAndSummaries:
     def test_list_sessions_sorted_by_updated_at(self, tmp_path):
         mgr = self._make_manager(tmp_path)
         mgr.registry["a"] = LearningSession(
-            session_id="a", created_at=1, updated_at=5,
-            episode_count=2, total_experiences=10, domains=["d1"],
-            agents=["A"], avg_reward=0.5, path="/a",
+            session_id="a",
+            created_at=1,
+            updated_at=5,
+            episode_count=2,
+            total_experiences=10,
+            domains=["d1"],
+            agents=["A"],
+            avg_reward=0.5,
+            path="/a",
         )
         mgr.registry["b"] = LearningSession(
-            session_id="b", created_at=2, updated_at=10,
-            episode_count=3, total_experiences=20, domains=["d2"],
-            agents=["B"], avg_reward=0.8, path="/b",
+            session_id="b",
+            created_at=2,
+            updated_at=10,
+            episode_count=3,
+            total_experiences=20,
+            domains=["d2"],
+            agents=["B"],
+            avg_reward=0.8,
+            path="/b",
         )
         sessions = mgr.list_sessions()
         assert len(sessions) == 2
@@ -698,6 +754,7 @@ class TestLearningManagerSingleton:
 # 4. GroupedValueBaseline
 # ============================================================================
 
+
 class TestGroupedValueBaseline:
     """Tests for GroupedValueBaseline (HRPO-inspired)."""
 
@@ -795,6 +852,7 @@ class TestGroupedValueBaseline:
 # ============================================================================
 # 5. TDLambdaLearner
 # ============================================================================
+
 
 class TestTDLambdaLearner:
     """Tests for TDLambdaLearner."""
@@ -1014,6 +1072,7 @@ class TestTDLambdaLearner:
 # 6. SkillQTable
 # ============================================================================
 
+
 class TestSkillQTable:
     """Tests for SkillQTable."""
 
@@ -1111,6 +1170,7 @@ class TestSkillQTable:
 # 7. COMACredit
 # ============================================================================
 
+
 class TestCOMACredit:
     """Tests for COMACredit (counterfactual credit assignment)."""
 
@@ -1184,6 +1244,7 @@ class TestCOMACredit:
 # 8. get_learned_context (module-level function)
 # ============================================================================
 
+
 class TestGetLearnedContext:
     """Tests for the get_learned_context function in td_lambda."""
 
@@ -1251,6 +1312,7 @@ class TestGetLearnedContext:
 # 9. AdaptiveLearningRate
 # ============================================================================
 
+
 class TestAdaptiveLearningRate:
     """Tests for AdaptiveLearningRate."""
 
@@ -1306,7 +1368,9 @@ class TestAdaptiveLearningRate:
     @pytest.mark.unit
     def test_alpha_bounded_min_max(self):
         alr = self._make_alr(
-            enable_adaptive_alpha=True, alpha_min=0.01, alpha_max=0.1,
+            enable_adaptive_alpha=True,
+            alpha_min=0.01,
+            alpha_max=0.1,
         )
         for _ in range(50):
             alr.record_td_error(0.001)
@@ -1327,8 +1391,11 @@ class TestAdaptiveLearningRate:
     @pytest.mark.unit
     def test_high_variance_tends_to_decrease_alpha(self):
         alr = self._make_alr(
-            enable_adaptive_alpha=True, alpha=0.05,
-            alpha_min=0.001, alpha_max=0.1, adaptive_window_size=10,
+            enable_adaptive_alpha=True,
+            alpha=0.05,
+            alpha_min=0.001,
+            alpha_max=0.1,
+            adaptive_window_size=10,
         )
         for i in range(20):
             alr.record_td_error(10.0 if i % 2 == 0 else 0.0)
@@ -1339,6 +1406,7 @@ class TestAdaptiveLearningRate:
 # ============================================================================
 # 10. IntermediateRewardCalculator
 # ============================================================================
+
 
 class TestIntermediateRewardCalculator:
     """Tests for IntermediateRewardCalculator."""
@@ -1362,7 +1430,8 @@ class TestIntermediateRewardCalculator:
     @pytest.mark.unit
     def test_reward_architect_proceed_enabled(self):
         calc = self._make_calc(
-            enable_intermediate_rewards=True, architect_proceed_reward=0.1,
+            enable_intermediate_rewards=True,
+            architect_proceed_reward=0.1,
         )
         r = calc.reward_architect_proceed(0.8)
         assert r == pytest.approx(0.08)
@@ -1371,14 +1440,16 @@ class TestIntermediateRewardCalculator:
     @pytest.mark.unit
     def test_reward_tool_success_true(self):
         calc = self._make_calc(
-            enable_intermediate_rewards=True, tool_success_reward=0.05,
+            enable_intermediate_rewards=True,
+            tool_success_reward=0.05,
         )
         assert calc.reward_tool_success("web-search", True) == pytest.approx(0.05)
 
     @pytest.mark.unit
     def test_reward_tool_success_false(self):
         calc = self._make_calc(
-            enable_intermediate_rewards=True, tool_success_reward=0.05,
+            enable_intermediate_rewards=True,
+            tool_success_reward=0.05,
         )
         assert calc.reward_tool_success("web-search", False) == pytest.approx(-0.025)
 
@@ -1425,6 +1496,7 @@ class TestIntermediateRewardCalculator:
 # ============================================================================
 # 11. AdaptiveExploration
 # ============================================================================
+
 
 class TestAdaptiveExploration:
     """Tests for AdaptiveExploration."""
@@ -1480,9 +1552,11 @@ class TestAdaptiveExploration:
     @pytest.mark.unit
     def test_stall_boost_increases_epsilon(self):
         expl = self._make_expl(
-            epsilon_start=0.1, epsilon_end=0.05,
+            epsilon_start=0.1,
+            epsilon_end=0.05,
             exploration_boost_on_stall=0.1,
-            stall_detection_window=100, stall_threshold=0.01,
+            stall_detection_window=100,
+            stall_threshold=0.01,
         )
         for _ in range(10):
             expl.record_goal_visit("g")
@@ -1502,6 +1576,7 @@ class TestAdaptiveExploration:
 # ============================================================================
 # 12. RLComponents
 # ============================================================================
+
 
 class TestRLComponentsSemantic:
     """Tests for RLComponents.get_similar_experiences_semantic."""
@@ -1523,8 +1598,7 @@ class TestRLComponentsSemantic:
     def test_top_k_limiting(self):
         rl = RLComponents(config=Mock())
         exps = [
-            {"action": {"actor": f"a{i}"}, "state": {}, "timestamp": time.time()}
-            for i in range(10)
+            {"action": {"actor": f"a{i}"}, "state": {}, "timestamp": time.time()} for i in range(10)
         ]
         assert len(rl.get_similar_experiences_semantic(exps, {}, {"actor": "x"}, top_k=3)) == 3
 
@@ -1533,7 +1607,9 @@ class TestRLComponentsSemantic:
         rl = RLComponents(config=Mock())
         low_td = {"action": {"actor": "X"}, "state": {}, "td_error": 0.01, "timestamp": time.time()}
         high_td = {"action": {"actor": "X"}, "state": {}, "td_error": 0.9, "timestamp": time.time()}
-        results = rl.get_similar_experiences_semantic([low_td, high_td], {}, {"actor": "X"}, top_k=2)
+        results = rl.get_similar_experiences_semantic(
+            [low_td, high_td], {}, {"actor": "X"}, top_k=2
+        )
         assert results[0]["td_error"] == 0.9
 
     @pytest.mark.unit
@@ -1545,10 +1621,17 @@ class TestRLComponentsSemantic:
     @pytest.mark.unit
     def test_state_similarity_scoring(self):
         rl = RLComponents(config=Mock())
-        exp_match = {"action": {"actor": "X"}, "state": {"todo": "pending pending"}, "timestamp": time.time()}
+        exp_match = {
+            "action": {"actor": "X"},
+            "state": {"todo": "pending pending"},
+            "timestamp": time.time(),
+        }
         exp_no_match = {"action": {"actor": "X"}, "state": {"todo": ""}, "timestamp": time.time()}
         results = rl.get_similar_experiences_semantic(
-            [exp_no_match, exp_match], {"todo": "pending pending"}, {"actor": "X"}, top_k=2,
+            [exp_no_match, exp_match],
+            {"todo": "pending pending"},
+            {"actor": "X"},
+            top_k=2,
         )
         assert results[0]["state"]["todo"] == "pending pending"
 
@@ -1601,7 +1684,9 @@ class TestRLComponentsExtractPatterns:
     @pytest.mark.unit
     def test_below_threshold(self):
         rl = RLComponents(config=Mock())
-        assert rl.extract_patterns([{"action": {"actor": "A"}, "reward": 0.9}], min_frequency=3) == []
+        assert (
+            rl.extract_patterns([{"action": {"actor": "A"}, "reward": 0.9}], min_frequency=3) == []
+        )
 
     @pytest.mark.unit
     def test_pattern_extraction_success(self):
@@ -1622,10 +1707,9 @@ class TestRLComponentsExtractPatterns:
     @pytest.mark.unit
     def test_multiple_patterns_sorted_by_frequency(self):
         rl = RLComponents(config=Mock())
-        exps = (
-            [{"action": {"actor": "A"}, "reward": 0.9, "state": {}} for _ in range(5)]
-            + [{"action": {"actor": "B"}, "reward": 0.1, "state": {}} for _ in range(3)]
-        )
+        exps = [{"action": {"actor": "A"}, "reward": 0.9, "state": {}} for _ in range(5)] + [
+            {"action": {"actor": "B"}, "reward": 0.1, "state": {}} for _ in range(3)
+        ]
         patterns = rl.extract_patterns(exps, min_frequency=3)
         assert len(patterns) == 2
         assert patterns[0]["frequency"] >= patterns[1]["frequency"]
@@ -1714,6 +1798,7 @@ class TestRLComponentsTheoryOfMind:
 # ============================================================================
 # 13. RLComponents async methods
 # ============================================================================
+
 
 class TestRLComponentsAsync:
     """Tests for async methods in RLComponents."""

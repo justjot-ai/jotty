@@ -16,6 +16,7 @@ Total: 10+ stages, mixed auto/custom for publication-quality research
 
 import asyncio
 from pathlib import Path
+
 from dotenv import load_dotenv
 
 # Load API key
@@ -24,14 +25,17 @@ load_dotenv(Path(__file__).parent.parent / "Jotty" / ".env.anthropic")
 
 async def main():
     from Jotty.core.modes.workflow import (
-        ResearchWorkflow, ResearchDepth, ResearchType,
-        SwarmAdapter, MergeStrategy
+        MergeStrategy,
+        ResearchDepth,
+        ResearchType,
+        ResearchWorkflow,
+        SwarmAdapter,
     )
 
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("RESEARCH WORKFLOW COMPLEX TEST")
     print("Comprehensive AI Safety Research Report (Publication-Ready)")
-    print("="*80 + "\n")
+    print("=" * 80 + "\n")
 
     # ═══════════════════════════════════════════════════════════════════════
     # STEP 1: Start with Auto-Generation (Simple Intent)
@@ -45,15 +49,15 @@ async def main():
         research_type="academic",
         depth="comprehensive",
         deliverables=[
-            "literature_review",   # Auto: academic papers and citations
-            "analysis",           # Will customize this
-            "synthesis",          # Auto: combine findings
-            "visualization",      # Auto: create charts
-            "documentation",      # Will customize this
-            "bibliography",       # Auto: compile citations
+            "literature_review",  # Auto: academic papers and citations
+            "analysis",  # Will customize this
+            "synthesis",  # Auto: combine findings
+            "visualization",  # Auto: create charts
+            "documentation",  # Will customize this
+            "bibliography",  # Auto: compile citations
         ],
         max_sources=30,
-        send_telegram=True
+        send_telegram=True,
     )
 
     print("✅ Created base workflow with 6 auto-generated stages\n")
@@ -92,7 +96,7 @@ async def main():
 
         Provide technical depth suitable for ML researchers.
         Include equations, algorithms, and experimental results where relevant.
-        """
+        """,
     )
     print("✅ Customized 'analysis' stage with technical depth requirements")
 
@@ -114,7 +118,7 @@ async def main():
         Use academic writing style.
         Include figures and tables references.
         Format ready for arXiv submission.
-        """
+        """,
     )
     print("✅ Customized 'documentation' stage for academic publication format\n")
 
@@ -126,8 +130,11 @@ async def main():
     print("-" * 80 + "\n")
 
     # Replace literature review with specialized AI safety researchers
-    custom_literature_swarms = SwarmAdapter.quick_swarms([
-        ("AI Safety Researcher", """Conduct systematic literature review on AI safety and alignment.
+    custom_literature_swarms = SwarmAdapter.quick_swarms(
+        [
+            (
+                "AI Safety Researcher",
+                """Conduct systematic literature review on AI safety and alignment.
 
         Focus Areas:
         1. Foundational Work (Bostrom, Russell, Yudkowsky)
@@ -155,9 +162,11 @@ async def main():
         Organize by category and relevance.
         Include full citations (arXiv IDs, DOIs, URLs).
 
-        Max 3500 tokens."""),
-
-        ("ML Ethics Researcher", """Review ethical and societal aspects of AI safety.
+        Max 3500 tokens.""",
+            ),
+            (
+                "ML Ethics Researcher",
+                """Review ethical and societal aspects of AI safety.
 
         Focus Areas:
         1. Bias and Fairness
@@ -171,13 +180,16 @@ async def main():
         Find 20+ sources from ethics, philosophy, policy domains.
         Include diverse perspectives (academia, industry, civil society).
 
-        Max 3000 tokens."""),
-    ], max_tokens=3500)
+        Max 3000 tokens.""",
+            ),
+        ],
+        max_tokens=3500,
+    )
 
     workflow.replace_stage(
         "literature_review",
         swarms=custom_literature_swarms,
-        merge_strategy=MergeStrategy.CONCATENATE  # Combine both perspectives
+        merge_strategy=MergeStrategy.CONCATENATE,  # Combine both perspectives
     )
     print("✅ Replaced 'literature_review' with specialized AI safety researchers\n")
 
@@ -189,8 +201,11 @@ async def main():
     print("-" * 80 + "\n")
 
     # Add expert interviews stage
-    expert_interviews_swarms = SwarmAdapter.quick_swarms([
-        ("Research Interviewer", """Synthesize expert perspectives on AI safety.
+    expert_interviews_swarms = SwarmAdapter.quick_swarms(
+        [
+            (
+                "Research Interviewer",
+                """Synthesize expert perspectives on AI safety.
 
         Based on literature review, identify key open questions and debates.
 
@@ -207,20 +222,26 @@ async def main():
         4. Points of agreement/disagreement with others
 
         Organize as interview-style Q&A format.
-        Max 2500 tokens."""),
-    ], max_tokens=2500)
+        Max 2500 tokens.""",
+            ),
+        ],
+        max_tokens=2500,
+    )
 
     workflow.add_custom_stage(
         "expert_perspectives",
         swarms=expert_interviews_swarms,
         merge_strategy=MergeStrategy.BEST_OF_N,
-        context_from=["literature_review", "analysis"]
+        context_from=["literature_review", "analysis"],
     )
     print("✅ Added 'expert_perspectives' stage")
 
     # Add technical deep dive stage
-    technical_deep_dive_swarms = SwarmAdapter.quick_swarms([
-        ("Technical Explainer", """Provide technical deep dive on key alignment methods.
+    technical_deep_dive_swarms = SwarmAdapter.quick_swarms(
+        [
+            (
+                "Technical Explainer",
+                """Provide technical deep dive on key alignment methods.
 
         Cover in detail:
         1. RLHF (Reinforcement Learning from Human Feedback)
@@ -249,20 +270,26 @@ async def main():
         Include pseudocode, diagrams (described), and concrete examples.
         Suitable for technical audience (ML practitioners).
 
-        Max 3500 tokens."""),
-    ], max_tokens=3500)
+        Max 3500 tokens.""",
+            ),
+        ],
+        max_tokens=3500,
+    )
 
     workflow.add_custom_stage(
         "technical_deep_dive",
         swarms=technical_deep_dive_swarms,
         merge_strategy=MergeStrategy.BEST_OF_N,
-        context_from=["literature_review", "analysis"]
+        context_from=["literature_review", "analysis"],
     )
     print("✅ Added 'technical_deep_dive' stage")
 
     # Add recommendations stage
-    recommendations_swarms = SwarmAdapter.quick_swarms([
-        ("Strategy Consultant", """Provide strategic recommendations for AI safety.
+    recommendations_swarms = SwarmAdapter.quick_swarms(
+        [
+            (
+                "Strategy Consultant",
+                """Provide strategic recommendations for AI safety.
 
         Based on comprehensive research, recommend:
 
@@ -290,14 +317,17 @@ async def main():
         Be specific, actionable, and evidence-based.
         Prioritize by impact and feasibility.
 
-        Max 2500 tokens."""),
-    ], max_tokens=2500)
+        Max 2500 tokens.""",
+            ),
+        ],
+        max_tokens=2500,
+    )
 
     workflow.add_custom_stage(
         "recommendations",
         swarms=recommendations_swarms,
         merge_strategy=MergeStrategy.BEST_OF_N,
-        context_from=["analysis", "synthesis", "expert_perspectives", "technical_deep_dive"]
+        context_from=["analysis", "synthesis", "expert_perspectives", "technical_deep_dive"],
     )
     print("✅ Added 'recommendations' stage\n")
 
@@ -324,9 +354,9 @@ async def main():
     # STEP 8: Analyze Results
     # ═══════════════════════════════════════════════════════════════════════
 
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("FINAL RESULTS - RESEARCH WORKFLOW TEST")
-    print("="*80 + "\n")
+    print("=" * 80 + "\n")
 
     print("📊 Pipeline Composition:")
     print(f"   Total Stages: {len(result.stages)}")
@@ -397,14 +427,14 @@ async def main():
     print("   • All working together seamlessly")
     print()
 
-    print("="*80)
+    print("=" * 80)
     print("✅ RESEARCH WORKFLOW TEST COMPLETE")
-    print("="*80)
+    print("=" * 80)
     print()
     print("🏆 Successfully demonstrated:")
     print("   Intent-based research automation + Full customization when needed")
     print()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     asyncio.run(main())

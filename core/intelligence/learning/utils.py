@@ -21,11 +21,11 @@ Import from here for clean access:
 """
 
 import hashlib
-import time
 import logging
-from typing import Dict, List, Any, Optional, Tuple
-from dataclasses import dataclass, field
+import time
 from collections import defaultdict
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +57,7 @@ except ImportError:
 # NEW UTILITIES
 # =============================================================================
 
+
 @dataclass
 class ExperienceRecord:
     """
@@ -64,6 +65,7 @@ class ExperienceRecord:
 
     Standard format used across all learning components.
     """
+
     state: Dict[str, Any]
     action: Dict[str, Any]
     reward: float
@@ -83,30 +85,30 @@ class ExperienceRecord:
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
         return {
-            'state': self.state,
-            'action': self.action,
-            'reward': self.reward,
-            'next_state': self.next_state,
-            'done': self.done,
-            'timestamp': self.timestamp,
-            'agent': self.agent,
-            'episode_id': self.episode_id,
-            'metadata': self.metadata,
+            "state": self.state,
+            "action": self.action,
+            "reward": self.reward,
+            "next_state": self.next_state,
+            "done": self.done,
+            "timestamp": self.timestamp,
+            "agent": self.agent,
+            "episode_id": self.episode_id,
+            "metadata": self.metadata,
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'ExperienceRecord':
+    def from_dict(cls, data: Dict[str, Any]) -> "ExperienceRecord":
         """Create from dictionary."""
         return cls(
-            state=data.get('state', {}),
-            action=data.get('action', {}),
-            reward=data.get('reward', 0.0),
-            next_state=data.get('next_state'),
-            done=data.get('done', False),
-            timestamp=data.get('timestamp', time.time()),
-            agent=data.get('agent', ''),
-            episode_id=data.get('episode_id', ''),
-            metadata=data.get('metadata', {}),
+            state=data.get("state", {}),
+            action=data.get("action", {}),
+            reward=data.get("reward", 0.0),
+            next_state=data.get("next_state"),
+            done=data.get("done", False),
+            timestamp=data.get("timestamp", time.time()),
+            agent=data.get("agent", ""),
+            episode_id=data.get("episode_id", ""),
+            metadata=data.get("metadata", {}),
         )
 
 
@@ -126,15 +128,15 @@ class StateDescriber:
 
     # Default templates for common state keys
     TEMPLATES = {
-        'task': "Current task: {value}",
-        'goal': "Goal: {value}",
-        'progress': "Progress: {value:.0%}" if isinstance(0, float) else "Progress: {value}",
-        'errors': "{value} error(s) encountered",
-        'attempts': "{value} attempt(s) made",
-        'agent': "Agent: {value}",
-        'phase': "Phase: {value}",
-        'status': "Status: {value}",
-        'confidence': "Confidence: {value:.0%}" if isinstance(0, float) else "Confidence: {value}",
+        "task": "Current task: {value}",
+        "goal": "Goal: {value}",
+        "progress": "Progress: {value:.0%}" if isinstance(0, float) else "Progress: {value}",
+        "errors": "{value} error(s) encountered",
+        "attempts": "{value} attempt(s) made",
+        "agent": "Agent: {value}",
+        "phase": "Phase: {value}",
+        "status": "Status: {value}",
+        "confidence": "Confidence: {value:.0%}" if isinstance(0, float) else "Confidence: {value}",
     }
 
     def __init__(self, custom_templates: Dict[str, str] = None) -> None:
@@ -179,7 +181,7 @@ class StateDescriber:
             if key in self.templates:
                 template = self.templates[key]
                 try:
-                    if '{value:' in template:
+                    if "{value:" in template:
                         # Format with value specifier
                         parts.append(template.format(value=value))
                     else:
@@ -199,15 +201,15 @@ class StateDescriber:
 
         parts = []
 
-        if 'actor' in action:
+        if "actor" in action:
             parts.append(f"Agent '{action['actor']}'")
 
-        if 'type' in action:
+        if "type" in action:
             parts.append(f"performing {action['type']}")
-        elif 'task' in action:
+        elif "task" in action:
             parts.append(f"executing {action['task']}")
 
-        if 'target' in action:
+        if "target" in action:
             parts.append(f"on {action['target']}")
 
         return " ".join(parts) if parts else f"Action: {action}"
@@ -217,20 +219,20 @@ class StateDescriber:
         state: Dict[str, Any],
         action: Dict[str, Any],
         next_state: Dict[str, Any],
-        reward: float
+        reward: float,
     ) -> str:
         """Describe a full state transition."""
         parts = [
             f"From: {self.describe(state)}",
             f"Action: {self.describe_action(action)}",
             f"To: {self.describe(next_state)}",
-            f"Reward: {reward:+.2f}"
+            f"Reward: {reward:+.2f}",
         ]
         return " | ".join(parts)
 
     def _format_key(self, key: str) -> str:
         """Format key for display."""
-        return key.replace('_', ' ').title()
+        return key.replace("_", " ").title()
 
     def _format_value(self, value: Any) -> str:
         """Format value for display."""
@@ -277,12 +279,7 @@ class SimilarityEngine:
             except Exception as e:
                 logger.debug(f"Could not initialize embedder: {e}")
 
-    def similarity(
-        self,
-        item1: Any,
-        item2: Any,
-        method: str = 'auto'
-    ) -> float:
+    def similarity(self, item1: Any, item2: Any, method: str = "auto") -> float:
         """
         Compute similarity between two items.
 
@@ -299,7 +296,7 @@ class SimilarityEngine:
 
         # Convert to strings if dicts
         if isinstance(item1, dict) and isinstance(item2, dict):
-            if method == 'structural':
+            if method == "structural":
                 return self._structural_similarity(item1, item2)
             # For other methods, convert to string
             str1 = self._dict_to_string(item1)
@@ -308,26 +305,22 @@ class SimilarityEngine:
             str1 = str(item1)
             str2 = str(item2)
 
-        if method == 'auto':
+        if method == "auto":
             if self._embedder:
                 return self._semantic_similarity(str1, str2)
             return self._keyword_similarity(str1, str2)
-        elif method == 'semantic':
+        elif method == "semantic":
             if self._embedder:
                 return self._semantic_similarity(str1, str2)
             logger.warning("Semantic similarity requested but embedder not available")
             return self._keyword_similarity(str1, str2)
-        elif method == 'keyword':
+        elif method == "keyword":
             return self._keyword_similarity(str1, str2)
         else:
             return self._keyword_similarity(str1, str2)
 
     def find_similar(
-        self,
-        query: Any,
-        candidates: List[Any],
-        threshold: float = 0.5,
-        top_k: int = 5
+        self, query: Any, candidates: List[Any], threshold: float = 0.5, top_k: int = 5
     ) -> List[Tuple[Any, float]]:
         """
         Find similar items from candidates.
@@ -438,15 +431,18 @@ class SimpleExperienceBuffer:
         self.capacity = capacity
         self.experiences: List[ExperienceRecord] = []
 
-    def add(self, state: Dict[str, Any], action: Dict[str, Any], reward: float, next_state: Dict[str, Any] = None, done: bool = False, **kwargs: Any) -> Any:
+    def add(
+        self,
+        state: Dict[str, Any],
+        action: Dict[str, Any],
+        reward: float,
+        next_state: Dict[str, Any] = None,
+        done: bool = False,
+        **kwargs: Any,
+    ) -> Any:
         """Add experience to buffer."""
         exp = ExperienceRecord(
-            state=state,
-            action=action,
-            reward=reward,
-            next_state=next_state,
-            done=done,
-            **kwargs
+            state=state, action=action, reward=reward, next_state=next_state, done=done, **kwargs
         )
         self.experiences.append(exp)
 
@@ -457,6 +453,7 @@ class SimpleExperienceBuffer:
     def sample(self, batch_size: int) -> List[ExperienceRecord]:
         """Sample random batch of experiences."""
         import random
+
         n = min(batch_size, len(self.experiences))
         return random.sample(self.experiences, n) if n > 0 else []
 
@@ -493,13 +490,12 @@ class SimpleExperienceBuffer:
 
 __all__ = [
     # Re-exported (from existing modules)
-    'PatternExtractor',
-    'PrioritizedEpisodeBuffer',
-    'SemanticEmbedder',
-
+    "PatternExtractor",
+    "PrioritizedEpisodeBuffer",
+    "SemanticEmbedder",
     # New utilities
-    'ExperienceRecord',
-    'StateDescriber',
-    'SimilarityEngine',
-    'SimpleExperienceBuffer',
+    "ExperienceRecord",
+    "StateDescriber",
+    "SimilarityEngine",
+    "SimpleExperienceBuffer",
 ]

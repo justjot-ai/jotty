@@ -24,15 +24,13 @@ from pathlib import Path
 
 import pytest
 
-from core.orchestration.swarm_intelligence import SwarmIntelligence
+from core.foundation.data_structures import GoalValue, MemoryEntry, MemoryLevel, SwarmConfig
+from core.learning.adaptive_components import AdaptiveLearningRate
+from core.learning.td_lambda import TDLambdaLearner
+from core.memory.cortex import SwarmMemory
 from core.orchestration.benchmarking import SwarmBenchmarks
 from core.orchestration.stigmergy import StigmergyLayer
-from core.foundation.data_structures import (
-    SwarmConfig, MemoryEntry, MemoryLevel, GoalValue,
-)
-from core.learning.td_lambda import TDLambdaLearner
-from core.learning.adaptive_components import AdaptiveLearningRate
-from core.memory.cortex import SwarmMemory
+from core.orchestration.swarm_intelligence import SwarmIntelligence
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +40,7 @@ logger = logging.getLogger(__name__)
 # without needing an LLM. This mirrors how real swarms call the learning
 # mixin pre/post hooks during execution.
 # =============================================================================
+
 
 class SimulatedAgent:
     """An agent with deterministic success rates for testing."""
@@ -136,7 +135,7 @@ class RealWorldSwarm:
         run_id = f"run_{self.run_count}"
 
         # Optional: reset circuits for tests focused on learning (not resilience)
-        if reset_circuits and hasattr(self.si, 'circuit_breakers'):
+        if reset_circuits and hasattr(self.si, "circuit_breakers"):
             self.si.circuit_breakers.clear()
 
         # =====================================================================
@@ -167,9 +166,7 @@ class RealWorldSwarm:
             )
 
         # Get task routing recommendation
-        best_agent = self.si.get_best_agent_for_task(
-            task_type, available, use_morph_scoring=True
-        )
+        best_agent = self.si.get_best_agent_for_task(task_type, available, use_morph_scoring=True)
 
         # Get swarm wisdom
         wisdom = self.si.get_swarm_wisdom(f"execute {task_type}", task_type)
@@ -263,13 +260,15 @@ class RealWorldSwarm:
 
         # Recompute MorphAgent scores
         morph_scores = self.si.morph_scorer.compute_all_scores(self.si.agent_profiles)
-        self.si.morph_score_history.append({
-            "timestamp": time.time(),
-            "scores": {
-                name: {"rcs": s.rcs, "rds": s.rds, "tras": s.tras}
-                for name, s in morph_scores.items()
-            },
-        })
+        self.si.morph_score_history.append(
+            {
+                "timestamp": time.time(),
+                "scores": {
+                    name: {"rcs": s.rcs, "rds": s.rds, "tras": s.tras}
+                    for name, s in morph_scores.items()
+                },
+            }
+        )
 
         # Record in benchmarks
         self.si.benchmarks.record_iteration(
@@ -366,8 +365,18 @@ class TestRealWorldLifecycle:
     @pytest.mark.asyncio
     async def test_multi_run_learning(self, swarm):
         """Multiple runs show the system actually learns."""
-        task_types = ["coding", "testing", "planning", "coding", "coding",
-                      "testing", "planning", "coding", "testing", "coding"]
+        task_types = [
+            "coding",
+            "testing",
+            "planning",
+            "coding",
+            "coding",
+            "testing",
+            "planning",
+            "coding",
+            "testing",
+            "coding",
+        ]
 
         results = []
         for task in task_types:
@@ -379,30 +388,35 @@ class TestRealWorldLifecycle:
 
         # Agent specialization should emerge — agents have participated in tasks
         coder_profile = si.agent_profiles["coder"]
-        assert coder_profile.total_tasks >= 5, \
-            f"Coder should have run several tasks, got {coder_profile.total_tasks}"
+        assert (
+            coder_profile.total_tasks >= 5
+        ), f"Coder should have run several tasks, got {coder_profile.total_tasks}"
 
         # Coder should have higher success rate on coding (specialty) than others
         coder_coding_rate = coder_profile.get_success_rate("coding")
         coder_planning_rate = coder_profile.get_success_rate("planning")
         # Specialty success ~80%+, non-specialty ~50%
-        assert coder_coding_rate >= coder_planning_rate, \
-            f"Coder should be at least as good at coding ({coder_coding_rate:.2f}) " \
+        assert coder_coding_rate >= coder_planning_rate, (
+            f"Coder should be at least as good at coding ({coder_coding_rate:.2f}) "
             f"as planning ({coder_planning_rate:.2f})"
+        )
 
         # MorphAgent scores should differentiate agents
         scores = si.morph_scorer.compute_all_scores(si.agent_profiles)
         rds_values = [s.rds for s in scores.values()]
         # With 10 runs and 5 agents, differentiation is modest but non-zero
-        assert all(r > 0 for r in rds_values), \
-            f"All agents should have non-zero role differentiation (RDS), got {rds_values}"
+        assert all(
+            r > 0 for r in rds_values
+        ), f"All agents should have non-zero role differentiation (RDS), got {rds_values}"
         rcs_values = [s.rcs for s in scores.values()]
-        assert any(r > 0 for r in rcs_values), \
-            f"Some agents should have non-zero role clarity (RCS), got {rcs_values}"
+        assert any(
+            r > 0 for r in rcs_values
+        ), f"Some agents should have non-zero role clarity (RCS), got {rcs_values}"
 
         # Wisdom confidence should increase with more data
-        assert results[-1]["wisdom_confidence"] > results[0]["wisdom_confidence"], \
-            "Wisdom confidence should grow with more experience"
+        assert (
+            results[-1]["wisdom_confidence"] > results[0]["wisdom_confidence"]
+        ), "Wisdom confidence should grow with more experience"
 
         # Benchmarks should have trends
         trend = si.benchmarks.get_improvement_trend()
@@ -439,14 +453,15 @@ class TestRealWorldLifecycle:
         assert not si.byzantine.verify_claim(
             "liar", True, {"success": False, "error": "timeout"}, "task"
         )
-        assert si.agent_profiles["liar"].trust_score < 0.5, \
-            "Liar should have reduced trust"
+        assert si.agent_profiles["liar"].trust_score < 0.5, "Liar should have reduced trust"
 
         # Trust-weighted vote should favor honest agent
-        vote_result = si.byzantine.majority_vote({
-            "honest": "option_A",
-            "liar": "option_B",
-        })
+        vote_result = si.byzantine.majority_vote(
+            {
+                "honest": "option_A",
+                "liar": "option_B",
+            }
+        )
         assert vote_result[0] == "option_A", "Honest agent should win vote"
 
     @pytest.mark.asyncio
@@ -481,7 +496,8 @@ class TestRealWorldLifecycle:
 
         # Some values should have moved from initial 0.5/0.4/0.9
         moved_values = [
-            (k, g, v) for k, g, v in coding_memories
+            (k, g, v)
+            for k, g, v in coding_memories
             if abs(v - 0.5) > 0.001 or abs(v - 0.4) > 0.001 or abs(v - 0.9) > 0.001
         ]
         # Values move because TD-lambda updates them based on episodes
@@ -562,8 +578,7 @@ class TestRealWorldLifecycle:
         # If overall execution failed, reassignment should have been attempted
         if not result["success"]:
             # record_failure was called which triggers auto_auction
-            assert swarm.si.benchmarks.iteration_history, \
-                "Failed run should still be tracked"
+            assert swarm.si.benchmarks.iteration_history, "Failed run should still be tracked"
 
     @pytest.mark.asyncio
     async def test_morph_scores_track_specialization(self, swarm):
@@ -585,8 +600,9 @@ class TestRealWorldLifecycle:
         assert rds > 0.05, f"Team should show differentiation (RDS={rds})"
 
         # History should show progression
-        assert len(swarm.si.morph_score_history) >= len(tasks), \
-            "Should have morph score history for each run"
+        assert len(swarm.si.morph_score_history) >= len(
+            tasks
+        ), "Should have morph score history for each run"
 
     @pytest.mark.asyncio
     async def test_backpressure_under_load(self, swarm):

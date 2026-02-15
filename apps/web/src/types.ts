@@ -1,10 +1,10 @@
 /**
  * Jotty Entity Types
- * 
+ *
  * Only Jotty-specific entities (no JustJot.ai sections/collections)
  */
 
-export type JottyEntityType = 
+export type JottyEntityType =
   | 'agent'           // Custom AI agents
   | 'swarm'           // Multi-agent swarms
   | 'workflow'        // Agent workflows and presets

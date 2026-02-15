@@ -1,8 +1,12 @@
 """Text statistics — word count, reading time, Flesch-Kincaid."""
-import re, math
-from typing import Dict, Any
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+
+import math
+import re
+from typing import Any, Dict
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
+
 status = SkillStatus("text-statistics")
 
 
@@ -31,17 +35,18 @@ def analyze_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     reading_time_min = round(word_count / 238, 2)
     total_syllables = sum(_count_syllables(w) for w in words)
     if word_count > 0:
-        fk = (0.39 * (word_count / sentence_count)
-              + 11.8 * (total_syllables / word_count)
-              - 15.59)
+        fk = 0.39 * (word_count / sentence_count) + 11.8 * (total_syllables / word_count) - 15.59
         fk = round(fk, 2)
     else:
         fk = 0.0
     return tool_response(
-        word_count=word_count, char_count=char_count,
+        word_count=word_count,
+        char_count=char_count,
         char_count_no_spaces=char_no_spaces,
-        sentence_count=len(sentences), reading_time_minutes=reading_time_min,
-        flesch_kincaid_grade=fk, syllable_count=total_syllables,
+        sentence_count=len(sentences),
+        reading_time_minutes=reading_time_min,
+        flesch_kincaid_grade=fk,
+        syllable_count=total_syllables,
     )
 
 

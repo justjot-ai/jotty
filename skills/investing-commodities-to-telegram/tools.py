@@ -3,14 +3,19 @@ Investing.com Commodities to Telegram Skill
 
 Fetches commodities prices and sends to Telegram.
 """
+
 import asyncio
 import logging
-from typing import Dict, Any
-from pathlib import Path
 import sys
+from pathlib import Path
+from typing import Any, Dict
 
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
+from Jotty.core.infrastructure.utils.tool_helpers import (
+    async_tool_wrapper,
+    tool_error,
+    tool_response,
+)
 
 # Add parent directory to path to import other skills
 
@@ -33,14 +38,14 @@ logger = logging.getLogger(__name__)
 async def commodities_to_telegram_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Fetch commodities prices from investing.com and send to Telegram.
-    
+
     Args:
         params: Dictionary containing:
             - category (str, optional): Category filter - 'energy', 'metals', 'agriculture', or 'all' (default: 'all')
             - send_telegram (bool, optional): Whether to send to Telegram (default: True)
             - telegram_chat_id (str, optional): Telegram chat ID (uses env var if not provided)
             - format (str, optional): Message format - 'markdown' or 'text' (default: 'markdown')
-    
+
     Returns:
         Dictionary with:
             - success (bool): Whether operation succeeded
@@ -49,68 +54,59 @@ async def commodities_to_telegram_tool(params: Dict[str, Any]) -> Dict[str, Any]
             - telegram_message_id (int, optional): Telegram message ID if sent
             - error (str, optional): Error message if failed
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     try:
         registry = get_skills_registry()
         if not registry.initialized:
             registry.init()
-        
-        category = params.get('category', 'all')
-        send_telegram = params.get('send_telegram', True)
-        message_format = params.get('format', 'html')  # Default to HTML for beautiful formatting
-        
+
+        category = params.get("category", "all")
+        send_telegram = params.get("send_telegram", True)
+        message_format = params.get("format", "html")  # Default to HTML for beautiful formatting
+
         # Step 1: Fetch commodities prices
         logger.info(f"Fetching commodities prices (category: {category})...")
-        commodities_skill = registry.get_skill('investing-commodities')
+        commodities_skill = registry.get_skill("investing-commodities")
         if not commodities_skill:
-            return {
-                'success': False,
-                'error': 'investing-commodities skill not found'
-            }
-        
-        get_prices_tool = commodities_skill.tools.get('get_commodities_prices_tool')
+            return {"success": False, "error": "investing-commodities skill not found"}
+
+        get_prices_tool = commodities_skill.tools.get("get_commodities_prices_tool")
         if not get_prices_tool:
+            return {"success": False, "error": "get_commodities_prices_tool not found"}
+
+        prices_result = get_prices_tool({"category": category, "format": message_format})
+
+        if not prices_result.get("success"):
             return {
-                'success': False,
-                'error': 'get_commodities_prices_tool not found'
+                "success": False,
+                "error": f"Failed to fetch prices: {prices_result.get('error')}",
+                "commodities": [],
             }
-        
-        prices_result = get_prices_tool({
-            'category': category,
-            'format': message_format
-        })
-        
-        if not prices_result.get('success'):
-            return {
-                'success': False,
-                'error': f"Failed to fetch prices: {prices_result.get('error')}",
-                'commodities': []
-            }
-        
-        commodities = prices_result.get('commodities', [])
-        formatted_output = prices_result.get('formatted_output', '')
-        timestamp = prices_result.get('timestamp', '')
-        
+
+        commodities = prices_result.get("commodities", [])
+        formatted_output = prices_result.get("formatted_output", "")
+        timestamp = prices_result.get("timestamp", "")
+
         logger.info(f"Fetched {len(commodities)} commodities")
-        
+
         # Step 2: Send to Telegram
         telegram_sent = False
         telegram_message_id = None
-        
+
         if send_telegram:
             logger.info("Sending to Telegram...")
-            telegram_skill = registry.get_skill('telegram-sender')
+            telegram_skill = registry.get_skill("telegram-sender")
             if telegram_skill:
-                send_message_tool = telegram_skill.tools.get('send_telegram_message_tool')
+                send_message_tool = telegram_skill.tools.get("send_telegram_message_tool")
                 if send_message_tool:
-                    telegram_chat_id = params.get('telegram_chat_id')
-                    
+                    telegram_chat_id = params.get("telegram_chat_id")
+
                     # Prepare message
                     message = formatted_output
                     if len(message) > 4096:  # Telegram message limit
                         # Truncate intelligently - keep summary and first few categories
-                        lines = formatted_output.split('\n')
+                        lines = formatted_output.split("\n")
                         truncated_lines = []
                         char_count = 0
                         for line in lines:
@@ -118,34 +114,39 @@ async def commodities_to_telegram_tool(params: Dict[str, Any]) -> Dict[str, Any]
                                 break
                             truncated_lines.append(line)
                             char_count += len(line) + 1
-                        message = '\n'.join(truncated_lines)
+                        message = "\n".join(truncated_lines)
                         message += f"\n\n... ({len(commodities)} commodities total)"
-                    
+
                     # Determine parse mode
-                    if message_format == 'html':
-                        parse_mode = 'HTML'
-                    elif message_format == 'markdown':
-                        parse_mode = 'Markdown'
+                    if message_format == "html":
+                        parse_mode = "HTML"
+                    elif message_format == "markdown":
+                        parse_mode = "Markdown"
                     else:
                         parse_mode = None
-                    
+
                     import inspect
+
                     if inspect.iscoroutinefunction(send_message_tool):
-                        telegram_result = await send_message_tool({
-                            'message': message,
-                            'chat_id': telegram_chat_id,
-                            'parse_mode': parse_mode
-                        })
+                        telegram_result = await send_message_tool(
+                            {
+                                "message": message,
+                                "chat_id": telegram_chat_id,
+                                "parse_mode": parse_mode,
+                            }
+                        )
                     else:
-                        telegram_result = send_message_tool({
-                            'message': message,
-                            'chat_id': telegram_chat_id,
-                            'parse_mode': parse_mode
-                        })
-                    
-                    telegram_sent = telegram_result.get('success', False)
-                    telegram_message_id = telegram_result.get('message_id')
-                    
+                        telegram_result = send_message_tool(
+                            {
+                                "message": message,
+                                "chat_id": telegram_chat_id,
+                                "parse_mode": parse_mode,
+                            }
+                        )
+
+                    telegram_sent = telegram_result.get("success", False)
+                    telegram_message_id = telegram_result.get("message_id")
+
                     if telegram_sent:
                         logger.info(f"✅ Sent to Telegram (message_id: {telegram_message_id})")
                     else:
@@ -154,25 +155,25 @@ async def commodities_to_telegram_tool(params: Dict[str, Any]) -> Dict[str, Any]
                     logger.warning("⚠️  send_telegram_message_tool not found")
             else:
                 logger.warning("⚠️  telegram-sender skill not available")
-        
+
         return {
-            'success': True,
-            'commodities': commodities,
-            'count': len(commodities),
-            'timestamp': timestamp,
-            'telegram_sent': telegram_sent,
-            'telegram_message_id': telegram_message_id,
-            'formatted_output': formatted_output
+            "success": True,
+            "commodities": commodities,
+            "count": len(commodities),
+            "timestamp": timestamp,
+            "telegram_sent": telegram_sent,
+            "telegram_message_id": telegram_message_id,
+            "formatted_output": formatted_output,
         }
-        
+
     except Exception as e:
         logger.error(f"Error in commodities_to_telegram_tool: {e}", exc_info=True)
         return {
-            'success': False,
-            'error': f'Failed to fetch and send commodities: {str(e)}',
-            'commodities': [],
-            'telegram_sent': False
+            "success": False,
+            "error": f"Failed to fetch and send commodities: {str(e)}",
+            "commodities": [],
+            "telegram_sent": False,
         }
 
 
-__all__ = ['commodities_to_telegram_tool']
+__all__ = ["commodities_to_telegram_tool"]

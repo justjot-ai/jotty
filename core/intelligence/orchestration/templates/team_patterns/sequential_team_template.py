@@ -28,11 +28,12 @@ Cons:
 """
 
 import asyncio
-import dspy
 import logging
-from pathlib import Path
 from datetime import datetime
-from typing import Dict, Any, List, Optional
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+import dspy
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -44,7 +45,7 @@ async def run_agent_with_learning(
     expert,
     input_context: str,
     max_iterations: int = 3,
-    score_threshold: float = 0.85
+    score_threshold: float = 0.85,
 ) -> Dict[str, Any]:
     """
     Run a single agent with learning loop.
@@ -79,17 +80,18 @@ async def run_agent_with_learning(
 
     for iteration in range(1, max_iterations + 1):
         print(f"📝 Iteration {iteration}/{max_iterations}")
-        print(f"   Feedback: {feedback[:100]}..." if len(feedback) > 100 else f"   Feedback: {feedback}")
+        print(
+            f"   Feedback: {feedback[:100]}..."
+            if len(feedback) > 100
+            else f"   Feedback: {feedback}"
+        )
 
         # Generate output
         start = datetime.now()
 
         # NOTE: Customize this based on your agent's signature
         # This example assumes agent has 'input' and 'previous_feedback' fields
-        result = agent(
-            input=input_context,
-            previous_feedback=feedback
-        )
+        result = agent(input=input_context, previous_feedback=feedback)
         output = result.output  # Adjust field name based on your signature
 
         elapsed = (datetime.now() - start).total_seconds()
@@ -101,27 +103,29 @@ async def run_agent_with_learning(
             output=output,
             gold_standard="",  # Optional: provide gold standard for comparison
             task=f"{agent_name} task",
-            context={"iteration": iteration}
+            context={"iteration": iteration},
         )
 
-        score = evaluation.get('score', 0.0)
-        status = evaluation.get('status', 'UNKNOWN')
-        issues = evaluation.get('issues', [])
-        suggestions = evaluation.get('suggestions', '')
+        score = evaluation.get("score", 0.0)
+        status = evaluation.get("status", "UNKNOWN")
+        issues = evaluation.get("issues", [])
+        suggestions = evaluation.get("suggestions", "")
 
         print(f"   📊 Score: {score:.2f} - Status: {status}")
 
         if issues:
             print(f"   ⚠️  Issues: {', '.join(issues[:2])}")
 
-        iterations_history.append({
-            'iteration': iteration,
-            'output': output,
-            'score': score,
-            'status': status,
-            'issues': issues,
-            'time': elapsed
-        })
+        iterations_history.append(
+            {
+                "iteration": iteration,
+                "output": output,
+                "score": score,
+                "status": status,
+                "issues": issues,
+                "time": elapsed,
+            }
+        )
 
         # Check if threshold reached
         if score >= score_threshold:
@@ -153,10 +157,10 @@ async def run_agent_with_learning(
     print(f"{'='*90}")
 
     return {
-        'output': final['output'],
-        'iterations': len(iterations_history),
-        'scores': [h['score'] for h in iterations_history],
-        'history': iterations_history
+        "output": final["output"],
+        "iterations": len(iterations_history),
+        "scores": [h["score"] for h in iterations_history],
+        "history": iterations_history,
     }
 
 
@@ -180,7 +184,7 @@ async def sequential_team_workflow():
     # Configure LLM (adjust to your setup)
     from core.integration.direct_claude_cli_lm import DirectClaudeCLI
 
-    lm = DirectClaudeCLI(model='sonnet')
+    lm = DirectClaudeCLI(model="sonnet")
     dspy.configure(lm=lm)
 
     print("✅ LLM configured")
@@ -190,6 +194,7 @@ async def sequential_team_workflow():
     # IMPLEMENT: Replace with your actual experts
     from core.experts.product_manager_expert import ProductManagerExpertAgent
     from core.experts.ux_researcher_expert import UXResearcherExpertAgent
+
     # ... add more as needed
 
     pm_expert = ProductManagerExpertAgent()
@@ -223,9 +228,9 @@ async def sequential_team_workflow():
         expert=pm_expert,
         input_context=initial_task,
         max_iterations=3,
-        score_threshold=0.85
+        score_threshold=0.85,
     )
-    team_results['agent1'] = result1
+    team_results["agent1"] = result1
 
     # AGENT 2: Second Agent (Builds on Agent 1)
     # IMPLEMENT: Replace with your actual agent signature
@@ -237,11 +242,11 @@ async def sequential_team_workflow():
         agent_name="Agent 2",
         agent=agent2,
         expert=ux_expert,
-        input_context=result1['output'],  # ← SEQUENTIAL: Uses Agent 1's output
+        input_context=result1["output"],  # ← SEQUENTIAL: Uses Agent 1's output
         max_iterations=3,
-        score_threshold=0.85
+        score_threshold=0.85,
     )
-    team_results['agent2'] = result2
+    team_results["agent2"] = result2
 
     # AGENT 3, 4, 5... Continue pattern
     # Each agent receives previous agent's output
@@ -254,9 +259,9 @@ async def sequential_team_workflow():
     print("\n📈 Team Performance:")
     total_iterations = 0
     for agent_id, result in team_results.items():
-        total_iterations += result['iterations']
-        initial_score = result['scores'][0]
-        final_score = result['scores'][-1]
+        total_iterations += result["iterations"]
+        initial_score = result["scores"][0]
+        final_score = result["scores"][-1]
         improvement = final_score - initial_score
 
         print(f"\n{agent_id.upper()}:")
@@ -289,8 +294,8 @@ async def sequential_team_workflow():
 """
 
     for agent_id, result in team_results.items():
-        initial = result['scores'][0]
-        final = result['scores'][-1]
+        initial = result["scores"][0]
+        final = result["scores"][-1]
         improvement = final - initial
         doc += f"| {agent_id} | {result['iterations']} | {initial:.2f} | {final:.2f} | {improvement:+.2f} |\n"
 
@@ -341,7 +346,7 @@ if __name__ == "__main__":
     print("Waterfall pattern: Each agent waits for previous to complete\n")
 
     response = input("Ready to run? (y/n): ")
-    if response.lower() == 'y':
+    if response.lower() == "y":
         asyncio.run(main())
     else:
         print("Cancelled")

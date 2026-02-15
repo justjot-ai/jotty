@@ -5,18 +5,18 @@ Table Rendering for Jotty CLI
 Rich-based table formatting.
 """
 
-from typing import List, Dict, Any, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence
 
 try:
-    from rich.table import Table
+    from rich.box import DOUBLE, MINIMAL, ROUNDED, SIMPLE, SQUARE
     from rich.console import Console
-    from rich.box import ROUNDED, SIMPLE, MINIMAL, DOUBLE, SQUARE
+    from rich.table import Table
+
     RICH_AVAILABLE = True
 except ImportError:
     RICH_AVAILABLE = False
 
 from .themes import Theme, get_theme
-
 
 # Box style mapping
 BOX_STYLES = {
@@ -35,7 +35,9 @@ class TableRenderer:
     Creates formatted tables using Rich.
     """
 
-    def __init__(self, theme: Optional[Theme] = None, console: Optional[Any] = None, no_color: bool = False) -> None:
+    def __init__(
+        self, theme: Optional[Theme] = None, console: Optional[Any] = None, no_color: bool = False
+    ) -> None:
         """
         Initialize table renderer.
 
@@ -113,7 +115,7 @@ class TableRenderer:
         self,
         title: Optional[str],
         columns: Optional[List[str]],
-        rows: Optional[List[Sequence[Any]]]
+        rows: Optional[List[Sequence[Any]]],
     ) -> str:
         """Create simple text table (fallback)."""
         lines = []
@@ -132,9 +134,7 @@ class TableRenderer:
                             widths[i] = max(widths[i], len(str(cell)))
 
             # Header
-            header = " | ".join(
-                str(col).ljust(widths[i]) for i, col in enumerate(columns)
-            )
+            header = " | ".join(str(col).ljust(widths[i]) for i, col in enumerate(columns))
             lines.append(header)
             lines.append("-" * len(header))
 

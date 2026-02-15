@@ -1,8 +1,10 @@
 """Transcript Formatter Skill - clean raw transcripts."""
+
 import re
-from typing import Dict, Any, List, Optional, Tuple
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from typing import Any, Dict, List, Optional, Tuple
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("transcript-formatter")
 
@@ -55,8 +57,7 @@ def format_transcript_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     if merge:
         merged = []
         for entry in entries:
-            if (merged and entry["speaker"] and
-                    merged[-1]["speaker"] == entry["speaker"]):
+            if merged and entry["speaker"] and merged[-1]["speaker"] == entry["speaker"]:
                 merged[-1]["text"] += " " + entry["text"]
                 if not merged[-1]["timestamp"] and entry["timestamp"]:
                     merged[-1]["timestamp"] = entry["timestamp"]
@@ -81,9 +82,11 @@ def format_transcript_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
     return tool_response(
         formatted="\n\n".join(output_lines),
-        speakers=speakers, speaker_count=len(speakers),
+        speakers=speakers,
+        speaker_count=len(speakers),
         line_count=len(entries),
-        first_timestamp=first_ts, last_timestamp=last_ts,
+        first_timestamp=first_ts,
+        last_timestamp=last_ts,
     )
 
 

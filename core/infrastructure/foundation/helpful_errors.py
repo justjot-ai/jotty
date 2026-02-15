@@ -17,17 +17,24 @@ Usage:
     )
 """
 
-from typing import Optional, Dict, Any, List
-from .exceptions import (
-    JottyError, ConfigurationError, InvalidConfigError,
-    MissingConfigError, ExecutionError, ImportError as JottyImportError
-)
+from typing import Any, Dict, List, Optional
+
+from .exceptions import ConfigurationError, ExecutionError
+from .exceptions import ImportError as JottyImportError
+from .exceptions import InvalidConfigError, JottyError, MissingConfigError
 
 
 class HelpfulError(JottyError):
     """Base for errors with helpful suggestions."""
 
-    def __init__(self, message: str, suggestion: Optional[str] = None, doc_link: Optional[str] = None, context: Optional[Dict[str, Any]] = None, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        message: str,
+        suggestion: Optional[str] = None,
+        doc_link: Optional[str] = None,
+        context: Optional[Dict[str, Any]] = None,
+        **kwargs: Any,
+    ) -> None:
         self.suggestion = suggestion
         self.doc_link = doc_link
 
@@ -48,20 +55,23 @@ class HelpfulError(JottyError):
 # IMPORT ERRORS
 # =============================================================================
 
+
 class SwarmConfigImportError(HelpfulError):
     """Raised when trying to import deprecated SwarmConfig."""
 
-    def __init__(self, attempted_import: str = 'SwarmConfig') -> None:
+    def __init__(self, attempted_import: str = "SwarmConfig") -> None:
         super().__init__(
             message=f"Cannot import '{attempted_import}' - this class has been renamed",
             suggestion="Use 'SwarmBaseConfig' instead:\n"
-                      f"  from ..swarm_types import SwarmConfig\n"
-                      f"  class MyConfig(SwarmConfig): ...",
-            doc_link="Jotty/CLAUDE.md - Legacy Imports section"
+            f"  from ..swarm_types import SwarmConfig\n"
+            f"  class MyConfig(SwarmConfig): ...",
+            doc_link="Jotty/CLAUDE.md - Legacy Imports section",
         )
 
 
-def raise_import_error(module: str, name: str, suggestion: Optional[str] = None, **kwargs: Any) -> None:
+def raise_import_error(
+    module: str, name: str, suggestion: Optional[str] = None, **kwargs: Any
+) -> None:
     """Raise a helpful import error."""
 
     # Check for common mistakes
@@ -71,10 +81,12 @@ def raise_import_error(module: str, name: str, suggestion: Optional[str] = None,
     message = f"Cannot import '{name}' from '{module}'"
 
     if not suggestion:
-        suggestion = f"Check that:\n" \
-                    f"  1. The module '{module}' exists\n" \
-                    f"  2. '{name}' is defined in that module\n" \
-                    f"  3. You're using the correct import path"
+        suggestion = (
+            f"Check that:\n"
+            f"  1. The module '{module}' exists\n"
+            f"  2. '{name}' is defined in that module\n"
+            f"  3. You're using the correct import path"
+        )
 
     raise HelpfulError(message, suggestion=suggestion, **kwargs)
 
@@ -83,14 +95,16 @@ def raise_import_error(module: str, name: str, suggestion: Optional[str] = None,
 # CONFIGURATION ERRORS
 # =============================================================================
 
+
 class MissingEnvVarError(HelpfulError):
     """Raised when required environment variable is missing."""
 
     def __init__(self, var_name: str, purpose: Optional[str] = None) -> None:
         message = f"Required environment variable '{var_name}' is not set"
 
-        suggestion = f"Set {var_name} in your environment:\n" \
-                    f"  export {var_name}='your-value-here'\n"
+        suggestion = (
+            f"Set {var_name} in your environment:\n" f"  export {var_name}='your-value-here'\n"
+        )
 
         if purpose:
             suggestion += f"\nThis variable is used for: {purpose}"
@@ -107,7 +121,9 @@ class MissingEnvVarError(HelpfulError):
 class InvalidConfigValueError(HelpfulError):
     """Raised when config value is invalid."""
 
-    def __init__(self, field: str, value: Any, expected: str, valid_values: Optional[List[str]] = None) -> None:
+    def __init__(
+        self, field: str, value: Any, expected: str, valid_values: Optional[List[str]] = None
+    ) -> None:
         message = f"Invalid value for '{field}': {value}"
 
         suggestion = f"Expected: {expected}"
@@ -117,11 +133,13 @@ class InvalidConfigValueError(HelpfulError):
         super().__init__(
             message,
             suggestion=suggestion,
-            context={"field": field, "value": value, "expected": expected}
+            context={"field": field, "value": value, "expected": expected},
         )
 
 
-def raise_config_error(field: str, issue: str, suggestion: Optional[str] = None, **kwargs: Any) -> None:
+def raise_config_error(
+    field: str, issue: str, suggestion: Optional[str] = None, **kwargs: Any
+) -> None:
     """Raise a helpful configuration error."""
 
     message = f"Configuration error in '{field}': {issue}"
@@ -136,6 +154,7 @@ def raise_config_error(field: str, issue: str, suggestion: Optional[str] = None,
 # EXECUTION ERRORS
 # =============================================================================
 
+
 class TimeoutErrorWithSuggestion(HelpfulError):
     """Timeout with suggestions for fixing."""
 
@@ -145,15 +164,15 @@ class TimeoutErrorWithSuggestion(HelpfulError):
         else:
             message = f"{operation} exceeded timeout of {timeout}s"
 
-        suggestion = f"Options to fix:\n" \
-                    f"  1. Increase timeout: config.timeout = {timeout * 2}\n" \
-                    f"  2. Reduce input size if processing large content\n" \
-                    f"  3. Use a faster model (e.g., 'haiku' instead of 'sonnet')"
+        suggestion = (
+            f"Options to fix:\n"
+            f"  1. Increase timeout: config.timeout = {timeout * 2}\n"
+            f"  2. Reduce input size if processing large content\n"
+            f"  3. Use a faster model (e.g., 'haiku' instead of 'sonnet')"
+        )
 
         super().__init__(
-            message,
-            suggestion=suggestion,
-            context={"operation": operation, "timeout": timeout}
+            message, suggestion=suggestion, context={"operation": operation, "timeout": timeout}
         )
 
 
@@ -166,21 +185,29 @@ class LLMError(HelpfulError):
         suggestion = "Common fixes:\n"
 
         if "API key" in error or "authentication" in error.lower():
-            suggestion += f"  1. Check {provider.upper()}_API_KEY is set correctly\n" \
-                         f"  2. Verify API key is valid and not expired\n" \
-                         f"  3. Check you have credits/quota remaining"
+            suggestion += (
+                f"  1. Check {provider.upper()}_API_KEY is set correctly\n"
+                f"  2. Verify API key is valid and not expired\n"
+                f"  3. Check you have credits/quota remaining"
+            )
         elif "rate limit" in error.lower():
-            suggestion += f"  1. Wait a moment and retry\n" \
-                         f"  2. Reduce concurrent requests\n" \
-                         f"  3. Upgrade your API plan"
+            suggestion += (
+                f"  1. Wait a moment and retry\n"
+                f"  2. Reduce concurrent requests\n"
+                f"  3. Upgrade your API plan"
+            )
         elif "timeout" in error.lower():
-            suggestion += f"  1. Increase timeout setting\n" \
-                         f"  2. Reduce input size\n" \
-                         f"  3. Try again (may be temporary network issue)"
+            suggestion += (
+                f"  1. Increase timeout setting\n"
+                f"  2. Reduce input size\n"
+                f"  3. Try again (may be temporary network issue)"
+            )
         else:
-            suggestion += f"  1. Check your internet connection\n" \
-                         f"  2. Verify the {provider} API is operational\n" \
-                         f"  3. Review the error message for specific details"
+            suggestion += (
+                f"  1. Check your internet connection\n"
+                f"  2. Verify the {provider} API is operational\n"
+                f"  3. Review the error message for specific details"
+            )
 
         if retry_count > 0:
             message += f" (after {retry_count} retries)"
@@ -188,34 +215,39 @@ class LLMError(HelpfulError):
         super().__init__(
             message,
             suggestion=suggestion,
-            context={"provider": provider, "error": error, "retries": retry_count}
+            context={"provider": provider, "error": error, "retries": retry_count},
         )
 
 
 class JSONParseError(HelpfulError):
     """JSON parsing failed with helpful context."""
 
-    def __init__(self, source: str, preview: str, original_error: Optional[Exception] = None) -> None:
+    def __init__(
+        self, source: str, preview: str, original_error: Optional[Exception] = None
+    ) -> None:
         message = f"Failed to parse JSON from {source}"
 
-        suggestion = f"Response preview: {preview[:200]}...\n\n" \
-                    f"Common causes:\n" \
-                    f"  1. LLM returned text instead of JSON\n" \
-                    f"  2. JSON is malformed (missing quotes, commas, etc.)\n" \
-                    f"  3. Response contains markdown code blocks\n\n" \
-                    f"Fix: Ensure your prompt clearly requests JSON format"
+        suggestion = (
+            f"Response preview: {preview[:200]}...\n\n"
+            f"Common causes:\n"
+            f"  1. LLM returned text instead of JSON\n"
+            f"  2. JSON is malformed (missing quotes, commas, etc.)\n"
+            f"  3. Response contains markdown code blocks\n\n"
+            f"Fix: Ensure your prompt clearly requests JSON format"
+        )
 
         super().__init__(
             message,
             suggestion=suggestion,
             original_error=original_error,
-            context={"source": source, "preview": preview}
+            context={"source": source, "preview": preview},
         )
 
 
 # =============================================================================
 # SWARM-SPECIFIC ERRORS
 # =============================================================================
+
 
 class SwarmNotFoundError(HelpfulError):
     """Swarm not found with suggestions."""
@@ -241,25 +273,26 @@ class AgentFailedError(HelpfulError):
     def __init__(self, agent_name: str, task: str, error: str, trace: Optional[str] = None) -> None:
         message = f"Agent '{agent_name}' failed: {error}"
 
-        suggestion = f"Debugging steps:\n" \
-                    f"  1. Check logs for detailed error messages\n" \
-                    f"  2. Verify agent has access to required tools\n" \
-                    f"  3. Ensure task is clear and achievable\n" \
-                    f"  4. Try running with a simpler version of the task"
+        suggestion = (
+            f"Debugging steps:\n"
+            f"  1. Check logs for detailed error messages\n"
+            f"  2. Verify agent has access to required tools\n"
+            f"  3. Ensure task is clear and achievable\n"
+            f"  4. Try running with a simpler version of the task"
+        )
 
         if trace:
             suggestion += f"\n\nExecution trace:\n{trace[:500]}..."
 
         super().__init__(
-            message,
-            suggestion=suggestion,
-            context={"agent": agent_name, "task": task}
+            message, suggestion=suggestion, context={"agent": agent_name, "task": task}
         )
 
 
 # =============================================================================
 # CONVENIENCE FUNCTIONS
 # =============================================================================
+
 
 def suggest_fix(error: Exception, default_suggestion: str = "") -> str:
     """Generate helpful suggestion for any error."""

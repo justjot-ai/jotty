@@ -1,8 +1,9 @@
 """Nginx Config Generator Skill — generate reverse proxy configs."""
-from typing import Dict, Any
 
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from typing import Any, Dict
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("nginx-config-generator")
 
@@ -46,7 +47,9 @@ def nginx_reverse_proxy_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         lines.append(f"    ssl_certificate /etc/letsencrypt/live/{domain}/fullchain.pem;")
         lines.append(f"    ssl_certificate_key /etc/letsencrypt/live/{domain}/privkey.pem;")
         lines.append("    ssl_protocols TLSv1.2 TLSv1.3;")
-        lines.append("    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384;")
+        lines.append(
+            "    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384;"
+        )
         lines.append("    ssl_prefer_server_ciphers off;")
         lines.append("    ssl_session_cache shared:SSL:10m;")
         lines.append("    ssl_session_timeout 1d;")
@@ -63,7 +66,9 @@ def nginx_reverse_proxy_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     lines.append("    add_header X-Content-Type-Options nosniff;")
     lines.append('    add_header X-XSS-Protection "1; mode=block";')
     if use_ssl:
-        lines.append('    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;')
+        lines.append(
+            '    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;'
+        )
     lines.append("")
 
     if cache_static:
@@ -90,8 +95,13 @@ def nginx_reverse_proxy_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     lines.append("}")
 
     config = "\n".join(lines)
-    return tool_response(config=config, domain=domain, upstream=f"{upstream_host}:{port}",
-                         ssl=use_ssl, websocket=websocket)
+    return tool_response(
+        config=config,
+        domain=domain,
+        upstream=f"{upstream_host}:{port}",
+        ssl=use_ssl,
+        websocket=websocket,
+    )
 
 
 @tool_wrapper(required_params=["domain", "root_path"])
@@ -138,7 +148,9 @@ def nginx_static_site_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     lines.append("    }")
     lines.append("")
     lines.append("    gzip on;")
-    lines.append("    gzip_types text/plain text/css application/json application/javascript text/xml;")
+    lines.append(
+        "    gzip_types text/plain text/css application/json application/javascript text/xml;"
+    )
     lines.append("}")
 
     config = "\n".join(lines)

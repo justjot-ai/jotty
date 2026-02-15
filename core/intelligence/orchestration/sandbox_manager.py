@@ -22,15 +22,15 @@ Usage:
     )
 """
 
-import os
-import sys
-import logging
 import asyncio
-import tempfile
+import logging
+import os
 import subprocess
+import sys
+import tempfile
+from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
@@ -38,22 +38,25 @@ logger = logging.getLogger(__name__)
 
 class TrustLevel(Enum):
     """Trust level for code/provider execution."""
-    TRUSTED = "trusted"      # Execute directly - verified safe
+
+    TRUSTED = "trusted"  # Execute directly - verified safe
     SANDBOXED = "sandboxed"  # Execute in basic sandbox
     DANGEROUS = "dangerous"  # Execute in isolated sandbox only
 
 
 class SandboxType(Enum):
     """Available sandbox backends."""
-    NONE = "none"           # Direct execution (trusted only)
-    E2B = "e2b"             # E2B Firecracker microVM
-    DOCKER = "docker"       # Docker container
+
+    NONE = "none"  # Direct execution (trusted only)
+    E2B = "e2b"  # E2B Firecracker microVM
+    DOCKER = "docker"  # Docker container
     SUBPROCESS = "subprocess"  # Restricted subprocess (fallback)
 
 
 @dataclass
 class SandboxConfig:
     """Configuration for a sandbox execution."""
+
     sandbox_type: SandboxType
     timeout: int = 120  # seconds
     memory_limit: str = "512m"
@@ -66,6 +69,7 @@ class SandboxConfig:
 @dataclass
 class SandboxResult:
     """Result from sandbox execution."""
+
     success: bool
     output: Any
     error: str = ""
@@ -104,8 +108,8 @@ class SandboxManager:
         self.e2b_available = False
         self.docker_available = False
         self.e2b_api_key = None
-        self.docker_image = self.config.get('docker_image', 'python:3.11-slim')
-        self.default_timeout = self.config.get('timeout', 120)
+        self.docker_image = self.config.get("docker_image", "python:3.11-slim")
+        self.default_timeout = self.config.get("timeout", 120)
 
         # Initialize backends
         self._init_backends()
@@ -115,7 +119,8 @@ class SandboxManager:
         # Check E2B
         try:
             import e2b_code_interpreter
-            self.e2b_api_key = self.config.get('e2b_api_key') or os.getenv('E2B_API_KEY')
+
+            self.e2b_api_key = self.config.get("e2b_api_key") or os.getenv("E2B_API_KEY")
             if self.e2b_api_key:
                 self.e2b_available = True
                 logger.info(" E2B sandbox available")
@@ -126,11 +131,7 @@ class SandboxManager:
 
         # Check Docker
         try:
-            result = subprocess.run(
-                ['docker', 'info'],
-                capture_output=True,
-                timeout=5
-            )
+            result = subprocess.run(["docker", "info"], capture_output=True, timeout=5)
             if result.returncode == 0:
                 self.docker_available = True
                 logger.info(" Docker sandbox available")
@@ -207,7 +208,7 @@ class SandboxManager:
         code: str,
         trust_level: TrustLevel,
         context: Optional[Dict[str, Any]] = None,
-        language: str = "python"
+        language: str = "python",
     ) -> SandboxResult:
         """
         Execute code in appropriate sandbox based on trust level.
@@ -222,11 +223,14 @@ class SandboxManager:
             SandboxResult with output and execution info
         """
         import time
+
         start_time = time.time()
         context = context or {}
 
         config = self.get_sandbox_config(trust_level)
-        logger.info(f" Executing with {config.sandbox_type.value} sandbox (trust: {trust_level.value})")
+        logger.info(
+            f" Executing with {config.sandbox_type.value} sandbox (trust: {trust_level.value})"
+        )
 
         try:
             if config.sandbox_type == SandboxType.NONE:
@@ -253,11 +257,7 @@ class SandboxManager:
             )
 
     async def _execute_direct(
-        self,
-        code: str,
-        config: SandboxConfig,
-        context: Dict[str, Any],
-        language: str
+        self, code: str, config: SandboxConfig, context: Dict[str, Any], language: str
     ) -> SandboxResult:
         """Execute code directly (trusted code only)."""
         if language != "python":
@@ -277,12 +277,12 @@ class SandboxManager:
             exec(code, namespace)
 
             # Extract result (look for 'result' variable)
-            output = namespace.get('result', namespace.get('output', None))
+            output = namespace.get("result", namespace.get("output", None))
 
             return SandboxResult(
                 success=True,
                 output=output,
-                metadata={'namespace_keys': list(namespace.keys())},
+                metadata={"namespace_keys": list(namespace.keys())},
             )
 
         except Exception as e:
@@ -293,11 +293,7 @@ class SandboxManager:
             )
 
     async def _execute_e2b(
-        self,
-        code: str,
-        config: SandboxConfig,
-        context: Dict[str, Any],
-        language: str
+        self, code: str, config: SandboxConfig, context: Dict[str, Any], language: str
     ) -> SandboxResult:
         """Execute code in E2B Firecracker microVM."""
         if not self.e2b_available:
@@ -324,13 +320,13 @@ class SandboxManager:
                 stderr_parts = []
 
                 for log in execution.logs:
-                    if log.type == 'stdout':
+                    if log.type == "stdout":
                         stdout_parts.append(log.line)
-                    elif log.type == 'stderr':
+                    elif log.type == "stderr":
                         stderr_parts.append(log.line)
 
-                stdout = '\n'.join(stdout_parts)
-                stderr = '\n'.join(stderr_parts)
+                stdout = "\n".join(stdout_parts)
+                stderr = "\n".join(stderr_parts)
 
                 # Check for errors
                 if execution.error:
@@ -353,7 +349,7 @@ class SandboxManager:
                     stdout=stdout,
                     stderr=stderr,
                     exit_code=0,
-                    metadata={'results_count': len(execution.results)},
+                    metadata={"results_count": len(execution.results)},
                 )
 
         except Exception as e:
@@ -362,11 +358,7 @@ class SandboxManager:
             return await self._execute_subprocess(code, config, context, language)
 
     async def _execute_docker(
-        self,
-        code: str,
-        config: SandboxConfig,
-        context: Dict[str, Any],
-        language: str
+        self, code: str, config: SandboxConfig, context: Dict[str, Any], language: str
     ) -> SandboxResult:
         """Execute code in Docker container."""
         if not self.docker_available:
@@ -376,29 +368,31 @@ class SandboxManager:
         try:
             # Create temp file with code
             with tempfile.NamedTemporaryFile(
-                mode='w',
-                suffix='.py' if language == 'python' else '.js',
-                delete=False
+                mode="w", suffix=".py" if language == "python" else ".js", delete=False
             ) as f:
                 # Prepend context
                 if context:
                     f.write(self._build_context_code(context))
-                    f.write('\n')
+                    f.write("\n")
                 f.write(code)
                 code_file = f.name
 
             try:
                 # Build Docker command
                 docker_cmd = [
-                    'docker', 'run',
-                    '--rm',  # Remove container after execution
-                    '--network=none' if not config.network_enabled else '',
-                    f'--memory={config.memory_limit}',
-                    f'--cpus={config.cpu_limit}',
-                    '-v', f'{code_file}:/code/script.py:ro',
-                    '-w', '/code',
+                    "docker",
+                    "run",
+                    "--rm",  # Remove container after execution
+                    "--network=none" if not config.network_enabled else "",
+                    f"--memory={config.memory_limit}",
+                    f"--cpus={config.cpu_limit}",
+                    "-v",
+                    f"{code_file}:/code/script.py:ro",
+                    "-w",
+                    "/code",
                     self.docker_image,
-                    'python', 'script.py'
+                    "python",
+                    "script.py",
                 ]
 
                 # Filter empty args
@@ -413,8 +407,7 @@ class SandboxManager:
 
                 try:
                     stdout, stderr = await asyncio.wait_for(
-                        process.communicate(),
-                        timeout=config.timeout
+                        process.communicate(), timeout=config.timeout
                     )
                 except asyncio.TimeoutError:
                     process.kill()
@@ -425,8 +418,8 @@ class SandboxManager:
                         exit_code=-1,
                     )
 
-                stdout_str = stdout.decode('utf-8', errors='replace')
-                stderr_str = stderr.decode('utf-8', errors='replace')
+                stdout_str = stdout.decode("utf-8", errors="replace")
+                stderr_str = stderr.decode("utf-8", errors="replace")
 
                 return SandboxResult(
                     success=process.returncode == 0,
@@ -446,14 +439,10 @@ class SandboxManager:
             return await self._execute_subprocess(code, config, context, language)
 
     async def _execute_subprocess(
-        self,
-        code: str,
-        config: SandboxConfig,
-        context: Dict[str, Any],
-        language: str
+        self, code: str, config: SandboxConfig, context: Dict[str, Any], language: str
     ) -> SandboxResult:
         """Execute code in restricted subprocess (fallback)."""
-        if language not in ('python', 'python3'):
+        if language not in ("python", "python3"):
             return SandboxResult(
                 success=False,
                 output=None,
@@ -462,15 +451,11 @@ class SandboxManager:
 
         try:
             # Create temp file with code
-            with tempfile.NamedTemporaryFile(
-                mode='w',
-                suffix='.py',
-                delete=False
-            ) as f:
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
                 # Prepend context
                 if context:
                     f.write(self._build_context_code(context))
-                    f.write('\n')
+                    f.write("\n")
                 f.write(code)
                 code_file = f.name
 
@@ -479,12 +464,16 @@ class SandboxManager:
                 env = os.environ.copy()
                 # Remove potentially dangerous env vars
                 for key in list(env.keys()):
-                    if any(s in key.upper() for s in ['SECRET', 'KEY', 'TOKEN', 'PASSWORD', 'CREDENTIAL']):
+                    if any(
+                        s in key.upper()
+                        for s in ["SECRET", "KEY", "TOKEN", "PASSWORD", "CREDENTIAL"]
+                    ):
                         del env[key]
 
                 # Run with timeout (start_new_session for clean kill)
                 process = await asyncio.create_subprocess_exec(
-                    sys.executable, code_file,
+                    sys.executable,
+                    code_file,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                     env=env,
@@ -493,12 +482,12 @@ class SandboxManager:
 
                 try:
                     stdout, stderr = await asyncio.wait_for(
-                        process.communicate(),
-                        timeout=config.timeout
+                        process.communicate(), timeout=config.timeout
                     )
                 except asyncio.TimeoutError:
                     # Kill entire process group for clean teardown
                     import signal as _sig
+
                     try:
                         os.killpg(os.getpgid(process.pid), _sig.SIGKILL)
                     except (ProcessLookupError, OSError):
@@ -514,8 +503,8 @@ class SandboxManager:
                         exit_code=-1,
                     )
 
-                stdout_str = stdout.decode('utf-8', errors='replace')
-                stderr_str = stderr.decode('utf-8', errors='replace')
+                stdout_str = stdout.decode("utf-8", errors="replace")
+                stderr_str = stderr.decode("utf-8", errors="replace")
 
                 return SandboxResult(
                     success=process.returncode == 0,
@@ -545,30 +534,31 @@ class SandboxManager:
             if isinstance(value, str):
                 lines.append(f'{key} = """{value}"""')
             elif isinstance(value, (int, float, bool, type(None))):
-                lines.append(f'{key} = {value!r}')
+                lines.append(f"{key} = {value!r}")
             elif isinstance(value, (list, dict)):
                 import json
-                lines.append(f'{key} = {json.dumps(value)}')
+
+                lines.append(f"{key} = {json.dumps(value)}")
             # Skip complex types
-        return '\n'.join(lines)
+        return "\n".join(lines)
 
     def get_available_backends(self) -> List[str]:
         """Get list of available sandbox backends."""
-        backends = ['subprocess']  # Always available
+        backends = ["subprocess"]  # Always available
         if self.docker_available:
-            backends.append('docker')
+            backends.append("docker")
         if self.e2b_available:
-            backends.append('e2b')
+            backends.append("e2b")
         return backends
 
     def get_status(self) -> Dict[str, Any]:
         """Get sandbox manager status."""
         return {
-            'e2b_available': self.e2b_available,
-            'docker_available': self.docker_available,
-            'available_backends': self.get_available_backends(),
-            'default_timeout': self.default_timeout,
-            'docker_image': self.docker_image,
+            "e2b_available": self.e2b_available,
+            "docker_available": self.docker_available,
+            "available_backends": self.get_available_backends(),
+            "default_timeout": self.default_timeout,
+            "docker_image": self.docker_image,
         }
 
 
@@ -590,7 +580,7 @@ def get_sandbox_manager(config: Optional[Dict[str, Any]] = None) -> SandboxManag
 async def execute_safely(
     code: str,
     trust_level: TrustLevel = TrustLevel.SANDBOXED,
-    context: Optional[Dict[str, Any]] = None
+    context: Optional[Dict[str, Any]] = None,
 ) -> SandboxResult:
     """
     Convenience function to execute code safely.

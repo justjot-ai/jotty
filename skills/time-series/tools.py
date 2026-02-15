@@ -7,11 +7,16 @@ Time series analysis and forecasting tools.
 
 import logging
 from typing import Any, Dict, List, Optional, Union
+
 import numpy as np
 import pandas as pd
 
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
+from Jotty.core.infrastructure.utils.tool_helpers import (
+    async_tool_wrapper,
+    tool_error,
+    tool_response,
+)
 
 # Status emitter for progress updates
 status = SkillStatus("time-series")
@@ -35,16 +40,16 @@ async def timeseries_decompose_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with trend, seasonal, and residual components
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     from statsmodels.tsa.seasonal import seasonal_decompose
 
     logger.info("[TimeSeries] Decomposing time series...")
 
-    data = params.get('data')
-    column = params.get('column')
-    period = params.get('period')
-    model = params.get('model', 'additive')
+    data = params.get("data")
+    column = params.get("column")
+    period = params.get("period")
+    model = params.get("model", "additive")
 
     if isinstance(data, str):
         data = pd.read_csv(data)
@@ -69,12 +74,12 @@ async def timeseries_decompose_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     logger.info(f"[TimeSeries] Decomposed with period={period}, model={model}")
 
     return {
-        'success': True,
-        'trend': result.trend.dropna().tolist(),
-        'seasonal': result.seasonal.dropna().tolist(),
-        'residual': result.resid.dropna().tolist(),
-        'period': period,
-        'model': model,
+        "success": True,
+        "trend": result.trend.dropna().tolist(),
+        "seasonal": result.seasonal.dropna().tolist(),
+        "residual": result.resid.dropna().tolist(),
+        "period": period,
+        "model": model,
     }
 
 
@@ -94,18 +99,18 @@ async def timeseries_forecast_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with forecasts and confidence intervals
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     from statsmodels.tsa.arima.model import ARIMA
     from statsmodels.tsa.stattools import adfuller
 
     logger.info("[TimeSeries] Forecasting time series...")
 
-    data = params.get('data')
-    column = params.get('column')
-    horizon = params.get('horizon', 10)
-    order = params.get('order')
-    seasonal_order = params.get('seasonal_order')
+    data = params.get("data")
+    column = params.get("column")
+    horizon = params.get("horizon", 10)
+    order = params.get("order")
+    seasonal_order = params.get("seasonal_order")
 
     if isinstance(data, str):
         data = pd.read_csv(data)
@@ -132,6 +137,7 @@ async def timeseries_forecast_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     try:
         if seasonal_order:
             from statsmodels.tsa.statespace.sarimax import SARIMAX
+
             model = SARIMAX(series, order=order, seasonal_order=seasonal_order)
         else:
             model = ARIMA(series, order=order)
@@ -146,17 +152,17 @@ async def timeseries_forecast_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         logger.info(f"[TimeSeries] Forecast generated for {horizon} periods")
 
         return {
-            'success': True,
-            'forecast': predictions.tolist(),
-            'lower_ci': conf_int.iloc[:, 0].tolist(),
-            'upper_ci': conf_int.iloc[:, 1].tolist(),
-            'order': order,
-            'seasonal_order': seasonal_order,
-            'aic': fitted.aic,
-            'bic': fitted.bic,
+            "success": True,
+            "forecast": predictions.tolist(),
+            "lower_ci": conf_int.iloc[:, 0].tolist(),
+            "upper_ci": conf_int.iloc[:, 1].tolist(),
+            "order": order,
+            "seasonal_order": seasonal_order,
+            "aic": fitted.aic,
+            "bic": fitted.bic,
         }
     except Exception as e:
-        return {'success': False, 'error': str(e)}
+        return {"success": False, "error": str(e)}
 
 
 @async_tool_wrapper()
@@ -173,15 +179,15 @@ async def timeseries_features_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with extracted features
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     from scipy import stats
 
     logger.info("[TimeSeries] Extracting time series features...")
 
-    data = params.get('data')
-    column = params.get('column')
-    features_to_extract = params.get('features', ['all'])
+    data = params.get("data")
+    column = params.get("column")
+    features_to_extract = params.get("features", ["all"])
 
     if isinstance(data, str):
         data = pd.read_csv(data)
@@ -198,45 +204,45 @@ async def timeseries_features_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     features = {}
 
     # Basic statistics
-    features['mean'] = float(series.mean())
-    features['std'] = float(series.std())
-    features['min'] = float(series.min())
-    features['max'] = float(series.max())
-    features['median'] = float(series.median())
-    features['skewness'] = float(series.skew())
-    features['kurtosis'] = float(series.kurtosis())
+    features["mean"] = float(series.mean())
+    features["std"] = float(series.std())
+    features["min"] = float(series.min())
+    features["max"] = float(series.max())
+    features["median"] = float(series.median())
+    features["skewness"] = float(series.skew())
+    features["kurtosis"] = float(series.kurtosis())
 
     # Range and variation
-    features['range'] = float(series.max() - series.min())
-    features['iqr'] = float(series.quantile(0.75) - series.quantile(0.25))
-    features['cv'] = float(series.std() / series.mean()) if series.mean() != 0 else 0
+    features["range"] = float(series.max() - series.min())
+    features["iqr"] = float(series.quantile(0.75) - series.quantile(0.25))
+    features["cv"] = float(series.std() / series.mean()) if series.mean() != 0 else 0
 
     # Trend features
     x = np.arange(len(series))
     slope, intercept, r_value, p_value, std_err = stats.linregress(x, series)
-    features['trend_slope'] = float(slope)
-    features['trend_strength'] = float(r_value ** 2)
+    features["trend_slope"] = float(slope)
+    features["trend_strength"] = float(r_value**2)
 
     # Autocorrelation
     if len(series) > 1:
-        features['autocorr_lag1'] = float(series.autocorr(lag=1)) if len(series) > 1 else 0
-        features['autocorr_lag5'] = float(series.autocorr(lag=5)) if len(series) > 5 else 0
+        features["autocorr_lag1"] = float(series.autocorr(lag=1)) if len(series) > 1 else 0
+        features["autocorr_lag5"] = float(series.autocorr(lag=5)) if len(series) > 5 else 0
 
     # Change features
     diff = series.diff().dropna()
-    features['mean_abs_change'] = float(diff.abs().mean())
-    features['mean_change'] = float(diff.mean())
+    features["mean_abs_change"] = float(diff.abs().mean())
+    features["mean_change"] = float(diff.mean())
 
     # Peaks and troughs
-    features['num_peaks'] = int(((series.shift(1) < series) & (series.shift(-1) < series)).sum())
-    features['num_troughs'] = int(((series.shift(1) > series) & (series.shift(-1) > series)).sum())
+    features["num_peaks"] = int(((series.shift(1) < series) & (series.shift(-1) < series)).sum())
+    features["num_troughs"] = int(((series.shift(1) > series) & (series.shift(-1) > series)).sum())
 
     logger.info(f"[TimeSeries] Extracted {len(features)} features")
 
     return {
-        'success': True,
-        'features': features,
-        'series_length': len(series),
+        "success": True,
+        "features": features,
+        "series_length": len(series),
     }
 
 
@@ -255,14 +261,14 @@ async def timeseries_anomaly_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with anomaly indices and values
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     logger.info("[TimeSeries] Detecting anomalies...")
 
-    data = params.get('data')
-    column = params.get('column')
-    method = params.get('method', 'zscore')
-    threshold = params.get('threshold')
+    data = params.get("data")
+    column = params.get("column")
+    method = params.get("method", "zscore")
+    threshold = params.get("threshold")
 
     if isinstance(data, str):
         data = pd.read_csv(data)
@@ -279,27 +285,28 @@ async def timeseries_anomaly_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     anomalies = []
     anomaly_indices = []
 
-    if method == 'zscore':
+    if method == "zscore":
         threshold = threshold or 3
         z_scores = np.abs((series - series.mean()) / series.std())
         mask = z_scores > threshold
 
-    elif method == 'iqr':
+    elif method == "iqr":
         threshold = threshold or 1.5
         Q1 = series.quantile(0.25)
         Q3 = series.quantile(0.75)
         IQR = Q3 - Q1
         mask = (series < Q1 - threshold * IQR) | (series > Q3 + threshold * IQR)
 
-    elif method == 'mad':  # Median Absolute Deviation
+    elif method == "mad":  # Median Absolute Deviation
         threshold = threshold or 3
         median = series.median()
         mad = np.median(np.abs(series - median))
         modified_z = 0.6745 * (series - median) / mad
         mask = np.abs(modified_z) > threshold
 
-    elif method == 'isolation_forest':
+    elif method == "isolation_forest":
         from sklearn.ensemble import IsolationForest
+
         contamination = threshold or 0.1
         clf = IsolationForest(contamination=contamination, random_state=42)
         values = series.values.reshape(-1, 1)
@@ -307,7 +314,7 @@ async def timeseries_anomaly_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         mask = preds == -1
 
     else:
-        return {'success': False, 'error': f'Unknown method: {method}'}
+        return {"success": False, "error": f"Unknown method: {method}"}
 
     anomaly_indices = series[mask].index.tolist()
     anomalies = series[mask].tolist()
@@ -315,12 +322,12 @@ async def timeseries_anomaly_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     logger.info(f"[TimeSeries] Found {len(anomalies)} anomalies using {method}")
 
     return {
-        'success': True,
-        'method': method,
-        'anomaly_indices': anomaly_indices,
-        'anomaly_values': anomalies,
-        'num_anomalies': len(anomalies),
-        'anomaly_percent': round(len(anomalies) / len(series) * 100, 2),
+        "success": True,
+        "method": method,
+        "anomaly_indices": anomaly_indices,
+        "anomaly_values": anomalies,
+        "num_anomalies": len(anomalies),
+        "anomaly_percent": round(len(anomalies) / len(series) * 100, 2),
     }
 
 
@@ -340,18 +347,18 @@ async def timeseries_crossval_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with cross-validation scores
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
+    from sklearn.metrics import mean_absolute_error, mean_squared_error
     from sklearn.model_selection import TimeSeriesSplit
-    from sklearn.metrics import mean_squared_error, mean_absolute_error
 
     logger.info("[TimeSeries] Performing time series cross-validation...")
 
-    data = params.get('data')
-    column = params.get('column')
-    model = params.get('model')
-    n_splits = params.get('n_splits', 5)
-    gap = params.get('gap', 0)
+    data = params.get("data")
+    column = params.get("column")
+    model = params.get("model")
+    n_splits = params.get("n_splits", 5)
+    gap = params.get("gap", 0)
 
     if isinstance(data, str):
         data = pd.read_csv(data)
@@ -368,7 +375,7 @@ async def timeseries_crossval_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     # Create lagged features
     X = pd.DataFrame()
     for lag in range(1, 6):
-        X[f'lag_{lag}'] = series.shift(lag)
+        X[f"lag_{lag}"] = series.shift(lag)
     X = X.dropna()
     y = series.iloc[5:]  # Align with X
 
@@ -394,12 +401,12 @@ async def timeseries_crossval_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     logger.info(f"[TimeSeries] CV completed with {n_splits} splits")
 
     return {
-        'success': True,
-        'mse_mean': float(np.mean(mse_scores)),
-        'mse_std': float(np.std(mse_scores)),
-        'mae_mean': float(np.mean(mae_scores)),
-        'mae_std': float(np.std(mae_scores)),
-        'rmse_mean': float(np.sqrt(np.mean(mse_scores))),
-        'n_splits': n_splits,
-        'fold_scores': {'mse': mse_scores, 'mae': mae_scores},
+        "success": True,
+        "mse_mean": float(np.mean(mse_scores)),
+        "mse_std": float(np.std(mse_scores)),
+        "mae_mean": float(np.mean(mae_scores)),
+        "mae_std": float(np.std(mae_scores)),
+        "rmse_mean": float(np.sqrt(np.mean(mse_scores))),
+        "n_splits": n_splits,
+        "fold_scores": {"mse": mse_scores, "mae": mae_scores},
     }

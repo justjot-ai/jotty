@@ -15,11 +15,12 @@ Usage:
     # Returns: priority='low', assignee={'name': 'Alice'}
 """
 
-import requests
 import json
 import logging
-from typing import Dict, Any, Optional
 from pathlib import Path
+from typing import Any, Dict, Optional
+
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -35,15 +36,17 @@ class SectionSchemaRegistry:
     def __init__(self, api_url: str = None, lazy_load: bool = True) -> None:
         if api_url is None:
             import os
+
             try:
                 from ..foundation.config_defaults import DEFAULTS as _DEFAULTS
-                _base = os.getenv('JUSTJOT_API_URL', _DEFAULTS.JUSTJOT_API_URL)
+
+                _base = os.getenv("JUSTJOT_API_URL", _DEFAULTS.JUSTJOT_API_URL)
             except ImportError:
-                _base = os.getenv('JUSTJOT_API_URL', 'http://localhost:3000')
+                _base = os.getenv("JUSTJOT_API_URL", "http://localhost:3000")
             api_url = f"{_base}/api/sections/schemas"
         self.api_url = api_url
         self.schemas: Dict[str, Any] = {}
-        self.cache_file = Path(__file__).parent / 'section_schemas_cache.json'
+        self.cache_file = Path(__file__).parent / "section_schemas_cache.json"
         self._loaded = False
 
         # Lazy load by default (only load when first used)
@@ -59,11 +62,10 @@ class SectionSchemaRegistry:
                 catalog = response.json()
 
                 # Fetch each schema (parallel would be better, but keeping it simple)
-                for section_type in catalog.get('sections', []):
+                for section_type in catalog.get("sections", []):
                     try:
                         schema_response = requests.get(
-                            f"{self.api_url}?type={section_type}",
-                            timeout=5
+                            f"{self.api_url}?type={section_type}", timeout=5
                         )
                         if schema_response.status_code == 200:
                             self.schemas[section_type] = schema_response.json()
@@ -85,7 +87,7 @@ class SectionSchemaRegistry:
     def _save_cache(self) -> Any:
         """Save schemas to local cache."""
         try:
-            with open(self.cache_file, 'w') as f:
+            with open(self.cache_file, "w") as f:
                 json.dump(self.schemas, f, indent=2)
         except Exception as e:
             logger.error(f"Failed to save schema cache: {e}")
@@ -94,7 +96,7 @@ class SectionSchemaRegistry:
         """Load schemas from local cache."""
         try:
             if self.cache_file.exists():
-                with open(self.cache_file, 'r') as f:
+                with open(self.cache_file, "r") as f:
                     self.schemas = json.load(f)
                 logger.info(f" Loaded {len(self.schemas)} schemas from cache")
             else:
@@ -138,13 +140,15 @@ class SectionSchemaRegistry:
             return content
 
         # Apply transforms
-        transforms = schema.get('transforms', {})
+        transforms = schema.get("transforms", {})
         if transforms:
             content = self._apply_transforms(content, transforms)
 
         return content
 
-    def _apply_transforms(self, content: Dict[str, Any], transforms: Dict[str, Any]) -> Dict[str, Any]:
+    def _apply_transforms(
+        self, content: Dict[str, Any], transforms: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Apply all transforms to content."""
         for field_path, transform_def in transforms.items():
             self._apply_transform(content, field_path, transform_def)
@@ -157,7 +161,7 @@ class SectionSchemaRegistry:
         Supports nested paths with wildcards:
         - 'columns.*.items.*.priority' matches all items in all columns
         """
-        parts = field_path.split('.')
+        parts = field_path.split(".")
         self._apply_transform_recursive(content, parts, transform_def)
 
     def _apply_transform_recursive(self, obj: Any, path_parts: list, transform_def: Dict) -> None:
@@ -168,7 +172,7 @@ class SectionSchemaRegistry:
         key = path_parts[0]
         remaining = path_parts[1:]
 
-        if key == '*':
+        if key == "*":
             # Wildcard: apply to all items in array
             if isinstance(obj, list):
                 for item in obj:
@@ -195,22 +199,22 @@ class SectionSchemaRegistry:
         - number → enum: {from: 'number', to: 'enum', mapping: {...}}
         - string → object: {from: 'string', to: 'object', fields: {...}}
         """
-        from_type = transform_def.get('from')
-        to_type = transform_def.get('to')
+        from_type = transform_def.get("from")
+        to_type = transform_def.get("to")
 
         # Number to enum (e.g., 1 → 'low')
-        if from_type == 'number' and to_type == 'enum':
+        if from_type == "number" and to_type == "enum":
             if isinstance(value, (int, float)):
-                mapping = transform_def.get('mapping', {})
+                mapping = transform_def.get("mapping", {})
                 return mapping.get(str(int(value)), value)
 
         # String to object (e.g., 'Alice' → {'name': 'Alice'})
-        elif from_type == 'string' and to_type == 'object':
+        elif from_type == "string" and to_type == "object":
             if isinstance(value, str):
-                fields = transform_def.get('fields', {})
+                fields = transform_def.get("fields", {})
                 result = {}
                 for field_name, field_value in fields.items():
-                    if field_value == '$value':
+                    if field_value == "$value":
                         result[field_name] = value
                     else:
                         result[field_name] = field_value

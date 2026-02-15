@@ -36,9 +36,9 @@ Usage:
 import json
 import logging
 import time
-from pathlib import Path
-from typing import Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +46,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class LearningSession:
     """Metadata for a learning session."""
+
     session_id: str
     created_at: float
     updated_at: float
@@ -60,6 +61,7 @@ class LearningSession:
 @dataclass
 class LearningUpdate:
     """Result of a learning update."""
+
     actor: str
     reward: float
     q_value: Optional[float] = None
@@ -94,7 +96,7 @@ class LearningManager:
             base_dir: Base directory for learning storage
         """
         self.config = config
-        self.base_dir = Path(base_dir or getattr(config, 'output_base_dir', './outputs'))
+        self.base_dir = Path(base_dir or getattr(config, "output_base_dir", "./outputs"))
         self.learning_dir = self.base_dir / "learning"
         self.learning_dir.mkdir(parents=True, exist_ok=True)
 
@@ -108,7 +110,7 @@ class LearningManager:
 
         # Per-agent learners and memories
         self._agent_q_learners: Dict[str, Any] = {}  # agent_name -> LLMQPredictor
-        self._agent_memories: Dict[str, Any] = {}    # agent_name -> SimpleFallbackMemory
+        self._agent_memories: Dict[str, Any] = {}  # agent_name -> SimpleFallbackMemory
 
         # Shared learners (cross-agent)
         self._shared_q_learner = None
@@ -131,15 +133,17 @@ class LearningManager:
         # Initialize shared Q-learner
         try:
             from .q_learning import LLMQPredictor
+
             self._shared_q_learner = LLMQPredictor(self.config)
             logger.info("Q-Learning initialized (LearningManager)")
         except ImportError as e:
             logger.warning(f"Q-Learning not available: {e}")
 
         # Initialize TD(λ) learner if RL enabled
-        if getattr(self.config, 'enable_rl', False):
+        if getattr(self.config, "enable_rl", False):
             try:
                 from .learning import TDLambdaLearner
+
                 self._td_lambda_learner = TDLambdaLearner(self.config)
                 logger.info("TD(λ) Learner initialized (LearningManager)")
             except ImportError as e:
@@ -155,23 +159,23 @@ class LearningManager:
             return
 
         try:
-            with open(self.registry_path, 'r') as f:
+            with open(self.registry_path, "r") as f:
                 data = json.load(f)
 
-            for sid, sdata in data.get('sessions', {}).items():
+            for sid, sdata in data.get("sessions", {}).items():
                 self.registry[sid] = LearningSession(
                     session_id=sid,
-                    created_at=sdata.get('created_at', 0),
-                    updated_at=sdata.get('updated_at', 0),
-                    episode_count=sdata.get('episode_count', 0),
-                    total_experiences=sdata.get('total_experiences', 0),
-                    domains=sdata.get('domains', []),
-                    agents=sdata.get('agents', []),
-                    avg_reward=sdata.get('avg_reward', 0),
-                    path=sdata.get('path', '')
+                    created_at=sdata.get("created_at", 0),
+                    updated_at=sdata.get("updated_at", 0),
+                    episode_count=sdata.get("episode_count", 0),
+                    total_experiences=sdata.get("total_experiences", 0),
+                    domains=sdata.get("domains", []),
+                    agents=sdata.get("agents", []),
+                    avg_reward=sdata.get("avg_reward", 0),
+                    path=sdata.get("path", ""),
                 )
 
-            self._domain_index = data.get('domain_index', {})
+            self._domain_index = data.get("domain_index", {})
             logger.info(f"Loaded registry: {len(self.registry)} sessions")
         except Exception as e:
             logger.warning(f"Could not load registry: {e}")
@@ -179,25 +183,25 @@ class LearningManager:
     def _save_registry(self) -> Any:
         """Save learning session registry to disk."""
         data = {
-            'sessions': {
+            "sessions": {
                 sid: {
-                    'session_id': s.session_id,
-                    'created_at': s.created_at,
-                    'updated_at': s.updated_at,
-                    'episode_count': s.episode_count,
-                    'total_experiences': s.total_experiences,
-                    'domains': s.domains,
-                    'agents': s.agents,
-                    'avg_reward': s.avg_reward,
-                    'path': s.path
+                    "session_id": s.session_id,
+                    "created_at": s.created_at,
+                    "updated_at": s.updated_at,
+                    "episode_count": s.episode_count,
+                    "total_experiences": s.total_experiences,
+                    "domains": s.domains,
+                    "agents": s.agents,
+                    "avg_reward": s.avg_reward,
+                    "path": s.path,
                 }
                 for sid, s in self.registry.items()
             },
-            'domain_index': self._domain_index,
-            'last_updated': time.time()
+            "domain_index": self._domain_index,
+            "last_updated": time.time(),
         }
 
-        with open(self.registry_path, 'w') as f:
+        with open(self.registry_path, "w") as f:
             json.dump(data, f, indent=2)
 
     # =========================================================================
@@ -333,7 +337,9 @@ class LearningManager:
         for session in matching_sessions[:top_k]:
             if self.load_session(session.session_id):
                 loaded = True
-                logger.info(f"Loaded domain learning: {session.session_id} (reward: {session.avg_reward:.3f})")
+                logger.info(
+                    f"Loaded domain learning: {session.session_id} (reward: {session.avg_reward:.3f})"
+                )
 
         return loaded
 
@@ -354,6 +360,7 @@ class LearningManager:
         if agent_name not in self._agent_q_learners:
             try:
                 from .q_learning import LLMQPredictor
+
                 self._agent_q_learners[agent_name] = LLMQPredictor(self.config)
                 logger.debug(f"Created Q-learner for agent: {agent_name}")
             except ImportError:
@@ -375,6 +382,7 @@ class LearningManager:
         if agent_name not in self._agent_memories:
             try:
                 from ..memory.fallback_memory import SimpleFallbackMemory
+
                 self._agent_memories[agent_name] = SimpleFallbackMemory()
                 logger.debug(f"Created memory for agent: {agent_name}")
             except ImportError:
@@ -393,6 +401,7 @@ class LearningManager:
         if self._shared_q_learner is None:
             try:
                 from .q_learning import LLMQPredictor
+
                 self._shared_q_learner = LLMQPredictor(self.config)
             except ImportError:
                 self._shared_q_learner = _NoOpLearner()
@@ -404,10 +413,7 @@ class LearningManager:
     # =========================================================================
 
     def predict_q_value(
-        self,
-        state: Dict[str, Any],
-        action: Dict[str, Any],
-        goal: str = ""
+        self, state: Dict[str, Any], action: Dict[str, Any], goal: str = ""
     ) -> Tuple[Optional[float], Optional[float], Optional[str]]:
         """
         Predict Q-value for a state-action pair.
@@ -437,7 +443,7 @@ class LearningManager:
         reward: float,
         next_state: Optional[Dict[str, Any]] = None,
         done: bool = False,
-        domain: str = None
+        domain: str = None,
     ) -> LearningUpdate:
         """
         Record an experience for an agent.
@@ -463,9 +469,11 @@ class LearningManager:
 
         # Also record in shared learner with agent context
         if self._shared_q_learner:
-            shared_state = {**state, 'agent': agent_name}
+            shared_state = {**state, "agent": agent_name}
             try:
-                self._shared_q_learner.record_outcome(shared_state, action, reward, next_state, done)
+                self._shared_q_learner.record_outcome(
+                    shared_state, action, reward, next_state, done
+                )
             except Exception as e:
                 logger.debug(f"Could not record in shared learner: {e}")
 
@@ -481,11 +489,7 @@ class LearningManager:
             except Exception:
                 pass
 
-        return LearningUpdate(
-            actor=agent_name,
-            reward=reward,
-            q_value=q_value
-        )
+        return LearningUpdate(actor=agent_name, reward=reward, q_value=q_value)
 
     def record_outcome(
         self,
@@ -493,7 +497,7 @@ class LearningManager:
         action: Dict[str, Any],
         reward: float,
         next_state: Optional[Dict[str, Any]] = None,
-        done: bool = False
+        done: bool = False,
     ) -> LearningUpdate:
         """
         Record outcome (alias for anonymous agent).
@@ -508,15 +512,11 @@ class LearningManager:
         Returns:
             LearningUpdate with results
         """
-        actor = action.get('actor', 'unknown')
+        actor = action.get("actor", "unknown")
         return self.record_experience(actor, state, action, reward, next_state, done)
 
     def update_td_lambda(
-        self,
-        trajectory: list,
-        final_reward: float,
-        gamma: float = 0.99,
-        lambda_trace: float = 0.95
+        self, trajectory: list, final_reward: float, gamma: float = 0.99, lambda_trace: float = 0.95
     ) -> None:
         """
         Perform TD(λ) update on trajectory.
@@ -540,9 +540,7 @@ class LearningManager:
     # =========================================================================
 
     def get_learned_context(
-        self,
-        state: Dict[str, Any],
-        action: Optional[Dict[str, Any]] = None
+        self, state: Dict[str, Any], action: Optional[Dict[str, Any]] = None
     ) -> str:
         """
         Get learned context to inject into agent prompts.
@@ -571,10 +569,12 @@ class LearningManager:
             return "Q-learner not available"
 
         try:
-            if hasattr(self._shared_q_learner, 'get_q_table_summary'):
+            if hasattr(self._shared_q_learner, "get_q_table_summary"):
                 return self._shared_q_learner.get_q_table_summary()
-            elif hasattr(self._shared_q_learner, 'experience_buffer'):
-                return f"Q-learner active: {len(self._shared_q_learner.experience_buffer)} experiences"
+            elif hasattr(self._shared_q_learner, "experience_buffer"):
+                return (
+                    f"Q-learner active: {len(self._shared_q_learner.experience_buffer)} experiences"
+                )
             return "Q-learner active"
         except Exception as e:
             return f"Q-table summary failed: {e}"
@@ -582,37 +582,40 @@ class LearningManager:
     def get_learning_summary(self) -> Dict[str, Any]:
         """Get summary of current learning state."""
         summary = {
-            'session_id': self.session_id,
-            'session_dir': str(self.session_dir),
-            'total_sessions': len(self.registry),
-            'agents': list(self._agent_q_learners.keys()),
-            'domains_indexed': list(self._domain_index.keys()),
+            "session_id": self.session_id,
+            "session_dir": str(self.session_dir),
+            "total_sessions": len(self.registry),
+            "agents": list(self._agent_q_learners.keys()),
+            "domains_indexed": list(self._domain_index.keys()),
         }
 
-        if self._shared_q_learner and hasattr(self._shared_q_learner, 'get_q_table_stats'):
-            summary['shared_q_stats'] = self._shared_q_learner.get_q_table_stats()
+        if self._shared_q_learner and hasattr(self._shared_q_learner, "get_q_table_stats"):
+            summary["shared_q_stats"] = self._shared_q_learner.get_q_table_stats()
 
-        summary['per_agent_stats'] = {}
+        summary["per_agent_stats"] = {}
         for agent_name, learner in self._agent_q_learners.items():
-            if hasattr(learner, 'get_q_table_stats'):
-                summary['per_agent_stats'][agent_name] = learner.get_q_table_stats()
+            if hasattr(learner, "get_q_table_stats"):
+                summary["per_agent_stats"][agent_name] = learner.get_q_table_stats()
 
         return summary
 
     def list_sessions(self) -> List[Dict[str, Any]]:
         """List all available learning sessions."""
         from datetime import datetime
+
         sessions = []
         for session in sorted(self.registry.values(), key=lambda s: s.updated_at, reverse=True):
-            sessions.append({
-                'session_id': session.session_id,
-                'created': datetime.fromtimestamp(session.created_at).isoformat(),
-                'episodes': session.episode_count,
-                'experiences': session.total_experiences,
-                'domains': session.domains,
-                'agents': session.agents,
-                'avg_reward': session.avg_reward
-            })
+            sessions.append(
+                {
+                    "session_id": session.session_id,
+                    "created": datetime.fromtimestamp(session.created_at).isoformat(),
+                    "episodes": session.episode_count,
+                    "experiences": session.total_experiences,
+                    "domains": session.domains,
+                    "agents": session.agents,
+                    "avg_reward": session.avg_reward,
+                }
+            )
         return sessions
 
     # =========================================================================
@@ -625,7 +628,7 @@ class LearningManager:
             return
 
         try:
-            if hasattr(self._shared_q_learner, '_promote_demote_memories'):
+            if hasattr(self._shared_q_learner, "_promote_demote_memories"):
                 self._shared_q_learner._promote_demote_memories(episode_reward=episode_reward)
         except Exception as e:
             logger.warning(f"Memory promotion/demotion failed: {e}")
@@ -636,7 +639,7 @@ class LearningManager:
             return
 
         try:
-            if hasattr(self._shared_q_learner, 'prune_tier3_by_causal_impact'):
+            if hasattr(self._shared_q_learner, "prune_tier3_by_causal_impact"):
                 self._shared_q_learner.prune_tier3_by_causal_impact(sample_rate=sample_rate)
         except Exception as e:
             logger.warning(f"Tier 3 pruning failed: {e}")
@@ -645,7 +648,9 @@ class LearningManager:
     # Persistence
     # =========================================================================
 
-    def save_all(self, episode_count: int = 0, avg_reward: float = 0.0, domains: List[str] = None) -> Any:
+    def save_all(
+        self, episode_count: int = 0, avg_reward: float = 0.0, domains: List[str] = None
+    ) -> Any:
         """
         Save all learning state.
 
@@ -657,7 +662,7 @@ class LearningManager:
         self.session_dir.mkdir(parents=True, exist_ok=True)
 
         # Save shared Q-learner
-        if self._shared_q_learner and hasattr(self._shared_q_learner, 'save_state'):
+        if self._shared_q_learner and hasattr(self._shared_q_learner, "save_state"):
             shared_q_path = self.session_dir / "shared_q_learning.json"
             try:
                 self._shared_q_learner.save_state(str(shared_q_path))
@@ -671,7 +676,7 @@ class LearningManager:
         for agent_name, learner in self._agent_q_learners.items():
             agent_dir = agents_dir / agent_name
             agent_dir.mkdir(exist_ok=True)
-            if hasattr(learner, 'save_state'):
+            if hasattr(learner, "save_state"):
                 try:
                     learner.save_state(str(agent_dir / "q_learning.json"))
                 except Exception as e:
@@ -680,7 +685,7 @@ class LearningManager:
         for agent_name, memory in self._agent_memories.items():
             agent_dir = agents_dir / agent_name
             agent_dir.mkdir(exist_ok=True)
-            if hasattr(memory, 'save'):
+            if hasattr(memory, "save"):
                 try:
                     memory.save(str(agent_dir / "memory.json"))
                 except Exception as e:
@@ -688,10 +693,10 @@ class LearningManager:
 
         # Calculate total experiences
         total_exp = 0
-        if self._shared_q_learner and hasattr(self._shared_q_learner, 'experience_buffer'):
+        if self._shared_q_learner and hasattr(self._shared_q_learner, "experience_buffer"):
             total_exp += len(self._shared_q_learner.experience_buffer)
         for learner in self._agent_q_learners.values():
-            if hasattr(learner, 'experience_buffer'):
+            if hasattr(learner, "experience_buffer"):
                 total_exp += len(learner.experience_buffer)
 
         # Merge current domains
@@ -700,14 +705,18 @@ class LearningManager:
         # Update registry
         self.registry[self.session_id] = LearningSession(
             session_id=self.session_id,
-            created_at=self.registry[self.session_id].created_at if self.session_id in self.registry else time.time(),
+            created_at=(
+                self.registry[self.session_id].created_at
+                if self.session_id in self.registry
+                else time.time()
+            ),
             updated_at=time.time(),
             episode_count=episode_count,
             total_experiences=total_exp,
             domains=all_domains,
             agents=list(self._agent_q_learners.keys()),
             avg_reward=avg_reward,
-            path=str(self.session_dir)
+            path=str(self.session_dir),
         )
 
         # Update domain index
@@ -726,6 +735,7 @@ class LearningManager:
 # NO-OP FALLBACKS
 # =============================================================================
 
+
 class _NoOpLearner:
     """No-op learner for when Q-learning is unavailable."""
 
@@ -742,7 +752,7 @@ class _NoOpLearner:
         return ""
 
     def get_q_table_stats(self) -> Dict:
-        return {'size': 0, 'avg_q_value': 0}
+        return {"size": 0, "avg_q_value": 0}
 
     def save_state(self, path: Any) -> None:
         pass
@@ -761,7 +771,7 @@ class _NoOpMemory:
         return []
 
     def get_statistics(self) -> Dict:
-        return {'total_entries': 0}
+        return {"total_entries": 0}
 
     def save(self, path: Any) -> None:
         pass
@@ -783,6 +793,7 @@ def get_learning_coordinator(config: Any = None, base_dir: str = None) -> Learni
 
     if _global_coordinator is None:
         if config is None:
+
             @dataclass
             class MinimalConfig:
                 output_base_dir: str = "./outputs"
@@ -808,5 +819,5 @@ def reset_learning_coordinator() -> None:
     global _global_coordinator
     _global_coordinator = None
 
-# =============================================================================
 
+# =============================================================================

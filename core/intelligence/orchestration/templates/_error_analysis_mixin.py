@@ -5,10 +5,11 @@ Provides error analysis capabilities including misclassification breakdown,
 error clustering, error decomposition, rejection thresholds, error pattern
 detection, and error analysis chart generation.
 """
+
 from __future__ import annotations
 
 import logging
-from typing import Dict, List, Any, Optional, Tuple, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -30,7 +31,9 @@ class ErrorAnalysisMixin:
     Intended to be used via multiple inheritance alongside the base report class.
     """
 
-    def add_error_analysis(self, X: pd.DataFrame, y_true: Any, y_pred: Any, y_prob: Any = None, top_n: int = 10) -> None:
+    def add_error_analysis(
+        self, X: pd.DataFrame, y_true: Any, y_pred: Any, y_prob: Any = None, top_n: int = 10
+    ) -> None:
         """
         Add error analysis including:
         - Misclassification breakdown
@@ -39,6 +42,7 @@ class ErrorAnalysisMixin:
         """
         try:
             from sklearn.metrics import confusion_matrix
+
             from .ml_report_generator import PredictionResult
 
             preds = PredictionResult.from_predictions(y_true, y_pred, y_prob)
@@ -62,24 +66,28 @@ class ErrorAnalysisMixin:
                     all_confidence = preds.y_prob
                 error_conf = all_confidence[error_idx]
                 # For wrong predictions, high confidence = more confident error
-                if hasattr(error_conf, '__len__') and len(error_conf) > 0:
+                if hasattr(error_conf, "__len__") and len(error_conf) > 0:
                     sorted_idx = np.argsort(error_conf)[::-1][:top_n]
 
                     for i in sorted_idx:
                         orig_idx = error_idx[i]
-                        hardest_samples.append({
-                            'index': int(orig_idx),
-                            'true': int(preds.y_true[orig_idx]),
-                            'pred': int(preds.y_pred[orig_idx]),
-                            'prob': float(all_confidence[orig_idx]),
-                            'confidence': float(error_conf[i])
-                        })
+                        hardest_samples.append(
+                            {
+                                "index": int(orig_idx),
+                                "true": int(preds.y_true[orig_idx]),
+                                "pred": int(preds.y_pred[orig_idx]),
+                                "prob": float(all_confidence[orig_idx]),
+                                "confidence": float(error_conf[i]),
+                            }
+                        )
 
             # Error distribution by feature (for top features)
             error_by_feature = self._analyze_error_patterns(X, errors)
 
             # Create visualization
-            fig_path = self._create_error_analysis_chart(X, errors, preds.y_true, preds.y_pred, error_by_feature)
+            fig_path = self._create_error_analysis_chart(
+                X, errors, preds.y_true, preds.y_pred, error_by_feature
+            )
 
             content = f"""
 # Error Analysis
@@ -99,7 +107,7 @@ Understanding where the model fails helps improve performance and set realistic 
 """
             # Add confusion matrix details
             n_classes = len(cm)
-            labels = [f'Class {i}' for i in range(n_classes)]
+            labels = [f"Class {i}" for i in range(n_classes)]
             for i in range(n_classes):
                 for j in range(n_classes):
                     if i != j and cm[i, j] > 0:
@@ -126,7 +134,11 @@ Understanding where the model fails helps improve performance and set realistic 
             if y_prob is not None:
                 rejection_result = self._compute_rejection_thresholds(y_true, y_pred, y_prob)
 
-            narrative = self._maybe_add_narrative('Error Analysis', f'Error rate: {error_rate:.2f}%, Total errors: {n_errors}', section_type='error_analysis')
+            narrative = self._maybe_add_narrative(
+                "Error Analysis",
+                f"Error rate: {error_rate:.2f}%, Total errors: {n_errors}",
+                section_type="error_analysis",
+            )
 
             content += f"""
 ## Error Distribution Analysis
@@ -147,8 +159,10 @@ Understanding where the model fails helps improve performance and set realistic 
 
             # Error clusters subsection
             if error_clusters:
-                sil_score = error_clusters[0].get('silhouette_score', 'N/A')
-                sil_display = f" (silhouette={sil_score:.3f})" if isinstance(sil_score, float) else ""
+                sil_score = error_clusters[0].get("silhouette_score", "N/A")
+                sil_display = (
+                    f" (silhouette={sil_score:.3f})" if isinstance(sil_score, float) else ""
+                )
                 content += f"""
 ## Error Clusters
 
@@ -158,8 +172,12 @@ Adaptive clustering of misclassified samples reveals {len(error_clusters)} disti
 |---------|-------|-------------|------------------------------------------|
 """
                 for cluster in error_clusters:
-                    top_feats = ', '.join([f"{f['feature'][:12]}(d={f.get('effect_size', f.get('centroid', 0)):.2f})"
-                                          for f in cluster['top_features'][:3]])
+                    top_feats = ", ".join(
+                        [
+                            f"{f['feature'][:12]}(d={f.get('effect_size', f.get('centroid', 0)):.2f})"
+                            for f in cluster["top_features"][:3]
+                        ]
+                    )
                     content += f"| {cluster['cluster_id']} | {cluster['count']} | {cluster['percentage']:.1f}% | {top_feats} |\n"
 
             # Rejection analysis subsection
@@ -182,16 +200,21 @@ Selective prediction: reject uncertain samples to improve accuracy.
 ---
 """
             self._content.append(content)
-            self._store_section_data('error_analysis', 'Error Analysis', {
-                'error_rate': error_rate,
-                'n_errors': n_errors,
-                'error_clusters': error_clusters,
-                'error_decomposition': error_decomposition,
-                'rejection': rejection_result,
-            }, [{'type': 'scatter'}])
+            self._store_section_data(
+                "error_analysis",
+                "Error Analysis",
+                {
+                    "error_rate": error_rate,
+                    "n_errors": n_errors,
+                    "error_clusters": error_clusters,
+                    "error_decomposition": error_decomposition,
+                    "rejection": rejection_result,
+                },
+                [{"type": "scatter"}],
+            )
 
         except Exception as e:
-            self._record_section_failure('Error Analysis', e)
+            self._record_section_failure("Error Analysis", e)
 
     def _cluster_errors(self, X: pd.DataFrame, errors: Any) -> List[Dict]:
         """Cluster misclassified samples using adaptive method selection.
@@ -200,11 +223,11 @@ Selective prediction: reject uncertain samples to improve accuracy.
         DBSCAN as alternative, and t-test for discriminative features.
         """
         try:
-            from sklearn.cluster import KMeans, DBSCAN
-            from sklearn.preprocessing import StandardScaler
+            from scipy import stats as scipy_stats
+            from sklearn.cluster import DBSCAN, KMeans
             from sklearn.metrics import silhouette_score
             from sklearn.neighbors import NearestNeighbors
-            from scipy import stats as scipy_stats
+            from sklearn.preprocessing import StandardScaler
 
             error_X = X.loc[errors].select_dtypes(include=[np.number])
             if len(error_X) < 10 or error_X.shape[1] < 2:
@@ -219,11 +242,14 @@ Selective prediction: reject uncertain samples to improve accuracy.
             if X_scaled.shape[1] > 20:
                 try:
                     from sklearn.decomposition import PCA
+
                     pca = PCA(n_components=0.95, random_state=42)
                     X_scaled = pca.fit_transform(X_scaled)
                     pca_used = True
                 except Exception as e:
-                    self._record_internal_warning('PCAReduction', 'PCA dimensionality reduction failed', e)
+                    self._record_internal_warning(
+                        "PCAReduction", "PCA dimensionality reduction failed", e
+                    )
                     pass
 
             # Silhouette analysis for optimal k (KMeans)
@@ -264,10 +290,11 @@ Selective prediction: reject uncertain samples to improve accuracy.
                         non_noise = db_labels != -1
                         if non_noise.sum() >= 10:
                             dbscan_silhouette = silhouette_score(
-                                X_scaled[non_noise], db_labels[non_noise])
+                                X_scaled[non_noise], db_labels[non_noise]
+                            )
                             dbscan_labels = db_labels
             except Exception as e:
-                self._record_internal_warning('DBSCANClustering', 'DBSCAN clustering failed', e)
+                self._record_internal_warning("DBSCANClustering", "DBSCAN clustering failed", e)
                 pass
 
             # Choose best method
@@ -301,37 +328,50 @@ Selective prediction: reject uncertain samples to improve accuracy.
                         continue
                     try:
                         t_stat, p_val = scipy_stats.ttest_ind(
-                            cluster_data[:, i], rest_data[:, i], equal_var=False)
+                            cluster_data[:, i], rest_data[:, i], equal_var=False
+                        )
                         # Cohen's d effect size
                         pooled_std = np.sqrt(
-                            (np.var(cluster_data[:, i]) + np.var(rest_data[:, i])) / 2)
-                        effect_size = float(
-                            (np.mean(cluster_data[:, i]) - np.mean(rest_data[:, i])) /
-                            pooled_std) if pooled_std > 0 else 0.0
-                        disc_features.append({
-                            'feature': feat,
-                            't_stat': float(t_stat),
-                            'p_value': float(p_val),
-                            'effect_size': effect_size,
-                            'centroid': float(np.mean(cluster_data[:, i])),
-                        })
+                            (np.var(cluster_data[:, i]) + np.var(rest_data[:, i])) / 2
+                        )
+                        effect_size = (
+                            float(
+                                (np.mean(cluster_data[:, i]) - np.mean(rest_data[:, i]))
+                                / pooled_std
+                            )
+                            if pooled_std > 0
+                            else 0.0
+                        )
+                        disc_features.append(
+                            {
+                                "feature": feat,
+                                "t_stat": float(t_stat),
+                                "p_value": float(p_val),
+                                "effect_size": effect_size,
+                                "centroid": float(np.mean(cluster_data[:, i])),
+                            }
+                        )
                     except Exception as e:
-                        self._record_internal_warning('FeatureTTest', 'Feature t-test analysis failed', e)
+                        self._record_internal_warning(
+                            "FeatureTTest", "Feature t-test analysis failed", e
+                        )
                         continue
 
-                disc_features.sort(key=lambda x: abs(x['effect_size']), reverse=True)
+                disc_features.sort(key=lambda x: abs(x["effect_size"]), reverse=True)
 
-                clusters.append({
-                    'cluster_id': c,
-                    'count': count,
-                    'percentage': float(count / len(error_X) * 100),
-                    'silhouette_score': float(chosen_silhouette),
-                    'top_features': disc_features[:5],
-                })
+                clusters.append(
+                    {
+                        "cluster_id": c,
+                        "count": count,
+                        "percentage": float(count / len(error_X) * 100),
+                        "silhouette_score": float(chosen_silhouette),
+                        "top_features": disc_features[:5],
+                    }
+                )
 
             return clusters
         except Exception as e:
-            self._record_internal_warning('ErrorClustering', 'Error clustering failed', e)
+            self._record_internal_warning("ErrorClustering", "Error clustering failed", e)
             return []
 
     def _compute_error_decomposition(self, y_true: Any, y_pred: Any, cm: Any) -> Dict:
@@ -348,24 +388,28 @@ Selective prediction: reject uncertain samples to improve accuracy.
         if n_classes == 2:
             fp = int(cm[0, 1])
             fn = int(cm[1, 0])
-            decomposition['False Positives (Type I)'] = {
-                'count': fp, 'percentage': float(fp / total_errors * 100) if total_errors > 0 else 0.0
+            decomposition["False Positives (Type I)"] = {
+                "count": fp,
+                "percentage": float(fp / total_errors * 100) if total_errors > 0 else 0.0,
             }
-            decomposition['False Negatives (Type II)'] = {
-                'count': fn, 'percentage': float(fn / total_errors * 100) if total_errors > 0 else 0.0
+            decomposition["False Negatives (Type II)"] = {
+                "count": fn,
+                "percentage": float(fn / total_errors * 100) if total_errors > 0 else 0.0,
             }
         else:
             for i in range(n_classes):
                 class_errors = int(cm[i].sum() - cm[i, i])
                 if class_errors > 0:
-                    decomposition[f'Class {i} errors'] = {
-                        'count': class_errors,
-                        'percentage': float(class_errors / total_errors * 100),
+                    decomposition[f"Class {i} errors"] = {
+                        "count": class_errors,
+                        "percentage": float(class_errors / total_errors * 100),
                     }
 
         return decomposition
 
-    def _compute_rejection_thresholds(self, y_true: Any, y_pred: Any, y_prob: Any, targets: Any = (0.95, 0.99)) -> Dict:
+    def _compute_rejection_thresholds(
+        self, y_true: Any, y_pred: Any, y_prob: Any, targets: Any = (0.95, 0.99)
+    ) -> Dict:
         """Find confidence thresholds where accuracy reaches target levels.
 
         Returns dict with threshold, rejection rate, and achieved accuracy for each target.
@@ -401,13 +445,13 @@ Selective prediction: reject uncertain samples to improve accuracy.
                     best_rej = rej_rate
 
             if best_thresh is not None:
-                result[f'threshold_{target_key}'] = f'{best_thresh:.2f}'
-                result[f'rejection_rate_{target_key}'] = f'{best_rej:.1%}'
-                result[f'achieved_accuracy_{target_key}'] = f'{best_acc:.4f}'
+                result[f"threshold_{target_key}"] = f"{best_thresh:.2f}"
+                result[f"rejection_rate_{target_key}"] = f"{best_rej:.1%}"
+                result[f"achieved_accuracy_{target_key}"] = f"{best_acc:.4f}"
             else:
-                result[f'threshold_{target_key}'] = 'N/A'
-                result[f'rejection_rate_{target_key}'] = 'N/A'
-                result[f'achieved_accuracy_{target_key}'] = 'N/A'
+                result[f"threshold_{target_key}"] = "N/A"
+                result[f"rejection_rate_{target_key}"] = "N/A"
+                result[f"achieved_accuracy_{target_key}"] = "N/A"
 
         return result
 
@@ -422,17 +466,22 @@ Selective prediction: reject uncertain samples to improve accuracy.
             diff = abs(error_mean - correct_mean) / (correct_mean + 1e-10) * 100
 
             patterns[col] = {
-                'correct_mean': correct_mean,
-                'error_mean': error_mean,
-                'diff_pct': diff
+                "correct_mean": correct_mean,
+                "error_mean": error_mean,
+                "diff_pct": diff,
             }
 
         return patterns
 
-    def _create_error_analysis_chart(self, X: Any, errors: Any, y_true: Any, y_pred: Any, patterns: Any) -> str:
+    def _create_error_analysis_chart(
+        self, X: Any, errors: Any, y_true: Any, y_pred: Any, patterns: Any
+    ) -> str:
         """Create error analysis visualization."""
         try:
-            with self._chart_context('error_analysis', figsize=(12, 5), nrows=1, ncols=2) as (fig, axes):
+            with self._chart_context("error_analysis", figsize=(12, 5), nrows=1, ncols=2) as (
+                fig,
+                axes,
+            ):
                 # Error rate by predicted class
                 ax1 = axes[0]
                 unique_pred = np.unique(y_pred)
@@ -444,25 +493,37 @@ Selective prediction: reject uncertain samples to improve accuracy.
                     else:
                         error_rates.append(0)
 
-                ax1.bar(unique_pred, error_rates, color=self.theme['danger'], alpha=0.8)
-                ax1.set_xlabel('Predicted Class', fontsize=11)
-                ax1.set_ylabel('Error Rate (%)', fontsize=11)
-                ax1.set_title('Error Rate by Predicted Class', fontsize=14, fontweight='bold', color=self.theme['primary'])
+                ax1.bar(unique_pred, error_rates, color=self.theme["danger"], alpha=0.8)
+                ax1.set_xlabel("Predicted Class", fontsize=11)
+                ax1.set_ylabel("Error Rate (%)", fontsize=11)
+                ax1.set_title(
+                    "Error Rate by Predicted Class",
+                    fontsize=14,
+                    fontweight="bold",
+                    color=self.theme["primary"],
+                )
 
                 # Feature difference in errors
                 ax2 = axes[1]
                 if patterns:
-                    sorted_patterns = sorted(patterns.items(), key=lambda x: x[1]['diff_pct'], reverse=True)[:10]
+                    sorted_patterns = sorted(
+                        patterns.items(), key=lambda x: x[1]["diff_pct"], reverse=True
+                    )[:10]
                     features = [x[0][:15] for x in sorted_patterns]
-                    diffs = [x[1]['diff_pct'] for x in sorted_patterns]
+                    diffs = [x[1]["diff_pct"] for x in sorted_patterns]
 
-                    ax2.barh(range(len(features)), diffs, color=self.theme['warning'], alpha=0.8)
+                    ax2.barh(range(len(features)), diffs, color=self.theme["warning"], alpha=0.8)
                     ax2.set_yticks(range(len(features)))
                     ax2.set_yticklabels(features, fontsize=9)
-                    ax2.set_xlabel('% Difference (Error vs Correct)', fontsize=11)
-                    ax2.set_title('Features with Different Error Patterns', fontsize=14, fontweight='bold', color=self.theme['primary'])
+                    ax2.set_xlabel("% Difference (Error vs Correct)", fontsize=11)
+                    ax2.set_title(
+                        "Features with Different Error Patterns",
+                        fontsize=14,
+                        fontweight="bold",
+                        color=self.theme["primary"],
+                    )
 
-            return 'figures/error_analysis.png'
+            return "figures/error_analysis.png"
         except Exception as e:
             logger.debug(f"Failed to create error analysis chart: {e}")
             return ""

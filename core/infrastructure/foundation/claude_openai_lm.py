@@ -17,13 +17,15 @@ Features:
 - Proper streaming support
 """
 
-import os
 import logging
+import os
 import subprocess
 import time
-import requests
+from typing import Any, Optional
+
 import dspy
-from typing import Optional, Any
+import requests
+
 from Jotty.core.infrastructure.foundation.exceptions import LLMError
 
 logger = logging.getLogger(__name__)
@@ -31,6 +33,7 @@ logger = logging.getLogger(__name__)
 # Default wrapper endpoint (centralized default, overridable via env var)
 try:
     from .config_defaults import DEFAULTS as _DEFAULTS
+
     _PROXY_BASE = os.getenv("CLAUDE_OPENAI_PROXY_URL", _DEFAULTS.CLAUDE_OPENAI_PROXY_URL)
 except ImportError:
     _PROXY_BASE = os.getenv("CLAUDE_OPENAI_PROXY_URL", "http://127.0.0.1:8765")
@@ -61,14 +64,18 @@ def start_wrapper_server(port: int = 8765, wait_seconds: int = 15) -> bool:
     try:
         # Start server in background
         subprocess.Popen(
-            ["python", "-c", f"""
+            [
+                "python",
+                "-c",
+                f"""
 import uvicorn
 from src.main import app
 uvicorn.run(app, host='127.0.0.1', port={port}, log_level='warning')
-"""],
+""",
+            ],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            start_new_session=True
+            start_new_session=True,
         )
 
         # Wait for server to be ready
@@ -86,7 +93,12 @@ uvicorn.run(app, host='127.0.0.1', port={port}, log_level='warning')
         return False
 
 
-def create_claude_openai_lm(model: str = DEFAULT_MODEL, base_url: str = DEFAULT_WRAPPER_URL, auto_start: bool = True, **kwargs: Any) -> dspy.LM:
+def create_claude_openai_lm(
+    model: str = DEFAULT_MODEL,
+    base_url: str = DEFAULT_WRAPPER_URL,
+    auto_start: bool = True,
+    **kwargs: Any,
+) -> dspy.LM:
     """
     Create a DSPy LM using the local OpenAI-compatible Claude wrapper.
 
@@ -105,26 +117,32 @@ def create_claude_openai_lm(model: str = DEFAULT_MODEL, base_url: str = DEFAULT_
         if not start_wrapper_server(port):
             raise LLMError(
                 "OpenAI wrapper not running and failed to start. "
-                "Start manually with: python -c \"import uvicorn; from src.main import app; "
+                'Start manually with: python -c "import uvicorn; from src.main import app; '
                 "uvicorn.run(app, host='127.0.0.1', port=8765)\""
             )
 
     # Create DSPy LM using OpenAI format
     # The wrapper doesn't need an API key, but DSPy requires one
     from Jotty.core.infrastructure.foundation.config_defaults import LLM_MAX_OUTPUT_TOKENS
-    kwargs.setdefault('max_tokens', LLM_MAX_OUTPUT_TOKENS)
+
+    kwargs.setdefault("max_tokens", LLM_MAX_OUTPUT_TOKENS)
     lm = dspy.LM(
         model=f"openai/{model}",
         api_base=base_url,
         api_key="not-needed",  # Wrapper doesn't require auth
-        **kwargs
+        **kwargs,
     )
 
     logger.info(f" Created Claude OpenAI LM: {model} @ {base_url}")
     return lm
 
 
-def configure_claude_openai(model: str = DEFAULT_MODEL, base_url: str = DEFAULT_WRAPPER_URL, auto_start: bool = True, **kwargs: Any) -> dspy.LM:
+def configure_claude_openai(
+    model: str = DEFAULT_MODEL,
+    base_url: str = DEFAULT_WRAPPER_URL,
+    auto_start: bool = True,
+    **kwargs: Any,
+) -> dspy.LM:
     """
     Configure DSPy with Claude via OpenAI-compatible wrapper.
 

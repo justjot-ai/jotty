@@ -1,20 +1,67 @@
 """Generate SQL INSERT statements or JSON seed data with realistic fake data."""
+
+import json
 import random
 import string
-import json
-from typing import Dict, Any, List
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from typing import Any, Dict, List
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
+
 status = SkillStatus("db-seed-generator")
 
-_FIRST = ["Alice","Bob","Carol","Dave","Eve","Frank","Grace","Hank","Ivy","Jack",
-           "Karen","Leo","Mia","Noah","Olivia","Pat","Quinn","Rosa","Sam","Tina"]
-_LAST = ["Smith","Jones","Brown","Davis","Wilson","Moore","Taylor","Anderson",
-          "Thomas","Jackson","White","Harris","Martin","Garcia","Clark","Lewis"]
-_DOMAINS = ["example.com","test.org","demo.net","sample.io","mail.com"]
-_CITIES = ["New York","London","Tokyo","Berlin","Sydney","Toronto","Paris","Mumbai"]
-_COMPANIES = ["Acme Corp","Globex","Initech","Umbrella","Wayne Enterprises",
-              "Stark Industries","Cyberdyne","Soylent Corp"]
+_FIRST = [
+    "Alice",
+    "Bob",
+    "Carol",
+    "Dave",
+    "Eve",
+    "Frank",
+    "Grace",
+    "Hank",
+    "Ivy",
+    "Jack",
+    "Karen",
+    "Leo",
+    "Mia",
+    "Noah",
+    "Olivia",
+    "Pat",
+    "Quinn",
+    "Rosa",
+    "Sam",
+    "Tina",
+]
+_LAST = [
+    "Smith",
+    "Jones",
+    "Brown",
+    "Davis",
+    "Wilson",
+    "Moore",
+    "Taylor",
+    "Anderson",
+    "Thomas",
+    "Jackson",
+    "White",
+    "Harris",
+    "Martin",
+    "Garcia",
+    "Clark",
+    "Lewis",
+]
+_DOMAINS = ["example.com", "test.org", "demo.net", "sample.io", "mail.com"]
+_CITIES = ["New York", "London", "Tokyo", "Berlin", "Sydney", "Toronto", "Paris", "Mumbai"]
+_COMPANIES = [
+    "Acme Corp",
+    "Globex",
+    "Initech",
+    "Umbrella",
+    "Wayne Enterprises",
+    "Stark Industries",
+    "Cyberdyne",
+    "Soylent Corp",
+]
 
 
 def _fake(col_type: str) -> Any:

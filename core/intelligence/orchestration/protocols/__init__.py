@@ -12,13 +12,13 @@ These are mixed into SwarmIntelligence at class definition time.
 """
 
 from .coordination import CoordinationMixin
-from .routing import RoutingMixin
-from .resilience import ResilienceMixin
 from .lifecycle import LifecycleMixin
+from .resilience import ResilienceMixin
+from .routing import RoutingMixin
 
 __all__ = [
-    'CoordinationMixin',
-    'RoutingMixin',
-    'ResilienceMixin',
-    'LifecycleMixin',
+    "CoordinationMixin",
+    "RoutingMixin",
+    "ResilienceMixin",
+    "LifecycleMixin",
 ]

@@ -5,8 +5,9 @@ Task Queue Command
 Manage coding tasks via Supervisor API.
 """
 
+from typing import TYPE_CHECKING, Any, List
+
 import aiohttp
-from typing import TYPE_CHECKING, List, Any
 
 from .base import BaseCommand, CommandResult, ParsedArgs
 
@@ -20,7 +21,9 @@ class TaskCommand(BaseCommand):
     name = "task"
     aliases = ["t"]
     description = "Manage coding tasks via Supervisor API"
-    usage = "/task [create|list|get|start|pause|kill|delete|log|stats|templates|from-template] [args]"
+    usage = (
+        "/task [create|list|get|start|pause|kill|delete|log|stats|templates|from-template] [args]"
+    )
     category = "supervisor"
 
     SUPERVISOR_URL = "http://localhost:8080"
@@ -85,10 +88,9 @@ Return a JSON object with:
 
 Respond ONLY with valid JSON, no markdown."""
 
-            result = await self._api_request("POST", "/api/chat", {
-                "message": prompt,
-                "history": []
-            })
+            result = await self._api_request(
+                "POST", "/api/chat", {"message": prompt, "history": []}
+            )
 
             if result.get("success"):
                 response_text = result.get("result", {}).get("response", "")
@@ -97,7 +99,7 @@ Respond ONLY with valid JSON, no markdown."""
                 import re
 
                 # Extract JSON from response (handle markdown code blocks)
-                json_match = re.search(r'\{[\s\S]*\}', response_text)
+                json_match = re.search(r"\{[\s\S]*\}", response_text)
                 if json_match:
                     try:
                         return json.loads(json_match.group())
@@ -109,7 +111,7 @@ Respond ONLY with valid JSON, no markdown."""
                 "title": brief_idea.strip().capitalize(),
                 "description": f"Task: {brief_idea}\n\n## Acceptance Criteria\n- [ ] Task completed",
                 "priority": 3,
-                "category": "feature"
+                "category": "feature",
             }
 
         except Exception as e:
@@ -118,7 +120,7 @@ Respond ONLY with valid JSON, no markdown."""
                 "title": brief_idea.strip().capitalize(),
                 "description": brief_idea,
                 "priority": 3,
-                "category": ""
+                "category": "",
             }
 
     async def _create_task(self, args: ParsedArgs, cli: "JottyCLI") -> CommandResult:
@@ -151,7 +153,7 @@ Options:
   --category        Category tag for filtering
   --generate, -g    Use AI to expand brief idea into full task""",
                 title="Task Create Usage",
-                style="cyan"
+                style="cyan",
             )
             return CommandResult.fail("Missing title")
 
@@ -179,14 +181,18 @@ Options:
             status = "backlog"
 
         try:
-            result = await self._api_request("POST", "/api/tasks/create", {
-                "title": title,
-                "description": description,
-                "priority": priority,
-                "agent_type": agent_type,
-                "status": status,
-                "category": category
-            })
+            result = await self._api_request(
+                "POST",
+                "/api/tasks/create",
+                {
+                    "title": title,
+                    "description": description,
+                    "priority": priority,
+                    "agent_type": agent_type,
+                    "status": status,
+                    "category": category,
+                },
+            )
 
             if result.get("success"):
                 task_id = result.get("task_id")
@@ -198,7 +204,7 @@ Options:
                 return CommandResult.ok(data=result)
             else:
                 cli.renderer.error(f"Failed to create task: {result.get('error')}")
-                return CommandResult.fail(result.get('error', 'Unknown error'))
+                return CommandResult.fail(result.get("error", "Unknown error"))
 
         except Exception as e:
             cli.renderer.error(f"API error: {e}")
@@ -227,13 +233,13 @@ Options:
                 cli.renderer.panel(
                     f"{header}\n  {'-' * 60}\n" + "\n".join(lines),
                     title="Task Templates",
-                    style="cyan"
+                    style="cyan",
                 )
-                cli.renderer.info("\nUsage: /task from-template <name> \"summary\" [\"description\"]")
+                cli.renderer.info('\nUsage: /task from-template <name> "summary" ["description"]')
                 return CommandResult.ok(data=templates)
             else:
                 cli.renderer.error(f"Failed to list templates: {result.get('error')}")
-                return CommandResult.fail(result.get('error', 'Unknown error'))
+                return CommandResult.fail(result.get("error", "Unknown error"))
 
         except Exception as e:
             cli.renderer.error(f"API error: {e}")
@@ -246,7 +252,9 @@ Options:
             /task from-template <template> "summary" ["description"] [--priority=N] [--agent=claude] [--lane=backlog]
         """
         if len(args.positional) < 3:
-            cli.renderer.error("Usage: /task from-template <template> \"summary\" [\"description\"] [--lane=backlog]")
+            cli.renderer.error(
+                'Usage: /task from-template <template> "summary" ["description"] [--lane=backlog]'
+            )
             cli.renderer.info("\nAvailable templates:")
             await self._list_templates(cli)
             return CommandResult.fail("Missing template or summary")
@@ -269,7 +277,7 @@ Options:
                 "template": template_name,
                 "summary": summary,
                 "description": description,
-                "status": status
+                "status": status,
             }
 
             # Only include overrides if specified
@@ -292,7 +300,7 @@ Options:
                 return CommandResult.ok(data=result)
             else:
                 cli.renderer.error(f"Failed to create task: {result.get('error')}")
-                return CommandResult.fail(result.get('error', 'Unknown error'))
+                return CommandResult.fail(result.get("error", "Unknown error"))
 
         except Exception as e:
             cli.renderer.error(f"API error: {e}")
@@ -318,16 +326,16 @@ Options:
             return CommandResult.fail("Invalid swimlane")
 
         try:
-            result = await self._api_request("POST", f"/api/tasks/{task_id}/status", {
-                "status": new_lane
-            })
+            result = await self._api_request(
+                "POST", f"/api/tasks/{task_id}/status", {"status": new_lane}
+            )
 
             if result.get("success"):
                 cli.renderer.success(f"Task {task_id} moved to '{new_lane}'")
                 return CommandResult.ok(data=result)
             else:
                 cli.renderer.error(f"Failed to move task: {result.get('error')}")
-                return CommandResult.fail(result.get('error', 'Unknown error'))
+                return CommandResult.fail(result.get("error", "Unknown error"))
 
         except Exception as e:
             cli.renderer.error(f"API error: {e}")
@@ -358,13 +366,15 @@ Options:
                 # Build table data
                 table_data = []
                 for task in tasks:
-                    table_data.append({
-                        "ID": task.get("task_id", task.get("id", "?"))[:20],
-                        "Title": (task.get("title", "Untitled"))[:40],
-                        "Status": task.get("status", "?"),
-                        "Priority": task.get("priority", 3),
-                        "Agent": task.get("agent_type", "claude")
-                    })
+                    table_data.append(
+                        {
+                            "ID": task.get("task_id", task.get("id", "?"))[:20],
+                            "Title": (task.get("title", "Untitled"))[:40],
+                            "Status": task.get("status", "?"),
+                            "Priority": task.get("priority", 3),
+                            "Agent": task.get("agent_type", "claude"),
+                        }
+                    )
 
                 # Render table
                 self._render_task_table(table_data, cli)
@@ -372,13 +382,13 @@ Options:
                 return CommandResult.ok(data=tasks)
             else:
                 cli.renderer.error(f"Failed to list tasks: {result.get('error')}")
-                return CommandResult.fail(result.get('error', 'Unknown error'))
+                return CommandResult.fail(result.get("error", "Unknown error"))
 
         except Exception as e:
             cli.renderer.error(f"API error: {e}")
             return CommandResult.fail(str(e))
 
-    def _render_task_table(self, data: List[dict], cli: 'JottyCLI') -> Any:
+    def _render_task_table(self, data: List[dict], cli: "JottyCLI") -> Any:
         """Render task table."""
         if not data:
             return
@@ -397,7 +407,7 @@ Options:
                 "pending": "cyan",
                 "failed": "red",
                 "backlog": "dim",
-                "suggested": "dim"
+                "suggested": "dim",
             }.get(status, "white")
 
             line = f"{row['ID']:<22} {row['Title']:<42} [{status_color}]{status:<12}[/{status_color}] {row['Priority']:<4} {row['Agent']:<8}"
@@ -420,13 +430,14 @@ Options:
                 info = {
                     "Task ID": task.get("task_id", task_id),
                     "Title": task.get("title", "Untitled"),
-                    "Description": task.get("description", "")[:200] + ("..." if len(task.get("description", "")) > 200 else ""),
+                    "Description": task.get("description", "")[:200]
+                    + ("..." if len(task.get("description", "")) > 200 else ""),
                     "Status": task.get("status", "?"),
                     "Priority": task.get("priority", 3),
                     "Category": task.get("category", "-"),
                     "Agent": task.get("agent_type", "claude"),
                     "Created": task.get("created_at", "?"),
-                    "PID": task.get("pid") or "-"
+                    "PID": task.get("pid") or "-",
                 }
                 cli.renderer.tree(info, title=f"Task: {task_id}")
                 return CommandResult.ok(data=task)
@@ -447,16 +458,16 @@ Options:
         task_id = args.positional[1]
 
         try:
-            result = await self._api_request("POST", f"/api/tasks/{task_id}/status", {
-                "status": "pending"
-            })
+            result = await self._api_request(
+                "POST", f"/api/tasks/{task_id}/status", {"status": "pending"}
+            )
 
             if result.get("success"):
                 cli.renderer.success(f"Task {task_id} moved to pending (will be spawned)")
                 return CommandResult.ok(data=result)
             else:
                 cli.renderer.error(f"Failed to start task: {result.get('error')}")
-                return CommandResult.fail(result.get('error', 'Unknown error'))
+                return CommandResult.fail(result.get("error", "Unknown error"))
 
         except Exception as e:
             cli.renderer.error(f"API error: {e}")
@@ -471,16 +482,14 @@ Options:
         task_id = args.positional[1]
 
         try:
-            result = await self._api_request("POST", "/api/tasks/pause", {
-                "task_id": task_id
-            })
+            result = await self._api_request("POST", "/api/tasks/pause", {"task_id": task_id})
 
             if result.get("success"):
                 cli.renderer.success(f"Task {task_id} paused")
                 return CommandResult.ok(data=result)
             else:
                 cli.renderer.error(f"Failed to pause task: {result.get('error')}")
-                return CommandResult.fail(result.get('error', 'Unknown error'))
+                return CommandResult.fail(result.get("error", "Unknown error"))
 
         except Exception as e:
             cli.renderer.error(f"API error: {e}")
@@ -495,16 +504,14 @@ Options:
         task_id = args.positional[1]
 
         try:
-            result = await self._api_request("POST", "/api/tasks/kill", {
-                "task_id": task_id
-            })
+            result = await self._api_request("POST", "/api/tasks/kill", {"task_id": task_id})
 
             if result.get("success"):
                 cli.renderer.success(f"Task {task_id} killed")
                 return CommandResult.ok(data=result)
             else:
                 cli.renderer.error(f"Failed to kill task: {result.get('error')}")
-                return CommandResult.fail(result.get('error', 'Unknown error'))
+                return CommandResult.fail(result.get("error", "Unknown error"))
 
         except Exception as e:
             cli.renderer.error(f"API error: {e}")
@@ -519,16 +526,14 @@ Options:
         task_id = args.positional[1]
 
         try:
-            result = await self._api_request("POST", "/api/tasks/delete", {
-                "task_id": task_id
-            })
+            result = await self._api_request("POST", "/api/tasks/delete", {"task_id": task_id})
 
             if result.get("success"):
                 cli.renderer.success(f"Task {task_id} deleted")
                 return CommandResult.ok(data=result)
             else:
                 cli.renderer.error(f"Failed to delete task: {result.get('error')}")
-                return CommandResult.fail(result.get('error', 'Unknown error'))
+                return CommandResult.fail(result.get("error", "Unknown error"))
 
         except Exception as e:
             cli.renderer.error(f"API error: {e}")
@@ -555,7 +560,7 @@ Options:
                 return CommandResult.ok(data={"output": output})
             else:
                 cli.renderer.error(f"Failed to get log: {result.get('error')}")
-                return CommandResult.fail(result.get('error', 'Unknown error'))
+                return CommandResult.fail(result.get("error", "Unknown error"))
 
         except Exception as e:
             cli.renderer.error(f"API error: {e}")
@@ -573,7 +578,7 @@ Options:
                 "Pending": len(result.get("pending_tasks", [])),
                 "In Progress": len(result.get("in_progress_tasks", [])),
                 "Completed": len(result.get("completed_task_files", [])),
-                "Failed": len(result.get("failed_task_files", []))
+                "Failed": len(result.get("failed_task_files", [])),
             }
 
             total = sum(stats.values())
@@ -590,7 +595,7 @@ Options:
 
             # Show quick actions
             cli.renderer.info("\nQuick actions:")
-            cli.renderer.info("  /task create \"title\"          - Create new task")
+            cli.renderer.info('  /task create "title"          - Create new task')
             cli.renderer.info("  /task templates               - List templates")
             cli.renderer.info("  /task from-template bug-fix   - Create from template")
             cli.renderer.info("  /task list --lane=pending     - List by swimlane")
@@ -608,7 +613,19 @@ Options:
     def get_completions(self, partial: str) -> list:
         """Get subcommand completions."""
         subcommands = [
-            "create", "new", "add", "list", "get", "start", "pause", "kill", "delete",
-            "log", "stats", "templates", "from-template", "move"
+            "create",
+            "new",
+            "add",
+            "list",
+            "get",
+            "start",
+            "pause",
+            "kill",
+            "delete",
+            "log",
+            "stats",
+            "templates",
+            "from-template",
+            "move",
         ]
         return [s for s in subcommands if s.startswith(partial)]

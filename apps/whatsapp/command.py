@@ -54,7 +54,11 @@ class WhatsAppCommand(BaseCommand):
             return await self._check(cli)
         elif subcommand == "send":
             to = args.flags.get("to") or (args.positional[1] if len(args.positional) > 1 else None)
-            message = args.flags.get("message") or " ".join(args.positional[2:]) if len(args.positional) > 2 else None
+            message = (
+                args.flags.get("message") or " ".join(args.positional[2:])
+                if len(args.positional) > 2
+                else None
+            )
             return await self._send_message(cli, to, message)
         elif subcommand == "chats":
             return await self._list_chats(cli)
@@ -79,6 +83,7 @@ class WhatsAppCommand(BaseCommand):
         """Get or create WhatsApp client."""
         if WhatsAppCommand._client is None:
             from ..channels.whatsapp_web import WhatsAppWebClient, set_global_whatsapp_client
+
             WhatsAppCommand._client = WhatsAppWebClient()
             set_global_whatsapp_client(WhatsAppCommand._client)
         return WhatsAppCommand._client
@@ -102,15 +107,16 @@ class WhatsAppCommand(BaseCommand):
             async def handle_message(msg: Any) -> Any:
                 cli.renderer.print(f"[green]WhatsApp[/green] {msg.sender_name}: {msg.body[:100]}")
                 # Route to gateway if available
-                if hasattr(cli, '_gateway_router'):
-                    from ..gateway.channels import MessageEvent, ChannelType
+                if hasattr(cli, "_gateway_router"):
+                    from ..gateway.channels import ChannelType, MessageEvent
+
                     event = MessageEvent(
                         channel=ChannelType.WHATSAPP,
                         channel_id=msg.from_number,
                         user_id=msg.from_number,
                         user_name=msg.sender_name,
                         content=msg.body,
-                        message_id=msg.id
+                        message_id=msg.id,
                     )
                     await cli._gateway_router.handle_message(event)
 
@@ -128,7 +134,9 @@ class WhatsAppCommand(BaseCommand):
                 cli.renderer.info("Restoring session from saved credentials...")
             else:
                 cli.renderer.info("Waiting for QR code...")
-                cli.renderer.info("(The QR code will appear below - scan with WhatsApp on your phone)")
+                cli.renderer.info(
+                    "(The QR code will appear below - scan with WhatsApp on your phone)"
+                )
             cli.renderer.newline()
 
             # Wait for connection (saved session or after QR scan)
@@ -182,7 +190,7 @@ class WhatsAppCommand(BaseCommand):
                 return CommandResult.ok(data=result)
             else:
                 cli.renderer.error(f"Send failed: {result.get('error')}")
-                return CommandResult.fail(result.get('error'))
+                return CommandResult.fail(result.get("error"))
 
         except Exception as e:
             logger.error(f"Send error: {e}", exc_info=True)
@@ -204,8 +212,8 @@ class WhatsAppCommand(BaseCommand):
 
             cli.renderer.header("WhatsApp Chats")
             for chat in chats[:20]:
-                unread = f" ({chat['unread_count']} unread)" if chat.get('unread_count') else ""
-                group_icon = "" if chat.get('is_group') else ""
+                unread = f" ({chat['unread_count']} unread)" if chat.get("unread_count") else ""
+                group_icon = "" if chat.get("is_group") else ""
                 cli.renderer.print(f"  {group_icon} {chat['name']}{unread}")
 
             return CommandResult.ok(data={"chats": chats})
@@ -254,6 +262,7 @@ class WhatsAppCommand(BaseCommand):
             await client.stop()
             WhatsAppCommand._client = None
             from ..channels.whatsapp_web import set_global_whatsapp_client
+
             set_global_whatsapp_client(None)
             cli.renderer.success("WhatsApp client stopped")
             return CommandResult.ok()
@@ -272,14 +281,20 @@ class WhatsAppCommand(BaseCommand):
         creds = WHATSAPP_SESSION_DIR / "creds.json"
         if creds.is_file():
             cli.renderer.success("Saved credentials found (creds.json)")
-            cli.renderer.info("Next /whatsapp login will restore session without QR (if still valid).")
+            cli.renderer.info(
+                "Next /whatsapp login will restore session without QR (if still valid)."
+            )
         else:
             cli.renderer.warning("No creds.json found in session directory.")
             cli.renderer.info("Run /whatsapp login and scan the QR code once to save credentials.")
         others = [f.name for f in WHATSAPP_SESSION_DIR.iterdir() if f.is_file()]
         if others:
-            cli.renderer.print(f"  Other files: [dim]{', '.join(others[:10])}{'...' if len(others) > 10 else ''}[/dim]")
-        return CommandResult.ok(data={"session_dir": str(WHATSAPP_SESSION_DIR), "has_creds": creds.is_file()})
+            cli.renderer.print(
+                f"  Other files: [dim]{', '.join(others[:10])}{'...' if len(others) > 10 else ''}[/dim]"
+            )
+        return CommandResult.ok(
+            data={"session_dir": str(WHATSAPP_SESSION_DIR), "has_creds": creds.is_file()}
+        )
 
     async def _status(self, cli: "JottyCLI") -> CommandResult:
         """Show connection status."""
@@ -289,13 +304,19 @@ class WhatsAppCommand(BaseCommand):
             if client.connected:
                 cli.renderer.success("WhatsApp: Connected")
                 if client._info:
-                    cli.renderer.print(f"  Phone: {client._info.get('wid', {}).get('user', 'Unknown')}")
+                    cli.renderer.print(
+                        f"  Phone: {client._info.get('wid', {}).get('user', 'Unknown')}"
+                    )
             else:
                 cli.renderer.warning("WhatsApp: Not connected")
                 if _whatsapp_session_has_creds():
-                    cli.renderer.info("Saved credentials found. Run /whatsapp login to restore session (no QR).")
+                    cli.renderer.info(
+                        "Saved credentials found. Run /whatsapp login to restore session (no QR)."
+                    )
                 else:
-                    cli.renderer.info("Run /whatsapp login to connect (scan QR once to save credentials).")
+                    cli.renderer.info(
+                        "Run /whatsapp login to connect (scan QR once to save credentials)."
+                    )
 
             return CommandResult.ok()
 

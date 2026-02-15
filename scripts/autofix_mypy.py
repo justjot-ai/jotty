@@ -43,10 +43,10 @@ class MypyStubParser:
         """
         missing_stubs = set()
 
-        for line in output.split('\n'):
+        for line in output.split("\n"):
             match = cls.STUB_HINT_PATTERN.search(line)
             if match:
-                missing_stubs.add(match.group('package'))
+                missing_stubs.add(match.group("package"))
 
         return missing_stubs
 
@@ -58,10 +58,7 @@ def run_mypy() -> Tuple[int, str]:
     """
     try:
         result = subprocess.run(
-            [sys.executable, '-m', 'mypy'],
-            capture_output=True,
-            text=True,
-            timeout=60
+            [sys.executable, "-m", "mypy"], capture_output=True, text=True, timeout=60
         )
         return result.returncode, result.stdout + result.stderr
     except subprocess.TimeoutExpired:
@@ -89,10 +86,10 @@ def install_stubs(packages: List[str], dry_run: bool = False) -> bool:
 
     try:
         result = subprocess.run(
-            [sys.executable, '-m', 'pip', 'install'] + packages,
+            [sys.executable, "-m", "pip", "install"] + packages,
             capture_output=True,
             text=True,
-            timeout=120
+            timeout=120,
         )
 
         if result.returncode == 0:
@@ -111,11 +108,10 @@ def install_stubs(packages: List[str], dry_run: bool = False) -> bool:
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Auto-discover and auto-fix mypy type stub issues"
+    parser = argparse.ArgumentParser(description="Auto-discover and auto-fix mypy type stub issues")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Show what would be installed without making changes"
     )
-    parser.add_argument('--dry-run', action='store_true',
-                       help="Show what would be installed without making changes")
     args = parser.parse_args()
 
     print("🔍 Running mypy to detect missing stubs...")
@@ -131,11 +127,11 @@ def main():
     if not missing_stubs:
         print("⚠️  Mypy failed but no missing stubs were detected.")
         print("    There might be actual type errors requiring manual fixes.")
-        print("\n" + "="*80)
+        print("\n" + "=" * 80)
         print("MYPY OUTPUT (first 50 lines):")
-        print("="*80)
-        print('\n'.join(output.split('\n')[:50]))
-        print("="*80)
+        print("=" * 80)
+        print("\n".join(output.split("\n")[:50]))
+        print("=" * 80)
         print("\n💡 Manual intervention required - check output above")
         return 1
 
@@ -169,16 +165,16 @@ def main():
             else:
                 print("⚠️  Stubs installed but mypy still has errors.")
                 print("    These are likely actual type errors requiring manual fixes.")
-                print("\n" + "="*80)
+                print("\n" + "=" * 80)
                 print("REMAINING MYPY ERRORS (first 30 lines):")
-                print("="*80)
-                print('\n'.join(output.split('\n')[:30]))
-                print("="*80)
+                print("=" * 80)
+                print("\n".join(output.split("\n")[:30]))
+                print("=" * 80)
                 return 1
     else:
         print("\n❌ Failed to install stub packages")
         return 1
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

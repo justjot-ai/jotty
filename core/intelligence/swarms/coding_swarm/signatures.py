@@ -7,10 +7,10 @@ All DSPy Signature definitions used by CodingSwarm agents.
 
 import dspy
 
-
 # =============================================================================
 # CORE SIGNATURES
 # =============================================================================
+
 
 class ArchitectureDesignSignature(dspy.Signature):
     """Design software architecture for the given requirements.
@@ -30,6 +30,7 @@ class ArchitectureDesignSignature(dspy.Signature):
     - File structure
     - Key interfaces/contracts
     """
+
     requirements: str = dspy.InputField(desc="Detailed requirements for the software")
     language: str = dspy.InputField(desc="Target programming language")
     style: str = dspy.InputField(desc="Coding style preference")
@@ -61,6 +62,7 @@ class CodeGenerationSignature(dspy.Signature):
     - SQL injection prevention
     - XSS prevention where applicable
     """
+
     architecture: str = dspy.InputField(desc="Architecture design to implement")
     component: str = dspy.InputField(desc="Specific component to implement")
     language: str = dspy.InputField(desc="Programming language")
@@ -83,6 +85,7 @@ class DebugAnalysisSignature(dspy.Signature):
     4. Propose minimal fix
     5. Verify fix doesn't introduce new issues
     """
+
     code: str = dspy.InputField(desc="Code with potential bugs")
     error_message: str = dspy.InputField(desc="Error message or bug description")
     context: str = dspy.InputField(desc="Additional context")
@@ -106,9 +109,12 @@ class CodeOptimizationSignature(dspy.Signature):
     4. Maintainability
     5. Resource usage
     """
+
     code: str = dspy.InputField(desc="Code to optimize")
     focus: str = dspy.InputField(desc="Optimization focus: performance, readability, memory")
-    requirements: str = dspy.InputField(desc="Original requirements the code must satisfy; do not optimize away intent")
+    requirements: str = dspy.InputField(
+        desc="Original requirements the code must satisfy; do not optimize away intent"
+    )
     constraints: str = dspy.InputField(desc="Constraints to maintain")
 
     optimized_code: str = dspy.OutputField(desc="Optimized code")
@@ -128,6 +134,7 @@ class TestGenerationSignature(dspy.Signature):
     4. Error cases - exception handling
     5. Property-based tests where applicable
     """
+
     code: str = dspy.InputField(desc="Code to test")
     framework: str = dspy.InputField(desc="Test framework: pytest, jest, etc.")
     coverage_target: str = dspy.InputField(desc="Coverage requirements")
@@ -149,6 +156,7 @@ class DocumentationSignature(dspy.Signature):
     4. API reference
     5. Architecture explanation
     """
+
     code: str = dspy.InputField(desc="Code to document")
     architecture: str = dspy.InputField(desc="Architecture overview")
     audience: str = dspy.InputField(desc="Target audience: developers, users, etc.")
@@ -164,6 +172,7 @@ class ResearchQuerySignature(dspy.Signature):
     You are a RESEARCH ASSISTANT. Generate specific, targeted search queries
     to find best practices, library docs, and known pitfalls for the task.
     """
+
     requirements: str = dspy.InputField(desc="Requirements for the software to build")
     language: str = dspy.InputField(desc="Target programming language")
     frameworks: str = dspy.InputField(desc="Frameworks and libraries being used")
@@ -175,6 +184,7 @@ class ResearchQuerySignature(dspy.Signature):
 # EDIT MODE SIGNATURES
 # =============================================================================
 
+
 class CodebaseAnalysisSignature(dspy.Signature):
     """Analyze existing codebase to understand structure and patterns.
 
@@ -184,15 +194,20 @@ class CodebaseAnalysisSignature(dspy.Signature):
     - Key abstractions and interfaces
     - Dependencies between files
     """
+
     existing_code: str = dspy.InputField(desc="Existing code from the codebase")
     file_paths: str = dspy.InputField(desc="List of file paths in the codebase")
     requirements: str = dspy.InputField(desc="What changes are requested")
 
     architecture_summary: str = dspy.OutputField(desc="Summary of existing architecture")
-    style_conventions: str = dspy.OutputField(desc="Code style conventions observed (naming, formatting, patterns)")
+    style_conventions: str = dspy.OutputField(
+        desc="Code style conventions observed (naming, formatting, patterns)"
+    )
     affected_files: str = dspy.OutputField(desc="JSON list of files that need modification")
     dependencies: str = dspy.OutputField(desc="Key dependencies and interfaces to preserve")
-    change_scope: str = dspy.OutputField(desc="Scope of changes: 'minimal', 'moderate', 'extensive'")
+    change_scope: str = dspy.OutputField(
+        desc="Scope of changes: 'minimal', 'moderate', 'extensive'"
+    )
 
 
 class EditPlanSignature(dspy.Signature):
@@ -205,6 +220,7 @@ class EditPlanSignature(dspy.Signature):
     - Maintain backward compatibility
     - Don't break existing tests
     """
+
     existing_code: str = dspy.InputField(desc="Current code content")
     file_path: str = dspy.InputField(desc="Path to the file being edited")
     requirements: str = dspy.InputField(desc="What changes are needed")
@@ -212,9 +228,13 @@ class EditPlanSignature(dspy.Signature):
     dependencies: str = dspy.InputField(desc="Dependencies to preserve")
 
     edit_plan: str = dspy.OutputField(desc="Step-by-step edit plan")
-    edits: str = dspy.OutputField(desc='JSON list of edits: [{"old": "...", "new": "...", "reason": "..."}]')
+    edits: str = dspy.OutputField(
+        desc='JSON list of edits: [{"old": "...", "new": "...", "reason": "..."}]'
+    )
     new_code: str = dspy.OutputField(desc="Complete new code (only if substantial rewrite needed)")
-    edit_type: str = dspy.OutputField(desc="'patch' for surgical edits, 'rewrite' for full replacement")
+    edit_type: str = dspy.OutputField(
+        desc="'patch' for surgical edits, 'rewrite' for full replacement"
+    )
 
 
 class TestFailureRefinementSignature(dspy.Signature):
@@ -230,12 +250,15 @@ class TestFailureRefinementSignature(dspy.Signature):
     4. Make minimal, targeted changes to fix the issue
     5. Do NOT break other functionality
     """
+
     current_code: str = dspy.InputField(desc="Current code that fails tests")
     file_path: str = dspy.InputField(desc="Path to the file being fixed")
     original_requirements: str = dspy.InputField(desc="Original requirements/issue description")
     test_output: str = dspy.InputField(desc="Test failure output (stderr/stdout from test run)")
     iteration: int = dspy.InputField(desc="Current iteration number (1, 2, 3...)")
-    previous_attempts: str = dspy.InputField(desc="Summary of previous fix attempts and why they failed")
+    previous_attempts: str = dspy.InputField(
+        desc="Summary of previous fix attempts and why they failed"
+    )
 
     analysis: str = dspy.OutputField(desc="Analysis of test failure: what's wrong and why")
     fix_strategy: str = dspy.OutputField(desc="Strategy to fix the issue")
@@ -246,6 +269,7 @@ class TestFailureRefinementSignature(dspy.Signature):
 # =============================================================================
 # COLLABORATIVE SIGNATURES
 # =============================================================================
+
 
 class CollaborativeArchitectSignature(dspy.Signature):
     """Design or refine software architecture incorporating research feedback.
@@ -258,19 +282,28 @@ class CollaborativeArchitectSignature(dspy.Signature):
     - In iteration 1: Draft initial architecture based on requirements
     - In subsequent iterations: Refine based on research findings, addressing gaps and improvements
     """
+
     requirements: str = dspy.InputField(desc="Detailed requirements for the software")
     language: str = dspy.InputField(desc="Target programming language")
     style: str = dspy.InputField(desc="Coding style preference")
     constraints: str = dspy.InputField(desc="Technical constraints and preferences")
     iteration: int = dspy.InputField(desc="Current iteration number (1, 2, 3, ...)")
-    previous_architecture: str = dspy.InputField(desc="Architecture from previous iteration (empty for iteration 1)")
-    research_findings: str = dspy.InputField(desc="Research findings from previous iteration (empty for iteration 1)")
+    previous_architecture: str = dspy.InputField(
+        desc="Architecture from previous iteration (empty for iteration 1)"
+    )
+    research_findings: str = dspy.InputField(
+        desc="Research findings from previous iteration (empty for iteration 1)"
+    )
 
-    architecture: str = dspy.OutputField(desc="Detailed architecture design (refined with research findings)")
+    architecture: str = dspy.OutputField(
+        desc="Detailed architecture design (refined with research findings)"
+    )
     components: str = dspy.OutputField(desc="JSON list of components with responsibilities")
     file_structure: str = dspy.OutputField(desc="File/folder structure")
     interfaces: str = dspy.OutputField(desc="Key interfaces and contracts")
-    research_requests: str = dspy.OutputField(desc="Specific topics for Researcher to investigate in next iteration")
+    research_requests: str = dspy.OutputField(
+        desc="Specific topics for Researcher to investigate in next iteration"
+    )
 
 
 class ResearchResponseSignature(dspy.Signature):
@@ -287,38 +320,54 @@ class ResearchResponseSignature(dspy.Signature):
     - Security considerations
     - Performance optimization tips
     """
+
     requirements: str = dspy.InputField(desc="Original requirements")
     architecture: str = dspy.InputField(desc="Current architecture proposal from Architect")
     research_requests: str = dspy.InputField(desc="Specific topics Architect wants researched")
     language: str = dspy.InputField(desc="Target programming language")
     frameworks: str = dspy.InputField(desc="Frameworks being used")
 
-    search_queries: str = dspy.OutputField(desc="JSON list of 3-5 targeted search queries based on Architect's requests")
-    analysis: str = dspy.OutputField(desc="Analysis of the architecture with research-backed recommendations")
+    search_queries: str = dspy.OutputField(
+        desc="JSON list of 3-5 targeted search queries based on Architect's requests"
+    )
+    analysis: str = dspy.OutputField(
+        desc="Analysis of the architecture with research-backed recommendations"
+    )
     best_practices: str = dspy.OutputField(desc="Key best practices relevant to the architecture")
     warnings: str = dspy.OutputField(desc="Potential pitfalls or warnings to consider")
-    recommendations: str = dspy.OutputField(desc="Specific recommendations to improve the architecture")
+    recommendations: str = dspy.OutputField(
+        desc="Specific recommendations to improve the architecture"
+    )
 
 
 # =============================================================================
 # FULL-STACK SIGNATURES
 # =============================================================================
 
+
 class SystemDesignSignature(dspy.Signature):
     """Design a full-stack system with data model, API contract, and component boundaries."""
+
     requirements: str = dspy.InputField(desc="What the system should do")
     language: str = dspy.InputField(desc="Primary backend language")
     tech_stack: str = dspy.InputField(desc="JSON: {db_type, backend_framework, frontend_framework}")
 
-    data_model: str = dspy.OutputField(desc="Entity definitions: fields, types, relationships, constraints")
-    api_contract: str = dspy.OutputField(desc="REST endpoints: method, path, request body, response schema")
-    component_map: str = dspy.OutputField(desc="Components: database, backend, frontend with responsibilities")
+    data_model: str = dspy.OutputField(
+        desc="Entity definitions: fields, types, relationships, constraints"
+    )
+    api_contract: str = dspy.OutputField(
+        desc="REST endpoints: method, path, request body, response schema"
+    )
+    component_map: str = dspy.OutputField(
+        desc="Components: database, backend, frontend with responsibilities"
+    )
     architecture: str = dspy.OutputField(desc="Overall system architecture and design decisions")
     ui_requirements: str = dspy.OutputField(desc="UI pages, forms, data displays needed")
 
 
 class DatabaseSchemaSignature(dspy.Signature):
     """Generate database schema and ORM models from data model."""
+
     data_model: str = dspy.InputField(desc="Entity definitions with relationships")
     db_type: str = dspy.InputField(desc="Database type: sqlite, postgresql, mysql")
     language: str = dspy.InputField(desc="Backend language for ORM models")
@@ -330,19 +379,23 @@ class DatabaseSchemaSignature(dspy.Signature):
 
 class APIGenerationSignature(dspy.Signature):
     """Generate backend API code and OpenAPI specification."""
+
     architecture: str = dspy.InputField(desc="System architecture and design decisions")
     orm_models: str = dspy.InputField(desc="ORM model code")
     api_contract: str = dspy.InputField(desc="API endpoint definitions")
     language: str = dspy.InputField(desc="Backend language")
     framework: str = dspy.InputField(desc="Backend framework: fastapi, flask, express")
 
-    api_code: str = dspy.OutputField(desc="Complete backend API code with routes, services, error handling")
+    api_code: str = dspy.OutputField(
+        desc="Complete backend API code with routes, services, error handling"
+    )
     openapi_spec: str = dspy.OutputField(desc="Complete OpenAPI 3.0 YAML specification")
     dependencies: str = dspy.OutputField(desc="Required packages in pip/npm format")
 
 
 class FrontendGenerationSignature(dspy.Signature):
     """Generate frontend code consuming an OpenAPI specification."""
+
     openapi_spec: str = dspy.InputField(desc="OpenAPI 3.0 YAML specification")
     ui_requirements: str = dspy.InputField(desc="UI pages, forms, data displays needed")
     framework: str = dspy.InputField(desc="Frontend framework: react, vue, vanilla")
@@ -354,6 +407,7 @@ class FrontendGenerationSignature(dspy.Signature):
 
 class IntegrationSignature(dspy.Signature):
     """Generate integration artifacts to wire all components together."""
+
     file_list: str = dspy.InputField(desc="JSON list of all generated files")
     tech_stack: str = dspy.InputField(desc="JSON: {db_type, backend, frontend}")
     architecture: str = dspy.InputField(desc="System architecture")
@@ -368,8 +422,10 @@ class IntegrationSignature(dspy.Signature):
 # REVIEW / VERIFICATION SIGNATURES
 # =============================================================================
 
+
 class ReviewArbitrationSignature(dspy.Signature):
     """Evaluate whether a code review rejection is valid and actionable."""
+
     code: str = dspy.InputField(desc="The code being reviewed")
     rejection_feedback: str = dspy.InputField(desc="Reviewer's rejection reason and feedback")
     evidence: str = dspy.InputField(desc="Evidence: code snippets, test cases, line references")
@@ -394,6 +450,7 @@ class ScopeClassificationSignature(dspy.Signature):
     - Any system needing persistent storage + API layer + user interface
     - Example: "Build an e-commerce platform", "Create a project management tool"
     """
+
     requirements: str = dspy.InputField(desc="Software requirements to classify")
 
     scope: str = dspy.OutputField(desc="Exactly one of: single_tier, full_stack")
@@ -417,12 +474,15 @@ class CodeVerificationSignature(dspy.Signature):
     Return coverage_score as a float 0-1 indicating what fraction of requirements are covered.
     Return verified as true only if there are no high-severity issues.
     """
+
     code: str = dspy.InputField(desc="Complete generated code to verify")
     original_requirements: str = dspy.InputField(desc="Original requirements the code must satisfy")
     architecture: str = dspy.InputField(desc="Architecture design that was used")
 
     issues: str = dspy.OutputField(desc="JSON list of issues found: [{severity, description}]")
-    coverage_score: float = dspy.OutputField(desc="Float 0-1: fraction of requirements covered by the code")
+    coverage_score: float = dspy.OutputField(
+        desc="Float 0-1: fraction of requirements covered by the code"
+    )
     verified: bool = dspy.OutputField(desc="True if no high-severity issues found")
 
 
@@ -454,6 +514,7 @@ class SimplicityJudgeSignature(dspy.Signature):
     Return simplicity_score as float 0-1 where 1=appropriately simple, 0=severely over-engineered.
     Return verdict as ACCEPT if code complexity matches requirements, SIMPLIFY if over-engineered.
     """
+
     code: str = dspy.InputField(desc="Complete generated code to evaluate")
     requirements: str = dspy.InputField(desc="Original requirements the code was built for")
     file_count: int = dspy.InputField(desc="Number of files in the codebase")
@@ -474,6 +535,7 @@ class SimplicityJudgeSignature(dspy.Signature):
 # TEAM SIGNATURES
 # =============================================================================
 
+
 class TeamReviewSignature(dspy.Signature):
     """Review code from a specific team archetype's perspective.
 
@@ -491,16 +553,25 @@ class TeamReviewSignature(dspy.Signature):
     - Style preferences already decided
     - Trade-offs that the team accepted during planning
     """
+
     code: str = dspy.InputField(desc="Complete code to review")
     requirements: str = dspy.InputField(desc="Original requirements the code must satisfy")
     review_phase: str = dspy.InputField(desc="'functional' or 'quality'")
     persona_context: str = dspy.InputField(desc="Reviewer persona context and expertise")
-    team_agreements: str = dspy.InputField(desc="Decisions and agreements made during team planning phase - DO NOT contradict these")
+    team_agreements: str = dspy.InputField(
+        desc="Decisions and agreements made during team planning phase - DO NOT contradict these"
+    )
 
-    verdict: str = dspy.OutputField(desc="APPROVED or REJECTED - only reject for bugs, security issues, or clear violations NOT covered in team agreements")
-    issues: str = dspy.OutputField(desc='JSON list of issues: [{"severity": "high|medium|low", "description": "..."}] - only include issues NOT already addressed in team agreements')
+    verdict: str = dspy.OutputField(
+        desc="APPROVED or REJECTED - only reject for bugs, security issues, or clear violations NOT covered in team agreements"
+    )
+    issues: str = dspy.OutputField(
+        desc='JSON list of issues: [{"severity": "high|medium|low", "description": "..."}] - only include issues NOT already addressed in team agreements'
+    )
     feedback: str = dspy.OutputField(desc="Constructive feedback for the developer")
-    evidence: str = dspy.OutputField(desc="Specific code lines, test case, or scenario demonstrating the issue. Required for REJECTED verdict.")
+    evidence: str = dspy.OutputField(
+        desc="Specific code lines, test case, or scenario demonstrating the issue. Required for REJECTED verdict."
+    )
 
 
 class TeamPlanningSignature(dspy.Signature):
@@ -509,14 +580,23 @@ class TeamPlanningSignature(dspy.Signature):
     You are a senior engineer contributing to architecture planning through your expertise lens.
     Review the proposed architecture and research findings, then provide your recommendations.
     """
+
     requirements: str = dspy.InputField(desc="Original requirements for the software")
     architecture: str = dspy.InputField(desc="Proposed architecture from the Architect")
-    research_findings: str = dspy.InputField(desc="Research findings: best practices, API docs, warnings")
+    research_findings: str = dspy.InputField(
+        desc="Research findings: best practices, API docs, warnings"
+    )
     persona_context: str = dspy.InputField(desc="Your persona context and expertise area")
 
-    concerns: str = dspy.OutputField(desc='JSON list of concerns: [{"severity": "high|medium|low", "area": "...", "description": "..."}]')
-    recommendations: str = dspy.OutputField(desc="Specific recommendations to improve the architecture from your expertise")
-    implementation_notes: str = dspy.OutputField(desc="Key implementation details the developer should know from your area of expertise")
+    concerns: str = dspy.OutputField(
+        desc='JSON list of concerns: [{"severity": "high|medium|low", "area": "...", "description": "..."}]'
+    )
+    recommendations: str = dspy.OutputField(
+        desc="Specific recommendations to improve the architecture from your expertise"
+    )
+    implementation_notes: str = dspy.OutputField(
+        desc="Key implementation details the developer should know from your area of expertise"
+    )
 
 
 class TeamPlanningConsolidationSignature(dspy.Signature):
@@ -525,12 +605,19 @@ class TeamPlanningConsolidationSignature(dspy.Signature):
     You are a lead architect synthesizing feedback from multiple team members into
     a cohesive, actionable implementation plan.
     """
+
     original_architecture: str = dspy.InputField(desc="Original architecture proposal")
     team_feedback: str = dspy.InputField(desc="Consolidated feedback from all team members")
     research_findings: str = dspy.InputField(desc="Research findings that informed the planning")
     requirements: str = dspy.InputField(desc="Original requirements")
 
-    refined_architecture: str = dspy.OutputField(desc="Refined architecture incorporating team feedback")
-    implementation_plan: str = dspy.OutputField(desc="Step-by-step implementation plan with priorities")
+    refined_architecture: str = dspy.OutputField(
+        desc="Refined architecture incorporating team feedback"
+    )
+    implementation_plan: str = dspy.OutputField(
+        desc="Step-by-step implementation plan with priorities"
+    )
     risk_mitigations: str = dspy.OutputField(desc="Identified risks and how to mitigate them")
-    team_agreements: str = dspy.OutputField(desc="Key decisions and agreements from team discussion")
+    team_agreements: str = dspy.OutputField(
+        desc="Key decisions and agreements from team discussion"
+    )

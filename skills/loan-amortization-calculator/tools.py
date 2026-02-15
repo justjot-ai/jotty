@@ -1,7 +1,9 @@
 """Loan Amortization Calculator Skill."""
-from typing import Dict, Any, List
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+
+from typing import Any, Dict, List
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("loan-amortization-calculator")
 
@@ -28,8 +30,11 @@ def amortization_schedule_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     if monthly_rate == 0:
         monthly_payment = principal / num_payments
     else:
-        monthly_payment = principal * (monthly_rate * (1 + monthly_rate) ** num_payments) / \
-                          ((1 + monthly_rate) ** num_payments - 1)
+        monthly_payment = (
+            principal
+            * (monthly_rate * (1 + monthly_rate) ** num_payments)
+            / ((1 + monthly_rate) ** num_payments - 1)
+        )
 
     monthly_payment = round(monthly_payment, 2)
 

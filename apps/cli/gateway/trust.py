@@ -12,16 +12,16 @@ Features:
 - Per-channel trust policies
 """
 
-import os
 import json
+import logging
+import os
 import random
 import string
-import logging
-from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Dict, Any, Optional, Set
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 from enum import Enum
+from pathlib import Path
+from typing import Any, Dict, Optional, Set
 
 from .channels import ChannelType
 
@@ -30,14 +30,16 @@ logger = logging.getLogger(__name__)
 
 class TrustPolicy(Enum):
     """Trust policies for channels."""
-    OPEN = "open"           # Accept all messages (no trust required)
-    PAIRING = "pairing"     # Require pairing code for new users
-    ALLOWLIST = "allowlist" # Only accept from allowlist (strict)
+
+    OPEN = "open"  # Accept all messages (no trust required)
+    PAIRING = "pairing"  # Require pairing code for new users
+    ALLOWLIST = "allowlist"  # Only accept from allowlist (strict)
 
 
 @dataclass
 class PairingCode:
     """Temporary pairing code for user verification."""
+
     code: str
     user_id: str
     channel: ChannelType
@@ -51,6 +53,7 @@ class PairingCode:
 @dataclass
 class TrustedUser:
     """A trusted user entry."""
+
     user_id: str
     channel: str  # ChannelType.value
     user_name: str = ""
@@ -93,8 +96,7 @@ class TrustManager:
             if self.config_path.exists():
                 data = json.loads(self.config_path.read_text())
                 self._allowlist = {
-                    channel: set(users)
-                    for channel, users in data.get("users", {}).items()
+                    channel: set(users) for channel, users in data.get("users", {}).items()
                 }
                 self._policies = {
                     channel: TrustPolicy(policy)
@@ -114,15 +116,9 @@ class TrustManager:
         try:
             self.config_path.parent.mkdir(parents=True, exist_ok=True)
             data = {
-                "users": {
-                    channel: list(users)
-                    for channel, users in self._allowlist.items()
-                },
-                "policies": {
-                    channel: policy.value
-                    for channel, policy in self._policies.items()
-                },
-                "updated_at": datetime.now().isoformat()
+                "users": {channel: list(users) for channel, users in self._allowlist.items()},
+                "policies": {channel: policy.value for channel, policy in self._policies.items()},
+                "updated_at": datetime.now().isoformat(),
             }
             self.config_path.write_text(json.dumps(data, indent=2))
             logger.debug(f"Saved trust allowlist to {self.config_path}")
@@ -132,7 +128,9 @@ class TrustManager:
     def get_policy(self, channel: ChannelType) -> TrustPolicy:
         """Get trust policy for a channel."""
         channel_key = channel.value if isinstance(channel, ChannelType) else str(channel)
-        return self._policies.get(channel_key, self._default_policies.get(channel_key, TrustPolicy.PAIRING))
+        return self._policies.get(
+            channel_key, self._default_policies.get(channel_key, TrustPolicy.PAIRING)
+        )
 
     def set_policy(self, channel: ChannelType, policy: TrustPolicy) -> None:
         """Set trust policy for a channel."""
@@ -164,11 +162,7 @@ class TrustManager:
         return user_id in channel_users
 
     def add_to_allowlist(
-        self,
-        channel: ChannelType,
-        user_id: str,
-        user_name: str = "",
-        added_by: str = "system"
+        self, channel: ChannelType, user_id: str, user_name: str = "", added_by: str = "system"
     ) -> None:
         """Add user to allowlist."""
         channel_key = channel.value if isinstance(channel, ChannelType) else str(channel)
@@ -192,7 +186,9 @@ class TrustManager:
 
         return False
 
-    def generate_pairing_code(self, channel: ChannelType, user_id: str, expires_minutes: int = 5) -> str:
+    def generate_pairing_code(
+        self, channel: ChannelType, user_id: str, expires_minutes: int = 5
+    ) -> str:
         """
         Generate a 6-digit pairing code for a user.
 
@@ -217,11 +213,11 @@ class TrustManager:
                     return pairing.code
 
         # Generate new 6-digit code
-        code = ''.join(random.choices(string.digits, k=6))
+        code = "".join(random.choices(string.digits, k=6))
 
         # Ensure uniqueness
         while code in self._pending_codes:
-            code = ''.join(random.choices(string.digits, k=6))
+            code = "".join(random.choices(string.digits, k=6))
 
         now = datetime.now()
         pairing = PairingCode(
@@ -229,7 +225,7 @@ class TrustManager:
             user_id=user_id,
             channel=channel,
             created_at=now,
-            expires_at=now + timedelta(minutes=expires_minutes)
+            expires_at=now + timedelta(minutes=expires_minutes),
         )
 
         self._pending_codes[code] = pairing
@@ -267,7 +263,9 @@ class TrustManager:
             return False
 
         if pairing.channel != channel or pairing.user_id != user_id:
-            logger.debug(f"Pairing code mismatch: expected {pairing.channel.value}:{pairing.user_id}")
+            logger.debug(
+                f"Pairing code mismatch: expected {pairing.channel.value}:{pairing.user_id}"
+            )
             return False
 
         # Code is valid - add user to allowlist
@@ -283,10 +281,7 @@ class TrustManager:
 
     def _cleanup_expired_codes(self) -> None:
         """Remove expired pairing codes."""
-        expired = [
-            code for code, pairing in self._pending_codes.items()
-            if pairing.is_expired()
-        ]
+        expired = [code for code, pairing in self._pending_codes.items() if pairing.is_expired()]
 
         for code in expired:
             pairing = self._pending_codes.pop(code, None)
@@ -327,7 +322,8 @@ class TrustManager:
         # Check if message contains a pairing code
         # Look for 6-digit number in message
         import re
-        code_match = re.search(r'\b(\d{6})\b', content)
+
+        code_match = re.search(r"\b(\d{6})\b", content)
 
         if code_match:
             code = code_match.group(1)
@@ -335,7 +331,7 @@ class TrustManager:
                 return {
                     "proceed": True,
                     "pairing_required": False,
-                    "response": "Pairing successful! You can now send messages."
+                    "response": "Pairing successful! You can now send messages.",
                 }
 
         # User needs to pair - generate code
@@ -344,14 +340,14 @@ class TrustManager:
             return {
                 "proceed": False,
                 "pairing_required": True,
-                "response": f"Please reply with this pairing code to verify: {code}\n(Expires in 5 minutes)"
+                "response": f"Please reply with this pairing code to verify: {code}\n(Expires in 5 minutes)",
             }
 
         # Strict allowlist - just reject
         return {
             "proceed": False,
             "pairing_required": False,
-            "response": "You are not authorized to send messages. Contact an administrator."
+            "response": "You are not authorized to send messages. Contact an administrator.",
         }
 
     @property
@@ -361,8 +357,5 @@ class TrustManager:
             "total_trusted_users": sum(len(users) for users in self._allowlist.values()),
             "pending_pairing_codes": len(self._pending_codes),
             "channels": list(self._allowlist.keys()),
-            "policies": {
-                channel: policy.value
-                for channel, policy in self._policies.items()
-            }
+            "policies": {channel: policy.value for channel, policy in self._policies.items()},
         }

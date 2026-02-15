@@ -19,9 +19,9 @@ Usage:
 """
 
 import logging
+from functools import lru_cache
 from pathlib import Path
 from typing import Optional
-from functools import lru_cache
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +60,7 @@ def load_project_rules(workspace_dir: str) -> str:
         filepath = root / filename
         if filepath.is_file():
             try:
-                content = filepath.read_text(encoding='utf-8', errors='ignore')
+                content = filepath.read_text(encoding="utf-8", errors="ignore")
                 if len(content) > _MAX_RULES_SIZE:
                     content = content[:_MAX_RULES_SIZE] + "\n[...truncated]"
                     logger.warning(f"Rule file {filepath} truncated to {_MAX_RULES_SIZE} bytes")

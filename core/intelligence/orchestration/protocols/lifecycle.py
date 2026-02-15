@@ -6,13 +6,21 @@ These are mixed into SwarmIntelligence at class definition.
 """
 
 import asyncio
-import time
 import logging
-from typing import Dict, List, Any, Optional, Tuple, Callable
+import time
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from ..swarm_data_structures import (
-    AgentSpecialization, AgentProfile, ConsensusVote, SwarmDecision,
-    AgentSession, HandoffContext, Coalition, AuctionBid, GossipMessage, SupervisorNode,
+    AgentProfile,
+    AgentSession,
+    AgentSpecialization,
+    AuctionBid,
+    Coalition,
+    ConsensusVote,
+    GossipMessage,
+    HandoffContext,
+    SupervisorNode,
+    SwarmDecision,
 )
 
 logger = logging.getLogger(__name__)
@@ -21,12 +29,18 @@ logger = logging.getLogger(__name__)
 class LifecycleMixin:
     """Lifecycle protocol mixin: priority queue, task decomposition, leader election, scaling, caching, parallel execution."""
 
-
     # =========================================================================
     # PRIORITY QUEUE (Handle urgent tasks first)
     # =========================================================================
 
-    def enqueue_task(self, task_id: str, task_type: str, priority: int = 5, deadline: float = None, context: Dict = None) -> Any:
+    def enqueue_task(
+        self,
+        task_id: str,
+        task_type: str,
+        priority: int = 5,
+        deadline: float = None,
+        context: Dict = None,
+    ) -> Any:
         """
         Add task to priority queue.
 
@@ -39,7 +53,7 @@ class LifecycleMixin:
             "priority": priority,
             "deadline": deadline or (time.time() + 3600),
             "context": context or {},
-            "enqueued_at": time.time()
+            "enqueued_at": time.time(),
         }
 
         # Insert in priority order (higher priority first)
@@ -61,8 +75,6 @@ class LifecycleMixin:
 
         logger.debug(f"Task enqueued: {task_id} (priority={priority})")
 
-
-
     def dequeue_task(self) -> Optional[Dict]:
         """Get highest priority task from queue."""
         if not self.priority_queue:
@@ -70,13 +82,9 @@ class LifecycleMixin:
 
         return self.priority_queue.pop(0)
 
-
-
     def peek_queue(self, n: int = 5) -> List[Dict]:
         """Peek at top N tasks in queue."""
         return self.priority_queue[:n]
-
-
 
     def escalate_priority(self, task_id: str, new_priority: int) -> None:
         """Escalate task priority (reposition in queue)."""
@@ -95,7 +103,7 @@ class LifecycleMixin:
                 task_type=task["task_type"],
                 priority=new_priority,
                 deadline=task.get("deadline"),
-                context=task.get("context")
+                context=task.get("context"),
             )
             logger.info(f"Task escalated: {task_id} → priority {new_priority}")
 
@@ -103,18 +111,12 @@ class LifecycleMixin:
     # TASK DECOMPOSITION (Split complex tasks)
     # =========================================================================
 
-
-
     # =========================================================================
     # TASK DECOMPOSITION (Split complex tasks)
     # =========================================================================
 
     def decompose_task(
-        self,
-        task_id: str,
-        task_type: str,
-        subtasks: List[Dict],
-        parallel: bool = True
+        self, task_id: str, task_type: str, subtasks: List[Dict], parallel: bool = True
     ) -> List[str]:
         """
         Decompose complex task into subtasks.
@@ -143,7 +145,7 @@ class LifecycleMixin:
             route = self.smart_route(
                 task_id=sub_id,
                 task_type=sub_type,
-                task_description=sub_context.get("description", "")
+                task_description=sub_context.get("description", ""),
             )
 
             if route["assigned_agent"]:
@@ -154,19 +156,15 @@ class LifecycleMixin:
                     to_agent=route["assigned_agent"],
                     task_type=sub_type,
                     context=sub_context,
-                    priority=sub_priority
+                    priority=sub_priority,
                 )
                 subtask_ids.append(sub_id)
 
         logger.info(f"Task decomposed: {task_id} → {len(subtask_ids)} subtasks")
         return subtask_ids
 
-
-
     def aggregate_subtask_results(
-        self,
-        parent_task_id: str,
-        results: Dict[str, Any]
+        self, parent_task_id: str, results: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
         Aggregate results from completed subtasks.
@@ -183,7 +181,7 @@ class LifecycleMixin:
             "subtask_count": len(results),
             "successful": sum(1 for r in results.values() if r.get("success", False)),
             "results": results,
-            "aggregated_at": time.time()
+            "aggregated_at": time.time(),
         }
 
         # Calculate overall success
@@ -194,8 +192,6 @@ class LifecycleMixin:
     # =========================================================================
     # BYZANTINE CONSENSUS (Fault-tolerant agreement)
     # =========================================================================
-
-
 
     # =========================================================================
     # EMERGENT LEADERSHIP (Dynamic leader election)
@@ -242,8 +238,6 @@ class LifecycleMixin:
     # ADAPTIVE TIMEOUT (Adjust based on task/agent history)
     # =========================================================================
 
-
-
     # =========================================================================
     # ADAPTIVE TIMEOUT (Adjust based on task/agent history)
     # =========================================================================
@@ -271,8 +265,6 @@ class LifecycleMixin:
     # AGENT LIFECYCLE (Spawn/retire dynamically)
     # =========================================================================
 
-
-
     # =========================================================================
     # AGENT LIFECYCLE (Spawn/retire dynamically)
     # =========================================================================
@@ -289,14 +281,13 @@ class LifecycleMixin:
 
         # Check specialization gap
         if task_type:
-            specialists = [a for a, p in self.agent_profiles.items()
-                         if p.get_success_rate(task_type) > 0.8]
+            specialists = [
+                a for a, p in self.agent_profiles.items() if p.get_success_rate(task_type) > 0.8
+            ]
             if len(specialists) < 2:
                 return True
 
         return backpressure > 0.85
-
-
 
     def should_retire_agent(self, agent: str) -> bool:
         """
@@ -320,13 +311,11 @@ class LifecycleMixin:
                 return True
 
         # Circuit breaker open for too long
-        cb = self.circuit_breakers.get(agent, {}) if hasattr(self, 'circuit_breakers') else {}
-        if cb.get('state') == 'open' and time.time() - cb.get('last_failure', 0) > 300:
+        cb = self.circuit_breakers.get(agent, {}) if hasattr(self, "circuit_breakers") else {}
+        if cb.get("state") == "open" and time.time() - cb.get("last_failure", 0) > 300:
             return True
 
         return False
-
-
 
     def retire_agent(self, agent: str) -> None:
         """Remove agent from swarm."""
@@ -335,7 +324,7 @@ class LifecycleMixin:
 
         # Clean up related state
         self.agent_coalitions.pop(agent, None)
-        if hasattr(self, 'circuit_breakers'):
+        if hasattr(self, "circuit_breakers"):
             self.circuit_breakers.pop(agent, None)
 
         # Reassign pending handoffs
@@ -353,16 +342,12 @@ class LifecycleMixin:
     # PARALLEL EXECUTION (Speed up multi-agent tasks)
     # =========================================================================
 
-
-
     # =========================================================================
     # PARALLEL EXECUTION (Speed up multi-agent tasks)
     # =========================================================================
 
     async def execute_parallel(
-        self,
-        tasks: List[Dict],
-        timeout_per_task: float = 30.0
+        self, tasks: List[Dict], timeout_per_task: float = 30.0
     ) -> List[Dict]:
         """
         Execute multiple tasks in parallel across agents.
@@ -385,10 +370,7 @@ class LifecycleMixin:
             start = time.time()
             try:
                 if asyncio.iscoroutinefunction(func):
-                    result = await asyncio.wait_for(
-                        func(*args, **kwargs),
-                        timeout=timeout_per_task
-                    )
+                    result = await asyncio.wait_for(func(*args, **kwargs), timeout=timeout_per_task)
                 else:
                     result = func(*args, **kwargs)
 
@@ -396,21 +378,21 @@ class LifecycleMixin:
                     "task_id": task_id,
                     "success": True,
                     "result": result,
-                    "execution_time": time.time() - start
+                    "execution_time": time.time() - start,
                 }
             except asyncio.TimeoutError:
                 return {
                     "task_id": task_id,
                     "success": False,
                     "error": "timeout",
-                    "execution_time": timeout_per_task
+                    "execution_time": timeout_per_task,
                 }
             except Exception as e:
                 return {
                     "task_id": task_id,
                     "success": False,
                     "error": str(e),
-                    "execution_time": time.time() - start
+                    "execution_time": time.time() - start,
                 }
 
         # Run all tasks concurrently
@@ -420,17 +402,17 @@ class LifecycleMixin:
         processed = []
         for i, r in enumerate(results):
             if isinstance(r, Exception):
-                processed.append({
-                    "task_id": tasks[i].get("task_id", f"task_{i}"),
-                    "success": False,
-                    "error": str(r)
-                })
+                processed.append(
+                    {
+                        "task_id": tasks[i].get("task_id", f"task_{i}"),
+                        "success": False,
+                        "error": str(r),
+                    }
+                )
             else:
                 processed.append(r)
 
         return processed
-
-
 
     async def parallel_map(self, items: List[Any], func: Any, max_concurrent: int = 5) -> List[Any]:
         """
@@ -461,17 +443,13 @@ class LifecycleMixin:
                     logger.warning(f"parallel_map item {idx} failed: {e}")
                     return None
 
-        results = await asyncio.gather(*[
-            limited_func(item, i) for i, item in enumerate(items)
-        ])
+        results = await asyncio.gather(*[limited_func(item, i) for i, item in enumerate(items)])
 
         return list(results)
 
     # =========================================================================
     # SMART CACHING (Reduce redundant LLM calls)
     # =========================================================================
-
-
 
     # =========================================================================
     # SMART CACHING (Reduce redundant LLM calls)
@@ -486,13 +464,7 @@ class LifecycleMixin:
             result: Result to cache
             ttl: Time-to-live in seconds (default 1 hour)
         """
-        self._result_cache[key] = {
-            "result": result,
-            "cached_at": time.time(),
-            "ttl": ttl
-        }
-
-
+        self._result_cache[key] = {"result": result, "cached_at": time.time(), "ttl": ttl}
 
     def get_cached(self, key: str) -> Optional[Any]:
         """
@@ -515,8 +487,6 @@ class LifecycleMixin:
         self._cache_hits += 1
         return entry["result"]
 
-
-
     def get_cache_stats(self) -> Dict[str, Any]:
         """Get cache statistics."""
         total = self._cache_hits + self._cache_misses
@@ -524,15 +494,14 @@ class LifecycleMixin:
             "hits": self._cache_hits,
             "misses": self._cache_misses,
             "hit_rate": self._cache_hits / total if total > 0 else 0,
-            "size": len(self._result_cache)
+            "size": len(self._result_cache),
         }
-
-
 
     def clear_cache(self, pattern: str = None) -> None:
         """Clear cache entries (optionally matching pattern)."""
         if pattern:
             import fnmatch
+
             keys_to_delete = [k for k in self._result_cache if fnmatch.fnmatch(k, pattern)]
             for k in keys_to_delete:
                 del self._result_cache[k]
@@ -543,13 +512,13 @@ class LifecycleMixin:
     # INCREMENTAL PROCESSING (Stream results as they complete)
     # =========================================================================
 
-
-
     # =========================================================================
     # INCREMENTAL PROCESSING (Stream results as they complete)
     # =========================================================================
 
-    async def execute_incremental(self, tasks: List[Dict], on_complete: Any = None, on_error: Any = None) -> Any:
+    async def execute_incremental(
+        self, tasks: List[Dict], on_complete: Any = None, on_error: Any = None
+    ) -> Any:
         """
         Execute tasks and yield results incrementally as they complete.
 
@@ -595,13 +564,17 @@ class LifecycleMixin:
     # CHUNKED PROCESSING (Process large batches efficiently)
     # =========================================================================
 
-
-
     # =========================================================================
     # CHUNKED PROCESSING (Process large batches efficiently)
     # =========================================================================
 
-    async def process_in_chunks(self, items: List[Any], chunk_size: int, process_func: Any, delay_between_chunks: float = 0.1) -> List[Any]:
+    async def process_in_chunks(
+        self,
+        items: List[Any],
+        chunk_size: int,
+        process_func: Any,
+        delay_between_chunks: float = 0.1,
+    ) -> List[Any]:
         """
         Process items in chunks to avoid overwhelming LLM.
 
@@ -620,7 +593,7 @@ class LifecycleMixin:
 
         results = []
         for i in range(0, len(items), chunk_size):
-            chunk = items[i:i + chunk_size]
+            chunk = items[i : i + chunk_size]
 
             # Check backpressure
             if not self.should_accept_task(priority=5):
@@ -638,4 +611,3 @@ class LifecycleMixin:
     # =========================================================================
     # SWARM HEALTH MONITORING
     # =========================================================================
-

@@ -6,11 +6,15 @@ List, run, and monitor trading strategies via PlanMyInvesting API.
 """
 
 import logging
-from typing import Dict, Any
+from typing import Any, Dict
 
 from Jotty.core.infrastructure.utils.env_loader import load_jotty_env
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import (
+    async_tool_wrapper,
+    tool_error,
+    tool_response,
+)
 
 load_jotty_env()
 logger = logging.getLogger(__name__)
@@ -21,6 +25,7 @@ def _get_pmi_client():
     """Lazy import to avoid circular deps with hyphenated directory."""
     import importlib.util
     from pathlib import Path
+
     spec = importlib.util.spec_from_file_location(
         "pmi_client",
         Path(__file__).resolve().parent.parent / "pmi-market-data" / "pmi_client.py",
@@ -57,9 +62,12 @@ async def list_strategies_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
     status.emit("Fetching", "Loading strategies...")
 
-    result = client.get("/v2/strategies", params={
-        "active_only": params.get("active_only", False),
-    })
+    result = client.get(
+        "/v2/strategies",
+        params={
+            "active_only": params.get("active_only", False),
+        },
+    )
     if not result.get("success"):
         return tool_error(result.get("error", "Failed to list strategies"))
 
@@ -96,10 +104,13 @@ async def run_strategy_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     dry_run = params.get("dry_run", True)
     status.emit("Running", f"Executing strategy {strategy_id} (dry_run={dry_run})...")
 
-    result = client.post(f"/v2/strategies/{strategy_id}/run", data={
-        "dry_run": dry_run,
-        "symbols": params.get("symbols"),
-    })
+    result = client.post(
+        f"/v2/strategies/{strategy_id}/run",
+        data={
+            "dry_run": dry_run,
+            "symbols": params.get("symbols"),
+        },
+    )
     if not result.get("success"):
         return tool_error(result.get("error", f"Failed to run strategy {strategy_id}"))
 
@@ -177,10 +188,13 @@ async def generate_signals_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
     status.emit("Generating", "Generating trading signals...")
 
-    result = client.post("/v2/strategies/generate-signals", data={
-        "symbols": params.get("symbols"),
-        "strategy_id": params.get("strategy_id"),
-    })
+    result = client.post(
+        "/v2/strategies/generate-signals",
+        data={
+            "symbols": params.get("symbols"),
+            "strategy_id": params.get("strategy_id"),
+        },
+    )
     if not result.get("success"):
         return tool_error(result.get("error", "Failed to generate signals"))
 

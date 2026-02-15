@@ -7,7 +7,7 @@ Command history management with persistence.
 
 import logging
 from pathlib import Path
-from typing import Optional, List, Any
+from typing import Any, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +55,7 @@ class HistoryManager:
         try:
             # Trim to max entries
             if len(self._history) > self.max_entries:
-                self._history = self._history[-self.max_entries:]
+                self._history = self._history[-self.max_entries :]
 
             with open(self.history_file, "w") as f:
                 for entry in self._history:
@@ -122,6 +122,7 @@ class HistoryManager:
         """
         try:
             from prompt_toolkit.history import FileHistory
+
             return FileHistory(str(self.history_file))
         except ImportError:
             return None

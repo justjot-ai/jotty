@@ -5,13 +5,13 @@ Wraps the core SkillGenerator to provide a skill-level interface for
 on-demand skill creation, improvement, and listing.
 """
 
-import re
 import logging
+import re
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Any, Dict, List
 
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 logger = logging.getLogger(__name__)
 status = SkillStatus("skill-writer")
@@ -20,11 +20,13 @@ status = SkillStatus("skill-writer")
 def _get_generator():
     """Get or create the SkillGenerator singleton."""
     from Jotty.core.capabilities.registry.skill_generator import get_skill_generator
+
     try:
         from Jotty.core.capabilities.skills import get_registry
+
         registry = get_registry()
         # SkillsRegistry is the underlying registry object
-        skills_registry = getattr(registry, '_skills_registry', None)
+        skills_registry = getattr(registry, "_skills_registry", None)
     except Exception:
         skills_registry = None
     return get_skill_generator(skills_registry=skills_registry)
@@ -33,12 +35,12 @@ def _get_generator():
 def _sanitize_name(name: str) -> str:
     """Normalize a skill name to kebab-case."""
     name = name.strip().lower()
-    name = re.sub(r'[^a-z0-9\-]', '-', name)
-    name = re.sub(r'-+', '-', name).strip('-')
-    return name[:60] if name else 'unnamed-skill'
+    name = re.sub(r"[^a-z0-9\-]", "-", name)
+    name = re.sub(r"-+", "-", name).strip("-")
+    return name[:60] if name else "unnamed-skill"
 
 
-@tool_wrapper(required_params=['name', 'description'])
+@tool_wrapper(required_params=["name", "description"])
 def create_skill_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """Create a new Jotty skill from a natural language description.
 
@@ -52,16 +54,16 @@ def create_skill_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         dict with skill_name, skill_path, tools on success, error on failure
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
-    name = _sanitize_name(params['name'])
-    description = params['description']
-    requirements = params.get('requirements')
-    examples = params.get('examples')
+    name = _sanitize_name(params["name"])
+    description = params["description"]
+    requirements = params.get("requirements")
+    examples = params.get("examples")
 
     if not description or len(description) < 10:
         return tool_error(
-            'Description must be at least 10 characters. '
+            "Description must be at least 10 characters. "
             'Example: {"name": "pdf-merger", "description": "Merge multiple PDF files into one"}'
         )
 
@@ -70,13 +72,13 @@ def create_skill_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     try:
         generator = _get_generator()
     except Exception as e:
-        return tool_error(f'Could not initialize skill generator: {e}')
+        return tool_error(f"Could not initialize skill generator: {e}")
 
     # Build requirements string
     req_str = None
     if requirements:
         if isinstance(requirements, list):
-            req_str = ', '.join(requirements)
+            req_str = ", ".join(requirements)
         else:
             req_str = str(requirements)
 
@@ -88,7 +90,7 @@ def create_skill_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             examples=examples,
         )
     except Exception as e:
-        return tool_error(f'Skill generation failed: {e}')
+        return tool_error(f"Skill generation failed: {e}")
 
     status.emit("validating", "Validating generated skill...")
 
@@ -97,26 +99,26 @@ def create_skill_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
     # Discover tool function names from generated tools.py
     tools_found: List[str] = []
-    tools_py_path = Path(result.get('tools_py', ''))
+    tools_py_path = Path(result.get("tools_py", ""))
     if tools_py_path.exists():
         content = tools_py_path.read_text()
-        tools_found = re.findall(r'^def (\w+_tool)\s*\(', content, re.MULTILINE)
+        tools_found = re.findall(r"^def (\w+_tool)\s*\(", content, re.MULTILINE)
         if not tools_found:
-            tools_found = re.findall(r'^def (\w+)\s*\(', content, re.MULTILINE)
+            tools_found = re.findall(r"^def (\w+)\s*\(", content, re.MULTILINE)
 
     status.emit("done", f"Skill '{name}' created successfully")
 
     return tool_response(
         skill_name=name,
-        skill_path=result.get('path', ''),
+        skill_path=result.get("path", ""),
         tools=tools_found,
-        reloaded=result.get('reloaded', False),
-        valid=validation.get('valid', False),
-        validation_errors=validation.get('errors', []),
+        reloaded=result.get("reloaded", False),
+        valid=validation.get("valid", False),
+        validation_errors=validation.get("errors", []),
     )
 
 
-@tool_wrapper(required_params=['name', 'feedback'])
+@tool_wrapper(required_params=["name", "feedback"])
 def improve_skill_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """Improve an existing Jotty skill based on feedback.
 
@@ -128,14 +130,14 @@ def improve_skill_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         dict with skill_name, changes on success, error on failure
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
-    name = _sanitize_name(params['name'])
-    feedback = params['feedback']
+    name = _sanitize_name(params["name"])
+    feedback = params["feedback"]
 
     if not feedback or len(feedback) < 5:
         return tool_error(
-            'Feedback must be at least 5 characters. '
+            "Feedback must be at least 5 characters. "
             'Example: {"name": "my-skill", "feedback": "Add error handling for network failures"}'
         )
 
@@ -144,7 +146,7 @@ def improve_skill_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     try:
         generator = _get_generator()
     except Exception as e:
-        return tool_error(f'Could not initialize skill generator: {e}')
+        return tool_error(f"Could not initialize skill generator: {e}")
 
     try:
         result = generator.improve_skill(
@@ -154,14 +156,14 @@ def improve_skill_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     except ValueError as e:
         return tool_error(str(e))
     except Exception as e:
-        return tool_error(f'Skill improvement failed: {e}')
+        return tool_error(f"Skill improvement failed: {e}")
 
     status.emit("done", f"Skill '{name}' improved")
 
     return tool_response(
         skill_name=name,
         changes=f"Applied feedback: {feedback}",
-        improved=result.get('improved', True),
+        improved=result.get("improved", True),
     )
 
 
@@ -177,45 +179,48 @@ def list_skills_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         dict with skills list and total count
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
-    category = params.get('category', '').strip().lower()
-    search = params.get('search', '').strip().lower()
+    category = params.get("category", "").strip().lower()
+    search = params.get("search", "").strip().lower()
 
     status.emit("listing", "Loading skill registry...")
 
     try:
         from Jotty.core.capabilities.skills import get_registry
+
         registry = get_registry()
         all_skills = registry.list_skills()
     except Exception as e:
-        return tool_error(f'Could not load skill registry: {e}')
+        return tool_error(f"Could not load skill registry: {e}")
 
     skills_info: List[Dict[str, str]] = []
     for skill in all_skills:
         if isinstance(skill, dict):
-            s_name = skill.get('name', '')
-            s_desc = skill.get('description', '')
-            s_cat = skill.get('category', '')
-        elif hasattr(skill, 'name'):
-            s_name = getattr(skill, 'name', '')
-            s_desc = getattr(skill, 'description', '')
-            s_cat = getattr(skill, 'category', '')
+            s_name = skill.get("name", "")
+            s_desc = skill.get("description", "")
+            s_cat = skill.get("category", "")
+        elif hasattr(skill, "name"):
+            s_name = getattr(skill, "name", "")
+            s_desc = getattr(skill, "description", "")
+            s_cat = getattr(skill, "category", "")
         else:
             s_name = str(skill)
-            s_desc = ''
-            s_cat = ''
+            s_desc = ""
+            s_cat = ""
 
         if category and category not in s_cat.lower():
             continue
         if search and search not in s_name.lower() and search not in s_desc.lower():
             continue
 
-        skills_info.append({
-            'name': s_name,
-            'description': s_desc[:120],
-            'category': s_cat,
-        })
+        skills_info.append(
+            {
+                "name": s_name,
+                "description": s_desc[:120],
+                "category": s_cat,
+            }
+        )
 
     return tool_response(
         skills=skills_info,
@@ -223,4 +228,4 @@ def list_skills_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     )
 
 
-__all__ = ['create_skill_tool', 'improve_skill_tool', 'list_skills_tool']
+__all__ = ["create_skill_tool", "improve_skill_tool", "list_skills_tool"]

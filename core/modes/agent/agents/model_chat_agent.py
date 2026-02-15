@@ -12,10 +12,10 @@ Usage:
     print(result['response'])
 """
 
-from typing import Dict, Any, List, Optional
 import json
 import logging
 import re
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +33,7 @@ class ModelChatAgent:
     - "Run a prediction for RELIANCE using the best model"
     """
 
-    SYSTEM_PROMPT = '''You are an ML model assistant with access to MLflow experiments.
+    SYSTEM_PROMPT = """You are an ML model assistant with access to MLflow experiments.
     You can:
     1. Query model performance metrics (AUC, accuracy, Sharpe, ROMAD)
     2. Compare models across stocks, timeframes, targets
@@ -49,73 +49,96 @@ class ModelChatAgent:
     - load_model: Load a model for predictions
     - suggest_improvements: Analyze and suggest improvements
 
-    Always be specific with metrics and back claims with data.'''
+    Always be specific with metrics and back claims with data."""
 
     # Intent patterns for classification
     INTENT_PATTERNS = {
-        'query_best': [
-            r'best\s+(model|run|result)',
-            r'top\s+(model|performer)',
-            r'highest\s+(auc|accuracy|score)',
-            r'what.*best',
+        "query_best": [
+            r"best\s+(model|run|result)",
+            r"top\s+(model|performer)",
+            r"highest\s+(auc|accuracy|score)",
+            r"what.*best",
         ],
-        'compare': [
-            r'compare',
-            r'vs\.?',
-            r'versus',
-            r'difference\s+between',
-            r'how\s+does.*compare',
+        "compare": [
+            r"compare",
+            r"vs\.?",
+            r"versus",
+            r"difference\s+between",
+            r"how\s+does.*compare",
         ],
-        'feature_analysis': [
-            r'feature',
-            r'importance',
-            r'top\s+features',
-            r'what\s+features',
-            r'which\s+features',
+        "feature_analysis": [
+            r"feature",
+            r"importance",
+            r"top\s+features",
+            r"what\s+features",
+            r"which\s+features",
         ],
-        'suggest_improvement': [
-            r'suggest',
-            r'improve',
-            r'why.*underperform',
-            r'how\s+to\s+make.*better',
-            r'recommendations?',
+        "suggest_improvement": [
+            r"suggest",
+            r"improve",
+            r"why.*underperform",
+            r"how\s+to\s+make.*better",
+            r"recommendations?",
         ],
-        'predict': [
-            r'predict',
-            r'forecast',
-            r'run\s+(a\s+)?prediction',
-            r'what\s+will',
+        "predict": [
+            r"predict",
+            r"forecast",
+            r"run\s+(a\s+)?prediction",
+            r"what\s+will",
         ],
-        'list_runs': [
-            r'list\s+(all\s+)?runs',
-            r'show\s+(all\s+)?runs',
-            r'recent\s+runs',
-            r'all\s+experiments',
+        "list_runs": [
+            r"list\s+(all\s+)?runs",
+            r"show\s+(all\s+)?runs",
+            r"recent\s+runs",
+            r"all\s+experiments",
         ],
     }
 
     # Stock symbol patterns
-    STOCK_PATTERN = r'\b([A-Z]{2,15})\b'
+    STOCK_PATTERN = r"\b([A-Z]{2,15})\b"
     COMMON_STOCKS = {
-        'RELIANCE', 'TCS', 'HDFCBANK', 'INFY', 'ICICIBANK', 'HINDUNILVR',
-        'SBIN', 'BHARTIARTL', 'ITC', 'KOTAKBANK', 'LT', 'AXISBANK',
-        'ASIANPAINT', 'MARUTI', 'TITAN', 'SUNPHARMA', 'BAJFINANCE',
-        'WIPRO', 'HCLTECH', 'TECHM', 'TATAMOTORS', 'TATASTEEL', 'ONGC',
-        'NTPC', 'POWERGRID', 'COALINDIA', 'ADANIENT', 'ADANIPORTS',
+        "RELIANCE",
+        "TCS",
+        "HDFCBANK",
+        "INFY",
+        "ICICIBANK",
+        "HINDUNILVR",
+        "SBIN",
+        "BHARTIARTL",
+        "ITC",
+        "KOTAKBANK",
+        "LT",
+        "AXISBANK",
+        "ASIANPAINT",
+        "MARUTI",
+        "TITAN",
+        "SUNPHARMA",
+        "BAJFINANCE",
+        "WIPRO",
+        "HCLTECH",
+        "TECHM",
+        "TATAMOTORS",
+        "TATASTEEL",
+        "ONGC",
+        "NTPC",
+        "POWERGRID",
+        "COALINDIA",
+        "ADANIENT",
+        "ADANIPORTS",
     }
 
     # Metric keywords
     METRICS = {
-        'auc': ['auc', 'roc', 'roc-auc', 'roc_auc'],
-        'accuracy': ['accuracy', 'acc'],
-        'f1': ['f1', 'f1-score', 'f1_score'],
-        'sharpe': ['sharpe', 'sharpe_ratio', 'sharpe ratio'],
-        'romad': ['romad', 'return over max drawdown'],
-        'annual_return': ['annual', 'yearly', 'annual_return', 'annual return'],
-        'max_drawdown': ['drawdown', 'max_drawdown', 'mdd'],
+        "auc": ["auc", "roc", "roc-auc", "roc_auc"],
+        "accuracy": ["accuracy", "acc"],
+        "f1": ["f1", "f1-score", "f1_score"],
+        "sharpe": ["sharpe", "sharpe_ratio", "sharpe ratio"],
+        "romad": ["romad", "return over max drawdown"],
+        "annual_return": ["annual", "yearly", "annual_return", "annual return"],
+        "max_drawdown": ["drawdown", "max_drawdown", "mdd"],
     }
 
-    def __init__(self, llm_model: str = '') -> None:
+    def __init__(self, llm_model: str = "") -> None:
         """
         Initialize ModelChatAgent.
 
@@ -123,6 +146,7 @@ class ModelChatAgent:
             llm_model: Model to use for LLM reasoning (sonnet, opus, haiku)
         """
         from Jotty.core.infrastructure.foundation.config_defaults import DEFAULT_MODEL_ALIAS
+
         self._tracker = None
         self._llm = None
         self._llm_model = llm_model or DEFAULT_MODEL_ALIAS
@@ -137,6 +161,7 @@ class ModelChatAgent:
         # Initialize MLflow tracker
         try:
             from core.skills.ml import MLflowTrackerSkill
+
             self._tracker = MLflowTrackerSkill()
             await self._tracker.init()
         except Exception as e:
@@ -146,6 +171,7 @@ class ModelChatAgent:
         # Initialize LLM
         try:
             from core.integration.direct_claude_cli_lm import DirectClaudeCLI
+
             self._llm = DirectClaudeCLI(model=self._llm_model)
         except Exception as e:
             logger.warning(f"Failed to initialize LLM: {e}")
@@ -175,17 +201,17 @@ class ModelChatAgent:
 
         # Execute based on intent
         try:
-            if intent['type'] == 'query_best':
+            if intent["type"] == "query_best":
                 result = await self._handle_best_model_query(intent)
-            elif intent['type'] == 'compare':
+            elif intent["type"] == "compare":
                 result = await self._handle_comparison(intent)
-            elif intent['type'] == 'feature_analysis':
+            elif intent["type"] == "feature_analysis":
                 result = await self._handle_feature_analysis(intent)
-            elif intent['type'] == 'suggest_improvement':
+            elif intent["type"] == "suggest_improvement":
                 result = await self._handle_improvement_suggestion(intent)
-            elif intent['type'] == 'predict':
+            elif intent["type"] == "predict":
                 result = await self._handle_prediction(intent)
-            elif intent['type'] == 'list_runs':
+            elif intent["type"] == "list_runs":
                 result = await self._handle_list_runs(intent)
             else:
                 result = await self._handle_general_query(query)
@@ -194,7 +220,7 @@ class ModelChatAgent:
             result = {"response": f"Error processing query: {str(e)}", "error": str(e)}
 
         # Add response to history
-        self.conversation_history.append({"role": "assistant", "content": result['response']})
+        self.conversation_history.append({"role": "assistant", "content": result["response"]})
 
         return result
 
@@ -211,13 +237,13 @@ class ModelChatAgent:
         query_lower = query.lower()
 
         # Detect intent type
-        intent_type = 'general'
+        intent_type = "general"
         for itype, patterns in self.INTENT_PATTERNS.items():
             for pattern in patterns:
                 if re.search(pattern, query_lower):
                     intent_type = itype
                     break
-            if intent_type != 'general':
+            if intent_type != "general":
                 break
 
         # Extract symbols
@@ -228,11 +254,11 @@ class ModelChatAgent:
                 symbols.append(symbol)
 
         # Remove common false positives
-        false_positives = {'AUC', 'ROC', 'THE', 'AND', 'FOR', 'WITH', 'FROM', 'BEST', 'MODEL'}
+        false_positives = {"AUC", "ROC", "THE", "AND", "FOR", "WITH", "FROM", "BEST", "MODEL"}
         symbols = [s for s in symbols if s not in false_positives]
 
         # Detect metric of interest
-        metric = 'test_auc'  # default
+        metric = "test_auc"  # default
         for metric_name, keywords in self.METRICS.items():
             for keyword in keywords:
                 if keyword in query_lower:
@@ -241,43 +267,44 @@ class ModelChatAgent:
 
         # Detect timeframe
         timeframe = None
-        if '60min' in query_lower or 'hourly' in query_lower:
-            timeframe = '60minute'
-        elif '15min' in query_lower:
-            timeframe = '15minute'
-        elif 'daily' in query_lower or 'day' in query_lower:
-            timeframe = 'day'
+        if "60min" in query_lower or "hourly" in query_lower:
+            timeframe = "60minute"
+        elif "15min" in query_lower:
+            timeframe = "15minute"
+        elif "daily" in query_lower or "day" in query_lower:
+            timeframe = "day"
 
         return {
-            'type': intent_type,
-            'symbols': symbols,
-            'metric': metric,
-            'timeframe': timeframe,
-            'query': query,
+            "type": intent_type,
+            "symbols": symbols,
+            "metric": metric,
+            "timeframe": timeframe,
+            "query": query,
         }
 
     async def _handle_best_model_query(self, intent: Dict) -> Dict:
         """Find best model for given criteria."""
         if not self._tracker:
-            return {"response": "MLflow tracker not available. Run some /stock-ml experiments first."}
+            return {
+                "response": "MLflow tracker not available. Run some /stock-ml experiments first."
+            }
 
-        symbol = intent.get('symbols', [''])[0] if intent.get('symbols') else ''
-        metric = intent.get('metric', 'test_auc')
+        symbol = intent.get("symbols", [""])[0] if intent.get("symbols") else ""
+        metric = intent.get("metric", "test_auc")
 
         # Query MLflow
         experiment_name = f"stock_ml_{symbol}" if symbol else None
-        runs = await self._tracker.list_runs(
-            experiment_name=experiment_name,
-            max_results=10
-        )
+        runs = await self._tracker.list_runs(experiment_name=experiment_name, max_results=10)
 
         if not runs:
-            return {"response": f"No models found for {symbol or 'any stock'}. Run /stock-ml first."}
+            return {
+                "response": f"No models found for {symbol or 'any stock'}. Run /stock-ml first."
+            }
 
         # Find best run by metric
         best = None
-        best_value = -float('inf')
-        metric_key = f"metrics.{metric}" if not metric.startswith('metrics.') else metric
+        best_value = -float("inf")
+        metric_key = f"metrics.{metric}" if not metric.startswith("metrics.") else metric
 
         for run in runs:
             value = run.get(metric_key, run.get(metric, 0))
@@ -294,14 +321,16 @@ class ModelChatAgent:
         response += f"**{metric}:** {best_value:.4f}\n"
 
         # Add additional metrics if available
-        params = {k.replace('params.', ''): v for k, v in best.items() if k.startswith('params.')}
-        metrics = {k.replace('metrics.', ''): v for k, v in best.items() if k.startswith('metrics.')}
+        params = {k.replace("params.", ""): v for k, v in best.items() if k.startswith("params.")}
+        metrics = {
+            k.replace("metrics.", ""): v for k, v in best.items() if k.startswith("metrics.")
+        }
 
-        if params.get('symbol'):
+        if params.get("symbol"):
             response += f"**Symbol:** {params.get('symbol')}\n"
-        if params.get('target_type'):
+        if params.get("target_type"):
             response += f"**Target:** {params.get('target_type')}\n"
-        if params.get('timeframe'):
+        if params.get("timeframe"):
             response += f"**Timeframe:** {params.get('timeframe')}\n"
 
         if metrics:
@@ -317,28 +346,33 @@ class ModelChatAgent:
         if not self._tracker:
             return {"response": "MLflow tracker not available."}
 
-        symbols = intent.get('symbols', [])
-        metric = intent.get('metric', 'test_auc')
+        symbols = intent.get("symbols", [])
+        metric = intent.get("metric", "test_auc")
 
         if len(symbols) < 2:
-            return {"response": "Please specify at least 2 symbols to compare (e.g., 'Compare RELIANCE vs TCS')"}
+            return {
+                "response": "Please specify at least 2 symbols to compare (e.g., 'Compare RELIANCE vs TCS')"
+            }
 
         comparison_data = []
         for symbol in symbols:
             runs = await self._tracker.list_runs(
-                experiment_name=f"stock_ml_{symbol}",
-                max_results=1
+                experiment_name=f"stock_ml_{symbol}", max_results=1
             )
             if runs:
                 run = runs[0]
-                metrics = {k.replace('metrics.', ''): v for k, v in run.items() if k.startswith('metrics.')}
-                comparison_data.append({
-                    'symbol': symbol,
-                    metric: metrics.get(metric, 0),
-                    'accuracy': metrics.get('accuracy', 0),
-                    'backtest_annual_return': metrics.get('backtest_annual_return', 0),
-                    'backtest_sharpe': metrics.get('backtest_sharpe', 0),
-                })
+                metrics = {
+                    k.replace("metrics.", ""): v for k, v in run.items() if k.startswith("metrics.")
+                }
+                comparison_data.append(
+                    {
+                        "symbol": symbol,
+                        metric: metrics.get(metric, 0),
+                        "accuracy": metrics.get("accuracy", 0),
+                        "backtest_annual_return": metrics.get("backtest_annual_return", 0),
+                        "backtest_sharpe": metrics.get("backtest_sharpe", 0),
+                    }
+                )
 
         if not comparison_data:
             return {"response": "No data found for the specified symbols."}
@@ -352,28 +386,29 @@ class ModelChatAgent:
         if not self._tracker:
             return {"response": "MLflow tracker not available."}
 
-        symbol = intent.get('symbols', [''])[0] if intent.get('symbols') else ''
+        symbol = intent.get("symbols", [""])[0] if intent.get("symbols") else ""
 
         runs = await self._tracker.list_runs(
-            experiment_name=f"stock_ml_{symbol}" if symbol else None,
-            max_results=1
+            experiment_name=f"stock_ml_{symbol}" if symbol else None, max_results=1
         )
 
         if not runs:
             return {"response": f"No models found for {symbol or 'any stock'}."}
 
         run = runs[0]
-        run_id = run.get('run_id')
+        run_id = run.get("run_id")
 
         # Try to get feature importance from metrics
         feature_metrics = {
-            k.replace('metrics.', ''): v
+            k.replace("metrics.", ""): v
             for k, v in run.items()
-            if k.startswith('metrics.feature_importance')
+            if k.startswith("metrics.feature_importance")
         }
 
         if not feature_metrics:
-            return {"response": f"No feature importance data found for {symbol}. Run /stock-ml with --mlflow flag."}
+            return {
+                "response": f"No feature importance data found for {symbol}. Run /stock-ml with --mlflow flag."
+            }
 
         # Sort and format
         sorted_features = sorted(feature_metrics.items(), key=lambda x: -abs(x[1]))[:15]
@@ -383,21 +418,22 @@ class ModelChatAgent:
         response += "|------|---------|------------|\n"
         for i, (name, value) in enumerate(sorted_features, 1):
             # Clean up feature name
-            clean_name = name.replace('feature_importance_', '').split('_', 1)[-1] if '_' in name else name
+            clean_name = (
+                name.replace("feature_importance_", "").split("_", 1)[-1] if "_" in name else name
+            )
             response += f"| {i} | {clean_name} | {value:.4f} |\n"
 
         return {"response": response, "data": dict(sorted_features)}
 
     async def _handle_improvement_suggestion(self, intent: Dict) -> Dict:
         """Analyze model and suggest improvements using LLM."""
-        symbol = intent.get('symbols', [''])[0] if intent.get('symbols') else ''
+        symbol = intent.get("symbols", [""])[0] if intent.get("symbols") else ""
 
         if not self._tracker:
             return {"response": "MLflow tracker not available."}
 
         runs = await self._tracker.list_runs(
-            experiment_name=f"stock_ml_{symbol}" if symbol else None,
-            max_results=5
+            experiment_name=f"stock_ml_{symbol}" if symbol else None, max_results=5
         )
 
         if not runs:
@@ -406,26 +442,36 @@ class ModelChatAgent:
         # Gather data for analysis
         metrics_list = []
         for run in runs:
-            metrics = {k.replace('metrics.', ''): v for k, v in run.items() if k.startswith('metrics.')}
-            params = {k.replace('params.', ''): v for k, v in run.items() if k.startswith('params.')}
+            metrics = {
+                k.replace("metrics.", ""): v for k, v in run.items() if k.startswith("metrics.")
+            }
+            params = {
+                k.replace("params.", ""): v for k, v in run.items() if k.startswith("params.")
+            }
             metrics_list.append({**metrics, **params})
 
         # Calculate aggregates
-        best_auc = max(m.get('test_auc', m.get('auc', 0)) for m in metrics_list if m.get('test_auc', m.get('auc')))
-        best_sharpe = max(m.get('backtest_sharpe', 0) for m in metrics_list if m.get('backtest_sharpe'))
+        best_auc = max(
+            m.get("test_auc", m.get("auc", 0))
+            for m in metrics_list
+            if m.get("test_auc", m.get("auc"))
+        )
+        best_sharpe = max(
+            m.get("backtest_sharpe", 0) for m in metrics_list if m.get("backtest_sharpe")
+        )
 
         # Get feature importance from best run
         best_run = runs[0]
         feature_metrics = {
-            k.replace('metrics.', ''): v
+            k.replace("metrics.", ""): v
             for k, v in best_run.items()
-            if k.startswith('metrics.feature_importance')
+            if k.startswith("metrics.feature_importance")
         }
         top_features = sorted(feature_metrics.items(), key=lambda x: -abs(x[1]))[:10]
 
         # Use LLM if available for smart suggestions
         if self._llm:
-            prompt = f'''Analyze this ML model performance and suggest 3 specific improvements:
+            prompt = f"""Analyze this ML model performance and suggest 3 specific improvements:
 
 Symbol: {symbol or 'Unknown'}
 Best AUC: {best_auc:.4f}
@@ -440,13 +486,15 @@ Provide specific, actionable suggestions in these categories:
 2. Model hyperparameters (what to tune given current performance)
 3. Data/target changes (timeframe, target horizon adjustments)
 
-Be concise and specific.'''
+Be concise and specific."""
 
             try:
                 suggestions = self._llm(prompt)[0]
             except Exception as e:
                 logger.warning(f"LLM call failed: {e}")
-                suggestions = self._generate_rule_based_suggestions(best_auc, best_sharpe, top_features)
+                suggestions = self._generate_rule_based_suggestions(
+                    best_auc, best_sharpe, top_features
+                )
         else:
             suggestions = self._generate_rule_based_suggestions(best_auc, best_sharpe, top_features)
 
@@ -454,34 +502,50 @@ Be concise and specific.'''
             "response": f"## Improvement Suggestions for {symbol or 'your model'}\n\n{suggestions}",
             "suggestions": suggestions,
             "context": {
-                'symbol': symbol,
-                'best_auc': best_auc,
-                'best_sharpe': best_sharpe,
-            }
+                "symbol": symbol,
+                "best_auc": best_auc,
+                "best_sharpe": best_sharpe,
+            },
         }
 
-    def _generate_rule_based_suggestions(self, auc: float, sharpe: float, top_features: List) -> str:
+    def _generate_rule_based_suggestions(
+        self, auc: float, sharpe: float, top_features: List
+    ) -> str:
         """Generate rule-based improvement suggestions."""
         suggestions = []
 
         # Based on AUC
         if auc < 0.55:
-            suggestions.append("**Feature Engineering:** Consider adding momentum divergence features (RSI vs price), volume-price relationship features, and sector-relative performance metrics.")
+            suggestions.append(
+                "**Feature Engineering:** Consider adding momentum divergence features (RSI vs price), volume-price relationship features, and sector-relative performance metrics."
+            )
         elif auc < 0.60:
-            suggestions.append("**Feature Engineering:** Try adding lagged features (5d, 10d returns), cross-sectional rank features, and volatility regime indicators.")
+            suggestions.append(
+                "**Feature Engineering:** Try adding lagged features (5d, 10d returns), cross-sectional rank features, and volatility regime indicators."
+            )
         else:
-            suggestions.append("**Feature Engineering:** Model is performing well. Consider adding market regime features or alternative data sources.")
+            suggestions.append(
+                "**Feature Engineering:** Model is performing well. Consider adding market regime features or alternative data sources."
+            )
 
         # Based on Sharpe
         if sharpe < 0.5:
-            suggestions.append("**Model Tuning:** Low Sharpe suggests high variance. Try increasing regularization, reducing tree depth, or using ensemble methods.")
+            suggestions.append(
+                "**Model Tuning:** Low Sharpe suggests high variance. Try increasing regularization, reducing tree depth, or using ensemble methods."
+            )
         elif sharpe < 1.0:
-            suggestions.append("**Model Tuning:** Consider optimizing for Sharpe directly using custom loss functions or threshold tuning.")
+            suggestions.append(
+                "**Model Tuning:** Consider optimizing for Sharpe directly using custom loss functions or threshold tuning."
+            )
         else:
-            suggestions.append("**Model Tuning:** Good risk-adjusted returns. Consider position sizing optimization.")
+            suggestions.append(
+                "**Model Tuning:** Good risk-adjusted returns. Consider position sizing optimization."
+            )
 
         # General
-        suggestions.append("**Data/Target:** Try longer prediction horizons (10d, 20d) which often have better signal, or use 60-minute data for more samples.")
+        suggestions.append(
+            "**Data/Target:** Try longer prediction horizons (10d, 20d) which often have better signal, or use 60-minute data for more samples."
+        )
 
         return "\n\n".join(suggestions)
 
@@ -490,17 +554,16 @@ Be concise and specific.'''
         if not self._tracker:
             return {"response": "MLflow tracker not available."}
 
-        symbol = intent.get('symbols', [''])[0] if intent.get('symbols') else ''
+        symbol = intent.get("symbols", [""])[0] if intent.get("symbols") else ""
 
         best = await self._tracker.get_best_run(
-            experiment_name=f"stock_ml_{symbol}" if symbol else None,
-            metric="test_auc"
+            experiment_name=f"stock_ml_{symbol}" if symbol else None, metric="test_auc"
         )
 
         if not best:
             return {"response": f"No model found for {symbol}. Run /stock-ml first."}
 
-        run_id = best.get('run_id')
+        run_id = best.get("run_id")
 
         # Try to load model
         try:
@@ -509,7 +572,7 @@ Be concise and specific.'''
                 return {
                     "response": f"Model loaded successfully for {symbol}.\n\nRun `/stock-ml {symbol} --predict` to generate predictions with latest data.",
                     "model_loaded": True,
-                    "run_id": run_id
+                    "run_id": run_id,
                 }
         except Exception as e:
             logger.warning(f"Failed to load model: {e}")
@@ -517,7 +580,7 @@ Be concise and specific.'''
         return {
             "response": f"Model reference found for {symbol} (run: {run_id[:8]}). Use `/stock-ml {symbol} --predict` to run predictions.",
             "model_loaded": False,
-            "run_id": run_id
+            "run_id": run_id,
         }
 
     async def _handle_list_runs(self, intent: Dict) -> Dict:
@@ -525,11 +588,10 @@ Be concise and specific.'''
         if not self._tracker:
             return {"response": "MLflow tracker not available."}
 
-        symbol = intent.get('symbols', [''])[0] if intent.get('symbols') else ''
+        symbol = intent.get("symbols", [""])[0] if intent.get("symbols") else ""
 
         runs = await self._tracker.list_runs(
-            experiment_name=f"stock_ml_{symbol}" if symbol else None,
-            max_results=20
+            experiment_name=f"stock_ml_{symbol}" if symbol else None, max_results=20
         )
 
         if not runs:
@@ -540,17 +602,21 @@ Be concise and specific.'''
         response += "|-----|--------|--------|-----|--------|\n"
 
         for run in runs[:15]:
-            params = {k.replace('params.', ''): v for k, v in run.items() if k.startswith('params.')}
-            metrics = {k.replace('metrics.', ''): v for k, v in run.items() if k.startswith('metrics.')}
+            params = {
+                k.replace("params.", ""): v for k, v in run.items() if k.startswith("params.")
+            }
+            metrics = {
+                k.replace("metrics.", ""): v for k, v in run.items() if k.startswith("metrics.")
+            }
 
-            run_name = run.get('tags.mlflow.runName', run.get('run_id', 'N/A')[:8])
-            sym = params.get('symbol', 'N/A')
-            target = params.get('target_type', 'N/A')[:12]
-            auc = metrics.get('test_auc', metrics.get('auc', 0))
-            sharpe = metrics.get('backtest_sharpe', 0)
+            run_name = run.get("tags.mlflow.runName", run.get("run_id", "N/A")[:8])
+            sym = params.get("symbol", "N/A")
+            target = params.get("target_type", "N/A")[:12]
+            auc = metrics.get("test_auc", metrics.get("auc", 0))
+            sharpe = metrics.get("backtest_sharpe", 0)
 
-            auc_str = f"{auc:.3f}" if isinstance(auc, (int, float)) else 'N/A'
-            sharpe_str = f"{sharpe:.2f}" if isinstance(sharpe, (int, float)) else 'N/A'
+            auc_str = f"{auc:.3f}" if isinstance(auc, (int, float)) else "N/A"
+            sharpe_str = f"{sharpe:.2f}" if isinstance(sharpe, (int, float)) else "N/A"
 
             response += f"| {run_name[:8]} | {sym} | {target} | {auc_str} | {sharpe_str} |\n"
 
@@ -578,12 +644,12 @@ Provide a helpful response about ML models for stock prediction."""
 
         return {
             "response": "I can help you with:\n"
-                       "- Finding your best models: 'What's my best model for RELIANCE?'\n"
-                       "- Comparing stocks: 'Compare HDFCBANK vs ICICIBANK'\n"
-                       "- Feature analysis: 'Show top features for TCS'\n"
-                       "- Improvement suggestions: 'Suggest improvements for INFY'\n"
-                       "- Listing runs: 'List all runs'\n\n"
-                       "Try one of these queries!"
+            "- Finding your best models: 'What's my best model for RELIANCE?'\n"
+            "- Comparing stocks: 'Compare HDFCBANK vs ICICIBANK'\n"
+            "- Feature analysis: 'Show top features for TCS'\n"
+            "- Improvement suggestions: 'Suggest improvements for INFY'\n"
+            "- Listing runs: 'List all runs'\n\n"
+            "Try one of these queries!"
         }
 
     def _format_comparison_table(self, data: List[Dict], primary_metric: str) -> str:
@@ -591,16 +657,18 @@ Provide a helpful response about ML models for stock prediction."""
         if not data:
             return "No data to compare"
 
-        headers = ['Symbol', primary_metric, 'Accuracy', 'Annual Return', 'Sharpe']
+        headers = ["Symbol", primary_metric, "Accuracy", "Annual Return", "Sharpe"]
         rows = []
         for d in sorted(data, key=lambda x: -(x.get(primary_metric) or 0)):
-            rows.append([
-                d['symbol'],
-                f"{d.get(primary_metric, 0):.4f}",
-                f"{d.get('accuracy', 0):.4f}",
-                f"{d.get('backtest_annual_return', 0):.1f}%",
-                f"{d.get('backtest_sharpe', 0):.2f}"
-            ])
+            rows.append(
+                [
+                    d["symbol"],
+                    f"{d.get(primary_metric, 0):.4f}",
+                    f"{d.get('accuracy', 0):.4f}",
+                    f"{d.get('backtest_annual_return', 0):.1f}%",
+                    f"{d.get('backtest_sharpe', 0):.2f}",
+                ]
+            )
 
         table = "| " + " | ".join(headers) + " |\n"
         table += "| " + " | ".join(["---"] * len(headers)) + " |\n"

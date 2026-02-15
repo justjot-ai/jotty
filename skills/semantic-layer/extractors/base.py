@@ -4,12 +4,13 @@ Base Schema Extractor
 Abstract base class for all schema extractors.
 Implements the Template Method pattern for DRY schema extraction.
 """
-from abc import ABC, abstractmethod
-from typing import Dict, Any, List, Optional
-from datetime import datetime
-import logging
 
-from ..models import Schema, Table, Column, ForeignKey, Index, Relationship
+import logging
+from abc import ABC, abstractmethod
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+from ..models import Column, ForeignKey, Index, Relationship, Schema, Table
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +27,7 @@ class BaseExtractor(ABC):
     - _extract_indexes(table_name): Get indexes (optional)
     """
 
-    def __init__(self, database_type: str = 'unknown') -> None:
+    def __init__(self, database_type: str = "unknown") -> None:
         self.database_type = database_type
         self._schema_cache: Optional[Schema] = None
 
@@ -51,7 +52,7 @@ class BaseExtractor(ABC):
         schema = Schema(
             name=schema_name,
             database_type=self.database_type,
-            extracted_at=datetime.now().isoformat()
+            extracted_at=datetime.now().isoformat(),
         )
 
         # Extract all tables
@@ -95,7 +96,7 @@ class BaseExtractor(ABC):
             columns=columns,
             primary_keys=primary_keys,
             foreign_keys=foreign_keys,
-            indexes=indexes
+            indexes=indexes,
         )
 
     def _infer_additional_relationships(self, schema: Schema) -> Any:
@@ -116,12 +117,16 @@ class BaseExtractor(ABC):
                     continue
 
                 # Check for _id pattern
-                if column.name.lower().endswith('_id'):
+                if column.name.lower().endswith("_id"):
                     potential_table = column.name[:-3]  # Remove _id
 
                     # Try singular and plural forms
-                    for candidate in [potential_table, potential_table + 's',
-                                     potential_table + 'es', potential_table.rstrip('s')]:
+                    for candidate in [
+                        potential_table,
+                        potential_table + "s",
+                        potential_table + "es",
+                        potential_table.rstrip("s"),
+                    ]:
                         if candidate.lower() in table_names:
                             ref_table = table_names[candidate.lower()]
                             ref_table_obj = schema.get_table(ref_table)
@@ -132,14 +137,16 @@ class BaseExtractor(ABC):
                                     from_columns=[column.name],
                                     to_table=ref_table,
                                     to_columns=ref_table_obj.primary_keys[:1],
-                                    join_type="left_outer"
+                                    join_type="left_outer",
                                 )
 
                                 # Avoid duplicates
-                                if not any(r.from_table == rel.from_table and
-                                          r.to_table == rel.to_table and
-                                          r.from_columns == rel.from_columns
-                                          for r in schema.relationships):
+                                if not any(
+                                    r.from_table == rel.from_table
+                                    and r.to_table == rel.to_table
+                                    and r.from_columns == rel.from_columns
+                                    for r in schema.relationships
+                                ):
                                     schema.relationships.append(rel)
                                 break
 

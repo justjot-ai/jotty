@@ -13,9 +13,10 @@ All tests are fast (< 1s), offline, no real LLM calls.
 import asyncio
 import logging
 import time
-import pytest
 from pathlib import Path
-from unittest.mock import Mock, MagicMock, patch, AsyncMock
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+
+import pytest
 
 try:
     from Jotty.core.infrastructure.utils.trajectory_parser import (
@@ -23,6 +24,7 @@ try:
         TrajectoryParser,
         create_parser,
     )
+
     TRAJECTORY_PARSER_AVAILABLE = True
 except ImportError:
     TRAJECTORY_PARSER_AVAILABLE = False
@@ -30,23 +32,22 @@ except ImportError:
 try:
     from Jotty.core.infrastructure.utils.profiler import (
         ExecutionTimer,
-        get_timer,
-        timed_block,
-        timed,
-        enable_profiling,
-        disable_profiling,
-        reset_profiling,
         _global_timer,
+        disable_profiling,
+        enable_profiling,
+        get_timer,
+        reset_profiling,
+        timed,
+        timed_block,
     )
+
     PROFILER_AVAILABLE = True
 except ImportError:
     PROFILER_AVAILABLE = False
 
 try:
-    from Jotty.core.infrastructure.utils.file_logger import (
-        setup_file_logging,
-        close_file_logging,
-    )
+    from Jotty.core.infrastructure.utils.file_logger import close_file_logging, setup_file_logging
+
     FILE_LOGGER_AVAILABLE = True
 except ImportError:
     FILE_LOGGER_AVAILABLE = False
@@ -55,6 +56,7 @@ except ImportError:
 # =============================================================================
 # Helper: build a mock DSPy result with _store / trajectory
 # =============================================================================
+
 
 def _make_result(trajectory_dict, wrap_in_trajectory_key=True):
     """Create a mock result object with _store containing trajectory data."""
@@ -87,6 +89,7 @@ def _single_step(
 # =============================================================================
 # TaggedAttempt Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not TRAJECTORY_PARSER_AVAILABLE, reason="trajectory_parser not importable")
@@ -128,8 +131,11 @@ class TestTaggedAttempt:
     def test_is_answer_true(self):
         """is_answer() returns True for tag='answer'."""
         attempt = TaggedAttempt(
-            output="x", tag="answer", execution_status="success",
-            execution_result="ok", reasoning="r",
+            output="x",
+            tag="answer",
+            execution_status="success",
+            execution_result="ok",
+            reasoning="r",
         )
         assert attempt.is_answer() is True
         assert attempt.is_error() is False
@@ -138,8 +144,11 @@ class TestTaggedAttempt:
     def test_is_error_true(self):
         """is_error() returns True for tag='error'."""
         attempt = TaggedAttempt(
-            output="x", tag="error", execution_status="failed",
-            execution_result="err", reasoning="r",
+            output="x",
+            tag="error",
+            execution_status="failed",
+            execution_result="err",
+            reasoning="r",
         )
         assert attempt.is_error() is True
         assert attempt.is_answer() is False
@@ -148,8 +157,11 @@ class TestTaggedAttempt:
     def test_is_exploratory_true(self):
         """is_exploratory() returns True for tag='exploratory'."""
         attempt = TaggedAttempt(
-            output="x", tag="exploratory", execution_status="uncertain",
-            execution_result="?", reasoning="r",
+            output="x",
+            tag="exploratory",
+            execution_status="uncertain",
+            execution_result="?",
+            reasoning="r",
         )
         assert attempt.is_exploratory() is True
         assert attempt.is_answer() is False
@@ -158,8 +170,11 @@ class TestTaggedAttempt:
     def test_unknown_tag_all_false(self):
         """Unknown tags cause all three predicates to return False."""
         attempt = TaggedAttempt(
-            output="x", tag="custom", execution_status="custom",
-            execution_result="?", reasoning="r",
+            output="x",
+            tag="custom",
+            execution_status="custom",
+            execution_result="?",
+            reasoning="r",
         )
         assert attempt.is_answer() is False
         assert attempt.is_error() is False
@@ -169,6 +184,7 @@ class TestTaggedAttempt:
 # =============================================================================
 # TrajectoryParser Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not TRAJECTORY_PARSER_AVAILABLE, reason="trajectory_parser not importable")
@@ -314,6 +330,7 @@ class TestTrajectoryParser:
 # TrajectoryParser._tag_attempt Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(not TRAJECTORY_PARSER_AVAILABLE, reason="trajectory_parser not importable")
 class TestTagAttempt:
@@ -444,6 +461,7 @@ class TestTagAttempt:
 # TrajectoryParser._extract_output Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(not TRAJECTORY_PARSER_AVAILABLE, reason="trajectory_parser not importable")
 class TestExtractOutput:
@@ -499,6 +517,7 @@ class TestExtractOutput:
 # TrajectoryParser._get_status Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(not TRAJECTORY_PARSER_AVAILABLE, reason="trajectory_parser not importable")
 class TestGetStatus:
@@ -524,6 +543,7 @@ class TestGetStatus:
 # create_parser Factory Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(not TRAJECTORY_PARSER_AVAILABLE, reason="trajectory_parser not importable")
 class TestCreateParser:
@@ -543,6 +563,7 @@ class TestCreateParser:
 # =============================================================================
 # ExecutionTimer Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not PROFILER_AVAILABLE, reason="profiler not importable")
@@ -682,6 +703,7 @@ class TestExecutionTimer:
 # get_timer / enable / disable / reset_profiling Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(not PROFILER_AVAILABLE, reason="profiler not importable")
 class TestGlobalTimerFunctions:
@@ -722,6 +744,7 @@ class TestGlobalTimerFunctions:
 # =============================================================================
 # timed_block Context Manager Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not PROFILER_AVAILABLE, reason="profiler not importable")
@@ -800,6 +823,7 @@ class TestTimedBlock:
 # timed Decorator Tests (sync)
 # =============================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(not PROFILER_AVAILABLE, reason="profiler not importable")
 class TestTimedDecoratorSync:
@@ -811,6 +835,7 @@ class TestTimedDecoratorSync:
 
     def test_timed_with_explicit_name(self):
         """@timed records under the given operation name."""
+
         @timed("my_sync_op")
         def do_work():
             return 42
@@ -822,6 +847,7 @@ class TestTimedDecoratorSync:
 
     def test_timed_with_auto_name(self):
         """@timed() with no arg uses module.funcname as operation."""
+
         @timed()
         def auto_named_func():
             return "hello"
@@ -835,6 +861,7 @@ class TestTimedDecoratorSync:
 
     def test_timed_disabled(self):
         """@timed with enabled=False bypasses timing."""
+
         @timed("disabled_op", enabled=False)
         def do_nothing():
             return "ok"
@@ -845,6 +872,7 @@ class TestTimedDecoratorSync:
 
     def test_timed_preserves_function_name(self):
         """@timed preserves the decorated function's __name__ via functools.wraps."""
+
         @timed("preserved_op")
         def my_function():
             pass
@@ -853,6 +881,7 @@ class TestTimedDecoratorSync:
 
     def test_timed_exception_still_records(self):
         """@timed records timing even when the function raises."""
+
         @timed("exception_op")
         def boom():
             raise RuntimeError("kaboom")
@@ -865,6 +894,7 @@ class TestTimedDecoratorSync:
 
     def test_timed_multiple_calls(self):
         """@timed accumulates stats across multiple calls."""
+
         @timed("multi_op")
         def do_stuff():
             return True
@@ -881,6 +911,7 @@ class TestTimedDecoratorSync:
 # timed Decorator Tests (async)
 # =============================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(not PROFILER_AVAILABLE, reason="profiler not importable")
 class TestTimedDecoratorAsync:
@@ -893,6 +924,7 @@ class TestTimedDecoratorAsync:
     @pytest.mark.asyncio
     async def test_timed_async_records(self):
         """@timed on an async function records timing."""
+
         @timed("async_op")
         async def async_work():
             await asyncio.sleep(0.01)
@@ -907,6 +939,7 @@ class TestTimedDecoratorAsync:
     @pytest.mark.asyncio
     async def test_timed_async_disabled(self):
         """@timed with enabled=False bypasses timing for async functions."""
+
         @timed("async_disabled", enabled=False)
         async def async_skip():
             return "skipped"
@@ -918,6 +951,7 @@ class TestTimedDecoratorAsync:
     @pytest.mark.asyncio
     async def test_timed_async_exception_still_records(self):
         """@timed async records timing even on exception."""
+
         @timed("async_error")
         async def async_boom():
             raise ValueError("async kaboom")
@@ -931,6 +965,7 @@ class TestTimedDecoratorAsync:
     @pytest.mark.asyncio
     async def test_timed_async_preserves_name(self):
         """@timed preserves the async function's __name__."""
+
         @timed("async_named")
         async def my_async_func():
             pass
@@ -940,6 +975,7 @@ class TestTimedDecoratorAsync:
     @pytest.mark.asyncio
     async def test_timed_async_auto_name(self):
         """@timed() on async uses module.funcname as operation name."""
+
         @timed()
         async def auto_async():
             return 1
@@ -953,6 +989,7 @@ class TestTimedDecoratorAsync:
 # =============================================================================
 # setup_file_logging Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not FILE_LOGGER_AVAILABLE, reason="file_logger not importable")
@@ -1028,10 +1065,7 @@ class TestSetupFileLogging:
         setup_file_logging(str(output_dir))
 
         root_logger = logging.getLogger()
-        file_handlers = [
-            h for h in root_logger.handlers
-            if isinstance(h, logging.FileHandler)
-        ]
+        file_handlers = [h for h in root_logger.handlers if isinstance(h, logging.FileHandler)]
         # Should have at most 2 file handlers (beautified + debug), not 4
         assert len(file_handlers) <= 2
 
@@ -1079,6 +1113,7 @@ class TestSetupFileLogging:
 # close_file_logging Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(not FILE_LOGGER_AVAILABLE, reason="file_logger not importable")
 class TestCloseFileLogging:
@@ -1091,16 +1126,14 @@ class TestCloseFileLogging:
 
         root_logger = logging.getLogger()
         file_handlers_before = [
-            h for h in root_logger.handlers
-            if isinstance(h, logging.FileHandler)
+            h for h in root_logger.handlers if isinstance(h, logging.FileHandler)
         ]
         assert len(file_handlers_before) > 0
 
         close_file_logging()
 
         file_handlers_after = [
-            h for h in root_logger.handlers
-            if isinstance(h, logging.FileHandler)
+            h for h in root_logger.handlers if isinstance(h, logging.FileHandler)
         ]
         assert len(file_handlers_after) == 0
 
@@ -1143,10 +1176,17 @@ class TestCloseFileLogging:
 
 try:
     from Jotty.core.infrastructure.utils.context_utils import (
-        ErrorType, CompressionResult, ContextCompressor, ErrorDetector,
-        ExecutionTrajectory, ENRICHMENT_MARKERS,
-        strip_enrichment_context, create_compressor, detect_error_type,
+        ENRICHMENT_MARKERS,
+        CompressionResult,
+        ContextCompressor,
+        ErrorDetector,
+        ErrorType,
+        ExecutionTrajectory,
+        create_compressor,
+        detect_error_type,
+        strip_enrichment_context,
     )
+
     CONTEXT_UTILS_AVAILABLE = True
 except ImportError:
     CONTEXT_UTILS_AVAILABLE = False
@@ -1158,7 +1198,15 @@ class TestErrorType:
     """Tests for ErrorType enum."""
 
     def test_all_values(self):
-        expected = {"context_length", "timeout", "parse_error", "rate_limit", "network", "tool_error", "unknown"}
+        expected = {
+            "context_length",
+            "timeout",
+            "parse_error",
+            "rate_limit",
+            "network",
+            "tool_error",
+            "unknown",
+        }
         actual = {e.value for e in ErrorType}
         assert expected == actual
 
@@ -1169,7 +1217,9 @@ class TestCompressionResult:
     """Tests for CompressionResult dataclass."""
 
     def test_creation(self):
-        cr = CompressionResult(original_length=100, compressed_length=50, compression_ratio=0.5, content="test")
+        cr = CompressionResult(
+            original_length=100, compressed_length=50, compression_ratio=0.5, content="test"
+        )
         assert cr.original_length == 100
         assert cr.compressed_length == 50
         assert cr.compression_ratio == 0.5
@@ -1201,7 +1251,9 @@ class TestContextCompressor:
 
     def test_compress_with_keywords(self):
         compressor = ContextCompressor()
-        content = "First paragraph about dogs.\n\nSecond paragraph about cats.\n\nThird about birds."
+        content = (
+            "First paragraph about dogs.\n\nSecond paragraph about cats.\n\nThird about birds."
+        )
         result = compressor.compress(content, target_ratio=0.5, preserve_keywords=["cats"])
         assert result.content  # Should have some content
 
@@ -1244,6 +1296,7 @@ class TestErrorDetector:
     def test_detect_timeout_by_type_name(self):
         class TimeoutError(Exception):
             pass
+
         assert ErrorDetector.detect(TimeoutError("some error")) == ErrorType.TIMEOUT
 
     def test_detect_parse_error(self):
@@ -1360,8 +1413,13 @@ class TestStripEnrichmentContext:
 
 try:
     from Jotty.core.infrastructure.utils.env_loader import (
-        get_jotty_root, load_jotty_env, get_env, get_env_bool, get_env_int,
+        get_env,
+        get_env_bool,
+        get_env_int,
+        get_jotty_root,
+        load_jotty_env,
     )
+
     ENV_LOADER_AVAILABLE = True
 except ImportError:
     ENV_LOADER_AVAILABLE = False
@@ -1383,6 +1441,7 @@ class TestEnvLoader:
 
     def test_get_env_reads_os_environ(self):
         import os
+
         os.environ["_JOTTY_TEST_KEY"] = "test_value"
         try:
             assert get_env("_JOTTY_TEST_KEY") == "test_value"
@@ -1391,6 +1450,7 @@ class TestEnvLoader:
 
     def test_get_env_bool_true(self):
         import os
+
         for val in ["true", "1", "yes", "on"]:
             os.environ["_JOTTY_BOOL_TEST"] = val
             assert get_env_bool("_JOTTY_BOOL_TEST") is True
@@ -1398,6 +1458,7 @@ class TestEnvLoader:
 
     def test_get_env_bool_false(self):
         import os
+
         for val in ["false", "0", "no", "off"]:
             os.environ["_JOTTY_BOOL_TEST"] = val
             assert get_env_bool("_JOTTY_BOOL_TEST") is False
@@ -1409,6 +1470,7 @@ class TestEnvLoader:
 
     def test_get_env_int(self):
         import os
+
         os.environ["_JOTTY_INT_TEST"] = "42"
         try:
             assert get_env_int("_JOTTY_INT_TEST") == 42
@@ -1417,6 +1479,7 @@ class TestEnvLoader:
 
     def test_get_env_int_invalid(self):
         import os
+
         os.environ["_JOTTY_INT_TEST"] = "not_a_number"
         try:
             assert get_env_int("_JOTTY_INT_TEST", 99) == 99
@@ -1428,6 +1491,7 @@ class TestEnvLoader:
 
     def test_load_jotty_env_nonexistent_file(self):
         import Jotty.core.infrastructure.utils.env_loader as el
+
         old = el._env_loaded
         el._env_loaded = False
         try:
@@ -1443,6 +1507,7 @@ class TestEnvLoader:
 
 try:
     from Jotty.core.infrastructure.utils.skill_status import SkillStatus, get_status
+
     SKILL_STATUS_AVAILABLE = True
 except ImportError:
     SKILL_STATUS_AVAILABLE = False
@@ -1567,9 +1632,15 @@ class TestSkillStatus:
 
 try:
     from Jotty.core.infrastructure.utils.tool_helpers import (
-        tool_response, tool_error, require_params, validate_params,
-        tool_wrapper, async_tool_wrapper, _normalize_param_aliases,
+        _normalize_param_aliases,
+        async_tool_wrapper,
+        require_params,
+        tool_error,
+        tool_response,
+        tool_wrapper,
+        validate_params,
     )
+
     TOOL_HELPERS_AVAILABLE = True
 except ImportError:
     TOOL_HELPERS_AVAILABLE = False
@@ -1686,6 +1757,7 @@ class TestToolWrapper:
         @tool_wrapper(required_params=["query"])
         def search(params):
             return tool_response(data={"result": params["query"]})
+
         result = search({"query": "test"})
         assert result["success"] is True
         assert result["result"] == "test"
@@ -1694,6 +1766,7 @@ class TestToolWrapper:
         @tool_wrapper(required_params=["query"])
         def search(params):
             return tool_response()
+
         result = search({})
         assert result["success"] is False
 
@@ -1701,6 +1774,7 @@ class TestToolWrapper:
         @tool_wrapper(required_params=["x"])
         def bad_tool(params):
             raise ValueError("boom")
+
         result = bad_tool({"x": "val"})
         assert result["success"] is False
         assert "boom" in result["error"]
@@ -1709,6 +1783,7 @@ class TestToolWrapper:
         @tool_wrapper(required_params=["query"])
         def search(params):
             return tool_response(data={"q": params["query"]})
+
         result = search({"search_query": "hello"})
         assert result["success"] is True
         assert result["q"] == "hello"
@@ -1717,6 +1792,7 @@ class TestToolWrapper:
         @tool_wrapper(required_params=["a", "b"])
         def my_tool(params):
             return tool_response()
+
         assert my_tool._required_params == ["a", "b"]
 
 
@@ -1730,6 +1806,7 @@ class TestAsyncToolWrapper:
         @async_tool_wrapper(required_params=["query"])
         async def search(params):
             return tool_response(data={"result": params["query"]})
+
         result = await search({"query": "test"})
         assert result["success"] is True
 
@@ -1738,6 +1815,7 @@ class TestAsyncToolWrapper:
         @async_tool_wrapper(required_params=["query"])
         async def search(params):
             return tool_response()
+
         result = await search({})
         assert result["success"] is False
 
@@ -1746,6 +1824,7 @@ class TestAsyncToolWrapper:
         @async_tool_wrapper(required_params=["x"])
         async def bad_tool(params):
             raise RuntimeError("async boom")
+
         result = await bad_tool({"x": "val"})
         assert result["success"] is False
         assert "async boom" in result["error"]
@@ -1779,12 +1858,14 @@ class TestNormalizeParamAliases:
 
 try:
     from Jotty.core.infrastructure.utils.algorithmic_foundations import SortingAlgorithms
+
     SORTING_AVAILABLE = True
 except ImportError:
     SORTING_AVAILABLE = False
 
 try:
     from Jotty.core.infrastructure.utils.algorithmic_foundations import MutualInformationRetriever
+
     MI_RETRIEVER_AVAILABLE = True
 except ImportError:
     MI_RETRIEVER_AVAILABLE = False
@@ -1796,7 +1877,15 @@ class TestSortingAlgorithms:
     """Tests for SortingAlgorithms."""
 
     def test_bubble_sort_basic(self):
-        assert SortingAlgorithms.bubble_sort([64, 34, 25, 12, 22, 11, 90]) == [11, 12, 22, 25, 34, 64, 90]
+        assert SortingAlgorithms.bubble_sort([64, 34, 25, 12, 22, 11, 90]) == [
+            11,
+            12,
+            22,
+            25,
+            34,
+            64,
+            90,
+        ]
 
     def test_bubble_sort_empty(self):
         assert SortingAlgorithms.bubble_sort([]) == []
@@ -1886,6 +1975,7 @@ class TestMutualInformationRetriever:
 
 try:
     from Jotty.core.infrastructure.utils.api_client import BaseAPIClient
+
     API_CLIENT_AVAILABLE = True
 except ImportError:
     API_CLIENT_AVAILABLE = False
@@ -1901,6 +1991,7 @@ class TestBaseAPIClient:
             BASE_URL = "https://api.example.com"
             AUTH_PREFIX = "Bearer"
             TOKEN_ENV_VAR = "_JOTTY_TEST_TOKEN"
+
         return TestClient
 
     def test_init_with_token(self):
@@ -1910,6 +2001,7 @@ class TestBaseAPIClient:
 
     def test_init_from_env(self):
         import os
+
         os.environ["_JOTTY_TEST_TOKEN"] = "env-token"
         try:
             ClientClass = self._make_client_class()

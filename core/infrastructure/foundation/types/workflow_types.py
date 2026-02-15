@@ -8,12 +8,12 @@ Extracted from data_structures.py for better organization.
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Any, Optional
-
+from typing import Any, Dict, List, Optional
 
 # =============================================================================
 # RICH OBSERVATION (A-Team Enhancement)
 # =============================================================================
+
 
 @dataclass
 class RichObservation:
@@ -43,14 +43,14 @@ class RichObservation:
     raw_result: Any = None
 
     # Linguistic (for LLM understanding)
-    natural_summary: str = ""     # "The validation agent found 3 issues..."
-    action_taken: str = ""        # "Validated column 'bank_code' against schema"
-    outcome_type: str = "unknown" # "success", "partial", "failure", "unknown"
+    natural_summary: str = ""  # "The validation agent found 3 issues..."
+    action_taken: str = ""  # "Validated column 'bank_code' against schema"
+    outcome_type: str = "unknown"  # "success", "partial", "failure", "unknown"
 
     # State delta
     state_before: Dict[str, Any] = field(default_factory=dict)
     state_after: Dict[str, Any] = field(default_factory=dict)
-    delta_summary: str = ""       # "Added 100 rows, filled 3 columns"
+    delta_summary: str = ""  # "Added 100 rows, filled 3 columns"
 
     # Entities
     entities_affected: List[str] = field(default_factory=list)
@@ -110,15 +110,15 @@ class RichObservation:
             "columns_touched": self.columns_touched,
             "anomalies": self.anomalies,
             "warnings": self.warnings,
-            "confidence_reason": self.confidence_reason
+            "confidence_reason": self.confidence_reason,
         }
 
     @classmethod
-    def from_simple(cls, result: Any, action: str, outcome: str) -> 'RichObservation':
+    def from_simple(cls, result: Any, action: str, outcome: str) -> "RichObservation":
         """Create a simple RichObservation from basic info."""
         return cls(
             raw_result=result,
             natural_summary=str(result) if result else "",
             action_taken=action,
-            outcome_type=outcome
+            outcome_type=outcome,
         )

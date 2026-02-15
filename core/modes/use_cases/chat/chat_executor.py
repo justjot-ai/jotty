@@ -4,13 +4,14 @@ Chat Executor
 Handles execution of chat interactions.
 """
 
-from typing import Dict, Any, Optional, List, AsyncIterator
 import logging
 import time
+from typing import Any, AsyncIterator, Dict, List, Optional
 
-from .chat_orchestrator import ChatOrchestrator
+from Jotty.core.interface.ui.a2ui import convert_to_a2ui_response, is_a2ui_response
+
 from .chat_context import ChatContext, ChatMessage
-from Jotty.core.interface.ui.a2ui import is_a2ui_response, convert_to_a2ui_response
+from .chat_orchestrator import ChatOrchestrator
 
 logger = logging.getLogger(__name__)
 
@@ -19,11 +20,13 @@ class ChatExecutor:
     """
     Executes chat interactions with agents.
     """
-    
-    def __init__(self, conductor: Any, orchestrator: ChatOrchestrator, context: Optional[ChatContext] = None) -> None:
+
+    def __init__(
+        self, conductor: Any, orchestrator: ChatOrchestrator, context: Optional[ChatContext] = None
+    ) -> None:
         """
         Initialize chat executor.
-        
+
         Args:
             conductor: Jotty Conductor instance
             orchestrator: Chat orchestrator for agent selection
@@ -32,45 +35,40 @@ class ChatExecutor:
         self.conductor = conductor
         self.orchestrator = orchestrator
         self.context = context or ChatContext()
-    
+
     async def execute(
         self,
         message: str,
         history: Optional[List[ChatMessage]] = None,
-        context: Optional[Dict[str, Any]] = None
+        context: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Execute chat interaction synchronously.
-        
+
         Args:
             message: User message
             history: Conversation history
             context: Additional context
-            
+
         Returns:
             Chat response dictionary
         """
         start_time = time.time()
-        
+
         # Add user message to context
         self.context.add_message("user", message)
-        
+
         # Select agent
         agent_id = self.orchestrator.select_agent(message, history, context)
-        
+
         # Prepare agent context
-        agent_context = self.orchestrator.prepare_agent_context(
-            message, history, context
-        )
-        
+        agent_context = self.orchestrator.prepare_agent_context(message, history, context)
+
         # Execute agent
         try:
             # Use conductor.run() since run_actor() doesn't exist
             # Pass agent context as kwargs which includes actor selection
-            result = await self.conductor.run(
-                goal=message,
-                **agent_context
-            )
+            result = await self.conductor.run(goal=message, **agent_context)
 
             # Extract response
             response_text = self._extract_response(result)
@@ -97,64 +95,56 @@ class ChatExecutor:
                 "execution_time": execution_time,
                 "metadata": {
                     "result": result_dict,  # Now serializable!
-                    "context_used": len(agent_context)
-                }
+                    "context_used": len(agent_context),
+                },
             }
-            
+
         except Exception as e:
             logger.error(f"Chat execution failed: {e}", exc_info=True)
             execution_time = time.time() - start_time
-            
+
             return {
                 "success": False,
                 "message": f"Error: {str(e)}",
                 "agent": agent_id,
                 "execution_time": execution_time,
-                "error": str(e)
+                "error": str(e),
             }
-    
+
     async def stream(
         self,
         message: str,
         history: Optional[List[ChatMessage]] = None,
-        context: Optional[Dict[str, Any]] = None
+        context: Optional[Dict[str, Any]] = None,
     ) -> AsyncIterator[Dict[str, Any]]:
         """
         Execute chat interaction with streaming.
-        
+
         Args:
             message: User message
             history: Conversation history
             context: Additional context
-            
+
         Yields:
             Event dictionaries
         """
         # Add user message to context
         self.context.add_message("user", message)
-        
+
         # Select agent
         agent_id = self.orchestrator.select_agent(message, history, context)
-        
+
         # Emit agent selection event
-        yield {
-            "type": "agent_selected",
-            "agent": agent_id,
-            "timestamp": time.time()
-        }
-        
+        yield {"type": "agent_selected", "agent": agent_id, "timestamp": time.time()}
+
         # Prepare agent context
-        agent_context = self.orchestrator.prepare_agent_context(
-            message, history, context
-        )
-        
+        agent_context = self.orchestrator.prepare_agent_context(message, history, context)
+
         # Stream agent execution
         try:
-            if hasattr(self.conductor, 'run_actor_stream'):
+            if hasattr(self.conductor, "run_actor_stream"):
                 async for event in self.conductor.run_actor_stream(
-                    actor_name=agent_id,
-                    goal=message,
-                    context=agent_context
+                    actor_name=agent_id, goal=message, context=agent_context
                 ):
                     # Transform to chat events
                     for chat_event in self._transform_to_chat_events(event):
@@ -164,14 +154,14 @@ class ChatExecutor:
                 # Conductor.run() executes with the specified actor via kwargs
                 result = await self.conductor.run(
                     goal=message,
-                    **agent_context  # Pass context as kwargs (includes actor_name if specified)
+                    **agent_context,  # Pass context as kwargs (includes actor_name if specified)
                 )
 
                 # Debug logging
                 logger.info(f"Conductor result type: {type(result)}, value: {result}")
 
                 # Extract final_output from SwarmResult if applicable
-                actual_result = result.final_output if hasattr(result, 'final_output') else result
+                actual_result = result.final_output if hasattr(result, "final_output") else result
 
                 # Check if result is A2UI format
                 if is_a2ui_response(actual_result):
@@ -187,14 +177,10 @@ class ChatExecutor:
                     yield {
                         "type": "a2ui_widget",
                         "content": a2ui_response["content"],
-                        "timestamp": time.time()
+                        "timestamp": time.time(),
                     }
 
-                    yield {
-                        "type": "done",
-                        "message": response_text,
-                        "timestamp": time.time()
-                    }
+                    yield {"type": "done", "message": response_text, "timestamp": time.time()}
                 else:
                     # Stream plain text result
                     response_text = self._extract_response(result)
@@ -202,26 +188,14 @@ class ChatExecutor:
 
                     # Emit text chunks
                     for chunk in self._chunk_text(response_text):
-                        yield {
-                            "type": "text_chunk",
-                            "content": chunk,
-                            "timestamp": time.time()
-                        }
+                        yield {"type": "text_chunk", "content": chunk, "timestamp": time.time()}
 
-                    yield {
-                        "type": "done",
-                        "message": response_text,
-                        "timestamp": time.time()
-                    }
-                
+                    yield {"type": "done", "message": response_text, "timestamp": time.time()}
+
         except Exception as e:
             logger.error(f"Chat streaming failed: {e}", exc_info=True)
-            yield {
-                "type": "error",
-                "error": str(e),
-                "timestamp": time.time()
-            }
-    
+            yield {"type": "error", "error": str(e), "timestamp": time.time()}
+
     def _extract_response(self, result: Any) -> str:
         """Extract response text from agent result."""
         # Handle None result
@@ -279,58 +253,56 @@ class ChatExecutor:
                             texts.append(item["subtitle"])
 
         return " ".join(texts) if texts else "A2UI widget response"
-    
+
     def _transform_to_chat_events(self, event: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Transform agent events to chat events."""
         chat_events = []
         event_type = event.get("type", "")
-        
+
         if event_type == "agent_complete":
             result = event.get("result", {})
-            
+
             # Reasoning
             if result.get("reasoning"):
-                chat_events.append({
-                    "type": "reasoning",
-                    "content": result["reasoning"],
-                    "timestamp": time.time()
-                })
-            
+                chat_events.append(
+                    {"type": "reasoning", "content": result["reasoning"], "timestamp": time.time()}
+                )
+
             # Tool calls
             for tool_call in result.get("tool_calls", []):
-                chat_events.append({
-                    "type": "tool_call",
-                    "tool": tool_call.get("name"),
-                    "args": tool_call.get("arguments"),
-                    "timestamp": time.time()
-                })
-            
+                chat_events.append(
+                    {
+                        "type": "tool_call",
+                        "tool": tool_call.get("name"),
+                        "args": tool_call.get("arguments"),
+                        "timestamp": time.time(),
+                    }
+                )
+
             # Tool results
             for tool_result in result.get("tool_results", []):
-                chat_events.append({
-                    "type": "tool_result",
-                    "result": tool_result.get("result"),
-                    "timestamp": time.time()
-                })
-            
+                chat_events.append(
+                    {
+                        "type": "tool_result",
+                        "result": tool_result.get("result"),
+                        "timestamp": time.time(),
+                    }
+                )
+
             # Text response
             response_text = result.get("response", "")
             if response_text:
                 for chunk in self._chunk_text(response_text):
-                    chat_events.append({
-                        "type": "text_chunk",
-                        "content": chunk,
-                        "timestamp": time.time()
-                    })
-                
-                chat_events.append({
-                    "type": "done",
-                    "message": response_text,
-                    "timestamp": time.time()
-                })
-        
+                    chat_events.append(
+                        {"type": "text_chunk", "content": chunk, "timestamp": time.time()}
+                    )
+
+                chat_events.append(
+                    {"type": "done", "message": response_text, "timestamp": time.time()}
+                )
+
         return chat_events
-    
+
     def _chunk_text(self, text: str, chunk_size: int = 50) -> List[str]:
         """Split text into chunks for streaming."""
         # Handle None or empty text
@@ -352,5 +324,5 @@ class ChatExecutor:
 
         if current_chunk:
             chunks.append(current_chunk.strip())
-        
+
         return chunks if chunks else [text]

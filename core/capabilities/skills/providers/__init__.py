@@ -24,58 +24,54 @@ Usage:
     result = await provider.execute(task)
 """
 
+from .agent_s_provider import AgentSProvider
 from .base import (
-    SkillProvider,
-    SkillCategory,
-    ProviderCapability,
-    ProviderResult,
+    CATEGORY_KEYWORDS,
+    SKILL_CATEGORY_MAP,
     ContributedSkill,
     JottyDefaultProvider,
-    SKILL_CATEGORY_MAP,
-    CATEGORY_KEYWORDS,
+    ProviderCapability,
+    ProviderResult,
+    SkillCategory,
+    SkillProvider,
 )
-from .provider_registry import (
-    ProviderRegistry,
-    ProviderSelector,
-    ProviderPerformance,
-)
-from .browser_use_provider import BrowserUseProvider, BrowserUseCompositeProvider
-from .openhands_provider import OpenHandsProvider
-from .agent_s_provider import AgentSProvider
-from .open_interpreter_provider import OpenInterpreterProvider
+from .browser_use_provider import BrowserUseCompositeProvider, BrowserUseProvider
 from .composite_provider import (
-    ResearchAndAnalyzeProvider,
     AutomateWorkflowProvider,
     FullStackAgentProvider,
+    ResearchAndAnalyzeProvider,
 )
-from .streamlit_provider import StreamlitProvider
 from .morph_provider import MorphProvider
+from .open_interpreter_provider import OpenInterpreterProvider
+from .openhands_provider import OpenHandsProvider
+from .provider_registry import ProviderPerformance, ProviderRegistry, ProviderSelector
+from .streamlit_provider import StreamlitProvider
 
 __all__ = [
     # Base
-    'SkillProvider',
-    'SkillCategory',
-    'ProviderCapability',
-    'ProviderResult',
-    'ContributedSkill',
-    'JottyDefaultProvider',
-    'SKILL_CATEGORY_MAP',
-    'CATEGORY_KEYWORDS',
+    "SkillProvider",
+    "SkillCategory",
+    "ProviderCapability",
+    "ProviderResult",
+    "ContributedSkill",
+    "JottyDefaultProvider",
+    "SKILL_CATEGORY_MAP",
+    "CATEGORY_KEYWORDS",
     # Registry
-    'ProviderRegistry',
-    'ProviderSelector',
-    'ProviderPerformance',
+    "ProviderRegistry",
+    "ProviderSelector",
+    "ProviderPerformance",
     # Providers
-    'BrowserUseProvider',
-    'BrowserUseCompositeProvider',
-    'OpenHandsProvider',
-    'AgentSProvider',
-    'OpenInterpreterProvider',
+    "BrowserUseProvider",
+    "BrowserUseCompositeProvider",
+    "OpenHandsProvider",
+    "AgentSProvider",
+    "OpenInterpreterProvider",
     # Composite
-    'ResearchAndAnalyzeProvider',
-    'AutomateWorkflowProvider',
-    'FullStackAgentProvider',
+    "ResearchAndAnalyzeProvider",
+    "AutomateWorkflowProvider",
+    "FullStackAgentProvider",
     # App Building (Streamlit is default - fully open source)
-    'StreamlitProvider',
-    'MorphProvider',  # Requires cloud credentials
+    "StreamlitProvider",
+    "MorphProvider",  # Requires cloud credentials
 ]

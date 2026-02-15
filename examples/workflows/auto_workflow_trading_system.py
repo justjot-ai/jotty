@@ -26,6 +26,7 @@ Total: 10+ stages, mixed auto/custom
 
 import asyncio
 from pathlib import Path
+
 from dotenv import load_dotenv
 
 # Load API key
@@ -33,13 +34,13 @@ load_dotenv(Path(__file__).parent.parent / "Jotty" / ".env.anthropic")
 
 
 async def main():
+    from Jotty.core.intelligence.orchestration import MergeStrategy, SwarmAdapter
     from Jotty.core.modes.workflow import AutoWorkflow
-    from Jotty.core.intelligence.orchestration import SwarmAdapter, MergeStrategy
 
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("COMPLEX FLEXIBILITY TEST")
     print("Build Production AI Trading System with Mixed Auto/Custom Stages")
-    print("="*80 + "\n")
+    print("=" * 80 + "\n")
 
     # ═══════════════════════════════════════════════════════════════════════
     # STEP 1: Start with Auto-Generation (Simple Intent)
@@ -52,15 +53,15 @@ async def main():
         goal="Build production AI trading system for crypto",
         project_type="trading_strategy",
         deliverables=[
-            "requirements",      # Auto: SmartRegistry
-            "architecture",      # Auto: SmartRegistry
-            "code",             # Will customize this
-            "tests",            # Auto: SmartRegistry
-            "docs",             # Will customize this
-            "deployment"        # Auto: SmartRegistry
+            "requirements",  # Auto: SmartRegistry
+            "architecture",  # Auto: SmartRegistry
+            "code",  # Will customize this
+            "tests",  # Auto: SmartRegistry
+            "docs",  # Will customize this
+            "deployment",  # Auto: SmartRegistry
         ],
         tech_stack=["python", "tensorflow", "fastapi", "redis", "postgresql"],
-        features=["ml_predictions", "backtesting", "risk_management", "real_time"]
+        features=["ml_predictions", "backtesting", "risk_management", "real_time"],
     )
 
     print("✅ Created base workflow with 6 auto-generated stages\n")
@@ -98,7 +99,7 @@ async def main():
         - PostgreSQL for historical data
         - Make everything async/await
         - Production-grade error handling
-        """
+        """,
     )
     print("✅ Customized 'code' stage with ML/trading specific requirements")
 
@@ -114,7 +115,7 @@ async def main():
         - API rate limits and usage
         - Regulatory compliance notes (SEC, FINRA)
         - Disaster recovery procedures
-        """
+        """,
     )
     print("✅ Customized 'docs' stage with trading-specific sections")
 
@@ -131,7 +132,7 @@ async def main():
         - Prometheus + Grafana monitoring
         - Automated backup procedures
         - Secrets management with Vault
-        """
+        """,
     )
     print("✅ Customized 'deployment' stage for production requirements\n")
 
@@ -143,8 +144,11 @@ async def main():
     print("-" * 80 + "\n")
 
     # Replace tests with custom ML testing swarms
-    custom_test_swarms = SwarmAdapter.quick_swarms([
-        ("ML Test Engineer", """Generate comprehensive test suite for ML trading system:
+    custom_test_swarms = SwarmAdapter.quick_swarms(
+        [
+            (
+                "ML Test Engineer",
+                """Generate comprehensive test suite for ML trading system:
 
         Required tests:
         1. Unit Tests:
@@ -171,9 +175,11 @@ async def main():
 
         Use pytest, unittest.mock, and pytest-benchmark.
         Make tests runnable. Output ONLY code in ```python blocks.
-        Max 2000 tokens."""),
-
-        ("Backtesting Validator", """Generate backtesting validation tests:
+        Max 2000 tokens.""",
+            ),
+            (
+                "Backtesting Validator",
+                """Generate backtesting validation tests:
 
         Required:
         1. Historical accuracy tests
@@ -184,13 +190,16 @@ async def main():
         6. Win rate accuracy
 
         Include edge cases and statistical validation.
-        Use pytest. Max 1500 tokens."""),
-    ], max_tokens=2000)
+        Use pytest. Max 1500 tokens.""",
+            ),
+        ],
+        max_tokens=2000,
+    )
 
     workflow.replace_stage(
         "tests",
         swarms=custom_test_swarms,
-        merge_strategy=MergeStrategy.CONCATENATE  # Need all test types
+        merge_strategy=MergeStrategy.CONCATENATE,  # Need all test types
     )
     print("✅ Replaced 'tests' stage with custom ML/trading test swarms\n")
 
@@ -202,8 +211,11 @@ async def main():
     print("-" * 80 + "\n")
 
     # Add custom backtesting stage
-    backtesting_swarms = SwarmAdapter.quick_swarms([
-        ("Quantitative Analyst", """Design comprehensive backtesting framework:
+    backtesting_swarms = SwarmAdapter.quick_swarms(
+        [
+            (
+                "Quantitative Analyst",
+                """Design comprehensive backtesting framework:
 
         Requirements:
         1. Walk-forward analysis (rolling window)
@@ -221,20 +233,26 @@ async def main():
 
         Generate Python code for backtesting engine.
         Use vectorized operations (NumPy/Pandas).
-        Max 2000 tokens."""),
-    ], max_tokens=2000)
+        Max 2000 tokens.""",
+            ),
+        ],
+        max_tokens=2000,
+    )
 
     workflow.add_custom_stage(
         "backtesting",
         swarms=backtesting_swarms,
         merge_strategy=MergeStrategy.BEST_OF_N,
-        context_from=["requirements", "architecture", "code"]
+        context_from=["requirements", "architecture", "code"],
     )
     print("✅ Added 'backtesting' stage (custom quantitative analysis)")
 
     # Add regulatory compliance stage
-    compliance_swarms = SwarmAdapter.quick_swarms([
-        ("Compliance Officer", """Generate regulatory compliance documentation and checks:
+    compliance_swarms = SwarmAdapter.quick_swarms(
+        [
+            (
+                "Compliance Officer",
+                """Generate regulatory compliance documentation and checks:
 
         For AI trading system, address:
 
@@ -263,20 +281,26 @@ async def main():
            - Failover systems
 
         Generate compliance checklist and implementation code.
-        Max 1500 tokens."""),
-    ], max_tokens=1500)
+        Max 1500 tokens.""",
+            ),
+        ],
+        max_tokens=1500,
+    )
 
     workflow.add_custom_stage(
         "compliance",
         swarms=compliance_swarms,
         merge_strategy=MergeStrategy.BEST_OF_N,
-        context_from=["requirements", "code", "deployment"]
+        context_from=["requirements", "code", "deployment"],
     )
     print("✅ Added 'compliance' stage (regulatory requirements)")
 
     # Add monitoring & alerts stage
-    monitoring_swarms = SwarmAdapter.quick_swarms([
-        ("DevOps Engineer", """Design comprehensive monitoring and alerting system:
+    monitoring_swarms = SwarmAdapter.quick_swarms(
+        [
+            (
+                "DevOps Engineer",
+                """Design comprehensive monitoring and alerting system:
 
         Real-time Metrics:
         1. System Health:
@@ -303,14 +327,17 @@ async def main():
            - Data feed interruption
 
         Generate Prometheus metrics, Grafana dashboards config, and alert rules.
-        Max 1500 tokens."""),
-    ], max_tokens=1500)
+        Max 1500 tokens.""",
+            ),
+        ],
+        max_tokens=1500,
+    )
 
     workflow.add_custom_stage(
         "monitoring",
         swarms=monitoring_swarms,
         merge_strategy=MergeStrategy.BEST_OF_N,
-        context_from=["architecture", "code", "deployment"]
+        context_from=["architecture", "code", "deployment"],
     )
     print("✅ Added 'monitoring' stage (observability & alerts)\n")
 
@@ -337,9 +364,9 @@ async def main():
     # STEP 8: Analyze Results
     # ═══════════════════════════════════════════════════════════════════════
 
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("FINAL RESULTS - COMPLEX FLEXIBILITY TEST")
-    print("="*80 + "\n")
+    print("=" * 80 + "\n")
 
     print("📊 Pipeline Composition:")
     print(f"   Total Stages: {len(result.stages)}")
@@ -381,7 +408,7 @@ async def main():
         "compliance": "Regulatory compliance documentation",
         "monitoring": "Monitoring & alerting setup",
         "docs": "Complete system documentation",
-        "deployment": "Production deployment configs"
+        "deployment": "Production deployment configs",
     }
 
     for stage in result.stages:
@@ -410,14 +437,14 @@ async def main():
     print("   • All working together seamlessly")
     print()
 
-    print("="*80)
+    print("=" * 80)
     print("✅ COMPLEX FLEXIBILITY TEST COMPLETE")
-    print("="*80)
+    print("=" * 80)
     print()
     print("🏆 Successfully demonstrated best of both worlds:")
     print("   Simple by default + Full control when needed")
     print()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     asyncio.run(main())

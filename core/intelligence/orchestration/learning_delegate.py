@@ -9,12 +9,13 @@ Dependencies are passed explicitly via constructor.
 """
 
 import logging
-from typing import Dict, Any, List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 if TYPE_CHECKING:
+    from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
+
     from .learning_pipeline import SwarmLearningPipeline
     from .mas_learning import MASLearning
-    from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
 
 logger = logging.getLogger(__name__)
 
@@ -39,18 +40,18 @@ class LearningDelegate:
         self._get_agents = get_agents
 
     @property
-    def learning(self) -> 'SwarmLearningPipeline':
+    def learning(self) -> "SwarmLearningPipeline":
         return self._get_learning()
 
     @property
-    def mas_learning(self) -> Optional['MASLearning']:
+    def mas_learning(self) -> Optional["MASLearning"]:
         try:
             return self._get_mas()
         except Exception:
             return None
 
     @property
-    def agents(self) -> List['AgentConfig']:
+    def agents(self) -> List["AgentConfig"]:
         return self._get_agents()
 
     def auto_load_learnings(self) -> None:
@@ -68,7 +69,13 @@ class LearningDelegate:
             except Exception:
                 pass
 
-    def auto_save_learnings(self, mas_learning: Any = None, swarm_terminal: Any = None, provider_registry: Any = None, memory_persistence: Any = None) -> Any:
+    def auto_save_learnings(
+        self,
+        mas_learning: Any = None,
+        swarm_terminal: Any = None,
+        provider_registry: Any = None,
+        memory_persistence: Any = None,
+    ) -> Any:
         """Save all learnings to disk."""
         self.learning.auto_save(
             mas_learning=mas_learning or self.mas_learning,
@@ -95,7 +102,14 @@ class LearningDelegate:
             agent_types=agent_types or [a.name for a in self.agents],
         )
 
-    def record_agent_result(self, agent_name: str, task_type: str, success: bool, time_taken: float, output_quality: float = 0.0) -> Any:
+    def record_agent_result(
+        self,
+        agent_name: str,
+        task_type: str,
+        success: bool,
+        time_taken: float,
+        output_quality: float = 0.0,
+    ) -> Any:
         """Record an agent's task result for learning."""
         mas = self.mas_learning
         if mas:
@@ -107,7 +121,15 @@ class LearningDelegate:
                 output_quality=output_quality,
             )
 
-    def record_session_result(self, task_description: str, agent_performances: Dict[str, Dict[str, Any]], total_time: float, success: bool, fixes_applied: List[Dict[str, Any]] = None, stigmergy_signals: int = 0) -> Any:
+    def record_session_result(
+        self,
+        task_description: str,
+        agent_performances: Dict[str, Dict[str, Any]],
+        total_time: float,
+        success: bool,
+        fixes_applied: List[Dict[str, Any]] = None,
+        stigmergy_signals: int = 0,
+    ) -> Any:
         """Record session results for future learning."""
         mas = self.mas_learning
         if mas:

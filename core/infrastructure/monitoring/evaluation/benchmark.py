@@ -4,12 +4,13 @@ Benchmark Framework
 Standardized benchmark interface for evaluating agents.
 Supports GAIA, BrowseComp, and custom benchmarks.
 """
+
 import json
 import logging
-from typing import Dict, List, Any, Optional, Callable
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
-from abc import ABC, abstractmethod
+from typing import Any, Callable, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +18,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class BenchmarkResult:
     """Result from a single benchmark task."""
+
     task_id: str
     success: bool
     answer: Optional[str] = None
@@ -25,7 +27,7 @@ class BenchmarkResult:
     cost: float = 0.0
     tokens_used: int = 0
     metadata: Dict[str, Any] = field(default_factory=dict)
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
         return {
@@ -43,6 +45,7 @@ class BenchmarkResult:
 @dataclass
 class BenchmarkMetrics:
     """Aggregated metrics from benchmark evaluation."""
+
     total_tasks: int
     successful_tasks: int
     failed_tasks: int
@@ -53,7 +56,7 @@ class BenchmarkMetrics:
     total_tokens: int
     avg_tokens_per_task: float
     results: List[BenchmarkResult] = field(default_factory=list)
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
         return {
@@ -73,17 +76,17 @@ class BenchmarkMetrics:
 class Benchmark(ABC):
     """
     Abstract benchmark interface.
-    
+
     Subclasses should implement:
     - load_tasks(): Load benchmark tasks
     - evaluate_task(): Evaluate agent on a single task
     - validate_answer(): Validate agent's answer
     """
-    
+
     def __init__(self, name: str, benchmark_path: Optional[str] = None) -> None:
         """
         Initialize benchmark.
-        
+
         Args:
             name: Benchmark name (e.g., "GAIA", "BrowseComp")
             benchmark_path: Path to benchmark data
@@ -91,71 +94,69 @@ class Benchmark(ABC):
         self.name = name
         self.benchmark_path = Path(benchmark_path) if benchmark_path else None
         self.tasks: List[Dict[str, Any]] = []
-    
+
     @abstractmethod
     def load_tasks(self) -> List[Dict[str, Any]]:
         """
         Load benchmark tasks.
-        
+
         Returns:
             List of task dictionaries
         """
         pass
-    
+
     @abstractmethod
     def evaluate_task(self, task: Dict[str, Any], agent: Any, **kwargs: Any) -> BenchmarkResult:
         """
         Evaluate agent on a single task.
-        
+
         Args:
             task: Task dictionary
             agent: Agent to evaluate
             **kwargs: Additional arguments
-            
+
         Returns:
             BenchmarkResult
         """
         pass
-    
+
     @abstractmethod
-    def validate_answer(
-        self,
-        task: Dict[str, Any],
-        answer: str
-    ) -> bool:
+    def validate_answer(self, task: Dict[str, Any], answer: str) -> bool:
         """
         Validate agent's answer.
-        
+
         Args:
             task: Task dictionary
             answer: Agent's answer
-            
+
         Returns:
             True if answer is correct
         """
         pass
-    
-    def evaluate(self, agent: Any, task_ids: Optional[List[str]] = None, **kwargs: Any) -> BenchmarkMetrics:
+
+    def evaluate(
+        self, agent: Any, task_ids: Optional[List[str]] = None, **kwargs: Any
+    ) -> BenchmarkMetrics:
         """
         Evaluate agent on benchmark.
-        
+
         Args:
             agent: Agent to evaluate
             task_ids: Optional list of task IDs to evaluate (default: all)
             **kwargs: Additional arguments
-            
+
         Returns:
             BenchmarkMetrics with aggregated results
         """
         # Load tasks if not loaded
         if not self.tasks:
             self.tasks = self.load_tasks()
-        
+
         # Filter tasks if task_ids provided
         tasks_to_evaluate = self.tasks
         if task_ids:
-            tasks_to_evaluate = [t for t in self.tasks if t.get('id') in task_ids]
-        
+            tasks_to_evaluate = [t for t in self.tasks if t.get("id") in task_ids]
+
         # Evaluate each task
         results: List[BenchmarkResult] = []
         for task in tasks_to_evaluate:
@@ -164,30 +165,30 @@ class Benchmark(ABC):
                 results.append(result)
             except Exception as e:
                 logger.error(f"Failed to evaluate task {task.get('id')}: {e}")
-                results.append(BenchmarkResult(
-                    task_id=task.get('id', 'unknown'),
-                    success=False,
-                    error=str(e)
-                ))
-        
+                results.append(
+                    BenchmarkResult(task_id=task.get("id", "unknown"), success=False, error=str(e))
+                )
+
         # Calculate metrics
         return self._calculate_metrics(results)
-    
+
     def _calculate_metrics(self, results: List[BenchmarkResult]) -> BenchmarkMetrics:
         """Calculate aggregated metrics from results."""
         total_tasks = len(results)
         successful_tasks = sum(1 for r in results if r.success)
         failed_tasks = total_tasks - successful_tasks
-        
+
         pass_rate = successful_tasks / total_tasks if total_tasks > 0 else 0.0
-        
-        avg_execution_time = sum(r.execution_time for r in results) / total_tasks if total_tasks > 0 else 0.0
+
+        avg_execution_time = (
+            sum(r.execution_time for r in results) / total_tasks if total_tasks > 0 else 0.0
+        )
         total_cost = sum(r.cost for r in results)
         avg_cost_per_task = total_cost / total_tasks if total_tasks > 0 else 0.0
-        
+
         total_tokens = sum(r.tokens_used for r in results)
         avg_tokens_per_task = total_tokens / total_tasks if total_tasks > 0 else 0.0
-        
+
         return BenchmarkMetrics(
             total_tasks=total_tasks,
             successful_tasks=successful_tasks,
@@ -198,14 +199,14 @@ class Benchmark(ABC):
             avg_cost_per_task=avg_cost_per_task,
             total_tokens=total_tokens,
             avg_tokens_per_task=avg_tokens_per_task,
-            results=results
+            results=results,
         )
 
 
 class CustomBenchmark(Benchmark):
     """
     Custom benchmark for user-defined tasks.
-    
+
     Usage:
         benchmark = CustomBenchmark(
             name="my_benchmark",
@@ -215,11 +216,16 @@ class CustomBenchmark(Benchmark):
             ]
         )
     """
-    
-    def __init__(self, name: str, tasks: List[Dict[str, Any]], validate_func: Optional[Callable[[Dict[str, Any], str], bool]] = None) -> None:
+
+    def __init__(
+        self,
+        name: str,
+        tasks: List[Dict[str, Any]],
+        validate_func: Optional[Callable[[Dict[str, Any], str], bool]] = None,
+    ) -> None:
         """
         Initialize custom benchmark.
-        
+
         Args:
             name: Benchmark name
             tasks: List of task dictionaries (must have 'id', 'question', 'answer')
@@ -228,74 +234,70 @@ class CustomBenchmark(Benchmark):
         super().__init__(name)
         self.tasks = tasks
         self.validate_func = validate_func
-    
+
     def load_tasks(self) -> List[Dict[str, Any]]:
         """Load tasks (already provided)."""
         return self.tasks
-    
+
     def evaluate_task(self, task: Dict[str, Any], agent: Any, **kwargs: Any) -> BenchmarkResult:
         """
         Evaluate agent on task.
-        
+
         Args:
             task: Task dictionary
             agent: Agent to evaluate (must have run() or execute() method)
             **kwargs: Additional arguments
-            
+
         Returns:
             BenchmarkResult
         """
         import time
-        
-        question = task.get('question', task.get('prompt', ''))
-        expected_answer = task.get('answer', '')
-        
+
+        question = task.get("question", task.get("prompt", ""))
+        expected_answer = task.get("answer", "")
+
         # Execute agent
         start_time = time.time()
         try:
-            if hasattr(agent, 'run'):
+            if hasattr(agent, "run"):
                 answer = agent.run(question, **kwargs)
-            elif hasattr(agent, 'execute'):
+            elif hasattr(agent, "execute"):
                 answer = agent.execute(question, **kwargs)
             else:
                 raise ValueError("Agent must have 'run' or 'execute' method")
-            
+
             execution_time = time.time() - start_time
-            
+
             # Validate answer
             success = self.validate_answer(task, answer)
-            
+
             return BenchmarkResult(
-                task_id=task.get('id', 'unknown'),
+                task_id=task.get("id", "unknown"),
                 success=success,
                 answer=str(answer),
                 execution_time=execution_time,
-                metadata={'expected_answer': expected_answer}
+                metadata={"expected_answer": expected_answer},
             )
-            
+
         except Exception as e:
             execution_time = time.time() - start_time
             return BenchmarkResult(
-                task_id=task.get('id', 'unknown'),
+                task_id=task.get("id", "unknown"),
                 success=False,
                 error=str(e),
-                execution_time=execution_time
+                execution_time=execution_time,
             )
-    
-    def validate_answer(
-        self,
-        task: Dict[str, Any],
-        answer: str
-    ) -> bool:
+
+    def validate_answer(self, task: Dict[str, Any], answer: str) -> bool:
         """
         Validate answer.
-        
+
         Uses custom validation function if provided, otherwise exact match.
         """
-        expected_answer = task.get('answer', '')
-        
+        expected_answer = task.get("answer", "")
+
         if self.validate_func:
             return self.validate_func(task, answer)
-        
+
         # Default: exact match (case-insensitive, stripped)
         return answer.strip().lower() == expected_answer.strip().lower()

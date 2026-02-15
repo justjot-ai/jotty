@@ -10,9 +10,9 @@ Qualifying skills:
 Skips skills that already have `## Workflow` in their SKILL.md.
 """
 
+import glob
 import os
 import re
-import glob
 
 SKILLS_DIR = "/var/www/sites/personal/stock_market/Jotty/skills"
 
@@ -37,7 +37,11 @@ def get_base_skills(content: str) -> list:
     """Extract base skills list."""
     m = re.search(r"## Base Skills\s*\n((?:- .+\n?)+)", content)
     if m:
-        return [line.strip("- \n") for line in m.group(1).strip().split("\n") if line.strip().startswith("-")]
+        return [
+            line.strip("- \n")
+            for line in m.group(1).strip().split("\n")
+            if line.strip().startswith("-")
+        ]
     return []
 
 
@@ -101,27 +105,48 @@ COMPOSITE_OVERRIDES = {
         ("Send to Telegram", "Deliver the PDF report to the specified Telegram chat."),
     ],
     "last30days-to-pdf-telegram": [
-        ("Research recent topics", "Use last30days-claude-cli to research the topic from the past 30 days."),
+        (
+            "Research recent topics",
+            "Use last30days-claude-cli to research the topic from the past 30 days.",
+        ),
         ("Generate PDF report", "Convert the research markdown into a formatted PDF document."),
         ("Send to Telegram", "Deliver the PDF report to the specified Telegram chat."),
     ],
     "last30days-to-epub-telegram": [
-        ("Research recent topics", "Use last30days-claude-cli to research the topic from the past 30 days."),
+        (
+            "Research recent topics",
+            "Use last30days-claude-cli to research the topic from the past 30 days.",
+        ),
         ("Generate EPUB", "Convert the research markdown into an EPUB ebook format."),
         ("Send to Telegram", "Deliver the EPUB file to the specified Telegram chat."),
     ],
     "last30days-to-pdf-remarkable": [
-        ("Research recent topics", "Use last30days-claude-cli to research the topic from the past 30 days."),
+        (
+            "Research recent topics",
+            "Use last30days-claude-cli to research the topic from the past 30 days.",
+        ),
         ("Generate PDF report", "Convert the research markdown into a formatted PDF document."),
         ("Send to reMarkable", "Upload the PDF to the reMarkable tablet for offline reading."),
     ],
     "research-to-pdf": [
-        ("Search for topic information", "Use web-search to gather comprehensive data on the research topic."),
-        ("Synthesize research with AI", "Use Claude LLM to analyze and synthesize findings into a structured report."),
-        ("Generate PDF document", "Convert the markdown report into a professional PDF with proper formatting."),
+        (
+            "Search for topic information",
+            "Use web-search to gather comprehensive data on the research topic.",
+        ),
+        (
+            "Synthesize research with AI",
+            "Use Claude LLM to analyze and synthesize findings into a structured report.",
+        ),
+        (
+            "Generate PDF document",
+            "Convert the markdown report into a professional PDF with proper formatting.",
+        ),
     ],
     "research-to-notion": [
-        ("Research the topic", "Use web-search, lead research, or competitive analysis to gather data."),
+        (
+            "Research the topic",
+            "Use web-search, lead research, or competitive analysis to gather data.",
+        ),
         ("Write content", "Use content-research-writer to draft structured content from research."),
         ("Save to Notion", "Create a Notion page with the documented research and citations."),
     ],
@@ -132,9 +157,18 @@ COMPOSITE_OVERRIDES = {
         ("Apply theme", "Finalize the artifact with the selected visual theme."),
     ],
     "content-pipeline": [
-        ("Ingest source content", "Load content from the source (markdown, ArXiv, HTML, PDF, or YouTube)."),
-        ("Process content", "Apply processors: render diagrams, handle LaTeX, download images, fix syntax."),
-        ("Export to target format", "Write the processed document to one or more sinks (PDF, EPUB, DOCX, HTML, reMarkable)."),
+        (
+            "Ingest source content",
+            "Load content from the source (markdown, ArXiv, HTML, PDF, or YouTube).",
+        ),
+        (
+            "Process content",
+            "Apply processors: render diagrams, handle LaTeX, download images, fix syntax.",
+        ),
+        (
+            "Export to target format",
+            "Write the processed document to one or more sinks (PDF, EPUB, DOCX, HTML, reMarkable).",
+        ),
     ],
     "dev-workflow": [
         ("Generate changelog", "Analyze recent git commits to generate a version changelog."),
@@ -147,23 +181,44 @@ COMPOSITE_OVERRIDES = {
         ("Create GIF", "Produce an animated GIF optimized for Slack or web use."),
     ],
     "meeting-intelligence-pipeline": [
-        ("Analyze meeting transcripts", "Process transcript files to extract speaking ratios, action items, and decisions."),
-        ("Prepare meeting materials", "Create pre-read documents and agendas in Notion with relevant context."),
+        (
+            "Analyze meeting transcripts",
+            "Process transcript files to extract speaking ratios, action items, and decisions.",
+        ),
+        (
+            "Prepare meeting materials",
+            "Create pre-read documents and agendas in Notion with relevant context.",
+        ),
         ("Generate communications", "Draft internal communications summarizing meeting outcomes."),
     ],
     "notion-knowledge-pipeline": [
-        ("Capture knowledge", "Save insights, decisions, and concepts to Notion with proper categorization."),
-        ("Research and document", "Search Notion and web for related information, then create comprehensive documentation."),
-        ("Create implementation plan", "Transform specifications into actionable implementation plans with tasks and milestones."),
+        (
+            "Capture knowledge",
+            "Save insights, decisions, and concepts to Notion with proper categorization.",
+        ),
+        (
+            "Research and document",
+            "Search Notion and web for related information, then create comprehensive documentation.",
+        ),
+        (
+            "Create implementation plan",
+            "Transform specifications into actionable implementation plans with tasks and milestones.",
+        ),
     ],
     "product-launch-pipeline": [
-        ("Brainstorm domain names", "Generate and validate domain name suggestions for the product."),
+        (
+            "Brainstorm domain names",
+            "Generate and validate domain name suggestions for the product.",
+        ),
         ("Research leads", "Find and qualify potential leads in the target industry."),
         ("Analyze competitors", "Extract competitor ads and analyze competitive positioning."),
         ("Write launch content", "Create marketing content: outlines, drafts, or full articles."),
     ],
     "transformer-paper-pipeline": [
-        ("Generate paper content", "Use Claude LLM to write a comprehensive transformer research paper."),
+        (
+            "Generate paper content",
+            "Use Claude LLM to write a comprehensive transformer research paper.",
+        ),
         ("Compile LaTeX PDF", "Convert the paper content to LaTeX and compile to PDF."),
         ("Send to Telegram", "Deliver the compiled PDF to the specified Telegram chat."),
     ],
@@ -173,7 +228,10 @@ COMPOSITE_OVERRIDES = {
         ("Send to Telegram", "Deliver the commodities report to the specified Telegram chat."),
     ],
     "screener-to-pdf-telegram": [
-        ("Fetch financial data", "Retrieve company financials from screener.in for the specified symbols."),
+        (
+            "Fetch financial data",
+            "Retrieve company financials from screener.in for the specified symbols.",
+        ),
         ("Analyze with AI", "Use Claude LLM to synthesize a comprehensive financial analysis."),
         ("Generate PDF", "Convert the analysis to a professionally formatted PDF."),
         ("Send to Telegram", "Deliver the PDF report to the specified Telegram chat."),
@@ -200,36 +258,69 @@ COMPOSITE_OVERRIDES = {
         ("Generate report", "Format the search results into a structured markdown report."),
     ],
     "notion-knowledge-capture": [
-        ("Parse content", "Analyze the input content to determine type (FAQ, how-to, decision, concept)."),
-        ("Format for Notion", "Structure the content with proper headers, tags, and categorization."),
-        ("Save to Notion", "Create a Notion page in the appropriate wiki or database with linking."),
+        (
+            "Parse content",
+            "Analyze the input content to determine type (FAQ, how-to, decision, concept).",
+        ),
+        (
+            "Format for Notion",
+            "Structure the content with proper headers, tags, and categorization.",
+        ),
+        (
+            "Save to Notion",
+            "Create a Notion page in the appropriate wiki or database with linking.",
+        ),
     ],
     "notion-meeting-intelligence": [
-        ("Gather Notion context", "Search Notion for related project pages and prior meeting notes."),
+        (
+            "Gather Notion context",
+            "Search Notion for related project pages and prior meeting notes.",
+        ),
         ("Enrich with research", "Use Claude LLM to add research context and analysis."),
         ("Create meeting materials", "Generate pre-read documents and external agendas in Notion."),
     ],
     "notion-research-documentation": [
-        ("Search Notion workspace", "Query Notion for pages and databases related to the research topic."),
+        (
+            "Search Notion workspace",
+            "Query Notion for pages and databases related to the research topic.",
+        ),
         ("Synthesize findings", "Analyze found pages and synthesize insights with AI assistance."),
-        ("Create documentation", "Write comprehensive documentation with proper citations in Notion."),
+        (
+            "Create documentation",
+            "Write comprehensive documentation with proper citations in Notion.",
+        ),
     ],
     "notion-spec-to-implementation": [
         ("Read specification", "Fetch and parse the specification from the Notion page."),
         ("Generate plan", "Break down the spec into tasks, milestones, and dependencies."),
-        ("Create task database", "Write the implementation plan to a Notion database with tracking."),
+        (
+            "Create task database",
+            "Write the implementation plan to a Notion database with tracking.",
+        ),
     ],
     "slack-gif-creator": [
-        ("Define animation parameters", "Set GIF type (message/emoji), dimensions, and animation style."),
-        ("Generate animated frames", "Create animation frames based on the description and parameters."),
+        (
+            "Define animation parameters",
+            "Set GIF type (message/emoji), dimensions, and animation style.",
+        ),
+        (
+            "Generate animated frames",
+            "Create animation frames based on the description and parameters.",
+        ),
         ("Optimize for Slack", "Compress and optimize the GIF to meet Slack size requirements."),
     ],
     "stock-research-deep": [
         ("Initial broad research", "Execute parallel searches across 12 financial aspects."),
         ("Gap analysis", "AI identifies missing information and knowledge gaps."),
         ("Targeted follow-up research", "Fill knowledge gaps with focused additional searches."),
-        ("Progressive synthesis", "Build comprehensive report section by section with accumulated context."),
-        ("Quality validation and refinement", "Validate coverage, identify weak sections, and refine with additional research."),
+        (
+            "Progressive synthesis",
+            "Build comprehensive report section by section with accumulated context.",
+        ),
+        (
+            "Quality validation and refinement",
+            "Validate coverage, identify weak sections, and refine with additional research.",
+        ),
         ("Generate and deliver report", "Convert to PDF and send to Telegram."),
     ],
     "notebooklm-pdf": [
@@ -250,7 +341,10 @@ MULTITOOL_WORKFLOWS = {
     ],
     "database-tools": [
         ("Connect to database", "Establish connection to the target database using credentials."),
-        ("Inspect schema", "List tables and describe their structure to understand the data model."),
+        (
+            "Inspect schema",
+            "List tables and describe their structure to understand the data model.",
+        ),
         ("Execute queries", "Run SQL queries to read, insert, update, or analyze data."),
         ("Export results", "Export query results to the desired format (CSV, JSON, etc.)."),
         ("Close connection", "Clean up by closing the database connection."),
@@ -268,22 +362,46 @@ MULTITOOL_WORKFLOWS = {
         ("Verify results", "Confirm file operations completed successfully."),
     ],
     "financial-visualization": [
-        ("Extract financial data", "Parse research results to extract structured financial metrics."),
-        ("Select chart types", "AI-powered selection of optimal chart types based on data completeness."),
-        ("Generate charts", "Create financial charts: revenue growth, profitability, valuation, health scores."),
-        ("Generate data tables", "Build formatted tables for financial statements, ratios, and peer comparisons."),
-        ("Add insights", "Generate AI narratives, detect anomalies, and forecast trends for each chart."),
+        (
+            "Extract financial data",
+            "Parse research results to extract structured financial metrics.",
+        ),
+        (
+            "Select chart types",
+            "AI-powered selection of optimal chart types based on data completeness.",
+        ),
+        (
+            "Generate charts",
+            "Create financial charts: revenue growth, profitability, valuation, health scores.",
+        ),
+        (
+            "Generate data tables",
+            "Build formatted tables for financial statements, ratios, and peer comparisons.",
+        ),
+        (
+            "Add insights",
+            "Generate AI narratives, detect anomalies, and forecast trends for each chart.",
+        ),
     ],
     "claude-api-llm": [
         ("Prepare prompt", "Construct the prompt with system context and user input."),
-        ("Select model and parameters", "Choose the appropriate Claude model and set temperature/tokens."),
+        (
+            "Select model and parameters",
+            "Choose the appropriate Claude model and set temperature/tokens.",
+        ),
         ("Execute LLM call", "Send the request to the Claude API and receive the response."),
-        ("Process response", "Parse the response, extract structured content, and handle tool use."),
+        (
+            "Process response",
+            "Parse the response, extract structured content, and handle tool use.",
+        ),
     ],
     "summarize": [
         ("Identify content source", "Determine input type: text, file, URL, or conversation."),
         ("Extract content", "Read and parse the source content into processable text."),
-        ("Generate summary", "Use AI to create a summary at the requested length and detail level."),
+        (
+            "Generate summary",
+            "Use AI to create a summary at the requested length and detail level.",
+        ),
         ("Format output", "Structure the summary with key points, sections, or bullet points."),
     ],
     "spotify": [
@@ -338,8 +456,14 @@ MULTITOOL_WORKFLOWS = {
         ("Return results", "Deliver structured market data with key metrics highlighted."),
     ],
     "algorithmic-art": [
-        ("Choose algorithm", "Select the generative art algorithm (fractal, L-system, cellular automata, etc.)."),
-        ("Configure parameters", "Set colors, dimensions, iterations, and algorithm-specific settings."),
+        (
+            "Choose algorithm",
+            "Select the generative art algorithm (fractal, L-system, cellular automata, etc.).",
+        ),
+        (
+            "Configure parameters",
+            "Set colors, dimensions, iterations, and algorithm-specific settings.",
+        ),
         ("Generate artwork", "Execute the algorithm to produce the visual output."),
         ("Export image", "Save the generated artwork in the desired format (PNG, SVG, etc.)."),
     ],
@@ -376,7 +500,10 @@ MULTITOOL_WORKFLOWS = {
     "notion": [
         ("Connect to workspace", "Authenticate with the Notion workspace via API."),
         ("Search and navigate", "Search pages and databases to find relevant content."),
-        ("Create or update pages", "Create new pages or update existing ones with structured content."),
+        (
+            "Create or update pages",
+            "Create new pages or update existing ones with structured content.",
+        ),
         ("Organize content", "Manage databases, properties, and page relationships."),
     ],
     "gif-creator": [
@@ -436,15 +563,36 @@ def insert_workflow(content: str, workflow_section: str) -> str:
 def generate_workflow_for_composite(skill_name: str, description: str, base_skills: list) -> str:
     """Generate workflow for composite skills from their description and base skills."""
     skill_actions = {
-        "web-search": ("Search the web", "Use web-search to find relevant articles and data on the topic."),
-        "web-scraper": ("Scrape web content", "Scrape web pages to extract structured content and data."),
-        "claude-cli-llm": ("Synthesize with AI", "Use Claude LLM to analyze, summarize, and synthesize the gathered information."),
+        "web-search": (
+            "Search the web",
+            "Use web-search to find relevant articles and data on the topic.",
+        ),
+        "web-scraper": (
+            "Scrape web content",
+            "Scrape web pages to extract structured content and data.",
+        ),
+        "claude-cli-llm": (
+            "Synthesize with AI",
+            "Use Claude LLM to analyze, summarize, and synthesize the gathered information.",
+        ),
         "claude-api-llm": ("Process with AI", "Use Claude API to analyze and process the content."),
-        "document-converter": ("Generate document", "Convert the processed content into the target document format."),
-        "telegram-sender": ("Send to Telegram", "Deliver the final document or message to the specified Telegram chat."),
-        "remarkable-sender": ("Send to reMarkable", "Upload the document to the reMarkable tablet."),
+        "document-converter": (
+            "Generate document",
+            "Convert the processed content into the target document format.",
+        ),
+        "telegram-sender": (
+            "Send to Telegram",
+            "Deliver the final document or message to the specified Telegram chat.",
+        ),
+        "remarkable-sender": (
+            "Send to reMarkable",
+            "Upload the document to the reMarkable tablet.",
+        ),
         "slack": ("Send to Slack", "Post the results to the configured Slack channel."),
-        "mcp-justjot": ("Create JustJot idea", "Save the synthesized content as a structured idea on JustJot.ai."),
+        "mcp-justjot": (
+            "Create JustJot idea",
+            "Save the synthesized content as a structured idea on JustJot.ai.",
+        ),
         "notion": ("Save to Notion", "Create or update a Notion page with the structured content."),
         "file-operations": ("Manage files", "Read, write, or organize files on the filesystem."),
         "github": ("Interact with GitHub", "Perform GitHub operations."),
@@ -453,17 +601,33 @@ def generate_workflow_for_composite(skill_name: str, description: str, base_skil
         "gif-creator": ("Create GIF animation", "Generate animated GIF."),
         "voice": ("Process audio", "Handle speech-to-text or text-to-speech conversion."),
         "video-downloader": ("Download video", "Download video content from the specified source."),
-        "arxiv-downloader": ("Fetch ArXiv paper", "Download and parse the academic paper from ArXiv."),
-        "last30days-claude-cli": ("Research recent topics", "Research topics from the last 30 days using Claude CLI."),
-        "screener-financials": ("Fetch financial data", "Retrieve financial data from screener.in."),
-        "investing-commodities": ("Fetch commodities data", "Get latest commodities prices from investing.com."),
-        "brand-guidelines": ("Apply brand styling", "Apply brand colors, typography, and guidelines."),
+        "arxiv-downloader": (
+            "Fetch ArXiv paper",
+            "Download and parse the academic paper from ArXiv.",
+        ),
+        "last30days-claude-cli": (
+            "Research recent topics",
+            "Research topics from the last 30 days using Claude CLI.",
+        ),
+        "screener-financials": (
+            "Fetch financial data",
+            "Retrieve financial data from screener.in.",
+        ),
+        "investing-commodities": (
+            "Fetch commodities data",
+            "Get latest commodities prices from investing.com.",
+        ),
+        "brand-guidelines": (
+            "Apply brand styling",
+            "Apply brand colors, typography, and guidelines.",
+        ),
     }
 
     # Parse description for numbered steps
     desc_steps = re.findall(
         r"\d+\.\s+\*\*(.+?)\*\*(?:\s*\((\w+)\))?:\s*(.+?)(?=\n\d+\.|\n\n|\Z)",
-        description, re.DOTALL
+        description,
+        re.DOTALL,
     )
 
     steps = []
@@ -485,7 +649,9 @@ def generate_workflow_for_composite(skill_name: str, description: str, base_skil
                 steps.append((action, detail))
             else:
                 human = humanize_skill_name(skill_key)
-                steps.append((f"Run {human}", f"Execute the {skill_key} skill to process the data."))
+                steps.append(
+                    (f"Run {human}", f"Execute the {skill_key} skill to process the data.")
+                )
 
     if not steps:
         return ""
@@ -536,7 +702,9 @@ def main():
             workflow = generate_workflow_for_composite(skill_name, description, base_skills)
         else:
             # Fallback: should not happen if we covered all multi-tool skills
-            print(f"  WARNING: No workflow definition for multi-tool skill: {skill_name} ({tool_count} tools)")
+            print(
+                f"  WARNING: No workflow definition for multi-tool skill: {skill_name} ({tool_count} tools)"
+            )
             skipped_not_qualifying += 1
             continue
 

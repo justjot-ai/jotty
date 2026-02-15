@@ -9,7 +9,7 @@ Returns (should_ensemble, max_perspectives) to control cost vs. quality.
 """
 
 import logging
-from typing import Dict, Any, Tuple
+from typing import Any, Dict, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -41,16 +41,22 @@ def should_auto_ensemble(goal: str) -> Tuple[bool, int]:
     # Only trigger for EXPLICIT multi-perspective requests
     # These are phrases where the user is clearly asking for multiple viewpoints
     explicit_debate_keywords = [
-        'debate ', 'brainstorm',
-        'devil\'s advocate', 'devils advocate',
-        'multiple perspectives', 'multi-perspective',
-        'pros and cons of', 'advantages and disadvantages of',
+        "debate ",
+        "brainstorm",
+        "devil's advocate",
+        "devils advocate",
+        "multiple perspectives",
+        "multi-perspective",
+        "pros and cons of",
+        "advantages and disadvantages of",
     ]
 
     # Explicit comparison between two named alternatives
     explicit_comparison_keywords = [
-        ' vs ', ' versus ',
-        'choose between', 'decide between',
+        " vs ",
+        " versus ",
+        "choose between",
+        "decide between",
     ]
 
     for keyword in explicit_debate_keywords:

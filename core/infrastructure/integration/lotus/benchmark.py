@@ -6,21 +6,22 @@ Demonstrates real cost and performance advantages of LOTUS optimization.
 """
 
 import asyncio
-import time
 import random
+import time
 from dataclasses import dataclass
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 
-from .config import LotusConfig, ModelTier
-from .semantic_cache import SemanticCache
 from .adaptive_validator import AdaptiveValidator
-from .model_cascade import ModelCascade, CascadeResult
 from .batch_executor import BatchExecutor
+from .config import LotusConfig, ModelTier
+from .model_cascade import CascadeResult, ModelCascade
+from .semantic_cache import SemanticCache
 
 
 @dataclass
 class BenchmarkResult:
     """Results from a benchmark run."""
+
     name: str
     total_items: int
     total_time_ms: float
@@ -52,15 +53,15 @@ class MockLLM:
     """
 
     COSTS = {
-        "haiku": (0.25, 1.25),      # 60x cheaper than Opus
-        "sonnet": (3.0, 15.0),       # 5x cheaper than Opus
-        "opus": (15.0, 75.0),        # Most expensive
+        "haiku": (0.25, 1.25),  # 60x cheaper than Opus
+        "sonnet": (3.0, 15.0),  # 5x cheaper than Opus
+        "opus": (15.0, 75.0),  # Most expensive
     }
 
     LATENCIES_MS = {
-        "haiku": 50,    # Fast
+        "haiku": 50,  # Fast
         "sonnet": 150,  # Medium
-        "opus": 500,    # Slow
+        "opus": 500,  # Slow
     }
 
     def __init__(self) -> None:
@@ -105,7 +106,7 @@ class MockLLM:
             "calls_by_model": {
                 model: len([c for c in self.calls if c["model"] == model])
                 for model in ["haiku", "sonnet", "opus"]
-            }
+            },
         }
 
 
@@ -433,7 +434,7 @@ async def run_benchmarks() -> Any:
     # Calculate total advantage
     lotus_cost = result5.total_cost
     cost_reduction = (1 - lotus_cost / baseline_cost) * 100 if baseline_cost > 0 else 0
-    cost_multiplier = baseline_cost / lotus_cost if lotus_cost > 0 else float('inf')
+    cost_multiplier = baseline_cost / lotus_cost if lotus_cost > 0 else float("inf")
 
     print(f"\nFULL LOTUS ADVANTAGE:")
     print(f"  Cost reduction: {cost_reduction:.1f}% ({cost_multiplier:.1f}x cheaper)")

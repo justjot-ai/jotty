@@ -25,10 +25,13 @@ import time
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Type
 
-from .base_agent import BaseAgent, AgentRuntimeConfig, AgentResult
-
 # Canonical definitions in foundation — breaks agents → swarms circular dependency
-from Jotty.core.infrastructure.foundation.types.execution_types import CoordinationPattern, MergeStrategy
+from Jotty.core.infrastructure.foundation.types.execution_types import (
+    CoordinationPattern,
+    MergeStrategy,
+)
+
+from .base_agent import AgentResult, AgentRuntimeConfig, BaseAgent
 
 if TYPE_CHECKING:
     from Jotty.core.intelligence.swarms.base.domain_swarm import DomainSwarm
@@ -41,12 +44,14 @@ logger = logging.getLogger(__name__)
 # CONFIGURATION
 # =============================================================================
 
+
 @dataclass
 class CompositeAgentConfig(AgentRuntimeConfig):
     """Configuration for CompositeAgent.
 
     Extends AgentRuntimeConfig with coordination_pattern and merge_strategy.
     """
+
     coordination_pattern: CoordinationPattern = CoordinationPattern.PIPELINE
     merge_strategy: MergeStrategy = MergeStrategy.COMBINE
 
@@ -54,6 +59,7 @@ class CompositeAgentConfig(AgentRuntimeConfig):
 # =============================================================================
 # UNIFIED RESULT BRIDGE
 # =============================================================================
+
 
 @dataclass
 class UnifiedResult:
@@ -63,6 +69,7 @@ class UnifiedResult:
     can wrap swarms (SwarmResult) while exposing the agent interface
     (AgentResult).
     """
+
     success: bool
     output: Any
     name: str
@@ -87,11 +94,12 @@ class UnifiedResult:
     def to_swarm_result(self) -> SwarmResult:
         """Convert to SwarmResult (lazy import avoids circular dep)."""
         from Jotty.core.intelligence.swarms.swarm_types import SwarmResult
+
         return SwarmResult(
             success=self.success,
             swarm_name=self.name,
-            domain=self.metadata.get('domain', 'general'),
-            output=self.output if isinstance(self.output, dict) else {'result': self.output},
+            domain=self.metadata.get("domain", "general"),
+            output=self.output if isinstance(self.output, dict) else {"result": self.output},
             execution_time=self.execution_time,
             agent_traces=self.agent_traces,
             evaluation=self.evaluation,
@@ -109,10 +117,10 @@ class UnifiedResult:
             name=result.swarm_name,
             execution_time=result.execution_time,
             error=result.error,
-            metadata=getattr(result, 'metadata', {}),
-            agent_traces=getattr(result, 'agent_traces', []),
-            evaluation=getattr(result, 'evaluation', None),
-            improvements=getattr(result, 'improvements', []),
+            metadata=getattr(result, "metadata", {}),
+            agent_traces=getattr(result, "agent_traces", []),
+            evaluation=getattr(result, "evaluation", None),
+            improvements=getattr(result, "improvements", []),
         )
 
     @classmethod
@@ -134,9 +142,9 @@ class UnifiedResult:
 
 # Supported coordination patterns → method names
 _COORDINATION_DISPATCH: Dict[CoordinationPattern, str] = {
-    CoordinationPattern.PIPELINE: '_execute_pipeline',
-    CoordinationPattern.PARALLEL: '_execute_parallel',
-    CoordinationPattern.CONSENSUS: '_execute_consensus',
+    CoordinationPattern.PIPELINE: "_execute_pipeline",
+    CoordinationPattern.PARALLEL: "_execute_parallel",
+    CoordinationPattern.CONSENSUS: "_execute_consensus",
 }
 
 
@@ -147,7 +155,12 @@ class CompositeAgent(BaseAgent):
     delegation — no multiple inheritance, no diamond problems.
     """
 
-    def __init__(self, config: CompositeAgentConfig = None, signature: Optional[Type] = None, sub_agents: Optional[Dict[str, BaseAgent]] = None) -> None:
+    def __init__(
+        self,
+        config: CompositeAgentConfig = None,
+        signature: Optional[Type] = None,
+        sub_agents: Optional[Dict[str, BaseAgent]] = None,
+    ) -> None:
         config = config or CompositeAgentConfig(name="CompositeAgent")
         super().__init__(config)
         self.signature = signature
@@ -166,9 +179,9 @@ class CompositeAgent(BaseAgent):
         Uses the swarm's timeout_seconds (default 300s) instead of the
         agent-level LLM timeout (120s), since swarms run multiple phases.
         """
-        config = CompositeAgentConfig(name=getattr(swarm.config, 'name', swarm.__class__.__name__))
+        config = CompositeAgentConfig(name=getattr(swarm.config, "name", swarm.__class__.__name__))
         # Swarm execution spans multiple LLM calls — use swarm timeout
-        swarm_timeout = getattr(swarm.config, 'timeout_seconds', 300)
+        swarm_timeout = getattr(swarm.config, "timeout_seconds", 300)
         config.timeout = float(swarm_timeout)
         agent = cls(config=config, signature=signature)
         agent._wrapped_swarm = swarm
@@ -243,14 +256,13 @@ class CompositeAgent(BaseAgent):
         Priority: explicit signature > wrapped swarm's schema > None.
         Result is cached on first call.
         """
-        if hasattr(self, '_io_schema') and self._io_schema is not None:
+        if hasattr(self, "_io_schema") and self._io_schema is not None:
             return self._io_schema
         from Jotty.core.modes.agent._execution_types import AgentIOSchema
+
         if self.signature is not None:
-            self._io_schema = AgentIOSchema.from_dspy_signature(
-                self.config.name, self.signature
-            )
-        elif self._wrapped_swarm and hasattr(self._wrapped_swarm, 'get_io_schema'):
+            self._io_schema = AgentIOSchema.from_dspy_signature(self.config.name, self.signature)
+        elif self._wrapped_swarm and hasattr(self._wrapped_swarm, "get_io_schema"):
             self._io_schema = self._wrapped_swarm.get_io_schema()
         else:
             self._io_schema = None
@@ -272,19 +284,26 @@ class CompositeAgent(BaseAgent):
         """Route to coordination-specific execution method."""
         if not self._sub_agents:
             return UnifiedResult(
-                success=False, output=None, name=self.config.name,
-                execution_time=0.0, error="No sub-agents configured",
+                success=False,
+                output=None,
+                name=self.config.name,
+                execution_time=0.0,
+                error="No sub-agents configured",
             )
 
         pattern = self.config.coordination_pattern
         method_name = _COORDINATION_DISPATCH.get(pattern)
         if method_name is None:
-            logger.warning("Unsupported coordination pattern %s, falling back to pipeline", pattern.value)
-            method_name = '_execute_pipeline'
+            logger.warning(
+                "Unsupported coordination pattern %s, falling back to pipeline", pattern.value
+            )
+            method_name = "_execute_pipeline"
 
         logger.info(
             "Orchestrating %d agents (%s): %s",
-            len(self._sub_agents), pattern.value, list(self._sub_agents.keys()),
+            len(self._sub_agents),
+            pattern.value,
+            list(self._sub_agents.keys()),
         )
         return await getattr(self, method_name)(**kwargs)
 
@@ -307,8 +326,8 @@ class CompositeAgent(BaseAgent):
         for i in range(len(agents_list) - 1):
             src_name, src_agent = agents_list[i]
             tgt_name, tgt_agent = agents_list[i + 1]
-            src_schema = src_agent.get_io_schema() if hasattr(src_agent, 'get_io_schema') else None
-            tgt_schema = tgt_agent.get_io_schema() if hasattr(tgt_agent, 'get_io_schema') else None
+            src_schema = src_agent.get_io_schema() if hasattr(src_agent, "get_io_schema") else None
+            tgt_schema = tgt_agent.get_io_schema() if hasattr(tgt_agent, "get_io_schema") else None
             if src_schema and tgt_schema:
                 wiring = src_schema.wire_to(tgt_schema)
                 logger.info("Pipeline wiring %s -> %s: %s", src_name, tgt_name, wiring)
@@ -319,8 +338,8 @@ class CompositeAgent(BaseAgent):
                 if isinstance(current_output, dict):
                     agent_kwargs.update(current_output)
                 else:
-                    agent_kwargs['task'] = current_output
-                    agent_kwargs['previous_output'] = current_output
+                    agent_kwargs["task"] = current_output
+                    agent_kwargs["previous_output"] = current_output
 
             logger.debug("Pipeline stage '%s' starting", name)
             result = await agent.execute(**agent_kwargs)
@@ -328,18 +347,22 @@ class CompositeAgent(BaseAgent):
             if not result.success:
                 logger.warning("Pipeline failed at '%s': %s", name, result.error)
                 return UnifiedResult(
-                    success=False, output=result.output, name=self.config.name,
+                    success=False,
+                    output=result.output,
+                    name=self.config.name,
                     execution_time=time.time() - start_time,
                     error=f"Pipeline failed at '{name}': {result.error}",
-                    metadata={'failed_agent': name},
+                    metadata={"failed_agent": name},
                 )
 
             current_output, all_metadata[name] = self._extract_output(result)
 
         return UnifiedResult(
-            success=True, output=current_output, name=self.config.name,
+            success=True,
+            output=current_output,
+            name=self.config.name,
             execution_time=time.time() - start_time,
-            metadata={'pipeline_stages': list(self._sub_agents.keys()), **all_metadata},
+            metadata={"pipeline_stages": list(self._sub_agents.keys()), **all_metadata},
         )
 
     async def _execute_parallel(self, **kwargs: Any) -> UnifiedResult:
@@ -347,20 +370,19 @@ class CompositeAgent(BaseAgent):
         start_time = time.time()
         results, errors = await self._gather_results(**kwargs)
 
-        outputs = {
-            name: self._extract_output(r)[0]
-            for name, r in results.items()
-        }
+        outputs = {name: self._extract_output(r)[0] for name, r in results.items()}
         merged = self._merge_outputs(outputs)
 
         if errors:
             logger.warning("Parallel errors: %s", errors)
 
         return UnifiedResult(
-            success=bool(outputs), output=merged, name=self.config.name,
+            success=bool(outputs),
+            output=merged,
+            name=self.config.name,
             execution_time=time.time() - start_time,
             error="; ".join(f"{k}: {v}" for k, v in errors.items()) if errors else None,
-            metadata={'parallel_agents': list(self._sub_agents.keys()), 'errors': errors},
+            metadata={"parallel_agents": list(self._sub_agents.keys()), "errors": errors},
         )
 
     async def _execute_consensus(self, **kwargs: Any) -> UnifiedResult:
@@ -377,15 +399,20 @@ class CompositeAgent(BaseAgent):
 
         logger.info(
             "Consensus: %d/%d succeeded (majority=%s)",
-            successes, total, "yes" if majority_success else "no",
+            successes,
+            total,
+            "yes" if majority_success else "no",
         )
 
         return UnifiedResult(
-            success=majority_success, output=consensus_output, name=self.config.name,
+            success=majority_success,
+            output=consensus_output,
+            name=self.config.name,
             execution_time=time.time() - start_time,
             metadata={
-                'consensus_agents': list(results.keys()),
-                'votes_success': successes, 'votes_total': total,
+                "consensus_agents": list(results.keys()),
+                "votes_success": successes,
+                "votes_total": total,
             },
         )
 
@@ -478,9 +505,9 @@ class CompositeAgent(BaseAgent):
                 error=unified.error,
                 metadata={
                     **unified.metadata,
-                    'agent_traces': unified.agent_traces,
-                    'evaluation': unified.evaluation,
-                    'improvements': unified.improvements,
+                    "agent_traces": unified.agent_traces,
+                    "evaluation": unified.evaluation,
+                    "improvements": unified.improvements,
                 },
             )
 
@@ -502,24 +529,28 @@ class CompositeAgent(BaseAgent):
     def to_dict(self) -> Dict[str, Any]:
         """Serialize composite agent state."""
         base = super().to_dict()
-        base.update({
-            'type': 'composite',
-            'wrapped_swarm': self._wrapped_swarm.__class__.__name__ if self._wrapped_swarm else None,
-            'sub_agents': {
-                name: agent.to_dict() if hasattr(agent, 'to_dict') else str(agent)
-                for name, agent in self._sub_agents.items()
-            },
-            'coordination': self.config.coordination_pattern.value,
-            'merge_strategy': self.config.merge_strategy.value,
-            'has_signature': self.signature is not None,
-        })
+        base.update(
+            {
+                "type": "composite",
+                "wrapped_swarm": (
+                    self._wrapped_swarm.__class__.__name__ if self._wrapped_swarm else None
+                ),
+                "sub_agents": {
+                    name: agent.to_dict() if hasattr(agent, "to_dict") else str(agent)
+                    for name, agent in self._sub_agents.items()
+                },
+                "coordination": self.config.coordination_pattern.value,
+                "merge_strategy": self.config.merge_strategy.value,
+                "has_signature": self.signature is not None,
+            }
+        )
         return base
 
 
 __all__ = [
-    'CompositeAgent',
-    'CompositeAgentConfig',
-    'UnifiedResult',
-    'CoordinationPattern',
-    'MergeStrategy',
+    "CompositeAgent",
+    "CompositeAgentConfig",
+    "UnifiedResult",
+    "CoordinationPattern",
+    "MergeStrategy",
 ]

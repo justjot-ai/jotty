@@ -15,13 +15,13 @@ Capabilities:
 Note: Agent-S achieved 72.6% on OSWorld, surpassing human performance!
 """
 
-import time
-import logging
 import asyncio
-from typing import Any, Dict, List, Optional
+import logging
+import time
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
-from .base import SkillProvider, SkillCategory, ProviderCapability, ProviderResult
+from .base import ProviderCapability, ProviderResult, SkillCategory, SkillProvider
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 try:
     from gui_agents import Agent as GUIAgent
     from gui_agents.aci import OSWorldACI
+
     AGENT_S_AVAILABLE = True
 except ImportError:
     AGENT_S_AVAILABLE = False
@@ -37,6 +38,7 @@ except ImportError:
 # Fallback: Try pyautogui for basic operations
 try:
     import pyautogui
+
     PYAUTOGUI_AVAILABLE = True
 except ImportError:
     PYAUTOGUI_AVAILABLE = False
@@ -78,9 +80,13 @@ class AgentSProvider(SkillProvider):
         ]
 
         # Configuration
-        self.screenshot_dir = config.get('screenshot_dir', '/tmp/agent_s_screenshots') if config else '/tmp/agent_s_screenshots'
-        self.timeout = config.get('timeout', 300) if config else 300  # 5 min for complex tasks
-        self.safe_mode = config.get('safe_mode', True) if config else True
+        self.screenshot_dir = (
+            config.get("screenshot_dir", "/tmp/agent_s_screenshots")
+            if config
+            else "/tmp/agent_s_screenshots"
+        )
+        self.timeout = config.get("timeout", 300) if config else 300  # 5 min for complex tasks
+        self.safe_mode = config.get("safe_mode", True) if config else True
 
         # State
         self._agent = None
@@ -161,9 +167,9 @@ class AgentSProvider(SkillProvider):
 
             # Placeholder for when Agent-S SDK is available
             result = {
-                'task': task,
-                'status': 'executed',
-                'screenshots': [],
+                "task": task,
+                "status": "executed",
+                "screenshots": [],
             }
 
             return ProviderResult(
@@ -200,20 +206,20 @@ class AgentSProvider(SkillProvider):
             task_lower = task.lower()
 
             # Parse and execute basic operations
-            if 'click' in task_lower:
+            if "click" in task_lower:
                 result = await self._fallback_click(task, context)
-            elif 'type' in task_lower or 'write' in task_lower:
+            elif "type" in task_lower or "write" in task_lower:
                 result = await self._fallback_type(task, context)
-            elif 'screenshot' in task_lower:
+            elif "screenshot" in task_lower:
                 result = await self._fallback_screenshot(context)
-            elif 'scroll' in task_lower:
+            elif "scroll" in task_lower:
                 result = await self._fallback_scroll(task, context)
-            elif 'move' in task_lower:
+            elif "move" in task_lower:
                 result = await self._fallback_move(task, context)
             else:
                 # Take screenshot for context
                 result = await self._fallback_screenshot(context)
-                result.output['message'] = f"Task '{task}' captured via screenshot"
+                result.output["message"] = f"Task '{task}' captured via screenshot"
 
             result.execution_time = time.time() - start_time
             result.provider_name = self.name
@@ -231,14 +237,14 @@ class AgentSProvider(SkillProvider):
 
     async def _fallback_click(self, task: str, context: Dict) -> ProviderResult:
         """Click at position or element."""
-        x = context.get('x')
-        y = context.get('y')
+        x = context.get("x")
+        y = context.get("y")
 
         if x is not None and y is not None:
             pyautogui.click(x, y)
             return ProviderResult(
                 success=True,
-                output={'action': 'click', 'x': x, 'y': y},
+                output={"action": "click", "x": x, "y": y},
                 category=SkillCategory.COMPUTER_USE,
             )
 
@@ -253,11 +259,12 @@ class AgentSProvider(SkillProvider):
 
     async def _fallback_type(self, task: str, context: Dict) -> ProviderResult:
         """Type text."""
-        text = context.get('text', '')
+        text = context.get("text", "")
 
         if not text:
             # Extract text from task
             import re
+
             match = re.search(r'type\s+["\']([^"\']+)["\']', task, re.IGNORECASE)
             if match:
                 text = match.group(1)
@@ -266,7 +273,7 @@ class AgentSProvider(SkillProvider):
             pyautogui.typewrite(text, interval=0.05)
             return ProviderResult(
                 success=True,
-                output={'action': 'type', 'text': text},
+                output={"action": "type", "text": text},
                 category=SkillCategory.COMPUTER_USE,
             )
 
@@ -280,6 +287,7 @@ class AgentSProvider(SkillProvider):
     async def _fallback_screenshot(self, context: Dict) -> ProviderResult:
         """Take a screenshot."""
         import time as t
+
         filename = f"screenshot_{int(t.time())}.png"
         filepath = Path(self.screenshot_dir) / filename
 
@@ -288,34 +296,34 @@ class AgentSProvider(SkillProvider):
 
         return ProviderResult(
             success=True,
-            output={'action': 'screenshot', 'path': str(filepath)},
+            output={"action": "screenshot", "path": str(filepath)},
             category=SkillCategory.COMPUTER_USE,
         )
 
     async def _fallback_scroll(self, task: str, context: Dict) -> ProviderResult:
         """Scroll the screen."""
-        direction = context.get('direction', 'down')
-        amount = context.get('amount', 3)
+        direction = context.get("direction", "down")
+        amount = context.get("amount", 3)
 
-        clicks = amount if direction == 'down' else -amount
+        clicks = amount if direction == "down" else -amount
         pyautogui.scroll(clicks)
 
         return ProviderResult(
             success=True,
-            output={'action': 'scroll', 'direction': direction, 'amount': amount},
+            output={"action": "scroll", "direction": direction, "amount": amount},
             category=SkillCategory.COMPUTER_USE,
         )
 
     async def _fallback_move(self, task: str, context: Dict) -> ProviderResult:
         """Move mouse to position."""
-        x = context.get('x', 0)
-        y = context.get('y', 0)
+        x = context.get("x", 0)
+        y = context.get("y", 0)
 
         pyautogui.moveTo(x, y)
 
         return ProviderResult(
             success=True,
-            output={'action': 'move', 'x': x, 'y': y},
+            output={"action": "move", "x": x, "y": y},
             category=SkillCategory.COMPUTER_USE,
         )
 
@@ -323,19 +331,19 @@ class AgentSProvider(SkillProvider):
 
     async def click(self, x: int, y: int) -> ProviderResult:
         """Click at coordinates."""
-        return await self.execute("click", context={'x': x, 'y': y})
+        return await self.execute("click", context={"x": x, "y": y})
 
     async def type_text(self, text: str) -> ProviderResult:
         """Type text."""
-        return await self.execute("type", context={'text': text})
+        return await self.execute("type", context={"text": text})
 
     async def screenshot(self) -> ProviderResult:
         """Take a screenshot."""
         return await self.execute("take screenshot")
 
-    async def scroll(self, direction: str = 'down', amount: int = 3) -> ProviderResult:
+    async def scroll(self, direction: str = "down", amount: int = 3) -> ProviderResult:
         """Scroll the screen."""
-        return await self.execute("scroll", context={'direction': direction, 'amount': amount})
+        return await self.execute("scroll", context={"direction": direction, "amount": amount})
 
     async def open_application(self, app_name: str) -> ProviderResult:
         """Open an application."""

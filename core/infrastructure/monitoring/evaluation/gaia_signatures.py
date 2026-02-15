@@ -7,6 +7,7 @@ structured output to expected instead of regex over free text.
 
 try:
     import dspy
+
     DSPY_AVAILABLE = True
 except ImportError:
     DSPY_AVAILABLE = False
@@ -30,6 +31,7 @@ if DSPY_AVAILABLE:
         - If the raw response contains the correct answer embedded in prose, extract it.
         - If the raw response refuses or says it cannot answer, output the empty string or "The adventurer died." only when that is the correct outcome.
         """
+
         question_summary: str = dspy.InputField(
             desc="One-line summary of the benchmark question (for context)"
         )

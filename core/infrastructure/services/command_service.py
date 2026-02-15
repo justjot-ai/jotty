@@ -21,13 +21,14 @@ import asyncio
 import io
 import re
 import sys
-from typing import List, Dict, Any, Optional
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
+from typing import Any, Dict, List, Optional
 
 
 @dataclass
 class CommandInfo:
     """Command metadata."""
+
     name: str
     description: str
     usage: str
@@ -41,6 +42,7 @@ class CommandInfo:
 @dataclass
 class CommandExecutionResult:
     """Result from command execution."""
+
     success: bool
     output: str
     error: Optional[str] = None
@@ -51,7 +53,7 @@ class CommandExecutionResult:
             "success": self.success,
             "output": self.output,
             "error": self.error,
-            "data": self.data
+            "data": self.data,
         }
 
 
@@ -88,6 +90,7 @@ class CommandService:
         """Get or create CLI instance for command execution."""
         if self._cli is None:
             from Jotty.cli.app import JottyCLI
+
             self._cli = JottyCLI(no_color=True)
         return self._cli
 
@@ -106,15 +109,15 @@ class CommandService:
         commands = []
         for name, cmd in self._registry._commands.items():
             # Skip aliases (only show primary names)
-            if name in getattr(cmd, 'aliases', []):
+            if name in getattr(cmd, "aliases", []):
                 continue
 
             info = CommandInfo(
                 name=name,
-                description=getattr(cmd, 'description', ''),
-                usage=getattr(cmd, 'usage', f'/{name}'),
-                category=getattr(cmd, 'category', 'general'),
-                aliases=getattr(cmd, 'aliases', [])
+                description=getattr(cmd, "description", ""),
+                usage=getattr(cmd, "usage", f"/{name}"),
+                category=getattr(cmd, "category", "general"),
+                aliases=getattr(cmd, "aliases", []),
             )
 
             if category is None or info.category == category:
@@ -147,13 +150,13 @@ class CommandService:
         self._ensure_initialized()
 
         # Strip leading slash if present
-        name = name.lstrip('/')
+        name = name.lstrip("/")
 
         cmd = self._registry._commands.get(name)
         if cmd is None:
             # Check aliases
             for cmd_name, command in self._registry._commands.items():
-                if name in getattr(command, 'aliases', []):
+                if name in getattr(command, "aliases", []):
                     cmd = command
                     name = cmd_name
                     break
@@ -163,15 +166,15 @@ class CommandService:
 
         return CommandInfo(
             name=name,
-            description=getattr(cmd, 'description', ''),
-            usage=getattr(cmd, 'usage', f'/{name}'),
-            category=getattr(cmd, 'category', 'general'),
-            aliases=getattr(cmd, 'aliases', [])
+            description=getattr(cmd, "description", ""),
+            usage=getattr(cmd, "usage", f"/{name}"),
+            category=getattr(cmd, "category", "general"),
+            aliases=getattr(cmd, "aliases", []),
         )
 
     def is_command(self, text: str) -> bool:
         """Check if text is a command (starts with /)."""
-        return text.strip().startswith('/')
+        return text.strip().startswith("/")
 
     def parse_command(self, text: str) -> tuple[str, str]:
         """
@@ -184,16 +187,16 @@ class CommandService:
             Tuple of (command_name, args_string)
         """
         text = text.strip()
-        if not text.startswith('/'):
-            return ('', text)
+        if not text.startswith("/"):
+            return ("", text)
 
         # Remove leading slash
         text = text[1:]
 
         # Split into command and args
         parts = text.split(None, 1)
-        command = parts[0] if parts else ''
-        args = parts[1] if len(parts) > 1 else ''
+        command = parts[0] if parts else ""
+        args = parts[1] if len(parts) > 1 else ""
 
         return (command, args)
 
@@ -208,8 +211,8 @@ class CommandService:
             CommandExecutionResult with output
         """
         # Ensure it starts with /
-        if not command_str.startswith('/'):
-            command_str = '/' + command_str
+        if not command_str.startswith("/"):
+            command_str = "/" + command_str
 
         try:
             cli = self._get_cli()
@@ -219,8 +222,8 @@ class CommandService:
 
             def clean_text(text: Any) -> Any:
                 """Remove ANSI and Rich markup."""
-                clean = re.sub(r'\x1b\[[0-9;]*m', '', str(text))
-                clean = re.sub(r'\[/?[^\]]*\]', '', clean)
+                clean = re.sub(r"\x1b\[[0-9;]*m", "", str(text))
+                clean = re.sub(r"\[/?[^\]]*\]", "", clean)
                 return clean.strip()
 
             # Save original renderer methods
@@ -238,15 +241,16 @@ class CommandService:
             cli.renderer.error = lambda t: captured_output.append(f" {clean_text(t)}")
 
             # Capture panel output
-            original_panel = getattr(cli.renderer, 'panel', None)
+            original_panel = getattr(cli.renderer, "panel", None)
             cli.renderer.panel = lambda content, **kwargs: captured_output.append(
                 f" {kwargs.get('title', 'Panel')}:\n{clean_text(content)}"
             )
 
             # Capture tree output
-            original_tree = getattr(cli.renderer, 'tree', None)
+            original_tree = getattr(cli.renderer, "tree", None)
+
             def capture_tree(data: Any, **kwargs: Any) -> None:
-                title = kwargs.get('title', 'Data')
+                title = kwargs.get("title", "Data")
                 if isinstance(data, dict):
                     lines = [f" {title}:"]
                     for k, v in data.items():
@@ -254,19 +258,23 @@ class CommandService:
                     captured_output.append("\n".join(lines))
                 else:
                     captured_output.append(f" {title}: {data}")
+
             cli.renderer.tree = capture_tree
 
             # Capture table output
             original_print_table = cli.renderer.tables.print_table
+
             def capture_table(table: Any) -> None:
                 try:
                     from rich.console import Console
+
                     string_io = io.StringIO()
                     console = Console(file=string_io, force_terminal=False, no_color=True)
                     console.print(table)
                     captured_output.append(string_io.getvalue())
                 except Exception:
                     captured_output.append(str(table))
+
             cli.renderer.tables.print_table = capture_table
 
             try:
@@ -274,10 +282,7 @@ class CommandService:
                 await cli._handle_command(command_str)
 
                 output = "\n".join(captured_output) if captured_output else "Command executed"
-                return CommandExecutionResult(
-                    success=True,
-                    output=output
-                )
+                return CommandExecutionResult(success=True, output=output)
 
             finally:
                 # Restore original methods
@@ -293,11 +298,7 @@ class CommandService:
                     cli.renderer.tree = original_tree
 
         except Exception as e:
-            return CommandExecutionResult(
-                success=False,
-                output="",
-                error=str(e)
-            )
+            return CommandExecutionResult(success=False, output="", error=str(e))
 
     def execute_sync(self, command_str: str) -> CommandExecutionResult:
         """Synchronous wrapper for execute()."""

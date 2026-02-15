@@ -1,23 +1,25 @@
 """EPUB Builder Skill - build EPUB ebooks from text/markdown."""
-import zipfile
-import uuid
+
 import re as _re
-from pathlib import Path
+import uuid
+import zipfile
 from datetime import datetime, timezone
-from typing import Dict, Any, List
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from pathlib import Path
+from typing import Any, Dict, List
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("epub-builder")
 
 _XHTML_TPL = (
     '<?xml version="1.0" encoding="UTF-8"?>\n'
-    '<!DOCTYPE html>\n'
+    "<!DOCTYPE html>\n"
     '<html xmlns="http://www.w3.org/1999/xhtml">\n'
-    '<head><title>{title}</title>\n'
-    '<style>body{{font-family:serif;line-height:1.6;margin:1em;}}h1{{color:#333;}}</style>\n'
-    '</head>\n'
-    '<body><h1>{title}</h1>{body}</body></html>'
+    "<head><title>{title}</title>\n"
+    "<style>body{{font-family:serif;line-height:1.6;margin:1em;}}h1{{color:#333;}}</style>\n"
+    "</head>\n"
+    "<body><h1>{title}</h1>{body}</body></html>"
 )
 
 _OPF_TPL = (
@@ -25,27 +27,27 @@ _OPF_TPL = (
     '<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="bookid">\n'
     '<metadata xmlns:dc="http://purl.org/dc/elements/1.1/">\n'
     '<dc:identifier id="bookid">urn:uuid:{book_id}</dc:identifier>\n'
-    '<dc:title>{title}</dc:title>\n'
-    '<dc:creator>{author}</dc:creator>\n'
-    '<dc:language>{language}</dc:language>\n'
-    '<dc:description>{description}</dc:description>\n'
+    "<dc:title>{title}</dc:title>\n"
+    "<dc:creator>{author}</dc:creator>\n"
+    "<dc:language>{language}</dc:language>\n"
+    "<dc:description>{description}</dc:description>\n"
     '<meta property="dcterms:modified">{now}</meta>\n'
-    '</metadata>\n'
-    '<manifest>\n'
+    "</metadata>\n"
+    "<manifest>\n"
     '<item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>\n'
-    '{manifest}\n'
-    '</manifest>\n'
-    '<spine>{spine}</spine>\n'
-    '</package>'
+    "{manifest}\n"
+    "</manifest>\n"
+    "<spine>{spine}</spine>\n"
+    "</package>"
 )
 
 _NAV_TPL = (
     '<?xml version="1.0" encoding="UTF-8"?>\n'
-    '<!DOCTYPE html>\n'
+    "<!DOCTYPE html>\n"
     '<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">\n'
-    '<head><title>Table of Contents</title></head>\n'
+    "<head><title>Table of Contents</title></head>\n"
     '<body><nav epub:type="toc"><h1>Table of Contents</h1>\n'
-    '<ol>{toc}</ol></nav></body></html>'
+    "<ol>{toc}</ol></nav></body></html>"
 )
 
 
@@ -93,11 +95,13 @@ def build_epub_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         with zipfile.ZipFile(output_path, "w", zipfile.ZIP_DEFLATED) as epub:
             epub.writestr("mimetype", "application/epub+zip", compress_type=zipfile.ZIP_STORED)
 
-            epub.writestr("META-INF/container.xml",
+            epub.writestr(
+                "META-INF/container.xml",
                 '<?xml version="1.0" encoding="UTF-8"?>'
                 '<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">'
                 '<rootfiles><rootfile full-path="OEBPS/content.opf" '
-                'media-type="application/oebps-package+xml"/></rootfiles></container>')
+                'media-type="application/oebps-package+xml"/></rootfiles></container>',
+            )
 
             manifest_items = []
             spine_items = []
@@ -111,13 +115,21 @@ def build_epub_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                 ch_file = ch_id + ".xhtml"
 
                 epub.writestr("OEBPS/" + ch_file, _make_xhtml(ch_title, ch_html))
-                manifest_items.append('<item id="{}" href="{}" media-type="application/xhtml+xml"/>'.format(ch_id, ch_file))
+                manifest_items.append(
+                    '<item id="{}" href="{}" media-type="application/xhtml+xml"/>'.format(
+                        ch_id, ch_file
+                    )
+                )
                 spine_items.append('<itemref idref="{}"/>'.format(ch_id))
                 toc_items.append('<li><a href="{}">{}</a></li>'.format(ch_file, ch_title))
 
             opf = _OPF_TPL.format(
-                book_id=book_id, title=title, author=author,
-                language=language, description=description, now=now,
+                book_id=book_id,
+                title=title,
+                author=author,
+                language=language,
+                description=description,
+                now=now,
                 manifest="\n".join(manifest_items),
                 spine="\n".join(spine_items),
             )

@@ -16,11 +16,22 @@ from pathlib import Path
 
 # Return type by name (method/function name -> return type string)
 RETURN_NONE = (
-    "__init__", "__post_init__", "__setattr__", "__set_name__",
+    "__init__",
+    "__post_init__",
+    "__setattr__",
+    "__set_name__",
 )
 RETURN_BOOL = (
-    "__bool__", "__contains__", "__eq__", "__ne__", "__lt__", "__le__", "__gt__", "__ge__",
-    "__exit__", "__aexit__",  # return bool (suppress exception or not)
+    "__bool__",
+    "__contains__",
+    "__eq__",
+    "__ne__",
+    "__lt__",
+    "__le__",
+    "__gt__",
+    "__ge__",
+    "__exit__",
+    "__aexit__",  # return bool (suppress exception or not)
 )
 RETURN_ANY_CONTEXT = ("__enter__", "__aenter__")  # return Any (context value; Self in 3.11+)
 RETURN_STR = ("__str__", "__repr__", "__format__")
@@ -171,12 +182,20 @@ def ensure_typing_any(lines: list[str]) -> tuple[list[str], bool]:
             insert_at = 0
             for j, line in enumerate(lines[:25]):
                 stripped = line.strip()
-                if stripped.startswith("#") or stripped.startswith('"""') or stripped.startswith("'''"):
+                if (
+                    stripped.startswith("#")
+                    or stripped.startswith('"""')
+                    or stripped.startswith("'''")
+                ):
                     continue
                 if stripped.startswith("from __future__"):
                     insert_at = j + 1
                     continue
-                if stripped and not stripped.startswith("from ") and not stripped.startswith("import "):
+                if (
+                    stripped
+                    and not stripped.startswith("from ")
+                    and not stripped.startswith("import ")
+                ):
                     break
                 if stripped.startswith("from ") or stripped.startswith("import "):
                     insert_at = j + 1
@@ -245,6 +264,7 @@ def process_file(path: Path, dry_run: bool) -> tuple[int, bool]:
 
 def main() -> None:
     import argparse
+
     ap = argparse.ArgumentParser()
     ap.add_argument("--write", action="store_true", help="Apply changes (default: dry run)")
     ap.add_argument("dirs", nargs="*", default=["core", "cli"], help="Directories to process")
@@ -264,7 +284,9 @@ def main() -> None:
                 total += n
                 files_done += 1
                 print(f"  {'[dry-run] ' if dry_run else ''}{path.relative_to(root)} ({n} defs)")
-    print(f"\nTotal: {total} signatures in {files_done} files. {'(dry run; use --write to apply)' if dry_run else 'Done.'}")
+    print(
+        f"\nTotal: {total} signatures in {files_done} files. {'(dry run; use --write to apply)' if dry_run else 'Done.'}"
+    )
 
 
 if __name__ == "__main__":

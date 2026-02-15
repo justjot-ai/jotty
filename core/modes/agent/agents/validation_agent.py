@@ -29,10 +29,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Type
 
-from .meta_agent import MetaAgent, MetaAgentConfig
-
 from Jotty.core.infrastructure.foundation.types.enums import OutputTag, ValidationRound
 from Jotty.core.infrastructure.foundation.types.validation_types import ValidationResult
+
+from .meta_agent import MetaAgent, MetaAgentConfig
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +45,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ValidationConfig(MetaAgentConfig):
     """Configuration for validation agents."""
+
     # Validation thresholds
     confidence_threshold: float = 0.7
     refinement_threshold: float = 0.5
@@ -70,9 +71,11 @@ class ValidationConfig(MetaAgentConfig):
 # SHARED SCRATCHPAD
 # =============================================================================
 
+
 @dataclass
 class AgentMessage:
     """Message exchanged between agents."""
+
     sender: str
     receiver: str  # "*" for broadcast
     message_type: str  # "insight", "warning", "tool_result"
@@ -107,10 +110,7 @@ class SharedScratchpad:
 
     def get_messages_for(self, agent_name: str) -> List[AgentMessage]:
         """Get messages intended for a specific agent or broadcast."""
-        return [
-            m for m in self.messages
-            if m.receiver == "*" or m.receiver == agent_name
-        ]
+        return [m for m in self.messages if m.receiver == "*" or m.receiver == agent_name]
 
     def get_cached_result(self, tool_name: str, args: Dict) -> Optional[Any]:
         """Get cached tool result if available."""
@@ -132,6 +132,7 @@ class SharedScratchpad:
 # VALIDATION AGENT BASE CLASS
 # =============================================================================
 
+
 class ValidationAgent(MetaAgent):
     """
     Base class for validation/inspection agents.
@@ -152,7 +153,12 @@ class ValidationAgent(MetaAgent):
                 return result
     """
 
-    def __init__(self, config: ValidationConfig = None, scratchpad: SharedScratchpad = None, is_pre_validation: bool = True) -> None:
+    def __init__(
+        self,
+        config: ValidationConfig = None,
+        scratchpad: SharedScratchpad = None,
+        is_pre_validation: bool = True,
+    ) -> None:
         """
         Initialize ValidationAgent.
 
@@ -188,6 +194,7 @@ class ValidationAgent(MetaAgent):
         if self._dspy_module is None and self.signature is not None:
             try:
                 import dspy
+
                 self._dspy_module = dspy.ChainOfThought(self.signature)
                 logger.debug(f"Initialized validation module for {self.config.name}")
             except Exception as e:
@@ -222,10 +229,7 @@ class ValidationAgent(MetaAgent):
     def get_shared_insights(self) -> List[str]:
         """Get insights shared by other agents."""
         messages = self.scratchpad.get_messages_for(self.config.name)
-        return [
-            m.insight for m in messages
-            if m.message_type == "insight" and m.insight
-        ]
+        return [m.insight for m in messages if m.message_type == "insight" and m.insight]
 
     # =========================================================================
     # TOOL CACHING
@@ -233,7 +237,7 @@ class ValidationAgent(MetaAgent):
 
     def wrap_tool_with_cache(self, tool: Any) -> Callable:
         """Wrap a tool with caching logic."""
-        tool_name = getattr(tool, 'name', str(tool))
+        tool_name = getattr(tool, "name", str(tool))
 
         def cached_tool(**kwargs: Any) -> Any:
             # Check cache
@@ -274,21 +278,17 @@ class ValidationAgent(MetaAgent):
         if self.memory is None:
             return ""
 
-        query = inputs.get('proposed_action', '') or inputs.get('action_result', '') or goal
+        query = inputs.get("proposed_action", "") or inputs.get("action_result", "") or goal
 
         try:
-            memories = self.memory.retrieve(
-                query=query,
-                goal=goal,
-                budget_tokens=2000
-            )
+            memories = self.memory.retrieve(query=query, goal=goal, budget_tokens=2000)
 
             if not memories:
                 return ""
 
             parts = []
             for mem in memories:
-                value = mem.get_value(goal) if hasattr(mem, 'get_value') else 0.5
+                value = mem.get_value(goal) if hasattr(mem, "get_value") else 0.5
                 content = mem.content[:500] if len(mem.content) > 500 else mem.content
                 parts.append(f"[Value: {value:.2f}] {content}")
 
@@ -320,13 +320,13 @@ Reasoning: {result.reasoning[:500]}
                 content=content,
                 level=MemoryLevel.EPISODIC,
                 context={
-                    'goal': goal,
-                    'round': result.validation_round.value,
-                    'is_valid': result.is_valid,
-                    'confidence': result.confidence,
+                    "goal": goal,
+                    "round": result.validation_round.value,
+                    "is_valid": result.is_valid,
+                    "confidence": result.confidence,
                 },
                 goal=goal,
-                initial_value=0.5 + 0.3 * (result.confidence - 0.5)
+                initial_value=0.5 + 0.3 * (result.confidence - 0.5),
             )
         except Exception as e:
             logger.warning(f"Failed to store validation result: {e}")
@@ -350,8 +350,8 @@ Reasoning: {result.reasoning[:500]}
         total = self._validation_metrics["total_validations"]
         prev_avg = self._validation_metrics["avg_confidence"]
         self._validation_metrics["avg_confidence"] = (
-            (prev_avg * (total - 1) + result.confidence) / total
-        )
+            prev_avg * (total - 1) + result.confidence
+        ) / total
 
     # =========================================================================
     # MULTI-ROUND VALIDATION
@@ -365,10 +365,7 @@ Reasoning: {result.reasoning[:500]}
         return result.confidence < self.validation_config.refinement_on_low_confidence
 
     async def refine_result(
-        self,
-        original: ValidationResult,
-        feedback: str,
-        additional_context: str = ""
+        self, original: ValidationResult, feedback: str, additional_context: str = ""
     ) -> ValidationResult:
         """Refine a validation result based on feedback."""
         if not self.validation_config.enable_multi_round:
@@ -390,9 +387,7 @@ Reasoning: {result.reasoning[:500]}
 
         metrics = self._validation_metrics.copy()
         if metrics["total_validations"] > 0:
-            metrics["approval_rate"] = (
-                metrics["approvals"] / metrics["total_validations"]
-            )
+            metrics["approval_rate"] = metrics["approvals"] / metrics["total_validations"]
         else:
             metrics["approval_rate"] = 0.0
 
@@ -408,19 +403,16 @@ Reasoning: {result.reasoning[:500]}
 
         Subclasses should override validate() or this method.
         """
-        goal = kwargs.get('goal', '')
-        inputs = kwargs.get('inputs', {})
-        trajectory = kwargs.get('trajectory', [])
+        goal = kwargs.get("goal", "")
+        inputs = kwargs.get("inputs", {})
+        trajectory = kwargs.get("trajectory", [])
 
         result = await self.validate(goal, inputs, trajectory)
 
         return result.to_dict()
 
     async def validate(
-        self,
-        goal: str,
-        inputs: Dict[str, Any],
-        trajectory: List[Dict] = None
+        self, goal: str, inputs: Dict[str, Any], trajectory: List[Dict] = None
     ) -> ValidationResult:
         """
         Run validation.
@@ -445,35 +437,31 @@ Reasoning: {result.reasoning[:500]}
         # Default validation using DSPy module
         if self._dspy_module is not None:
             try:
-                task = inputs.get('task', goal)
+                task = inputs.get("task", goal)
                 context = f"{memory_context}\n\nInsights: {shared_insights}"
 
                 result = await asyncio.wait_for(
-                    asyncio.to_thread(
-                        self._dspy_module,
-                        task=task,
-                        context=context
-                    ),
-                    timeout=self.validation_config.llm_timeout_seconds
+                    asyncio.to_thread(self._dspy_module, task=task, context=context),
+                    timeout=self.validation_config.llm_timeout_seconds,
                 )
 
                 # Parse result
-                is_valid = getattr(result, 'is_valid', True)
+                is_valid = getattr(result, "is_valid", True)
                 if isinstance(is_valid, str):
-                    is_valid = is_valid.lower() in ('true', 'yes', '1')
+                    is_valid = is_valid.lower() in ("true", "yes", "1")
 
-                should_proceed = getattr(result, 'should_proceed', True)
+                should_proceed = getattr(result, "should_proceed", True)
                 if isinstance(should_proceed, str):
-                    should_proceed = should_proceed.lower() in ('true', 'yes', '1')
+                    should_proceed = should_proceed.lower() in ("true", "yes", "1")
 
-                confidence = float(getattr(result, 'confidence', 0.5))
+                confidence = float(getattr(result, "confidence", 0.5))
                 confidence = max(0.0, min(1.0, confidence))
 
                 validation_result = ValidationResult(
                     agent_name=self.config.name,
                     is_valid=is_valid if not self.is_pre_validation else should_proceed,
                     confidence=confidence,
-                    reasoning=getattr(result, 'reasoning', ''),
+                    reasoning=getattr(result, "reasoning", ""),
                     should_proceed=should_proceed if self.is_pre_validation else None,
                     execution_time=time.time() - start_time,
                 )
@@ -519,6 +507,7 @@ Reasoning: {result.reasoning[:500]}
 # CONVENIENCE FUNCTIONS
 # =============================================================================
 
+
 def create_validation_agent(
     signature: Type = None,
     is_pre_validation: bool = True,
@@ -536,6 +525,7 @@ def create_validation_agent(
         Configured ValidationAgent
     """
     from Jotty.core.infrastructure.foundation.config_defaults import DEFAULT_MODEL_ALIAS
+
     model = model or DEFAULT_MODEL_ALIAS
     name = f"ValidationAgent[{signature.__name__}]" if signature else "ValidationAgent"
     config = ValidationConfig(name=name, model=model)
@@ -550,12 +540,12 @@ def create_validation_agent(
 
 
 __all__ = [
-    'ValidationAgent',
-    'ValidationConfig',
-    'ValidationResult',
-    'ValidationRound',
-    'OutputTag',
-    'SharedScratchpad',
-    'AgentMessage',
-    'create_validation_agent',
+    "ValidationAgent",
+    "ValidationConfig",
+    "ValidationResult",
+    "ValidationRound",
+    "OutputTag",
+    "SharedScratchpad",
+    "AgentMessage",
+    "create_validation_agent",
 ]

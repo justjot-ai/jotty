@@ -18,39 +18,39 @@
 
 ### Brain in More Detail
 
-- **BaseSwarm**  
-  - Self-improving loop: Expert → Reviewer → Planner → Actor (plus Auditor, Learner).  
-  - Shared resources: memory, context, bus, TD-Lambda learner.  
+- **BaseSwarm**
+  - Self-improving loop: Expert → Reviewer → Planner → Actor (plus Auditor, Learner).
+  - Shared resources: memory, context, bus, TD-Lambda learner.
   - Gold-standard DB, evaluation history, execution traces.
 
-- **DomainSwarm**  
-  - Template for domain swarms.  
-  - Declarative **AGENT_TEAM** (agents + optional coordination pattern: pipeline, parallel, consensus).  
+- **DomainSwarm**
+  - Template for domain swarms.
+  - Declarative **AGENT_TEAM** (agents + optional coordination pattern: pipeline, parallel, consensus).
   - `_execute_domain()` is where domain logic lives; base handles learning hooks and team lifecycle.
 
-- **SwarmIntelligence**  
-  - Emergent specialization, consensus voting, online adaptation.  
-  - Collective memory, dynamic routing (stigmergy + trust), session isolation.  
+- **SwarmIntelligence**
+  - Emergent specialization, consensus voting, online adaptation.
+  - Collective memory, dynamic routing (stigmergy + trust), session isolation.
   - Optional: self-curriculum, MorphAgent-style scoring (RCS/RDS/TRAS), Byzantine verification.
 
-- **Learning**  
-  - **TD(λ)** with eligibility traces and grouped value baselines (HRPO-style).  
-  - **SwarmMemory**: 5-level hierarchy (Episodic, Semantic, Procedural, Meta, Causal).  
+- **Learning**
+  - **TD(λ)** with eligibility traces and grouped value baselines (HRPO-style).
+  - **SwarmMemory**: 5-level hierarchy (Episodic, Semantic, Procedural, Meta, Causal).
   - Pre/post execution: load context → run → store, update learner, persist.
 
-- **Orchestrator**  
-  - Composable, lazy-initialized (providers, ensemble, learning, MAS-ZERO, planners, memory, terminal, etc.).  
+- **Orchestrator**
+  - Composable, lazy-initialized (providers, ensemble, learning, MAS-ZERO, planners, memory, terminal, etc.).
   - Single entry for “run this task” with the full stack.
 
 ### Domain Swarms (Registered)
 
-- **coding**, **testing**, **review**, **research**, **arxiv_learning**, **olympiad_learning**  
+- **coding**, **testing**, **review**, **research**, **arxiv_learning**, **olympiad_learning**
 - **data_analysis**, **devops**, **fundamental**, **idea_writer**, **learning**
 
 ### Entry Points
 
-- CLI: `python -m Jotty.cli` (REPL) or `-c "task"` (single command).  
-- Web: `python Jotty/web.py` (e.g. port 8766).  
+- CLI: `python -m Jotty.cli` (REPL) or `-c "task"` (single command).
+- Web: `python Jotty/web.py` (e.g. port 8766).
 - Gateway: `python -m Jotty.cli.gateway` (Telegram/Slack/etc webhooks).
 
 ---
@@ -97,16 +97,16 @@ Jotty’s own **SwarmBenchmarks** in `core/orchestration/benchmarking.py` suppor
 
 ### Where Jotty Wins (vs these)
 
-- **Built-in swarm learning**: TD-Lambda + hierarchical memory + gold standard + self-improvement loop in one stack.  
-- **Multi-channel out of the box**: One codebase for CLI, web, and 6 messaging channels.  
-- **Rich coordination**: Consensus, auctions, coalitions, stigmergy, sessions, not just linear or graph edges.  
+- **Built-in swarm learning**: TD-Lambda + hierarchical memory + gold standard + self-improvement loop in one stack.
+- **Multi-channel out of the box**: One codebase for CLI, web, and 6 messaging channels.
+- **Rich coordination**: Consensus, auctions, coalitions, stigmergy, sessions, not just linear or graph edges.
 - **Domain swarms as first-class**: Coding, testing, research, learning, etc., with shared learning and registry.
 
 ### Where Others Lead
 
-- **LangGraph**: Durable execution, human-in-the-loop interrupts, and LangSmith deployment.  
-- **AutoGen**: Ecosystem size, Studio, Bench, and Microsoft backing.  
-- **AgentVerse**: Simulation environments and published benchmarks (e.g. ICLR).  
+- **LangGraph**: Durable execution, human-in-the-loop interrupts, and LangSmith deployment.
+- **AutoGen**: Ecosystem size, Studio, Bench, and Microsoft backing.
+- **AgentVerse**: Simulation environments and published benchmarks (e.g. ICLR).
 - **DSPy**: Declarative LM programming and prompt/weight optimization research.
 
 ---
@@ -115,44 +115,44 @@ Jotty’s own **SwarmBenchmarks** in `core/orchestration/benchmarking.py` suppor
 
 ### Strengths
 
-- **Unified stack**: Interfaces → modes → registry → brain → persistence in one framework.  
-- **Learning by design**: TD(λ), 5-level memory, consolidation, grouped baselines, self-improvement loop.  
-- **Swarm intelligence**: Emergent specialization, consensus, routing, sessions, optional Byzantine verification.  
-- **Skills at scale**: 126+ skills, task discovery, Claude/MCP tool export.  
-- **Many domain swarms**: Coding, testing, review, research, arxiv/olympiad learning, data analysis, DevOps, fundamental, idea writer, learning.  
-- **Multi-channel**: CLI, web, Telegram, Slack, Discord, WhatsApp, SDK.  
-- **Observability**: Execution traces, SwarmBenchmarks, v3 metrics/cost.  
+- **Unified stack**: Interfaces → modes → registry → brain → persistence in one framework.
+- **Learning by design**: TD(λ), 5-level memory, consolidation, grouped baselines, self-improvement loop.
+- **Swarm intelligence**: Emergent specialization, consensus, routing, sessions, optional Byzantine verification.
+- **Skills at scale**: 126+ skills, task discovery, Claude/MCP tool export.
+- **Many domain swarms**: Coding, testing, review, research, arxiv/olympiad learning, data analysis, DevOps, fundamental, idea writer, learning.
+- **Multi-channel**: CLI, web, Telegram, Slack, Discord, WhatsApp, SDK.
+- **Observability**: Execution traces, SwarmBenchmarks, v3 metrics/cost.
 - **Composable orchestration**: Lazy components, clear separation of concerns.
 
 ### Weaknesses
 
-- **Ecosystem size**: Smaller community and fewer third-party integrations than LangChain/AutoGen.  
-- **Documentation**: No single “JOTTY_ARCHITECTURE.md” in repo (referenced in CLAUDE.md but path may differ); onboarding relies on CLAUDE.md and code.  
-- **Dependency weight**: DSPy, LiteLLM, many skills — heavier than minimal agent frameworks.  
-- **Benchmark visibility**: SwarmBenchmarks exist but no public benchmark suite or leaderboard like AgentVerse/AutoGen Bench.  
+- **Ecosystem size**: Smaller community and fewer third-party integrations than LangChain/AutoGen.
+- **Documentation**: No single “JOTTY_ARCHITECTURE.md” in repo (referenced in CLAUDE.md but path may differ); onboarding relies on CLAUDE.md and code.
+- **Dependency weight**: DSPy, LiteLLM, many skills — heavier than minimal agent frameworks.
+- **Benchmark visibility**: SwarmBenchmarks exist but no public benchmark suite or leaderboard like AgentVerse/AutoGen Bench.
 - **Single codebase**: All channels and swarms in one repo; no separate “Jotty Studio” or low-code UI.
 
 ### Opportunities
 
-- **Publish benchmarks**: Use SwarmBenchmarks + standard tasks (coding, research, analysis) and share results to attract users and contributors.  
-- **LangGraph-style durability**: Add checkpointing/resume and human-in-the-loop interrupts for long workflows.  
-- **Ecosystem**: Plugins, community swarms, and integrations (e.g. n8n, MCP servers) to approach AutoGen/LangChain breadth.  
-- **Anthropic/Claude focus**: Position as “best swarm framework for Claude” with first-class MCP and tool use.  
+- **Publish benchmarks**: Use SwarmBenchmarks + standard tasks (coding, research, analysis) and share results to attract users and contributors.
+- **LangGraph-style durability**: Add checkpointing/resume and human-in-the-loop interrupts for long workflows.
+- **Ecosystem**: Plugins, community swarms, and integrations (e.g. n8n, MCP servers) to approach AutoGen/LangChain breadth.
+- **Anthropic/Claude focus**: Position as “best swarm framework for Claude” with first-class MCP and tool use.
 - **Vertical templates**: Double down on finance (fundamental swarm), research (arxiv, olympiad), and dev (coding, testing, review) with case studies.
 
 ### Threats
 
-- **Dominant players**: LangChain/LangGraph and Microsoft AutoGen have more adoption and hiring power.  
-- **Model lock-in**: Deep Claude integration is a strength but also a risk if ecosystem fragments.  
-- **Complexity**: Five layers + SwarmIntelligence + learning may deter simple use cases; “simple mode” or presets could help.  
+- **Dominant players**: LangChain/LangGraph and Microsoft AutoGen have more adoption and hiring power.
+- **Model lock-in**: Deep Claude integration is a strength but also a risk if ecosystem fragments.
+- **Complexity**: Five layers + SwarmIntelligence + learning may deter simple use cases; “simple mode” or presets could help.
 - **Maintenance**: Many domain swarms and skills require ongoing updates as models and APIs change.
 
 ---
 
 ## Summary
 
-- **Jotty** = full-stack swarm framework with **learning (TD-λ, memory, self-improvement)**, **SwarmIntelligence (consensus, routing, specialization)**, **UnifiedRegistry (skills + UI)**, and **multi-interface (CLI, web, 6 channels)**.  
-- **Benchmark**: Feature-wise it is strong on learning, coordination richness, and multi-channel; it lags on ecosystem size, durable execution tooling, and public benchmark visibility.  
+- **Jotty** = full-stack swarm framework with **learning (TD-λ, memory, self-improvement)**, **SwarmIntelligence (consensus, routing, specialization)**, **UnifiedRegistry (skills + UI)**, and **multi-interface (CLI, web, 6 channels)**.
+- **Benchmark**: Feature-wise it is strong on learning, coordination richness, and multi-channel; it lags on ecosystem size, durable execution tooling, and public benchmark visibility.
 - **SWOT**: Strengths in integrated learning and swarm coordination; weaknesses in docs and ecosystem; opportunities in benchmarks and Claude-focused positioning; threats from larger frameworks and complexity.
 
 Running `SwarmBenchmarks` (and v3 metrics) on your own workloads will give you the **quantitative** benchmark that best reflects your use case.

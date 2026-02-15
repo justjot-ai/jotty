@@ -14,9 +14,9 @@ Templates:
     quantitative (default), two_sigma, renaissance, aqr, man_group, citadel
 """
 
-from typing import TYPE_CHECKING, Dict, Any, Optional, List
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from .base import BaseCommand, CommandResult, ParsedArgs
 
@@ -35,12 +35,12 @@ class BacktestReportCommand(BaseCommand):
 
     # Available templates
     TEMPLATES = {
-        'quantitative': 'Default quantitative research style',
-        'two_sigma': 'Two Sigma - clean, data-driven',
-        'renaissance': 'Renaissance Technologies - mathematical precision',
-        'aqr': 'AQR Capital - academic rigor',
-        'man_group': 'Man Group - institutional quality',
-        'citadel': 'Citadel - executive focus',
+        "quantitative": "Default quantitative research style",
+        "two_sigma": "Two Sigma - clean, data-driven",
+        "renaissance": "Renaissance Technologies - mathematical precision",
+        "aqr": "AQR Capital - academic rigor",
+        "man_group": "Man Group - institutional quality",
+        "citadel": "Citadel - executive focus",
     }
 
     async def execute(self, args: ParsedArgs, cli: "JottyCLI") -> CommandResult:
@@ -77,7 +77,7 @@ class BacktestReportCommand(BaseCommand):
             return CommandResult.fail("Symbol required")
 
         # Validate template
-        template_key = template.lower().replace(' ', '_')
+        template_key = template.lower().replace(" ", "_")
         if template_key not in self.TEMPLATES:
             cli.renderer.error(f"Unknown template: {template}")
             cli.renderer.info(f"Available: {', '.join(self.TEMPLATES.keys())}")
@@ -98,44 +98,50 @@ class BacktestReportCommand(BaseCommand):
             ml_args = ParsedArgs(
                 positional=[symbol],
                 flags={
-                    'timeframe': timeframe,
-                    'target': target_type,
-                    'years': str(years),
-                    'backtest': True,
-                    'report': True,
-                    'template': template_key,
-                }
+                    "timeframe": timeframe,
+                    "target": target_type,
+                    "years": str(years),
+                    "backtest": True,
+                    "report": True,
+                    "template": template_key,
+                },
             )
 
             result = await stock_ml.execute(ml_args, cli)
 
             if result.success:
                 data = result.data or {}
-                report_paths = data.get('report_paths', {})
+                report_paths = data.get("report_paths", {})
 
                 if report_paths:
                     cli.renderer.info("")
                     cli.renderer.header("Report Generated Successfully")
                     cli.renderer.info("")
 
-                    if report_paths.get('markdown'):
+                    if report_paths.get("markdown"):
                         cli.renderer.info(f"Markdown: {report_paths['markdown']}")
-                    if report_paths.get('pdf'):
+                    if report_paths.get("pdf"):
                         cli.renderer.info(f"PDF: {report_paths['pdf']}")
 
                     # Summary
-                    backtest = data.get('backtest', {})
+                    backtest = data.get("backtest", {})
                     if backtest:
-                        strat = backtest.get('strategy', {})
-                        bnh = backtest.get('bnh', {})
+                        strat = backtest.get("strategy", {})
+                        bnh = backtest.get("bnh", {})
 
                         cli.renderer.info("")
                         cli.renderer.info("Performance Summary:")
-                        cli.renderer.info(f"  Strategy Return:  {strat.get('total_return', 0):+.2f}%")
+                        cli.renderer.info(
+                            f"  Strategy Return:  {strat.get('total_return', 0):+.2f}%"
+                        )
                         cli.renderer.info(f"  Benchmark Return: {bnh.get('total_return', 0):+.2f}%")
-                        cli.renderer.info(f"  Alpha:            {backtest.get('outperformance', 0):+.2f}%")
+                        cli.renderer.info(
+                            f"  Alpha:            {backtest.get('outperformance', 0):+.2f}%"
+                        )
                         cli.renderer.info(f"  Sharpe Ratio:     {strat.get('sharpe', 0):.2f}")
-                        cli.renderer.info(f"  Max Drawdown:     {strat.get('max_drawdown', 0):.2f}%")
+                        cli.renderer.info(
+                            f"  Max Drawdown:     {strat.get('max_drawdown', 0):.2f}%"
+                        )
 
                 return result
             else:
@@ -144,6 +150,7 @@ class BacktestReportCommand(BaseCommand):
         except Exception as e:
             cli.renderer.error(f"Report generation failed: {e}")
             import traceback
+
             traceback.print_exc()
             return CommandResult.fail(str(e))
 
@@ -179,8 +186,18 @@ class BatchBacktestReportCommand(BaseCommand):
     # Stock sets (same as stock_ml)
     STOCK_SETS = {
         "top5": ["RELIANCE", "TCS", "HDFCBANK", "INFY", "ICICIBANK"],
-        "top10": ["RELIANCE", "TCS", "HDFCBANK", "INFY", "ICICIBANK",
-                  "HINDUNILVR", "SBIN", "BHARTIARTL", "ITC", "KOTAKBANK"],
+        "top10": [
+            "RELIANCE",
+            "TCS",
+            "HDFCBANK",
+            "INFY",
+            "ICICIBANK",
+            "HINDUNILVR",
+            "SBIN",
+            "BHARTIARTL",
+            "ITC",
+            "KOTAKBANK",
+        ],
         "nifty_bank": ["HDFCBANK", "ICICIBANK", "SBIN", "KOTAKBANK", "AXISBANK"],
         "nifty_it": ["TCS", "INFY", "WIPRO", "HCLTECH", "TECHM"],
         "nifty_pharma": ["SUNPHARMA", "DRREDDY", "CIPLA", "DIVISLAB", "AUROPHARMA"],
@@ -221,41 +238,45 @@ class BatchBacktestReportCommand(BaseCommand):
                 ml_args = ParsedArgs(
                     positional=[symbol],
                     flags={
-                        'timeframe': 'day',
-                        'target': target_type,
-                        'years': '3',
-                        'backtest': True,
-                        'report': True,
-                        'template': template,
-                    }
+                        "timeframe": "day",
+                        "target": target_type,
+                        "years": "3",
+                        "backtest": True,
+                        "report": True,
+                        "template": template,
+                    },
                 )
 
                 result = await stock_ml.execute(ml_args, cli)
 
                 if result.success:
                     data = result.data or {}
-                    report_paths = data.get('report_paths', {})
-                    backtest = data.get('backtest', {})
+                    report_paths = data.get("report_paths", {})
+                    backtest = data.get("backtest", {})
 
-                    results.append({
-                        'symbol': symbol,
-                        'status': 'success',
-                        'pdf_path': report_paths.get('pdf'),
-                        'total_return': backtest.get('strategy', {}).get('total_return', 0),
-                        'sharpe': backtest.get('strategy', {}).get('sharpe', 0),
-                        'outperformance': backtest.get('outperformance', 0),
-                    })
-                    cli.renderer.info(f" {symbol}: Return={backtest.get('strategy', {}).get('total_return', 0):+.1f}%, Sharpe={backtest.get('strategy', {}).get('sharpe', 0):.2f}")
+                    results.append(
+                        {
+                            "symbol": symbol,
+                            "status": "success",
+                            "pdf_path": report_paths.get("pdf"),
+                            "total_return": backtest.get("strategy", {}).get("total_return", 0),
+                            "sharpe": backtest.get("strategy", {}).get("sharpe", 0),
+                            "outperformance": backtest.get("outperformance", 0),
+                        }
+                    )
+                    cli.renderer.info(
+                        f" {symbol}: Return={backtest.get('strategy', {}).get('total_return', 0):+.1f}%, Sharpe={backtest.get('strategy', {}).get('sharpe', 0):.2f}"
+                    )
                 else:
-                    results.append({'symbol': symbol, 'status': 'failed'})
+                    results.append({"symbol": symbol, "status": "failed"})
                     cli.renderer.info(f" {symbol}: Failed")
 
             except Exception as e:
-                results.append({'symbol': symbol, 'status': 'error', 'error': str(e)})
+                results.append({"symbol": symbol, "status": "error", "error": str(e)})
                 cli.renderer.info(f" {symbol}: Error - {e}")
 
         # Summary
-        successful = [r for r in results if r['status'] == 'success']
+        successful = [r for r in results if r["status"] == "success"]
 
         cli.renderer.info("")
         cli.renderer.header("Batch Summary")
@@ -263,16 +284,24 @@ class BatchBacktestReportCommand(BaseCommand):
 
         if successful:
             cli.renderer.info("")
-            cli.renderer.info("┌─────────────┬─────────────┬─────────┬─────────────────────────────────┐")
-            cli.renderer.info("│   Symbol    │   Return    │  Sharpe │              PDF                │")
-            cli.renderer.info("├─────────────┼─────────────┼─────────┼─────────────────────────────────┤")
+            cli.renderer.info(
+                "┌─────────────┬─────────────┬─────────┬─────────────────────────────────┐"
+            )
+            cli.renderer.info(
+                "│   Symbol    │   Return    │  Sharpe │              PDF                │"
+            )
+            cli.renderer.info(
+                "├─────────────┼─────────────┼─────────┼─────────────────────────────────┤"
+            )
 
-            for r in sorted(successful, key=lambda x: -x.get('total_return', 0)):
-                pdf_display = Path(r.get('pdf_path', '')).name if r.get('pdf_path') else '-'
+            for r in sorted(successful, key=lambda x: -x.get("total_return", 0)):
+                pdf_display = Path(r.get("pdf_path", "")).name if r.get("pdf_path") else "-"
                 cli.renderer.info(
                     f"│ {r['symbol']:<11} │ {r.get('total_return', 0):>+9.1f}% │ {r.get('sharpe', 0):>7.2f} │ {pdf_display:<31} │"
                 )
 
-            cli.renderer.info("└─────────────┴─────────────┴─────────┴─────────────────────────────────┘")
+            cli.renderer.info(
+                "└─────────────┴─────────────┴─────────┴─────────────────────────────────┘"
+            )
 
-        return CommandResult.ok(data={'results': results})
+        return CommandResult.ok(data={"results": results})

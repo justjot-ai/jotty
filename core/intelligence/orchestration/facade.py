@@ -15,23 +15,26 @@ Usage:
 """
 
 import threading
-from typing import Optional, Dict, Any, Union, Type, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, Optional, Type, Union
 
 if TYPE_CHECKING:
-    from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig, SwarmLearningConfig
-    from Jotty.core.intelligence.orchestration.swarm_intelligence import SwarmIntelligence
-    from Jotty.core.intelligence.orchestration.paradigm_executor import ParadigmExecutor
-    from Jotty.core.intelligence.orchestration.training_daemon import TrainingDaemon
+    from Jotty.core.infrastructure.foundation.data_structures import (
+        SwarmConfig,
+        SwarmLearningConfig,
+    )
     from Jotty.core.intelligence.orchestration.ensemble_manager import EnsembleManager
-    from Jotty.core.intelligence.orchestration.provider_manager import ProviderManager
     from Jotty.core.intelligence.orchestration.model_tier_router import ModelTierRouter
+    from Jotty.core.intelligence.orchestration.paradigm_executor import ParadigmExecutor
+    from Jotty.core.intelligence.orchestration.provider_manager import ProviderManager
+    from Jotty.core.intelligence.orchestration.swarm_intelligence import SwarmIntelligence
     from Jotty.core.intelligence.orchestration.swarm_router import SwarmRouter
+    from Jotty.core.intelligence.orchestration.training_daemon import TrainingDaemon
 
 _lock = threading.Lock()
 _singletons: Dict[str, object] = {}
 
 
-def get_swarm_intelligence(config: Any = None) -> 'SwarmIntelligence':
+def get_swarm_intelligence(config: Any = None) -> "SwarmIntelligence":
     """
     Return a SwarmIntelligence singleton for multi-agent coordination.
 
@@ -46,17 +49,23 @@ def get_swarm_intelligence(config: Any = None) -> 'SwarmIntelligence':
     """
     if config is not None:
         from Jotty.core.intelligence.orchestration.swarm_intelligence import SwarmIntelligence
+
         return SwarmIntelligence(config=config)
-    key = 'swarm_intelligence'
+    key = "swarm_intelligence"
     if key not in _singletons:
         with _lock:
             if key not in _singletons:
-                from Jotty.core.intelligence.orchestration.swarm_intelligence import SwarmIntelligence
+                from Jotty.core.intelligence.orchestration.swarm_intelligence import (
+                    SwarmIntelligence,
+                )
+
                 _singletons[key] = SwarmIntelligence(config=config)
     return _singletons[key]
 
 
-def get_paradigm_executor(manager: Any = None) -> Union['ParadigmExecutor', Type['ParadigmExecutor']]:
+def get_paradigm_executor(
+    manager: Any = None,
+) -> Union["ParadigmExecutor", Type["ParadigmExecutor"]]:
     """
     Return a ParadigmExecutor for discussion paradigms (relay, debate, refinement).
 
@@ -67,12 +76,13 @@ def get_paradigm_executor(manager: Any = None) -> Union['ParadigmExecutor', Type
         ParadigmExecutor instance (if manager provided) or class (if not).
     """
     from Jotty.core.intelligence.orchestration.paradigm_executor import ParadigmExecutor
+
     if manager is not None:
         return ParadigmExecutor(manager)
     return ParadigmExecutor
 
 
-def get_training_daemon(manager: Any = None) -> Union['TrainingDaemon', Type['TrainingDaemon']]:
+def get_training_daemon(manager: Any = None) -> Union["TrainingDaemon", Type["TrainingDaemon"]]:
     """
     Return a TrainingDaemon for background self-improvement.
 
@@ -83,12 +93,13 @@ def get_training_daemon(manager: Any = None) -> Union['TrainingDaemon', Type['Tr
         TrainingDaemon instance (if manager provided) or class (if not).
     """
     from Jotty.core.intelligence.orchestration.training_daemon import TrainingDaemon
+
     if manager is not None:
         return TrainingDaemon(manager)
     return TrainingDaemon
 
 
-def get_ensemble_manager() -> 'EnsembleManager':
+def get_ensemble_manager() -> "EnsembleManager":
     """
     Return an EnsembleManager singleton for prompt ensembling.
 
@@ -97,16 +108,17 @@ def get_ensemble_manager() -> 'EnsembleManager':
     Returns:
         EnsembleManager instance (stateless).
     """
-    key = 'ensemble_manager'
+    key = "ensemble_manager"
     if key not in _singletons:
         with _lock:
             if key not in _singletons:
                 from Jotty.core.intelligence.orchestration.ensemble_manager import EnsembleManager
+
                 _singletons[key] = EnsembleManager()
     return _singletons[key]
 
 
-def get_provider_manager(config: Optional['SwarmConfig'] = None) -> 'ProviderManager':
+def get_provider_manager(config: Optional["SwarmConfig"] = None) -> "ProviderManager":
     """
     Return a ProviderManager for skill provider registry management.
 
@@ -117,13 +129,14 @@ def get_provider_manager(config: Optional['SwarmConfig'] = None) -> 'ProviderMan
         ProviderManager instance.
     """
     from Jotty.core.intelligence.orchestration.provider_manager import ProviderManager
+
     return ProviderManager(
         config=config,
         get_swarm_intelligence=lambda: None,
     )
 
 
-def get_model_tier_router(default_provider: str = None) -> 'ModelTierRouter':
+def get_model_tier_router(default_provider: str = None) -> "ModelTierRouter":
     """
     Return a ModelTierRouter instance for complexity-based LLM model selection.
 
@@ -134,10 +147,11 @@ def get_model_tier_router(default_provider: str = None) -> 'ModelTierRouter':
         ModelTierRouter instance.
     """
     from Jotty.core.intelligence.orchestration.model_tier_router import ModelTierRouter
+
     return ModelTierRouter(default_provider=default_provider)
 
 
-def get_swarm_router() -> 'SwarmRouter':
+def get_swarm_router() -> "SwarmRouter":
     """
     Return a SwarmRouter singleton for centralized task routing.
 
@@ -146,11 +160,12 @@ def get_swarm_router() -> 'SwarmRouter':
     Returns:
         SwarmRouter instance.
     """
-    key = 'swarm_router'
+    key = "swarm_router"
     if key not in _singletons:
         with _lock:
             if key not in _singletons:
                 from Jotty.core.intelligence.orchestration.swarm_router import SwarmRouter
+
                 _singletons[key] = SwarmRouter()
     return _singletons[key]
 

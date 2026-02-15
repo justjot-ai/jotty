@@ -1,16 +1,21 @@
 """SwarmMemory mixin — retrieval methods."""
 
 import logging
-from typing import Dict, List, Any, Optional, Tuple, Set
 from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 logger = logging.getLogger(__name__)
 
 from Jotty.core.infrastructure.foundation.data_structures import (
-    MemoryEntry, MemoryLevel, GoalValue, SwarmConfig,
-    GoalHierarchy, GoalNode, CausalLink, StoredEpisode
+    CausalLink,
+    GoalHierarchy,
+    GoalNode,
+    GoalValue,
+    MemoryEntry,
+    MemoryLevel,
+    StoredEpisode,
+    SwarmConfig,
 )
-
 
 
 class RetrievalMixin:
@@ -50,9 +55,8 @@ class RetrievalMixin:
 
         # Build query keyword set (lowercased, split on whitespace/punct)
         import re as _re
-        query_words: Set[str] = set(
-            w for w in _re.split(r'[\s\W]+', query.lower()) if len(w) > 2
-        )
+
+        query_words: Set[str] = set(w for w in _re.split(r"[\s\W]+", query.lower()) if len(w) > 2)
         if not query_words:
             # Fallback: just take most recent memories
             all_memories.sort(
@@ -72,10 +76,8 @@ class RetrievalMixin:
         scored = []
         for mem in all_memories:
             # 1. Keyword overlap (Jaccard-like)
-            content_text = (mem.content or '').lower()
-            mem_words = set(
-                w for w in _re.split(r'[\s\W]+', content_text) if len(w) > 2
-            )
+            content_text = (mem.content or "").lower()
+            mem_words = set(w for w in _re.split(r"[\s\W]+", content_text) if len(w) > 2)
             if mem_words:
                 overlap = len(query_words & mem_words) / len(query_words)
             else:
@@ -91,6 +93,7 @@ class RetrievalMixin:
                 except Exception:
                     pass
             import math
+
             recency = math.exp(-0.029 * age_hours)  # half-life ~24h
 
             # 3. Value for this goal
@@ -105,7 +108,7 @@ class RetrievalMixin:
         # Budget-aware selection
         selected = []
         tokens_used = 0
-        for mem, _score in scored[:top_k * 2]:
+        for mem, _score in scored[: top_k * 2]:
             if tokens_used + mem.token_count <= budget_tokens:
                 selected.append(mem)
                 tokens_used += mem.token_count
@@ -124,29 +127,31 @@ class RetrievalMixin:
     # =========================================================================
     # FULL RETRIEVAL (LLM-scored — high quality, expensive)
     # =========================================================================
-    
-    def retrieve(self,
-                 query: str,
-                 goal: str,
-                 budget_tokens: int,
-                 levels: List[MemoryLevel] = None,
-                 context_hints: str = "") -> List[MemoryEntry]:
+
+    def retrieve(
+        self,
+        query: str,
+        goal: str,
+        budget_tokens: int,
+        levels: List[MemoryLevel] = None,
+        context_hints: str = "",
+    ) -> List[MemoryEntry]:
         """
         Retrieve relevant memories using LLM-based RAG.
-        
+
         No embeddings - uses keyword pre-filter + LLM scoring.
         """
         if levels is None:
             levels = list(MemoryLevel)
-        
+
         # Collect all candidates
         all_memories = []
         for level in levels:
             all_memories.extend(self.memories[level].values())
-        
+
         if not all_memories:
             return []
-        
+
         # Use LLM RAG retriever
         selected = self.retriever.retrieve(
             query=query,
@@ -154,9 +159,9 @@ class RetrievalMixin:
             memories=all_memories,
             budget_tokens=budget_tokens,
             goal_hierarchy=self.goal_hierarchy if self.config.enable_goal_hierarchy else None,
-            context_hints=context_hints
+            context_hints=context_hints,
         )
-        
+
         # Update access tracking
         self.total_accesses += 1
         for mem in selected:
@@ -166,12 +171,14 @@ class RetrievalMixin:
 
         return selected
 
-    async def retrieve_async(self,
-                             query: str,
-                             goal: str,
-                             budget_tokens: int,
-                             levels: List[MemoryLevel] = None,
-                             context_hints: str = "") -> List[MemoryEntry]:
+    async def retrieve_async(
+        self,
+        query: str,
+        goal: str,
+        budget_tokens: int,
+        levels: List[MemoryLevel] = None,
+        context_hints: str = "",
+    ) -> List[MemoryEntry]:
         """
         Async version of retrieve() for parallel memory retrieval.
 
@@ -179,12 +186,12 @@ class RetrievalMixin:
         dramatically reducing context building time.
         """
         import asyncio
+
         loop = asyncio.get_running_loop()
 
         # Run the synchronous retrieve in a thread pool to avoid blocking
         result = await loop.run_in_executor(
-            None,
-            lambda: self.retrieve(query, goal, budget_tokens, levels, context_hints)
+            None, lambda: self.retrieve(query, goal, budget_tokens, levels, context_hints)
         )
         return result
 
@@ -199,7 +206,7 @@ class RetrievalMixin:
         budget_tokens: int,
         latency_budget_ms: Optional[float] = None,
         levels: List[MemoryLevel] = None,
-        context_hints: str = ""
+        context_hints: str = "",
     ) -> List[MemoryEntry]:
         """
         Latency-aware retrieval that auto-selects fast vs full path.
@@ -271,15 +278,10 @@ class RetrievalMixin:
             # (most recent memories, fastest to search)
             if latency_budget_ms < 500 and levels is None:
                 levels = [MemoryLevel.EPISODIC]
-                logger.debug(
-                    f"Ultra-low latency {latency_budget_ms}ms → episodic-only search"
-                )
+                logger.debug(f"Ultra-low latency {latency_budget_ms}ms → episodic-only search")
 
             return self.retrieve_fast(
-                query=query,
-                goal=goal,
-                budget_tokens=budget_tokens,
-                levels=levels
+                query=query, goal=goal, budget_tokens=budget_tokens, levels=levels
             )
 
         # =====================================================================
@@ -298,118 +300,112 @@ class RetrievalMixin:
             goal=goal,
             budget_tokens=budget_tokens,
             levels=levels,
-            context_hints=context_hints
+            context_hints=context_hints,
         )
 
-    def retrieve_by_domain(self,
-                          domain: str,
-                          goal: str,
-                          budget_tokens: int,
-                          levels: List[MemoryLevel] = None) -> List[MemoryEntry]:
+    def retrieve_by_domain(
+        self, domain: str, goal: str, budget_tokens: int, levels: List[MemoryLevel] = None
+    ) -> List[MemoryEntry]:
         """
         Retrieve memories filtered by domain.
-        
+
         Uses key prefix filtering for fast domain-based retrieval.
-        
+
         Args:
             domain: Domain identifier (e.g., 'sql', 'mermaid', 'plantuml')
             goal: Goal for value-based ranking
             budget_tokens: Token budget for retrieval
             levels: Memory levels to search (default: all levels)
-        
+
         Returns:
             List of MemoryEntry objects from specified domain, ranked by value
         """
         if levels is None:
             levels = list(MemoryLevel)
-        
+
         # Collect memories from specified levels, filtered by domain prefix
         domain_memories = []
         for level in levels:
             if level in self.memories:
                 # Filter by domain prefix (fast key-level filtering)
                 for key, memory in self.memories[level].items():
-                    if key.startswith(f'{domain}:'):
+                    if key.startswith(f"{domain}:"):
                         domain_memories.append(memory)
-        
+
         if not domain_memories:
             return []
-        
+
         # Use existing retriever for ranking by value and relevance
         selected = self.retriever.retrieve(
             query=f"Domain: {domain}",
             goal=goal,
             memories=domain_memories,
             budget_tokens=budget_tokens,
-            goal_hierarchy=self.goal_hierarchy if self.config.enable_goal_hierarchy else None
+            goal_hierarchy=self.goal_hierarchy if self.config.enable_goal_hierarchy else None,
         )
-        
+
         # Update access tracking
         self.total_accesses += 1
         for mem in selected:
             mem.access_count += 1
             mem.ucb_visits += 1
             mem.last_accessed = datetime.now()
-        
+
         return selected
 
-    def retrieve_by_task_type(self,
-                              task_type: str,
-                              goal: str,
-                              budget_tokens: int,
-                              levels: List[MemoryLevel] = None) -> List[MemoryEntry]:
+    def retrieve_by_task_type(
+        self, task_type: str, goal: str, budget_tokens: int, levels: List[MemoryLevel] = None
+    ) -> List[MemoryEntry]:
         """
         Retrieve memories filtered by task type.
-        
+
         Uses key pattern matching for fast task-type-based retrieval.
-        
+
         Args:
             task_type: Task type (e.g., 'date_filter', 'sequence_diagram')
             goal: Goal for value-based ranking
             budget_tokens: Token budget for retrieval
             levels: Memory levels to search (default: all levels)
-        
+
         Returns:
             List of MemoryEntry objects for specified task type, ranked by value
         """
         if levels is None:
             levels = list(MemoryLevel)
-        
+
         # Collect memories from specified levels, filtered by task type pattern
         task_memories = []
         for level in levels:
             if level in self.memories:
                 # Filter by task type pattern (second part of key: domain:task_type:hash)
                 for key, memory in self.memories[level].items():
-                    if f':{task_type}:' in key:
+                    if f":{task_type}:" in key:
                         task_memories.append(memory)
-        
+
         if not task_memories:
             return []
-        
+
         # Use existing retriever for ranking by value and relevance
         selected = self.retriever.retrieve(
             query=f"Task type: {task_type}",
             goal=goal,
             memories=task_memories,
             budget_tokens=budget_tokens,
-            goal_hierarchy=self.goal_hierarchy if self.config.enable_goal_hierarchy else None
+            goal_hierarchy=self.goal_hierarchy if self.config.enable_goal_hierarchy else None,
         )
-        
+
         # Update access tracking
         self.total_accesses += 1
         for mem in selected:
             mem.access_count += 1
             mem.ucb_visits += 1
             mem.last_accessed = datetime.now()
-        
+
         return selected
 
-    def retrieve_and_synthesize(self,
-                                 query: str,
-                                 goal: str,
-                                 levels: List[MemoryLevel] = None,
-                                 context_hints: str = "") -> str:
+    def retrieve_and_synthesize(
+        self, query: str, goal: str, levels: List[MemoryLevel] = None, context_hints: str = ""
+    ) -> str:
         """
          Brain-Inspired Synthesis Retrieval (DEFAULT mode!)
 
@@ -436,39 +432,29 @@ class RetrievalMixin:
 
         # Use retriever to synthesize
         synthesized = self.retriever.retrieve_and_synthesize(
-            query=query,
-            goal=goal,
-            memories=all_memories,
-            context_hints=context_hints
+            query=query, goal=goal, memories=all_memories, context_hints=context_hints
         )
 
         return synthesized
 
-    async def retrieve_and_synthesize_async(self,
-                                             query: str,
-                                             goal: str,
-                                             levels: List[MemoryLevel] = None,
-                                             context_hints: str = "") -> str:
+    async def retrieve_and_synthesize_async(
+        self, query: str, goal: str, levels: List[MemoryLevel] = None, context_hints: str = ""
+    ) -> str:
         """
         Async version of retrieve_and_synthesize for parallel retrieval.
         """
         import asyncio
+
         loop = asyncio.get_running_loop()
 
         # Run the synchronous synthesis in a thread pool
         result = await loop.run_in_executor(
-            None,
-            lambda: self.retrieve_and_synthesize(query, goal, levels, context_hints)
+            None, lambda: self.retrieve_and_synthesize(query, goal, levels, context_hints)
         )
         return result
 
     def retrieve_for_context(
-        self,
-        query: str,
-        goal: str,
-        context_type: str,
-        budget_tokens: int,
-        context_hints: str = ""
+        self, query: str, goal: str, context_type: str, budget_tokens: int, context_hints: str = ""
     ) -> List[MemoryEntry]:
         """
         5-LEVEL BRAIN-INSPIRED MEMORY RETRIEVAL (Context-Aware)
@@ -565,40 +551,40 @@ class RetrievalMixin:
         context_level_priorities = {
             ContextType.VALIDATION.value: [
                 MemoryLevel.PROCEDURAL,  # First: "What are the validation steps?"
-                MemoryLevel.META,        # Second: "What validation wisdom do we have?"
-                MemoryLevel.SEMANTIC,    # Third: "What patterns indicate validity?"
-                MemoryLevel.CAUSAL,      # Fourth: "Why does validation fail?"
-                MemoryLevel.EPISODIC     # Last: "Past validation attempts"
+                MemoryLevel.META,  # Second: "What validation wisdom do we have?"
+                MemoryLevel.SEMANTIC,  # Third: "What patterns indicate validity?"
+                MemoryLevel.CAUSAL,  # Fourth: "Why does validation fail?"
+                MemoryLevel.EPISODIC,  # Last: "Past validation attempts"
             ],
             ContextType.DEBUGGING.value: [
-                MemoryLevel.CAUSAL,      # First: "WHY did this break?" (root cause)
-                MemoryLevel.EPISODIC,    # Second: "When did we see this before?" (examples)
-                MemoryLevel.SEMANTIC,    # Third: "What patterns match this error?"
+                MemoryLevel.CAUSAL,  # First: "WHY did this break?" (root cause)
+                MemoryLevel.EPISODIC,  # Second: "When did we see this before?" (examples)
+                MemoryLevel.SEMANTIC,  # Third: "What patterns match this error?"
                 MemoryLevel.PROCEDURAL,  # Fourth: "What debugging steps to try?"
-                MemoryLevel.META         # Last: "General debugging wisdom"
+                MemoryLevel.META,  # Last: "General debugging wisdom"
             ],
             ContextType.PLANNING.value: [
-                MemoryLevel.META,        # First: "What strategic wisdom applies?"
-                MemoryLevel.SEMANTIC,    # Second: "What general approach patterns exist?"
+                MemoryLevel.META,  # First: "What strategic wisdom applies?"
+                MemoryLevel.SEMANTIC,  # Second: "What general approach patterns exist?"
                 MemoryLevel.PROCEDURAL,  # Third: "What are the execution steps?"
-                MemoryLevel.CAUSAL,      # Fourth: "Why do certain approaches work?"
-                MemoryLevel.EPISODIC     # Last: "Specific past planning sessions"
+                MemoryLevel.CAUSAL,  # Fourth: "Why do certain approaches work?"
+                MemoryLevel.EPISODIC,  # Last: "Specific past planning sessions"
             ],
             ContextType.EXPLORATION.value: [
-                MemoryLevel.EPISODIC,    # First: "What concrete examples exist?"
-                MemoryLevel.CAUSAL,      # Second: "Why did those examples work?"
-                MemoryLevel.SEMANTIC,    # Third: "What patterns emerge?"
+                MemoryLevel.EPISODIC,  # First: "What concrete examples exist?"
+                MemoryLevel.CAUSAL,  # Second: "Why did those examples work?"
+                MemoryLevel.SEMANTIC,  # Third: "What patterns emerge?"
                 MemoryLevel.PROCEDURAL,  # Fourth: "How to replicate?"
-                MemoryLevel.META         # Last: "Exploration strategies"
+                MemoryLevel.META,  # Last: "Exploration strategies"
             ],
             ContextType.TRANSFORMATION.value: [
                 MemoryLevel.PROCEDURAL,  # First: "Exact transformation steps"
-                MemoryLevel.SEMANTIC,    # Second: "General transformation patterns"
-                MemoryLevel.EPISODIC,    # Third: "Past transformations"
-                MemoryLevel.CAUSAL,      # Fourth: "Why transformations succeed/fail"
-                MemoryLevel.META         # Last: "Transformation best practices"
+                MemoryLevel.SEMANTIC,  # Second: "General transformation patterns"
+                MemoryLevel.EPISODIC,  # Third: "Past transformations"
+                MemoryLevel.CAUSAL,  # Fourth: "Why transformations succeed/fail"
+                MemoryLevel.META,  # Last: "Transformation best practices"
             ],
-            ContextType.DEFAULT.value: list(MemoryLevel)  # No prioritization
+            ContextType.DEFAULT.value: list(MemoryLevel),  # No prioritization
         }
 
         # =====================================================================
@@ -632,37 +618,41 @@ class RetrievalMixin:
             query=query,
             goal=goal,
             budget_tokens=budget_tokens,
-            levels=levels,              # Priority-ordered levels
-            context_hints=enhanced_hints  # Enhanced with context type
+            levels=levels,  # Priority-ordered levels
+            context_hints=enhanced_hints,  # Enhanced with context type
         )
-    
+
     def retrieve_causal(self, query: str, context: Dict[str, Any]) -> List[CausalLink]:
         """
         Retrieve relevant causal knowledge.
-        
+
         Returns causal links that apply in the given context.
         """
         if not self.config.enable_causal_learning:
             return []
-        
+
         relevant = []
-        
+
         # Keyword matching on cause/effect
         query_lower = query.lower()
-        
+
         for link in self.causal_links.values():
             # Check if cause or effect matches query
-            if (query_lower in link.cause.lower() or 
-                query_lower in link.effect.lower() or
-                any(kw in link.cause.lower() or kw in link.effect.lower() 
-                    for kw in query_lower.split() if len(kw) > 3)):
-                
+            if (
+                query_lower in link.cause.lower()
+                or query_lower in link.effect.lower()
+                or any(
+                    kw in link.cause.lower() or kw in link.effect.lower()
+                    for kw in query_lower.split()
+                    if len(kw) > 3
+                )
+            ):
+
                 # Check if conditions apply
                 if link.applies_in_context(context):
                     relevant.append(link)
-        
+
         # Sort by confidence
         relevant.sort(key=lambda x: x.confidence, reverse=True)
-        
-        return relevant # NO LIMIT - FULL content
-    
+
+        return relevant  # NO LIMIT - FULL content

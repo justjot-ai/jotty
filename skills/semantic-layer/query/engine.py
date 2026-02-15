@@ -4,14 +4,15 @@ Semantic Query Engine
 Natural language to SQL using LookML semantic layer.
 Provides rich context to LLMs for accurate query generation.
 """
-from typing import Dict, Any, Optional, List
+
 import logging
 import re
+from typing import Any, Dict, List, Optional
 
-from ..models import Schema
 from ..lookml import LookMLGenerator, LookMLModel
-from .date_preprocessor import SQLDatePreprocessor, DatePreprocessorFactory
+from ..models import Schema
 from .data_loader import ConnectorXLoader, DataLoaderFactory, OutputFormat
+from .date_preprocessor import DatePreprocessorFactory, SQLDatePreprocessor
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +39,9 @@ class SemanticQueryEngine:
         "bigquery": "Use BigQuery SQL. LIMIT for pagination. CONCAT() for strings.",
     }
 
-    def __init__(self, schema: Schema = None, lookml_model: LookMLModel = None, db_type: str = None) -> None:
+    def __init__(
+        self, schema: Schema = None, lookml_model: LookMLModel = None, db_type: str = None
+    ) -> None:
         """
         Initialize query engine.
 
@@ -103,10 +106,7 @@ class SemanticQueryEngine:
         return "\n".join(lines)
 
     def generate_sql(
-        self,
-        question: str,
-        execute: bool = False,
-        connection_params: Dict[str, Any] = None
+        self, question: str, execute: bool = False, connection_params: Dict[str, Any] = None
     ) -> Dict[str, Any]:
         """
         Generate SQL from natural language question.
@@ -138,12 +138,16 @@ class SemanticQueryEngine:
         prompt = self._build_prompt(processed_question, context, dialect_hint)
 
         # Generate SQL using LLM
-        from Jotty.core.infrastructure.foundation.config_defaults import DEFAULT_MODEL_ALIAS, LLM_TIMEOUT_SECONDS
+        from Jotty.core.infrastructure.foundation.config_defaults import (
+            DEFAULT_MODEL_ALIAS,
+            LLM_TIMEOUT_SECONDS,
+        )
+
         response = llm_generate(
             prompt=prompt,
             model=DEFAULT_MODEL_ALIAS,
             provider="claude-cli",
-            timeout=LLM_TIMEOUT_SECONDS
+            timeout=LLM_TIMEOUT_SECONDS,
         )
 
         if not response.success:
@@ -202,20 +206,20 @@ SQL:"""
         - SQL with explanations
         """
         # Remove markdown code blocks
-        code_block_pattern = r'```(?:sql)?\s*(.*?)```'
+        code_block_pattern = r"```(?:sql)?\s*(.*?)```"
         matches = re.findall(code_block_pattern, response, re.DOTALL | re.IGNORECASE)
         if matches:
             return matches[0].strip()
 
         # Try to find SELECT statement
-        select_pattern = r'(SELECT\s+.*?)(?:;|\Z)'
+        select_pattern = r"(SELECT\s+.*?)(?:;|\Z)"
         matches = re.findall(select_pattern, response, re.DOTALL | re.IGNORECASE)
         if matches:
             return matches[0].strip()
 
         # Check for other SQL statements
-        for keyword in ['WITH', 'INSERT', 'UPDATE', 'DELETE', 'CREATE']:
-            pattern = rf'({keyword}\s+.*?)(?:;|\Z)'
+        for keyword in ["WITH", "INSERT", "UPDATE", "DELETE", "CREATE"]:
+            pattern = rf"({keyword}\s+.*?)(?:;|\Z)"
             matches = re.findall(pattern, response, re.DOTALL | re.IGNORECASE)
             if matches:
                 return matches[0].strip()
@@ -226,12 +230,13 @@ SQL:"""
     def _execute_sql(self, sql: str, connection_params: Dict[str, Any]) -> Dict[str, Any]:
         """Execute SQL and return results."""
         try:
-            from sqlalchemy import create_engine, text
             from urllib.parse import quote_plus
 
+            from sqlalchemy import create_engine, text
+
             # Build connection string
-            db_type = connection_params.get('db_type', self.db_type)
-            conn_string = connection_params.get('connection_string')
+            db_type = connection_params.get("db_type", self.db_type)
+            conn_string = connection_params.get("connection_string")
 
             if not conn_string:
                 drivers = {
@@ -243,11 +248,11 @@ SQL:"""
                 }
 
                 driver = drivers.get(db_type, db_type)
-                host = connection_params.get('host', 'localhost')
-                port = connection_params.get('port', '')
-                database = connection_params.get('database', '')
-                user = connection_params.get('user', '')
-                password = quote_plus(connection_params.get('password', ''))
+                host = connection_params.get("host", "localhost")
+                port = connection_params.get("port", "")
+                database = connection_params.get("database", "")
+                user = connection_params.get("user", "")
+                password = quote_plus(connection_params.get("password", ""))
 
                 if db_type == "sqlite":
                     conn_string = f"sqlite:///{database}"
@@ -269,13 +274,13 @@ SQL:"""
                         "columns": columns,
                         "rows": rows[:100],  # Limit to 100 rows
                         "row_count": len(rows),
-                        "truncated": len(rows) > 100
+                        "truncated": len(rows) > 100,
                     }
                 else:
                     return {
                         "success": True,
                         "affected_rows": result.rowcount,
-                        "message": f"{result.rowcount} rows affected"
+                        "message": f"{result.rowcount} rows affected",
                     }
 
         except Exception as e:
@@ -304,17 +309,13 @@ SQL:"""
             # Group by query
             dims = [d for d in view.dimensions if not d.hidden and not d.primary_key]
             if dims and measures:
-                suggestions.append(
-                    f"Show {measures[0].name} by {dims[0].name}"
-                )
+                suggestions.append(f"Show {measures[0].name} by {dims[0].name}")
 
         # Join query
         for explore in self.lookml_model.explores:
             if explore.joins:
                 j = explore.joins[0]
-                suggestions.append(
-                    f"List {explore.name} with their {j.name} details"
-                )
+                suggestions.append(f"List {explore.name} with their {j.name} details")
                 break
 
         return suggestions[:num_suggestions]
@@ -349,15 +350,12 @@ SQL:"""
                 return {"valid": False, "error": "Failed to parse SQL"}
 
             # Check for dangerous operations
-            dangerous_keywords = ['DROP', 'DELETE', 'TRUNCATE', 'UPDATE', 'INSERT']
+            dangerous_keywords = ["DROP", "DELETE", "TRUNCATE", "UPDATE", "INSERT"]
             sql_upper = sql.upper()
 
             for keyword in dangerous_keywords:
                 if keyword in sql_upper:
-                    return {
-                        "valid": False,
-                        "error": f"Dangerous operation detected: {keyword}"
-                    }
+                    return {"valid": False, "error": f"Dangerous operation detected: {keyword}"}
 
             return {"valid": True, "parsed": True}
 
@@ -384,14 +382,20 @@ SQL:"""
         """
         if self._data_loader is None and self._connection_params:
             # Remove db_type from params to avoid duplicate
-            params = {k: v for k, v in self._connection_params.items() if k != 'db_type'}
+            params = {k: v for k, v in self._connection_params.items() if k != "db_type"}
             self._data_loader = DataLoaderFactory.create(
-                db_type=self._connection_params.get('db_type', self.db_type),
-                **params
+                db_type=self._connection_params.get("db_type", self.db_type), **params
             )
         return self._data_loader
 
-    def load_dataframe(self, query: str, output_format: str = 'pandas', partition_on: str = None, partition_num: int = None, **kwargs: Any) -> Any:
+    def load_dataframe(
+        self,
+        query: str,
+        output_format: str = "pandas",
+        partition_on: str = None,
+        partition_num: int = None,
+        **kwargs: Any,
+    ) -> Any:
         """
         Load query results directly into a DataFrame using ConnectorX.
 
@@ -429,10 +433,12 @@ SQL:"""
             output_format=OutputFormat(output_format.lower()),
             partition_on=partition_on,
             partition_num=partition_num,
-            **kwargs
+            **kwargs,
         )
 
-    def query_to_dataframe(self, question: str, output_format: str = 'pandas', **kwargs: Any) -> Dict[str, Any]:
+    def query_to_dataframe(
+        self, question: str, output_format: str = "pandas", **kwargs: Any
+    ) -> Dict[str, Any]:
         """
         Generate SQL from natural language and load results into DataFrame.
 
@@ -449,28 +455,25 @@ SQL:"""
         # Generate SQL
         result = self.generate_sql(question, execute=False)
 
-        if not result.get('success'):
+        if not result.get("success"):
             return result
 
-        sql = result.get('generated_sql')
+        sql = result.get("generated_sql")
 
         # Load into DataFrame using ConnectorX
         try:
             df = self.load_dataframe(sql, output_format=output_format, **kwargs)
-            result['dataframe'] = df
-            result['row_count'] = len(df) if hasattr(df, '__len__') else None
-            result['executed'] = True
+            result["dataframe"] = df
+            result["row_count"] = len(df) if hasattr(df, "__len__") else None
+            result["executed"] = True
         except Exception as e:
-            result['dataframe_error'] = str(e)
-            result['executed'] = False
+            result["dataframe_error"] = str(e)
+            result["executed"] = False
 
         return result
 
     def _execute_sql_fast(
-        self,
-        sql: str,
-        connection_params: Dict[str, Any],
-        output_format: str = "pandas"
+        self, sql: str, connection_params: Dict[str, Any], output_format: str = "pandas"
     ) -> Dict[str, Any]:
         """
         Execute SQL using ConnectorX for faster DataFrame loading.
@@ -485,17 +488,16 @@ SQL:"""
         """
         try:
             loader = DataLoaderFactory.create(
-                db_type=connection_params.get('db_type', self.db_type),
-                **connection_params
+                db_type=connection_params.get("db_type", self.db_type), **connection_params
             )
 
             df = loader.load(sql, output_format=OutputFormat(output_format.lower()))
 
             # Convert DataFrame to list of dicts for consistency
-            if output_format.lower() == 'pandas':
-                rows = df.to_dict('records')
+            if output_format.lower() == "pandas":
+                rows = df.to_dict("records")
                 columns = list(df.columns)
-            elif output_format.lower() == 'polars':
+            elif output_format.lower() == "polars":
                 rows = df.to_dicts()
                 columns = df.columns
             else:
@@ -510,7 +512,7 @@ SQL:"""
                 "row_count": len(rows),
                 "truncated": len(rows) > 100,
                 "dataframe": df,
-                "loader": "connectorx"
+                "loader": "connectorx",
             }
 
         except Exception as e:

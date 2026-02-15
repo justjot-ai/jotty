@@ -23,10 +23,10 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List, Optional, Type
 
-from .base_agent import BaseAgent, AgentRuntimeConfig, AgentResult
+from .base_agent import AgentResult, AgentRuntimeConfig, BaseAgent
 
 logger = logging.getLogger(__name__)
 
@@ -35,9 +35,11 @@ logger = logging.getLogger(__name__)
 # META AGENT CONFIG
 # =============================================================================
 
+
 @dataclass
 class MetaAgentConfig(AgentRuntimeConfig):
     """Configuration specific to MetaAgent."""
+
     enable_gold_db: bool = True
     enable_improvement_history: bool = True
     improvement_threshold: float = 0.7
@@ -47,6 +49,7 @@ class MetaAgentConfig(AgentRuntimeConfig):
 # =============================================================================
 # META AGENT
 # =============================================================================
+
 
 class MetaAgent(BaseAgent):
     """
@@ -61,7 +64,13 @@ class MetaAgent(BaseAgent):
     Subclasses (ExpertAgent, ReviewerAgent, etc.) implement specific logic.
     """
 
-    def __init__(self, signature: Type = None, config: MetaAgentConfig = None, gold_db: Any = None, improvement_history: Any = None) -> None:
+    def __init__(
+        self,
+        signature: Type = None,
+        config: MetaAgentConfig = None,
+        gold_db: Any = None,
+        improvement_history: Any = None,
+    ) -> None:
         """
         Initialize MetaAgent.
 
@@ -88,6 +97,7 @@ class MetaAgent(BaseAgent):
         if self._dspy_module is None and self.signature is not None:
             try:
                 import dspy
+
                 self._dspy_module = dspy.ChainOfThought(self.signature)
                 logger.debug(f"Initialized DSPy module for {self.config.name}")
             except Exception as e:
@@ -98,10 +108,7 @@ class MetaAgent(BaseAgent):
     # =========================================================================
 
     async def evaluate_against_gold(
-        self,
-        gold_id: str,
-        output: Dict[str, Any],
-        context: str = ""
+        self, gold_id: str, output: Dict[str, Any], context: str = ""
     ) -> Dict[str, Any]:
         """
         Evaluate output against a gold standard.
@@ -138,22 +145,26 @@ class MetaAgent(BaseAgent):
             # Use DSPy module for evaluation if available
             if self._dspy_module is not None:
                 result = self._dspy_module(
-                    gold_standard=json.dumps({
-                        'expected_output': gold_standard.expected_output,
-                        'criteria': gold_standard.evaluation_criteria
-                    }),
+                    gold_standard=json.dumps(
+                        {
+                            "expected_output": gold_standard.expected_output,
+                            "criteria": gold_standard.evaluation_criteria,
+                        }
+                    ),
                     actual_output=json.dumps(output),
-                    context=context
+                    context=context,
                 )
 
                 # Parse scores
                 try:
-                    scores = json.loads(result.scores) if hasattr(result, 'scores') else {}
+                    scores = json.loads(result.scores) if hasattr(result, "scores") else {}
                 except (json.JSONDecodeError, TypeError):
                     scores = {}
 
-                overall_score = float(result.overall_score) if hasattr(result, 'overall_score') else 0.5
-                feedback = str(result.feedback).split('|') if hasattr(result, 'feedback') else []
+                overall_score = (
+                    float(result.overall_score) if hasattr(result, "overall_score") else 0.5
+                )
+                feedback = str(result.feedback).split("|") if hasattr(result, "feedback") else []
 
                 # Determine result based on score
                 if overall_score >= 0.9:
@@ -231,9 +242,7 @@ class MetaAgent(BaseAgent):
     # =========================================================================
 
     async def analyze_and_suggest_improvements(
-        self,
-        evaluations: List[Dict[str, Any]],
-        agent_configs: Dict[str, Any] = None
+        self, evaluations: List[Dict[str, Any]], agent_configs: Dict[str, Any] = None
     ) -> List[Dict[str, Any]]:
         """
         Analyze evaluations and suggest improvements.
@@ -261,12 +270,14 @@ class MetaAgent(BaseAgent):
             result = self._dspy_module(
                 evaluations=json.dumps(evaluations, default=str),
                 agent_configs=json.dumps(agent_configs or {}, default=str),
-                improvement_history=json.dumps(past_improvements, default=str)
+                improvement_history=json.dumps(past_improvements, default=str),
             )
 
             # Parse suggestions
             try:
-                suggestions = json.loads(result.suggestions) if hasattr(result, 'suggestions') else []
+                suggestions = (
+                    json.loads(result.suggestions) if hasattr(result, "suggestions") else []
+                )
             except (json.JSONDecodeError, TypeError):
                 suggestions = []
 
@@ -285,7 +296,7 @@ class MetaAgent(BaseAgent):
         input_data: Dict[str, Any],
         output_data: Dict[str, Any],
         evaluation: Dict[str, Any],
-        domain: str = "general"
+        domain: str = "general",
     ) -> List[str]:
         """
         Extract reusable learnings from an excellent execution.
@@ -315,18 +326,15 @@ class MetaAgent(BaseAgent):
                 input_data=json.dumps(input_data, default=str),
                 output_data=json.dumps(output_data, default=str),
                 evaluation_data=json.dumps(evaluation, default=str),
-                domain=domain
+                domain=domain,
             )
 
             learnings = []
-            if hasattr(result, 'learnings'):
-                learnings = [
-                    l.strip() for l in str(result.learnings).split('|')
-                    if l.strip()
-                ]
+            if hasattr(result, "learnings"):
+                learnings = [l.strip() for l in str(result.learnings).split("|") if l.strip()]
 
             config: MetaAgentConfig = self.config
-            return learnings[:config.max_learnings_per_run]
+            return learnings[: config.max_learnings_per_run]
 
         except Exception as e:
             logger.debug(f"Learning extraction failed: {e}")
@@ -387,12 +395,13 @@ class MetaAgent(BaseAgent):
 
         # Execute DSPy module
         import asyncio
+
         result = await asyncio.to_thread(self._dspy_module, **kwargs)
 
         # Convert result to dict
         output = {}
         for attr in dir(result):
-            if not attr.startswith('_'):
+            if not attr.startswith("_"):
                 value = getattr(result, attr, None)
                 if value is not None and not callable(value):
                     output[attr] = value
@@ -404,7 +413,10 @@ class MetaAgent(BaseAgent):
 # CONVENIENCE FUNCTIONS
 # =============================================================================
 
-def create_meta_agent(signature: Type = None, gold_db: Any = None, improvement_history: Any = None, model: str = '') -> MetaAgent:
+
+def create_meta_agent(
+    signature: Type = None, gold_db: Any = None, improvement_history: Any = None, model: str = ""
+) -> MetaAgent:
     """
     Factory function to create a MetaAgent.
 
@@ -418,6 +430,7 @@ def create_meta_agent(signature: Type = None, gold_db: Any = None, improvement_h
         Configured MetaAgent
     """
     from Jotty.core.infrastructure.foundation.config_defaults import DEFAULT_MODEL_ALIAS
+
     model = model or DEFAULT_MODEL_ALIAS
     name = f"MetaAgent[{signature.__name__}]" if signature else "MetaAgent"
     config = MetaAgentConfig(name=name, model=model)
@@ -430,7 +443,7 @@ def create_meta_agent(signature: Type = None, gold_db: Any = None, improvement_h
 
 
 __all__ = [
-    'MetaAgent',
-    'MetaAgentConfig',
-    'create_meta_agent',
+    "MetaAgent",
+    "MetaAgentConfig",
+    "create_meta_agent",
 ]

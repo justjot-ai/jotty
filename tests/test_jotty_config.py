@@ -10,15 +10,17 @@ Tests all 22 categories of configuration settings to ensure:
 5. Edge cases are handled properly
 """
 
-import pytest
 import json
 from pathlib import Path
-from core.foundation import SwarmConfig
 
+import pytest
+
+from core.foundation import SwarmConfig
 
 # =============================================================================
 # TEST 1: Basic Configuration Creation
 # =============================================================================
+
 
 def test_config_creation_with_defaults():
     """Test creating config with all default values."""
@@ -37,12 +39,7 @@ def test_config_creation_with_defaults():
 
 def test_config_creation_with_overrides():
     """Test creating config with custom values."""
-    config = SwarmConfig(
-        base_path="/custom/path",
-        enable_rl=False,
-        max_actor_iters=100,
-        verbose=2
-    )
+    config = SwarmConfig(base_path="/custom/path", enable_rl=False, max_actor_iters=100, verbose=2)
 
     assert config.base_path == "/custom/path"
     assert config.enable_rl == False
@@ -53,6 +50,7 @@ def test_config_creation_with_overrides():
 # =============================================================================
 # TEST 2: Category 1 - PERSISTENCE
 # =============================================================================
+
 
 def test_persistence_config():
     """Test all persistence-related settings."""
@@ -93,6 +91,7 @@ def test_persistence_logging_config():
 # TEST 3: Category 2 - EXECUTION
 # =============================================================================
 
+
 def test_execution_config():
     """Test execution limits and timeouts."""
     config = SwarmConfig(
@@ -103,7 +102,7 @@ def test_execution_config():
         actor_timeout=1800.0,
         max_concurrent_agents=5,
         max_eval_retries=5,
-        llm_timeout_seconds=300.0
+        llm_timeout_seconds=300.0,
     )
 
     assert config.max_actor_iters == 100
@@ -117,6 +116,7 @@ def test_execution_config():
 # =============================================================================
 # TEST 4: Category 2.5 - TIMEOUT & CIRCUIT BREAKER
 # =============================================================================
+
 
 def test_timeout_config():
     """Test timeout and async settings."""
@@ -135,6 +135,7 @@ def test_timeout_config():
 # TEST 5: Category 3 - MEMORY
 # =============================================================================
 
+
 def test_memory_config():
     """Test hierarchical memory capacity settings."""
     config = SwarmConfig(
@@ -143,7 +144,7 @@ def test_memory_config():
         procedural_capacity=500,
         meta_capacity=200,
         causal_capacity=300,
-        max_entry_tokens=4000
+        max_entry_tokens=4000,
     )
 
     assert config.episodic_capacity == 2000
@@ -161,6 +162,7 @@ def test_memory_config():
 # TEST 6: Category 4 - CONTEXT BUDGET
 # =============================================================================
 
+
 def test_context_budget_config():
     """Test token budget allocation."""
     config = SwarmConfig(
@@ -171,7 +173,7 @@ def test_context_budget_config():
         tool_output_budget=30000,
         enable_dynamic_budget=True,
         min_memory_budget=20000,
-        max_memory_budget=100000
+        max_memory_budget=100000,
     )
 
     assert config.max_context_tokens == 200000
@@ -192,7 +194,7 @@ def test_context_budget_config():
         current_input_budget=20000,
         trajectory_budget=30000,
         tool_output_budget=20000,
-        min_memory_budget=15000
+        min_memory_budget=15000,
     )
 
     assert config.max_context_tokens == 150000
@@ -204,6 +206,7 @@ def test_context_budget_config():
 # TEST 7: Category 5 - RL PARAMETERS
 # =============================================================================
 
+
 def test_rl_parameters_config():
     """Test reinforcement learning parameters."""
     config = SwarmConfig(
@@ -213,7 +216,7 @@ def test_rl_parameters_config():
         alpha=0.05,
         enable_adaptive_alpha=True,
         alpha_min=0.0005,
-        alpha_max=0.2
+        alpha_max=0.2,
     )
 
     assert config.enable_rl == True
@@ -231,7 +234,7 @@ def test_rl_reward_config():
         tool_success_reward=0.1,
         base_reward_weight=0.4,
         cooperation_bonus=0.3,
-        predictability_bonus=0.3
+        predictability_bonus=0.3,
     )
 
     assert config.enable_intermediate_rewards == True
@@ -243,6 +246,7 @@ def test_rl_reward_config():
 # TEST 8: Category 6 - EXPLORATION
 # =============================================================================
 
+
 def test_exploration_config():
     """Test exploration strategy parameters."""
     config = SwarmConfig(
@@ -251,7 +255,7 @@ def test_exploration_config():
         epsilon_decay_episodes=1000,
         ucb_coefficient=3.0,
         enable_adaptive_exploration=True,
-        exploration_boost_on_stall=0.2
+        exploration_boost_on_stall=0.2,
     )
 
     assert config.epsilon_start == 0.5
@@ -265,6 +269,7 @@ def test_exploration_config():
 # TEST 9: Category 7 - CREDIT ASSIGNMENT
 # =============================================================================
 
+
 def test_credit_assignment_config():
     """Test credit assignment parameters."""
     config = SwarmConfig(
@@ -272,7 +277,7 @@ def test_credit_assignment_config():
         min_contribution=0.05,
         enable_reasoning_credit=True,
         reasoning_weight=0.4,
-        evidence_weight=0.3
+        evidence_weight=0.3,
     )
 
     assert config.credit_decay == 0.85
@@ -284,6 +289,7 @@ def test_credit_assignment_config():
 # =============================================================================
 # TEST 10: Category 8 - CONSOLIDATION
 # =============================================================================
+
 
 def test_consolidation_config():
     """Test memory consolidation parameters."""
@@ -302,6 +308,7 @@ def test_consolidation_config():
 # =============================================================================
 # TEST 11: Category 9 - OFFLINE LEARNING
 # =============================================================================
+
 
 def test_offline_learning_config():
     """Test offline learning parameters."""
@@ -322,12 +329,11 @@ def test_offline_learning_config():
 # TEST 12: Category 10 - PROTECTION MECHANISMS
 # =============================================================================
 
+
 def test_protection_config():
     """Test protection mechanism parameters."""
     config = SwarmConfig(
-        protected_memory_threshold=0.9,
-        suspicion_threshold=0.97,
-        min_rejection_rate=0.03
+        protected_memory_threshold=0.9, suspicion_threshold=0.97, min_rejection_rate=0.03
     )
 
     assert config.protected_memory_threshold == 0.9
@@ -338,17 +344,18 @@ def test_protection_config():
 # TEST 13: Category 11 - VALIDATION
 # =============================================================================
 
+
 def test_validation_config():
     """Test validation strategy parameters."""
     config = SwarmConfig(
         enable_validation=True,
-        validation_mode='architect_only',
+        validation_mode="architect_only",
         max_validation_rounds=5,
         refinement_timeout=60.0,
     )
 
     assert config.enable_validation == True
-    assert config.validation_mode == 'architect_only'
+    assert config.validation_mode == "architect_only"
     assert config.max_validation_rounds == 5
 
 
@@ -356,12 +363,10 @@ def test_validation_config():
 # TEST 14: Category 12 - ASYNC
 # =============================================================================
 
+
 def test_async_config():
     """Test async execution parameters."""
-    config = SwarmConfig(
-        parallel_architect=False,
-        parallel_auditor=False
-    )
+    config = SwarmConfig(parallel_architect=False, parallel_auditor=False)
 
     assert config.parallel_architect == False
     assert config.parallel_auditor == False
@@ -371,13 +376,11 @@ def test_async_config():
 # TEST 15: Category 13 - LOGGING
 # =============================================================================
 
+
 def test_logging_config():
     """Test logging parameters."""
     config = SwarmConfig(
-        verbose=2,
-        log_file="/tmp/jotty.log",
-        enable_debug_logging=True,
-        enable_metrics=True
+        verbose=2, log_file="/tmp/jotty.log", enable_debug_logging=True, enable_metrics=True
     )
 
     assert config.verbose == 2
@@ -390,6 +393,7 @@ def test_logging_config():
 # TEST 16: Category 14 - LLM RAG
 # =============================================================================
 
+
 def test_llm_rag_config():
     """Test LLM-based RAG parameters."""
     config = SwarmConfig(
@@ -399,7 +403,7 @@ def test_llm_rag_config():
         rag_relevance_threshold=0.7,
         rag_use_cot=True,
         retrieval_mode="discrete",
-        synthesis_fetch_size=300
+        synthesis_fetch_size=300,
     )
 
     assert config.enable_llm_rag == True
@@ -410,10 +414,7 @@ def test_llm_rag_config():
 
 def test_llm_rag_chunking_config():
     """Test RAG chunking parameters."""
-    config = SwarmConfig(
-        chunk_size=1000,
-        chunk_overlap=100
-    )
+    config = SwarmConfig(chunk_size=1000, chunk_overlap=100)
 
     assert config.chunk_size == 1000
     assert config.chunk_overlap == 100
@@ -422,6 +423,7 @@ def test_llm_rag_chunking_config():
 # =============================================================================
 # TEST 17: Category 15 - GOAL HIERARCHY
 # =============================================================================
+
 
 def test_goal_hierarchy_config():
     """Test goal hierarchy parameters."""
@@ -440,6 +442,7 @@ def test_goal_hierarchy_config():
 # TEST 18: Category 16 - CAUSAL LEARNING
 # =============================================================================
 
+
 def test_causal_learning_config():
     """Test causal learning parameters."""
     config = SwarmConfig(
@@ -457,13 +460,14 @@ def test_causal_learning_config():
 # TEST 19: Category 17 - INTER-AGENT COMMUNICATION
 # =============================================================================
 
+
 def test_inter_agent_communication_config():
     """Test inter-agent communication parameters."""
     config = SwarmConfig(
         enable_agent_communication=True,
         share_tool_results=True,
         share_insights=True,
-        max_messages_per_episode=50
+        max_messages_per_episode=50,
     )
 
     assert config.enable_agent_communication == True
@@ -488,13 +492,14 @@ def test_agent_communication_details_config():
 # TEST 20: Category 18 - MULTI-ROUND VALIDATION
 # =============================================================================
 
+
 def test_multi_round_validation_config():
     """Test multi-round validation parameters."""
     config = SwarmConfig(
         enable_multi_round=True,
         refinement_on_low_confidence=0.7,
         refinement_on_disagreement=True,
-        max_refinement_rounds=3
+        max_refinement_rounds=3,
     )
 
     assert config.enable_multi_round == True
@@ -506,13 +511,14 @@ def test_multi_round_validation_config():
 # TEST 21: Category 19 - ADAPTIVE LEARNING
 # =============================================================================
 
+
 def test_adaptive_learning_config():
     """Test adaptive learning parameters."""
     config = SwarmConfig(
         enable_adaptive_learning=True,
         stall_detection_window=200,
         stall_threshold=0.0005,
-        learning_boost_factor=3.0
+        learning_boost_factor=3.0,
     )
 
     assert config.enable_adaptive_learning == True
@@ -524,6 +530,7 @@ def test_adaptive_learning_config():
 # =============================================================================
 # TEST 22: Category 20 - DEDUPLICATION
 # =============================================================================
+
 
 def test_deduplication_config():
     """Test deduplication parameters."""
@@ -539,6 +546,7 @@ def test_deduplication_config():
 # =============================================================================
 # TEST 23: Category 21 - DISTRIBUTED SUPPORT
 # =============================================================================
+
 
 def test_persistence_detail_config():
     """Test persistence detail parameters."""
@@ -560,6 +568,7 @@ def test_persistence_detail_config():
 # TEST 24: Category 22 - DYNAMIC ORCHESTRATION
 # =============================================================================
 
+
 def test_monitoring_config():
     """Test monitoring and metrics parameters."""
     config = SwarmConfig(
@@ -580,6 +589,7 @@ def test_monitoring_config():
 # TEST 25: Computed Properties
 # =============================================================================
 
+
 def test_computed_properties():
     """Test all computed properties work correctly."""
     config = SwarmConfig(
@@ -588,7 +598,7 @@ def test_computed_properties():
         current_input_budget=20000,
         trajectory_budget=30000,
         tool_output_budget=20000,
-        min_memory_budget=15000
+        min_memory_budget=15000,
     )
 
     # Test memory_budget property
@@ -597,9 +607,13 @@ def test_computed_properties():
     assert config.memory_budget == expected
 
     # Test total_memory_capacity property
-    total = (config.episodic_capacity + config.semantic_capacity +
-             config.procedural_capacity + config.meta_capacity +
-             config.causal_capacity)
+    total = (
+        config.episodic_capacity
+        + config.semantic_capacity
+        + config.procedural_capacity
+        + config.meta_capacity
+        + config.causal_capacity
+    )
     assert config.total_memory_capacity == total
 
 
@@ -607,14 +621,10 @@ def test_computed_properties():
 # TEST 26: Edge Cases and Validation
 # =============================================================================
 
+
 def test_config_with_zero_values():
     """Test config handles zero values correctly."""
-    config = SwarmConfig(
-        max_actor_iters=0,
-        episodic_capacity=0,
-        epsilon_end=0.0,
-        alpha=0.0
-    )
+    config = SwarmConfig(max_actor_iters=0, episodic_capacity=0, epsilon_end=0.0, alpha=0.0)
 
     assert config.max_actor_iters == 0
     assert config.episodic_capacity == 0
@@ -624,10 +634,7 @@ def test_config_with_zero_values():
 def test_config_with_extreme_values():
     """Test config handles extreme values."""
     config = SwarmConfig(
-        max_context_tokens=1000000,
-        episode_buffer_size=100000,
-        epsilon_start=1.0,
-        gamma=1.0
+        max_context_tokens=1000000, episode_buffer_size=100000, epsilon_start=1.0, gamma=1.0
     )
 
     assert config.max_context_tokens == 1000000
@@ -648,23 +655,22 @@ def test_config_jotty_config_instantiation():
 # TEST 27: Integration Tests
 # =============================================================================
 
+
 @pytest.mark.skip(reason="V1 orchestrators removed in V2 - Orchestrator is the unified entry point")
 def test_config_can_be_used_by_both_orchestrators():
     """Test that config works with both SAS and MAS."""
-    from core.orchestration import SingleAgentOrchestrator, MultiAgentsOrchestrator
-    from core.foundation import AgentConfig  # Phase 7: Consistent naming - use AgentConfig
     import dspy
 
+    from core.foundation import AgentConfig  # Phase 7: Consistent naming - use AgentConfig
+    from core.orchestration import MultiAgentsOrchestrator, SingleAgentOrchestrator
+
     # Create unified config
-    config = SwarmConfig(
-        base_path="/tmp/test",
-        enable_validation=False,
-        enable_rl=False
-    )
+    config = SwarmConfig(base_path="/tmp/test", enable_validation=False, enable_rl=False)
 
     # Test with SingleAgentOrchestrator
     class SimpleSignature(dspy.Signature):
         """Simple test signature."""
+
         input: str = dspy.InputField()
         output: str = dspy.OutputField()
 
@@ -674,23 +680,18 @@ def test_config_can_be_used_by_both_orchestrators():
         auditor_prompts=[],
         architect_tools=[],
         auditor_tools=[],
-        config=config  # Should work
+        config=config,  # Should work
     )
 
     assert sas.config == config
 
     # Test with MultiAgentsOrchestrator
     agent_config = AgentConfig(
-        name="TestAgent",
-        agent=sas,
-        enable_architect=False,
-        enable_auditor=False
+        name="TestAgent", agent=sas, enable_architect=False, enable_auditor=False
     )
 
     mas = MultiAgentsOrchestrator(
-        actors=[agent_config],
-        metadata_provider=None,
-        config=config  # Should work
+        actors=[agent_config], metadata_provider=None, config=config  # Should work
     )
 
     assert mas.config == config
@@ -701,71 +702,71 @@ def test_config_all_categories_accessible():
     config = SwarmConfig()
 
     # Category 1: Persistence
-    assert hasattr(config, 'output_base_dir')
+    assert hasattr(config, "output_base_dir")
 
     # Category 2: Execution
-    assert hasattr(config, 'max_actor_iters')
+    assert hasattr(config, "max_actor_iters")
 
     # Execution
-    assert hasattr(config, 'max_actor_iters')
-    assert hasattr(config, 'actor_timeout')
+    assert hasattr(config, "max_actor_iters")
+    assert hasattr(config, "actor_timeout")
 
     # Memory
-    assert hasattr(config, 'episodic_capacity')
+    assert hasattr(config, "episodic_capacity")
 
     # Context Budget
-    assert hasattr(config, 'max_context_tokens')
+    assert hasattr(config, "max_context_tokens")
 
     # Token Counting
-    assert hasattr(config, 'token_model_name')
+    assert hasattr(config, "token_model_name")
 
     # RL Parameters
-    assert hasattr(config, 'gamma')
+    assert hasattr(config, "gamma")
 
     # Exploration
-    assert hasattr(config, 'epsilon_start')
+    assert hasattr(config, "epsilon_start")
 
     # Credit Assignment
-    assert hasattr(config, 'credit_decay')
+    assert hasattr(config, "credit_decay")
 
     # Consolidation
-    assert hasattr(config, 'consolidation_threshold')
+    assert hasattr(config, "consolidation_threshold")
 
     # Offline Learning
-    assert hasattr(config, 'episode_buffer_size')
+    assert hasattr(config, "episode_buffer_size")
 
     # Protection
-    assert hasattr(config, 'protected_memory_threshold')
+    assert hasattr(config, "protected_memory_threshold")
 
     # Validation
-    assert hasattr(config, 'enable_validation')
+    assert hasattr(config, "enable_validation")
 
     # Async
-    assert hasattr(config, 'parallel_architect')
+    assert hasattr(config, "parallel_architect")
 
     # Logging
-    assert hasattr(config, 'verbose')
+    assert hasattr(config, "verbose")
 
     # LLM RAG
-    assert hasattr(config, 'enable_llm_rag')
+    assert hasattr(config, "enable_llm_rag")
 
     # Goal Hierarchy
-    assert hasattr(config, 'enable_goal_hierarchy')
+    assert hasattr(config, "enable_goal_hierarchy")
 
     # Causal Learning
-    assert hasattr(config, 'enable_causal_learning')
+    assert hasattr(config, "enable_causal_learning")
 
     # Inter-Agent Communication
-    assert hasattr(config, 'enable_agent_communication')
+    assert hasattr(config, "enable_agent_communication")
 
     # Multi-Round Validation
-    assert hasattr(config, 'enable_multi_round')
+    assert hasattr(config, "enable_multi_round")
 
     # Adaptive Learning
-    assert hasattr(config, 'enable_adaptive_learning')
+    assert hasattr(config, "enable_adaptive_learning")
 
     # Deduplication
-    assert hasattr(config, 'enable_deduplication')
+    assert hasattr(config, "enable_deduplication")
 
 
 # =============================================================================

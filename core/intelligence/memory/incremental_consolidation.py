@@ -10,9 +10,9 @@ DRY PRINCIPLE: Reuses existing consolidation logic.
 
 import asyncio
 import logging
-from typing import List, Optional, Any
 from collections import deque
 from datetime import datetime
+from typing import Any, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +63,7 @@ class IncrementalConsolidator:
         if self._base_consolidator is None:
             try:
                 from Jotty.core.intelligence.memory import get_consolidator
+
                 self._base_consolidator = get_consolidator()
             except ImportError:
                 logger.warning("Base consolidator unavailable")
@@ -118,7 +119,7 @@ class IncrementalConsolidator:
         for memory in memories:
             try:
                 # Delegate to base consolidator (DRY)
-                if hasattr(consolidator, 'consolidate_single'):
+                if hasattr(consolidator, "consolidate_single"):
                     await consolidator.consolidate_single(memory)
                 else:
                     # Fall back to batch consolidation with single item
@@ -133,11 +134,11 @@ class IncrementalConsolidator:
     def get_stats(self) -> dict:
         """Get consolidation statistics."""
         return {
-            'queue_size': len(self.queue),
-            'processing': self.processing,
-            'processed_count': self.processed_count,
-            'failed_count': self.failed_count,
-            'success_rate': (
+            "queue_size": len(self.queue),
+            "processing": self.processing,
+            "processed_count": self.processed_count,
+            "failed_count": self.failed_count,
+            "success_rate": (
                 self.processed_count / (self.processed_count + self.failed_count)
                 if (self.processed_count + self.failed_count) > 0
                 else 0.0
@@ -157,9 +158,7 @@ class IncrementalConsolidator:
             await asyncio.sleep(0.1)
 
         if self.queue:
-            logger.warning(
-                f"Flush timeout: {len(self.queue)} memories still in queue"
-            )
+            logger.warning(f"Flush timeout: {len(self.queue)} memories still in queue")
 
 
 class NoopConsolidator:
@@ -174,20 +173,18 @@ _incremental_consolidator = None
 
 
 def get_incremental_consolidator(
-    batch_size: int = 1,
-    delay_between_ms: int = 50
+    batch_size: int = 1, delay_between_ms: int = 50
 ) -> IncrementalConsolidator:
     """Get or create incremental consolidator singleton."""
     global _incremental_consolidator
     if _incremental_consolidator is None:
         _incremental_consolidator = IncrementalConsolidator(
-            batch_size=batch_size,
-            delay_between_ms=delay_between_ms
+            batch_size=batch_size, delay_between_ms=delay_between_ms
         )
     return _incremental_consolidator
 
 
 __all__ = [
-    'IncrementalConsolidator',
-    'get_incremental_consolidator',
+    "IncrementalConsolidator",
+    "get_incremental_consolidator",
 ]

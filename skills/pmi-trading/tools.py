@@ -6,11 +6,15 @@ Place orders, manage positions, and track order status via PlanMyInvesting API.
 """
 
 import logging
-from typing import Dict, Any
+from typing import Any, Dict
 
 from Jotty.core.infrastructure.utils.env_loader import load_jotty_env
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import (
+    async_tool_wrapper,
+    tool_error,
+    tool_response,
+)
 
 load_jotty_env()
 logger = logging.getLogger(__name__)
@@ -21,6 +25,7 @@ def _get_pmi_client():
     """Lazy import to avoid circular deps with hyphenated directory."""
     import importlib.util
     from pathlib import Path
+
     spec = importlib.util.spec_from_file_location(
         "pmi_client",
         Path(__file__).resolve().parent.parent / "pmi-market-data" / "pmi_client.py",
@@ -70,16 +75,19 @@ async def place_order_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     qty = params["quantity"]
     status.emit("Placing", f"Placing {txn_type} order for {qty} {symbol}...")
 
-    result = client.post("/v2/place_order", data={
-        "symbol": symbol,
-        "quantity": qty,
-        "order_type": params["order_type"],
-        "transaction_type": txn_type,
-        "price": params.get("price"),
-        "trigger_price": params.get("trigger_price"),
-        "broker": params.get("broker"),
-        "product": params.get("product", "CNC"),
-    })
+    result = client.post(
+        "/v2/place_order",
+        data={
+            "symbol": symbol,
+            "quantity": qty,
+            "order_type": params["order_type"],
+            "transaction_type": txn_type,
+            "price": params.get("price"),
+            "trigger_price": params.get("trigger_price"),
+            "broker": params.get("broker"),
+            "product": params.get("product", "CNC"),
+        },
+    )
     if not result.get("success"):
         return tool_error(result.get("error", f"Failed to place {txn_type} order for {symbol}"))
 
@@ -124,14 +132,17 @@ async def place_smart_order_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     qty = params["quantity"]
     status.emit("Placing", f"Smart order: {qty} {symbol}...")
 
-    result = client.post("/v2/place_smart_order", data={
-        "symbol": symbol,
-        "quantity": qty,
-        "transaction_type": params.get("transaction_type", "BUY"),
-        "target_percent": params.get("target_percent", 2.0),
-        "stoploss_percent": params.get("stoploss_percent", 1.0),
-        "broker": params.get("broker"),
-    })
+    result = client.post(
+        "/v2/place_smart_order",
+        data={
+            "symbol": symbol,
+            "quantity": qty,
+            "transaction_type": params.get("transaction_type", "BUY"),
+            "target_percent": params.get("target_percent", 2.0),
+            "stoploss_percent": params.get("stoploss_percent", 1.0),
+            "broker": params.get("broker"),
+        },
+    )
     if not result.get("success"):
         return tool_error(result.get("error", f"Smart order failed for {symbol}"))
 
@@ -171,11 +182,14 @@ async def exit_position_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     symbol = params["symbol"]
     status.emit("Exiting", f"Exiting position: {symbol}...")
 
-    result = client.post("/v2/exit_position", data={
-        "symbol": symbol,
-        "quantity": params.get("quantity"),
-        "broker": params.get("broker"),
-    })
+    result = client.post(
+        "/v2/exit_position",
+        data={
+            "symbol": symbol,
+            "quantity": params.get("quantity"),
+            "broker": params.get("broker"),
+        },
+    )
     if not result.get("success"):
         return tool_error(result.get("error", f"Failed to exit position for {symbol}"))
 
@@ -211,10 +225,13 @@ async def cancel_order_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     order_id = params["order_id"]
     status.emit("Cancelling", f"Cancelling order {order_id}...")
 
-    result = client.post("/v2/cancel_order", data={
-        "order_id": order_id,
-        "broker": params.get("broker"),
-    })
+    result = client.post(
+        "/v2/cancel_order",
+        data={
+            "order_id": order_id,
+            "broker": params.get("broker"),
+        },
+    )
     if not result.get("success"):
         return tool_error(result.get("error", f"Failed to cancel order {order_id}"))
 
@@ -249,12 +266,15 @@ async def get_orders_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
     status.emit("Fetching", "Loading order history...")
 
-    result = client.get("/v2/orders", params={
-        "status": params.get("status", ""),
-        "broker": params.get("broker", ""),
-        "symbol": params.get("symbol", ""),
-        "limit": params.get("limit", 50),
-    })
+    result = client.get(
+        "/v2/orders",
+        params={
+            "status": params.get("status", ""),
+            "broker": params.get("broker", ""),
+            "symbol": params.get("symbol", ""),
+            "limit": params.get("limit", 50),
+        },
+    )
     if not result.get("success"):
         return tool_error(result.get("error", "Failed to get orders"))
 

@@ -9,9 +9,9 @@ Usage:
     python -m Jotty.telegram --debug
 """
 
-import sys
 import argparse
 import logging
+import sys
 
 
 def setup_logging(debug: bool = False):
@@ -20,28 +20,16 @@ def setup_logging(debug: bool = False):
     logging.basicConfig(
         level=level,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        handlers=[logging.StreamHandler(sys.stdout)]
+        handlers=[logging.StreamHandler(sys.stdout)],
     )
 
 
 def main():
     """Main entry point."""
-    parser = argparse.ArgumentParser(
-        description="Run Jotty Telegram Bot"
-    )
-    parser.add_argument(
-        "--debug", "-d",
-        action="store_true",
-        help="Enable debug logging"
-    )
-    parser.add_argument(
-        "--token",
-        help="Telegram bot token (overrides .env)"
-    )
-    parser.add_argument(
-        "--chat-ids",
-        help="Comma-separated allowed chat IDs"
-    )
+    parser = argparse.ArgumentParser(description="Run Jotty Telegram Bot")
+    parser.add_argument("--debug", "-d", action="store_true", help="Enable debug logging")
+    parser.add_argument("--token", help="Telegram bot token (overrides .env)")
+    parser.add_argument("--chat-ids", help="Comma-separated allowed chat IDs")
 
     args = parser.parse_args()
 
@@ -57,10 +45,7 @@ def main():
     try:
         from .bot import TelegramBotHandler
 
-        bot = TelegramBotHandler(
-            token=args.token,
-            allowed_chat_ids=allowed_chat_ids
-        )
+        bot = TelegramBotHandler(token=args.token, allowed_chat_ids=allowed_chat_ids)
 
         logger.info("Starting Jotty Telegram Bot...")
         bot.run()
@@ -69,10 +54,7 @@ def main():
         logger.info("Bot stopped by user.")
         sys.exit(0)
     except ImportError as e:
-        logger.error(
-            f"Missing dependency: {e}\n"
-            "Install with: pip install python-telegram-bot"
-        )
+        logger.error(f"Missing dependency: {e}\n" "Install with: pip install python-telegram-bot")
         sys.exit(1)
     except Exception as e:
         logger.error(f"Failed to start bot: {e}")

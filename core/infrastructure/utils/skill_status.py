@@ -23,7 +23,7 @@ Usage in a skill's tools.py:
 """
 
 import logging
-from typing import Callable, Optional, Any
+from typing import Any, Callable, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -116,4 +116,4 @@ def get_status(skill_name: str) -> SkillStatus:
     return SkillStatus(skill_name)
 
 
-__all__ = ['SkillStatus', 'get_status']
+__all__ = ["SkillStatus", "get_status"]

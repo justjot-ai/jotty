@@ -34,21 +34,30 @@ Usage:
     # Get LookML
     lookml = layer.to_lookml()
 """
-from typing import Dict, Any, Optional, List
 
-from .models import (
-    Schema, Table, Column, ForeignKey, Index, Relationship,
-    ColumnType, RelationType, MeasureType
-)
+from typing import Any, Dict, List, Optional
+
 from .extractors import BaseExtractor, DatabaseExtractor, DDLExtractor, MongoDBExtractor
-from .lookml import LookMLGenerator, View, Explore, Dimension, Measure, Join
-from .query import SemanticQueryEngine, MongoDBQueryEngine
+from .lookml import Dimension, Explore, Join, LookMLGenerator, Measure, View
+from .models import (
+    Column,
+    ColumnType,
+    ForeignKey,
+    Index,
+    MeasureType,
+    Relationship,
+    RelationType,
+    Schema,
+    Table,
+)
 from .query import (
     ConnectorXLoader,
     DataLoaderFactory,
-    OutputFormat,
-    SQLDatePreprocessor,
     DatePreprocessor,
+    MongoDBQueryEngine,
+    OutputFormat,
+    SemanticQueryEngine,
+    SQLDatePreprocessor,
 )
 
 
@@ -79,7 +88,18 @@ class SemanticLayer:
         self._mongodb_query_engine: Optional[MongoDBQueryEngine] = None
 
     @classmethod
-    def from_database(cls, db_type: str = None, host: str = 'localhost', port: int = None, database: str = '', user: str = '', password: str = '', connection_string: str = None, schema_name: str = 'default', **kwargs: Any) -> 'SemanticLayer':
+    def from_database(
+        cls,
+        db_type: str = None,
+        host: str = "localhost",
+        port: int = None,
+        database: str = "",
+        user: str = "",
+        password: str = "",
+        connection_string: str = None,
+        schema_name: str = "default",
+        **kwargs: Any,
+    ) -> "SemanticLayer":
         """
         Create semantic layer from live database connection.
 
@@ -105,7 +125,7 @@ class SemanticLayer:
             user=user,
             password=password,
             connection_string=connection_string,
-            **kwargs
+            **kwargs,
         )
 
         schema = extractor.extract(schema_name)
@@ -125,10 +145,7 @@ class SemanticLayer:
 
     @classmethod
     def from_ddl(
-        cls,
-        ddl: str,
-        dialect: str = "postgresql",
-        schema_name: str = "default"
+        cls, ddl: str, dialect: str = "postgresql", schema_name: str = "default"
     ) -> "SemanticLayer":
         """
         Create semantic layer from DDL string.
@@ -148,10 +165,7 @@ class SemanticLayer:
 
     @classmethod
     def from_ddl_file(
-        cls,
-        file_path: str,
-        dialect: str = "postgresql",
-        schema_name: str = "default"
+        cls, file_path: str, dialect: str = "postgresql", schema_name: str = "default"
     ) -> "SemanticLayer":
         """
         Create semantic layer from DDL file.
@@ -170,7 +184,18 @@ class SemanticLayer:
         return cls(schema, {"db_type": dialect})
 
     @classmethod
-    def from_mongodb(cls, uri: str = None, host: str = 'localhost', port: int = 27017, database: str = '', username: str = None, password: str = None, schema_name: str = None, sample_size: int = 100, **kwargs: Any) -> 'SemanticLayer':
+    def from_mongodb(
+        cls,
+        uri: str = None,
+        host: str = "localhost",
+        port: int = 27017,
+        database: str = "",
+        username: str = None,
+        password: str = None,
+        schema_name: str = None,
+        sample_size: int = 100,
+        **kwargs: Any,
+    ) -> "SemanticLayer":
         """
         Create semantic layer from MongoDB connection.
 
@@ -196,7 +221,7 @@ class SemanticLayer:
             username=username,
             password=password,
             sample_size=sample_size,
-            **kwargs
+            **kwargs,
         )
 
         schema = extractor.extract(schema_name or database or "mongodb")
@@ -230,7 +255,7 @@ class SemanticLayer:
             self._query_engine = SemanticQueryEngine(
                 schema=self.schema,
                 lookml_model=self.lookml_model,
-                db_type=self.connection_params.get("db_type", self.schema.database_type)
+                db_type=self.connection_params.get("db_type", self.schema.database_type),
             )
         return self._query_engine
 
@@ -242,7 +267,7 @@ class SemanticLayer:
                 schema=self.schema,
                 lookml_model=self.lookml_model,
                 uri=self.connection_params.get("uri"),
-                database=self.connection_params.get("database")
+                database=self.connection_params.get("database"),
             )
         return self._mongodb_query_engine
 
@@ -272,11 +297,7 @@ class SemanticLayer:
         """
         return self.query_engine.get_context()
 
-    def query(
-        self,
-        question: str,
-        execute: bool = True
-    ) -> Dict[str, Any]:
+    def query(self, question: str, execute: bool = True) -> Dict[str, Any]:
         """
         Query using natural language.
 
@@ -289,16 +310,13 @@ class SemanticLayer:
         """
         # Use MongoDB query engine for MongoDB databases
         if self.is_mongodb:
-            return self.mongodb_query_engine.generate_pipeline(
-                question=question,
-                execute=execute
-            )
+            return self.mongodb_query_engine.generate_pipeline(question=question, execute=execute)
 
         # Use SQL query engine for other databases
         return self.query_engine.generate_sql(
             question=question,
             execute=execute,
-            connection_params=self.connection_params if execute else None
+            connection_params=self.connection_params if execute else None,
         )
 
     def suggest_queries(self, num_suggestions: int = 5) -> List[str]:
@@ -354,7 +372,13 @@ class SemanticLayer:
 
 
 # Convenience functions
-def create_semantic_layer(db_type: str = None, connection_string: str = None, ddl: str = None, mongodb_uri: str = None, **kwargs: Any) -> SemanticLayer:
+def create_semantic_layer(
+    db_type: str = None,
+    connection_string: str = None,
+    ddl: str = None,
+    mongodb_uri: str = None,
+    **kwargs: Any,
+) -> SemanticLayer:
     """
     Create semantic layer from various sources.
 
@@ -372,15 +396,10 @@ def create_semantic_layer(db_type: str = None, connection_string: str = None, dd
         dialect = kwargs.pop("dialect", db_type or "postgresql")
         return SemanticLayer.from_ddl(ddl, dialect)
     elif mongodb_uri or db_type == "mongodb":
-        return SemanticLayer.from_mongodb(
-            uri=mongodb_uri,
-            **kwargs
-        )
+        return SemanticLayer.from_mongodb(uri=mongodb_uri, **kwargs)
     elif connection_string or db_type:
         return SemanticLayer.from_database(
-            db_type=db_type,
-            connection_string=connection_string,
-            **kwargs
+            db_type=db_type, connection_string=connection_string, **kwargs
         )
     else:
         raise ValueError("Either ddl, connection_string, mongodb_uri, or db_type is required")
@@ -390,7 +409,6 @@ __all__ = [
     # Main interface
     "SemanticLayer",
     "create_semantic_layer",
-
     # Models
     "Schema",
     "Table",
@@ -401,13 +419,11 @@ __all__ = [
     "ColumnType",
     "RelationType",
     "MeasureType",
-
     # Extractors
     "BaseExtractor",
     "DatabaseExtractor",
     "DDLExtractor",
     "MongoDBExtractor",
-
     # LookML
     "LookMLGenerator",
     "View",
@@ -415,7 +431,6 @@ __all__ = [
     "Dimension",
     "Measure",
     "Join",
-
     # Query
     "SemanticQueryEngine",
     "MongoDBQueryEngine",
@@ -423,9 +438,9 @@ __all__ = [
 
 # Facade imports for convenience
 from .facade import (
-    get_semantic_layer,
     get_query_engine,
-    get_visualization_layer,
-    list_components as list_semantic_components,
+    get_semantic_layer,
     get_supported_databases,
+    get_visualization_layer,
 )
+from .facade import list_components as list_semantic_components

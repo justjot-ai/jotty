@@ -13,10 +13,10 @@ Features:
 - Handle CJK, code, JSON specially
 """
 
-import re
 import logging
-from typing import Optional, Dict, Any
+import re
 from functools import lru_cache
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -33,19 +33,19 @@ class SmartTokenizer:
         tokens = tokenizer.estimate_tokens("Hello world")  # Alias
     """
 
-    _instances: Dict[str, 'SmartTokenizer'] = {}
+    _instances: Dict[str, "SmartTokenizer"] = {}
 
     # Default encoding for GPT-4/Claude models
     DEFAULT_ENCODING = "cl100k_base"
 
     # Heuristic multipliers for different content types
     HEURISTICS = {
-        'english': 4.0,      # ~4 chars per token for English
-        'code': 3.0,         # Code tends to have more tokens per char
-        'json': 3.5,         # JSON has structure characters
-        'cjk': 1.5,          # CJK characters are often 1 token each
-        'mixed': 3.5,        # Mixed content
-        'whitespace_heavy': 5.0,  # Content with lots of whitespace
+        "english": 4.0,  # ~4 chars per token for English
+        "code": 3.0,  # Code tends to have more tokens per char
+        "json": 3.5,  # JSON has structure characters
+        "cjk": 1.5,  # CJK characters are often 1 token each
+        "mixed": 3.5,  # Mixed content
+        "whitespace_heavy": 5.0,  # Content with lots of whitespace
     }
 
     def __init__(self, encoding_name: str = None) -> None:
@@ -71,6 +71,7 @@ class SmartTokenizer:
         """Initialize tiktoken if available."""
         try:
             import tiktoken
+
             self._tiktoken_encoder = tiktoken.get_encoding(self.encoding_name)
             self._tiktoken_available = True
             logger.debug(f"SmartTokenizer: Using tiktoken with encoding '{self.encoding_name}'")
@@ -82,7 +83,7 @@ class SmartTokenizer:
             self._tiktoken_available = False
 
     @classmethod
-    def get_instance(cls, encoding_name: str = None) -> 'SmartTokenizer':
+    def get_instance(cls, encoding_name: str = None) -> "SmartTokenizer":
         """
         Get singleton instance for the specified encoding.
 
@@ -158,7 +159,7 @@ class SmartTokenizer:
             return 0
 
         content_type = self._detect_content_type(text)
-        chars_per_token = self.HEURISTICS.get(content_type, self.HEURISTICS['mixed'])
+        chars_per_token = self.HEURISTICS.get(content_type, self.HEURISTICS["mixed"])
 
         # Base estimate
         base_estimate = len(text) / chars_per_token
@@ -185,47 +186,48 @@ class SmartTokenizer:
         sample = text[:5000]
 
         # Check for CJK characters
-        cjk_pattern = re.compile(r'[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af]')
+        cjk_pattern = re.compile(r"[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af]")
         cjk_count = len(cjk_pattern.findall(sample))
         if cjk_count > len(sample) * 0.2:
-            return 'cjk'
+            return "cjk"
 
         # Check for code patterns
         code_indicators = [
-            r'def\s+\w+\s*\(',   # Python function
-            r'function\s+\w+\s*\(',  # JavaScript function
-            r'class\s+\w+',     # Class definition
-            r'\{\s*\n',         # Code blocks
-            r'=>',              # Arrow functions
-            r'import\s+',       # Imports
-            r'from\s+\w+\s+import',  # Python imports
-            r';\s*$',           # Statement endings
+            r"def\s+\w+\s*\(",  # Python function
+            r"function\s+\w+\s*\(",  # JavaScript function
+            r"class\s+\w+",  # Class definition
+            r"\{\s*\n",  # Code blocks
+            r"=>",  # Arrow functions
+            r"import\s+",  # Imports
+            r"from\s+\w+\s+import",  # Python imports
+            r";\s*$",  # Statement endings
         ]
         code_count = sum(len(re.findall(p, sample, re.MULTILINE)) for p in code_indicators)
         if code_count > 5:
-            return 'code'
+            return "code"
 
         # Check for JSON
-        if sample.strip().startswith(('{', '[')) and sample.strip().endswith(('}', ']')):
+        if sample.strip().startswith(("{", "[")) and sample.strip().endswith(("}", "]")):
             try:
                 import json
+
                 json.loads(sample[:1000] if len(sample) > 1000 else sample)
-                return 'json'
+                return "json"
             except (json.JSONDecodeError, ValueError):
                 # Might still be partial JSON
-                if sample.count('{') > 3 or sample.count('"') > 10:
-                    return 'json'
+                if sample.count("{") > 3 or sample.count('"') > 10:
+                    return "json"
 
         # Check for whitespace-heavy content
-        whitespace_ratio = len(re.findall(r'\s', sample)) / max(len(sample), 1)
+        whitespace_ratio = len(re.findall(r"\s", sample)) / max(len(sample), 1)
         if whitespace_ratio > 0.4:
-            return 'whitespace_heavy'
+            return "whitespace_heavy"
 
         # Check for mixed CJK
         if cjk_count > 0:
-            return 'mixed'
+            return "mixed"
 
-        return 'english'
+        return "english"
 
     def _calculate_adjustments(self, text: str) -> int:
         """
@@ -240,22 +242,22 @@ class SmartTokenizer:
         adjustments = 0
 
         # Numbers often become multiple tokens
-        numbers = re.findall(r'\d+', text)
+        numbers = re.findall(r"\d+", text)
         for num in numbers:
             if len(num) > 4:
                 # Long numbers get split
                 adjustments += len(num) // 3
 
         # URLs become many tokens
-        urls = re.findall(r'https?://\S+', text)
+        urls = re.findall(r"https?://\S+", text)
         adjustments += len(urls) * 5
 
         # Special tokens (newlines, tabs)
-        adjustments += text.count('\n') * 0.5
-        adjustments += text.count('\t') * 0.5
+        adjustments += text.count("\n") * 0.5
+        adjustments += text.count("\t") * 0.5
 
         # Punctuation clusters
-        punct_clusters = re.findall(r'[^\w\s]{3,}', text)
+        punct_clusters = re.findall(r"[^\w\s]{3,}", text)
         adjustments += len(punct_clusters) * 2
 
         return int(adjustments)
@@ -273,18 +275,19 @@ class SmartTokenizer:
             Dict with statistics
         """
         return {
-            'encoding': self.encoding_name,
-            'tiktoken_available': self._tiktoken_available,
-            'total_calls': self._total_calls,
-            'tiktoken_calls': self._tiktoken_calls,
-            'heuristic_calls': self._heuristic_calls,
-            'tiktoken_ratio': self._tiktoken_calls / max(self._total_calls, 1),
+            "encoding": self.encoding_name,
+            "tiktoken_available": self._tiktoken_available,
+            "total_calls": self._total_calls,
+            "tiktoken_calls": self._tiktoken_calls,
+            "heuristic_calls": self._heuristic_calls,
+            "tiktoken_ratio": self._tiktoken_calls / max(self._total_calls, 1),
         }
 
 
 # =============================================================================
 # CONVENIENCE FUNCTIONS (Module-level API)
 # =============================================================================
+
 
 @lru_cache(maxsize=1)
 def get_tokenizer(encoding: str = None) -> SmartTokenizer:
@@ -337,8 +340,8 @@ def estimate_tokens(text: str, encoding: str = None) -> int:
 # =============================================================================
 
 __all__ = [
-    'SmartTokenizer',
-    'get_tokenizer',
-    'count_tokens',
-    'estimate_tokens',
+    "SmartTokenizer",
+    "get_tokenizer",
+    "count_tokens",
+    "estimate_tokens",
 ]

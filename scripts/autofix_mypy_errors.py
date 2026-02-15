@@ -27,12 +27,13 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Dict, Set, Optional, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 
 @dataclass
 class MypyError:
     """Represents a single mypy error."""
+
     file: str
     line: int
     column: int
@@ -50,9 +51,9 @@ class MypyErrorParser:
     # Regex to match mypy error lines like:
     # core/modes/workflow/smart_swarm_registry.py:54:33: error: Incompatible types in assignment (expression has type "None", variable has type "list[str]")  [assignment]
     ERROR_PATTERN = re.compile(
-        r'^(?P<file>[\w/._-]+\.py):(?P<line>\d+):(?P<column>\d+):\s+'
-        r'error:\s+(?P<message>.+?)\s+\[(?P<code>[\w-]+)\]',
-        re.MULTILINE
+        r"^(?P<file>[\w/._-]+\.py):(?P<line>\d+):(?P<column>\d+):\s+"
+        r"error:\s+(?P<message>.+?)\s+\[(?P<code>[\w-]+)\]",
+        re.MULTILINE,
     )
 
     @classmethod
@@ -61,12 +62,12 @@ class MypyErrorParser:
         errors = []
         for match in cls.ERROR_PATTERN.finditer(output):
             error = MypyError(
-                file=match.group('file'),
-                line=int(match.group('line')),
-                column=int(match.group('column')),
-                error_type='error',
-                message=match.group('message'),
-                code=match.group('code')
+                file=match.group("file"),
+                line=int(match.group("line")),
+                column=int(match.group("column")),
+                error_type="error",
+                message=match.group("message"),
+                code=match.group("code"),
             )
             errors.append(error)
         return errors
@@ -86,15 +87,15 @@ class MypyErrorFixer:
         Error code: assignment
         Message: "Incompatible types in assignment (expression has type \"None\", variable has type..."
         """
-        if error.code != 'assignment':
+        if error.code != "assignment":
             return False
         if 'expression has type "None"' not in error.message:
             return False
 
         # Handle Jotty/ prefix in file path
         file_path = Path(error.file)
-        if not file_path.exists() and error.file.startswith('Jotty/'):
-            file_path = Path(error.file.replace('Jotty/', '', 1))
+        if not file_path.exists() and error.file.startswith("Jotty/"):
+            file_path = Path(error.file.replace("Jotty/", "", 1))
         if not file_path.exists():
             return False
 
@@ -106,7 +107,7 @@ class MypyErrorFixer:
 
         # Pattern: variable: Type = None
         # Should be: variable: Optional[Type] = None
-        pattern = r'(\s*)(\w+):\s*([^=]+?)\s*=\s*None'
+        pattern = r"(\s*)(\w+):\s*([^=]+?)\s*=\s*None"
         match = re.search(pattern, line)
         if not match:
             return False
@@ -115,7 +116,7 @@ class MypyErrorFixer:
         type_hint = type_hint.strip()
 
         # Skip if already Optional
-        if 'Optional' in type_hint or 'None' in type_hint or '|' in type_hint:
+        if "Optional" in type_hint or "None" in type_hint or "|" in type_hint:
             return False
 
         # Create fixed line
@@ -133,10 +134,10 @@ class MypyErrorFixer:
         # Check if Optional is imported
         needs_optional_import = True
         for i, l in enumerate(lines):
-            if 'from typing import' in l and 'Optional' in l:
+            if "from typing import" in l and "Optional" in l:
                 needs_optional_import = False
                 break
-            if l.startswith('from ') or l.startswith('import '):
+            if l.startswith("from ") or l.startswith("import "):
                 continue
             else:
                 break  # Past imports
@@ -146,33 +147,33 @@ class MypyErrorFixer:
             # Find typing import or add new one
             typing_import_line = None
             for i, l in enumerate(lines):
-                if 'from typing import' in l:
+                if "from typing import" in l:
                     typing_import_line = i
                     break
 
             if typing_import_line is not None:
                 # Add Optional to existing import
                 current_import = lines[typing_import_line]
-                if current_import.strip().endswith(')'):
+                if current_import.strip().endswith(")"):
                     # Multi-line import
-                    lines[typing_import_line] = current_import.replace(')', ', Optional)')
+                    lines[typing_import_line] = current_import.replace(")", ", Optional)")
                 else:
                     # Single line import
-                    lines[typing_import_line] = current_import.rstrip() + ', Optional'
+                    lines[typing_import_line] = current_import.rstrip() + ", Optional"
             else:
                 # Add new import after other imports
                 insert_pos = 0
                 for i, l in enumerate(lines):
-                    if l.startswith('from ') or l.startswith('import '):
+                    if l.startswith("from ") or l.startswith("import "):
                         insert_pos = i + 1
-                    elif l.strip() == '':
+                    elif l.strip() == "":
                         continue
                     else:
                         break
-                lines.insert(insert_pos, 'from typing import Optional')
+                lines.insert(insert_pos, "from typing import Optional")
 
         # Write back
-        file_path.write_text('\n'.join(lines) + '\n')
+        file_path.write_text("\n".join(lines) + "\n")
         self.fixes_applied += 1
         self.files_modified.add(error.file)
         print(f"  ✅ Fixed {error.file}:{error.line} (None assignment)")
@@ -184,13 +185,13 @@ class MypyErrorFixer:
         Error code: var-annotated
         Message: "Need type annotation for..."
         """
-        if error.code != 'var-annotated':
+        if error.code != "var-annotated":
             return False
 
         # Handle Jotty/ prefix in file path
         file_path = Path(error.file)
-        if not file_path.exists() and error.file.startswith('Jotty/'):
-            file_path = Path(error.file.replace('Jotty/', '', 1))
+        if not file_path.exists() and error.file.startswith("Jotty/"):
+            file_path = Path(error.file.replace("Jotty/", "", 1))
         if not file_path.exists():
             return False
 
@@ -209,7 +210,7 @@ class MypyErrorFixer:
         hint = hint_match.group(1)
 
         # Extract variable name and suggested type
-        var_match = re.search(r'(\w+):\s*(\w+)\[', hint)
+        var_match = re.search(r"(\w+):\s*(\w+)\[", hint)
         if not var_match:
             return False
 
@@ -217,7 +218,7 @@ class MypyErrorFixer:
         type_name = var_match.group(2)  # e.g., "dict"
 
         # Find the assignment in the line
-        assignment_pattern = rf'(\s*){var_name}\s*=\s*(.+)'
+        assignment_pattern = rf"(\s*){var_name}\s*=\s*(.+)"
         match = re.search(assignment_pattern, line)
         if not match:
             return False
@@ -225,9 +226,9 @@ class MypyErrorFixer:
         indent, value = match.groups()
 
         # Determine appropriate type based on value
-        if value.strip() == '{}':
+        if value.strip() == "{}":
             type_hint = "dict[str, Any]"  # Default dict type
-        elif value.strip() == '[]':
+        elif value.strip() == "[]":
             type_hint = "list[Any]"  # Default list type
         else:
             # Try to infer from hint
@@ -245,26 +246,30 @@ class MypyErrorFixer:
         lines[error.line - 1] = fixed_line
 
         # Check if Any is imported
-        needs_any_import = 'Any' in fixed_line
+        needs_any_import = "Any" in fixed_line
         if needs_any_import:
             has_any = False
             for l in lines:
-                if 'from typing import' in l and 'Any' in l:
+                if "from typing import" in l and "Any" in l:
                     has_any = True
                     break
 
             if not has_any:
                 # Add Any to imports
                 for i, l in enumerate(lines):
-                    if 'from typing import' in l:
-                        lines[i] = l.rstrip() + ', Any' if not l.strip().endswith(')') else l.replace(')', ', Any)')
+                    if "from typing import" in l:
+                        lines[i] = (
+                            l.rstrip() + ", Any"
+                            if not l.strip().endswith(")")
+                            else l.replace(")", ", Any)")
+                        )
                         break
                 else:
                     # Add new import
-                    lines.insert(0, 'from typing import Any')
+                    lines.insert(0, "from typing import Any")
 
         # Write back
-        file_path.write_text('\n'.join(lines) + '\n')
+        file_path.write_text("\n".join(lines) + "\n")
         self.fixes_applied += 1
         self.files_modified.add(error.file)
         print(f"  ✅ Fixed {error.file}:{error.line} (missing annotation)")
@@ -302,15 +307,23 @@ def run_mypy() -> Tuple[int, str]:
     """Run mypy and return (exit_code, output)."""
     try:
         # Run from parent directory so Jotty.* imports work
-        parent_dir = Path.cwd().parent if Path.cwd().name == 'Jotty' else Path.cwd()
+        parent_dir = Path.cwd().parent if Path.cwd().name == "Jotty" else Path.cwd()
 
         result = subprocess.run(
-            [sys.executable, '-m', 'mypy', 'Jotty/core', 'Jotty/apps', 'Jotty/sdk',
-             '--config-file', 'Jotty/mypy.ini'],
+            [
+                sys.executable,
+                "-m",
+                "mypy",
+                "Jotty/core",
+                "Jotty/apps",
+                "Jotty/sdk",
+                "--config-file",
+                "Jotty/mypy.ini",
+            ],
             capture_output=True,
             text=True,
             timeout=60,
-            cwd=parent_dir
+            cwd=parent_dir,
         )
         return result.returncode, result.stdout + result.stderr
     except Exception as e:
@@ -318,13 +331,15 @@ def run_mypy() -> Tuple[int, str]:
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Auto-fix common mypy type errors"
+    parser = argparse.ArgumentParser(description="Auto-fix common mypy type errors")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Show what would be fixed without making changes"
     )
-    parser.add_argument('--dry-run', action='store_true',
-                       help="Show what would be fixed without making changes")
-    parser.add_argument('--category', type=str,
-                       help="Only fix specific error category (e.g., 'assignment', 'var-annotated')")
+    parser.add_argument(
+        "--category",
+        type=str,
+        help="Only fix specific error category (e.g., 'assignment', 'var-annotated')",
+    )
     args = parser.parse_args()
 
     print("🔍 Running mypy to detect type errors...")
@@ -354,7 +369,7 @@ def main():
         print(f"  • {code}: {len(errs)} error(s)")
 
     # Auto-fixable categories
-    fixable_categories = {'assignment', 'var-annotated'}
+    fixable_categories = {"assignment", "var-annotated"}
     fixable_errors = [e for e in errors if e.code in fixable_categories]
 
     if args.category:
@@ -373,7 +388,9 @@ def main():
     fixed_count = fixer.fix_errors(fixable_errors, args.category)
 
     if args.dry_run:
-        print(f"\n🔍 DRY RUN - Would fix {fixed_count} error(s) in {len(fixer.files_modified)} file(s)")
+        print(
+            f"\n🔍 DRY RUN - Would fix {fixed_count} error(s) in {len(fixer.files_modified)} file(s)"
+        )
         print("Run without --dry-run to apply changes")
         return 0
 
@@ -390,7 +407,9 @@ def main():
             return 0
         else:
             remaining_fixable = [e for e in remaining_errors if e.code in fixable_categories]
-            print(f"⚠️  {len(remaining_errors)} error(s) remain ({len(remaining_fixable)} auto-fixable)")
+            print(
+                f"⚠️  {len(remaining_errors)} error(s) remain ({len(remaining_fixable)} auto-fixable)"
+            )
             if remaining_fixable:
                 print("    Run script again to fix remaining auto-fixable errors")
             return 1
@@ -400,5 +419,5 @@ def main():
         return 1
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

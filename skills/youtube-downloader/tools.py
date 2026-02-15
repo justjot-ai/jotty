@@ -5,13 +5,13 @@ Download YouTube video transcripts and convert to documents.
 Refactored to use Jotty core utilities.
 """
 
-import re
 import logging
+import re
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 logger = logging.getLogger(__name__)
 
@@ -19,12 +19,11 @@ logger = logging.getLogger(__name__)
 status = SkillStatus("youtube-downloader")
 
 
-
 def _extract_video_id(url: str) -> Optional[str]:
     """Extract YouTube video ID from URL."""
     patterns = [
-        r'(?:youtube\.com/watch\?v=|youtu\.be/|youtube\.com/embed/)([a-zA-Z0-9_-]{11})',
-        r'youtube\.com/watch\?.*v=([a-zA-Z0-9_-]{11})'
+        r"(?:youtube\.com/watch\?v=|youtu\.be/|youtube\.com/embed/)([a-zA-Z0-9_-]{11})",
+        r"youtube\.com/watch\?.*v=([a-zA-Z0-9_-]{11})",
     ]
 
     for pattern in patterns:
@@ -37,7 +36,7 @@ def _extract_video_id(url: str) -> Optional[str]:
 
 def _extract_playlist_id(url: str) -> Optional[str]:
     """Extract YouTube playlist ID from URL."""
-    match = re.search(r'list=([a-zA-Z0-9_-]+)', url)
+    match = re.search(r"list=([a-zA-Z0-9_-]+)", url)
     return match.group(1) if match else None
 
 
@@ -54,16 +53,17 @@ def _extract_transcript_via_innertube(video_id: str) -> Optional[list]:
     Returns:
         List of transcript segments with 'text' and 'start' keys, or None if failed
     """
-    import requests
     import json
+
+    import requests
 
     try:
         logger.info(f"[YouTube Innertube] Fetching page HTML for {video_id}")
 
         # Fetch video page
-        url = f'https://www.youtube.com/watch?v={video_id}'
+        url = f"https://www.youtube.com/watch?v={video_id}"
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
 
         response = requests.get(url, headers=headers, timeout=15)
@@ -74,12 +74,12 @@ def _extract_transcript_via_innertube(video_id: str) -> Optional[list]:
         # Extract ytInitialPlayerResponse
         logger.info("[YouTube Innertube] Extracting player response...")
 
-        pattern = r'ytInitialPlayerResponse\s*=\s*({.+?});'
+        pattern = r"ytInitialPlayerResponse\s*=\s*({.+?});"
         match = re.search(pattern, html, re.DOTALL)
 
         if not match:
             # Try alternative pattern
-            pattern = r'var ytInitialPlayerResponse = ({.+?});'
+            pattern = r"var ytInitialPlayerResponse = ({.+?});"
             match = re.search(pattern, html, re.DOTALL)
 
         if not match:
@@ -89,12 +89,14 @@ def _extract_transcript_via_innertube(video_id: str) -> Optional[list]:
         player_data = json.loads(match.group(1))
 
         # Extract caption tracks
-        captions_data = player_data.get('captions', {})
+        captions_data = player_data.get("captions", {})
         if not captions_data:
             logger.warning("[YouTube Innertube] No captions data found")
             return None
 
-        caption_tracks = captions_data.get('playerCaptionsTracklistRenderer', {}).get('captionTracks', [])
+        caption_tracks = captions_data.get("playerCaptionsTracklistRenderer", {}).get(
+            "captionTracks", []
+        )
 
         if not caption_tracks:
             logger.warning("[YouTube Innertube] No caption tracks available")
@@ -103,17 +105,17 @@ def _extract_transcript_via_innertube(video_id: str) -> Optional[list]:
         # Find English caption track (prefer manual over auto-generated)
         caption_url = None
         for track in caption_tracks:
-            lang_code = track.get('languageCode', '')
-            kind = track.get('kind', '')
+            lang_code = track.get("languageCode", "")
+            kind = track.get("kind", "")
 
-            if lang_code.startswith('en'):
-                caption_url = track.get('baseUrl')
-                if kind != 'asr':  # Prefer manual captions over auto-generated
+            if lang_code.startswith("en"):
+                caption_url = track.get("baseUrl")
+                if kind != "asr":  # Prefer manual captions over auto-generated
                     break
 
         if not caption_url:
             # Fallback: use first available track
-            caption_url = caption_tracks[0].get('baseUrl')
+            caption_url = caption_tracks[0].get("baseUrl")
 
         if not caption_url:
             logger.error("[YouTube Innertube] No caption URL found")
@@ -127,25 +129,24 @@ def _extract_transcript_via_innertube(video_id: str) -> Optional[list]:
 
         # Parse XML captions
         import xml.etree.ElementTree as ET
+
         root = ET.fromstring(caption_response.text)
 
         transcript_data = []
-        for text_elem in root.findall('.//text'):
+        for text_elem in root.findall(".//text"):
             text = text_elem.text
             if not text:
                 continue
 
             # Get timestamp
-            start = float(text_elem.get('start', 0))
+            start = float(text_elem.get("start", 0))
 
             # Clean up HTML entities
             import html
+
             text = html.unescape(text)
 
-            transcript_data.append({
-                'text': text.strip(),
-                'start': start
-            })
+            transcript_data.append({"text": text.strip(), "start": start})
 
         if not transcript_data:
             logger.warning("[YouTube Innertube] No transcript segments extracted")
@@ -179,12 +180,11 @@ async def _extract_transcript_via_browser(video_url: str) -> Optional[list]:
     """
     try:
         # Import browser-automation skill tools
-        import sys
         import importlib.util
+        import sys
 
         spec = importlib.util.spec_from_file_location(
-            "browser_tools",
-            "skills/browser-automation/tools.py"
+            "browser_tools", "skills/browser-automation/tools.py"
         )
         browser_tools = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(browser_tools)
@@ -192,13 +192,11 @@ async def _extract_transcript_via_browser(video_url: str) -> Optional[list]:
         logger.info(f"[YouTube Browser] Navigating to {video_url}")
 
         # Navigate to video page
-        nav_result = await browser_tools.browser_navigate_tool({
-            'url': video_url,
-            'wait_for': 'ytd-player',
-            'extract_text': False
-        })
+        nav_result = await browser_tools.browser_navigate_tool(
+            {"url": video_url, "wait_for": "ytd-player", "extract_text": False}
+        )
 
-        if not nav_result.get('success'):
+        if not nav_result.get("success"):
             logger.error(f"[YouTube Browser] Navigation failed: {nav_result.get('error')}")
             return None
 
@@ -208,7 +206,7 @@ async def _extract_transcript_via_browser(video_url: str) -> Optional[list]:
         transcript_button_selectors = [
             'button[aria-label*="transcript" i]',  # Case-insensitive match
             'button[aria-label*="Show transcript"]',
-            'ytd-video-description-transcript-section-renderer button',
+            "ytd-video-description-transcript-section-renderer button",
             '[class*="transcript"] button',
             'button:has-text("Show transcript")',
         ]
@@ -217,12 +215,14 @@ async def _extract_transcript_via_browser(video_url: str) -> Optional[list]:
         transcript_opened = False
         for selector in transcript_button_selectors:
             try:
-                click_result = await browser_tools.browser_click_tool({
-                    'selector': selector,
-                    'wait_for': '#segments-container, ytd-transcript-segment-list-renderer'
-                })
+                click_result = await browser_tools.browser_click_tool(
+                    {
+                        "selector": selector,
+                        "wait_for": "#segments-container, ytd-transcript-segment-list-renderer",
+                    }
+                )
 
-                if click_result.get('success'):
+                if click_result.get("success"):
                     logger.info(f"[YouTube Browser] Transcript button clicked: {selector}")
                     transcript_opened = True
                     break
@@ -235,15 +235,17 @@ async def _extract_transcript_via_browser(video_url: str) -> Optional[list]:
             logger.info("[YouTube Browser] Trying three-dot menu...")
             try:
                 # Click more button
-                await browser_tools.browser_click_tool({
-                    'selector': 'button[aria-label="More actions"]'
-                })
+                await browser_tools.browser_click_tool(
+                    {"selector": 'button[aria-label="More actions"]'}
+                )
 
                 # Click "Show transcript" in menu
-                await browser_tools.browser_click_tool({
-                    'selector': 'tp-yt-paper-listbox yt-formatted-string:has-text("Show transcript")',
-                    'wait_for': '#segments-container'
-                })
+                await browser_tools.browser_click_tool(
+                    {
+                        "selector": 'tp-yt-paper-listbox yt-formatted-string:has-text("Show transcript")',
+                        "wait_for": "#segments-container",
+                    }
+                )
                 transcript_opened = True
             except Exception as e:
                 logger.warning(f"[YouTube Browser] Three-dot menu failed: {e}")
@@ -254,13 +256,15 @@ async def _extract_transcript_via_browser(video_url: str) -> Optional[list]:
 
         # Wait for transcript to load
         import asyncio
+
         await asyncio.sleep(2)  # Dynamic loading delay
 
         logger.info("[YouTube Browser] Extracting transcript segments...")
 
         # Extract transcript segments
-        extract_result = await browser_tools.browser_execute_js_tool({
-            'script': '''
+        extract_result = await browser_tools.browser_execute_js_tool(
+            {
+                "script": """
                 () => {
                     const segments = [];
                     const segmentElements = document.querySelectorAll(
@@ -298,14 +302,15 @@ async def _extract_transcript_via_browser(video_url: str) -> Optional[list]:
 
                     return segments;
                 }
-            '''
-        })
+            """
+            }
+        )
 
-        if not extract_result.get('success'):
+        if not extract_result.get("success"):
             logger.error(f"[YouTube Browser] Extraction failed: {extract_result.get('error')}")
             return None
 
-        transcript_data = extract_result.get('result', [])
+        transcript_data = extract_result.get("result", [])
 
         if not transcript_data:
             logger.warning("[YouTube Browser] No transcript segments found")
@@ -323,7 +328,7 @@ async def _extract_transcript_via_browser(video_url: str) -> Optional[list]:
         return None
 
 
-@tool_wrapper(required_params=['video_url'])
+@tool_wrapper(required_params=["video_url"])
 def download_youtube_video_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Download YouTube video transcript and convert to document.
@@ -339,27 +344,27 @@ def download_youtube_video_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, video_id, title, output_path
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
-    video_id = _extract_video_id(params['video_url'])
+    video_id = _extract_video_id(params["video_url"])
     if not video_id:
         return tool_error(f'Invalid YouTube URL: {params["video_url"]}')
 
-    output_dir = Path(params.get('output_dir', './output/youtube'))
+    output_dir = Path(params.get("output_dir", "./output/youtube"))
     output_dir.mkdir(parents=True, exist_ok=True)
-    include_timestamps = params.get('include_timestamps', True)
+    include_timestamps = params.get("include_timestamps", True)
 
     # Try to import and use youtube-transcript-api
     try:
         from youtube_transcript_api import YouTubeTranscriptApi
-        from youtube_transcript_api._errors import TranscriptsDisabled, NoTranscriptFound
+        from youtube_transcript_api._errors import NoTranscriptFound, TranscriptsDisabled
     except ImportError:
         return tool_response(
             video_id=video_id,
-            title='YouTube Video',
-            output_path=str(output_dir / f'{video_id}.md'),
-            message='youtube-transcript-api not installed. Run: pip install youtube-transcript-api',
-            transcript_length=0
+            title="YouTube Video",
+            output_path=str(output_dir / f"{video_id}.md"),
+            message="youtube-transcript-api not installed. Run: pip install youtube-transcript-api",
+            transcript_length=0,
         )
 
     # Fetch transcript
@@ -386,13 +391,14 @@ def download_youtube_video_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             status.emit("extracting", "transcript via browser automation")
 
             import asyncio
-            transcript_data = asyncio.run(_extract_transcript_via_browser(params['video_url']))
+
+            transcript_data = asyncio.run(_extract_transcript_via_browser(params["video_url"]))
 
             if not transcript_data:
                 return tool_error(
-                    f'Failed to fetch transcript via API, Innertube, and browser automation. '
-                    f'API error: {str(e)}. '
-                    f'YouTube may be blocking access or transcript may not be available.'
+                    f"Failed to fetch transcript via API, Innertube, and browser automation. "
+                    f"API error: {str(e)}. "
+                    f"YouTube may be blocking access or transcript may not be available."
                 )
 
             logger.info(f"[YouTube] Browser fallback successful: {len(transcript_data)} segments")
@@ -406,13 +412,13 @@ def download_youtube_video_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         f"URL: https://youtube.com/watch?v={video_id}",
         "",
         "## Transcript",
-        ""
+        "",
     ]
 
     for entry in transcript_data:
-        text = entry['text'].strip()
+        text = entry["text"].strip()
         if include_timestamps:
-            start_time = entry['start']
+            start_time = entry["start"]
             minutes = int(start_time // 60)
             seconds = int(start_time % 60)
             timestamp = f"[{minutes:02d}:{seconds:02d}]"
@@ -423,21 +429,21 @@ def download_youtube_video_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     markdown_content = "\n".join(markdown_lines)
 
     # Save to file
-    output_path = output_dir / f'{video_id}.md'
-    output_path.write_text(markdown_content, encoding='utf-8')
+    output_path = output_dir / f"{video_id}.md"
+    output_path.write_text(markdown_content, encoding="utf-8")
 
     status.emit("creating", str(output_path))
 
     return tool_response(
         video_id=video_id,
-        title=f'YouTube Video {video_id}',
+        title=f"YouTube Video {video_id}",
         output_path=str(output_path),
         transcript_length=len(transcript_data),
-        message=f'Successfully downloaded {len(transcript_data)} transcript segments'
+        message=f"Successfully downloaded {len(transcript_data)} transcript segments",
     )
 
 
-@tool_wrapper(required_params=['playlist_url'])
+@tool_wrapper(required_params=["playlist_url"])
 def download_youtube_playlist_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Download transcripts from YouTube playlist.
@@ -452,9 +458,9 @@ def download_youtube_playlist_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, playlist_id, videos_processed, output_paths
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
-    playlist_id = _extract_playlist_id(params['playlist_url'])
+    playlist_id = _extract_playlist_id(params["playlist_url"])
     if not playlist_id:
         return tool_error(f'Invalid playlist URL: {params["playlist_url"]}')
 
@@ -462,8 +468,8 @@ def download_youtube_playlist_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         playlist_id=playlist_id,
         videos_processed=0,
         output_paths=[],
-        message='YouTube playlist downloader requires youtube-transcript-api. Install: pip install youtube-transcript-api'
+        message="YouTube playlist downloader requires youtube-transcript-api. Install: pip install youtube-transcript-api",
     )
 
 
-__all__ = ['download_youtube_video_tool', 'download_youtube_playlist_tool']
+__all__ = ["download_youtube_video_tool", "download_youtube_playlist_tool"]

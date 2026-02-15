@@ -6,9 +6,10 @@ Tests for SwarmAdapter
 Tests the zero-wrapper multi-swarm integration.
 """
 
-import pytest
 import asyncio
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
 
 
 @pytest.fixture
@@ -16,11 +17,9 @@ def mock_swarm():
     """Create a mock swarm with run() method."""
     swarm = Mock()
     swarm.name = "TestSwarm"
-    swarm.run = AsyncMock(return_value={
-        'output': 'Test output',
-        'success': True,
-        'confidence': 0.8
-    })
+    swarm.run = AsyncMock(
+        return_value={"output": "Test output", "success": True, "confidence": 0.8}
+    )
     return swarm
 
 
@@ -45,7 +44,7 @@ class TestSwarmAdapter:
         adapted = SwarmAdapter.from_swarms([mock_swarm])
 
         assert len(adapted) == 1
-        assert hasattr(adapted[0], 'execute')
+        assert hasattr(adapted[0], "execute")
 
         # Execute adapted swarm
         result = await adapted[0].execute("test task")
@@ -61,8 +60,8 @@ class TestSwarmAdapter:
     @pytest.mark.asyncio
     async def test_from_swarms_with_execute_method(self):
         """Test swarm that already has execute() method."""
-        from Jotty.core.intelligence.orchestration.swarm_adapter import SwarmAdapter
         from Jotty.core.intelligence.orchestration.multi_swarm_coordinator import SwarmResult
+        from Jotty.core.intelligence.orchestration.swarm_adapter import SwarmAdapter
 
         # Create swarm with execute()
         class AlreadyCompatible:
@@ -70,10 +69,7 @@ class TestSwarmAdapter:
 
             async def execute(self, task):
                 return SwarmResult(
-                    swarm_name=self.name,
-                    output="Already compatible",
-                    success=True,
-                    confidence=0.9
+                    swarm_name=self.name, output="Already compatible", success=True, confidence=0.9
                 )
 
         swarm = AlreadyCompatible()
@@ -93,7 +89,7 @@ class TestSwarmAdapter:
         adapted = SwarmAdapter.from_agents([mock_agent])
 
         assert len(adapted) == 1
-        assert hasattr(adapted[0], 'execute')
+        assert hasattr(adapted[0], "execute")
 
         # Execute adapted agent
         result = await adapted[0].execute("test task")
@@ -106,8 +102,8 @@ class TestSwarmAdapter:
         mock_agent.execute.assert_called_once_with("test task")
 
     @pytest.mark.asyncio
-    @patch('os.getenv')
-    @patch('anthropic.AsyncAnthropic')
+    @patch("os.getenv")
+    @patch("anthropic.AsyncAnthropic")
     async def test_quick_swarms(self, mock_anthropic_class, mock_getenv):
         """Test creating quick swarms from prompts."""
         from Jotty.core.intelligence.orchestration.swarm_adapter import SwarmAdapter
@@ -125,10 +121,12 @@ class TestSwarmAdapter:
         mock_anthropic_class.return_value = mock_client
 
         # Create quick swarms
-        swarms = SwarmAdapter.quick_swarms([
-            ("Swarm1", "Prompt 1"),
-            ("Swarm2", "Prompt 2"),
-        ])
+        swarms = SwarmAdapter.quick_swarms(
+            [
+                ("Swarm1", "Prompt 1"),
+                ("Swarm2", "Prompt 2"),
+            ]
+        )
 
         assert len(swarms) == 2
         assert swarms[0].name == "Swarm1"
@@ -140,7 +138,7 @@ class TestSwarmAdapter:
         assert result.swarm_name == "Swarm1"
         assert result.output == "Test response"
         assert result.success is True
-        assert 'cost_usd' in result.metadata
+        assert "cost_usd" in result.metadata
 
         # Verify API was called
         mock_client.messages.create.assert_called_once()
@@ -174,14 +172,14 @@ class TestSwarmAdapterIntegration:
     """Integration tests with Multi-Swarm Coordinator."""
 
     @pytest.mark.asyncio
-    @patch('os.getenv')
-    @patch('anthropic.AsyncAnthropic')
+    @patch("os.getenv")
+    @patch("anthropic.AsyncAnthropic")
     async def test_full_integration(self, mock_anthropic_class, mock_getenv):
         """Test complete workflow: SwarmAdapter + Coordinator."""
         from Jotty.core.intelligence.orchestration import (
+            MergeStrategy,
             SwarmAdapter,
             get_multi_swarm_coordinator,
-            MergeStrategy
         )
 
         # Mock API
@@ -196,17 +194,17 @@ class TestSwarmAdapterIntegration:
         mock_anthropic_class.return_value = mock_client
 
         # Create swarms
-        swarms = SwarmAdapter.quick_swarms([
-            ("Test1", "Prompt 1"),
-            ("Test2", "Prompt 2"),
-        ])
+        swarms = SwarmAdapter.quick_swarms(
+            [
+                ("Test1", "Prompt 1"),
+                ("Test2", "Prompt 2"),
+            ]
+        )
 
         # Execute with coordinator
         coordinator = get_multi_swarm_coordinator()
         result = await coordinator.execute_parallel(
-            swarms=swarms,
-            task="test integration",
-            merge_strategy=MergeStrategy.VOTING
+            swarms=swarms, task="test integration", merge_strategy=MergeStrategy.VOTING
         )
 
         # Verify result
@@ -215,7 +213,7 @@ class TestSwarmAdapterIntegration:
 
         # Verify stats
         stats = coordinator.get_stats()
-        assert stats['total_executions'] >= 1
+        assert stats["total_executions"] >= 1
 
 
 @pytest.mark.asyncio
@@ -225,10 +223,10 @@ async def test_swarm_adapter_exports():
     from Jotty.core.intelligence.orchestration import SwarmAdapter
 
     assert SwarmAdapter is not None
-    assert hasattr(SwarmAdapter, 'quick_swarms')
-    assert hasattr(SwarmAdapter, 'from_swarms')
-    assert hasattr(SwarmAdapter, 'from_agents')
+    assert hasattr(SwarmAdapter, "quick_swarms")
+    assert hasattr(SwarmAdapter, "from_swarms")
+    assert hasattr(SwarmAdapter, "from_agents")
 
 
-if __name__ == '__main__':
-    pytest.main([__file__, '-v'])
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

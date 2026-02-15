@@ -13,11 +13,11 @@ character-identical.
 
 from __future__ import annotations
 
+import logging
 import re
 import time
-import logging
-from typing import Dict, List, Any, Tuple, Set, TYPE_CHECKING
-from collections import defaultdict, Counter
+from collections import Counter, defaultdict
+from typing import TYPE_CHECKING, Any, Dict, List, Set, Tuple
 
 if TYPE_CHECKING:
     from .swarm_intelligence import SwarmIntelligence
@@ -45,7 +45,7 @@ class ByzantineVerifier:
     - Asymmetric by design: trust is hard to earn, easy to lose.
     """
 
-    def __init__(self, swarm_intelligence: 'SwarmIntelligence') -> None:
+    def __init__(self, swarm_intelligence: "SwarmIntelligence") -> None:
         self.si = swarm_intelligence
 
         # Track claim history for verification
@@ -55,8 +55,9 @@ class ByzantineVerifier:
         self.verified_count = 0
         self.inconsistent_count = 0
 
-    def verify_claim(self, agent: str, claimed_success: bool, actual_result: Any,
-                    task_type: str = None) -> bool:
+    def verify_claim(
+        self, agent: str, claimed_success: bool, actual_result: Any, task_type: str = None
+    ) -> bool:
         """
         Verify agent claim and apply trust penalty if inconsistent.
 
@@ -74,12 +75,12 @@ class ByzantineVerifier:
 
         # Record claim
         claim_record = {
-            'agent': agent,
-            'claimed': claimed_success,
-            'actual': actual_success,
-            'task_type': task_type,
-            'timestamp': time.time(),
-            'consistent': claimed_success == actual_success
+            "agent": agent,
+            "claimed": claimed_success,
+            "actual": actual_success,
+            "task_type": task_type,
+            "timestamp": time.time(),
+            "consistent": claimed_success == actual_success,
         }
         self.claim_history.append(claim_record)
 
@@ -126,8 +127,8 @@ class ByzantineVerifier:
             # Deposit warning signal
             self.si.deposit_warning_signal(
                 agent=agent,
-                task_type=task_type or 'unknown',
-                warning=f"Inconsistent claim: {claimed_success} vs {actual_success}"
+                task_type=task_type or "unknown",
+                warning=f"Inconsistent claim: {claimed_success} vs {actual_success}",
             )
 
         return is_consistent
@@ -181,11 +182,11 @@ class ByzantineVerifier:
 
     def get_agent_consistency_rate(self, agent: str) -> float:
         """Get consistency rate for a specific agent."""
-        agent_claims = [c for c in self.claim_history if c['agent'] == agent]
+        agent_claims = [c for c in self.claim_history if c["agent"] == agent]
         if not agent_claims:
             return 1.0  # No claims = assume trustworthy
 
-        consistent = sum(1 for c in agent_claims if c['consistent'])
+        consistent = sum(1 for c in agent_claims if c["consistent"])
         return consistent / len(agent_claims)
 
     def _determine_success(self, result: Any) -> bool:
@@ -199,15 +200,15 @@ class ByzantineVerifier:
 
         if isinstance(result, dict):
             # Check for success field
-            if 'success' in result:
-                return bool(result['success'])
-            if 'error' in result:
+            if "success" in result:
+                return bool(result["success"])
+            if "error" in result:
                 return False
             # Non-empty dict without error = success
             return True
 
         # Check for success attribute
-        if hasattr(result, 'success'):
+        if hasattr(result, "success"):
             return bool(result.success)
 
         # Default: truthy = success
@@ -248,10 +249,10 @@ class ByzantineVerifier:
             output_text = ""
         elif isinstance(output, str):
             output_text = output
-        elif hasattr(output, 'output'):
-            output_text = str(getattr(output, 'output', ''))
+        elif hasattr(output, "output"):
+            output_text = str(getattr(output, "output", ""))
         elif isinstance(output, dict):
-            output_text = str(output.get('output', output.get('result', '')))
+            output_text = str(output.get("output", output.get("result", "")))
         else:
             output_text = str(output)
 
@@ -266,9 +267,13 @@ class ByzantineVerifier:
             # Fast path: minimal verification for read-only tools
             quality_ok = True
             claim_record = {
-                'agent': agent, 'claimed': True, 'actual': True,
-                'task_type': task_type, 'timestamp': time.time(),
-                'consistent': True, 'quality_issues': [],
+                "agent": agent,
+                "claimed": True,
+                "actual": True,
+                "task_type": task_type,
+                "timestamp": time.time(),
+                "consistent": True,
+                "quality_issues": [],
             }
             self.claim_history.append(claim_record)
             if len(self.claim_history) > 500:
@@ -279,8 +284,10 @@ class ByzantineVerifier:
                 profile = self.si.agent_profiles[agent]
                 profile.trust_score = min(1.0, profile.trust_score + 0.02)
             return {
-                'quality_ok': True, 'issues': [],
-                'adjusted_success': True, 'trust_level': trust_level,
+                "quality_ok": True,
+                "issues": [],
+                "adjusted_success": True,
+                "trust_level": trust_level,
             }
 
         # Check 1: Empty or trivially short output
@@ -288,7 +295,7 @@ class ByzantineVerifier:
             issues.append("output_too_short")
 
         # Check 2: Output is mostly an error message
-        error_indicators = ['error:', 'exception:', 'traceback', 'failed to', 'could not']
+        error_indicators = ["error:", "exception:", "traceback", "failed to", "could not"]
         lower_output = output_text.lower()[:500]
         if any(ind in lower_output for ind in error_indicators) and claimed_success:
             issues.append("error_in_successful_output")
@@ -304,15 +311,20 @@ class ByzantineVerifier:
 
         # Check 4: Agent says success but output is actually a refusal
         refusal_phrases = [
-            "i cannot", "i can't", "i'm unable", "i am unable",
-            "i don't have access", "not possible", "beyond my capabilities",
+            "i cannot",
+            "i can't",
+            "i'm unable",
+            "i am unable",
+            "i don't have access",
+            "not possible",
+            "beyond my capabilities",
         ]
         if claimed_success and any(phrase in lower_output for phrase in refusal_phrases):
             issues.append("success_claimed_on_refusal")
 
         # Check 5 (DESTRUCTIVE only): extra paranoia — check for confirmation keywords
         if trust_level == "destructive" and claimed_success:
-            danger_words = ['deleted', 'removed', 'dropped', 'purged', 'destroyed']
+            danger_words = ["deleted", "removed", "dropped", "purged", "destroyed"]
             if any(w in lower_output for w in danger_words):
                 # Output says something was destroyed — flag for human review
                 issues.append("destructive_action_detected")
@@ -322,13 +334,13 @@ class ByzantineVerifier:
 
         # Record as a byzantine claim for trust tracking
         claim_record = {
-            'agent': agent,
-            'claimed': claimed_success,
-            'actual': adjusted_success,
-            'task_type': task_type,
-            'timestamp': time.time(),
-            'consistent': claimed_success == adjusted_success,
-            'quality_issues': issues,
+            "agent": agent,
+            "claimed": claimed_success,
+            "actual": adjusted_success,
+            "task_type": task_type,
+            "timestamp": time.time(),
+            "consistent": claimed_success == adjusted_success,
+            "quality_issues": issues,
         }
         self.claim_history.append(claim_record)
         if len(self.claim_history) > 500:
@@ -356,9 +368,9 @@ class ByzantineVerifier:
                 profile.trust_score = min(1.0, profile.trust_score + 0.03)
 
         return {
-            'quality_ok': quality_ok,
-            'issues': issues,
-            'adjusted_success': adjusted_success,
+            "quality_ok": quality_ok,
+            "issues": issues,
+            "adjusted_success": adjusted_success,
         }
 
     def format_trust_report(self) -> str:
@@ -370,14 +382,12 @@ class ByzantineVerifier:
             f"Inconsistencies: {self.inconsistent_count}",
             f"Overall rate: {1 - self.inconsistent_count/max(1, self.verified_count):.1%}",
             "",
-            "## Agent Trust Scores"
+            "## Agent Trust Scores",
         ]
 
         # Sort by trust score
         sorted_agents = sorted(
-            self.si.agent_profiles.items(),
-            key=lambda x: x[1].trust_score,
-            reverse=True
+            self.si.agent_profiles.items(), key=lambda x: x[1].trust_score, reverse=True
         )
 
         for name, profile in sorted_agents:
@@ -401,16 +411,16 @@ class ByzantineVerifier:
     def to_dict(self) -> Dict:
         """Serialize for persistence."""
         return {
-            'claim_history': self.claim_history[-500:],
-            'verified_count': self.verified_count,
-            'inconsistent_count': self.inconsistent_count,
+            "claim_history": self.claim_history[-500:],
+            "verified_count": self.verified_count,
+            "inconsistent_count": self.inconsistent_count,
         }
 
     def restore_from_dict(self, data: Dict) -> None:
         """Restore state from persistence. Requires existing SI reference."""
-        self.claim_history = data.get('claim_history', [])
-        self.verified_count = data.get('verified_count', 0)
-        self.inconsistent_count = data.get('inconsistent_count', 0)
+        self.claim_history = data.get("claim_history", [])
+        self.verified_count = data.get("verified_count", 0)
+        self.inconsistent_count = data.get("inconsistent_count", 0)
 
 
 class ConsistencyChecker:
@@ -435,15 +445,17 @@ class ConsistencyChecker:
     """
 
     # Regex patterns for key fact extraction
-    _NUMBER_RE = re.compile(r'\b\d[\d,.]*%?\b')
-    _PROPER_NOUN_RE = re.compile(r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b')
+    _NUMBER_RE = re.compile(r"\b\d[\d,.]*%?\b")
+    _PROPER_NOUN_RE = re.compile(r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b")
     _CONCLUSION_MARKERS = re.compile(
-        r'(?:therefore|thus|in conclusion|the answer is|result is|'
-        r'overall|in summary|key takeaway|recommendation)[:\s]*(.*?)(?:\.|$)',
-        re.IGNORECASE
+        r"(?:therefore|thus|in conclusion|the answer is|result is|"
+        r"overall|in summary|key takeaway|recommendation)[:\s]*(.*?)(?:\.|$)",
+        re.IGNORECASE,
     )
 
-    def __init__(self, byzantine_verifier: ByzantineVerifier, similarity_threshold: float = 0.3) -> None:
+    def __init__(
+        self, byzantine_verifier: ByzantineVerifier, similarity_threshold: float = 0.3
+    ) -> None:
         """
         Args:
             byzantine_verifier: Underlying verifier for trust scores
@@ -478,7 +490,7 @@ class ConsistencyChecker:
         for m in cls._PROPER_NOUN_RE.finditer(text):
             noun = m.group().strip()
             # Skip very short or common words that look like proper nouns
-            if len(noun) > 2 and noun not in {'The', 'This', 'That', 'Here', 'There'}:
+            if len(noun) > 2 and noun not in {"The", "This", "That", "Here", "There"}:
                 facts.add(f"NAME:{noun.lower()}")
 
         # Conclusion/answer phrases
@@ -486,20 +498,61 @@ class ConsistencyChecker:
             conclusion = m.group(1).strip().lower()[:80]
             if conclusion:
                 # Normalize to key words only
-                words = set(re.findall(r'[a-z]+', conclusion))
-                words -= {'the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'to', 'of', 'and', 'or', 'in', 'for', 'it'}
+                words = set(re.findall(r"[a-z]+", conclusion))
+                words -= {
+                    "the",
+                    "a",
+                    "an",
+                    "is",
+                    "are",
+                    "was",
+                    "were",
+                    "be",
+                    "to",
+                    "of",
+                    "and",
+                    "or",
+                    "in",
+                    "for",
+                    "it",
+                }
                 for w in words:
                     if len(w) > 3:
                         facts.add(f"CONC:{w}")
 
         # If very few facts extracted, fall back to significant words
         if len(facts) < 3:
-            words = set(re.findall(r'[a-z]{4,}', text.lower()))
+            words = set(re.findall(r"[a-z]{4,}", text.lower()))
             # Remove stop words
-            words -= {'this', 'that', 'with', 'from', 'have', 'been', 'will',
-                       'would', 'could', 'should', 'about', 'their', 'there',
-                       'which', 'these', 'those', 'then', 'than', 'more', 'also',
-                       'very', 'just', 'some', 'other', 'into', 'only', 'over'}
+            words -= {
+                "this",
+                "that",
+                "with",
+                "from",
+                "have",
+                "been",
+                "will",
+                "would",
+                "could",
+                "should",
+                "about",
+                "their",
+                "there",
+                "which",
+                "these",
+                "those",
+                "then",
+                "than",
+                "more",
+                "also",
+                "very",
+                "just",
+                "some",
+                "other",
+                "into",
+                "only",
+                "over",
+            }
             for w in sorted(words)[:20]:  # Top 20 significant words
                 facts.add(f"WORD:{w}")
 
@@ -515,9 +568,7 @@ class ConsistencyChecker:
         return len(a & b) / len(a | b)
 
     def check_consistency(
-        self,
-        outputs: Dict[str, Any],
-        task_type: str = "general"
+        self, outputs: Dict[str, Any], task_type: str = "general"
     ) -> Dict[str, Any]:
         """
         Check consistency across multiple agent outputs using semantic comparison.
@@ -534,12 +585,14 @@ class ConsistencyChecker:
             agent = list(outputs.keys())[0] if outputs else "unknown"
             output = list(outputs.values())[0] if outputs else None
             return {
-                'consistent': True,
-                'agreement_rate': 1.0,
-                'consensus_output': output,
-                'confidence': 0.5,
-                'outliers': [],
-                'details': {agent: {'agrees': True, 'facts_extracted': 0}} if agent != "unknown" else {},
+                "consistent": True,
+                "agreement_rate": 1.0,
+                "consensus_output": output,
+                "confidence": 0.5,
+                "outliers": [],
+                "details": (
+                    {agent: {"agrees": True, "facts_extracted": 0}} if agent != "unknown" else {}
+                ),
             }
 
         # Step 1: Extract facts from each output
@@ -552,7 +605,7 @@ class ConsistencyChecker:
         # Step 2: Compute pairwise similarity matrix
         similarity: Dict[Tuple[str, str], float] = {}
         for i, a1 in enumerate(agents):
-            for a2 in agents[i + 1:]:
+            for a2 in agents[i + 1 :]:
                 sim = self._jaccard(agent_facts[a1], agent_facts[a2])
                 similarity[(a1, a2)] = sim
                 similarity[(a2, a1)] = sim
@@ -609,13 +662,13 @@ class ConsistencyChecker:
 
         # Record
         record = {
-            'task_type': task_type,
-            'agent_count': len(outputs),
-            'agreement_rate': agreement_rate,
-            'consistent': consistent,
-            'outlier_count': len(outliers),
-            'avg_similarity': sum(avg_sim.values()) / len(avg_sim) if avg_sim else 0.0,
-            'timestamp': time.time(),
+            "task_type": task_type,
+            "agent_count": len(outputs),
+            "agreement_rate": agreement_rate,
+            "consistent": consistent,
+            "outlier_count": len(outliers),
+            "avg_similarity": sum(avg_sim.values()) / len(avg_sim) if avg_sim else 0.0,
+            "timestamp": time.time(),
         }
         self.consistency_history.append(record)
         if len(self.consistency_history) > 500:
@@ -625,22 +678,22 @@ class ConsistencyChecker:
         details = {}
         for agent in agents:
             details[agent] = {
-                'agrees': agent in cluster,
-                'trust_score': getattr(
-                    self.verifier.si.agent_profiles.get(agent), 'trust_score', 0.5
+                "agrees": agent in cluster,
+                "trust_score": getattr(
+                    self.verifier.si.agent_profiles.get(agent), "trust_score", 0.5
                 ),
-                'facts_extracted': len(agent_facts[agent]),
-                'avg_similarity': avg_sim.get(agent, 0.0),
-                'output_preview': str(outputs[agent])[:100],
+                "facts_extracted": len(agent_facts[agent]),
+                "avg_similarity": avg_sim.get(agent, 0.0),
+                "output_preview": str(outputs[agent])[:100],
             }
 
         result = {
-            'consistent': consistent,
-            'agreement_rate': agreement_rate,
-            'consensus_output': consensus_output,
-            'confidence': confidence,
-            'outliers': outliers,
-            'details': details,
+            "consistent": consistent,
+            "agreement_rate": agreement_rate,
+            "consensus_output": consensus_output,
+            "confidence": confidence,
+            "outliers": outliers,
+            "details": details,
         }
 
         if not consistent:
@@ -653,66 +706,63 @@ class ConsistencyChecker:
         return result
 
     def detect_hallucination(
-        self,
-        primary_output: Any,
-        verification_outputs: Dict[str, Any],
-        task_type: str = "general"
+        self, primary_output: Any, verification_outputs: Dict[str, Any], task_type: str = "general"
     ) -> Dict[str, Any]:
         """
         Detect potential hallucination by comparing primary output against
         verification outputs from other agents.
         """
-        all_outputs = {'primary': primary_output}
+        all_outputs = {"primary": primary_output}
         all_outputs.update(verification_outputs)
 
         result = self.check_consistency(all_outputs, task_type)
 
         likely_hallucination = (
-            'primary' in result['outliers']
-            and result['agreement_rate'] > 0.5
+            "primary" in result["outliers"]
+            and result["agreement_rate"] > 0.5
             and len(verification_outputs) >= 2
         )
 
         return {
-            'likely_hallucination': likely_hallucination,
-            'confidence': result['confidence'],
-            'agreement_rate': result['agreement_rate'],
-            'evidence': (
+            "likely_hallucination": likely_hallucination,
+            "confidence": result["confidence"],
+            "agreement_rate": result["agreement_rate"],
+            "evidence": (
                 f"Primary output disagrees with consensus "
                 f"({len(result['outliers'])} outliers of {len(all_outputs)} agents)"
                 if likely_hallucination
                 else f"Primary consistent with consensus "
-                     f"(agreement={result['agreement_rate']:.0%})"
+                f"(agreement={result['agreement_rate']:.0%})"
             ),
         }
 
     def get_consistency_stats(self) -> Dict[str, Any]:
         """Get overall consistency statistics."""
         if not self.consistency_history:
-            return {'total_checks': 0}
+            return {"total_checks": 0}
 
         total = len(self.consistency_history)
-        consistent_count = sum(1 for r in self.consistency_history if r['consistent'])
-        avg_agreement = sum(r['agreement_rate'] for r in self.consistency_history) / total
-        avg_similarity = sum(r.get('avg_similarity', 0) for r in self.consistency_history) / total
+        consistent_count = sum(1 for r in self.consistency_history if r["consistent"])
+        avg_agreement = sum(r["agreement_rate"] for r in self.consistency_history) / total
+        avg_similarity = sum(r.get("avg_similarity", 0) for r in self.consistency_history) / total
 
-        by_task = defaultdict(lambda: {'total': 0, 'consistent': 0})
+        by_task = defaultdict(lambda: {"total": 0, "consistent": 0})
         for record in self.consistency_history:
-            tt = record['task_type']
-            by_task[tt]['total'] += 1
-            if record['consistent']:
-                by_task[tt]['consistent'] += 1
+            tt = record["task_type"]
+            by_task[tt]["total"] += 1
+            if record["consistent"]:
+                by_task[tt]["consistent"] += 1
 
         return {
-            'total_checks': total,
-            'consistency_rate': consistent_count / total,
-            'avg_agreement': avg_agreement,
-            'avg_fact_similarity': avg_similarity,
-            'by_task_type': dict(by_task),
+            "total_checks": total,
+            "consistency_rate": consistent_count / total,
+            "avg_agreement": avg_agreement,
+            "avg_fact_similarity": avg_similarity,
+            "by_task_type": dict(by_task),
         }
 
 
 __all__ = [
-    'ByzantineVerifier',
-    'ConsistencyChecker',
+    "ByzantineVerifier",
+    "ConsistencyChecker",
 ]

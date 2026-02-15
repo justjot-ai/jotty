@@ -26,9 +26,9 @@ Exit codes:
 import ast
 import os
 import sys
-from pathlib import Path
 from collections import defaultdict
-from typing import Dict, Set, List, Tuple, Optional
+from pathlib import Path
+from typing import Dict, List, Optional, Set, Tuple
 
 # =============================================================================
 # ALLOWED DEPENDENCY RULES
@@ -44,68 +44,107 @@ from typing import Dict, Set, List, Tuple, Optional
 # Tier 3 — Hub (imports everything)
 
 # Infrastructure modules that have zero or near-zero deps
-INFRASTRUCTURE = {"monitoring", "observability", "persistence", "prompts",
-                  "presets", "services", "tools", "interfaces",
-                  "swarm_prompts", "validation_prompts", "optimization"}
+INFRASTRUCTURE = {
+    "monitoring",
+    "observability",
+    "persistence",
+    "prompts",
+    "presets",
+    "services",
+    "tools",
+    "interfaces",
+    "swarm_prompts",
+    "validation_prompts",
+    "optimization",
+}
 
 ALLOWED_DEPS: Dict[str, Set[str]] = {
     # --- Tier 0: Skill SDK (depends only on foundation) ---
-    "skill_sdk":     {"foundation", "utils"},
-
+    "skill_sdk": {"foundation", "utils"},
     # --- Tier 1: Leaves (depend only on foundation + infrastructure) ---
-    "memory":        {"foundation", "observability"},
-    "context":       {"foundation", "utils"},
-    "utils":         {"foundation", "context", "data", "learning"},
-    "learning":      {"foundation", "context", "memory", "integration"},
-    "metadata":      {"foundation"},
-    "semantic":      {"foundation"},
-    "ui":            {"foundation"},
-    "llm":           {"foundation", "monitoring"},
-    "use_cases":     {"foundation", "ui"},
-    "evaluation":    {"foundation", "execution"},
-
+    "memory": {"foundation", "observability"},
+    "context": {"foundation", "utils"},
+    "utils": {"foundation", "context", "data", "learning"},
+    "learning": {"foundation", "context", "memory", "integration"},
+    "metadata": {"foundation"},
+    "semantic": {"foundation"},
+    "ui": {"foundation"},
+    "llm": {"foundation", "monitoring"},
+    "use_cases": {"foundation", "ui"},
+    "evaluation": {"foundation", "execution"},
     # --- Tier 2: Mid-coupling (import Tier 1 modules) ---
-    "agents":        {"foundation", "memory", "learning", "context", "utils",
-                      "swarms", "registry", "execution", "integration",
-                      "persistence", "prompts", "orchestration", "ui"},
-    "swarms":        {"foundation", "agents", "integration", "orchestration",
-                      "registry", "skills"},
-    "registry":      {"foundation", "agents", "metadata", "utils"},
-    "skills":        {"foundation", "registry", "integration", "orchestration"},
-    "execution":     {"foundation", "agents", "swarms", "orchestration",
-                      "registry", "monitoring", "observability"},
-    "integration":   {"foundation", "context", "orchestration", "utils"},
-    "api":           {"foundation", "agents", "memory", "orchestration",
-                      "registry", "use_cases"},
-    "autonomous":    {"agents", "registry"},
-    "experts":       {"foundation", "memory", "orchestration"},
-    "job_queue":     {"foundation", "orchestration"},
-    "lotus":         {"foundation", "orchestration"},
-    "data":          {"agents"},
-
+    "agents": {
+        "foundation",
+        "memory",
+        "learning",
+        "context",
+        "utils",
+        "swarms",
+        "registry",
+        "execution",
+        "integration",
+        "persistence",
+        "prompts",
+        "orchestration",
+        "ui",
+    },
+    "swarms": {"foundation", "agents", "integration", "orchestration", "registry", "skills"},
+    "registry": {"foundation", "agents", "metadata", "utils"},
+    "skills": {"foundation", "registry", "integration", "orchestration"},
+    "execution": {
+        "foundation",
+        "agents",
+        "swarms",
+        "orchestration",
+        "registry",
+        "monitoring",
+        "observability",
+    },
+    "integration": {"foundation", "context", "orchestration", "utils"},
+    "api": {"foundation", "agents", "memory", "orchestration", "registry", "use_cases"},
+    "autonomous": {"agents", "registry"},
+    "experts": {"foundation", "memory", "orchestration"},
+    "job_queue": {"foundation", "orchestration"},
+    "lotus": {"foundation", "orchestration"},
+    "data": {"agents"},
     # --- Tier 3: Hub (explicit deps — no more wildcard) ---
-    "orchestration": {"foundation", "agents", "autonomous", "context", "data",
-                      "integration", "interfaces", "learning", "llm", "lotus",
-                      "memory", "metadata", "monitoring", "observability",
-                      "persistence", "prompts", "registry", "skills", "ui",
-                      "utils"},
-
+    "orchestration": {
+        "foundation",
+        "agents",
+        "autonomous",
+        "context",
+        "data",
+        "integration",
+        "interfaces",
+        "learning",
+        "llm",
+        "lotus",
+        "memory",
+        "metadata",
+        "monitoring",
+        "observability",
+        "persistence",
+        "prompts",
+        "registry",
+        "skills",
+        "ui",
+        "utils",
+    },
     # --- Foundation: should be a leaf, but has a few legacy deps ---
     # These are tracked so we can shrink them over time.
-    "foundation":    {"evaluation", "integration", "monitoring", "utils"},
-
+    "foundation": {"evaluation", "integration", "monitoring", "utils"},
     # --- Infrastructure: no cross-deps (leaf by definition) ---
-    "monitoring":      set(),
-    "observability":   set(),
-    "persistence":     set(),
-    "prompts":         set(),
-    "presets":         set(),
-    "services":        set(),
-    "tools":           set(),
-    "interfaces":      set(),
-    "swarm_prompts":   set(),
+    "monitoring": set(),
+    "observability": set(),
+    "persistence": set(),
+    "prompts": set(),
+    "presets": set(),
+    "services": set(),
+    "tools": set(),
+    "interfaces": set(),
+    "swarm_prompts": set(),
     "validation_prompts": set(),
-    "optimization":    set(),
+    "optimization": set(),
 }
 
 
@@ -122,31 +161,46 @@ ALLOWED_DEPS: Dict[str, Set[str]] = {
 
 ORCHESTRATION_SUB_MODULES: Dict[str, Set[str]] = {
     "llm_providers": {
-        "llm_providers/adapter.py", "llm_providers/anthropic.py",
-        "llm_providers/base.py", "llm_providers/factory.py",
-        "llm_providers/google.py", "llm_providers/__init__.py",
-        "llm_providers/openai.py", "llm_providers/types.py",
+        "llm_providers/adapter.py",
+        "llm_providers/anthropic.py",
+        "llm_providers/base.py",
+        "llm_providers/factory.py",
+        "llm_providers/google.py",
+        "llm_providers/__init__.py",
+        "llm_providers/openai.py",
+        "llm_providers/types.py",
     },
     "intelligence": {
-        "swarm_intelligence.py", "paradigm_executor.py",
-        "ensemble_manager.py", "swarm_ensemble.py",
+        "swarm_intelligence.py",
+        "paradigm_executor.py",
+        "ensemble_manager.py",
+        "swarm_ensemble.py",
     },
     "public_api": {
-        "facade.py", "swarm.py",
+        "facade.py",
+        "swarm.py",
     },
     "routing": {
-        "swarm_router.py", "model_tier_router.py",
-        "morph_scoring.py", "_morph_mixin.py",
+        "swarm_router.py",
+        "model_tier_router.py",
+        "morph_scoring.py",
+        "_morph_mixin.py",
     },
     "monitoring": {
-        "metrics_collector.py", "benchmarking.py",
+        "metrics_collector.py",
+        "benchmarking.py",
     },
     "learning": {
-        "swarm_learner.py", "learning_pipeline.py",
-        "learning_delegate.py", "_learning_delegation_mixin.py",
-        "mas_learning.py", "credit_assignment.py",
-        "adaptive_learning.py", "stigmergy.py",
-        "swarm_workflow_learner.py", "curriculum_generator.py",
+        "swarm_learner.py",
+        "learning_pipeline.py",
+        "learning_delegate.py",
+        "_learning_delegation_mixin.py",
+        "mas_learning.py",
+        "credit_assignment.py",
+        "adaptive_learning.py",
+        "stigmergy.py",
+        "swarm_workflow_learner.py",
+        "curriculum_generator.py",
         "policy_explorer.py",
     },
 }
@@ -154,11 +208,11 @@ ORCHESTRATION_SUB_MODULES: Dict[str, Set[str]] = {
 # Which sub-modules can import from which
 INTERNAL_ALLOWED_DEPS: Dict[str, Set[str]] = {
     "llm_providers": set(),  # Leaf: no orchestration-internal deps
-    "monitoring":    set(),  # Leaf: no orchestration-internal deps
-    "routing":       {"intelligence", "llm_providers"},
-    "intelligence":  {"llm_providers"},
-    "learning":      {"intelligence", "routing"},
-    "public_api":    {"intelligence", "routing", "llm_providers", "learning", "monitoring"},
+    "monitoring": set(),  # Leaf: no orchestration-internal deps
+    "routing": {"intelligence", "llm_providers"},
+    "intelligence": {"llm_providers"},
+    "learning": {"intelligence", "routing"},
+    "public_api": {"intelligence", "routing", "llm_providers", "learning", "monitoring"},
 }
 
 
@@ -189,9 +243,9 @@ def check_internal_boundaries(core_root: str) -> List[str]:
     # Build file -> sub-module map
     file_to_sub = {}
     for dirpath, dirnames, filenames in os.walk(orch_root):
-        dirnames[:] = [d for d in dirnames if d != '__pycache__']
+        dirnames[:] = [d for d in dirnames if d != "__pycache__"]
         for fname in filenames:
-            if fname.endswith('.py'):
+            if fname.endswith(".py"):
                 filepath = os.path.join(dirpath, fname)
                 sub = _get_orchestration_sub_module(filepath)
                 if sub:
@@ -200,7 +254,7 @@ def check_internal_boundaries(core_root: str) -> List[str]:
     # Check each file's imports against sub-module rules
     for filepath, from_sub in file_to_sub.items():
         try:
-            with open(filepath, 'r', encoding='utf-8', errors='replace') as f:
+            with open(filepath, "r", encoding="utf-8", errors="replace") as f:
                 source = f.read()
             tree = ast.parse(source, filename=filepath)
         except (SyntaxError, UnicodeDecodeError):
@@ -212,26 +266,26 @@ def check_internal_boundaries(core_root: str) -> List[str]:
 
             # Only check intra-orchestration imports
             import_path = node.module
-            if not ('orchestration' in import_path or import_path.startswith('.')):
+            if not ("orchestration" in import_path or import_path.startswith(".")):
                 continue
 
             # Resolve what sub-module the import target belongs to
             target_sub = None
 
             # Build the target filename from the import path
-            if import_path.startswith('.'):
+            if import_path.startswith("."):
                 # Relative import within orchestration
-                rel_module = import_path.lstrip('.')
+                rel_module = import_path.lstrip(".")
                 if not rel_module:
                     continue
                 # Convert dots to path: .llm_providers.base -> llm_providers/base.py
-                target_file = rel_module.replace('.', '/') + '.py'
+                target_file = rel_module.replace(".", "/") + ".py"
             else:
                 # Absolute import: Jotty.core.orchestration.X -> X.py
-                if 'orchestration.' not in import_path:
+                if "orchestration." not in import_path:
                     continue
-                after_orch = import_path.split('orchestration.')[-1]
-                target_file = after_orch.replace('.', '/') + '.py'
+                after_orch = import_path.split("orchestration.")[-1]
+                target_file = after_orch.replace(".", "/") + ".py"
 
             # Match against known sub-module files (exact match)
             for sub, files in ORCHESTRATION_SUB_MODULES.items():
@@ -246,8 +300,7 @@ def check_internal_boundaries(core_root: str) -> List[str]:
                 if target_sub not in allowed:
                     rel_path = os.path.relpath(filepath, os.path.dirname(core_root))
                     violations.append(
-                        f"  {rel_path}:{node.lineno} "
-                        f"({from_sub} -> {target_sub})"
+                        f"  {rel_path}:{node.lineno} " f"({from_sub} -> {target_sub})"
                     )
 
     return violations
@@ -257,12 +310,15 @@ def check_internal_boundaries(core_root: str) -> List[str]:
 # AST-BASED IMPORT SCANNER
 # =============================================================================
 
+
 class ImportInfo:
     """A single cross-module import."""
-    __slots__ = ('source_file', 'line', 'from_module', 'to_module', 'is_deferred')
 
-    def __init__(self, source_file: str, line: int, from_module: str,
-                 to_module: str, is_deferred: bool):
+    __slots__ = ("source_file", "line", "from_module", "to_module", "is_deferred")
+
+    def __init__(
+        self, source_file: str, line: int, from_module: str, to_module: str, is_deferred: bool
+    ):
         self.source_file = source_file
         self.line = line
         self.from_module = from_module
@@ -326,7 +382,7 @@ def scan_file(filepath: str, core_root: str) -> List[ImportInfo]:
         return results
 
     try:
-        with open(filepath, 'r', encoding='utf-8', errors='replace') as f:
+        with open(filepath, "r", encoding="utf-8", errors="replace") as f:
             source = f.read()
         tree = ast.parse(source, filename=filepath)
     except (SyntaxError, UnicodeDecodeError):
@@ -354,7 +410,7 @@ def scan_file(filepath: str, core_root: str) -> List[ImportInfo]:
 
         # Check if deferred (inside function/method or TYPE_CHECKING)
         is_deferred = False
-        parent = getattr(node, '_parent', None)
+        parent = getattr(node, "_parent", None)
         while parent is not None:
             if isinstance(parent, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 is_deferred = True
@@ -367,16 +423,18 @@ def scan_file(filepath: str, core_root: str) -> List[ImportInfo]:
                 if isinstance(test, ast.Attribute) and test.attr == "TYPE_CHECKING":
                     is_deferred = True
                     break
-            parent = getattr(parent, '_parent', None)
+            parent = getattr(parent, "_parent", None)
 
         rel_path = os.path.relpath(filepath, os.path.dirname(core_root))
-        results.append(ImportInfo(
-            source_file=rel_path,
-            line=node.lineno,
-            from_module=from_module,
-            to_module=to_module,
-            is_deferred=is_deferred,
-        ))
+        results.append(
+            ImportInfo(
+                source_file=rel_path,
+                line=node.lineno,
+                from_module=from_module,
+                to_module=to_module,
+                is_deferred=is_deferred,
+            )
+        )
 
     return results
 
@@ -386,9 +444,9 @@ def scan_core(core_root: str) -> List[ImportInfo]:
     all_imports = []
     for dirpath, dirnames, filenames in os.walk(core_root):
         # Skip __pycache__
-        dirnames[:] = [d for d in dirnames if d != '__pycache__']
+        dirnames[:] = [d for d in dirnames if d != "__pycache__"]
         for fname in filenames:
-            if fname.endswith('.py'):
+            if fname.endswith(".py"):
                 filepath = os.path.join(dirpath, fname)
                 all_imports.extend(scan_file(filepath, core_root))
     return all_imports
@@ -398,8 +456,10 @@ def scan_core(core_root: str) -> List[ImportInfo]:
 # VIOLATION CHECKER
 # =============================================================================
 
-def check_violations(imports: List[ImportInfo], strict: bool = False
-                     ) -> Tuple[List[ImportInfo], List[ImportInfo]]:
+
+def check_violations(
+    imports: List[ImportInfo], strict: bool = False
+) -> Tuple[List[ImportInfo], List[ImportInfo]]:
     """Check imports against ALLOWED_DEPS rules.
 
     Returns:
@@ -428,6 +488,7 @@ def check_violations(imports: List[ImportInfo], strict: bool = False
 # =============================================================================
 # REPORTING
 # =============================================================================
+
 
 def build_summary(imports: List[ImportInfo]) -> Dict[str, Set[str]]:
     """Build module -> set of depended modules."""
@@ -471,6 +532,7 @@ def print_violations(violations: List[ImportInfo], label: str):
 # MAIN
 # =============================================================================
 
+
 def main():
     verbose = "--verbose" in sys.argv
     strict = "--strict" in sys.argv
@@ -485,7 +547,9 @@ def main():
 
     print(f"Scanning {core_root} ...")
     imports = scan_core(str(core_root))
-    print(f"Found {len(imports)} cross-module imports ({sum(1 for i in imports if i.is_deferred)} deferred)")
+    print(
+        f"Found {len(imports)} cross-module imports ({sum(1 for i in imports if i.is_deferred)} deferred)"
+    )
 
     if verbose:
         print_matrix(imports)
@@ -496,7 +560,9 @@ def main():
         print_violations(top_level_violations, "TOP-LEVEL VIOLATIONS (must fix)")
 
     if deferred_violations and (verbose or strict):
-        print_violations(deferred_violations, "DEFERRED VIOLATIONS (inside functions/TYPE_CHECKING)")
+        print_violations(
+            deferred_violations, "DEFERRED VIOLATIONS (inside functions/TYPE_CHECKING)"
+        )
 
     # Internal sub-module boundaries (orchestration)
     internal_violations = check_internal_boundaries(str(core_root))

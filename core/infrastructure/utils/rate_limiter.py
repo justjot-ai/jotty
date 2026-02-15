@@ -3,21 +3,23 @@ Rate Limiting for Jotty
 
 Provides:
 - Per-skill rate limiting
-- Per-user rate limiting  
+- Per-user rate limiting
 - Per-API-key rate limiting
 - Token bucket algorithm
 - Sliding window algorithm
 """
-from typing import Dict, Optional, Any
+
+import threading
+import time
+from collections import deque
 from dataclasses import dataclass
 from enum import Enum
-import time
-import threading
-from collections import deque
+from typing import Any, Dict, Optional
 
 
 class RateLimitStrategy(Enum):
     """Rate limiting strategy."""
+
     TOKEN_BUCKET = "token_bucket"
     SLIDING_WINDOW = "sliding_window"
     FIXED_WINDOW = "fixed_window"
@@ -26,6 +28,7 @@ class RateLimitStrategy(Enum):
 @dataclass
 class RateLimit:
     """Rate limit configuration."""
+
     requests: int  # Max requests
     period: float  # Time period in seconds
     strategy: RateLimitStrategy = RateLimitStrategy.TOKEN_BUCKET
@@ -34,14 +37,14 @@ class RateLimit:
 class TokenBucket:
     """
     Token bucket rate limiter.
-    
+
     Allows bursts while maintaining average rate.
     """
 
     def __init__(self, rate: int, period: float) -> None:
         """
         Initialize token bucket.
-        
+
         Args:
             rate: Maximum requests per period
             period: Time period in seconds
@@ -55,7 +58,7 @@ class TokenBucket:
     def allow(self) -> bool:
         """
         Check if request is allowed.
-        
+
         Returns:
             True if request allowed, False if rate limited
         """
@@ -64,10 +67,7 @@ class TokenBucket:
             elapsed = now - self.last_update
 
             # Add tokens for elapsed time
-            self.tokens = min(
-                self.rate,
-                self.tokens + elapsed * (self.rate / self.period)
-            )
+            self.tokens = min(self.rate, self.tokens + elapsed * (self.rate / self.period))
             self.last_update = now
 
             # Check if we have tokens
@@ -82,23 +82,20 @@ class TokenBucket:
         with self.lock:
             now = time.time()
             elapsed = now - self.last_update
-            return min(
-                self.rate,
-                self.tokens + elapsed * (self.rate / self.period)
-            )
+            return min(self.rate, self.tokens + elapsed * (self.rate / self.period))
 
 
 class SlidingWindowLimiter:
     """
     Sliding window rate limiter.
-    
+
     More accurate than fixed window, prevents boundary issues.
     """
 
     def __init__(self, rate: int, period: float) -> None:
         """
         Initialize sliding window limiter.
-        
+
         Args:
             rate: Maximum requests per period
             period: Time period in seconds
@@ -136,18 +133,18 @@ class SlidingWindowLimiter:
 class RateLimiter:
     """
     Multi-level rate limiter for Jotty.
-    
+
     Supports rate limiting by:
     - Skill name
     - User ID
     - API key
     - Global
-    
+
     Usage:
         limiter = get_rate_limiter()
         limiter.add_limit("skill:web-search", RateLimit(100, 60))  # 100/minute
         limiter.add_limit("user:alice", RateLimit(1000, 3600))  # 1000/hour
-        
+
         if limiter.allow("skill:web-search", user_id="alice"):
             # Execute skill
             pass
@@ -165,7 +162,7 @@ class RateLimiter:
     def add_limit(self, key: str, limit: RateLimit) -> None:
         """
         Add rate limit.
-        
+
         Args:
             key: Limit key (e.g., "skill:web-search", "user:alice")
             limit: RateLimit configuration
@@ -184,10 +181,10 @@ class RateLimiter:
     def allow(self, *keys: str) -> bool:
         """
         Check if request is allowed for all given keys.
-        
+
         Args:
             *keys: Limit keys to check
-        
+
         Returns:
             True if allowed, False if any limit exceeded
         """
@@ -201,10 +198,10 @@ class RateLimiter:
     def get_status(self, key: str) -> Optional[Dict]:
         """
         Get rate limit status.
-        
+
         Args:
             key: Limit key
-        
+
         Returns:
             Dict with status info or None if not found
         """
@@ -219,14 +216,14 @@ class RateLimiter:
                 "type": "token_bucket",
                 "rate": limit.requests,
                 "period": limit.period,
-                "tokens_available": limiter.tokens_available()
+                "tokens_available": limiter.tokens_available(),
             }
         elif isinstance(limiter, SlidingWindowLimiter):
             return {
                 "type": "sliding_window",
                 "rate": limit.requests,
                 "period": limit.period,
-                "requests_in_window": limiter.requests_in_window()
+                "requests_in_window": limiter.requests_in_window(),
             }
 
         return None
@@ -239,7 +236,7 @@ _rate_limiter: Optional[RateLimiter] = None
 def get_rate_limiter() -> RateLimiter:
     """
     Get singleton rate limiter instance.
-    
+
     Returns:
         RateLimiter instance
     """
@@ -250,18 +247,22 @@ def get_rate_limiter() -> RateLimiter:
 
         # Add default limits
         _rate_limiter.add_limit(
-            "global",
-            RateLimit(requests=1000, period=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
+            "global", RateLimit(requests=1000, period=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
         )
 
     return _rate_limiter
 
 
 # Decorator for rate-limited functions
-def rate_limit(key: str, requests: int, period: float, strategy: RateLimitStrategy = RateLimitStrategy.TOKEN_BUCKET) -> Any:
+def rate_limit(
+    key: str,
+    requests: int,
+    period: float,
+    strategy: RateLimitStrategy = RateLimitStrategy.TOKEN_BUCKET,
+) -> Any:
     """
     Decorator for rate limiting functions.
-    
+
     Usage:
         @rate_limit("api_call", requests=100, period=60)
         def make_api_call():
@@ -287,6 +288,7 @@ def rate_limit(key: str, requests: int, period: float, strategy: RateLimitStrate
             return await func(*args, **kwargs)
 
         import asyncio
+
         return async_wrapper if asyncio.iscoroutinefunction(func) else wrapper
 
     return decorator

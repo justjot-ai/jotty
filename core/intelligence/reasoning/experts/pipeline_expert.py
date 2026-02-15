@@ -21,7 +21,13 @@ class PipelineExpertAgent(BaseExpert):
     (can be Mermaid, PlantUML, or other formats).
     """
 
-    def __init__(self, config: Any = None, output_format: str = 'mermaid', memory: Any = None, improvements: Optional[List[Dict[str, Any]]] = None) -> None:
+    def __init__(
+        self,
+        config: Any = None,
+        output_format: str = "mermaid",
+        memory: Any = None,
+        improvements: Optional[List[Dict[str, Any]]] = None,
+    ) -> None:
         """
         Initialize Pipeline Expert Agent.
 
@@ -57,23 +63,31 @@ class PipelineExpertAgent(BaseExpert):
 
     def _create_domain_agent(self, improvements: Optional[List[Dict[str, Any]]] = None) -> Any:
         """Create the pipeline generation agent."""
+
         class PipelineAgent:
             def __init__(self, output_format: str) -> None:
                 self.output_format = output_format
                 self.learned_patterns = []
-            
-            def forward(self, task: str = None, description: str = None, stages: List[str] = None, learned_improvements: List[Dict] = None, **kwargs: Any) -> Any:
+
+            def forward(
+                self,
+                task: str = None,
+                description: str = None,
+                stages: List[str] = None,
+                learned_improvements: List[Dict] = None,
+                **kwargs: Any,
+            ) -> Any:
                 """Generate pipeline diagram."""
-                result = type('Result', (), {})()
-                
+                result = type("Result", (), {})()
+
                 # Apply learned improvements if available
                 if learned_improvements:
                     for imp in learned_improvements:
-                        pattern = imp.get('teacher_output', '')
+                        pattern = imp.get("teacher_output", "")
                         if pattern:
                             result._store = {"output": pattern}
                             return result
-                
+
                 # Default: Generate basic pipeline
                 if self.output_format == "mermaid":
                     stages = stages or ["Build", "Test", "Deploy"]
@@ -85,38 +99,35 @@ class PipelineExpertAgent(BaseExpert):
                     result._store = {"output": mermaid.strip()}
                 else:
                     result._store = {"output": f"Pipeline: {description or 'default'}"}
-                
+
                 return result
-        
+
         return PipelineAgent(self.output_format)
-    
+
     def _create_domain_teacher(self) -> Any:
         """Create the pipeline teacher agent."""
+
         class PipelineTeacher:
             def forward(self, **kwargs: Any) -> Any:
                 """Provide correct pipeline diagram."""
-                result = type('Result', (), {})()
-                gold_standard = kwargs.get('gold_standard', '')
+                result = type("Result", (), {})()
+                gold_standard = kwargs.get("gold_standard", "")
                 result._store = {"output": gold_standard}
                 return result
-        
+
         return PipelineTeacher()
-    
+
     # =========================================================================
     # DOMAIN-SPECIFIC EVALUATION (BaseExpert interface)
     # =========================================================================
 
     async def _evaluate_domain(
-        self,
-        output: Any,
-        gold_standard: str,
-        task: str,
-        context: Dict[str, Any]
+        self, output: Any, gold_standard: str, task: str, context: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Evaluate pipeline diagram correctness."""
         output_str = str(output).strip()
         gold_str = str(gold_standard).strip()
-        
+
         # Check if it's Mermaid format
         if "graph" in output_str.lower() or "flowchart" in output_str.lower():
             has_graph = True
@@ -126,9 +137,9 @@ class PipelineExpertAgent(BaseExpert):
         else:
             # For other formats, basic validation
             syntax_valid = len(output_str) > 10
-        
+
         matches_gold = output_str == gold_str
-        
+
         if matches_gold:
             score = 1.0
             status = "CORRECT"
@@ -138,14 +149,14 @@ class PipelineExpertAgent(BaseExpert):
         else:
             score = 0.0
             status = "INCORRECT"
-        
+
         return {
             "score": score,
             "status": status,
             "syntax_valid": syntax_valid,
-            "matches_gold": matches_gold
+            "matches_gold": matches_gold,
         }
-    
+
     # =========================================================================
     # TRAINING AND VALIDATION DATA (BaseExpert interface)
     # =========================================================================
@@ -162,7 +173,7 @@ class PipelineExpertAgent(BaseExpert):
     B[Test]
     C[Deploy]
     A --> B
-    B --> C"""
+    B --> C""",
                 },
                 {
                     "task": "Generate complex pipeline",
@@ -179,12 +190,12 @@ class PipelineExpertAgent(BaseExpert):
     B --> D
     C --> E
     D --> E
-    E --> F"""
-                }
+    E --> F""",
+                },
             ]
         else:
             return []
-    
+
     def _get_default_validation_cases(self) -> List[Dict[str, Any]]:
         """Get default validation cases for pipelines."""
         if self.output_format == "mermaid":
@@ -199,17 +210,19 @@ class PipelineExpertAgent(BaseExpert):
     D[Deploy]
     A --> B
     B --> C
-    C --> D"""
+    C --> D""",
                 }
             ]
         else:
             return []
-    
+
     # =========================================================================
     # PUBLIC API
     # =========================================================================
 
-    async def generate_pipeline(self, stages: List[str], description: str = None, **kwargs: Any) -> str:
+    async def generate_pipeline(
+        self, stages: List[str], description: str = None, **kwargs: Any
+    ) -> str:
         """
         Generate a pipeline diagram.
 
@@ -225,8 +238,8 @@ class PipelineExpertAgent(BaseExpert):
         context = {
             "description": description or f"Pipeline with {len(stages)} stages",
             "stages": stages,
-            **kwargs
+            **kwargs,
         }
-        
+
         output = await self.generate(task=task, context=context)
         return str(output)

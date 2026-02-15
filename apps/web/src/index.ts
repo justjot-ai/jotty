@@ -1,6 +1,6 @@
 /**
  * Jotty Management UI - Standalone Deployable Interface
- * 
+ *
  * All Jotty-specific management components and pages
  */
 

@@ -89,7 +89,9 @@ class ExportCommand(BaseCommand):
             lines.append(f"## {role}\n\n{msg.content}\n\n---\n\n")
 
         path.write_text("".join(lines))
-        cli.renderer.success(f"Exported {len(cli.session.conversation_history)} messages to: {path}")
+        cli.renderer.success(
+            f"Exported {len(cli.session.conversation_history)} messages to: {path}"
+        )
 
         return CommandResult.ok(output=str(path))
 
@@ -102,7 +104,7 @@ class ExportCommand(BaseCommand):
         for msg in cli.session.conversation_history:
             if msg.role == "assistant":
                 # Extract code blocks
-                blocks = re.findall(r'```(\w*)\n(.*?)```', msg.content, re.DOTALL)
+                blocks = re.findall(r"```(\w*)\n(.*?)```", msg.content, re.DOTALL)
                 code_blocks.extend(blocks)
 
         if not code_blocks:

@@ -13,7 +13,7 @@ import asyncio
 import logging
 import os
 import threading
-from typing import Callable, Optional, Any
+from typing import Any, Callable, Optional
 
 # Ensure ANTHROPIC_API_KEY is in the environment for DSPy/litellm.
 # The native Anthropic SDK picks it up from .env files, but litellm doesn't.
@@ -21,6 +21,7 @@ if not os.environ.get("ANTHROPIC_API_KEY"):
     for env_file in (".env.anthropic", ".env"):
         try:
             from pathlib import Path
+
             env_path = Path(env_file)
             if not env_path.exists():
                 # Try project root
@@ -28,8 +29,8 @@ if not os.environ.get("ANTHROPIC_API_KEY"):
             if env_path.exists():
                 for line in env_path.read_text().splitlines():
                     line = line.strip()
-                    if line and not line.startswith('#') and '=' in line:
-                        key, _, val = line.partition('=')
+                    if line and not line.startswith("#") and "=" in line:
+                        key, _, val = line.partition("=")
                         if key.strip() == "ANTHROPIC_API_KEY" and val.strip():
                             os.environ["ANTHROPIC_API_KEY"] = val.strip()
                             break
@@ -53,9 +54,10 @@ def _extract_answer_from_output(output: Any) -> str:
     if isinstance(output, str):
         # Handle string representations of dicts (e.g. from skill results)
         stripped = output.strip()
-        if stripped.startswith('{') and stripped.endswith('}'):
+        if stripped.startswith("{") and stripped.endswith("}"):
             try:
                 import ast
+
                 parsed = ast.literal_eval(stripped)
                 if isinstance(parsed, dict):
                     return _extract_answer_from_output(parsed)
@@ -90,7 +92,16 @@ def _extract_answer_from_output(output: Any) -> str:
                 if isinstance(item, str) and len(item.strip()) > 2:
                     candidates.append(item.strip())
                 elif isinstance(item, dict):
-                    for f in ("content", "response", "text", "output", "result", "summary", "answer", "message"):
+                    for f in (
+                        "content",
+                        "response",
+                        "text",
+                        "output",
+                        "result",
+                        "summary",
+                        "answer",
+                        "message",
+                    ):
                         if f in item and item[f]:
                             candidates.append(str(item[f]).strip())
                             break
@@ -134,7 +145,7 @@ GAIA_SYSTEM_PROMPT = (
 )
 
 # Audio file extensions for tool routing
-AUDIO_EXTENSIONS = {'.mp3', '.wav', '.m4a', '.mp4', '.mpeg', '.mpga', '.webm'}
+AUDIO_EXTENSIONS = {".mp3", ".wav", ".m4a", ".mp4", ".mpeg", ".mpga", ".webm"}
 
 # Patterns that suggest the model refused instead of answering (for logging / retry).
 REFUSAL_PATTERNS = (
@@ -173,31 +184,62 @@ def _required_skills_for_gaia(question: str, attachment_paths: list) -> list:
     q_lower = question.lower()
 
     # Attachment-based skills
-    for path in (attachment_paths or []):
-        ext = ('.' + path.rsplit('.', 1)[-1].lower()) if '.' in path else ''
+    for path in attachment_paths or []:
+        ext = ("." + path.rsplit(".", 1)[-1].lower()) if "." in path else ""
         if ext in AUDIO_EXTENSIONS:
             skills.extend(["voice", "openai-whisper-api"])
-        elif ext in {'.xlsx', '.xls', '.csv'}:
+        elif ext in {".xlsx", ".xls", ".csv"}:
             skills.append("xlsx-tools")
-        elif ext == '.pdf':
+        elif ext == ".pdf":
             skills.append("pdf-tools")
-        elif ext in {'.jpg', '.jpeg', '.png', '.gif', '.bmp'}:
+        elif ext in {".jpg", ".jpeg", ".png", ".gif", ".bmp"}:
             skills.append("image-enhancer")  # For image analysis
         else:
             skills.append("file-operations")
 
     # Calculator for numerical/math questions
-    if any(kw in q_lower for kw in [
-        'calculat', 'how many', 'sum', 'average', 'comput', 'count',
-        'number', 'year', 'p-value', 'newton', 'round to', 'what is the',
-        'statistical', 'stock', 'price', 'when was', 'first year',
-        'total', 'percentage', 'multiply', 'divide', 'subtract'
-    ]):
+    if any(
+        kw in q_lower
+        for kw in [
+            "calculat",
+            "how many",
+            "sum",
+            "average",
+            "comput",
+            "count",
+            "number",
+            "year",
+            "p-value",
+            "newton",
+            "round to",
+            "what is the",
+            "statistical",
+            "stock",
+            "price",
+            "when was",
+            "first year",
+            "total",
+            "percentage",
+            "multiply",
+            "divide",
+            "subtract",
+        ]
+    ):
         skills.append("calculator")
 
     # YouTube transcript for video questions (CRITICAL for narrated content!)
-    if any(kw in q_lower for kw in ['youtube', 'video', 'vr video', '360 video',
-                                     'narrated', 'narrator', 'mentioned in the video']):
+    if any(
+        kw in q_lower
+        for kw in [
+            "youtube",
+            "video",
+            "vr video",
+            "360 video",
+            "narrated",
+            "narrator",
+            "mentioned in the video",
+        ]
+    ):
         skills.append("youtube-downloader")
         logger.info("[Skills] Added youtube-downloader for video/narration question")
 
@@ -223,7 +265,15 @@ class JottyGAIAAdapter:
         cost = adapter.last_result.cost_usd
     """
 
-    def __init__(self, tier: Optional[str] = None, model: Optional[str] = None, dry_run: bool = False, use_llm_doc_sources: bool = False, progress_callback: Optional[Callable[[str, str], None]] = None, num_attempts: int = 1) -> None:
+    def __init__(
+        self,
+        tier: Optional[str] = None,
+        model: Optional[str] = None,
+        dry_run: bool = False,
+        use_llm_doc_sources: bool = False,
+        progress_callback: Optional[Callable[[str, str], None]] = None,
+        num_attempts: int = 1,
+    ) -> None:
         """
         Args:
             tier: Execution tier name (DIRECT, AGENTIC, etc.). None = DIRECT (tool-calling optimized for GAIA).
@@ -250,10 +300,10 @@ class JottyGAIAAdapter:
 
         # Meta-learning: Track strategy performance across runs
         self._strategy_stats = {
-            'calculation': {'1': [], '2': [], '3': []},  # strategy -> [success_bools]
-            'search': {'1': [], '2': [], '3': []},
-            'hybrid': {'1': [], '2': [], '3': []},
-            'qualifier': {'1': [], '2': [], '3': []},
+            "calculation": {"1": [], "2": [], "3": []},  # strategy -> [success_bools]
+            "search": {"1": [], "2": [], "3": []},
+            "hybrid": {"1": [], "2": [], "3": []},
+            "qualifier": {"1": [], "2": [], "3": []},
         }
         self._load_strategy_stats()
 
@@ -261,6 +311,7 @@ class JottyGAIAAdapter:
         self._td_learner = None
         try:
             from Jotty.core.intelligence.learning import get_td_lambda
+
             self._td_learner = get_td_lambda()  # TD(λ) with eligibility traces
             logger.info("[RL] TD-Lambda learner initialized (gamma=0.99, λ=0.95)")
         except Exception as e:
@@ -276,27 +327,29 @@ class JottyGAIAAdapter:
             # Load Jotty/.env or .env.anthropic so ANTHROPIC_API_KEY etc. are available
             # (may not be in the environment when run from CI or Claude Code)
             base_path = Path(__file__).resolve().parent.parent.parent
-            env_path = base_path / '.env.anthropic'
+            env_path = base_path / ".env.anthropic"
             if not env_path.exists():
-                env_path = base_path / '.env'
+                env_path = base_path / ".env"
 
-            if env_path.exists() and not os.environ.get('ANTHROPIC_API_KEY'):
+            if env_path.exists() and not os.environ.get("ANTHROPIC_API_KEY"):
                 for line in env_path.read_text().splitlines():
                     line = line.strip()
-                    if line and not line.startswith('#') and '=' in line:
-                        key, _, value = line.partition('=')
+                    if line and not line.startswith("#") and "=" in line:
+                        key, _, value = line.partition("=")
                         os.environ.setdefault(key.strip(), value.strip())
 
             # Configure DSPy to use Anthropic API directly (not Claude CLI)
             # to avoid "cannot be launched inside another Claude Code session" errors
             try:
                 import dspy
+
                 api_lm = dspy.LM("anthropic/claude-sonnet-4-20250514")
                 dspy.configure(lm=api_lm)
             except Exception as e:
                 logger.debug(f"DSPy API LM configuration: {e}")
 
             from Jotty.jotty import Jotty
+
             self._jotty = Jotty()
         return self._jotty
 
@@ -319,7 +372,11 @@ class JottyGAIAAdapter:
         parts = [GAIA_SYSTEM_PROMPT]
         if self.use_llm_doc_sources:
             try:
-                from Jotty.core.infrastructure.monitoring.evaluation.llm_doc_sources import list_sources, to_context_snippet
+                from Jotty.core.infrastructure.monitoring.evaluation.llm_doc_sources import (
+                    list_sources,
+                    to_context_snippet,
+                )
+
                 sources = list_sources()
                 snippet = to_context_snippet(sources, max_items=6)
                 if snippet:
@@ -338,14 +395,14 @@ class JottyGAIAAdapter:
         if attachment_paths:
             parts.append("")
             for path in attachment_paths:
-                ext = ('.' + path.rsplit('.', 1)[-1].lower()) if '.' in path else ''
+                ext = ("." + path.rsplit(".", 1)[-1].lower()) if "." in path else ""
                 if ext in AUDIO_EXTENSIONS:
                     parts.append(
                         f"Attached audio file: {path}\n"
                         f"IMPORTANT: Use voice_to_text_tool with audio_path='{path}' to transcribe this audio file. "
                         f"Do NOT use read_file for audio. Read the full transcript before answering."
                     )
-                elif ext in {'.xlsx', '.xls', '.csv'}:
+                elif ext in {".xlsx", ".xls", ".csv"}:
                     parts.append(f"Attached spreadsheet: {path}\nUse read_file to read this file.")
                 else:
                     parts.append(f"Attached file: {path}\nUse read_file to read this file.")
@@ -380,36 +437,39 @@ class JottyGAIAAdapter:
         tier_to_use = force_tier or self.tier
         if tier_to_use:
             from Jotty.core.modes.execution.types import ExecutionTier
+
             tier_map = {t.name: t for t in ExecutionTier}
             tier_enum = tier_map.get(str(tier_to_use).upper())
             if tier_enum:
-                run_kwargs['tier'] = tier_enum
+                run_kwargs["tier"] = tier_enum
 
         if self.model:
             from Jotty.core.modes.execution.types import ExecutionConfig
-            run_kwargs['config'] = ExecutionConfig(model=self.model)
+
+            run_kwargs["config"] = ExecutionConfig(model=self.model)
         else:
             # GAIA requires deterministic answers - use temperature=0.0
             from Jotty.core.modes.execution.types import ExecutionConfig
-            run_kwargs['config'] = ExecutionConfig(temperature=0.0)
+
+            run_kwargs["config"] = ExecutionConfig(temperature=0.0)
 
         if self.progress_callback:
-            run_kwargs['status_callback'] = self.progress_callback
+            run_kwargs["status_callback"] = self.progress_callback
 
         # Bypass ComplexityGate so GAIA tasks always get full planning + tools
-        run_kwargs['skip_complexity_gate'] = True
+        run_kwargs["skip_complexity_gate"] = True
 
         # Inject explicit skills so the planner has voice/whisper/search available
-        run_kwargs['hint_skills'] = _required_skills_for_gaia(question, attachment_paths)
+        run_kwargs["hint_skills"] = _required_skills_for_gaia(question, attachment_paths)
 
         # Skip swarm keyword selection — GAIA system prompt contains words like
         # "report", "data", "content" that falsely match ReviewSwarm, DataAnalysisSwarm, etc.
         # This forces tier4/tier5 to go directly to the Orchestrator.
-        run_kwargs['skip_swarm_selection'] = True
+        run_kwargs["skip_swarm_selection"] = True
 
         # Mark as fact-retrieval task for curated tool selection (browser, PDF, web search, calculator)
         # This ensures executor uses the optimized tool set for GAIA (top performers use these tools)
-        run_kwargs['_intent'] = 'fact_retrieval'
+        run_kwargs["_intent"] = "fact_retrieval"
 
         # Forward any remaining kwargs (e.g. skip_validation=False from retry logic)
         run_kwargs.update(kwargs)
@@ -428,44 +488,49 @@ class JottyGAIAAdapter:
 
                 if i == 0:
                     # Attempt 1: Standard approach (deterministic, careful)
-                    attempt_kwargs['config'] = ExecutionConfig(temperature=0.0)
+                    attempt_kwargs["config"] = ExecutionConfig(temperature=0.0)
                     attempt_prompt = prompt
                     logger.info("[Strategy 1] Deterministic, careful approach")
 
                 elif i == 1:
                     # Attempt 2: Creative/exploratory (higher temp, emphasize tool usage)
-                    attempt_kwargs['config'] = ExecutionConfig(temperature=0.5)
-                    attempt_prompt = prompt + "\n\nIMPORTANT: Try multiple search queries and calculation methods to verify your answer."
+                    attempt_kwargs["config"] = ExecutionConfig(temperature=0.5)
+                    attempt_prompt = (
+                        prompt
+                        + "\n\nIMPORTANT: Try multiple search queries and calculation methods to verify your answer."
+                    )
                     logger.info("[Strategy 2] Creative exploration with multiple verification")
 
                 elif i == 2:
                     # Attempt 3: Alternative method (medium temp, reformulated approach)
                     # FIX: Added qualifier preservation to avoid over-extraction (learned from Task 3)
-                    attempt_kwargs['config'] = ExecutionConfig(temperature=0.3)
-                    attempt_prompt = prompt + "\n\nIMPORTANT: If your first approach doesn't give a clear answer, try a completely different search strategy or calculation method. Keep full qualifiers (species names, titles, brands) in your answer."
-                    logger.info("[Strategy 3] Alternative approach with reformulation + qualifier preservation")
+                    attempt_kwargs["config"] = ExecutionConfig(temperature=0.3)
+                    attempt_prompt = (
+                        prompt
+                        + "\n\nIMPORTANT: If your first approach doesn't give a clear answer, try a completely different search strategy or calculation method. Keep full qualifiers (species names, titles, brands) in your answer."
+                    )
+                    logger.info(
+                        "[Strategy 3] Alternative approach with reformulation + qualifier preservation"
+                    )
 
                 else:
                     # Additional attempts: Vary temperature
-                    attempt_kwargs['config'] = ExecutionConfig(temperature=0.2 + (i * 0.1))
+                    attempt_kwargs["config"] = ExecutionConfig(temperature=0.2 + (i * 0.1))
                     attempt_prompt = prompt
 
                 result = self._run_async(attempt_prompt, **attempt_kwargs)
                 raw = result.output if result else None
                 answer = _extract_answer_from_output(raw)
 
-                attempts.append({
-                    'answer': answer,
-                    'result': result,
-                    'raw': raw,
-                    'strategy': i + 1
-                })
+                attempts.append({"answer": answer, "result": result, "raw": raw, "strategy": i + 1})
                 logger.info(f"[Attempt {i+1}] Answer: {answer[:100] if answer else 'None'}")
 
                 # EARLY-STOPPING: If we have the expected answer and this attempt is correct, stop now
                 if expected_answer and answer:
                     if self._is_answer_correct(answer, expected_answer):
-                        logger.info(f"[Early-Stop] ✓ Attempt {i+1} correct! Skipping remaining {self.num_attempts - i - 1} attempts (saves time/cost)")
+                        logger.info(
+                            f"[Early-Stop] ✓ Attempt {i+1} correct! Skipping remaining {self.num_attempts - i - 1} attempts (saves time/cost)"
+                        )
                         break  # Stop here, don't run remaining attempts
 
             # Store attempts for meta-learning
@@ -476,15 +541,15 @@ class JottyGAIAAdapter:
 
             # Set last_result to the best one
             for attempt in attempts:
-                if attempt['answer'] == best_answer:
-                    self.last_result = attempt['result']
+                if attempt["answer"] == best_answer:
+                    self.last_result = attempt["result"]
                     self.last_raw_answer = best_answer
                     return best_answer
 
             # Fallback to first if no match
-            self.last_result = attempts[0]['result']
-            self.last_raw_answer = attempts[0]['answer']
-            return attempts[0]['answer']
+            self.last_result = attempts[0]["result"]
+            self.last_raw_answer = attempts[0]["answer"]
+            return attempts[0]["answer"]
 
         # Single attempt (original behavior)
         result = self._run_async(prompt, **run_kwargs)
@@ -510,28 +575,49 @@ class JottyGAIAAdapter:
         q_lower = question.lower()
 
         # Calculation indicators
-        calc_keywords = ['calculate', 'how many', 'what is the sum', 'multiply',
-                        'divide', 'percentage', '%', 'number of articles',
-                        'total', 'count', 'p-value']
+        calc_keywords = [
+            "calculate",
+            "how many",
+            "what is the sum",
+            "multiply",
+            "divide",
+            "percentage",
+            "%",
+            "number of articles",
+            "total",
+            "count",
+            "p-value",
+        ]
         has_calc = any(kw in q_lower for kw in calc_keywords)
 
         # Search indicators
-        search_keywords = ['who', 'what', 'when', 'where', 'which', 'name',
-                          'species', 'title', 'invented', 'founded', 'published']
+        search_keywords = [
+            "who",
+            "what",
+            "when",
+            "where",
+            "which",
+            "name",
+            "species",
+            "title",
+            "invented",
+            "founded",
+            "published",
+        ]
         has_search = any(kw in q_lower for kw in search_keywords)
 
         # Qualifier indicators (need to preserve full names/titles)
-        qualifier_keywords = ['species', 'full name', 'title', 'exact', 'specifically']
+        qualifier_keywords = ["species", "full name", "title", "exact", "specifically"]
         has_qualifier = any(kw in q_lower for kw in qualifier_keywords)
 
         if has_qualifier:
-            return 'qualifier'
+            return "qualifier"
         elif has_calc and has_search:
-            return 'hybrid'
+            return "hybrid"
         elif has_calc:
-            return 'calculation'
+            return "calculation"
         else:
-            return 'search'
+            return "search"
 
     def _detect_multimodal_requirements(self, question: str) -> Optional[str]:
         """
@@ -543,21 +629,35 @@ class JottyGAIAAdapter:
         q_lower = question.lower()
 
         # Video indicators (requires watching video content)
-        video_keywords = ['video', 'youtube', 'vr video', '360 video', 'shown in the video',
-                         'watch', 'appeared', 'displayed in']
+        video_keywords = [
+            "video",
+            "youtube",
+            "vr video",
+            "360 video",
+            "shown in the video",
+            "watch",
+            "appeared",
+            "displayed in",
+        ]
         if any(kw in q_lower for kw in video_keywords):
-            logger.warning(f"[Multimodal] ⚠️ Question requires VIDEO watching - accuracy may be limited")
-            return 'video'
+            logger.warning(
+                f"[Multimodal] ⚠️ Question requires VIDEO watching - accuracy may be limited"
+            )
+            return "video"
 
         # Audio indicators (requires listening, though we have whisper)
-        audio_keywords = ['listen', 'hear', 'narrated', 'voice', 'spoken', 'audio']
-        if any(kw in q_lower for kw in audio_keywords) and 'video' not in q_lower:
-            logger.info(f"[Multimodal] Question requires AUDIO - using whisper if attachment available")
-            return 'audio'
+        audio_keywords = ["listen", "hear", "narrated", "voice", "spoken", "audio"]
+        if any(kw in q_lower for kw in audio_keywords) and "video" not in q_lower:
+            logger.info(
+                f"[Multimodal] Question requires AUDIO - using whisper if attachment available"
+            )
+            return "audio"
 
         return None
 
-    def _select_best_answer(self, question: str, attempts: list, expected_answer: Optional[str] = None) -> str:
+    def _select_best_answer(
+        self, question: str, attempts: list, expected_answer: Optional[str] = None
+    ) -> str:
         """
         Select best answer using ensemble voting + intelligent scoring.
 
@@ -567,21 +667,23 @@ class JottyGAIAAdapter:
         3. Dynamic weights: Use real success rates, not hardcoded +30
         4. Validation check: Reuse _is_answer_correct() (DRY)
         """
-        import re
         import math
+        import re
         from collections import Counter
 
         question_type = self._classify_question_type(question)
         logger.info(f"[Meta-Learning] Question type: {question_type}")
 
         # IMPROVEMENT 1: ENSEMBLE VOTING (if 2+ attempts agree, use consensus)
-        answers = [a['answer'] for a in attempts if a['answer']]
+        answers = [a["answer"] for a in attempts if a["answer"]]
         if len(answers) >= 2:
             # Check for exact matches
             answer_counts = Counter(answers)
             most_common = answer_counts.most_common(1)[0]
             if most_common[1] >= 2:  # 2 or more agree
-                logger.info(f"[Ensemble] {most_common[1]}/{len(attempts)} attempts agree on: {most_common[0][:50]}")
+                logger.info(
+                    f"[Ensemble] {most_common[1]}/{len(attempts)} attempts agree on: {most_common[0][:50]}"
+                )
                 return most_common[0]
 
             # Check for numerical consensus (same ORDER OF MAGNITUDE - log scale)
@@ -623,14 +725,16 @@ class JottyGAIAAdapter:
                         median = sorted(cluster_values)[len(cluster_values) // 2]
                         best_in_cluster = min(largest_cluster, key=lambda x: abs(x[1] - median))
                         consensus_ans = best_in_cluster[0]
-                        logger.info(f"[Ensemble] Numerical consensus: {len(largest_cluster)}/{len(attempts)} agree on magnitude ~{best_in_cluster[1]:.2e}")
+                        logger.info(
+                            f"[Ensemble] Numerical consensus: {len(largest_cluster)}/{len(attempts)} agree on magnitude ~{best_in_cluster[1]:.2e}"
+                        )
                         return consensus_ans
 
         # IMPROVEMENT 2 & 3: SCORE WITH DYNAMIC WEIGHTS + MAGNITUDE
         scores = []
         for i, attempt in enumerate(attempts):
-            answer = attempt['answer']
-            strategy = attempt['strategy']
+            answer = attempt["answer"]
+            strategy = attempt["strategy"]
             score = 0.0
 
             # Base score: Use historical success rate (dynamic, not hardcoded +30)
@@ -641,12 +745,14 @@ class JottyGAIAAdapter:
                     if outcomes:
                         success_rate = sum(outcomes) / len(outcomes)
                         score += success_rate * 100  # 0-100 based on actual performance
-                        logger.info(f"[Dynamic] Strategy {strategy} for {question_type}: {success_rate:.0%} success → +{success_rate*100:.0f}")
+                        logger.info(
+                            f"[Dynamic] Strategy {strategy} for {question_type}: {success_rate:.0%} success → +{success_rate*100:.0f}"
+                        )
 
             # RL boost (if available)
             if self._td_learner:
-                state = {'question_type': question_type, 'attempt_num': i + 1}
-                action = {'strategy': str(strategy)}
+                state = {"question_type": question_type, "attempt_num": i + 1}
+                action = {"strategy": str(strategy)}
                 try:
                     q_value = self._td_learner.get_value(state, action)
                     if q_value and q_value != 0:
@@ -674,37 +780,48 @@ class JottyGAIAAdapter:
                     if answer_num is not None and expected_num is not None and expected_num != 0:
                         # Log-distance scoring (exponential penalty for being far off)
                         try:
-                            log_distance = abs(math.log10(abs(answer_num) + 1) - math.log10(abs(expected_num) + 1))
+                            log_distance = abs(
+                                math.log10(abs(answer_num) + 1) - math.log10(abs(expected_num) + 1)
+                            )
                             magnitude_score = max(0, 100 - log_distance * 30)
                             score += magnitude_score
-                            logger.info(f"[Magnitude] {answer_num:.2e} vs {expected_num:.2e} → distance={log_distance:.2f} → +{magnitude_score:.0f}")
+                            logger.info(
+                                f"[Magnitude] {answer_num:.2e} vs {expected_num:.2e} → distance={log_distance:.2f} → +{magnitude_score:.0f}"
+                            )
                         except (ValueError, OverflowError):
                             pass
 
             # Quality indicators (simple, proven heuristics)
-            if any(marker in answer.lower() for marker in ['i need to', 'let me', 'i cannot', 'error']):
+            if any(
+                marker in answer.lower() for marker in ["i need to", "let me", "i cannot", "error"]
+            ):
                 score -= 50
 
-            if not answer.endswith('?'):
+            if not answer.endswith("?"):
                 score += 5
 
             scores.append(score)
-            logger.info(f"[Attempt {i+1}] Total score: {score:.1f} for answer: {answer[:100] if answer else 'None'}")
+            logger.info(
+                f"[Attempt {i+1}] Total score: {score:.1f} for answer: {answer[:100] if answer else 'None'}"
+            )
 
         # Return highest scoring answer
         best_idx = scores.index(max(scores))
-        best_answer = attempts[best_idx]['answer']
-        best_strategy = attempts[best_idx]['strategy']
-        logger.info(f"[Selection] Chose attempt {best_idx+1} (Strategy {best_strategy}) with score {scores[best_idx]:.1f}")
+        best_answer = attempts[best_idx]["answer"]
+        best_strategy = attempts[best_idx]["strategy"]
+        logger.info(
+            f"[Selection] Chose attempt {best_idx+1} (Strategy {best_strategy}) with score {scores[best_idx]:.1f}"
+        )
 
         return best_answer
 
     def _load_strategy_stats(self) -> Any:
         """Load strategy performance stats from previous runs."""
         try:
-            from pathlib import Path
             import json
-            stats_path = Path.home() / '.jotty' / 'gaia_strategy_stats.json'
+            from pathlib import Path
+
+            stats_path = Path.home() / ".jotty" / "gaia_strategy_stats.json"
             if stats_path.exists():
                 self._strategy_stats = json.loads(stats_path.read_text())
                 logger.info(f"[Meta-Learning] Loaded strategy stats from {stats_path}")
@@ -714,9 +831,10 @@ class JottyGAIAAdapter:
     def _save_strategy_stats(self) -> Any:
         """Save strategy performance stats for future runs."""
         try:
-            from pathlib import Path
             import json
-            stats_path = Path.home() / '.jotty' / 'gaia_strategy_stats.json'
+            from pathlib import Path
+
+            stats_path = Path.home() / ".jotty" / "gaia_strategy_stats.json"
             stats_path.parent.mkdir(parents=True, exist_ok=True)
             stats_path.write_text(json.dumps(self._strategy_stats, indent=2))
             logger.info(f"[Meta-Learning] Saved strategy stats to {stats_path}")
@@ -736,8 +854,8 @@ class JottyGAIAAdapter:
         question_type = self._classify_question_type(question)
 
         for i, attempt in enumerate(attempts):
-            strategy_num = str(attempt['strategy'])
-            answer = attempt['answer'] or ''
+            strategy_num = str(attempt["strategy"])
+            answer = attempt["answer"] or ""
             # Simple correctness check (case-insensitive)
             is_correct = answer.lower().strip() == correct_answer.lower().strip()
 
@@ -746,18 +864,20 @@ class JottyGAIAAdapter:
 
             # RL Update: TD-Lambda learns Q(state, action) values
             state = {
-                'question_type': question_type,
-                'attempt_num': i + 1,
+                "question_type": question_type,
+                "attempt_num": i + 1,
             }
             action = {
-                'strategy': strategy_num,
-                'temperature': 0.0 if strategy_num == '1' else (0.5 if strategy_num == '2' else 0.3),
+                "strategy": strategy_num,
+                "temperature": (
+                    0.0 if strategy_num == "1" else (0.5 if strategy_num == "2" else 0.3)
+                ),
             }
             reward = 1.0 if is_correct else 0.0
             next_state = {
-                'question_type': question_type,
-                'attempt_num': i + 2,
-                'terminal': (i == len(attempts) - 1),
+                "question_type": question_type,
+                "attempt_num": i + 2,
+                "terminal": (i == len(attempts) - 1),
             }
 
             if self._td_learner:
@@ -768,7 +888,9 @@ class JottyGAIAAdapter:
                         reward=reward,
                         next_state=next_state,
                     )
-                    logger.info(f"[RL] TD-Lambda updated: {question_type} + Strategy {strategy_num} → reward={reward}")
+                    logger.info(
+                        f"[RL] TD-Lambda updated: {question_type} + Strategy {strategy_num} → reward={reward}"
+                    )
                 except Exception as e:
                     logger.warning(f"[RL] TD-Lambda update failed: {e}")
 
@@ -780,7 +902,9 @@ class JottyGAIAAdapter:
             for strat, outcomes in strategies.items():
                 if outcomes:
                     success_rate = sum(outcomes) / len(outcomes) * 100
-                    logger.info(f"[Meta-Learning] {qtype} + Strategy {strat}: {success_rate:.0f}% success ({sum(outcomes)}/{len(outcomes)})")
+                    logger.info(
+                        f"[Meta-Learning] {qtype} + Strategy {strat}: {success_rate:.0f}% success ({sum(outcomes)}/{len(outcomes)})"
+                    )
 
     def _extract_number(self, text: str) -> Optional[float]:
         """
@@ -804,24 +928,24 @@ class JottyGAIAAdapter:
 
         # Unit multipliers
         units = {
-            'trillion': 1e12,
-            'billion': 1e9,
-            'million': 1e6,
-            'thousand': 1e3,
-            'k': 1e3,
-            'm': 1e6,
-            'b': 1e9,
+            "trillion": 1e12,
+            "billion": 1e9,
+            "million": 1e6,
+            "thousand": 1e3,
+            "k": 1e3,
+            "m": 1e6,
+            "b": 1e9,
         }
 
         # Try to find number + optional unit
         # Patterns: "65 million", "65million", "65M", "65.5 billion"
-        pattern = r'([\d,.]+)\s*([a-z]*)'
+        pattern = r"([\d,.]+)\s*([a-z]*)"
         matches = re.findall(pattern, text)
 
         for num_str, unit in matches:
             try:
                 # Clean number string (remove commas)
-                num = float(num_str.replace(',', ''))
+                num = float(num_str.replace(",", ""))
 
                 # Apply unit multiplier
                 multiplier = units.get(unit.lower(), 1)
@@ -865,15 +989,15 @@ class JottyGAIAAdapter:
         # Numeric comparison with currency/% stripping
         def strip_currency_pct(s: str) -> str:
             s = s.strip()
-            if s.startswith('$'):
+            if s.startswith("$"):
                 s = s[1:]
-            if s.endswith('%'):
+            if s.endswith("%"):
                 s = s[:-1]
             return s.strip()
 
         try:
-            actual_num = float(strip_currency_pct(actual).replace(',', ''))
-            expected_num = float(strip_currency_pct(expected).replace(',', ''))
+            actual_num = float(strip_currency_pct(actual).replace(",", ""))
+            expected_num = float(strip_currency_pct(expected).replace(",", ""))
             if abs(actual_num - expected_num) < 0.01:
                 return True
             # Integer tolerance: accept within ±6 for whole numbers when both > 100
@@ -888,8 +1012,8 @@ class JottyGAIAAdapter:
             pass
 
         # Punctuation-removed text comparison
-        actual_clean = actual.translate(str.maketrans('', '', string.punctuation))
-        expected_clean = expected.translate(str.maketrans('', '', string.punctuation))
+        actual_clean = actual.translate(str.maketrans("", "", string.punctuation))
+        expected_clean = expected.translate(str.maketrans("", "", string.punctuation))
 
         if actual_clean and actual_clean == expected_clean:
             return True
@@ -910,7 +1034,11 @@ class JottyGAIAAdapter:
 
     def _ensure_loop_thread(self) -> None:
         """Start the dedicated event-loop thread if not already running."""
-        if self._loop is not None and self._loop_thread is not None and self._loop_thread.is_alive():
+        if (
+            self._loop is not None
+            and self._loop_thread is not None
+            and self._loop_thread.is_alive()
+        ):
             return
 
         def _run_loop() -> Any:
@@ -928,6 +1056,7 @@ class JottyGAIAAdapter:
 
     def _run_async(self, prompt: str, **kwargs: Any) -> Any:
         """Run the async Jotty.run() from sync context using a single long-lived loop."""
+
         async def _exec() -> Any:
             # Lazy-init Jotty in the loop thread so it uses this loop (avoids "Event loop is closed").
             jotty = self._get_jotty()
@@ -942,6 +1071,7 @@ class JottyGAIAAdapter:
         if running is not None:
             # Nested: run in a thread with a fresh loop (one-off).
             import concurrent.futures
+
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
                 future = pool.submit(self._run_async_standalone, prompt, **kwargs)
                 return future.result()

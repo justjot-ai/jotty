@@ -21,18 +21,20 @@ Usage:
     configure_jotty_claude()  # One-liner setup
 """
 
+import atexit
+import logging
 import os
+import shutil
+import signal
+import subprocess
 import sys
 import time
-import shutil
-import logging
-import subprocess
-import atexit
-import signal
 from pathlib import Path
 from typing import Any, Optional
-import requests
+
 import dspy
+import requests
+
 from Jotty.core.infrastructure.foundation.exceptions import LLMError
 
 logger = logging.getLogger(__name__)
@@ -69,7 +71,14 @@ class JottyClaudeProvider:
         cls._instance = None
         cls._server_process = None
 
-    def __init__(self, host: str = DEFAULT_HOST, port: int = DEFAULT_PORT, model: str = DEFAULT_MODEL, workspace: str = DEFAULT_WORKSPACE, auto_start: bool = True) -> None:
+    def __init__(
+        self,
+        host: str = DEFAULT_HOST,
+        port: int = DEFAULT_PORT,
+        model: str = DEFAULT_MODEL,
+        workspace: str = DEFAULT_WORKSPACE,
+        auto_start: bool = True,
+    ) -> None:
         """
         Initialize Jotty Claude Provider.
 
@@ -95,7 +104,7 @@ class JottyClaudeProvider:
         self.workspace.mkdir(parents=True, exist_ok=True)
 
         # Check if Claude CLI is available
-        self.claude_path = shutil.which('claude')
+        self.claude_path = shutil.which("claude")
         if not self.claude_path:
             raise LLMError(
                 "Claude CLI not found. Install with: npm install -g @anthropic-ai/claude-code"
@@ -111,10 +120,7 @@ class JottyClaudeProvider:
     def _is_server_running(self) -> bool:
         """Check if wrapper server is running."""
         try:
-            response = requests.get(
-                f"http://{self.host}:{self.port}/health",
-                timeout=2
-            )
+            response = requests.get(f"http://{self.host}:{self.port}/health", timeout=2)
             return response.status_code == 200
         except Exception:
             return False
@@ -129,13 +135,13 @@ class JottyClaudeProvider:
 
         try:
             # Build the server command
-            server_code = f'''
+            server_code = f"""
 import os
 os.environ['CLAUDE_CWD'] = '{self.workspace}'
 import uvicorn
 from src.main import app
 uvicorn.run(app, host='{self.host}', port={self.port}, log_level='warning')
-'''
+"""
 
             # Start server process (detached, survives Python exit)
             self._server_process = subprocess.Popen(
@@ -194,8 +200,11 @@ uvicorn.run(app, host='{self.host}', port={self.port}, log_level='warning')
 
         # Try OpenAI wrapper first (fastest)
         if self._is_server_running():
-            if self._lm is None or getattr(self._lm, '_model', None) != model:
-                from Jotty.core.infrastructure.foundation.config_defaults import LLM_MAX_OUTPUT_TOKENS
+            if self._lm is None or getattr(self._lm, "_model", None) != model:
+                from Jotty.core.infrastructure.foundation.config_defaults import (
+                    LLM_MAX_OUTPUT_TOKENS,
+                )
+
                 self._lm = dspy.LM(
                     model=f"openai/{model}",
                     api_base=self.base_url,
@@ -215,9 +224,11 @@ uvicorn.run(app, host='{self.host}', port={self.port}, log_level='warning')
         logger.warning(" Wrapper not available, using DirectClaudeCLI")
         try:
             from .direct_claude_cli_lm import DirectClaudeCLI
+
             return DirectClaudeCLI(model="sonnet")
         except ImportError:
             from ..integration.direct_claude_cli_lm import DirectClaudeCLI
+
             return DirectClaudeCLI(model="sonnet")
 
     def configure_dspy(self, model: Optional[str] = None) -> dspy.LM:
@@ -253,7 +264,10 @@ uvicorn.run(app, host='{self.host}', port={self.port}, log_level='warning')
 
 # Convenience functions
 
-def configure_jotty_claude(model: str = DEFAULT_MODEL, auto_start: bool = True, **kwargs: Any) -> dspy.LM:
+
+def configure_jotty_claude(
+    model: str = DEFAULT_MODEL, auto_start: bool = True, **kwargs: Any
+) -> dspy.LM:
     """
     One-liner to configure DSPy with Jotty's Claude provider.
 
@@ -277,4 +291,4 @@ def get_jotty_claude_provider(**kwargs: Any) -> JottyClaudeProvider:
 
 def is_claude_available() -> bool:
     """Check if Claude CLI is available on this system."""
-    return shutil.which('claude') is not None
+    return shutil.which("claude") is not None

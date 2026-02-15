@@ -9,44 +9,51 @@ Covers:
 - WorkflowAPI (workflow_api.py)
 """
 
-import pytest
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
 from enum import Enum
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+
+import pytest
 
 # --- Guarded imports ---
 
 try:
     from Jotty.core.interface.api.mode_router import RouteResult
+
     HAS_MODE_ROUTER = True
 except ImportError:
     HAS_MODE_ROUTER = False
 
 try:
     from Jotty.core.interface.api.mode_router import ModeRouter
+
     HAS_MODE_ROUTER_CLASS = True
 except ImportError:
     HAS_MODE_ROUTER_CLASS = False
 
 try:
     from Jotty.core.interface.api.mode_router import ExecutionMode
+
     HAS_EXECUTION_MODE = True
 except ImportError:
     HAS_EXECUTION_MODE = False
 
 try:
     from Jotty.core.interface.api.unified import JottyAPI
+
     HAS_JOTTY_API = True
 except ImportError:
     HAS_JOTTY_API = False
 
 try:
     from Jotty.core.interface.api.chat_api import ChatAPI
+
     HAS_CHAT_API = True
 except ImportError:
     HAS_CHAT_API = False
 
 try:
     from Jotty.core.interface.api.workflow_api import WorkflowAPI
+
     HAS_WORKFLOW_API = True
 except ImportError:
     HAS_WORKFLOW_API = False
@@ -63,6 +70,7 @@ def _make_execution_mode():
 # ---------------------------------------------------------------------------
 # RouteResult tests (1-5)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_MODE_ROUTER, reason="RouteResult import failed")
@@ -112,6 +120,7 @@ class TestRouteResultDefaults:
 # ModeRouter tests (6-8)
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_MODE_ROUTER_CLASS, reason="ModeRouter import failed")
 class TestModeRouter:
@@ -139,6 +148,7 @@ class TestModeRouter:
 # ---------------------------------------------------------------------------
 # JottyAPI tests (9-12)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_JOTTY_API, reason="JottyAPI import failed")
@@ -207,6 +217,7 @@ class TestJottyAPI:
 # ChatAPI tests (13-14)
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_CHAT_API, reason="ChatAPI import failed")
 class TestChatAPI:
@@ -245,6 +256,7 @@ class TestChatAPI:
 # ---------------------------------------------------------------------------
 # WorkflowAPI tests (15-17)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_WORKFLOW_API, reason="WorkflowAPI import failed")

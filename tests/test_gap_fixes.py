@@ -6,16 +6,17 @@ Gap 2: Adaptive learning controls refinement iteration count
 Gap 3: Curriculum tasks auto-queue on plateau → consumable via run_training_task
 """
 
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import patch, AsyncMock, MagicMock
 
-from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig, EpisodeResult
 from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
-
+from Jotty.core.infrastructure.foundation.data_structures import EpisodeResult, SwarmConfig
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _cfg():
     return SwarmConfig()
@@ -37,16 +38,24 @@ def _episode(success=True, output="ok"):
 
 
 def _agent_obj(name):
-    return type('A', (), {'name': name})()
+    return type("A", (), {"name": name})()
 
 
 def _agent_spec(name, capabilities=None):
     """Create an AgentConfig with a dummy agent."""
-    dummy = type('DummyAgent', (), {
-        'forward': lambda self, **kw: type('R', (), {'_store': {'output': 'ok'}, 'output': 'ok'})(),
-        '__call__': lambda self, **kw: type('R', (), {'_store': {'output': 'ok'}, 'output': 'ok'})(),
-        'config': type('C', (), {'system_prompt': None})(),
-    })()
+    dummy = type(
+        "DummyAgent",
+        (),
+        {
+            "forward": lambda self, **kw: type(
+                "R", (), {"_store": {"output": "ok"}, "output": "ok"}
+            )(),
+            "__call__": lambda self, **kw: type(
+                "R", (), {"_store": {"output": "ok"}, "output": "ok"}
+            )(),
+            "config": type("C", (), {"system_prompt": None})(),
+        },
+    )()
     spec = AgentConfig(name=name, agent=dummy)
     if capabilities:
         spec.capabilities = capabilities
@@ -55,12 +64,14 @@ def _agent_spec(name, capabilities=None):
 
 def _pipeline():
     from Jotty.core.intelligence.orchestration.learning_pipeline import SwarmLearningPipeline
+
     return SwarmLearningPipeline(_cfg())
 
 
 # ===========================================================================
 # Gap 1: Stigmergy + Byzantine influence agent selection in hot path
 # ===========================================================================
+
 
 class TestGap1AgentSelection:
     """
@@ -84,14 +95,14 @@ class TestGap1AgentSelection:
         lp = sm.learning
         for _ in range(5):
             lp.stigmergy.deposit(
-                signal_type='route',
-                content={'task_type': 'analysis', 'agent': 'strong', 'success': True},
-                agent='strong',
+                signal_type="route",
+                content={"task_type": "analysis", "agent": "strong", "success": True},
+                agent="strong",
                 strength=0.9,
             )
 
         # Before _execute_multi_agent, agents are [weak, strong]
-        assert sm.agents[0].name == 'weak'
+        assert sm.agents[0].name == "weak"
 
         # Trigger the intelligence-guided selection by calling the method
         # We'll mock the actual execution since we just want to test reordering
@@ -107,17 +118,17 @@ class TestGap1AgentSelection:
                 original_agents = [a.name for a in sm.agents]
                 return _episode(True, "relayed")
 
-            with patch.object(engine, '_paradigm_relay', side_effect=fake_relay):
+            with patch.object(engine, "_paradigm_relay", side_effect=fake_relay):
                 await sm._execute_multi_agent(
                     "Analyze the data trends",
-                    discussion_paradigm='relay',
+                    discussion_paradigm="relay",
                 )
 
             return original_agents
 
         result = asyncio.run(_test())
         # After stigmergy reorder, 'strong' should be first
-        assert result[0] == 'strong', f"Expected 'strong' first, got {result}"
+        assert result[0] == "strong", f"Expected 'strong' first, got {result}"
 
     def test_byzantine_filters_untrusted_agents(self):
         """Agents with trust < 0.2 should be excluded from execution."""
@@ -133,16 +144,16 @@ class TestGap1AgentSelection:
 
         # Destroy 'bad' agent's trust via byzantine
         lp = sm.learning
-        lp.byzantine_verifier.si.register_agent('bad')
+        lp.byzantine_verifier.si.register_agent("bad")
         for _ in range(10):
             lp.byzantine_verifier.verify_claim(
-                agent='bad',
+                agent="bad",
                 claimed_success=True,
                 actual_result=_episode(False),
             )
 
         # Confirm bad agent trust is near 0
-        assert lp.get_agent_trust('bad') < 0.2
+        assert lp.get_agent_trust("bad") < 0.2
 
         import asyncio
 
@@ -155,23 +166,24 @@ class TestGap1AgentSelection:
                 agents_at_dispatch = [a.name for a in sm.agents]
                 return _episode(True, "ok")
 
-            with patch.object(engine, '_paradigm_relay', side_effect=fake_relay):
+            with patch.object(engine, "_paradigm_relay", side_effect=fake_relay):
                 await sm._execute_multi_agent(
                     "Do some analysis",
-                    discussion_paradigm='relay',
+                    discussion_paradigm="relay",
                 )
 
             return agents_at_dispatch
 
         result = asyncio.run(_test())
         # 'bad' should be filtered out
-        assert 'bad' not in result, f"Untrusted 'bad' should be excluded, got {result}"
-        assert 'good' in result
+        assert "bad" not in result, f"Untrusted 'bad' should be excluded, got {result}"
+        assert "good" in result
 
 
 # ===========================================================================
 # Gap 2: Adaptive learning controls refinement iterations
 # ===========================================================================
+
 
 class TestGap2AdaptiveRefinement:
     """
@@ -228,10 +240,13 @@ class TestGap2AdaptiveRefinement:
         # With adaptive early stop, should NOT run all 5 iterations * 2 agents
         # First agent drafts (1 call), then should stop early before iterating
         # Expect: 1 (draft) + at most 1 iteration = ~2-3 calls, not 1+5=6
-        assert iteration_count <= 3, \
-            f"Adaptive early stop should limit iterations, got {iteration_count} calls"
+        assert (
+            iteration_count <= 3
+        ), f"Adaptive early stop should limit iterations, got {iteration_count} calls"
 
-    @pytest.mark.skip(reason="Refinement now delegates to ParadigmExecutor; _paradigm_run_agent patching doesn't reach internal executor")
+    @pytest.mark.skip(
+        reason="Refinement now delegates to ParadigmExecutor; _paradigm_run_agent patching doesn't reach internal executor"
+    )
     def test_refinement_runs_full_without_convergence(self):
         """Without convergence signal, refinement should run all iterations."""
         from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
@@ -248,6 +263,7 @@ class TestGap2AdaptiveRefinement:
         assert not sm.learning.adaptive_learning.should_stop_early()
 
         import asyncio
+
         iteration_count = 0
 
         async def _test():
@@ -273,13 +289,15 @@ class TestGap2AdaptiveRefinement:
         asyncio.run(_test())
 
         # Should run: 1 (draft) + 3 iterations * 1 editor = 4 calls
-        assert iteration_count >= 3, \
-            f"Without convergence, should run full iterations, got {iteration_count}"
+        assert (
+            iteration_count >= 3
+        ), f"Without convergence, should run full iterations, got {iteration_count}"
 
 
 # ===========================================================================
 # Gap 3: Curriculum tasks auto-queue on plateau, consumable
 # ===========================================================================
+
 
 class TestGap3CurriculumQueue:
     """
@@ -294,7 +312,7 @@ class TestGap3CurriculumQueue:
         lp = _pipeline()
 
         # Feed 10 failure episodes to trigger plateau
-        agent = _agent_obj('stagnant')
+        agent = _agent_obj("stagnant")
         for _ in range(10):
             lp.post_episode(
                 result=_episode(False),
@@ -304,13 +322,14 @@ class TestGap3CurriculumQueue:
             )
 
         # Adaptive learning should have detected plateau and queued tasks
-        assert lp.pending_training_count() >= 1, \
-            f"Expected queued training tasks on plateau, got {lp.pending_training_count()}"
+        assert (
+            lp.pending_training_count() >= 1
+        ), f"Expected queued training tasks on plateau, got {lp.pending_training_count()}"
 
     def test_training_tasks_are_consumable(self):
         """Queued tasks can be popped for execution."""
         lp = _pipeline()
-        agent = _agent_obj('stagnant')
+        agent = _agent_obj("stagnant")
 
         for _ in range(10):
             lp.post_episode(
@@ -325,28 +344,32 @@ class TestGap3CurriculumQueue:
 
         task = lp.pop_training_task()
         assert task is not None
-        assert hasattr(task, 'description')
-        assert hasattr(task, 'difficulty')
+        assert hasattr(task, "description")
+        assert hasattr(task, "difficulty")
 
         assert lp.pending_training_count() == count_before - 1
 
-    @pytest.mark.skip(reason="Byzantine quality checker flags short outputs even on success; test needs LLM-backed quality evaluator")
+    @pytest.mark.skip(
+        reason="Byzantine quality checker flags short outputs even on success; test needs LLM-backed quality evaluator"
+    )
     def test_no_queue_on_success_streak(self):
         """Successful episodes should NOT queue training tasks."""
         lp = _pipeline()
-        agent = _agent_obj('winner')
+        agent = _agent_obj("winner")
 
         # Use sufficiently long output to avoid 'output_too_short' quality flag
         for _ in range(10):
             lp.post_episode(
-                result=_episode(True, output="This is a sufficiently detailed successful output for the given task"),
+                result=_episode(
+                    True,
+                    output="This is a sufficiently detailed successful output for the given task",
+                ),
                 goal="Easy task",
                 agents=[agent],
                 architect_prompts=[],
             )
 
-        assert lp.pending_training_count() == 0, \
-            "Should NOT queue training tasks when succeeding"
+        assert lp.pending_training_count() == 0, "Should NOT queue training tasks when succeeding"
 
     def test_swarm_manager_exposes_pending_count(self):
         """Orchestrator.pending_training_tasks should reflect queue state."""
@@ -362,7 +385,7 @@ class TestGap3CurriculumQueue:
 
         # Force plateau
         lp = sm.learning
-        agent = _agent_obj('stagnant')
+        agent = _agent_obj("stagnant")
         for _ in range(10):
             lp.post_episode(
                 result=_episode(False),
@@ -376,7 +399,7 @@ class TestGap3CurriculumQueue:
     def test_queue_bounded(self):
         """Queue should not grow unbounded."""
         lp = _pipeline()
-        agent = _agent_obj('stagnant')
+        agent = _agent_obj("stagnant")
 
         # Feed 30 failures — more than queue limit (10)
         for _ in range(30):
@@ -387,5 +410,6 @@ class TestGap3CurriculumQueue:
                 architect_prompts=[],
             )
 
-        assert lp.pending_training_count() <= 10, \
-            f"Queue should be bounded to 10, got {lp.pending_training_count()}"
+        assert (
+            lp.pending_training_count() <= 10
+        ), f"Queue should be bounded to 10, got {lp.pending_training_count()}"

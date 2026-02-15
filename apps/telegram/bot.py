@@ -7,11 +7,12 @@ Processes messages through ChatExecutor and maintains sessions.
 Supports CLI slash commands via shared CommandRegistry.
 """
 
-import os
-import sys
 import asyncio
 import logging
-from typing import Optional, Callable, Dict, Any
+import os
+import sys
+from typing import Any, Callable, Dict, Optional
+
 from dotenv import load_dotenv
 
 # Add parent directory to path for imports
@@ -32,7 +33,7 @@ class TelegramBotHandler:
         self,
         token: Optional[str] = None,
         allowed_chat_ids: Optional[list] = None,
-        status_callback: Optional[Callable] = None
+        status_callback: Optional[Callable] = None,
     ):
         """
         Initialize Telegram bot handler.
@@ -74,7 +75,7 @@ class TelegramBotHandler:
         import dspy
 
         # Check if already configured
-        if hasattr(dspy.settings, 'lm') and dspy.settings.lm is not None:
+        if hasattr(dspy.settings, "lm") and dspy.settings.lm is not None:
             self._lm_configured = True
             logger.info(f"LM already configured in dspy.settings: {dspy.settings.lm}")
             return True
@@ -83,9 +84,10 @@ class TelegramBotHandler:
 
         # Suppress warnings during model loading (same as CLI)
         import warnings
-        os.environ.setdefault('HF_HUB_DISABLE_PROGRESS_BARS', '1')
-        os.environ.setdefault('TOKENIZERS_PARALLELISM', 'false')
-        warnings.filterwarnings('ignore', message='.*unauthenticated.*')
+
+        os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
+        os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
+        warnings.filterwarnings("ignore", message=".*unauthenticated.*")
 
         try:
             from core.foundation.unified_lm_provider import configure_dspy_lm
@@ -94,9 +96,9 @@ class TelegramBotHandler:
             lm = configure_dspy_lm()
             if lm:
                 self._lm_configured = True
-                model_name = getattr(lm, 'model', None) or getattr(lm, 'model_name', 'unknown')
-                if '/' in str(model_name):
-                    provider_name, model_short = str(model_name).split('/', 1)
+                model_name = getattr(lm, "model", None) or getattr(lm, "model_name", "unknown")
+                if "/" in str(model_name):
+                    provider_name, model_short = str(model_name).split("/", 1)
                 else:
                     provider_name = type(lm).__name__
                     model_short = str(model_name)
@@ -115,19 +117,25 @@ class TelegramBotHandler:
             try:
                 # Use unified CommandService (same as CLI, Web, Supervisor)
                 from core.services.command_service import get_command_service
+
                 service = get_command_service()
                 service._ensure_initialized()
                 self._command_registry = service._registry
-                logger.info(f"Command registry initialized via unified CommandService with {len(self._command_registry._commands)} commands")
+                logger.info(
+                    f"Command registry initialized via unified CommandService with {len(self._command_registry._commands)} commands"
+                )
             except Exception as e:
                 logger.error(f"Failed to initialize command registry: {e}")
                 # Fallback to direct import
                 try:
-                    from Jotty.apps.cli.commands.base import CommandRegistry
                     from Jotty.apps.cli.commands import register_all_commands
+                    from Jotty.apps.cli.commands.base import CommandRegistry
+
                     self._command_registry = CommandRegistry()
                     register_all_commands(self._command_registry)
-                    logger.info(f"Command registry initialized directly with {len(self._command_registry._commands)} commands")
+                    logger.info(
+                        f"Command registry initialized directly with {len(self._command_registry._commands)} commands"
+                    )
                 except Exception as e2:
                     logger.error(f"Fallback command registry also failed: {e2}")
         return self._command_registry
@@ -137,10 +145,13 @@ class TelegramBotHandler:
         if self._skills_registry is None:
             try:
                 from core.registry.skills_registry import get_skills_registry
+
                 self._skills_registry = get_skills_registry()
                 if not self._skills_registry.initialized:
                     self._skills_registry.init()
-                logger.info(f"Skills registry initialized with {len(self._skills_registry.loaded_skills)} skills")
+                logger.info(
+                    f"Skills registry initialized with {len(self._skills_registry.loaded_skills)} skills"
+                )
             except Exception as e:
                 logger.error(f"Failed to initialize skills registry: {e}")
         return self._skills_registry
@@ -149,9 +160,8 @@ class TelegramBotHandler:
         """Get or create ChatExecutor instance (auto-detects provider)."""
         if self._executor is None:
             from core.orchestration.unified_executor import ChatExecutor
-            self._executor = ChatExecutor(
-                status_callback=self._handle_status
-            )
+
+            self._executor = ChatExecutor(status_callback=self._handle_status)
         return self._executor
 
     def _get_session_registry(self):
@@ -164,9 +174,9 @@ class TelegramBotHandler:
     def _import_session_module(self):
         """Import session module with fallback for different run modes."""
         try:
-            from ..cli.repl.session import get_session_registry, InterfaceType
+            from ..cli.repl.session import InterfaceType, get_session_registry
         except ImportError:
-            from Jotty.apps.cli.repl.session import get_session_registry, InterfaceType
+            from Jotty.apps.cli.repl.session import InterfaceType, get_session_registry
         return get_session_registry, InterfaceType
 
     def _get_interface_type(self):
@@ -182,15 +192,15 @@ class TelegramBotHandler:
 
     def _markdown_to_html(self, text: str) -> str:
         """Convert markdown to Telegram HTML format."""
-        import re
         import html
+        import re
 
-        lines = text.split('\n')
+        lines = text.split("\n")
         result = []
 
         for line in lines:
             # Skip escaping for decoration lines
-            if line.strip() in ['═'*30, '─'*30, '━━━', '---', '***']:
+            if line.strip() in ["═" * 30, "─" * 30, "━━━", "---", "***"]:
                 result.append(line)
                 continue
 
@@ -199,24 +209,24 @@ class TelegramBotHandler:
 
             # Convert markdown to HTML
             # Bold: **text** or __text__ -> <b>text</b>
-            escaped = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', escaped)
-            escaped = re.sub(r'__(.+?)__', r'<b>\1</b>', escaped)
+            escaped = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", escaped)
+            escaped = re.sub(r"__(.+?)__", r"<b>\1</b>", escaped)
 
             # Italic: *text* -> <i>text</i> (but not if part of **)
-            escaped = re.sub(r'(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)', r'<i>\1</i>', escaped)
+            escaped = re.sub(r"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)", r"<i>\1</i>", escaped)
 
             # Code: `text` -> <code>text</code>
-            escaped = re.sub(r'`(.+?)`', r'<code>\1</code>', escaped)
+            escaped = re.sub(r"`(.+?)`", r"<code>\1</code>", escaped)
 
             # Headers: ## text -> <b>text</b>
-            escaped = re.sub(r'^#{1,6}\s+(.+)$', r'<b>\1</b>', escaped)
+            escaped = re.sub(r"^#{1,6}\s+(.+)$", r"<b>\1</b>", escaped)
 
             # Bullet points: - text or * text -> • text
-            escaped = re.sub(r'^[\-\*]\s+', '• ', escaped)
+            escaped = re.sub(r"^[\-\*]\s+", "• ", escaped)
 
             result.append(escaped)
 
-        return '\n'.join(result)
+        return "\n".join(result)
 
     def _check_allowed(self, chat_id: int) -> bool:
         """Check if chat ID is allowed."""
@@ -244,51 +254,39 @@ class TelegramBotHandler:
             # Send as document with appropriate caption
             caption = f"📄 {path.name}"
 
-            if suffix == '.pdf':
+            if suffix == ".pdf":
                 await update.message.reply_document(
-                    document=open(path, 'rb'),
-                    filename=path.name,
-                    caption=caption
+                    document=open(path, "rb"), filename=path.name, caption=caption
                 )
-            elif suffix in ['.docx', '.doc']:
+            elif suffix in [".docx", ".doc"]:
                 await update.message.reply_document(
-                    document=open(path, 'rb'),
-                    filename=path.name,
-                    caption=caption
+                    document=open(path, "rb"), filename=path.name, caption=caption
                 )
-            elif suffix in ['.png', '.jpg', '.jpeg', '.gif']:
-                await update.message.reply_photo(
-                    photo=open(path, 'rb'),
-                    caption=caption
-                )
-            elif suffix in ['.md', '.txt', '.json', '.csv']:
+            elif suffix in [".png", ".jpg", ".jpeg", ".gif"]:
+                await update.message.reply_photo(photo=open(path, "rb"), caption=caption)
+            elif suffix in [".md", ".txt", ".json", ".csv"]:
                 # For text files, send as document
                 await update.message.reply_document(
-                    document=open(path, 'rb'),
-                    filename=path.name,
-                    caption=caption
+                    document=open(path, "rb"), filename=path.name, caption=caption
                 )
             else:
                 # Generic file
                 await update.message.reply_document(
-                    document=open(path, 'rb'),
-                    filename=path.name,
-                    caption=caption
+                    document=open(path, "rb"), filename=path.name, caption=caption
                 )
 
             logger.info(f"Sent file to Telegram: {file_path}")
 
         except Exception as e:
             logger.error(f"Failed to send file to Telegram: {e}")
-            await update.message.reply_text(f"📁 File created: {file_path}\n(Could not send directly: {e})")
+            await update.message.reply_text(
+                f"📁 File created: {file_path}\n(Could not send directly: {e})"
+            )
 
     async def _send_typing(self, chat_id: int, application):
         """Send typing indicator."""
         try:
-            await application.bot.send_chat_action(
-                chat_id=chat_id,
-                action="typing"
-            )
+            await application.bot.send_chat_action(chat_id=chat_id, action="typing")
         except Exception as e:
             logger.debug(f"Failed to send typing: {e}")
 
@@ -299,16 +297,14 @@ class TelegramBotHandler:
         chat_id = update.effective_chat.id
 
         if not self._check_allowed(chat_id):
-            await update.message.reply_text(
-                "Sorry, you are not authorized to use this bot."
-            )
+            await update.message.reply_text("Sorry, you are not authorized to use this bot.")
             return
 
         await update.message.reply_text(
             f"👋 Welcome to Jotty Bot\\!\n\n"
             f"Your session ID: `tg_{chat_id}`\n\n"
             f"Send any message to get started, or use /help for commands\\.",
-            parse_mode="MarkdownV2"
+            parse_mode="MarkdownV2",
         )
 
     async def _handle_help(self, update, context):
@@ -318,10 +314,7 @@ class TelegramBotHandler:
         if not self._check_allowed(update.effective_chat.id):
             return
 
-        await update.message.reply_text(
-            TelegramRenderer.format_help(),
-            parse_mode="MarkdownV2"
-        )
+        await update.message.reply_text(TelegramRenderer.format_help(), parse_mode="MarkdownV2")
 
     async def _handle_status(self, update, context):
         """Handle /status command."""
@@ -336,13 +329,15 @@ class TelegramBotHandler:
 
         if session:
             from .renderer import TelegramRenderer
+
             info = session.to_dict()
             await update.message.reply_text(
-                TelegramRenderer.format_session_info(info),
-                parse_mode="MarkdownV2"
+                TelegramRenderer.format_session_info(info), parse_mode="MarkdownV2"
             )
         else:
-            await update.message.reply_text("✅ Bot is running\\. No active session\\.", parse_mode="MarkdownV2")
+            await update.message.reply_text(
+                "✅ Bot is running\\. No active session\\.", parse_mode="MarkdownV2"
+            )
 
     async def _handle_history(self, update, context):
         """Handle /history command."""
@@ -359,11 +354,12 @@ class TelegramBotHandler:
         if session:
             history = session.get_history(limit=10)
             await update.message.reply_text(
-                TelegramRenderer.format_history(history),
-                parse_mode="MarkdownV2"
+                TelegramRenderer.format_history(history), parse_mode="MarkdownV2"
             )
         else:
-            await update.message.reply_text("📭 No conversation history\\.", parse_mode="MarkdownV2")
+            await update.message.reply_text(
+                "📭 No conversation history\\.", parse_mode="MarkdownV2"
+            )
 
     async def _handle_clear(self, update, context):
         """Handle /clear command."""
@@ -379,7 +375,9 @@ class TelegramBotHandler:
         if session:
             session.clear_history()
             session.save()
-            await update.message.reply_text("🗑️ Conversation history cleared\\.", parse_mode="MarkdownV2")
+            await update.message.reply_text(
+                "🗑️ Conversation history cleared\\.", parse_mode="MarkdownV2"
+            )
         else:
             await update.message.reply_text("No session to clear\\.", parse_mode="MarkdownV2")
 
@@ -397,21 +395,19 @@ class TelegramBotHandler:
 
         info = session.to_dict()
         await update.message.reply_text(
-            TelegramRenderer.format_session_info(info),
-            parse_mode="MarkdownV2"
+            TelegramRenderer.format_session_info(info), parse_mode="MarkdownV2"
         )
 
     async def _handle_message(self, update, context):
         """Handle incoming text messages - routes to CLI commands or ChatExecutor."""
         from .renderer import TelegramRenderer
+
         InterfaceType = self._get_interface_type()
 
         chat_id = update.effective_chat.id
 
         if not self._check_allowed(chat_id):
-            await update.message.reply_text(
-                "Sorry, you are not authorized to use this bot."
-            )
+            await update.message.reply_text("Sorry, you are not authorized to use this bot.")
             return
 
         text = update.message.text or update.message.caption or ""
@@ -437,12 +433,16 @@ class TelegramBotHandler:
             metadata={
                 "message_id": update.message.message_id,
                 "username": update.message.from_user.username if update.message.from_user else None,
-            }
+            },
         )
 
         try:
             # Check if this is a CLI slash command (e.g., /run, /skills, /agents)
-            if text.startswith('/') and not text.startswith('/start') and not text.startswith('/help'):
+            if (
+                text.startswith("/")
+                and not text.startswith("/start")
+                and not text.startswith("/help")
+            ):
                 result = await self._handle_cli_command(text, update, session, InterfaceType)
                 return
 
@@ -481,7 +481,7 @@ class TelegramBotHandler:
             # Create executor with streaming (auto-detects provider)
             executor = ChatExecutor(
                 status_callback=status_callback,
-                stream_callback=lambda chunk: asyncio.create_task(stream_callback(chunk))
+                stream_callback=lambda chunk: asyncio.create_task(stream_callback(chunk)),
             )
 
             # Execute task
@@ -495,7 +495,9 @@ class TelegramBotHandler:
                 # Edit message with final content (convert markdown to HTML)
                 try:
                     # Truncate for Telegram (4096 char limit)
-                    display_content = final_content[:4000] if len(final_content) > 4000 else final_content
+                    display_content = (
+                        final_content[:4000] if len(final_content) > 4000 else final_content
+                    )
                     # Convert markdown to HTML for proper rendering
                     html_content = self._markdown_to_html(display_content)
                     await stream_msg.edit_text(html_content, parse_mode="HTML")
@@ -521,7 +523,7 @@ class TelegramBotHandler:
                         "output_format": result.output_format,
                         "output_path": result.output_path,
                         "steps": result.steps_taken,
-                    }
+                    },
                 )
 
                 # Send file if generated (deliver through Telegram, not just path)
@@ -535,9 +537,7 @@ class TelegramBotHandler:
 
         except Exception as e:
             logger.error(f"Message processing error: {e}", exc_info=True)
-            await update.message.reply_text(
-                TelegramRenderer.format_error(str(e))
-            )
+            await update.message.reply_text(TelegramRenderer.format_error(str(e)))
 
     async def _handle_cli_command(self, text: str, update, session, InterfaceType):
         """
@@ -562,7 +562,7 @@ class TelegramBotHandler:
         command = cmd_registry.get(cmd_name)
         if not command:
             # Try converting underscore to hyphen (Telegram uses underscore, CLI uses hyphen)
-            alt_name = cmd_name.replace('_', '-')
+            alt_name = cmd_name.replace("_", "-")
             command = cmd_registry.get(alt_name)
         if not command:
             # List available commands
@@ -575,6 +575,7 @@ class TelegramBotHandler:
         # Create a minimal CLI-like context for command execution
         class TelegramCLIContext:
             """Minimal CLI context for Telegram command execution."""
+
             def __init__(self, bot_handler, update_obj):
                 self.bot_handler = bot_handler
                 self.update = update_obj
@@ -583,31 +584,39 @@ class TelegramBotHandler:
                 self._output_history = []
 
                 # Build config with all required attributes
-                swarm_config = type('SwarmConfig', (), {
-                    'enable_learning': False,  # Used by learn command
-                    'learning_enabled': False,  # Alias
-                    'mode': 'single',
-                    'max_agents': 1
-                })()
+                swarm_config = type(
+                    "SwarmConfig",
+                    (),
+                    {
+                        "enable_learning": False,  # Used by learn command
+                        "learning_enabled": False,  # Alias
+                        "mode": "single",
+                        "max_agents": 1,
+                    },
+                )()
 
-                session_config = type('SessionConfig', (), {
-                    'auto_save': False,
-                    'history_size': 100
-                })()
+                session_config = type(
+                    "SessionConfig", (), {"auto_save": False, "history_size": 100}
+                )()
 
-                self.config = type('Config', (), {
-                    'debug': False,
-                    'session': session_config,
-                    'swarm': swarm_config,
-                    'learning': type('LearningConfig', (), {'enabled': False})(),
-                    'output_dir': '~/jotty/outputs'
-                })()
+                self.config = type(
+                    "Config",
+                    (),
+                    {
+                        "debug": False,
+                        "session": session_config,
+                        "swarm": swarm_config,
+                        "learning": type("LearningConfig", (), {"enabled": False})(),
+                        "output_dir": "~/jotty/outputs",
+                    },
+                )()
 
             async def get_swarm_manager(self):
                 """Get swarm manager (lazy)."""
                 if self._swarm_manager is None:
-                    from core.orchestration import Orchestrator
                     from core.foundation.data_structures import SwarmConfig
+                    from core.orchestration import Orchestrator
+
                     self._swarm_manager = Orchestrator(config=SwarmConfig())
                 return self._swarm_manager
 
@@ -616,6 +625,7 @@ class TelegramBotHandler:
 
         class TelegramCLIRenderer:
             """Full CLI renderer adapter for Telegram with real-time status streaming."""
+
             def __init__(self, update_obj):
                 self.update = update_obj
                 self._buffer = []
@@ -625,16 +635,30 @@ class TelegramBotHandler:
                 self.progress = self.ProgressAdapter(self)
 
             # Basic output methods
-            def info(self, msg): self._buffer.append(f"ℹ️ {msg}")
-            def success(self, msg): self._buffer.append(f"✅ {msg}")
-            def warning(self, msg): self._buffer.append(f"⚠️ {msg}")
-            def error(self, msg): self._buffer.append(f"❌ {msg}")
-            def print(self, msg): self._buffer.append(str(msg))
-            def newline(self): pass
+            def info(self, msg):
+                self._buffer.append(f"ℹ️ {msg}")
+
+            def success(self, msg):
+                self._buffer.append(f"✅ {msg}")
+
+            def warning(self, msg):
+                self._buffer.append(f"⚠️ {msg}")
+
+            def error(self, msg):
+                self._buffer.append(f"❌ {msg}")
+
+            def print(self, msg):
+                self._buffer.append(str(msg))
+
+            def newline(self):
+                pass
 
             # Headers and structure
-            def header(self, msg): self._buffer.append(f"\n{'═'*30}\n📌 {msg}\n{'═'*30}")
-            def subheader(self, msg): self._buffer.append(f"\n▸ {msg}")
+            def header(self, msg):
+                self._buffer.append(f"\n{'═'*30}\n📌 {msg}\n{'═'*30}")
+
+            def subheader(self, msg):
+                self._buffer.append(f"\n▸ {msg}")
 
             def status(self, msg):
                 """Buffer status - use send_status_async for real-time updates."""
@@ -644,6 +668,7 @@ class TelegramBotHandler:
             async def send_status_async(self, msg):
                 """Send status update immediately to Telegram (edit existing or send new)."""
                 import asyncio
+
                 self._status_history.append(msg)
 
                 # Build status display with history (plain text, no Markdown)
@@ -676,16 +701,22 @@ class TelegramBotHandler:
                     except:
                         pass
                     self._status_message = None
-            def divider(self): self._buffer.append("─" * 30)
-            def rule(self): self._buffer.append("─" * 30)
+
+            def divider(self):
+                self._buffer.append("─" * 30)
+
+            def rule(self):
+                self._buffer.append("─" * 30)
 
             def panel(self, content, **kwargs):
-                title = kwargs.get('title', '')
+                title = kwargs.get("title", "")
                 if title:
                     self._buffer.append(f"━━━ {title} ━━━\n{content}")
                 else:
                     self._buffer.append(content)
-            def markdown(self, content): self._buffer.append(content)
+
+            def markdown(self, content):
+                self._buffer.append(content)
 
             # Search/results display
             def search_query(self, query, count=None):
@@ -700,20 +731,30 @@ class TelegramBotHandler:
                 else:
                     self._buffer.append(f"✅ {tool_name}")
 
-            def step_progress(self, step, total, desc, status='running'):
-                icon = {'running': '⏳', 'done': '✅', 'failed': '❌'}.get(status, '▸')
+            def step_progress(self, step, total, desc, status="running"):
+                icon = {"running": "⏳", "done": "✅", "failed": "❌"}.get(status, "▸")
                 self._buffer.append(f"{icon} Step {step}/{total}: {desc}")
 
             # Additional methods used by CLI commands
-            def result(self, content): self._buffer.append(f"📊 Result:\n{content}")
-            def code(self, content, lang=""): self._buffer.append(f"```{lang}\n{content}\n```")
-            def goodbye(self, msg=""): self._buffer.append(f"👋 {msg or 'Goodbye!'}")
-            def clear(self): pass  # No-op for Telegram
-            def prompt(self): return "jotty> "  # Not used in Telegram but might be called
+            def result(self, content):
+                self._buffer.append(f"📊 Result:\n{content}")
+
+            def code(self, content, lang=""):
+                self._buffer.append(f"```{lang}\n{content}\n```")
+
+            def goodbye(self, msg=""):
+                self._buffer.append(f"👋 {msg or 'Goodbye!'}")
+
+            def clear(self):
+                pass  # No-op for Telegram
+
+            def prompt(self):
+                return "jotty> "  # Not used in Telegram but might be called
 
             def tree(self, data, title=""):
                 """Render dict/tree as formatted text."""
                 lines = [f"📋 {title}" if title else ""]
+
                 def _format_dict(d, indent=0):
                     for k, v in d.items():
                         prefix = "  " * indent
@@ -726,12 +767,14 @@ class TelegramBotHandler:
                                 lines.append(f"{prefix}  ...and {len(v) - 5} more")
                         else:
                             lines.append(f"{prefix}• {k}: {v}")
+
                 if isinstance(data, dict):
                     _format_dict(data)
                 self._buffer.append("\n".join(lines))
 
             class TablesAdapter:
                 """Adapter for table rendering."""
+
                 def __init__(self, renderer):
                     self.renderer = renderer
 
@@ -739,9 +782,9 @@ class TelegramBotHandler:
                     """Format skills as text table."""
                     lines = ["🔧 Skills:\n"]
                     for skill in skills[:20]:  # Limit to 20
-                        name = skill.get('name', 'unknown')
-                        desc = skill.get('description', '')[:50]
-                        tools_count = len(skill.get('tools', []))
+                        name = skill.get("name", "unknown")
+                        desc = skill.get("description", "")[:50]
+                        tools_count = len(skill.get("tools", []))
                         lines.append(f"• {name} ({tools_count} tools)\n  {desc}")
                     if len(skills) > 20:
                         lines.append(f"\n...and {len(skills) - 20} more")
@@ -753,16 +796,19 @@ class TelegramBotHandler:
 
             class ProgressAdapter:
                 """Adapter for progress indicators."""
+
                 def __init__(self, renderer):
                     self.renderer = renderer
 
                 def spinner(self, message=""):
                     """Return a context manager for spinner (no-op for Telegram)."""
                     from contextlib import contextmanager
+
                     @contextmanager
                     def _spinner():
                         self.renderer._buffer.append(f"⏳ {message}")
                         yield
+
                     return _spinner()
 
             async def flush(self):
@@ -785,7 +831,9 @@ class TelegramBotHandler:
                             except Exception as e2:
                                 # Last resort: truncate
                                 try:
-                                    await self.update.message.reply_text(chunk[:3500] + "\n...(truncated)")
+                                    await self.update.message.reply_text(
+                                        chunk[:3500] + "\n...(truncated)"
+                                    )
                                 except Exception as e3:
                                     logger.error(f"Failed to send message: {e3}")
 
@@ -793,17 +841,17 @@ class TelegramBotHandler:
 
             def _markdown_to_html(self, text):
                 """Convert basic markdown to Telegram HTML format."""
-                import re
                 import html
+                import re
 
                 # First escape HTML entities
                 # But preserve our emoji markers
-                lines = text.split('\n')
+                lines = text.split("\n")
                 result = []
 
                 for line in lines:
                     # Skip escaping for lines with just emojis/markers
-                    if line.strip() in ['═'*30, '─'*30, '━━━']:
+                    if line.strip() in ["═" * 30, "─" * 30, "━━━"]:
                         result.append(line)
                         continue
 
@@ -812,21 +860,21 @@ class TelegramBotHandler:
 
                     # Convert markdown to HTML
                     # Bold: **text** or __text__ -> <b>text</b>
-                    escaped = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', escaped)
-                    escaped = re.sub(r'__(.+?)__', r'<b>\1</b>', escaped)
+                    escaped = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", escaped)
+                    escaped = re.sub(r"__(.+?)__", r"<b>\1</b>", escaped)
 
                     # Italic: *text* or _text_ -> <i>text</i>
-                    escaped = re.sub(r'(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)', r'<i>\1</i>', escaped)
+                    escaped = re.sub(r"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)", r"<i>\1</i>", escaped)
 
                     # Code: `text` -> <code>text</code>
-                    escaped = re.sub(r'`(.+?)`', r'<code>\1</code>', escaped)
+                    escaped = re.sub(r"`(.+?)`", r"<code>\1</code>", escaped)
 
                     # Headers: ## text -> <b>text</b>
-                    escaped = re.sub(r'^#{1,3}\s+(.+)$', r'<b>\1</b>', escaped)
+                    escaped = re.sub(r"^#{1,3}\s+(.+)$", r"<b>\1</b>", escaped)
 
                     result.append(escaped)
 
-                return '\n'.join(result)
+                return "\n".join(result)
 
             def _split_message(self, text, max_len=4000):
                 """Split long message into chunks."""
@@ -839,7 +887,7 @@ class TelegramBotHandler:
                         chunks.append(text)
                         break
                     # Find a good break point
-                    break_point = text.rfind('\n', 0, max_len)
+                    break_point = text.rfind("\n", 0, max_len)
                     if break_point == -1:
                         break_point = max_len
                     chunks.append(text[:break_point])
@@ -853,55 +901,56 @@ class TelegramBotHandler:
                 # Escape special characters for MarkdownV2
                 # Must escape: _ * [ ] ( ) ~ ` > # + - = | { } . !
                 def escape_md(s):
-                    chars = r'_*[]()~`>#+=|{}.!-'
+                    chars = r"_*[]()~`>#+=|{}.!-"
                     for c in chars:
-                        s = s.replace(c, f'\\{c}')
+                        s = s.replace(c, f"\\{c}")
                     return s
 
                 # Process line by line to handle headers and formatting
-                lines = text.split('\n')
+                lines = text.split("\n")
                 result = []
 
                 for line in lines:
                     # Headers: ## Title -> *Title*
-                    if line.startswith('### '):
+                    if line.startswith("### "):
                         result.append(f"*{escape_md(line[4:])}*")
-                    elif line.startswith('## '):
+                    elif line.startswith("## "):
                         result.append(f"*{escape_md(line[3:])}*")
-                    elif line.startswith('# '):
+                    elif line.startswith("# "):
                         result.append(f"*{escape_md(line[2:])}*")
                     # Bold: **text** -> *text*
-                    elif '**' in line:
+                    elif "**" in line:
                         # Convert **bold** to *bold* and escape rest
-                        parts = re.split(r'\*\*(.+?)\*\*', line)
+                        parts = re.split(r"\*\*(.+?)\*\*", line)
                         processed = []
                         for i, part in enumerate(parts):
                             if i % 2 == 1:  # Bold part
                                 processed.append(f"*{escape_md(part)}*")
                             else:
                                 processed.append(escape_md(part))
-                        result.append(''.join(processed))
+                        result.append("".join(processed))
                     # Bullet points
-                    elif line.startswith('- ') or line.startswith('• '):
+                    elif line.startswith("- ") or line.startswith("• "):
                         result.append(f"• {escape_md(line[2:])}")
-                    elif line.startswith('* '):
+                    elif line.startswith("* "):
                         result.append(f"• {escape_md(line[2:])}")
                     # Code blocks (keep as is but escape)
-                    elif line.startswith('```'):
+                    elif line.startswith("```"):
                         result.append(line)  # Don't escape code block markers
                     # Links: [text](url) - keep format but escape text
-                    elif re.match(r'.*\[.+\]\(.+\).*', line):
+                    elif re.match(r".*\[.+\]\(.+\).*", line):
                         # Handle links specially
                         def replace_link(m):
                             text_part = m.group(1)
                             url_part = m.group(2)
                             return f"[{escape_md(text_part)}]({url_part})"
-                        line = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', replace_link, line)
+
+                        line = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", replace_link, line)
                         result.append(line)
                     else:
                         result.append(escape_md(line))
 
-                return '\n'.join(result)
+                return "\n".join(result)
 
         # Execute command with stdout capture (some CLI commands use print())
         try:
@@ -930,16 +979,16 @@ class TelegramBotHandler:
             await ctx.renderer.flush()
 
             # Send result message if any
-            if hasattr(result, 'message') and result.message:
+            if hasattr(result, "message") and result.message:
                 messages = TelegramRenderer.render(result.message, "text")
                 for msg in messages:
                     await update.message.reply_text(msg)
 
             # Send file if generated (deliver through Telegram channel)
             output_path = None
-            if hasattr(result, 'data') and isinstance(result.data, dict):
-                output_path = result.data.get('output_path')
-            if not output_path and hasattr(result, 'output_path'):
+            if hasattr(result, "data") and isinstance(result.data, dict):
+                output_path = result.data.get("output_path")
+            if not output_path and hasattr(result, "output_path"):
                 output_path = result.output_path
 
             if output_path:
@@ -950,7 +999,10 @@ class TelegramBotHandler:
                 role="assistant",
                 content=f"Command /{cmd_name} executed",
                 interface=InterfaceType.TELEGRAM,
-                metadata={"command": cmd_name, "success": result.success if hasattr(result, 'success') else True}
+                metadata={
+                    "command": cmd_name,
+                    "success": result.success if hasattr(result, "success") else True,
+                },
             )
 
         except Exception as e:
@@ -972,17 +1024,14 @@ class TelegramBotHandler:
         # CLI commands handler - routes /run, /skills, /agents, etc. to CLI
         application.add_handler(
             MessageHandler(
-                filters.Regex(r'^/(?!start|help|status|history|clear|session)\w+'),
-                self._handle_cli_command_wrapper
+                filters.Regex(r"^/(?!start|help|status|history|clear|session)\w+"),
+                self._handle_cli_command_wrapper,
             )
         )
 
         # Natural language message handler (must be last)
         application.add_handler(
-            MessageHandler(
-                filters.TEXT & ~filters.COMMAND,
-                self._handle_message
-            )
+            MessageHandler(filters.TEXT & ~filters.COMMAND, self._handle_message)
         )
 
     async def _handle_cli_command_wrapper(self, update, context):
@@ -1016,20 +1065,21 @@ class TelegramBotHandler:
         cmd_registry = self._get_command_registry()
         if cmd_registry:
             import re
+
             for name, cmd in sorted(cmd_registry._commands.items()):
                 # Skip telegram command (we're already in telegram) and UI-only commands
-                if name in ['telegram', 'web', 'browse', 'preview', 'resume']:
+                if name in ["telegram", "web", "browse", "preview", "resume"]:
                     continue
 
                 # Sanitize command name for Telegram (lowercase, alphanumeric + underscore only, min 2 chars)
-                tg_name = name.lower().replace('-', '_')
+                tg_name = name.lower().replace("-", "_")
                 # Skip if invalid (single char, too long, or bad chars)
-                if len(tg_name) < 2 or not re.match(r'^[a-z][a-z0-9_]{1,31}$', tg_name):
+                if len(tg_name) < 2 or not re.match(r"^[a-z][a-z0-9_]{1,31}$", tg_name):
                     logger.debug(f"Skipping invalid command name for Telegram: {name}")
                     continue
 
                 # Get description, truncate to 256 chars (Telegram limit)
-                desc = getattr(cmd, 'description', f'{name} command')[:256]
+                desc = getattr(cmd, "description", f"{name} command")[:256]
                 # Avoid duplicates
                 if not any(c.command == tg_name for c in commands):
                     commands.append(BotCommand(tg_name, desc))
@@ -1069,12 +1119,7 @@ class TelegramBotHandler:
         async def post_init(app):
             await self._set_telegram_commands(app)
 
-        application = (
-            Application.builder()
-            .token(self.token)
-            .post_init(post_init)
-            .build()
-        )
+        application = Application.builder().token(self.token).post_init(post_init).build()
 
         # Setup handlers
         self.setup_handlers(application)
@@ -1086,8 +1131,7 @@ class TelegramBotHandler:
 
         # Run polling
         application.run_polling(
-            allowed_updates=["message", "edited_message"],
-            drop_pending_updates=True
+            allowed_updates=["message", "edited_message"], drop_pending_updates=True
         )
 
     async def run_async(self):
@@ -1108,8 +1152,7 @@ class TelegramBotHandler:
         await application.initialize()
         await application.start()
         await application.updater.start_polling(
-            allowed_updates=["message", "edited_message"],
-            drop_pending_updates=True
+            allowed_updates=["message", "edited_message"], drop_pending_updates=True
         )
 
         logger.info("Bot is running asynchronously.")

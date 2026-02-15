@@ -37,7 +37,7 @@ export async function GET(
 
     const { db } = await connectToDatabase();
     const collectionName = ENTITY_COLLECTIONS[type];
-    
+
     const entity = await db.collection(collectionName).findOne({
       _id: new ObjectId(params.id),
       userId,
@@ -85,7 +85,7 @@ export async function PUT(
 
     const { db } = await connectToDatabase();
     const collectionName = ENTITY_COLLECTIONS[type];
-    
+
     const existingEntity = await db.collection(collectionName).findOne({
       _id: new ObjectId(params.id),
       userId,

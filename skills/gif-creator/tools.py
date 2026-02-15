@@ -4,13 +4,14 @@ GIF Creator Skill
 GIF creation toolkit using Pillow for creating animated GIFs,
 text animations, loading spinners, and optimizing GIFs.
 """
-import os
+
 import logging
 import math
-from typing import Dict, Any, List, Tuple
+import os
+from typing import Any, Dict, List, Tuple
 
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("gif-creator")
@@ -27,6 +28,7 @@ class GIFCreator:
         """Check if Pillow is available and return the module."""
         try:
             from PIL import Image, ImageDraw, ImageFont
+
             return Image, ImageDraw, ImageFont
         except ImportError:
             return None, None, None
@@ -34,14 +36,15 @@ class GIFCreator:
     @staticmethod
     def _hex_to_rgb(hex_color: str) -> Tuple[int, int, int]:
         """Convert hex color to RGB tuple."""
-        hex_color = hex_color.lstrip('#')
-        return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+        hex_color = hex_color.lstrip("#")
+        return tuple(int(hex_color[i : i + 2], 16) for i in (0, 2, 4))
 
     @staticmethod
     def _get_font(size: int = 24):
         """Get a font, falling back to default if necessary."""
         try:
             from PIL import ImageFont
+
             # Try common font paths
             font_paths = [
                 "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
@@ -56,6 +59,7 @@ class GIFCreator:
             return ImageFont.load_default()
         except Exception:
             from PIL import ImageFont
+
             return ImageFont.load_default()
 
 
@@ -74,21 +78,21 @@ def create_gif_from_images_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success status, file_path, and frame_count
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     Image, ImageDraw, ImageFont = GIFCreator._ensure_pillow()
     if Image is None:
-        return {'success': False, 'error': 'Pillow not installed. Install with: pip install Pillow'}
+        return {"success": False, "error": "Pillow not installed. Install with: pip install Pillow"}
 
-    image_paths = params.get('image_paths', [])
-    output_path = params.get('output_path')
-    duration = params.get('duration', 500)
-    loop = params.get('loop', 0)
+    image_paths = params.get("image_paths", [])
+    output_path = params.get("output_path")
+    duration = params.get("duration", 500)
+    loop = params.get("loop", 0)
 
     if not image_paths:
-        return {'success': False, 'error': 'image_paths parameter is required'}
+        return {"success": False, "error": "image_paths parameter is required"}
     if not output_path:
-        return {'success': False, 'error': 'output_path parameter is required'}
+        return {"success": False, "error": "output_path parameter is required"}
 
     try:
         # Ensure output directory exists
@@ -97,22 +101,22 @@ def create_gif_from_images_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         frames = []
         for path in image_paths:
             if not os.path.exists(path):
-                return {'success': False, 'error': f'Image file not found: {path}'}
-            img = Image.open(path).convert('RGBA')
+                return {"success": False, "error": f"Image file not found: {path}"}
+            img = Image.open(path).convert("RGBA")
             frames.append(img)
 
         if not frames:
-            return {'success': False, 'error': 'No valid images found'}
+            return {"success": False, "error": "No valid images found"}
 
         # Convert to palette mode for GIF
         palette_frames = []
         for frame in frames:
             # Convert RGBA to RGB with white background
-            if frame.mode == 'RGBA':
-                background = Image.new('RGB', frame.size, (255, 255, 255))
+            if frame.mode == "RGBA":
+                background = Image.new("RGB", frame.size, (255, 255, 255))
                 background.paste(frame, mask=frame.split()[3])
                 frame = background
-            palette_frames.append(frame.convert('P', palette=Image.ADAPTIVE, colors=256))
+            palette_frames.append(frame.convert("P", palette=Image.ADAPTIVE, colors=256))
 
         # Save GIF
         palette_frames[0].save(
@@ -121,21 +125,21 @@ def create_gif_from_images_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             append_images=palette_frames[1:],
             duration=duration,
             loop=loop,
-            optimize=True
+            optimize=True,
         )
 
         logger.info(f"GIF created from {len(frames)} images: {output_path}")
 
         return {
-            'success': True,
-            'file_path': output_path,
-            'frame_count': len(frames),
-            'duration_per_frame': duration
+            "success": True,
+            "file_path": output_path,
+            "frame_count": len(frames),
+            "duration_per_frame": duration,
         }
 
     except Exception as e:
         logger.error(f"GIF creation failed: {e}", exc_info=True)
-        return {'success': False, 'error': f'GIF creation failed: {str(e)}'}
+        return {"success": False, "error": f"GIF creation failed: {str(e)}"}
 
 
 @tool_wrapper()
@@ -155,23 +159,23 @@ def create_text_animation_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success status and file_path
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     Image, ImageDraw, ImageFont = GIFCreator._ensure_pillow()
     if Image is None:
-        return {'success': False, 'error': 'Pillow not installed. Install with: pip install Pillow'}
+        return {"success": False, "error": "Pillow not installed. Install with: pip install Pillow"}
 
-    text = params.get('text')
-    output_path = params.get('output_path')
-    animation = params.get('animation', 'fade')
-    size = params.get('size', (400, 200))
-    bg_color = params.get('bg_color', '#ffffff')
-    text_color = params.get('text_color', '#000000')
+    text = params.get("text")
+    output_path = params.get("output_path")
+    animation = params.get("animation", "fade")
+    size = params.get("size", (400, 200))
+    bg_color = params.get("bg_color", "#ffffff")
+    text_color = params.get("text_color", "#000000")
 
     if not text:
-        return {'success': False, 'error': 'text parameter is required'}
+        return {"success": False, "error": "text parameter is required"}
     if not output_path:
-        return {'success': False, 'error': 'output_path parameter is required'}
+        return {"success": False, "error": "output_path parameter is required"}
 
     # Handle size as list or tuple
     if isinstance(size, list):
@@ -187,16 +191,15 @@ def create_text_animation_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         n_frames = 20
         font = GIFCreator._get_font(32)
 
-        if animation == 'fade':
+        if animation == "fade":
             # Fade in animation
             for i in range(n_frames):
-                img = Image.new('RGB', size, bg_rgb)
+                img = Image.new("RGB", size, bg_rgb)
                 draw = ImageDraw.Draw(img)
                 alpha = int(255 * (i / (n_frames - 1)))
                 # Blend text color with background based on alpha
                 blended = tuple(
-                    int(bg_rgb[j] + (text_rgb[j] - bg_rgb[j]) * (alpha / 255))
-                    for j in range(3)
+                    int(bg_rgb[j] + (text_rgb[j] - bg_rgb[j]) * (alpha / 255)) for j in range(3)
                 )
                 bbox = draw.textbbox((0, 0), text, font=font)
                 text_width = bbox[2] - bbox[0]
@@ -206,15 +209,15 @@ def create_text_animation_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                 draw.text((x, y), text, fill=blended, font=font)
                 frames.append(img)
 
-        elif animation == 'slide':
+        elif animation == "slide":
             # Slide in from left
-            bbox = ImageDraw.Draw(Image.new('RGB', size)).textbbox((0, 0), text, font=font)
+            bbox = ImageDraw.Draw(Image.new("RGB", size)).textbbox((0, 0), text, font=font)
             text_width = bbox[2] - bbox[0]
             text_height = bbox[3] - bbox[1]
             y = (size[1] - text_height) // 2
 
             for i in range(n_frames):
-                img = Image.new('RGB', size, bg_rgb)
+                img = Image.new("RGB", size, bg_rgb)
                 draw = ImageDraw.Draw(img)
                 progress = i / (n_frames - 1)
                 # Ease out cubic
@@ -223,16 +226,16 @@ def create_text_animation_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                 draw.text((x, y), text, fill=text_rgb, font=font)
                 frames.append(img)
 
-        elif animation == 'bounce':
+        elif animation == "bounce":
             # Bounce animation
-            bbox = ImageDraw.Draw(Image.new('RGB', size)).textbbox((0, 0), text, font=font)
+            bbox = ImageDraw.Draw(Image.new("RGB", size)).textbbox((0, 0), text, font=font)
             text_width = bbox[2] - bbox[0]
             text_height = bbox[3] - bbox[1]
             x = (size[0] - text_width) // 2
             center_y = (size[1] - text_height) // 2
 
             for i in range(n_frames):
-                img = Image.new('RGB', size, bg_rgb)
+                img = Image.new("RGB", size, bg_rgb)
                 draw = ImageDraw.Draw(img)
                 # Bounce using sine wave
                 offset = int(30 * abs(math.sin(i * math.pi / (n_frames / 2))))
@@ -240,28 +243,31 @@ def create_text_animation_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                 draw.text((x, y), text, fill=text_rgb, font=font)
                 frames.append(img)
 
-        elif animation == 'typewriter':
+        elif animation == "typewriter":
             # Typewriter effect
-            bbox = ImageDraw.Draw(Image.new('RGB', size)).textbbox((0, 0), text, font=font)
+            bbox = ImageDraw.Draw(Image.new("RGB", size)).textbbox((0, 0), text, font=font)
             text_height = bbox[3] - bbox[1]
             y = (size[1] - text_height) // 2
 
             for i in range(len(text) + 5):  # +5 for pause at end
-                img = Image.new('RGB', size, bg_rgb)
+                img = Image.new("RGB", size, bg_rgb)
                 draw = ImageDraw.Draw(img)
-                partial_text = text[:min(i + 1, len(text))]
+                partial_text = text[: min(i + 1, len(text))]
                 partial_bbox = draw.textbbox((0, 0), partial_text, font=font)
                 partial_width = partial_bbox[2] - partial_bbox[0]
                 x = (size[0] - partial_width) // 2
                 draw.text((x, y), partial_text, fill=text_rgb, font=font)
                 frames.append(img)
         else:
-            return {'success': False, 'error': f"Unknown animation type: {animation}. Use 'fade', 'slide', 'bounce', or 'typewriter'"}
+            return {
+                "success": False,
+                "error": f"Unknown animation type: {animation}. Use 'fade', 'slide', 'bounce', or 'typewriter'",
+            }
 
         # Convert to palette mode and save
-        palette_frames = [f.convert('P', palette=Image.ADAPTIVE, colors=256) for f in frames]
+        palette_frames = [f.convert("P", palette=Image.ADAPTIVE, colors=256) for f in frames]
 
-        duration = 100 if animation != 'typewriter' else 150
+        duration = 100 if animation != "typewriter" else 150
 
         palette_frames[0].save(
             output_path,
@@ -269,21 +275,21 @@ def create_text_animation_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             append_images=palette_frames[1:],
             duration=duration,
             loop=0,
-            optimize=True
+            optimize=True,
         )
 
         logger.info(f"Text animation GIF created: {output_path}")
 
         return {
-            'success': True,
-            'file_path': output_path,
-            'animation': animation,
-            'frame_count': len(frames)
+            "success": True,
+            "file_path": output_path,
+            "animation": animation,
+            "frame_count": len(frames),
         }
 
     except Exception as e:
         logger.error(f"Text animation creation failed: {e}", exc_info=True)
-        return {'success': False, 'error': f'Text animation creation failed: {str(e)}'}
+        return {"success": False, "error": f"Text animation creation failed: {str(e)}"}
 
 
 @tool_wrapper()
@@ -301,19 +307,19 @@ def create_loading_spinner_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success status and file_path
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     Image, ImageDraw, ImageFont = GIFCreator._ensure_pillow()
     if Image is None:
-        return {'success': False, 'error': 'Pillow not installed. Install with: pip install Pillow'}
+        return {"success": False, "error": "Pillow not installed. Install with: pip install Pillow"}
 
-    output_path = params.get('output_path')
-    size = params.get('size', 64)
-    color = params.get('color', '#0066cc')
-    style = params.get('style', 'dots')
+    output_path = params.get("output_path")
+    size = params.get("size", 64)
+    color = params.get("color", "#0066cc")
+    style = params.get("style", "dots")
 
     if not output_path:
-        return {'success': False, 'error': 'output_path parameter is required'}
+        return {"success": False, "error": "output_path parameter is required"}
 
     try:
         os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
@@ -322,11 +328,11 @@ def create_loading_spinner_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         frames = []
         n_frames = 12
 
-        if style == 'dots':
+        if style == "dots":
             # Rotating dots spinner
             n_dots = 8
             for frame_idx in range(n_frames):
-                img = Image.new('RGBA', (size, size), (255, 255, 255, 0))
+                img = Image.new("RGBA", (size, size), (255, 255, 255, 0))
                 draw = ImageDraw.Draw(img)
                 center = size // 2
                 radius = size // 3
@@ -334,7 +340,7 @@ def create_loading_spinner_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
                 for dot_idx in range(n_dots):
                     angle = (2 * math.pi * dot_idx / n_dots) - (math.pi / 2)
-                    angle += (2 * math.pi * frame_idx / n_frames)
+                    angle += 2 * math.pi * frame_idx / n_frames
                     x = center + int(radius * math.cos(angle))
                     y = center + int(radius * math.sin(angle))
 
@@ -344,14 +350,14 @@ def create_loading_spinner_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
                     draw.ellipse(
                         [x - dot_radius, y - dot_radius, x + dot_radius, y + dot_radius],
-                        fill=dot_color
+                        fill=dot_color,
                     )
                 frames.append(img)
 
-        elif style == 'circle':
+        elif style == "circle":
             # Arc spinner
             for frame_idx in range(n_frames):
-                img = Image.new('RGBA', (size, size), (255, 255, 255, 0))
+                img = Image.new("RGBA", (size, size), (255, 255, 255, 0))
                 draw = ImageDraw.Draw(img)
                 padding = size // 8
                 start_angle = int(360 * frame_idx / n_frames)
@@ -361,18 +367,18 @@ def create_loading_spinner_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                     start=start_angle,
                     end=start_angle + 270,
                     fill=color_rgb,
-                    width=size // 8
+                    width=size // 8,
                 )
                 frames.append(img)
 
-        elif style == 'bars':
+        elif style == "bars":
             # Equalizer-style bars
             n_bars = 5
             bar_width = size // (n_bars * 2)
             spacing = size // n_bars
 
             for frame_idx in range(n_frames):
-                img = Image.new('RGBA', (size, size), (255, 255, 255, 0))
+                img = Image.new("RGBA", (size, size), (255, 255, 255, 0))
                 draw = ImageDraw.Draw(img)
 
                 for bar_idx in range(n_bars):
@@ -384,24 +390,24 @@ def create_loading_spinner_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                     x = spacing // 2 + bar_idx * spacing
                     y = size - (size - bar_height) // 2 - bar_height
 
-                    draw.rectangle(
-                        [x, y, x + bar_width, y + bar_height],
-                        fill=(*color_rgb, 255)
-                    )
+                    draw.rectangle([x, y, x + bar_width, y + bar_height], fill=(*color_rgb, 255))
                 frames.append(img)
         else:
-            return {'success': False, 'error': f"Unknown style: {style}. Use 'dots', 'circle', or 'bars'"}
+            return {
+                "success": False,
+                "error": f"Unknown style: {style}. Use 'dots', 'circle', or 'bars'",
+            }
 
         # Convert RGBA to palette with transparency
         palette_frames = []
         for frame in frames:
             # Convert to RGB with white background for GIF
-            background = Image.new('RGB', frame.size, (255, 255, 255))
-            if frame.mode == 'RGBA':
+            background = Image.new("RGB", frame.size, (255, 255, 255))
+            if frame.mode == "RGBA":
                 background.paste(frame, mask=frame.split()[3])
             else:
                 background.paste(frame)
-            palette_frames.append(background.convert('P', palette=Image.ADAPTIVE, colors=256))
+            palette_frames.append(background.convert("P", palette=Image.ADAPTIVE, colors=256))
 
         palette_frames[0].save(
             output_path,
@@ -410,22 +416,22 @@ def create_loading_spinner_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             duration=80,
             loop=0,
             optimize=True,
-            transparency=255
+            transparency=255,
         )
 
         logger.info(f"Loading spinner GIF created: {output_path}")
 
         return {
-            'success': True,
-            'file_path': output_path,
-            'style': style,
-            'size': size,
-            'frame_count': len(frames)
+            "success": True,
+            "file_path": output_path,
+            "style": style,
+            "size": size,
+            "frame_count": len(frames),
         }
 
     except Exception as e:
         logger.error(f"Loading spinner creation failed: {e}", exc_info=True)
-        return {'success': False, 'error': f'Loading spinner creation failed: {str(e)}'}
+        return {"success": False, "error": f"Loading spinner creation failed: {str(e)}"}
 
 
 @tool_wrapper()
@@ -444,39 +450,39 @@ def resize_gif_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success status, file_path, and new dimensions
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     Image, ImageDraw, ImageFont = GIFCreator._ensure_pillow()
     if Image is None:
-        return {'success': False, 'error': 'Pillow not installed. Install with: pip install Pillow'}
+        return {"success": False, "error": "Pillow not installed. Install with: pip install Pillow"}
 
-    file_path = params.get('file_path')
-    output_path = params.get('output_path')
-    size_preset = params.get('size', 'emoji')
-    width = params.get('width')
-    height = params.get('height')
+    file_path = params.get("file_path")
+    output_path = params.get("output_path")
+    size_preset = params.get("size", "emoji")
+    width = params.get("width")
+    height = params.get("height")
 
     if not file_path:
-        return {'success': False, 'error': 'file_path parameter is required'}
+        return {"success": False, "error": "file_path parameter is required"}
     if not output_path:
-        return {'success': False, 'error': 'output_path parameter is required'}
+        return {"success": False, "error": "output_path parameter is required"}
     if not os.path.exists(file_path):
-        return {'success': False, 'error': f'Input file not found: {file_path}'}
+        return {"success": False, "error": f"Input file not found: {file_path}"}
 
     # Determine target size
-    size_presets = {
-        'emoji': (128, 128),
-        'message': (480, 480)
-    }
+    size_presets = {"emoji": (128, 128), "message": (480, 480)}
 
-    if size_preset == 'custom':
+    if size_preset == "custom":
         if not width or not height:
-            return {'success': False, 'error': "width and height required when size='custom'"}
+            return {"success": False, "error": "width and height required when size='custom'"}
         target_size = (width, height)
     else:
         target_size = size_presets.get(size_preset)
         if not target_size:
-            return {'success': False, 'error': f"Unknown size preset: {size_preset}. Use 'emoji', 'message', or 'custom'"}
+            return {
+                "success": False,
+                "error": f"Unknown size preset: {size_preset}. Use 'emoji', 'message', or 'custom'",
+            }
 
     try:
         os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
@@ -488,28 +494,28 @@ def resize_gif_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             try:
                 while True:
                     # Get frame duration
-                    duration = img.info.get('duration', 100)
+                    duration = img.info.get("duration", 100)
                     durations.append(duration)
 
                     # Resize frame
                     frame = img.copy()
-                    frame = frame.convert('RGBA')
+                    frame = frame.convert("RGBA")
                     frame = frame.resize(target_size, Image.LANCZOS)
 
                     # Convert to palette
-                    background = Image.new('RGB', frame.size, (255, 255, 255))
-                    if frame.mode == 'RGBA':
+                    background = Image.new("RGB", frame.size, (255, 255, 255))
+                    if frame.mode == "RGBA":
                         background.paste(frame, mask=frame.split()[3])
                     else:
                         background.paste(frame)
-                    frames.append(background.convert('P', palette=Image.ADAPTIVE, colors=256))
+                    frames.append(background.convert("P", palette=Image.ADAPTIVE, colors=256))
 
                     img.seek(img.tell() + 1)
             except EOFError:
                 pass
 
             if not frames:
-                return {'success': False, 'error': 'No frames found in GIF'}
+                return {"success": False, "error": "No frames found in GIF"}
 
             # Use first frame's duration if all same, otherwise use frame-specific
             avg_duration = sum(durations) // len(durations)
@@ -520,22 +526,22 @@ def resize_gif_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                 append_images=frames[1:],
                 duration=avg_duration,
                 loop=0,
-                optimize=True
+                optimize=True,
             )
 
         logger.info(f"GIF resized to {target_size}: {output_path}")
 
         return {
-            'success': True,
-            'file_path': output_path,
-            'width': target_size[0],
-            'height': target_size[1],
-            'frame_count': len(frames)
+            "success": True,
+            "file_path": output_path,
+            "width": target_size[0],
+            "height": target_size[1],
+            "frame_count": len(frames),
         }
 
     except Exception as e:
         logger.error(f"GIF resize failed: {e}", exc_info=True)
-        return {'success': False, 'error': f'GIF resize failed: {str(e)}'}
+        return {"success": False, "error": f"GIF resize failed: {str(e)}"}
 
 
 @tool_wrapper()
@@ -553,23 +559,23 @@ def optimize_gif_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success status, file sizes, and reduction percentage
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     Image, ImageDraw, ImageFont = GIFCreator._ensure_pillow()
     if Image is None:
-        return {'success': False, 'error': 'Pillow not installed. Install with: pip install Pillow'}
+        return {"success": False, "error": "Pillow not installed. Install with: pip install Pillow"}
 
-    file_path = params.get('file_path')
-    output_path = params.get('output_path')
-    colors = params.get('colors', 128)
-    fps = params.get('fps', 10)
+    file_path = params.get("file_path")
+    output_path = params.get("output_path")
+    colors = params.get("colors", 128)
+    fps = params.get("fps", 10)
 
     if not file_path:
-        return {'success': False, 'error': 'file_path parameter is required'}
+        return {"success": False, "error": "file_path parameter is required"}
     if not output_path:
-        return {'success': False, 'error': 'output_path parameter is required'}
+        return {"success": False, "error": "output_path parameter is required"}
     if not os.path.exists(file_path):
-        return {'success': False, 'error': f'Input file not found: {file_path}'}
+        return {"success": False, "error": f"Input file not found: {file_path}"}
 
     # Validate colors
     colors = max(2, min(256, colors))
@@ -586,16 +592,16 @@ def optimize_gif_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
             try:
                 while True:
-                    duration = img.info.get('duration', 100)
+                    duration = img.info.get("duration", 100)
                     original_durations.append(duration)
-                    frame = img.copy().convert('RGB')
+                    frame = img.copy().convert("RGB")
                     frames.append(frame)
                     img.seek(img.tell() + 1)
             except EOFError:
                 pass
 
             if not frames:
-                return {'success': False, 'error': 'No frames found in GIF'}
+                return {"success": False, "error": "No frames found in GIF"}
 
             # Skip frames to match target FPS
             if original_durations:
@@ -612,8 +618,7 @@ def optimize_gif_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
             # Convert to reduced palette
             palette_frames = [
-                f.convert('P', palette=Image.ADAPTIVE, colors=colors)
-                for f in selected_frames
+                f.convert("P", palette=Image.ADAPTIVE, colors=colors) for f in selected_frames
             ]
 
             palette_frames[0].save(
@@ -622,29 +627,31 @@ def optimize_gif_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                 append_images=palette_frames[1:],
                 duration=target_duration,
                 loop=0,
-                optimize=True
+                optimize=True,
             )
 
         new_size = os.path.getsize(output_path)
         reduction = ((original_size - new_size) / original_size) * 100
 
-        logger.info(f"GIF optimized: {original_size} -> {new_size} bytes ({reduction:.1f}% reduction)")
+        logger.info(
+            f"GIF optimized: {original_size} -> {new_size} bytes ({reduction:.1f}% reduction)"
+        )
 
         return {
-            'success': True,
-            'file_path': output_path,
-            'original_size': original_size,
-            'new_size': new_size,
-            'reduction_percent': round(reduction, 1),
-            'original_frames': len(frames),
-            'new_frames': len(palette_frames),
-            'colors': colors,
-            'fps': fps
+            "success": True,
+            "file_path": output_path,
+            "original_size": original_size,
+            "new_size": new_size,
+            "reduction_percent": round(reduction, 1),
+            "original_frames": len(frames),
+            "new_frames": len(palette_frames),
+            "colors": colors,
+            "fps": fps,
         }
 
     except Exception as e:
         logger.error(f"GIF optimization failed: {e}", exc_info=True)
-        return {'success': False, 'error': f'GIF optimization failed: {str(e)}'}
+        return {"success": False, "error": f"GIF optimization failed: {str(e)}"}
 
 
 @tool_wrapper()
@@ -660,21 +667,21 @@ def extract_frames_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success status, frame count, and list of frame paths
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     Image, ImageDraw, ImageFont = GIFCreator._ensure_pillow()
     if Image is None:
-        return {'success': False, 'error': 'Pillow not installed. Install with: pip install Pillow'}
+        return {"success": False, "error": "Pillow not installed. Install with: pip install Pillow"}
 
-    file_path = params.get('file_path')
-    output_dir = params.get('output_dir')
+    file_path = params.get("file_path")
+    output_dir = params.get("output_dir")
 
     if not file_path:
-        return {'success': False, 'error': 'file_path parameter is required'}
+        return {"success": False, "error": "file_path parameter is required"}
     if not output_dir:
-        return {'success': False, 'error': 'output_dir parameter is required'}
+        return {"success": False, "error": "output_dir parameter is required"}
     if not os.path.exists(file_path):
-        return {'success': False, 'error': f'Input file not found: {file_path}'}
+        return {"success": False, "error": f"Input file not found: {file_path}"}
 
     try:
         os.makedirs(output_dir, exist_ok=True)
@@ -686,9 +693,9 @@ def extract_frames_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             frame_idx = 0
             try:
                 while True:
-                    frame = img.copy().convert('RGBA')
+                    frame = img.copy().convert("RGBA")
                     frame_path = os.path.join(output_dir, f"{base_name}_frame_{frame_idx:04d}.png")
-                    frame.save(frame_path, 'PNG')
+                    frame.save(frame_path, "PNG")
                     frame_paths.append(frame_path)
                     frame_idx += 1
                     img.seek(img.tell() + 1)
@@ -698,12 +705,12 @@ def extract_frames_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         logger.info(f"Extracted {len(frame_paths)} frames from {file_path}")
 
         return {
-            'success': True,
-            'frame_count': len(frame_paths),
-            'output_dir': output_dir,
-            'frame_paths': frame_paths
+            "success": True,
+            "frame_count": len(frame_paths),
+            "output_dir": output_dir,
+            "frame_paths": frame_paths,
         }
 
     except Exception as e:
         logger.error(f"Frame extraction failed: {e}", exc_info=True)
-        return {'success': False, 'error': f'Frame extraction failed: {str(e)}'}
+        return {"success": False, "error": f"Frame extraction failed: {str(e)}"}

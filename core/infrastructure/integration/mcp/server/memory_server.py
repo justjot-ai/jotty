@@ -3,10 +3,10 @@
 MCP Server for Jotty Memory System
 Exposes Jotty's 5-level memory as MCP tools for JustJot agents
 """
+import asyncio
+import json
 import logging
 import sys
-import json
-import asyncio
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -36,14 +36,11 @@ class JottyMemoryMCPServer:
                 "inputSchema": {
                     "type": "object",
                     "properties": {
-                        "content": {
-                            "type": "string",
-                            "description": "Memory content to store"
-                        },
+                        "content": {"type": "string", "description": "Memory content to store"},
                         "level": {
                             "type": "string",
                             "enum": ["EPISODIC", "SEMANTIC", "PROCEDURAL", "META", "CAUSAL"],
-                            "description": "Memory level (EPISODIC: events, SEMANTIC: facts, PROCEDURAL: how-to, META: learning strategies, CAUSAL: cause-effect)"
+                            "description": "Memory level (EPISODIC: events, SEMANTIC: facts, PROCEDURAL: how-to, META: learning strategies, CAUSAL: cause-effect)",
                         },
                         "context": {
                             "type": "object",
@@ -51,12 +48,12 @@ class JottyMemoryMCPServer:
                             "properties": {
                                 "category": {"type": "string"},
                                 "task_id": {"type": "string"},
-                                "tags": {"type": "array", "items": {"type": "string"}}
-                            }
-                        }
+                                "tags": {"type": "array", "items": {"type": "string"}},
+                            },
+                        },
                     },
-                    "required": ["content", "level"]
-                }
+                    "required": ["content", "level"],
+                },
             },
             {
                 "name": "jotty_retrieve_memory",
@@ -66,27 +63,24 @@ class JottyMemoryMCPServer:
                     "properties": {
                         "query": {
                             "type": "string",
-                            "description": "Search query to find relevant memories"
+                            "description": "Search query to find relevant memories",
                         },
                         "levels": {
                             "type": "array",
                             "items": {
                                 "type": "string",
-                                "enum": ["EPISODIC", "SEMANTIC", "PROCEDURAL", "META", "CAUSAL"]
+                                "enum": ["EPISODIC", "SEMANTIC", "PROCEDURAL", "META", "CAUSAL"],
                             },
-                            "description": "Memory levels to search (default: all levels)"
+                            "description": "Memory levels to search (default: all levels)",
                         },
                         "max_memories": {
                             "type": "number",
-                            "description": "Maximum number of memories to return (default: 10)"
+                            "description": "Maximum number of memories to return (default: 10)",
                         },
-                        "category": {
-                            "type": "string",
-                            "description": "Filter by category"
-                        }
+                        "category": {"type": "string", "description": "Filter by category"},
                     },
-                    "required": ["query"]
-                }
+                    "required": ["query"],
+                },
             },
             {
                 "name": "jotty_consolidate_memory",
@@ -96,10 +90,10 @@ class JottyMemoryMCPServer:
                     "properties": {
                         "agent_name": {
                             "type": "string",
-                            "description": "Agent to consolidate memories for (default: current agent)"
+                            "description": "Agent to consolidate memories for (default: current agent)",
                         }
-                    }
-                }
+                    },
+                },
             },
             {
                 "name": "jotty_memory_stats",
@@ -109,11 +103,11 @@ class JottyMemoryMCPServer:
                     "properties": {
                         "agent_name": {
                             "type": "string",
-                            "description": "Agent to get stats for (default: current agent)"
+                            "description": "Agent to get stats for (default: current agent)",
                         }
-                    }
-                }
-            }
+                    },
+                },
+            },
         ]
 
     def _initialize_memory(self):
@@ -138,12 +132,12 @@ class JottyMemoryMCPServer:
                 memory_id = self.memory.store(
                     content=arguments["content"],
                     level=arguments["level"],
-                    context=arguments.get("context", {})
+                    context=arguments.get("context", {}),
                 )
                 return {
                     "success": True,
                     "memory_id": memory_id,
-                    "message": f"Stored {arguments['level']} memory"
+                    "message": f"Stored {arguments['level']} memory",
                 }
 
             elif tool_name == "jotty_retrieve_memory":
@@ -151,13 +145,9 @@ class JottyMemoryMCPServer:
                     query=arguments["query"],
                     levels=arguments.get("levels"),
                     budget_tokens=arguments.get("max_memories", 10) * 200,
-                    category=arguments.get("category")
+                    category=arguments.get("category"),
                 )
-                return {
-                    "success": True,
-                    "memories": memories,
-                    "count": len(memories)
-                }
+                return {"success": True, "memories": memories, "count": len(memories)}
 
             elif tool_name == "jotty_consolidate_memory":
                 # Run consolidation
@@ -166,16 +156,13 @@ class JottyMemoryMCPServer:
                 return {
                     "success": True,
                     "result": consolidation_result,
-                    "message": "Memory consolidation completed"
+                    "message": "Memory consolidation completed",
                 }
 
             elif tool_name == "jotty_memory_stats":
                 # Get memory statistics
                 stats = self.memory.get_stats()
-                return {
-                    "success": True,
-                    "stats": stats
-                }
+                return {"success": True, "stats": stats}
 
             else:
                 return {"error": f"Unknown tool: {tool_name}"}
@@ -207,9 +194,7 @@ class JottyMemoryMCPServer:
                     arguments = params.get("arguments", {})
 
                     result = await self.handle_tool_call(tool_name, arguments)
-                    response = {
-                        "content": [{"type": "text", "text": json.dumps(result)}]
-                    }
+                    response = {"content": [{"type": "text", "text": json.dumps(result)}]}
 
                 else:
                     response = {"error": f"Unknown method: {method}"}
@@ -238,13 +223,13 @@ class JottyMemoryMCPServer:
             return web.json_response(result)
 
         app = web.Application()
-        app.router.add_get('/tools/list', list_tools)
-        app.router.add_post('/tools/call', call_tool)
+        app.router.add_get("/tools/list", list_tools)
+        app.router.add_post("/tools/call", call_tool)
 
         logger.info("Jotty Memory MCP Server running on http://0.0.0.0:%d", port)
         runner = web.AppRunner(app)
         await runner.setup()
-        site = web.TCPSite(runner, '0.0.0.0', port)
+        site = web.TCPSite(runner, "0.0.0.0", port)
         await site.start()
 
         # Keep running
@@ -255,12 +240,14 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="Jotty Memory MCP Server")
-    parser.add_argument("--mode", choices=["stdio", "http"], default="stdio",
-                        help="Server mode (stdio for MCP protocol, http for testing)")
-    parser.add_argument("--port", type=int, default=8082,
-                        help="HTTP port (only used in http mode)")
-    parser.add_argument("--agent", default="jotty-mcp",
-                        help="Agent name for memory isolation")
+    parser.add_argument(
+        "--mode",
+        choices=["stdio", "http"],
+        default="stdio",
+        help="Server mode (stdio for MCP protocol, http for testing)",
+    )
+    parser.add_argument("--port", type=int, default=8082, help="HTTP port (only used in http mode)")
+    parser.add_argument("--agent", default="jotty-mcp", help="Agent name for memory isolation")
 
     args = parser.parse_args()
 

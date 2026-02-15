@@ -9,8 +9,14 @@ Requires WhatsApp Web session initialized in same process (/whatsapp login).
 
 import asyncio
 import logging
-from typing import Dict, Any, List, Optional
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper, async_tool_wrapper
+from typing import Any, Dict, List, Optional
+
+from Jotty.core.infrastructure.utils.tool_helpers import (
+    async_tool_wrapper,
+    tool_error,
+    tool_response,
+    tool_wrapper,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +25,7 @@ def _get_client():
     """Get global WhatsApp Web client (set by CLI after /whatsapp login)."""
     try:
         from Jotty.cli.channels.whatsapp_web import get_global_whatsapp_client
+
         return get_global_whatsapp_client()
     except Exception as e:
         logger.debug(f"Could not get WhatsApp client: {e}")
@@ -133,10 +140,12 @@ async def summarize_whatsapp_chat_learnings_tool(params: Dict[str, Any]) -> Dict
     length = params.get("length") or "medium"
     style = params.get("style") or "bullet"
 
-    read_result = await read_whatsapp_chat_messages_tool({
-        "chat_name": chat_name,
-        "limit": limit,
-    })
+    read_result = await read_whatsapp_chat_messages_tool(
+        {
+            "chat_name": chat_name,
+            "limit": limit,
+        }
+    )
 
     if not read_result.get("success"):
         return {
@@ -165,6 +174,7 @@ async def summarize_whatsapp_chat_learnings_tool(params: Dict[str, Any]) -> Dict
         prefix = "[Me]" if from_me else "[Other]"
         try:
             from datetime import datetime
+
             dt = datetime.fromtimestamp(ts) if ts else ""
             lines.append(f"{prefix} {dt}: {body}")
         except Exception:
@@ -177,17 +187,20 @@ async def summarize_whatsapp_chat_learnings_tool(params: Dict[str, Any]) -> Dict
     # Use summarize skill if available (via registry)
     try:
         from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
+
         reg = get_skills_registry()
         reg.init()
         skill = reg.get_skill("summarize")
         if skill and skill.tools:
             summarize_text_tool = skill.tools.get("summarize_text_tool")
             if summarize_text_tool:
-                summary_result = summarize_text_tool({
-                    "text": combined,
-                    "length": length,
-                    "style": style,
-                })
+                summary_result = summarize_text_tool(
+                    {
+                        "text": combined,
+                        "length": length,
+                        "style": style,
+                    }
+                )
                 if summary_result and summary_result.get("success"):
                     return {
                         "success": True,

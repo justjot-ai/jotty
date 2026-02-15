@@ -4,14 +4,14 @@ Chat API
 Simplified API for chat interactions.
 """
 
-from typing import List, Dict, Any, Optional, AsyncIterator
 import logging
+from typing import Any, AsyncIterator, Dict, List, Optional
 
-from Jotty.core.modes.use_cases.chat import ChatUseCase, ChatMessage
-from Jotty.core.intelligence.orchestration import Orchestrator
-from Jotty.core.infrastructure.foundation.data_structures import SwarmLearningConfig
 from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
+from Jotty.core.infrastructure.foundation.data_structures import SwarmLearningConfig
+from Jotty.core.intelligence.orchestration import Orchestrator
 from Jotty.core.modes.agent.agents.chat_assistant import create_chat_assistant
+from Jotty.core.modes.use_cases.chat import ChatMessage, ChatUseCase
 
 logger = logging.getLogger(__name__)
 
@@ -19,17 +19,24 @@ logger = logging.getLogger(__name__)
 class ChatAPI:
     """
     Simplified API for chat interactions.
-    
+
     Usage:
         chat = ChatAPI(conductor, agent_id="MyAgent")
         result = await chat.send(message="Hello", history=[...])
-        
+
         # Streaming
         async for event in chat.stream(message="Hello"):
             print(event)
     """
-    
-    def __init__(self, conductor: Orchestrator, agent_id: Optional[str] = None, mode: str = 'dynamic', auto_register_chat_assistant: bool = True, state_manager: Optional[Any] = None) -> None:
+
+    def __init__(
+        self,
+        conductor: Orchestrator,
+        agent_id: Optional[str] = None,
+        mode: str = "dynamic",
+        auto_register_chat_assistant: bool = True,
+        state_manager: Optional[Any] = None,
+    ) -> None:
         """
         Initialize Chat API.
 
@@ -47,11 +54,7 @@ class ChatAPI:
         if auto_register_chat_assistant and agent_id == "ChatAssistant":
             self._ensure_chat_assistant_registered()
 
-        self.chat_use_case = ChatUseCase(
-            conductor=conductor,
-            agent_id=agent_id,
-            mode=mode
-        )
+        self.chat_use_case = ChatUseCase(conductor=conductor, agent_id=agent_id, mode=mode)
 
     def _ensure_chat_assistant_registered(self) -> None:
         """
@@ -61,7 +64,7 @@ class ChatAPI:
         register the ChatAssistant agent.
         """
         # Check if ChatAssistant already exists
-        if hasattr(self.conductor, 'actors') and isinstance(self.conductor.actors, dict):
+        if hasattr(self.conductor, "actors") and isinstance(self.conductor.actors, dict):
             if "ChatAssistant" in self.conductor.actors:
                 logger.debug("ChatAssistant already registered")
                 return
@@ -81,74 +84,78 @@ class ChatAPI:
                 # Chat assistant provides conversational capabilities
                 capabilities=["chat", "task_queries", "system_status", "help"],
                 # Mark as non-critical (optional agent)
-                is_critical=False
+                is_critical=False,
             )
 
             # Register with conductor's actor registry
-            if hasattr(self.conductor, 'actors') and isinstance(self.conductor.actors, dict):
+            if hasattr(self.conductor, "actors") and isinstance(self.conductor.actors, dict):
                 self.conductor.actors["ChatAssistant"] = agent_spec
 
                 # Initialize local_memories for ChatAssistant (required by Orchestrator)
-                if hasattr(self.conductor, 'local_memories') and isinstance(self.conductor.local_memories, dict):
+                if hasattr(self.conductor, "local_memories") and isinstance(
+                    self.conductor.local_memories, dict
+                ):
                     try:
                         from Jotty.core.intelligence.memory.hierarchical_memory import SwarmMemory
+
                         self.conductor.local_memories["ChatAssistant"] = SwarmMemory(
-                            config=self.conductor.config,
-                            agent_name="ChatAssistant"
+                            config=self.conductor.config, agent_name="ChatAssistant"
                         )
                         logger.debug(" ChatAssistant local_memories initialized with SwarmMemory")
                     except ImportError as e:
                         # Fallback to empty object with memories attribute
                         logger.debug(f" SwarmMemory import failed ({e}), using empty fallback")
+
                         class EmptyMemory:
                             def __init__(self) -> None:
                                 self.memories = {}
+
                         self.conductor.local_memories["ChatAssistant"] = EmptyMemory()
-                        logger.debug(" ChatAssistant local_memories initialized with empty fallback")
+                        logger.debug(
+                            " ChatAssistant local_memories initialized with empty fallback"
+                        )
 
                 logger.info(" ChatAssistant registered successfully")
             else:
-                logger.warning(" Orchestrator doesn't have 'actors' dict - ChatAssistant not registered")
+                logger.warning(
+                    " Orchestrator doesn't have 'actors' dict - ChatAssistant not registered"
+                )
 
         except Exception as e:
             logger.error(f" Failed to auto-register ChatAssistant: {e}")
             # Don't fail - just log the error
             pass
-    
-    async def send(self, message: str, history: Optional[List[ChatMessage]] = None, **kwargs: Any) -> Dict[str, Any]:
+
+    async def send(
+        self, message: str, history: Optional[List[ChatMessage]] = None, **kwargs: Any
+    ) -> Dict[str, Any]:
         """
         Send a chat message.
-        
+
         Args:
             message: User message
             history: Conversation history
             **kwargs: Additional arguments
-            
+
         Returns:
             Chat response dictionary
         """
-        result = await self.chat_use_case.execute(
-            goal=message,
-            history=history,
-            **kwargs
-        )
+        result = await self.chat_use_case.execute(goal=message, history=history, **kwargs)
         return result.to_dict()
-    
-    async def stream(self, message: str, history: Optional[List[ChatMessage]] = None, **kwargs: Any) -> AsyncIterator[Dict[str, Any]]:
+
+    async def stream(
+        self, message: str, history: Optional[List[ChatMessage]] = None, **kwargs: Any
+    ) -> AsyncIterator[Dict[str, Any]]:
         """
         Stream chat response.
-        
+
         Args:
             message: User message
             history: Conversation history
             **kwargs: Additional arguments
-            
+
         Yields:
             Event dictionaries
         """
-        async for event in self.chat_use_case.stream(
-            goal=message,
-            history=history,
-            **kwargs
-        ):
+        async for event in self.chat_use_case.stream(goal=message, history=history, **kwargs):
             yield event

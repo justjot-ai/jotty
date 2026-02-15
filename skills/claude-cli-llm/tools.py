@@ -10,15 +10,16 @@ Prompt Ensembling Strategies (based on latest research):
 - gsa: Generative Self-Aggregation (diverse generation + synthesis)
 - debate: Multi-round debate between perspectives
 """
-import logging
-import json
+
 import asyncio
+import json
+import logging
 import time as _time
-from typing import Dict, Any, List, Optional
 from collections import Counter
+from typing import Any, Dict, List, Optional
 
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 logger = logging.getLogger(__name__)
 
@@ -30,16 +31,22 @@ logger = logging.getLogger(__name__)
 # Tracks RPM budget across calls within this module.
 # Reset automatically when a minute boundary is crossed.
 _rpm_state = {
-    'call_count': 0,
-    'window_start': 0.0,
-    'detected_rpm_limit': None,  # Set when we get a 429
-    'last_429_at': 0.0,
+    "call_count": 0,
+    "window_start": 0.0,
+    "detected_rpm_limit": None,  # Set when we get a 429
+    "last_429_at": 0.0,
 }
 
 
-def _call_lm_with_retry(lm, *, prompt: str = None, messages=None,
-                         max_retries: int = 4, base_delay: float = 8.0,
-                         **kwargs):
+def _call_lm_with_retry(
+    lm,
+    *,
+    prompt: str = None,
+    messages=None,
+    max_retries: int = 4,
+    base_delay: float = 8.0,
+    **kwargs,
+):
     """
     Call LM with exponential backoff on rate-limit (429) errors.
 
@@ -50,11 +57,11 @@ def _call_lm_with_retry(lm, *, prompt: str = None, messages=None,
 
     # Auto-pace: if we've seen a 429 recently, pre-delay to stay under RPM
     now = time.time()
-    rpm_limit = _rpm_state.get('detected_rpm_limit')
+    rpm_limit = _rpm_state.get("detected_rpm_limit")
     if rpm_limit and rpm_limit <= 20:
         # Calculate safe interval: 60s / rpm_limit with 20% headroom
         safe_interval = 60.0 / rpm_limit * 1.2
-        elapsed_since_last = now - _rpm_state.get('last_call_at', 0)
+        elapsed_since_last = now - _rpm_state.get("last_call_at", 0)
         if elapsed_since_last < safe_interval:
             wait = safe_interval - elapsed_since_last
             logger.debug(f"Rate-limit pacing: waiting {wait:.1f}s (RPM limit: {rpm_limit})")
@@ -62,34 +69,40 @@ def _call_lm_with_retry(lm, *, prompt: str = None, messages=None,
 
     for attempt in range(max_retries + 1):
         try:
-            _rpm_state['last_call_at'] = time.time()
+            _rpm_state["last_call_at"] = time.time()
             if prompt:
                 result = lm(prompt=prompt, **kwargs)
             elif messages:
                 result = lm(messages=messages, **kwargs)
             else:
                 result = lm(prompt="", **kwargs)
-            _rpm_state['call_count'] += 1
+            _rpm_state["call_count"] += 1
             return result
         except Exception as e:
             err_str = str(e)
-            is_rate_limit = ('429' in err_str or 'RateLimit' in err_str or
-                             'rate limit' in err_str.lower() or
-                             'Too Many Requests' in err_str)
+            is_rate_limit = (
+                "429" in err_str
+                or "RateLimit" in err_str
+                or "rate limit" in err_str.lower()
+                or "Too Many Requests" in err_str
+            )
             if is_rate_limit and attempt < max_retries:
                 # Extract RPM limit from headers if present
                 import re
-                rpm_match = re.search(r'X-RateLimit-Limit.*?(\d+)', err_str)
+
+                rpm_match = re.search(r"X-RateLimit-Limit.*?(\d+)", err_str)
                 if rpm_match:
-                    _rpm_state['detected_rpm_limit'] = int(rpm_match.group(1))
+                    _rpm_state["detected_rpm_limit"] = int(rpm_match.group(1))
                 else:
                     # Conservative fallback: assume 8 RPM (OpenRouter free tier)
-                    _rpm_state['detected_rpm_limit'] = _rpm_state.get('detected_rpm_limit') or 8
+                    _rpm_state["detected_rpm_limit"] = _rpm_state.get("detected_rpm_limit") or 8
 
-                _rpm_state['last_429_at'] = time.time()
-                delay = base_delay * (2 ** attempt)  # 8, 16, 32, 64
-                logger.info(f"Rate limited (attempt {attempt+1}/{max_retries}), "
-                            f"retrying in {delay:.0f}s...")
+                _rpm_state["last_429_at"] = time.time()
+                delay = base_delay * (2**attempt)  # 8, 16, 32, 64
+                logger.info(
+                    f"Rate limited (attempt {attempt+1}/{max_retries}), "
+                    f"retrying in {delay:.0f}s..."
+                )
                 logger.warning("      [rate limited, retry in %.0fs]", delay)
                 time.sleep(delay)
             else:
@@ -157,37 +170,37 @@ def ensemble_prompt_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - confidence (float): Confidence in synthesized answer (0-1)
             - strategy (str): Strategy used
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     try:
         import dspy
 
-        prompt = params.get('prompt')
+        prompt = params.get("prompt")
         if not prompt:
-            return {'success': False, 'error': 'prompt parameter is required'}
+            return {"success": False, "error": "prompt parameter is required"}
 
-        strategy = params.get('strategy', 'multi_perspective')
+        strategy = params.get("strategy", "multi_perspective")
 
         # Use DSPy's configured LM
         lm = dspy.settings.lm
         if not lm:
-            return {'success': False, 'error': 'No LLM configured in DSPy'}
+            return {"success": False, "error": "No LLM configured in DSPy"}
 
         # Execute based on strategy
-        if strategy == 'self_consistency':
+        if strategy == "self_consistency":
             return _self_consistency_ensemble(lm, prompt, params)
-        elif strategy == 'multi_perspective':
+        elif strategy == "multi_perspective":
             return _multi_perspective_ensemble(lm, prompt, params)
-        elif strategy == 'gsa':
+        elif strategy == "gsa":
             return _gsa_ensemble(lm, prompt, params)
-        elif strategy == 'debate':
+        elif strategy == "debate":
             return _debate_ensemble(lm, prompt, params)
         else:
-            return {'success': False, 'error': f'Unknown strategy: {strategy}'}
+            return {"success": False, "error": f"Unknown strategy: {strategy}"}
 
     except Exception as e:
         logger.error(f"Ensemble prompt error: {e}", exc_info=True)
-        return {'success': False, 'error': f'Ensembling failed: {str(e)}'}
+        return {"success": False, "error": f"Ensembling failed: {str(e)}"}
 
 
 def _self_consistency_ensemble(lm, prompt: str, params: Dict) -> Dict[str, Any]:
@@ -196,7 +209,7 @@ def _self_consistency_ensemble(lm, prompt: str, params: Dict) -> Dict[str, Any]:
 
     Research shows this accounts for most gains in multi-agent approaches.
     """
-    num_samples = params.get('num_samples', 5)
+    num_samples = params.get("num_samples", 5)
 
     responses = []
     for i in range(num_samples):
@@ -209,7 +222,7 @@ def _self_consistency_ensemble(lm, prompt: str, params: Dict) -> Dict[str, Any]:
             logger.warning(f"Sample {i+1} failed: {e}")
 
     if not responses:
-        return {'success': False, 'error': 'All samples failed'}
+        return {"success": False, "error": "All samples failed"}
 
     # Synthesize responses
     synthesis_prompt = f"""You have {len(responses)} different responses to the same question.
@@ -230,13 +243,13 @@ Synthesize the best answer, combining the strongest points from all responses:""
     confidence = _calculate_agreement_score(responses)
 
     return {
-        'success': True,
-        'response': final_response,
-        'perspectives_used': [f'sample_{i+1}' for i in range(len(responses))],
-        'individual_responses': {f'sample_{i+1}': r for i, r in enumerate(responses)},
-        'confidence': confidence,
-        'strategy': 'self_consistency',
-        'num_samples': len(responses)
+        "success": True,
+        "response": final_response,
+        "perspectives_used": [f"sample_{i+1}" for i in range(len(responses))],
+        "individual_responses": {f"sample_{i+1}": r for i, r in enumerate(responses)},
+        "confidence": confidence,
+        "strategy": "self_consistency",
+        "num_samples": len(responses),
     }
 
 
@@ -252,16 +265,16 @@ def _multi_perspective_ensemble(lm, prompt: str, params: Dict) -> Dict[str, Any]
     - Quality scoring for each perspective
     - Relevance validation
     """
-    synthesis_style = params.get('synthesis_style', 'detailed')
-    verbose = params.get('verbose', False)
+    synthesis_style = params.get("synthesis_style", "detailed")
+    verbose = params.get("verbose", False)
 
     # Optima-inspired adaptive ensemble sizing (Chen et al., 2024):
     # Simple tasks get fewer perspectives (less token waste).
     # max_perspectives param lets callers control cost vs. quality tradeoff.
-    max_perspectives = params.get('max_perspectives', 4)
+    max_perspectives = params.get("max_perspectives", 4)
 
     # Detect domain and select appropriate perspectives using LLM
-    perspectives = params.get('perspectives')
+    perspectives = params.get("perspectives")
     if not perspectives:
         perspectives = _select_domain_perspectives(prompt, lm=lm, max_perspectives=max_perspectives)
     else:
@@ -275,10 +288,10 @@ def _multi_perspective_ensemble(lm, prompt: str, params: Dict) -> Dict[str, Any]
     def _generate_one(idx, perspective):
         """Generate a single perspective with retry on rate limits."""
         if isinstance(perspective, dict):
-            name = perspective.get('name', 'expert')
-            system = perspective.get('system', '')
+            name = perspective.get("name", "expert")
+            system = perspective.get("system", "")
         else:
-            name = str(perspective) if perspective else f'expert_{idx+1}'
+            name = str(perspective) if perspective else f"expert_{idx+1}"
             system = f"You are a {name}. Provide your expert analysis."
 
         perspective_prompt = f"""{system}
@@ -299,19 +312,23 @@ Your analysis:"""
             response = _call_lm_with_retry(lm, prompt=perspective_prompt)
             text = response[0] if isinstance(response, list) else str(response)
             score = _score_perspective_quality(text, prompt)
-            logger.info("    [%d/%d] %s... done (quality: %.0f%%)", idx+1, total, name, score * 100)
+            logger.info(
+                "    [%d/%d] %s... done (quality: %.0f%%)", idx + 1, total, name, score * 100
+            )
             return name, text, score
         except Exception as e:
             logger.warning(f"Perspective '{name}' failed: {e}")
-            logger.warning("    [%d/%d] %s... failed: %s", idx+1, total, name, e)
+            logger.warning("    [%d/%d] %s... failed: %s", idx + 1, total, name, e)
             return name, f"[Failed: {e}]", 0.0
 
     # Rate-limit aware execution strategy:
     # If we've detected a tight RPM limit (<=20), run SEQUENTIALLY with pacing.
     # Otherwise, run in parallel for speed.
-    rpm_limit = _rpm_state.get('detected_rpm_limit')
+    rpm_limit = _rpm_state.get("detected_rpm_limit")
     if rpm_limit and rpm_limit <= 20:
-        logger.info("Ensemble: generating %d perspectives sequentially (RPM limit: %s)...", total, rpm_limit)
+        logger.info(
+            "Ensemble: generating %d perspectives sequentially (RPM limit: %s)...", total, rpm_limit
+        )
         for idx, p in enumerate(perspectives):
             name, text, score = _generate_one(idx, p)
             individual_responses[name] = text
@@ -319,10 +336,10 @@ Your analysis:"""
     else:
         logger.info("Ensemble: generating %d perspectives in parallel...", total)
         from concurrent.futures import ThreadPoolExecutor, as_completed
+
         with ThreadPoolExecutor(max_workers=min(total, 4)) as executor:
             futures = {
-                executor.submit(_generate_one, idx, p): idx
-                for idx, p in enumerate(perspectives)
+                executor.submit(_generate_one, idx, p): idx for idx, p in enumerate(perspectives)
             }
             for future in as_completed(futures):
                 name, text, score = future.result()
@@ -330,21 +347,24 @@ Your analysis:"""
                 quality_scores[name] = score
 
     if not individual_responses:
-        return {'success': False, 'error': 'All perspectives failed'}
+        return {"success": False, "error": "All perspectives failed"}
 
     logger.info("Ensemble: synthesizing %d perspectives...", len(individual_responses))
 
     # Filter out low-quality perspectives (score < 0.3)
-    valid_responses = {k: v for k, v in individual_responses.items()
-                      if quality_scores.get(k, 0) >= 0.3 and '[Failed' not in v}
+    valid_responses = {
+        k: v
+        for k, v in individual_responses.items()
+        if quality_scores.get(k, 0) >= 0.3 and "[Failed" not in v
+    }
 
     if not valid_responses:
         valid_responses = individual_responses  # Fallback to all
 
     # Synthesize based on style
-    if synthesis_style == 'concise':
+    if synthesis_style == "concise":
         synthesis_instruction = "Provide a concise synthesis (2-3 paragraphs) of the key insights."
-    elif synthesis_style == 'structured':
+    elif synthesis_style == "structured":
         synthesis_instruction = """Provide a structured synthesis with:
 1. **Consensus Points**: Where perspectives agree
 2. **Key Tensions**: Where perspectives diverge
@@ -371,31 +391,35 @@ Synthesized Answer:"""
 
     # Calculate weighted confidence based on quality scores
     avg_quality = sum(quality_scores.values()) / len(quality_scores) if quality_scores else 0
-    success_rate = len([r for r in individual_responses.values() if '[Failed' not in r]) / len(perspectives)
+    success_rate = len([r for r in individual_responses.values() if "[Failed" not in r]) / len(
+        perspectives
+    )
     confidence = (avg_quality + success_rate) / 2
 
     result = {
-        'success': True,
-        'response': final_response,
-        'perspectives_used': list(valid_responses.keys()),
-        'individual_responses': individual_responses,
-        'quality_scores': quality_scores,
-        'confidence': confidence,
-        'strategy': 'multi_perspective',
-        'synthesis_style': synthesis_style
+        "success": True,
+        "response": final_response,
+        "perspectives_used": list(valid_responses.keys()),
+        "individual_responses": individual_responses,
+        "quality_scores": quality_scores,
+        "confidence": confidence,
+        "strategy": "multi_perspective",
+        "synthesis_style": synthesis_style,
     }
 
     # Add perspective summaries for verbose mode
     if verbose:
-        result['perspective_summaries'] = {
-            name: resp[:200] + '...' if len(resp) > 200 else resp
+        result["perspective_summaries"] = {
+            name: resp[:200] + "..." if len(resp) > 200 else resp
             for name, resp in individual_responses.items()
         }
 
     return result
 
 
-def _select_domain_perspectives(prompt: str, lm=None, max_perspectives: int = 4) -> List[Dict[str, str]]:
+def _select_domain_perspectives(
+    prompt: str, lm=None, max_perspectives: int = 4
+) -> List[Dict[str, str]]:
     """
     Use LLM to generate domain-appropriate perspectives dynamically.
 
@@ -407,7 +431,7 @@ def _select_domain_perspectives(prompt: str, lm=None, max_perspectives: int = 4)
 
     # Use provided LM or get from settings
     if lm is None:
-        lm = dspy.settings.lm if hasattr(dspy.settings, 'lm') else None
+        lm = dspy.settings.lm if hasattr(dspy.settings, "lm") else None
 
     if not lm:
         # Fallback to defaults if no LLM
@@ -418,8 +442,14 @@ def _select_domain_perspectives(prompt: str, lm=None, max_perspectives: int = 4)
     # This saves ~10s by avoiding the "generate perspectives" LLM call.
     if max_perspectives <= 2:
         fast_perspectives = [
-            {"name": "domain_expert", "system": f"You are a senior domain expert. Provide deep, practical analysis."},
-            {"name": "critical_reviewer", "system": f"You are a critical reviewer. Identify risks, gaps, and overlooked considerations."},
+            {
+                "name": "domain_expert",
+                "system": f"You are a senior domain expert. Provide deep, practical analysis.",
+            },
+            {
+                "name": "critical_reviewer",
+                "system": f"You are a critical reviewer. Identify risks, gaps, and overlooked considerations.",
+            },
         ]
         logger.info("Ensemble: fast mode (%d perspectives, no LLM selection)", max_perspectives)
         return fast_perspectives[:max_perspectives]
@@ -468,20 +498,19 @@ JSON array for the given task:"""
         import re
 
         # Extract JSON array from response
-        json_match = re.search(r'\[[\s\S]*\]', text)
+        json_match = re.search(r"\[[\s\S]*\]", text)
         if json_match:
             perspectives = json.loads(json_match.group())
             if isinstance(perspectives, list) and len(perspectives) >= 2:
                 # Validate structure
                 valid = all(
-                    isinstance(p, dict) and 'name' in p and 'system' in p
-                    for p in perspectives
+                    isinstance(p, dict) and "name" in p and "system" in p for p in perspectives
                 )
                 if valid:
                     perspectives = perspectives[:max_perspectives]
-                    names = [p['name'] for p in perspectives]
+                    names = [p["name"] for p in perspectives]
                     logger.info("Perspective generation done")
-                    logger.info("Perspectives: %s", ', '.join(names))
+                    logger.info("Perspectives: %s", ", ".join(names))
                     logger.info(f"LLM generated {len(perspectives)} perspectives: {names}")
                     return perspectives
 
@@ -506,7 +535,7 @@ def _score_perspective_quality(response: str, original_prompt: str) -> float:
     - Structure (has formatting/organization)
     - Not generic (avoids filler phrases)
     """
-    if not response or '[Failed' in response:
+    if not response or "[Failed" in response:
         return 0.0
 
     score = 0.0
@@ -530,15 +559,19 @@ def _score_perspective_quality(response: str, original_prompt: str) -> float:
     score += specificity
 
     # Structure: has headers, bullets, or numbers
-    structure_indicators = ['**', '##', '- ', '1.', '2.', '•']
+    structure_indicators = ["**", "##", "- ", "1.", "2.", "•"]
     has_structure = any(ind in response for ind in structure_indicators)
     if has_structure:
         score += 0.2
 
     # Penalize generic filler phrases
     filler_phrases = [
-        'it depends', 'there are many factors', 'in general',
-        'it is important to note', 'as mentioned', 'in conclusion'
+        "it depends",
+        "there are many factors",
+        "in general",
+        "it is important to note",
+        "as mentioned",
+        "in conclusion",
     ]
     filler_count = sum(1 for phrase in filler_phrases if phrase in response_lower)
     score -= filler_count * 0.05
@@ -553,7 +586,7 @@ def _gsa_ensemble(lm, prompt: str, params: Dict) -> Dict[str, Any]:
     Unlike voting, this enables the model to synthesize an improved solution
     by learning from diverse attempts.
     """
-    num_drafts = params.get('num_samples', 3)
+    num_drafts = params.get("num_samples", 3)
 
     # Step 1: Generate diverse drafts with different approaches
     approaches = [
@@ -573,12 +606,12 @@ Your response:"""
         try:
             response = _call_lm_with_retry(lm, prompt=draft_prompt)
             text = response[0] if isinstance(response, list) else str(response)
-            drafts[f'draft_{i+1}'] = text
+            drafts[f"draft_{i+1}"] = text
         except Exception as e:
             logger.warning(f"Draft {i+1} failed: {e}")
 
     if not drafts:
-        return {'success': False, 'error': 'All drafts failed'}
+        return {"success": False, "error": "All drafts failed"}
 
     # Step 2: Context-enriched synthesis (the key GSA innovation)
     synthesis_prompt = f"""You have generated {len(drafts)} draft responses using different approaches.
@@ -599,12 +632,12 @@ Your improved, synthesized answer (should be better than any individual draft):"
     final_response = synthesis[0] if isinstance(synthesis, list) else str(synthesis)
 
     return {
-        'success': True,
-        'response': final_response,
-        'perspectives_used': list(drafts.keys()),
-        'individual_responses': drafts,
-        'confidence': 0.85,  # GSA typically high confidence
-        'strategy': 'gsa'
+        "success": True,
+        "response": final_response,
+        "perspectives_used": list(drafts.keys()),
+        "individual_responses": drafts,
+        "confidence": 0.85,  # GSA typically high confidence
+        "strategy": "gsa",
     }
 
 
@@ -614,12 +647,15 @@ def _debate_ensemble(lm, prompt: str, params: Dict) -> Dict[str, Any]:
 
     Research shows debate improves factual validity and reduces hallucinations.
     """
-    num_rounds = params.get('debate_rounds', 2)
+    num_rounds = params.get("debate_rounds", 2)
 
     # Define debaters
     debaters = [
         {"name": "advocate", "stance": "Present the strongest case FOR"},
-        {"name": "critic", "stance": "Present the strongest case AGAINST or identify problems with"},
+        {
+            "name": "critic",
+            "stance": "Present the strongest case AGAINST or identify problems with",
+        },
         {"name": "synthesizer", "stance": "Find the balanced middle ground on"},
     ]
 
@@ -637,8 +673,8 @@ Your position:"""
         try:
             response = _call_lm_with_retry(lm, prompt=initial_prompt)
             text = response[0] if isinstance(response, list) else str(response)
-            current_responses[debater['name']] = text
-            debate_history.append({'round': 0, 'debater': debater['name'], 'response': text})
+            current_responses[debater["name"]] = text
+            debate_history.append({"round": 0, "debater": debater["name"], "response": text})
         except Exception as e:
             logger.warning(f"Debater '{debater['name']}' failed: {e}")
 
@@ -647,7 +683,7 @@ Your position:"""
         new_responses = {}
         for debater in debaters:
             # Each debater responds to others' arguments
-            other_args = {k: v for k, v in current_responses.items() if k != debater['name']}
+            other_args = {k: v for k, v in current_responses.items() if k != debater["name"]}
 
             debate_prompt = f"""Previous positions in the debate:
 {chr(10).join(f'{k.upper()}: {v[:400]}' for k, v in other_args.items())}
@@ -660,11 +696,13 @@ Your refined position (Round {round_num}):"""
             try:
                 response = _call_lm_with_retry(lm, prompt=debate_prompt)
                 text = response[0] if isinstance(response, list) else str(response)
-                new_responses[debater['name']] = text
-                debate_history.append({'round': round_num, 'debater': debater['name'], 'response': text})
+                new_responses[debater["name"]] = text
+                debate_history.append(
+                    {"round": round_num, "debater": debater["name"], "response": text}
+                )
             except Exception as e:
                 logger.warning(f"Round {round_num}, debater '{debater['name']}' failed: {e}")
-                new_responses[debater['name']] = current_responses.get(debater['name'], '')
+                new_responses[debater["name"]] = current_responses.get(debater["name"], "")
 
         current_responses = new_responses
 
@@ -687,14 +725,14 @@ Final judgment:"""
     final_response = synthesis[0] if isinstance(synthesis, list) else str(synthesis)
 
     return {
-        'success': True,
-        'response': final_response,
-        'perspectives_used': [d['name'] for d in debaters],
-        'individual_responses': current_responses,
-        'debate_history': debate_history,
-        'confidence': 0.9,  # Debate typically high confidence
-        'strategy': 'debate',
-        'num_rounds': num_rounds
+        "success": True,
+        "response": final_response,
+        "perspectives_used": [d["name"] for d in debaters],
+        "individual_responses": current_responses,
+        "debate_history": debate_history,
+        "confidence": 0.9,  # Debate typically high confidence
+        "strategy": "debate",
+        "num_rounds": num_rounds,
     }
 
 
@@ -708,9 +746,10 @@ def _calculate_agreement_score(responses: List[str]) -> float:
     try:
         # Extract key words from each response
         import re
+
         word_sets = []
         for r in responses:
-            words = set(re.findall(r'\b\w{4,}\b', r.lower()))
+            words = set(re.findall(r"\b\w{4,}\b", r.lower()))
             word_sets.append(words)
 
         # Calculate Jaccard similarity between all pairs
@@ -744,25 +783,27 @@ def summarize_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - summary (str): Summarized text
             - error (str, optional): Error message if failed
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     try:
         import dspy
 
-        content = params.get('content')
+        content = params.get("content")
         if not content:
-            return {'success': False, 'error': 'content parameter is required'}
+            return {"success": False, "error": "content parameter is required"}
 
         status.emit("Summarizing", "🧠 Summarizing text...")
 
         # Build prompt
-        custom_prompt = params.get('prompt', 'Summarize the following content in a clear and concise way:')
+        custom_prompt = params.get(
+            "prompt", "Summarize the following content in a clear and concise way:"
+        )
         full_prompt = f"{custom_prompt}\n\n{content}"
 
         # Use DSPy's configured LM
         lm = dspy.settings.lm
         if not lm:
-            return {'success': False, 'error': 'No LLM configured in DSPy'}
+            return {"success": False, "error": "No LLM configured in DSPy"}
 
         # Direct LLM call (with rate-limit retry)
         response = _call_lm_with_retry(lm, prompt=full_prompt)
@@ -774,15 +815,15 @@ def summarize_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             text = str(response)
 
         return {
-            'success': True,
-            'summary': text,
-            'model': getattr(lm, 'model', 'unknown'),
-            'provider': 'dspy'
+            "success": True,
+            "summary": text,
+            "model": getattr(lm, "model", "unknown"),
+            "provider": "dspy",
         }
 
     except Exception as e:
         logger.error(f"Summarize text error: {e}", exc_info=True)
-        return {'success': False, 'error': f'Summarization failed: {str(e)}'}
+        return {"success": False, "error": f"Summarization failed: {str(e)}"}
 
 
 @tool_wrapper()
@@ -802,21 +843,21 @@ def generate_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - text (str): Generated text
             - error (str, optional): Error message if failed
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     try:
         import dspy
 
-        prompt = params.get('prompt')
+        prompt = params.get("prompt")
         if not prompt:
-            return {'success': False, 'error': 'prompt parameter is required'}
+            return {"success": False, "error": "prompt parameter is required"}
 
         status.emit("Generating", "🧠 Generating text...")
 
         # Use DSPy's configured LM
         lm = dspy.settings.lm
         if not lm:
-            return {'success': False, 'error': 'No LLM configured in DSPy'}
+            return {"success": False, "error": "No LLM configured in DSPy"}
 
         # Direct LLM call (with rate-limit retry)
         response = _call_lm_with_retry(lm, prompt=prompt)
@@ -828,15 +869,15 @@ def generate_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             text = str(response)
 
         return {
-            'success': True,
-            'text': text,
-            'model': getattr(lm, 'model', 'unknown'),
-            'provider': 'dspy'
+            "success": True,
+            "text": text,
+            "model": getattr(lm, "model", "unknown"),
+            "provider": "dspy",
         }
 
     except Exception as e:
         logger.error(f"Generate text error: {e}", exc_info=True)
-        return {'success': False, 'error': f'Text generation failed: {str(e)}'}
+        return {"success": False, "error": f"Text generation failed: {str(e)}"}
 
 
 @tool_wrapper()
@@ -858,49 +899,51 @@ def claude_cli_llm_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - response (str): Generated/synthesized response
             - ensemble_used (bool): Whether ensembling was used
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     try:
         import dspy
 
-        prompt = params.get('prompt')
+        prompt = params.get("prompt")
         if not prompt:
-            return {'success': False, 'error': 'prompt parameter is required'}
+            return {"success": False, "error": "prompt parameter is required"}
 
         # Check if ensembling requested
-        ensemble = params.get('ensemble', False)
+        ensemble = params.get("ensemble", False)
         if ensemble:
-            strategy = params.get('ensemble_strategy', 'multi_perspective')
-            return ensemble_prompt_tool({
-                'prompt': prompt,
-                'strategy': strategy,
-                'num_samples': params.get('num_samples', 5),
-                'synthesis_style': params.get('synthesis_style', 'detailed')
-            })
+            strategy = params.get("ensemble_strategy", "multi_perspective")
+            return ensemble_prompt_tool(
+                {
+                    "prompt": prompt,
+                    "strategy": strategy,
+                    "num_samples": params.get("num_samples", 5),
+                    "synthesis_style": params.get("synthesis_style", "detailed"),
+                }
+            )
 
         # Standard single LLM call (with rate-limit retry)
         lm = dspy.settings.lm
         if not lm:
-            return {'success': False, 'error': 'No LLM configured in DSPy'}
+            return {"success": False, "error": "No LLM configured in DSPy"}
 
         response = _call_lm_with_retry(lm, prompt=prompt)
         text = response[0] if isinstance(response, list) else str(response)
 
         return {
-            'success': True,
-            'response': text,
-            'ensemble_used': False,
-            'model': getattr(lm, 'model', 'unknown')
+            "success": True,
+            "response": text,
+            "ensemble_used": False,
+            "model": getattr(lm, "model", "unknown"),
         }
 
     except Exception as e:
         logger.error(f"Claude CLI LLM error: {e}", exc_info=True)
-        return {'success': False, 'error': str(e)}
+        return {"success": False, "error": str(e)}
 
 
 __all__ = [
-    'summarize_text_tool',
-    'generate_text_tool',
-    'ensemble_prompt_tool',
-    'claude_cli_llm_tool'
+    "summarize_text_tool",
+    "generate_text_tool",
+    "ensemble_prompt_tool",
+    "claude_cli_llm_tool",
 ]

@@ -14,12 +14,13 @@ Standalone composed class, replaces MASZeroMixin.
 """
 
 import logging
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
+
 from Jotty.core.infrastructure.utils.async_utils import StatusReporter
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from Jotty.core.infrastructure.foundation.data_structures import EpisodeResult
     from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
+    from Jotty.core.infrastructure.foundation.data_structures import EpisodeResult
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +44,7 @@ class MASZeroController:
         self._experience_library = None
 
     @property
-    def agents(self) -> List['AgentConfig']:
+    def agents(self) -> List["AgentConfig"]:
         return self._get_agents()
 
     @property
@@ -54,6 +55,7 @@ class MASZeroController:
         """Lazy-load per-problem ExperienceLibrary."""
         if self._experience_library is None:
             from .mas_zero import ExperienceLibrary
+
             self._experience_library = ExperienceLibrary()
         return self._experience_library
 
@@ -79,30 +81,35 @@ class MASZeroController:
         Returns:
             Best output (selected by LLM verifier), or None
         """
-        from .mas_zero import get_candidate_verifier, CandidateAnswer
+        from .mas_zero import CandidateAnswer, get_candidate_verifier
 
         if len(results) <= 1:
             return None
 
         candidates = []
         for name, result in results.items():
-            success = result.success if hasattr(result, 'success') else False
-            output = result.output if hasattr(result, 'output') else result
-            candidates.append(CandidateAnswer(
-                source=f"agent_{name}",
-                agent_name=name,
-                output=output,
-                success=success,
-                confidence=0.7 if success else 0.2,
-                execution_time=getattr(result, 'execution_time', 0.0),
-            ))
+            success = result.success if hasattr(result, "success") else False
+            output = result.output if hasattr(result, "output") else result
+            candidates.append(
+                CandidateAnswer(
+                    source=f"agent_{name}",
+                    agent_name=name,
+                    output=output,
+                    success=success,
+                    confidence=0.7 if success else 0.2,
+                    execution_time=getattr(result, "execution_time", 0.0),
+                )
+            )
 
         experience = self._get_experience_library()
         for c in candidates:
             experience.add_candidate(
-                source=c.source, agent_name=c.agent_name,
-                output=c.output, success=c.success,
-                confidence=c.confidence, execution_time=c.execution_time,
+                source=c.source,
+                agent_name=c.agent_name,
+                output=c.output,
+                success=c.success,
+                confidence=c.confidence,
+                execution_time=c.execution_time,
             )
 
         verifier = get_candidate_verifier()
@@ -128,38 +135,38 @@ class MASZeroController:
 
         sub_tasks = []
         for agent_config in self.agents:
-            sub_goal = (
-                agent_config.capabilities[0]
-                if agent_config.capabilities
-                else goal
+            sub_goal = agent_config.capabilities[0] if agent_config.capabilities else goal
+            sub_tasks.append(
+                {
+                    "agent_name": agent_config.name,
+                    "sub_goal": sub_goal,
+                    "strategy": "direct",
+                }
             )
-            sub_tasks.append({
-                'agent_name': agent_config.name,
-                'sub_goal': sub_goal,
-                'strategy': 'direct',
-            })
 
         evaluator = get_meta_feedback_evaluator()
         feedback = evaluator.evaluate(goal, sub_tasks, results)
 
         experience = self._get_experience_library()
         for st in sub_tasks:
-            result = results.get(st['agent_name'])
+            result = results.get(st["agent_name"])
             success = False
             if result:
-                success = result.success if hasattr(result, 'success') else result.get('success', False)
+                success = (
+                    result.success if hasattr(result, "success") else result.get("success", False)
+                )
             experience.record(
-                agent_name=st['agent_name'],
-                sub_goal=st['sub_goal'],
-                strategy=st['strategy'],
-                output_summary=str(getattr(result, 'output', ''))[:300] if result else '',
+                agent_name=st["agent_name"],
+                sub_goal=st["sub_goal"],
+                strategy=st["strategy"],
+                output_summary=str(getattr(result, "output", ""))[:300] if result else "",
                 success=success,
-                feedback=feedback.get('feedback', ''),
-                solvability=feedback.get('solvability', 0.0),
-                completeness=feedback.get('completeness', 0.0),
+                feedback=feedback.get("feedback", ""),
+                solvability=feedback.get("solvability", 0.0),
+                completeness=feedback.get("completeness", 0.0),
             )
 
-        if feedback.get('should_refine'):
+        if feedback.get("should_refine"):
             logger.info(
                 f"Meta-feedback: refinement needed "
                 f"(solvability={feedback['solvability']:.0%}, "
@@ -186,7 +193,14 @@ class MASZeroController:
     # MAS-EVOLVE: Iterative refinement of MAS design
     # =========================================================================
 
-    async def evolve(self, goal: str, initial_results: Dict[str, Any], max_iterations: int = 2, status_callback: Any = None, **kwargs: Any) -> Dict[str, Any]:
+    async def evolve(
+        self,
+        goal: str,
+        initial_results: Dict[str, Any],
+        max_iterations: int = 2,
+        status_callback: Any = None,
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
         """
         Iteratively refine MAS design based on meta-feedback.
         """
@@ -198,7 +212,7 @@ class MASZeroController:
         for iteration in range(max_iterations):
             feedback = self.evaluate(goal, best_results)
 
-            if not feedback.get('should_refine'):
+            if not feedback.get("should_refine"):
                 _status("MAS-Evolve", f"design acceptable after iteration {iteration}")
                 break
 
@@ -209,7 +223,7 @@ class MASZeroController:
             )
             experience.next_iteration()
 
-            too_hard = feedback.get('too_hard_tasks', [])
+            too_hard = feedback.get("too_hard_tasks", [])
             if too_hard:
                 _status("MAS-Evolve", f"re-routing {len(too_hard)} too-hard tasks")
 
@@ -217,7 +231,7 @@ class MASZeroController:
             for agent_config in self.agents:
                 name = agent_config.name
                 result = best_results.get(name)
-                success = result.success if hasattr(result, 'success') else False
+                success = result.success if hasattr(result, "success") else False
 
                 if success:
                     continue
@@ -228,11 +242,7 @@ class MASZeroController:
                     continue
 
                 context = experience.get_context_summary()
-                enriched_goal = (
-                    agent_config.capabilities[0]
-                    if agent_config.capabilities
-                    else goal
-                )
+                enriched_goal = agent_config.capabilities[0] if agent_config.capabilities else goal
                 if context:
                     enriched_goal = f"{enriched_goal}\n\n{context}"
 

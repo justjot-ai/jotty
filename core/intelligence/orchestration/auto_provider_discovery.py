@@ -25,12 +25,12 @@ Usage:
         result = await registry.execute(SkillCategory.DOCUMENT, "Extract text from scan.pdf")
 """
 
-import os
-import logging
 import asyncio
-from pathlib import Path
-from typing import Dict, Any, List, Optional, TYPE_CHECKING
+import logging
+import os
 from dataclasses import dataclass
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 if TYPE_CHECKING:
     from .swarm_researcher import ProviderCandidate
@@ -41,6 +41,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class DiscoveryResult:
     """Result of auto-discovery pipeline."""
+
     success: bool
     provider_name: Optional[str] = None
     package_name: Optional[str] = None
@@ -67,19 +68,37 @@ class AutoProviderDiscovery:
     """
 
     # Trusted package sources
-    TRUSTED_SOURCES = {'awesome-list'}
+    TRUSTED_SOURCES = {"awesome-list"}
 
     # Packages that require dangerous trust level
     DANGEROUS_PACKAGES = {
-        'subprocess', 'os', 'sys', 'eval', 'exec', 'shell',
-        'pyautogui', 'keyboard', 'mouse', 'pynput',
+        "subprocess",
+        "os",
+        "sys",
+        "eval",
+        "exec",
+        "shell",
+        "pyautogui",
+        "keyboard",
+        "mouse",
+        "pynput",
     }
 
     # Packages considered safe
     SAFE_PACKAGES = {
-        'requests', 'httpx', 'aiohttp', 'beautifulsoup4', 'lxml',
-        'pillow', 'pypdf', 'pdfplumber', 'reportlab',
-        'pandas', 'numpy', 'matplotlib', 'plotly',
+        "requests",
+        "httpx",
+        "aiohttp",
+        "beautifulsoup4",
+        "lxml",
+        "pillow",
+        "pypdf",
+        "pdfplumber",
+        "reportlab",
+        "pandas",
+        "numpy",
+        "matplotlib",
+        "plotly",
     }
 
     def __init__(self, config: Optional[Dict[str, Any]] = None) -> None:
@@ -96,13 +115,11 @@ class AutoProviderDiscovery:
 
         # Determine providers directory
         default_providers_dir = Path(__file__).parent.parent.parent / "skills" / "providers"
-        self.providers_dir = Path(
-            self.config.get('providers_dir', str(default_providers_dir))
-        )
+        self.providers_dir = Path(self.config.get("providers_dir", str(default_providers_dir)))
         self.providers_dir.mkdir(parents=True, exist_ok=True)
 
-        self.auto_register = self.config.get('auto_register', True)
-        self.max_candidates = self.config.get('max_candidates', 5)
+        self.auto_register = self.config.get("auto_register", True)
+        self.max_candidates = self.config.get("max_candidates", 5)
 
         # Lazy-loaded components
         self._researcher = None
@@ -114,24 +131,26 @@ class AutoProviderDiscovery:
         """Lazy initialize pipeline components."""
         if self._researcher is None:
             from .swarm_researcher import SwarmResearcher
+
             self._researcher = SwarmResearcher(self.config)
 
         if self._installer is None:
             from .swarm_installer import SwarmInstaller
+
             self._installer = SwarmInstaller(self.config)
 
         if self._code_generator is None:
             from .swarm_code_generator import SwarmCodeGenerator
+
             self._code_generator = SwarmCodeGenerator(self.config)
 
         if self._registry is None:
             from Jotty.core.capabilities.skills.providers.provider_registry import ProviderRegistry
+
             self._registry = ProviderRegistry()
 
     async def discover_and_integrate(
-        self,
-        capability_needed: str,
-        preferred_package: Optional[str] = None
+        self, capability_needed: str, preferred_package: Optional[str] = None
     ) -> Optional[str]:
         """
         Full pipeline: discover -> install -> generate -> test -> register.
@@ -160,18 +179,18 @@ class AutoProviderDiscovery:
             if preferred_package:
                 # Use preferred package directly
                 from .swarm_researcher import ProviderCandidate
+
                 candidate = ProviderCandidate(
                     name=preferred_package,
                     package_name=preferred_package,
-                    source='user',
-                    url='',
+                    source="user",
+                    url="",
                     description=f"User-specified package for {capability_needed}",
                     categories=self._infer_categories(capability_needed),
                 )
             else:
                 candidates = await self._researcher.discover_providers(
-                    capability_needed,
-                    max_results=self.max_candidates
+                    capability_needed, max_results=self.max_candidates
                 )
 
                 if not candidates:
@@ -204,16 +223,14 @@ class AutoProviderDiscovery:
             # Step 4: Generate provider adapter
             categories = candidate.categories or self._infer_categories(capability_needed)
             package_info = {
-                'description': candidate.description,
-                'version': install_result.version or '1.0.0',
-                'url': candidate.url,
-                'source': candidate.source,
+                "description": candidate.description,
+                "version": install_result.version or "1.0.0",
+                "url": candidate.url,
+                "source": candidate.source,
             }
 
             generated = self._code_generator.generate_provider_adapter(
-                candidate.package_name,
-                package_info,
-                categories
+                candidate.package_name, package_info, categories
             )
 
             result.steps_completed.append("generate")
@@ -236,16 +253,13 @@ class AutoProviderDiscovery:
 
             # Step 7: Register provider
             if self.auto_register:
-                provider_name = await self._register_provider(
-                    adapter_path,
-                    trust_level
-                )
+                provider_name = await self._register_provider(adapter_path, trust_level)
                 if provider_name:
                     result.provider_name = provider_name
                     result.steps_completed.append("register")
                     logger.info(f" Registered provider: {provider_name}")
             else:
-                result.provider_name = candidate.package_name.replace('-', '_')
+                result.provider_name = candidate.package_name.replace("-", "_")
 
             result.success = True
             return result.provider_name
@@ -254,10 +268,11 @@ class AutoProviderDiscovery:
             result.error = str(e)
             logger.error(f" Auto-discovery failed: {e}")
             import traceback
+
             logger.debug(traceback.format_exc())
             return None
 
-    def _assess_trust_level(self, candidate: 'ProviderCandidate') -> str:
+    def _assess_trust_level(self, candidate: "ProviderCandidate") -> str:
         """
         Assess trust level for a provider candidate.
 
@@ -301,18 +316,18 @@ class AutoProviderDiscovery:
         capability_lower = capability.lower()
 
         category_keywords = {
-            'document': ['pdf', 'document', 'docx', 'ocr', 'text extract'],
-            'data_extract': ['scrape', 'crawl', 'extract', 'parse'],
-            'web_search': ['search', 'find', 'lookup', 'research'],
-            'browser': ['browser', 'web page', 'navigate', 'selenium', 'playwright'],
-            'file_ops': ['file', 'read', 'write', 'save', 'load'],
-            'code_exec': ['code', 'python', 'execute', 'compute'],
-            'terminal': ['shell', 'command', 'bash', 'terminal'],
-            'api_calls': ['api', 'rest', 'request', 'http'],
-            'media': ['image', 'audio', 'video', 'picture'],
-            'database': ['database', 'sql', 'query', 'mongodb'],
-            'communication': ['email', 'message', 'notify', 'telegram'],
-            'analytics': ['analyze', 'chart', 'visualize', 'report'],
+            "document": ["pdf", "document", "docx", "ocr", "text extract"],
+            "data_extract": ["scrape", "crawl", "extract", "parse"],
+            "web_search": ["search", "find", "lookup", "research"],
+            "browser": ["browser", "web page", "navigate", "selenium", "playwright"],
+            "file_ops": ["file", "read", "write", "save", "load"],
+            "code_exec": ["code", "python", "execute", "compute"],
+            "terminal": ["shell", "command", "bash", "terminal"],
+            "api_calls": ["api", "rest", "request", "http"],
+            "media": ["image", "audio", "video", "picture"],
+            "database": ["database", "sql", "query", "mongodb"],
+            "communication": ["email", "message", "notify", "telegram"],
+            "analytics": ["analyze", "chart", "visualize", "report"],
         }
 
         categories = []
@@ -320,7 +335,7 @@ class AutoProviderDiscovery:
             if any(kw in capability_lower for kw in keywords):
                 categories.append(category)
 
-        return categories or ['api_calls']  # Default
+        return categories or ["api_calls"]  # Default
 
     def _save_adapter(self, generated: Any) -> Path:
         """
@@ -336,7 +351,7 @@ class AutoProviderDiscovery:
         if generated.file_path:
             file_name = Path(generated.file_path).name
         else:
-            package_name = generated.metadata.get('package_name', 'unknown')
+            package_name = generated.metadata.get("package_name", "unknown")
             file_name = f"{package_name.replace('-', '_')}_provider.py"
 
         adapter_path = self.providers_dir / file_name
@@ -359,10 +374,7 @@ class AutoProviderDiscovery:
         try:
             import importlib.util
 
-            spec = importlib.util.spec_from_file_location(
-                "test_adapter",
-                adapter_path
-            )
+            spec = importlib.util.spec_from_file_location("test_adapter", adapter_path)
             if spec and spec.loader:
                 module = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(module)
@@ -373,11 +385,7 @@ class AutoProviderDiscovery:
 
         return False
 
-    async def _register_provider(
-        self,
-        adapter_path: Path,
-        trust_level: str
-    ) -> Optional[str]:
+    async def _register_provider(self, adapter_path: Path, trust_level: str) -> Optional[str]:
         """
         Register provider from adapter file.
 
@@ -391,10 +399,7 @@ class AutoProviderDiscovery:
         try:
             import importlib.util
 
-            spec = importlib.util.spec_from_file_location(
-                "provider_module",
-                adapter_path
-            )
+            spec = importlib.util.spec_from_file_location("provider_module", adapter_path)
             if not spec or not spec.loader:
                 return None
 
@@ -404,16 +409,19 @@ class AutoProviderDiscovery:
             # Look for create_provider function or Provider class
             provider = None
 
-            if hasattr(module, 'create_provider'):
+            if hasattr(module, "create_provider"):
                 provider = module.create_provider()
             else:
                 # Find first SkillProvider subclass
                 from Jotty.core.capabilities.skills.providers.base import SkillProvider
+
                 for name in dir(module):
                     obj = getattr(module, name)
-                    if (isinstance(obj, type) and
-                        issubclass(obj, SkillProvider) and
-                        obj is not SkillProvider):
+                    if (
+                        isinstance(obj, type)
+                        and issubclass(obj, SkillProvider)
+                        and obj is not SkillProvider
+                    ):
                         provider = obj()
                         break
 
@@ -426,10 +434,7 @@ class AutoProviderDiscovery:
 
         return None
 
-    async def discover_multiple(
-        self,
-        capabilities: List[str]
-    ) -> Dict[str, Optional[str]]:
+    async def discover_multiple(self, capabilities: List[str]) -> Dict[str, Optional[str]]:
         """
         Discover and integrate multiple capabilities in parallel.
 
@@ -439,10 +444,7 @@ class AutoProviderDiscovery:
         Returns:
             Dict mapping capability to provider name (or None if failed)
         """
-        tasks = [
-            self.discover_and_integrate(cap)
-            for cap in capabilities
-        ]
+        tasks = [self.discover_and_integrate(cap) for cap in capabilities]
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -462,20 +464,22 @@ class AutoProviderDiscovery:
 
         for file_path in self.providers_dir.glob("*_provider.py"):
             # Skip __init__.py and base files
-            if file_path.name.startswith('_'):
+            if file_path.name.startswith("_"):
                 continue
 
             provider_name = file_path.stem
 
             # Check if registered
             self._init_components()
-            is_registered = provider_name.replace('_provider', '') in self._registry._providers
+            is_registered = provider_name.replace("_provider", "") in self._registry._providers
 
-            providers.append({
-                'name': provider_name,
-                'path': str(file_path),
-                'registered': is_registered,
-            })
+            providers.append(
+                {
+                    "name": provider_name,
+                    "path": str(file_path),
+                    "registered": is_registered,
+                }
+            )
 
         return providers
 

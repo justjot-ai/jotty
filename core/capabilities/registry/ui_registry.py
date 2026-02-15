@@ -1,4 +1,5 @@
 from typing import Any
+
 """
 UI Registry - Unified Frontend Components (Eyes)
 =================================================
@@ -41,10 +42,10 @@ Author: Jotty Team
 Date: February 2026
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Any, Optional, Callable, Union
-import logging
 import json
+import logging
+from dataclasses import dataclass, field
+from typing import Any, Callable, Dict, List, Optional, Union
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +53,7 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 # UNIFIED UI COMPONENT SCHEMA
 # =============================================================================
+
 
 @dataclass
 class UIComponent:
@@ -93,6 +95,7 @@ class UIComponent:
         version: Component version
         bidirectional: Supports round-trip conversion
     """
+
     # Identity
     component_type: str
     label: str
@@ -131,91 +134,98 @@ class UIComponent:
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for API responses."""
         return {
-            'component_type': self.component_type,
-            'label': self.label,
-            'category': self.category,
-            'icon': self.icon,
-            'description': self.description,
-            'content_type': self.content_type,
-            'has_own_ui': self.has_own_ui,
-            'content_schema': self.content_schema,
-            'client_id': self.client_id,
-            'version': self.version,
-            'bidirectional': self.bidirectional,
-            'has_to_a2ui': self.to_a2ui is not None or self.to_a2ui_func is not None,
-            'has_to_agui': self.to_agui is not None or self.to_agui_func is not None,
-            'has_from_a2ui': self.from_a2ui is not None or self.from_a2ui_func is not None,
-            'has_from_agui': self.from_agui is not None or self.from_agui_func is not None,
+            "component_type": self.component_type,
+            "label": self.label,
+            "category": self.category,
+            "icon": self.icon,
+            "description": self.description,
+            "content_type": self.content_type,
+            "has_own_ui": self.has_own_ui,
+            "content_schema": self.content_schema,
+            "client_id": self.client_id,
+            "version": self.version,
+            "bidirectional": self.bidirectional,
+            "has_to_a2ui": self.to_a2ui is not None or self.to_a2ui_func is not None,
+            "has_to_agui": self.to_agui is not None or self.to_agui_func is not None,
+            "has_from_a2ui": self.from_a2ui is not None or self.from_a2ui_func is not None,
+            "has_from_agui": self.from_agui is not None or self.from_agui_func is not None,
         }
 
     def to_widget_dict(self) -> Dict[str, Any]:
         """Convert to legacy WidgetSchema format for backwards compatibility."""
         return {
-            'value': self.component_type,
-            'label': self.label,
-            'icon': self.icon,
-            'description': self.description,
-            'category': self.category,
-            'hasOwnUI': self.has_own_ui,
-            'contentType': self.content_type,
-            'contentSchema': self.content_schema,
+            "value": self.component_type,
+            "label": self.label,
+            "icon": self.icon,
+            "description": self.description,
+            "category": self.category,
+            "hasOwnUI": self.has_own_ui,
+            "contentType": self.content_type,
+            "contentSchema": self.content_schema,
         }
 
     def to_agui_dict(self) -> Dict[str, Any]:
         """Convert to legacy AGUIComponentAdapter format for backwards compatibility."""
         return {
-            'section_type': self.component_type,
-            'label': self.label,
-            'category': self.category,
-            'description': self.description,
-            'bidirectional': self.bidirectional,
-            'content_type': self.content_type,
-            'example_input': self.example_input,
-            'example_output': self.example_output,
-            'client_id': self.client_id,
-            'version': self.version,
-            'has_to_a2ui': self.to_a2ui is not None or self.to_a2ui_func is not None,
-            'has_to_agui': self.to_agui is not None or self.to_agui_func is not None,
-            'has_from_a2ui': self.from_a2ui is not None or self.from_a2ui_func is not None,
-            'has_from_agui': self.from_agui is not None or self.from_agui_func is not None,
+            "section_type": self.component_type,
+            "label": self.label,
+            "category": self.category,
+            "description": self.description,
+            "bidirectional": self.bidirectional,
+            "content_type": self.content_type,
+            "example_input": self.example_input,
+            "example_output": self.example_output,
+            "client_id": self.client_id,
+            "version": self.version,
+            "has_to_a2ui": self.to_a2ui is not None or self.to_a2ui_func is not None,
+            "has_to_agui": self.to_agui is not None or self.to_agui_func is not None,
+            "has_from_a2ui": self.from_a2ui is not None or self.from_a2ui_func is not None,
+            "has_from_agui": self.from_agui is not None or self.from_agui_func is not None,
         }
 
     def to_json_serializable(self) -> Dict[str, Any]:
         """Convert to JSON-serializable format (includes function code strings)."""
         return {
-            'component_type': self.component_type,
-            'label': self.label,
-            'category': self.category,
-            'icon': self.icon,
-            'description': self.description,
-            'content_type': self.content_type,
-            'has_own_ui': self.has_own_ui,
-            'content_schema': self.content_schema,
-            'to_a2ui': self.to_a2ui,
-            'to_agui': self.to_agui,
-            'from_a2ui': self.from_a2ui,
-            'from_agui': self.from_agui,
-            'client_id': self.client_id,
-            'version': self.version,
-            'bidirectional': self.bidirectional,
-            'example_input': self.example_input,
-            'example_output': self.example_output,
+            "component_type": self.component_type,
+            "label": self.label,
+            "category": self.category,
+            "icon": self.icon,
+            "description": self.description,
+            "content_type": self.content_type,
+            "has_own_ui": self.has_own_ui,
+            "content_schema": self.content_schema,
+            "to_a2ui": self.to_a2ui,
+            "to_agui": self.to_agui,
+            "from_a2ui": self.from_a2ui,
+            "from_agui": self.from_agui,
+            "client_id": self.client_id,
+            "version": self.version,
+            "bidirectional": self.bidirectional,
+            "example_input": self.example_input,
+            "example_output": self.example_output,
         }
 
     @property
     def has_adapters(self) -> bool:
         """Check if component has any AGUI adapters."""
-        return any([
-            self.to_a2ui_func, self.to_agui_func,
-            self.from_a2ui_func, self.from_agui_func,
-            self.to_a2ui, self.to_agui,
-            self.from_a2ui, self.from_agui,
-        ])
+        return any(
+            [
+                self.to_a2ui_func,
+                self.to_agui_func,
+                self.from_a2ui_func,
+                self.from_agui_func,
+                self.to_a2ui,
+                self.to_agui,
+                self.from_a2ui,
+                self.from_agui,
+            ]
+        )
 
 
 # =============================================================================
 # UI REGISTRY (Eyes)
 # =============================================================================
+
 
 class UIRegistry:
     """
@@ -373,7 +383,18 @@ class UIRegistry:
         logger.info(f"📦 Registered {len(registered)} UI components in batch")
         return registered
 
-    def register_from_widget(self, value: str, label: str, icon: str, description: str, category: str, hasOwnUI: bool = False, contentType: str = 'text', contentSchema: str = '', **kwargs: Any) -> UIComponent:
+    def register_from_widget(
+        self,
+        value: str,
+        label: str,
+        icon: str,
+        description: str,
+        category: str,
+        hasOwnUI: bool = False,
+        contentType: str = "text",
+        contentSchema: str = "",
+        **kwargs: Any,
+    ) -> UIComponent:
         """
         Register from legacy WidgetSchema format.
         Provides backwards compatibility with WidgetRegistry.
@@ -387,10 +408,29 @@ class UIRegistry:
             has_own_ui=hasOwnUI,
             content_type=contentType,
             content_schema=contentSchema,
-            **kwargs
+            **kwargs,
         )
 
-    def register_from_agui(self, section_type: str, label: str, category: str, to_a2ui: Optional[str] = None, to_agui: Optional[str] = None, from_a2ui: Optional[str] = None, from_agui: Optional[str] = None, to_a2ui_func: Optional[Callable] = None, to_agui_func: Optional[Callable] = None, from_a2ui_func: Optional[Callable] = None, from_agui_func: Optional[Callable] = None, description: str = '', bidirectional: bool = False, content_type: str = 'json', client_id: str = 'unknown', version: str = '1.0.0', **kwargs: Any) -> UIComponent:
+    def register_from_agui(
+        self,
+        section_type: str,
+        label: str,
+        category: str,
+        to_a2ui: Optional[str] = None,
+        to_agui: Optional[str] = None,
+        from_a2ui: Optional[str] = None,
+        from_agui: Optional[str] = None,
+        to_a2ui_func: Optional[Callable] = None,
+        to_agui_func: Optional[Callable] = None,
+        from_a2ui_func: Optional[Callable] = None,
+        from_agui_func: Optional[Callable] = None,
+        description: str = "",
+        bidirectional: bool = False,
+        content_type: str = "json",
+        client_id: str = "unknown",
+        version: str = "1.0.0",
+        **kwargs: Any,
+    ) -> UIComponent:
         """
         Register from legacy AGUIComponentAdapter format.
         Provides backwards compatibility with AGUIComponentRegistry.
@@ -412,7 +452,7 @@ class UIRegistry:
             bidirectional=bidirectional,
             client_id=client_id,
             version=version,
-            **kwargs
+            **kwargs,
         )
 
     # =========================================================================
@@ -549,11 +589,11 @@ class UIRegistry:
     def to_api_response(self) -> Dict[str, Any]:
         """Convert to API response format."""
         return {
-            'components': [c.to_dict() for c in self.get_all()],
-            'categories': self.get_categories(),
-            'clients': self.get_clients(),
-            'count': len(self._components),
-            'with_adapters': len(self.get_with_adapters()),
+            "components": [c.to_dict() for c in self.get_all()],
+            "categories": self.get_categories(),
+            "clients": self.get_clients(),
+            "count": len(self._components),
+            "with_adapters": len(self.get_with_adapters()),
         }
 
     def export_for_remote_agent(self, client_id: Optional[str] = None) -> Dict[str, Any]:
@@ -563,9 +603,9 @@ class UIRegistry:
         """
         components = self.get_by_client(client_id) if client_id else self.get_all()
         return {
-            'components': [c.to_json_serializable() for c in components],
-            'client_id': client_id,
-            'count': len(components),
+            "components": [c.to_json_serializable() for c in components],
+            "client_id": client_id,
+            "count": len(components),
         }
 
     # =========================================================================
@@ -587,16 +627,22 @@ class UIRegistry:
         """
         count = 0
         for widget in widget_registry.get_all():
-            self.register_from_widget(**widget.to_dict() if hasattr(widget, 'to_dict') else {
-                'value': widget.value,
-                'label': widget.label,
-                'icon': widget.icon,
-                'description': widget.description,
-                'category': widget.category,
-                'hasOwnUI': widget.hasOwnUI,
-                'contentType': widget.contentType,
-                'contentSchema': widget.contentSchema,
-            })
+            self.register_from_widget(
+                **(
+                    widget.to_dict()
+                    if hasattr(widget, "to_dict")
+                    else {
+                        "value": widget.value,
+                        "label": widget.label,
+                        "icon": widget.icon,
+                        "description": widget.description,
+                        "category": widget.category,
+                        "hasOwnUI": widget.hasOwnUI,
+                        "contentType": widget.contentType,
+                        "contentSchema": widget.contentSchema,
+                    }
+                )
+            )
             count += 1
         logger.info(f"📥 Imported {count} widgets from WidgetRegistry")
         return count
@@ -657,100 +703,100 @@ def _load_builtin_components(registry: UIRegistry) -> Any:
     # Core UI components that are always available
     CORE_COMPONENTS = [
         {
-            'component_type': 'text',
-            'label': 'Text',
-            'category': 'Content',
-            'icon': '📝',
-            'description': 'Plain text or markdown content',
-            'content_type': 'markdown',
+            "component_type": "text",
+            "label": "Text",
+            "category": "Content",
+            "icon": "📝",
+            "description": "Plain text or markdown content",
+            "content_type": "markdown",
         },
         {
-            'component_type': 'code',
-            'label': 'Code',
-            'category': 'Content',
-            'icon': '💻',
-            'description': 'Syntax-highlighted code block',
-            'content_type': 'code',
+            "component_type": "code",
+            "label": "Code",
+            "category": "Content",
+            "icon": "💻",
+            "description": "Syntax-highlighted code block",
+            "content_type": "code",
         },
         {
-            'component_type': 'mermaid',
-            'label': 'Mermaid Diagram',
-            'category': 'Diagrams',
-            'icon': '📊',
-            'description': 'Mermaid.js diagrams (flowcharts, sequence, etc.)',
-            'content_type': 'text',
+            "component_type": "mermaid",
+            "label": "Mermaid Diagram",
+            "category": "Diagrams",
+            "icon": "📊",
+            "description": "Mermaid.js diagrams (flowcharts, sequence, etc.)",
+            "content_type": "text",
         },
         {
-            'component_type': 'chart',
-            'label': 'Chart',
-            'category': 'Visualization',
-            'icon': '📈',
-            'description': 'Data visualization charts',
-            'content_type': 'json',
+            "component_type": "chart",
+            "label": "Chart",
+            "category": "Visualization",
+            "icon": "📈",
+            "description": "Data visualization charts",
+            "content_type": "json",
         },
         {
-            'component_type': 'data-table',
-            'label': 'Data Table',
-            'category': 'Data',
-            'icon': '📋',
-            'description': 'Tabular data display',
-            'content_type': 'json',
+            "component_type": "data-table",
+            "label": "Data Table",
+            "category": "Data",
+            "icon": "📋",
+            "description": "Tabular data display",
+            "content_type": "json",
         },
         {
-            'component_type': 'kanban-board',
-            'label': 'Kanban Board',
-            'category': 'Project',
-            'icon': '📌',
-            'description': 'Kanban-style task board',
-            'content_type': 'json',
+            "component_type": "kanban-board",
+            "label": "Kanban Board",
+            "category": "Project",
+            "icon": "📌",
+            "description": "Kanban-style task board",
+            "content_type": "json",
         },
         {
-            'component_type': 'todos',
-            'label': 'Todo List',
-            'category': 'Project',
-            'icon': '✅',
-            'description': 'Checkbox todo list',
-            'content_type': 'json',
+            "component_type": "todos",
+            "label": "Todo List",
+            "category": "Project",
+            "icon": "✅",
+            "description": "Checkbox todo list",
+            "content_type": "json",
         },
         {
-            'component_type': 'image',
-            'label': 'Image',
-            'category': 'Media',
-            'icon': '🖼️',
-            'description': 'Image display',
-            'content_type': 'text',
+            "component_type": "image",
+            "label": "Image",
+            "category": "Media",
+            "icon": "🖼️",
+            "description": "Image display",
+            "content_type": "text",
         },
         {
-            'component_type': 'audio',
-            'label': 'Audio',
-            'category': 'Media',
-            'icon': '🔊',
-            'description': 'Audio player',
-            'content_type': 'text',
+            "component_type": "audio",
+            "label": "Audio",
+            "category": "Media",
+            "icon": "🔊",
+            "description": "Audio player",
+            "content_type": "text",
         },
         {
-            'component_type': 'video',
-            'label': 'Video',
-            'category': 'Media',
-            'icon': '🎬',
-            'description': 'Video player',
-            'content_type': 'text',
+            "component_type": "video",
+            "label": "Video",
+            "category": "Media",
+            "icon": "🎬",
+            "description": "Video player",
+            "content_type": "text",
         },
         {
-            'component_type': 'timeline',
-            'label': 'Timeline',
-            'category': 'Visualization',
-            'icon': '📅',
-            'description': 'Chronological timeline',
-            'content_type': 'json',
+            "component_type": "timeline",
+            "label": "Timeline",
+            "category": "Visualization",
+            "icon": "📅",
+            "description": "Chronological timeline",
+            "content_type": "json",
         },
         {
-            'component_type': 'card',
-            'label': 'Card',
-            'category': 'Layout',
-            'icon': '🃏',
-            'description': 'Content card container',
-            'content_type': 'json',
+            "component_type": "card",
+            "label": "Card",
+            "category": "Layout",
+            "icon": "🃏",
+            "description": "Content card container",
+            "content_type": "json",
         },
     ]
 
@@ -762,16 +808,17 @@ def _load_builtin_components(registry: UIRegistry) -> Any:
     # Try to load supervisor widgets
     try:
         from .builtin_widgets import get_supervisor_widgets
+
         widgets = get_supervisor_widgets()
         for widget in widgets:
             # Convert supervisor widget format to UIComponent format
             registry.register(
-                component_type=widget.get('id', widget.get('name', '').lower().replace(' ', '-')),
-                label=widget.get('name', 'Unknown'),
-                category=widget.get('category', 'Supervisor'),
-                icon='🔧',
-                description=widget.get('description', ''),
-                content_type='json',
+                component_type=widget.get("id", widget.get("name", "").lower().replace(" ", "-")),
+                label=widget.get("name", "Unknown"),
+                category=widget.get("category", "Supervisor"),
+                icon="🔧",
+                description=widget.get("description", ""),
+                content_type="json",
             )
         logger.info(f"📦 Loaded {len(widgets)} supervisor widgets")
     except ImportError:
@@ -791,6 +838,7 @@ def reset_ui_registry() -> None:
 # =============================================================================
 
 # These allow old code using WidgetRegistry/AGUIComponentRegistry to still work
+
 
 def get_widget_registry_compat() -> UIRegistry:
     """

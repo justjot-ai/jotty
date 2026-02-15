@@ -1,19 +1,23 @@
 """Archive Manager Skill - create/extract ZIP, TAR, GZIP archives."""
-import zipfile
-import tarfile
+
 import os
+import tarfile
+import zipfile
 from pathlib import Path
-from typing import Dict, Any, List
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from typing import Any, Dict, List
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("archive-manager")
 
 FORMAT_MAP = {
     "zip": "zip",
     "tar": "tar",
-    "tar.gz": "tar.gz", "tgz": "tar.gz",
-    "tar.bz2": "tar.bz2", "tbz2": "tar.bz2",
+    "tar.gz": "tar.gz",
+    "tgz": "tar.gz",
+    "tar.bz2": "tar.bz2",
+    "tbz2": "tar.bz2",
 }
 
 
@@ -108,21 +112,30 @@ def list_archive_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         if zipfile.is_zipfile(str(archive_path)):
             with zipfile.ZipFile(str(archive_path), "r") as zf:
                 for info in zf.infolist():
-                    files.append({"name": info.filename, "size": info.file_size,
-                                  "compressed": info.compress_size})
+                    files.append(
+                        {
+                            "name": info.filename,
+                            "size": info.file_size,
+                            "compressed": info.compress_size,
+                        }
+                    )
                     total_size += info.file_size
         elif tarfile.is_tarfile(str(archive_path)):
             with tarfile.open(str(archive_path), "r:*") as tf:
                 for member in tf.getmembers():
-                    files.append({"name": member.name, "size": member.size,
-                                  "is_dir": member.isdir()})
+                    files.append(
+                        {"name": member.name, "size": member.size, "is_dir": member.isdir()}
+                    )
                     total_size += member.size
         else:
             return tool_error("Unsupported archive format")
 
-        return tool_response(files=files, file_count=len(files),
-                             total_size=total_size,
-                             archive_size=archive_path.stat().st_size)
+        return tool_response(
+            files=files,
+            file_count=len(files),
+            total_size=total_size,
+            archive_size=archive_path.stat().st_size,
+        )
     except Exception as e:
         return tool_error(f"Failed to list archive: {e}")
 

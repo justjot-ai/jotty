@@ -1,8 +1,11 @@
 """Generate OpenAPI/Swagger docs from endpoint definitions."""
+
 import json
-from typing import Dict, Any, List
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from typing import Any, Dict, List
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
+
 status = SkillStatus("api-docs-generator")
 
 
@@ -53,13 +56,15 @@ def generate_api_docs(params: Dict[str, Any]) -> Dict[str, Any]:
         if ep.get("parameters"):
             operation["parameters"] = []
             for p in ep["parameters"]:
-                operation["parameters"].append({
-                    "name": p["name"],
-                    "in": p.get("in", "query"),
-                    "required": p.get("required", False),
-                    "description": p.get("description", ""),
-                    "schema": {"type": p.get("type", "string")},
-                })
+                operation["parameters"].append(
+                    {
+                        "name": p["name"],
+                        "in": p.get("in", "query"),
+                        "required": p.get("required", False),
+                        "description": p.get("description", ""),
+                        "schema": {"type": p.get("type", "string")},
+                    }
+                )
 
         # Request body
         if ep.get("request_body") and method in ("post", "put", "patch"):
@@ -70,9 +75,7 @@ def generate_api_docs(params: Dict[str, Any]) -> Dict[str, Any]:
             operation["requestBody"] = {
                 "required": True,
                 "content": {
-                    "application/json": {
-                        "schema": {"type": "object", "properties": props}
-                    }
+                    "application/json": {"schema": {"type": "object", "properties": props}}
                 },
             }
 
@@ -82,9 +85,7 @@ def generate_api_docs(params: Dict[str, Any]) -> Dict[str, Any]:
         for code, info in responses.items():
             resp: Dict[str, Any] = {"description": info.get("description", "")}
             if info.get("schema"):
-                resp["content"] = {
-                    "application/json": {"schema": info["schema"]}
-                }
+                resp["content"] = {"application/json": {"schema": info["schema"]}}
             operation["responses"][str(code)] = resp
 
         spec["paths"].setdefault(path, {})[method] = operation

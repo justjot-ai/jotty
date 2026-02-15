@@ -3,22 +3,24 @@ Tests for core/use_cases/base.py
 =================================
 Covers: UseCaseType, UseCaseConfig, UseCaseResult, BaseUseCase.
 """
-import pytest
+
 import time
-from unittest.mock import MagicMock, AsyncMock
 from dataclasses import dataclass
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 from Jotty.core.interface.use_cases.base import (
-    UseCaseType,
+    BaseUseCase,
     UseCaseConfig,
     UseCaseResult,
-    BaseUseCase,
+    UseCaseType,
 )
-
 
 # ===========================================================================
 # UseCaseType Enum
 # ===========================================================================
+
 
 @pytest.mark.unit
 class TestUseCaseType:
@@ -42,6 +44,7 @@ class TestUseCaseType:
 # ===========================================================================
 # UseCaseConfig Dataclass
 # ===========================================================================
+
 
 @pytest.mark.unit
 class TestUseCaseConfig:
@@ -79,6 +82,7 @@ class TestUseCaseConfig:
 # ===========================================================================
 # UseCaseResult Dataclass
 # ===========================================================================
+
 
 @pytest.mark.unit
 class TestUseCaseResult:
@@ -156,8 +160,10 @@ class TestUseCaseResult:
 # BaseUseCase
 # ===========================================================================
 
+
 class _ConcreteChat(BaseUseCase):
     """Concrete implementation for testing."""
+
     def _get_use_case_type(self) -> UseCaseType:
         return UseCaseType.CHAT
 
@@ -170,6 +176,7 @@ class _ConcreteChat(BaseUseCase):
 
 class _ConcreteWorkflow(BaseUseCase):
     """Concrete workflow implementation for testing."""
+
     def _get_use_case_type(self) -> UseCaseType:
         return UseCaseType.WORKFLOW
 

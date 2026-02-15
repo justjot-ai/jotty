@@ -14,14 +14,16 @@ Covers:
 
 All LLM calls, file I/O (YAML), and external dependencies are mocked.
 """
-import sys
-import os
+
 import json
-import pytest
+import os
+import sys
 import tempfile
 from pathlib import Path
-from unittest.mock import Mock, MagicMock, patch, PropertyMock
-from typing import Dict, Any
+from typing import Any, Dict
+from unittest.mock import MagicMock, Mock, PropertyMock, patch
+
+import pytest
 
 # Ensure project root is importable
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -29,6 +31,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 # Try importing dspy - needed for SkillGenerator
 try:
     import dspy
+
     DSPY_AVAILABLE = True
 except ImportError:
     DSPY_AVAILABLE = False
@@ -36,14 +39,19 @@ except ImportError:
 # Try importing the modules under test
 try:
     from Jotty.core.capabilities.registry.skill_generator import SkillGenerator, get_skill_generator
+
     SKILL_GENERATOR_AVAILABLE = True
 except ImportError:
     SKILL_GENERATOR_AVAILABLE = False
 
 try:
     from Jotty.core.capabilities.registry.skills_manifest import (
-        SkillsManifest, SkillInfo, CategoryInfo, get_skills_manifest,
+        CategoryInfo,
+        SkillInfo,
+        SkillsManifest,
+        get_skills_manifest,
     )
+
     SKILLS_MANIFEST_AVAILABLE = True
 except ImportError:
     SKILLS_MANIFEST_AVAILABLE = False
@@ -53,10 +61,12 @@ except ImportError:
 # Helper: reset singletons between tests
 # =============================================================================
 
+
 def _reset_generator_singleton():
     """Reset the module-level SkillGenerator singleton."""
     try:
         import Jotty.core.capabilities.registry.skill_generator as mod
+
         mod._generator_instance = None
     except ImportError:
         pass
@@ -66,6 +76,7 @@ def _reset_manifest_singleton():
     """Reset the module-level SkillsManifest singleton."""
     try:
         import Jotty.core.capabilities.registry.skills_manifest as mod
+
         mod._manifest_instance = None
     except ImportError:
         pass
@@ -74,6 +85,7 @@ def _reset_manifest_singleton():
 # =============================================================================
 # SkillGenerator Tests
 # =============================================================================
+
 
 @pytest.mark.skipif(not SKILL_GENERATOR_AVAILABLE, reason="SkillGenerator not importable")
 @pytest.mark.unit
@@ -177,9 +189,7 @@ class TestSkillGeneratorGenerate:
         """generate_skill passes requirements to LLM prompt."""
         mock_lm = MagicMock(return_value=None)
         gen = SkillGenerator(skills_dir=str(tmp_path), lm=mock_lm)
-        result = gen.generate_skill(
-            "api-skill", "Use an API", requirements="Requires API key"
-        )
+        result = gen.generate_skill("api-skill", "Use an API", requirements="Requires API key")
         assert result["name"] == "api-skill"
         # LLM was called (twice: md + py)
         assert mock_lm.call_count == 2
@@ -188,8 +198,7 @@ class TestSkillGeneratorGenerate:
         """generate_skill accepts examples parameter."""
         gen = self._make_generator(tmp_path)
         result = gen.generate_skill(
-            "ex-skill", "Example skill",
-            examples=["Example 1", "Example 2"]
+            "ex-skill", "Example skill", examples=["Example 1", "Example 2"]
         )
         assert result["name"] == "ex-skill"
 
@@ -247,7 +256,9 @@ class TestSkillGeneratorLLMResponseParsing:
 
     def test_generate_skill_md_extracts_markdown_block(self, tmp_path):
         """_generate_skill_md extracts content from ```markdown``` blocks."""
-        mock_lm = MagicMock(return_value=["Here is the file:\n```markdown\n# Extracted\nContent\n```\nDone."])
+        mock_lm = MagicMock(
+            return_value=["Here is the file:\n```markdown\n# Extracted\nContent\n```\nDone."]
+        )
         gen = SkillGenerator(skills_dir=str(tmp_path), lm=mock_lm)
         result = gen._generate_skill_md("test", "desc", None, None)
         assert "Extracted" in result
@@ -284,7 +295,7 @@ class TestSkillGeneratorLLMResponseParsing:
 
     def test_generate_tools_py_strips_code_markers(self, tmp_path):
         """_generate_tools_py strips leading/trailing code block markers."""
-        code = '```python\ndef raw_tool(params):\n    pass\n```'
+        code = "```python\ndef raw_tool(params):\n    pass\n```"
         mock_lm = MagicMock(return_value=[code])
         gen = SkillGenerator(skills_dir=str(tmp_path), lm=mock_lm)
         result = gen._generate_tools_py("raw", "raw desc", None, None)
@@ -459,7 +470,9 @@ class TestSkillGeneratorSingleton:
         gen1 = get_skill_generator(skills_dir=str(tmp_path), lm=mock_lm)
         assert gen1.skills_registry is None
         mock_registry = MagicMock()
-        gen2 = get_skill_generator(skills_dir=str(tmp_path), lm=mock_lm, skills_registry=mock_registry)
+        gen2 = get_skill_generator(
+            skills_dir=str(tmp_path), lm=mock_lm, skills_registry=mock_registry
+        )
         assert gen2 is gen1
         assert gen1.skills_registry is mock_registry
 
@@ -467,6 +480,7 @@ class TestSkillGeneratorSingleton:
 # =============================================================================
 # SkillInfo / CategoryInfo Dataclass Tests
 # =============================================================================
+
 
 @pytest.mark.skipif(not SKILLS_MANIFEST_AVAILABLE, reason="SkillsManifest not importable")
 @pytest.mark.unit
@@ -531,6 +545,7 @@ class TestCategoryInfoDataclass:
 # SkillsManifest Tests
 # =============================================================================
 
+
 @pytest.mark.skipif(not SKILLS_MANIFEST_AVAILABLE, reason="SkillsManifest not importable")
 @pytest.mark.unit
 class TestSkillsManifestInit:
@@ -539,8 +554,7 @@ class TestSkillsManifestInit:
     def test_init_with_nonexistent_manifest(self, tmp_path):
         """SkillsManifest initializes gracefully with no manifest file."""
         manifest = SkillsManifest(
-            skills_dir=str(tmp_path),
-            manifest_path=str(tmp_path / "nonexistent.yaml")
+            skills_dir=str(tmp_path), manifest_path=str(tmp_path / "nonexistent.yaml")
         )
         assert len(manifest.skills) == 0
         assert len(manifest.categories) == 0
@@ -548,8 +562,7 @@ class TestSkillsManifestInit:
     def test_init_creates_no_skills_dir(self, tmp_path):
         """SkillsManifest does not fail if skills_dir is empty."""
         manifest = SkillsManifest(
-            skills_dir=str(tmp_path),
-            manifest_path=str(tmp_path / "none.yaml")
+            skills_dir=str(tmp_path), manifest_path=str(tmp_path / "none.yaml")
         )
         assert manifest.skills_dir == tmp_path
 
@@ -565,31 +578,28 @@ class TestSkillsManifestInit:
                 "research": {
                     "description": "Research tools",
                     "icon": "R",
-                    "skills": ["web-search", "arxiv"]
+                    "skills": ["web-search", "arxiv"],
                 }
             },
-            "tags": {
-                "web": {"skills": ["web-search"]}
-            },
+            "tags": {"web": {"skills": ["web-search"]}},
             "skill_metadata": {
                 "web-search": {
                     "requires_auth": True,
                     "env_vars": ["SEARCH_KEY"],
-                    "requires_cli": ["curl"]
+                    "requires_cli": ["curl"],
                 }
             },
             "skill_types": {
                 "base": ["web-search"],
-                "derived": [{"name": "arxiv", "base_skills": ["web-search"]}]
-            }
+                "derived": [{"name": "arxiv", "base_skills": ["web-search"]}],
+            },
         }
 
         # Patch yaml.safe_load inside _load_manifest
         with patch("builtins.open", create=True) as mock_open:
             with patch("yaml.safe_load", return_value=yaml_data):
                 manifest = SkillsManifest(
-                    skills_dir=str(tmp_path),
-                    manifest_path=str(manifest_path)
+                    skills_dir=str(tmp_path), manifest_path=str(manifest_path)
                 )
 
         assert "research" in manifest.categories
@@ -609,8 +619,7 @@ class TestSkillsManifestAutoDiscover:
         (skill_dir / "tools.py").write_text("def tool(p): pass")
 
         manifest = SkillsManifest(
-            skills_dir=str(tmp_path),
-            manifest_path=str(tmp_path / "none.yaml")
+            skills_dir=str(tmp_path), manifest_path=str(tmp_path / "none.yaml")
         )
         assert "new-skill" in manifest.skills
         assert manifest.skills["new-skill"].is_discovered is True
@@ -624,8 +633,7 @@ class TestSkillsManifestAutoDiscover:
         (tmp_path / "_private" / "tools.py").write_text("x=1")
 
         manifest = SkillsManifest(
-            skills_dir=str(tmp_path),
-            manifest_path=str(tmp_path / "none.yaml")
+            skills_dir=str(tmp_path), manifest_path=str(tmp_path / "none.yaml")
         )
         assert ".hidden" not in manifest.skills
         assert "_private" not in manifest.skills
@@ -636,8 +644,7 @@ class TestSkillsManifestAutoDiscover:
         (tmp_path / "no-tools" / "README.md").write_text("nothing")
 
         manifest = SkillsManifest(
-            skills_dir=str(tmp_path),
-            manifest_path=str(tmp_path / "none.yaml")
+            skills_dir=str(tmp_path), manifest_path=str(tmp_path / "none.yaml")
         )
         assert "no-tools" not in manifest.skills
 
@@ -648,8 +655,7 @@ class TestSkillsManifestAutoDiscover:
         (skill_dir / "tools.py").write_text("def tool(p): pass")
 
         manifest = SkillsManifest(
-            skills_dir=str(tmp_path),
-            manifest_path=str(tmp_path / "none.yaml")
+            skills_dir=str(tmp_path), manifest_path=str(tmp_path / "none.yaml")
         )
         assert "uncategorized" in manifest.categories
         assert "disc-skill" in manifest.categories["uncategorized"].skills
@@ -663,8 +669,7 @@ class TestSkillsManifestQueries:
     def _make_manifest_with_skills(self, tmp_path):
         """Create a manifest with pre-populated skills and categories."""
         manifest = SkillsManifest(
-            skills_dir=str(tmp_path),
-            manifest_path=str(tmp_path / "none.yaml")
+            skills_dir=str(tmp_path), manifest_path=str(tmp_path / "none.yaml")
         )
         # Manually populate
         manifest.categories["research"] = CategoryInfo(
@@ -674,16 +679,17 @@ class TestSkillsManifestQueries:
             name="dev", description="Dev tools", icon="D", skills=["git-ops"]
         )
         manifest.skills["web-search"] = SkillInfo(
-            name="web-search", category="research", tags=["web", "search"],
-            skill_type="base"
+            name="web-search", category="research", tags=["web", "search"], skill_type="base"
         )
         manifest.skills["arxiv"] = SkillInfo(
-            name="arxiv", category="research", tags=["academic", "search"],
-            skill_type="derived", base_skills=["web-search"]
+            name="arxiv",
+            category="research",
+            tags=["academic", "search"],
+            skill_type="derived",
+            base_skills=["web-search"],
         )
         manifest.skills["git-ops"] = SkillInfo(
-            name="git-ops", category="dev", tags=["git"],
-            skill_type="composite"
+            name="git-ops", category="dev", tags=["git"], skill_type="composite"
         )
         manifest.tags = {
             "web": ["web-search"],
@@ -812,12 +818,10 @@ class TestSkillsManifestSummary:
 
     def _make_manifest(self, tmp_path):
         manifest = SkillsManifest(
-            skills_dir=str(tmp_path),
-            manifest_path=str(tmp_path / "none.yaml")
+            skills_dir=str(tmp_path), manifest_path=str(tmp_path / "none.yaml")
         )
         manifest.categories["research"] = CategoryInfo(
-            name="research", description="Research tools", icon="R",
-            skills=["web-search"]
+            name="research", description="Research tools", icon="R", skills=["web-search"]
         )
         manifest.skills["web-search"] = SkillInfo(
             name="web-search", category="research", requires_auth=True
@@ -850,10 +854,11 @@ class TestSkillsManifestMutation:
     def test_add_skill_to_category(self, tmp_path):
         """add_skill_to_category moves skill between categories."""
         manifest = SkillsManifest(
-            skills_dir=str(tmp_path),
-            manifest_path=str(tmp_path / "none.yaml")
+            skills_dir=str(tmp_path), manifest_path=str(tmp_path / "none.yaml")
         )
-        manifest.categories["old"] = CategoryInfo(name="old", description="", icon="", skills=["s1"])
+        manifest.categories["old"] = CategoryInfo(
+            name="old", description="", icon="", skills=["s1"]
+        )
         manifest.categories["new"] = CategoryInfo(name="new", description="", icon="", skills=[])
         manifest.skills["s1"] = SkillInfo(name="s1", category="old")
 
@@ -867,8 +872,7 @@ class TestSkillsManifestMutation:
     def test_add_skill_to_category_unknown_skill(self, tmp_path):
         """add_skill_to_category returns False for unknown skill."""
         manifest = SkillsManifest(
-            skills_dir=str(tmp_path),
-            manifest_path=str(tmp_path / "none.yaml")
+            skills_dir=str(tmp_path), manifest_path=str(tmp_path / "none.yaml")
         )
         manifest.categories["cat"] = CategoryInfo(name="cat", description="", icon="")
         result = manifest.add_skill_to_category("nope", "cat")
@@ -877,8 +881,7 @@ class TestSkillsManifestMutation:
     def test_add_skill_to_category_unknown_category(self, tmp_path):
         """add_skill_to_category returns False for unknown category."""
         manifest = SkillsManifest(
-            skills_dir=str(tmp_path),
-            manifest_path=str(tmp_path / "none.yaml")
+            skills_dir=str(tmp_path), manifest_path=str(tmp_path / "none.yaml")
         )
         manifest.skills["s1"] = SkillInfo(name="s1")
         result = manifest.add_skill_to_category("s1", "nope")
@@ -887,8 +890,7 @@ class TestSkillsManifestMutation:
     def test_refresh_clears_and_reloads(self, tmp_path):
         """refresh clears data and re-initializes."""
         manifest = SkillsManifest(
-            skills_dir=str(tmp_path),
-            manifest_path=str(tmp_path / "none.yaml")
+            skills_dir=str(tmp_path), manifest_path=str(tmp_path / "none.yaml")
         )
         manifest.skills["test"] = SkillInfo(name="test")
         manifest.refresh()

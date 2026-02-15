@@ -22,12 +22,7 @@ from dataclasses import asdict
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-from unittest.mock import (
-    MagicMock,
-    Mock,
-    patch,
-    PropertyMock,
-)
+from unittest.mock import MagicMock, Mock, PropertyMock, patch
 
 import pytest
 
@@ -37,10 +32,11 @@ import pytest
 try:
     from Jotty.core.intelligence.orchestration.mas_learning import (
         FixRecord,
-        SessionLearning,
         MASLearning,
+        SessionLearning,
         get_mas_learning,
     )
+
     MAS_LEARNING_AVAILABLE = True
 except ImportError:
     MAS_LEARNING_AVAILABLE = False
@@ -54,6 +50,7 @@ pytestmark = pytest.mark.skipif(
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_fix_record(**overrides) -> "FixRecord":
     """Create a FixRecord with sensible defaults."""
@@ -104,6 +101,7 @@ def _create_mas_learning(tmp_path, **kwargs) -> "MASLearning":
 # ===========================================================================
 # FixRecord Tests
 # ===========================================================================
+
 
 @pytest.mark.unit
 class TestFixRecord:
@@ -181,6 +179,7 @@ class TestFixRecord:
 # ===========================================================================
 # SessionLearning Tests
 # ===========================================================================
+
 
 @pytest.mark.unit
 class TestSessionLearning:
@@ -338,6 +337,7 @@ class TestSessionLearning:
 # MASLearning Initialization Tests
 # ===========================================================================
 
+
 @pytest.mark.unit
 class TestMASLearningInit:
     """Tests for MASLearning initialization."""
@@ -402,6 +402,7 @@ class TestMASLearningInit:
 # MASLearning._error_hash Tests
 # ===========================================================================
 
+
 @pytest.mark.unit
 class TestErrorHash:
     """Tests for MASLearning._error_hash normalization."""
@@ -458,6 +459,7 @@ class TestErrorHash:
 # ===========================================================================
 # MASLearning.find_fix Tests
 # ===========================================================================
+
 
 @pytest.mark.unit
 class TestFindFix:
@@ -566,6 +568,7 @@ class TestFindFix:
 # ===========================================================================
 # MASLearning.record_fix Tests
 # ===========================================================================
+
 
 @pytest.mark.unit
 class TestRecordFix:
@@ -718,6 +721,7 @@ class TestRecordFix:
 # MASLearning._extract_topics Tests
 # ===========================================================================
 
+
 @pytest.mark.unit
 class TestExtractTopics:
     """Tests for MASLearning._extract_topics."""
@@ -784,6 +788,7 @@ class TestExtractTopics:
 # ===========================================================================
 # MASLearning.record_session Tests
 # ===========================================================================
+
 
 @pytest.mark.unit
 class TestRecordSession:
@@ -865,6 +870,7 @@ class TestRecordSession:
 # MASLearning.load_relevant_learnings Tests
 # ===========================================================================
 
+
 @pytest.mark.unit
 class TestLoadRelevantLearnings:
     """Tests for MASLearning.load_relevant_learnings."""
@@ -887,17 +893,21 @@ class TestLoadRelevantLearnings:
         """Only sessions with score > 0.3 should appear in past_strategies."""
         ml = _create_mas_learning(tmp_path)
         # Add a relevant session (recent, matching topic, successful)
-        ml.session_learnings.append(_make_session_learning(
-            task_topics=["python", "automation"],
-            success=True,
-            timestamp=datetime.now().isoformat(),
-        ))
+        ml.session_learnings.append(
+            _make_session_learning(
+                task_topics=["python", "automation"],
+                success=True,
+                timestamp=datetime.now().isoformat(),
+            )
+        )
         # Add an irrelevant session (old, no topic match, failed)
-        ml.session_learnings.append(_make_session_learning(
-            task_topics=["javascript", "frontend"],
-            success=False,
-            timestamp=(datetime.now() - timedelta(days=60)).isoformat(),
-        ))
+        ml.session_learnings.append(
+            _make_session_learning(
+                task_topics=["javascript", "frontend"],
+                success=False,
+                timestamp=(datetime.now() - timedelta(days=60)).isoformat(),
+            )
+        )
 
         result = ml.load_relevant_learnings("python automation scripts")
         # The python/automation session should be relevant
@@ -927,12 +937,14 @@ class TestLoadRelevantLearnings:
         ml = _create_mas_learning(tmp_path)
         # Add 2 relevant sessions
         for t in [20.0, 30.0]:
-            ml.session_learnings.append(_make_session_learning(
-                task_topics=["python", "automation"],
-                success=True,
-                total_time=t,
-                timestamp=datetime.now().isoformat(),
-            ))
+            ml.session_learnings.append(
+                _make_session_learning(
+                    task_topics=["python", "automation"],
+                    success=True,
+                    total_time=t,
+                    timestamp=datetime.now().isoformat(),
+                )
+            )
 
         result = ml.load_relevant_learnings("python automation task")
         hints = result["performance_hints"]
@@ -1000,17 +1012,21 @@ class TestLoadRelevantLearnings:
         """past_strategies should only include successful sessions."""
         ml = _create_mas_learning(tmp_path)
         # Add a failed session that is relevant
-        ml.session_learnings.append(_make_session_learning(
-            task_topics=["python"],
-            success=False,
-            timestamp=datetime.now().isoformat(),
-        ))
+        ml.session_learnings.append(
+            _make_session_learning(
+                task_topics=["python"],
+                success=False,
+                timestamp=datetime.now().isoformat(),
+            )
+        )
         # Add a successful session that is relevant
-        ml.session_learnings.append(_make_session_learning(
-            task_topics=["python"],
-            success=True,
-            timestamp=datetime.now().isoformat(),
-        ))
+        ml.session_learnings.append(
+            _make_session_learning(
+                task_topics=["python"],
+                success=True,
+                timestamp=datetime.now().isoformat(),
+            )
+        )
         result = ml.load_relevant_learnings("python development task")
         for strategy in result["past_strategies"]:
             # strategies come only from successful sessions
@@ -1020,6 +1036,7 @@ class TestLoadRelevantLearnings:
 # ===========================================================================
 # MASLearning.get_execution_strategy Tests
 # ===========================================================================
+
 
 @pytest.mark.unit
 class TestGetExecutionStrategy:
@@ -1147,6 +1164,7 @@ class TestGetExecutionStrategy:
 # MASLearning Persistence Tests
 # ===========================================================================
 
+
 @pytest.mark.unit
 class TestPersistence:
     """Tests for save_all / _load_all persistence round-trip."""
@@ -1269,6 +1287,7 @@ class TestPersistence:
 # MASLearning.integrate_with_terminal Tests
 # ===========================================================================
 
+
 @pytest.mark.unit
 class TestIntegrateWithTerminal:
     """Tests for MASLearning.integrate_with_terminal."""
@@ -1322,6 +1341,7 @@ class TestIntegrateWithTerminal:
 # ===========================================================================
 # MASLearning.sync_from_terminal Tests
 # ===========================================================================
+
 
 @pytest.mark.unit
 class TestSyncFromTerminal:
@@ -1404,6 +1424,7 @@ class TestSyncFromTerminal:
 # MASLearning.get_statistics Tests
 # ===========================================================================
 
+
 @pytest.mark.unit
 class TestGetStatistics:
     """Tests for MASLearning.get_statistics."""
@@ -1476,6 +1497,7 @@ class TestGetStatistics:
 # ===========================================================================
 # get_mas_learning convenience function Tests
 # ===========================================================================
+
 
 @pytest.mark.unit
 class TestGetMASLearning:

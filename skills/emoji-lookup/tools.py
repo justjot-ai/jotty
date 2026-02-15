@@ -1,15 +1,20 @@
 """Emoji Lookup Skill — search emojis, get info, convert shortcodes."""
-import unicodedata
-import re
-from typing import Dict, Any, List
 
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+import re
+import unicodedata
+from typing import Any, Dict, List
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("emoji-lookup")
 
 _DB: Dict[str, Dict[str, Any]] = {
-    ":smile:": {"emoji": "\U0001f604", "name": "smiling face with open mouth and smiling eyes", "category": "faces"},
+    ":smile:": {
+        "emoji": "\U0001f604",
+        "name": "smiling face with open mouth and smiling eyes",
+        "category": "faces",
+    },
     ":grinning:": {"emoji": "\U0001f600", "name": "grinning face", "category": "faces"},
     ":heart:": {"emoji": "\u2764\ufe0f", "name": "red heart", "category": "symbols"},
     ":thumbsup:": {"emoji": "\U0001f44d", "name": "thumbs up", "category": "hands"},

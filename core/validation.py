@@ -5,10 +5,10 @@ Parameter Validation Utilities
 Provides reusable validation for skill tool parameters.
 """
 
-import re
 import logging
-from typing import Dict, Any, List, Optional, Union, Type
+import re
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Type, Union
 
 logger = logging.getLogger(__name__)
 
@@ -37,11 +37,11 @@ class ParamValidator:
 
     # Common regex patterns
     PATTERNS = {
-        'email': r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
-        'url': r'^https?://[^\s]+$',
-        'arxiv_id': r'^(\d{4}\.\d{4,5}(v\d+)?|[a-z-]+/\d{7})$',
-        'youtube_url': r'^(https?://)?(www\.)?(youtube\.com|youtu\.be)/.+$',
-        'kindle_email': r'^[a-zA-Z0-9._%+-]+@kindle\.com$',
+        "email": r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$",
+        "url": r"^https?://[^\s]+$",
+        "arxiv_id": r"^(\d{4}\.\d{4,5}(v\d+)?|[a-z-]+/\d{7})$",
+        "youtube_url": r"^(https?://)?(www\.)?(youtube\.com|youtu\.be)/.+$",
+        "kindle_email": r"^[a-zA-Z0-9._%+-]+@kindle\.com$",
     }
 
     def __init__(self, params: Dict[str, Any] = None) -> None:
@@ -62,12 +62,7 @@ class ParamValidator:
         # Don't suppress exceptions
         return False
 
-    def require(
-        self,
-        name: str,
-        param_type: Type = None,
-        message: str = None
-    ) -> Any:
+    def require(self, name: str, param_type: Type = None, message: str = None) -> Any:
         """
         Require a parameter to be present and optionally validate its type.
 
@@ -98,11 +93,7 @@ class ParamValidator:
         return value
 
     def optional(
-        self,
-        name: str,
-        param_type: Type = None,
-        default: Any = None,
-        choices: List[Any] = None
+        self, name: str, param_type: Type = None, default: Any = None, choices: List[Any] = None
     ) -> Any:
         """
         Get an optional parameter with type checking and default value.
@@ -126,7 +117,7 @@ class ParamValidator:
             # Try to coerce if possible
             try:
                 if param_type == bool:
-                    value = str(value).lower() in ('true', '1', 'yes')
+                    value = str(value).lower() in ("true", "1", "yes")
                 elif param_type == int:
                     value = int(value)
                 elif param_type == float:
@@ -174,11 +165,7 @@ class ParamValidator:
         raise ValidationError(error_msg)
 
     def validate_pattern(
-        self,
-        name: str,
-        pattern: str,
-        message: str = None,
-        required: bool = True
+        self, name: str, pattern: str, message: str = None, required: bool = True
     ) -> Optional[str]:
         """
         Validate a parameter against a regex pattern.
@@ -215,17 +202,13 @@ class ParamValidator:
     def validate_url(self, name: str, required: bool = True) -> Optional[str]:
         """Validate a URL parameter."""
         return self.validate_pattern(
-            name, 'url',
-            message=f"'{name}' must be a valid URL",
-            required=required
+            name, "url", message=f"'{name}' must be a valid URL", required=required
         )
 
     def validate_email(self, name: str, required: bool = True) -> Optional[str]:
         """Validate an email parameter."""
         return self.validate_pattern(
-            name, 'email',
-            message=f"'{name}' must be a valid email address",
-            required=required
+            name, "email", message=f"'{name}' must be a valid email address", required=required
         )
 
     def validate_file_exists(self, name: str, required: bool = True) -> Optional[Path]:
@@ -257,7 +240,9 @@ class ParamValidator:
         self.validated[name] = path
         return path
 
-    def validate_dir_exists(self, name: str, create: bool = False, required: bool = False) -> Optional[Path]:
+    def validate_dir_exists(
+        self, name: str, create: bool = False, required: bool = False
+    ) -> Optional[Path]:
         """
         Validate that a directory exists, optionally creating it.
 
@@ -302,7 +287,7 @@ class ParamValidator:
         min_val: Union[int, float] = None,
         max_val: Union[int, float] = None,
         required: bool = False,
-        default: Union[int, float] = None
+        default: Union[int, float] = None,
     ) -> Optional[Union[int, float]]:
         """
         Validate a numeric parameter is within a range.
@@ -327,7 +312,7 @@ class ParamValidator:
             return default
 
         try:
-            num_value = float(value) if '.' in str(value) else int(value)
+            num_value = float(value) if "." in str(value) else int(value)
         except (ValueError, TypeError):
             error_msg = f"'{name}' must be a number"
             self.errors.append(error_msg)
@@ -377,24 +362,31 @@ def validate_params(params: Dict[str, Any], schema: Dict[str, Dict[str, Any]]) -
     validator = ParamValidator(params)
 
     for name, rules in schema.items():
-        required = rules.get('required', False)
-        param_type = rules.get('type')
-        default = rules.get('default')
-        choices = rules.get('choices')
+        required = rules.get("required", False)
+        param_type = rules.get("type")
+        default = rules.get("default")
+        choices = rules.get("choices")
 
-        if rules.get('file_exists'):
+        if rules.get("file_exists"):
             validator.validate_file_exists(name, required=required)
-        elif rules.get('dir_exists'):
-            validator.validate_dir_exists(name, create=rules.get('create', False), required=required)
-        elif rules.get('pattern'):
-            validator.validate_pattern(name, rules['pattern'], required=required)
-        elif rules.get('url'):
+        elif rules.get("dir_exists"):
+            validator.validate_dir_exists(
+                name, create=rules.get("create", False), required=required
+            )
+        elif rules.get("pattern"):
+            validator.validate_pattern(name, rules["pattern"], required=required)
+        elif rules.get("url"):
             validator.validate_url(name, required=required)
-        elif rules.get('email'):
+        elif rules.get("email"):
             validator.validate_email(name, required=required)
-        elif rules.get('min') is not None or rules.get('max') is not None:
-            validator.validate_range(name, min_val=rules.get('min'), max_val=rules.get('max'),
-                                    required=required, default=default)
+        elif rules.get("min") is not None or rules.get("max") is not None:
+            validator.validate_range(
+                name,
+                min_val=rules.get("min"),
+                max_val=rules.get("max"),
+                required=required,
+                default=default,
+            )
         elif required:
             validator.require(name, param_type)
         else:

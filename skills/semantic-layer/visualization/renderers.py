@@ -4,11 +4,12 @@ Chart Renderers
 Output renderers for different visualization formats and contexts.
 Supports: HTML, SVG, PNG, interactive widgets, and more.
 """
-from typing import Dict, Any, Optional, List, Union
+
+import base64
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-import logging
-import base64
+from typing import Any, Dict, List, Optional, Union
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +17,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class RenderResult:
     """Result of rendering a chart."""
+
     success: bool
     output: Any = None  # Rendered content
     format: str = None  # Output format (html, svg, png, etc.)
@@ -70,7 +72,9 @@ class HTMLRenderer(ChartRenderer):
     - Interactive charts (Altair, Plotly)
     """
 
-    def __init__(self, title: str = 'Visualization', theme: str = 'light', include_code: bool = False) -> None:
+    def __init__(
+        self, title: str = "Visualization", theme: str = "light", include_code: bool = False
+    ) -> None:
         """
         Initialize HTML renderer.
 
@@ -87,11 +91,7 @@ class HTMLRenderer(ChartRenderer):
         """Render single chart to HTML."""
         try:
             html = self._chart_to_html(chart)
-            return RenderResult(
-                success=True,
-                output=html,
-                format='html'
-            )
+            return RenderResult(success=True, output=html, format="html")
         except Exception as e:
             logger.error(f"HTML render failed: {e}")
             return RenderResult(success=False, error=str(e))
@@ -178,8 +178,8 @@ class HTMLRenderer(ChartRenderer):
             return RenderResult(
                 success=True,
                 output=grid_html,
-                format='html',
-                metadata={'chart_count': len(chart_htmls), 'columns': columns}
+                format="html",
+                metadata={"chart_count": len(chart_htmls), "columns": columns},
             )
 
         except Exception as e:
@@ -198,7 +198,7 @@ class HTMLRenderer(ChartRenderer):
         if chart.raster:
             # Handle both bytes and already-encoded base64 strings
             if isinstance(chart.raster, bytes):
-                b64 = base64.b64encode(chart.raster).decode('utf-8')
+                b64 = base64.b64encode(chart.raster).decode("utf-8")
             else:
                 # Already base64 encoded string
                 b64 = chart.raster
@@ -208,13 +208,14 @@ class HTMLRenderer(ChartRenderer):
         elif chart.spec:
             # Vega/Altair spec - render as JSON for now
             import json
+
             parts.append(f'<pre class="code-block">{json.dumps(chart.spec, indent=2)}</pre>')
 
         # Code
         if self.include_code and chart.code:
             parts.append(f'<pre class="code-block">{chart.code}</pre>')
 
-        return '\n'.join(parts)
+        return "\n".join(parts)
 
 
 class MatplotlibRenderer(ChartRenderer):
@@ -233,7 +234,7 @@ class MatplotlibRenderer(ChartRenderer):
         self.figsize = figsize
         self.dpi = dpi
 
-    def render(self, chart: Any, format: str = 'png', **kwargs: Any) -> RenderResult:
+    def render(self, chart: Any, format: str = "png", **kwargs: Any) -> RenderResult:
         """
         Render chart to image format.
 
@@ -245,72 +246,71 @@ class MatplotlibRenderer(ChartRenderer):
         Returns:
             RenderResult with image bytes
         """
-        if chart.raster and format == 'png':
-            return RenderResult(success=True, output=chart.raster, format='png')
+        if chart.raster and format == "png":
+            return RenderResult(success=True, output=chart.raster, format="png")
 
         if chart.code:
             # Execute code to generate image
             try:
-                import matplotlib.pyplot as plt
                 import io
 
+                import matplotlib.pyplot as plt
+
                 # Execute chart code
-                exec(chart.code, {'plt': plt, 'pd': __import__('pandas')})
+                exec(chart.code, {"plt": plt, "pd": __import__("pandas")})
 
                 # Save to buffer
                 buf = io.BytesIO()
-                plt.savefig(buf, format=format, dpi=self.dpi, bbox_inches='tight')
+                plt.savefig(buf, format=format, dpi=self.dpi, bbox_inches="tight")
                 plt.close()
                 buf.seek(0)
 
-                return RenderResult(
-                    success=True,
-                    output=buf.read(),
-                    format=format
-                )
+                return RenderResult(success=True, output=buf.read(), format=format)
             except Exception as e:
                 logger.error(f"Matplotlib render failed: {e}")
                 return RenderResult(success=False, error=str(e))
 
         return RenderResult(success=False, error="No chart data to render")
 
-    def render_multiple(self, charts: List, format: str = 'png', **kwargs: Any) -> RenderResult:
+    def render_multiple(self, charts: List, format: str = "png", **kwargs: Any) -> RenderResult:
         """Render multiple charts as subplot grid."""
         try:
-            import matplotlib.pyplot as plt
             import io
             import math
+
+            import matplotlib.pyplot as plt
 
             n = len([c for c in charts if c.success])
             cols = min(2, n)
             rows = math.ceil(n / cols)
 
-            fig, axes = plt.subplots(rows, cols, figsize=(self.figsize[0] * cols, self.figsize[1] * rows))
+            fig, axes = plt.subplots(
+                rows, cols, figsize=(self.figsize[0] * cols, self.figsize[1] * rows)
+            )
 
             # Render each chart
             for i, chart in enumerate([c for c in charts if c.success]):
                 if chart.raster:
-                    from PIL import Image
                     import io as io_module
+
+                    from PIL import Image
+
                     img = Image.open(io_module.BytesIO(chart.raster))
                     ax = axes.flat[i] if n > 1 else axes
                     ax.imshow(img)
-                    ax.axis('off')
+                    ax.axis("off")
                     if chart.goal:
-                        ax.set_title(chart.goal.question[:50] + '...')
+                        ax.set_title(chart.goal.question[:50] + "...")
 
             plt.tight_layout()
 
             buf = io.BytesIO()
-            plt.savefig(buf, format=format, dpi=self.dpi, bbox_inches='tight')
+            plt.savefig(buf, format=format, dpi=self.dpi, bbox_inches="tight")
             plt.close()
             buf.seek(0)
 
             return RenderResult(
-                success=True,
-                output=buf.read(),
-                format=format,
-                metadata={'chart_count': n}
+                success=True, output=buf.read(), format=format, metadata={"chart_count": n}
             )
 
         except Exception as e:
@@ -326,23 +326,20 @@ class AltairRenderer(ChartRenderer):
     def render(self, chart: Any, **kwargs: Any) -> RenderResult:
         """Render chart to Vega-Lite spec or HTML."""
         if chart.spec:
-            return RenderResult(success=True, output=chart.spec, format='vega-lite')
+            return RenderResult(success=True, output=chart.spec, format="vega-lite")
 
-        if chart.code and 'altair' in chart.code.lower():
+        if chart.code and "altair" in chart.code.lower():
             try:
                 import altair as alt
+
                 # Execute code to get chart object
                 local_vars = {}
-                exec(chart.code, {'alt': alt, 'pd': __import__('pandas')}, local_vars)
+                exec(chart.code, {"alt": alt, "pd": __import__("pandas")}, local_vars)
 
                 # Find the chart object
                 for var in local_vars.values():
                     if isinstance(var, alt.Chart):
-                        return RenderResult(
-                            success=True,
-                            output=var.to_dict(),
-                            format='vega-lite'
-                        )
+                        return RenderResult(success=True, output=var.to_dict(), format="vega-lite")
 
             except Exception as e:
                 logger.error(f"Altair render failed: {e}")
@@ -362,16 +359,10 @@ class AltairRenderer(ChartRenderer):
             return RenderResult(success=False, error="No charts to render")
 
         # Combine as hconcat/vconcat
-        combined = {
-            '$schema': 'https://vega.github.io/schema/vega-lite/v5.json',
-            'vconcat': specs
-        }
+        combined = {"$schema": "https://vega.github.io/schema/vega-lite/v5.json", "vconcat": specs}
 
         return RenderResult(
-            success=True,
-            output=combined,
-            format='vega-lite',
-            metadata={'chart_count': len(specs)}
+            success=True, output=combined, format="vega-lite", metadata={"chart_count": len(specs)}
         )
 
 
@@ -382,21 +373,19 @@ class PlotlyRenderer(ChartRenderer):
 
     def render(self, chart: Any, **kwargs: Any) -> RenderResult:
         """Render chart to Plotly JSON or HTML."""
-        if chart.code and 'plotly' in chart.code.lower():
+        if chart.code and "plotly" in chart.code.lower():
             try:
-                import plotly.graph_objects as go
                 import plotly.express as px
+                import plotly.graph_objects as go
 
                 local_vars = {}
-                exec(chart.code, {'go': go, 'px': px, 'pd': __import__('pandas')}, local_vars)
+                exec(chart.code, {"go": go, "px": px, "pd": __import__("pandas")}, local_vars)
 
                 # Find the figure object
                 for var in local_vars.values():
                     if isinstance(var, go.Figure):
                         return RenderResult(
-                            success=True,
-                            output=var.to_json(),
-                            format='plotly-json'
+                            success=True, output=var.to_json(), format="plotly-json"
                         )
 
             except Exception as e:
@@ -416,8 +405,8 @@ class PlotlyRenderer(ChartRenderer):
         return RenderResult(
             success=True,
             output=figures,
-            format='plotly-json-array',
-            metadata={'chart_count': len(figures)}
+            format="plotly-json-array",
+            metadata={"chart_count": len(figures)},
         )
 
 
@@ -427,14 +416,14 @@ class RendererFactory:
     """
 
     RENDERERS = {
-        'html': HTMLRenderer,
-        'matplotlib': MatplotlibRenderer,
-        'altair': AltairRenderer,
-        'plotly': PlotlyRenderer,
+        "html": HTMLRenderer,
+        "matplotlib": MatplotlibRenderer,
+        "altair": AltairRenderer,
+        "plotly": PlotlyRenderer,
     }
 
     @classmethod
-    def create(cls, renderer_type: str = 'html', **kwargs: Any) -> ChartRenderer:
+    def create(cls, renderer_type: str = "html", **kwargs: Any) -> ChartRenderer:
         """
         Create a renderer instance.
 
@@ -457,11 +446,11 @@ class RendererFactory:
 
 
 __all__ = [
-    'ChartRenderer',
-    'RenderResult',
-    'HTMLRenderer',
-    'MatplotlibRenderer',
-    'AltairRenderer',
-    'PlotlyRenderer',
-    'RendererFactory',
+    "ChartRenderer",
+    "RenderResult",
+    "HTMLRenderer",
+    "MatplotlibRenderer",
+    "AltairRenderer",
+    "PlotlyRenderer",
+    "RendererFactory",
 ]

@@ -16,7 +16,7 @@ Usage:
 
 import logging
 from pathlib import Path
-from typing import List, Optional, Any
+from typing import Any, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -25,8 +25,11 @@ try:
 
     class GAIATaskSignature(dspy.Signature):
         """Solve a GAIA benchmark question using available tools."""
+
         question: str = dspy.InputField()
-        tools_available: str = dspy.InputField(desc="Available tools: web_search, voice_to_text, read_file")
+        tools_available: str = dspy.InputField(
+            desc="Available tools: web_search, voice_to_text, read_file"
+        )
         answer: str = dspy.OutputField(desc="Concise final answer only")
 
     class GAIAOptimizedSolver(dspy.Module):
@@ -34,7 +37,9 @@ try:
             super().__init__()
             self.solve = dspy.ChainOfThought(GAIATaskSignature)
 
-        def forward(self, question: Any, tools_available: Any = 'web_search, voice_to_text, read_file') -> Any:
+        def forward(
+            self, question: Any, tools_available: Any = "web_search, voice_to_text, read_file"
+        ) -> Any:
             return self.solve(question=question, tools_available=tools_available)
 
     _DSPY_AVAILABLE = True
@@ -61,12 +66,12 @@ def compile_gaia_module(
 
     examples = [
         dspy.Example(
-            question=e['question'],
+            question=e["question"],
             tools_available="web_search, voice_to_text, read_file",
-            answer=e['expected'],
-        ).with_inputs('question', 'tools_available')
+            answer=e["expected"],
+        ).with_inputs("question", "tools_available")
         for e in successful_examples
-        if e.get('success') and e.get('question') and e.get('expected')
+        if e.get("success") and e.get("question") and e.get("expected")
     ]
 
     if len(examples) < 3:

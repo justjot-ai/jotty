@@ -1,6 +1,6 @@
 # Jotty — SWOT Analysis
 
-**Date:** February 2025  
+**Date:** February 2025
 **Scope:** Jotty AI Agent Framework (multi-agent, RL, DSPy-based)
 
 ---

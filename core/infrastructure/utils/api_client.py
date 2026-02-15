@@ -13,12 +13,13 @@ Usage:
         TOKEN_CONFIG_PATH = ".config/discord/token"
 """
 
-import os
 import logging
-import requests
-from pathlib import Path
-from typing import Dict, Any, Optional
+import os
 from abc import ABC
+from pathlib import Path
+from typing import Any, Dict, Optional
+
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -89,7 +90,7 @@ class BaseAPIClient(ABC):
         params: Optional[Dict] = None,
         files: Optional[Dict] = None,
         data: Optional[Dict] = None,
-        timeout: Optional[int] = None
+        timeout: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
         Make HTTP request to API.
@@ -129,9 +130,7 @@ class BaseAPIClient(ABC):
                     url, headers=self._get_headers(), json=json_data, timeout=timeout
                 )
             elif method.upper() == "DELETE":
-                response = requests.delete(
-                    url, headers=self._get_headers(), timeout=timeout
-                )
+                response = requests.delete(url, headers=self._get_headers(), timeout=timeout)
             elif method.upper() == "PATCH":
                 response = requests.patch(
                     url, headers=self._get_headers(), json=json_data, timeout=timeout
@@ -167,7 +166,7 @@ class BaseAPIClient(ABC):
                 return {
                     "success": False,
                     "error": f"Rate limited. Retry after {retry_after}s",
-                    "retry_after": retry_after
+                    "retry_after": retry_after,
                 }
             except Exception:
                 return {"success": False, "error": "Rate limited"}
@@ -177,20 +176,16 @@ class BaseAPIClient(ABC):
             try:
                 error_data = response.json()
                 error_msg = (
-                    error_data.get("error", {}).get("message") or
-                    error_data.get("message") or
-                    error_data.get("error") or
-                    f"HTTP {response.status_code}"
+                    error_data.get("error", {}).get("message")
+                    or error_data.get("message")
+                    or error_data.get("error")
+                    or f"HTTP {response.status_code}"
                 )
-                return {
-                    "success": False,
-                    "error": error_msg,
-                    "status_code": response.status_code
-                }
+                return {"success": False, "error": error_msg, "status_code": response.status_code}
             except Exception:
                 return {
                     "success": False,
-                    "error": f"HTTP {response.status_code}: {response.text[:200]}"
+                    "error": f"HTTP {response.status_code}: {response.text[:200]}",
                 }
 
         # Success
@@ -198,10 +193,7 @@ class BaseAPIClient(ABC):
             result = response.json()
             # Handle APIs that return {"ok": false} style errors
             if isinstance(result, dict) and result.get("ok") is False:
-                return {
-                    "success": False,
-                    "error": result.get("error", "Unknown error")
-                }
+                return {"success": False, "error": result.get("error", "Unknown error")}
             return {"success": True, **result}
         except Exception:
             return {"success": True, "text": response.text}
@@ -216,6 +208,6 @@ class BaseAPIClient(ABC):
         if not self.token:
             return {
                 "success": False,
-                "error": f"Token required. Set {self.TOKEN_ENV_VAR} env var or provide token parameter"
+                "error": f"Token required. Set {self.TOKEN_ENV_VAR} env var or provide token parameter",
             }
         return None

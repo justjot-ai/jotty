@@ -1,5 +1,8 @@
 """Batch 3: Content, media, finance, and productivity skills (20 skills)."""
-import sys, os
+
+import os
+import sys
+
 sys.path.insert(0, os.path.dirname(__file__))
 from generate_skills import create_skill
 
@@ -12,7 +15,11 @@ create_skill(
     capabilities=["generate", "document"],
     triggers=["email template", "html email", "newsletter", "email builder", "inline css email"],
     eval_tool="build_email_template_tool",
-    eval_input={"subject": "Welcome!", "body": "Hello and welcome to our service.", "template": "basic"},
+    eval_input={
+        "subject": "Welcome!",
+        "body": "Hello and welcome to our service.",
+        "template": "basic",
+    },
     tool_docs="""### build_email_template_tool
 Build an HTML email template with inline CSS.
 
@@ -108,7 +115,8 @@ def build_email_template_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["build_email_template_tool"]
-''')
+''',
+)
 
 # ── 42. seo-content-optimizer ─────────────────────────────────────
 create_skill(
@@ -119,7 +127,10 @@ create_skill(
     capabilities=["analyze"],
     triggers=["seo", "keyword density", "readability", "optimize content", "meta tags"],
     eval_tool="analyze_seo_tool",
-    eval_input={"text": "Python is a great programming language for data science and machine learning.", "keywords": ["python", "data science"]},
+    eval_input={
+        "text": "Python is a great programming language for data science and machine learning.",
+        "keywords": ["python", "data science"],
+    },
     tool_docs="""### analyze_seo_tool
 Analyze text for SEO metrics.
 
@@ -242,7 +253,8 @@ def analyze_seo_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["analyze_seo_tool"]
-''')
+''',
+)
 
 # ── 43. transcript-formatter ──────────────────────────────────────
 create_skill(
@@ -253,7 +265,9 @@ create_skill(
     capabilities=["generate", "analyze"],
     triggers=["transcript", "format transcript", "clean transcript", "speaker labels", "subtitles"],
     eval_tool="format_transcript_tool",
-    eval_input={"text": "00:00:05 John: Hello everyone.\n00:00:08 Jane: Hi John, thanks for joining.\n00:00:12 John: Happy to be here. Let me share my thoughts on the project."},
+    eval_input={
+        "text": "00:00:05 John: Hello everyone.\n00:00:08 Jane: Hi John, thanks for joining.\n00:00:12 John: Happy to be here. Let me share my thoughts on the project."
+    },
     tool_docs="""### format_transcript_tool
 Format a raw transcript with speaker labels and timestamps.
 
@@ -357,7 +371,8 @@ def format_transcript_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["format_transcript_tool"]
-''')
+''',
+)
 
 # ── 44. press-release-generator ───────────────────────────────────
 create_skill(
@@ -368,7 +383,11 @@ create_skill(
     capabilities=["generate", "document"],
     triggers=["press release", "news release", "PR template", "media release", "announcement"],
     eval_tool="generate_press_release_tool",
-    eval_input={"headline": "Acme Corp Launches New Product", "company": "Acme Corp", "body_points": ["Revolutionary new widget", "Available Q1 2025", "Priced at $99"]},
+    eval_input={
+        "headline": "Acme Corp Launches New Product",
+        "company": "Acme Corp",
+        "body_points": ["Revolutionary new widget", "Available Q1 2025", "Priced at $99"],
+    },
     tool_docs="""### generate_press_release_tool
 Generate a structured press release.
 
@@ -454,7 +473,8 @@ def generate_press_release_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["generate_press_release_tool"]
-''')
+''',
+)
 
 # ── 45. copywriting-assistant ─────────────────────────────────────
 create_skill(
@@ -463,9 +483,21 @@ create_skill(
     description="Generate marketing copy using proven frameworks: AIDA, PAS, BAB, 4Ps, FAB. Use when the user wants to write marketing copy, ad copy, sales copy, AIDA framework.",
     category="content-creation",
     capabilities=["generate"],
-    triggers=["copywriting", "marketing copy", "AIDA", "PAS", "ad copy", "sales copy", "landing page copy"],
+    triggers=[
+        "copywriting",
+        "marketing copy",
+        "AIDA",
+        "PAS",
+        "ad copy",
+        "sales copy",
+        "landing page copy",
+    ],
     eval_tool="generate_copy_tool",
-    eval_input={"product": "AI Writing Assistant", "audience": "content marketers", "framework": "AIDA"},
+    eval_input={
+        "product": "AI Writing Assistant",
+        "audience": "content marketers",
+        "framework": "AIDA",
+    },
     tool_docs="""### generate_copy_tool
 Generate marketing copy using a copywriting framework.
 
@@ -606,7 +638,8 @@ def generate_copy_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["generate_copy_tool"]
-''')
+''',
+)
 
 # ── 46. blog-post-writer ──────────────────────────────────────────
 create_skill(
@@ -617,7 +650,11 @@ create_skill(
     capabilities=["generate", "document"],
     triggers=["blog post", "blog outline", "article", "blog writing", "content outline"],
     eval_tool="generate_blog_outline_tool",
-    eval_input={"title": "10 Best Practices for Remote Work", "keywords": ["remote work", "productivity"], "sections": 5},
+    eval_input={
+        "title": "10 Best Practices for Remote Work",
+        "keywords": ["remote work", "productivity"],
+        "sections": 5,
+    },
     tool_docs="""### generate_blog_outline_tool
 Generate a blog post outline with SEO metadata.
 
@@ -720,7 +757,8 @@ def generate_blog_outline_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["generate_blog_outline_tool"]
-''')
+''',
+)
 
 # ── 47. rss-feed-reader ───────────────────────────────────────────
 create_skill(
@@ -842,7 +880,8 @@ def fetch_rss_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["fetch_rss_tool"]
-''')
+''',
+)
 
 # ── 48. notification-aggregator ───────────────────────────────────
 create_skill(
@@ -853,7 +892,11 @@ create_skill(
     capabilities=["code"],
     triggers=["notification", "alert", "notify", "webhook", "send alert", "push notification"],
     eval_tool="send_notification_tool",
-    eval_input={"message": "Deployment completed successfully", "channels": ["console", "log"], "level": "info"},
+    eval_input={
+        "message": "Deployment completed successfully",
+        "channels": ["console", "log"],
+        "level": "info",
+    },
     tool_docs="""### send_notification_tool
 Route a notification to specified channels.
 
@@ -981,7 +1024,8 @@ def send_notification_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["send_notification_tool"]
-''')
+''',
+)
 
 # ── 49. image-resizer ────────────────────────────────────────────
 create_skill(
@@ -1092,7 +1136,8 @@ def resize_image_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["resize_image_tool"]
-''')
+''',
+)
 
 # ── 50. ocr-extractor ────────────────────────────────────────────
 create_skill(
@@ -1188,7 +1233,8 @@ def ocr_extract_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["ocr_extract_tool"]
-''')
+''',
+)
 
 # ── 51. archive-manager ───────────────────────────────────────────
 create_skill(
@@ -1366,7 +1412,8 @@ def list_archive_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["create_archive_tool", "extract_archive_tool", "list_archive_tool"]
-''')
+''',
+)
 
 # ── 52. epub-builder ──────────────────────────────────────────────
 create_skill(
@@ -1377,7 +1424,11 @@ create_skill(
     capabilities=["generate", "document"],
     triggers=["epub", "ebook", "e-book", "create epub", "build ebook"],
     eval_tool="build_epub_tool",
-    eval_input={"title": "My Book", "author": "Author Name", "chapters": [{"title": "Chapter 1", "content": "This is the first chapter."}]},
+    eval_input={
+        "title": "My Book",
+        "author": "Author Name",
+        "chapters": [{"title": "Chapter 1", "content": "This is the first chapter."}],
+    },
     tool_docs="""### build_epub_tool
 Build an EPUB e-book from chapters.
 
@@ -1394,145 +1445,146 @@ Build an EPUB e-book from chapters.
 - `output_path` (str): Path to generated EPUB
 - `chapter_count` (int): Number of chapters""",
     tools_code='"""EPUB Builder Skill - build EPUB ebooks from text/markdown."""\n'
-'import zipfile\n'
-'import uuid\n'
-'import re as _re\n'
-'from pathlib import Path\n'
-'from datetime import datetime, timezone\n'
-'from typing import Dict, Any, List\n'
-'from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper\n'
-'from Jotty.core.infrastructure.utils.skill_status import SkillStatus\n'
-'\n'
-'status = SkillStatus("epub-builder")\n'
-'\n'
-'_XHTML_TPL = (\n'
-'    \'<?xml version="1.0" encoding="UTF-8"?>\\n\'\n'
-'    \'<!DOCTYPE html>\\n\'\n'
-'    \'<html xmlns="http://www.w3.org/1999/xhtml">\\n\'\n'
-'    \'<head><title>{title}</title>\\n\'\n'
-'    \'<style>body{{font-family:serif;line-height:1.6;margin:1em;}}h1{{color:#333;}}</style>\\n\'\n'
-'    \'</head>\\n\'\n'
-'    \'<body><h1>{title}</h1>{body}</body></html>\'\n'
-')\n'
-'\n'
-'_OPF_TPL = (\n'
-'    \'<?xml version="1.0" encoding="UTF-8"?>\\n\'\n'
-'    \'<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="bookid">\\n\'\n'
-'    \'<metadata xmlns:dc="http://purl.org/dc/elements/1.1/">\\n\'\n'
-'    \'<dc:identifier id="bookid">urn:uuid:{book_id}</dc:identifier>\\n\'\n'
-'    \'<dc:title>{title}</dc:title>\\n\'\n'
-'    \'<dc:creator>{author}</dc:creator>\\n\'\n'
-'    \'<dc:language>{language}</dc:language>\\n\'\n'
-'    \'<dc:description>{description}</dc:description>\\n\'\n'
-'    \'<meta property="dcterms:modified">{now}</meta>\\n\'\n'
-'    \'</metadata>\\n\'\n'
-'    \'<manifest>\\n\'\n'
-'    \'<item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>\\n\'\n'
-'    \'{manifest}\\n\'\n'
-'    \'</manifest>\\n\'\n'
-'    \'<spine>{spine}</spine>\\n\'\n'
-'    \'</package>\'\n'
-')\n'
-'\n'
-'_NAV_TPL = (\n'
-'    \'<?xml version="1.0" encoding="UTF-8"?>\\n\'\n'
-'    \'<!DOCTYPE html>\\n\'\n'
-'    \'<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">\\n\'\n'
-'    \'<head><title>Table of Contents</title></head>\\n\'\n'
-'    \'<body><nav epub:type="toc"><h1>Table of Contents</h1>\\n\'\n'
-'    \'<ol>{toc}</ol></nav></body></html>\'\n'
-')\n'
-'\n'
-'\n'
-'def _make_xhtml(title: str, body: str) -> str:\n'
-'    return _XHTML_TPL.format(title=title, body=body)\n'
-'\n'
-'\n'
-'def _text_to_html(text: str) -> str:\n'
-'    """Convert plain text to basic HTML paragraphs."""\n'
-'    paragraphs = text.strip().split("\\n\\n")\n'
-'    html_parts = []\n'
-'    for p in paragraphs:\n'
-'        p = p.strip()\n'
-'        if not p:\n'
-'            continue\n'
-'        m = _re.match(r"^(#{1,6})\\s+(.+)$", p)\n'
-'        if m:\n'
-'            level = len(m.group(1))\n'
-'            html_parts.append("<h{0}>{1}</h{0}>".format(level, m.group(2)))\n'
-'        else:\n'
-'            lines = p.replace("\\n", "<br/>")\n'
-'            html_parts.append("<p>{}</p>".format(lines))\n'
-'    return "\\n".join(html_parts)\n'
-'\n'
-'\n'
-'@tool_wrapper(required_params=["title", "author", "chapters"])\n'
-'def build_epub_tool(params: Dict[str, Any]) -> Dict[str, Any]:\n'
-'    """Build an EPUB e-book from chapters."""\n'
-'    status.set_callback(params.pop("_status_callback", None))\n'
-'    title = params["title"]\n'
-'    author = params["author"]\n'
-'    chapters = params["chapters"]\n'
-'    language = params.get("language", "en")\n'
-'    description = params.get("description", "")\n'
-'    book_id = str(uuid.uuid4())\n'
-'\n'
-'    if not chapters or not isinstance(chapters, list):\n'
-'        return tool_error("chapters must be a non-empty list of {title, content} dicts")\n'
-'\n'
-'    slug = title.lower().replace(" ", "_")[:50]\n'
-'    output_path = params.get("output_path", slug + ".epub")\n'
-'    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")\n'
-'\n'
-'    try:\n'
-'        with zipfile.ZipFile(output_path, "w", zipfile.ZIP_DEFLATED) as epub:\n'
-'            epub.writestr("mimetype", "application/epub+zip", compress_type=zipfile.ZIP_STORED)\n'
-'\n'
-'            epub.writestr("META-INF/container.xml",\n'
-'                \'<?xml version="1.0" encoding="UTF-8"?>\'\n'
-'                \'<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">\'\n'
-'                \'<rootfiles><rootfile full-path="OEBPS/content.opf" \'\n'
-'                \'media-type="application/oebps-package+xml"/></rootfiles></container>\')\n'
-'\n'
-'            manifest_items = []\n'
-'            spine_items = []\n'
-'            toc_items = []\n'
-'\n'
-'            for i, ch in enumerate(chapters):\n'
-'                ch_title = ch.get("title", "Chapter {}".format(i + 1))\n'
-'                ch_content = ch.get("content", "")\n'
-'                ch_html = _text_to_html(ch_content)\n'
-'                ch_id = "chapter{}".format(i + 1)\n'
-'                ch_file = ch_id + ".xhtml"\n'
-'\n'
-'                epub.writestr("OEBPS/" + ch_file, _make_xhtml(ch_title, ch_html))\n'
-'                manifest_items.append(\'<item id="{}" href="{}" media-type="application/xhtml+xml"/>\'.format(ch_id, ch_file))\n'
-'                spine_items.append(\'<itemref idref="{}"/>\'.format(ch_id))\n'
-'                toc_items.append(\'<li><a href="{}">{}</a></li>\'.format(ch_file, ch_title))\n'
-'\n'
-'            opf = _OPF_TPL.format(\n'
-'                book_id=book_id, title=title, author=author,\n'
-'                language=language, description=description, now=now,\n'
-'                manifest="\\n".join(manifest_items),\n'
-'                spine="\\n".join(spine_items),\n'
-'            )\n'
-'            epub.writestr("OEBPS/content.opf", opf)\n'
-'\n'
-'            nav = _NAV_TPL.format(toc="\\n".join(toc_items))\n'
-'            epub.writestr("OEBPS/nav.xhtml", nav)\n'
-'\n'
-'        out = Path(output_path)\n'
-'        return tool_response(\n'
-'            output_path=str(out.resolve()),\n'
-'            chapter_count=len(chapters),\n'
-'            size_bytes=out.stat().st_size,\n'
-'            book_id=book_id,\n'
-'        )\n'
-'    except Exception as e:\n'
-'        return tool_error("EPUB creation failed: {}".format(e))\n'
-'\n'
-'\n'
-'__all__ = ["build_epub_tool"]\n')
+    "import zipfile\n"
+    "import uuid\n"
+    "import re as _re\n"
+    "from pathlib import Path\n"
+    "from datetime import datetime, timezone\n"
+    "from typing import Dict, Any, List\n"
+    "from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper\n"
+    "from Jotty.core.infrastructure.utils.skill_status import SkillStatus\n"
+    "\n"
+    'status = SkillStatus("epub-builder")\n'
+    "\n"
+    "_XHTML_TPL = (\n"
+    '    \'<?xml version="1.0" encoding="UTF-8"?>\\n\'\n'
+    "    '<!DOCTYPE html>\\n'\n"
+    "    '<html xmlns=\"http://www.w3.org/1999/xhtml\">\\n'\n"
+    "    '<head><title>{title}</title>\\n'\n"
+    "    '<style>body{{font-family:serif;line-height:1.6;margin:1em;}}h1{{color:#333;}}</style>\\n'\n"
+    "    '</head>\\n'\n"
+    "    '<body><h1>{title}</h1>{body}</body></html>'\n"
+    ")\n"
+    "\n"
+    "_OPF_TPL = (\n"
+    '    \'<?xml version="1.0" encoding="UTF-8"?>\\n\'\n'
+    '    \'<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="bookid">\\n\'\n'
+    "    '<metadata xmlns:dc=\"http://purl.org/dc/elements/1.1/\">\\n'\n"
+    "    '<dc:identifier id=\"bookid\">urn:uuid:{book_id}</dc:identifier>\\n'\n"
+    "    '<dc:title>{title}</dc:title>\\n'\n"
+    "    '<dc:creator>{author}</dc:creator>\\n'\n"
+    "    '<dc:language>{language}</dc:language>\\n'\n"
+    "    '<dc:description>{description}</dc:description>\\n'\n"
+    "    '<meta property=\"dcterms:modified\">{now}</meta>\\n'\n"
+    "    '</metadata>\\n'\n"
+    "    '<manifest>\\n'\n"
+    '    \'<item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>\\n\'\n'
+    "    '{manifest}\\n'\n"
+    "    '</manifest>\\n'\n"
+    "    '<spine>{spine}</spine>\\n'\n"
+    "    '</package>'\n"
+    ")\n"
+    "\n"
+    "_NAV_TPL = (\n"
+    '    \'<?xml version="1.0" encoding="UTF-8"?>\\n\'\n'
+    "    '<!DOCTYPE html>\\n'\n"
+    '    \'<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">\\n\'\n'
+    "    '<head><title>Table of Contents</title></head>\\n'\n"
+    "    '<body><nav epub:type=\"toc\"><h1>Table of Contents</h1>\\n'\n"
+    "    '<ol>{toc}</ol></nav></body></html>'\n"
+    ")\n"
+    "\n"
+    "\n"
+    "def _make_xhtml(title: str, body: str) -> str:\n"
+    "    return _XHTML_TPL.format(title=title, body=body)\n"
+    "\n"
+    "\n"
+    "def _text_to_html(text: str) -> str:\n"
+    '    """Convert plain text to basic HTML paragraphs."""\n'
+    '    paragraphs = text.strip().split("\\n\\n")\n'
+    "    html_parts = []\n"
+    "    for p in paragraphs:\n"
+    "        p = p.strip()\n"
+    "        if not p:\n"
+    "            continue\n"
+    '        m = _re.match(r"^(#{1,6})\\s+(.+)$", p)\n'
+    "        if m:\n"
+    "            level = len(m.group(1))\n"
+    '            html_parts.append("<h{0}>{1}</h{0}>".format(level, m.group(2)))\n'
+    "        else:\n"
+    '            lines = p.replace("\\n", "<br/>")\n'
+    '            html_parts.append("<p>{}</p>".format(lines))\n'
+    '    return "\\n".join(html_parts)\n'
+    "\n"
+    "\n"
+    '@tool_wrapper(required_params=["title", "author", "chapters"])\n'
+    "def build_epub_tool(params: Dict[str, Any]) -> Dict[str, Any]:\n"
+    '    """Build an EPUB e-book from chapters."""\n'
+    '    status.set_callback(params.pop("_status_callback", None))\n'
+    '    title = params["title"]\n'
+    '    author = params["author"]\n'
+    '    chapters = params["chapters"]\n'
+    '    language = params.get("language", "en")\n'
+    '    description = params.get("description", "")\n'
+    "    book_id = str(uuid.uuid4())\n"
+    "\n"
+    "    if not chapters or not isinstance(chapters, list):\n"
+    '        return tool_error("chapters must be a non-empty list of {title, content} dicts")\n'
+    "\n"
+    '    slug = title.lower().replace(" ", "_")[:50]\n'
+    '    output_path = params.get("output_path", slug + ".epub")\n'
+    '    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")\n'
+    "\n"
+    "    try:\n"
+    '        with zipfile.ZipFile(output_path, "w", zipfile.ZIP_DEFLATED) as epub:\n'
+    '            epub.writestr("mimetype", "application/epub+zip", compress_type=zipfile.ZIP_STORED)\n'
+    "\n"
+    '            epub.writestr("META-INF/container.xml",\n'
+    '                \'<?xml version="1.0" encoding="UTF-8"?>\'\n'
+    '                \'<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">\'\n'
+    "                '<rootfiles><rootfile full-path=\"OEBPS/content.opf\" '\n"
+    "                'media-type=\"application/oebps-package+xml\"/></rootfiles></container>')\n"
+    "\n"
+    "            manifest_items = []\n"
+    "            spine_items = []\n"
+    "            toc_items = []\n"
+    "\n"
+    "            for i, ch in enumerate(chapters):\n"
+    '                ch_title = ch.get("title", "Chapter {}".format(i + 1))\n'
+    '                ch_content = ch.get("content", "")\n'
+    "                ch_html = _text_to_html(ch_content)\n"
+    '                ch_id = "chapter{}".format(i + 1)\n'
+    '                ch_file = ch_id + ".xhtml"\n'
+    "\n"
+    '                epub.writestr("OEBPS/" + ch_file, _make_xhtml(ch_title, ch_html))\n'
+    '                manifest_items.append(\'<item id="{}" href="{}" media-type="application/xhtml+xml"/>\'.format(ch_id, ch_file))\n'
+    "                spine_items.append('<itemref idref=\"{}\"/>'.format(ch_id))\n"
+    "                toc_items.append('<li><a href=\"{}\">{}</a></li>'.format(ch_file, ch_title))\n"
+    "\n"
+    "            opf = _OPF_TPL.format(\n"
+    "                book_id=book_id, title=title, author=author,\n"
+    "                language=language, description=description, now=now,\n"
+    '                manifest="\\n".join(manifest_items),\n'
+    '                spine="\\n".join(spine_items),\n'
+    "            )\n"
+    '            epub.writestr("OEBPS/content.opf", opf)\n'
+    "\n"
+    '            nav = _NAV_TPL.format(toc="\\n".join(toc_items))\n'
+    '            epub.writestr("OEBPS/nav.xhtml", nav)\n'
+    "\n"
+    "        out = Path(output_path)\n"
+    "        return tool_response(\n"
+    "            output_path=str(out.resolve()),\n"
+    "            chapter_count=len(chapters),\n"
+    "            size_bytes=out.stat().st_size,\n"
+    "            book_id=book_id,\n"
+    "        )\n"
+    "    except Exception as e:\n"
+    '        return tool_error("EPUB creation failed: {}".format(e))\n'
+    "\n"
+    "\n"
+    '__all__ = ["build_epub_tool"]\n',
+)
 
 # ── 53. invoice-generator ─────────────────────────────────────────
 create_skill(
@@ -1543,7 +1595,10 @@ create_skill(
     capabilities=["generate"],
     triggers=["invoice", "bill", "receipt", "generate invoice", "create invoice"],
     eval_tool="generate_invoice_tool",
-    eval_input={"client_name": "Acme Corp", "items": [{"description": "Consulting", "quantity": 10, "rate": 150}]},
+    eval_input={
+        "client_name": "Acme Corp",
+        "items": [{"description": "Consulting", "quantity": 10, "rate": 150}],
+    },
     tool_docs="""### generate_invoice_tool
 Generate a structured invoice.
 
@@ -1636,7 +1691,8 @@ def generate_invoice_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["generate_invoice_tool"]
-''')
+''',
+)
 
 # ── 54. expense-tracker ───────────────────────────────────────────
 create_skill(
@@ -1776,7 +1832,8 @@ def expense_summary_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["add_expense_tool", "expense_summary_tool"]
-''')
+''',
+)
 
 # ── 55. loan-amortization-calculator ──────────────────────────────
 create_skill(
@@ -1889,7 +1946,8 @@ def amortization_schedule_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["amortization_schedule_tool"]
-''')
+''',
+)
 
 # ── 56. tax-calculator ────────────────────────────────────────────
 create_skill(
@@ -1898,7 +1956,14 @@ create_skill(
     description="Calculate US federal income tax using current brackets, standard deduction, and effective rates. Use when the user wants to calculate tax, income tax, tax brackets, federal tax.",
     category="data-analysis",
     capabilities=["analyze"],
-    triggers=["tax", "income tax", "tax bracket", "federal tax", "tax calculator", "effective rate"],
+    triggers=[
+        "tax",
+        "income tax",
+        "tax bracket",
+        "federal tax",
+        "tax calculator",
+        "effective rate",
+    ],
     eval_tool="calculate_federal_tax_tool",
     eval_input={"income": 85000, "filing_status": "single"},
     tool_docs="""### calculate_federal_tax_tool
@@ -2014,7 +2079,8 @@ def calculate_federal_tax_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["calculate_federal_tax_tool"]
-''')
+''',
+)
 
 # ── 57. pomodoro-timer ────────────────────────────────────────────
 create_skill(
@@ -2156,7 +2222,8 @@ def pomodoro_stats_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["start_pomodoro_tool", "pomodoro_stats_tool"]
-''')
+''',
+)
 
 # ── 58. habit-tracker ─────────────────────────────────────────────
 create_skill(
@@ -2320,7 +2387,8 @@ def habit_stats_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["log_habit_tool", "habit_stats_tool"]
-''')
+''',
+)
 
 # ── 59. decision-matrix-builder ───────────────────────────────────
 create_skill(
@@ -2329,9 +2397,19 @@ create_skill(
     description="Build weighted decision matrices to compare options across multiple criteria. Use when the user wants to compare options, decision matrix, weighted scoring, pros cons.",
     category="workflow-automation",
     capabilities=["analyze"],
-    triggers=["decision matrix", "compare options", "weighted scoring", "decision analysis", "pros cons"],
+    triggers=[
+        "decision matrix",
+        "compare options",
+        "weighted scoring",
+        "decision analysis",
+        "pros cons",
+    ],
     eval_tool="build_decision_matrix_tool",
-    eval_input={"options": ["Option A", "Option B"], "criteria": [{"name": "Cost", "weight": 5}, {"name": "Quality", "weight": 8}], "scores": {"Option A": {"Cost": 8, "Quality": 6}, "Option B": {"Cost": 5, "Quality": 9}}},
+    eval_input={
+        "options": ["Option A", "Option B"],
+        "criteria": [{"name": "Cost", "weight": 5}, {"name": "Quality", "weight": 8}],
+        "scores": {"Option A": {"Cost": 8, "Quality": 6}, "Option B": {"Cost": 5, "Quality": 9}},
+    },
     tool_docs="""### build_decision_matrix_tool
 Build a weighted decision matrix.
 
@@ -2432,7 +2510,8 @@ def build_decision_matrix_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["build_decision_matrix_tool"]
-''')
+''',
+)
 
 # ── 60. project-timeline-generator ────────────────────────────────
 create_skill(
@@ -2441,9 +2520,22 @@ create_skill(
     description="Generate text-based Gantt charts and project timelines from task lists. Use when the user wants to project timeline, Gantt chart, schedule tasks, project plan.",
     category="workflow-automation",
     capabilities=["generate", "analyze"],
-    triggers=["timeline", "gantt chart", "project plan", "schedule", "project timeline", "milestones"],
+    triggers=[
+        "timeline",
+        "gantt chart",
+        "project plan",
+        "schedule",
+        "project timeline",
+        "milestones",
+    ],
     eval_tool="generate_timeline_tool",
-    eval_input={"tasks": [{"name": "Design", "duration": 5, "start_day": 1}, {"name": "Development", "duration": 10, "start_day": 6}, {"name": "Testing", "duration": 5, "start_day": 16}]},
+    eval_input={
+        "tasks": [
+            {"name": "Design", "duration": 5, "start_day": 1},
+            {"name": "Development", "duration": 10, "start_day": 6},
+            {"name": "Testing", "duration": 5, "start_day": 16},
+        ]
+    },
     tool_docs="""### generate_timeline_tool
 Generate a text-based Gantt chart / project timeline.
 
@@ -2577,6 +2669,7 @@ def generate_timeline_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["generate_timeline_tool"]
-''')
+''',
+)
 
 print(f"\nBatch 3 complete: 20 skills created.")

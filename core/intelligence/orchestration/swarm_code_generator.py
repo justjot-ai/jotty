@@ -5,10 +5,11 @@ Generates code to connect tools and handle integrations.
 Includes provider adapter generation for auto-discovered packages.
 Follows DRY: Reuses existing code templates and patterns.
 """
+
 import logging
 import re
-from typing import Dict, Any, List, Optional, TYPE_CHECKING
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 if TYPE_CHECKING:
     from .swarm_researcher import ProviderCandidate
@@ -19,6 +20,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class GeneratedCode:
     """Generated code result."""
+
     code: str
     language: str
     dependencies: List[str]
@@ -31,47 +33,45 @@ class GeneratedCode:
 class SwarmCodeGenerator:
     """
     Generates glue code and integration code.
-    
+
     DRY Principle: Reuses existing code templates and patterns from skills.
     """
-    
+
     def __init__(self, config: Any = None) -> None:
         """
         Initialize SwarmCodeGenerator.
-        
+
         Args:
             config: Optional SwarmConfig
         """
         self.config = config
         self._planner = None
-    
+
     def _init_dependencies(self) -> Any:
         """Lazy load dependencies (DRY: avoid circular imports)."""
         if self._planner is None:
             from Jotty.core.modes.agent.baseic_planner import TaskPlanner
+
             self._planner = TaskPlanner()
-    
+
     def generate_glue_code(
-        self,
-        source_tool: str,
-        destination_tool: str,
-        transformation: Optional[str] = None
+        self, source_tool: str, destination_tool: str, transformation: Optional[str] = None
     ) -> GeneratedCode:
         """
         Generate glue code to connect two tools.
-        
+
         Args:
             source_tool: Source tool name (e.g., "reddit_scraper")
             destination_tool: Destination tool name (e.g., "notion_client")
             transformation: Optional transformation description
-            
+
         Returns:
             GeneratedCode
         """
         self._init_dependencies()
-        
+
         logger.info(f" SwarmCodeGenerator: Generating glue code {source_tool} → {destination_tool}")
-        
+
         # Use LLM to generate code (DRY: reuse TaskPlanner's LLM)
         prompt = f"""
 Generate Python code to connect:
@@ -88,36 +88,39 @@ Requirements:
 
 Generate complete, runnable code.
 """
-        
+
         try:
             import dspy
-            if hasattr(dspy, 'settings') and dspy.settings.lm:
+
+            if hasattr(dspy, "settings") and dspy.settings.lm:
                 lm = dspy.settings.lm
-                
+
                 # Set timeout on LM if it supports it (30 seconds for code generation)
                 original_timeout = None
-                if hasattr(lm, 'timeout'):
+                if hasattr(lm, "timeout"):
                     original_timeout = lm.timeout
                     lm.timeout = 30
-                elif hasattr(lm, '__call__'):
+                elif hasattr(lm, "__call__"):
                     # Try to pass timeout via kwargs
                     try:
                         response = lm(prompt, timeout=30)
                         # Handle response
                         if isinstance(response, list):
-                            response = ' '.join(str(r) for r in response)
+                            response = " ".join(str(r) for r in response)
                         elif not isinstance(response, str):
                             response = str(response)
-                        
+
                         code = self._extract_code_from_response(response)
                         dependencies = self._extract_dependencies(code)
-                        
+
                         return GeneratedCode(
                             code=code,
                             language="python",
                             dependencies=dependencies,
                             description=f"Glue code connecting {source_tool} to {destination_tool}",
-                            usage_example=self._generate_usage_example(source_tool, destination_tool)
+                            usage_example=self._generate_usage_example(
+                                source_tool, destination_tool
+                            ),
                         )
                     except Exception as e:
                         if "timeout" in str(e).lower() or "timed out" in str(e).lower():
@@ -125,39 +128,40 @@ Generate complete, runnable code.
                         else:
                             logger.warning(f" Code generation LLM call failed: {e}, using template")
                         raise
-                
+
                 # Use DSPy ChainOfThought with timeout
                 try:
                     from dspy.predict import ChainOfThought
+
                     cot = ChainOfThought("input -> output")
                     cot.lm = lm
-                    
+
                     result = cot(input=prompt)
-                    
+
                     # Restore timeout
                     if original_timeout is not None:
                         lm.timeout = original_timeout
-                    
+
                     # Extract response
-                    response = result.output if hasattr(result, 'output') else str(result)
+                    response = result.output if hasattr(result, "output") else str(result)
                     if isinstance(response, list):
-                        response = ' '.join(str(r) for r in response)
-                    
+                        response = " ".join(str(r) for r in response)
+
                     code = self._extract_code_from_response(response)
                     dependencies = self._extract_dependencies(code)
-                    
+
                     return GeneratedCode(
                         code=code,
                         language="python",
                         dependencies=dependencies,
                         description=f"Glue code connecting {source_tool} to {destination_tool}",
-                        usage_example=self._generate_usage_example(source_tool, destination_tool)
+                        usage_example=self._generate_usage_example(source_tool, destination_tool),
                     )
                 except (TimeoutError, Exception) as e:
                     # Restore timeout
                     if original_timeout is not None:
                         lm.timeout = original_timeout
-                    
+
                     if "timeout" in str(e).lower() or "timed out" in str(e).lower():
                         logger.warning(f" Code generation timed out: {e}, using template")
                     else:
@@ -168,31 +172,28 @@ Generate complete, runnable code.
                 raise Exception("No LM available for code generation")
         except (TimeoutError, Exception) as e:
             logger.debug(f"Code generation LLM failed: {e}, falling back to template")
-        
+
         # Fallback to template-based generation
         return self._generate_from_template(source_tool, destination_tool, transformation)
-    
+
     def generate_integration_code(
-        self,
-        service: str,
-        operation: str,
-        config: Optional[Dict[str, Any]] = None
+        self, service: str, operation: str, config: Optional[Dict[str, Any]] = None
     ) -> GeneratedCode:
         """
         Generate integration code for a service.
-        
+
         Args:
             service: Service name (e.g., "reddit", "notion")
             operation: Operation (e.g., "scrape", "send", "store")
             config: Optional configuration
-            
+
         Returns:
             GeneratedCode
         """
         self._init_dependencies()
-        
+
         logger.info(f" SwarmCodeGenerator: Generating {operation} code for {service}")
-        
+
         # Use LLM to generate integration code (DRY: reuse TaskPlanner)
         prompt = f"""
 Generate Python code for {service} integration:
@@ -209,83 +210,86 @@ Requirements:
 
 Generate complete, runnable code.
 """
-        
+
         try:
             import dspy
-            if hasattr(dspy, 'settings') and dspy.settings.lm:
+
+            if hasattr(dspy, "settings") and dspy.settings.lm:
                 # Try with shorter timeout
                 try:
                     lm = dspy.settings.lm
-                    if hasattr(lm, '__call__'):
+                    if hasattr(lm, "__call__"):
                         response = lm(prompt, timeout=30)
                     else:
                         response = lm(prompt)
-                    
+
                     # Handle list responses
                     if isinstance(response, list):
-                        response = ' '.join(str(r) for r in response)
+                        response = " ".join(str(r) for r in response)
                     elif not isinstance(response, str):
                         response = str(response)
-                    
+
                     code = self._extract_code_from_response(response)
                     dependencies = self._extract_dependencies(code)
-                    
+
                     return GeneratedCode(
                         code=code,
                         language="python",
                         dependencies=dependencies,
                         description=f"{operation} integration for {service}",
-                        usage_example=self._generate_usage_example(service, operation)
+                        usage_example=self._generate_usage_example(service, operation),
                     )
                 except TimeoutError:
                     logger.warning(" Integration code generation timed out, using template")
                     raise
                 except Exception as e:
-                    logger.warning(f" Integration code generation LLM call failed: {e}, using template")
+                    logger.warning(
+                        f" Integration code generation LLM call failed: {e}, using template"
+                    )
                     raise
         except (TimeoutError, Exception) as e:
             logger.debug(f"Integration code generation LLM failed: {e}, falling back to template")
-        
+
         # Fallback to template
         return self._generate_integration_template(service, operation, config)
-    
+
     def _extract_code_from_response(self, response: str) -> str:
         """Extract code block from LLM response."""
         # Look for code blocks
         import re
-        
+
         # Try to find Python code block
-        code_block_pattern = r'```python\n(.*?)```'
+        code_block_pattern = r"```python\n(.*?)```"
         matches = re.findall(code_block_pattern, response, re.DOTALL)
         if matches:
             return matches[0].strip()
-        
+
         # Try generic code block
-        code_block_pattern = r'```\n(.*?)```'
+        code_block_pattern = r"```\n(.*?)```"
         matches = re.findall(code_block_pattern, response, re.DOTALL)
         if matches:
             return matches[0].strip()
-        
+
         # Return response as-is if no code blocks found
         return response.strip()
-    
+
     def _extract_dependencies(self, code: str) -> List[str]:
         """Extract import statements to determine dependencies."""
         import re
-        
+
         dependencies = []
-        
+
         # Find import statements
-        import_pattern = r'^(?:from|import)\s+(\w+)'
+        import_pattern = r"^(?:from|import)\s+(\w+)"
         matches = re.findall(import_pattern, code, re.MULTILINE)
         dependencies.extend(matches)
-        
+
         # Remove standard library imports
-        stdlib = {'os', 'sys', 'json', 'logging', 'typing', 'dataclasses', 'pathlib', 'asyncio'}
+        stdlib = {"os", "sys", "json", "logging", "typing", "dataclasses", "pathlib", "asyncio"}
         dependencies = [d for d in dependencies if d not in stdlib]
-        
+
         return list(set(dependencies))  # Remove duplicates
-    
+
     def _generate_usage_example(self, source: str, destination: str) -> str:
         """Generate usage example."""
         return f"""
@@ -296,12 +300,9 @@ from {destination.lower().replace(' ', '_')} import {destination}
 # Use the generated glue code
 result = connect_{source}_to_{destination}(data)
 """
-    
+
     def _generate_from_template(
-        self,
-        source_tool: str,
-        destination_tool: str,
-        transformation: Optional[str]
+        self, source_tool: str, destination_tool: str, transformation: Optional[str]
     ) -> GeneratedCode:
         """Fallback template-based generation."""
         code = f'''
@@ -317,41 +318,38 @@ logger = logging.getLogger(__name__)
 def connect_{source_tool.replace("-", "_")}_to_{destination_tool.replace("-", "_")}(data: Any) -> Dict[str, Any]:
     """
     Connect {source_tool} to {destination_tool}.
-    
+
     Args:
         data: Data from {source_tool}
-        
+
     Returns:
         Transformed data for {destination_tool}
     """
     try:
         # IMPLEMENT: Add your transformation logic here
         # Transformation: {transformation or 'pass through'}
-        
+
         # Placeholder transformation
         result = {{"data": data}}
-        
+
         logger.info(f" Connected {source_tool} to {destination_tool}")
         return result
-        
+
     except Exception as e:
         logger.error(f" Connection failed: {{e}}")
         raise
 '''
-        
+
         return GeneratedCode(
             code=code.strip(),
             language="python",
             dependencies=[],
             description=f"Template glue code for {source_tool} → {destination_tool}",
-            usage_example=None
+            usage_example=None,
         )
-    
+
     def _generate_integration_template(
-        self,
-        service: str,
-        operation: str,
-        config: Optional[Dict[str, Any]]
+        self, service: str, operation: str, config: Optional[Dict[str, Any]]
     ) -> GeneratedCode:
         """Fallback template-based integration code."""
         code = f'''
@@ -404,7 +402,7 @@ class {service.title()}Client:
             language="python",
             dependencies=[],
             description=f"{operation} integration for {service}",
-            usage_example=None
+            usage_example=None,
         )
 
     # =========================================================================
@@ -412,10 +410,7 @@ class {service.title()}Client:
     # =========================================================================
 
     def generate_provider_adapter(
-        self,
-        package_name: str,
-        package_info: Dict[str, Any],
-        categories: List[str]
+        self, package_name: str, package_info: Dict[str, Any], categories: List[str]
     ) -> GeneratedCode:
         """
         Generate a SkillProvider adapter for an external package.
@@ -451,19 +446,16 @@ class {service.title()}Client:
         return self._generate_provider_template(package_name, package_info, categories)
 
     def _generate_provider_with_llm(
-        self,
-        package_name: str,
-        package_info: Dict[str, Any],
-        categories: List[str]
+        self, package_name: str, package_info: Dict[str, Any], categories: List[str]
     ) -> GeneratedCode:
         """Generate provider adapter using LLM."""
         import dspy
 
-        if not (hasattr(dspy, 'settings') and dspy.settings.lm):
+        if not (hasattr(dspy, "settings") and dspy.settings.lm):
             raise Exception("No LM available")
 
         # Build prompt
-        categories_str = ', '.join(categories)
+        categories_str = ", ".join(categories)
         prompt = f"""
 Generate a Python SkillProvider class that wraps the '{package_name}' package.
 
@@ -493,7 +485,7 @@ Generate complete, runnable Python code.
         response = lm(prompt, timeout=45)
 
         if isinstance(response, list):
-            response = ' '.join(str(r) for r in response)
+            response = " ".join(str(r) for r in response)
         elif not isinstance(response, str):
             response = str(response)
 
@@ -509,23 +501,20 @@ Generate complete, runnable Python code.
             file_path=f"providers/{package_name.replace('-', '_')}_provider.py",
             usage_example=self._generate_provider_usage(package_name, categories),
             metadata={
-                'package_name': package_name,
-                'categories': categories,
-                'generated_by': 'llm',
-            }
+                "package_name": package_name,
+                "categories": categories,
+                "generated_by": "llm",
+            },
         )
 
     def _generate_provider_template(
-        self,
-        package_name: str,
-        package_info: Dict[str, Any],
-        categories: List[str]
+        self, package_name: str, package_info: Dict[str, Any], categories: List[str]
     ) -> GeneratedCode:
         """Generate provider adapter using template (fallback)."""
         # Normalize names
-        class_name = ''.join(word.title() for word in package_name.replace('-', '_').split('_'))
-        provider_name = package_name.replace('-', '_')
-        categories_enum = ', '.join(f"SkillCategory.{c.upper()}" for c in categories)
+        class_name = "".join(word.title() for word in package_name.replace("-", "_").split("_"))
+        provider_name = package_name.replace("-", "_")
+        categories_enum = ", ".join(f"SkillCategory.{c.upper()}" for c in categories)
 
         code = f'''"""
 SkillProvider adapter for {package_name}
@@ -696,19 +685,19 @@ def create_provider(config: Dict[str, Any] = None) -> {class_name}Provider:
             file_path=f"providers/{provider_name}_provider.py",
             usage_example=self._generate_provider_usage(package_name, categories),
             metadata={
-                'package_name': package_name,
-                'categories': categories,
-                'class_name': f"{class_name}Provider",
-                'generated_by': 'template',
-            }
+                "package_name": package_name,
+                "categories": categories,
+                "class_name": f"{class_name}Provider",
+                "generated_by": "template",
+            },
         )
 
     def _generate_provider_usage(self, package_name: str, categories: List[str]) -> str:
         """Generate usage example for provider."""
-        class_name = ''.join(word.title() for word in package_name.replace('-', '_').split('_'))
-        provider_name = package_name.replace('-', '_')
+        class_name = "".join(word.title() for word in package_name.replace("-", "_").split("_"))
+        provider_name = package_name.replace("-", "_")
 
-        return f'''
+        return f"""
 # Usage example:
 from providers.{provider_name}_provider import {class_name}Provider
 
@@ -727,17 +716,14 @@ else:
 from core.skills.providers import ProviderRegistry
 registry = ProviderRegistry()
 registry.register(provider, trust_level="sandboxed")
-'''
+"""
 
     # =========================================================================
     # Morph App Code Generation
     # =========================================================================
 
     def generate_morph_workflow(
-        self,
-        workflow_name: str,
-        workflow_spec: Dict[str, Any],
-        streaming: bool = True
+        self, workflow_name: str, workflow_spec: Dict[str, Any], streaming: bool = True
     ) -> GeneratedCode:
         """
         Generate a Python workflow file for Morph.
@@ -768,24 +754,24 @@ registry.register(provider, trust_level="sandboxed")
                 streaming=True
             )
         """
-        description = workflow_spec.get('description', f'{workflow_name} workflow')
-        inputs = workflow_spec.get('inputs', [])
-        outputs = workflow_spec.get('outputs', ['result'])
-        custom_body = workflow_spec.get('body')
+        description = workflow_spec.get("description", f"{workflow_name} workflow")
+        inputs = workflow_spec.get("inputs", [])
+        outputs = workflow_spec.get("outputs", ["result"])
+        custom_body = workflow_spec.get("body")
 
         # Build imports
-        imports = ['import morph', 'from morph import MorphGlobalContext']
+        imports = ["import morph", "from morph import MorphGlobalContext"]
         if streaming:
-            imports.append('from morph_lib.stream import stream_chat')
-        imports.append('from typing import Dict, Any')
+            imports.append("from morph_lib.stream import stream_chat")
+        imports.append("from typing import Dict, Any")
 
         # Build parameter annotations
-        params_str = ''
+        params_str = ""
         param_docs = []
         if inputs:
-            params = [f'{inp}: str = None' for inp in inputs]
-            params_str = ', ' + ', '.join(params)
-            param_docs = [f'        {inp}: Input parameter' for inp in inputs]
+            params = [f"{inp}: str = None" for inp in inputs]
+            params_str = ", " + ", ".join(params)
+            param_docs = [f"        {inp}: Input parameter" for inp in inputs]
 
         # Build body
         if custom_body:
@@ -796,9 +782,9 @@ registry.register(provider, trust_level="sandboxed")
             body = self._generate_sync_workflow_body(workflow_name, inputs, outputs)
 
         # Build decorators
-        decorators = '@morph.func'
+        decorators = "@morph.func"
         if streaming:
-            decorators = '@morph.func\n@morph.streaming'
+            decorators = "@morph.func\n@morph.streaming"
 
         # Assemble code
         code = f'''"""
@@ -827,26 +813,23 @@ def {workflow_name}(context: MorphGlobalContext{params_str}):
         return GeneratedCode(
             code=code.strip(),
             language="python",
-            dependencies=['morph-data'],
+            dependencies=["morph-data"],
             description=f"Morph workflow: {workflow_name}",
             file_path=f"python/{workflow_name}.py",
             usage_example=self._generate_morph_workflow_usage(workflow_name, inputs),
             metadata={
-                'workflow_name': workflow_name,
-                'streaming': streaming,
-                'inputs': inputs,
-                'outputs': outputs,
-            }
+                "workflow_name": workflow_name,
+                "streaming": streaming,
+                "inputs": inputs,
+                "outputs": outputs,
+            },
         )
 
     def _generate_streaming_workflow_body(
-        self,
-        workflow_name: str,
-        inputs: List[str],
-        outputs: List[str]
+        self, workflow_name: str, inputs: List[str], outputs: List[str]
     ) -> str:
         """Generate streaming workflow body."""
-        indent = '    '
+        indent = "    "
 
         # Input extraction
         input_lines = []
@@ -854,27 +837,29 @@ def {workflow_name}(context: MorphGlobalContext{params_str}):
             input_lines.append(f'{indent}{inp} = context.vars.get("{inp}")')
 
         # Build body
-        body_lines = input_lines or [f'{indent}# Get input from context', f'{indent}user_input = context.vars.get("message", "")']
+        body_lines = input_lines or [
+            f"{indent}# Get input from context",
+            f'{indent}user_input = context.vars.get("message", "")',
+        ]
 
-        body_lines.extend([
-            '',
-            f'{indent}# Stream response using Morph stream_chat',
-            f'{indent}# IMPLEMENT: Integrate with your LLM (OpenAI, Anthropic, etc.) here',
-            f'{indent}response = f"Processing: {{str(context.vars)}}"',
-            f'{indent}for word in response.split():',
-            f'{indent}    yield stream_chat(word + " ")',
-        ])
+        body_lines.extend(
+            [
+                "",
+                f"{indent}# Stream response using Morph stream_chat",
+                f"{indent}# IMPLEMENT: Integrate with your LLM (OpenAI, Anthropic, etc.) here",
+                f'{indent}response = f"Processing: {{str(context.vars)}}"',
+                f"{indent}for word in response.split():",
+                f'{indent}    yield stream_chat(word + " ")',
+            ]
+        )
 
-        return '\n'.join(body_lines)
+        return "\n".join(body_lines)
 
     def _generate_sync_workflow_body(
-        self,
-        workflow_name: str,
-        inputs: List[str],
-        outputs: List[str]
+        self, workflow_name: str, inputs: List[str], outputs: List[str]
     ) -> str:
         """Generate synchronous workflow body."""
-        indent = '    '
+        indent = "    "
 
         # Input extraction
         input_lines = []
@@ -882,27 +867,29 @@ def {workflow_name}(context: MorphGlobalContext{params_str}):
             input_lines.append(f'{indent}{inp} = context.vars.get("{inp}")')
 
         # Output construction
-        output_fields = ', '.join([f'"{o}": None' for o in outputs])
+        output_fields = ", ".join([f'"{o}": None' for o in outputs])
 
-        body_lines = input_lines or [f'{indent}# Get input from context']
+        body_lines = input_lines or [f"{indent}# Get input from context"]
 
-        body_lines.extend([
-            '',
-            f'{indent}# Process and return result',
-            f'{indent}result = {{{output_fields}}}',
-            '',
-            f'{indent}# IMPLEMENT: Add {workflow_name} logic here',
-            '',
-            f'{indent}return result',
-        ])
+        body_lines.extend(
+            [
+                "",
+                f"{indent}# Process and return result",
+                f"{indent}result = {{{output_fields}}}",
+                "",
+                f"{indent}# IMPLEMENT: Add {workflow_name} logic here",
+                "",
+                f"{indent}return result",
+            ]
+        )
 
-        return '\n'.join(body_lines)
+        return "\n".join(body_lines)
 
     def _generate_morph_workflow_usage(self, workflow_name: str, inputs: List[str]) -> str:
         """Generate usage example for Morph workflow."""
-        inputs_example = ', '.join([f'{inp}="value"' for inp in inputs]) if inputs else ''
+        inputs_example = ", ".join([f'{inp}="value"' for inp in inputs]) if inputs else ""
 
-        return f'''
+        return f"""
 # Usage in MDX page:
 # <Chat postData="{workflow_name}" />
 
@@ -920,7 +907,7 @@ for chunk in {workflow_name}(context{', ' + inputs_example if inputs_example els
 # For sync workflows:
 result = {workflow_name}(context{', ' + inputs_example if inputs_example else ''})
 print(result)
-'''
+"""
 
     def generate_morph_page(
         self,
@@ -928,7 +915,7 @@ print(result)
         workflows: List[str],
         components: List[Dict[str, Any]],
         title: str = None,
-        description: str = None
+        description: str = None,
     ) -> GeneratedCode:
         """
         Generate an MDX page for Morph.
@@ -960,7 +947,7 @@ print(result)
                 title="Analytics Dashboard"
             )
         """
-        title = title or page_name.replace('_', ' ').title()
+        title = title or page_name.replace("_", " ").title()
         description = description or f"{title} - Auto-generated by Jotty V2"
 
         # Build component MDX
@@ -974,7 +961,7 @@ print(result)
         content = self._generate_page_content(title, components)
 
         # Assemble MDX
-        mdx = f'''---
+        mdx = f"""---
 title: {title}
 description: {description}
 ---
@@ -984,39 +971,35 @@ description: {description}
 {content}
 
 {chr(10).join(component_mdx)}
-'''
+"""
 
         return GeneratedCode(
             code=mdx.strip(),
             language="mdx",
-            dependencies=['morph-data'],
+            dependencies=["morph-data"],
             description=f"Morph page: {page_name}",
             file_path=f"pages/{page_name}.mdx",
-            usage_example=f'# This page is served at: http://localhost:8080/{page_name}',
+            usage_example=f"# This page is served at: http://localhost:8080/{page_name}",
             metadata={
-                'page_name': page_name,
-                'workflows': workflows,
-                'components': [c.get('type') for c in components],
-            }
+                "page_name": page_name,
+                "workflows": workflows,
+                "components": [c.get("type") for c in components],
+            },
         )
 
-    def _generate_component_mdx(
-        self,
-        component: Dict[str, Any],
-        workflows: List[str]
-    ) -> str:
+    def _generate_component_mdx(self, component: Dict[str, Any], workflows: List[str]) -> str:
         """Generate MDX for a single component."""
-        comp_type = component.get('type', 'chat')
-        workflow = component.get('workflow', workflows[0] if workflows else 'main')
+        comp_type = component.get("type", "chat")
+        workflow = component.get("workflow", workflows[0] if workflows else "main")
 
         templates = {
-            'chat': f'<Chat postData="{workflow}" height={{{{300}}}} />',
-            'form': f'<Form postData="{workflow}" />',
-            'table': f'<DataTable postData="{workflow}" />',
-            'chart': f'<Chart postData="{workflow}" type="{component.get("chart_type", "line")}" />',
-            'input': f'<Input name="{component.get("name", "input")}" label="{component.get("label", "Input")}" />',
-            'button': f'<Button onClick={{{{() => run("{workflow}")}}}}>{component.get("children", "Submit")}</Button>',
-            'markdown': f'<Markdown>{component.get("content", "")}</Markdown>',
+            "chat": f'<Chat postData="{workflow}" height={{{{300}}}} />',
+            "form": f'<Form postData="{workflow}" />',
+            "table": f'<DataTable postData="{workflow}" />',
+            "chart": f'<Chart postData="{workflow}" type="{component.get("chart_type", "line")}" />',
+            "input": f'<Input name="{component.get("name", "input")}" label="{component.get("label", "Input")}" />',
+            "button": f'<Button onClick={{{{() => run("{workflow}")}}}}>{component.get("children", "Submit")}</Button>',
+            "markdown": f'<Markdown>{component.get("content", "")}</Markdown>',
         }
 
         template = templates.get(comp_type)
@@ -1024,27 +1007,24 @@ description: {description}
             return template
 
         # Unknown component type - return as custom
-        props = ' '.join([f'{k}="{v}"' for k, v in component.items() if k != 'type'])
-        return f'<{comp_type.title()} {props} />'
+        props = " ".join([f'{k}="{v}"' for k, v in component.items() if k != "type"])
+        return f"<{comp_type.title()} {props} />"
 
     def _generate_page_content(self, title: str, components: List[Dict[str, Any]]) -> str:
         """Generate descriptive content for the page."""
-        comp_types = [c.get('type') for c in components]
+        comp_types = [c.get("type") for c in components]
 
         sections = []
-        if 'chat' in comp_types:
+        if "chat" in comp_types:
             sections.append("Start a conversation with the AI assistant below.")
-        if 'form' in comp_types:
+        if "form" in comp_types:
             sections.append("Fill out the form to submit your data.")
-        if 'chart' in comp_types or 'table' in comp_types:
+        if "chart" in comp_types or "table" in comp_types:
             sections.append("View your data visualizations and insights.")
 
-        return '\n\n'.join(sections) if sections else f"Welcome to {title}!"
+        return "\n\n".join(sections) if sections else f"Welcome to {title}!"
 
-    def generate_provider_from_candidate(
-        self,
-        candidate: 'ProviderCandidate'
-    ) -> GeneratedCode:
+    def generate_provider_from_candidate(self, candidate: "ProviderCandidate") -> GeneratedCode:
         """
         Generate provider adapter from a ProviderCandidate.
 
@@ -1057,16 +1037,12 @@ description: {description}
             GeneratedCode with the provider adapter
         """
         package_info = {
-            'description': candidate.description,
-            'version': candidate.metadata.get('version', '1.0.0'),
-            'url': candidate.url,
-            'source': candidate.source,
+            "description": candidate.description,
+            "version": candidate.metadata.get("version", "1.0.0"),
+            "url": candidate.url,
+            "source": candidate.source,
         }
 
-        categories = candidate.categories or ['api_calls']
+        categories = candidate.categories or ["api_calls"]
 
-        return self.generate_provider_adapter(
-            candidate.package_name,
-            package_info,
-            categories
-        )
+        return self.generate_provider_adapter(candidate.package_name, package_info, categories)

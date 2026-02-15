@@ -1,20 +1,49 @@
 """NATO Phonetic Alphabet Skill — convert text to NATO spelling."""
-from typing import Dict, Any
 
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from typing import Any, Dict
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("nato-phonetic-alphabet")
 
 _NATO = {
-    "A": "Alfa", "B": "Bravo", "C": "Charlie", "D": "Delta", "E": "Echo",
-    "F": "Foxtrot", "G": "Golf", "H": "Hotel", "I": "India", "J": "Juliett",
-    "K": "Kilo", "L": "Lima", "M": "Mike", "N": "November", "O": "Oscar",
-    "P": "Papa", "Q": "Quebec", "R": "Romeo", "S": "Sierra", "T": "Tango",
-    "U": "Uniform", "V": "Victor", "W": "Whiskey", "X": "X-ray", "Y": "Yankee",
+    "A": "Alfa",
+    "B": "Bravo",
+    "C": "Charlie",
+    "D": "Delta",
+    "E": "Echo",
+    "F": "Foxtrot",
+    "G": "Golf",
+    "H": "Hotel",
+    "I": "India",
+    "J": "Juliett",
+    "K": "Kilo",
+    "L": "Lima",
+    "M": "Mike",
+    "N": "November",
+    "O": "Oscar",
+    "P": "Papa",
+    "Q": "Quebec",
+    "R": "Romeo",
+    "S": "Sierra",
+    "T": "Tango",
+    "U": "Uniform",
+    "V": "Victor",
+    "W": "Whiskey",
+    "X": "X-ray",
+    "Y": "Yankee",
     "Z": "Zulu",
-    "0": "Zero", "1": "One", "2": "Two", "3": "Three", "4": "Four",
-    "5": "Five", "6": "Six", "7": "Seven", "8": "Eight", "9": "Niner",
+    "0": "Zero",
+    "1": "One",
+    "2": "Two",
+    "3": "Three",
+    "4": "Four",
+    "5": "Five",
+    "6": "Six",
+    "7": "Seven",
+    "8": "Eight",
+    "9": "Niner",
 }
 _REVERSE = {v.upper(): k for k, v in _NATO.items()}
 
@@ -38,8 +67,10 @@ def nato_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             else:
                 result.append(ch)
         return tool_response(
-            text=text, nato=" ".join(result),
-            words=result, count=len(result),
+            text=text,
+            nato=" ".join(result),
+            words=result,
+            count=len(result),
         )
 
     if action == "decode":

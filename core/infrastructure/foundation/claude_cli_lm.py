@@ -8,15 +8,17 @@ Properly forwards DSPy adapter-formatted messages (system, demos, input)
 to Claude CLI and returns raw LLM text for DSPy's adapter to parse.
 """
 
-import subprocess
 import json
-import os
 import logging
+import os
+import subprocess
 from datetime import datetime
+from typing import Any, Dict, List, Optional
+
 import dspy
 from dspy import BaseLM
-from typing import Dict, Any, Optional, List
-from Jotty.core.infrastructure.foundation.exceptions import LLMError, InputValidationError
+
+from Jotty.core.infrastructure.foundation.exceptions import InputValidationError, LLMError
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +41,7 @@ class ClaudeCLILM(BaseLM):
     - Returning raw LLM text for DSPy's adapter to parse with [[ ## ]] markers
     """
 
-    def __init__(self, model: Any = '', **kwargs: Any) -> None:
+    def __init__(self, model: Any = "", **kwargs: Any) -> None:
         """
         Initialize Claude CLI LM.
 
@@ -48,8 +50,9 @@ class ClaudeCLILM(BaseLM):
             **kwargs: Additional arguments
         """
         # Drop enable_skills from kwargs for backwards compatibility
-        kwargs.pop('enable_skills', None)
+        kwargs.pop("enable_skills", None)
         from Jotty.core.infrastructure.foundation.config_defaults import DEFAULT_MODEL_ALIAS
+
         model = model or DEFAULT_MODEL_ALIAS
         super().__init__(model=f"claude-cli/{model}", **kwargs)
         self.cli_model = model
@@ -61,10 +64,7 @@ class ClaudeCLILM(BaseLM):
         """Check if claude CLI is available."""
         try:
             result = subprocess.run(
-                ["claude", "--version"],
-                capture_output=True,
-                text=True,
-                timeout=5
+                ["claude", "--version"], capture_output=True, text=True, timeout=5
             )
             if result.returncode == 0:
                 logger.info(f"Claude CLI available: {result.stdout.strip()}")
@@ -99,18 +99,18 @@ class ClaudeCLILM(BaseLM):
             if not isinstance(msg, dict):
                 continue
 
-            role = msg.get('role', '')
-            content = msg.get('content', '')
+            role = msg.get("role", "")
+            content = msg.get("content", "")
 
             if not content:
                 continue
 
-            if role == 'system':
+            if role == "system":
                 system_parts.append(content)
-            elif role == 'assistant':
+            elif role == "assistant":
                 # Few-shot demo response - preserve as example output
                 conversation_parts.append(f"[Example Response]\n{content}")
-            elif role == 'user':
+            elif role == "user":
                 conversation_parts.append(content)
 
         system_prompt = "\n\n".join(system_parts) if system_parts else None
@@ -132,8 +132,8 @@ class ClaudeCLILM(BaseLM):
 
         try:
             envelope = json.loads(raw_output)
-            if isinstance(envelope, dict) and 'result' in envelope:
-                return envelope['result']
+            if isinstance(envelope, dict) and "result" in envelope:
+                return envelope["result"]
         except (json.JSONDecodeError, TypeError):
             pass
 
@@ -172,9 +172,11 @@ class ClaudeCLILM(BaseLM):
         # Build command
         cmd = [
             "claude",
-            "--model", self.cli_model,
+            "--model",
+            self.cli_model,
             "--print",
-            "--output-format", "json",  # CLI envelope for reliable result extraction
+            "--output-format",
+            "json",  # CLI envelope for reliable result extraction
         ]
 
         # Note: Date context is now injected centrally via ContextAwareLM wrapper
@@ -189,19 +191,13 @@ class ClaudeCLILM(BaseLM):
 
         # Unset ANTHROPIC_API_KEY if it's an OAuth token (doesn't work with --print)
         env = os.environ.copy()
-        api_key = env.get('ANTHROPIC_API_KEY', '')
-        if api_key.startswith('sk-ant-oat'):
-            env.pop('ANTHROPIC_API_KEY', None)
+        api_key = env.get("ANTHROPIC_API_KEY", "")
+        if api_key.startswith("sk-ant-oat"):
+            env.pop("ANTHROPIC_API_KEY", None)
 
-        timeout = kwargs.get('timeout', 60)
+        timeout = kwargs.get("timeout", 60)
 
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            env=env,
-            timeout=timeout
-        )
+        result = subprocess.run(cmd, capture_output=True, text=True, env=env, timeout=timeout)
 
         if result.returncode != 0:
             error_msg = result.stderr.strip() if result.stderr else result.stdout.strip()
@@ -214,12 +210,14 @@ class ClaudeCLILM(BaseLM):
         response_text = self._extract_response(result.stdout)
 
         # Store in history
-        self.history.append({
-            "prompt": user_prompt,
-            "system": system_prompt,
-            "response": response_text,
-            "kwargs": kwargs
-        })
+        self.history.append(
+            {
+                "prompt": user_prompt,
+                "system": system_prompt,
+                "response": response_text,
+                "kwargs": kwargs,
+            }
+        )
 
         # Return in DSPy format (list of response strings)
         return [response_text]

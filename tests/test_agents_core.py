@@ -4,15 +4,17 @@ Tests for Agent Core Module
 Tests for BaseAgent execution, retries, hooks, metrics, and AgentResult.
 Tests for DomainAgent, CompositeAgent, and MetaAgent.
 """
-import asyncio
-import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
-from typing import Dict, Any
 
+import asyncio
+from typing import Any, Dict
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 # =============================================================================
 # AgentResult Tests
 # =============================================================================
+
 
 class TestAgentResult:
     """Tests for AgentResult dataclass."""
@@ -21,6 +23,7 @@ class TestAgentResult:
     def test_successful_result(self):
         """AgentResult for successful execution."""
         from Jotty.core.modes.agent.base.base_agent import AgentResult
+
         result = AgentResult(
             success=True,
             output="computed answer",
@@ -37,6 +40,7 @@ class TestAgentResult:
     def test_failed_result(self):
         """AgentResult for failed execution."""
         from Jotty.core.modes.agent.base.base_agent import AgentResult
+
         result = AgentResult(
             success=False,
             output=None,
@@ -53,6 +57,7 @@ class TestAgentResult:
     def test_to_dict_serialization(self):
         """AgentResult.to_dict() returns serializable dict."""
         from Jotty.core.modes.agent.base.base_agent import AgentResult
+
         result = AgentResult(
             success=True,
             output="answer",
@@ -61,19 +66,23 @@ class TestAgentResult:
         )
         d = result.to_dict()
         assert isinstance(d, dict)
-        assert d['success'] is True
-        assert d['output'] == "answer"
-        assert d['agent_name'] == "TestAgent"
-        assert 'timestamp' in d
+        assert d["success"] is True
+        assert d["output"] == "answer"
+        assert d["agent_name"] == "TestAgent"
+        assert "timestamp" in d
 
     @pytest.mark.unit
     def test_timestamp_set_automatically(self):
         """AgentResult gets timestamp on creation."""
-        from Jotty.core.modes.agent.base.base_agent import AgentResult
         from datetime import datetime
+
+        from Jotty.core.modes.agent.base.base_agent import AgentResult
+
         result = AgentResult(
-            success=True, output="x",
-            agent_name="A", execution_time=0.1,
+            success=True,
+            output="x",
+            agent_name="A",
+            execution_time=0.1,
         )
         assert isinstance(result.timestamp, datetime)
 
@@ -82,13 +91,14 @@ class TestAgentResult:
 # BaseAgent Tests
 # =============================================================================
 
+
 class TestBaseAgent:
     """Tests for BaseAgent execution lifecycle."""
 
     @pytest.mark.unit
     def test_creation_with_default_config(self):
         """BaseAgent creates with default config."""
-        from Jotty.core.modes.agent.base.base_agent import BaseAgent, AgentRuntimeConfig
+        from Jotty.core.modes.agent.base.base_agent import AgentRuntimeConfig, BaseAgent
 
         class TestAgent(BaseAgent):
             async def _execute_impl(self, **kwargs):
@@ -101,7 +111,7 @@ class TestBaseAgent:
     @pytest.mark.unit
     def test_creation_with_custom_config(self):
         """BaseAgent uses provided config."""
-        from Jotty.core.modes.agent.base.base_agent import BaseAgent, AgentRuntimeConfig
+        from Jotty.core.modes.agent.base.base_agent import AgentRuntimeConfig, BaseAgent
 
         class TestAgent(BaseAgent):
             async def _execute_impl(self, **kwargs):
@@ -143,7 +153,7 @@ class TestBaseAgent:
         """execute() retries on failure."""
         call_count = 0
 
-        from Jotty.core.modes.agent.base.base_agent import BaseAgent, AgentRuntimeConfig
+        from Jotty.core.modes.agent.base.base_agent import AgentRuntimeConfig, BaseAgent
 
         class RetryAgent(BaseAgent):
             async def _execute_impl(self, **kwargs):
@@ -165,7 +175,7 @@ class TestBaseAgent:
     @pytest.mark.asyncio
     async def test_execute_exhausts_retries(self, make_concrete_agent):
         """execute() fails after exhausting retries."""
-        from Jotty.core.modes.agent.base.base_agent import BaseAgent, AgentRuntimeConfig
+        from Jotty.core.modes.agent.base.base_agent import AgentRuntimeConfig, BaseAgent
 
         class AlwaysFailAgent(BaseAgent):
             async def _execute_impl(self, **kwargs):
@@ -185,10 +195,10 @@ class TestBaseAgent:
         await agent.execute()
         await agent.execute()
         metrics = agent.get_metrics()
-        assert metrics['total_executions'] == 2
-        assert metrics['successful_executions'] == 2
-        assert metrics['failed_executions'] == 0
-        assert metrics['success_rate'] == 1.0
+        assert metrics["total_executions"] == 2
+        assert metrics["successful_executions"] == 2
+        assert metrics["failed_executions"] == 0
+        assert metrics["success_rate"] == 1.0
 
     @pytest.mark.unit
     @pytest.mark.asyncio
@@ -202,34 +212,35 @@ class TestBaseAgent:
         )
         await agent.execute()
         metrics = agent.get_metrics()
-        assert metrics['total_executions'] == 1
-        assert metrics['failed_executions'] == 1
-        assert metrics['success_rate'] == 0.0
+        assert metrics["total_executions"] == 1
+        assert metrics["failed_executions"] == 1
+        assert metrics["success_rate"] == 0.0
 
     @pytest.mark.unit
     def test_reset_metrics(self, make_concrete_agent):
         """reset_metrics() zeros all counters."""
         agent = make_concrete_agent(name="ResetTest")
         # Manually set some metrics
-        agent._metrics['total_executions'] = 5
-        agent._metrics['successful_executions'] = 3
+        agent._metrics["total_executions"] = 5
+        agent._metrics["successful_executions"] = 3
         agent.reset_metrics()
         metrics = agent.get_metrics()
-        assert metrics['total_executions'] == 0
-        assert metrics['successful_executions'] == 0
+        assert metrics["total_executions"] == 0
+        assert metrics["successful_executions"] == 0
 
     @pytest.mark.unit
     def test_metrics_zero_division(self, make_concrete_agent):
         """get_metrics() handles zero total executions."""
         agent = make_concrete_agent(name="ZeroDiv")
         metrics = agent.get_metrics()
-        assert metrics['success_rate'] == 0.0
-        assert metrics['avg_execution_time'] == 0.0
+        assert metrics["success_rate"] == 0.0
+        assert metrics["avg_execution_time"] == 0.0
 
 
 # =============================================================================
 # Hook Tests
 # =============================================================================
+
 
 class TestBaseAgentHooks:
     """Tests for BaseAgent pre/post hooks."""
@@ -256,14 +267,14 @@ class TestBaseAgentHooks:
         post_result = {}
 
         def post_hook(agent, result, **kwargs):
-            post_result['called'] = True
-            post_result['success'] = result.success
+            post_result["called"] = True
+            post_result["success"] = result.success
 
         agent = make_concrete_agent(name="PostHookTest", output="ok")
         agent.add_post_hook(post_hook)
         await agent.execute(query="test")
-        assert post_result.get('called') is True
-        assert post_result.get('success') is True
+        assert post_result.get("called") is True
+        assert post_result.get("success") is True
 
     @pytest.mark.unit
     @pytest.mark.asyncio
@@ -284,6 +295,7 @@ class TestBaseAgentHooks:
     @pytest.mark.asyncio
     async def test_hook_exception_does_not_fail_execution(self, make_concrete_agent):
         """Hook exceptions are logged but don't fail execution."""
+
         def bad_hook(agent, **kwargs):
             raise RuntimeError("hook error")
 
@@ -296,6 +308,7 @@ class TestBaseAgentHooks:
 # =============================================================================
 # Collaboration Tests
 # =============================================================================
+
 
 class TestBaseAgentCollaboration:
     """Tests for BaseAgent inter-agent collaboration."""
@@ -311,18 +324,18 @@ class TestBaseAgentCollaboration:
         )
         agent.request_help("HelperAgent", "Need analysis data")
         assert len(shared_queue) == 1
-        assert shared_queue[0]['from'] == "RequesterAgent"
-        assert shared_queue[0]['to'] == "HelperAgent"
-        assert shared_queue[0]['query'] == "Need analysis data"
+        assert shared_queue[0]["from"] == "RequesterAgent"
+        assert shared_queue[0]["to"] == "HelperAgent"
+        assert shared_queue[0]["query"] == "Need analysis data"
 
     @pytest.mark.unit
     def test_get_pending_requests(self, make_concrete_agent):
         """get_pending_requests() filters by recipient."""
         agent = make_concrete_agent(name="ReceiverAgent")
         shared_queue = [
-            {'from': 'A', 'to': 'ReceiverAgent', 'query': 'help me'},
-            {'from': 'B', 'to': 'OtherAgent', 'query': 'not for me'},
-            {'from': 'C', 'to': 'ReceiverAgent', 'query': 'also me'},
+            {"from": "A", "to": "ReceiverAgent", "query": "help me"},
+            {"from": "B", "to": "OtherAgent", "query": "not for me"},
+            {"from": "C", "to": "ReceiverAgent", "query": "also me"},
         ]
         agent.set_collaboration_context(
             agent_directory={},
@@ -330,12 +343,13 @@ class TestBaseAgentCollaboration:
         )
         pending = agent.get_pending_requests()
         assert len(pending) == 2
-        assert all(r['to'] == 'ReceiverAgent' for r in pending)
+        assert all(r["to"] == "ReceiverAgent" for r in pending)
 
 
 # =============================================================================
 # Lazy Property Tests
 # =============================================================================
+
 
 class TestBaseAgentProperties:
     """Tests for BaseAgent lazy-loaded properties."""
@@ -371,6 +385,7 @@ class TestBaseAgentProperties:
 # DomainAgent Tests
 # =============================================================================
 
+
 class TestDomainAgent:
     """Tests for DomainAgent field extraction, I/O properties, and factory."""
 
@@ -378,29 +393,34 @@ class TestDomainAgent:
     def mock_signature(self):
         """Create a mock DSPy Signature with input/output fields."""
         import dspy
+
         class TestSig(dspy.Signature):
             """Test signature for unit testing."""
+
             task: str = dspy.InputField(desc="The task to perform")
             context: str = dspy.InputField(desc="Context information")
             output: str = dspy.OutputField(desc="The result")
             confidence: float = dspy.OutputField(desc="Confidence score")
+
         return TestSig
 
     @pytest.mark.unit
     def test_extract_fields_from_signature(self, mock_signature):
         """DomainAgent extracts input/output fields from DSPy Signature."""
         from Jotty.core.modes.agent.agents.domain_agent import DomainAgent, DomainAgentConfig
+
         config = DomainAgentConfig(name="test")
         agent = DomainAgent(mock_signature, config)
-        assert 'task' in agent.input_fields
-        assert 'context' in agent.input_fields
-        assert 'output' in agent.output_fields
-        assert 'confidence' in agent.output_fields
+        assert "task" in agent.input_fields
+        assert "context" in agent.input_fields
+        assert "output" in agent.output_fields
+        assert "confidence" in agent.output_fields
 
     @pytest.mark.unit
     def test_input_fields_returns_copy(self, mock_signature):
         """input_fields property returns a copy, not a reference."""
         from Jotty.core.modes.agent.agents.domain_agent import DomainAgent, DomainAgentConfig
+
         config = DomainAgentConfig(name="test")
         agent = DomainAgent(mock_signature, config)
         fields1 = agent.input_fields
@@ -414,6 +434,7 @@ class TestDomainAgent:
     def test_output_fields_returns_copy(self, mock_signature):
         """output_fields property returns a copy."""
         from Jotty.core.modes.agent.agents.domain_agent import DomainAgent, DomainAgentConfig
+
         config = DomainAgentConfig(name="test")
         agent = DomainAgent(mock_signature, config)
         fields = agent.output_fields
@@ -424,6 +445,7 @@ class TestDomainAgent:
     def test_no_signature_empty_fields(self):
         """DomainAgent with signature=None has empty field lists."""
         from Jotty.core.modes.agent.agents.domain_agent import DomainAgent, DomainAgentConfig
+
         config = DomainAgentConfig(name="test")
         agent = DomainAgent(None, config)
         assert agent.input_fields == []
@@ -433,18 +455,20 @@ class TestDomainAgent:
     def test_get_io_schema(self, mock_signature):
         """get_io_schema returns AgentIOSchema with correct fields."""
         from Jotty.core.modes.agent.agents.domain_agent import DomainAgent, DomainAgentConfig
+
         config = DomainAgentConfig(name="test")
         agent = DomainAgent(mock_signature, config)
         schema = agent.get_io_schema()
         input_names = [p.name for p in schema.inputs]
         output_names = [p.name for p in schema.outputs]
-        assert 'task' in input_names
-        assert 'output' in output_names
+        assert "task" in input_names
+        assert "output" in output_names
 
     @pytest.mark.unit
     def test_get_io_schema_cached(self, mock_signature):
         """get_io_schema caches result after first call."""
         from Jotty.core.modes.agent.agents.domain_agent import DomainAgent, DomainAgentConfig
+
         config = DomainAgentConfig(name="test")
         agent = DomainAgent(mock_signature, config)
         schema1 = agent.get_io_schema()
@@ -455,14 +479,16 @@ class TestDomainAgent:
     def test_create_domain_agent_factory(self, mock_signature):
         """create_domain_agent factory returns configured DomainAgent."""
         from Jotty.core.modes.agent.agents.domain_agent import create_domain_agent
+
         agent = create_domain_agent(mock_signature, use_chain_of_thought=True)
-        assert 'task' in agent.input_fields
+        assert "task" in agent.input_fields
         assert agent.config.use_chain_of_thought is True
 
     @pytest.mark.unit
     def test_create_domain_agent_no_cot(self, mock_signature):
         """create_domain_agent with use_chain_of_thought=False."""
         from Jotty.core.modes.agent.agents.domain_agent import create_domain_agent
+
         agent = create_domain_agent(mock_signature, use_chain_of_thought=False)
         assert agent.config.use_chain_of_thought is False
 
@@ -470,6 +496,7 @@ class TestDomainAgent:
     def test_domain_agent_config_defaults(self):
         """DomainAgentConfig has sensible defaults."""
         from Jotty.core.modes.agent.agents.domain_agent import DomainAgentConfig
+
         config = DomainAgentConfig()
         assert config.use_chain_of_thought is True
         assert config.use_react is False
@@ -479,6 +506,7 @@ class TestDomainAgent:
     def test_build_task_from_kwargs_query_key(self, mock_signature):
         """_build_task_from_kwargs extracts 'query' key."""
         from Jotty.core.modes.agent.agents.domain_agent import DomainAgent, DomainAgentConfig
+
         config = DomainAgentConfig(name="test")
         agent = DomainAgent(mock_signature, config)
         result = agent._build_task_from_kwargs({"query": "search AI trends"})
@@ -488,6 +516,7 @@ class TestDomainAgent:
     def test_build_task_from_kwargs_fallback(self, mock_signature):
         """_build_task_from_kwargs concatenates string values as fallback."""
         from Jotty.core.modes.agent.agents.domain_agent import DomainAgent, DomainAgentConfig
+
         config = DomainAgentConfig(name="test")
         agent = DomainAgent(mock_signature, config)
         result = agent._build_task_from_kwargs({"x": "hello", "y": "world"})
@@ -498,6 +527,7 @@ class TestDomainAgent:
     def test_build_task_from_kwargs_empty(self, mock_signature):
         """_build_task_from_kwargs returns empty for empty kwargs."""
         from Jotty.core.modes.agent.agents.domain_agent import DomainAgent, DomainAgentConfig
+
         config = DomainAgentConfig(name="test")
         agent = DomainAgent(mock_signature, config)
         result = agent._build_task_from_kwargs({})
@@ -508,6 +538,7 @@ class TestDomainAgent:
 # UnifiedResult Tests
 # =============================================================================
 
+
 class TestUnifiedResult:
     """Tests for UnifiedResult bidirectional bridge."""
 
@@ -516,9 +547,13 @@ class TestUnifiedResult:
         """UnifiedResult converts to AgentResult."""
         from Jotty.core.modes.agent.agents.composite_agent import UnifiedResult
         from Jotty.core.modes.agent.base.base_agent import AgentResult
+
         ur = UnifiedResult(
-            success=True, output="hello", name="TestAgent",
-            execution_time=1.5, metadata={"k": "v"},
+            success=True,
+            output="hello",
+            name="TestAgent",
+            execution_time=1.5,
+            metadata={"k": "v"},
         )
         ar = ur.to_agent_result()
         assert isinstance(ar, AgentResult)
@@ -532,9 +567,13 @@ class TestUnifiedResult:
         """UnifiedResult creates from AgentResult."""
         from Jotty.core.modes.agent.agents.composite_agent import UnifiedResult
         from Jotty.core.modes.agent.base.base_agent import AgentResult
+
         ar = AgentResult(
-            success=True, output="data", agent_name="A",
-            execution_time=2.0, metadata={"x": 1},
+            success=True,
+            output="data",
+            agent_name="A",
+            execution_time=2.0,
+            metadata={"x": 1},
         )
         ur = UnifiedResult.from_agent_result(ar)
         assert ur.success is True
@@ -547,9 +586,13 @@ class TestUnifiedResult:
         """AgentResult → UnifiedResult → AgentResult preserves fields."""
         from Jotty.core.modes.agent.agents.composite_agent import UnifiedResult
         from Jotty.core.modes.agent.base.base_agent import AgentResult
+
         original = AgentResult(
-            success=False, output=None, agent_name="B",
-            execution_time=0.5, error="timeout",
+            success=False,
+            output=None,
+            agent_name="B",
+            execution_time=0.5,
+            error="timeout",
         )
         ur = UnifiedResult.from_agent_result(original)
         restored = ur.to_agent_result()
@@ -561,6 +604,7 @@ class TestUnifiedResult:
     def test_unified_result_defaults(self):
         """UnifiedResult has sensible defaults for optional fields."""
         from Jotty.core.modes.agent.agents.composite_agent import UnifiedResult
+
         ur = UnifiedResult(success=True, output="x", name="A", execution_time=0.1)
         assert ur.error is None
         assert ur.metadata == {}
@@ -573,17 +617,24 @@ class TestUnifiedResult:
 # CompositeAgent Tests
 # =============================================================================
 
+
 class TestCompositeAgent:
     """Tests for CompositeAgent orchestration."""
 
     def _make_sub_agent(self, name="sub", output="result", success=True, error=None):
         """Create a mock sub-agent."""
-        from Jotty.core.modes.agent.base.base_agent import BaseAgent, AgentRuntimeConfig, AgentResult
+        from Jotty.core.modes.agent.base.base_agent import (
+            AgentResult,
+            AgentRuntimeConfig,
+            BaseAgent,
+        )
+
         class _MockAgent(BaseAgent):
             async def _execute_impl(self, **kwargs):
                 if not success:
                     raise RuntimeError(error or "failed")
                 return output
+
         config = AgentRuntimeConfig(name=name, max_retries=1, retry_delay=0.01)
         agent = _MockAgent(config)
         agent._initialized = True
@@ -593,6 +644,7 @@ class TestCompositeAgent:
     def test_create_default(self):
         """CompositeAgent creates with defaults."""
         from Jotty.core.modes.agent.agents.composite_agent import CompositeAgent
+
         agent = CompositeAgent()
         assert agent.config.name == "CompositeAgent"
         assert agent._sub_agents == {}
@@ -601,12 +653,20 @@ class TestCompositeAgent:
     @pytest.mark.unit
     def test_compose_factory(self):
         """compose() creates configured CompositeAgent from sub-agents."""
-        from Jotty.core.modes.agent.agents.composite_agent import CompositeAgent, CoordinationPattern, MergeStrategy
+        from Jotty.core.modes.agent.agents.composite_agent import (
+            CompositeAgent,
+            CoordinationPattern,
+            MergeStrategy,
+        )
+
         a = self._make_sub_agent("a")
         b = self._make_sub_agent("b")
         composite = CompositeAgent.compose(
-            "Pipeline", coordination=CoordinationPattern.PIPELINE,
-            merge_strategy=MergeStrategy.CONCAT, a=a, b=b,
+            "Pipeline",
+            coordination=CoordinationPattern.PIPELINE,
+            merge_strategy=MergeStrategy.CONCAT,
+            a=a,
+            b=b,
         )
         assert composite.config.name == "Pipeline"
         assert composite.config.coordination_pattern == CoordinationPattern.PIPELINE
@@ -616,7 +676,11 @@ class TestCompositeAgent:
     @pytest.mark.unit
     def test_compose_pipeline_timeout_is_sum(self):
         """Pipeline timeout is sum of sub-agent timeouts."""
-        from Jotty.core.modes.agent.agents.composite_agent import CompositeAgent, CoordinationPattern
+        from Jotty.core.modes.agent.agents.composite_agent import (
+            CompositeAgent,
+            CoordinationPattern,
+        )
+
         a = self._make_sub_agent("a")
         a.config.timeout = 10.0
         b = self._make_sub_agent("b")
@@ -627,7 +691,11 @@ class TestCompositeAgent:
     @pytest.mark.unit
     def test_compose_parallel_timeout_is_max(self):
         """Parallel timeout is max of sub-agent timeouts."""
-        from Jotty.core.modes.agent.agents.composite_agent import CompositeAgent, CoordinationPattern
+        from Jotty.core.modes.agent.agents.composite_agent import (
+            CompositeAgent,
+            CoordinationPattern,
+        )
+
         a = self._make_sub_agent("a")
         a.config.timeout = 10.0
         b = self._make_sub_agent("b")
@@ -639,6 +707,7 @@ class TestCompositeAgent:
     def test_add_remove_get_agent(self):
         """add_agent/remove_agent/get_agent manage sub-agents."""
         from Jotty.core.modes.agent.agents.composite_agent import CompositeAgent
+
         composite = CompositeAgent()
         a = self._make_sub_agent("a")
         composite.add_agent("alpha", a)
@@ -650,6 +719,7 @@ class TestCompositeAgent:
     def test_add_agent_returns_self(self):
         """add_agent returns self for chaining."""
         from Jotty.core.modes.agent.agents.composite_agent import CompositeAgent
+
         composite = CompositeAgent()
         result = composite.add_agent("x", self._make_sub_agent())
         assert result is composite
@@ -658,6 +728,7 @@ class TestCompositeAgent:
     def test_sub_agents_returns_copy(self):
         """sub_agents property returns a copy, not the internal dict."""
         from Jotty.core.modes.agent.agents.composite_agent import CompositeAgent
+
         composite = CompositeAgent()
         composite.add_agent("x", self._make_sub_agent())
         snapshot = composite.sub_agents
@@ -667,7 +738,12 @@ class TestCompositeAgent:
     @pytest.mark.unit
     def test_merge_outputs_combine(self):
         """_merge_outputs with COMBINE returns dict of outputs."""
-        from Jotty.core.modes.agent.agents.composite_agent import CompositeAgent, CompositeAgentConfig, MergeStrategy
+        from Jotty.core.modes.agent.agents.composite_agent import (
+            CompositeAgent,
+            CompositeAgentConfig,
+            MergeStrategy,
+        )
+
         config = CompositeAgentConfig(merge_strategy=MergeStrategy.COMBINE)
         agent = CompositeAgent(config=config)
         merged = agent._merge_outputs({"a": "result_a", "b": "result_b"})
@@ -676,7 +752,12 @@ class TestCompositeAgent:
     @pytest.mark.unit
     def test_merge_outputs_first(self):
         """_merge_outputs with FIRST returns first value."""
-        from Jotty.core.modes.agent.agents.composite_agent import CompositeAgent, CompositeAgentConfig, MergeStrategy
+        from Jotty.core.modes.agent.agents.composite_agent import (
+            CompositeAgent,
+            CompositeAgentConfig,
+            MergeStrategy,
+        )
+
         config = CompositeAgentConfig(merge_strategy=MergeStrategy.FIRST)
         agent = CompositeAgent(config=config)
         merged = agent._merge_outputs({"a": "first", "b": "second"})
@@ -685,7 +766,12 @@ class TestCompositeAgent:
     @pytest.mark.unit
     def test_merge_outputs_concat(self):
         """_merge_outputs with CONCAT joins string representations."""
-        from Jotty.core.modes.agent.agents.composite_agent import CompositeAgent, CompositeAgentConfig, MergeStrategy
+        from Jotty.core.modes.agent.agents.composite_agent import (
+            CompositeAgent,
+            CompositeAgentConfig,
+            MergeStrategy,
+        )
+
         config = CompositeAgentConfig(merge_strategy=MergeStrategy.CONCAT)
         agent = CompositeAgent(config=config)
         merged = agent._merge_outputs({"a": "hello", "b": "world"})
@@ -695,7 +781,12 @@ class TestCompositeAgent:
     @pytest.mark.unit
     def test_merge_outputs_best(self):
         """_merge_outputs with BEST returns longest output."""
-        from Jotty.core.modes.agent.agents.composite_agent import CompositeAgent, CompositeAgentConfig, MergeStrategy
+        from Jotty.core.modes.agent.agents.composite_agent import (
+            CompositeAgent,
+            CompositeAgentConfig,
+            MergeStrategy,
+        )
+
         config = CompositeAgentConfig(merge_strategy=MergeStrategy.BEST)
         agent = CompositeAgent(config=config)
         merged = agent._merge_outputs({"a": "short", "b": "this is longer"})
@@ -705,6 +796,7 @@ class TestCompositeAgent:
     def test_merge_outputs_empty(self):
         """_merge_outputs with empty dict returns None."""
         from Jotty.core.modes.agent.agents.composite_agent import CompositeAgent
+
         agent = CompositeAgent()
         assert agent._merge_outputs({}) is None
 
@@ -713,6 +805,7 @@ class TestCompositeAgent:
     async def test_orchestrate_no_agents_fails(self):
         """_orchestrate with no sub-agents returns failure."""
         from Jotty.core.modes.agent.agents.composite_agent import CompositeAgent, UnifiedResult
+
         agent = CompositeAgent()
         result = await agent._orchestrate()
         assert isinstance(result, UnifiedResult)
@@ -723,11 +816,18 @@ class TestCompositeAgent:
     @pytest.mark.asyncio
     async def test_execute_pipeline_success(self):
         """Pipeline executes sub-agents sequentially."""
-        from Jotty.core.modes.agent.agents.composite_agent import CompositeAgent, CoordinationPattern
+        from Jotty.core.modes.agent.agents.composite_agent import (
+            CompositeAgent,
+            CoordinationPattern,
+        )
+
         a = self._make_sub_agent("a", output="from_a")
         b = self._make_sub_agent("b", output="from_b")
         composite = CompositeAgent.compose(
-            "Pipeline", coordination=CoordinationPattern.PIPELINE, a=a, b=b,
+            "Pipeline",
+            coordination=CoordinationPattern.PIPELINE,
+            a=a,
+            b=b,
         )
         composite._initialized = True
         result = await composite.execute(task="start")
@@ -737,11 +837,18 @@ class TestCompositeAgent:
     @pytest.mark.asyncio
     async def test_execute_pipeline_fails_at_stage(self):
         """Pipeline stops and reports failure when a stage fails."""
-        from Jotty.core.modes.agent.agents.composite_agent import CompositeAgent, CoordinationPattern
+        from Jotty.core.modes.agent.agents.composite_agent import (
+            CompositeAgent,
+            CoordinationPattern,
+        )
+
         a = self._make_sub_agent("a", output="ok")
         b = self._make_sub_agent("b", success=False, error="stage_b_error")
         composite = CompositeAgent.compose(
-            "Pipeline", coordination=CoordinationPattern.PIPELINE, a=a, b=b,
+            "Pipeline",
+            coordination=CoordinationPattern.PIPELINE,
+            a=a,
+            b=b,
         )
         composite._initialized = True
         result = await composite.execute(task="start")
@@ -752,11 +859,18 @@ class TestCompositeAgent:
     @pytest.mark.asyncio
     async def test_execute_parallel_success(self):
         """Parallel executes all sub-agents concurrently."""
-        from Jotty.core.modes.agent.agents.composite_agent import CompositeAgent, CoordinationPattern
+        from Jotty.core.modes.agent.agents.composite_agent import (
+            CompositeAgent,
+            CoordinationPattern,
+        )
+
         a = self._make_sub_agent("a", output="result_a")
         b = self._make_sub_agent("b", output="result_b")
         composite = CompositeAgent.compose(
-            "Parallel", coordination=CoordinationPattern.PARALLEL, a=a, b=b,
+            "Parallel",
+            coordination=CoordinationPattern.PARALLEL,
+            a=a,
+            b=b,
         )
         composite._initialized = True
         result = await composite.execute(task="go")
@@ -766,12 +880,20 @@ class TestCompositeAgent:
     @pytest.mark.asyncio
     async def test_execute_consensus_majority(self):
         """Consensus succeeds when majority of agents succeed."""
-        from Jotty.core.modes.agent.agents.composite_agent import CompositeAgent, CoordinationPattern
+        from Jotty.core.modes.agent.agents.composite_agent import (
+            CompositeAgent,
+            CoordinationPattern,
+        )
+
         a = self._make_sub_agent("a", output="yes")
         b = self._make_sub_agent("b", output="yes")
         c = self._make_sub_agent("c", success=False, error="no")
         composite = CompositeAgent.compose(
-            "Consensus", coordination=CoordinationPattern.CONSENSUS, a=a, b=b, c=c,
+            "Consensus",
+            coordination=CoordinationPattern.CONSENSUS,
+            a=a,
+            b=b,
+            c=c,
         )
         composite._initialized = True
         result = await composite.execute(task="vote")
@@ -780,19 +902,24 @@ class TestCompositeAgent:
     @pytest.mark.unit
     def test_to_dict(self):
         """to_dict includes composite-specific fields."""
-        from Jotty.core.modes.agent.agents.composite_agent import CompositeAgent, CoordinationPattern
+        from Jotty.core.modes.agent.agents.composite_agent import (
+            CompositeAgent,
+            CoordinationPattern,
+        )
+
         a = self._make_sub_agent("a")
         composite = CompositeAgent.compose("Test", coordination=CoordinationPattern.PIPELINE, a=a)
         d = composite.to_dict()
-        assert d['type'] == 'composite'
-        assert d['coordination'] == 'pipeline'
-        assert 'a' in d['sub_agents']
-        assert d['wrapped_swarm'] is None
+        assert d["type"] == "composite"
+        assert d["coordination"] == "pipeline"
+        assert "a" in d["sub_agents"]
+        assert d["wrapped_swarm"] is None
 
     @pytest.mark.unit
     def test_repr_with_agents(self):
         """__repr__ shows name and agent list."""
         from Jotty.core.modes.agent.agents.composite_agent import CompositeAgent
+
         composite = CompositeAgent()
         composite.add_agent("x", self._make_sub_agent("x"))
         r = repr(composite)
@@ -804,11 +931,17 @@ class TestCompositeAgent:
         """_extract_output unwraps nested UnifiedResult."""
         from Jotty.core.modes.agent.agents.composite_agent import CompositeAgent, UnifiedResult
         from Jotty.core.modes.agent.base.base_agent import AgentResult
+
         inner_unified = UnifiedResult(
-            success=True, output="inner_data", name="inner",
-            execution_time=0.5, metadata={"nested": True},
+            success=True,
+            output="inner_data",
+            name="inner",
+            execution_time=0.5,
+            metadata={"nested": True},
         )
-        ar = AgentResult(success=True, output=inner_unified, agent_name="wrapper", execution_time=1.0)
+        ar = AgentResult(
+            success=True, output=inner_unified, agent_name="wrapper", execution_time=1.0
+        )
         output, meta = CompositeAgent._extract_output(ar)
         assert output == "inner_data"
         assert meta == {"nested": True}
@@ -818,7 +951,10 @@ class TestCompositeAgent:
         """_extract_output returns plain output and metadata."""
         from Jotty.core.modes.agent.agents.composite_agent import CompositeAgent
         from Jotty.core.modes.agent.base.base_agent import AgentResult
-        ar = AgentResult(success=True, output="plain", agent_name="A", execution_time=1.0, metadata={"k": "v"})
+
+        ar = AgentResult(
+            success=True, output="plain", agent_name="A", execution_time=1.0, metadata={"k": "v"}
+        )
         output, meta = CompositeAgent._extract_output(ar)
         assert output == "plain"
         assert meta == {"k": "v"}
@@ -828,6 +964,7 @@ class TestCompositeAgent:
 # MetaAgent Tests
 # =============================================================================
 
+
 class TestMetaAgent:
     """Tests for MetaAgent self-improvement infrastructure."""
 
@@ -835,6 +972,7 @@ class TestMetaAgent:
     def test_create_default(self):
         """MetaAgent creates with defaults."""
         from Jotty.core.modes.agent.agents.meta_agent import MetaAgent
+
         agent = MetaAgent()
         assert agent.config.name == "MetaAgent"
         assert agent.gold_db is None
@@ -844,6 +982,7 @@ class TestMetaAgent:
     def test_create_with_config(self):
         """MetaAgent respects custom config."""
         from Jotty.core.modes.agent.agents.meta_agent import MetaAgent, MetaAgentConfig
+
         config = MetaAgentConfig(
             name="CustomMeta",
             improvement_threshold=0.9,
@@ -859,6 +998,7 @@ class TestMetaAgent:
     async def test_evaluate_no_gold_db(self):
         """evaluate_against_gold returns default when no gold_db."""
         from Jotty.core.modes.agent.agents.meta_agent import MetaAgent
+
         agent = MetaAgent()
         result = await agent.evaluate_against_gold("test_id", {"answer": "42"})
         assert result["overall_score"] == 0.5
@@ -870,6 +1010,7 @@ class TestMetaAgent:
     async def test_evaluate_gold_not_found(self):
         """evaluate_against_gold returns failed when gold standard not in db."""
         from Jotty.core.modes.agent.agents.meta_agent import MetaAgent
+
         mock_db = MagicMock()
         mock_db.get.return_value = None
         agent = MetaAgent(gold_db=mock_db)
@@ -881,6 +1022,7 @@ class TestMetaAgent:
     def test_simple_evaluation_exact_match(self):
         """_simple_evaluation gives 1.0 for exact field matches."""
         from Jotty.core.modes.agent.agents.meta_agent import MetaAgent
+
         agent = MetaAgent()
         gold = MagicMock()
         gold.id = "g1"
@@ -893,6 +1035,7 @@ class TestMetaAgent:
     def test_simple_evaluation_partial_string(self):
         """_simple_evaluation computes word overlap for partial string match."""
         from Jotty.core.modes.agent.agents.meta_agent import MetaAgent
+
         agent = MetaAgent()
         gold = MagicMock()
         gold.id = "g1"
@@ -905,6 +1048,7 @@ class TestMetaAgent:
     def test_simple_evaluation_missing_field(self):
         """_simple_evaluation gives 0.0 for missing fields."""
         from Jotty.core.modes.agent.agents.meta_agent import MetaAgent
+
         agent = MetaAgent()
         gold = MagicMock()
         gold.id = "g1"
@@ -917,10 +1061,10 @@ class TestMetaAgent:
     async def test_extract_learnings_not_excellent(self):
         """extract_learnings returns empty for non-excellent results."""
         from Jotty.core.modes.agent.agents.meta_agent import MetaAgent
+
         agent = MetaAgent()
         result = await agent.extract_learnings(
-            {"task": "x"}, {"output": "y"},
-            {"result": "needs_improvement"}, domain="test"
+            {"task": "x"}, {"output": "y"}, {"result": "needs_improvement"}, domain="test"
         )
         assert result == []
 
@@ -929,10 +1073,13 @@ class TestMetaAgent:
     async def test_extract_learnings_good_no_dspy(self):
         """extract_learnings returns simple learnings for good results without DSPy."""
         from Jotty.core.modes.agent.agents.meta_agent import MetaAgent
+
         agent = MetaAgent()
         result = await agent.extract_learnings(
-            {"task": "x"}, {"output": "y"},
-            {"result": "good", "overall_score": 0.85}, domain="testing"
+            {"task": "x"},
+            {"output": "y"},
+            {"result": "good", "overall_score": 0.85},
+            domain="testing",
         )
         assert len(result) == 2
         assert "testing" in result[0]
@@ -942,6 +1089,7 @@ class TestMetaAgent:
     async def test_analyze_empty_evaluations(self):
         """analyze_and_suggest_improvements returns empty for no evaluations."""
         from Jotty.core.modes.agent.agents.meta_agent import MetaAgent
+
         agent = MetaAgent()
         result = await agent.analyze_and_suggest_improvements([])
         assert result == []
@@ -951,6 +1099,7 @@ class TestMetaAgent:
     async def test_analyze_no_dspy_module(self):
         """analyze_and_suggest_improvements returns empty without DSPy module."""
         from Jotty.core.modes.agent.agents.meta_agent import MetaAgent
+
         agent = MetaAgent()
         result = await agent.analyze_and_suggest_improvements([{"score": 0.5}])
         assert result == []
@@ -959,6 +1108,7 @@ class TestMetaAgent:
     def test_get_agent_state_no_context(self):
         """get_agent_state returns None when context is None."""
         from Jotty.core.modes.agent.agents.meta_agent import MetaAgent
+
         agent = MetaAgent()
         agent._context_manager = None
         agent.config.enable_context = False
@@ -968,6 +1118,7 @@ class TestMetaAgent:
     def test_get_agent_state_with_context(self):
         """get_agent_state retrieves from shared context."""
         from Jotty.core.modes.agent.agents.meta_agent import MetaAgent
+
         agent = MetaAgent()
         mock_ctx = MagicMock()
         mock_ctx.get.return_value = {"AgentA": {"score": 0.9}}
@@ -979,6 +1130,7 @@ class TestMetaAgent:
     def test_publish_state(self):
         """publish_state writes to shared context."""
         from Jotty.core.modes.agent.agents.meta_agent import MetaAgent
+
         agent = MetaAgent()
         mock_ctx = MagicMock()
         mock_ctx.get.return_value = {}
@@ -993,6 +1145,7 @@ class TestMetaAgent:
     def test_get_all_agent_states_no_context(self):
         """get_all_agent_states returns empty dict when no context."""
         from Jotty.core.modes.agent.agents.meta_agent import MetaAgent
+
         agent = MetaAgent()
         agent._context_manager = None
         agent.config.enable_context = False
@@ -1002,6 +1155,7 @@ class TestMetaAgent:
     def test_create_meta_agent_factory(self):
         """create_meta_agent factory returns configured MetaAgent."""
         from Jotty.core.modes.agent.agents.meta_agent import create_meta_agent
+
         agent = create_meta_agent()
         assert isinstance(agent, type(agent))  # MetaAgent
         assert agent.config.name == "MetaAgent"
@@ -1010,11 +1164,15 @@ class TestMetaAgent:
     def test_create_meta_agent_with_signature(self):
         """create_meta_agent with signature includes name in config."""
         import dspy
+
         from Jotty.core.modes.agent.agents.meta_agent import create_meta_agent
+
         class TestSig(dspy.Signature):
             """Test signature."""
+
             task: str = dspy.InputField()
             output: str = dspy.OutputField()
+
         agent = create_meta_agent(signature=TestSig)
         assert "TestSig" in agent.config.name
 
@@ -1022,6 +1180,7 @@ class TestMetaAgent:
     def test_meta_agent_config_defaults(self):
         """MetaAgentConfig has sensible defaults."""
         from Jotty.core.modes.agent.agents.meta_agent import MetaAgentConfig
+
         config = MetaAgentConfig()
         assert config.enable_gold_db is True
         assert config.enable_improvement_history is True
@@ -1033,6 +1192,7 @@ class TestMetaAgent:
 # TypeCoercer Tests
 # =============================================================================
 
+
 class TestTypeCoercer:
     """Tests for TypeCoercer schema-driven type coercion."""
 
@@ -1040,6 +1200,7 @@ class TestTypeCoercer:
     def test_coerce_str_passthrough(self):
         """String type hints pass value through unchanged."""
         from Jotty.core.modes.agent._execution_types import TypeCoercer
+
         val, err = TypeCoercer.coerce("hello", "str")
         assert val == "hello"
         assert err is None
@@ -1048,6 +1209,7 @@ class TestTypeCoercer:
     def test_coerce_unknown_type_passthrough(self):
         """Unknown type hints pass value through unchanged."""
         from Jotty.core.modes.agent._execution_types import TypeCoercer
+
         val, err = TypeCoercer.coerce("hello", "custom_type")
         assert val == "hello"
         assert err is None
@@ -1056,6 +1218,7 @@ class TestTypeCoercer:
     def test_coerce_none_type_hint_passthrough(self):
         """None type_hint passes value through unchanged."""
         from Jotty.core.modes.agent._execution_types import TypeCoercer
+
         val, err = TypeCoercer.coerce(42, None)
         assert val == 42
         assert err is None
@@ -1064,6 +1227,7 @@ class TestTypeCoercer:
     def test_coerce_int_from_int(self):
         """Int values pass through."""
         from Jotty.core.modes.agent._execution_types import TypeCoercer
+
         val, err = TypeCoercer.coerce(42, "int")
         assert val == 42
         assert err is None
@@ -1072,6 +1236,7 @@ class TestTypeCoercer:
     def test_coerce_int_from_float(self):
         """Whole floats coerce to int."""
         from Jotty.core.modes.agent._execution_types import TypeCoercer
+
         val, err = TypeCoercer.coerce(42.0, "int")
         assert val == 42
         assert isinstance(val, int)
@@ -1081,6 +1246,7 @@ class TestTypeCoercer:
     def test_coerce_int_from_string(self):
         """Numeric strings coerce to int."""
         from Jotty.core.modes.agent._execution_types import TypeCoercer
+
         val, err = TypeCoercer.coerce("42", "int")
         assert val == 42
         assert err is None
@@ -1089,6 +1255,7 @@ class TestTypeCoercer:
     def test_coerce_int_negative_string(self):
         """Negative numeric strings coerce to int."""
         from Jotty.core.modes.agent._execution_types import TypeCoercer
+
         val, err = TypeCoercer.coerce("-5", "int")
         assert val == -5
         assert err is None
@@ -1097,6 +1264,7 @@ class TestTypeCoercer:
     def test_coerce_int_float_string(self):
         """'42.0' string coerces to int via float intermediary."""
         from Jotty.core.modes.agent._execution_types import TypeCoercer
+
         val, err = TypeCoercer.coerce("42.0", "int")
         assert val == 42
         assert err is None
@@ -1105,6 +1273,7 @@ class TestTypeCoercer:
     def test_coerce_int_bool_rejected(self):
         """Booleans are not coerced to int (isinstance(True, int) is True in Python)."""
         from Jotty.core.modes.agent._execution_types import TypeCoercer
+
         val, err = TypeCoercer.coerce(True, "int")
         # Bool is rejected by the isinstance check
         assert err is not None
@@ -1113,6 +1282,7 @@ class TestTypeCoercer:
     def test_coerce_int_non_numeric_string(self):
         """Non-numeric strings produce error."""
         from Jotty.core.modes.agent._execution_types import TypeCoercer
+
         val, err = TypeCoercer.coerce("hello", "int")
         assert val == "hello"  # Original value returned
         assert err is not None
@@ -1121,6 +1291,7 @@ class TestTypeCoercer:
     def test_coerce_float_from_float(self):
         """Float values pass through."""
         from Jotty.core.modes.agent._execution_types import TypeCoercer
+
         val, err = TypeCoercer.coerce(3.14, "float")
         assert val == 3.14
         assert err is None
@@ -1129,6 +1300,7 @@ class TestTypeCoercer:
     def test_coerce_float_from_int(self):
         """Int values coerce to float."""
         from Jotty.core.modes.agent._execution_types import TypeCoercer
+
         val, err = TypeCoercer.coerce(42, "float")
         assert val == 42.0
         assert isinstance(val, float)
@@ -1138,6 +1310,7 @@ class TestTypeCoercer:
     def test_coerce_float_from_string(self):
         """Numeric strings coerce to float."""
         from Jotty.core.modes.agent._execution_types import TypeCoercer
+
         val, err = TypeCoercer.coerce("3.14", "float")
         assert val == 3.14
         assert err is None
@@ -1146,6 +1319,7 @@ class TestTypeCoercer:
     def test_coerce_float_non_numeric(self):
         """Non-numeric strings produce error for float."""
         from Jotty.core.modes.agent._execution_types import TypeCoercer
+
         val, err = TypeCoercer.coerce("not_a_number", "float")
         assert err is not None
 
@@ -1153,6 +1327,7 @@ class TestTypeCoercer:
     def test_coerce_bool_true_variants(self):
         """Various truthy strings coerce to True."""
         from Jotty.core.modes.agent._execution_types import TypeCoercer
+
         for s in ("true", "True", "yes", "1", "on"):
             val, err = TypeCoercer.coerce(s, "bool")
             assert val is True, f"Expected True for '{s}'"
@@ -1162,6 +1337,7 @@ class TestTypeCoercer:
     def test_coerce_bool_false_variants(self):
         """Various falsy strings coerce to False."""
         from Jotty.core.modes.agent._execution_types import TypeCoercer
+
         for s in ("false", "False", "no", "0", "off"):
             val, err = TypeCoercer.coerce(s, "bool")
             assert val is False, f"Expected False for '{s}'"
@@ -1171,6 +1347,7 @@ class TestTypeCoercer:
     def test_coerce_bool_from_int(self):
         """Int 1/0 coerces to bool."""
         from Jotty.core.modes.agent._execution_types import TypeCoercer
+
         val, err = TypeCoercer.coerce(1, "bool")
         assert val is True
         assert err is None
@@ -1182,6 +1359,7 @@ class TestTypeCoercer:
     def test_coerce_bool_invalid_string(self):
         """Invalid string produces error for bool."""
         from Jotty.core.modes.agent._execution_types import TypeCoercer
+
         val, err = TypeCoercer.coerce("maybe", "bool")
         assert err is not None
 
@@ -1189,6 +1367,7 @@ class TestTypeCoercer:
     def test_coerce_list_from_list(self):
         """Lists pass through."""
         from Jotty.core.modes.agent._execution_types import TypeCoercer
+
         val, err = TypeCoercer.coerce([1, 2, 3], "list")
         assert val == [1, 2, 3]
         assert err is None
@@ -1197,6 +1376,7 @@ class TestTypeCoercer:
     def test_coerce_list_from_json_string(self):
         """JSON array strings coerce to list."""
         from Jotty.core.modes.agent._execution_types import TypeCoercer
+
         val, err = TypeCoercer.coerce('["a", "b"]', "list")
         assert val == ["a", "b"]
         assert err is None
@@ -1205,6 +1385,7 @@ class TestTypeCoercer:
     def test_coerce_list_from_comma_separated(self):
         """Comma-separated strings coerce to list."""
         from Jotty.core.modes.agent._execution_types import TypeCoercer
+
         val, err = TypeCoercer.coerce("a, b, c", "list")
         assert val == ["a", "b", "c"]
         assert err is None
@@ -1213,6 +1394,7 @@ class TestTypeCoercer:
     def test_coerce_list_from_tuple(self):
         """Tuples coerce to list."""
         from Jotty.core.modes.agent._execution_types import TypeCoercer
+
         val, err = TypeCoercer.coerce((1, 2), "list")
         assert val == [1, 2]
         assert err is None
@@ -1221,6 +1403,7 @@ class TestTypeCoercer:
     def test_coerce_list_single_item(self):
         """Single string becomes single-element list."""
         from Jotty.core.modes.agent._execution_types import TypeCoercer
+
         val, err = TypeCoercer.coerce("single", "list")
         assert val == ["single"]
         assert err is None
@@ -1229,6 +1412,7 @@ class TestTypeCoercer:
     def test_coerce_dict_from_dict(self):
         """Dicts pass through."""
         from Jotty.core.modes.agent._execution_types import TypeCoercer
+
         val, err = TypeCoercer.coerce({"a": 1}, "dict")
         assert val == {"a": 1}
         assert err is None
@@ -1237,6 +1421,7 @@ class TestTypeCoercer:
     def test_coerce_dict_from_json_string(self):
         """JSON object strings coerce to dict."""
         from Jotty.core.modes.agent._execution_types import TypeCoercer
+
         val, err = TypeCoercer.coerce('{"key": "val"}', "dict")
         assert val == {"key": "val"}
         assert err is None
@@ -1245,6 +1430,7 @@ class TestTypeCoercer:
     def test_coerce_dict_invalid_string(self):
         """Non-JSON strings produce error for dict."""
         from Jotty.core.modes.agent._execution_types import TypeCoercer
+
         val, err = TypeCoercer.coerce("not json", "dict")
         assert err is not None
 
@@ -1252,6 +1438,7 @@ class TestTypeCoercer:
     def test_coerce_path_valid(self):
         """Valid file paths pass through."""
         from Jotty.core.modes.agent._execution_types import TypeCoercer
+
         val, err = TypeCoercer.coerce("/home/user/file.txt", "path")
         assert val == "/home/user/file.txt"
         assert err is None
@@ -1260,6 +1447,7 @@ class TestTypeCoercer:
     def test_coerce_path_newlines_rejected(self):
         """Paths with newlines are rejected (likely content)."""
         from Jotty.core.modes.agent._execution_types import TypeCoercer
+
         val, err = TypeCoercer.coerce("line1\nline2", "path")
         assert err is not None
         assert "newlines" in err.lower()
@@ -1268,6 +1456,7 @@ class TestTypeCoercer:
     def test_coerce_path_too_long_rejected(self):
         """Paths over 500 chars are rejected."""
         from Jotty.core.modes.agent._execution_types import TypeCoercer
+
         val, err = TypeCoercer.coerce("a" * 501, "path")
         assert err is not None
         assert "too long" in err.lower()
@@ -1276,6 +1465,7 @@ class TestTypeCoercer:
     def test_coerce_path_spaces_no_separator_rejected(self):
         """Paths with spaces but no separator are rejected (likely content)."""
         from Jotty.core.modes.agent._execution_types import TypeCoercer
+
         val, err = TypeCoercer.coerce("some content text here", "path")
         assert err is not None
 
@@ -1283,6 +1473,7 @@ class TestTypeCoercer:
     def test_coerce_path_bare_name_allowed(self):
         """Bare filenames without separator are allowed."""
         from Jotty.core.modes.agent._execution_types import TypeCoercer
+
         val, err = TypeCoercer.coerce("filename", "path")
         assert val == "filename"
         assert err is None
@@ -1291,6 +1482,7 @@ class TestTypeCoercer:
     def test_coerce_integer_alias(self):
         """'integer' type hint aliases to int coercion."""
         from Jotty.core.modes.agent._execution_types import TypeCoercer
+
         val, err = TypeCoercer.coerce("42", "integer")
         assert val == 42
         assert err is None
@@ -1299,6 +1491,7 @@ class TestTypeCoercer:
     def test_coerce_number_alias(self):
         """'number' type hint aliases to float coercion."""
         from Jotty.core.modes.agent._execution_types import TypeCoercer
+
         val, err = TypeCoercer.coerce("3.14", "number")
         assert val == 3.14
         assert err is None
@@ -1307,7 +1500,8 @@ class TestTypeCoercer:
     def test_coerce_array_alias(self):
         """'array' type hint aliases to list coercion."""
         from Jotty.core.modes.agent._execution_types import TypeCoercer
-        val, err = TypeCoercer.coerce('[1,2]', "array")
+
+        val, err = TypeCoercer.coerce("[1,2]", "array")
         assert val == [1, 2]
         assert err is None
 
@@ -1315,6 +1509,7 @@ class TestTypeCoercer:
     def test_coerce_object_alias(self):
         """'object' type hint aliases to dict coercion."""
         from Jotty.core.modes.agent._execution_types import TypeCoercer
+
         val, err = TypeCoercer.coerce('{"a":1}', "object")
         assert val == {"a": 1}
         assert err is None
@@ -1324,6 +1519,7 @@ class TestTypeCoercer:
 # ToolValidationResult Tests
 # =============================================================================
 
+
 class TestToolValidationResult:
     """Tests for ToolValidationResult structured validation output."""
 
@@ -1331,6 +1527,7 @@ class TestToolValidationResult:
     def test_default_valid(self):
         """Default result is valid with no errors."""
         from Jotty.core.modes.agent._execution_types import ToolValidationResult
+
         r = ToolValidationResult()
         assert r.valid is True
         assert r.errors == []
@@ -1341,6 +1538,7 @@ class TestToolValidationResult:
     def test_error_summary_ok(self):
         """error_summary returns 'OK' when no errors."""
         from Jotty.core.modes.agent._execution_types import ToolValidationResult
+
         r = ToolValidationResult()
         assert r.error_summary() == "OK"
 
@@ -1348,6 +1546,7 @@ class TestToolValidationResult:
     def test_error_summary_with_errors(self):
         """error_summary joins errors with semicolons."""
         from Jotty.core.modes.agent._execution_types import ToolValidationResult
+
         r = ToolValidationResult(valid=False, errors=["missing X", "bad type Y"])
         assert "missing X" in r.error_summary()
         assert "bad type Y" in r.error_summary()
@@ -1358,13 +1557,15 @@ class TestToolValidationResult:
 # ToolSchema Tests
 # =============================================================================
 
+
 class TestToolSchema:
     """Tests for ToolSchema typed tool parameter definitions."""
 
     @pytest.mark.unit
     def test_constructor(self):
         """ToolSchema initializes with name and optional params."""
-        from Jotty.core.modes.agent._execution_types import ToolSchema, ToolParam
+        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
+
         schema = ToolSchema(name="test_tool", description="A test tool")
         assert schema.name == "test_tool"
         assert schema.description == "A test tool"
@@ -1373,10 +1574,14 @@ class TestToolSchema:
     @pytest.mark.unit
     def test_get_param_by_name(self):
         """get_param finds param by canonical name."""
-        from Jotty.core.modes.agent._execution_types import ToolSchema, ToolParam
-        schema = ToolSchema(name="t", params=[
-            ToolParam(name="query", type_hint="str", required=True),
-        ])
+        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
+
+        schema = ToolSchema(
+            name="t",
+            params=[
+                ToolParam(name="query", type_hint="str", required=True),
+            ],
+        )
         p = schema.get_param("query")
         assert p is not None
         assert p.name == "query"
@@ -1384,10 +1589,14 @@ class TestToolSchema:
     @pytest.mark.unit
     def test_get_param_by_alias(self):
         """get_param finds param by alias."""
-        from Jotty.core.modes.agent._execution_types import ToolSchema, ToolParam
-        schema = ToolSchema(name="t", params=[
-            ToolParam(name="query", aliases=["q", "search_query"]),
-        ])
+        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
+
+        schema = ToolSchema(
+            name="t",
+            params=[
+                ToolParam(name="query", aliases=["q", "search_query"]),
+            ],
+        )
         p = schema.get_param("q")
         assert p is not None
         assert p.name == "query"
@@ -1395,21 +1604,29 @@ class TestToolSchema:
     @pytest.mark.unit
     def test_get_param_not_found(self):
         """get_param returns None for unknown params."""
-        from Jotty.core.modes.agent._execution_types import ToolSchema, ToolParam
-        schema = ToolSchema(name="t", params=[
-            ToolParam(name="query"),
-        ])
+        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
+
+        schema = ToolSchema(
+            name="t",
+            params=[
+                ToolParam(name="query"),
+            ],
+        )
         assert schema.get_param("nonexistent") is None
 
     @pytest.mark.unit
     def test_get_llm_visible_params_excludes_reserved(self):
         """get_llm_visible_params filters out reserved params."""
-        from Jotty.core.modes.agent._execution_types import ToolSchema, ToolParam
-        schema = ToolSchema(name="t", params=[
-            ToolParam(name="query", required=True),
-            ToolParam(name="_status_callback", reserved=True),
-            ToolParam(name="format", required=False),
-        ])
+        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
+
+        schema = ToolSchema(
+            name="t",
+            params=[
+                ToolParam(name="query", required=True),
+                ToolParam(name="_status_callback", reserved=True),
+                ToolParam(name="format", required=False),
+            ],
+        )
         visible = schema.get_llm_visible_params()
         names = [p.name for p in visible]
         assert "query" in names
@@ -1419,11 +1636,15 @@ class TestToolSchema:
     @pytest.mark.unit
     def test_resolve_aliases(self):
         """resolve_aliases maps alias keys to canonical names."""
-        from Jotty.core.modes.agent._execution_types import ToolSchema, ToolParam
-        schema = ToolSchema(name="t", params=[
-            ToolParam(name="query", aliases=["q", "search_query"]),
-            ToolParam(name="path", aliases=["file_path"]),
-        ])
+        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
+
+        schema = ToolSchema(
+            name="t",
+            params=[
+                ToolParam(name="query", aliases=["q", "search_query"]),
+                ToolParam(name="path", aliases=["file_path"]),
+            ],
+        )
         params = {"q": "test", "file_path": "/tmp/a.txt"}
         result = schema.resolve_aliases(params)
         assert "query" in result
@@ -1434,11 +1655,15 @@ class TestToolSchema:
     @pytest.mark.unit
     def test_validate_missing_required(self):
         """validate reports missing required params."""
-        from Jotty.core.modes.agent._execution_types import ToolSchema, ToolParam
-        schema = ToolSchema(name="t", params=[
-            ToolParam(name="query", required=True),
-            ToolParam(name="format", required=False),
-        ])
+        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
+
+        schema = ToolSchema(
+            name="t",
+            params=[
+                ToolParam(name="query", required=True),
+                ToolParam(name="format", required=False),
+            ],
+        )
         result = schema.validate({})
         assert result.valid is False
         assert any("query" in e for e in result.errors)
@@ -1446,10 +1671,14 @@ class TestToolSchema:
     @pytest.mark.unit
     def test_validate_all_present(self):
         """validate passes when all required params present."""
-        from Jotty.core.modes.agent._execution_types import ToolSchema, ToolParam
-        schema = ToolSchema(name="t", params=[
-            ToolParam(name="query", required=True),
-        ])
+        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
+
+        schema = ToolSchema(
+            name="t",
+            params=[
+                ToolParam(name="query", required=True),
+            ],
+        )
         result = schema.validate({"query": "test"})
         assert result.valid is True
         assert result.errors == []
@@ -1457,20 +1686,28 @@ class TestToolSchema:
     @pytest.mark.unit
     def test_validate_with_alias(self):
         """validate finds required params via aliases."""
-        from Jotty.core.modes.agent._execution_types import ToolSchema, ToolParam
-        schema = ToolSchema(name="t", params=[
-            ToolParam(name="query", required=True, aliases=["q"]),
-        ])
+        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
+
+        schema = ToolSchema(
+            name="t",
+            params=[
+                ToolParam(name="query", required=True, aliases=["q"]),
+            ],
+        )
         result = schema.validate({"q": "test"})
         assert result.valid is True
 
     @pytest.mark.unit
     def test_validate_with_coercion(self):
         """validate with coerce=True populates coerced_params."""
-        from Jotty.core.modes.agent._execution_types import ToolSchema, ToolParam
-        schema = ToolSchema(name="t", params=[
-            ToolParam(name="count", type_hint="int", required=True),
-        ])
+        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
+
+        schema = ToolSchema(
+            name="t",
+            params=[
+                ToolParam(name="count", type_hint="int", required=True),
+            ],
+        )
         result = schema.validate({"count": "42"}, coerce=True)
         assert result.valid is True
         assert result.coerced_params.get("count") == 42
@@ -1478,10 +1715,14 @@ class TestToolSchema:
     @pytest.mark.unit
     def test_validate_coercion_error(self):
         """validate with coerce=True reports type errors."""
-        from Jotty.core.modes.agent._execution_types import ToolSchema, ToolParam
-        schema = ToolSchema(name="t", params=[
-            ToolParam(name="count", type_hint="int", required=True),
-        ])
+        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
+
+        schema = ToolSchema(
+            name="t",
+            params=[
+                ToolParam(name="count", type_hint="int", required=True),
+            ],
+        )
         result = schema.validate({"count": "not_a_number"}, coerce=True)
         assert result.valid is False
         assert any("count" in e for e in result.errors)
@@ -1489,10 +1730,14 @@ class TestToolSchema:
     @pytest.mark.unit
     def test_auto_wire_exact_name_match(self):
         """auto_wire fills missing param from exact name in outputs."""
-        from Jotty.core.modes.agent._execution_types import ToolSchema, ToolParam
-        schema = ToolSchema(name="t", params=[
-            ToolParam(name="query", required=True),
-        ])
+        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
+
+        schema = ToolSchema(
+            name="t",
+            params=[
+                ToolParam(name="query", required=True),
+            ],
+        )
         outputs = {"step_1": {"query": "test value"}}
         result = schema.auto_wire({}, outputs)
         assert result["query"] == "test value"
@@ -1500,10 +1745,14 @@ class TestToolSchema:
     @pytest.mark.unit
     def test_auto_wire_skips_present_params(self):
         """auto_wire does not overwrite params already present."""
-        from Jotty.core.modes.agent._execution_types import ToolSchema, ToolParam
-        schema = ToolSchema(name="t", params=[
-            ToolParam(name="query", required=True),
-        ])
+        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
+
+        schema = ToolSchema(
+            name="t",
+            params=[
+                ToolParam(name="query", required=True),
+            ],
+        )
         outputs = {"step_1": {"query": "from output"}}
         result = schema.auto_wire({"query": "explicit"}, outputs)
         assert result["query"] == "explicit"
@@ -1511,10 +1760,14 @@ class TestToolSchema:
     @pytest.mark.unit
     def test_auto_wire_content_direct_name_match(self):
         """auto_wire matches content param via direct name match (not _CONTENT_FIELDS scan)."""
-        from Jotty.core.modes.agent._execution_types import ToolSchema, ToolParam
-        schema = ToolSchema(name="t", params=[
-            ToolParam(name="content", required=True),
-        ])
+        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
+
+        schema = ToolSchema(
+            name="t",
+            params=[
+                ToolParam(name="content", required=True),
+            ],
+        )
         # Direct 'content' key — matches by name. 'response' no longer scanned via _CONTENT_FIELDS.
         outputs = {"step_1": {"content": "A" * 60}}
         result = schema.auto_wire({}, outputs)
@@ -1523,10 +1776,14 @@ class TestToolSchema:
     @pytest.mark.unit
     def test_auto_wire_path_fallback(self):
         """auto_wire uses path fallback for path params."""
-        from Jotty.core.modes.agent._execution_types import ToolSchema, ToolParam
-        schema = ToolSchema(name="t", params=[
-            ToolParam(name="path", required=True),
-        ])
+        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
+
+        schema = ToolSchema(
+            name="t",
+            params=[
+                ToolParam(name="path", required=True),
+            ],
+        )
         outputs = {"step_1": {"path": "/tmp/result.txt"}}
         result = schema.auto_wire({}, outputs)
         assert result["path"] == "/tmp/result.txt"
@@ -1534,36 +1791,49 @@ class TestToolSchema:
     @pytest.mark.unit
     def test_required_param_names(self):
         """required_param_names returns names of required params only."""
-        from Jotty.core.modes.agent._execution_types import ToolSchema, ToolParam
-        schema = ToolSchema(name="t", params=[
-            ToolParam(name="query", required=True),
-            ToolParam(name="format", required=False),
-            ToolParam(name="limit", required=True),
-        ])
+        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
+
+        schema = ToolSchema(
+            name="t",
+            params=[
+                ToolParam(name="query", required=True),
+                ToolParam(name="format", required=False),
+                ToolParam(name="limit", required=True),
+            ],
+        )
         assert schema.required_param_names == ["query", "limit"]
 
     @pytest.mark.unit
     def test_to_dict(self):
         """to_dict excludes reserved params and includes schema info."""
-        from Jotty.core.modes.agent._execution_types import ToolSchema, ToolParam
-        schema = ToolSchema(name="search", description="Search tool", params=[
-            ToolParam(name="query", type_hint="str", required=True, description="Search query"),
-            ToolParam(name="_status_callback", reserved=True),
-        ])
+        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
+
+        schema = ToolSchema(
+            name="search",
+            description="Search tool",
+            params=[
+                ToolParam(name="query", type_hint="str", required=True, description="Search query"),
+                ToolParam(name="_status_callback", reserved=True),
+            ],
+        )
         d = schema.to_dict()
-        assert d['name'] == "search"
-        assert d['description'] == "Search tool"
-        assert len(d['parameters']) == 1
-        assert d['parameters'][0]['name'] == "query"
+        assert d["name"] == "search"
+        assert d["description"] == "Search tool"
+        assert len(d["parameters"]) == 1
+        assert d["parameters"][0]["name"] == "query"
 
     @pytest.mark.unit
     def test_repr(self):
         """repr shows name and required params."""
-        from Jotty.core.modes.agent._execution_types import ToolSchema, ToolParam
-        schema = ToolSchema(name="search", params=[
-            ToolParam(name="query", required=True),
-            ToolParam(name="limit", required=False),
-        ])
+        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
+
+        schema = ToolSchema(
+            name="search",
+            params=[
+                ToolParam(name="query", required=True),
+                ToolParam(name="limit", required=False),
+            ],
+        )
         r = repr(schema)
         assert "search" in r
         assert "query" in r
@@ -1582,17 +1852,18 @@ class TestToolSchema:
                 - limit (int, optional): Max results
             """
             pass
-        my_tool._required_params = ['query']
 
-        schema = ToolSchema.from_tool_function(my_tool, 'my_tool')
-        assert schema.name == 'my_tool'
+        my_tool._required_params = ["query"]
+
+        schema = ToolSchema.from_tool_function(my_tool, "my_tool")
+        assert schema.name == "my_tool"
         assert schema.description == "Search the web for results."
         # query should be required (from decorator)
-        q = schema.get_param('query')
+        q = schema.get_param("query")
         assert q is not None
         assert q.required is True
         # limit should be optional (from docstring, not in _required_params)
-        lim = schema.get_param('limit')
+        lim = schema.get_param("limit")
         assert lim is not None
         assert lim.required is False
 
@@ -1600,22 +1871,23 @@ class TestToolSchema:
     def test_from_metadata(self):
         """from_metadata builds schema from JSON-Schema-style dict."""
         from Jotty.core.modes.agent._execution_types import ToolSchema
+
         metadata = {
-            'description': 'A tool',
-            'parameters': {
-                'properties': {
-                    'query': {'type': 'string', 'description': 'Search query'},
-                    'count': {'type': 'integer', 'description': 'Result count'},
+            "description": "A tool",
+            "parameters": {
+                "properties": {
+                    "query": {"type": "string", "description": "Search query"},
+                    "count": {"type": "integer", "description": "Result count"},
                 },
-                'required': ['query'],
+                "required": ["query"],
             },
         }
-        schema = ToolSchema.from_metadata('my_tool', metadata)
-        assert schema.name == 'my_tool'
-        q = schema.get_param('query')
+        schema = ToolSchema.from_metadata("my_tool", metadata)
+        assert schema.name == "my_tool"
+        q = schema.get_param("query")
         assert q is not None
         assert q.required is True
-        c = schema.get_param('count')
+        c = schema.get_param("count")
         assert c is not None
         assert c.required is False
 
@@ -1624,6 +1896,7 @@ class TestToolSchema:
 # AgentIOSchema Tests
 # =============================================================================
 
+
 class TestAgentIOSchema:
     """Tests for AgentIOSchema typed I/O contracts for agents."""
 
@@ -1631,6 +1904,7 @@ class TestAgentIOSchema:
     def test_constructor(self):
         """AgentIOSchema initializes with agent name, inputs, outputs."""
         from Jotty.core.modes.agent._execution_types import AgentIOSchema, ToolParam
+
         schema = AgentIOSchema(
             agent_name="Researcher",
             inputs=[ToolParam(name="task")],
@@ -1646,6 +1920,7 @@ class TestAgentIOSchema:
     def test_input_output_names(self):
         """input_names and output_names return field name lists."""
         from Jotty.core.modes.agent._execution_types import AgentIOSchema, ToolParam
+
         schema = AgentIOSchema(
             agent_name="A",
             inputs=[ToolParam(name="task"), ToolParam(name="context")],
@@ -1658,6 +1933,7 @@ class TestAgentIOSchema:
     def test_wire_to_exact_name_match(self):
         """wire_to matches outputs to inputs by exact name."""
         from Jotty.core.modes.agent._execution_types import AgentIOSchema, ToolParam
+
         schema_a = AgentIOSchema(
             agent_name="A",
             outputs=[ToolParam(name="analysis")],
@@ -1673,6 +1949,7 @@ class TestAgentIOSchema:
     def test_wire_to_semantic_group_match(self):
         """wire_to matches via semantic groups (e.g. analysis→summary)."""
         from Jotty.core.modes.agent._execution_types import AgentIOSchema, ToolParam
+
         schema_a = AgentIOSchema(
             agent_name="A",
             outputs=[ToolParam(name="analysis")],
@@ -1688,6 +1965,7 @@ class TestAgentIOSchema:
     def test_wire_to_content_fallback(self):
         """wire_to uses content fallback for generic receivers."""
         from Jotty.core.modes.agent._execution_types import AgentIOSchema, ToolParam
+
         schema_a = AgentIOSchema(
             agent_name="A",
             outputs=[ToolParam(name="result")],
@@ -1704,6 +1982,7 @@ class TestAgentIOSchema:
     def test_wire_to_no_match(self):
         """wire_to returns empty mapping when no compatible fields."""
         from Jotty.core.modes.agent._execution_types import AgentIOSchema, ToolParam
+
         schema_a = AgentIOSchema(
             agent_name="A",
             outputs=[ToolParam(name="price_data")],
@@ -1719,6 +1998,7 @@ class TestAgentIOSchema:
     def test_wire_to_multiple_fields(self):
         """wire_to handles multiple input/output fields."""
         from Jotty.core.modes.agent._execution_types import AgentIOSchema, ToolParam
+
         schema_a = AgentIOSchema(
             agent_name="A",
             outputs=[
@@ -1741,6 +2021,7 @@ class TestAgentIOSchema:
     def test_map_outputs_basic(self):
         """map_outputs transforms output dict to target kwargs."""
         from Jotty.core.modes.agent._execution_types import AgentIOSchema, ToolParam
+
         schema_a = AgentIOSchema(
             agent_name="A",
             outputs=[ToolParam(name="analysis")],
@@ -1756,6 +2037,7 @@ class TestAgentIOSchema:
     def test_map_outputs_skips_missing(self):
         """map_outputs skips fields not present in output dict."""
         from Jotty.core.modes.agent._execution_types import AgentIOSchema, ToolParam
+
         schema_a = AgentIOSchema(
             agent_name="A",
             outputs=[ToolParam(name="analysis"), ToolParam(name="sources")],
@@ -1773,6 +2055,7 @@ class TestAgentIOSchema:
     def test_map_outputs_with_semantic_wiring(self):
         """map_outputs applies semantic wiring to transform keys."""
         from Jotty.core.modes.agent._execution_types import AgentIOSchema, ToolParam
+
         schema_a = AgentIOSchema(
             agent_name="A",
             outputs=[ToolParam(name="analysis")],
@@ -1788,6 +2071,7 @@ class TestAgentIOSchema:
     def test_to_dict(self):
         """to_dict returns structured representation."""
         from Jotty.core.modes.agent._execution_types import AgentIOSchema, ToolParam
+
         schema = AgentIOSchema(
             agent_name="Research",
             inputs=[ToolParam(name="task", type_hint="str", description="Task")],
@@ -1795,16 +2079,17 @@ class TestAgentIOSchema:
             description="Research agent",
         )
         d = schema.to_dict()
-        assert d['agent_name'] == "Research"
-        assert d['description'] == "Research agent"
-        assert len(d['inputs']) == 1
-        assert d['inputs'][0]['name'] == "task"
-        assert len(d['outputs']) == 1
+        assert d["agent_name"] == "Research"
+        assert d["description"] == "Research agent"
+        assert len(d["inputs"]) == 1
+        assert d["inputs"][0]["name"] == "task"
+        assert len(d["outputs"]) == 1
 
     @pytest.mark.unit
     def test_repr(self):
         """repr shows agent name, inputs, and outputs."""
         from Jotty.core.modes.agent._execution_types import AgentIOSchema, ToolParam
+
         schema = AgentIOSchema(
             agent_name="A",
             inputs=[ToolParam(name="task")],
@@ -1819,10 +2104,12 @@ class TestAgentIOSchema:
     def test_from_dspy_signature(self):
         """from_dspy_signature builds schema from DSPy Signature class."""
         import dspy
+
         from Jotty.core.modes.agent._execution_types import AgentIOSchema
 
         class TestSig(dspy.Signature):
             """Analyze a topic and produce findings."""
+
             task: str = dspy.InputField(desc="The task to analyze")
             context: str = dspy.InputField(desc="Background context")
             analysis: str = dspy.OutputField(desc="Analysis results")
@@ -1838,10 +2125,12 @@ class TestAgentIOSchema:
     def test_from_dspy_signature_empty(self):
         """from_dspy_signature handles empty/minimal signatures."""
         import dspy
+
         from Jotty.core.modes.agent._execution_types import AgentIOSchema
 
         class MinimalSig(dspy.Signature):
             """Minimal."""
+
             task: str = dspy.InputField()
             output: str = dspy.OutputField()
 
@@ -1854,6 +2143,7 @@ class TestAgentIOSchema:
 # FileReference Tests
 # =============================================================================
 
+
 class TestFileReference:
     """Tests for FileReference lazy file handle."""
 
@@ -1861,6 +2151,7 @@ class TestFileReference:
     def test_exists_false(self):
         """exists returns False for non-existent path."""
         from Jotty.core.modes.agent._execution_types import FileReference
+
         ref = FileReference(path="/nonexistent/file.txt", size_bytes=100)
         assert ref.exists() is False
 
@@ -1868,6 +2159,7 @@ class TestFileReference:
     def test_exists_true(self, tmp_path):
         """exists returns True for existing file."""
         from Jotty.core.modes.agent._execution_types import FileReference
+
         f = tmp_path / "test.txt"
         f.write_text("hello")
         ref = FileReference(path=str(f))
@@ -1877,6 +2169,7 @@ class TestFileReference:
     def test_load(self, tmp_path):
         """load reads file contents."""
         from Jotty.core.modes.agent._execution_types import FileReference
+
         f = tmp_path / "test.txt"
         f.write_text("hello world")
         ref = FileReference(path=str(f))
@@ -1886,6 +2179,7 @@ class TestFileReference:
     def test_fields(self):
         """FileReference stores metadata fields."""
         from Jotty.core.modes.agent._execution_types import FileReference
+
         ref = FileReference(
             path="/tmp/out.json",
             content_type="application/json",
@@ -1904,6 +2198,7 @@ class TestFileReference:
 # SwarmArtifactStore Tests
 # =============================================================================
 
+
 class TestSwarmArtifactStore:
     """Tests for SwarmArtifactStore tag-queryable artifact registry."""
 
@@ -1911,6 +2206,7 @@ class TestSwarmArtifactStore:
     def test_register_and_get(self):
         """register stores artifact, get retrieves it."""
         from Jotty.core.modes.agent._execution_types import SwarmArtifactStore
+
         store = SwarmArtifactStore()
         store.register("step_0", "result data", tags=["search"], description="Search output")
         assert store.get("step_0") == "result data"
@@ -1919,6 +2215,7 @@ class TestSwarmArtifactStore:
     def test_get_default(self):
         """get returns default for missing keys."""
         from Jotty.core.modes.agent._execution_types import SwarmArtifactStore
+
         store = SwarmArtifactStore()
         assert store.get("missing") is None
         assert store.get("missing", "fallback") == "fallback"
@@ -1927,6 +2224,7 @@ class TestSwarmArtifactStore:
     def test_query_by_tag(self):
         """query_by_tag returns matching artifacts."""
         from Jotty.core.modes.agent._execution_types import SwarmArtifactStore
+
         store = SwarmArtifactStore()
         store.register("a", "data_a", tags=["search", "web"])
         store.register("b", "data_b", tags=["file"])
@@ -1940,6 +2238,7 @@ class TestSwarmArtifactStore:
     def test_query_by_tag_no_match(self):
         """query_by_tag returns empty dict for unmatched tag."""
         from Jotty.core.modes.agent._execution_types import SwarmArtifactStore
+
         store = SwarmArtifactStore()
         store.register("a", "data", tags=["web"])
         assert store.query_by_tag("nonexistent") == {}
@@ -1948,6 +2247,7 @@ class TestSwarmArtifactStore:
     def test_dict_getitem(self):
         """__getitem__ provides dict-style access."""
         from Jotty.core.modes.agent._execution_types import SwarmArtifactStore
+
         store = SwarmArtifactStore()
         store.register("k", "v")
         assert store["k"] == "v"
@@ -1956,6 +2256,7 @@ class TestSwarmArtifactStore:
     def test_dict_setitem(self):
         """__setitem__ provides backward-compatible dict assignment."""
         from Jotty.core.modes.agent._execution_types import SwarmArtifactStore
+
         store = SwarmArtifactStore()
         store["key"] = "value"
         assert store.get("key") == "value"
@@ -1964,6 +2265,7 @@ class TestSwarmArtifactStore:
     def test_contains(self):
         """__contains__ supports 'in' operator."""
         from Jotty.core.modes.agent._execution_types import SwarmArtifactStore
+
         store = SwarmArtifactStore()
         store.register("x", 1)
         assert "x" in store
@@ -1973,6 +2275,7 @@ class TestSwarmArtifactStore:
     def test_len_and_bool(self):
         """__len__ and __bool__ work correctly."""
         from Jotty.core.modes.agent._execution_types import SwarmArtifactStore
+
         store = SwarmArtifactStore()
         assert len(store) == 0
         assert not store
@@ -1984,6 +2287,7 @@ class TestSwarmArtifactStore:
     def test_keys_values_items(self):
         """keys(), values(), items() iterate correctly."""
         from Jotty.core.modes.agent._execution_types import SwarmArtifactStore
+
         store = SwarmArtifactStore()
         store.register("a", 1)
         store.register("b", 2)
@@ -1995,6 +2299,7 @@ class TestSwarmArtifactStore:
     def test_to_outputs_dict(self):
         """to_outputs_dict converts to plain dict."""
         from Jotty.core.modes.agent._execution_types import SwarmArtifactStore
+
         store = SwarmArtifactStore()
         store.register("step_0", {"result": "data"}, tags=["search"])
         d = store.to_outputs_dict()
@@ -2006,6 +2311,7 @@ class TestSwarmArtifactStore:
 # AgenticExecutionResult Tests
 # =============================================================================
 
+
 class TestAgenticExecutionResult:
     """Tests for AgenticExecutionResult properties."""
 
@@ -2013,10 +2319,16 @@ class TestAgenticExecutionResult:
     def test_summary_success(self):
         """summary includes success status and timing."""
         from Jotty.core.modes.agent._execution_types import AgenticExecutionResult, TaskType
+
         result = AgenticExecutionResult(
-            success=True, task="Test", task_type=TaskType.RESEARCH,
-            skills_used=["web-search"], steps_executed=3,
-            outputs={}, final_output="Done", execution_time=2.5,
+            success=True,
+            task="Test",
+            task_type=TaskType.RESEARCH,
+            skills_used=["web-search"],
+            steps_executed=3,
+            outputs={},
+            final_output="Done",
+            execution_time=2.5,
         )
         s = result.summary
         assert "completed successfully" in s
@@ -2028,10 +2340,16 @@ class TestAgenticExecutionResult:
     def test_summary_failure(self):
         """summary reflects failure status and errors."""
         from Jotty.core.modes.agent._execution_types import AgenticExecutionResult, TaskType
+
         result = AgenticExecutionResult(
-            success=False, task="Test", task_type=TaskType.ANALYSIS,
-            skills_used=[], steps_executed=1,
-            outputs={}, final_output="", execution_time=0.5,
+            success=False,
+            task="Test",
+            task_type=TaskType.ANALYSIS,
+            skills_used=[],
+            steps_executed=1,
+            outputs={},
+            final_output="",
+            execution_time=0.5,
             errors=["timeout", "rate limited"],
         )
         s = result.summary
@@ -2042,25 +2360,34 @@ class TestAgenticExecutionResult:
     def test_artifacts_from_file_operations(self):
         """artifacts extracts files from file-operations outputs."""
         from Jotty.core.modes.agent._execution_types import AgenticExecutionResult, TaskType
+
         result = AgenticExecutionResult(
-            success=True, task="Write", task_type=TaskType.CREATION,
-            skills_used=["file-operations"], steps_executed=1,
+            success=True,
+            task="Write",
+            task_type=TaskType.CREATION,
+            skills_used=["file-operations"],
+            steps_executed=1,
             outputs={"step_0": {"path": "/tmp/out.txt", "bytes_written": 500, "success": True}},
             final_output="",
         )
         arts = result.artifacts
         assert len(arts) == 1
-        assert arts[0]['path'] == "/tmp/out.txt"
-        assert arts[0]['size_bytes'] == 500
+        assert arts[0]["path"] == "/tmp/out.txt"
+        assert arts[0]["size_bytes"] == 500
 
     @pytest.mark.unit
     def test_artifacts_empty_outputs(self):
         """artifacts returns empty list for no file outputs."""
         from Jotty.core.modes.agent._execution_types import AgenticExecutionResult, TaskType
+
         result = AgenticExecutionResult(
-            success=True, task="Query", task_type=TaskType.RESEARCH,
-            skills_used=[], steps_executed=0,
-            outputs={}, final_output="answer",
+            success=True,
+            task="Query",
+            task_type=TaskType.RESEARCH,
+            skills_used=[],
+            steps_executed=0,
+            outputs={},
+            final_output="answer",
         )
         assert result.artifacts == []
 
@@ -2069,6 +2396,7 @@ class TestAgenticExecutionResult:
 # AutonomousAgent Tests
 # =============================================================================
 
+
 class TestAutonomousAgent:
     """Tests for AutonomousAgent config, ExecutionContextManager, and factory."""
 
@@ -2076,6 +2404,7 @@ class TestAutonomousAgent:
     def test_autonomous_agent_config_defaults(self):
         """AutonomousAgentConfig has correct defaults."""
         from Jotty.core.modes.agent.agents.autonomous_agent import AutonomousAgentConfig
+
         config = AutonomousAgentConfig()
         assert config.max_steps == 10
         assert config.enable_replanning is False
@@ -2090,6 +2419,7 @@ class TestAutonomousAgent:
     def test_autonomous_agent_config_custom(self):
         """AutonomousAgentConfig accepts custom values."""
         from Jotty.core.modes.agent.agents.autonomous_agent import AutonomousAgentConfig
+
         config = AutonomousAgentConfig(
             max_steps=20,
             enable_replanning=True,
@@ -2113,8 +2443,10 @@ class TestAutonomousAgent:
     def test_autonomous_agent_forces_enable_skills(self):
         """AutonomousAgent constructor forces enable_skills=True."""
         from Jotty.core.modes.agent.agents.autonomous_agent import (
-            AutonomousAgent, AutonomousAgentConfig,
+            AutonomousAgent,
+            AutonomousAgentConfig,
         )
+
         config = AutonomousAgentConfig(name="TestAuto", enable_skills=False)
         agent = AutonomousAgent(config)
         assert agent.config.enable_skills is True
@@ -2123,6 +2455,7 @@ class TestAutonomousAgent:
     def test_autonomous_agent_default_name(self):
         """AutonomousAgent uses class name when no config provided."""
         from Jotty.core.modes.agent.agents.autonomous_agent import AutonomousAgent
+
         agent = AutonomousAgent()
         assert agent.config.name == "AutonomousAgent"
 
@@ -2130,6 +2463,7 @@ class TestAutonomousAgent:
     def test_execution_context_manager_empty(self):
         """ExecutionContextManager starts empty."""
         from Jotty.core.modes.agent.agents.autonomous_agent import ExecutionContextManager
+
         ctx = ExecutionContextManager()
         assert ctx.get_context() == []
         assert ctx.get_trajectory() == []
@@ -2138,6 +2472,7 @@ class TestAutonomousAgent:
     def test_execution_context_manager_add_step(self):
         """add_step appends to history."""
         from Jotty.core.modes.agent.agents.autonomous_agent import ExecutionContextManager
+
         ctx = ExecutionContextManager()
         ctx.add_step({"step": 0, "output": "hello"})
         ctx.add_step({"step": 1, "output": "world"})
@@ -2149,6 +2484,7 @@ class TestAutonomousAgent:
     def test_execution_context_manager_get_context_returns_copy(self):
         """get_context returns a copy, not the internal list."""
         from Jotty.core.modes.agent.agents.autonomous_agent import ExecutionContextManager
+
         ctx = ExecutionContextManager()
         ctx.add_step({"step": 0})
         snapshot = ctx.get_context()
@@ -2159,6 +2495,7 @@ class TestAutonomousAgent:
     def test_execution_context_manager_get_trajectory_excludes_compressed(self):
         """get_trajectory returns only uncompressed steps."""
         from Jotty.core.modes.agent.agents.autonomous_agent import ExecutionContextManager
+
         ctx = ExecutionContextManager()
         # Manually inject a compressed entry
         ctx._history.append({"_compressed": True, "summary": "old stuff"})
@@ -2171,6 +2508,7 @@ class TestAutonomousAgent:
     def test_execution_context_manager_compression_trigger(self):
         """Compression triggers when total chars exceed max_history_size."""
         from Jotty.core.modes.agent.agents.autonomous_agent import ExecutionContextManager
+
         ctx = ExecutionContextManager(max_history_size=500)
         # Add enough data to trigger compression
         for i in range(20):
@@ -2185,6 +2523,7 @@ class TestAutonomousAgent:
     def test_execution_context_manager_compression_preserves_recent(self):
         """Compression keeps recent entries intact."""
         from Jotty.core.modes.agent.agents.autonomous_agent import ExecutionContextManager
+
         ctx = ExecutionContextManager(max_history_size=500)
         for i in range(20):
             ctx.add_step({"step": i, "output": "X" * 50})
@@ -2199,6 +2538,7 @@ class TestAutonomousAgent:
     def test_execution_context_manager_no_compression_when_small(self):
         """No compression when below threshold."""
         from Jotty.core.modes.agent.agents.autonomous_agent import ExecutionContextManager
+
         ctx = ExecutionContextManager(max_history_size=100_000)
         for i in range(5):
             ctx.add_step({"step": i, "output": "short"})
@@ -2210,6 +2550,7 @@ class TestAutonomousAgent:
     def test_create_autonomous_agent_factory(self):
         """create_autonomous_agent returns configured AutonomousAgent."""
         from Jotty.core.modes.agent.agents.autonomous_agent import create_autonomous_agent
+
         agent = create_autonomous_agent(max_steps=15, enable_replanning=True)
         assert agent.config.name == "AutonomousAgent"
         assert agent.config.max_steps == 15
@@ -2219,6 +2560,7 @@ class TestAutonomousAgent:
     def test_create_autonomous_agent_factory_with_skill_filter(self):
         """create_autonomous_agent respects skill_filter."""
         from Jotty.core.modes.agent.agents.autonomous_agent import create_autonomous_agent
+
         agent = create_autonomous_agent(skill_filter="research")
         assert agent.config.skill_filter == "research"
 
@@ -2226,7 +2568,9 @@ class TestAutonomousAgent:
     def test_build_result_success(self):
         """_build_result produces correct success dict."""
         import time
+
         from Jotty.core.modes.agent.agents.autonomous_agent import AutonomousAgent
+
         start_time = time.time()
         result = AutonomousAgent._build_result(
             task="test task",
@@ -2249,7 +2593,9 @@ class TestAutonomousAgent:
     def test_build_result_failure(self):
         """_build_result produces failure when errors present."""
         import time
+
         from Jotty.core.modes.agent.agents.autonomous_agent import AutonomousAgent
+
         start_time = time.time()
         result = AutonomousAgent._build_result(
             task="failing task",
@@ -2268,7 +2614,9 @@ class TestAutonomousAgent:
     def test_build_result_too_hard(self):
         """_build_result includes too_hard flag."""
         import time
+
         from Jotty.core.modes.agent.agents.autonomous_agent import AutonomousAgent
+
         start_time = time.time()
         result = AutonomousAgent._build_result(
             task="impossible",
@@ -2288,6 +2636,7 @@ class TestAutonomousAgent:
 # AutoAgent Tests
 # =============================================================================
 
+
 class TestAutoAgent:
     """Tests for AutoAgent configuration, mode prompts, and task type inference."""
 
@@ -2295,6 +2644,7 @@ class TestAutoAgent:
     def test_auto_agent_default_creation(self):
         """AutoAgent creates with default config."""
         from Jotty.core.modes.agent.auto_agent import AutoAgent
+
         agent = AutoAgent()
         assert agent.config.name == "AutoAgent"
         assert agent.config.max_steps == 10
@@ -2305,6 +2655,7 @@ class TestAutoAgent:
     def test_auto_agent_custom_name(self):
         """AutoAgent uses custom name when provided."""
         from Jotty.core.modes.agent.auto_agent import AutoAgent
+
         agent = AutoAgent(name="MyAgent")
         assert agent.config.name == "MyAgent"
 
@@ -2312,6 +2663,7 @@ class TestAutoAgent:
     def test_auto_agent_custom_timeout(self):
         """AutoAgent respects custom timeout."""
         from Jotty.core.modes.agent.auto_agent import AutoAgent
+
         agent = AutoAgent(timeout=600)
         assert agent.config.timeout == 600.0
 
@@ -2319,6 +2671,7 @@ class TestAutoAgent:
     def test_auto_agent_output_skill_config(self):
         """AutoAgent configures output skill when both provided."""
         from Jotty.core.modes.agent.auto_agent import AutoAgent
+
         agent = AutoAgent(
             default_output_skill="telegram-sender",
             enable_output=True,
@@ -2331,6 +2684,7 @@ class TestAutoAgent:
     def test_auto_agent_output_disabled_without_skill(self):
         """AutoAgent disables output when no skill specified."""
         from Jotty.core.modes.agent.auto_agent import AutoAgent
+
         agent = AutoAgent(enable_output=True, default_output_skill=None)
         assert agent.enable_output is False
         assert agent.config.enable_output is False
@@ -2339,6 +2693,7 @@ class TestAutoAgent:
     def test_auto_agent_system_prompt(self):
         """AutoAgent stores system_prompt in config."""
         from Jotty.core.modes.agent.auto_agent import AutoAgent
+
         agent = AutoAgent(system_prompt="You are an expert researcher.")
         assert agent.config.system_prompt == "You are an expert researcher."
 
@@ -2346,6 +2701,7 @@ class TestAutoAgent:
     def test_auto_agent_planner_injection(self):
         """AutoAgent accepts injected planner."""
         from Jotty.core.modes.agent.auto_agent import AutoAgent
+
         mock_planner = MagicMock()
         agent = AutoAgent(planner=mock_planner)
         assert agent._planner is mock_planner
@@ -2354,6 +2710,7 @@ class TestAutoAgent:
     def test_mode_prompts_dict_has_expected_keys(self):
         """_MODE_PROMPTS has entries for playwright, selenium, and terminal."""
         from Jotty.core.modes.agent.auto_agent import _MODE_PROMPTS
+
         assert "browser-automation:playwright" in _MODE_PROMPTS
         assert "browser-automation:selenium" in _MODE_PROMPTS
         assert "terminal-session" in _MODE_PROMPTS
@@ -2362,24 +2719,27 @@ class TestAutoAgent:
     def test_mode_prompts_content(self):
         """_MODE_PROMPTS entries contain relevant guidance."""
         from Jotty.core.modes.agent.auto_agent import _MODE_PROMPTS
+
         assert "Playwright" in _MODE_PROMPTS["browser-automation:playwright"]
         assert "Selenium" in _MODE_PROMPTS["browser-automation:selenium"]
         assert "pexpect" in _MODE_PROMPTS["terminal-session"]
 
     @pytest.mark.unit
-    @patch.dict('os.environ', {'BROWSER_BACKEND': 'playwright'})
+    @patch.dict("os.environ", {"BROWSER_BACKEND": "playwright"})
     def test_get_mode_prompts_returns_matching(self):
         """_get_mode_prompts returns prompt for matching skill and backend."""
         from Jotty.core.modes.agent.auto_agent import AutoAgent
+
         agent = AutoAgent()
         prompts = agent._get_mode_prompts({"browser-automation"})
         assert "Playwright" in prompts
 
     @pytest.mark.unit
-    @patch.dict('os.environ', {'BROWSER_BACKEND': 'selenium'})
+    @patch.dict("os.environ", {"BROWSER_BACKEND": "selenium"})
     def test_get_mode_prompts_filters_by_backend(self):
         """_get_mode_prompts only returns prompt matching BROWSER_BACKEND."""
         from Jotty.core.modes.agent.auto_agent import AutoAgent
+
         agent = AutoAgent()
         prompts = agent._get_mode_prompts({"browser-automation"})
         assert "Selenium" in prompts
@@ -2389,6 +2749,7 @@ class TestAutoAgent:
     def test_get_mode_prompts_empty_when_no_match(self):
         """_get_mode_prompts returns empty string for non-matching skills."""
         from Jotty.core.modes.agent.auto_agent import AutoAgent
+
         agent = AutoAgent()
         prompts = agent._get_mode_prompts({"web-search", "calculator"})
         assert prompts == ""
@@ -2397,6 +2758,7 @@ class TestAutoAgent:
     def test_get_mode_prompts_terminal_session(self):
         """_get_mode_prompts includes terminal-session prompt."""
         from Jotty.core.modes.agent.auto_agent import AutoAgent
+
         agent = AutoAgent()
         prompts = agent._get_mode_prompts({"terminal-session"})
         assert "pexpect" in prompts
@@ -2404,12 +2766,11 @@ class TestAutoAgent:
     @pytest.mark.unit
     def test_infer_task_type_with_planner(self):
         """_infer_task_type delegates to planner when available."""
-        from Jotty.core.modes.agent.auto_agent import AutoAgent
         from Jotty.core.modes.agent._execution_types import TaskType
+        from Jotty.core.modes.agent.auto_agent import AutoAgent
+
         mock_planner = MagicMock()
-        mock_planner.infer_task_type.return_value = (
-            TaskType.RESEARCH, "Looks like research", 0.9
-        )
+        mock_planner.infer_task_type.return_value = (TaskType.RESEARCH, "Looks like research", 0.9)
         agent = AutoAgent(planner=mock_planner)
         result = agent._infer_task_type("Find recent AI papers")
         assert result == "research"
@@ -2418,12 +2779,11 @@ class TestAutoAgent:
     @pytest.mark.unit
     def test_infer_task_type_enum_returns_enum(self):
         """_infer_task_type_enum returns TaskType enum."""
-        from Jotty.core.modes.agent.auto_agent import AutoAgent
         from Jotty.core.modes.agent._execution_types import TaskType
+        from Jotty.core.modes.agent.auto_agent import AutoAgent
+
         mock_planner = MagicMock()
-        mock_planner.infer_task_type.return_value = (
-            TaskType.ANALYSIS, "Analysis task", 0.85
-        )
+        mock_planner.infer_task_type.return_value = (TaskType.ANALYSIS, "Analysis task", 0.85)
         agent = AutoAgent(planner=mock_planner)
         result = agent._infer_task_type_enum("Analyze this data")
         assert result == TaskType.ANALYSIS
@@ -2431,14 +2791,15 @@ class TestAutoAgent:
     @pytest.mark.unit
     def test_infer_task_type_enum_unknown_fallback(self):
         """_infer_task_type_enum returns UNKNOWN for invalid types."""
-        from Jotty.core.modes.agent.auto_agent import AutoAgent
         from Jotty.core.modes.agent._execution_types import TaskType
+        from Jotty.core.modes.agent.auto_agent import AutoAgent
+
         mock_planner = MagicMock()
         mock_planner.infer_task_type.side_effect = Exception("planner error")
         agent = AutoAgent(planner=mock_planner)
         # When planner fails, base class fallback returns a string that may
         # not match a TaskType enum value, resulting in UNKNOWN
-        with patch.object(agent, '_infer_task_type', return_value="unrecognized_type"):
+        with patch.object(agent, "_infer_task_type", return_value="unrecognized_type"):
             result = agent._infer_task_type_enum("Do something weird")
             assert result == TaskType.UNKNOWN
 
@@ -2447,6 +2808,7 @@ class TestAutoAgent:
 # FeedbackChannel Tests
 # =============================================================================
 
+
 class TestFeedbackChannel:
     """Tests for FeedbackChannel inter-agent communication."""
 
@@ -2454,6 +2816,7 @@ class TestFeedbackChannel:
     def test_feedback_type_enum_values(self):
         """FeedbackType has expected enum values."""
         from Jotty.core.modes.agent.feedback_channel import FeedbackType
+
         assert FeedbackType.QUESTION.value == "question"
         assert FeedbackType.ERROR.value == "error"
         assert FeedbackType.SUGGESTION.value == "suggestion"
@@ -2465,6 +2828,7 @@ class TestFeedbackChannel:
     def test_feedback_message_creation(self):
         """FeedbackMessage creates with all fields."""
         from Jotty.core.modes.agent.feedback_channel import FeedbackMessage, FeedbackType
+
         msg = FeedbackMessage(
             source_actor="AgentA",
             target_actor="AgentB",
@@ -2485,6 +2849,7 @@ class TestFeedbackChannel:
     def test_feedback_message_defaults(self):
         """FeedbackMessage has sensible defaults."""
         from Jotty.core.modes.agent.feedback_channel import FeedbackMessage, FeedbackType
+
         msg = FeedbackMessage(
             source_actor="A",
             target_actor="B",
@@ -2501,8 +2866,11 @@ class TestFeedbackChannel:
     def test_feedback_channel_send(self):
         """send() stores message and returns message ID."""
         from Jotty.core.modes.agent.feedback_channel import (
-            FeedbackChannel, FeedbackMessage, FeedbackType,
+            FeedbackChannel,
+            FeedbackMessage,
+            FeedbackType,
         )
+
         channel = FeedbackChannel()
         msg = FeedbackMessage(
             source_actor="A",
@@ -2518,21 +2886,36 @@ class TestFeedbackChannel:
     def test_feedback_channel_get_for_actor(self):
         """get_for_actor returns messages for the specified actor."""
         from Jotty.core.modes.agent.feedback_channel import (
-            FeedbackChannel, FeedbackMessage, FeedbackType,
+            FeedbackChannel,
+            FeedbackMessage,
+            FeedbackType,
         )
+
         channel = FeedbackChannel()
-        channel.send(FeedbackMessage(
-            source_actor="A", target_actor="B",
-            feedback_type=FeedbackType.QUESTION, content="Q1",
-        ))
-        channel.send(FeedbackMessage(
-            source_actor="C", target_actor="B",
-            feedback_type=FeedbackType.SUGGESTION, content="S1",
-        ))
-        channel.send(FeedbackMessage(
-            source_actor="A", target_actor="D",
-            feedback_type=FeedbackType.REQUEST, content="R1",
-        ))
+        channel.send(
+            FeedbackMessage(
+                source_actor="A",
+                target_actor="B",
+                feedback_type=FeedbackType.QUESTION,
+                content="Q1",
+            )
+        )
+        channel.send(
+            FeedbackMessage(
+                source_actor="C",
+                target_actor="B",
+                feedback_type=FeedbackType.SUGGESTION,
+                content="S1",
+            )
+        )
+        channel.send(
+            FeedbackMessage(
+                source_actor="A",
+                target_actor="D",
+                feedback_type=FeedbackType.REQUEST,
+                content="R1",
+            )
+        )
         messages = channel.get_for_actor("B")
         assert len(messages) == 2
         assert all(m.target_actor == "B" for m in messages)
@@ -2541,13 +2924,20 @@ class TestFeedbackChannel:
     def test_feedback_channel_get_for_actor_clears(self):
         """get_for_actor with clear=True removes retrieved messages."""
         from Jotty.core.modes.agent.feedback_channel import (
-            FeedbackChannel, FeedbackMessage, FeedbackType,
+            FeedbackChannel,
+            FeedbackMessage,
+            FeedbackType,
         )
+
         channel = FeedbackChannel()
-        channel.send(FeedbackMessage(
-            source_actor="A", target_actor="B",
-            feedback_type=FeedbackType.QUESTION, content="Q1",
-        ))
+        channel.send(
+            FeedbackMessage(
+                source_actor="A",
+                target_actor="B",
+                feedback_type=FeedbackType.QUESTION,
+                content="Q1",
+            )
+        )
         messages = channel.get_for_actor("B", clear=True)
         assert len(messages) == 1
         # Second retrieval should be empty
@@ -2557,13 +2947,20 @@ class TestFeedbackChannel:
     def test_feedback_channel_get_for_actor_no_clear(self):
         """get_for_actor with clear=False keeps messages."""
         from Jotty.core.modes.agent.feedback_channel import (
-            FeedbackChannel, FeedbackMessage, FeedbackType,
+            FeedbackChannel,
+            FeedbackMessage,
+            FeedbackType,
         )
+
         channel = FeedbackChannel()
-        channel.send(FeedbackMessage(
-            source_actor="A", target_actor="B",
-            feedback_type=FeedbackType.QUESTION, content="Q1",
-        ))
+        channel.send(
+            FeedbackMessage(
+                source_actor="A",
+                target_actor="B",
+                feedback_type=FeedbackType.QUESTION,
+                content="Q1",
+            )
+        )
         messages = channel.get_for_actor("B", clear=False)
         assert len(messages) == 1
         # Messages still there
@@ -2573,19 +2970,30 @@ class TestFeedbackChannel:
     def test_feedback_channel_priority_filtering(self):
         """get_for_actor filters by priority_threshold."""
         from Jotty.core.modes.agent.feedback_channel import (
-            FeedbackChannel, FeedbackMessage, FeedbackType,
+            FeedbackChannel,
+            FeedbackMessage,
+            FeedbackType,
         )
+
         channel = FeedbackChannel()
-        channel.send(FeedbackMessage(
-            source_actor="A", target_actor="B",
-            feedback_type=FeedbackType.QUESTION, content="High",
-            priority=1,
-        ))
-        channel.send(FeedbackMessage(
-            source_actor="A", target_actor="B",
-            feedback_type=FeedbackType.SUGGESTION, content="Low",
-            priority=3,
-        ))
+        channel.send(
+            FeedbackMessage(
+                source_actor="A",
+                target_actor="B",
+                feedback_type=FeedbackType.QUESTION,
+                content="High",
+                priority=1,
+            )
+        )
+        channel.send(
+            FeedbackMessage(
+                source_actor="A",
+                target_actor="B",
+                feedback_type=FeedbackType.SUGGESTION,
+                content="Low",
+                priority=3,
+            )
+        )
         # Only get high priority
         high = channel.get_for_actor("B", priority_threshold=1)
         assert len(high) == 1
@@ -2595,24 +3003,39 @@ class TestFeedbackChannel:
     def test_feedback_channel_priority_ordering(self):
         """get_for_actor returns messages sorted by priority (high first)."""
         from Jotty.core.modes.agent.feedback_channel import (
-            FeedbackChannel, FeedbackMessage, FeedbackType,
+            FeedbackChannel,
+            FeedbackMessage,
+            FeedbackType,
         )
+
         channel = FeedbackChannel()
-        channel.send(FeedbackMessage(
-            source_actor="A", target_actor="B",
-            feedback_type=FeedbackType.SUGGESTION, content="Low",
-            priority=3,
-        ))
-        channel.send(FeedbackMessage(
-            source_actor="A", target_actor="B",
-            feedback_type=FeedbackType.QUESTION, content="High",
-            priority=1,
-        ))
-        channel.send(FeedbackMessage(
-            source_actor="A", target_actor="B",
-            feedback_type=FeedbackType.REQUEST, content="Medium",
-            priority=2,
-        ))
+        channel.send(
+            FeedbackMessage(
+                source_actor="A",
+                target_actor="B",
+                feedback_type=FeedbackType.SUGGESTION,
+                content="Low",
+                priority=3,
+            )
+        )
+        channel.send(
+            FeedbackMessage(
+                source_actor="A",
+                target_actor="B",
+                feedback_type=FeedbackType.QUESTION,
+                content="High",
+                priority=1,
+            )
+        )
+        channel.send(
+            FeedbackMessage(
+                source_actor="A",
+                target_actor="B",
+                feedback_type=FeedbackType.REQUEST,
+                content="Medium",
+                priority=2,
+            )
+        )
         messages = channel.get_for_actor("B", priority_threshold=3)
         assert messages[0].priority == 1
         assert messages[1].priority == 2
@@ -2622,14 +3045,21 @@ class TestFeedbackChannel:
     def test_feedback_channel_has_feedback(self):
         """has_feedback returns True when messages exist."""
         from Jotty.core.modes.agent.feedback_channel import (
-            FeedbackChannel, FeedbackMessage, FeedbackType,
+            FeedbackChannel,
+            FeedbackMessage,
+            FeedbackType,
         )
+
         channel = FeedbackChannel()
         assert channel.has_feedback("B") is False
-        channel.send(FeedbackMessage(
-            source_actor="A", target_actor="B",
-            feedback_type=FeedbackType.QUESTION, content="Q1",
-        ))
+        channel.send(
+            FeedbackMessage(
+                source_actor="A",
+                target_actor="B",
+                feedback_type=FeedbackType.QUESTION,
+                content="Q1",
+            )
+        )
         assert channel.has_feedback("B") is True
         assert channel.has_feedback("C") is False
 
@@ -2637,21 +3067,36 @@ class TestFeedbackChannel:
     def test_feedback_channel_get_conversation(self):
         """get_conversation returns all messages between two actors."""
         from Jotty.core.modes.agent.feedback_channel import (
-            FeedbackChannel, FeedbackMessage, FeedbackType,
+            FeedbackChannel,
+            FeedbackMessage,
+            FeedbackType,
         )
+
         channel = FeedbackChannel()
-        channel.send(FeedbackMessage(
-            source_actor="A", target_actor="B",
-            feedback_type=FeedbackType.QUESTION, content="Q from A",
-        ))
-        channel.send(FeedbackMessage(
-            source_actor="B", target_actor="A",
-            feedback_type=FeedbackType.RESPONSE, content="R from B",
-        ))
-        channel.send(FeedbackMessage(
-            source_actor="C", target_actor="A",
-            feedback_type=FeedbackType.QUESTION, content="Unrelated",
-        ))
+        channel.send(
+            FeedbackMessage(
+                source_actor="A",
+                target_actor="B",
+                feedback_type=FeedbackType.QUESTION,
+                content="Q from A",
+            )
+        )
+        channel.send(
+            FeedbackMessage(
+                source_actor="B",
+                target_actor="A",
+                feedback_type=FeedbackType.RESPONSE,
+                content="R from B",
+            )
+        )
+        channel.send(
+            FeedbackMessage(
+                source_actor="C",
+                target_actor="A",
+                feedback_type=FeedbackType.QUESTION,
+                content="Unrelated",
+            )
+        )
         conv = channel.get_conversation("A", "B")
         assert len(conv) == 2
         assert conv[0].content == "Q from A"
@@ -2661,17 +3106,28 @@ class TestFeedbackChannel:
     def test_feedback_channel_get_stats(self):
         """get_stats returns correct statistics."""
         from Jotty.core.modes.agent.feedback_channel import (
-            FeedbackChannel, FeedbackMessage, FeedbackType,
+            FeedbackChannel,
+            FeedbackMessage,
+            FeedbackType,
         )
+
         channel = FeedbackChannel()
-        channel.send(FeedbackMessage(
-            source_actor="A", target_actor="B",
-            feedback_type=FeedbackType.QUESTION, content="Q1",
-        ))
-        channel.send(FeedbackMessage(
-            source_actor="B", target_actor="A",
-            feedback_type=FeedbackType.RESPONSE, content="R1",
-        ))
+        channel.send(
+            FeedbackMessage(
+                source_actor="A",
+                target_actor="B",
+                feedback_type=FeedbackType.QUESTION,
+                content="Q1",
+            )
+        )
+        channel.send(
+            FeedbackMessage(
+                source_actor="B",
+                target_actor="A",
+                feedback_type=FeedbackType.RESPONSE,
+                content="R1",
+            )
+        )
         stats = channel.get_stats()
         assert stats["total_messages"] == 2
         assert stats["pending_messages"] == 2
@@ -2684,8 +3140,11 @@ class TestFeedbackChannel:
     def test_feedback_channel_broadcast(self):
         """broadcast sends to all specified participants except self."""
         from Jotty.core.modes.agent.feedback_channel import (
-            FeedbackChannel, FeedbackMessage, FeedbackType,
+            FeedbackChannel,
+            FeedbackMessage,
+            FeedbackType,
         )
+
         channel = FeedbackChannel()
         msg_ids = channel.broadcast(
             source_actor="Leader",
@@ -2704,13 +3163,20 @@ class TestFeedbackChannel:
     def test_feedback_channel_clear_all(self):
         """clear_all removes all pending messages but keeps history."""
         from Jotty.core.modes.agent.feedback_channel import (
-            FeedbackChannel, FeedbackMessage, FeedbackType,
+            FeedbackChannel,
+            FeedbackMessage,
+            FeedbackType,
         )
+
         channel = FeedbackChannel()
-        channel.send(FeedbackMessage(
-            source_actor="A", target_actor="B",
-            feedback_type=FeedbackType.QUESTION, content="Q1",
-        ))
+        channel.send(
+            FeedbackMessage(
+                source_actor="A",
+                target_actor="B",
+                feedback_type=FeedbackType.QUESTION,
+                content="Q1",
+            )
+        )
         assert channel.has_feedback("B") is True
         channel.clear_all()
         assert channel.has_feedback("B") is False
@@ -2721,6 +3187,7 @@ class TestFeedbackChannel:
     def test_feedback_channel_format_messages_empty(self):
         """format_messages_for_agent returns empty string for no messages."""
         from Jotty.core.modes.agent.feedback_channel import FeedbackChannel
+
         channel = FeedbackChannel()
         assert channel.format_messages_for_agent("B", []) == ""
 
@@ -2728,12 +3195,17 @@ class TestFeedbackChannel:
     def test_feedback_channel_format_messages_with_content(self):
         """format_messages_for_agent produces formatted string."""
         from Jotty.core.modes.agent.feedback_channel import (
-            FeedbackChannel, FeedbackMessage, FeedbackType,
+            FeedbackChannel,
+            FeedbackMessage,
+            FeedbackType,
         )
+
         channel = FeedbackChannel()
         msg = FeedbackMessage(
-            source_actor="A", target_actor="B",
-            feedback_type=FeedbackType.QUESTION, content="What tables?",
+            source_actor="A",
+            target_actor="B",
+            feedback_type=FeedbackType.QUESTION,
+            content="What tables?",
             context={"tables": ["t1"]},
         )
         formatted = channel.format_messages_for_agent("B", [msg])
@@ -2747,6 +3219,7 @@ class TestFeedbackChannel:
     async def test_feedback_channel_request_timeout(self):
         """request() returns None on timeout."""
         from Jotty.core.modes.agent.feedback_channel import FeedbackChannel
+
         channel = FeedbackChannel()
         result = await channel.request(
             source_actor="A",
@@ -2762,8 +3235,11 @@ class TestFeedbackChannel:
     async def test_feedback_channel_request_with_response(self):
         """request() returns response when available."""
         from Jotty.core.modes.agent.feedback_channel import (
-            FeedbackChannel, FeedbackMessage, FeedbackType,
+            FeedbackChannel,
+            FeedbackMessage,
+            FeedbackType,
         )
+
         channel = FeedbackChannel()
 
         async def respond_later():
@@ -2773,16 +3249,19 @@ class TestFeedbackChannel:
             pending = channel.messages.get("B", [])
             if pending:
                 msg_id = pending[0].message_id
-                channel.send(FeedbackMessage(
-                    source_actor="B",
-                    target_actor="A",
-                    feedback_type=FeedbackType.RESPONSE,
-                    content="Here is the answer",
-                    original_message_id=msg_id,
-                ))
+                channel.send(
+                    FeedbackMessage(
+                        source_actor="B",
+                        target_actor="A",
+                        feedback_type=FeedbackType.RESPONSE,
+                        content="Here is the answer",
+                        original_message_id=msg_id,
+                    )
+                )
 
         # Start response coroutine concurrently
         import asyncio
+
         task = asyncio.create_task(respond_later())
         result = await channel.request(
             source_actor="A",
@@ -2802,11 +3281,12 @@ class TestFeedbackChannel:
 # =============================================================================
 
 try:
-    from Jotty.core.modes.agent.dag_types import (
-        TaskType as _DAGTaskType, Actor as _DAGActor,
-        ExecutableDAG as _DAGExecutableDAG, DAGAgentMixin as _DAGMixin,
-        SwarmResources as _DAGSwarmResources,
-    )
+    from Jotty.core.modes.agent.dag_types import Actor as _DAGActor
+    from Jotty.core.modes.agent.dag_types import DAGAgentMixin as _DAGMixin
+    from Jotty.core.modes.agent.dag_types import ExecutableDAG as _DAGExecutableDAG
+    from Jotty.core.modes.agent.dag_types import SwarmResources as _DAGSwarmResources
+    from Jotty.core.modes.agent.dag_types import TaskType as _DAGTaskType
+
     _DAG_TYPES_AVAILABLE = True
 except (ImportError, Exception):
     _DAG_TYPES_AVAILABLE = False
@@ -2825,6 +3305,7 @@ class TestDAGTypes:
     def test_dag_task_type_enum(self):
         """DAG TaskType has expected values."""
         from Jotty.core.modes.agent.dag_types import TaskType
+
         assert TaskType.SETUP.value == "setup"
         assert TaskType.IMPLEMENTATION.value == "implementation"
         assert TaskType.TESTING.value == "testing"
@@ -2838,6 +3319,7 @@ class TestDAGTypes:
     def test_actor_creation(self):
         """Actor dataclass initializes correctly."""
         from Jotty.core.modes.agent.dag_types import Actor
+
         actor = Actor(
             name="coder",
             capabilities=["coding", "testing"],
@@ -2852,6 +3334,7 @@ class TestDAGTypes:
     def test_actor_can_handle_matching(self):
         """Actor.can_handle returns True for matching capabilities."""
         from Jotty.core.modes.agent.dag_types import Actor
+
         actor = Actor(name="coder", capabilities=["coding", "testing"])
         assert actor.can_handle("implementation") is True
         assert actor.can_handle("testing") is True
@@ -2860,6 +3343,7 @@ class TestDAGTypes:
     def test_actor_can_handle_no_match(self):
         """Actor.can_handle returns False when no capability matches."""
         from Jotty.core.modes.agent.dag_types import Actor
+
         actor = Actor(name="coder", capabilities=["coding"])
         assert actor.can_handle("research") is False
         assert actor.can_handle("documentation") is False
@@ -2868,6 +3352,7 @@ class TestDAGTypes:
     def test_actor_can_handle_setup(self):
         """Actor with git capability can handle setup tasks."""
         from Jotty.core.modes.agent.dag_types import Actor
+
         actor = Actor(name="devops", capabilities=["git", "setup"])
         assert actor.can_handle("setup") is True
 
@@ -2875,6 +3360,7 @@ class TestDAGTypes:
     def test_actor_can_handle_research(self):
         """Actor with web_search can handle research tasks."""
         from Jotty.core.modes.agent.dag_types import Actor
+
         actor = Actor(name="researcher", capabilities=["web_search"])
         assert actor.can_handle("research") is True
 
@@ -2882,6 +3368,7 @@ class TestDAGTypes:
     def test_actor_can_handle_unknown_type_fallback(self):
         """Actor.can_handle uses type_name as fallback capability."""
         from Jotty.core.modes.agent.dag_types import Actor
+
         actor = Actor(name="special", capabilities=["magic"])
         assert actor.can_handle("magic") is True
         assert actor.can_handle("nonexistent") is False
@@ -3016,6 +3503,7 @@ class TestDAGTypes:
     def test_swarm_resources_singleton(self):
         """SwarmResources is a singleton."""
         from Jotty.core.modes.agent.dag_types import SwarmResources
+
         SwarmResources.reset()
         try:
             r1 = SwarmResources.get_instance()
@@ -3028,6 +3516,7 @@ class TestDAGTypes:
     def test_swarm_resources_reset(self):
         """SwarmResources.reset clears singleton."""
         from Jotty.core.modes.agent.dag_types import SwarmResources
+
         SwarmResources.reset()
         try:
             r1 = SwarmResources.get_instance()
@@ -3041,6 +3530,7 @@ class TestDAGTypes:
     def test_swarm_resources_has_components(self):
         """SwarmResources initializes memory, context, bus, learner."""
         from Jotty.core.modes.agent.dag_types import SwarmResources
+
         SwarmResources.reset()
         try:
             resources = SwarmResources.get_instance()
@@ -3055,6 +3545,7 @@ class TestDAGTypes:
     def test_executable_dag_total_tasks(self):
         """ExecutableDAG.total_tasks returns task count."""
         from Jotty.core.modes.agent.dag_types import ExecutableDAG
+
         mock_todo = MagicMock()
         mock_todo.subtasks = {"t1": MagicMock(), "t2": MagicMock()}
         dag = ExecutableDAG(
@@ -3068,6 +3559,7 @@ class TestDAGTypes:
     def test_executable_dag_get_execution_stages(self):
         """get_execution_stages returns topologically sorted stages."""
         from Jotty.core.modes.agent.dag_types import ExecutableDAG
+
         mock_todo = MagicMock()
         # t1 has no deps, t2 depends on t1, t3 depends on t1
         t1 = MagicMock()
@@ -3091,6 +3583,7 @@ class TestDAGTypes:
     def test_executable_dag_add_trajectory_step(self):
         """add_trajectory_step records execution step."""
         from Jotty.core.modes.agent.dag_types import ExecutableDAG
+
         mock_todo = MagicMock()
         mock_todo.subtasks = {}
         dag = ExecutableDAG(
@@ -3112,7 +3605,8 @@ class TestDAGTypes:
     @pytest.mark.unit
     def test_executable_dag_to_dict(self):
         """to_dict serializes DAG to dict."""
-        from Jotty.core.modes.agent.dag_types import ExecutableDAG, Actor
+        from Jotty.core.modes.agent.dag_types import Actor, ExecutableDAG
+
         mock_todo = MagicMock()
         mock_todo.todo_id = "dag_1"
         mock_todo.root_task = "Build app"
@@ -3138,6 +3632,7 @@ class TestDAGTypes:
 # ExecutionTypes Deep Tests
 # =============================================================================
 
+
 class TestExecutionTypesDeep:
     """Deep tests for _execution_types: TaskType, ExecutionStep, ToolParam, ToolStats, CapabilityIndex."""
 
@@ -3145,6 +3640,7 @@ class TestExecutionTypesDeep:
     def test_task_type_enum_all_values(self):
         """TaskType enum has all expected members."""
         from Jotty.core.modes.agent._execution_types import TaskType
+
         assert TaskType.RESEARCH.value == "research"
         assert TaskType.COMPARISON.value == "comparison"
         assert TaskType.CREATION.value == "creation"
@@ -3157,6 +3653,7 @@ class TestExecutionTypesDeep:
     def test_execution_step_defaults(self):
         """ExecutionStep has correct default values."""
         from Jotty.core.modes.agent._execution_types import ExecutionStep
+
         step = ExecutionStep(
             skill_name="web-search",
             tool_name="search_web_tool",
@@ -3173,6 +3670,7 @@ class TestExecutionTypesDeep:
     def test_execution_step_all_fields(self):
         """ExecutionStep stores all provided fields."""
         from Jotty.core.modes.agent._execution_types import ExecutionStep
+
         step = ExecutionStep(
             skill_name="file-operations",
             tool_name="write_file_tool",
@@ -3195,6 +3693,7 @@ class TestExecutionTypesDeep:
     def test_tool_param_defaults(self):
         """ToolParam has correct defaults."""
         from Jotty.core.modes.agent._execution_types import ToolParam
+
         p = ToolParam(name="query")
         assert p.type_hint == "str"
         assert p.required is True
@@ -3207,6 +3706,7 @@ class TestExecutionTypesDeep:
     def test_tool_param_reserved(self):
         """ToolParam can be marked as reserved."""
         from Jotty.core.modes.agent._execution_types import ToolParam
+
         p = ToolParam(name="_status_callback", reserved=True)
         assert p.reserved is True
 
@@ -3214,6 +3714,7 @@ class TestExecutionTypesDeep:
     def test_tool_stats_record_and_get(self):
         """ToolStats records and retrieves stats."""
         from Jotty.core.modes.agent._execution_types import ToolStats
+
         stats = ToolStats()
         stats.record("web-search", "search_tool", success=True, latency_ms=500)
         stats.record("web-search", "search_tool", success=True, latency_ms=700)
@@ -3227,6 +3728,7 @@ class TestExecutionTypesDeep:
     def test_tool_stats_empty(self):
         """ToolStats returns zeros for unrecorded tools."""
         from Jotty.core.modes.agent._execution_types import ToolStats
+
         stats = ToolStats()
         s = stats.get_stats("unknown", "tool")
         assert s["call_count"] == 0
@@ -3237,6 +3739,7 @@ class TestExecutionTypesDeep:
     def test_tool_stats_get_summary(self):
         """get_summary returns human-readable string."""
         from Jotty.core.modes.agent._execution_types import ToolStats
+
         stats = ToolStats()
         stats.record("calc", "add_tool", success=True, latency_ms=100)
         summary = stats.get_summary("calc", "add_tool")
@@ -3248,6 +3751,7 @@ class TestExecutionTypesDeep:
     def test_tool_stats_get_summary_no_history(self):
         """get_summary returns 'no history' for unrecorded tools."""
         from Jotty.core.modes.agent._execution_types import ToolStats
+
         stats = ToolStats()
         summary = stats.get_summary("unknown", "tool")
         assert "no history" in summary
@@ -3256,6 +3760,7 @@ class TestExecutionTypesDeep:
     def test_tool_stats_max_history(self):
         """ToolStats respects max_history limit."""
         from Jotty.core.modes.agent._execution_types import ToolStats
+
         stats = ToolStats(max_history=5)
         for i in range(10):
             stats.record("s", "t", success=True, latency_ms=100.0)
@@ -3266,12 +3771,14 @@ class TestExecutionTypesDeep:
     def test_tool_stats_global_instance(self):
         """TOOL_STATS is a global singleton instance."""
         from Jotty.core.modes.agent._execution_types import TOOL_STATS, ToolStats
+
         assert isinstance(TOOL_STATS, ToolStats)
 
     @pytest.mark.unit
     def test_capability_index_register_and_find_chain(self):
         """CapabilityIndex.find_chain finds valid tool chains."""
         from Jotty.core.modes.agent._execution_types import CapabilityIndex
+
         idx = CapabilityIndex()
         idx.register("web-search", inputs=["query"], outputs=["search_results"])
         idx.register("summarizer", inputs=["search_results"], outputs=["summary"])
@@ -3282,6 +3789,7 @@ class TestExecutionTypesDeep:
     def test_capability_index_no_chain(self):
         """find_chain returns empty list when no chain exists."""
         from Jotty.core.modes.agent._execution_types import CapabilityIndex
+
         idx = CapabilityIndex()
         idx.register("web-search", inputs=["query"], outputs=["search_results"])
         chain = idx.find_chain("query", "summary")
@@ -3291,6 +3799,7 @@ class TestExecutionTypesDeep:
     def test_capability_index_same_type(self):
         """find_chain returns empty for same start and end type."""
         from Jotty.core.modes.agent._execution_types import CapabilityIndex
+
         idx = CapabilityIndex()
         chain = idx.find_chain("query", "query")
         assert chain == []
@@ -3299,6 +3808,7 @@ class TestExecutionTypesDeep:
     def test_capability_index_get_tools_for_type(self):
         """get_tools_for_type returns producers and consumers."""
         from Jotty.core.modes.agent._execution_types import CapabilityIndex
+
         idx = CapabilityIndex()
         idx.register("web-search", inputs=["query"], outputs=["search_results"])
         idx.register("rag", inputs=["search_results"], outputs=["answer"])
@@ -3310,6 +3820,7 @@ class TestExecutionTypesDeep:
     def test_capability_index_multi_hop_chain(self):
         """find_chain finds multi-hop chains."""
         from Jotty.core.modes.agent._execution_types import CapabilityIndex
+
         idx = CapabilityIndex()
         idx.register("search", inputs=["query"], outputs=["results"])
         idx.register("filter", inputs=["results"], outputs=["filtered"])
@@ -3321,6 +3832,7 @@ class TestExecutionTypesDeep:
     def test_capability_index_max_depth(self):
         """find_chain respects max_depth limit."""
         from Jotty.core.modes.agent._execution_types import CapabilityIndex
+
         idx = CapabilityIndex()
         # Create a chain of depth 6
         for i in range(6):
@@ -3333,6 +3845,7 @@ class TestExecutionTypesDeep:
     def test_agentic_execution_result_artifacts_from_outputs(self):
         """AgenticExecutionResult.artifacts extracts from multiple outputs."""
         from Jotty.core.modes.agent._execution_types import AgenticExecutionResult, TaskType
+
         result = AgenticExecutionResult(
             success=True,
             task="Generate files",
@@ -3355,6 +3868,7 @@ class TestExecutionTypesDeep:
     def test_agentic_execution_result_summary_with_skills(self):
         """AgenticExecutionResult.summary includes skills info."""
         from Jotty.core.modes.agent._execution_types import AgenticExecutionResult, TaskType
+
         result = AgenticExecutionResult(
             success=True,
             task="Research AI",
@@ -3374,6 +3888,7 @@ class TestExecutionTypesDeep:
     def test_swarm_artifact_store_register_with_tags(self):
         """SwarmArtifactStore register stores tags correctly."""
         from Jotty.core.modes.agent._execution_types import SwarmArtifactStore
+
         store = SwarmArtifactStore()
         store.register("s0", {"data": "x"}, tags=["search", "web"], description="Search result")
         store.register("s1", {"data": "y"}, tags=["file"], description="File output")
@@ -3385,6 +3900,7 @@ class TestExecutionTypesDeep:
     def test_swarm_artifact_store_to_outputs_dict(self):
         """to_outputs_dict converts to plain dict."""
         from Jotty.core.modes.agent._execution_types import SwarmArtifactStore
+
         store = SwarmArtifactStore()
         store.register("a", {"result": 1}, tags=["search"])
         store.register("b", {"result": 2}, tags=["file"])
@@ -3396,6 +3912,7 @@ class TestExecutionTypesDeep:
 # ChatAssistant Tests
 # =============================================================================
 
+
 class TestChatAssistant:
     """Tests for ChatAssistant keyword detection and factory."""
 
@@ -3403,6 +3920,7 @@ class TestChatAssistant:
     def test_chat_assistant_creation(self):
         """ChatAssistant creates with default config."""
         from Jotty.core.modes.agent.agents.chat_assistant import ChatAssistant
+
         assistant = ChatAssistant()
         assert assistant.state_manager is None
         assert assistant.config == {}
@@ -3411,6 +3929,7 @@ class TestChatAssistant:
     def test_chat_assistant_with_state_manager(self):
         """ChatAssistant stores state_manager reference."""
         from Jotty.core.modes.agent.agents.chat_assistant import ChatAssistant
+
         mock_sm = MagicMock()
         assistant = ChatAssistant(state_manager=mock_sm)
         assert assistant.state_manager is mock_sm
@@ -3419,6 +3938,7 @@ class TestChatAssistant:
     def test_is_task_query_positive(self):
         """_is_task_query detects task-related keywords."""
         from Jotty.core.modes.agent.agents.chat_assistant import ChatAssistant
+
         assistant = ChatAssistant()
         assert assistant._is_task_query("show me all tasks") is True
         assert assistant._is_task_query("what is in the backlog") is True
@@ -3432,6 +3952,7 @@ class TestChatAssistant:
     def test_is_task_query_negative(self):
         """_is_task_query rejects non-task queries."""
         from Jotty.core.modes.agent.agents.chat_assistant import ChatAssistant
+
         assistant = ChatAssistant()
         assert assistant._is_task_query("hello world") is False
         assert assistant._is_task_query("what is the weather") is False
@@ -3441,6 +3962,7 @@ class TestChatAssistant:
     def test_is_status_query_positive(self):
         """_is_status_query detects status-related keywords."""
         from Jotty.core.modes.agent.agents.chat_assistant import ChatAssistant
+
         assistant = ChatAssistant()
         assert assistant._is_status_query("system status") is True
         assert assistant._is_status_query("health check") is True
@@ -3450,6 +3972,7 @@ class TestChatAssistant:
     def test_is_status_query_negative(self):
         """_is_status_query rejects non-status queries."""
         from Jotty.core.modes.agent.agents.chat_assistant import ChatAssistant
+
         assistant = ChatAssistant()
         assert assistant._is_status_query("hello") is False
         assert assistant._is_status_query("show tasks") is False
@@ -3458,6 +3981,7 @@ class TestChatAssistant:
     def test_is_help_query_positive(self):
         """_is_help_query detects help-related keywords."""
         from Jotty.core.modes.agent.agents.chat_assistant import ChatAssistant
+
         assistant = ChatAssistant()
         assert assistant._is_help_query("help me") is True
         assert assistant._is_help_query("how do I do this") is True
@@ -3468,6 +3992,7 @@ class TestChatAssistant:
     def test_is_help_query_negative(self):
         """_is_help_query rejects non-help queries."""
         from Jotty.core.modes.agent.agents.chat_assistant import ChatAssistant
+
         assistant = ChatAssistant()
         assert assistant._is_help_query("hello") is False
         assert assistant._is_help_query("list tasks") is False
@@ -3477,6 +4002,7 @@ class TestChatAssistant:
     def test_handle_help_query_returns_card(self):
         """_handle_help_query returns a card with help text."""
         from Jotty.core.modes.agent.agents.chat_assistant import ChatAssistant
+
         assistant = ChatAssistant()
         result = assistant._handle_help_query()
         assert isinstance(result, dict)
@@ -3487,6 +4013,7 @@ class TestChatAssistant:
     def test_handle_general_query(self):
         """_handle_general_query returns text response."""
         from Jotty.core.modes.agent.agents.chat_assistant import ChatAssistant
+
         assistant = ChatAssistant()
         result = assistant._handle_general_query("hello world")
         assert isinstance(result, dict)
@@ -3495,6 +4022,7 @@ class TestChatAssistant:
     def test_task_to_dict_from_dict(self):
         """_task_to_dict returns dict unchanged."""
         from Jotty.core.modes.agent.agents.chat_assistant import ChatAssistant
+
         assistant = ChatAssistant()
         task_dict = {"task_id": "1", "title": "Test", "status": "backlog"}
         assert assistant._task_to_dict(task_dict) is task_dict
@@ -3503,6 +4031,7 @@ class TestChatAssistant:
     def test_task_to_dict_from_object(self):
         """_task_to_dict converts object with attributes to dict."""
         from Jotty.core.modes.agent.agents.chat_assistant import ChatAssistant
+
         assistant = ChatAssistant()
         mock_task = MagicMock()
         mock_task.task_id = "T-001"
@@ -3522,6 +4051,7 @@ class TestChatAssistant:
     async def test_run_no_goal_returns_summary(self):
         """run() with no goal returns task summary widget."""
         from Jotty.core.modes.agent.agents.chat_assistant import ChatAssistant
+
         assistant = ChatAssistant()
         # With no state_manager, _fetch_tasks returns empty
         result = await assistant.run()
@@ -3532,6 +4062,7 @@ class TestChatAssistant:
     async def test_run_help_query(self):
         """run() routes help queries to _handle_help_query."""
         from Jotty.core.modes.agent.agents.chat_assistant import ChatAssistant
+
         assistant = ChatAssistant()
         result = await assistant.run(goal="help me understand")
         assert isinstance(result, dict)
@@ -3541,6 +4072,7 @@ class TestChatAssistant:
     async def test_run_status_query(self):
         """run() routes status queries to _handle_status_query."""
         from Jotty.core.modes.agent.agents.chat_assistant import ChatAssistant
+
         assistant = ChatAssistant()
         result = await assistant.run(goal="system status")
         assert isinstance(result, dict)
@@ -3548,14 +4080,19 @@ class TestChatAssistant:
     @pytest.mark.unit
     def test_create_chat_assistant_no_api_key(self):
         """create_chat_assistant falls back to V1 without API key."""
-        from Jotty.core.modes.agent.agents.chat_assistant import create_chat_assistant, ChatAssistant
-        with patch.dict('os.environ', {}, clear=True):
+        from Jotty.core.modes.agent.agents.chat_assistant import (
+            ChatAssistant,
+            create_chat_assistant,
+        )
+
+        with patch.dict("os.environ", {}, clear=True):
             # Remove ANTHROPIC_API_KEY if present
             import os
-            old_key = os.environ.pop('ANTHROPIC_API_KEY', None)
+
+            old_key = os.environ.pop("ANTHROPIC_API_KEY", None)
             try:
                 assistant = create_chat_assistant()
                 assert isinstance(assistant, ChatAssistant)
             finally:
                 if old_key is not None:
-                    os.environ['ANTHROPIC_API_KEY'] = old_key
+                    os.environ["ANTHROPIC_API_KEY"] = old_key

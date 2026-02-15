@@ -10,26 +10,28 @@ DRY PRINCIPLE: Reuses existing BaseSwarm infrastructure.
 
 import asyncio
 import logging
-from typing import List, Dict, Any, Optional
-from enum import Enum
-from dataclasses import dataclass
 from collections import Counter
+from dataclasses import dataclass
+from enum import Enum
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
 
 class MergeStrategy(Enum):
     """Strategies for merging multi-swarm results."""
-    VOTING = "voting"              # Majority vote
-    ENSEMBLE = "ensemble"          # Average/weighted combination
-    BEST_OF_N = "best_of_n"       # Highest confidence
-    CONCATENATE = "concatenate"    # Combine all outputs
+
+    VOTING = "voting"  # Majority vote
+    ENSEMBLE = "ensemble"  # Average/weighted combination
+    BEST_OF_N = "best_of_n"  # Highest confidence
+    CONCATENATE = "concatenate"  # Combine all outputs
     FIRST_SUCCESS = "first_success"  # Return first successful result
 
 
 @dataclass
 class SwarmResult:
     """Result from a single swarm execution."""
+
     swarm_name: str
     output: str
     success: bool
@@ -89,15 +91,11 @@ class MultiSwarmCoordinator:
         self.execution_count += 1
 
         logger.info(
-            f"🚀 Executing {len(swarms)} swarms in parallel "
-            f"(strategy={merge_strategy.value})"
+            f"🚀 Executing {len(swarms)} swarms in parallel " f"(strategy={merge_strategy.value})"
         )
 
         # Execute all swarms concurrently (KISS - simple gather)
-        tasks = [
-            self._execute_with_timeout(swarm, task, timeout_per_swarm)
-            for swarm in swarms
-        ]
+        tasks = [self._execute_with_timeout(swarm, task, timeout_per_swarm) for swarm in swarms]
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -121,34 +119,20 @@ class MultiSwarmCoordinator:
         merged = self._merge_results(valid_results, merge_strategy)
 
         # Track stats
-        self.merge_stats[merge_strategy.value] =             self.merge_stats.get(merge_strategy.value, 0) + 1
+        self.merge_stats[merge_strategy.value] = self.merge_stats.get(merge_strategy.value, 0) + 1
 
-        logger.info(
-            f"✅ Merged {len(valid_results)} results "
-            f"(strategy={merge_strategy.value})"
-        )
+        logger.info(f"✅ Merged {len(valid_results)} results " f"(strategy={merge_strategy.value})")
 
         return merged
 
-    async def _execute_with_timeout(
-        self,
-        swarm: Any,
-        task: str,
-        timeout: float
-    ) -> SwarmResult:
+    async def _execute_with_timeout(self, swarm: Any, task: str, timeout: float) -> SwarmResult:
         """Execute single swarm with timeout."""
         try:
             # Call swarm.execute() if available, else swarm.run()
-            if hasattr(swarm, 'execute'):
-                result = await asyncio.wait_for(
-                    swarm.execute(task),
-                    timeout=timeout
-                )
-            elif hasattr(swarm, 'run'):
-                result = await asyncio.wait_for(
-                    swarm.run(goal=task),
-                    timeout=timeout
-                )
+            if hasattr(swarm, "execute"):
+                result = await asyncio.wait_for(swarm.execute(task), timeout=timeout)
+            elif hasattr(swarm, "run"):
+                result = await asyncio.wait_for(swarm.run(goal=task), timeout=timeout)
             else:
                 raise ValueError(f"Swarm {swarm} has no execute() or run() method")
 
@@ -157,15 +141,15 @@ class MultiSwarmCoordinator:
                 return result
             elif isinstance(result, dict):
                 return SwarmResult(
-                    swarm_name=getattr(swarm, 'name', 'unknown'),
-                    output=result.get('output', str(result)),
-                    success=result.get('success', True),
-                    confidence=result.get('confidence', 0.8),
+                    swarm_name=getattr(swarm, "name", "unknown"),
+                    output=result.get("output", str(result)),
+                    success=result.get("success", True),
+                    confidence=result.get("confidence", 0.8),
                     metadata=result,
                 )
             else:
                 return SwarmResult(
-                    swarm_name=getattr(swarm, 'name', 'unknown'),
+                    swarm_name=getattr(swarm, "name", "unknown"),
                     output=str(result),
                     success=True,
                     confidence=0.7,
@@ -174,7 +158,7 @@ class MultiSwarmCoordinator:
         except asyncio.TimeoutError:
             logger.warning(f"Swarm timeout after {timeout}s")
             return SwarmResult(
-                swarm_name=getattr(swarm, 'name', 'unknown'),
+                swarm_name=getattr(swarm, "name", "unknown"),
                 output="Timeout",
                 success=False,
             )
@@ -182,11 +166,7 @@ class MultiSwarmCoordinator:
             logger.error(f"Swarm execution failed: {e}")
             raise
 
-    def _merge_results(
-        self,
-        results: List[SwarmResult],
-        strategy: MergeStrategy
-    ) -> SwarmResult:
+    def _merge_results(self, results: List[SwarmResult], strategy: MergeStrategy) -> SwarmResult:
         """Merge results using specified strategy."""
 
         if strategy == MergeStrategy.VOTING:
@@ -211,8 +191,7 @@ class MultiSwarmCoordinator:
 
         # Find a result with the winning output
         winning_result = next(
-            (r for r in results if r.output.strip() == most_common_output),
-            results[0]
+            (r for r in results if r.output.strip() == most_common_output), results[0]
         )
 
         return SwarmResult(
@@ -221,10 +200,10 @@ class MultiSwarmCoordinator:
             success=True,
             confidence=votes / len(results),  # Vote ratio as confidence
             metadata={
-                'votes': votes,
-                'total_swarms': len(results),
-                'vote_distribution': dict(counter),
-            }
+                "votes": votes,
+                "total_swarms": len(results),
+                "vote_distribution": dict(counter),
+            },
         )
 
     def _merge_ensemble(self, results: List[SwarmResult]) -> SwarmResult:
@@ -245,10 +224,10 @@ class MultiSwarmCoordinator:
                 success=True,
                 confidence=sum(weights) / len(weights),
                 metadata={
-                    'method': 'weighted_average',
-                    'individual_values': values,
-                    'weights': weights,
-                }
+                    "method": "weighted_average",
+                    "individual_values": values,
+                    "weights": weights,
+                },
             )
         except ValueError:
             # Fall back to concatenation for non-numeric
@@ -260,16 +239,13 @@ class MultiSwarmCoordinator:
         best = max(results, key=lambda r: r.confidence)
         best.swarm_name = f"multi_swarm_best_of_{len(results)}"
         best.metadata = best.metadata or {}
-        best.metadata['selection_reason'] = 'highest_confidence'
-        best.metadata['total_swarms'] = len(results)
+        best.metadata["selection_reason"] = "highest_confidence"
+        best.metadata["total_swarms"] = len(results)
         return best
 
     def _merge_concatenate(self, results: List[SwarmResult]) -> SwarmResult:
         """Concatenate all outputs."""
-        combined_output = "\n\n".join([
-            f"=== {r.swarm_name} ===\n{r.output}"
-            for r in results
-        ])
+        combined_output = "\n\n".join([f"=== {r.swarm_name} ===\n{r.output}" for r in results])
 
         avg_confidence = sum(r.confidence for r in results) / len(results)
 
@@ -279,16 +255,16 @@ class MultiSwarmCoordinator:
             success=True,
             confidence=avg_confidence,
             metadata={
-                'method': 'concatenation',
-                'swarm_count': len(results),
-            }
+                "method": "concatenation",
+                "swarm_count": len(results),
+            },
         )
 
     def get_stats(self) -> Dict[str, Any]:
         """Get coordination statistics."""
         return {
-            'total_executions': self.execution_count,
-            'merge_strategy_usage': self.merge_stats,
+            "total_executions": self.execution_count,
+            "merge_strategy_usage": self.merge_stats,
         }
 
 
@@ -311,9 +287,9 @@ def reset_multi_swarm_coordinator() -> None:
 
 
 __all__ = [
-    'MultiSwarmCoordinator',
-    'MergeStrategy',
-    'SwarmResult',
-    'get_multi_swarm_coordinator',
-    'reset_multi_swarm_coordinator',
+    "MultiSwarmCoordinator",
+    "MergeStrategy",
+    "SwarmResult",
+    "get_multi_swarm_coordinator",
+    "reset_multi_swarm_coordinator",
 ]

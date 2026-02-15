@@ -5,12 +5,12 @@ Base Template System
 Abstract base class for all PDF templates with common functionality.
 """
 
-from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
-from typing import Dict, List, Any, Optional
-from pathlib import Path
 import base64
 import logging
+from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class TemplateColors:
     """Color scheme for a template."""
+
     primary: str = "#2c5282"
     primary_dark: str = "#1a365d"
     primary_light: str = "#4299e1"
@@ -36,6 +37,7 @@ class TemplateColors:
 @dataclass
 class TemplateTypography:
     """Typography settings for a template."""
+
     heading_font: str = "'Inter', sans-serif"
     body_font: str = "'Inter', sans-serif"
     mono_font: str = "'Consolas', monospace"
@@ -49,6 +51,7 @@ class TemplateTypography:
 @dataclass
 class TemplateLayout:
     """Layout settings for a template."""
+
     page_size: str = "A4"
     margin_top: str = "2cm"
     margin_bottom: str = "2.5cm"
@@ -87,20 +90,20 @@ class BaseTemplate(ABC):
                 logger.warning(f"Image not found: {image_path}")
                 return ""
 
-            with open(path, 'rb') as f:
-                data = base64.b64encode(f.read()).decode('utf-8')
+            with open(path, "rb") as f:
+                data = base64.b64encode(f.read()).decode("utf-8")
 
             ext = path.suffix.lower()
             mime_types = {
-                '.png': 'image/png',
-                '.jpg': 'image/jpeg',
-                '.jpeg': 'image/jpeg',
-                '.gif': 'image/gif',
-                '.svg': 'image/svg+xml',
+                ".png": "image/png",
+                ".jpg": "image/jpeg",
+                ".jpeg": "image/jpeg",
+                ".gif": "image/gif",
+                ".svg": "image/svg+xml",
             }
-            mime = mime_types.get(ext, 'image/png')
+            mime = mime_types.get(ext, "image/png")
 
-            return f'data:{mime};base64,{data}'
+            return f"data:{mime};base64,{data}"
         except Exception as e:
             logger.error(f"Failed to embed image {image_path}: {e}")
             return ""
@@ -228,12 +231,12 @@ class TemplateRegistry:
     @classmethod
     def register(cls, template: BaseTemplate) -> None:
         """Register a template."""
-        cls._templates[template.name.lower().replace(' ', '_')] = template
+        cls._templates[template.name.lower().replace(" ", "_")] = template
 
     @classmethod
     def get(cls, name: str) -> Optional[BaseTemplate]:
         """Get a template by name."""
-        return cls._templates.get(name.lower().replace(' ', '_'))
+        return cls._templates.get(name.lower().replace(" ", "_"))
 
     @classmethod
     def list_templates(cls, category: str = None) -> List[Dict[str, str]]:
@@ -241,12 +244,14 @@ class TemplateRegistry:
         templates = []
         for key, template in cls._templates.items():
             if category is None or template.category == category:
-                templates.append({
-                    'key': key,
-                    'name': template.name,
-                    'description': template.description,
-                    'category': template.category,
-                })
+                templates.append(
+                    {
+                        "key": key,
+                        "name": template.name,
+                        "description": template.description,
+                        "category": template.category,
+                    }
+                )
         return templates
 
     @classmethod

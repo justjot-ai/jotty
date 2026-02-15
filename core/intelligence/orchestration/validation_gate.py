@@ -52,6 +52,7 @@ Usage::
     decision = await gate.decide(goal="Build a REST API with auth, rate limiting, and tests")
     # → ValidationMode.FULL  (complex multi-step, needs full pipeline)
 """
+
 from __future__ import annotations
 
 import logging
@@ -69,22 +70,25 @@ logger = logging.getLogger(__name__)
 # VALIDATION MODES
 # =========================================================================
 
+
 class ValidationMode(Enum):
     """How much validation a task needs."""
-    DIRECT = "direct"           # Actor only.  Fastest.
-    AUDIT_ONLY = "audit_only"   # Actor + Auditor.  Skip architect.
-    FULL = "full"               # Architect → Actor → Auditor.  Safest.
+
+    DIRECT = "direct"  # Actor only.  Fastest.
+    AUDIT_ONLY = "audit_only"  # Actor + Auditor.  Skip architect.
+    FULL = "full"  # Architect → Actor → Auditor.  Safest.
 
 
 @dataclass
 class GateDecision:
     """Result of the validation gate."""
+
     mode: ValidationMode
-    confidence: float           # 0-1 — gate's confidence in its decision
-    reason: str                 # Human-readable explanation
-    latency_ms: float = 0.0    # How long the gate itself took
+    confidence: float  # 0-1 — gate's confidence in its decision
+    reason: str  # Human-readable explanation
+    latency_ms: float = 0.0  # How long the gate itself took
     was_overridden: bool = False  # True if safety rail forced escalation
-    was_sampled: bool = False     # True if a DIRECT task was randomly audited
+    was_sampled: bool = False  # True if a DIRECT task was randomly audited
 
 
 # =========================================================================
@@ -95,20 +99,50 @@ class GateDecision:
 # This is a hardcoded safety rail — not learnable, not overridable.
 NEVER_SKIP_PATTERNS = [
     # Code generation / modification
-    "write code", "generate code", "implement", "refactor",
-    "fix the bug", "debug", "patch", "create a function",
-    "create a class", "build a module", "write tests",
+    "write code",
+    "generate code",
+    "implement",
+    "refactor",
+    "fix the bug",
+    "debug",
+    "patch",
+    "create a function",
+    "create a class",
+    "build a module",
+    "write tests",
     # Multi-step workflows
-    "step 1", "step 2", "first,", "then,", "finally,",
-    "pipeline", "workflow", "deploy",
+    "step 1",
+    "step 2",
+    "first,",
+    "then,",
+    "finally,",
+    "pipeline",
+    "workflow",
+    "deploy",
     # High-stakes domains
-    "financial", "payment", "transaction", "billing",
-    "security", "authentication", "authorization", "encrypt",
-    "medical", "diagnosis", "patient", "health",
-    "legal", "compliance", "regulation",
+    "financial",
+    "payment",
+    "transaction",
+    "billing",
+    "security",
+    "authentication",
+    "authorization",
+    "encrypt",
+    "medical",
+    "diagnosis",
+    "patient",
+    "health",
+    "legal",
+    "compliance",
+    "regulation",
     # File system / system operations
-    "delete", "remove", "overwrite", "execute command",
-    "run script", "install", "sudo",
+    "delete",
+    "remove",
+    "overwrite",
+    "execute command",
+    "run script",
+    "install",
+    "sudo",
 ]
 
 # =========================================================================
@@ -139,7 +173,14 @@ class ValidationGate:
         3. Historical outcome data   (learned from past decisions)
     """
 
-    def __init__(self, model: str = 'haiku', confidence_threshold: float = 0.8, sample_rate: float = 0.1, enable_llm: bool = True, fallback_mode: ValidationMode = ValidationMode.FULL) -> None:
+    def __init__(
+        self,
+        model: str = "haiku",
+        confidence_threshold: float = 0.8,
+        sample_rate: float = 0.1,
+        enable_llm: bool = True,
+        fallback_mode: ValidationMode = ValidationMode.FULL,
+    ) -> None:
         """
         Args:
             model: LLM model for gate classification (default: haiku — cheapest)
@@ -163,9 +204,7 @@ class ValidationGate:
 
         # Outcome tracking for drift detection
         self._decisions: Dict[ValidationMode, int] = defaultdict(int)
-        self._outcomes: Dict[ValidationMode, deque] = {
-            m: deque(maxlen=200) for m in ValidationMode
-        }
+        self._outcomes: Dict[ValidationMode, deque] = {m: deque(maxlen=200) for m in ValidationMode}
         self._total_calls = 0
         self._total_latency_ms = 0.0
 
@@ -295,9 +334,7 @@ class ValidationGate:
     # LLM CLASSIFICATION
     # =====================================================================
 
-    async def _classify_with_llm(
-        self, goal: str
-    ) -> Tuple[ValidationMode, float, str]:
+    async def _classify_with_llm(self, goal: str) -> Tuple[ValidationMode, float, str]:
         """
         Use a cheap LLM (Haiku) to classify task complexity.
 
@@ -314,7 +351,9 @@ class ValidationGate:
             # (heuristic maxes at 75%; LLM gives 85-90%)
             if not self._lm_available:
                 self.confidence_threshold = min(self.confidence_threshold, 0.65)
-                logger.info(f"ValidationGate: heuristic mode, threshold relaxed to {self.confidence_threshold:.0%}")
+                logger.info(
+                    f"ValidationGate: heuristic mode, threshold relaxed to {self.confidence_threshold:.0%}"
+                )
 
         if not self._lm_available:
             return self._classify_heuristic(goal)
@@ -342,7 +381,9 @@ class ValidationGate:
                 return (ValidationMode.FULL, 0.90, "llm_classified: FULL")
             else:
                 # Unparseable → fallback to FULL (safe default)
-                logger.warning(f"ValidationGate: unparseable LLM response '{text[:50]}', defaulting to FULL")
+                logger.warning(
+                    f"ValidationGate: unparseable LLM response '{text[:50]}', defaulting to FULL"
+                )
                 return (ValidationMode.FULL, 0.50, f"llm_unparseable: '{text[:30]}'")
 
         except Exception as e:
@@ -364,12 +405,13 @@ class ValidationGate:
         import os
 
         # 1. Try Gemini Flash via OpenRouter (fastest + cheapest for classification)
-        or_key = os.environ.get('OPENROUTER_API_KEY')
+        or_key = os.environ.get("OPENROUTER_API_KEY")
         if or_key:
             try:
                 import dspy
+
                 self._lm = dspy.LM(
-                    'openrouter/google/gemini-2.0-flash-001',
+                    "openrouter/google/gemini-2.0-flash-001",
                     api_key=or_key,
                     max_tokens=10,
                 )
@@ -384,6 +426,7 @@ class ValidationGate:
                 DirectAnthropicLM,
                 is_api_key_available,
             )
+
             if is_api_key_available():
                 self._lm = DirectAnthropicLM(model=self.model, max_tokens=10)
                 logger.info(f"ValidationGate: Haiku LM initialized ({self.model})")
@@ -395,6 +438,7 @@ class ValidationGate:
         if os.environ.get("GROQ_API_KEY"):
             try:
                 import litellm
+
                 def _groq_call(prompt: str) -> list:
                     resp = litellm.completion(
                         model="groq/llama-3.1-8b-instant",
@@ -403,6 +447,7 @@ class ValidationGate:
                         temperature=0.0,
                     )
                     return [resp.choices[0].message.content]
+
                 self._lm = _groq_call
                 logger.info("ValidationGate: Groq LM initialized (llama-3.1-8b)")
                 return True
@@ -417,7 +462,9 @@ class ValidationGate:
             if os.environ.get(key):
                 try:
                     import litellm
+
                     _model = model
+
                     def _litellm_call(prompt: str, m: Any = _model) -> list:
                         resp = litellm.completion(
                             model=m,
@@ -426,6 +473,7 @@ class ValidationGate:
                             temperature=0.0,
                         )
                         return [resp.choices[0].message.content]
+
                     self._lm = _litellm_call
                     logger.info(f"ValidationGate: LiteLLM initialized ({model})")
                     return True
@@ -439,9 +487,7 @@ class ValidationGate:
     # HEURISTIC FALLBACK (no LLM needed)
     # =====================================================================
 
-    def _classify_heuristic(
-        self, goal: str
-    ) -> Tuple[ValidationMode, float, str]:
+    def _classify_heuristic(self, goal: str) -> Tuple[ValidationMode, float, str]:
         """
         Rule-based classification when LLM is unavailable.
 
@@ -512,10 +558,7 @@ class ValidationGate:
             "total_calls": self._total_calls,
             "avg_latency_ms": f"{self._total_latency_ms / total:.1f}",
             "decisions": {m.value: c for m, c in self._decisions.items()},
-            "distribution": {
-                m.value: f"{c/total:.0%}"
-                for m, c in self._decisions.items()
-            },
+            "distribution": {m.value: f"{c/total:.0%}" for m, c in self._decisions.items()},
             "llm_available": self._lm_available,
             "model": self.model,
             "outcomes": outcome_summary,

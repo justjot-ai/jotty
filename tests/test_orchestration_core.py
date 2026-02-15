@@ -6,40 +6,53 @@ Tests for ExecutionContext, AgentRunnerConfig, TaskProgress, AgentRunner
 ProviderManager (provider_manager.py), and EnsembleManager (ensemble_manager.py).
 """
 
-import pytest
 import time as _time
-from unittest.mock import Mock, AsyncMock, patch, MagicMock, PropertyMock
 from dataclasses import fields
+from unittest.mock import AsyncMock, MagicMock, Mock, PropertyMock, patch
 
-from Jotty.core.intelligence.orchestration.agent_runner import (
-    ExecutionContext, AgentRunnerConfig, TaskProgress, AgentRunner, HOOK_TYPES,
-)
+import pytest
+
 from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
+from Jotty.core.intelligence.orchestration.agent_runner import (
+    HOOK_TYPES,
+    AgentRunner,
+    AgentRunnerConfig,
+    ExecutionContext,
+    TaskProgress,
+)
 
 # Conditional imports for LLM provider types
 try:
     from Jotty.core.intelligence.orchestration.llm_providers.types import (
-        ToolResult as LLMToolResult,
         LLMExecutionResult,
-        StreamEvent as LLMStreamEvent,
         LLMResponse,
-        ToolUseBlock,
-        TextBlock,
     )
+    from Jotty.core.intelligence.orchestration.llm_providers.types import (
+        StreamEvent as LLMStreamEvent,
+    )
+    from Jotty.core.intelligence.orchestration.llm_providers.types import TextBlock
+    from Jotty.core.intelligence.orchestration.llm_providers.types import (
+        ToolResult as LLMToolResult,
+    )
+    from Jotty.core.intelligence.orchestration.llm_providers.types import ToolUseBlock
+
     HAS_LLM_TYPES = True
 except ImportError:
     HAS_LLM_TYPES = False
 
 try:
     from Jotty.core.intelligence.orchestration.llm_providers.base import LLMProvider
+
     HAS_LLM_BASE = True
 except ImportError:
     HAS_LLM_BASE = False
 
 try:
     from Jotty.core.intelligence.orchestration.llm_providers.factory import (
-        create_provider, auto_detect_provider,
+        auto_detect_provider,
+        create_provider,
     )
+
     HAS_LLM_FACTORY = True
 except ImportError:
     HAS_LLM_FACTORY = False
@@ -47,12 +60,14 @@ except ImportError:
 # Conditional imports for modules with complex dependency chains
 try:
     from Jotty.core.intelligence.orchestration.provider_manager import ProviderManager
+
     HAS_PROVIDER_MANAGER = True
 except ImportError:
     HAS_PROVIDER_MANAGER = False
 
 try:
     from Jotty.core.intelligence.orchestration.ensemble_manager import EnsembleManager
+
     HAS_ENSEMBLE_MANAGER = True
 except ImportError:
     HAS_ENSEMBLE_MANAGER = False
@@ -61,6 +76,7 @@ except ImportError:
 # =============================================================================
 # AgentRunnerConfig Tests (~8 tests)
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestAgentRunnerConfig:
@@ -155,6 +171,7 @@ class TestAgentRunnerConfig:
 # =============================================================================
 # ExecutionContext Tests (~18 tests)
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestExecutionContext:
@@ -280,6 +297,7 @@ class TestExecutionContext:
 # TaskProgress Tests (~20 tests)
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestTaskProgress:
     """Tests for TaskProgress visible task tracker."""
@@ -323,16 +341,16 @@ class TestTaskProgress:
         """add_step creates step with status 'pending'."""
         progress = TaskProgress(goal="test")
         progress.add_step("My step")
-        assert progress.steps[0]['status'] == 'pending'
-        assert progress.steps[0]['started_at'] is None
-        assert progress.steps[0]['finished_at'] is None
+        assert progress.steps[0]["status"] == "pending"
+        assert progress.steps[0]["started_at"] is None
+        assert progress.steps[0]["finished_at"] is None
 
     def test_start_step_sets_in_progress(self):
         """start_step sets step status to 'in_progress'."""
         progress = TaskProgress(goal="test")
         progress.add_step("Step A")
         progress.start_step(0)
-        assert progress.steps[0]['status'] == 'in_progress'
+        assert progress.steps[0]["status"] == "in_progress"
 
     def test_start_step_sets_started_at(self):
         """start_step sets the started_at timestamp."""
@@ -341,7 +359,7 @@ class TestTaskProgress:
         before = _time.time()
         progress.start_step(0)
         after = _time.time()
-        assert before <= progress.steps[0]['started_at'] <= after
+        assert before <= progress.steps[0]["started_at"] <= after
 
     def test_complete_step_sets_done(self):
         """complete_step sets step status to 'done'."""
@@ -349,7 +367,7 @@ class TestTaskProgress:
         progress.add_step("Step A")
         progress.start_step(0)
         progress.complete_step(0)
-        assert progress.steps[0]['status'] == 'done'
+        assert progress.steps[0]["status"] == "done"
 
     def test_complete_step_sets_finished_at(self):
         """complete_step sets the finished_at timestamp."""
@@ -357,7 +375,7 @@ class TestTaskProgress:
         progress.add_step("Step A")
         progress.start_step(0)
         progress.complete_step(0)
-        assert progress.steps[0]['finished_at'] is not None
+        assert progress.steps[0]["finished_at"] is not None
 
     def test_fail_step_sets_failed(self):
         """fail_step sets step status to 'failed'."""
@@ -365,7 +383,7 @@ class TestTaskProgress:
         progress.add_step("Step A")
         progress.start_step(0)
         progress.fail_step(0)
-        assert progress.steps[0]['status'] == 'failed'
+        assert progress.steps[0]["status"] == "failed"
 
     def test_fail_step_sets_finished_at(self):
         """fail_step sets the finished_at timestamp."""
@@ -373,7 +391,7 @@ class TestTaskProgress:
         progress.add_step("Step A")
         progress.start_step(0)
         progress.fail_step(0)
-        assert progress.steps[0]['finished_at'] is not None
+        assert progress.steps[0]["finished_at"] is not None
 
     def test_render_returns_string(self):
         """render returns a string representation."""
@@ -422,11 +440,11 @@ class TestTaskProgress:
         progress.add_step("Step A")
         summary = progress.summary()
         assert isinstance(summary, dict)
-        assert 'total' in summary
-        assert 'done' in summary
-        assert 'failed' in summary
-        assert 'completion_pct' in summary
-        assert 'steps' in summary
+        assert "total" in summary
+        assert "done" in summary
+        assert "failed" in summary
+        assert "completion_pct" in summary
+        assert "steps" in summary
 
     def test_summary_counts(self):
         """summary correctly counts total, done, and failed."""
@@ -437,18 +455,18 @@ class TestTaskProgress:
         progress.complete_step(0)
         progress.fail_step(2)
         summary = progress.summary()
-        assert summary['total'] == 3
-        assert summary['done'] == 1
-        assert summary['failed'] == 1
-        assert summary['completion_pct'] == pytest.approx(1.0 / 3.0)
+        assert summary["total"] == 3
+        assert summary["done"] == 1
+        assert summary["failed"] == 1
+        assert summary["completion_pct"] == pytest.approx(1.0 / 3.0)
 
     def test_summary_empty_steps(self):
         """summary returns 0 completion_pct when no steps."""
         progress = TaskProgress(goal="Empty")
         summary = progress.summary()
-        assert summary['total'] == 0
-        assert summary['done'] == 0
-        assert summary['completion_pct'] == 0
+        assert summary["total"] == 0
+        assert summary["done"] == 0
+        assert summary["completion_pct"] == 0
 
     def test_out_of_bounds_step_ignored(self):
         """start/complete/fail with invalid index do nothing."""
@@ -457,12 +475,13 @@ class TestTaskProgress:
         progress.start_step(99)
         progress.complete_step(-1)
         progress.fail_step(5)
-        assert progress.steps[0]['status'] == 'pending'
+        assert progress.steps[0]["status"] == "pending"
 
 
 # =============================================================================
 # AgentRunner Tests (~25 tests)
 # =============================================================================
+
 
 def _make_runner_config(enable_learning=False, enable_memory=False, enable_terminal=False):
     """Helper to create an AgentRunnerConfig with learning/memory/terminal disabled."""
@@ -528,12 +547,12 @@ class TestAgentRunner:
     @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
     def test_hook_types_constant(self, mock_va, mock_mrv, mock_tg, mock_host):
         """HOOK_TYPES tuple contains all six lifecycle hook names."""
-        assert 'pre_run' in HOOK_TYPES
-        assert 'post_run' in HOOK_TYPES
-        assert 'pre_architect' in HOOK_TYPES
-        assert 'post_architect' in HOOK_TYPES
-        assert 'pre_execute' in HOOK_TYPES
-        assert 'post_execute' in HOOK_TYPES
+        assert "pre_run" in HOOK_TYPES
+        assert "post_run" in HOOK_TYPES
+        assert "pre_architect" in HOOK_TYPES
+        assert "post_architect" in HOOK_TYPES
+        assert "pre_execute" in HOOK_TYPES
+        assert "post_execute" in HOOK_TYPES
         assert len(HOOK_TYPES) == 6
 
     @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
@@ -545,8 +564,8 @@ class TestAgentRunner:
         agent = _make_mock_agent()
         config = _make_runner_config()
         runner = AgentRunner(agent=agent, config=config)
-        name = runner.add_hook('pre_run', lambda **ctx: None, name='my_hook')
-        assert name == 'my_hook'
+        name = runner.add_hook("pre_run", lambda **ctx: None, name="my_hook")
+        assert name == "my_hook"
 
     @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
     @patch("Jotty.core.registry.tool_validation.ToolGuard")
@@ -557,8 +576,8 @@ class TestAgentRunner:
         agent = _make_mock_agent()
         config = _make_runner_config()
         runner = AgentRunner(agent=agent, config=config)
-        name = runner.add_hook('pre_run', lambda **ctx: None)
-        assert name.startswith('pre_run_')
+        name = runner.add_hook("pre_run", lambda **ctx: None)
+        assert name.startswith("pre_run_")
 
     @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
     @patch("Jotty.core.registry.tool_validation.ToolGuard")
@@ -570,7 +589,7 @@ class TestAgentRunner:
         config = _make_runner_config()
         runner = AgentRunner(agent=agent, config=config)
         with pytest.raises(ValueError, match="Unknown hook type"):
-            runner.add_hook('invalid_type', lambda **ctx: None)
+            runner.add_hook("invalid_type", lambda **ctx: None)
 
     @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
     @patch("Jotty.core.registry.tool_validation.ToolGuard")
@@ -581,8 +600,8 @@ class TestAgentRunner:
         agent = _make_mock_agent()
         config = _make_runner_config()
         runner = AgentRunner(agent=agent, config=config)
-        runner.add_hook('pre_run', lambda **ctx: None, name='removable')
-        assert runner.remove_hook('pre_run', 'removable') is True
+        runner.add_hook("pre_run", lambda **ctx: None, name="removable")
+        assert runner.remove_hook("pre_run", "removable") is True
 
     @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
     @patch("Jotty.core.registry.tool_validation.ToolGuard")
@@ -593,7 +612,7 @@ class TestAgentRunner:
         agent = _make_mock_agent()
         config = _make_runner_config()
         runner = AgentRunner(agent=agent, config=config)
-        assert runner.remove_hook('pre_run', 'nonexistent') is False
+        assert runner.remove_hook("pre_run", "nonexistent") is False
 
     @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
     @patch("Jotty.core.registry.tool_validation.ToolGuard")
@@ -605,10 +624,10 @@ class TestAgentRunner:
         config = _make_runner_config()
         runner = AgentRunner(agent=agent, config=config)
         called = []
-        runner.add_hook('pre_run', lambda **ctx: called.append('hook1'))
-        runner.add_hook('pre_run', lambda **ctx: called.append('hook2'))
-        runner._run_hooks('pre_run', goal="test")
-        assert called == ['hook1', 'hook2']
+        runner.add_hook("pre_run", lambda **ctx: called.append("hook1"))
+        runner.add_hook("pre_run", lambda **ctx: called.append("hook2"))
+        runner._run_hooks("pre_run", goal="test")
+        assert called == ["hook1", "hook2"]
 
     @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
     @patch("Jotty.core.registry.tool_validation.ToolGuard")
@@ -619,9 +638,9 @@ class TestAgentRunner:
         agent = _make_mock_agent()
         config = _make_runner_config()
         runner = AgentRunner(agent=agent, config=config)
-        runner.add_hook('pre_run', lambda **ctx: {'goal': 'modified_goal'})
-        result = runner._run_hooks('pre_run', goal="original")
-        assert result['goal'] == 'modified_goal'
+        runner.add_hook("pre_run", lambda **ctx: {"goal": "modified_goal"})
+        result = runner._run_hooks("pre_run", goal="original")
+        assert result["goal"] == "modified_goal"
 
     @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
     @patch("Jotty.core.registry.tool_validation.ToolGuard")
@@ -636,11 +655,11 @@ class TestAgentRunner:
         def bad_hook(**ctx):
             raise ValueError("boom")
 
-        runner.add_hook('pre_run', bad_hook)
+        runner.add_hook("pre_run", bad_hook)
         called = []
-        runner.add_hook('pre_run', lambda **ctx: called.append('second'))
-        runner._run_hooks('pre_run', goal="test")
-        assert 'second' in called
+        runner.add_hook("pre_run", lambda **ctx: called.append("second"))
+        runner._run_hooks("pre_run", goal="test")
+        assert "second" in called
 
     @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
     @patch("Jotty.core.registry.tool_validation.ToolGuard")
@@ -658,7 +677,9 @@ class TestAgentRunner:
     @patch("Jotty.core.registry.tool_validation.ToolGuard")
     @patch("Jotty.core.orchestration.agent_runner.MultiRoundValidator")
     @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
-    def test_gather_learning_context_empty_when_no_components(self, mock_va, mock_mrv, mock_tg, mock_host):
+    def test_gather_learning_context_empty_when_no_components(
+        self, mock_va, mock_mrv, mock_tg, mock_host
+    ):
         """_gather_learning_context returns empty list when no memory/learning components."""
         agent = _make_mock_agent()
         config = _make_runner_config()
@@ -670,7 +691,9 @@ class TestAgentRunner:
     @patch("Jotty.core.registry.tool_validation.ToolGuard")
     @patch("Jotty.core.orchestration.agent_runner.MultiRoundValidator")
     @patch("Jotty.core.orchestration.agent_runner.ValidatorAgent")
-    def test_gather_learning_context_consecutive_failure_hint(self, mock_va, mock_mrv, mock_tg, mock_host):
+    def test_gather_learning_context_consecutive_failure_hint(
+        self, mock_va, mock_mrv, mock_tg, mock_host
+    ):
         """_gather_learning_context includes failure hint after consecutive failures."""
         agent = _make_mock_agent()
         config = _make_runner_config()
@@ -703,7 +726,7 @@ class TestAgentRunner:
         config = _make_runner_config()
         runner = AgentRunner(agent=agent, config=config)
         # pre_execute should have at least one hook from bridge
-        assert len(runner._hooks['pre_execute']) >= 1
+        assert len(runner._hooks["pre_execute"]) >= 1
 
     @patch("Jotty.core.interfaces.host_provider.HostProvider.get")
     @patch("Jotty.core.registry.tool_validation.ToolGuard")
@@ -815,6 +838,7 @@ class TestAgentRunner:
 # LLM Provider Types Tests (~15 tests)
 # =============================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_LLM_TYPES, reason="LLM provider types not importable")
 class TestLLMProviderTypes:
@@ -862,8 +886,7 @@ class TestLLMProviderTypes:
         """LLMExecutionResult stores tool_results list."""
         tr = LLMToolResult(tool_name="calc", success=True, result={"answer": 42})
         result = LLMExecutionResult(
-            success=True, content="Result is 42",
-            tool_results=[tr], steps_taken=["called calc"]
+            success=True, content="Result is 42", tool_results=[tr], steps_taken=["called calc"]
         )
         assert len(result.tool_results) == 1
         assert result.steps_taken == ["called calc"]
@@ -876,7 +899,7 @@ class TestLLMProviderTypes:
 
     def test_stream_event_various_types(self):
         """StreamEvent supports various event types."""
-        for etype in ['text', 'tool_start', 'tool_end', 'section', 'complete', 'error']:
+        for etype in ["text", "tool_start", "tool_end", "section", "complete", "error"]:
             event = LLMStreamEvent(type=etype, data={"info": etype})
             assert event.type == etype
 
@@ -890,8 +913,7 @@ class TestLLMProviderTypes:
     def test_llm_response_with_usage(self):
         """LLMResponse stores usage dict when provided."""
         resp = LLMResponse(
-            content=[], stop_reason="stop",
-            usage={"input_tokens": 100, "output_tokens": 50}
+            content=[], stop_reason="stop", usage={"input_tokens": 100, "output_tokens": 50}
         )
         assert resp.usage["input_tokens"] == 100
 
@@ -930,6 +952,7 @@ class TestLLMProviderTypes:
 # LLM Provider Base Tests (~8 tests)
 # =============================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_LLM_BASE, reason="LLM provider base not importable")
 class TestLLMProviderBase:
@@ -942,19 +965,19 @@ class TestLLMProviderBase:
 
     def test_has_convert_tools_method(self):
         """LLMProvider declares abstract convert_tools method."""
-        assert hasattr(LLMProvider, 'convert_tools')
+        assert hasattr(LLMProvider, "convert_tools")
 
     def test_has_call_method(self):
         """LLMProvider declares abstract call method."""
-        assert hasattr(LLMProvider, 'call')
+        assert hasattr(LLMProvider, "call")
 
     def test_has_call_streaming_method(self):
         """LLMProvider declares abstract call_streaming method."""
-        assert hasattr(LLMProvider, 'call_streaming')
+        assert hasattr(LLMProvider, "call_streaming")
 
     def test_has_format_tool_result_method(self):
         """LLMProvider has a concrete format_tool_result method."""
-        assert hasattr(LLMProvider, 'format_tool_result')
+        assert hasattr(LLMProvider, "format_tool_result")
 
     def test_format_tool_result_returns_dict(self):
         """format_tool_result returns a properly structured dict."""
@@ -966,7 +989,9 @@ class TestLLMProviderBase:
             async def call(self, messages, tools, system, max_tokens=4096):
                 pass
 
-            async def call_streaming(self, messages, tools, system, stream_callback, max_tokens=4096):
+            async def call_streaming(
+                self, messages, tools, system, stream_callback, max_tokens=4096
+            ):
                 pass
 
         provider = ConcreteProvider()
@@ -987,7 +1012,9 @@ class TestLLMProviderBase:
             async def call(self, messages, tools, system, max_tokens=4096):
                 pass
 
-            async def call_streaming(self, messages, tools, system, stream_callback, max_tokens=4096):
+            async def call_streaming(
+                self, messages, tools, system, stream_callback, max_tokens=4096
+            ):
                 pass
 
         provider = ConcreteProvider()
@@ -999,6 +1026,7 @@ class TestLLMProviderBase:
         class PartialProvider(LLMProvider):
             def convert_tools(self, tools):
                 return tools
+
             # Missing call and call_streaming
 
         with pytest.raises(TypeError):
@@ -1008,6 +1036,7 @@ class TestLLMProviderBase:
 # =============================================================================
 # LLM Provider Factory Tests (~10 tests)
 # =============================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_LLM_FACTORY, reason="LLM provider factory not importable")
@@ -1054,12 +1083,14 @@ class TestLLMProviderFactory:
     def test_create_provider_unknown_raises(self):
         """create_provider with unknown provider raises InvalidConfigError."""
         from Jotty.core.infrastructure.foundation.exceptions import InvalidConfigError
+
         with pytest.raises(InvalidConfigError, match="Unknown provider"):
             create_provider("nonexistent_provider")
 
     def test_create_provider_case_insensitive(self):
         """create_provider handles case-insensitive provider names."""
         from Jotty.core.infrastructure.foundation.exceptions import InvalidConfigError
+
         # "NONEXISTENT" should still raise but after lowering
         with pytest.raises(InvalidConfigError, match="Unknown provider"):
             create_provider("NONEXISTENT")
@@ -1075,16 +1106,24 @@ class TestLLMProviderFactory:
             return_value=False,
         ):
             name, provider = auto_detect_provider()
-            assert name == 'anthropic'
+            assert name == "anthropic"
             assert provider is mock_anthropic_cls.return_value
 
-    @patch.dict("os.environ", {
-        "ANTHROPIC_API_KEY": "", "OPENAI_API_KEY": "",
-        "OPENROUTER_API_KEY": "", "GROQ_API_KEY": "", "GOOGLE_API_KEY": "",
-    }, clear=True)
+    @patch.dict(
+        "os.environ",
+        {
+            "ANTHROPIC_API_KEY": "",
+            "OPENAI_API_KEY": "",
+            "OPENROUTER_API_KEY": "",
+            "GROQ_API_KEY": "",
+            "GOOGLE_API_KEY": "",
+        },
+        clear=True,
+    )
     def test_auto_detect_no_keys_raises(self):
         """auto_detect_provider raises when no API keys are set."""
         from Jotty.core.infrastructure.foundation.exceptions import InvalidConfigError
+
         with patch(
             "Jotty.core.foundation.jotty_claude_provider.is_claude_available",
             return_value=False,
@@ -1097,12 +1136,15 @@ class TestLLMProviderFactory:
         """create_provider passes api_key to provider."""
         mock_cls.return_value = Mock()
         create_provider("anthropic", api_key="sk-test-key")
-        mock_cls.assert_called_once_with(model=mock_cls.call_args[1]['model'], api_key="sk-test-key")
+        mock_cls.assert_called_once_with(
+            model=mock_cls.call_args[1]["model"], api_key="sk-test-key"
+        )
 
 
 # =============================================================================
 # Orchestration Lazy Loading Tests (~12 tests)
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestOrchestrationLazyLoading:
@@ -1111,15 +1153,21 @@ class TestOrchestrationLazyLoading:
     def test_lazy_map_exists(self):
         """_LAZY_MAP dict is defined in orchestration __init__."""
         import Jotty.core.intelligence.orchestration as orch
-        assert hasattr(orch, '_LAZY_MAP')
+
+        assert hasattr(orch, "_LAZY_MAP")
         assert isinstance(orch._LAZY_MAP, dict)
 
     def test_lazy_map_has_known_entries(self):
         """_LAZY_MAP contains expected class names."""
         import Jotty.core.intelligence.orchestration as orch
+
         expected_names = [
-            'SwarmTaskBoard', 'AgentRunner', 'AgentRunnerConfig',
-            'Orchestrator', 'ChatExecutor', 'SandboxManager',
+            "SwarmTaskBoard",
+            "AgentRunner",
+            "AgentRunnerConfig",
+            "Orchestrator",
+            "ChatExecutor",
+            "SandboxManager",
         ]
         for name in expected_names:
             assert name in orch._LAZY_MAP, f"{name} missing from _LAZY_MAP"
@@ -1127,66 +1175,77 @@ class TestOrchestrationLazyLoading:
     def test_getattr_resolves_agent_runner(self):
         """__getattr__ resolves 'AgentRunner' from _LAZY_MAP."""
         import Jotty.core.intelligence.orchestration as orch
-        cls = getattr(orch, 'AgentRunner')
+
+        cls = getattr(orch, "AgentRunner")
         assert cls is AgentRunner
 
     def test_getattr_resolves_agent_runner_config(self):
         """__getattr__ resolves 'AgentRunnerConfig' from _LAZY_MAP."""
         import Jotty.core.intelligence.orchestration as orch
-        cls = getattr(orch, 'AgentRunnerConfig')
+
+        cls = getattr(orch, "AgentRunnerConfig")
         assert cls is AgentRunnerConfig
 
     def test_getattr_resolves_execution_context_via_agent_runner(self):
         """ExecutionContext is accessible via agent_runner module."""
         from Jotty.core.intelligence.orchestration.agent_runner import ExecutionContext as EC
+
         assert EC is ExecutionContext
 
     def test_unknown_name_raises_attribute_error(self):
         """__getattr__ raises AttributeError for unknown names."""
         import Jotty.core.intelligence.orchestration as orch
+
         with pytest.raises(AttributeError, match="has no attribute"):
-            getattr(orch, 'CompletelyNonexistentClass')
+            getattr(orch, "CompletelyNonexistentClass")
 
     def test_all_list_includes_lazy_map_keys(self):
         """__all__ includes all _LAZY_MAP keys."""
         import Jotty.core.intelligence.orchestration as orch
+
         for name in orch._LAZY_MAP:
             assert name in orch.__all__, f"{name} missing from __all__"
 
     def test_all_list_includes_pipeline_utils(self):
         """__all__ includes pipeline utility functions."""
         import Jotty.core.intelligence.orchestration as orch
-        assert 'sequential_pipeline' in orch.__all__
-        assert 'fanout_pipeline' in orch.__all__
+
+        assert "sequential_pipeline" in orch.__all__
+        assert "fanout_pipeline" in orch.__all__
 
     def test_lazy_map_swarm_task_board_entry(self):
         """_LAZY_MAP maps SwarmTaskBoard to swarm_roadmap module."""
         import Jotty.core.intelligence.orchestration as orch
-        assert orch._LAZY_MAP['SwarmTaskBoard'] == ('.swarm_roadmap', 'SwarmTaskBoard')
+
+        assert orch._LAZY_MAP["SwarmTaskBoard"] == (".swarm_roadmap", "SwarmTaskBoard")
 
     def test_lazy_map_chat_executor_entry(self):
         """_LAZY_MAP maps ChatExecutor to unified_executor module."""
         import Jotty.core.intelligence.orchestration as orch
-        assert orch._LAZY_MAP['ChatExecutor'] == ('.unified_executor', 'ChatExecutor')
+
+        assert orch._LAZY_MAP["ChatExecutor"] == (".unified_executor", "ChatExecutor")
 
     def test_lazy_map_orchestrator_entry(self):
         """_LAZY_MAP maps Orchestrator to swarm_manager module."""
         import Jotty.core.intelligence.orchestration as orch
-        assert orch._LAZY_MAP['Orchestrator'] == ('.swarm_manager', 'Orchestrator')
+
+        assert orch._LAZY_MAP["Orchestrator"] == (".swarm_manager", "Orchestrator")
 
     def test_lazy_caching_on_second_access(self):
         """Lazy-loaded attributes are cached in module globals after first access."""
         import Jotty.core.intelligence.orchestration as orch
+
         # First access triggers import
-        cls1 = getattr(orch, 'AgentRunnerConfig')
+        cls1 = getattr(orch, "AgentRunnerConfig")
         # Second access should be from globals cache
-        cls2 = getattr(orch, 'AgentRunnerConfig')
+        cls2 = getattr(orch, "AgentRunnerConfig")
         assert cls1 is cls2
 
 
 # =============================================================================
 # ProviderManager Tests (11-14)
 # =============================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_PROVIDER_MANAGER, reason="ProviderManager not importable")
@@ -1235,14 +1294,20 @@ class TestProviderManager:
             "FullStackAgentProvider": Mock(return_value=Mock(name="fullstack")),
         }
 
-        with patch(
-            "Jotty.core.orchestration.swarm_manager._load_providers",
-            return_value=True,
-        ), patch(
-            "Jotty.core.orchestration.swarm_manager._provider_cache",
-            mock_cache,
-        ), patch.object(
-            pm, "_get_provider_registry_path", return_value=mock_path_obj,
+        with (
+            patch(
+                "Jotty.core.orchestration.swarm_manager._load_providers",
+                return_value=True,
+            ),
+            patch(
+                "Jotty.core.orchestration.swarm_manager._provider_cache",
+                mock_cache,
+            ),
+            patch.object(
+                pm,
+                "_get_provider_registry_path",
+                return_value=mock_path_obj,
+            ),
         ):
             pm.init_provider_registry()
             assert pm.provider_registry is not None
@@ -1257,6 +1322,7 @@ class TestProviderManager:
 # =============================================================================
 # EnsembleManager Tests (15-18)
 # =============================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_ENSEMBLE_MANAGER, reason="EnsembleManager not importable")
@@ -1277,11 +1343,13 @@ class TestEnsembleManager:
 
         # Mock the skill-based ensemble path via the source module where the
         # local import resolves: Jotty.core.registry.skills_registry
-        mock_tool = Mock(return_value={
-            "success": True,
-            "response": "synthesized answer",
-            "quality_scores": {"analytical": 0.9},
-        })
+        mock_tool = Mock(
+            return_value={
+                "success": True,
+                "response": "synthesized answer",
+                "quality_scores": {"analytical": 0.9},
+            }
+        )
         mock_skill = Mock()
         mock_skill.tools = {"ensemble_prompt_tool": mock_tool}
         mock_registry = Mock()
@@ -1300,11 +1368,13 @@ class TestEnsembleManager:
         """EnsembleManager.execute_ensemble accepts strategy parameter."""
         em = EnsembleManager()
 
-        mock_tool = Mock(return_value={
-            "success": True,
-            "response": "debate result",
-            "quality_scores": {},
-        })
+        mock_tool = Mock(
+            return_value={
+                "success": True,
+                "response": "debate result",
+                "quality_scores": {},
+            }
+        )
         mock_skill = Mock()
         mock_skill.tools = {"ensemble_prompt_tool": mock_tool}
         mock_registry = Mock()
@@ -1338,13 +1408,15 @@ class TestEnsembleManager:
         ):
             # The DSPy fallback path will try 'import dspy'. Mock it so
             # dspy.settings.lm exists and produces responses.
-            mock_lm = Mock(side_effect=[
-                ["analytical perspective"],   # perspective 1
-                ["creative perspective"],      # perspective 2
-                ["critical perspective"],      # perspective 3
-                ["practical perspective"],     # perspective 4
-                ["final synthesis"],           # synthesis call
-            ])
+            mock_lm = Mock(
+                side_effect=[
+                    ["analytical perspective"],  # perspective 1
+                    ["creative perspective"],  # perspective 2
+                    ["critical perspective"],  # perspective 3
+                    ["practical perspective"],  # perspective 4
+                    ["final synthesis"],  # synthesis call
+                ]
+            )
             mock_dspy = MagicMock()
             mock_dspy.settings.lm = mock_lm
 
@@ -1362,45 +1434,62 @@ class TestEnsembleManager:
 
 try:
     from Jotty.core.intelligence.orchestration.swarm_data_structures import (
-        AgentSpecialization, AgentProfile, ConsensusVote, SwarmDecision,
-        AgentSession, HandoffContext, Coalition, AuctionBid,
-        GossipMessage, SupervisorNode,
+        AgentProfile,
+        AgentSession,
+        AgentSpecialization,
+        AuctionBid,
+        Coalition,
+        ConsensusVote,
+        GossipMessage,
+        HandoffContext,
+        SupervisorNode,
+        SwarmDecision,
     )
+
     HAS_SWARM_DATA_STRUCTURES = True
 except ImportError:
     HAS_SWARM_DATA_STRUCTURES = False
 
 try:
-    from Jotty.core.intelligence.orchestration.swarm_roadmap import (
-        SwarmTaskBoard, SubtaskState, TodoItem, TrajectoryStep,
-        AgenticState, DecomposedQFunction, ThoughtLevelCredit,
-        StateCheckpointer,
-    )
     from Jotty.core.infrastructure.foundation.types import TaskStatus
+    from Jotty.core.intelligence.orchestration.swarm_roadmap import (
+        AgenticState,
+        DecomposedQFunction,
+        StateCheckpointer,
+        SubtaskState,
+        SwarmTaskBoard,
+        ThoughtLevelCredit,
+        TodoItem,
+        TrajectoryStep,
+    )
+
     HAS_SWARM_ROADMAP = True
 except ImportError:
     HAS_SWARM_ROADMAP = False
 
 try:
     from Jotty.core.intelligence.orchestration.swarm_intelligence import SwarmIntelligence
+
     HAS_SWARM_INTELLIGENCE = True
 except ImportError:
     HAS_SWARM_INTELLIGENCE = False
 
 try:
     from Jotty.core.intelligence.orchestration.swarm_state_manager import (
-        AgentStateTracker, SwarmStateManager,
+        AgentStateTracker,
+        SwarmStateManager,
     )
+
     HAS_SWARM_STATE_MANAGER = True
 except ImportError:
     HAS_SWARM_STATE_MANAGER = False
 
 import time
 
-
 # =============================================================================
 # TestSwarmDataStructuresDeep (25 tests)
 # =============================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_SWARM_DATA_STRUCTURES, reason="swarm_data_structures not importable")
@@ -1586,9 +1675,7 @@ class TestSwarmDataStructuresDeep:
 
     def test_handoff_context_add_to_chain(self):
         """add_to_chain appends agent to handoff_chain if not already present."""
-        hc = HandoffContext(
-            task_id="t1", from_agent="a1", to_agent="a2", task_type="analysis"
-        )
+        hc = HandoffContext(task_id="t1", from_agent="a1", to_agent="a2", task_type="analysis")
         hc.add_to_chain("a1")
         hc.add_to_chain("a2")
         hc.add_to_chain("a1")  # duplicate, should not be added
@@ -1630,9 +1717,13 @@ class TestSwarmDataStructuresDeep:
     def test_auction_bid_score_property(self):
         """AuctionBid.score = 0.3*bid + 0.25*conf + 0.25*spec + 0.2*(1-load)."""
         bid = AuctionBid(
-            agent_name="a1", task_id="t1",
-            bid_value=1.0, estimated_time=10.0,
-            confidence=1.0, specialization_match=1.0, current_load=0.0,
+            agent_name="a1",
+            task_id="t1",
+            bid_value=1.0,
+            estimated_time=10.0,
+            confidence=1.0,
+            specialization_match=1.0,
+            current_load=0.0,
         )
         # 0.3*1.0 + 0.25*1.0 + 0.25*1.0 + 0.2*(1-0) = 1.0
         assert bid.score == pytest.approx(1.0)
@@ -1640,9 +1731,13 @@ class TestSwarmDataStructuresDeep:
     def test_auction_bid_score_partial_values(self):
         """AuctionBid.score with partial values computes correctly."""
         bid = AuctionBid(
-            agent_name="a1", task_id="t1",
-            bid_value=0.5, estimated_time=10.0,
-            confidence=0.5, specialization_match=0.5, current_load=0.5,
+            agent_name="a1",
+            task_id="t1",
+            bid_value=0.5,
+            estimated_time=10.0,
+            confidence=0.5,
+            specialization_match=0.5,
+            current_load=0.5,
         )
         expected = 0.3 * 0.5 + 0.25 * 0.5 + 0.25 * 0.5 + 0.2 * 0.5
         assert bid.score == pytest.approx(expected)
@@ -1652,8 +1747,11 @@ class TestSwarmDataStructuresDeep:
     def test_gossip_message_mark_seen_decrements_ttl(self):
         """mark_seen decrements ttl and returns True if ttl > 0."""
         msg = GossipMessage(
-            message_id="m1", content={"info": "test"},
-            origin_agent="a1", message_type="info", ttl=3,
+            message_id="m1",
+            content={"info": "test"},
+            origin_agent="a1",
+            message_type="info",
+            ttl=3,
         )
         assert msg.mark_seen("a2") is True  # ttl goes to 2
         assert msg.ttl == 2
@@ -1662,8 +1760,11 @@ class TestSwarmDataStructuresDeep:
     def test_gossip_message_mark_seen_returns_false_when_already_seen(self):
         """mark_seen returns False if agent already in seen_by."""
         msg = GossipMessage(
-            message_id="m1", content={},
-            origin_agent="a1", message_type="info", ttl=3,
+            message_id="m1",
+            content={},
+            origin_agent="a1",
+            message_type="info",
+            ttl=3,
         )
         msg.mark_seen("a2")
         assert msg.mark_seen("a2") is False
@@ -1672,8 +1773,11 @@ class TestSwarmDataStructuresDeep:
     def test_gossip_message_mark_seen_returns_false_when_ttl_exhausted(self):
         """mark_seen returns False when ttl reaches 0."""
         msg = GossipMessage(
-            message_id="m1", content={},
-            origin_agent="a1", message_type="info", ttl=1,
+            message_id="m1",
+            content={},
+            origin_agent="a1",
+            message_type="info",
+            ttl=1,
         )
         # ttl goes from 1 to 0, should return False (no more propagation)
         assert msg.mark_seen("a2") is False
@@ -1705,6 +1809,7 @@ class TestSwarmDataStructuresDeep:
 # =============================================================================
 # TestSubtaskState (12 tests)
 # =============================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_SWARM_ROADMAP, reason="swarm_roadmap not importable")
@@ -1805,6 +1910,7 @@ class TestSubtaskState:
 # TestSwarmTaskBoard (25 tests)
 # =============================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_SWARM_ROADMAP, reason="swarm_roadmap not importable")
 class TestSwarmTaskBoard:
@@ -1891,7 +1997,7 @@ class TestSwarmTaskBoard:
         mock_predictor = Mock()
         # Return higher Q-value for t2
         mock_predictor.predict_q_value.side_effect = lambda state, action, goal: (
-            (0.9, None, None) if action['actor'] == 'a2' else (0.3, None, None)
+            (0.9, None, None) if action["actor"] == "a2" else (0.3, None, None)
         )
         result = board.get_next_task(
             q_predictor=mock_predictor,
@@ -2078,7 +2184,11 @@ class TestSwarmTaskBoard:
         assert board.subtasks["t1"].intermediary_values == {"llm_calls": 5, "time": 3.2}
         # Additional update merges
         board.record_intermediary_values("t1", {"blocks": 2})
-        assert board.subtasks["t1"].intermediary_values == {"llm_calls": 5, "time": 3.2, "blocks": 2}
+        assert board.subtasks["t1"].intermediary_values == {
+            "llm_calls": 5,
+            "time": 3.2,
+            "blocks": 2,
+        }
 
     def test_predict_next(self):
         """predict_next records prediction metadata on a task."""
@@ -2094,6 +2204,7 @@ class TestSwarmTaskBoard:
 # =============================================================================
 # TestDecomposedQFunction (15 tests)
 # =============================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_SWARM_ROADMAP, reason="swarm_roadmap not importable")
@@ -2115,7 +2226,7 @@ class TestDecomposedQFunction:
     def test_init_default_weights(self):
         """Default weights are task=0.5, explore=0.2, causal=0.15, safety=0.15."""
         qf = DecomposedQFunction()
-        assert qf.weights == {'task': 0.5, 'explore': 0.2, 'causal': 0.15, 'safety': 0.15}
+        assert qf.weights == {"task": 0.5, "explore": 0.2, "causal": 0.15, "safety": 0.15}
 
     def test_get_q_value_default_for_unknown(self):
         """get_q_value returns default 0.5 for unknown state-action pair."""
@@ -2155,7 +2266,7 @@ class TestDecomposedQFunction:
         qf = DecomposedQFunction()
         state = self._make_state(agent="a1", task="t1")
         next_state = self._make_state(agent="a1", task="t2")
-        rewards = {'task': 1.0, 'explore': 0.5, 'causal': 0.3, 'safety': 0.8}
+        rewards = {"task": 1.0, "explore": 0.5, "causal": 0.3, "safety": 0.8}
         qf.update(state, "proceed", rewards, next_state, gamma=0.95)
         # All tables should have been updated (no longer at default)
         key = (state.to_key(), "proceed")
@@ -2169,7 +2280,7 @@ class TestDecomposedQFunction:
         qf = DecomposedQFunction()
         state = self._make_state()
         next_state = self._make_state(agent="a1", task="next")
-        rewards = {'task': 1.0, 'explore': 0.0, 'causal': 0.0, 'safety': 0.0}
+        rewards = {"task": 1.0, "explore": 0.0, "causal": 0.0, "safety": 0.0}
         qf.update(state, "proceed", rewards, next_state, gamma=0.0)
         key = (state.to_key(), "proceed")
         # TD target = reward + 0*max_next = 1.0
@@ -2181,28 +2292,28 @@ class TestDecomposedQFunction:
         qf = DecomposedQFunction()
         state = self._make_state()
         actions = qf._get_possible_actions(state)
-        assert actions == ['proceed', 'retry', 'refine', 'escalate']
+        assert actions == ["proceed", "retry", "refine", "escalate"]
 
     def test_adjust_weights_exploration(self):
         """adjust_weights('exploration') boosts explore weight."""
         qf = DecomposedQFunction()
-        qf.adjust_weights('exploration')
-        assert qf.weights['explore'] == 0.4
-        assert qf.weights['task'] == 0.3
+        qf.adjust_weights("exploration")
+        assert qf.weights["explore"] == 0.4
+        assert qf.weights["task"] == 0.3
 
     def test_adjust_weights_exploitation(self):
         """adjust_weights('exploitation') boosts task weight."""
         qf = DecomposedQFunction()
-        qf.adjust_weights('exploitation')
-        assert qf.weights['task'] == 0.6
-        assert qf.weights['explore'] == 0.1
+        qf.adjust_weights("exploitation")
+        assert qf.weights["task"] == 0.6
+        assert qf.weights["explore"] == 0.1
 
     def test_adjust_weights_safety_critical(self):
         """adjust_weights('safety_critical') boosts safety weight."""
         qf = DecomposedQFunction()
-        qf.adjust_weights('safety_critical')
-        assert qf.weights['safety'] == 0.5
-        assert qf.weights['task'] == 0.3
+        qf.adjust_weights("safety_critical")
+        assert qf.weights["safety"] == 0.5
+        assert qf.weights["task"] == 0.3
 
     def test_get_action_ranking(self):
         """get_action_ranking ranks actions by combined Q-value descending."""
@@ -2224,7 +2335,7 @@ class TestDecomposedQFunction:
         key = (state.to_key(), "proceed")
         qf.q_task[key] = 0.75
         qf.q_explore[key] = 0.42
-        qf.adjust_weights('exploration')
+        qf.adjust_weights("exploration")
 
         data = qf.to_dict()
         qf2 = DecomposedQFunction.from_dict(data)
@@ -2249,6 +2360,7 @@ class TestDecomposedQFunction:
 # TestThoughtLevelCredit (12 tests)
 # =============================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_SWARM_ROADMAP, reason="swarm_roadmap not importable")
 class TestThoughtLevelCredit:
@@ -2263,7 +2375,9 @@ class TestThoughtLevelCredit:
 
     def test_init_custom_weights(self):
         """Init accepts custom weights via config."""
-        tlc = ThoughtLevelCredit({'temporal_weight': 0.5, 'tool_weight': 0.3, 'decision_weight': 0.2})
+        tlc = ThoughtLevelCredit(
+            {"temporal_weight": 0.5, "tool_weight": 0.3, "decision_weight": 0.2}
+        )
         assert tlc.temporal_weight == 0.5
         assert tlc.tool_weight == 0.3
         assert tlc.decision_weight == 0.2
@@ -2379,6 +2493,7 @@ class TestThoughtLevelCredit:
 # TestSwarmIntelligence (20 tests)
 # =============================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_SWARM_INTELLIGENCE, reason="SwarmIntelligence not importable")
 class TestSwarmIntelligence:
@@ -2439,14 +2554,14 @@ class TestSwarmIntelligence:
         """record_task_result deposits stigmergy success signal on success."""
         si = SwarmIntelligence()
         si.record_task_result("agent_a", "analysis", True, 1.0)
-        signals = si.stigmergy.sense(signal_type='success')
+        signals = si.stigmergy.sense(signal_type="success")
         assert len(signals) > 0
 
     def test_record_task_result_deposits_warning_signal(self):
         """record_task_result deposits stigmergy warning signal on failure."""
         si = SwarmIntelligence()
         si.record_task_result("agent_a", "analysis", False, 1.0)
-        signals = si.stigmergy.sense(signal_type='warning')
+        signals = si.stigmergy.sense(signal_type="warning")
         assert len(signals) > 0
 
     def test_get_agent_specialization_default(self):
@@ -2494,8 +2609,8 @@ class TestSwarmIntelligence:
         """deposit_success_signal creates success and route signals."""
         si = SwarmIntelligence()
         si.deposit_success_signal("agent_a", "analysis", 2.0)
-        success_signals = si.stigmergy.sense(signal_type='success')
-        route_signals = si.stigmergy.sense(signal_type='route')
+        success_signals = si.stigmergy.sense(signal_type="success")
+        route_signals = si.stigmergy.sense(signal_type="route")
         assert len(success_signals) > 0
         assert len(route_signals) > 0
 
@@ -2503,7 +2618,7 @@ class TestSwarmIntelligence:
         """deposit_warning_signal creates warning signal."""
         si = SwarmIntelligence()
         si.deposit_warning_signal("agent_a", "analysis", "Task timed out")
-        signals = si.stigmergy.sense(signal_type='warning')
+        signals = si.stigmergy.sense(signal_type="warning")
         assert len(signals) > 0
 
     def test_get_swarm_wisdom_returns_dict(self):
@@ -2557,8 +2672,8 @@ class TestSwarmIntelligence:
 
     def test_save_and_load_roundtrip(self):
         """save and load preserve agent profiles and collective memory."""
-        import tempfile
         import os
+        import tempfile
 
         si = SwarmIntelligence()
         si.record_task_result("agent_a", "analysis", True, 2.5)
@@ -2584,6 +2699,7 @@ class TestSwarmIntelligence:
 # =============================================================================
 # TestAgentStateTracker (12 tests)
 # =============================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_SWARM_STATE_MANAGER, reason="swarm_state_manager not importable")

@@ -4,14 +4,15 @@ PDF Tools Skill
 Comprehensive PDF toolkit using pdfplumber, pypdf, and reportlab.
 Provides tools for extracting, manipulating, and creating PDF files.
 """
-import os
-import logging
+
 import json
-from typing import Dict, Any, List, Optional, Union
+import logging
+import os
 from datetime import datetime
+from typing import Any, Dict, List, Optional, Union
 
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("pdf-tools")
@@ -22,6 +23,7 @@ logger = logging.getLogger(__name__)
 
 class PDFToolsError(Exception):
     """Base exception for PDF tools errors."""
+
     pass
 
 
@@ -36,10 +38,12 @@ class PDFExtractor:
         """Validate that the file exists and is a PDF."""
         if not os.path.exists(self.file_path):
             raise PDFToolsError(f"File not found: {self.file_path}")
-        if not self.file_path.lower().endswith('.pdf'):
+        if not self.file_path.lower().endswith(".pdf"):
             raise PDFToolsError(f"File is not a PDF: {self.file_path}")
 
-    def extract_text(self, pages: Optional[List[int]] = None, layout: bool = False) -> Dict[str, Any]:
+    def extract_text(
+        self, pages: Optional[List[int]] = None, layout: bool = False
+    ) -> Dict[str, Any]:
         """Extract text from PDF pages."""
         try:
             import pdfplumber
@@ -63,21 +67,19 @@ class PDFExtractor:
                 else:
                     text = page.extract_text() or ""
 
-                extracted_text.append({
-                    'page': page_num + 1,
-                    'text': text
-                })
+                extracted_text.append({"page": page_num + 1, "text": text})
 
         return {
-            'success': True,
-            'file_path': self.file_path,
-            'total_pages': page_count,
-            'extracted_pages': len(extracted_text),
-            'content': extracted_text
+            "success": True,
+            "file_path": self.file_path,
+            "total_pages": page_count,
+            "extracted_pages": len(extracted_text),
+            "content": extracted_text,
         }
 
-    def extract_tables(self, pages: Optional[List[int]] = None,
-                       output_format: str = 'json') -> Dict[str, Any]:
+    def extract_tables(
+        self, pages: Optional[List[int]] = None, output_format: str = "json"
+    ) -> Dict[str, Any]:
         """Extract tables from PDF pages."""
         try:
             import pdfplumber
@@ -104,34 +106,34 @@ class PDFExtractor:
                     headers = table[0]
                     rows = table[1:]
 
-                    if output_format == 'json':
+                    if output_format == "json":
                         table_data = [
-                            {headers[i] if i < len(headers) else f'col_{i}':
-                             cell for i, cell in enumerate(row)}
+                            {
+                                headers[i] if i < len(headers) else f"col_{i}": cell
+                                for i, cell in enumerate(row)
+                            }
                             for row in rows
                         ]
-                    elif output_format == 'csv':
-                        csv_lines = [','.join(str(h) for h in headers)]
+                    elif output_format == "csv":
+                        csv_lines = [",".join(str(h) for h in headers)]
                         for row in rows:
-                            csv_lines.append(','.join(str(cell) if cell else '' for cell in row))
-                        table_data = '\n'.join(csv_lines)
-                    elif output_format == 'dataframe':
-                        table_data = {'headers': headers, 'rows': rows}
+                            csv_lines.append(",".join(str(cell) if cell else "" for cell in row))
+                        table_data = "\n".join(csv_lines)
+                    elif output_format == "dataframe":
+                        table_data = {"headers": headers, "rows": rows}
                     else:
-                        table_data = {'headers': headers, 'rows': rows}
+                        table_data = {"headers": headers, "rows": rows}
 
-                    all_tables.append({
-                        'page': page_num + 1,
-                        'table_index': table_idx,
-                        'data': table_data
-                    })
+                    all_tables.append(
+                        {"page": page_num + 1, "table_index": table_idx, "data": table_data}
+                    )
 
         return {
-            'success': True,
-            'file_path': self.file_path,
-            'table_count': len(all_tables),
-            'output_format': output_format,
-            'tables': all_tables
+            "success": True,
+            "file_path": self.file_path,
+            "table_count": len(all_tables),
+            "output_format": output_format,
+            "tables": all_tables,
         }
 
 
@@ -142,17 +144,17 @@ class PDFManipulator:
     def merge_pdfs(file_paths: List[str], output_path: str) -> Dict[str, Any]:
         """Merge multiple PDF files into one."""
         try:
-            from pypdf import PdfWriter, PdfReader
+            from pypdf import PdfReader, PdfWriter
         except ImportError:
             raise PDFToolsError("pypdf not installed. Install with: pip install pypdf")
 
         for path in file_paths:
             if not os.path.exists(path):
                 raise PDFToolsError(f"File not found: {path}")
-            if not path.lower().endswith('.pdf'):
+            if not path.lower().endswith(".pdf"):
                 raise PDFToolsError(f"File is not a PDF: {path}")
 
-        os.makedirs(os.path.dirname(output_path) or '.', exist_ok=True)
+        os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
 
         writer = PdfWriter()
         total_pages = 0
@@ -163,22 +165,21 @@ class PDFManipulator:
                 writer.add_page(page)
                 total_pages += 1
 
-        with open(output_path, 'wb') as output_file:
+        with open(output_path, "wb") as output_file:
             writer.write(output_file)
 
         return {
-            'success': True,
-            'output_path': output_path,
-            'merged_files': len(file_paths),
-            'total_pages': total_pages
+            "success": True,
+            "output_path": output_path,
+            "merged_files": len(file_paths),
+            "total_pages": total_pages,
         }
 
     @staticmethod
-    def split_pdf(file_path: str, pages: Union[List[int], str],
-                  output_dir: str) -> Dict[str, Any]:
+    def split_pdf(file_path: str, pages: Union[List[int], str], output_dir: str) -> Dict[str, Any]:
         """Split PDF into separate files."""
         try:
-            from pypdf import PdfWriter, PdfReader
+            from pypdf import PdfReader, PdfWriter
         except ImportError:
             raise PDFToolsError("pypdf not installed. Install with: pip install pypdf")
 
@@ -191,11 +192,11 @@ class PDFManipulator:
         total_pages = len(reader.pages)
 
         if isinstance(pages, str):
-            if '-' in pages:
-                start, end = map(int, pages.split('-'))
+            if "-" in pages:
+                start, end = map(int, pages.split("-"))
                 page_list = list(range(start - 1, min(end, total_pages)))
             else:
-                page_list = [int(p) - 1 for p in pages.split(',')]
+                page_list = [int(p) - 1 for p in pages.split(",")]
         else:
             page_list = [p - 1 if p > 0 else p for p in pages]
 
@@ -210,26 +211,29 @@ class PDFManipulator:
             writer.add_page(reader.pages[page_num])
 
             output_path = os.path.join(output_dir, f"{base_name}_page_{page_num + 1}.pdf")
-            with open(output_path, 'wb') as output_file:
+            with open(output_path, "wb") as output_file:
                 writer.write(output_file)
 
             output_files.append(output_path)
 
         return {
-            'success': True,
-            'source_file': file_path,
-            'output_dir': output_dir,
-            'files_created': len(output_files),
-            'output_files': output_files
+            "success": True,
+            "source_file": file_path,
+            "output_dir": output_dir,
+            "files_created": len(output_files),
+            "output_files": output_files,
         }
 
     @staticmethod
-    def rotate_pages(file_path: str, rotation: int,
-                     pages: Optional[List[int]] = None,
-                     output_path: Optional[str] = None) -> Dict[str, Any]:
+    def rotate_pages(
+        file_path: str,
+        rotation: int,
+        pages: Optional[List[int]] = None,
+        output_path: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """Rotate pages in a PDF."""
         try:
-            from pypdf import PdfWriter, PdfReader
+            from pypdf import PdfReader, PdfWriter
         except ImportError:
             raise PDFToolsError("pypdf not installed. Install with: pip install pypdf")
 
@@ -243,7 +247,9 @@ class PDFManipulator:
         writer = PdfWriter()
         total_pages = len(reader.pages)
 
-        target_pages = set(p - 1 if p > 0 else p for p in pages) if pages else set(range(total_pages))
+        target_pages = (
+            set(p - 1 if p > 0 else p for p in pages) if pages else set(range(total_pages))
+        )
         rotated_count = 0
 
         for i, page in enumerate(reader.pages):
@@ -256,17 +262,17 @@ class PDFManipulator:
             base, ext = os.path.splitext(file_path)
             output_path = f"{base}_rotated{ext}"
 
-        os.makedirs(os.path.dirname(output_path) or '.', exist_ok=True)
+        os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
 
-        with open(output_path, 'wb') as output_file:
+        with open(output_path, "wb") as output_file:
             writer.write(output_file)
 
         return {
-            'success': True,
-            'output_path': output_path,
-            'rotation': rotation,
-            'pages_rotated': rotated_count,
-            'total_pages': total_pages
+            "success": True,
+            "output_path": output_path,
+            "rotation": rotation,
+            "pages_rotated": rotated_count,
+            "total_pages": total_pages,
         }
 
     @staticmethod
@@ -288,19 +294,19 @@ class PDFManipulator:
             for key in metadata:
                 value = metadata.get(key)
                 if value:
-                    clean_key = key.lstrip('/')
+                    clean_key = key.lstrip("/")
                     meta_dict[clean_key] = str(value)
 
         file_stats = os.stat(file_path)
 
         return {
-            'success': True,
-            'file_path': file_path,
-            'page_count': len(reader.pages),
-            'file_size_bytes': file_stats.st_size,
-            'file_size_mb': round(file_stats.st_size / (1024 * 1024), 2),
-            'metadata': meta_dict,
-            'is_encrypted': reader.is_encrypted
+            "success": True,
+            "file_path": file_path,
+            "page_count": len(reader.pages),
+            "file_size_bytes": file_stats.st_size,
+            "file_size_mb": round(file_stats.st_size / (1024 * 1024), 2),
+            "metadata": meta_dict,
+            "is_encrypted": reader.is_encrypted,
         }
 
 
@@ -308,29 +314,30 @@ class PDFCreator:
     """Handles PDF creation using reportlab."""
 
     @staticmethod
-    def create_pdf(content: str, output_path: str, title: Optional[str] = None,
-                   page_size: str = 'A4') -> Dict[str, Any]:
+    def create_pdf(
+        content: str, output_path: str, title: Optional[str] = None, page_size: str = "A4"
+    ) -> Dict[str, Any]:
         """Create a PDF from text or markdown content."""
         try:
-            from reportlab.lib.pagesizes import A4, LETTER, LEGAL, landscape, portrait
-            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-            from reportlab.lib.units import inch
-            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
             from reportlab.lib.colors import HexColor
+            from reportlab.lib.pagesizes import A4, LEGAL, LETTER, landscape, portrait
+            from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+            from reportlab.lib.units import inch
+            from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer
         except ImportError:
             raise PDFToolsError("reportlab not installed. Install with: pip install reportlab")
 
         page_sizes = {
-            'A4': A4,
-            'LETTER': LETTER,
-            'LEGAL': LEGAL,
-            'A4-LANDSCAPE': landscape(A4),
-            'LETTER-LANDSCAPE': landscape(LETTER)
+            "A4": A4,
+            "LETTER": LETTER,
+            "LEGAL": LEGAL,
+            "A4-LANDSCAPE": landscape(A4),
+            "LETTER-LANDSCAPE": landscape(LETTER),
         }
 
         selected_size = page_sizes.get(page_size.upper(), A4)
 
-        os.makedirs(os.path.dirname(output_path) or '.', exist_ok=True)
+        os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
 
         doc = SimpleDocTemplate(
             output_path,
@@ -338,34 +345,30 @@ class PDFCreator:
             rightMargin=0.75 * inch,
             leftMargin=0.75 * inch,
             topMargin=0.75 * inch,
-            bottomMargin=0.75 * inch
+            bottomMargin=0.75 * inch,
         )
 
         styles = getSampleStyleSheet()
 
         title_style = ParagraphStyle(
-            'CustomTitle',
-            parent=styles['Heading1'],
+            "CustomTitle",
+            parent=styles["Heading1"],
             fontSize=24,
             spaceAfter=20,
-            textColor=HexColor('#1e1e1e')
+            textColor=HexColor("#1e1e1e"),
         )
 
         heading_style = ParagraphStyle(
-            'CustomHeading',
-            parent=styles['Heading2'],
+            "CustomHeading",
+            parent=styles["Heading2"],
             fontSize=16,
             spaceBefore=15,
             spaceAfter=10,
-            textColor=HexColor('#333333')
+            textColor=HexColor("#333333"),
         )
 
         body_style = ParagraphStyle(
-            'CustomBody',
-            parent=styles['Normal'],
-            fontSize=11,
-            leading=16,
-            spaceAfter=10
+            "CustomBody", parent=styles["Normal"], fontSize=11, leading=16, spaceAfter=10
         )
 
         story = []
@@ -374,7 +377,7 @@ class PDFCreator:
             story.append(Paragraph(title, title_style))
             story.append(Spacer(1, 20))
 
-        lines = content.split('\n')
+        lines = content.split("\n")
 
         for line in lines:
             line = line.strip()
@@ -383,30 +386,26 @@ class PDFCreator:
                 story.append(Spacer(1, 10))
                 continue
 
-            if line.startswith('# '):
+            if line.startswith("# "):
                 story.append(Paragraph(line[2:], title_style))
-            elif line.startswith('## '):
+            elif line.startswith("## "):
                 story.append(Paragraph(line[3:], heading_style))
-            elif line.startswith('### '):
+            elif line.startswith("### "):
                 heading3_style = ParagraphStyle(
-                    'Heading3',
-                    parent=styles['Heading3'],
-                    fontSize=14,
-                    spaceBefore=12,
-                    spaceAfter=8
+                    "Heading3", parent=styles["Heading3"], fontSize=14, spaceBefore=12, spaceAfter=8
                 )
                 story.append(Paragraph(line[4:], heading3_style))
-            elif line.startswith('- ') or line.startswith('* '):
+            elif line.startswith("- ") or line.startswith("* "):
                 bullet_text = f"\u2022  {line[2:]}"
                 story.append(Paragraph(bullet_text, body_style))
-            elif line.startswith('---') or line.startswith('***'):
+            elif line.startswith("---") or line.startswith("***"):
                 story.append(Spacer(1, 10))
                 story.append(PageBreak())
             else:
-                safe_line = line.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-                if line.startswith('**') and line.endswith('**'):
+                safe_line = line.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                if line.startswith("**") and line.endswith("**"):
                     safe_line = f"<b>{safe_line[2:-2]}</b>"
-                elif line.startswith('*') and line.endswith('*'):
+                elif line.startswith("*") and line.endswith("*"):
                     safe_line = f"<i>{safe_line[1:-1]}</i>"
 
                 story.append(Paragraph(safe_line, body_style))
@@ -416,12 +415,12 @@ class PDFCreator:
         file_stats = os.stat(output_path)
 
         return {
-            'success': True,
-            'output_path': output_path,
-            'title': title,
-            'page_size': page_size,
-            'file_size_bytes': file_stats.st_size,
-            'file_size_mb': round(file_stats.st_size / (1024 * 1024), 2)
+            "success": True,
+            "output_path": output_path,
+            "title": title,
+            "page_size": page_size,
+            "file_size_bytes": file_stats.st_size,
+            "file_size_mb": round(file_stats.st_size / (1024 * 1024), 2),
         }
 
 
@@ -439,23 +438,23 @@ def extract_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success status, extracted text content by page
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
-    file_path = params.get('file_path')
+    file_path = params.get("file_path")
     if not file_path:
-        return {'success': False, 'error': 'file_path parameter is required'}
+        return {"success": False, "error": "file_path parameter is required"}
 
-    pages = params.get('pages')
-    layout = params.get('layout', False)
+    pages = params.get("pages")
+    layout = params.get("layout", False)
 
     try:
         extractor = PDFExtractor(file_path)
         return extractor.extract_text(pages=pages, layout=layout)
     except PDFToolsError as e:
-        return {'success': False, 'error': str(e)}
+        return {"success": False, "error": str(e)}
     except Exception as e:
         logger.error(f"Text extraction failed: {e}", exc_info=True)
-        return {'success': False, 'error': f'Text extraction failed: {str(e)}'}
+        return {"success": False, "error": f"Text extraction failed: {str(e)}"}
 
 
 @tool_wrapper()
@@ -472,26 +471,26 @@ def extract_tables_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success status, extracted tables
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
-    file_path = params.get('file_path')
+    file_path = params.get("file_path")
     if not file_path:
-        return {'success': False, 'error': 'file_path parameter is required'}
+        return {"success": False, "error": "file_path parameter is required"}
 
-    pages = params.get('pages')
-    output_format = params.get('output_format', 'json')
+    pages = params.get("pages")
+    output_format = params.get("output_format", "json")
 
-    if output_format not in ['json', 'csv', 'dataframe']:
-        return {'success': False, 'error': "output_format must be 'json', 'csv', or 'dataframe'"}
+    if output_format not in ["json", "csv", "dataframe"]:
+        return {"success": False, "error": "output_format must be 'json', 'csv', or 'dataframe'"}
 
     try:
         extractor = PDFExtractor(file_path)
         return extractor.extract_tables(pages=pages, output_format=output_format)
     except PDFToolsError as e:
-        return {'success': False, 'error': str(e)}
+        return {"success": False, "error": str(e)}
     except Exception as e:
         logger.error(f"Table extraction failed: {e}", exc_info=True)
-        return {'success': False, 'error': f'Table extraction failed: {str(e)}'}
+        return {"success": False, "error": f"Table extraction failed: {str(e)}"}
 
 
 @tool_wrapper()
@@ -507,27 +506,27 @@ def merge_pdfs_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success status, output path, file count
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
-    file_paths = params.get('file_paths')
-    output_path = params.get('output_path')
+    file_paths = params.get("file_paths")
+    output_path = params.get("output_path")
 
     if not file_paths:
-        return {'success': False, 'error': 'file_paths parameter is required (list of PDF paths)'}
+        return {"success": False, "error": "file_paths parameter is required (list of PDF paths)"}
     if not isinstance(file_paths, list):
-        return {'success': False, 'error': 'file_paths must be a list'}
+        return {"success": False, "error": "file_paths must be a list"}
     if len(file_paths) < 2:
-        return {'success': False, 'error': 'At least 2 PDF files are required for merging'}
+        return {"success": False, "error": "At least 2 PDF files are required for merging"}
     if not output_path:
-        return {'success': False, 'error': 'output_path parameter is required'}
+        return {"success": False, "error": "output_path parameter is required"}
 
     try:
         return PDFManipulator.merge_pdfs(file_paths, output_path)
     except PDFToolsError as e:
-        return {'success': False, 'error': str(e)}
+        return {"success": False, "error": str(e)}
     except Exception as e:
         logger.error(f"PDF merge failed: {e}", exc_info=True)
-        return {'success': False, 'error': f'PDF merge failed: {str(e)}'}
+        return {"success": False, "error": f"PDF merge failed: {str(e)}"}
 
 
 @tool_wrapper()
@@ -545,25 +544,25 @@ def split_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success status, output files list
     """
-    status.set_callback(params.pop('_status_callback', None))
-    file_path = params.get('file_path')
-    pages = params.get('pages')
-    output_dir = params.get('output_dir')
+    status.set_callback(params.pop("_status_callback", None))
+    file_path = params.get("file_path")
+    pages = params.get("pages")
+    output_dir = params.get("output_dir")
 
     if not file_path:
-        return {'success': False, 'error': 'file_path parameter is required'}
+        return {"success": False, "error": "file_path parameter is required"}
     if not pages:
-        return {'success': False, 'error': 'pages parameter is required (list or range string)'}
+        return {"success": False, "error": "pages parameter is required (list or range string)"}
     if not output_dir:
-        return {'success': False, 'error': 'output_dir parameter is required'}
+        return {"success": False, "error": "output_dir parameter is required"}
 
     try:
         return PDFManipulator.split_pdf(file_path, pages, output_dir)
     except PDFToolsError as e:
-        return {'success': False, 'error': str(e)}
+        return {"success": False, "error": str(e)}
     except Exception as e:
         logger.error(f"PDF split failed: {e}", exc_info=True)
-        return {'success': False, 'error': f'PDF split failed: {str(e)}'}
+        return {"success": False, "error": f"PDF split failed: {str(e)}"}
 
 
 @tool_wrapper()
@@ -578,19 +577,19 @@ def get_metadata_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success status, page count, file size, metadata
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
-    file_path = params.get('file_path')
+    file_path = params.get("file_path")
     if not file_path:
-        return {'success': False, 'error': 'file_path parameter is required'}
+        return {"success": False, "error": "file_path parameter is required"}
 
     try:
         return PDFManipulator.get_metadata(file_path)
     except PDFToolsError as e:
-        return {'success': False, 'error': str(e)}
+        return {"success": False, "error": str(e)}
     except Exception as e:
         logger.error(f"Metadata extraction failed: {e}", exc_info=True)
-        return {'success': False, 'error': f'Metadata extraction failed: {str(e)}'}
+        return {"success": False, "error": f"Metadata extraction failed: {str(e)}"}
 
 
 @tool_wrapper()
@@ -610,31 +609,31 @@ def rotate_pages_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success status, output path, rotation info
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
-    file_path = params.get('file_path')
-    rotation = params.get('rotation')
+    file_path = params.get("file_path")
+    rotation = params.get("rotation")
 
     if not file_path:
-        return {'success': False, 'error': 'file_path parameter is required'}
+        return {"success": False, "error": "file_path parameter is required"}
     if not rotation:
-        return {'success': False, 'error': 'rotation parameter is required (90, 180, or 270)'}
+        return {"success": False, "error": "rotation parameter is required (90, 180, or 270)"}
 
     try:
         rotation = int(rotation)
     except (ValueError, TypeError):
-        return {'success': False, 'error': 'rotation must be an integer (90, 180, or 270)'}
+        return {"success": False, "error": "rotation must be an integer (90, 180, or 270)"}
 
-    pages = params.get('pages')
-    output_path = params.get('output_path')
+    pages = params.get("pages")
+    output_path = params.get("output_path")
 
     try:
         return PDFManipulator.rotate_pages(file_path, rotation, pages, output_path)
     except PDFToolsError as e:
-        return {'success': False, 'error': str(e)}
+        return {"success": False, "error": str(e)}
     except Exception as e:
         logger.error(f"Page rotation failed: {e}", exc_info=True)
-        return {'success': False, 'error': f'Page rotation failed: {str(e)}'}
+        return {"success": False, "error": f"Page rotation failed: {str(e)}"}
 
 
 @tool_wrapper()
@@ -659,23 +658,23 @@ def create_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         - **bold** and *italic* text
         - --- or *** for page breaks
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
-    content = params.get('content')
-    output_path = params.get('output_path')
+    content = params.get("content")
+    output_path = params.get("output_path")
 
     if not content:
-        return {'success': False, 'error': 'content parameter is required'}
+        return {"success": False, "error": "content parameter is required"}
     if not output_path:
-        return {'success': False, 'error': 'output_path parameter is required'}
+        return {"success": False, "error": "output_path parameter is required"}
 
-    title = params.get('title')
-    page_size = params.get('page_size', 'A4')
+    title = params.get("title")
+    page_size = params.get("page_size", "A4")
 
     try:
         return PDFCreator.create_pdf(content, output_path, title, page_size)
     except PDFToolsError as e:
-        return {'success': False, 'error': str(e)}
+        return {"success": False, "error": str(e)}
     except Exception as e:
         logger.error(f"PDF creation failed: {e}", exc_info=True)
-        return {'success': False, 'error': f'PDF creation failed: {str(e)}'}
+        return {"success": False, "error": f"PDF creation failed: {str(e)}"}

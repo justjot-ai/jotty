@@ -10,14 +10,14 @@ Consolidates data structures from:
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional, List, Any
+from typing import Any, List, Optional
 
 from ..utils.tokenizer import SmartTokenizer
-
 
 # =============================================================================
 # PRIORITY LEVELS (Unified from context_manager + global_context_guard)
 # =============================================================================
+
 
 class ContextPriority(Enum):
     """
@@ -25,15 +25,17 @@ class ContextPriority(Enum):
 
     Unified from multiple implementations with consistent values (0-3).
     """
-    CRITICAL = 0    # NEVER compress: current task, goal, critical memories
-    HIGH = 1        # Compress last: recent memories, errors, tool results
-    MEDIUM = 2      # Compress when needed: trajectory, history (default)
-    LOW = 3         # Compress first: verbose logs, old memories
+
+    CRITICAL = 0  # NEVER compress: current task, goal, critical memories
+    HIGH = 1  # Compress last: recent memories, errors, tool results
+    MEDIUM = 2  # Compress when needed: trajectory, history (default)
+    LOW = 3  # Compress first: verbose logs, old memories
 
 
 # =============================================================================
 # CONTEXT CHUNKS (Unified from context_manager + content_gate)
 # =============================================================================
+
 
 @dataclass
 class ContextChunk:
@@ -44,6 +46,7 @@ class ContextChunk:
     - context_manager.ContextChunk (priority, compression tracking)
     - content_gate.ContentChunk (relevance scoring, chunk indexing)
     """
+
     content: str
     priority: ContextPriority
     category: str  # "task", "todo", "memory", "trajectory", "tool_result"
@@ -76,6 +79,7 @@ class ProcessedContent:
 
     Tracks chunking and compression results.
     """
+
     content: str
     was_chunked: bool
     original_tokens: int
@@ -92,6 +96,7 @@ class ProcessedContent:
 # OVERFLOW DETECTION (from global_context_guard)
 # =============================================================================
 
+
 @dataclass
 class ContextOverflowInfo:
     """
@@ -99,6 +104,7 @@ class ContextOverflowInfo:
 
     From global_context_guard - best structural detection implementation.
     """
+
     is_overflow: bool
     detected_tokens: Optional[int] = None
     max_allowed: Optional[int] = None
@@ -109,6 +115,7 @@ class ContextOverflowInfo:
 # =============================================================================
 # COMPRESSION CONFIGURATION (NEW - unified config)
 # =============================================================================
+
 
 @dataclass
 class CompressionConfig:
@@ -152,10 +159,10 @@ class ChunkingConfig:
 # =============================================================================
 
 __all__ = [
-    'ContextPriority',
-    'ContextChunk',
-    'ProcessedContent',
-    'ContextOverflowInfo',
-    'CompressionConfig',
-    'ChunkingConfig',
+    "ContextPriority",
+    "ContextChunk",
+    "ProcessedContent",
+    "ContextOverflowInfo",
+    "CompressionConfig",
+    "ChunkingConfig",
 ]

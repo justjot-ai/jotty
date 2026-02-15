@@ -25,22 +25,14 @@ Example:
     print(idea.to_dict())
 """
 
-import logging
 import json
-from typing import Dict, Any, Optional, List, Union
+import logging
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any, Dict, List, Optional, Union
 
-from .section_types import (
-    JustJotIdea,
-    JustJotSection,
-    DEFAULT_COLORS,
-    get_section_types_context,
-)
-from .transformers import (
-    SectionTransformer,
-    ChartTransformer,
-)
+from .section_types import DEFAULT_COLORS, JustJotIdea, JustJotSection, get_section_types_context
+from .transformers import ChartTransformer, SectionTransformer
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +40,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class VisualizationIdeaConfig:
     """Configuration for visualization idea creation."""
+
     # Section options
     include_data: bool = True
     include_chart: bool = True
@@ -71,6 +64,7 @@ class VisualizationIdeaConfig:
     def __post_init__(self) -> None:
         if not self.llm_model:
             from Jotty.core.infrastructure.foundation.config_defaults import DEFAULT_MODEL_ALIAS
+
             self.llm_model = DEFAULT_MODEL_ALIAS
 
 
@@ -113,10 +107,18 @@ class JustJotIdeaBuilder:
         """Lazy import of core.llm.generate."""
         if self._llm_generate is None:
             from core.llm import generate
+
             self._llm_generate = generate
         return self._llm_generate
 
-    def create_visualization_idea(self, question: str, title: str = None, description: str = None, tags: List[str] = None, **kwargs: Any) -> JustJotIdea:
+    def create_visualization_idea(
+        self,
+        question: str,
+        title: str = None,
+        description: str = None,
+        tags: List[str] = None,
+        **kwargs: Any,
+    ) -> JustJotIdea:
         """
         Create a complete visualization idea from a natural language question.
 
@@ -137,23 +139,19 @@ class JustJotIdeaBuilder:
             )
         """
         # Merge kwargs with config
-        include_data = kwargs.get('include_data', self.config.include_data)
-        include_chart = kwargs.get('include_chart', self.config.include_chart)
-        include_code = kwargs.get('include_code', self.config.include_code)
-        include_insights = kwargs.get('include_insights', self.config.include_insights)
+        include_data = kwargs.get("include_data", self.config.include_data)
+        include_chart = kwargs.get("include_chart", self.config.include_chart)
+        include_code = kwargs.get("include_code", self.config.include_code)
+        include_insights = kwargs.get("include_insights", self.config.include_insights)
 
         # Get the data
         df = self.viz_layer.data_source.query("").to_dataframe()
 
         # Generate visualization
         logger.info(f"Generating visualization for: {question}")
-        library = kwargs.get('library', 'plotly' if self.config.interactive else 'matplotlib')
+        library = kwargs.get("library", "plotly" if self.config.interactive else "matplotlib")
 
-        charts = self.viz_layer.visualize(
-            question=question,
-            library=library,
-            n=1
-        )
+        charts = self.viz_layer.visualize(question=question, library=library, n=1)
 
         if not charts or not charts[0].success:
             error = charts[0].error if charts else "No charts generated"
@@ -173,7 +171,7 @@ class JustJotIdeaBuilder:
             description=description or f"AI-generated visualization for: {question}",
             tags=tags or ["lida", "visualization", "ai-generated"],
             template_name="Blank",
-            status="Draft"
+            status="Draft",
         )
 
         # Add sections based on config
@@ -207,11 +205,7 @@ class JustJotIdeaBuilder:
         return idea
 
     def create_dashboard_idea(
-        self,
-        user_request: str,
-        num_charts: int = 4,
-        title: str = None,
-        tags: List[str] = None
+        self, user_request: str, num_charts: int = 4, title: str = None, tags: List[str] = None
     ) -> JustJotIdea:
         """
         Create a multi-chart dashboard idea.
@@ -231,19 +225,19 @@ class JustJotIdeaBuilder:
         df = self.viz_layer.data_source.query("").to_dataframe()
 
         # Create dashboard
-        library = 'plotly' if self.config.interactive else 'matplotlib'
+        library = "plotly" if self.config.interactive else "matplotlib"
         planner = DashboardPlanner(
             self.viz_layer,
             library=library,
             provider=self.config.llm_provider,
-            model=self.config.llm_model
+            model=self.config.llm_model,
         )
 
         dashboard = planner.create_dashboard(
             user_request,
             num_charts=num_charts,
             include_insights=True,
-            include_summary=self.config.include_executive_summary
+            include_summary=self.config.include_executive_summary,
         )
 
         if not dashboard.success:
@@ -255,14 +249,13 @@ class JustJotIdeaBuilder:
             description=dashboard.plan.description,
             tags=tags or ["dashboard", "lida", "ai-generated"],
             template_name="Blank",
-            status="Draft"
+            status="Draft",
         )
 
         # Add executive summary
         if dashboard.executive_summary:
             summary_section = self.section_transformer.transform_text(
-                dashboard.executive_summary,
-                "Executive Summary"
+                dashboard.executive_summary, "Executive Summary"
             )
             idea.add_section(summary_section)
 
@@ -276,18 +269,14 @@ class JustJotIdeaBuilder:
             if cwi.chart and cwi.chart.success:
                 # Chart section
                 chart_section = self._create_chart_section(
-                    cwi.chart,
-                    df,
-                    cwi.title,
-                    interactive_html=cwi.interactive_html
+                    cwi.chart, df, cwi.title, interactive_html=cwi.interactive_html
                 )
                 idea.add_section(chart_section)
 
                 # Insight for this chart
                 if cwi.insight:
                     insight_section = self.section_transformer.transform_text(
-                        cwi.insight,
-                        f"Insight: {cwi.title}"
+                        cwi.insight, f"Insight: {cwi.title}"
                     )
                     idea.add_section(insight_section)
 
@@ -296,13 +285,12 @@ class JustJotIdeaBuilder:
     def _create_data_section(self, df: Any) -> JustJotSection:
         """Create data table section."""
         return self.section_transformer.transform_dataframe(
-            df,
-            section_type='data-table',
-            title="Source Data",
-            max_rows=self.config.max_data_rows
+            df, section_type="data-table", title="Source Data", max_rows=self.config.max_data_rows
         )
 
-    def _create_chart_section(self, chart: Any, df: Any, title: str, interactive_html: str = None) -> JustJotSection:
+    def _create_chart_section(
+        self, chart: Any, df: Any, title: str, interactive_html: str = None
+    ) -> JustJotSection:
         """Create chart section based on config."""
         # If we have interactive HTML and config wants it, use HTML section
         if interactive_html and self.config.interactive:
@@ -313,7 +301,7 @@ class JustJotIdeaBuilder:
 
     def _create_code_section(self, chart: Any) -> JustJotSection:
         """Create code section."""
-        code = getattr(chart, 'code', '') or ''
+        code = getattr(chart, "code", "") or ""
         return self.section_transformer.transform_code(code, "Visualization Code")
 
     def _create_insight_section(self, question: str, chart: Any, df: Any) -> JustJotSection:
@@ -342,7 +330,7 @@ Keep it concise and professional. No markdown formatting."""
             prompt=prompt,
             provider=self.config.llm_provider,
             model=self.config.llm_model,
-            timeout=60
+            timeout=60,
         )
 
         insight_text = response.text if response.success else "Insight generation failed."
@@ -354,31 +342,26 @@ Keep it concise and professional. No markdown formatting."""
         # Try to extract from chart code
         if chart.code:
             import re
+
             title_match = re.search(r'title\s*=\s*[\'"]([^\'"]+)[\'"]', chart.code)
             if title_match:
                 return title_match.group(1)
 
         # Generate from question
         words = question.split()[:6]
-        return ' '.join(words).title()
+        return " ".join(words).title()
 
-    def _create_error_idea(
-        self,
-        question: str,
-        error: str,
-        tags: List[str] = None
-    ) -> JustJotIdea:
+    def _create_error_idea(self, question: str, error: str, tags: List[str] = None) -> JustJotIdea:
         """Create an idea with error message."""
         idea = JustJotIdea(
             title=f"Failed: {question[:50]}",
             description=f"Visualization generation failed: {error}",
             tags=tags or ["error", "lida"],
-            status="Draft"
+            status="Draft",
         )
 
         error_section = self.section_transformer.transform_text(
-            f"## Error\n\nVisualization generation failed:\n\n```\n{error}\n```",
-            "Error Details"
+            f"## Error\n\nVisualization generation failed:\n\n```\n{error}\n```", "Error Details"
         )
         idea.add_section(error_section)
 
@@ -399,11 +382,11 @@ Keep it concise and professional. No markdown formatting."""
             "sections": [
                 {
                     "title": s.title,
-                    "type": s.type.value if hasattr(s.type, 'value') else s.type,
-                    "content": s.content
+                    "type": s.type.value if hasattr(s.type, "value") else s.type,
+                    "content": s.content,
                 }
                 for s in idea.sections
-            ]
+            ],
         }
 
 
@@ -411,7 +394,10 @@ Keep it concise and professional. No markdown formatting."""
 # Convenience Functions
 # ============================================
 
-def create_quick_visualization_idea(df: Any, question: str, title: str = None, interactive: bool = True) -> JustJotIdea:
+
+def create_quick_visualization_idea(
+    df: Any, question: str, title: str = None, interactive: bool = True
+) -> JustJotIdea:
     """
     Quick function to create a visualization idea from DataFrame.
 
@@ -433,7 +419,9 @@ def create_quick_visualization_idea(df: Any, question: str, title: str = None, i
     return builder.create_visualization_idea(question, title=title)
 
 
-def create_quick_dashboard_idea(df: Any, user_request: str, num_charts: int = 4, title: str = None) -> JustJotIdea:
+def create_quick_dashboard_idea(
+    df: Any, user_request: str, num_charts: int = 4, title: str = None
+) -> JustJotIdea:
     """
     Quick function to create a dashboard idea from DataFrame.
 
@@ -449,14 +437,7 @@ def create_quick_dashboard_idea(df: Any, user_request: str, num_charts: int = 4,
     from ..layer import VisualizationLayer
 
     viz = VisualizationLayer.from_dataframe(df)
-    config = VisualizationIdeaConfig(
-        interactive=True,
-        include_executive_summary=True
-    )
+    config = VisualizationIdeaConfig(interactive=True, include_executive_summary=True)
     builder = JustJotIdeaBuilder(viz, config)
 
-    return builder.create_dashboard_idea(
-        user_request,
-        num_charts=num_charts,
-        title=title
-    )
+    return builder.create_dashboard_idea(user_request, num_charts=num_charts, title=title)

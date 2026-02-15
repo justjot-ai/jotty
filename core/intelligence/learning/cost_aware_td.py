@@ -9,7 +9,7 @@ DRY PRINCIPLE: Extends existing TDLambdaLearner (no code duplication).
 """
 
 import logging
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -49,18 +49,24 @@ class CostAwareTDLambda:
         """
         # DRY: Import and wrap existing learner
         from Jotty.core.intelligence.learning import get_td_lambda
+
         self.base_learner = get_td_lambda()
 
         self.cost_sensitivity = cost_sensitivity
         self.total_cost_saved = 0.0
         self.update_count = 0
 
-        logger.info(
-            f"💰 CostAwareTDLambda initialized "
-            f"(cost_sensitivity={cost_sensitivity})"
-        )
+        logger.info(f"💰 CostAwareTDLambda initialized " f"(cost_sensitivity={cost_sensitivity})")
 
-    def update(self, state: Dict[str, Any], action: Dict[str, Any], reward: float, next_state: Dict[str, Any], cost_usd: float = 0.0, done: bool = False) -> Any:
+    def update(
+        self,
+        state: Dict[str, Any],
+        action: Dict[str, Any],
+        reward: float,
+        next_state: Dict[str, Any],
+        cost_usd: float = 0.0,
+        done: bool = False,
+    ) -> Any:
         """
         Update TD-Lambda with cost-adjusted reward.
 
@@ -101,16 +107,17 @@ class CostAwareTDLambda:
 
     def get_stats(self) -> Dict[str, Any]:
         """Get learning statistics with cost savings."""
-        base_stats = self.base_learner.get_stats() if hasattr(self.base_learner, 'get_stats') else {}
+        base_stats = (
+            self.base_learner.get_stats() if hasattr(self.base_learner, "get_stats") else {}
+        )
 
         return {
             **base_stats,
-            'cost_sensitivity': self.cost_sensitivity,
-            'total_cost_saved_usd': round(self.total_cost_saved, 3),
-            'updates': self.update_count,
-            'avg_cost_saved_per_update': round(
-                self.total_cost_saved / self.update_count if self.update_count > 0 else 0.0,
-                4
+            "cost_sensitivity": self.cost_sensitivity,
+            "total_cost_saved_usd": round(self.total_cost_saved, 3),
+            "updates": self.update_count,
+            "avg_cost_saved_per_update": round(
+                self.total_cost_saved / self.update_count if self.update_count > 0 else 0.0, 4
             ),
         }
 
@@ -130,6 +137,6 @@ def get_cost_aware_td_lambda(cost_sensitivity: float = 0.5) -> CostAwareTDLambda
 
 
 __all__ = [
-    'CostAwareTDLambda',
-    'get_cost_aware_td_lambda',
+    "CostAwareTDLambda",
+    "get_cost_aware_td_lambda",
 ]

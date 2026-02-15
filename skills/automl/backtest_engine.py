@@ -18,11 +18,12 @@ Features:
 10. Overfitting Detection - Deflated Sharpe, CSCV
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, Any, Optional, List, Tuple, Callable
-from pathlib import Path
-from datetime import datetime
 import logging
+from dataclasses import dataclass, field
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional, Tuple
+
 import numpy as np
 
 logger = logging.getLogger(__name__)
@@ -32,13 +33,15 @@ logger = logging.getLogger(__name__)
 # DATA CLASSES
 # =============================================================================
 
+
 @dataclass
 class TransactionCosts:
     """Transaction cost model."""
+
     commission_pct: float = 0.001  # 0.1% commission (10 bps)
-    slippage_pct: float = 0.001   # 0.1% slippage
+    slippage_pct: float = 0.001  # 0.1% slippage
     market_impact_pct: float = 0.0005  # 0.05% market impact
-    min_commission: float = 0.0   # Minimum commission per trade
+    min_commission: float = 0.0  # Minimum commission per trade
 
     def total_cost_pct(self) -> float:
         """Total round-trip cost percentage."""
@@ -53,6 +56,7 @@ class TransactionCosts:
 @dataclass
 class RiskMetrics:
     """Comprehensive risk metrics."""
+
     # Standard metrics
     volatility: float = 0.0
     max_drawdown: float = 0.0
@@ -84,6 +88,7 @@ class RiskMetrics:
 @dataclass
 class StatisticalTests:
     """Statistical significance tests."""
+
     # T-test for mean returns
     t_statistic: float = 0.0
     p_value: float = 0.0
@@ -111,6 +116,7 @@ class StatisticalTests:
 @dataclass
 class RegimeAnalysis:
     """Market regime analysis."""
+
     current_regime: str = "normal"  # bull, bear, crisis, normal
 
     # Regime detection
@@ -131,6 +137,7 @@ class RegimeAnalysis:
 @dataclass
 class FactorExposure:
     """Factor analysis results."""
+
     alpha: float = 0.0  # Jensen's alpha
     alpha_t_stat: float = 0.0
     alpha_p_value: float = 0.0
@@ -155,6 +162,7 @@ class FactorExposure:
 @dataclass
 class WalkForwardResult:
     """Walk-forward analysis result for one window."""
+
     train_start: str = ""
     train_end: str = ""
     test_start: str = ""
@@ -178,6 +186,7 @@ class WalkForwardResult:
 @dataclass
 class MonteCarloResult:
     """Monte Carlo simulation results."""
+
     n_simulations: int = 0
 
     # Return distribution
@@ -209,6 +218,7 @@ class MonteCarloResult:
 @dataclass
 class PositionSizing:
     """Position sizing analysis."""
+
     # Kelly criterion
     kelly_fraction: float = 0.0
     half_kelly: float = 0.0
@@ -227,6 +237,7 @@ class PositionSizing:
 @dataclass
 class ComprehensiveBacktestResult:
     """Complete backtest result with all metrics."""
+
     symbol: str = ""
     strategy_name: str = ""
     start_date: str = ""
@@ -277,6 +288,7 @@ class ComprehensiveBacktestResult:
 # CORE ENGINE
 # =============================================================================
 
+
 class WorldClassBacktestEngine:
     """
     Comprehensive backtesting engine with institutional-grade features.
@@ -298,13 +310,13 @@ class WorldClassBacktestEngine:
             risk_free_rate: Annual risk-free rate for Sharpe calculation
         """
         self.risk_free_rate = risk_free_rate
-        self.daily_rf = (1 + risk_free_rate) ** (1/252) - 1
+        self.daily_rf = (1 + risk_free_rate) ** (1 / 252) - 1
 
     def run_backtest(
         self,
-        prices: 'pd.DataFrame',
-        signals: 'np.ndarray',
-        benchmark: Optional['np.ndarray'] = None,
+        prices: "pd.DataFrame",
+        signals: "np.ndarray",
+        benchmark: Optional["np.ndarray"] = None,
         costs: Optional[TransactionCosts] = None,
         walk_forward_windows: int = 5,
         monte_carlo_sims: int = 1000,
@@ -329,19 +341,19 @@ class WorldClassBacktestEngine:
 
         # Initialize result
         result = ComprehensiveBacktestResult(
-            start_date=str(prices.iloc[0]['date'] if 'date' in prices.columns else prices.index[0]),
-            end_date=str(prices.iloc[-1]['date'] if 'date' in prices.columns else prices.index[-1]),
+            start_date=str(prices.iloc[0]["date"] if "date" in prices.columns else prices.index[0]),
+            end_date=str(prices.iloc[-1]["date"] if "date" in prices.columns else prices.index[-1]),
             transaction_costs=costs or TransactionCosts(),
         )
 
         # Calculate returns
-        if 'close' in prices.columns:
-            price_series = prices['close'].values
+        if "close" in prices.columns:
+            price_series = prices["close"].values
         else:
             price_series = prices.values.flatten()
 
         returns = np.diff(price_series) / price_series[:-1]
-        signals = signals[:len(returns)]  # Align signals
+        signals = signals[: len(returns)]  # Align signals
 
         # Strategy returns (signal from previous day)
         strategy_returns = signals[:-1] * returns[1:] if len(signals) > 1 else signals * returns
@@ -355,8 +367,12 @@ class WorldClassBacktestEngine:
 
         # Apply transaction costs
         if costs:
-            strategy_returns_net = costs.apply_costs(strategy_returns, trades[:len(strategy_returns)])
-            result.total_costs_paid = np.sum(np.abs(trades[:len(strategy_returns)]) * costs.total_cost_pct() / 2)
+            strategy_returns_net = costs.apply_costs(
+                strategy_returns, trades[: len(strategy_returns)]
+            )
+            result.total_costs_paid = np.sum(
+                np.abs(trades[: len(strategy_returns)]) * costs.total_cost_pct() / 2
+            )
         else:
             strategy_returns_net = strategy_returns
 
@@ -365,8 +381,12 @@ class WorldClassBacktestEngine:
         result.total_return_net = (np.prod(1 + strategy_returns_net) - 1) * 100
 
         n_years = len(returns) / 252
-        result.annual_return = ((1 + result.total_return/100) ** (1/n_years) - 1) * 100 if n_years > 0 else 0
-        result.annual_return_net = ((1 + result.total_return_net/100) ** (1/n_years) - 1) * 100 if n_years > 0 else 0
+        result.annual_return = (
+            ((1 + result.total_return / 100) ** (1 / n_years) - 1) * 100 if n_years > 0 else 0
+        )
+        result.annual_return_net = (
+            ((1 + result.total_return_net / 100) ** (1 / n_years) - 1) * 100 if n_years > 0 else 0
+        )
 
         # Sharpe ratios
         result.sharpe_ratio = self._calculate_sharpe(strategy_returns)
@@ -377,7 +397,9 @@ class WorldClassBacktestEngine:
         result.total_trades = int(np.sum(np.abs(trades) > 0))
         winning = strategy_returns[strategy_returns > 0]
         losing = strategy_returns[strategy_returns < 0]
-        result.win_rate = len(winning) / len(strategy_returns) * 100 if len(strategy_returns) > 0 else 0
+        result.win_rate = (
+            len(winning) / len(strategy_returns) * 100 if len(strategy_returns) > 0 else 0
+        )
         result.profit_factor = np.sum(winning) / abs(np.sum(losing)) if np.sum(losing) != 0 else 0
         result.expectancy = np.mean(strategy_returns) * 100 if len(strategy_returns) > 0 else 0
 
@@ -385,7 +407,11 @@ class WorldClassBacktestEngine:
         result.risk_metrics = self._calculate_risk_metrics(strategy_returns, price_series)
 
         # Calmar ratio
-        result.calmar_ratio = result.annual_return / abs(result.risk_metrics.max_drawdown) if result.risk_metrics.max_drawdown != 0 else 0
+        result.calmar_ratio = (
+            result.annual_return / abs(result.risk_metrics.max_drawdown)
+            if result.risk_metrics.max_drawdown != 0
+            else 0
+        )
 
         # Statistical tests
         result.statistical_tests = self._calculate_statistical_tests(
@@ -404,18 +430,20 @@ class WorldClassBacktestEngine:
         )
 
         # Monte Carlo simulation
-        result.monte_carlo = self._run_monte_carlo(
-            strategy_returns, benchmark, monte_carlo_sims
-        )
+        result.monte_carlo = self._run_monte_carlo(strategy_returns, benchmark, monte_carlo_sims)
 
         # Walk-forward analysis
-        result.walk_forward_results = self._run_walk_forward(
-            prices, signals, walk_forward_windows
-        )
+        result.walk_forward_results = self._run_walk_forward(prices, signals, walk_forward_windows)
         if result.walk_forward_results:
-            result.wf_avg_oos_return = np.mean([wf.oos_return for wf in result.walk_forward_results])
-            result.wf_avg_oos_sharpe = np.mean([wf.oos_sharpe for wf in result.walk_forward_results])
-            result.wf_degradation = np.mean([wf.sharpe_degradation for wf in result.walk_forward_results])
+            result.wf_avg_oos_return = np.mean(
+                [wf.oos_return for wf in result.walk_forward_results]
+            )
+            result.wf_avg_oos_sharpe = np.mean(
+                [wf.oos_sharpe for wf in result.walk_forward_results]
+            )
+            result.wf_degradation = np.mean(
+                [wf.sharpe_degradation for wf in result.walk_forward_results]
+            )
 
         # Build equity curve
         cumret = np.cumprod(1 + strategy_returns)
@@ -423,7 +451,7 @@ class WorldClassBacktestEngine:
         drawdown = (cumret - peak) / peak * 100
 
         result.equity_curve = [
-            {'idx': i, 'equity': float(cumret[i]), 'drawdown': float(drawdown[i])}
+            {"idx": i, "equity": float(cumret[i]), "drawdown": float(drawdown[i])}
             for i in range(len(cumret))
         ]
 
@@ -474,7 +502,7 @@ class WorldClassBacktestEngine:
             starts = np.where(changes == 1)[0]
             ends = np.where(changes == -1)[0]
             if len(starts) > 0 and len(ends) > 0:
-                durations = ends[:len(starts)] - starts[:len(ends)]
+                durations = ends[: len(starts)] - starts[: len(ends)]
                 metrics.max_drawdown_duration = int(np.max(durations)) if len(durations) > 0 else 0
 
         # Value at Risk
@@ -484,8 +512,16 @@ class WorldClassBacktestEngine:
         # Conditional VaR (Expected Shortfall)
         var_95_threshold = np.percentile(returns, 5)
         var_99_threshold = np.percentile(returns, 1)
-        metrics.cvar_95 = np.mean(returns[returns <= var_95_threshold]) * 100 if np.any(returns <= var_95_threshold) else 0
-        metrics.cvar_99 = np.mean(returns[returns <= var_99_threshold]) * 100 if np.any(returns <= var_99_threshold) else 0
+        metrics.cvar_95 = (
+            np.mean(returns[returns <= var_95_threshold]) * 100
+            if np.any(returns <= var_95_threshold)
+            else 0
+        )
+        metrics.cvar_99 = (
+            np.mean(returns[returns <= var_99_threshold]) * 100
+            if np.any(returns <= var_99_threshold)
+            else 0
+        )
 
         # Higher moments
         metrics.skewness = float(self._calculate_skewness(returns))
@@ -498,10 +534,12 @@ class WorldClassBacktestEngine:
 
         # Downside deviation
         downside = returns[returns < 0]
-        metrics.downside_deviation = np.std(downside) * np.sqrt(252) * 100 if len(downside) > 0 else 0
+        metrics.downside_deviation = (
+            np.std(downside) * np.sqrt(252) * 100 if len(downside) > 0 else 0
+        )
 
         # Ulcer Index (RMS of drawdowns)
-        metrics.ulcer_index = np.sqrt(np.mean(drawdown ** 2)) * 100
+        metrics.ulcer_index = np.sqrt(np.mean(drawdown**2)) * 100
 
         # Pain Index (mean of absolute drawdowns)
         metrics.pain_index = np.mean(np.abs(drawdown)) * 100
@@ -509,10 +547,7 @@ class WorldClassBacktestEngine:
         return metrics
 
     def _calculate_statistical_tests(
-        self,
-        strategy_returns: np.ndarray,
-        benchmark_returns: np.ndarray,
-        sharpe: float
+        self, strategy_returns: np.ndarray, benchmark_returns: np.ndarray, sharpe: float
     ) -> StatisticalTests:
         """Calculate statistical significance tests."""
         from scipy import stats
@@ -549,7 +584,9 @@ class WorldClassBacktestEngine:
         kurt = self._calculate_kurtosis(strategy_returns)
 
         # Probabilistic Sharpe Ratio
-        sr_std = np.sqrt((1 + 0.5 * sharpe**2 - skew * sharpe + (kurt - 3) / 4 * sharpe**2) / (n - 1))
+        sr_std = np.sqrt(
+            (1 + 0.5 * sharpe**2 - skew * sharpe + (kurt - 3) / 4 * sharpe**2) / (n - 1)
+        )
         tests.prob_sharpe_zero = float(stats.norm.cdf(sharpe / sr_std)) if sr_std > 0 else 0.5
 
         # Minimum track record length
@@ -563,7 +600,7 @@ class WorldClassBacktestEngine:
         tests.deflated_sharpe = sharpe - 0.5 * sr_std * np.sqrt(2 * np.log(num_trials))
 
         # Information Ratio test (vs benchmark)
-        excess_returns = strategy_returns - benchmark_returns[:len(strategy_returns)]
+        excess_returns = strategy_returns - benchmark_returns[: len(strategy_returns)]
         if len(excess_returns) > 1 and np.std(excess_returns) > 0:
             ir = np.mean(excess_returns) / np.std(excess_returns) * np.sqrt(252)
             ir_t = ir * np.sqrt(len(excess_returns)) / np.sqrt(252)
@@ -573,9 +610,7 @@ class WorldClassBacktestEngine:
         return tests
 
     def _calculate_regime_analysis(
-        self,
-        strategy_returns: np.ndarray,
-        market_returns: np.ndarray
+        self, strategy_returns: np.ndarray, market_returns: np.ndarray
     ) -> RegimeAnalysis:
         """Analyze performance across market regimes."""
         analysis = RegimeAnalysis()
@@ -589,8 +624,13 @@ class WorldClassBacktestEngine:
             return analysis
 
         # Calculate rolling market return
-        rolling_return = np.convolve(market_returns, np.ones(window)/window, mode='valid')
-        rolling_vol = np.array([np.std(market_returns[max(0,i-window):i]) for i in range(window, len(market_returns)+1)])
+        rolling_return = np.convolve(market_returns, np.ones(window) / window, mode="valid")
+        rolling_vol = np.array(
+            [
+                np.std(market_returns[max(0, i - window) : i])
+                for i in range(window, len(market_returns) + 1)
+            ]
+        )
 
         # Classify regimes
         # Bull: rolling return > 0 and vol < median
@@ -603,14 +643,14 @@ class WorldClassBacktestEngine:
         regimes = []
         for i in range(len(rolling_return)):
             if rolling_vol[i] > vol_75:
-                regimes.append('crisis')
+                regimes.append("crisis")
             elif rolling_return[i] > 0:
-                regimes.append('bull')
+                regimes.append("bull")
             else:
-                regimes.append('bear')
+                regimes.append("bear")
 
         # Align with strategy returns - ensure same length
-        aligned_returns = strategy_returns[window-1:window-1+len(regimes)]
+        aligned_returns = strategy_returns[window - 1 : window - 1 + len(regimes)]
 
         # Ensure arrays match
         min_len = min(len(aligned_returns), len(regimes))
@@ -622,17 +662,17 @@ class WorldClassBacktestEngine:
 
         # Calculate time in each regime
         regime_array = np.array(regimes)
-        analysis.time_in_bull = np.mean(regime_array == 'bull') * 100
-        analysis.time_in_bear = np.mean(regime_array == 'bear') * 100
-        analysis.time_in_crisis = np.mean(regime_array == 'crisis') * 100
+        analysis.time_in_bull = np.mean(regime_array == "bull") * 100
+        analysis.time_in_bear = np.mean(regime_array == "bear") * 100
+        analysis.time_in_crisis = np.mean(regime_array == "crisis") * 100
 
         # Count regime changes
         analysis.regime_changes = np.sum(regime_array[1:] != regime_array[:-1])
 
         # Performance by regime
-        bull_mask = regime_array == 'bull'
-        bear_mask = regime_array == 'bear'
-        crisis_mask = regime_array == 'crisis'
+        bull_mask = regime_array == "bull"
+        bear_mask = regime_array == "bear"
+        crisis_mask = regime_array == "crisis"
 
         if np.any(bull_mask):
             bull_returns = aligned_returns[bull_mask]
@@ -650,14 +690,12 @@ class WorldClassBacktestEngine:
             analysis.sharpe_crisis = self._calculate_sharpe(crisis_returns)
 
         # Current regime
-        analysis.current_regime = regimes[-1] if regimes else 'normal'
+        analysis.current_regime = regimes[-1] if regimes else "normal"
 
         return analysis
 
     def _calculate_factor_exposure(
-        self,
-        strategy_returns: np.ndarray,
-        market_returns: np.ndarray
+        self, strategy_returns: np.ndarray, market_returns: np.ndarray
     ) -> FactorExposure:
         """Calculate factor exposures and alpha."""
         from scipy import stats
@@ -673,13 +711,15 @@ class WorldClassBacktestEngine:
         market_returns = market_returns[:n]
 
         # Simple market model: R_strategy = alpha + beta * R_market + epsilon
-        slope, intercept, r_value, p_value, std_err = stats.linregress(market_returns, strategy_returns)
+        slope, intercept, r_value, p_value, std_err = stats.linregress(
+            market_returns, strategy_returns
+        )
 
         exposure.market_beta = float(slope)
         exposure.alpha = float(intercept * 252 * 100)  # Annualized alpha in %
         exposure.alpha_t_stat = float(intercept / std_err) if std_err > 0 else 0
         exposure.alpha_p_value = float(p_value)
-        exposure.r_squared = float(r_value ** 2)
+        exposure.r_squared = float(r_value**2)
 
         # Adjusted R-squared
         n_obs = len(strategy_returns)
@@ -688,7 +728,11 @@ class WorldClassBacktestEngine:
         # Information Ratio and Tracking Error
         excess_returns = strategy_returns - market_returns
         exposure.tracking_error = float(np.std(excess_returns) * np.sqrt(252) * 100)
-        exposure.information_ratio = float(np.mean(excess_returns) / np.std(excess_returns) * np.sqrt(252)) if np.std(excess_returns) > 0 else 0
+        exposure.information_ratio = (
+            float(np.mean(excess_returns) / np.std(excess_returns) * np.sqrt(252))
+            if np.std(excess_returns) > 0
+            else 0
+        )
 
         # Synthetic factor exposures (using rolling correlations as proxies)
         # Momentum: correlation with lagged returns
@@ -699,18 +743,16 @@ class WorldClassBacktestEngine:
                 exposure.momentum_beta = float(momentum_corr) if not np.isnan(momentum_corr) else 0
 
         # Volatility factor: correlation with VIX proxy (rolling vol)
-        rolling_vol = np.array([np.std(market_returns[max(0,i-20):i]) for i in range(20, len(market_returns))])
+        rolling_vol = np.array(
+            [np.std(market_returns[max(0, i - 20) : i]) for i in range(20, len(market_returns))]
+        )
         if len(rolling_vol) > 0 and len(strategy_returns) > 20:
-            vol_corr = np.corrcoef(strategy_returns[20:len(rolling_vol)+20], rolling_vol)[0, 1]
+            vol_corr = np.corrcoef(strategy_returns[20 : len(rolling_vol) + 20], rolling_vol)[0, 1]
             exposure.volatility_beta = float(vol_corr) if not np.isnan(vol_corr) else 0
 
         return exposure
 
-    def _calculate_position_sizing(
-        self,
-        returns: np.ndarray,
-        target_vol: float
-    ) -> PositionSizing:
+    def _calculate_position_sizing(self, returns: np.ndarray, target_vol: float) -> PositionSizing:
         """Calculate optimal position sizing."""
         sizing = PositionSizing()
         sizing.target_volatility = target_vol
@@ -746,10 +788,7 @@ class WorldClassBacktestEngine:
         return sizing
 
     def _run_monte_carlo(
-        self,
-        strategy_returns: np.ndarray,
-        benchmark_returns: np.ndarray,
-        n_simulations: int
+        self, strategy_returns: np.ndarray, benchmark_returns: np.ndarray, n_simulations: int
     ) -> MonteCarloResult:
         """Run Monte Carlo simulation via bootstrap."""
         mc = MonteCarloResult()
@@ -765,7 +804,9 @@ class WorldClassBacktestEngine:
 
         for _ in range(n_simulations):
             # Bootstrap: sample with replacement
-            sample_idx = np.random.choice(len(strategy_returns), size=len(strategy_returns), replace=True)
+            sample_idx = np.random.choice(
+                len(strategy_returns), size=len(strategy_returns), replace=True
+            )
             sample = strategy_returns[sample_idx]
 
             # Calculate metrics for this simulation
@@ -782,8 +823,12 @@ class WorldClassBacktestEngine:
             simulated_max_dd.append(max_dd)
 
             # Compare to benchmark
-            bench_sample = benchmark_returns[sample_idx] if len(benchmark_returns) >= len(sample_idx) else benchmark_returns
-            bench_ret = (np.prod(1 + bench_sample[:len(sample)]) - 1) * 100
+            bench_sample = (
+                benchmark_returns[sample_idx]
+                if len(benchmark_returns) >= len(sample_idx)
+                else benchmark_returns
+            )
+            bench_ret = (np.prod(1 + bench_sample[: len(sample)]) - 1) * 100
             if total_ret > bench_ret:
                 beat_benchmark += 1
 
@@ -815,10 +860,7 @@ class WorldClassBacktestEngine:
         return mc
 
     def _run_walk_forward(
-        self,
-        prices: 'pd.DataFrame',
-        signals: np.ndarray,
-        n_windows: int
+        self, prices: "pd.DataFrame", signals: np.ndarray, n_windows: int
     ) -> List[WalkForwardResult]:
         """Run walk-forward analysis."""
         results = []
@@ -832,8 +874,8 @@ class WorldClassBacktestEngine:
         train_size = int(window_size * 0.7)
         test_size = window_size - train_size
 
-        if 'close' in prices.columns:
-            price_series = prices['close'].values
+        if "close" in prices.columns:
+            price_series = prices["close"].values
         else:
             price_series = prices.values.flatten()
 
@@ -850,41 +892,59 @@ class WorldClassBacktestEngine:
             wf = WalkForwardResult()
 
             # Get date range
-            if 'date' in prices.columns:
-                wf.train_start = str(prices.iloc[start_idx]['date'])
-                wf.train_end = str(prices.iloc[train_end]['date'])
-                wf.test_start = str(prices.iloc[train_end]['date'])
-                wf.test_end = str(prices.iloc[test_end]['date'])
+            if "date" in prices.columns:
+                wf.train_start = str(prices.iloc[start_idx]["date"])
+                wf.train_end = str(prices.iloc[train_end]["date"])
+                wf.test_start = str(prices.iloc[train_end]["date"])
+                wf.test_end = str(prices.iloc[test_end]["date"])
 
             # In-sample metrics
             is_signals = signals[start_idx:train_end]
-            is_returns = returns[start_idx:train_end-1]
+            is_returns = returns[start_idx : train_end - 1]
             if len(is_signals) > len(is_returns):
-                is_signals = is_signals[:len(is_returns)]
+                is_signals = is_signals[: len(is_returns)]
 
-            is_strategy_returns = is_signals[:-1] * is_returns[1:] if len(is_signals) > 1 else is_signals * is_returns
+            is_strategy_returns = (
+                is_signals[:-1] * is_returns[1:] if len(is_signals) > 1 else is_signals * is_returns
+            )
 
             if len(is_strategy_returns) > 0:
                 wf.is_return = float((np.prod(1 + is_strategy_returns) - 1) * 100)
                 wf.is_sharpe = float(self._calculate_sharpe(is_strategy_returns))
-                wf.is_accuracy = float(np.mean((is_signals[:-1] > 0) == (is_returns[1:] > 0)) * 100) if len(is_returns) > 1 else 0
+                wf.is_accuracy = (
+                    float(np.mean((is_signals[:-1] > 0) == (is_returns[1:] > 0)) * 100)
+                    if len(is_returns) > 1
+                    else 0
+                )
 
             # Out-of-sample metrics
             oos_signals = signals[train_end:test_end]
-            oos_returns = returns[train_end:test_end-1]
+            oos_returns = returns[train_end : test_end - 1]
             if len(oos_signals) > len(oos_returns):
-                oos_signals = oos_signals[:len(oos_returns)]
+                oos_signals = oos_signals[: len(oos_returns)]
 
-            oos_strategy_returns = oos_signals[:-1] * oos_returns[1:] if len(oos_signals) > 1 else oos_signals * oos_returns
+            oos_strategy_returns = (
+                oos_signals[:-1] * oos_returns[1:]
+                if len(oos_signals) > 1
+                else oos_signals * oos_returns
+            )
 
             if len(oos_strategy_returns) > 0:
                 wf.oos_return = float((np.prod(1 + oos_strategy_returns) - 1) * 100)
                 wf.oos_sharpe = float(self._calculate_sharpe(oos_strategy_returns))
-                wf.oos_accuracy = float(np.mean((oos_signals[:-1] > 0) == (oos_returns[1:] > 0)) * 100) if len(oos_returns) > 1 else 0
+                wf.oos_accuracy = (
+                    float(np.mean((oos_signals[:-1] > 0) == (oos_returns[1:] > 0)) * 100)
+                    if len(oos_returns) > 1
+                    else 0
+                )
 
             # Degradation
-            wf.return_degradation = (wf.is_return - wf.oos_return) / abs(wf.is_return) * 100 if wf.is_return != 0 else 0
-            wf.sharpe_degradation = (wf.is_sharpe - wf.oos_sharpe) / abs(wf.is_sharpe) * 100 if wf.is_sharpe != 0 else 0
+            wf.return_degradation = (
+                (wf.is_return - wf.oos_return) / abs(wf.is_return) * 100 if wf.is_return != 0 else 0
+            )
+            wf.sharpe_degradation = (
+                (wf.is_sharpe - wf.oos_sharpe) / abs(wf.is_sharpe) * 100 if wf.is_sharpe != 0 else 0
+            )
 
             results.append(wf)
 
@@ -915,34 +975,32 @@ class WorldClassBacktestEngine:
 # STRESS TESTING
 # =============================================================================
 
+
 class StressTester:
     """Stress testing framework for strategies."""
 
     # Historical crisis periods
     CRISIS_PERIODS = {
-        '2008_financial': ('2008-09-01', '2009-03-31'),
-        '2011_euro_debt': ('2011-07-01', '2011-10-31'),
-        '2015_china': ('2015-08-01', '2015-09-30'),
-        '2018_volmageddon': ('2018-02-01', '2018-02-28'),
-        '2020_covid': ('2020-02-20', '2020-03-23'),
-        '2022_rate_hike': ('2022-01-01', '2022-06-30'),
+        "2008_financial": ("2008-09-01", "2009-03-31"),
+        "2011_euro_debt": ("2011-07-01", "2011-10-31"),
+        "2015_china": ("2015-08-01", "2015-09-30"),
+        "2018_volmageddon": ("2018-02-01", "2018-02-28"),
+        "2020_covid": ("2020-02-20", "2020-03-23"),
+        "2022_rate_hike": ("2022-01-01", "2022-06-30"),
     }
 
     # Hypothetical stress scenarios
     SCENARIOS = {
-        'market_crash_10': {'market': -0.10, 'vol_spike': 2.0},
-        'market_crash_20': {'market': -0.20, 'vol_spike': 3.0},
-        'flash_crash': {'market': -0.05, 'vol_spike': 5.0, 'duration': 1},
-        'prolonged_bear': {'market': -0.30, 'vol_spike': 1.5, 'duration': 252},
-        'stagflation': {'market': -0.15, 'vol_spike': 1.8, 'inflation': 0.10},
-        'rate_shock': {'market': -0.08, 'vol_spike': 1.5, 'rate_change': 0.02},
+        "market_crash_10": {"market": -0.10, "vol_spike": 2.0},
+        "market_crash_20": {"market": -0.20, "vol_spike": 3.0},
+        "flash_crash": {"market": -0.05, "vol_spike": 5.0, "duration": 1},
+        "prolonged_bear": {"market": -0.30, "vol_spike": 1.5, "duration": 252},
+        "stagflation": {"market": -0.15, "vol_spike": 1.8, "inflation": 0.10},
+        "rate_shock": {"market": -0.08, "vol_spike": 1.5, "rate_change": 0.02},
     }
 
     def run_historical_stress(
-        self,
-        returns: np.ndarray,
-        dates: List[str],
-        strategy_signals: np.ndarray
+        self, returns: np.ndarray, dates: List[str], strategy_signals: np.ndarray
     ) -> Dict[str, float]:
         """Test strategy performance during historical crises."""
         import pandas as pd
@@ -964,28 +1022,28 @@ class StressTester:
             crisis_signals = strategy_signals[mask[:-1]]
 
             if len(crisis_returns) > 0:
-                strategy_crisis_returns = crisis_signals[:-1] * crisis_returns[1:] if len(crisis_signals) > 1 else crisis_signals * crisis_returns
+                strategy_crisis_returns = (
+                    crisis_signals[:-1] * crisis_returns[1:]
+                    if len(crisis_signals) > 1
+                    else crisis_signals * crisis_returns
+                )
                 results[crisis_name] = float((np.prod(1 + strategy_crisis_returns) - 1) * 100)
 
         return results
 
-    def run_scenario_stress(
-        self,
-        returns: np.ndarray,
-        strategy_beta: float
-    ) -> Dict[str, float]:
+    def run_scenario_stress(self, returns: np.ndarray, strategy_beta: float) -> Dict[str, float]:
         """Test strategy under hypothetical stress scenarios."""
         results = {}
 
         for scenario_name, params in self.SCENARIOS.items():
-            market_shock = params.get('market', 0)
-            vol_spike = params.get('vol_spike', 1)
+            market_shock = params.get("market", 0)
+            vol_spike = params.get("vol_spike", 1)
 
             # Estimate strategy loss based on beta
             strategy_shock = strategy_beta * market_shock
 
             # Adjust for vol spike (higher vol = higher uncertainty)
-            vol_adjustment = np.std(returns) * vol_spike * np.sqrt(params.get('duration', 5) / 252)
+            vol_adjustment = np.std(returns) * vol_spike * np.sqrt(params.get("duration", 5) / 252)
 
             # Worst case scenario
             worst_case = strategy_shock - vol_adjustment
@@ -998,6 +1056,7 @@ class StressTester:
 # =============================================================================
 # UTILITY FUNCTIONS
 # =============================================================================
+
 
 def create_sample_backtest() -> ComprehensiveBacktestResult:
     """Create a sample backtest result for testing."""

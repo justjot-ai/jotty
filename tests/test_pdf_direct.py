@@ -11,7 +11,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from core.tools.content_generation import Document, Section, SectionType, ContentGenerators
+from core.tools.content_generation import ContentGenerators, Document, Section, SectionType
 
 
 def test_pdf_generation():
@@ -25,7 +25,7 @@ def test_pdf_generation():
     doc = Document(
         title="Transformer Architecture - Quick Reference",
         author="Jotty Test",
-        topic="Deep Learning"
+        topic="Deep Learning",
     )
 
     # Introduction
@@ -40,7 +40,7 @@ in parallel, achieving state-of-the-art results in NLP and beyond.
 - Better long-range dependencies
 - Interpretable attention patterns
         """.strip(),
-        title="Introduction"
+        title="Introduction",
     )
 
     # Math section with PROPER LaTeX delimiters for pandoc
@@ -63,7 +63,7 @@ $$\text{MultiHead}(Q, K, V) = \text{Concat}(\text{head}_1, ..., \text{head}_h)W^
 
 $$\text{where } \text{head}_i = \text{Attention}(QW_i^Q, KW_i^K, VW_i^V)$$
         """.strip(),
-        title="Mathematics"
+        title="Mathematics",
     )
 
     # Architecture
@@ -83,7 +83,7 @@ $$\text{where } \text{head}_i = \text{Attention}(QW_i^Q, KW_i^K, VW_i^V)$$
 
 **Complexity**: $O(n^2 \cdot d)$ for self-attention vs $O(n \cdot d^2)$ for RNN
         """.strip(),
-        title="Architecture"
+        title="Architecture",
     )
 
     # Code example
@@ -100,7 +100,7 @@ class SelfAttention(nn.Module):
         return torch.matmul(attention, V)
         """.strip(),
         title="Implementation",
-        language="python"
+        language="python",
     )
 
     print(f"📄 Document created: {len(doc.full_content)} characters\n")
@@ -115,11 +115,7 @@ class SelfAttention(nn.Module):
     print("-" * 80)
 
     try:
-        pdf_path = generators.generate_pdf(
-            doc,
-            output_path=output_dir,
-            format='a4'
-        )
+        pdf_path = generators.generate_pdf(doc, output_path=output_dir, format="a4")
 
         file_size = pdf_path.stat().st_size
         print(f"\n✅ SUCCESS!")

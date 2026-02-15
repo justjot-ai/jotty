@@ -10,13 +10,14 @@ World-class ensemble with multiple strategies:
 5. Multi-Level Stacking - 2-layer Kaggle winner strategy
 """
 
-import time
-from typing import Dict, List, Any, Optional, Tuple
-import pandas as pd
-import numpy as np
 import logging
+import time
+from typing import Any, Dict, List, Optional, Tuple
 
-from .base import MLSkill, SkillResult, SkillCategory
+import numpy as np
+import pandas as pd
+
+from .base import MLSkill, SkillCategory, SkillResult
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +41,9 @@ class EnsembleSkill(MLSkill):
     def __init__(self, config: Dict[str, Any] = None) -> None:
         super().__init__(config)
 
-    async def execute(self, X: pd.DataFrame, y: Optional[pd.Series] = None, **context: Any) -> SkillResult:
+    async def execute(
+        self, X: pd.DataFrame, y: Optional[pd.Series] = None, **context: Any
+    ) -> SkillResult:
         """
         Execute ensemble building.
 
@@ -52,15 +55,21 @@ class EnsembleSkill(MLSkill):
         Returns:
             SkillResult with ensemble model
         """
-        from sklearn.model_selection import cross_val_score, StratifiedKFold, KFold
-        from sklearn.preprocessing import StandardScaler
-        from sklearn.ensemble import VotingClassifier, VotingRegressor
-        from sklearn.ensemble import StackingClassifier, StackingRegressor
-        from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-        from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegressor
-        from sklearn.linear_model import LogisticRegression, Ridge
         import lightgbm as lgb
         import xgboost as xgb
+        from sklearn.ensemble import (
+            GradientBoostingClassifier,
+            GradientBoostingRegressor,
+            RandomForestClassifier,
+            RandomForestRegressor,
+            StackingClassifier,
+            StackingRegressor,
+            VotingClassifier,
+            VotingRegressor,
+        )
+        from sklearn.linear_model import LogisticRegression, Ridge
+        from sklearn.model_selection import KFold, StratifiedKFold, cross_val_score
+        from sklearn.preprocessing import StandardScaler
 
         start_time = time.time()
 
@@ -70,22 +79,22 @@ class EnsembleSkill(MLSkill):
         if not self.validate_inputs(X, y):
             return self._create_error_result("Invalid inputs")
 
-        problem_type = context.get('problem_type', 'classification')
-        optimized_model = context.get('optimized_model')
-        best_single_score = context.get('best_single_score', 0)
-        all_scores = context.get('all_scores', {})
+        problem_type = context.get("problem_type", "classification")
+        optimized_model = context.get("optimized_model")
+        best_single_score = context.get("best_single_score", 0)
+        all_scores = context.get("all_scores", {})
 
         scaler = StandardScaler()
         X_scaled = scaler.fit_transform(X)
 
-        if problem_type == 'classification':
+        if problem_type == "classification":
             cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-            scoring = 'accuracy'
+            scoring = "accuracy"
             base_models = self._get_classification_base_models()
             meta_learner = LogisticRegression(max_iter=1000, random_state=42)
         else:
             cv = KFold(n_splits=5, shuffle=True, random_state=42)
-            scoring = 'r2'
+            scoring = "r2"
             base_models = self._get_regression_base_models()
             meta_learner = Ridge(alpha=1.0)
 
@@ -99,7 +108,7 @@ class EnsembleSkill(MLSkill):
             weighted_ensemble, weighted_score = self._weighted_voting(
                 base_models, all_scores, X_scaled, y, cv, scoring, problem_type
             )
-            ensemble_results['weighted_voting'] = weighted_score
+            ensemble_results["weighted_voting"] = weighted_score
         except Exception as e:
             logger.debug(f"Weighted voting failed: {e}")
 
@@ -108,7 +117,7 @@ class EnsembleSkill(MLSkill):
             stacking, stacking_score = self._stacking(
                 base_models, meta_learner, X_scaled, y, cv, scoring, problem_type
             )
-            ensemble_results['stacking'] = stacking_score
+            ensemble_results["stacking"] = stacking_score
         except Exception as e:
             logger.debug(f"Stacking failed: {e}")
 
@@ -117,8 +126,8 @@ class EnsembleSkill(MLSkill):
             greedy_estimators, greedy_score = self._greedy_selection(
                 base_models, all_scores, X_scaled, y, cv, scoring, problem_type
             )
-            ensemble_results['greedy'] = greedy_score
-            ensemble_results['greedy_models'] = [e[0] for e in greedy_estimators]
+            ensemble_results["greedy"] = greedy_score
+            ensemble_results["greedy_models"] = [e[0] for e in greedy_estimators]
         except Exception as e:
             logger.debug(f"Greedy selection failed: {e}")
 
@@ -127,7 +136,7 @@ class EnsembleSkill(MLSkill):
             simple_ensemble, simple_score = self._simple_average(
                 base_models, X_scaled, y, cv, scoring, problem_type
             )
-            ensemble_results['simple_avg'] = simple_score
+            ensemble_results["simple_avg"] = simple_score
         except Exception as e:
             logger.debug(f"Simple average failed: {e}")
 
@@ -137,7 +146,7 @@ class EnsembleSkill(MLSkill):
             multi_level_stacking, ml_score = self._multi_level_stacking(
                 X_scaled, y, cv, scoring, problem_type
             )
-            ensemble_results['multi_level_stacking'] = ml_score
+            ensemble_results["multi_level_stacking"] = ml_score
         except Exception as e:
             logger.debug(f"Multi-level stacking failed: {e}")
 
@@ -153,9 +162,14 @@ class EnsembleSkill(MLSkill):
         # Compare ensemble vs single model
         if best_ensemble_score > best_single_score:
             final_model, n_estimators = self._build_winning_ensemble(
-                best_ensemble_strategy, multi_level_stacking, stacking,
-                weighted_ensemble, greedy_estimators, base_models, simple_ensemble,
-                problem_type
+                best_ensemble_strategy,
+                multi_level_stacking,
+                stacking,
+                weighted_ensemble,
+                greedy_estimators,
+                base_models,
+                simple_ensemble,
+                problem_type,
             )
             final_model.fit(X_scaled, y)
             final_score = best_ensemble_score
@@ -166,7 +180,7 @@ class EnsembleSkill(MLSkill):
                 final_model.fit(X_scaled, y)
             final_score = best_single_score
             used_ensemble = False
-            best_ensemble_strategy = 'single_model'
+            best_ensemble_strategy = "single_model"
             n_estimators = 1
 
         execution_time = time.time() - start_time
@@ -175,16 +189,16 @@ class EnsembleSkill(MLSkill):
             success=True,
             data=final_model,
             metrics={
-                'score': final_score,
-                'n_estimators': n_estimators,
-                'ensemble_score': best_ensemble_score,
-                'single_score': best_single_score,
-                'strategy': best_ensemble_strategy,
+                "score": final_score,
+                "n_estimators": n_estimators,
+                "ensemble_score": best_ensemble_score,
+                "single_score": best_single_score,
+                "strategy": best_ensemble_strategy,
             },
             metadata={
-                'all_ensemble_scores': ensemble_results,
-                'decision': best_ensemble_strategy,
-                'used_ensemble': used_ensemble,
+                "all_ensemble_scores": ensemble_results,
+                "decision": best_ensemble_strategy,
+                "used_ensemble": used_ensemble,
             },
             execution_time=execution_time,
         )
@@ -193,34 +207,43 @@ class EnsembleSkill(MLSkill):
         """Get classification base models."""
         import lightgbm as lgb
         import xgboost as xgb
-        from sklearn.ensemble import RandomForestClassifier
-        from sklearn.ensemble import GradientBoostingClassifier
+        from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
 
         return {
-            'lgb': lgb.LGBMClassifier(n_estimators=150, random_state=42, verbose=-1),
-            'xgb': xgb.XGBClassifier(n_estimators=150, random_state=42, eval_metric='logloss', verbosity=0),
-            'rf': RandomForestClassifier(n_estimators=150, random_state=42, n_jobs=-1),
-            'gb': GradientBoostingClassifier(n_estimators=100, random_state=42),
+            "lgb": lgb.LGBMClassifier(n_estimators=150, random_state=42, verbose=-1),
+            "xgb": xgb.XGBClassifier(
+                n_estimators=150, random_state=42, eval_metric="logloss", verbosity=0
+            ),
+            "rf": RandomForestClassifier(n_estimators=150, random_state=42, n_jobs=-1),
+            "gb": GradientBoostingClassifier(n_estimators=100, random_state=42),
         }
 
     def _get_regression_base_models(self) -> Dict:
         """Get regression base models."""
         import lightgbm as lgb
         import xgboost as xgb
-        from sklearn.ensemble import RandomForestRegressor
-        from sklearn.ensemble import GradientBoostingRegressor
+        from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
 
         return {
-            'lgb': lgb.LGBMRegressor(n_estimators=150, random_state=42, verbose=-1),
-            'xgb': xgb.XGBRegressor(n_estimators=150, random_state=42, verbosity=0),
-            'rf': RandomForestRegressor(n_estimators=150, random_state=42, n_jobs=-1),
-            'gb': GradientBoostingRegressor(n_estimators=100, random_state=42),
+            "lgb": lgb.LGBMRegressor(n_estimators=150, random_state=42, verbose=-1),
+            "xgb": xgb.XGBRegressor(n_estimators=150, random_state=42, verbosity=0),
+            "rf": RandomForestRegressor(n_estimators=150, random_state=42, n_jobs=-1),
+            "gb": GradientBoostingRegressor(n_estimators=100, random_state=42),
         }
 
-    def _weighted_voting(self, base_models: Any, all_scores: Any, X_scaled: Any, y: Any, cv: Any, scoring: Any, problem_type: Any) -> Tuple:
+    def _weighted_voting(
+        self,
+        base_models: Any,
+        all_scores: Any,
+        X_scaled: Any,
+        y: Any,
+        cv: Any,
+        scoring: Any,
+        problem_type: Any,
+    ) -> Tuple:
         """Weighted voting ensemble."""
-        from sklearn.model_selection import cross_val_score
         from sklearn.ensemble import VotingClassifier, VotingRegressor
+        from sklearn.model_selection import cross_val_score
 
         if all_scores:
             weights = []
@@ -233,8 +256,8 @@ class EnsembleSkill(MLSkill):
             total_weight = sum(weights)
             weights = [w / total_weight for w in weights]
 
-            if problem_type == 'classification':
-                ensemble = VotingClassifier(estimators=estimators, voting='soft', weights=weights)
+            if problem_type == "classification":
+                ensemble = VotingClassifier(estimators=estimators, voting="soft", weights=weights)
             else:
                 ensemble = VotingRegressor(estimators=estimators, weights=weights)
 
@@ -243,20 +266,29 @@ class EnsembleSkill(MLSkill):
 
         return None, 0
 
-    def _stacking(self, base_models: Any, meta_learner: Any, X_scaled: Any, y: Any, cv: Any, scoring: Any, problem_type: Any) -> Tuple:
+    def _stacking(
+        self,
+        base_models: Any,
+        meta_learner: Any,
+        X_scaled: Any,
+        y: Any,
+        cv: Any,
+        scoring: Any,
+        problem_type: Any,
+    ) -> Tuple:
         """Stacking ensemble."""
-        from sklearn.model_selection import cross_val_score
         from sklearn.ensemble import StackingClassifier, StackingRegressor
+        from sklearn.model_selection import cross_val_score
 
         estimators_list = [(name, model) for name, model in base_models.items()]
 
-        if problem_type == 'classification':
+        if problem_type == "classification":
             stacking = StackingClassifier(
                 estimators=estimators_list,
                 final_estimator=meta_learner,
                 cv=3,
                 passthrough=False,
-                n_jobs=-1
+                n_jobs=-1,
             )
         else:
             stacking = StackingRegressor(
@@ -264,16 +296,25 @@ class EnsembleSkill(MLSkill):
                 final_estimator=meta_learner,
                 cv=3,
                 passthrough=False,
-                n_jobs=-1
+                n_jobs=-1,
             )
 
         scores = cross_val_score(stacking, X_scaled, y, cv=cv, scoring=scoring)
         return stacking, scores.mean()
 
-    def _greedy_selection(self, base_models: Any, all_scores: Any, X_scaled: Any, y: Any, cv: Any, scoring: Any, problem_type: Any) -> Tuple:
+    def _greedy_selection(
+        self,
+        base_models: Any,
+        all_scores: Any,
+        X_scaled: Any,
+        y: Any,
+        cv: Any,
+        scoring: Any,
+        problem_type: Any,
+    ) -> Tuple:
         """Greedy ensemble selection."""
-        from sklearn.model_selection import cross_val_score
         from sklearn.ensemble import VotingClassifier, VotingRegressor
+        from sklearn.model_selection import cross_val_score
 
         sorted_models = sorted(all_scores.items(), key=lambda x: x[1], reverse=True)
         greedy_estimators = []
@@ -289,12 +330,14 @@ class EnsembleSkill(MLSkill):
                 if name in base_models:
                     test_estimators = greedy_estimators + [(name, base_models[name])]
 
-                    if problem_type == 'classification':
-                        test_ensemble = VotingClassifier(estimators=test_estimators, voting='soft')
+                    if problem_type == "classification":
+                        test_ensemble = VotingClassifier(estimators=test_estimators, voting="soft")
                     else:
                         test_ensemble = VotingRegressor(estimators=test_estimators)
 
-                    test_scores = cross_val_score(test_ensemble, X_scaled, y, cv=cv, scoring=scoring)
+                    test_scores = cross_val_score(
+                        test_ensemble, X_scaled, y, cv=cv, scoring=scoring
+                    )
                     test_score = test_scores.mean()
 
                     if test_score > current_best:
@@ -305,66 +348,76 @@ class EnsembleSkill(MLSkill):
 
         return [], 0
 
-    def _simple_average(self, base_models: Any, X_scaled: Any, y: Any, cv: Any, scoring: Any, problem_type: Any) -> Tuple:
+    def _simple_average(
+        self, base_models: Any, X_scaled: Any, y: Any, cv: Any, scoring: Any, problem_type: Any
+    ) -> Tuple:
         """Simple average ensemble."""
-        from sklearn.model_selection import cross_val_score
         from sklearn.ensemble import VotingClassifier, VotingRegressor
+        from sklearn.model_selection import cross_val_score
 
         simple_estimators = [(name, model) for name, model in list(base_models.items())[:3]]
 
-        if problem_type == 'classification':
-            ensemble = VotingClassifier(estimators=simple_estimators, voting='soft')
+        if problem_type == "classification":
+            ensemble = VotingClassifier(estimators=simple_estimators, voting="soft")
         else:
             ensemble = VotingRegressor(estimators=simple_estimators)
 
         scores = cross_val_score(ensemble, X_scaled, y, cv=cv, scoring=scoring)
         return ensemble, scores.mean()
 
-    def _multi_level_stacking(self, X_scaled: Any, y: Any, cv: Any, scoring: Any, problem_type: Any) -> Tuple:
+    def _multi_level_stacking(
+        self, X_scaled: Any, y: Any, cv: Any, scoring: Any, problem_type: Any
+    ) -> Tuple:
         """Multi-level stacking (10/10 Kaggle Winner Strategy)."""
-        from sklearn.model_selection import cross_val_score
-        from sklearn.ensemble import StackingClassifier, StackingRegressor
-        from sklearn.ensemble import HistGradientBoostingClassifier, HistGradientBoostingRegressor
-        from sklearn.ensemble import ExtraTreesClassifier, ExtraTreesRegressor
-        from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
         import lightgbm as lgb
         import xgboost as xgb
+        from sklearn.ensemble import (
+            ExtraTreesClassifier,
+            ExtraTreesRegressor,
+            HistGradientBoostingClassifier,
+            HistGradientBoostingRegressor,
+            RandomForestClassifier,
+            RandomForestRegressor,
+            StackingClassifier,
+            StackingRegressor,
+        )
+        from sklearn.model_selection import cross_val_score
 
-        if problem_type == 'classification':
+        if problem_type == "classification":
             layer1_models = {
-                'lgb': lgb.LGBMClassifier(n_estimators=200, random_state=42, verbose=-1),
-                'xgb': xgb.XGBClassifier(n_estimators=200, random_state=42, eval_metric='logloss', verbosity=0),
-                'histgb': HistGradientBoostingClassifier(max_iter=200, random_state=42),
-                'rf': RandomForestClassifier(n_estimators=200, random_state=42, n_jobs=-1),
-                'et': ExtraTreesClassifier(n_estimators=200, random_state=42, n_jobs=-1),
+                "lgb": lgb.LGBMClassifier(n_estimators=200, random_state=42, verbose=-1),
+                "xgb": xgb.XGBClassifier(
+                    n_estimators=200, random_state=42, eval_metric="logloss", verbosity=0
+                ),
+                "histgb": HistGradientBoostingClassifier(max_iter=200, random_state=42),
+                "rf": RandomForestClassifier(n_estimators=200, random_state=42, n_jobs=-1),
+                "et": ExtraTreesClassifier(n_estimators=200, random_state=42, n_jobs=-1),
             }
             layer2_meta = lgb.LGBMClassifier(
-                n_estimators=100, max_depth=3, learning_rate=0.05,
-                random_state=42, verbose=-1
+                n_estimators=100, max_depth=3, learning_rate=0.05, random_state=42, verbose=-1
             )
         else:
             layer1_models = {
-                'lgb': lgb.LGBMRegressor(n_estimators=200, random_state=42, verbose=-1),
-                'xgb': xgb.XGBRegressor(n_estimators=200, random_state=42, verbosity=0),
-                'histgb': HistGradientBoostingRegressor(max_iter=200, random_state=42),
-                'rf': RandomForestRegressor(n_estimators=200, random_state=42, n_jobs=-1),
-                'et': ExtraTreesRegressor(n_estimators=200, random_state=42, n_jobs=-1),
+                "lgb": lgb.LGBMRegressor(n_estimators=200, random_state=42, verbose=-1),
+                "xgb": xgb.XGBRegressor(n_estimators=200, random_state=42, verbosity=0),
+                "histgb": HistGradientBoostingRegressor(max_iter=200, random_state=42),
+                "rf": RandomForestRegressor(n_estimators=200, random_state=42, n_jobs=-1),
+                "et": ExtraTreesRegressor(n_estimators=200, random_state=42, n_jobs=-1),
             }
             layer2_meta = lgb.LGBMRegressor(
-                n_estimators=100, max_depth=3, learning_rate=0.05,
-                random_state=42, verbose=-1
+                n_estimators=100, max_depth=3, learning_rate=0.05, random_state=42, verbose=-1
             )
 
         layer1_estimators = [(name, model) for name, model in layer1_models.items()]
 
-        if problem_type == 'classification':
+        if problem_type == "classification":
             stacking = StackingClassifier(
                 estimators=layer1_estimators,
                 final_estimator=layer2_meta,
                 cv=5,
                 passthrough=True,
                 n_jobs=-1,
-                stack_method='predict_proba'
+                stack_method="predict_proba",
             )
         else:
             stacking = StackingRegressor(
@@ -372,28 +425,40 @@ class EnsembleSkill(MLSkill):
                 final_estimator=layer2_meta,
                 cv=5,
                 passthrough=True,
-                n_jobs=-1
+                n_jobs=-1,
             )
 
         scores = cross_val_score(stacking, X_scaled, y, cv=cv, scoring=scoring)
         return stacking, scores.mean()
 
-    def _build_winning_ensemble(self, strategy: Any, multi_level_stacking: Any, stacking: Any, weighted_ensemble: Any, greedy_estimators: Any, base_models: Any, simple_ensemble: Any, problem_type: Any) -> Any:
+    def _build_winning_ensemble(
+        self,
+        strategy: Any,
+        multi_level_stacking: Any,
+        stacking: Any,
+        weighted_ensemble: Any,
+        greedy_estimators: Any,
+        base_models: Any,
+        simple_ensemble: Any,
+        problem_type: Any,
+    ) -> Any:
         """Build the winning ensemble model."""
         from sklearn.ensemble import VotingClassifier, VotingRegressor
 
-        if strategy == 'multi_level_stacking' and multi_level_stacking is not None:
+        if strategy == "multi_level_stacking" and multi_level_stacking is not None:
             return multi_level_stacking, 5
 
-        elif strategy == 'stacking' and stacking is not None:
+        elif strategy == "stacking" and stacking is not None:
             return stacking, len(base_models)
 
-        elif strategy == 'weighted_voting' and weighted_ensemble is not None:
+        elif strategy == "weighted_voting" and weighted_ensemble is not None:
             return weighted_ensemble, len(base_models)
 
-        elif strategy == 'greedy' and greedy_estimators:
-            if problem_type == 'classification':
-                return VotingClassifier(estimators=greedy_estimators, voting='soft'), len(greedy_estimators)
+        elif strategy == "greedy" and greedy_estimators:
+            if problem_type == "classification":
+                return VotingClassifier(estimators=greedy_estimators, voting="soft"), len(
+                    greedy_estimators
+                )
             else:
                 return VotingRegressor(estimators=greedy_estimators), len(greedy_estimators)
 
@@ -418,14 +483,18 @@ class EnsembleSkill(MLSkill):
             Dict mapping feature name to importance score
         """
         import numpy as np
-        from sklearn.ensemble import VotingClassifier, VotingRegressor
-        from sklearn.ensemble import StackingClassifier, StackingRegressor
+        from sklearn.ensemble import (
+            StackingClassifier,
+            StackingRegressor,
+            VotingClassifier,
+            VotingRegressor,
+        )
 
         feature_importance = {}
 
         try:
             # Case 1: Direct feature_importances_ attribute
-            if hasattr(model, 'feature_importances_'):
+            if hasattr(model, "feature_importances_"):
                 imp = model.feature_importances_
                 if len(imp) == len(feature_names):
                     for name, score in zip(feature_names, imp):
@@ -436,7 +505,7 @@ class EnsembleSkill(MLSkill):
             if isinstance(model, (VotingClassifier, VotingRegressor)):
                 importances = []
                 for name, estimator in model.named_estimators_.items():
-                    if hasattr(estimator, 'feature_importances_'):
+                    if hasattr(estimator, "feature_importances_"):
                         imp = estimator.feature_importances_
                         if len(imp) == len(feature_names):
                             importances.append(imp)
@@ -453,14 +522,14 @@ class EnsembleSkill(MLSkill):
 
                 # Get importances from base estimators
                 for name, estimator in model.named_estimators_.items():
-                    if hasattr(estimator, 'feature_importances_'):
+                    if hasattr(estimator, "feature_importances_"):
                         imp = estimator.feature_importances_
                         # Stacking may have passthrough, check length
                         if len(imp) >= len(feature_names):
-                            importances.append(imp[:len(feature_names)])
+                            importances.append(imp[: len(feature_names)])
 
                 # Get importances from final estimator (if it has feature_importances_)
-                if hasattr(model.final_estimator_, 'feature_importances_'):
+                if hasattr(model.final_estimator_, "feature_importances_"):
                     final_imp = model.final_estimator_.feature_importances_
 
                     # Final estimator sees: [base_predictions...] + [original_features if passthrough]
@@ -469,7 +538,7 @@ class EnsembleSkill(MLSkill):
 
                     if model.passthrough and len(final_imp) > n_estimators:
                         # Extract importance for original features
-                        original_imp = final_imp[n_estimators:n_estimators + len(feature_names)]
+                        original_imp = final_imp[n_estimators : n_estimators + len(feature_names)]
                         if len(original_imp) == len(feature_names):
                             # Weight final estimator's view more (it sees the meta-level)
                             importances.append(original_imp * 1.5)
@@ -483,18 +552,18 @@ class EnsembleSkill(MLSkill):
                     return feature_importance
 
             # Case 4: Try to access estimators_ directly
-            if hasattr(model, 'estimators_'):
+            if hasattr(model, "estimators_"):
                 importances = []
                 estimators = model.estimators_
 
                 # Handle different formats
                 if isinstance(estimators, dict):
                     estimators = list(estimators.values())
-                elif hasattr(estimators, 'items'):
+                elif hasattr(estimators, "items"):
                     estimators = list(dict(estimators).values())
 
                 for est in estimators:
-                    if hasattr(est, 'feature_importances_'):
+                    if hasattr(est, "feature_importances_"):
                         imp = est.feature_importances_
                         if len(imp) == len(feature_names):
                             importances.append(imp)

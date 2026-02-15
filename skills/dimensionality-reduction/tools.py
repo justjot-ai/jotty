@@ -7,13 +7,18 @@ Dimensionality reduction for visualization and feature extraction.
 
 import logging
 from typing import Any, Dict, List, Optional
+
 import numpy as np
 import pandas as pd
-from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
 
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
+from Jotty.core.infrastructure.utils.tool_helpers import (
+    async_tool_wrapper,
+    tool_error,
+    tool_response,
+)
 
 # Status emitter for progress updates
 status = SkillStatus("dimensionality-reduction")
@@ -36,13 +41,13 @@ async def pca_reduce_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with transformed data and explained variance
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     logger.info("[DimReduction] Running PCA...")
 
-    data = params.get('data')
-    n_components = params.get('n_components', 0.95)
-    scale = params.get('scale', True)
+    data = params.get("data")
+    n_components = params.get("n_components", 0.95)
+    scale = params.get("scale", True)
 
     if isinstance(data, str):
         data = pd.read_csv(data)
@@ -64,27 +69,27 @@ async def pca_reduce_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     # Component loadings
     loadings = pd.DataFrame(
         pca.components_.T,
-        columns=[f'PC{i+1}' for i in range(pca.n_components_)],
-        index=numeric_cols
+        columns=[f"PC{i+1}" for i in range(pca.n_components_)],
+        index=numeric_cols,
     )
 
     # Feature importance per component
     feature_importance = {}
     for i in range(min(5, pca.n_components_)):
-        top_features = loadings[f'PC{i+1}'].abs().sort_values(ascending=False).head(5)
-        feature_importance[f'PC{i+1}'] = top_features.to_dict()
+        top_features = loadings[f"PC{i+1}"].abs().sort_values(ascending=False).head(5)
+        feature_importance[f"PC{i+1}"] = top_features.to_dict()
 
     logger.info(f"[DimReduction] PCA: {len(numeric_cols)} -> {pca.n_components_} components")
 
     return {
-        'success': True,
-        'transformed': X_transformed.tolist(),
-        'n_components': int(pca.n_components_),
-        'explained_variance_ratio': pca.explained_variance_ratio_.tolist(),
-        'cumulative_variance': np.cumsum(pca.explained_variance_ratio_).tolist(),
-        'total_variance_explained': float(sum(pca.explained_variance_ratio_)),
-        'loadings': loadings.to_dict(),
-        'feature_importance': feature_importance,
+        "success": True,
+        "transformed": X_transformed.tolist(),
+        "n_components": int(pca.n_components_),
+        "explained_variance_ratio": pca.explained_variance_ratio_.tolist(),
+        "cumulative_variance": np.cumsum(pca.explained_variance_ratio_).tolist(),
+        "total_variance_explained": float(sum(pca.explained_variance_ratio_)),
+        "loadings": loadings.to_dict(),
+        "feature_importance": feature_importance,
     }
 
 
@@ -104,17 +109,17 @@ async def tsne_reduce_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with 2D/3D embedding
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     from sklearn.manifold import TSNE
 
     logger.info("[DimReduction] Running t-SNE...")
 
-    data = params.get('data')
-    n_components = params.get('n_components', 2)
-    perplexity = params.get('perplexity', 30)
-    learning_rate = params.get('learning_rate', 'auto')
-    n_iter = params.get('n_iter', 1000)
+    data = params.get("data")
+    n_components = params.get("n_components", 2)
+    perplexity = params.get("perplexity", 30)
+    learning_rate = params.get("learning_rate", "auto")
+    n_iter = params.get("n_iter", 1000)
 
     if isinstance(data, str):
         data = pd.read_csv(data)
@@ -136,19 +141,19 @@ async def tsne_reduce_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         learning_rate=learning_rate,
         n_iter=n_iter,
         random_state=42,
-        init='pca'
+        init="pca",
     )
     X_embedded = tsne.fit_transform(X_scaled)
 
     logger.info(f"[DimReduction] t-SNE: {len(numeric_cols)} -> {n_components}D")
 
     return {
-        'success': True,
-        'embedding': X_embedded.tolist(),
-        'n_components': n_components,
-        'perplexity': perplexity,
-        'kl_divergence': float(tsne.kl_divergence_),
-        'n_iter_final': tsne.n_iter_,
+        "success": True,
+        "embedding": X_embedded.tolist(),
+        "n_components": n_components,
+        "perplexity": perplexity,
+        "kl_divergence": float(tsne.kl_divergence_),
+        "n_iter_final": tsne.n_iter_,
     }
 
 
@@ -168,23 +173,23 @@ async def umap_reduce_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with UMAP embedding
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     try:
         import umap
     except ImportError:
         return {
-            'success': False,
-            'error': 'UMAP not installed. Install with: pip install umap-learn'
+            "success": False,
+            "error": "UMAP not installed. Install with: pip install umap-learn",
         }
 
     logger.info("[DimReduction] Running UMAP...")
 
-    data = params.get('data')
-    n_components = params.get('n_components', 2)
-    n_neighbors = params.get('n_neighbors', 15)
-    min_dist = params.get('min_dist', 0.1)
-    metric = params.get('metric', 'euclidean')
+    data = params.get("data")
+    n_components = params.get("n_components", 2)
+    n_neighbors = params.get("n_neighbors", 15)
+    min_dist = params.get("min_dist", 0.1)
+    metric = params.get("metric", "euclidean")
 
     if isinstance(data, str):
         data = pd.read_csv(data)
@@ -202,19 +207,19 @@ async def umap_reduce_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         n_neighbors=n_neighbors,
         min_dist=min_dist,
         metric=metric,
-        random_state=42
+        random_state=42,
     )
     X_embedded = reducer.fit_transform(X_scaled)
 
     logger.info(f"[DimReduction] UMAP: {len(numeric_cols)} -> {n_components}D")
 
     return {
-        'success': True,
-        'embedding': X_embedded.tolist(),
-        'n_components': n_components,
-        'n_neighbors': n_neighbors,
-        'min_dist': min_dist,
-        'metric': metric,
+        "success": True,
+        "embedding": X_embedded.tolist(),
+        "n_components": n_components,
+        "n_neighbors": n_neighbors,
+        "min_dist": min_dist,
+        "metric": metric,
     }
 
 
@@ -231,12 +236,12 @@ async def variance_analysis_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with variance analysis
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     logger.info("[DimReduction] Analyzing variance...")
 
-    data = params.get('data')
-    variance_threshold = params.get('variance_threshold', 0.95)
+    data = params.get("data")
+    variance_threshold = params.get("variance_threshold", 0.95)
 
     if isinstance(data, str):
         data = pd.read_csv(data)
@@ -263,17 +268,19 @@ async def variance_analysis_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     low_var_threshold = 0.01
     low_variance_features = feature_variance[feature_variance < low_var_threshold].index.tolist()
 
-    logger.info(f"[DimReduction] Optimal components for {variance_threshold*100}% variance: {optimal_components}")
+    logger.info(
+        f"[DimReduction] Optimal components for {variance_threshold*100}% variance: {optimal_components}"
+    )
 
     return {
-        'success': True,
-        'optimal_components': optimal_components,
-        'variance_threshold': variance_threshold,
-        'explained_variance_per_component': pca_full.explained_variance_ratio_.tolist(),
-        'cumulative_variance': cumulative_var.tolist(),
-        'feature_variance': feature_variance.to_dict(),
-        'low_variance_features': low_variance_features,
-        'total_features': len(numeric_cols),
+        "success": True,
+        "optimal_components": optimal_components,
+        "variance_threshold": variance_threshold,
+        "explained_variance_per_component": pca_full.explained_variance_ratio_.tolist(),
+        "cumulative_variance": cumulative_var.tolist(),
+        "feature_variance": feature_variance.to_dict(),
+        "low_variance_features": low_variance_features,
+        "total_features": len(numeric_cols),
     }
 
 
@@ -291,15 +298,15 @@ async def svd_reduce_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with SVD results
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     from sklearn.decomposition import TruncatedSVD
 
     logger.info("[DimReduction] Running Truncated SVD...")
 
-    data = params.get('data')
-    n_components = params.get('n_components', 50)
-    algorithm = params.get('algorithm', 'randomized')
+    data = params.get("data")
+    n_components = params.get("n_components", 50)
+    algorithm = params.get("algorithm", "randomized")
 
     if isinstance(data, str):
         data = pd.read_csv(data)
@@ -318,10 +325,10 @@ async def svd_reduce_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     logger.info(f"[DimReduction] SVD: {X.shape[1]} -> {n_components}")
 
     return {
-        'success': True,
-        'transformed': X_transformed.tolist(),
-        'n_components': n_components,
-        'explained_variance_ratio': svd.explained_variance_ratio_.tolist(),
-        'total_variance_explained': float(sum(svd.explained_variance_ratio_)),
-        'singular_values': svd.singular_values_.tolist(),
+        "success": True,
+        "transformed": X_transformed.tolist(),
+        "n_components": n_components,
+        "explained_variance_ratio": svd.explained_variance_ratio_.tolist(),
+        "total_variance_explained": float(sum(svd.explained_variance_ratio_)),
+        "singular_values": svd.singular_values_.tolist(),
     }

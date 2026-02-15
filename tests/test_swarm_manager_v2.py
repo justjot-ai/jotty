@@ -22,10 +22,11 @@ the full orchestration logic.
 
 import asyncio
 import logging
-import pytest
 import time
-from unittest.mock import AsyncMock, MagicMock, patch, PropertyMock
-from typing import Dict, Any, List
+from typing import Any, Dict, List
+from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
+
+import pytest
 
 # Setup logging for test visibility
 logging.basicConfig(level=logging.INFO)
@@ -36,10 +37,12 @@ logger = logging.getLogger(__name__)
 # FIXTURES
 # =============================================================================
 
+
 @pytest.fixture
 def swarm_manager():
     """Create a fresh Orchestrator with defaults."""
     from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
+
     return Orchestrator()
 
 
@@ -47,6 +50,7 @@ def swarm_manager():
 def config():
     """Create a SwarmConfig."""
     from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
+
     return SwarmConfig()
 
 
@@ -55,6 +59,7 @@ def agent_config():
     """Create a basic AgentConfig."""
     from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
     from Jotty.core.modes.agent.auto_agent import AutoAgent
+
     return AgentConfig(name="test_agent", agent=AutoAgent())
 
 
@@ -63,6 +68,7 @@ def multi_agent_configs():
     """Create multiple AgentConfigs for multi-agent testing."""
     from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
     from Jotty.core.modes.agent.auto_agent import AutoAgent
+
     return [
         AgentConfig(
             name="researcher",
@@ -86,6 +92,7 @@ def multi_agent_configs():
 # TEST 1: LAZY INITIALIZATION & FAST STARTUP
 # =============================================================================
 
+
 class TestLazyInitialization:
     """Test that Orchestrator init is fast and components are lazy."""
 
@@ -103,8 +110,8 @@ class TestLazyInitialization:
     def test_no_components_created_on_init(self, swarm_manager):
         """No lazy components should be created during init."""
         status = swarm_manager.status()
-        assert status['components']['created'] == 0
-        assert status['components']['pending'] == 23
+        assert status["components"]["created"] == 0
+        assert status["components"]["pending"] == 23
 
     def test_runners_not_built_on_init(self, swarm_manager):
         """Runners should not be built during init."""
@@ -134,6 +141,7 @@ class TestLazyInitialization:
 # =============================================================================
 # TEST 2: LIFECYCLE MANAGEMENT
 # =============================================================================
+
 
 class TestLifecycleManagement:
     """Test startup/shutdown and context manager patterns."""
@@ -192,6 +200,7 @@ class TestLifecycleManagement:
 # TEST 3: INTROSPECTION & METRICS
 # =============================================================================
 
+
 class TestIntrospection:
     """Test status() and metrics property."""
 
@@ -199,40 +208,40 @@ class TestIntrospection:
         """status() should return well-structured dict."""
         status = swarm_manager.status()
 
-        assert 'mode' in status
-        assert 'agents' in status
-        assert 'runners_built' in status
-        assert 'episode_count' in status
-        assert 'lotus_enabled' in status
-        assert 'components' in status
+        assert "mode" in status
+        assert "agents" in status
+        assert "runners_built" in status
+        assert "episode_count" in status
+        assert "lotus_enabled" in status
+        assert "components" in status
 
-        components = status['components']
-        assert 'total' in components
-        assert 'created' in components
-        assert 'pending' in components
-        assert 'detail' in components
+        components = status["components"]
+        assert "total" in components
+        assert "created" in components
+        assert "pending" in components
+        assert "detail" in components
 
     def test_metrics_property(self, swarm_manager):
         """metrics property should return quick summary."""
         metrics = swarm_manager.metrics
 
-        assert metrics['episodes'] == 0
-        assert metrics['agents'] == 1
-        assert metrics['mode'] == 'single'
-        assert metrics['runners_built'] is False
-        assert metrics['components_loaded'] == 0
+        assert metrics["episodes"] == 0
+        assert metrics["agents"] == 1
+        assert metrics["mode"] == "single"
+        assert metrics["runners_built"] is False
+        assert metrics["components_loaded"] == 0
 
     def test_status_tracks_component_creation(self, swarm_manager):
         """Accessing a lazy component should update status counts."""
         # Before: 0 components
-        before = swarm_manager.status()['components']['created']
+        before = swarm_manager.status()["components"]["created"]
         assert before == 0
 
         # Access a lazy component
         _ = swarm_manager.shared_context
 
         # After: at least 1 new component (may cascade to dependencies)
-        after = swarm_manager.status()['components']['created']
+        after = swarm_manager.status()["components"]["created"]
         assert after >= 1
 
     @pytest.mark.asyncio
@@ -244,10 +253,10 @@ class TestIntrospection:
         await sm.startup()
 
         status = sm.status()
-        assert status['runners_built'] is True
-        assert len(status['runners']) >= 1
+        assert status["runners_built"] is True
+        assert len(status["runners"]) >= 1
         # Many components should be created after startup
-        assert status['components']['created'] > 0
+        assert status["components"]["created"] > 0
 
         await sm.shutdown()
 
@@ -255,6 +264,7 @@ class TestIntrospection:
 # =============================================================================
 # TEST 4: ZERO-CONFIG AGENT CREATION
 # =============================================================================
+
 
 class TestZeroConfig:
     """Test natural language -> agent configuration."""
@@ -274,6 +284,7 @@ class TestZeroConfig:
 # =============================================================================
 # TEST 5: MULTI-AGENT COORDINATION
 # =============================================================================
+
 
 class TestMultiAgentCoordination:
     """Test multi-agent task board coordination."""
@@ -306,6 +317,7 @@ class TestMultiAgentCoordination:
 # TEST 6: LEARNING PIPELINE INTEGRATION
 # =============================================================================
 
+
 class TestLearningPipeline:
     """Test the learning pipeline accessors and integration."""
 
@@ -337,15 +349,15 @@ class TestLearningPipeline:
         assert weights is not None
 
         # Should have the three credit components
-        assert weights.get('base_reward') is not None
-        assert weights.get('cooperation_bonus') is not None
-        assert weights.get('predictability_bonus') is not None
+        assert weights.get("base_reward") is not None
+        assert weights.get("cooperation_bonus") is not None
+        assert weights.get("predictability_bonus") is not None
 
         # Weights should sum to ~1.0
         total = (
-            weights.get('base_reward') +
-            weights.get('cooperation_bonus') +
-            weights.get('predictability_bonus')
+            weights.get("base_reward")
+            + weights.get("cooperation_bonus")
+            + weights.get("predictability_bonus")
         )
         assert 0.9 <= total <= 1.1, f"Weights sum to {total}, expected ~1.0"
 
@@ -355,6 +367,7 @@ class TestLearningPipeline:
 # =============================================================================
 # TEST 7: LOTUS OPTIMIZATION
 # =============================================================================
+
 
 class TestLOTUSOptimization:
     """Test LOTUS optimization layer."""
@@ -384,6 +397,7 @@ class TestLOTUSOptimization:
 # =============================================================================
 # TEST 8: AGGREGATE RESULTS
 # =============================================================================
+
 
 class TestAggregateResults:
     """Test result aggregation for multi-agent mode."""
@@ -460,8 +474,8 @@ class TestAggregateResults:
 
         # Trajectories should be merged with agent labels
         assert len(combined.trajectory) == 2
-        assert combined.trajectory[0]['agent'] == 'researcher'
-        assert combined.trajectory[1]['agent'] == 'writer'
+        assert combined.trajectory[0]["agent"] == "researcher"
+        assert combined.trajectory[1]["agent"] == "writer"
 
     def test_aggregate_partial_failure(self, swarm_manager):
         """If any agent fails, combined success should be False."""
@@ -469,15 +483,25 @@ class TestAggregateResults:
 
         results = {
             "researcher": EpisodeResult(
-                output="Findings", success=True,
-                trajectory=[], tagged_outputs=[], episode=1,
-                execution_time=1.0, architect_results=[], auditor_results=[],
+                output="Findings",
+                success=True,
+                trajectory=[],
+                tagged_outputs=[],
+                episode=1,
+                execution_time=1.0,
+                architect_results=[],
+                auditor_results=[],
                 agent_contributions={},
             ),
             "writer": EpisodeResult(
-                output=None, success=False,
-                trajectory=[], tagged_outputs=[], episode=1,
-                execution_time=0.5, architect_results=[], auditor_results=[],
+                output=None,
+                success=False,
+                trajectory=[],
+                tagged_outputs=[],
+                episode=1,
+                execution_time=0.5,
+                architect_results=[],
+                auditor_results=[],
                 agent_contributions={},
             ),
         }
@@ -490,46 +514,48 @@ class TestAggregateResults:
 # TEST 9: STATE MANAGEMENT
 # =============================================================================
 
+
 class TestStateManagement:
     """Test shared context and state management."""
 
     def test_shared_context_lazy(self, swarm_manager):
         """SharedContext should be lazy-loaded."""
         # Should not be created yet
-        assert '_lazy_shared_context' not in swarm_manager.__dict__
+        assert "_lazy_shared_context" not in swarm_manager.__dict__
 
         # Access it
         ctx = swarm_manager.shared_context
         assert ctx is not None
 
         # Now it should be created
-        assert '_lazy_shared_context' in swarm_manager.__dict__
+        assert "_lazy_shared_context" in swarm_manager.__dict__
 
     def test_io_manager_lazy(self, swarm_manager):
         """IOManager should be lazy-loaded."""
-        assert '_lazy_io_manager' not in swarm_manager.__dict__
+        assert "_lazy_io_manager" not in swarm_manager.__dict__
         io = swarm_manager.io_manager
         assert io is not None
-        assert '_lazy_io_manager' in swarm_manager.__dict__
+        assert "_lazy_io_manager" in swarm_manager.__dict__
 
     def test_data_registry_lazy(self, swarm_manager):
         """DataRegistry should be lazy-loaded."""
-        assert '_lazy_data_registry' not in swarm_manager.__dict__
+        assert "_lazy_data_registry" not in swarm_manager.__dict__
         dr = swarm_manager.data_registry
         assert dr is not None
-        assert '_lazy_data_registry' in swarm_manager.__dict__
+        assert "_lazy_data_registry" in swarm_manager.__dict__
 
     def test_context_guard_lazy(self, swarm_manager):
         """ContextGuard should be lazy-loaded."""
-        assert '_lazy_context_guard' not in swarm_manager.__dict__
+        assert "_lazy_context_guard" not in swarm_manager.__dict__
         cg = swarm_manager.context_guard
         assert cg is not None
-        assert '_lazy_context_guard' in swarm_manager.__dict__
+        assert "_lazy_context_guard" in swarm_manager.__dict__
 
 
 # =============================================================================
 # TEST 10: EPISODE RESULT DATA STRUCTURE
 # =============================================================================
+
 
 class TestEpisodeResult:
     """Test EpisodeResult creation and usage."""
@@ -560,6 +586,7 @@ class TestEpisodeResult:
 # TEST 11: WARMUP & DAG DELEGATION
 # =============================================================================
 
+
 class TestDelegation:
     """Test warmup and DAG executor delegation patterns."""
 
@@ -571,7 +598,7 @@ class TestDelegation:
     @pytest.mark.asyncio
     async def test_warmup_creates_swarm_warmup(self, swarm_manager):
         """warmup() should create SwarmWarmup lazily."""
-        assert not hasattr(swarm_manager, '_warmup') or swarm_manager._warmup is None
+        assert not hasattr(swarm_manager, "_warmup") or swarm_manager._warmup is None
 
         # Warmup should work (may not do much without LLM, but shouldn't crash)
         try:
@@ -585,6 +612,7 @@ class TestDelegation:
 # =============================================================================
 # TEST 12: ML LEARNING BRIDGE
 # =============================================================================
+
 
 class TestMLLearningBridge:
     """Test ML learning bridge methods."""
@@ -633,6 +661,7 @@ class TestMLLearningBridge:
 # =============================================================================
 # TEST 13: CONFIGURATION VARIANTS
 # =============================================================================
+
 
 class TestConfigurationVariants:
     """Test different Orchestrator configurations."""

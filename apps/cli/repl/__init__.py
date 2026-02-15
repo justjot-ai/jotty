@@ -1,9 +1,9 @@
 """REPL Module for Jotty CLI."""
 
-from .engine import REPLEngine
-from .session import SessionManager
-from .history import HistoryManager
 from .completer import CommandCompleter
+from .engine import REPLEngine
+from .history import HistoryManager
+from .session import SessionManager
 
 __all__ = [
     "REPLEngine",

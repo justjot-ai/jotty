@@ -11,10 +11,11 @@ Tests for:
 6. WorkflowUseCase    (core/use_cases/workflow/workflow_use_case.py)
 """
 
-import pytest
 import time
-from unittest.mock import Mock, MagicMock, AsyncMock, patch, PropertyMock
-from typing import Dict, Any, Optional, List
+from typing import Any, Dict, List, Optional
+from unittest.mock import AsyncMock, MagicMock, Mock, PropertyMock, patch
+
+import pytest
 
 # ---------------------------------------------------------------------------
 # Guarded imports
@@ -22,42 +23,49 @@ from typing import Dict, Any, Optional, List
 
 try:
     from Jotty.core.interface.use_cases.chat.chat_executor import ChatExecutor
+
     HAS_CHAT_EXECUTOR = True
 except ImportError:
     HAS_CHAT_EXECUTOR = False
 
 try:
     from Jotty.core.interface.use_cases.chat.chat_orchestrator import ChatOrchestrator
+
     HAS_CHAT_ORCHESTRATOR = True
 except ImportError:
     HAS_CHAT_ORCHESTRATOR = False
 
 try:
     from Jotty.core.interface.use_cases.chat.chat_use_case import ChatUseCase
+
     HAS_CHAT_USE_CASE = True
 except ImportError:
     HAS_CHAT_USE_CASE = False
 
 try:
     from Jotty.core.interface.use_cases.chat.chat_context import ChatContext, ChatMessage
+
     HAS_CHAT_CONTEXT = True
 except ImportError:
     HAS_CHAT_CONTEXT = False
 
 try:
     from Jotty.core.interface.use_cases.workflow.workflow_executor import WorkflowExecutor
+
     HAS_WORKFLOW_EXECUTOR = True
 except ImportError:
     HAS_WORKFLOW_EXECUTOR = False
 
 try:
     from Jotty.core.interface.use_cases.workflow.workflow_orchestrator import WorkflowOrchestrator
+
     HAS_WORKFLOW_ORCHESTRATOR = True
 except ImportError:
     HAS_WORKFLOW_ORCHESTRATOR = False
 
 try:
     from Jotty.core.interface.use_cases.workflow.workflow_use_case import WorkflowUseCase
+
     HAS_WORKFLOW_USE_CASE = True
 except ImportError:
     HAS_WORKFLOW_USE_CASE = False
@@ -67,6 +75,7 @@ try:
         WorkflowContext,
         WorkflowTask,
     )
+
     HAS_WORKFLOW_CONTEXT = True
 except ImportError:
     HAS_WORKFLOW_CONTEXT = False
@@ -74,16 +83,18 @@ except ImportError:
 try:
     from Jotty.core.interface.use_cases.base import (
         BaseUseCase,
-        UseCaseType,
-        UseCaseResult,
         UseCaseConfig,
+        UseCaseResult,
+        UseCaseType,
     )
+
     HAS_USE_CASE_BASE = True
 except ImportError:
     HAS_USE_CASE_BASE = False
 
 try:
     from Jotty.core.infrastructure.foundation.types import TaskStatus
+
     HAS_TASK_STATUS = True
 except ImportError:
     HAS_TASK_STATUS = False
@@ -92,6 +103,7 @@ except ImportError:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_mock_conductor(actors=None, has_q_predictor=False, has_select_agent=False):
     """Create a mock Conductor with configurable features."""
@@ -132,6 +144,7 @@ def _make_mock_actor(name):
 # 1. ChatExecutor Tests
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(
     not (HAS_CHAT_EXECUTOR and HAS_CHAT_ORCHESTRATOR and HAS_CHAT_CONTEXT),
@@ -162,9 +175,7 @@ class TestChatExecutorInit:
         conductor = _make_mock_conductor()
         orchestrator = ChatOrchestrator(conductor=conductor, agent_id="TestAgent")
         custom_ctx = ChatContext(max_history=10)
-        executor = ChatExecutor(
-            conductor=conductor, orchestrator=orchestrator, context=custom_ctx
-        )
+        executor = ChatExecutor(conductor=conductor, orchestrator=orchestrator, context=custom_ctx)
         assert executor.context is custom_ctx
         assert executor.context.max_history == 10
 
@@ -211,9 +222,7 @@ class TestChatExecutorExecute:
         conductor.run = AsyncMock(return_value={"response": "answer"})
         orchestrator = ChatOrchestrator(conductor=conductor, agent_id="Agent1")
         ctx = ChatContext()
-        executor = ChatExecutor(
-            conductor=conductor, orchestrator=orchestrator, context=ctx
-        )
+        executor = ChatExecutor(conductor=conductor, orchestrator=orchestrator, context=ctx)
 
         await executor.execute(message="question")
 
@@ -441,9 +450,7 @@ class TestChatExecutorStream:
     @pytest.mark.asyncio
     async def test_stream_yields_text_chunks(self):
         conductor = _make_mock_conductor()
-        conductor.run = AsyncMock(
-            return_value={"response": "First sentence. Second sentence."}
-        )
+        conductor.run = AsyncMock(return_value={"response": "First sentence. Second sentence."})
         if hasattr(conductor, "run_actor_stream"):
             del conductor.run_actor_stream
         orchestrator = ChatOrchestrator(conductor=conductor, agent_id="StreamAgent")
@@ -480,9 +487,7 @@ class TestChatExecutorStream:
             del conductor.run_actor_stream
         orchestrator = ChatOrchestrator(conductor=conductor, agent_id="StreamAgent")
         ctx = ChatContext()
-        executor = ChatExecutor(
-            conductor=conductor, orchestrator=orchestrator, context=ctx
-        )
+        executor = ChatExecutor(conductor=conductor, orchestrator=orchestrator, context=ctx)
 
         async for _ in executor.stream(message="hello"):
             pass
@@ -496,6 +501,7 @@ class TestChatExecutorStream:
 # ---------------------------------------------------------------------------
 # 2. ChatOrchestrator Tests
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(
@@ -603,9 +609,7 @@ class TestChatOrchestratorSelectAgent:
         conductor = _make_mock_conductor(actors=actors, has_q_predictor=True)
         if hasattr(conductor, "select_agent"):
             del conductor.select_agent
-        conductor.q_predictor.predict_q_value = MagicMock(
-            side_effect=Exception("Q failed")
-        )
+        conductor.q_predictor.predict_q_value = MagicMock(side_effect=Exception("Q failed"))
         orch = ChatOrchestrator(conductor=conductor, mode="dynamic")
         result = orch.select_agent("hello")
         # Should fall back to first actor
@@ -656,9 +660,7 @@ class TestChatOrchestratorPrepareContext:
     def test_prepare_context_merges_additional_context(self):
         conductor = _make_mock_conductor()
         orch = ChatOrchestrator(conductor=conductor)
-        ctx = orch.prepare_agent_context(
-            "hello", context={"extra_key": "extra_value"}
-        )
+        ctx = orch.prepare_agent_context("hello", context={"extra_key": "extra_value"})
         assert ctx["extra_key"] == "extra_value"
 
     def test_prepare_context_history_to_dict_conversion(self):
@@ -715,6 +717,7 @@ class TestChatOrchestratorFormatHistory:
 # ---------------------------------------------------------------------------
 # 3. ChatUseCase Tests
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(
@@ -844,9 +847,15 @@ class TestChatUseCaseExecute:
 # 4. WorkflowExecutor Tests
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(
-    not (HAS_WORKFLOW_EXECUTOR and HAS_WORKFLOW_ORCHESTRATOR and HAS_WORKFLOW_CONTEXT and HAS_TASK_STATUS),
+    not (
+        HAS_WORKFLOW_EXECUTOR
+        and HAS_WORKFLOW_ORCHESTRATOR
+        and HAS_WORKFLOW_CONTEXT
+        and HAS_TASK_STATUS
+    ),
     reason="Workflow executor imports unavailable",
 )
 class TestWorkflowExecutorInit:
@@ -883,7 +892,12 @@ class TestWorkflowExecutorInit:
 
 @pytest.mark.unit
 @pytest.mark.skipif(
-    not (HAS_WORKFLOW_EXECUTOR and HAS_WORKFLOW_ORCHESTRATOR and HAS_WORKFLOW_CONTEXT and HAS_TASK_STATUS),
+    not (
+        HAS_WORKFLOW_EXECUTOR
+        and HAS_WORKFLOW_ORCHESTRATOR
+        and HAS_WORKFLOW_CONTEXT
+        and HAS_TASK_STATUS
+    ),
     reason="Workflow executor imports unavailable",
 )
 class TestWorkflowExecutorExecute:
@@ -891,9 +905,7 @@ class TestWorkflowExecutorExecute:
 
     def _make_executor(self, conductor=None):
         conductor = conductor or _make_mock_conductor()
-        orchestrator = WorkflowOrchestrator(
-            conductor=conductor, agent_order=["Agent1"]
-        )
+        orchestrator = WorkflowOrchestrator(conductor=conductor, agent_order=["Agent1"])
         return WorkflowExecutor(conductor=conductor, orchestrator=orchestrator)
 
     @pytest.mark.asyncio
@@ -976,9 +988,7 @@ class TestWorkflowExecutorExecute:
         conductor.run = AsyncMock(return_value={"output": "ok"})
         executor = self._make_executor(conductor)
 
-        await executor.execute(
-            goal="test", context={"key": "val"}, max_iterations=50
-        )
+        await executor.execute(goal="test", context={"key": "val"}, max_iterations=50)
 
         call_kwargs = conductor.run.call_args.kwargs
         assert call_kwargs["context"] == {"key": "val"}
@@ -987,7 +997,12 @@ class TestWorkflowExecutorExecute:
 
 @pytest.mark.unit
 @pytest.mark.skipif(
-    not (HAS_WORKFLOW_EXECUTOR and HAS_WORKFLOW_ORCHESTRATOR and HAS_WORKFLOW_CONTEXT and HAS_TASK_STATUS),
+    not (
+        HAS_WORKFLOW_EXECUTOR
+        and HAS_WORKFLOW_ORCHESTRATOR
+        and HAS_WORKFLOW_CONTEXT
+        and HAS_TASK_STATUS
+    ),
     reason="Workflow executor imports unavailable",
 )
 class TestWorkflowExecutorStream:
@@ -1000,9 +1015,7 @@ class TestWorkflowExecutorStream:
             del conductor.run_stream
         # Need run_actor for fallback sequential execution
         conductor.run_actor = AsyncMock(return_value={"output": "streamed"})
-        orchestrator = WorkflowOrchestrator(
-            conductor=conductor, agent_order=["Agent1"]
-        )
+        orchestrator = WorkflowOrchestrator(conductor=conductor, agent_order=["Agent1"])
         executor = WorkflowExecutor(conductor=conductor, orchestrator=orchestrator)
 
         events = []
@@ -1018,9 +1031,7 @@ class TestWorkflowExecutorStream:
         if hasattr(conductor, "run_stream"):
             del conductor.run_stream
         conductor.run_actor = AsyncMock(return_value={"output": "streamed"})
-        orchestrator = WorkflowOrchestrator(
-            conductor=conductor, agent_order=["Agent1"]
-        )
+        orchestrator = WorkflowOrchestrator(conductor=conductor, agent_order=["Agent1"])
         executor = WorkflowExecutor(conductor=conductor, orchestrator=orchestrator)
 
         events = []
@@ -1035,13 +1046,9 @@ class TestWorkflowExecutorStream:
         conductor = _make_mock_conductor()
         if hasattr(conductor, "run_stream"):
             del conductor.run_stream
-        orchestrator = WorkflowOrchestrator(
-            conductor=conductor, agent_order=["Agent1"]
-        )
+        orchestrator = WorkflowOrchestrator(conductor=conductor, agent_order=["Agent1"])
         ctx = WorkflowContext()
-        executor = WorkflowExecutor(
-            conductor=conductor, orchestrator=orchestrator, context=ctx
-        )
+        executor = WorkflowExecutor(conductor=conductor, orchestrator=orchestrator, context=ctx)
 
         # Patch context to raise an error during get_ready_tasks
         with patch.object(ctx, "get_ready_tasks", side_effect=RuntimeError("stream fail")):
@@ -1056,6 +1063,7 @@ class TestWorkflowExecutorStream:
 # ---------------------------------------------------------------------------
 # 5. WorkflowOrchestrator Tests
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(
@@ -1072,16 +1080,12 @@ class TestWorkflowOrchestratorInit:
 
     def test_init_stores_mode(self):
         conductor = _make_mock_conductor()
-        orch = WorkflowOrchestrator(
-            conductor=conductor, mode="static", agent_order=["a"]
-        )
+        orch = WorkflowOrchestrator(conductor=conductor, mode="static", agent_order=["a"])
         assert orch.mode == "static"
 
     def test_init_stores_agent_order(self):
         conductor = _make_mock_conductor()
-        orch = WorkflowOrchestrator(
-            conductor=conductor, mode="static", agent_order=["A", "B", "C"]
-        )
+        orch = WorkflowOrchestrator(conductor=conductor, mode="static", agent_order=["A", "B", "C"])
         assert orch.agent_order == ["A", "B", "C"]
 
     def test_init_rejects_invalid_mode(self):
@@ -1172,9 +1176,7 @@ class TestWorkflowOrchestratorSelectAgent:
         conductor = _make_mock_conductor(actors=actors, has_q_predictor=True)
         if hasattr(conductor, "select_agent"):
             del conductor.select_agent
-        conductor.q_predictor.predict_q_value = MagicMock(
-            side_effect=Exception("Q error")
-        )
+        conductor.q_predictor.predict_q_value = MagicMock(side_effect=Exception("Q error"))
         orch = WorkflowOrchestrator(conductor=conductor, mode="dynamic")
         task = self._make_task()
         result = orch.select_agent(task)
@@ -1205,9 +1207,7 @@ class TestWorkflowOrchestratorPrepareContext:
     """Tests for WorkflowOrchestrator.prepare_agent_context()."""
 
     def _make_task(self, task_id="task_0", goal="do work", dependencies=None):
-        return WorkflowTask(
-            id=task_id, goal=goal, dependencies=dependencies or []
-        )
+        return WorkflowTask(id=task_id, goal=goal, dependencies=dependencies or [])
 
     def test_prepare_context_includes_goal(self):
         conductor = _make_mock_conductor()
@@ -1260,9 +1260,7 @@ class TestWorkflowOrchestratorPrepareContext:
         orch = WorkflowOrchestrator(conductor=conductor, agent_order=["a"])
         wf_ctx = WorkflowContext()
         task = self._make_task()
-        ctx = orch.prepare_agent_context(
-            task, wf_ctx, context={"extra": "data"}
-        )
+        ctx = orch.prepare_agent_context(task, wf_ctx, context={"extra": "data"})
         assert ctx["extra"] == "data"
 
     def test_prepare_context_workflow_summary_structure(self):
@@ -1292,9 +1290,15 @@ class TestWorkflowOrchestratorPrepareContext:
 # 6. WorkflowUseCase Tests
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(
-    not (HAS_WORKFLOW_USE_CASE and HAS_USE_CASE_BASE and HAS_WORKFLOW_ORCHESTRATOR and HAS_TASK_STATUS),
+    not (
+        HAS_WORKFLOW_USE_CASE
+        and HAS_USE_CASE_BASE
+        and HAS_WORKFLOW_ORCHESTRATOR
+        and HAS_TASK_STATUS
+    ),
     reason="WorkflowUseCase imports unavailable",
 )
 class TestWorkflowUseCaseInit:
@@ -1305,23 +1309,17 @@ class TestWorkflowUseCaseInit:
 
     def test_init_creates_orchestrator(self):
         conductor = _make_mock_conductor()
-        uc = WorkflowUseCase(
-            conductor=conductor, mode="static", agent_order=["A"]
-        )
+        uc = WorkflowUseCase(conductor=conductor, mode="static", agent_order=["A"])
         assert isinstance(uc.orchestrator, WorkflowOrchestrator)
 
     def test_init_creates_executor(self):
         conductor = _make_mock_conductor()
-        uc = WorkflowUseCase(
-            conductor=conductor, mode="static", agent_order=["A"]
-        )
+        uc = WorkflowUseCase(conductor=conductor, mode="static", agent_order=["A"])
         assert isinstance(uc.executor, WorkflowExecutor)
 
     def test_init_stores_mode_and_agent_order(self):
         conductor = _make_mock_conductor()
-        uc = WorkflowUseCase(
-            conductor=conductor, mode="static", agent_order=["A", "B"]
-        )
+        uc = WorkflowUseCase(conductor=conductor, mode="static", agent_order=["A", "B"])
         assert uc.mode == "static"
         assert uc.agent_order == ["A", "B"]
 
@@ -1332,12 +1330,8 @@ class TestWorkflowUseCaseInit:
 
     def test_init_custom_config(self):
         conductor = _make_mock_conductor()
-        config = UseCaseConfig(
-            use_case_type=UseCaseType.WORKFLOW, max_iterations=25
-        )
-        uc = WorkflowUseCase(
-            conductor=conductor, mode="dynamic", config=config
-        )
+        config = UseCaseConfig(use_case_type=UseCaseType.WORKFLOW, max_iterations=25)
+        uc = WorkflowUseCase(conductor=conductor, mode="dynamic", config=config)
         assert uc.config.max_iterations == 25
 
 
@@ -1393,9 +1387,7 @@ class TestWorkflowUseCaseExecute:
     @pytest.mark.asyncio
     async def test_execute_handles_exception(self):
         conductor = _make_mock_conductor()
-        conductor.run = AsyncMock(
-            side_effect=RuntimeError("workflow use case error")
-        )
+        conductor.run = AsyncMock(side_effect=RuntimeError("workflow use case error"))
         uc = WorkflowUseCase(conductor=conductor, mode="dynamic")
         result = await uc.execute(goal="fail")
         assert result.success is False
@@ -1427,9 +1419,7 @@ class TestWorkflowUseCaseExecute:
         conductor = _make_mock_conductor()
         conductor.run = AsyncMock(return_value={"output": "ok"})
         uc = WorkflowUseCase(conductor=conductor, mode="dynamic")
-        result = await uc.execute(
-            goal="contextualized", context={"key": "value"}
-        )
+        result = await uc.execute(goal="contextualized", context={"key": "value"})
         assert result.success is True
 
 
@@ -1472,6 +1462,7 @@ class TestWorkflowUseCaseEnqueue:
 # Integration-style tests: ChatUseCase stream
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(
     not (HAS_CHAT_USE_CASE and HAS_CHAT_EXECUTOR and HAS_CHAT_ORCHESTRATOR),
@@ -1502,9 +1493,15 @@ class TestChatUseCaseStream:
 # Integration-style tests: WorkflowUseCase stream
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(
-    not (HAS_WORKFLOW_USE_CASE and HAS_WORKFLOW_EXECUTOR and HAS_WORKFLOW_ORCHESTRATOR and HAS_TASK_STATUS),
+    not (
+        HAS_WORKFLOW_USE_CASE
+        and HAS_WORKFLOW_EXECUTOR
+        and HAS_WORKFLOW_ORCHESTRATOR
+        and HAS_TASK_STATUS
+    ),
     reason="Workflow use case imports unavailable",
 )
 class TestWorkflowUseCaseStream:
@@ -1516,9 +1513,7 @@ class TestWorkflowUseCaseStream:
         if hasattr(conductor, "run_stream"):
             del conductor.run_stream
         conductor.run_actor = AsyncMock(return_value={"output": "streamed"})
-        uc = WorkflowUseCase(
-            conductor=conductor, mode="static", agent_order=["Agent1"]
-        )
+        uc = WorkflowUseCase(conductor=conductor, mode="static", agent_order=["Agent1"])
 
         events = []
         async for event in uc.stream(goal="workflow stream"):
@@ -1532,6 +1527,7 @@ class TestWorkflowUseCaseStream:
 # ---------------------------------------------------------------------------
 # Edge case / cross-cutting tests
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(
@@ -1560,11 +1556,7 @@ class TestChatExecutorExtractTextFromA2UI:
 
     def test_extract_card_title_and_subtitle(self):
         executor = self._make_executor()
-        a2ui = {
-            "content": [
-                {"type": "card", "title": "Card Title", "subtitle": "Card Sub"}
-            ]
-        }
+        a2ui = {"content": [{"type": "card", "title": "Card Title", "subtitle": "Card Sub"}]}
         result = executor._extract_text_from_a2ui(a2ui)
         assert "Card Title" in result
         assert "Card Sub" in result
@@ -1680,9 +1672,7 @@ class TestWorkflowOrchestratorQPredictor:
     def test_handles_prediction_errors(self):
         actors = [_make_mock_actor("OnlyWorker")]
         conductor = _make_mock_conductor(actors=actors, has_q_predictor=True)
-        conductor.q_predictor.predict_q_value = MagicMock(
-            side_effect=Exception("fail")
-        )
+        conductor.q_predictor.predict_q_value = MagicMock(side_effect=Exception("fail"))
         orch = WorkflowOrchestrator(conductor=conductor, mode="dynamic")
         task = WorkflowTask(id="t1", goal="test")
         result = orch._select_with_q_predictor(task, None)

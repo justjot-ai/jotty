@@ -16,56 +16,56 @@ import ast
 import re
 import sys
 from pathlib import Path
-from typing import Optional, List, Tuple
+from typing import List, Optional, Tuple
 
 
 def infer_return_type(func_node: ast.FunctionDef, source_code: str) -> Optional[str]:
     """Infer return type from function body."""
 
     # Get function source
-    func_lines = source_code.split('\n')[func_node.lineno-1:func_node.end_lineno]
-    func_source = '\n'.join(func_lines)
+    func_lines = source_code.split("\n")[func_node.lineno - 1 : func_node.end_lineno]
+    func_source = "\n".join(func_lines)
 
     # Check for explicit return statements
     returns = []
     for node in ast.walk(func_node):
         if isinstance(node, ast.Return):
             if node.value is None:
-                returns.append('None')
+                returns.append("None")
             elif isinstance(node.value, ast.Constant):
                 if isinstance(node.value.value, str):
-                    returns.append('str')
+                    returns.append("str")
                 elif isinstance(node.value.value, int):
-                    returns.append('int')
+                    returns.append("int")
                 elif isinstance(node.value.value, float):
-                    returns.append('float')
+                    returns.append("float")
                 elif isinstance(node.value.value, bool):
-                    returns.append('bool')
+                    returns.append("bool")
                 elif node.value.value is None:
-                    returns.append('None')
+                    returns.append("None")
             elif isinstance(node.value, ast.Dict):
-                returns.append('Dict[str, Any]')
+                returns.append("Dict[str, Any]")
             elif isinstance(node.value, ast.List):
-                returns.append('List[Any]')
+                returns.append("List[Any]")
             elif isinstance(node.value, ast.Tuple):
-                returns.append('Tuple')
+                returns.append("Tuple")
 
     # No return statements → likely None
     if not returns:
         # Check if it's a generator
         if any(isinstance(node, (ast.Yield, ast.YieldFrom)) for node in ast.walk(func_node)):
             return None  # Generators are complex, skip
-        return 'None'
+        return "None"
 
     # All returns are None
-    if all(r == 'None' for r in returns):
-        return 'None'
+    if all(r == "None" for r in returns):
+        return "None"
 
     # Mixed returns with None → Optional[...]
-    if 'None' in returns and len(set(returns)) > 1:
-        non_none = [r for r in returns if r != 'None']
+    if "None" in returns and len(set(returns)) > 1:
+        non_none = [r for r in returns if r != "None"]
         if len(set(non_none)) == 1:
-            return f'Optional[{non_none[0]}]'
+            return f"Optional[{non_none[0]}]"
         return None  # Complex, skip
 
     # Single consistent type
@@ -76,10 +76,12 @@ def infer_return_type(func_node: ast.FunctionDef, source_code: str) -> Optional[
     return None
 
 
-def add_type_hint_to_function(source_code: str, func_node: ast.FunctionDef, return_type: str) -> str:
+def add_type_hint_to_function(
+    source_code: str, func_node: ast.FunctionDef, return_type: str
+) -> str:
     """Add return type hint to function signature."""
 
-    lines = source_code.split('\n')
+    lines = source_code.split("\n")
 
     # Find the closing parenthesis of the function signature
     start_line = func_node.lineno - 1
@@ -88,15 +90,15 @@ def add_type_hint_to_function(source_code: str, func_node: ast.FunctionDef, retu
     sig_line = lines[start_line]
 
     # Check if already has type hint
-    if '->' in sig_line:
+    if "->" in sig_line:
         return source_code
 
     # Find closing paren
-    if ')' in sig_line and ':' in sig_line:
+    if ")" in sig_line and ":" in sig_line:
         # Single line signature
-        sig_line = sig_line.replace('):', f') -> {return_type}:')
+        sig_line = sig_line.replace("):", f") -> {return_type}:")
         lines[start_line] = sig_line
-        return '\n'.join(lines)
+        return "\n".join(lines)
 
     # Multi-line signature (complex, skip for now)
     return source_code
@@ -123,7 +125,7 @@ def process_file(file_path: Path, dry_run: bool = False) -> int:
                 continue
 
             # Skip special methods
-            if node.name in ['__init__', '__str__', '__repr__', '__eq__', '__post_init__']:
+            if node.name in ["__init__", "__str__", "__repr__", "__eq__", "__post_init__"]:
                 continue
 
             # Infer return type
@@ -151,9 +153,9 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(description="Add type hints to Python files")
-    parser.add_argument('path', nargs='?', help='File or directory to process')
-    parser.add_argument('--swarms', action='store_true', help='Process all swarm files')
-    parser.add_argument('--check', action='store_true', help='Check only (no changes)')
+    parser.add_argument("path", nargs="?", help="File or directory to process")
+    parser.add_argument("--swarms", action="store_true", help="Process all swarm files")
+    parser.add_argument("--check", action="store_true", help="Check only (no changes)")
 
     args = parser.parse_args()
 
@@ -161,13 +163,13 @@ def main():
     files = []
 
     if args.swarms:
-        files = list((root / 'core' / 'swarms').rglob('*.py'))
+        files = list((root / "core" / "swarms").rglob("*.py"))
     elif args.path:
         p = Path(args.path)
         if p.is_file():
             files = [p]
         elif p.is_dir():
-            files = list(p.rglob('*.py'))
+            files = list(p.rglob("*.py"))
     else:
         print("Usage: add_type_hints.py <path> or --swarms")
         return

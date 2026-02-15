@@ -27,4 +27,4 @@ def get_registry():
     return get_unified_registry()
 
 
-__all__ = ['get_registry', 'get_unified_registry']
+__all__ = ["get_registry", "get_unified_registry"]

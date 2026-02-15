@@ -20,22 +20,24 @@ import asyncio
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional, Callable, TypeVar, Generic, Union, Tuple
+from typing import Any, Callable, Dict, Generic, List, Optional, Tuple, TypeVar, Union
+
 import pandas as pd
 
+from .batch_executor import BatchExecutor, ParallelBatchExecutor
 from .config import LotusConfig, ModelTier
 from .model_cascade import ModelCascade
 from .semantic_cache import SemanticCache
-from .batch_executor import BatchExecutor, ParallelBatchExecutor
 
 logger = logging.getLogger(__name__)
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 @dataclass
 class OperatorResult:
     """Result from a semantic operator."""
+
     data: Any
     stats: Dict[str, Any] = field(default_factory=dict)
     cost_estimate: float = 0.0
@@ -55,7 +57,13 @@ class SemanticOperator(ABC):
     DRY: Common optimization logic in base class.
     """
 
-    def __init__(self, config: Optional[LotusConfig] = None, cascade: Optional[ModelCascade] = None, cache: Optional[SemanticCache] = None, batch_executor: Optional[BatchExecutor] = None) -> None:
+    def __init__(
+        self,
+        config: Optional[LotusConfig] = None,
+        cascade: Optional[ModelCascade] = None,
+        cache: Optional[SemanticCache] = None,
+        batch_executor: Optional[BatchExecutor] = None,
+    ) -> None:
         """
         Initialize operator with shared optimization components.
 
@@ -99,7 +107,9 @@ class SemFilter(SemanticOperator):
         )
     """
 
-    async def execute(self, data: List[Any], instruction: str, use_cascade: bool = True, **kwargs: Any) -> OperatorResult:
+    async def execute(
+        self, data: List[Any], instruction: str, use_cascade: bool = True, **kwargs: Any
+    ) -> OperatorResult:
         """
         Filter data based on natural language condition.
 
@@ -167,7 +177,7 @@ class SemFilter(SemanticOperator):
         def prompt_fn(item: Any) -> Any:
             return self._build_prompt(
                 f"Does this item satisfy the condition: {instruction}? Answer YES or NO with confidence.",
-                item
+                item,
             )
 
         def parse_fn(response: str) -> Tuple:
@@ -180,9 +190,7 @@ class SemFilter(SemanticOperator):
                 return False, confidence
             return None, 0.3
 
-        cascade_results = await self.cascade.execute(
-            "filter", items, prompt_fn, parse_fn
-        )
+        cascade_results = await self.cascade.execute("filter", items, prompt_fn, parse_fn)
 
         return [(r.result, r.confidence) for r in cascade_results]
 
@@ -195,8 +203,7 @@ class SemFilter(SemanticOperator):
 
         def prompt_fn(item: Any) -> Any:
             return self._build_prompt(
-                f"Does this item satisfy: {instruction}? Answer YES or NO.",
-                item
+                f"Does this item satisfy: {instruction}? Answer YES or NO.", item
             )
 
         results = await self.batch_executor.execute_batch("filter", items, prompt_fn)
@@ -225,7 +232,9 @@ class SemMap(SemanticOperator):
         )
     """
 
-    async def execute(self, data: List[Any], instruction: str, output_column: Optional[str] = None, **kwargs: Any) -> OperatorResult:
+    async def execute(
+        self, data: List[Any], instruction: str, output_column: Optional[str] = None, **kwargs: Any
+    ) -> OperatorResult:
         """
         Map each item through LLM transformation.
 
@@ -257,12 +266,11 @@ class SemMap(SemanticOperator):
 
         # Process uncached
         if to_process:
+
             def prompt_fn(item: Any) -> Any:
                 return self._build_prompt(instruction, item)
 
-            batch_results = await self.batch_executor.execute_batch(
-                "map", to_process, prompt_fn
-            )
+            batch_results = await self.batch_executor.execute_batch("map", to_process, prompt_fn)
 
             for idx, item, result in zip(to_process_indices, to_process, batch_results):
                 self.cache.put(instruction, item, result)
@@ -300,7 +308,13 @@ class SemExtract(SemanticOperator):
         )
     """
 
-    async def execute(self, data: List[Any], instruction: str, schema: Optional[Dict[str, type]] = None, **kwargs: Any) -> OperatorResult:
+    async def execute(
+        self,
+        data: List[Any],
+        instruction: str,
+        schema: Optional[Dict[str, type]] = None,
+        **kwargs: Any,
+    ) -> OperatorResult:
         """
         Extract structured data from items.
 
@@ -337,6 +351,7 @@ class SemExtract(SemanticOperator):
 
         # Process uncached
         if to_process:
+
             def prompt_fn(item: Any) -> Any:
                 return self._build_prompt(instruction + schema_hint, item)
 
@@ -346,6 +361,7 @@ class SemExtract(SemanticOperator):
 
             # Parse JSON results
             import json
+
             for idx, item, result in zip(to_process_indices, to_process, batch_results):
                 try:
                     # Try to parse as JSON
@@ -384,7 +400,9 @@ class SemTopK(SemanticOperator):
         )
     """
 
-    async def execute(self, data: List[Any], instruction: str, k: int = 10, **kwargs: Any) -> OperatorResult:
+    async def execute(
+        self, data: List[Any], instruction: str, k: int = 10, **kwargs: Any
+    ) -> OperatorResult:
         """
         Select top-k items by semantic criteria.
 
@@ -411,14 +429,15 @@ class SemTopK(SemanticOperator):
             return self._build_prompt(
                 f"Rate how well this item matches: {instruction}. "
                 f"Respond with a score from 0-100.",
-                item
+                item,
             )
 
         def parse_fn(response: str) -> tuple:
             try:
                 # Extract number from response
                 import re
-                numbers = re.findall(r'\d+', response)
+
+                numbers = re.findall(r"\d+", response)
                 if numbers:
                     score = int(numbers[0])
                     confidence = 0.8 if score > 0 else 0.5
@@ -427,9 +446,7 @@ class SemTopK(SemanticOperator):
                 pass
             return 50, 0.3
 
-        cascade_results = await self.cascade.execute(
-            "topk", data, prompt_fn, parse_fn
-        )
+        cascade_results = await self.cascade.execute("topk", data, prompt_fn, parse_fn)
 
         # Sort by score and take top k
         scored = [
@@ -467,7 +484,12 @@ class SemanticDataFrame:
         )
     """
 
-    def __init__(self, data: Union[pd.DataFrame, List[Dict], List[Any]], config: Optional[LotusConfig] = None, text_column: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        data: Union[pd.DataFrame, List[Dict], List[Any]],
+        config: Optional[LotusConfig] = None,
+        text_column: Optional[str] = None,
+    ) -> None:
         """
         Initialize SemanticDataFrame.
 
@@ -485,7 +507,7 @@ class SemanticDataFrame:
             if text_column:
                 self._items = data[text_column].tolist()
             else:
-                self._items = data.to_dict('records')
+                self._items = data.to_dict("records")
         elif isinstance(data, list):
             self._df = None
             self._items = data
@@ -506,7 +528,7 @@ class SemanticDataFrame:
         # Operation queue for lazy execution
         self._operations: List[tuple] = []
 
-    def sem_filter(self, condition: str) -> 'SemanticDataFrame':
+    def sem_filter(self, condition: str) -> "SemanticDataFrame":
         """Add filter operation to queue."""
         self._operations.append(("filter", condition, {}))
         return self
@@ -515,7 +537,7 @@ class SemanticDataFrame:
         self,
         instruction: str,
         output_col: Optional[str] = None,
-    ) -> 'SemanticDataFrame':
+    ) -> "SemanticDataFrame":
         """Add map operation to queue."""
         self._operations.append(("map", instruction, {"output_col": output_col}))
         return self
@@ -524,12 +546,12 @@ class SemanticDataFrame:
         self,
         instruction: str,
         schema: Optional[Dict] = None,
-    ) -> 'SemanticDataFrame':
+    ) -> "SemanticDataFrame":
         """Add extract operation to queue."""
         self._operations.append(("extract", instruction, {"schema": schema}))
         return self
 
-    def sem_topk(self, k: int, criteria: str) -> 'SemanticDataFrame':
+    def sem_topk(self, k: int, criteria: str) -> "SemanticDataFrame":
         """Add top-k operation to queue."""
         self._operations.append(("topk", criteria, {"k": k}))
         return self
@@ -561,11 +583,13 @@ class SemanticDataFrame:
                 raise ValueError(f"Unknown operation: {op_type}")
 
             current_data = result.data
-            total_stats["operations"].append({
-                "type": op_type,
-                "instruction": instruction[:50],
-                "stats": result.stats,
-            })
+            total_stats["operations"].append(
+                {
+                    "type": op_type,
+                    "instruction": instruction[:50],
+                    "stats": result.stats,
+                }
+            )
             total_stats["total_cache_hits"] += result.cache_hits
             total_stats["total_items_processed"] += result.items_processed
 

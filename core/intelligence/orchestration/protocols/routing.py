@@ -5,13 +5,21 @@ Extracted from SwarmIntelligence for modularity.
 These are mixed into SwarmIntelligence at class definition.
 """
 
-import time
 import logging
-from typing import Dict, List, Any, Optional, Tuple, Callable
+import time
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from ..swarm_data_structures import (
-    AgentSpecialization, AgentProfile, ConsensusVote, SwarmDecision,
-    AgentSession, HandoffContext, Coalition, AuctionBid, GossipMessage, SupervisorNode,
+    AgentProfile,
+    AgentSession,
+    AgentSpecialization,
+    AuctionBid,
+    Coalition,
+    ConsensusVote,
+    GossipMessage,
+    HandoffContext,
+    SupervisorNode,
+    SwarmDecision,
 )
 
 logger = logging.getLogger(__name__)
@@ -19,7 +27,6 @@ logger = logging.getLogger(__name__)
 
 class RoutingMixin:
     """Routing protocol mixin: smart routing, load balancing, work stealing."""
-
 
     # =========================================================================
     # INTEGRATED ROUTING (Combines All Patterns)
@@ -32,7 +39,7 @@ class RoutingMixin:
         task_description: str = "",
         prefer_coalition: bool = False,
         use_auction: bool = False,
-        use_hierarchy: bool = True
+        use_hierarchy: bool = True,
     ) -> Dict[str, Any]:
         """
         Smart routing combining all arXiv swarm patterns + RL-learned values.
@@ -105,9 +112,7 @@ class RoutingMixin:
         if task_description:
             profiles = {a: self.agent_profiles[a] for a in available}
             best = self.morph_scorer.get_best_agent_by_tras(
-                profiles=profiles,
-                task=task_description,
-                task_type=task_type
+                profiles=profiles, task=task_description, task_type=task_type
             )
             if best:
                 result["assigned_agent"] = best
@@ -147,11 +152,11 @@ class RoutingMixin:
             Best agent name, or None if no RL data available.
         """
         # Access the grouped baseline from the learning system
-        td_learner = getattr(self, '_td_learner', None)
+        td_learner = getattr(self, "_td_learner", None)
         if td_learner is None:
             return None
 
-        grouped = getattr(td_learner, 'grouped_baseline', None)
+        grouped = getattr(td_learner, "grouped_baseline", None)
         if grouped is None:
             return None
 
@@ -178,9 +183,9 @@ class RoutingMixin:
             # Trust-weighted blend of empirical + RL advantage
             trust = profile.trust_score
             score = (
-                0.5 * success_rate +
-                0.3 * (0.5 + advantage) +  # center advantage around 0.5
-                0.2 * trust
+                0.5 * success_rate
+                + 0.3 * (0.5 + advantage)
+                + 0.2 * trust  # center advantage around 0.5
             )
 
             if score > best_score:
@@ -196,11 +201,11 @@ class RoutingMixin:
         Returns the difference between agent's success rate and the
         group baseline (positive = agent is above average for this task type).
         """
-        td_learner = getattr(self, '_td_learner', None)
+        td_learner = getattr(self, "_td_learner", None)
         if td_learner is None:
             return 0.0
 
-        grouped = getattr(td_learner, 'grouped_baseline', None)
+        grouped = getattr(td_learner, "grouped_baseline", None)
         if grouped is None:
             return 0.0
 
@@ -214,8 +219,6 @@ class RoutingMixin:
     # =========================================================================
     # WORK-STEALING (Idle agents steal from busy ones)
     # =========================================================================
-
-
 
     # =========================================================================
     # WORK-STEALING (Idle agents steal from busy ones)
@@ -240,27 +243,22 @@ class RoutingMixin:
         # Recent tasks (from collective memory)
         # Use list() for deque compatibility (deque doesn't support slicing in all Python versions)
         mem_list = list(self.collective_memory)
-        recent = [m for m in mem_list[-20:]
-                  if m.get('agent') == agent and time.time() - m.get('timestamp', 0) < 60]
+        recent = [
+            m
+            for m in mem_list[-20:]
+            if m.get("agent") == agent and time.time() - m.get("timestamp", 0) < 60
+        ]
         load += min(0.4, len(recent) * 0.1)
 
         return min(1.0, load)
 
-
-
     def find_overloaded_agents(self, threshold: float = 0.7) -> List[str]:
         """Find agents with load above threshold."""
-        return [a for a in self.agent_profiles.keys()
-                if self.get_agent_load(a) > threshold]
-
-
+        return [a for a in self.agent_profiles.keys() if self.get_agent_load(a) > threshold]
 
     def find_idle_agents(self, threshold: float = 0.3) -> List[str]:
         """Find agents with load below threshold."""
-        return [a for a in self.agent_profiles.keys()
-                if self.get_agent_load(a) < threshold]
-
-
+        return [a for a in self.agent_profiles.keys() if self.get_agent_load(a) < threshold]
 
     def work_steal(self, idle_agent: str) -> Optional[HandoffContext]:
         """
@@ -289,14 +287,12 @@ class RoutingMixin:
                     self.gossip_broadcast(
                         origin_agent=idle_agent,
                         message_type="work_steal",
-                        content={"task_id": task_id, "from": busy_agent, "to": idle_agent}
+                        content={"task_id": task_id, "from": busy_agent, "to": idle_agent},
                     )
 
                     return handoff
 
         return None
-
-
 
     def balance_load(self) -> List[Dict]:
         """
@@ -314,12 +310,14 @@ class RoutingMixin:
 
             result = self.work_steal(idle_agent)
             if result:
-                actions.append({
-                    "action": "work_steal",
-                    "from": result.handoff_chain[-1] if result.handoff_chain else "unknown",
-                    "to": idle_agent,
-                    "task_id": result.task_id
-                })
+                actions.append(
+                    {
+                        "action": "work_steal",
+                        "from": result.handoff_chain[-1] if result.handoff_chain else "unknown",
+                        "to": idle_agent,
+                        "task_id": result.task_id,
+                    }
+                )
                 # Recalculate overloaded
                 overloaded = self.find_overloaded_agents()
 
@@ -331,4 +329,3 @@ class RoutingMixin:
     # =========================================================================
     # FAILURE RECOVERY (Auto-retry with different agent)
     # =========================================================================
-

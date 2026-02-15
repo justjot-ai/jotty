@@ -17,35 +17,36 @@ Fixtures from conftest.py:
 """
 
 import asyncio
-import pytest
 from datetime import datetime
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
+import pytest
+
+from Jotty.core.intelligence.swarms.base.agent_team import (
+    AgentSpec,
+    AgentTeam,
+    CoordinationPattern,
+    MergeStrategy,
+    TeamResult,
+)
+from Jotty.core.intelligence.swarms.base.domain_swarm import DomainSwarm, PhaseExecutor
+from Jotty.core.intelligence.swarms.registry import SwarmRegistry, register_swarm
 from Jotty.core.intelligence.swarms.swarm_types import (
     AgentRole,
     EvaluationResult,
-    ImprovementType,
-    SwarmResult,
     ExecutionTrace,
-    _split_field,
+    ImprovementType,
+    SwarmBaseConfig,
+    SwarmResult,
     _safe_join,
     _safe_num,
+    _split_field,
 )
-from Jotty.core.intelligence.swarms.swarm_types import SwarmBaseConfig
-from Jotty.core.intelligence.swarms.registry import SwarmRegistry, register_swarm
-from Jotty.core.intelligence.swarms.base.agent_team import (
-    AgentTeam,
-    AgentSpec,
-    TeamResult,
-    CoordinationPattern,
-    MergeStrategy,
-)
-from Jotty.core.intelligence.swarms.base.domain_swarm import DomainSwarm, PhaseExecutor
-
 
 # =============================================================================
 # Swarm Types & Enums
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestSwarmTypes:
@@ -125,6 +126,7 @@ class TestSwarmTypes:
 # Defensive Utilities
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestDefensiveUtilities:
     """Test _split_field, _safe_join, _safe_num utilities."""
@@ -186,6 +188,7 @@ class TestDefensiveUtilities:
 # SwarmRegistry
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestSwarmRegistry:
     """Test SwarmRegistry CRUD operations."""
@@ -242,6 +245,7 @@ class TestSwarmRegistry:
 
     def test_register_swarm_decorator(self):
         """@register_swarm decorator registers a class."""
+
         @register_swarm("decorated")
         class MySwarm:
             pass
@@ -252,6 +256,7 @@ class TestSwarmRegistry:
 # =============================================================================
 # AgentSpec
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestAgentSpec:
@@ -288,6 +293,7 @@ class TestAgentSpec:
 # =============================================================================
 # AgentTeam
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestAgentTeam:
@@ -507,6 +513,7 @@ class TestAgentTeam:
 # PhaseExecutor
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestPhaseExecutor:
     """Test PhaseExecutor phase management."""
@@ -541,7 +548,11 @@ class TestPhaseExecutor:
             return {"result": "done"}
 
         result = await executor.run_phase(
-            1, "Analysis", "Analyzer", AgentRole.ACTOR, coro(),
+            1,
+            "Analysis",
+            "Analyzer",
+            AgentRole.ACTOR,
+            coro(),
         )
 
         assert result == {"result": "done"}
@@ -561,7 +572,11 @@ class TestPhaseExecutor:
             return {"error": "something broke"}
 
         result = await executor.run_phase(
-            1, "Phase", "Agent", AgentRole.ACTOR, coro(),
+            1,
+            "Phase",
+            "Agent",
+            AgentRole.ACTOR,
+            coro(),
         )
 
         assert result == {"error": "something broke"}
@@ -643,6 +658,7 @@ class TestPhaseExecutor:
 # =============================================================================
 # DomainSwarm
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestDomainSwarm:
@@ -792,6 +808,7 @@ class TestDomainSwarm:
     def test_to_composite(self):
         """to_composite() creates CompositeAgent wrapping the swarm."""
         from Jotty.core.modes.agent.agents.composite_agent import CompositeAgent
+
         swarm = self._make_test_swarm()
         composite = swarm.to_composite()
         assert isinstance(composite, CompositeAgent)
@@ -860,6 +877,7 @@ class TestDomainSwarm:
 # =============================================================================
 # TeamResult
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestTeamResult:

@@ -1,25 +1,28 @@
 """TaskBreakdownAgent — converts plans into executable DAG workflows."""
 
+import hashlib
 import logging
 import re
-import hashlib
-from typing import List, Dict, Any, Optional
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 import dspy
 
+from ..foundation.data_structures import MemoryLevel, SwarmConfig, SwarmLearningConfig
 from ..orchestration.swarm_roadmap import SwarmTaskBoard
-from ..foundation.data_structures import SwarmConfig, SwarmLearningConfig, MemoryLevel
 from ..persistence.shared_context import SharedContext
 from .base import AgentResult
 
 logger = logging.getLogger(__name__)
 
 from ..types.dag_types import (
-    DAGAgentMixin, SwarmResources,
-    ExtractTasksSignature, IdentifyDependenciesSignature,
+    DAGAgentMixin,
+    ExtractTasksSignature,
+    IdentifyDependenciesSignature,
     OptimizeWorkflowSignature,
+    SwarmResources,
 )
+
 
 class TaskBreakdownAgent(dspy.Module, DAGAgentMixin):
     """
@@ -44,9 +47,9 @@ class TaskBreakdownAgent(dspy.Module, DAGAgentMixin):
 
         # Get SHARED swarm resources (singleton)
         self.swarm = SwarmResources.get_instance(self.jotty_config)
-        self.memory = self.swarm.memory      # SHARED memory
-        self.context = self.swarm.context    # SHARED taskboard
-        self.bus = self.swarm.bus            # SHARED communication
+        self.memory = self.swarm.memory  # SHARED memory
+        self.context = self.swarm.context  # SHARED taskboard
+        self.bus = self.swarm.bus  # SHARED communication
 
         # Chain of Thought modules
         self.extract_tasks = dspy.ChainOfThought(ExtractTasksSignature)
@@ -69,6 +72,7 @@ class TaskBreakdownAgent(dspy.Module, DAGAgentMixin):
             AgentResult with SwarmTaskBoard as output
         """
         import time
+
         start_time = time.time()
 
         self._run_pre_hooks(implementation_plan=implementation_plan, **kwargs)
@@ -88,7 +92,7 @@ class TaskBreakdownAgent(dspy.Module, DAGAgentMixin):
                 metadata={
                     "task_count": len(markovian_todo.subtasks),
                     "todo_id": markovian_todo.todo_id,
-                }
+                },
             )
 
             self._run_post_hooks(result, implementation_plan=implementation_plan, **kwargs)
@@ -104,7 +108,7 @@ class TaskBreakdownAgent(dspy.Module, DAGAgentMixin):
                 output=None,
                 agent_name="TaskBreakdownAgent",
                 execution_time=execution_time,
-                error=str(e)
+                error=str(e),
             )
 
     def _handle_message(self, message: Any) -> Any:
@@ -127,7 +131,7 @@ class TaskBreakdownAgent(dspy.Module, DAGAgentMixin):
         relevant_patterns = self.memory.retrieve(
             query=f"task breakdown patterns for: {implementation_plan[:200]}",
             goal="effective task decomposition",
-            budget_tokens=1000
+            budget_tokens=1000,
         )
 
         # Step 1: Extract tasks
@@ -163,7 +167,9 @@ class TaskBreakdownAgent(dspy.Module, DAGAgentMixin):
         # Step 6: Post-process to limit task count (aggregate if >10 tasks)
         MAX_TASKS = 10
         if len(markovian_todo.subtasks) > MAX_TASKS:
-            logger.info(f"[TASK BREAKDOWN] Aggregating {len(markovian_todo.subtasks)} tasks to max {MAX_TASKS}...")
+            logger.info(
+                f"[TASK BREAKDOWN] Aggregating {len(markovian_todo.subtasks)} tasks to max {MAX_TASKS}..."
+            )
             markovian_todo = self._aggregate_tasks(markovian_todo, MAX_TASKS)
 
         # Store pattern in SHARED memory
@@ -174,9 +180,9 @@ class TaskBreakdownAgent(dspy.Module, DAGAgentMixin):
                 "plan_hash": hashlib.md5(implementation_plan.encode()).hexdigest()[:8],
                 "task_count": len(markovian_todo.subtasks),
                 "stages": len(self._get_execution_stages(markovian_todo)),
-                "agent": "TaskBreakdownAgent"
+                "agent": "TaskBreakdownAgent",
             },
-            goal="task breakdown pattern learning"
+            goal="task breakdown pattern learning",
         )
 
         # Store to SHARED context (taskboard) for other agents
@@ -186,24 +192,28 @@ class TaskBreakdownAgent(dspy.Module, DAGAgentMixin):
 
         # Notify other agents via bus
         from .axon import Message
-        self.bus.publish(Message(
-            from_agent="TaskBreakdownAgent",
-            to_agent="TodoCreatorAgent",
-            data={"todo_id": markovian_todo.todo_id, "task_count": len(markovian_todo.subtasks)},
-            format="dict",
-            size_bytes=100,
-            timestamp=datetime.now().timestamp()
-        ))
 
-        logger.info(f"[TASK BREAKDOWN] Created SwarmTaskBoard with {len(markovian_todo.subtasks)} tasks (shared)")
+        self.bus.publish(
+            Message(
+                from_agent="TaskBreakdownAgent",
+                to_agent="TodoCreatorAgent",
+                data={
+                    "todo_id": markovian_todo.todo_id,
+                    "task_count": len(markovian_todo.subtasks),
+                },
+                format="dict",
+                size_bytes=100,
+                timestamp=datetime.now().timestamp(),
+            )
+        )
+
+        logger.info(
+            f"[TASK BREAKDOWN] Created SwarmTaskBoard with {len(markovian_todo.subtasks)} tasks (shared)"
+        )
         return markovian_todo
 
     def _build_markovian_todo(
-        self,
-        tasks_list: str,
-        dependencies_graph: str,
-        optimized_workflow: str,
-        original_plan: str
+        self, tasks_list: str, dependencies_graph: str, optimized_workflow: str, original_plan: str
     ) -> SwarmTaskBoard:
         """Build SwarmTaskBoard from parsed task information."""
         todo = SwarmTaskBoard(root_task=original_plan[:100])
@@ -226,8 +236,12 @@ class TaskBreakdownAgent(dspy.Module, DAGAgentMixin):
 
             # Store task type in intermediary_values
             if task_id in todo.subtasks:
-                todo.subtasks[task_id].intermediary_values["task_type"] = task_info.get("type", "implementation")
-                todo.subtasks[task_id].intermediary_values["files"] = task_info.get("files_to_create", [])
+                todo.subtasks[task_id].intermediary_values["task_type"] = task_info.get(
+                    "type", "implementation"
+                )
+                todo.subtasks[task_id].intermediary_values["files"] = task_info.get(
+                    "files_to_create", []
+                )
 
         return todo
 
@@ -239,14 +253,17 @@ class TaskBreakdownAgent(dspy.Module, DAGAgentMixin):
         # Try JSON parsing first
         try:
             import json
+
             # Handle string that looks like JSON array
-            if tasks_list.strip().startswith('['):
+            if tasks_list.strip().startswith("["):
                 parsed = json.loads(tasks_list)
                 if isinstance(parsed, list):
                     for item in parsed:
                         task_id = f"task_{task_counter}"
                         tasks[task_id] = {
-                            "name": item.get("description", item.get("name", f"Task {task_counter}")),
+                            "name": item.get(
+                                "description", item.get("name", f"Task {task_counter}")
+                            ),
                             "description": item.get("details", item.get("description", "")),
                             "type": item.get("type", "implementation"),
                             "files_to_create": item.get("files", []),
@@ -260,13 +277,16 @@ class TaskBreakdownAgent(dspy.Module, DAGAgentMixin):
         # Try parsing as Python literal (LLM might return repr of list)
         try:
             import ast
+
             parsed = ast.literal_eval(tasks_list)
             if isinstance(parsed, list):
                 for item in parsed:
                     if isinstance(item, dict):
                         task_id = f"task_{task_counter}"
                         tasks[task_id] = {
-                            "name": item.get("description", item.get("name", f"Task {task_counter}")),
+                            "name": item.get(
+                                "description", item.get("name", f"Task {task_counter}")
+                            ),
                             "description": item.get("details", item.get("description", "")),
                             "type": item.get("type", "implementation"),
                             "files_to_create": item.get("files", []),
@@ -278,7 +298,7 @@ class TaskBreakdownAgent(dspy.Module, DAGAgentMixin):
             pass
 
         # Try TASK: format parsing
-        task_entries = re.split(r'\n(?=TASK:)', tasks_list)
+        task_entries = re.split(r"\n(?=TASK:)", tasks_list)
         for entry in task_entries:
             if not entry.strip() or not entry.startswith("TASK:"):
                 continue
@@ -287,25 +307,25 @@ class TaskBreakdownAgent(dspy.Module, DAGAgentMixin):
             task_info = {}
 
             # Extract name
-            name_match = re.search(r'TASK:\s*([^|]+)', entry)
+            name_match = re.search(r"TASK:\s*([^|]+)", entry)
             if name_match:
                 task_info["name"] = name_match.group(1).strip()
 
             # Extract type
-            type_match = re.search(r'TYPE:\s*([^|]+)', entry)
+            type_match = re.search(r"TYPE:\s*([^|]+)", entry)
             if type_match:
                 task_info["type"] = type_match.group(1).strip().lower()
 
             # Extract description
-            desc_match = re.search(r'DESC:\s*([^|]+?)(?:\s*\||$)', entry, re.DOTALL)
+            desc_match = re.search(r"DESC:\s*([^|]+?)(?:\s*\||$)", entry, re.DOTALL)
             if desc_match:
                 task_info["description"] = desc_match.group(1).strip()
 
             # Extract files
-            files_match = re.search(r'FILES:\s*([^|]+)', entry)
+            files_match = re.search(r"FILES:\s*([^|]+)", entry)
             if files_match:
                 files_str = files_match.group(1).strip()
-                files = [f.strip() for f in files_str.split(',') if f.strip()]
+                files = [f.strip() for f in files_str.split(",") if f.strip()]
                 task_info["files_to_create"] = files
 
             if task_info:
@@ -317,14 +337,14 @@ class TaskBreakdownAgent(dspy.Module, DAGAgentMixin):
 
         # Fallback: Numbered list format (1. task, 2. task, etc.)
         # Matches patterns like "1. Task description" or "1) Task description" or "- Task description"
-        lines = tasks_list.strip().split('\n')
+        lines = tasks_list.strip().split("\n")
         for line in lines:
             line = line.strip()
             if not line:
                 continue
 
             # Match numbered items: "1. text", "1) text", "- text", "* text"
-            match = re.match(r'^(?:\d+[\.\)]\s*|\-\s*|\*\s*)(.+)$', line)
+            match = re.match(r"^(?:\d+[\.\)]\s*|\-\s*|\*\s*)(.+)$", line)
             if match:
                 task_text = match.group(1).strip()
                 if task_text:
@@ -336,12 +356,15 @@ class TaskBreakdownAgent(dspy.Module, DAGAgentMixin):
                         task_type = "testing"
                     elif any(kw in task_lower for kw in ["valid", "error", "exception", "handle"]):
                         task_type = "validation"
-                    elif any(kw in task_lower for kw in ["setup", "create file", "initialize", "configure"]):
+                    elif any(
+                        kw in task_lower
+                        for kw in ["setup", "create file", "initialize", "configure"]
+                    ):
                         task_type = "setup"
 
                     # Extract potential file references
                     files = []
-                    file_match = re.findall(r'[\w_]+\.(?:py|js|ts|java|go|rb)', task_text)
+                    file_match = re.findall(r"[\w_]+\.(?:py|js|ts|java|go|rb)", task_text)
                     if file_match:
                         files = file_match
 
@@ -362,21 +385,36 @@ class TaskBreakdownAgent(dspy.Module, DAGAgentMixin):
         # Try JSON parsing first
         try:
             import json
-            if dependencies_graph.strip().startswith('[') or dependencies_graph.strip().startswith('{'):
+
+            if dependencies_graph.strip().startswith("[") or dependencies_graph.strip().startswith(
+                "{"
+            ):
                 parsed = json.loads(dependencies_graph)
                 if isinstance(parsed, list):
                     for item in parsed:
-                        task_id = f"task_{item.get('task_id', item.get('id', len(dependencies) + 1))}"
-                        deps = item.get('depends_on', item.get('dependencies', []))
+                        task_id = (
+                            f"task_{item.get('task_id', item.get('id', len(dependencies) + 1))}"
+                        )
+                        deps = item.get("depends_on", item.get("dependencies", []))
                         if isinstance(deps, str):
-                            deps = [d.strip() for d in deps.split(',') if d.strip() and d.lower() != 'none']
-                        dependencies[task_id] = [f"task_{d}" if not str(d).startswith('task_') else str(d) for d in deps]
+                            deps = [
+                                d.strip()
+                                for d in deps.split(",")
+                                if d.strip() and d.lower() != "none"
+                            ]
+                        dependencies[task_id] = [
+                            f"task_{d}" if not str(d).startswith("task_") else str(d) for d in deps
+                        ]
                     if dependencies:
                         return dependencies
                 elif isinstance(parsed, dict):
                     for task_id, deps in parsed.items():
                         if isinstance(deps, str):
-                            deps = [d.strip() for d in deps.split(',') if d.strip() and d.lower() != 'none']
+                            deps = [
+                                d.strip()
+                                for d in deps.split(",")
+                                if d.strip() and d.lower() != "none"
+                            ]
                         dependencies[task_id] = deps
                     if dependencies:
                         return dependencies
@@ -386,40 +424,46 @@ class TaskBreakdownAgent(dspy.Module, DAGAgentMixin):
         # Try Python literal
         try:
             import ast
+
             parsed = ast.literal_eval(dependencies_graph)
             if isinstance(parsed, (list, dict)):
                 # Similar processing as JSON
                 if isinstance(parsed, list):
                     for item in parsed:
                         if isinstance(item, dict):
-                            task_id = f"task_{item.get('task_id', item.get('id', len(dependencies) + 1))}"
-                            deps = item.get('depends_on', item.get('dependencies', []))
-                            dependencies[task_id] = [f"task_{d}" if not str(d).startswith('task_') else str(d) for d in (deps if isinstance(deps, list) else [])]
+                            task_id = (
+                                f"task_{item.get('task_id', item.get('id', len(dependencies) + 1))}"
+                            )
+                            deps = item.get("depends_on", item.get("dependencies", []))
+                            dependencies[task_id] = [
+                                f"task_{d}" if not str(d).startswith("task_") else str(d)
+                                for d in (deps if isinstance(deps, list) else [])
+                            ]
                     if dependencies:
                         return dependencies
         except (ValueError, SyntaxError):
             pass
 
         # Fallback: Text format
-        dep_entries = re.split(r'\n(?=TASK_ID:)', dependencies_graph)
+        dep_entries = re.split(r"\n(?=TASK_ID:)", dependencies_graph)
 
         for entry in dep_entries:
             if not entry.strip() or not entry.startswith("TASK_ID:"):
                 continue
 
-            task_id_match = re.search(r'TASK_ID:\s*([^|]+)', entry)
+            task_id_match = re.search(r"TASK_ID:\s*([^|]+)", entry)
             if not task_id_match:
                 continue
 
             task_id = task_id_match.group(1).strip()
 
-            deps_match = re.search(r'DEPENDS_ON:\s*([^|]+)', entry)
+            deps_match = re.search(r"DEPENDS_ON:\s*([^|]+)", entry)
             if deps_match:
                 deps_str = deps_match.group(1).strip()
-                if deps_str.lower() in ['none', 'null', '']:
+                if deps_str.lower() in ["none", "null", ""]:
                     dependencies[task_id] = []
                 else:
-                    deps = [d.strip() for d in deps_str.split(',') if d.strip()]
+                    deps = [d.strip() for d in deps_str.split(",") if d.strip()]
                     dependencies[task_id] = deps
             else:
                 dependencies[task_id] = []
@@ -457,10 +501,7 @@ class TaskBreakdownAgent(dspy.Module, DAGAgentMixin):
         """Remove dependencies that cause cycles."""
         # Simple fix: remove back-edges
         for task_id, task in todo.subtasks.items():
-            task.depends_on = [
-                dep for dep in task.depends_on
-                if dep in todo.subtasks
-            ]
+            task.depends_on = [dep for dep in task.depends_on if dep in todo.subtasks]
         return todo
 
     def _aggregate_tasks(self, todo: SwarmTaskBoard, max_tasks: int) -> SwarmTaskBoard:
@@ -498,13 +539,13 @@ class TaskBreakdownAgent(dspy.Module, DAGAgentMixin):
                         description=task.description,
                         actor=task.actor,
                         depends_on=task.depends_on,
-                        priority=task.priority
+                        priority=task.priority,
                     )
                     new_todo.subtasks[tid].intermediary_values = task.intermediary_values.copy()
             else:
                 # Merge into chunks
                 chunk_size = max(1, len(task_ids) // tasks_per_type)
-                chunks = [task_ids[i:i + chunk_size] for i in range(0, len(task_ids), chunk_size)]
+                chunks = [task_ids[i : i + chunk_size] for i in range(0, len(task_ids), chunk_size)]
 
                 for i, chunk in enumerate(chunks[:tasks_per_type]):
                     merged_id = f"{task_type}_{i+1}"
@@ -524,7 +565,7 @@ class TaskBreakdownAgent(dspy.Module, DAGAgentMixin):
                         description=merged_desc,
                         actor="",
                         depends_on=list(all_deps),
-                        priority=max(todo.subtasks[tid].priority for tid in chunk)
+                        priority=max(todo.subtasks[tid].priority for tid in chunk),
                     )
                     new_todo.subtasks[merged_id].intermediary_values["task_type"] = task_type
                     new_todo.subtasks[merged_id].intermediary_values["merged_from"] = chunk
@@ -541,7 +582,8 @@ class TaskBreakdownAgent(dspy.Module, DAGAgentMixin):
 
         while remaining:
             stage = [
-                task_id for task_id in remaining
+                task_id
+                for task_id in remaining
                 if all(dep in completed for dep in todo.subtasks[task_id].depends_on)
             ]
             if not stage:

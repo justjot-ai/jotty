@@ -1,15 +1,16 @@
 """Research Swarm - Types, config, and data classes."""
 
-import os
 import logging
-from typing import Dict, Any, Optional, List
+import os
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
 from ..swarm_types import SwarmConfig
 
 logger = logging.getLogger(__name__)
+
 
 class RatingType(Enum):
     STRONG_BUY = "STRONG BUY"
@@ -27,6 +28,7 @@ class ResearchConfig(SwarmConfig):
     enable_learning, parallel_execution, max_retries, timeout_seconds,
     gold_standard_path, improvement_threshold, gold_standard_max_version.
     """
+
     send_telegram: bool = True
     include_charts: bool = True
     include_peers: bool = True
@@ -49,12 +51,13 @@ class ResearchConfig(SwarmConfig):
     def __post_init__(self) -> None:
         self.name = "ResearchSwarm"
         self.domain = "research"
-        self.output_dir = os.path.expanduser('~/jotty/reports')
+        self.output_dir = os.path.expanduser("~/jotty/reports")
 
 
 @dataclass
 class ResearchResult:
     """Result from research swarm."""
+
     success: bool
     ticker: str
     company_name: str
@@ -90,6 +93,7 @@ class ResearchResult:
 @dataclass
 class TopicResearchResult:
     """Result from ResearchSwarm.research_topic() for general-topic research."""
+
     success: bool
     topic: str
     summary: str = ""
@@ -106,4 +110,3 @@ class TopicResearchResult:
 # =============================================================================
 # DSPy SIGNATURES FOR LLM-POWERED ANALYSIS
 # =============================================================================
-

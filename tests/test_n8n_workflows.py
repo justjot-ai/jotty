@@ -10,9 +10,9 @@ import importlib.util
 import json
 import sys
 from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
 
 # Load module from hyphenated directory via importlib (not importable as package)
 _tools_path = Path(__file__).resolve().parent.parent / "skills" / "n8n-workflows" / "tools.py"
@@ -36,15 +36,19 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Pre-register the package hierarchy so relative imports inside skills_registry work
 import types
+
 for pkg_name in ["core", "core.registry"]:
     if pkg_name not in sys.modules:
         sys.modules[pkg_name] = types.ModuleType(pkg_name)
-        sys.modules[pkg_name].__path__ = [str(Path(__file__).resolve().parent.parent / pkg_name.replace(".", "/"))]
+        sys.modules[pkg_name].__path__ = [
+            str(Path(__file__).resolve().parent.parent / pkg_name.replace(".", "/"))
+        ]
         sys.modules[pkg_name].__package__ = pkg_name
 
 _sr_path = Path(__file__).resolve().parent.parent / "core" / "registry" / "skills_registry.py"
 _sr_spec = importlib.util.spec_from_file_location(
-    "core.registry.skills_registry", _sr_path,
+    "core.registry.skills_registry",
+    _sr_path,
     submodule_search_locations=[],
 )
 _sr_mod = importlib.util.module_from_spec(_sr_spec)
@@ -66,7 +70,10 @@ SAMPLE_WORKFLOWS = [
         "name": "PMI Prod Download Data",
         "active": True,
         "nodes": [
-            {"type": "n8n-nodes-base.scheduleTrigger", "parameters": {"rule": {"interval": [{"field": "hours", "hoursInterval": 6}]}}},
+            {
+                "type": "n8n-nodes-base.scheduleTrigger",
+                "parameters": {"rule": {"interval": [{"field": "hours", "hoursInterval": 6}]}},
+            },
             {"type": "n8n-nodes-base.httpRequest", "parameters": {}},
         ],
         "tags": [{"name": "pmi"}],
@@ -103,6 +110,7 @@ def n8n_client():
 
 
 # -- Workflow fixtures for capability inference tests --
+
 
 def _make_workflow(name, wf_id="WF001", tags=None, nodes=None, active=True):
     """Factory for workflow dicts that mimic the n8n API response."""
@@ -171,7 +179,12 @@ def cmd_workflow():
 @pytest.fixture
 def bare_workflow():
     """Workflow with no tags and no special nodes."""
-    return _make_workflow(name="misc_cleanup", wf_id="MISC001", tags=[], nodes=[{"type": "n8n-nodes-base.manualTrigger"}])
+    return _make_workflow(
+        name="misc_cleanup",
+        wf_id="MISC001",
+        tags=[],
+        nodes=[{"type": "n8n-nodes-base.manualTrigger"}],
+    )
 
 
 @pytest.fixture
@@ -186,6 +199,7 @@ def tmp_cache_dir(tmp_path):
 # =============================================================================
 # TestN8nAPIClient
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestN8nAPIClient:
@@ -235,6 +249,7 @@ class TestN8nAPIClient:
 # =============================================================================
 # TestN8nWorkflowAnalyzer
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestN8nWorkflowAnalyzer:
@@ -293,6 +308,7 @@ class TestN8nWorkflowAnalyzer:
 # TestListWorkflowsTool
 # =============================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.asyncio
 class TestListWorkflowsTool:
@@ -334,6 +350,7 @@ class TestListWorkflowsTool:
 # TestTriggerWorkflowTool
 # =============================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.asyncio
 class TestTriggerWorkflowTool:
@@ -348,10 +365,12 @@ class TestTriggerWorkflowTool:
             {"success": True, "nodes": SAMPLE_WORKFLOWS[1]["nodes"]},
             {"success": True, "executionId": "exec-1"},
         ]
-        result = await trigger_n8n_workflow_tool({
-            "workflow_id": "wf2",
-            "data": {"test": True},
-        })
+        result = await trigger_n8n_workflow_tool(
+            {
+                "workflow_id": "wf2",
+                "data": {"test": True},
+            }
+        )
         assert result["success"] is True
         assert result["trigger_type"] == "webhook"
         # Verify webhook URL was called
@@ -366,10 +385,12 @@ class TestTriggerWorkflowTool:
             {"success": True, "nodes": SAMPLE_WORKFLOWS[2]["nodes"]},  # manual trigger
             {"success": True, "id": "exec-2"},  # create_execution
         ]
-        result = await trigger_n8n_workflow_tool({
-            "workflow_id": "wf3",
-            "wait": False,
-        })
+        result = await trigger_n8n_workflow_tool(
+            {
+                "workflow_id": "wf3",
+                "wait": False,
+            }
+        )
         assert result["success"] is True
         assert result["execution_id"] == "exec-2"
         assert result["status"] == "started"
@@ -385,11 +406,13 @@ class TestTriggerWorkflowTool:
             {"success": True, "status": "running"},
             {"success": True, "status": "success", "data": {"output": "done"}},
         ]
-        result = await trigger_n8n_workflow_tool({
-            "workflow_id": "wf3",
-            "wait": True,
-            "timeout": 10,
-        })
+        result = await trigger_n8n_workflow_tool(
+            {
+                "workflow_id": "wf3",
+                "wait": True,
+                "timeout": 10,
+            }
+        )
         assert result["success"] is True
         assert result["finished"] is True
         assert mock_time.sleep.call_count == 1
@@ -407,6 +430,7 @@ class TestTriggerWorkflowTool:
 # =============================================================================
 # TestGetExecutionTool
 # =============================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.asyncio
@@ -446,6 +470,7 @@ class TestGetExecutionTool:
 # TestActivateWorkflowTool
 # =============================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.asyncio
 class TestActivateWorkflowTool:
@@ -455,10 +480,12 @@ class TestActivateWorkflowTool:
     @patch.dict("os.environ", {"N8N_API_KEY": "k", "N8N_BASE_URL": "https://n8n.test"})
     async def test_activate(self, mock_req):
         mock_req.return_value = {"success": True, "active": True, "name": "My WF"}
-        result = await activate_n8n_workflow_tool({
-            "workflow_id": "wf1",
-            "active": True,
-        })
+        result = await activate_n8n_workflow_tool(
+            {
+                "workflow_id": "wf1",
+                "active": True,
+            }
+        )
         assert result["success"] is True
         assert result["active"] is True
 
@@ -466,10 +493,12 @@ class TestActivateWorkflowTool:
     @patch.dict("os.environ", {"N8N_API_KEY": "k", "N8N_BASE_URL": "https://n8n.test"})
     async def test_deactivate(self, mock_req):
         mock_req.return_value = {"success": True, "active": False, "name": "My WF"}
-        result = await activate_n8n_workflow_tool({
-            "workflow_id": "wf1",
-            "active": False,
-        })
+        result = await activate_n8n_workflow_tool(
+            {
+                "workflow_id": "wf1",
+                "active": False,
+            }
+        )
         assert result["success"] is True
         assert result["active"] is False
 
@@ -484,6 +513,7 @@ class TestActivateWorkflowTool:
 # =============================================================================
 # TestDynamicSkillRegistrar
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestDynamicSkillRegistrar:
@@ -561,22 +591,26 @@ class TestDynamicSkillRegistrar:
         assert len(cache["skills"]) == 1
 
     def test_workflow_to_skill_name(self):
-        assert N8nDynamicSkillRegistrar._workflow_to_skill_name(
-            {"name": "PMI Prod Download Data"}
-        ) == "n8n-pmi-prod-download-data"
+        assert (
+            N8nDynamicSkillRegistrar._workflow_to_skill_name({"name": "PMI Prod Download Data"})
+            == "n8n-pmi-prod-download-data"
+        )
 
-        assert N8nDynamicSkillRegistrar._workflow_to_skill_name(
-            {"name": "Jotty Test Webhook"}
-        ) == "n8n-jotty-test-webhook"
+        assert (
+            N8nDynamicSkillRegistrar._workflow_to_skill_name({"name": "Jotty Test Webhook"})
+            == "n8n-jotty-test-webhook"
+        )
 
-        assert N8nDynamicSkillRegistrar._workflow_to_skill_name(
-            {"name": "  Extra   Spaces!! "}
-        ) == "n8n-extra-spaces"
+        assert (
+            N8nDynamicSkillRegistrar._workflow_to_skill_name({"name": "  Extra   Spaces!! "})
+            == "n8n-extra-spaces"
+        )
 
 
 # =============================================================================
 # TestWorkflowCapabilityInferrer
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestWorkflowCapabilityInferrer:
@@ -623,6 +657,7 @@ class TestWorkflowCapabilityInferrer:
 # TestCacheIO
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestCacheIO:
     """Tests for N8nDynamicSkillRegistrar disk cache save/load."""
@@ -663,6 +698,7 @@ class TestCacheIO:
 # TestCachedRegistration
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestCachedRegistration:
     """Tests for SkillsRegistry._load_cached_dynamic_skills loading from cache."""
@@ -681,45 +717,49 @@ class TestCachedRegistration:
 
     def test_load_from_cache_creates_skills(self, tmp_path):
         """Mock cache file -> _load_cached_dynamic_skills creates SkillDefinitions."""
-        cache_skills = [{
-            "skill_name": "n8n-pmi-prod-refresh-watchlists",
-            "workflow_id": "RI3Q",
-            "workflow_name": "pmi.prod.refresh_watchlists",
-            "trigger_type": "schedule",
-            "active": False,
-            "description": "n8n workflow: pmi.prod.refresh_watchlists (PlanMyInvesting, schedule trigger)",
-            "capabilities": ["automation", "data-fetch", "finance"],
-            "use_when": "User wants to refresh watchlists for PlanMyInvesting",
-            "tags": ["pmi", "prod"],
-        }]
+        cache_skills = [
+            {
+                "skill_name": "n8n-pmi-prod-refresh-watchlists",
+                "workflow_id": "RI3Q",
+                "workflow_name": "pmi.prod.refresh_watchlists",
+                "trigger_type": "schedule",
+                "active": False,
+                "description": "n8n workflow: pmi.prod.refresh_watchlists (PlanMyInvesting, schedule trigger)",
+                "capabilities": ["automation", "data-fetch", "finance"],
+                "use_when": "User wants to refresh watchlists for PlanMyInvesting",
+                "tags": ["pmi", "prod"],
+            }
+        ]
 
         registry = SkillsRegistry(skills_dir=str(tmp_path / "skills"))
         intelligence_dir = tmp_path / "intelligence"
         self._write_cache(intelligence_dir, cache_skills)
 
-        with patch.object(SkillsRegistry, '_INTELLIGENCE_DIR', intelligence_dir):
+        with patch.object(SkillsRegistry, "_INTELLIGENCE_DIR", intelligence_dir):
             registry._load_cached_dynamic_skills()
 
         assert "n8n-pmi-prod-refresh-watchlists" in registry.loaded_skills
 
     def test_cached_skill_has_correct_type(self, tmp_path):
-        cache_skills = [{
-            "skill_name": "n8n-test-workflow",
-            "workflow_id": "T001",
-            "workflow_name": "test_workflow",
-            "trigger_type": "manual",
-            "active": True,
-            "description": "test",
-            "capabilities": ["automation"],
-            "use_when": "test",
-            "tags": [],
-        }]
+        cache_skills = [
+            {
+                "skill_name": "n8n-test-workflow",
+                "workflow_id": "T001",
+                "workflow_name": "test_workflow",
+                "trigger_type": "manual",
+                "active": True,
+                "description": "test",
+                "capabilities": ["automation"],
+                "use_when": "test",
+                "tags": [],
+            }
+        ]
 
         registry = SkillsRegistry(skills_dir=str(tmp_path / "skills"))
         intelligence_dir = tmp_path / "intelligence"
         self._write_cache(intelligence_dir, cache_skills)
 
-        with patch.object(SkillsRegistry, '_INTELLIGENCE_DIR', intelligence_dir):
+        with patch.object(SkillsRegistry, "_INTELLIGENCE_DIR", intelligence_dir):
             registry._load_cached_dynamic_skills()
 
         skill = registry.loaded_skills["n8n-test-workflow"]
@@ -727,23 +767,25 @@ class TestCachedRegistration:
         assert "n8n-workflows" in skill.base_skills
 
     def test_cached_skill_has_domain_capabilities(self, tmp_path):
-        cache_skills = [{
-            "skill_name": "n8n-pmi-download",
-            "workflow_id": "D001",
-            "workflow_name": "pmi.prod.download_data",
-            "trigger_type": "schedule",
-            "active": True,
-            "description": "download data",
-            "capabilities": ["automation", "data-fetch", "finance"],
-            "use_when": "User wants to download data for PlanMyInvesting",
-            "tags": ["pmi"],
-        }]
+        cache_skills = [
+            {
+                "skill_name": "n8n-pmi-download",
+                "workflow_id": "D001",
+                "workflow_name": "pmi.prod.download_data",
+                "trigger_type": "schedule",
+                "active": True,
+                "description": "download data",
+                "capabilities": ["automation", "data-fetch", "finance"],
+                "use_when": "User wants to download data for PlanMyInvesting",
+                "tags": ["pmi"],
+            }
+        ]
 
         registry = SkillsRegistry(skills_dir=str(tmp_path / "skills"))
         intelligence_dir = tmp_path / "intelligence"
         self._write_cache(intelligence_dir, cache_skills)
 
-        with patch.object(SkillsRegistry, '_INTELLIGENCE_DIR', intelligence_dir):
+        with patch.object(SkillsRegistry, "_INTELLIGENCE_DIR", intelligence_dir):
             registry._load_cached_dynamic_skills()
 
         skill = registry.loaded_skills["n8n-pmi-download"]
@@ -752,23 +794,25 @@ class TestCachedRegistration:
 
     def test_cached_skill_tool_binds_workflow_id(self, tmp_path):
         """The lazy tool loader pre-binds workflow_id into trigger params."""
-        cache_skills = [{
-            "skill_name": "n8n-bind-test",
-            "workflow_id": "BIND001",
-            "workflow_name": "bind_test",
-            "trigger_type": "webhook",
-            "active": True,
-            "description": "test binding",
-            "capabilities": ["automation"],
-            "use_when": "test",
-            "tags": [],
-        }]
+        cache_skills = [
+            {
+                "skill_name": "n8n-bind-test",
+                "workflow_id": "BIND001",
+                "workflow_name": "bind_test",
+                "trigger_type": "webhook",
+                "active": True,
+                "description": "test binding",
+                "capabilities": ["automation"],
+                "use_when": "test",
+                "tags": [],
+            }
+        ]
 
         registry = SkillsRegistry(skills_dir=str(tmp_path / "skills"))
         intelligence_dir = tmp_path / "intelligence"
         self._write_cache(intelligence_dir, cache_skills)
 
-        with patch.object(SkillsRegistry, '_INTELLIGENCE_DIR', intelligence_dir):
+        with patch.object(SkillsRegistry, "_INTELLIGENCE_DIR", intelligence_dir):
             registry._load_cached_dynamic_skills()
 
         skill = registry.loaded_skills["n8n-bind-test"]
@@ -779,23 +823,25 @@ class TestCachedRegistration:
 
     def test_cached_skill_idempotent(self, tmp_path):
         """Loading cache twice doesn't duplicate skills."""
-        cache_skills = [{
-            "skill_name": "n8n-idempotent-test",
-            "workflow_id": "IDEM1",
-            "workflow_name": "idempotent_test",
-            "trigger_type": "manual",
-            "active": True,
-            "description": "test",
-            "capabilities": ["automation"],
-            "use_when": "test",
-            "tags": [],
-        }]
+        cache_skills = [
+            {
+                "skill_name": "n8n-idempotent-test",
+                "workflow_id": "IDEM1",
+                "workflow_name": "idempotent_test",
+                "trigger_type": "manual",
+                "active": True,
+                "description": "test",
+                "capabilities": ["automation"],
+                "use_when": "test",
+                "tags": [],
+            }
+        ]
 
         registry = SkillsRegistry(skills_dir=str(tmp_path / "skills"))
         intelligence_dir = tmp_path / "intelligence"
         self._write_cache(intelligence_dir, cache_skills)
 
-        with patch.object(SkillsRegistry, '_INTELLIGENCE_DIR', intelligence_dir):
+        with patch.object(SkillsRegistry, "_INTELLIGENCE_DIR", intelligence_dir):
             registry._load_cached_dynamic_skills()
             registry._load_cached_dynamic_skills()
 
@@ -813,6 +859,7 @@ setup_n8n_workflows_tool = _mod.setup_n8n_workflows_tool
 # =============================================================================
 # TestN8nWorkflowFactory
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestN8nWorkflowFactory:
@@ -894,17 +941,24 @@ class TestN8nWorkflowFactory:
         """create_all_workflows skips existing workflows by name."""
         mock_req.side_effect = [
             # 1: list_workflows
-            {"success": True, "data": [
-                {"name": "pmi.prod.morning_brief", "id": "existing1"},
-                {"name": "pmi.prod.closing_brief", "id": "existing2"},
-            ]},
+            {
+                "success": True,
+                "data": [
+                    {"name": "pmi.prod.morning_brief", "id": "existing1"},
+                    {"name": "pmi.prod.closing_brief", "id": "existing2"},
+                ],
+            },
             # 2: list tags
             {"success": True, "data": [{"id": "t1", "name": "pmi"}]},
             # 13 create calls + 13 tag PUT calls (alternating)
-            *[resp for i in range(13) for resp in (
-                {"success": True, "id": f"new{i}"},
-                {"success": True},
-            )],
+            *[
+                resp
+                for i in range(13)
+                for resp in (
+                    {"success": True, "id": f"new{i}"},
+                    {"success": True},
+                )
+            ],
             # final list_workflows for cache refresh
             {"success": True, "data": []},
         ]
@@ -927,10 +981,14 @@ class TestN8nWorkflowFactory:
             # 5: workflow #2 create fails (no tag call)
             {"success": False, "error": "Internal error"},
             # 6-31: workflows #3-#15 create + tag (13 workflows x 2 calls)
-            *[resp for i in range(2, 15) for resp in (
-                {"success": True, "id": f"new{i}"},
-                {"success": True},
-            )],
+            *[
+                resp
+                for i in range(2, 15)
+                for resp in (
+                    {"success": True, "id": f"new{i}"},
+                    {"success": True},
+                )
+            ],
             # 32: cache refresh
             {"success": True, "data": []},
         ]

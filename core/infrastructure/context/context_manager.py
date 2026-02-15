@@ -11,20 +11,21 @@ A-Team Critical Fix: Intelligent context management that:
 This is the SMART context manager the user requested.
 """
 
-import re
-import json
-import logging
 import asyncio
 import functools
-from typing import Dict, Any, List, Optional, Tuple, Callable
+import json
+import logging
+import re
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional, Tuple
+
 import dspy
 
 from ..utils.tokenizer import SmartTokenizer
-from .models import ContextPriority, ContextChunk, ContextOverflowInfo
 from . import utils as ctx_utils
+from .models import ContextChunk, ContextOverflowInfo, ContextPriority
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +33,7 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 # OVERFLOW DETECTOR (from global_context_guard.py)
 # =============================================================================
+
 
 class OverflowDetector:
     """
@@ -45,23 +47,39 @@ class OverflowDetector:
         self.max_tokens = max_tokens
 
         # Structural indicators (in class/type names)
-        self.overflow_type_indicators = frozenset([
-            'overflow', 'length', 'size', 'limit', 'exhausted',
-            'context', 'token', 'sequence', 'long', 'exceed',
-            'capacity', 'window', 'memory', 'oom'
-        ])
+        self.overflow_type_indicators = frozenset(
+            [
+                "overflow",
+                "length",
+                "size",
+                "limit",
+                "exhausted",
+                "context",
+                "token",
+                "sequence",
+                "long",
+                "exceed",
+                "capacity",
+                "window",
+                "memory",
+                "oom",
+            ]
+        )
 
         # Common error codes that indicate overflow
-        self.overflow_error_codes = frozenset([
-            400, 413, 429,  # HTTP codes
-            'context_length', 'invalid_request', 'resource_exhausted'
-        ])
+        self.overflow_error_codes = frozenset(
+            [400, 413, 429, "context_length", "invalid_request", "resource_exhausted"]  # HTTP codes
+        )
 
     def detect(self, error: Exception) -> ContextOverflowInfo:
         """Detect if error is a context overflow."""
         # Try multiple detection methods
-        for method in [self._detect_by_numbers, self._detect_by_type,
-                       self._detect_by_attributes, self._detect_by_code]:
+        for method in [
+            self._detect_by_numbers,
+            self._detect_by_type,
+            self._detect_by_attributes,
+            self._detect_by_code,
+        ]:
             result = method(error)
             if result.is_overflow:
                 return result
@@ -69,15 +87,16 @@ class OverflowDetector:
 
     def _detect_by_numbers(self, error: Exception) -> ContextOverflowInfo:
         """Find numbers in error that exceed max_tokens."""
-        numbers = re.findall(r'\d+', str(error))
+        numbers = re.findall(r"\d+", str(error))
         for num_str in numbers:
             try:
                 num = int(num_str)
                 if num > self.max_tokens and num < 1000000:
                     return ContextOverflowInfo(
-                        is_overflow=True, detected_tokens=num,
+                        is_overflow=True,
+                        detected_tokens=num,
                         max_allowed=self.max_tokens,
-                        detection_method="numeric_extraction"
+                        detection_method="numeric_extraction",
                     )
             except ValueError:
                 continue
@@ -90,36 +109,42 @@ class OverflowDetector:
             for indicator in self.overflow_type_indicators:
                 if indicator in type_name:
                     return ContextOverflowInfo(
-                        is_overflow=True,
-                        detection_method=f"type_hierarchy_{type_name}"
+                        is_overflow=True, detection_method=f"type_hierarchy_{type_name}"
                     )
         return ContextOverflowInfo(is_overflow=False)
 
     def _detect_by_attributes(self, error: Exception) -> ContextOverflowInfo:
         """Check error attributes for token-related info."""
-        attrs = ['code', 'error_code', 'status_code', 'max_tokens',
-                 'token_count', 'context_length', 'param', 'type', 'message']
+        attrs = [
+            "code",
+            "error_code",
+            "status_code",
+            "max_tokens",
+            "token_count",
+            "context_length",
+            "param",
+            "type",
+            "message",
+        ]
         for attr in attrs:
             if hasattr(error, attr):
-                value = str(getattr(error, attr, '')).lower()
+                value = str(getattr(error, attr, "")).lower()
                 for indicator in self.overflow_type_indicators:
                     if indicator in value:
                         return ContextOverflowInfo(
-                            is_overflow=True,
-                            detection_method=f"attribute_{attr}"
+                            is_overflow=True, detection_method=f"attribute_{attr}"
                         )
         return ContextOverflowInfo(is_overflow=False)
 
     def _detect_by_code(self, error: Exception) -> ContextOverflowInfo:
         """Check error codes."""
-        for attr in ['code', 'status_code', 'error_code', 'status']:
+        for attr in ["code", "status_code", "error_code", "status"]:
             if hasattr(error, attr):
                 code = str(getattr(error, attr)).lower()
                 for overflow_code in self.overflow_error_codes:
                     if str(overflow_code) in code:
                         return ContextOverflowInfo(
-                            is_overflow=True,
-                            detection_method=f"error_code_{code}"
+                            is_overflow=True, detection_method=f"error_code_{code}"
                         )
         return ContextOverflowInfo(is_overflow=False)
 
@@ -128,10 +153,11 @@ class OverflowDetector:
 # SMART CONTEXT MANAGER
 # =============================================================================
 
+
 class SmartContextManager:
     """
     Intelligent context manager that NEVER loses critical info.
-    
+
     Features:
     1. Task-aware prioritization
     2. API error catching and recovery
@@ -139,8 +165,13 @@ class SmartContextManager:
     4. task list preservation
     5. Memory consolidation instead of truncation
     """
-    
-    def __init__(self, max_tokens: int = 28000, safety_margin: float = 0.85, enable_api_error_recovery: bool = True) -> None:
+
+    def __init__(
+        self,
+        max_tokens: int = 28000,
+        safety_margin: float = 0.85,
+        enable_api_error_recovery: bool = True,
+    ) -> None:
         """
         Args:
             max_tokens: Maximum context tokens (from model config)
@@ -175,82 +206,79 @@ class SmartContextManager:
 
         # LLM summarizer for smart compression
         self._init_summarizer()
-    
+
     def _init_summarizer(self) -> Any:
         """Initialize LLM-based summarizer for smart compression."""
+
         class SummarizeSignature(dspy.Signature):
             """Summarize text while preserving critical information."""
+
             content: str = dspy.InputField(desc="Content to summarize")
             preserve_keywords: str = dspy.InputField(desc="Keywords to preserve")
             max_length: int = dspy.InputField(desc="Target length in characters")
             summary: str = dspy.OutputField(desc="Compressed summary preserving key info")
-        
+
         try:
             self.summarizer = dspy.ChainOfThought(SummarizeSignature)
         except (ImportError, AttributeError, TypeError) as e:
             logger.debug(f"Could not initialize summarizer: {e}")
             self.summarizer = None
-    
+
     # =========================================================================
     # CONTEXT REGISTRATION
     # =========================================================================
-    
+
     def register_todo(self, todo_content: str) -> None:
         """Register current task list for preservation (NEVER compressed)."""
         self._current_todo = todo_content
         logger.debug(f" Registered task list ({len(todo_content)} chars)")
-    
+
     def register_goal(self, goal: str) -> None:
         """Register current goal for preservation."""
         self._current_goal = goal
         logger.debug(f" Registered goal: {goal}...")
-    
+
     def register_critical_memory(self, memory: str) -> None:
         """Register a critical memory that must be preserved."""
         self._critical_memories.append(memory)
         logger.debug(f" Registered critical memory ({len(memory)} chars)")
-    
+
     def add_chunk(self, content: str, category: str, priority: ContextPriority = None) -> None:
         """Add a context chunk with auto-detected priority."""
         if priority is None:
             priority = self._auto_detect_priority(category, content)
-        
-        chunk = ContextChunk(
-            content=content,
-            priority=priority,
-            category=category
-        )
+
+        chunk = ContextChunk(content=content, priority=priority, category=category)
         self.current_chunks.append(chunk)
-    
+
     def _auto_detect_priority(self, category: str, content: str) -> ContextPriority:
         """Auto-detect priority based on category and content."""
         # Critical categories
-        if category in ['task', 'todo', 'goal', 'current_action']:
+        if category in ["task", "todo", "goal", "current_action"]:
             return ContextPriority.CRITICAL
-        
+
         # High priority
-        if category in ['error', 'tool_result', 'recent_memory']:
+        if category in ["error", "tool_result", "recent_memory"]:
             return ContextPriority.HIGH
-        
+
         # Look for critical keywords
-        critical_keywords = ['MUST', 'CRITICAL', 'ERROR', 'FAIL', 'bank_code', 'bank_contribution']
+        critical_keywords = ["MUST", "CRITICAL", "ERROR", "FAIL", "bank_code", "bank_contribution"]
         if any(kw.lower() in content.lower() for kw in critical_keywords):
             return ContextPriority.HIGH
-        
+
         # Medium
-        if category in ['trajectory', 'history', 'memory']:
+        if category in ["trajectory", "history", "memory"]:
             return ContextPriority.MEDIUM
-        
+
         return ContextPriority.LOW
-    
+
     # =========================================================================
     # CONTEXT BUILDING
     # =========================================================================
-    
-    def build_context(self,
-                      system_prompt: str,
-                      user_input: str,
-                      additional_context: Dict[str, str] = None) -> Dict[str, Any]:
+
+    def build_context(
+        self, system_prompt: str, user_input: str, additional_context: Dict[str, str] = None
+    ) -> Dict[str, Any]:
         """
         Build context that fits within limits while preserving critical info.
 
@@ -483,43 +511,43 @@ class SmartContextManager:
         # Caller can check 'budget_remaining' to know if we're close to limit
         # =====================================================================
         return {
-            'system_prompt': system_prompt,
-            'user_input': user_input,
-            'context': final_context,
-            'truncated': len(included_chunks) < len(self.current_chunks),
-            'preserved': {
-                'todo': bool(self._current_todo),
-                'goal': bool(self._current_goal),
-                'critical_memories': len(self._critical_memories),
-                'chunks_included': len(included_chunks),
-                'chunks_total': len(self.current_chunks)
+            "system_prompt": system_prompt,
+            "user_input": user_input,
+            "context": final_context,
+            "truncated": len(included_chunks) < len(self.current_chunks),
+            "preserved": {
+                "todo": bool(self._current_todo),
+                "goal": bool(self._current_goal),
+                "critical_memories": len(self._critical_memories),
+                "chunks_included": len(included_chunks),
+                "chunks_total": len(self.current_chunks),
             },
-            'stats': {
-                'total_tokens': fixed_cost + reserved_cost + tokens_used,
-                'effective_limit': self.effective_limit,
-                'budget_remaining': self.effective_limit - fixed_cost - reserved_cost - tokens_used
-            }
+            "stats": {
+                "total_tokens": fixed_cost + reserved_cost + tokens_used,
+                "effective_limit": self.effective_limit,
+                "budget_remaining": self.effective_limit - fixed_cost - reserved_cost - tokens_used,
+            },
         }
-    
+
     # =========================================================================
     # COMPRESSION
     # =========================================================================
-    
+
     def _compress_chunk(self, chunk: ContextChunk, target_tokens: int) -> ContextChunk:
         """Compress a chunk to fit within target token budget."""
         if chunk.tokens <= target_tokens:
             return chunk
-        
+
         self.compressions_count += 1
         original_tokens = chunk.tokens
-        
+
         # Try LLM summarization for important content
         if self.summarizer and chunk.priority.value <= 2:
             try:
                 result = self.summarizer(
                     content=chunk.content,
                     preserve_keywords="bank_code, bank_contribution, error, task list, goal",
-                    max_length=target_tokens * self.chars_per_token
+                    max_length=target_tokens * self.chars_per_token,
                 )
                 compressed_content = result.summary
             except Exception as e:
@@ -527,27 +555,27 @@ class SmartContextManager:
                 compressed_content = self._simple_compress(chunk.content, target_tokens)
         else:
             compressed_content = self._simple_compress(chunk.content, target_tokens)
-        
+
         new_chunk = ContextChunk(
             content=compressed_content,
             priority=chunk.priority,
             category=chunk.category,
             is_compressed=True,
-            original_tokens=original_tokens
+            original_tokens=original_tokens,
         )
-        
+
         self.total_tokens_saved += original_tokens - new_chunk.tokens
-        
+
         return new_chunk
-    
+
     def _simple_compress(self, text: str, target_tokens: int) -> str:
         """Simple compression using shared utility."""
         return ctx_utils.prefix_suffix_compress(text, target_tokens, self.chars_per_token)
-    
+
     # =========================================================================
     # API ERROR RECOVERY
     # =========================================================================
-    
+
     def catch_and_recover(self, error: Exception, current_context: str) -> Optional[str]:
         """
         Catch API token limit errors and recover with compressed context.
@@ -598,6 +626,7 @@ class SmartContextManager:
         Returns:
             Wrapped function with overflow protection
         """
+
         @functools.wraps(func)
         async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
             return await self._guarded_call(func, args, kwargs)
@@ -608,10 +637,9 @@ class SmartContextManager:
                 asyncio.get_running_loop()
                 # In async context - run in thread
                 import concurrent.futures
+
                 with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-                    return pool.submit(
-                        asyncio.run, self._guarded_call(func, args, kwargs)
-                    ).result()
+                    return pool.submit(asyncio.run, self._guarded_call(func, args, kwargs)).result()
             except RuntimeError:
                 # No running loop - safe to use asyncio.run()
                 return asyncio.run(self._guarded_call(func, args, kwargs))
@@ -621,12 +649,7 @@ class SmartContextManager:
         return sync_wrapper
 
     async def _guarded_call(
-        self,
-        func: Callable,
-        args: tuple,
-        kwargs: dict,
-        retry_count: int = 0,
-        max_retries: int = 3
+        self, func: Callable, args: tuple, kwargs: dict, retry_count: int = 0, max_retries: int = 3
     ) -> Any:
         """Execute function with overflow protection and retry."""
         try:
@@ -651,8 +674,7 @@ class SmartContextManager:
 
                 # Retry
                 return await self._guarded_call(
-                    func, compressed_args, compressed_kwargs,
-                    retry_count + 1, max_retries
+                    func, compressed_args, compressed_kwargs, retry_count + 1, max_retries
                 )
 
             # Not overflow or max retries exceeded
@@ -683,27 +705,27 @@ class SmartContextManager:
     # =========================================================================
     # UTILITIES
     # =========================================================================
-    
+
     def estimate_tokens(self, text: str) -> int:
         """Estimate token count using shared utility."""
         return ctx_utils.estimate_tokens(text)
-    
+
     def clear_chunks(self) -> None:
         """Clear non-persistent chunks."""
         self.current_chunks = []
-    
+
     def get_statistics(self) -> Dict[str, Any]:
         """Get context manager statistics."""
         return {
-            'max_tokens': self.max_tokens,
-            'effective_limit': self.effective_limit,
-            'compressions_count': self.compressions_count,
-            'api_errors_recovered': self.api_errors_recovered,
-            'total_tokens_saved': self.total_tokens_saved,
-            'current_chunks': len(self.current_chunks),
-            'critical_memories': len(self._critical_memories),
-            'has_todo': bool(self._current_todo),
-            'has_goal': bool(self._current_goal)
+            "max_tokens": self.max_tokens,
+            "effective_limit": self.effective_limit,
+            "compressions_count": self.compressions_count,
+            "api_errors_recovered": self.api_errors_recovered,
+            "total_tokens_saved": self.total_tokens_saved,
+            "current_chunks": len(self.current_chunks),
+            "critical_memories": len(self._critical_memories),
+            "has_todo": bool(self._current_todo),
+            "has_goal": bool(self._current_goal),
         }
 
 
@@ -711,41 +733,45 @@ class SmartContextManager:
 # INTEGRATION DECORATOR
 # =============================================================================
 
+
 def with_smart_context(max_tokens: int = 28000) -> Any:
     """
     Decorator to add smart context management to any agent.
-    
+
     Usage:
         @with_smart_context(max_tokens=28000)
         async def my_agent(query: str, context: str):
             ...
     """
+
     def decorator(func: Any) -> Any:
         manager = SmartContextManager(max_tokens=max_tokens)
-        
+
         async def wrapper(*args: Any, **kwargs: Any) -> Any:
             # Try to execute
             try:
                 return await func(*args, **kwargs)
             except Exception as e:
                 # Check if recoverable
-                context = kwargs.get('context', str(args))
+                context = kwargs.get("context", str(args))
                 compressed = manager.catch_and_recover(e, context)
-                
+
                 if compressed:
-                    kwargs['context'] = compressed
+                    kwargs["context"] = compressed
                     logger.info(" Retrying with compressed context...")
                     return await func(*args, **kwargs)
-                
+
                 raise
-        
+
         return wrapper
+
     return decorator
 
 
 # =============================================================================
 # DSPY INTEGRATION (from global_context_guard)
 # =============================================================================
+
 
 def patch_dspy_with_guard(manager: SmartContextManager) -> None:
     """
@@ -759,12 +785,12 @@ def patch_dspy_with_guard(manager: SmartContextManager) -> None:
     """
     try:
         # Check if dspy is available
-        if not hasattr(dspy, 'LM'):
+        if not hasattr(dspy, "LM"):
             logger.warning("DSPy not available or incompatible, skipping patch")
             return
 
         # Store original if not already patched
-        if hasattr(dspy, '_original_lm_call'):
+        if hasattr(dspy, "_original_lm_call"):
             logger.debug("DSPy already patched")
             return
 
@@ -785,9 +811,7 @@ def patch_dspy_with_guard(manager: SmartContextManager) -> None:
                     manager.api_errors_recovered += 1
 
                     # Compress prompt
-                    compressed_prompt = ctx_utils.simple_truncate(
-                        prompt, manager.max_tokens - 2000
-                    )
+                    compressed_prompt = ctx_utils.simple_truncate(prompt, manager.max_tokens - 2000)
                     manager.compressions_count += 1
 
                     return dspy._original_lm_call(lm_self, compressed_prompt, *args, **kwargs)
@@ -804,7 +828,7 @@ def patch_dspy_with_guard(manager: SmartContextManager) -> None:
 def unpatch_dspy() -> None:
     """Restore original DSPy LM call."""
     try:
-        if hasattr(dspy, '_original_lm_call'):
+        if hasattr(dspy, "_original_lm_call"):
             dspy.LM.__call__ = dspy._original_lm_call
             del dspy._original_lm_call
             logger.info(" DSPy unpatched")
@@ -817,12 +841,11 @@ def unpatch_dspy() -> None:
 # =============================================================================
 
 __all__ = [
-    'SmartContextManager',
-    'OverflowDetector',
-    'ContextChunk',
-    'ContextPriority',
-    'with_smart_context',
-    'patch_dspy_with_guard',
-    'unpatch_dspy',
+    "SmartContextManager",
+    "OverflowDetector",
+    "ContextChunk",
+    "ContextPriority",
+    "with_smart_context",
+    "patch_dspy_with_guard",
+    "unpatch_dspy",
 ]
-

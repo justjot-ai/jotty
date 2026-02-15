@@ -11,22 +11,23 @@ All tests mock external dependencies — no LLM calls, no API keys, runs offline
 """
 
 import time
-import pytest
 from collections import deque
-from unittest.mock import MagicMock, AsyncMock, patch, PropertyMock
+from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
+
+import pytest
 
 try:
-    from Jotty.core.intelligence.orchestration.validation_gate import (
-        ValidationMode,
-        GateDecision,
-        NEVER_SKIP_PATTERNS,
-        ValidationGate,
-        get_validation_gate,
-        _GATE_SYSTEM,
-    )
     from Jotty.core.intelligence.orchestration.byzantine_verification import (
         ByzantineVerifier,
         ConsistencyChecker,
+    )
+    from Jotty.core.intelligence.orchestration.validation_gate import (
+        _GATE_SYSTEM,
+        NEVER_SKIP_PATTERNS,
+        GateDecision,
+        ValidationGate,
+        ValidationMode,
+        get_validation_gate,
     )
 except ImportError:
     pytest.importorskip("Jotty.core.orchestration.validation_gate")
@@ -36,6 +37,7 @@ except ImportError:
 # =============================================================================
 # Helpers
 # =============================================================================
+
 
 def _make_si():
     """Create a mock SwarmIntelligence with register_agent support."""
@@ -63,6 +65,7 @@ def _make_gate(**kwargs):
 # =============================================================================
 # ValidationMode Enum
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestValidationMode:
@@ -93,6 +96,7 @@ class TestValidationMode:
 # =============================================================================
 # GateDecision Dataclass
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestGateDecision:
@@ -141,6 +145,7 @@ class TestGateDecision:
 # NEVER_SKIP_PATTERNS
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestNeverSkipPatterns:
     """Test that safety-critical patterns are present."""
@@ -182,6 +187,7 @@ class TestNeverSkipPatterns:
 # =============================================================================
 # ValidationGate.__init__
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestValidationGateInit:
@@ -235,6 +241,7 @@ class TestValidationGateInit:
 # =============================================================================
 # ValidationGate.decide() — async tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestValidationGateDecide:
@@ -300,12 +307,13 @@ class TestValidationGateDecide:
     async def test_llm_classification_direct(self):
         gate = _make_gate()
         with patch.object(
-            gate, '_classify_with_llm',
+            gate,
+            "_classify_with_llm",
             new_callable=AsyncMock,
             return_value=(ValidationMode.DIRECT, 0.90, "llm_classified: DIRECT"),
         ):
             # Also prevent sampling from interfering
-            with patch('random.random', return_value=0.99):
+            with patch("random.random", return_value=0.99):
                 decision = await gate.decide(goal="What is Python?")
         assert decision.mode is ValidationMode.DIRECT
         assert decision.confidence == 0.90
@@ -314,7 +322,8 @@ class TestValidationGateDecide:
     async def test_llm_classification_audit_only(self):
         gate = _make_gate()
         with patch.object(
-            gate, '_classify_with_llm',
+            gate,
+            "_classify_with_llm",
             new_callable=AsyncMock,
             return_value=(ValidationMode.AUDIT_ONLY, 0.85, "llm_classified: AUDIT_ONLY"),
         ):
@@ -325,7 +334,8 @@ class TestValidationGateDecide:
     async def test_llm_classification_full(self):
         gate = _make_gate()
         with patch.object(
-            gate, '_classify_with_llm',
+            gate,
+            "_classify_with_llm",
             new_callable=AsyncMock,
             return_value=(ValidationMode.FULL, 0.90, "llm_classified: FULL"),
         ):
@@ -337,7 +347,8 @@ class TestValidationGateDecide:
         """When LLM confidence is below threshold, escalate to FULL."""
         gate = _make_gate(confidence_threshold=0.80)
         with patch.object(
-            gate, '_classify_with_llm',
+            gate,
+            "_classify_with_llm",
             new_callable=AsyncMock,
             return_value=(ValidationMode.DIRECT, 0.50, "llm: low confidence"),
         ):
@@ -351,7 +362,8 @@ class TestValidationGateDecide:
         """Low confidence doesn't escalate if already FULL."""
         gate = _make_gate(confidence_threshold=0.80)
         with patch.object(
-            gate, '_classify_with_llm',
+            gate,
+            "_classify_with_llm",
             new_callable=AsyncMock,
             return_value=(ValidationMode.FULL, 0.50, "llm: FULL"),
         ):
@@ -377,15 +389,16 @@ class TestValidationGateDecide:
         for _ in range(7):
             gate._outcomes[ValidationMode.DIRECT].append(False)  # 7 failures
         for _ in range(3):
-            gate._outcomes[ValidationMode.DIRECT].append(True)   # 3 successes
+            gate._outcomes[ValidationMode.DIRECT].append(True)  # 3 successes
         # fail_rate = 7/10 = 70% > 30%
 
         with patch.object(
-            gate, '_classify_with_llm',
+            gate,
+            "_classify_with_llm",
             new_callable=AsyncMock,
             return_value=(ValidationMode.DIRECT, 0.90, "llm: DIRECT"),
         ):
-            with patch('random.random', return_value=0.99):
+            with patch("random.random", return_value=0.99):
                 decision = await gate.decide(goal="Simple question?")
         assert decision.mode is ValidationMode.AUDIT_ONLY
         assert "drift_escalation" in decision.reason
@@ -400,11 +413,12 @@ class TestValidationGateDecide:
             gate._outcomes[ValidationMode.DIRECT].append(False)
 
         with patch.object(
-            gate, '_classify_with_llm',
+            gate,
+            "_classify_with_llm",
             new_callable=AsyncMock,
             return_value=(ValidationMode.DIRECT, 0.90, "llm: DIRECT"),
         ):
-            with patch('random.random', return_value=0.99):
+            with patch("random.random", return_value=0.99):
                 decision = await gate.decide(goal="Simple question?")
         assert decision.mode is ValidationMode.DIRECT
 
@@ -413,12 +427,13 @@ class TestValidationGateDecide:
         """DIRECT tasks randomly sampled for audit."""
         gate = _make_gate(sample_rate=0.10)
         with patch.object(
-            gate, '_classify_with_llm',
+            gate,
+            "_classify_with_llm",
             new_callable=AsyncMock,
             return_value=(ValidationMode.DIRECT, 0.90, "llm: DIRECT"),
         ):
             # random.random() returns 0.05 < 0.10 → sampled
-            with patch('random.random', return_value=0.05):
+            with patch("random.random", return_value=0.05):
                 decision = await gate.decide(goal="What is 2+2?")
         assert decision.mode is ValidationMode.AUDIT_ONLY
         assert decision.was_sampled is True
@@ -429,11 +444,12 @@ class TestValidationGateDecide:
         """DIRECT tasks not sampled when random > sample_rate."""
         gate = _make_gate(sample_rate=0.10)
         with patch.object(
-            gate, '_classify_with_llm',
+            gate,
+            "_classify_with_llm",
             new_callable=AsyncMock,
             return_value=(ValidationMode.DIRECT, 0.90, "llm: DIRECT"),
         ):
-            with patch('random.random', return_value=0.50):
+            with patch("random.random", return_value=0.50):
                 decision = await gate.decide(goal="What is 2+2?")
         assert decision.mode is ValidationMode.DIRECT
         assert decision.was_sampled is False
@@ -443,7 +459,8 @@ class TestValidationGateDecide:
         """Sampling only applies when mode is DIRECT, not AUDIT_ONLY or FULL."""
         gate = _make_gate(sample_rate=1.0)  # Always sample
         with patch.object(
-            gate, '_classify_with_llm',
+            gate,
+            "_classify_with_llm",
             new_callable=AsyncMock,
             return_value=(ValidationMode.AUDIT_ONLY, 0.90, "llm: AUDIT"),
         ):
@@ -464,11 +481,12 @@ class TestValidationGateDecide:
         adaptive_history.should_validate = MagicMock(side_effect=[arch_decision, aud_decision])
 
         with patch.object(
-            gate, '_classify_with_llm',
+            gate,
+            "_classify_with_llm",
             new_callable=AsyncMock,
             return_value=(ValidationMode.DIRECT, 0.90, "llm: DIRECT"),
         ):
-            with patch('random.random', return_value=0.99):
+            with patch("random.random", return_value=0.99):
                 decision = await gate.decide(
                     goal="Simple task",
                     agent_name="test_agent",
@@ -490,11 +508,12 @@ class TestValidationGateDecide:
         adaptive_history.should_validate = MagicMock(side_effect=[arch_decision, aud_decision])
 
         with patch.object(
-            gate, '_classify_with_llm',
+            gate,
+            "_classify_with_llm",
             new_callable=AsyncMock,
             return_value=(ValidationMode.DIRECT, 0.90, "llm: DIRECT"),
         ):
-            with patch('random.random', return_value=0.99):
+            with patch("random.random", return_value=0.99):
                 decision = await gate.decide(
                     goal="Simple task",
                     agent_name="trusted_agent",
@@ -510,11 +529,12 @@ class TestValidationGateDecide:
         adaptive_history.should_validate = MagicMock(side_effect=Exception("LOTUS unavailable"))
 
         with patch.object(
-            gate, '_classify_with_llm',
+            gate,
+            "_classify_with_llm",
             new_callable=AsyncMock,
             return_value=(ValidationMode.DIRECT, 0.90, "llm: DIRECT"),
         ):
-            with patch('random.random', return_value=0.99):
+            with patch("random.random", return_value=0.99):
                 decision = await gate.decide(
                     goal="Simple task",
                     adaptive_history=adaptive_history,
@@ -535,7 +555,8 @@ class TestValidationGateDecide:
     async def test_decisions_counter_tracks_modes(self):
         gate = _make_gate()
         with patch.object(
-            gate, '_classify_with_llm',
+            gate,
+            "_classify_with_llm",
             new_callable=AsyncMock,
             return_value=(ValidationMode.AUDIT_ONLY, 0.90, "test"),
         ):
@@ -546,6 +567,7 @@ class TestValidationGateDecide:
 # =============================================================================
 # ValidationGate.record_outcome
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestRecordOutcome:
@@ -579,6 +601,7 @@ class TestRecordOutcome:
 # =============================================================================
 # ValidationGate._classify_heuristic
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestClassifyHeuristic:
@@ -622,6 +645,7 @@ class TestClassifyHeuristic:
 # =============================================================================
 # ValidationGate.stats()
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestValidationGateStats:
@@ -669,6 +693,7 @@ class TestValidationGateStats:
 # ValidationGate._estimate_savings
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestEstimateSavings:
     """Test LLM call savings estimation."""
@@ -685,7 +710,7 @@ class TestEstimateSavings:
         gate._decisions[ValidationMode.DIRECT] = 10
         savings = gate._estimate_savings()
         assert savings["baseline_llm_calls"] == 30  # 10 * 3
-        assert savings["actual_llm_calls"] == 10    # 10 * 1
+        assert savings["actual_llm_calls"] == 10  # 10 * 1
         assert savings["calls_saved"] == 20
 
     def test_all_full_saves_nothing(self):
@@ -699,12 +724,12 @@ class TestEstimateSavings:
 
     def test_mixed_savings(self):
         gate = _make_gate()
-        gate._decisions[ValidationMode.DIRECT] = 5     # 5 actual
+        gate._decisions[ValidationMode.DIRECT] = 5  # 5 actual
         gate._decisions[ValidationMode.AUDIT_ONLY] = 3  # 6 actual
-        gate._decisions[ValidationMode.FULL] = 2        # 6 actual
+        gate._decisions[ValidationMode.FULL] = 2  # 6 actual
         savings = gate._estimate_savings()
         assert savings["baseline_llm_calls"] == 30  # (5+3+2)*3
-        assert savings["actual_llm_calls"] == 17    # 5+6+6
+        assert savings["actual_llm_calls"] == 17  # 5+6+6
         assert savings["calls_saved"] == 13
 
 
@@ -712,12 +737,14 @@ class TestEstimateSavings:
 # get_validation_gate singleton
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestGetValidationGate:
     """Test module-level singleton."""
 
     def test_singleton_returns_same_instance(self):
         import Jotty.core.intelligence.orchestration.validation_gate as vg_module
+
         # Reset singleton
         vg_module._default_gate = None
         g1 = get_validation_gate(enable_llm=False)
@@ -728,6 +755,7 @@ class TestGetValidationGate:
 
     def test_singleton_reset(self):
         import Jotty.core.intelligence.orchestration.validation_gate as vg_module
+
         vg_module._default_gate = None
         g1 = get_validation_gate(enable_llm=False)
         vg_module._default_gate = None
@@ -740,6 +768,7 @@ class TestGetValidationGate:
 # =============================================================================
 # ByzantineVerifier.__init__
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestByzantineVerifierInit:
@@ -765,6 +794,7 @@ class TestByzantineVerifierInit:
 # =============================================================================
 # ByzantineVerifier.verify_claim
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestVerifyClaim:
@@ -849,6 +879,7 @@ class TestVerifyClaim:
 # ByzantineVerifier.majority_vote
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestMajorityVote:
     """Test trust-weighted voting."""
@@ -877,22 +908,26 @@ class TestMajorityVote:
         si.agent_profiles["agent3"].trust_score = 0.9
         bv = ByzantineVerifier(si)
 
-        claim, confidence = bv.majority_vote({
-            "agent1": "correct",
-            "agent2": "wrong",
-            "agent3": "correct",
-        })
+        claim, confidence = bv.majority_vote(
+            {
+                "agent1": "correct",
+                "agent2": "wrong",
+                "agent3": "correct",
+            }
+        )
         assert claim == "correct"
         assert confidence > 0.5
 
     def test_unanimous_agreement(self):
         si = _make_si()
         bv = ByzantineVerifier(si)
-        claim, confidence = bv.majority_vote({
-            "a1": "same",
-            "a2": "same",
-            "a3": "same",
-        })
+        claim, confidence = bv.majority_vote(
+            {
+                "a1": "same",
+                "a2": "same",
+                "a3": "same",
+            }
+        )
         assert claim == "same"
         assert confidence == 1.0
 
@@ -900,6 +935,7 @@ class TestMajorityVote:
 # =============================================================================
 # ByzantineVerifier.get_untrusted_agents
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestGetUntrustedAgents:
@@ -941,6 +977,7 @@ class TestGetUntrustedAgents:
 # ByzantineVerifier.get_agent_consistency_rate
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestGetAgentConsistencyRate:
     """Test per-agent consistency rate calculation."""
@@ -960,14 +997,15 @@ class TestGetAgentConsistencyRate:
     def test_mixed_consistency(self):
         si = _make_si()
         bv = ByzantineVerifier(si)
-        bv.verify_claim("a1", True, True)   # consistent
-        bv.verify_claim("a1", True, None)    # inconsistent
+        bv.verify_claim("a1", True, True)  # consistent
+        bv.verify_claim("a1", True, None)  # inconsistent
         assert bv.get_agent_consistency_rate("a1") == 0.5
 
 
 # =============================================================================
 # ByzantineVerifier._determine_success
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestDetermineSuccess:
@@ -1047,6 +1085,7 @@ class TestDetermineSuccess:
 # ByzantineVerifier.verify_output_quality
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestVerifyOutputQuality:
     """Test single-agent output quality verification."""
@@ -1069,7 +1108,8 @@ class TestVerifyOutputQuality:
         si = _make_si()
         bv = ByzantineVerifier(si)
         result = bv.verify_output_quality(
-            "a1", True,
+            "a1",
+            True,
             "Error: failed to connect to database. The operation could not be completed.",
             goal="Connect to DB",
             trust_level="side_effect",
@@ -1088,8 +1128,9 @@ class TestVerifyOutputQuality:
         si = _make_si()
         bv = ByzantineVerifier(si)
         result = bv.verify_output_quality(
-            "a1", True,
-            "I cannot perform this action. I\'m unable to access the requested resource at this time.",
+            "a1",
+            True,
+            "I cannot perform this action. I'm unable to access the requested resource at this time.",
             goal="Access the resource",
             trust_level="side_effect",
         )
@@ -1099,7 +1140,8 @@ class TestVerifyOutputQuality:
         si = _make_si()
         bv = ByzantineVerifier(si)
         result = bv.verify_output_quality(
-            "a1", True,
+            "a1",
+            True,
             "Here is a detailed and comprehensive response with plenty of useful content that exceeds minimum.",
             goal="Give me info",
             trust_level="safe",
@@ -1112,7 +1154,8 @@ class TestVerifyOutputQuality:
         si = _make_si()
         bv = ByzantineVerifier(si)
         result = bv.verify_output_quality(
-            "a1", True,
+            "a1",
+            True,
             "Operation complete. All records have been deleted from the database permanently.",
             goal="Clean up",
             trust_level="destructive",
@@ -1123,7 +1166,8 @@ class TestVerifyOutputQuality:
         si = _make_si()
         bv = ByzantineVerifier(si)
         result = bv.verify_output_quality(
-            "a1", True,
+            "a1",
+            True,
             "Here is a thorough analysis of the data. The results show a 25% increase in productivity across all teams measured over the past quarter.",
             goal="Analyze the data",
         )
@@ -1141,7 +1185,8 @@ class TestVerifyOutputQuality:
         si = _make_si()
         bv = ByzantineVerifier(si)
         bv.verify_output_quality(
-            "a1", True,
+            "a1",
+            True,
             "Here is a comprehensive answer with detailed explanations and specific examples that exceeds the minimum threshold.",
             goal="Help me",
         )
@@ -1157,8 +1202,11 @@ class TestVerifyOutputQuality:
         si = _make_si()
         bv = ByzantineVerifier(si)
         result = bv.verify_output_quality(
-            "a1", True,
-            {"output": "Here is a detailed and comprehensive response that meets quality standards for this task."},
+            "a1",
+            True,
+            {
+                "output": "Here is a detailed and comprehensive response that meets quality standards for this task."
+            },
             goal="Do work",
         )
         assert result["quality_ok"] is True
@@ -1167,6 +1215,7 @@ class TestVerifyOutputQuality:
 # =============================================================================
 # ByzantineVerifier.format_trust_report
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestFormatTrustReport:
@@ -1208,6 +1257,7 @@ class TestFormatTrustReport:
 # =============================================================================
 # ByzantineVerifier.to_dict / restore_from_dict
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestByzantineSerialization:
@@ -1262,6 +1312,7 @@ class TestByzantineSerialization:
 # ConsistencyChecker._extract_key_facts
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestExtractKeyFacts:
     """Test key fact extraction from text."""
@@ -1304,6 +1355,7 @@ class TestExtractKeyFacts:
 # ConsistencyChecker._jaccard
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestJaccard:
     """Test Jaccard similarity."""
@@ -1333,6 +1385,7 @@ class TestJaccard:
 # ConsistencyChecker.check_consistency
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestCheckConsistency:
     """Test multi-agent output consistency checking."""
@@ -1351,10 +1404,12 @@ class TestCheckConsistency:
         si = _make_si()
         bv = ByzantineVerifier(si)
         cc = ConsistencyChecker(bv)
-        result = cc.check_consistency({
-            "a1": "Python is version 3.12 and is popular",
-            "a2": "Python is version 3.12 and is popular",
-        })
+        result = cc.check_consistency(
+            {
+                "a1": "Python is version 3.12 and is popular",
+                "a2": "Python is version 3.12 and is popular",
+            }
+        )
         assert result["consistent"] is True
         assert result["agreement_rate"] == 1.0
 
@@ -1362,11 +1417,13 @@ class TestCheckConsistency:
         si = _make_si()
         bv = ByzantineVerifier(si)
         cc = ConsistencyChecker(bv, similarity_threshold=0.5)
-        result = cc.check_consistency({
-            "a1": "The temperature in Paris is 22 Celsius today",
-            "a2": "Quantum computing uses qubits for parallel processing at 0 Kelvin",
-            "a3": "Football championship won by Brazil in 2002 with Ronaldo",
-        })
+        result = cc.check_consistency(
+            {
+                "a1": "The temperature in Paris is 22 Celsius today",
+                "a2": "Quantum computing uses qubits for parallel processing at 0 Kelvin",
+                "a3": "Football championship won by Brazil in 2002 with Ronaldo",
+            }
+        )
         # With very different outputs, there should be outliers
         assert len(result["outliers"]) >= 0  # at least some structure
         assert "details" in result
@@ -1383,11 +1440,13 @@ class TestCheckConsistency:
         cc = ConsistencyChecker(bv, similarity_threshold=0.8)
 
         # a1 and a2 agree, a3 is different
-        cc.check_consistency({
-            "a1": "The answer is 42. Python is version 3.12. Therefore the result is confirmed.",
-            "a2": "The answer is 42. Python is version 3.12. Therefore the result is confirmed.",
-            "a3": "Bananas are yellow fruits grown in tropical climates. Potassium content is 358mg.",
-        })
+        cc.check_consistency(
+            {
+                "a1": "The answer is 42. Python is version 3.12. Therefore the result is confirmed.",
+                "a2": "The answer is 42. Python is version 3.12. Therefore the result is confirmed.",
+                "a3": "Bananas are yellow fruits grown in tropical climates. Potassium content is 358mg.",
+            }
+        )
         # Outlier trust should be reduced
         # Note: the exact trust values depend on clustering results
         # but we can verify the structure is intact
@@ -1397,10 +1456,12 @@ class TestCheckConsistency:
         si = _make_si()
         bv = ByzantineVerifier(si)
         cc = ConsistencyChecker(bv)
-        result = cc.check_consistency({
-            "a1": "Answer A with some detail",
-            "a2": "Answer B with more detail",
-        })
+        result = cc.check_consistency(
+            {
+                "a1": "Answer A with some detail",
+                "a2": "Answer B with more detail",
+            }
+        )
         assert "a1" in result["details"]
         assert "a2" in result["details"]
         assert "facts_extracted" in result["details"]["a1"]
@@ -1424,6 +1485,7 @@ class TestCheckConsistency:
 # =============================================================================
 # ConsistencyChecker.detect_hallucination
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestDetectHallucination:
@@ -1489,6 +1551,7 @@ class TestDetectHallucination:
 # ConsistencyChecker.get_consistency_stats
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestGetConsistencyStats:
     """Test consistency statistics."""
@@ -1507,10 +1570,13 @@ class TestGetConsistencyStats:
 
         # Run a few consistency checks
         cc.check_consistency({"a1": "same text", "a2": "same text"}, task_type="test")
-        cc.check_consistency({
-            "a1": "completely different answer one with numbers 42",
-            "a2": "another totally unrelated answer two with numbers 99",
-        }, task_type="research")
+        cc.check_consistency(
+            {
+                "a1": "completely different answer one with numbers 42",
+                "a2": "another totally unrelated answer two with numbers 99",
+            },
+            task_type="research",
+        )
 
         stats = cc.get_consistency_stats()
         assert stats["total_checks"] == 2

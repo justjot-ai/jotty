@@ -4,12 +4,12 @@ Fetches financial data for Indian companies from screener.in with automatic prox
 
 ## Features
 
-✅ **Free Proxy Rotation** - Automatically rotates through free proxies  
-✅ **Rate Limiting Protection** - Built-in retry logic with exponential backoff  
-✅ **User-Agent Rotation** - Randomizes user agents to avoid detection  
-✅ **Multiple Data Types** - P&L, Balance Sheet, Cash Flow, Ratios  
-✅ **Multiple Formats** - JSON, Markdown, CSV output  
-✅ **Company Search** - Search by company name  
+✅ **Free Proxy Rotation** - Automatically rotates through free proxies
+✅ **Rate Limiting Protection** - Built-in retry logic with exponential backoff
+✅ **User-Agent Rotation** - Randomizes user agents to avoid detection
+✅ **Multiple Data Types** - P&L, Balance Sheet, Cash Flow, Ratios
+✅ **Multiple Formats** - JSON, Markdown, CSV output
+✅ **Company Search** - Search by company name
 
 ## Usage Examples
 

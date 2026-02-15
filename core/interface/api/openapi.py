@@ -11,21 +11,24 @@ Usage:
     save_openapi_spec(spec, Path("sdk/openapi.json"))
 """
 
-import json
 import inspect
+import json
 import logging
-from dataclasses import fields as dc_fields, MISSING
-from typing import Dict, Any, List, Optional, get_type_hints, Union
-from pathlib import Path
-from enum import Enum
+from dataclasses import MISSING
+from dataclasses import fields as dc_fields
 from datetime import datetime
+from enum import Enum
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Union, get_type_hints
 
 logger = logging.getLogger(__name__)
 
 
-def _python_type_to_openapi(py_type: Any, enums_collected: Dict[str, list] = None) -> Dict[str, Any]:
+def _python_type_to_openapi(
+    py_type: Any, enums_collected: Dict[str, list] = None
+) -> Dict[str, Any]:
     """Convert a Python type annotation to OpenAPI schema."""
-    origin = getattr(py_type, '__origin__', None)
+    origin = getattr(py_type, "__origin__", None)
 
     # Handle Optional[X] -> nullable X
     if origin is Union:
@@ -82,7 +85,7 @@ def _dataclass_to_schema(cls, enums_collected: Dict[str, list] = None) -> Dict[s
 
     for f in dc_fields(cls):
         # Skip callback fields (not serializable)
-        if 'callback' in f.name.lower() or f.name.startswith('_'):
+        if "callback" in f.name.lower() or f.name.startswith("_"):
             continue
 
         py_type = hints.get(f.name, Any)
@@ -110,7 +113,7 @@ def _dataclass_to_schema(cls, enums_collected: Dict[str, list] = None) -> Dict[s
 
     # Add description from docstring
     if cls.__doc__:
-        first_line = cls.__doc__.strip().split('\n')[0].strip()
+        first_line = cls.__doc__.strip().split("\n")[0].strip()
         if first_line:
             result["description"] = first_line
 
@@ -121,7 +124,7 @@ def generate_openapi_spec(
     title: str = "Jotty API",
     version: str = "2.0.0",
     description: str = "AI Agent Framework - Multi-agent orchestration API",
-    base_url: str = None
+    base_url: str = None,
 ) -> Dict[str, Any]:
     """
     Generate OpenAPI 3.0 spec from sdk_types.py dataclasses.
@@ -130,16 +133,25 @@ def generate_openapi_spec(
     and generates schemas automatically. Endpoints defined declaratively.
     """
     import os
+
     if base_url is None:
         try:
             from Jotty.core.infrastructure.foundation.config_defaults import DEFAULTS as _DEFAULTS
+
             base_url = os.getenv("JOTTY_GATEWAY_URL", _DEFAULTS.JOTTY_GATEWAY_URL)
         except ImportError:
             base_url = os.getenv("JOTTY_GATEWAY_URL", "http://localhost:8766")
 
     from Jotty.core.infrastructure.foundation.types.sdk_types import (
-        ExecutionMode, ChannelType, SDKEventType, ResponseFormat,
-        ExecutionContext, SDKEvent, SDKSession, SDKResponse, SDKRequest,
+        ChannelType,
+        ExecutionContext,
+        ExecutionMode,
+        ResponseFormat,
+        SDKEvent,
+        SDKEventType,
+        SDKRequest,
+        SDKResponse,
+        SDKSession,
     )
 
     enums_collected = {}
@@ -234,7 +246,7 @@ def generate_openapi_spec(
     def _sse() -> Dict:
         return {"text/event-stream": {"schema": {"type": "string", "format": "binary"}}}
 
-    def _responses(ok_schema: Any, ok_desc: Any = 'Success') -> Any:
+    def _responses(ok_schema: Any, ok_desc: Any = "Success") -> Any:
         r = {"200": {"description": ok_desc, "content": _json(ok_schema)}}
         r["400"] = {"description": "Bad request", "content": _json(_ref("ErrorResponse"))}
         r["500"] = {"description": "Internal server error", "content": _json(_ref("ErrorResponse"))}
@@ -249,7 +261,9 @@ def generate_openapi_spec(
                 "tags": ["Health"],
                 "summary": "Health check",
                 "operationId": "healthCheck",
-                "responses": {"200": {"description": "Healthy", "content": _json(_ref("HealthResponse"))}},
+                "responses": {
+                    "200": {"description": "Healthy", "content": _json(_ref("HealthResponse"))}
+                },
             }
         },
         "/api/chat": {
@@ -297,14 +311,21 @@ def generate_openapi_spec(
                 "tags": ["Skills"],
                 "summary": "List skills",
                 "operationId": "listSkills",
-                "responses": {"200": {"description": "Skills list", "content": _json({
-                    "type": "object",
-                    "properties": {
-                        "success": {"type": "boolean"},
-                        "skills": {"type": "array", "items": _ref("SkillInfo")},
-                        "count": {"type": "integer"},
-                    },
-                })}},
+                "responses": {
+                    "200": {
+                        "description": "Skills list",
+                        "content": _json(
+                            {
+                                "type": "object",
+                                "properties": {
+                                    "success": {"type": "boolean"},
+                                    "skills": {"type": "array", "items": _ref("SkillInfo")},
+                                    "count": {"type": "integer"},
+                                },
+                            }
+                        ),
+                    }
+                },
                 "security": _auth(),
             }
         },
@@ -313,8 +334,13 @@ def generate_openapi_spec(
                 "tags": ["Skills"],
                 "summary": "Execute skill",
                 "operationId": "executeSkill",
-                "parameters": [{"name": "name", "in": "path", "required": True, "schema": {"type": "string"}}],
-                "requestBody": {"required": True, "content": _json({"type": "object", "additionalProperties": True})},
+                "parameters": [
+                    {"name": "name", "in": "path", "required": True, "schema": {"type": "string"}}
+                ],
+                "requestBody": {
+                    "required": True,
+                    "content": _json({"type": "object", "additionalProperties": True}),
+                },
                 "responses": _responses(_ref("SDKResponse"), "Skill result"),
                 "security": _auth(),
             },
@@ -322,8 +348,12 @@ def generate_openapi_spec(
                 "tags": ["Skills"],
                 "summary": "Get skill info",
                 "operationId": "getSkillInfo",
-                "parameters": [{"name": "name", "in": "path", "required": True, "schema": {"type": "string"}}],
-                "responses": {"200": {"description": "Skill info", "content": _json(_ref("SkillInfo"))}},
+                "parameters": [
+                    {"name": "name", "in": "path", "required": True, "schema": {"type": "string"}}
+                ],
+                "responses": {
+                    "200": {"description": "Skill info", "content": _json(_ref("SkillInfo"))}
+                },
                 "security": _auth(),
             },
         },
@@ -332,15 +362,22 @@ def generate_openapi_spec(
                 "tags": ["Agents"],
                 "summary": "Execute with agent",
                 "operationId": "executeAgent",
-                "parameters": [{"name": "name", "in": "path", "required": True, "schema": {"type": "string"}}],
-                "requestBody": {"required": True, "content": _json({
-                    "type": "object",
-                    "properties": {
-                        "task": {"type": "string"},
-                        "context": {"type": "object", "additionalProperties": True},
-                    },
-                    "required": ["task"],
-                })},
+                "parameters": [
+                    {"name": "name", "in": "path", "required": True, "schema": {"type": "string"}}
+                ],
+                "requestBody": {
+                    "required": True,
+                    "content": _json(
+                        {
+                            "type": "object",
+                            "properties": {
+                                "task": {"type": "string"},
+                                "context": {"type": "object", "additionalProperties": True},
+                            },
+                            "required": ["task"],
+                        }
+                    ),
+                },
                 "responses": _responses(_ref("SDKResponse"), "Agent result"),
                 "security": _auth(),
             }
@@ -350,24 +387,49 @@ def generate_openapi_spec(
                 "tags": ["Sessions"],
                 "summary": "Get session",
                 "operationId": "getSession",
-                "parameters": [{"name": "user_id", "in": "path", "required": True, "schema": {"type": "string"}}],
-                "responses": {"200": {"description": "Session data", "content": _json(_ref("SDKSession"))}},
+                "parameters": [
+                    {
+                        "name": "user_id",
+                        "in": "path",
+                        "required": True,
+                        "schema": {"type": "string"},
+                    }
+                ],
+                "responses": {
+                    "200": {"description": "Session data", "content": _json(_ref("SDKSession"))}
+                },
                 "security": _auth(),
             },
             "put": {
                 "tags": ["Sessions"],
                 "summary": "Update session",
                 "operationId": "updateSession",
-                "parameters": [{"name": "user_id", "in": "path", "required": True, "schema": {"type": "string"}}],
+                "parameters": [
+                    {
+                        "name": "user_id",
+                        "in": "path",
+                        "required": True,
+                        "schema": {"type": "string"},
+                    }
+                ],
                 "requestBody": {"required": True, "content": _json(_ref("SDKSession"))},
-                "responses": {"200": {"description": "Updated", "content": _json(_ref("SDKSession"))}},
+                "responses": {
+                    "200": {"description": "Updated", "content": _json(_ref("SDKSession"))}
+                },
                 "security": _auth(),
             },
             "delete": {
                 "tags": ["Sessions"],
                 "summary": "Delete session",
                 "operationId": "deleteSession",
-                "parameters": [{"name": "user_id", "in": "path", "required": True, "schema": {"type": "string"}}],
+                "parameters": [
+                    {
+                        "name": "user_id",
+                        "in": "path",
+                        "required": True,
+                        "schema": {"type": "string"},
+                    }
+                ],
                 "responses": {"204": {"description": "Deleted"}},
                 "security": _auth(),
             },
@@ -410,7 +472,7 @@ def generate_openapi_spec(
 def save_openapi_spec(spec: Dict[str, Any], output_path: Path) -> None:
     """Save OpenAPI specification to file."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(output_path, 'w') as f:
+    with open(output_path, "w") as f:
         json.dump(spec, f, indent=2)
 
 

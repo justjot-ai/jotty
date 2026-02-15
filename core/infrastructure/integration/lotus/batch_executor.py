@@ -18,22 +18,23 @@ Cost Impact:
 import asyncio
 import logging
 import time
-from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional, Callable, Tuple, TypeVar
-from collections import defaultdict
-from enum import Enum
 import uuid
+from collections import defaultdict
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar
 
-from .config import LotusConfig, BatchConfig
+from .config import BatchConfig, LotusConfig
 
 logger = logging.getLogger(__name__)
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 @dataclass
 class BatchItem:
     """Single item in a batch."""
+
     id: str
     operation_type: str
     prompt: str
@@ -45,6 +46,7 @@ class BatchItem:
 @dataclass
 class BatchResult:
     """Result for a batch execution."""
+
     batch_id: str
     operation_type: str
     items_count: int
@@ -91,7 +93,9 @@ class BatchExecutor:
         await executor.flush()
     """
 
-    def __init__(self, config: Optional[LotusConfig] = None, lm_provider: Optional[Any] = None) -> None:
+    def __init__(
+        self, config: Optional[LotusConfig] = None, lm_provider: Optional[Any] = None
+    ) -> None:
         """
         Initialize batch executor.
 
@@ -255,9 +259,7 @@ class BatchExecutor:
         batch_id = str(uuid.uuid4())[:8]
         start_time = time.time()
 
-        logger.debug(
-            f"Flushing batch {batch_id}: {len(items)} items of type '{operation_type}'"
-        )
+        logger.debug(f"Flushing batch {batch_id}: {len(items)} items of type '{operation_type}'")
 
         try:
             # Extract prompts
@@ -323,7 +325,7 @@ class BatchExecutor:
             # Normalize response format
             if isinstance(responses, str):
                 responses = [responses]
-            elif hasattr(responses, '__iter__'):
+            elif hasattr(responses, "__iter__"):
                 responses = [str(r) for r in responses]
             else:
                 responses = [str(responses)]
@@ -332,7 +334,7 @@ class BatchExecutor:
             while len(responses) < len(prompts):
                 responses.append("")
 
-            return responses[:len(prompts)]
+            return responses[: len(prompts)]
 
         except Exception as e:
             logger.error(f"Batch execution failed: {e}")
@@ -417,19 +419,15 @@ class ParallelBatchExecutor(BatchExecutor):
         max_parallel = self.batch_config.max_parallel_batches
 
         # Split into batches
-        batches = [
-            items[i:i + batch_size]
-            for i in range(0, len(items), batch_size)
-        ]
+        batches = [items[i : i + batch_size] for i in range(0, len(items), batch_size)]
 
         all_results = []
         for i in range(0, len(batches), max_parallel):
             # Execute up to max_parallel batches concurrently
-            parallel_batches = batches[i:i + max_parallel]
+            parallel_batches = batches[i : i + max_parallel]
 
             tasks = [
-                self.execute_batch(operation_type, batch, prompt_fn)
-                for batch in parallel_batches
+                self.execute_batch(operation_type, batch, prompt_fn) for batch in parallel_batches
             ]
 
             batch_results = await asyncio.gather(*tasks)

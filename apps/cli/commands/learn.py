@@ -6,6 +6,7 @@ Learning, warmup, and curriculum management.
 """
 
 from typing import TYPE_CHECKING
+
 from .base import BaseCommand, CommandResult, ParsedArgs
 
 if TYPE_CHECKING:
@@ -42,12 +43,7 @@ class LearnCommand(BaseCommand):
         else:
             return await self._show_status(cli)
 
-    async def _warmup(
-        self,
-        episodes: int,
-        verbose: bool,
-        cli: "JottyCLI"
-    ) -> CommandResult:
+    async def _warmup(self, episodes: int, verbose: bool, cli: "JottyCLI") -> CommandResult:
         """Run DrZero warmup."""
         try:
             swarm = await cli.get_swarm_manager()
@@ -56,13 +52,9 @@ class LearnCommand(BaseCommand):
 
             # Run warmup with progress
             async with await cli.renderer.progress.spinner_async(
-                f"Running warmup ({episodes} episodes)...",
-                style="cyan"
+                f"Running warmup ({episodes} episodes)...", style="cyan"
             ) as spinner:
-                stats = await swarm.warmup(
-                    num_episodes=episodes,
-                    verbose=verbose
-                )
+                stats = await swarm.warmup(num_episodes=episodes, verbose=verbose)
 
             # Display results
             cli.renderer.success(f"Warmup complete!")
@@ -76,8 +68,7 @@ class LearnCommand(BaseCommand):
 
             if stats.get("agent_improvements"):
                 result_info["Agent Improvements"] = {
-                    agent: f"{rate:.1%}"
-                    for agent, rate in stats["agent_improvements"].items()
+                    agent: f"{rate:.1%}" for agent, rate in stats["agent_improvements"].items()
                 }
 
             if stats.get("task_type_results"):
@@ -147,7 +138,7 @@ class LearnCommand(BaseCommand):
                     cli.renderer.panel(
                         "\n".join([f"• {area}" for area in recommendation["weak_areas"]]),
                         title="Weak Areas",
-                        style="yellow"
+                        style="yellow",
                     )
             else:
                 cli.renderer.success("Learning state is healthy - no warmup needed")

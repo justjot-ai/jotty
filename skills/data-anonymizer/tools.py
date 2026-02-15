@@ -1,9 +1,10 @@
 """Data Anonymizer Skill — mask PII in text."""
-import re
-from typing import Dict, Any
 
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+import re
+from typing import Any, Dict
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("data-anonymizer")
 
@@ -39,8 +40,9 @@ def anonymize_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             detections[pii_type] = len(matches)
             text = re.sub(pattern, replacement, text)
 
-    return tool_response(anonymized=text, detections=detections,
-                         total_redactions=sum(detections.values()))
+    return tool_response(
+        anonymized=text, detections=detections, total_redactions=sum(detections.values())
+    )
 
 
 __all__ = ["anonymize_text_tool"]

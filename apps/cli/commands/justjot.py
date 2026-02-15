@@ -5,8 +5,8 @@ JustJot Command
 /J command for creating ideas on JustJot.ai
 """
 
-import os
 import logging
+import os
 from typing import TYPE_CHECKING
 
 from .base import BaseCommand, CommandResult, ParsedArgs
@@ -45,18 +45,20 @@ class JustJotCommand(BaseCommand):
             idea_title = idea_content[:100] + "..." if len(idea_content) > 100 else idea_content
         else:
             # Use last output from conversation
-            if hasattr(cli, '_output_history') and cli._output_history:
+            if hasattr(cli, "_output_history") and cli._output_history:
                 idea_content = cli._output_history[-1]
                 # Extract title from first line or heading
-                lines = idea_content.strip().split('\n')
-                first_line = lines[0].strip().lstrip('#').strip()
+                lines = idea_content.strip().split("\n")
+                first_line = lines[0].strip().lstrip("#").strip()
                 idea_title = first_line[:100] if first_line else "Idea from Jotty"
             else:
-                cli.renderer.warning("No content to submit. Provide idea text or run a query first.")
+                cli.renderer.warning(
+                    "No content to submit. Provide idea text or run a query first."
+                )
                 return CommandResult.fail("No content available")
 
         # Get email from config or default
-        email = args.flags.get('email', DEFAULT_EMAIL)
+        email = args.flags.get("email", DEFAULT_EMAIL)
 
         # Show preview
         cli.renderer.panel(
@@ -64,26 +66,23 @@ class JustJotCommand(BaseCommand):
             f"**Content preview:** {idea_content[:200]}{'...' if len(idea_content) > 200 else ''}\n\n"
             f"**Email:** {email}",
             title="JustJot.ai Idea",
-            style="cyan"
+            style="cyan",
         )
 
         # Submit to JustJot
         try:
             result = await self._submit_to_justjot(
-                title=idea_title,
-                content=idea_content,
-                email=email,
-                cli=cli
+                title=idea_title, content=idea_content, email=email, cli=cli
             )
 
-            if result.get('success'):
+            if result.get("success"):
                 cli.renderer.success(f"Idea submitted to JustJot.ai!")
-                if result.get('url'):
+                if result.get("url"):
                     cli.renderer.print(f"  View: [cyan]{result['url']}[/cyan]")
                 return CommandResult.ok(output="Idea created successfully")
             else:
                 cli.renderer.error(f"Failed: {result.get('error', 'Unknown error')}")
-                return CommandResult.fail(result.get('error', 'Submission failed'))
+                return CommandResult.fail(result.get("error", "Submission failed"))
 
         except Exception as e:
             logger.error(f"JustJot submission error: {e}")
@@ -91,11 +90,7 @@ class JustJotCommand(BaseCommand):
             return CommandResult.fail(str(e))
 
     async def _submit_to_justjot(
-        self,
-        title: str,
-        content: str,
-        email: str,
-        cli: "JottyCLI"
+        self, title: str, content: str, email: str, cli: "JottyCLI"
     ) -> dict:
         """
         Submit idea to JustJot.ai.
@@ -122,42 +117,27 @@ class JustJotCommand(BaseCommand):
             return skill_result
 
         return {
-            'success': False,
-            'error': 'JustJot not configured. Set JUSTJOT_API_URL or configure MCP server.'
+            "success": False,
+            "error": "JustJot not configured. Set JUSTJOT_API_URL or configure MCP server.",
         }
 
     async def _try_mcp_submission(
-        self,
-        title: str,
-        content: str,
-        email: str,
-        cli: "JottyCLI"
+        self, title: str, content: str, email: str, cli: "JottyCLI"
     ) -> dict:
         """Try submitting via MCP server."""
         try:
             # Check if MCP client is available
-            if hasattr(cli, 'mcp_client') and cli.mcp_client:
+            if hasattr(cli, "mcp_client") and cli.mcp_client:
                 # Call JustJot MCP tool
                 result = await cli.mcp_client.call_tool(
-                    'justjot',
-                    'create_idea',
-                    {
-                        'title': title,
-                        'content': content,
-                        'email': email
-                    }
+                    "justjot", "create_idea", {"title": title, "content": content, "email": email}
                 )
                 return result
         except Exception as e:
             logger.debug(f"MCP submission not available: {e}")
         return None
 
-    async def _try_api_submission(
-        self,
-        title: str,
-        content: str,
-        email: str
-    ) -> dict:
+    async def _try_api_submission(self, title: str, content: str, email: str) -> dict:
         """Try submitting via HTTP API."""
         import aiohttp
 
@@ -172,57 +152,42 @@ class JustJotCommand(BaseCommand):
             if api_key:
                 headers["Authorization"] = f"Bearer {api_key}"
 
-            payload = {
-                "title": title,
-                "content": content,
-                "email": email,
-                "source": "jotty-cli"
-            }
+            payload = {"title": title, "content": content, "email": email, "source": "jotty-cli"}
 
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    f"{api_url}/ideas",
-                    json=payload,
-                    headers=headers
+                    f"{api_url}/ideas", json=payload, headers=headers
                 ) as response:
                     if response.status == 200 or response.status == 201:
                         data = await response.json()
-                        return {
-                            'success': True,
-                            'id': data.get('id'),
-                            'url': data.get('url')
-                        }
+                        return {"success": True, "id": data.get("id"), "url": data.get("url")}
                     else:
                         error_text = await response.text()
                         return {
-                            'success': False,
-                            'error': f"API error {response.status}: {error_text}"
+                            "success": False,
+                            "error": f"API error {response.status}: {error_text}",
                         }
         except Exception as e:
             logger.debug(f"API submission failed: {e}")
             return None
 
     async def _try_skill_submission(
-        self,
-        title: str,
-        content: str,
-        email: str,
-        cli: "JottyCLI"
+        self, title: str, content: str, email: str, cli: "JottyCLI"
     ) -> dict:
         """Try submitting via mcp-justjot skill."""
         try:
             registry = cli.get_skills_registry()
 
-            skill = registry.get_skill('mcp-justjot')
+            skill = registry.get_skill("mcp-justjot")
             if skill:
-                tool = skill.tools.get('create_idea_tool') or skill.tools.get('create_idea')
+                tool = skill.tools.get("create_idea_tool") or skill.tools.get("create_idea")
                 if tool:
                     import asyncio
 
                     params = {
-                        'title': title,
-                        'description': content,
-                        'tags': ['jotty', 'ai-generated']
+                        "title": title,
+                        "description": content,
+                        "tags": ["jotty", "ai-generated"],
                     }
 
                     if asyncio.iscoroutinefunction(tool):
@@ -230,12 +195,12 @@ class JustJotCommand(BaseCommand):
                     else:
                         result = tool(params)
 
-                    if result.get('success'):
-                        idea_id = result.get('idea_id') or result.get('id')
+                    if result.get("success"):
+                        idea_id = result.get("idea_id") or result.get("id")
                         return {
-                            'success': True,
-                            'id': idea_id,
-                            'url': f"https://justjot.ai/ideas/{idea_id}" if idea_id else None
+                            "success": True,
+                            "id": idea_id,
+                            "url": f"https://justjot.ai/ideas/{idea_id}" if idea_id else None,
                         }
                     return result
         except Exception as e:

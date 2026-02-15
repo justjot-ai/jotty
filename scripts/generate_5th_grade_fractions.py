@@ -16,13 +16,13 @@ Usage:
     python scripts/generate_5th_grade_fractions.py --subject physics --topic "Forces and Motion" --student "Aria"
 """
 
-import asyncio
 import argparse
+import asyncio
+import logging
 import os
 import sys
-import logging
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 # Ensure Jotty is on path
 repo = Path(__file__).resolve().parents[1]
@@ -30,7 +30,8 @@ sys.path.insert(0, str(repo))
 
 # Load .env so API keys are available
 try:
-    from Jotty.core.infrastructure.utils.env_loader import load_jotty_env, get_jotty_root
+    from Jotty.core.infrastructure.utils.env_loader import get_jotty_root, load_jotty_env
+
     load_jotty_env()
     anth = get_jotty_root() / ".env.anthropic"
     if anth.exists():
@@ -55,11 +56,26 @@ logging.basicConfig(
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Generate learning module via OlympiadLearningSwarm")
-    parser.add_argument("--subject", default="mathematics", help="Subject (mathematics, biology, physics, chemistry, cs, astronomy, general)")
-    parser.add_argument("--topic", default="Fractions - meaning of fractions, equivalent fractions", help="Topic to teach")
+    parser = argparse.ArgumentParser(
+        description="Generate learning module via OlympiadLearningSwarm"
+    )
+    parser.add_argument(
+        "--subject",
+        default="mathematics",
+        help="Subject (mathematics, biology, physics, chemistry, cs, astronomy, general)",
+    )
+    parser.add_argument(
+        "--topic",
+        default="Fractions - meaning of fractions, equivalent fractions",
+        help="Topic to teach",
+    )
     parser.add_argument("--student", default="Aria", help="Student name")
-    parser.add_argument("--depth", default="standard", choices=["quick", "standard", "deep", "comprehensive"], help="Lesson depth")
+    parser.add_argument(
+        "--depth",
+        default="standard",
+        choices=["quick", "standard", "deep", "comprehensive"],
+        help="Lesson depth",
+    )
     parser.add_argument("--target", default="5th_grader", help="Target level")
     parser.add_argument("--no-telegram", action="store_true", help="Skip sending to Telegram")
     return parser.parse_args()
@@ -76,11 +92,16 @@ async def main():
 
     # Pre-configure DSPy with DirectAnthropicLM (fast API, not CLI)
     from Jotty.core.infrastructure.foundation.direct_anthropic_lm import configure_direct_anthropic
+
     configure_direct_anthropic(model="haiku")
     print("Pre-configured DSPy with DirectAnthropicLM (API)")
 
     from Jotty.core.intelligence.swarms.olympiad_learning_swarm import (
-        OlympiadLearningSwarm, OlympiadLearningConfig, Subject, LessonDepth, DifficultyTier,
+        DifficultyTier,
+        LessonDepth,
+        OlympiadLearningConfig,
+        OlympiadLearningSwarm,
+        Subject,
     )
 
     # Map subject string to enum
@@ -100,7 +121,9 @@ async def main():
         "competition": DifficultyTier.OLYMPIAD,
     }
     tier_by_value = {t.value: t for t in DifficultyTier}
-    config_tier = target_tier_map.get(args.target) or tier_by_value.get(args.target, DifficultyTier.FOUNDATION)
+    config_tier = target_tier_map.get(args.target) or tier_by_value.get(
+        args.target, DifficultyTier.FOUNDATION
+    )
 
     config = OlympiadLearningConfig(
         subject=subject_enum,
@@ -138,8 +161,10 @@ async def main():
     print("=" * 60)
     if result.success:
         content = result.content
-        print(f"SUCCESS: {len(content.core_concepts) if content else 0} concepts, "
-              f"{result.problems_generated} problems")
+        print(
+            f"SUCCESS: {len(content.core_concepts) if content else 0} concepts, "
+            f"{result.problems_generated} problems"
+        )
         print(f"Breakthroughs: {result.breakthrough_moments}")
         print(f"Words: {content.total_words if content else 0}")
         print(f"Rank tips: {len(content.rank_tips) if content else 0}")
@@ -159,6 +184,7 @@ async def main():
     # Final cost summary
     try:
         from Jotty.core.infrastructure.foundation.direct_anthropic_lm import get_cost_tracker
+
         tracker = get_cost_tracker()
         metrics = tracker.get_metrics()
         print(f"\n{'─' * 40}")

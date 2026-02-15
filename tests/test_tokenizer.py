@@ -14,20 +14,21 @@ All tests are fast (< 1s), offline, no real LLM calls.
 """
 
 import json
+from unittest.mock import MagicMock, Mock, PropertyMock, patch
+
 import pytest
-from unittest.mock import Mock, MagicMock, patch, PropertyMock
 
 from Jotty.core.infrastructure.utils.tokenizer import (
     SmartTokenizer,
-    get_tokenizer,
     count_tokens,
     estimate_tokens,
+    get_tokenizer,
 )
-
 
 # =============================================================================
 # TestSmartTokenizerInit
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestSmartTokenizerInit:
@@ -42,19 +43,19 @@ class TestSmartTokenizerInit:
 
     def test_default_encoding_used_when_none(self):
         """When encoding_name is None, default encoding is used."""
-        with patch.object(SmartTokenizer, '_init_tiktoken'):
+        with patch.object(SmartTokenizer, "_init_tiktoken"):
             tok = SmartTokenizer(encoding_name=None)
         assert tok.encoding_name == "cl100k_base"
 
     def test_custom_encoding_preserved(self):
         """Custom encoding name is stored correctly."""
-        with patch.object(SmartTokenizer, '_init_tiktoken'):
+        with patch.object(SmartTokenizer, "_init_tiktoken"):
             tok = SmartTokenizer(encoding_name="p50k_base")
         assert tok.encoding_name == "p50k_base"
 
     def test_init_statistics_zeroed(self):
         """Statistics counters start at zero."""
-        with patch.object(SmartTokenizer, '_init_tiktoken'):
+        with patch.object(SmartTokenizer, "_init_tiktoken"):
             tok = SmartTokenizer()
         assert tok._total_calls == 0
         assert tok._tiktoken_calls == 0
@@ -66,7 +67,7 @@ class TestSmartTokenizerInit:
         mock_tiktoken = Mock()
         mock_tiktoken.get_encoding = Mock(return_value=mock_encoder)
 
-        with patch.dict('sys.modules', {'tiktoken': mock_tiktoken}):
+        with patch.dict("sys.modules", {"tiktoken": mock_tiktoken}):
             tok = SmartTokenizer.__new__(SmartTokenizer)
             tok.encoding_name = "cl100k_base"
             tok._tiktoken_encoder = None
@@ -78,7 +79,7 @@ class TestSmartTokenizerInit:
 
     def test_init_tiktoken_import_error(self):
         """When tiktoken import fails, falls back to heuristics."""
-        with patch('builtins.__import__', side_effect=ImportError("no tiktoken")):
+        with patch("builtins.__import__", side_effect=ImportError("no tiktoken")):
             tok = SmartTokenizer.__new__(SmartTokenizer)
             tok.encoding_name = "cl100k_base"
             tok._tiktoken_encoder = None
@@ -93,7 +94,7 @@ class TestSmartTokenizerInit:
         mock_tiktoken = Mock()
         mock_tiktoken.get_encoding = Mock(side_effect=RuntimeError("bad encoding"))
 
-        with patch.dict('sys.modules', {'tiktoken': mock_tiktoken}):
+        with patch.dict("sys.modules", {"tiktoken": mock_tiktoken}):
             tok = SmartTokenizer.__new__(SmartTokenizer)
             tok.encoding_name = "cl100k_base"
             tok._tiktoken_encoder = None
@@ -107,6 +108,7 @@ class TestSmartTokenizerInit:
 # TestSmartTokenizerSingleton
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestSmartTokenizerSingleton:
     """Tests for singleton pattern: get_instance and reset_instances."""
@@ -116,28 +118,28 @@ class TestSmartTokenizerSingleton:
 
     def test_get_instance_returns_same_object(self):
         """get_instance returns the same object for the same encoding."""
-        with patch.object(SmartTokenizer, '_init_tiktoken'):
+        with patch.object(SmartTokenizer, "_init_tiktoken"):
             inst_a = SmartTokenizer.get_instance()
             inst_b = SmartTokenizer.get_instance()
         assert inst_a is inst_b
 
     def test_get_instance_different_encoding_returns_different(self):
         """Different encodings produce different instances."""
-        with patch.object(SmartTokenizer, '_init_tiktoken'):
+        with patch.object(SmartTokenizer, "_init_tiktoken"):
             inst_default = SmartTokenizer.get_instance("cl100k_base")
             inst_custom = SmartTokenizer.get_instance("p50k_base")
         assert inst_default is not inst_custom
 
     def test_get_instance_none_uses_default(self):
         """Passing None to get_instance uses DEFAULT_ENCODING."""
-        with patch.object(SmartTokenizer, '_init_tiktoken'):
+        with patch.object(SmartTokenizer, "_init_tiktoken"):
             inst_none = SmartTokenizer.get_instance(None)
             inst_default = SmartTokenizer.get_instance("cl100k_base")
         assert inst_none is inst_default
 
     def test_reset_instances_clears_cache(self):
         """reset_instances clears all cached instances."""
-        with patch.object(SmartTokenizer, '_init_tiktoken'):
+        with patch.object(SmartTokenizer, "_init_tiktoken"):
             inst_before = SmartTokenizer.get_instance()
             SmartTokenizer.reset_instances()
             inst_after = SmartTokenizer.get_instance()
@@ -145,7 +147,7 @@ class TestSmartTokenizerSingleton:
 
     def test_reset_instances_clears_all_encodings(self):
         """reset_instances removes every encoding from cache."""
-        with patch.object(SmartTokenizer, '_init_tiktoken'):
+        with patch.object(SmartTokenizer, "_init_tiktoken"):
             SmartTokenizer.get_instance("cl100k_base")
             SmartTokenizer.get_instance("p50k_base")
             assert len(SmartTokenizer._instances) == 2
@@ -157,6 +159,7 @@ class TestSmartTokenizerSingleton:
 # TestCountTokens
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestCountTokens:
     """Tests for SmartTokenizer.count_tokens and estimate_tokens."""
@@ -166,7 +169,7 @@ class TestCountTokens:
 
     def _make_heuristic_tokenizer(self):
         """Create a tokenizer that uses heuristics (no tiktoken)."""
-        with patch.object(SmartTokenizer, '_init_tiktoken'):
+        with patch.object(SmartTokenizer, "_init_tiktoken"):
             tok = SmartTokenizer()
             tok._tiktoken_available = False
             tok._tiktoken_encoder = None
@@ -174,7 +177,7 @@ class TestCountTokens:
 
     def _make_tiktoken_tokenizer(self, mock_encode_result):
         """Create a tokenizer with a mocked tiktoken encoder."""
-        with patch.object(SmartTokenizer, '_init_tiktoken'):
+        with patch.object(SmartTokenizer, "_init_tiktoken"):
             tok = SmartTokenizer()
             tok._tiktoken_available = True
             encoder = Mock()
@@ -211,7 +214,7 @@ class TestCountTokens:
 
     def test_tiktoken_encode_failure_falls_back_to_heuristics(self):
         """If tiktoken encode raises, heuristic fallback is used."""
-        with patch.object(SmartTokenizer, '_init_tiktoken'):
+        with patch.object(SmartTokenizer, "_init_tiktoken"):
             tok = SmartTokenizer()
             tok._tiktoken_available = True
             encoder = Mock()
@@ -264,20 +267,21 @@ class TestCountTokens:
 # TestContentTypeDetection
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestContentTypeDetection:
     """Tests for SmartTokenizer._detect_content_type."""
 
     def setup_method(self):
         SmartTokenizer.reset_instances()
-        with patch.object(SmartTokenizer, '_init_tiktoken'):
+        with patch.object(SmartTokenizer, "_init_tiktoken"):
             self.tok = SmartTokenizer()
             self.tok._tiktoken_available = False
 
     def test_detect_english_text(self):
         """Plain English prose is detected as 'english'."""
         text = "The quick brown fox jumps over the lazy dog. This is a simple English sentence."
-        assert self.tok._detect_content_type(text) == 'english'
+        assert self.tok._detect_content_type(text) == "english"
 
     def test_detect_code_python(self):
         """Python code with multiple indicators is detected as 'code'."""
@@ -308,7 +312,7 @@ class MyClass:
     def method_six(self):
         pass
 """
-        assert self.tok._detect_content_type(text) == 'code'
+        assert self.tok._detect_content_type(text) == "code"
 
     def test_detect_code_javascript(self):
         """JavaScript code with function keywords and arrow functions is detected as 'code'."""
@@ -334,19 +338,19 @@ class App {
     }
 }
 """
-        assert self.tok._detect_content_type(text) == 'code'
+        assert self.tok._detect_content_type(text) == "code"
 
     def test_detect_json_valid(self):
         """Valid JSON object is detected as 'json'."""
         data = {"name": "test", "value": 42, "nested": {"a": 1, "b": 2}}
         text = json.dumps(data, indent=2)
-        assert self.tok._detect_content_type(text) == 'json'
+        assert self.tok._detect_content_type(text) == "json"
 
     def test_detect_json_array(self):
         """Valid JSON array is detected as 'json'."""
         data = [{"id": 1}, {"id": 2}, {"id": 3}]
         text = json.dumps(data)
-        assert self.tok._detect_content_type(text) == 'json'
+        assert self.tok._detect_content_type(text) == "json"
 
     def test_detect_json_like_partial(self):
         """Partial JSON with many braces and quotes is detected as 'json'."""
@@ -354,29 +358,29 @@ class App {
         # Starts with { but doesn't end with } — JSONDecodeError path
         # but has enough braces to trigger partial JSON detection
         result = self.tok._detect_content_type(text)
-        assert result == 'json'
+        assert result == "json"
 
     def test_detect_cjk_chinese(self):
         """Text with >20% CJK characters is detected as 'cjk'."""
         # Generate enough CJK to exceed 20% of the sample
         cjk_text = "\u4f60\u597d\u4e16\u754c" * 50  # "Hello World" in Chinese, repeated
-        assert self.tok._detect_content_type(cjk_text) == 'cjk'
+        assert self.tok._detect_content_type(cjk_text) == "cjk"
 
     def test_detect_cjk_japanese(self):
         """Japanese hiragana/katakana text is detected as 'cjk'."""
         text = "\u3053\u3093\u306b\u3061\u306f\u4e16\u754c" * 50
-        assert self.tok._detect_content_type(text) == 'cjk'
+        assert self.tok._detect_content_type(text) == "cjk"
 
     def test_detect_cjk_korean(self):
         """Korean hangul text is detected as 'cjk'."""
         text = "\uc548\ub155\ud558\uc138\uc694" * 50
-        assert self.tok._detect_content_type(text) == 'cjk'
+        assert self.tok._detect_content_type(text) == "cjk"
 
     def test_detect_whitespace_heavy(self):
         """Content with >40% whitespace is detected as 'whitespace_heavy'."""
         # Create text with heavy whitespace
         text = "word " * 3 + "    \t\t   \n\n   " * 10
-        assert self.tok._detect_content_type(text) == 'whitespace_heavy'
+        assert self.tok._detect_content_type(text) == "whitespace_heavy"
 
     def test_detect_mixed_with_some_cjk(self):
         """Text with a few CJK characters (<20%) is detected as 'mixed'."""
@@ -384,7 +388,7 @@ class App {
         english = "This is an English sentence about programming. " * 10
         cjk = "\u4f60\u597d"  # just 2 CJK chars
         text = english + cjk
-        assert self.tok._detect_content_type(text) == 'mixed'
+        assert self.tok._detect_content_type(text) == "mixed"
 
     def test_detect_samples_first_5000_chars(self):
         """Detection only samples the first 5000 characters."""
@@ -393,17 +397,18 @@ class App {
         code_tail = "\ndef foo():\n    pass\n" * 20
         text = english_text + code_tail
         # The first 5000 chars are all 'a', so it should be 'english'
-        assert self.tok._detect_content_type(text) == 'english'
+        assert self.tok._detect_content_type(text) == "english"
 
     def test_detect_english_for_normal_prose(self):
         """Normal prose without special indicators returns 'english'."""
         text = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. " * 5
-        assert self.tok._detect_content_type(text) == 'english'
+        assert self.tok._detect_content_type(text) == "english"
 
 
 # =============================================================================
 # TestHeuristicEstimation
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestHeuristicEstimation:
@@ -411,7 +416,7 @@ class TestHeuristicEstimation:
 
     def setup_method(self):
         SmartTokenizer.reset_instances()
-        with patch.object(SmartTokenizer, '_init_tiktoken'):
+        with patch.object(SmartTokenizer, "_init_tiktoken"):
             self.tok = SmartTokenizer()
             self.tok._tiktoken_available = False
 
@@ -430,24 +435,24 @@ class TestHeuristicEstimation:
 
     def test_heuristics_dict_has_all_content_types(self):
         """HEURISTICS dict contains all expected content types."""
-        expected = {'english', 'code', 'json', 'cjk', 'mixed', 'whitespace_heavy'}
+        expected = {"english", "code", "json", "cjk", "mixed", "whitespace_heavy"}
         assert set(SmartTokenizer.HEURISTICS.keys()) == expected
 
     def test_code_ratio_is_3(self):
         """Code content uses ratio of 3.0 chars per token."""
-        assert SmartTokenizer.HEURISTICS['code'] == 3.0
+        assert SmartTokenizer.HEURISTICS["code"] == 3.0
 
     def test_json_ratio_is_3_5(self):
         """JSON content uses ratio of 3.5 chars per token."""
-        assert SmartTokenizer.HEURISTICS['json'] == 3.5
+        assert SmartTokenizer.HEURISTICS["json"] == 3.5
 
     def test_cjk_ratio_is_1_5(self):
         """CJK content uses ratio of 1.5 chars per token."""
-        assert SmartTokenizer.HEURISTICS['cjk'] == 1.5
+        assert SmartTokenizer.HEURISTICS["cjk"] == 1.5
 
     def test_whitespace_heavy_ratio_is_5(self):
         """Whitespace-heavy content uses ratio of 5.0 chars per token."""
-        assert SmartTokenizer.HEURISTICS['whitespace_heavy'] == 5.0
+        assert SmartTokenizer.HEURISTICS["whitespace_heavy"] == 5.0
 
     def test_result_is_always_int(self):
         """Heuristic estimation always returns an int."""
@@ -473,13 +478,14 @@ class TestHeuristicEstimation:
 # TestCalculateAdjustments
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestCalculateAdjustments:
     """Tests for SmartTokenizer._calculate_adjustments."""
 
     def setup_method(self):
         SmartTokenizer.reset_instances()
-        with patch.object(SmartTokenizer, '_init_tiktoken'):
+        with patch.object(SmartTokenizer, "_init_tiktoken"):
             self.tok = SmartTokenizer()
 
     def test_no_special_patterns_zero_adjustment(self):
@@ -552,6 +558,7 @@ class TestCalculateAdjustments:
 # TestIsTiktokenAvailable
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestIsTiktokenAvailable:
     """Tests for is_tiktoken_available property."""
@@ -561,14 +568,14 @@ class TestIsTiktokenAvailable:
 
     def test_property_true_when_tiktoken_loaded(self):
         """is_tiktoken_available is True when tiktoken was loaded."""
-        with patch.object(SmartTokenizer, '_init_tiktoken'):
+        with patch.object(SmartTokenizer, "_init_tiktoken"):
             tok = SmartTokenizer()
             tok._tiktoken_available = True
         assert tok.is_tiktoken_available is True
 
     def test_property_false_when_tiktoken_not_loaded(self):
         """is_tiktoken_available is False when tiktoken was not loaded."""
-        with patch.object(SmartTokenizer, '_init_tiktoken'):
+        with patch.object(SmartTokenizer, "_init_tiktoken"):
             tok = SmartTokenizer()
             tok._tiktoken_available = False
         assert tok.is_tiktoken_available is False
@@ -578,6 +585,7 @@ class TestIsTiktokenAvailable:
 # TestGetStatistics
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestGetStatistics:
     """Tests for SmartTokenizer.get_statistics."""
@@ -586,7 +594,7 @@ class TestGetStatistics:
         SmartTokenizer.reset_instances()
 
     def _make_heuristic_tokenizer(self):
-        with patch.object(SmartTokenizer, '_init_tiktoken'):
+        with patch.object(SmartTokenizer, "_init_tiktoken"):
             tok = SmartTokenizer()
             tok._tiktoken_available = False
             tok._tiktoken_encoder = None
@@ -597,8 +605,12 @@ class TestGetStatistics:
         tok = self._make_heuristic_tokenizer()
         stats = tok.get_statistics()
         expected_keys = {
-            'encoding', 'tiktoken_available', 'total_calls',
-            'tiktoken_calls', 'heuristic_calls', 'tiktoken_ratio'
+            "encoding",
+            "tiktoken_available",
+            "total_calls",
+            "tiktoken_calls",
+            "heuristic_calls",
+            "tiktoken_ratio",
         }
         assert set(stats.keys()) == expected_keys
 
@@ -606,12 +618,12 @@ class TestGetStatistics:
         """Initial statistics have zero counters."""
         tok = self._make_heuristic_tokenizer()
         stats = tok.get_statistics()
-        assert stats['encoding'] == 'cl100k_base'
-        assert stats['tiktoken_available'] is False
-        assert stats['total_calls'] == 0
-        assert stats['tiktoken_calls'] == 0
-        assert stats['heuristic_calls'] == 0
-        assert stats['tiktoken_ratio'] == 0.0
+        assert stats["encoding"] == "cl100k_base"
+        assert stats["tiktoken_available"] is False
+        assert stats["total_calls"] == 0
+        assert stats["tiktoken_calls"] == 0
+        assert stats["heuristic_calls"] == 0
+        assert stats["tiktoken_ratio"] == 0.0
 
     def test_statistics_after_heuristic_calls(self):
         """Statistics correctly reflect heuristic calls."""
@@ -619,14 +631,14 @@ class TestGetStatistics:
         tok.count_tokens("hello")
         tok.count_tokens("world")
         stats = tok.get_statistics()
-        assert stats['total_calls'] == 2
-        assert stats['heuristic_calls'] == 2
-        assert stats['tiktoken_calls'] == 0
-        assert stats['tiktoken_ratio'] == 0.0
+        assert stats["total_calls"] == 2
+        assert stats["heuristic_calls"] == 2
+        assert stats["tiktoken_calls"] == 0
+        assert stats["tiktoken_ratio"] == 0.0
 
     def test_statistics_after_tiktoken_calls(self):
         """Statistics correctly reflect tiktoken calls."""
-        with patch.object(SmartTokenizer, '_init_tiktoken'):
+        with patch.object(SmartTokenizer, "_init_tiktoken"):
             tok = SmartTokenizer()
             tok._tiktoken_available = True
             encoder = Mock()
@@ -636,14 +648,14 @@ class TestGetStatistics:
         tok.count_tokens("hello")
         tok.count_tokens("world")
         stats = tok.get_statistics()
-        assert stats['total_calls'] == 2
-        assert stats['tiktoken_calls'] == 2
-        assert stats['heuristic_calls'] == 0
-        assert stats['tiktoken_ratio'] == 1.0
+        assert stats["total_calls"] == 2
+        assert stats["tiktoken_calls"] == 2
+        assert stats["heuristic_calls"] == 0
+        assert stats["tiktoken_ratio"] == 1.0
 
     def test_statistics_tiktoken_ratio_mixed(self):
         """tiktoken_ratio is correctly computed with mixed calls."""
-        with patch.object(SmartTokenizer, '_init_tiktoken'):
+        with patch.object(SmartTokenizer, "_init_tiktoken"):
             tok = SmartTokenizer()
             tok._tiktoken_available = True
             encoder = Mock()
@@ -657,22 +669,23 @@ class TestGetStatistics:
         tok.count_tokens("second")
 
         stats = tok.get_statistics()
-        assert stats['total_calls'] == 2
-        assert stats['tiktoken_calls'] == 1
-        assert stats['heuristic_calls'] == 1
-        assert stats['tiktoken_ratio'] == 0.5
+        assert stats["total_calls"] == 2
+        assert stats["tiktoken_calls"] == 1
+        assert stats["heuristic_calls"] == 1
+        assert stats["tiktoken_ratio"] == 0.5
 
     def test_statistics_tiktoken_ratio_zero_calls(self):
         """tiktoken_ratio is 0 when total_calls is 0 (avoids division by zero)."""
         tok = self._make_heuristic_tokenizer()
         stats = tok.get_statistics()
         # max(0, 1) = 1, so 0/1 = 0.0
-        assert stats['tiktoken_ratio'] == 0.0
+        assert stats["tiktoken_ratio"] == 0.0
 
 
 # =============================================================================
 # TestModuleFunctions
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestModuleFunctions:
@@ -729,6 +742,7 @@ class TestModuleFunctions:
 # TestEdgeCases
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestEdgeCases:
     """Tests for edge cases and boundary conditions."""
@@ -737,7 +751,7 @@ class TestEdgeCases:
         SmartTokenizer.reset_instances()
 
     def _make_heuristic_tokenizer(self):
-        with patch.object(SmartTokenizer, '_init_tiktoken'):
+        with patch.object(SmartTokenizer, "_init_tiktoken"):
             tok = SmartTokenizer()
             tok._tiktoken_available = False
             tok._tiktoken_encoder = None
@@ -797,7 +811,7 @@ class TestEdgeCases:
         text = "import os\nfrom pathlib import Path\nSome normal text here."
         content_type = tok._detect_content_type(text)
         # With only 2-3 indicators, should NOT be 'code'
-        assert content_type != 'code'
+        assert content_type != "code"
 
     def test_multiple_long_numbers(self):
         """Multiple long numbers each add adjustment."""
@@ -813,6 +827,7 @@ class TestEdgeCases:
 # TestTiktokenFallback
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestTiktokenFallback:
     """Tests for tiktoken integration and fallback behavior."""
@@ -822,7 +837,7 @@ class TestTiktokenFallback:
 
     def test_tiktoken_encoder_not_called_when_unavailable(self):
         """When tiktoken is unavailable, encoder is never invoked."""
-        with patch.object(SmartTokenizer, '_init_tiktoken'):
+        with patch.object(SmartTokenizer, "_init_tiktoken"):
             tok = SmartTokenizer()
             tok._tiktoken_available = False
             mock_encoder = Mock()
@@ -833,7 +848,7 @@ class TestTiktokenFallback:
 
     def test_tiktoken_encoder_none_uses_heuristics(self):
         """When encoder is None (even if flag is True), heuristics are used."""
-        with patch.object(SmartTokenizer, '_init_tiktoken'):
+        with patch.object(SmartTokenizer, "_init_tiktoken"):
             tok = SmartTokenizer()
             tok._tiktoken_available = True
             tok._tiktoken_encoder = None
@@ -844,7 +859,7 @@ class TestTiktokenFallback:
 
     def test_fallback_after_encode_exception_increments_both_counters(self):
         """When tiktoken fails mid-call, both tiktoken and heuristic counters increment."""
-        with patch.object(SmartTokenizer, '_init_tiktoken'):
+        with patch.object(SmartTokenizer, "_init_tiktoken"):
             tok = SmartTokenizer()
             tok._tiktoken_available = True
             encoder = Mock()

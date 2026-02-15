@@ -31,12 +31,10 @@ EXPLICIT_MAP = {
     "terminal-session": "managing-terminal-sessions",
     "database-tools": "managing-databases",
     "voice": "processing-voice",
-
     # --- Web/scraping ---
     "web-scraper": "scraping-web",
     "browser-automation": "automating-browser",
     "webapp-testing": "testing-webapps",
-
     # --- Document/file tools ---
     "document-converter": "converting-documents",
     "pdf-tools": "processing-pdfs",
@@ -46,7 +44,6 @@ EXPLICIT_MAP = {
     "simple-pdf-generator": "generating-simple-pdfs",
     "latex-generator": "generating-latex",
     "notebooklm-pdf": "generating-notebooklm-pdfs",
-
     # --- Image/media ---
     "image-generator": "generating-images",
     "image-enhancer": "enhancing-images",
@@ -58,7 +55,6 @@ EXPLICIT_MAP = {
     "media-production-pipeline": "producing-media-pipeline",
     "canvas-design": "designing-canvas",
     "algorithmic-art": "creating-algorithmic-art",
-
     # --- Communication platforms ---
     "telegram-sender": "sending-telegram",
     "discord": "messaging-discord",
@@ -69,25 +65,21 @@ EXPLICIT_MAP = {
     "internal-comms": "managing-internal-comms",
     "remarkable-sender": "sending-remarkable",
     "remarkable-upload": "uploading-remarkable",
-
     # --- Productivity platforms ---
     "github": "managing-github",
     "notion": "managing-notion",
     "obsidian": "managing-obsidian",
     "trello": "managing-trello",
     "spotify": "managing-spotify",
-
     # --- LLM providers ---
     "claude-api-llm": "calling-claude-api",
     "claude-cli-llm": "calling-claude-cli",
     "gemini": "calling-gemini",
     "openai-whisper-api": "transcribing-openai-whisper",
-
     # --- Research/download ---
     "arxiv-downloader": "downloading-arxiv",
     "summarize": "summarizing",
     "lead-research-assistant": "researching-leads",
-
     # --- Data science / ML ---
     "automl": "running-automl",
     "auto-sklearn": "running-auto-sklearn",
@@ -106,7 +98,6 @@ EXPLICIT_MAP = {
     "data-validator": "validating-data",
     "technical-analysis": "analyzing-technicals",
     "lida-to-justjot": "sending-lida-to-justjot",
-
     # --- Financial ---
     "financial-analysis": "analyzing-financials",
     "financial-visualization": "visualizing-financials",
@@ -115,7 +106,6 @@ EXPLICIT_MAP = {
     "stock-research-deep": "researching-stocks-deep",
     "investing-commodities": "analyzing-commodities",
     "investing-commodities-to-telegram": "sending-commodities-to-telegram",
-
     # --- PMI (PlanMyInvesting) ---
     "pmi-alerts": "alerting-pmi",
     "pmi-broker": "brokering-pmi",
@@ -124,7 +114,6 @@ EXPLICIT_MAP = {
     "pmi-strategies": "running-pmi-strategies",
     "pmi-trading": "trading-pmi",
     "pmi-watchlist": "managing-pmi-watchlist",
-
     # --- Content/branding ---
     "content-repurposer": "repurposing-content",
     "content-pipeline": "running-content-pipeline",
@@ -135,7 +124,6 @@ EXPLICIT_MAP = {
     "product-launch-pipeline": "launching-products-pipeline",
     "theme-factory": "creating-themes",
     "composite-templates": "composing-templates",
-
     # --- Converters/utilities ---
     "time-converter": "converting-time",
     "weather-checker": "checking-weather",
@@ -145,13 +133,11 @@ EXPLICIT_MAP = {
     "raffle-winner-picker": "picking-raffle-winners",
     "justjot-converters": "converting-justjot",
     "oauth-automation": "automating-oauth",
-
     # --- Generators ---
     "changelog-generator": "generating-changelogs",
     "mindmap-generator": "generating-mindmaps",
     "slide-generator": "generating-slides",
     "presenton": "presenting-presenton",
-
     # --- Pipelines (multi-step) ---
     "search-summarize-pdf-telegram": "searching-summarizing-pdf-telegram",
     "search-summarize-pdf-telegram-v2": "searching-summarizing-pdf-telegram-v2",
@@ -168,18 +154,15 @@ EXPLICIT_MAP = {
     "transformer-paper-pipeline": "processing-transformer-papers",
     "v2v-to-pdf-telegram-remarkable": "converting-v2v-to-pdf-telegram",
     "v2v-trending-search": "searching-v2v-trending",
-
     # --- Notion pipelines ---
     "notion-knowledge-capture": "capturing-notion-knowledge",
     "notion-knowledge-pipeline": "running-notion-knowledge-pipeline",
     "notion-meeting-intelligence": "analyzing-notion-meetings",
     "notion-research-documentation": "documenting-notion-research",
     "notion-spec-to-implementation": "implementing-notion-specs",
-
     # --- Meeting/insights ---
     "meeting-insights-analyzer": "analyzing-meeting-insights",
     "meeting-intelligence-pipeline": "running-meeting-intelligence",
-
     # --- Dev/skills ---
     "dev-workflow": "managing-dev-workflow",
     "skill-composer": "composing-skills",
@@ -189,16 +172,12 @@ EXPLICIT_MAP = {
     "mcp-justjot": "connecting-mcp-justjot",
     "n8n-workflows": "managing-n8n-workflows",
     "multi-source-aggregator": "aggregating-multi-source",
-
     # --- Testing ---
     "test-skill-validation": "validating-test-skills",
-
     # --- Artifacts ---
     "artifacts-builder": "building-artifacts",
-
     # --- Android ---
     "android-automation": "automating-android",
-
     # --- Outputs (if present) ---
     "outputs": "managing-outputs",
 }
@@ -216,10 +195,10 @@ def convert_skill_name(original):
 
     # Enforce constraints
     result = result.lower()
-    result = re.sub(r'[^a-z0-9-]', '-', result)
-    result = re.sub(r'-+', '-', result).strip('-')
+    result = re.sub(r"[^a-z0-9-]", "-", result)
+    result = re.sub(r"-+", "-", result).strip("-")
     if len(result) > 64:
-        result = result[:64].rstrip('-')
+        result = result[:64].rstrip("-")
 
     return result
 
@@ -228,15 +207,15 @@ def process_skill_md(filepath):
     """Process a single SKILL.md file and update the name field.
     Returns (old_name, new_name) or None if no change needed.
     """
-    with open(filepath, 'r', encoding='utf-8') as f:
+    with open(filepath, "r", encoding="utf-8") as f:
         content = f.read()
 
     # Check for YAML frontmatter
-    if not content.startswith('---'):
+    if not content.startswith("---"):
         return None
 
     # Find the end of frontmatter
-    end_idx = content.find('---', 3)
+    end_idx = content.find("---", 3)
     if end_idx == -1:
         return None
 
@@ -244,7 +223,7 @@ def process_skill_md(filepath):
     rest = content[end_idx:]
 
     # Find and replace the name field
-    name_match = re.search(r'^name:\s*(.+)$', frontmatter, re.MULTILINE)
+    name_match = re.search(r"^name:\s*(.+)$", frontmatter, re.MULTILINE)
     if not name_match:
         return None
 
@@ -256,15 +235,11 @@ def process_skill_md(filepath):
 
     # Replace the name line in frontmatter
     new_frontmatter = re.sub(
-        r'^name:\s*.+$',
-        'name: ' + new_name,
-        frontmatter,
-        count=1,
-        flags=re.MULTILINE
+        r"^name:\s*.+$", "name: " + new_name, frontmatter, count=1, flags=re.MULTILINE
     )
 
-    new_content = '---' + new_frontmatter + rest
-    with open(filepath, 'w', encoding='utf-8') as f:
+    new_content = "---" + new_frontmatter + rest
+    with open(filepath, "w", encoding="utf-8") as f:
         f.write(new_content)
 
     return (old_name, new_name)

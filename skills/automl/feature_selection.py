@@ -21,19 +21,20 @@ Techniques:
 14. PASHA - Progressive Adaptive Successive Halving with parallel workers (NEW)
 """
 
-import time
-from typing import Dict, List, Any, Optional, Tuple
-from collections import defaultdict
-import pandas as pd
-import numpy as np
 import logging
+import time
 import warnings
+from collections import defaultdict
+from typing import Any, Dict, List, Optional, Tuple
+
+import numpy as np
+import pandas as pd
 
 # Suppress sklearn feature name warnings
-warnings.filterwarnings('ignore', message='.*feature names.*')
-warnings.filterwarnings('ignore', category=UserWarning, module='sklearn')
+warnings.filterwarnings("ignore", message=".*feature names.*")
+warnings.filterwarnings("ignore", category=UserWarning, module="sklearn")
 
-from .base import MLSkill, SkillResult, SkillCategory
+from .base import MLSkill, SkillCategory, SkillResult
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +59,9 @@ class FeatureSelectionSkill(MLSkill):
         super().__init__(config)
         self._method_results = {}
 
-    async def execute(self, X: pd.DataFrame, y: Optional[pd.Series] = None, **context: Any) -> SkillResult:
+    async def execute(
+        self, X: pd.DataFrame, y: Optional[pd.Series] = None, **context: Any
+    ) -> SkillResult:
         """
         Execute feature selection.
 
@@ -73,15 +76,12 @@ class FeatureSelectionSkill(MLSkill):
         start_time = time.time()
 
         if y is None:
-            return self._create_result(
-                success=True, data=X,
-                metrics={'selected': X.shape[1]}
-            )
+            return self._create_result(success=True, data=X, metrics={"selected": X.shape[1]})
 
         if not self.validate_inputs(X, y):
             return self._create_error_result("Invalid inputs")
 
-        problem_type = context.get('problem_type', 'classification')
+        problem_type = context.get("problem_type", "classification")
         n_features = X.shape[1]
         feature_scores = defaultdict(float)
         self._method_results = {}
@@ -89,7 +89,7 @@ class FeatureSelectionSkill(MLSkill):
         try:
             # 1. Correlation filter
             X_filtered, to_drop_corr = self._correlation_filter(X)
-            self._method_results['correlation_removed'] = len(to_drop_corr)
+            self._method_results["correlation_removed"] = len(to_drop_corr)
 
             # 2. Multi-model importance voting
             feature_scores, model_importances = self._multi_model_importance(
@@ -102,14 +102,10 @@ class FeatureSelectionSkill(MLSkill):
             )
 
             # 4. Stability selection
-            feature_scores = self._stability_selection(
-                X_filtered, y, problem_type, feature_scores
-            )
+            feature_scores = self._stability_selection(X_filtered, y, problem_type, feature_scores)
 
             # 5. Boruta-like shadow test
-            feature_scores = self._boruta_test(
-                X_filtered, y, problem_type, feature_scores
-            )
+            feature_scores = self._boruta_test(X_filtered, y, problem_type, feature_scores)
 
             # 6. Permutation importance
             feature_scores = self._permutation_importance(
@@ -122,19 +118,13 @@ class FeatureSelectionSkill(MLSkill):
             )
 
             # 8. Successive Halving (progressive elimination)
-            feature_scores = self._successive_halving(
-                X_filtered, y, problem_type, feature_scores
-            )
+            feature_scores = self._successive_halving(X_filtered, y, problem_type, feature_scores)
 
             # 9. Hyperband (multi-fidelity selection)
-            feature_scores = self._hyperband_selection(
-                X_filtered, y, problem_type, feature_scores
-            )
+            feature_scores = self._hyperband_selection(X_filtered, y, problem_type, feature_scores)
 
             # 10. Recursive Feature Elimination with CV
-            feature_scores = self._rfecv_selection(
-                X_filtered, y, problem_type, feature_scores
-            )
+            feature_scores = self._rfecv_selection(X_filtered, y, problem_type, feature_scores)
 
             # 11. Diverse RF Trees for feature importance (different configurations)
             feature_scores = self._diverse_rf_importance(
@@ -142,27 +132,19 @@ class FeatureSelectionSkill(MLSkill):
             )
 
             # 12. PCA-based feature scoring (variance explained)
-            feature_scores = self._pca_importance(
-                X_filtered, feature_scores
-            )
+            feature_scores = self._pca_importance(X_filtered, feature_scores)
 
             # 13. BOHB - Bayesian Optimized Hyperband for feature subsets
-            feature_scores = self._bohb_selection(
-                X_filtered, y, problem_type, feature_scores
-            )
+            feature_scores = self._bohb_selection(X_filtered, y, problem_type, feature_scores)
 
             # 14. PASHA - Progressive Adaptive Successive Halving (parallel)
-            feature_scores = self._pasha_selection(
-                X_filtered, y, problem_type, feature_scores
-            )
+            feature_scores = self._pasha_selection(X_filtered, y, problem_type, feature_scores)
 
             # Final selection using decile-based method
             selected = self._decile_selection(X_filtered, feature_scores)
 
             # CV validation
-            selected = self._cv_validation(
-                X_filtered, y, selected, feature_scores, problem_type
-            )
+            selected = self._cv_validation(X_filtered, y, selected, feature_scores, problem_type)
 
             X_selected = X_filtered[selected]
 
@@ -177,16 +159,16 @@ class FeatureSelectionSkill(MLSkill):
             success=True,
             data=X_selected,
             metrics={
-                'original': n_features,
-                'after_corr_filter': len(X_filtered.columns),
-                'selected': len(selected),
-                'removed': n_features - len(selected),
+                "original": n_features,
+                "after_corr_filter": len(X_filtered.columns),
+                "selected": len(selected),
+                "removed": n_features - len(selected),
             },
             metadata={
-                'selected_features': selected,
-                'feature_scores': final_scores.head(20).to_dict(),
-                'methods_used': list(self._method_results.keys()),
-                'shap_importance': shap_importance if 'shap_importance' in dir() else {},
+                "selected_features": selected,
+                "feature_scores": final_scores.head(20).to_dict(),
+                "methods_used": list(self._method_results.keys()),
+                "shap_importance": shap_importance if "shap_importance" in dir() else {},
             },
             execution_time=execution_time,
         )
@@ -206,26 +188,30 @@ class FeatureSelectionSkill(MLSkill):
                     else:
                         to_drop.add(col)
 
-        X_filtered = X.drop(columns=list(to_drop), errors='ignore')
+        X_filtered = X.drop(columns=list(to_drop), errors="ignore")
         return X_filtered, to_drop
 
-    def _multi_model_importance(self, X: pd.DataFrame, y: pd.Series, problem_type: str, feature_scores: Dict) -> Any:
+    def _multi_model_importance(
+        self, X: pd.DataFrame, y: pd.Series, problem_type: str, feature_scores: Dict
+    ) -> Any:
         """Multi-model importance voting."""
         import lightgbm as lgb
         import xgboost as xgb
         from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 
-        if problem_type == 'classification':
+        if problem_type == "classification":
             models = {
-                'lgb': lgb.LGBMClassifier(n_estimators=100, random_state=42, verbose=-1),
-                'xgb': xgb.XGBClassifier(n_estimators=100, random_state=42, eval_metric='logloss', verbosity=0),
-                'rf': RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1),
+                "lgb": lgb.LGBMClassifier(n_estimators=100, random_state=42, verbose=-1),
+                "xgb": xgb.XGBClassifier(
+                    n_estimators=100, random_state=42, eval_metric="logloss", verbosity=0
+                ),
+                "rf": RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1),
             }
         else:
             models = {
-                'lgb': lgb.LGBMRegressor(n_estimators=100, random_state=42, verbose=-1),
-                'xgb': xgb.XGBRegressor(n_estimators=100, random_state=42, verbosity=0),
-                'rf': RandomForestRegressor(n_estimators=100, random_state=42, n_jobs=-1),
+                "lgb": lgb.LGBMRegressor(n_estimators=100, random_state=42, verbose=-1),
+                "xgb": xgb.XGBRegressor(n_estimators=100, random_state=42, verbosity=0),
+                "rf": RandomForestRegressor(n_estimators=100, random_state=42, n_jobs=-1),
             }
 
         model_importances = {}
@@ -241,19 +227,28 @@ class FeatureSelectionSkill(MLSkill):
             except Exception as e:
                 logger.debug(f"Model {name} importance failed: {e}")
 
-        self._method_results['multi_model'] = list(model_importances.keys())
+        self._method_results["multi_model"] = list(model_importances.keys())
         return feature_scores, model_importances
 
-    def _null_importance_test(self, X: pd.DataFrame, y: pd.Series, problem_type: str, feature_scores: Dict, model_importances: Dict) -> Any:
+    def _null_importance_test(
+        self,
+        X: pd.DataFrame,
+        y: pd.Series,
+        problem_type: str,
+        feature_scores: Dict,
+        model_importances: Dict,
+    ) -> Any:
         """Null importance test - identify truly predictive features."""
         import lightgbm as lgb
 
         n_null_runs = 5
         null_importance_scores = defaultdict(list)
 
-        lgb_model = lgb.LGBMClassifier(n_estimators=100, random_state=42, verbose=-1) \
-            if problem_type == 'classification' else \
-            lgb.LGBMRegressor(n_estimators=100, random_state=42, verbose=-1)
+        lgb_model = (
+            lgb.LGBMClassifier(n_estimators=100, random_state=42, verbose=-1)
+            if problem_type == "classification"
+            else lgb.LGBMRegressor(n_estimators=100, random_state=42, verbose=-1)
+        )
 
         for i in range(n_null_runs):
             y_shuffled = y.sample(frac=1, random_state=42 + i).reset_index(drop=True)
@@ -266,8 +261,8 @@ class FeatureSelectionSkill(MLSkill):
                 pass
 
         null_passed = set()
-        if model_importances.get('lgb') is not None:
-            real_imp = model_importances['lgb']
+        if model_importances.get("lgb") is not None:
+            real_imp = model_importances["lgb"]
             for feat in X.columns:
                 null_vals = null_importance_scores.get(feat, [0])
                 null_95 = np.percentile(null_vals, 95) if null_vals else 0
@@ -276,10 +271,12 @@ class FeatureSelectionSkill(MLSkill):
                     null_passed.add(feat)
                     feature_scores[feat] += 0.5
 
-        self._method_results['null_test_passed'] = len(null_passed)
+        self._method_results["null_test_passed"] = len(null_passed)
         return feature_scores
 
-    def _stability_selection(self, X: pd.DataFrame, y: pd.Series, problem_type: str, feature_scores: Dict) -> Any:
+    def _stability_selection(
+        self, X: pd.DataFrame, y: pd.Series, problem_type: str, feature_scores: Dict
+    ) -> Any:
         """Stability selection - consistent importance across seeds."""
         import lightgbm as lgb
 
@@ -289,9 +286,11 @@ class FeatureSelectionSkill(MLSkill):
 
         for seed in range(n_runs):
             try:
-                lgb_temp = lgb.LGBMClassifier(n_estimators=50, random_state=seed, verbose=-1) \
-                    if problem_type == 'classification' else \
-                    lgb.LGBMRegressor(n_estimators=50, random_state=seed, verbose=-1)
+                lgb_temp = (
+                    lgb.LGBMClassifier(n_estimators=50, random_state=seed, verbose=-1)
+                    if problem_type == "classification"
+                    else lgb.LGBMRegressor(n_estimators=50, random_state=seed, verbose=-1)
+                )
 
                 n_samples = len(X)
                 idx = np.random.RandomState(seed).choice(n_samples, size=n_samples, replace=True)
@@ -310,28 +309,32 @@ class FeatureSelectionSkill(MLSkill):
         for feat in stable_features:
             feature_scores[feat] += 0.3
 
-        self._method_results['stable_features'] = len(stable_features)
+        self._method_results["stable_features"] = len(stable_features)
         return feature_scores
 
-    def _boruta_test(self, X: pd.DataFrame, y: pd.Series, problem_type: str, feature_scores: Dict) -> Any:
+    def _boruta_test(
+        self, X: pd.DataFrame, y: pd.Series, problem_type: str, feature_scores: Dict
+    ) -> Any:
         """Boruta-like shadow features test."""
         import lightgbm as lgb
 
         X_shadow = X.copy()
         for col in X_shadow.columns:
             X_shadow[col] = np.random.permutation(X_shadow[col].values)
-        X_shadow.columns = [f'shadow_{c}' for c in X_shadow.columns]
+        X_shadow.columns = [f"shadow_{c}" for c in X_shadow.columns]
 
         X_with_shadow = pd.concat([X, X_shadow], axis=1)
 
         try:
-            lgb_shadow = lgb.LGBMClassifier(n_estimators=100, random_state=42, verbose=-1) \
-                if problem_type == 'classification' else \
-                lgb.LGBMRegressor(n_estimators=100, random_state=42, verbose=-1)
+            lgb_shadow = (
+                lgb.LGBMClassifier(n_estimators=100, random_state=42, verbose=-1)
+                if problem_type == "classification"
+                else lgb.LGBMRegressor(n_estimators=100, random_state=42, verbose=-1)
+            )
             lgb_shadow.fit(X_with_shadow, y)
 
             imp_all = pd.Series(lgb_shadow.feature_importances_, index=X_with_shadow.columns)
-            shadow_max = imp_all[[c for c in imp_all.index if c.startswith('shadow_')]].max()
+            shadow_max = imp_all[[c for c in imp_all.index if c.startswith("shadow_")]].max()
 
             boruta_passed = set()
             for feat in X.columns:
@@ -339,25 +342,31 @@ class FeatureSelectionSkill(MLSkill):
                     boruta_passed.add(feat)
                     feature_scores[feat] += 0.4
 
-            self._method_results['boruta_passed'] = len(boruta_passed)
+            self._method_results["boruta_passed"] = len(boruta_passed)
         except Exception as e:
             logger.debug(f"Boruta test failed: {e}")
-            self._method_results['boruta_passed'] = 0
+            self._method_results["boruta_passed"] = 0
 
         return feature_scores
 
-    def _permutation_importance(self, X: pd.DataFrame, y: pd.Series, problem_type: str, feature_scores: Dict) -> Any:
+    def _permutation_importance(
+        self, X: pd.DataFrame, y: pd.Series, problem_type: str, feature_scores: Dict
+    ) -> Any:
         """Permutation importance."""
         import lightgbm as lgb
         from sklearn.inspection import permutation_importance
 
         try:
-            lgb_perm = lgb.LGBMClassifier(n_estimators=50, random_state=42, verbose=-1) \
-                if problem_type == 'classification' else \
-                lgb.LGBMRegressor(n_estimators=50, random_state=42, verbose=-1)
+            lgb_perm = (
+                lgb.LGBMClassifier(n_estimators=50, random_state=42, verbose=-1)
+                if problem_type == "classification"
+                else lgb.LGBMRegressor(n_estimators=50, random_state=42, verbose=-1)
+            )
             lgb_perm.fit(X, y)
 
-            perm_imp = permutation_importance(lgb_perm, X, y, n_repeats=5, random_state=42, n_jobs=-1)
+            perm_imp = permutation_importance(
+                lgb_perm, X, y, n_repeats=5, random_state=42, n_jobs=-1
+            )
             perm_scores = pd.Series(perm_imp.importances_mean, index=X.columns)
             perm_scores_normalized = perm_scores / (perm_scores.sum() + 1e-10)
 
@@ -365,24 +374,29 @@ class FeatureSelectionSkill(MLSkill):
                 if score > 0:
                     feature_scores[feat] += score * 0.5
 
-            self._method_results['permutation_done'] = True
+            self._method_results["permutation_done"] = True
         except Exception as e:
             logger.debug(f"Permutation importance failed: {e}")
-            self._method_results['permutation_done'] = False
+            self._method_results["permutation_done"] = False
 
         return feature_scores
 
-    def _shap_importance(self, X: pd.DataFrame, y: pd.Series, problem_type: str, feature_scores: Dict) -> Any:
+    def _shap_importance(
+        self, X: pd.DataFrame, y: pd.Series, problem_type: str, feature_scores: Dict
+    ) -> Any:
         """SHAP-based importance (World-Class)."""
         import lightgbm as lgb
+
         shap_importance = {}
 
         try:
             import shap
 
-            lgb_shap = lgb.LGBMClassifier(n_estimators=100, random_state=42, verbose=-1) \
-                if problem_type == 'classification' else \
-                lgb.LGBMRegressor(n_estimators=100, random_state=42, verbose=-1)
+            lgb_shap = (
+                lgb.LGBMClassifier(n_estimators=100, random_state=42, verbose=-1)
+                if problem_type == "classification"
+                else lgb.LGBMRegressor(n_estimators=100, random_state=42, verbose=-1)
+            )
             lgb_shap.fit(X, y)
 
             n_shap_samples = min(500, len(X))
@@ -403,18 +417,20 @@ class FeatureSelectionSkill(MLSkill):
                 feature_scores[feat] += score * 1.5
 
             shap_importance = shap_scores_normalized.to_dict()
-            self._method_results['shap_done'] = True
+            self._method_results["shap_done"] = True
 
         except ImportError:
             logger.debug("SHAP not installed")
-            self._method_results['shap_done'] = False
+            self._method_results["shap_done"] = False
         except Exception as e:
             logger.debug(f"SHAP importance failed: {e}")
-            self._method_results['shap_done'] = False
+            self._method_results["shap_done"] = False
 
         return feature_scores, shap_importance
 
-    def _successive_halving(self, X: pd.DataFrame, y: pd.Series, problem_type: str, feature_scores: Dict) -> Any:
+    def _successive_halving(
+        self, X: pd.DataFrame, y: pd.Series, problem_type: str, feature_scores: Dict
+    ) -> Any:
         """
         Successive Halving for feature selection.
 
@@ -426,15 +442,15 @@ class FeatureSelectionSkill(MLSkill):
         Features that survive multiple rounds get higher scores.
         """
         import lightgbm as lgb
-        from sklearn.model_selection import cross_val_score, StratifiedKFold, KFold
+        from sklearn.model_selection import KFold, StratifiedKFold, cross_val_score
 
         try:
-            if problem_type == 'classification':
+            if problem_type == "classification":
                 cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=42)
-                scoring = 'accuracy'
+                scoring = "accuracy"
             else:
                 cv = KFold(n_splits=3, shuffle=True, random_state=42)
-                scoring = 'r2'
+                scoring = "r2"
 
             current_features = list(X.columns)
             n_features = len(current_features)
@@ -448,9 +464,11 @@ class FeatureSelectionSkill(MLSkill):
                 n_estimators = min(20 * budget_multiplier, 100)
 
                 # Train model with current budget
-                model = lgb.LGBMClassifier(n_estimators=n_estimators, random_state=42, verbose=-1) \
-                    if problem_type == 'classification' else \
-                    lgb.LGBMRegressor(n_estimators=n_estimators, random_state=42, verbose=-1)
+                model = (
+                    lgb.LGBMClassifier(n_estimators=n_estimators, random_state=42, verbose=-1)
+                    if problem_type == "classification"
+                    else lgb.LGBMRegressor(n_estimators=n_estimators, random_state=42, verbose=-1)
+                )
 
                 model.fit(X[current_features], y)
                 imp = pd.Series(model.feature_importances_, index=current_features)
@@ -470,16 +488,18 @@ class FeatureSelectionSkill(MLSkill):
                 if round_num >= 4:
                     break
 
-            self._method_results['successive_halving_rounds'] = round_num
-            self._method_results['successive_halving_survivors'] = len(current_features)
+            self._method_results["successive_halving_rounds"] = round_num
+            self._method_results["successive_halving_survivors"] = len(current_features)
 
         except Exception as e:
             logger.debug(f"Successive halving failed: {e}")
-            self._method_results['successive_halving_done'] = False
+            self._method_results["successive_halving_done"] = False
 
         return feature_scores
 
-    def _hyperband_selection(self, X: pd.DataFrame, y: pd.Series, problem_type: str, feature_scores: Dict) -> Any:
+    def _hyperband_selection(
+        self, X: pd.DataFrame, y: pd.Series, problem_type: str, feature_scores: Dict
+    ) -> Any:
         """
         Hyperband-style feature selection.
 
@@ -491,31 +511,35 @@ class FeatureSelectionSkill(MLSkill):
         Combines results across brackets for robust selection.
         """
         import lightgbm as lgb
-        from sklearn.model_selection import cross_val_score, StratifiedKFold, KFold
+        from sklearn.model_selection import KFold, StratifiedKFold, cross_val_score
 
         try:
-            if problem_type == 'classification':
+            if problem_type == "classification":
                 cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=42)
-                scoring = 'accuracy'
+                scoring = "accuracy"
             else:
                 cv = KFold(n_splits=3, shuffle=True, random_state=42)
-                scoring = 'r2'
+                scoring = "r2"
 
             n_features = X.shape[1]
             bracket_survivors = {}
 
             # Define brackets (starting features ratio, elimination rate)
             brackets = [
-                (1.0, 0.5),   # Start with all, eliminate 50% per round
-                (0.7, 0.6),   # Start with 70%, eliminate 40% per round
-                (0.5, 0.7),   # Start with 50%, eliminate 30% per round
+                (1.0, 0.5),  # Start with all, eliminate 50% per round
+                (0.7, 0.6),  # Start with 70%, eliminate 40% per round
+                (0.5, 0.7),  # Start with 50%, eliminate 30% per round
             ]
 
             for bracket_idx, (start_ratio, keep_ratio) in enumerate(brackets):
                 # Get initial feature importance to select starting features
-                model = lgb.LGBMClassifier(n_estimators=50, random_state=42+bracket_idx, verbose=-1) \
-                    if problem_type == 'classification' else \
-                    lgb.LGBMRegressor(n_estimators=50, random_state=42+bracket_idx, verbose=-1)
+                model = (
+                    lgb.LGBMClassifier(n_estimators=50, random_state=42 + bracket_idx, verbose=-1)
+                    if problem_type == "classification"
+                    else lgb.LGBMRegressor(
+                        n_estimators=50, random_state=42 + bracket_idx, verbose=-1
+                    )
+                )
                 model.fit(X, y)
                 imp = pd.Series(model.feature_importances_, index=X.columns)
 
@@ -529,9 +553,11 @@ class FeatureSelectionSkill(MLSkill):
                     round_num += 1
                     budget = 30 + round_num * 20  # Increasing budget
 
-                    model = lgb.LGBMClassifier(n_estimators=budget, random_state=42, verbose=-1) \
-                        if problem_type == 'classification' else \
-                        lgb.LGBMRegressor(n_estimators=budget, random_state=42, verbose=-1)
+                    model = (
+                        lgb.LGBMClassifier(n_estimators=budget, random_state=42, verbose=-1)
+                        if problem_type == "classification"
+                        else lgb.LGBMRegressor(n_estimators=budget, random_state=42, verbose=-1)
+                    )
                     model.fit(X[current_features], y)
                     imp = pd.Series(model.feature_importances_, index=current_features)
 
@@ -541,7 +567,7 @@ class FeatureSelectionSkill(MLSkill):
                     if round_num >= 3:
                         break
 
-                bracket_survivors[f'bracket_{bracket_idx}'] = current_features
+                bracket_survivors[f"bracket_{bracket_idx}"] = current_features
 
                 # Score features by bracket survival
                 for feat in current_features:
@@ -557,17 +583,24 @@ class FeatureSelectionSkill(MLSkill):
                 if n_brackets_survived >= 2:
                     feature_scores[feat] += 0.3 * n_brackets_survived
 
-            self._method_results['hyperband_done'] = True
-            self._method_results['hyperband_multi_bracket'] = len([f for f in all_survivors
-                if sum(1 for s in bracket_survivors.values() if f in s) >= 2])
+            self._method_results["hyperband_done"] = True
+            self._method_results["hyperband_multi_bracket"] = len(
+                [
+                    f
+                    for f in all_survivors
+                    if sum(1 for s in bracket_survivors.values() if f in s) >= 2
+                ]
+            )
 
         except Exception as e:
             logger.debug(f"Hyperband selection failed: {e}")
-            self._method_results['hyperband_done'] = False
+            self._method_results["hyperband_done"] = False
 
         return feature_scores
 
-    def _rfecv_selection(self, X: pd.DataFrame, y: pd.Series, problem_type: str, feature_scores: Dict) -> Any:
+    def _rfecv_selection(
+        self, X: pd.DataFrame, y: pd.Series, problem_type: str, feature_scores: Dict
+    ) -> Any:
         """
         Recursive Feature Elimination with Cross-Validation.
 
@@ -575,17 +608,17 @@ class FeatureSelectionSkill(MLSkill):
         while monitoring CV score. Stop when score starts dropping.
         """
         import lightgbm as lgb
-        from sklearn.model_selection import cross_val_score, StratifiedKFold, KFold
+        from sklearn.model_selection import KFold, StratifiedKFold, cross_val_score
 
         try:
-            if problem_type == 'classification':
+            if problem_type == "classification":
                 cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=42)
                 model = lgb.LGBMClassifier(n_estimators=50, random_state=42, verbose=-1)
-                scoring = 'accuracy'
+                scoring = "accuracy"
             else:
                 cv = KFold(n_splits=3, shuffle=True, random_state=42)
                 model = lgb.LGBMRegressor(n_estimators=50, random_state=42, verbose=-1)
-                scoring = 'r2'
+                scoring = "r2"
 
             current_features = list(X.columns)
             best_score = cross_val_score(model, X, y, cv=cv, scoring=scoring).mean()
@@ -606,7 +639,9 @@ class FeatureSelectionSkill(MLSkill):
                 new_features = [f for f in current_features if f not in weakest]
 
                 # Check score
-                new_score = cross_val_score(model, X[new_features], y, cv=cv, scoring=scoring).mean()
+                new_score = cross_val_score(
+                    model, X[new_features], y, cv=cv, scoring=scoring
+                ).mean()
 
                 if new_score >= best_score - 0.002:  # Allow 0.2% degradation
                     if new_score > best_score:
@@ -624,17 +659,19 @@ class FeatureSelectionSkill(MLSkill):
             for feat in best_features:
                 feature_scores[feat] += 0.5
 
-            self._method_results['rfecv_done'] = True
-            self._method_results['rfecv_selected'] = len(best_features)
-            self._method_results['rfecv_best_score'] = best_score
+            self._method_results["rfecv_done"] = True
+            self._method_results["rfecv_selected"] = len(best_features)
+            self._method_results["rfecv_best_score"] = best_score
 
         except Exception as e:
             logger.debug(f"RFECV selection failed: {e}")
-            self._method_results['rfecv_done'] = False
+            self._method_results["rfecv_done"] = False
 
         return feature_scores
 
-    def _diverse_rf_importance(self, X: pd.DataFrame, y: pd.Series, problem_type: str, feature_scores: Dict) -> Any:
+    def _diverse_rf_importance(
+        self, X: pd.DataFrame, y: pd.Series, problem_type: str, feature_scores: Dict
+    ) -> Any:
         """
         Use diverse Random Forest configurations for feature importance.
 
@@ -643,32 +680,36 @@ class FeatureSelectionSkill(MLSkill):
         - Deep trees: complex interactions
         - Different max_features: different feature subsets
         """
-        from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-        from sklearn.ensemble import ExtraTreesClassifier, ExtraTreesRegressor
+        from sklearn.ensemble import (
+            ExtraTreesClassifier,
+            ExtraTreesRegressor,
+            RandomForestClassifier,
+            RandomForestRegressor,
+        )
 
         try:
             # Different RF configurations
             configs = [
-                {'max_depth': 5, 'max_features': 'sqrt', 'n_estimators': 100},
-                {'max_depth': 10, 'max_features': 'log2', 'n_estimators': 100},
-                {'max_depth': None, 'max_features': 0.5, 'n_estimators': 100},
-                {'max_depth': 8, 'max_features': None, 'n_estimators': 100},  # All features
+                {"max_depth": 5, "max_features": "sqrt", "n_estimators": 100},
+                {"max_depth": 10, "max_features": "log2", "n_estimators": 100},
+                {"max_depth": None, "max_features": 0.5, "n_estimators": 100},
+                {"max_depth": 8, "max_features": None, "n_estimators": 100},  # All features
             ]
 
             config_importances = []
 
             for i, config in enumerate(configs):
-                if problem_type == 'classification':
+                if problem_type == "classification":
                     # Alternate between RF and ExtraTrees
                     if i % 2 == 0:
-                        model = RandomForestClassifier(**config, random_state=42+i, n_jobs=-1)
+                        model = RandomForestClassifier(**config, random_state=42 + i, n_jobs=-1)
                     else:
-                        model = ExtraTreesClassifier(**config, random_state=42+i, n_jobs=-1)
+                        model = ExtraTreesClassifier(**config, random_state=42 + i, n_jobs=-1)
                 else:
                     if i % 2 == 0:
-                        model = RandomForestRegressor(**config, random_state=42+i, n_jobs=-1)
+                        model = RandomForestRegressor(**config, random_state=42 + i, n_jobs=-1)
                     else:
-                        model = ExtraTreesRegressor(**config, random_state=42+i, n_jobs=-1)
+                        model = ExtraTreesRegressor(**config, random_state=42 + i, n_jobs=-1)
 
                 model.fit(X, y)
                 imp = pd.Series(model.feature_importances_, index=X.columns)
@@ -680,19 +721,18 @@ class FeatureSelectionSkill(MLSkill):
 
             # Features consistently important across configs get bonus
             for feat in X.columns:
-                consistency = sum(1 for imp in config_importances
-                                  if imp[feat] > imp.median())
+                consistency = sum(1 for imp in config_importances if imp[feat] > imp.median())
                 if consistency >= 3:  # Important in 3+ configs
                     feature_scores[feat] += 0.4
                 elif consistency >= 2:
                     feature_scores[feat] += 0.2
 
-            self._method_results['diverse_rf_done'] = True
-            self._method_results['diverse_rf_configs'] = len(configs)
+            self._method_results["diverse_rf_done"] = True
+            self._method_results["diverse_rf_configs"] = len(configs)
 
         except Exception as e:
             logger.debug(f"Diverse RF importance failed: {e}")
-            self._method_results['diverse_rf_done'] = False
+            self._method_results["diverse_rf_done"] = False
 
         return feature_scores
 
@@ -731,13 +771,13 @@ class FeatureSelectionSkill(MLSkill):
             for feat, score in pca_scores_normalized.items():
                 feature_scores[feat] += score * 0.3  # Lower weight than prediction-based
 
-            self._method_results['pca_done'] = True
-            self._method_results['pca_n_components'] = pca.n_components_
-            self._method_results['pca_variance_explained'] = pca.explained_variance_ratio_.sum()
+            self._method_results["pca_done"] = True
+            self._method_results["pca_n_components"] = pca.n_components_
+            self._method_results["pca_variance_explained"] = pca.explained_variance_ratio_.sum()
 
         except Exception as e:
             logger.debug(f"PCA importance failed: {e}")
-            self._method_results['pca_done'] = False
+            self._method_results["pca_done"] = False
 
         return feature_scores
 
@@ -746,45 +786,45 @@ class FeatureSelectionSkill(MLSkill):
         final_scores = pd.Series(feature_scores).sort_values(ascending=False)
 
         if len(final_scores) > 10:
-            final_scores_df = pd.DataFrame({
-                'feature': final_scores.index,
-                'score': final_scores.values
-            })
-            final_scores_df['decile'] = pd.qcut(
-                final_scores_df['score'].rank(method='first'),
-                q=10, labels=range(10, 0, -1)
+            final_scores_df = pd.DataFrame(
+                {"feature": final_scores.index, "score": final_scores.values}
+            )
+            final_scores_df["decile"] = pd.qcut(
+                final_scores_df["score"].rank(method="first"), q=10, labels=range(10, 0, -1)
             ).astype(int)
 
             selected = []
 
             # Top 3 deciles (top 30%) - always keep
-            top_deciles = final_scores_df[final_scores_df['decile'] >= 8]['feature'].tolist()
+            top_deciles = final_scores_df[final_scores_df["decile"] >= 8]["feature"].tolist()
             selected.extend(top_deciles)
 
             # Decile 7 - keep above median
-            decile_7 = final_scores_df[final_scores_df['decile'] == 7]
+            decile_7 = final_scores_df[final_scores_df["decile"] == 7]
             if len(decile_7) > 0:
-                d7_median = decile_7['score'].median()
-                d7_selected = decile_7[decile_7['score'] >= d7_median]['feature'].tolist()
+                d7_median = decile_7["score"].median()
+                d7_selected = decile_7[decile_7["score"] >= d7_median]["feature"].tolist()
                 selected.extend(d7_selected)
 
             # Decile 6 - keep if score > 1.0
-            decile_6 = final_scores_df[final_scores_df['decile'] == 6]
-            d6_selected = decile_6[decile_6['score'] >= 1.0]['feature'].tolist()
+            decile_6 = final_scores_df[final_scores_df["decile"] == 6]
+            d6_selected = decile_6[decile_6["score"] >= 1.0]["feature"].tolist()
             selected.extend(d6_selected)
 
             # Decile 5 - keep if score > 1.5
-            decile_5 = final_scores_df[final_scores_df['decile'] == 5]
-            d5_selected = decile_5[decile_5['score'] >= 1.5]['feature'].tolist()
+            decile_5 = final_scores_df[final_scores_df["decile"] == 5]
+            d5_selected = decile_5[decile_5["score"] >= 1.5]["feature"].tolist()
             selected.extend(d5_selected)
 
             # Lower deciles - only exceptional (score > 2.0)
-            lower_deciles = final_scores_df[final_scores_df['decile'] <= 4]
-            exceptional = lower_deciles[lower_deciles['score'] >= 2.0]['feature'].tolist()
+            lower_deciles = final_scores_df[final_scores_df["decile"] <= 4]
+            exceptional = lower_deciles[lower_deciles["score"] >= 2.0]["feature"].tolist()
             selected.extend(exceptional)
 
             selected = list(dict.fromkeys(selected))
-            self._method_results['decile_distribution'] = final_scores_df.groupby('decile').size().to_dict()
+            self._method_results["decile_distribution"] = (
+                final_scores_df.groupby("decile").size().to_dict()
+            )
         else:
             selected = final_scores.index.tolist()
 
@@ -799,24 +839,31 @@ class FeatureSelectionSkill(MLSkill):
 
         return selected
 
-    def _cv_validation(self, X: pd.DataFrame, y: pd.Series,
-                        selected: List[str], feature_scores: Dict,
-                        problem_type: str) -> List[str]:
+    def _cv_validation(
+        self,
+        X: pd.DataFrame,
+        y: pd.Series,
+        selected: List[str],
+        feature_scores: Dict,
+        problem_type: str,
+    ) -> List[str]:
         """CV validation to ensure selection doesn't hurt performance."""
         import lightgbm as lgb
-        from sklearn.model_selection import cross_val_score, StratifiedKFold, KFold
+        from sklearn.model_selection import KFold, StratifiedKFold, cross_val_score
 
         try:
-            if problem_type == 'classification':
+            if problem_type == "classification":
                 cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=42)
                 val_model = lgb.LGBMClassifier(n_estimators=50, random_state=42, verbose=-1)
-                scoring = 'accuracy'
+                scoring = "accuracy"
             else:
                 cv = KFold(n_splits=3, shuffle=True, random_state=42)
                 val_model = lgb.LGBMRegressor(n_estimators=50, random_state=42, verbose=-1)
-                scoring = 'r2'
+                scoring = "r2"
 
-            score_selected = cross_val_score(val_model, X[selected], y, cv=cv, scoring=scoring).mean()
+            score_selected = cross_val_score(
+                val_model, X[selected], y, cv=cv, scoring=scoring
+            ).mean()
             score_all = cross_val_score(val_model, X, y, cv=cv, scoring=scoring).mean()
 
             # If selected is worse, add more features
@@ -825,20 +872,24 @@ class FeatureSelectionSkill(MLSkill):
                 remaining = [f for f in final_scores.index if f not in selected]
                 for feat in remaining:
                     selected.append(feat)
-                    new_score = cross_val_score(val_model, X[selected], y, cv=cv, scoring=scoring).mean()
+                    new_score = cross_val_score(
+                        val_model, X[selected], y, cv=cv, scoring=scoring
+                    ).mean()
                     if new_score >= score_all - 0.005:
                         break
                     if len(selected) >= len(X.columns) * 0.6:
                         break
 
-            self._method_results['cv_selected_score'] = score_selected
-            self._method_results['cv_all_score'] = score_all
+            self._method_results["cv_selected_score"] = score_selected
+            self._method_results["cv_all_score"] = score_all
         except Exception as e:
             logger.debug(f"CV validation failed: {e}")
 
         return selected
 
-    def _bohb_selection(self, X: pd.DataFrame, y: pd.Series, problem_type: str, feature_scores: Dict) -> Any:
+    def _bohb_selection(
+        self, X: pd.DataFrame, y: pd.Series, problem_type: str, feature_scores: Dict
+    ) -> Any:
         """
         BOHB - Bayesian Optimized Hyperband for feature subset search.
 
@@ -852,16 +903,16 @@ class FeatureSelectionSkill(MLSkill):
         try:
             import ConfigSpace as CS
             import ConfigSpace.hyperparameters as CSH
-            from sklearn.model_selection import cross_val_score, StratifiedKFold, KFold
             import lightgbm as lgb
+            from sklearn.model_selection import KFold, StratifiedKFold, cross_val_score
 
-            if problem_type == 'classification':
+            if problem_type == "classification":
                 cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=42)
-                scoring = 'accuracy'
+                scoring = "accuracy"
                 base_model = lgb.LGBMClassifier
             else:
                 cv = KFold(n_splits=3, shuffle=True, random_state=42)
-                scoring = 'r2'
+                scoring = "r2"
                 base_model = lgb.LGBMRegressor
 
             features = list(X.columns)
@@ -869,14 +920,14 @@ class FeatureSelectionSkill(MLSkill):
 
             # For efficiency, work with top features from current scores
             sorted_features = sorted(features, key=lambda f: feature_scores.get(f, 0), reverse=True)
-            candidate_features = sorted_features[:min(30, n_features)]  # Top 30 for BOHB
+            candidate_features = sorted_features[: min(30, n_features)]  # Top 30 for BOHB
 
             # Build ConfigSpace - each feature is a binary HP
             cs = CS.ConfigurationSpace(seed=42)
             for feat in candidate_features:
-                cs.add_hyperparameter(CSH.CategoricalHyperparameter(
-                    name=feat, choices=[0, 1], default_value=1
-                ))
+                cs.add_hyperparameter(
+                    CSH.CategoricalHyperparameter(name=feat, choices=[0, 1], default_value=1)
+                )
 
             # TPE-like sampling with Hyperband brackets
             def evaluate_config(config: Any, budget: Any) -> Any:
@@ -889,24 +940,26 @@ class FeatureSelectionSkill(MLSkill):
                 model = base_model(n_estimators=n_estimators, random_state=42, verbose=-1)
 
                 try:
-                    score = cross_val_score(model, X[selected_feats], y, cv=cv, scoring=scoring).mean()
+                    score = cross_val_score(
+                        model, X[selected_feats], y, cv=cv, scoring=scoring
+                    ).mean()
                     return score
                 except Exception:
                     return -1.0
 
             # BOHB brackets
             brackets = [
-                {'n_configs': 27, 'min_budget': 1, 'max_budget': 3},  # Aggressive
-                {'n_configs': 9, 'min_budget': 2, 'max_budget': 4},   # Moderate
-                {'n_configs': 6, 'min_budget': 3, 'max_budget': 5},   # Conservative
+                {"n_configs": 27, "min_budget": 1, "max_budget": 3},  # Aggressive
+                {"n_configs": 9, "min_budget": 2, "max_budget": 4},  # Moderate
+                {"n_configs": 6, "min_budget": 3, "max_budget": 5},  # Conservative
             ]
 
             best_configs = []
 
             for bracket in brackets:
-                n_configs = bracket['n_configs']
-                min_budget = bracket['min_budget']
-                max_budget = bracket['max_budget']
+                n_configs = bracket["n_configs"]
+                min_budget = bracket["min_budget"]
+                max_budget = bracket["max_budget"]
 
                 # Sample configurations (TPE-inspired: exploit good regions)
                 configs = []
@@ -952,20 +1005,22 @@ class FeatureSelectionSkill(MLSkill):
                     # BOHB-selected features get bonus
                     feature_scores[feat] += 0.5 * (count / max_inclusion)
 
-            self._method_results['bohb_done'] = True
-            self._method_results['bohb_configs_evaluated'] = sum(b['n_configs'] for b in brackets)
-            self._method_results['bohb_best_configs'] = len(best_configs)
+            self._method_results["bohb_done"] = True
+            self._method_results["bohb_configs_evaluated"] = sum(b["n_configs"] for b in brackets)
+            self._method_results["bohb_best_configs"] = len(best_configs)
 
         except ImportError as e:
             logger.debug(f"BOHB requires ConfigSpace: {e}")
-            self._method_results['bohb_done'] = False
+            self._method_results["bohb_done"] = False
         except Exception as e:
             logger.debug(f"BOHB selection failed: {e}")
-            self._method_results['bohb_done'] = False
+            self._method_results["bohb_done"] = False
 
         return feature_scores
 
-    def _pasha_selection(self, X: pd.DataFrame, y: pd.Series, problem_type: str, feature_scores: Dict) -> Any:
+    def _pasha_selection(
+        self, X: pd.DataFrame, y: pd.Series, problem_type: str, feature_scores: Dict
+    ) -> Any:
         """
         PASHA - Progressive Adaptive Successive Halving Algorithm.
 
@@ -982,18 +1037,19 @@ class FeatureSelectionSkill(MLSkill):
         - Rung = evaluation level (higher rung = more budget)
         """
         try:
-            from sklearn.model_selection import cross_val_score, StratifiedKFold, KFold
-            import lightgbm as lgb
-            from concurrent.futures import ThreadPoolExecutor
             import threading
+            from concurrent.futures import ThreadPoolExecutor
 
-            if problem_type == 'classification':
+            import lightgbm as lgb
+            from sklearn.model_selection import KFold, StratifiedKFold, cross_val_score
+
+            if problem_type == "classification":
                 cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=42)
-                scoring = 'accuracy'
+                scoring = "accuracy"
                 base_model = lgb.LGBMClassifier
             else:
                 cv = KFold(n_splits=3, shuffle=True, random_state=42)
-                scoring = 'r2'
+                scoring = "r2"
                 base_model = lgb.LGBMRegressor
 
             features = list(X.columns)
@@ -1003,7 +1059,7 @@ class FeatureSelectionSkill(MLSkill):
             eta = 3  # Reduction factor (keep top 1/eta at each rung)
             min_budget = 1  # Minimum budget (rung 0)
             max_budget = 5  # Maximum budget (final rung)
-            n_workers = 4   # Parallel workers
+            n_workers = 4  # Parallel workers
 
             # Generate initial configurations (feature subsets)
             # Use feature scores to bias towards good features
@@ -1013,8 +1069,9 @@ class FeatureSelectionSkill(MLSkill):
                 """Generate a feature subset configuration."""
                 np.random.seed(seed)
                 # Bias towards top features
-                probs = np.array([0.7 if f in sorted_features[:n_features//2] else 0.3
-                                  for f in features])
+                probs = np.array(
+                    [0.7 if f in sorted_features[: n_features // 2] else 0.3 for f in features]
+                )
                 mask = np.random.random(n_features) < probs
                 # Ensure at least 3 features
                 if mask.sum() < 3:
@@ -1046,12 +1103,14 @@ class FeatureSelectionSkill(MLSkill):
                 try:
                     # Progressive CV: more folds at higher rungs
                     n_folds = min(3 + budget - 1, 5)
-                    if problem_type == 'classification':
+                    if problem_type == "classification":
                         cv_temp = StratifiedKFold(n_splits=n_folds, shuffle=True, random_state=42)
                     else:
                         cv_temp = KFold(n_splits=n_folds, shuffle=True, random_state=42)
 
-                    score = cross_val_score(model, X[selected_feats], y, cv=cv_temp, scoring=scoring).mean()
+                    score = cross_val_score(
+                        model, X[selected_feats], y, cv=cv_temp, scoring=scoring
+                    ).mean()
                     return config_idx, score
                 except Exception:
                     return config_idx, -1.0
@@ -1074,7 +1133,7 @@ class FeatureSelectionSkill(MLSkill):
                 sorted_configs = sorted(
                     [(i, configs[i], rung_scores[i]) for i in range(len(configs))],
                     key=lambda x: x[2],
-                    reverse=True
+                    reverse=True,
                 )
 
                 # Adaptive promotion: keep top 1/eta
@@ -1082,12 +1141,14 @@ class FeatureSelectionSkill(MLSkill):
                 configs = [c for _, c, s in sorted_configs[:n_promote] if s > 0]
 
                 # Record rung results
-                rungs.append({
-                    'budget': budget,
-                    'configs': len(sorted_configs),
-                    'promoted': len(configs),
-                    'best_score': sorted_configs[0][2] if sorted_configs else 0
-                })
+                rungs.append(
+                    {
+                        "budget": budget,
+                        "configs": len(sorted_configs),
+                        "promoted": len(configs),
+                        "best_score": sorted_configs[0][2] if sorted_configs else 0,
+                    }
+                )
 
                 # Progressive budget increase
                 budget += 1
@@ -1111,14 +1172,14 @@ class FeatureSelectionSkill(MLSkill):
                     for feat in common_features:
                         feature_scores[feat] += 0.3  # Consensus bonus
 
-            self._method_results['pasha_done'] = True
-            self._method_results['pasha_rungs'] = len(rungs)
-            self._method_results['pasha_final_configs'] = len(configs)
+            self._method_results["pasha_done"] = True
+            self._method_results["pasha_rungs"] = len(rungs)
+            self._method_results["pasha_final_configs"] = len(configs)
             if rungs:
-                self._method_results['pasha_best_score'] = rungs[-1].get('best_score', 0)
+                self._method_results["pasha_best_score"] = rungs[-1].get("best_score", 0)
 
         except Exception as e:
             logger.debug(f"PASHA selection failed: {e}")
-            self._method_results['pasha_done'] = False
+            self._method_results["pasha_done"] = False
 
         return feature_scores

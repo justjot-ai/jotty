@@ -6,7 +6,9 @@ Demonstrates:
 - Retrieving memories by relevance
 - Checking memory system status
 """
+
 import asyncio
+
 from Jotty.core.intelligence.memory import get_memory_system
 
 
@@ -21,7 +23,7 @@ async def main():
         content="Meeting with Product team on Feb 15, 2026 - discussed Q1 roadmap",
         level="episodic",
         goal="planning",
-        metadata={"date": "2026-02-15", "team": "product"}
+        metadata={"date": "2026-02-15", "team": "product"},
     )
     print(f"✅ Stored episodic memory: {mem_id_1}")
 
@@ -30,7 +32,7 @@ async def main():
         content="Python best practice: Use type hints for better code clarity",
         level="semantic",
         goal="coding",
-        metadata={"language": "python", "topic": "best-practices"}
+        metadata={"language": "python", "topic": "best-practices"},
     )
     print(f"✅ Stored semantic memory: {mem_id_2}")
 
@@ -39,7 +41,7 @@ async def main():
         content="To deploy: 1) Run tests, 2) Build Docker image, 3) Push to registry, 4) Update k8s",
         level="procedural",
         goal="devops",
-        metadata={"process": "deployment"}
+        metadata={"process": "deployment"},
     )
     print(f"✅ Stored procedural memory: {mem_id_3}")
 
@@ -47,9 +49,7 @@ async def main():
 
     # Retrieve relevant memories for a query
     results = memory.retrieve(
-        query="What was discussed in the last team meeting?",
-        goal="planning",
-        top_k=5
+        query="What was discussed in the last team meeting?", goal="planning", top_k=5
     )
 
     print(f"Found {len(results)} relevant memories:\n")

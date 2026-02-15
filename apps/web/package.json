@@ -1,28 +1,41 @@
 {
-  "name": "jotty-ui",
-  "version": "1.0.0",
-  "description": "Standalone Jotty Management UI",
+  "name": "jotty-pwa",
+  "version": "2.0.0",
+  "description": "Jotty PWA - Progressive Web App with Offline Support",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "pwa:build": "next build && workbox generateSW workbox-config.js",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
+    "tauri:build:debug": "tauri build --debug",
+    "tauri:icon": "tauri icon"
   },
   "dependencies": {
     "@clerk/nextjs": "^5.7.5",
     "lucide-react": "^0.400.0",
     "next": "^14.0.0",
+    "next-pwa": "^5.6.0",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
-    "typescript": "^5.0.0"
+    "react-markdown": "^9.0.0",
+    "typescript": "^5.0.0",
+    "workbox-webpack-plugin": "^7.0.0",
+    "workbox-window": "^7.0.0"
   },
   "devDependencies": {
+    "@tailwindcss/typography": "^0.5.0",
+    "@tauri-apps/cli": "^1.5.0",
     "@types/node": "^20.0.0",
     "@types/react": "^18.0.0",
     "@types/react-dom": "^18.0.0",
     "autoprefixer": "^10.0.0",
     "postcss": "^8.0.0",
-    "tailwindcss": "^3.0.0"
+    "tailwindcss": "^3.0.0",
+    "workbox-cli": "^7.0.0"
   }
 }

@@ -1,4 +1,5 @@
 from typing import Any
+
 """
 Utils Layer - Utility Functions & Helpers
 =========================================
@@ -81,10 +82,10 @@ _LAZY_IMPORTS: dict[str, str] = {
 
 
 _FACADE_IMPORTS = {
-    'get_budget_tracker',
-    'get_circuit_breaker',
-    'get_llm_cache',
-    'get_tokenizer',
+    "get_budget_tracker",
+    "get_circuit_breaker",
+    "get_llm_cache",
+    "get_tokenizer",
 }
 
 
@@ -97,6 +98,7 @@ def __getattr__(name: str) -> Any:
         return value
     if name in _FACADE_IMPORTS:
         from . import facade
+
         value = getattr(facade, name)
         globals()[name] = value
         return value
@@ -104,8 +106,8 @@ def __getattr__(name: str) -> Any:
 
 
 __all__ = list(_LAZY_IMPORTS.keys()) + [
-    'get_budget_tracker',
-    'get_circuit_breaker',
-    'get_llm_cache',
-    'get_tokenizer',
+    "get_budget_tracker",
+    "get_circuit_breaker",
+    "get_llm_cache",
+    "get_tokenizer",
 ]

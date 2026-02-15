@@ -1,4 +1,5 @@
 from typing import Any
+
 #!/usr/bin/env python3
 """
 A2UI Widget Provider - Generic Widget Integration for Jotty SDK
@@ -86,16 +87,16 @@ agent = dspy.ReAct(ChatSignature, tools=provider.get_tools())
 - Developer Guide: https://developers.googleblog.com/introducing-a2ui-an-open-project-for-agent-driven-interfaces/
 """
 
-import logging
-from typing import Dict, Any, List, Optional, Callable, Union
-from dataclasses import dataclass, field
 import json
+import logging
+from dataclasses import dataclass, field
+from typing import Any, Callable, Dict, List, Optional, Union
 
 from .base_metadata_provider import BaseMetadataProvider
 from .widget_params_schema import (
     WidgetParamSchema,
     generate_param_docstring,
-    generate_tool_examples
+    generate_tool_examples,
 )
 
 logger = logging.getLogger(__name__)
@@ -105,6 +106,7 @@ logger = logging.getLogger(__name__)
 # A2UI Data Structures
 # =============================================================================
 
+
 @dataclass
 class A2UIComponent:
     """
@@ -113,6 +115,7 @@ class A2UIComponent:
     A2UI uses flat component lists with ID references (not nested trees).
     This is LLM-friendly and enables incremental updates.
     """
+
     id: str
     component_type: str  # "Card", "Text", "Row", etc.
     props: Dict[str, Any] = field(default_factory=dict)
@@ -121,18 +124,11 @@ class A2UIComponent:
 
     def to_a2ui_json(self) -> Dict[str, Any]:
         """Convert to A2UI v0.8 JSON format."""
-        result = {
-            "id": self.id,
-            "component": {
-                self.component_type: self.props
-            }
-        }
+        result = {"id": self.id, "component": {self.component_type: self.props}}
 
         # Add children reference if present
         if self.children:
-            result["component"][self.component_type]["children"] = {
-                "explicitList": self.children
-            }
+            result["component"][self.component_type]["children"] = {"explicitList": self.children}
 
         # Add data binding if present
         if self.data_binding:
@@ -148,17 +144,21 @@ class A2UIMessage:
 
     This is what agents generate and clients render.
     """
+
     components: List[A2UIComponent]
     data_model: Dict[str, Any] = field(default_factory=dict)
     version: str = "0.8"  # A2UI spec version
 
     def to_json(self) -> str:
         """Serialize to A2UI JSON string."""
-        return json.dumps({
-            "version": self.version,
-            "components": [c.to_a2ui_json() for c in self.components],
-            "dataModel": self.data_model
-        }, indent=2)
+        return json.dumps(
+            {
+                "version": self.version,
+                "components": [c.to_a2ui_json() for c in self.components],
+                "dataModel": self.data_model,
+            },
+            indent=2,
+        )
 
     @classmethod
     def from_json(cls, json_str: str) -> "A2UIMessage":
@@ -183,18 +183,20 @@ class A2UIMessage:
             # Extract data binding if present
             data_binding = comp_data.get("dataBinding")
 
-            components.append(A2UIComponent(
-                id=comp_id,
-                component_type=comp_type,
-                props=props,
-                children=children,
-                data_binding=data_binding
-            ))
+            components.append(
+                A2UIComponent(
+                    id=comp_id,
+                    component_type=comp_type,
+                    props=props,
+                    children=children,
+                    data_binding=data_binding,
+                )
+            )
 
         return cls(
             components=components,
             data_model=data.get("dataModel", {}),
-            version=data.get("version", "0.8")
+            version=data.get("version", "0.8"),
         )
 
 
@@ -217,13 +219,14 @@ class WidgetDefinition:
         example_data: Example data for testing
         tags: Search/filter tags
     """
+
     id: str
     name: str
     description: str
     category: str  # "layout", "content", "input", "data_viz", etc.
     component_tree: List[A2UIComponent]  # Template structure
     data_schema: Dict[str, Any]  # JSON schema for required data
-    param_schema: Optional['WidgetParamSchema'] = None  # JSON schema for parameters
+    param_schema: Optional["WidgetParamSchema"] = None  # JSON schema for parameters
     example_data: Optional[Dict[str, Any]] = None
     tags: List[str] = field(default_factory=list)
 
@@ -231,6 +234,7 @@ class WidgetDefinition:
 # =============================================================================
 # A2UI Widget Provider (Generic Framework)
 # =============================================================================
+
 
 class A2UIWidgetProvider(BaseMetadataProvider):
     """
@@ -260,7 +264,15 @@ class A2UIWidgetProvider(BaseMetadataProvider):
     4. Cache and budget widget data
     """
 
-    def __init__(self, widget_catalog: Optional[Dict[str, WidgetDefinition]] = None, data_provider_fn: Optional[Callable] = None, renderer_config: Optional[Dict[str, Any]] = None, token_budget: int = 100000, enable_caching: bool = True, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        widget_catalog: Optional[Dict[str, WidgetDefinition]] = None,
+        data_provider_fn: Optional[Callable] = None,
+        renderer_config: Optional[Dict[str, Any]] = None,
+        token_budget: int = 100000,
+        enable_caching: bool = True,
+        **kwargs: Any,
+    ) -> None:
         """
         Initialize A2UI widget provider.
 
@@ -276,7 +288,7 @@ class A2UIWidgetProvider(BaseMetadataProvider):
             name="A2UIWidgetProvider",
             token_budget=token_budget,
             enable_caching=enable_caching,
-            **kwargs
+            **kwargs,
         )
 
         self._widget_catalog = widget_catalog or {}
@@ -286,15 +298,28 @@ class A2UIWidgetProvider(BaseMetadataProvider):
         # A2UI standard component types (from spec v0.8)
         self._standard_components = {
             # Layout
-            "Row", "Column", "List", "Card", "Tabs", "Modal",
+            "Row",
+            "Column",
+            "List",
+            "Card",
+            "Tabs",
+            "Modal",
             # Content
-            "Text", "Image", "Icon", "Video", "AudioPlayer",
+            "Text",
+            "Image",
+            "Icon",
+            "Video",
+            "AudioPlayer",
             # Input
-            "TextField", "CheckBox", "Slider", "DateTime", "MultipleChoice",
+            "TextField",
+            "CheckBox",
+            "Slider",
+            "DateTime",
+            "MultipleChoice",
             # Navigation
             "Button",
             # Decoration
-            "Divider"
+            "Divider",
         }
 
         logger.info(f" A2UIWidgetProvider initialized")
@@ -332,9 +357,7 @@ class A2UIWidgetProvider(BaseMetadataProvider):
         return self._widget_catalog.get(widget_id)
 
     def list_widgets(
-        self,
-        category: Optional[str] = None,
-        tags: Optional[List[str]] = None
+        self, category: Optional[str] = None, tags: Optional[List[str]] = None
     ) -> List[WidgetDefinition]:
         """
         List widgets with optional filtering.
@@ -354,10 +377,7 @@ class A2UIWidgetProvider(BaseMetadataProvider):
 
         # Filter by tags
         if tags:
-            widgets = [
-                w for w in widgets
-                if any(tag in w.tags for tag in tags)
-            ]
+            widgets = [w for w in widgets if any(tag in w.tags for tag in tags)]
 
         return widgets
 
@@ -365,11 +385,7 @@ class A2UIWidgetProvider(BaseMetadataProvider):
     # Widget Data & Rendering
     # -------------------------------------------------------------------------
 
-    def render_widget(
-        self,
-        widget_id: str,
-        params: Optional[Dict[str, Any]] = None
-    ) -> A2UIMessage:
+    def render_widget(self, widget_id: str, params: Optional[Dict[str, Any]] = None) -> A2UIMessage:
         """
         Render widget with data.
 
@@ -403,16 +419,9 @@ class A2UIWidgetProvider(BaseMetadataProvider):
             data = widget.example_data or {}
 
         # Create A2UI message with widget components and data
-        return A2UIMessage(
-            components=widget.component_tree.copy(),
-            data_model=data
-        )
+        return A2UIMessage(components=widget.component_tree.copy(), data_model=data)
 
-    def render_widget_json(
-        self,
-        widget_id: str,
-        params: Optional[Dict[str, Any]] = None
-    ) -> str:
+    def render_widget_json(self, widget_id: str, params: Optional[Dict[str, Any]] = None) -> str:
         """
         Render widget and return JSON string.
 
@@ -436,7 +445,7 @@ class A2UIWidgetProvider(BaseMetadataProvider):
             "",
             " IMPORTANT: Use this tool to show visual content to users!",
             "Instead of returning plain text responses, use widgets for better UX.",
-            ""
+            "",
         ]
 
         # Group widgets by whether they have parameter schemas
@@ -468,14 +477,16 @@ class A2UIWidgetProvider(BaseMetadataProvider):
                 lines.append(f"  - {widget.id}: {widget.description}")
             lines.append("")
 
-        lines.extend([
-            "Args:",
-            "    widget_id: Widget ID from catalog (use list_available_widgets to see all options)",
-            "    params: Optional JSON string with widget parameters (e.g., '{\"status\": \"completed\"}')",
-            "",
-            "Returns:",
-            "    A2UI JSON message with rich visual components (Card, List, Text, Image, Button, etc.)"
-        ])
+        lines.extend(
+            [
+                "Args:",
+                "    widget_id: Widget ID from catalog (use list_available_widgets to see all options)",
+                '    params: Optional JSON string with widget parameters (e.g., \'{"status": "completed"}\')',
+                "",
+                "Returns:",
+                "    A2UI JSON message with rich visual components (Card, List, Text, Image, Button, etc.)",
+            ]
+        )
 
         return "\n".join(lines)
 
@@ -507,13 +518,19 @@ class A2UIWidgetProvider(BaseMetadataProvider):
                 JSON string with widget catalog (id, name, description, category, tags)
             """
             widgets = self.list_widgets(category=category)
-            return json.dumps([{
-                "id": w.id,
-                "name": w.name,
-                "description": w.description,
-                "category": w.category,
-                "tags": w.tags
-            } for w in widgets], indent=2)
+            return json.dumps(
+                [
+                    {
+                        "id": w.id,
+                        "name": w.name,
+                        "description": w.description,
+                        "category": w.category,
+                        "tags": w.tags,
+                    }
+                    for w in widgets
+                ],
+                indent=2,
+            )
 
         # Tool 2: Render widget (with schema-based validation)
         def render_widget_tool(widget_id: str, params: Optional[str] = None) -> str:
@@ -529,11 +546,13 @@ class A2UIWidgetProvider(BaseMetadataProvider):
                 # Validate
                 is_valid, error_msg = widget.param_schema.validate(params_dict)
                 if not is_valid:
-                    return json.dumps({
-                        "error": f"Invalid parameters for widget '{widget_id}': {error_msg}",
-                        "widget_id": widget_id,
-                        "provided_params": params_dict
-                    })
+                    return json.dumps(
+                        {
+                            "error": f"Invalid parameters for widget '{widget_id}': {error_msg}",
+                            "widget_id": widget_id,
+                            "provided_params": params_dict,
+                        }
+                    )
 
             return self.render_widget_json(widget_id, params_dict)
 
@@ -558,36 +577,34 @@ class A2UIWidgetProvider(BaseMetadataProvider):
             if not widget:
                 return json.dumps({"error": f"Widget '{widget_id}' not found"})
 
-            return json.dumps({
-                "widget_id": widget.id,
-                "name": widget.name,
-                "data_schema": widget.data_schema,
-                "example_data": widget.example_data
-            }, indent=2)
+            return json.dumps(
+                {
+                    "widget_id": widget.id,
+                    "name": widget.name,
+                    "data_schema": widget.data_schema,
+                    "example_data": widget.example_data,
+                },
+                indent=2,
+            )
 
-        tools.extend([
-            list_available_widgets,
-            render_widget_tool,
-            get_widget_schema
-        ])
+        tools.extend([list_available_widgets, render_widget_tool, get_widget_schema])
 
         logger.info(f" Generated {len(tools)} A2UI widget tools for agents")
         return tools
 
     def get_tool_names(self) -> List[str]:
         """Get list of tool names."""
-        return [
-            "list_available_widgets",
-            "render_widget_tool",
-            "get_widget_schema"
-        ]
+        return ["list_available_widgets", "render_widget_tool", "get_widget_schema"]
 
 
 # =============================================================================
 # Helper Functions (Simple Interface)
 # =============================================================================
 
-def create_widget_provider(widget_catalog: Dict[str, WidgetDefinition], data_provider_fn: Callable, **kwargs: Any) -> A2UIWidgetProvider:
+
+def create_widget_provider(
+    widget_catalog: Dict[str, WidgetDefinition], data_provider_fn: Callable, **kwargs: Any
+) -> A2UIWidgetProvider:
     """
     Create A2UI widget provider from catalog and data provider.
 
@@ -614,9 +631,7 @@ def create_widget_provider(widget_catalog: Dict[str, WidgetDefinition], data_pro
         ```
     """
     return A2UIWidgetProvider(
-        widget_catalog=widget_catalog,
-        data_provider_fn=data_provider_fn,
-        **kwargs
+        widget_catalog=widget_catalog, data_provider_fn=data_provider_fn, **kwargs
     )
 
 
@@ -635,13 +650,15 @@ def create_widget_from_dict(widget_dict: Dict[str, Any]) -> WidgetDefinition:
     # Parse component tree
     components = []
     for comp_data in widget_dict.get("component_tree", []):
-        components.append(A2UIComponent(
-            id=comp_data["id"],
-            component_type=comp_data["component_type"],
-            props=comp_data.get("props", {}),
-            children=comp_data.get("children"),
-            data_binding=comp_data.get("data_binding")
-        ))
+        components.append(
+            A2UIComponent(
+                id=comp_data["id"],
+                component_type=comp_data["component_type"],
+                props=comp_data.get("props", {}),
+                children=comp_data.get("children"),
+                data_binding=comp_data.get("data_binding"),
+            )
+        )
 
     return WidgetDefinition(
         id=widget_dict["id"],
@@ -651,5 +668,5 @@ def create_widget_from_dict(widget_dict: Dict[str, Any]) -> WidgetDefinition:
         component_tree=components,
         data_schema=widget_dict.get("data_schema", {}),
         example_data=widget_dict.get("example_data"),
-        tags=widget_dict.get("tags", [])
+        tags=widget_dict.get("tags", []),
     )

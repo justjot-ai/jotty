@@ -4,22 +4,25 @@ Unified LLM Interface
 Single interface for all LLM providers with automatic fallback support.
 Includes cost tracking integration.
 """
-import os
+
 import logging
+import os
 import time
-from typing import Dict, Any, Optional, List
+from typing import Any, Dict, List, Optional
 
 from Jotty.core.infrastructure.foundation.config_defaults import (
-    LLM_MAX_OUTPUT_TOKENS, LLM_TIMEOUT_SECONDS, DEFAULT_MODEL_ALIAS,
+    DEFAULT_MODEL_ALIAS,
+    LLM_MAX_OUTPUT_TOKENS,
+    LLM_TIMEOUT_SECONDS,
 )
 
 from .providers import (
-    LLMResponse,
-    ClaudeCLIProvider,
-    AnthropicAPIProvider,
-    GeminiProvider,
-    OpenAIProvider,
     PROVIDERS,
+    AnthropicAPIProvider,
+    ClaudeCLIProvider,
+    GeminiProvider,
+    LLMResponse,
+    OpenAIProvider,
     get_provider,
 )
 
@@ -28,6 +31,7 @@ logger = logging.getLogger(__name__)
 # Optional cost tracking import (if available)
 try:
     from ..monitoring.cost_tracker import CostTracker
+
     COST_TRACKING_AVAILABLE = True
 except ImportError:
     COST_TRACKING_AVAILABLE = False
@@ -55,7 +59,14 @@ class UnifiedLLM:
         response = llm.generate("What is Python?", fallback=True)
     """
 
-    def __init__(self, default_provider: str = 'claude-cli', default_model: str = DEFAULT_MODEL_ALIAS, fallback_order: Optional[List[str]] = None, timeout: int = LLM_TIMEOUT_SECONDS, cost_tracker: Optional['CostTracker'] = None) -> None:
+    def __init__(
+        self,
+        default_provider: str = "claude-cli",
+        default_model: str = DEFAULT_MODEL_ALIAS,
+        fallback_order: Optional[List[str]] = None,
+        timeout: int = LLM_TIMEOUT_SECONDS,
+        cost_tracker: Optional["CostTracker"] = None,
+    ) -> None:
         """
         Initialize UnifiedLLM.
 
@@ -72,7 +83,16 @@ class UnifiedLLM:
         self.timeout = timeout
         self.cost_tracker = cost_tracker
 
-    def generate(self, prompt: str, provider: Optional[str] = None, model: Optional[str] = None, timeout: Optional[int] = None, max_tokens: int = LLM_MAX_OUTPUT_TOKENS, fallback: bool = False, **kwargs: Any) -> LLMResponse:
+    def generate(
+        self,
+        prompt: str,
+        provider: Optional[str] = None,
+        model: Optional[str] = None,
+        timeout: Optional[int] = None,
+        max_tokens: int = LLM_MAX_OUTPUT_TOKENS,
+        fallback: bool = False,
+        **kwargs: Any,
+    ) -> LLMResponse:
         """
         Generate text using LLM.
 
@@ -94,7 +114,7 @@ class UnifiedLLM:
 
         # Track start time for duration calculation
         start_time = time.time()
-        
+
         # Try primary provider
         response = self._call_provider(
             provider=provider,
@@ -102,9 +122,9 @@ class UnifiedLLM:
             model=model,
             timeout=timeout,
             max_tokens=max_tokens,
-            **kwargs
+            **kwargs,
         )
-        
+
         # Track cost if cost tracker is available
         duration = time.time() - start_time
         self._track_cost(response, provider, model, duration)
@@ -129,9 +149,9 @@ class UnifiedLLM:
                 model=model,
                 timeout=timeout,
                 max_tokens=max_tokens,
-                **kwargs
+                **kwargs,
             )
-            
+
             # Track cost for fallback call
             fallback_duration = time.time() - fallback_start_time
             self._track_cost(response, fallback_provider, model, fallback_duration)
@@ -145,13 +165,13 @@ class UnifiedLLM:
             success=False,
             error=f"All providers failed. Last error: {response.error}",
             provider=provider,
-            model=model
+            model=model,
         )
-    
+
     def _track_cost(self, response: LLMResponse, provider: str, model: str, duration: float) -> Any:
         """
         Track cost for an LLM call.
-        
+
         Args:
             response: LLMResponse from provider
             provider: Provider name
@@ -160,15 +180,15 @@ class UnifiedLLM:
         """
         if not self.cost_tracker or not COST_TRACKING_AVAILABLE:
             return
-        
+
         # Extract token counts from response
         input_tokens = 0
         output_tokens = 0
-        
+
         if response.usage:
             input_tokens = response.usage.get("input_tokens", 0)
             output_tokens = response.usage.get("output_tokens", 0)
-        
+
         # Record the call
         self.cost_tracker.record_llm_call(
             provider=provider,
@@ -177,10 +197,12 @@ class UnifiedLLM:
             output_tokens=output_tokens,
             success=response.success,
             error=response.error if not response.success else None,
-            duration=duration
+            duration=duration,
         )
 
-    def _call_provider(self, provider: str, prompt: str, model: str, timeout: int, max_tokens: int, **kwargs: Any) -> LLMResponse:
+    def _call_provider(
+        self, provider: str, prompt: str, model: str, timeout: int, max_tokens: int, **kwargs: Any
+    ) -> LLMResponse:
         """Call a specific provider."""
         provider_class = get_provider(provider)
 
@@ -189,15 +211,11 @@ class UnifiedLLM:
                 success=False,
                 error=f"Unknown provider: {provider}. Available: {list(PROVIDERS.keys())}",
                 provider=provider,
-                model=model
+                model=model,
             )
 
         return provider_class.generate(
-            prompt=prompt,
-            model=model,
-            timeout=timeout,
-            max_tokens=max_tokens,
-            **kwargs
+            prompt=prompt, model=model, timeout=timeout, max_tokens=max_tokens, **kwargs
         )
 
     def is_available(self, provider: str) -> bool:
@@ -205,6 +223,7 @@ class UnifiedLLM:
         if provider == "claude-cli":
             # Check if claude CLI exists
             import shutil
+
             return shutil.which("claude") is not None
 
         elif provider == "anthropic":
@@ -235,7 +254,14 @@ def get_llm() -> UnifiedLLM:
     return _default_llm
 
 
-def generate(prompt: str, provider: str = 'claude-cli', model: str = DEFAULT_MODEL_ALIAS, timeout: int = LLM_TIMEOUT_SECONDS, fallback: bool = False, **kwargs: Any) -> LLMResponse:
+def generate(
+    prompt: str,
+    provider: str = "claude-cli",
+    model: str = DEFAULT_MODEL_ALIAS,
+    timeout: int = LLM_TIMEOUT_SECONDS,
+    fallback: bool = False,
+    **kwargs: Any,
+) -> LLMResponse:
     """
     Convenience function for quick LLM calls.
 
@@ -247,16 +273,18 @@ def generate(prompt: str, provider: str = 'claude-cli', model: str = DEFAULT_MOD
             print(response.text)
     """
     return get_llm().generate(
-        prompt=prompt,
-        provider=provider,
-        model=model,
-        timeout=timeout,
-        fallback=fallback,
-        **kwargs
+        prompt=prompt, provider=provider, model=model, timeout=timeout, fallback=fallback, **kwargs
     )
 
 
-def generate_text(prompt: str, provider: str = 'claude-cli', model: str = DEFAULT_MODEL_ALIAS, timeout: int = LLM_TIMEOUT_SECONDS, fallback: bool = False, **kwargs: Any) -> str:
+def generate_text(
+    prompt: str,
+    provider: str = "claude-cli",
+    model: str = DEFAULT_MODEL_ALIAS,
+    timeout: int = LLM_TIMEOUT_SECONDS,
+    fallback: bool = False,
+    **kwargs: Any,
+) -> str:
     """
     Convenience function that returns just the text or raises an error.
 
@@ -266,12 +294,7 @@ def generate_text(prompt: str, provider: str = 'claude-cli', model: str = DEFAUL
         text = generate_text("What is Python?")
     """
     response = generate(
-        prompt=prompt,
-        provider=provider,
-        model=model,
-        timeout=timeout,
-        fallback=fallback,
-        **kwargs
+        prompt=prompt, provider=provider, model=model, timeout=timeout, fallback=fallback, **kwargs
     )
 
     if not response.success:

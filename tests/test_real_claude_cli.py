@@ -12,15 +12,15 @@ Problem: Generate a complete technical specification document with:
 """
 
 import asyncio
-import dspy
 import logging
 import os
 from pathlib import Path
+
+import dspy
 import pytest
 
 pytestmark = pytest.mark.skipif(
-    not os.getenv('ANTHROPIC_API_KEY'),
-    reason="Requires ANTHROPIC_API_KEY for real LLM calls"
+    not os.getenv("ANTHROPIC_API_KEY"), reason="Requires ANTHROPIC_API_KEY for real LLM calls"
 )
 
 # Setup logging
@@ -50,7 +50,7 @@ async def test_real_claude_cli():
         from core.integration.direct_claude_cli_lm import DirectClaudeCLI
 
         # Create Claude CLI provider (direct binary call, no HTTP API)
-        lm = DirectClaudeCLI(model='sonnet')
+        lm = DirectClaudeCLI(model="sonnet")
 
         # Configure DSPy
         dspy.configure(lm=lm)
@@ -75,8 +75,8 @@ async def test_real_claude_cli():
     try:
         from core.experts.math_latex_expert import MathLaTeXExpertAgent
         from core.experts.mermaid_expert import MermaidExpertAgent
-        from core.experts.plantuml_expert import PlantUMLExpertAgent
         from core.experts.pipeline_expert import PipelineExpertAgent
+        from core.experts.plantuml_expert import PlantUMLExpertAgent
 
         # All experts inherit from BaseExpert (our DRY refactoring!)
         math_expert = MathLaTeXExpertAgent()
@@ -104,14 +104,14 @@ async def test_real_claude_cli():
             "Token bucket algorithm with formula",
             "Request flow sequence diagram",
             "RateLimiter class model",
-            "Deployment pipeline"
-        ]
+            "Deployment pipeline",
+        ],
     }
 
     print(f"Problem: {problem['title']}")
     print(f"Description: {problem['description']}")
     print("\nRequirements:")
-    for i, req in enumerate(problem['requirements'], 1):
+    for i, req in enumerate(problem["requirements"], 1):
         print(f"  {i}. {req}")
 
     # Step 4: Execute Multi-Agent Tasks
@@ -126,6 +126,7 @@ async def test_real_claude_cli():
         # Create a simple DSPy agent to generate formula
         class FormulaGenerator(dspy.Signature):
             """Generate LaTeX formula for token bucket algorithm."""
+
             description: str = dspy.InputField()
             formula: str = dspy.OutputField(desc="LaTeX formula with $$")
 
@@ -135,20 +136,22 @@ async def test_real_claude_cli():
         )
 
         formula = result.formula
-        results['latex'] = formula
+        results["latex"] = formula
 
         print(f"✅ Generated Formula:")
         print(f"   {formula}")
 
     except Exception as e:
         print(f"❌ Error: {e}")
-        results['latex'] = None
+        results["latex"] = None
 
     # Task 2: Mermaid - API Request Flow
     print("\n🔀 Task 2: Generate API Flow Diagram (Mermaid)")
     try:
+
         class DiagramGenerator(dspy.Signature):
             """Generate Mermaid sequence diagram."""
+
             description: str = dspy.InputField()
             diagram: str = dspy.OutputField(desc="Mermaid sequence diagram")
 
@@ -158,20 +161,22 @@ async def test_real_claude_cli():
         )
 
         diagram = result.diagram
-        results['mermaid'] = diagram
+        results["mermaid"] = diagram
 
         print(f"✅ Generated Diagram:")
         print(f"   {diagram[:100]}...")
 
     except Exception as e:
         print(f"❌ Error: {e}")
-        results['mermaid'] = None
+        results["mermaid"] = None
 
     # Task 3: PlantUML - Class Model
     print("\n🏗️  Task 3: Generate Class Model (PlantUML)")
     try:
+
         class ClassDiagramGenerator(dspy.Signature):
             """Generate PlantUML class diagram."""
+
             description: str = dspy.InputField()
             diagram: str = dspy.OutputField(desc="PlantUML class diagram with @startuml/@enduml")
 
@@ -181,20 +186,22 @@ async def test_real_claude_cli():
         )
 
         class_diagram = result.diagram
-        results['plantuml'] = class_diagram
+        results["plantuml"] = class_diagram
 
         print(f"✅ Generated Class Diagram:")
         print(f"   {class_diagram[:100]}...")
 
     except Exception as e:
         print(f"❌ Error: {e}")
-        results['plantuml'] = None
+        results["plantuml"] = None
 
     # Task 4: Pipeline - CI/CD
     print("\n🚀 Task 4: Generate Deployment Pipeline (Mermaid)")
     try:
+
         class PipelineGenerator(dspy.Signature):
             """Generate CI/CD pipeline diagram."""
+
             description: str = dspy.InputField()
             diagram: str = dspy.OutputField(desc="Mermaid flowchart")
 
@@ -204,14 +211,14 @@ async def test_real_claude_cli():
         )
 
         pipeline = result.diagram
-        results['pipeline'] = pipeline
+        results["pipeline"] = pipeline
 
         print(f"✅ Generated Pipeline:")
         print(f"   {pipeline[:100]}...")
 
     except Exception as e:
         print(f"❌ Error: {e}")
-        results['pipeline'] = None
+        results["pipeline"] = None
 
     # Step 5: Generate Final Document
     print("\n[STEP 5] Generating Technical Specification Document")

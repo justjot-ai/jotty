@@ -1,7 +1,9 @@
 """Email Template Builder Skill - create HTML emails with inline CSS."""
-from typing import Dict, Any
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+
+from typing import Any, Dict
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("email-template-builder")
 
@@ -70,11 +72,13 @@ def build_email_template_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return tool_error(f"Unknown template: {template_name}. Use: {list(TEMPLATES.keys())}")
 
     html = TEMPLATES[template_name].format(
-        subject=subject, body=body, brand_color=brand_color,
-        footer=footer, preheader=preheader,
+        subject=subject,
+        body=body,
+        brand_color=brand_color,
+        footer=footer,
+        preheader=preheader,
     )
-    return tool_response(html=html, subject=subject, template=template_name,
-                         char_count=len(html))
+    return tool_response(html=html, subject=subject, template=template_name, char_count=len(html))
 
 
 __all__ = ["build_email_template_tool"]

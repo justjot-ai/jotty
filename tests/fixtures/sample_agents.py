@@ -3,14 +3,15 @@ Sample agents and mock implementations for testing JOTTY.
 
 Provides reusable mock agents and DSPy modules for test scenarios.
 """
-from unittest.mock import Mock, AsyncMock, MagicMock
-from typing import Any, Dict, List
-from dataclasses import dataclass
 
+from dataclasses import dataclass
+from typing import Any, Dict, List
+from unittest.mock import AsyncMock, MagicMock, Mock
 
 # =============================================================================
 # Simple Mock Agents
 # =============================================================================
+
 
 class SimpleMockAgent:
     """A simple mock agent that returns predefined outputs."""
@@ -92,9 +93,11 @@ class ConditionalMockAgent:
 # DSPy-like Mock Agents
 # =============================================================================
 
+
 @dataclass
 class MockPrediction:
     """Mock DSPy Prediction object."""
+
     answer: str
     reasoning: str = ""
     confidence: float = 1.0
@@ -120,9 +123,7 @@ class MockChainOfThoughtAgent:
         self.call_history.append(kwargs)
 
         return MockPrediction(
-            answer=self.answer,
-            reasoning=self.reasoning,
-            metadata={"call_count": self.call_count}
+            answer=self.answer, reasoning=self.reasoning, metadata={"call_count": self.call_count}
         )
 
     def __call__(self, **kwargs) -> MockPrediction:
@@ -145,17 +146,13 @@ class MockReActAgent:
 
         # Simulate tool calls
         for i in range(self.steps):
-            tool_call = {
-                "tool": f"tool_{i}",
-                "input": kwargs,
-                "output": f"tool_{i}_output"
-            }
+            tool_call = {"tool": f"tool_{i}", "input": kwargs, "output": f"tool_{i}_output"}
             self.tool_calls.append(tool_call)
 
         return MockPrediction(
             answer=self.final_answer,
             reasoning=f"Executed {self.steps} steps",
-            metadata={"tool_calls": len(self.tool_calls)}
+            metadata={"tool_calls": len(self.tool_calls)},
         )
 
     def __call__(self, **kwargs) -> MockPrediction:
@@ -166,6 +163,7 @@ class MockReActAgent:
 # =============================================================================
 # Stateful Mock Agents
 # =============================================================================
+
 
 class StatefulMockAgent:
     """A mock agent that maintains state across calls."""
@@ -184,10 +182,7 @@ class StatefulMockAgent:
         for key, value in kwargs.items():
             self.state[key] = value
 
-        return MockPrediction(
-            answer=f"State: {self.state}",
-            metadata={"state": self.state.copy()}
-        )
+        return MockPrediction(answer=f"State: {self.state}", metadata={"state": self.state.copy()})
 
     def __call__(self, **kwargs) -> MockPrediction:
         """Call method."""
@@ -203,6 +198,7 @@ class StatefulMockAgent:
 # =============================================================================
 # Agent Factories
 # =============================================================================
+
 
 def create_mock_agent(agent_type: str = "simple", **kwargs) -> Any:
     """
@@ -252,15 +248,13 @@ def create_agent_pipeline(num_agents: int = 3, agent_type: str = "simple") -> Li
     --------
     List of mock agents
     """
-    return [
-        create_mock_agent(agent_type, output=f"Agent {i} output")
-        for i in range(num_agents)
-    ]
+    return [create_mock_agent(agent_type, output=f"Agent {i} output") for i in range(num_agents)]
 
 
 # =============================================================================
 # Mock Tool Functions
 # =============================================================================
+
 
 class MockTool:
     """A mock tool for testing tool-using agents."""
@@ -280,22 +274,20 @@ class MockTool:
 
 def create_mock_tools(num_tools: int = 3) -> List[MockTool]:
     """Create a list of mock tools."""
-    return [
-        MockTool(name=f"tool_{i}", return_value=f"tool_{i}_result")
-        for i in range(num_tools)
-    ]
+    return [MockTool(name=f"tool_{i}", return_value=f"tool_{i}_result") for i in range(num_tools)]
 
 
 # =============================================================================
 # Utility Functions
 # =============================================================================
 
+
 def create_agent_config_for_testing(
     name: str = "TestAgent",
     agent_type: str = "simple",
     enable_validation: bool = False,
     dependencies: List[str] = None,
-    **kwargs
+    **kwargs,
 ):
     """
     Create an AgentConfig for testing.
@@ -332,5 +324,5 @@ def create_agent_config_for_testing(
         enable_architect=enable_validation,
         enable_auditor=enable_validation,
         dependencies=dependencies or [],
-        **{k: v for k, v in kwargs.items() if k not in ["architect_prompts", "auditor_prompts"]}
+        **{k: v for k, v in kwargs.items() if k not in ["architect_prompts", "auditor_prompts"]},
     )

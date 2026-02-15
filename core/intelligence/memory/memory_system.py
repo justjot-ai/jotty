@@ -1,4 +1,5 @@
 from typing import Any
+
 """
 MemorySystem - Unified Memory Facade
 =====================================
@@ -41,23 +42,25 @@ Usage:
 
 import logging
 import time
-from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
 
 class MemoryBackend(Enum):
     """Available memory backends."""
-    FULL = "full"          # SwarmMemory + BrainStateMachine
-    SIMPLE = "simple"      # SimpleBrain (balanced preset)
+
+    FULL = "full"  # SwarmMemory + BrainStateMachine
+    SIMPLE = "simple"  # SimpleBrain (balanced preset)
     FALLBACK = "fallback"  # FallbackMemory (dict-based, no deps)
 
 
 @dataclass
 class MemoryConfig:
     """Configuration for MemorySystem."""
+
     backend: MemoryBackend = MemoryBackend.FULL
     agent_name: str = "default"
     auto_consolidate: bool = True
@@ -71,6 +74,7 @@ class MemoryConfig:
 @dataclass
 class MemoryResult:
     """Result from a memory retrieval."""
+
     content: str
     level: str
     relevance: float = 0.0
@@ -139,8 +143,13 @@ class MemorySystem:
 
     def _init_full(self) -> Any:
         """Initialize full SwarmMemory backend."""
-        from Jotty.core.infrastructure.foundation.data_structures import SwarmLearningConfig, MemoryLevel
-        from Jotty.core.infrastructure.foundation.configs.memory import MemoryConfig as FocusedMemoryConfig
+        from Jotty.core.infrastructure.foundation.configs.memory import (
+            MemoryConfig as FocusedMemoryConfig,
+        )
+        from Jotty.core.infrastructure.foundation.data_structures import (
+            MemoryLevel,
+            SwarmLearningConfig,
+        )
 
         jc = self._jotty_config
         if isinstance(jc, FocusedMemoryConfig):
@@ -149,13 +158,14 @@ class MemorySystem:
             jc = SwarmConfig()
 
         from .cortex import SwarmMemory
+
         backend = SwarmMemory(
             agent_name=self.config.agent_name,
             config=jc,
         )
 
         # Verify the backend is functional (memories dict was initialized)
-        if not hasattr(backend, 'memories') or MemoryLevel.EPISODIC not in backend.memories:
+        if not hasattr(backend, "memories") or MemoryLevel.EPISODIC not in backend.memories:
             raise RuntimeError("SwarmMemory failed to initialize memories dict")
 
         self._backend = backend
@@ -163,7 +173,8 @@ class MemorySystem:
 
         # Initialize brain state machine for consolidation
         try:
-            from .consolidation_engine import BrainStateMachine, BrainModeConfig
+            from .consolidation_engine import BrainModeConfig, BrainStateMachine
+
             brain_config = BrainModeConfig(
                 sleep_interval=self.config.consolidation_interval,
             )
@@ -171,14 +182,12 @@ class MemorySystem:
         except Exception as e:
             logger.debug(f"BrainStateMachine unavailable: {e}")
 
-        logger.info(
-            f"MemorySystem initialized: backend=FULL, "
-            f"agent={self.config.agent_name}"
-        )
+        logger.info(f"MemorySystem initialized: backend=FULL, " f"agent={self.config.agent_name}")
 
     def _init_fallback(self) -> Any:
         """Initialize fallback memory backend."""
         from .fallback_memory import SimpleFallbackMemory
+
         self._backend = SimpleFallbackMemory(
             max_entries=self.config.max_memories_per_level,
         )
@@ -225,11 +234,11 @@ class MemorySystem:
         from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
 
         level_map = {
-            'episodic': MemoryLevel.EPISODIC,
-            'semantic': MemoryLevel.SEMANTIC,
-            'procedural': MemoryLevel.PROCEDURAL,
-            'meta': MemoryLevel.META,
-            'causal': MemoryLevel.CAUSAL,
+            "episodic": MemoryLevel.EPISODIC,
+            "semantic": MemoryLevel.SEMANTIC,
+            "procedural": MemoryLevel.PROCEDURAL,
+            "meta": MemoryLevel.META,
+            "causal": MemoryLevel.CAUSAL,
         }
         mem_level = level_map.get(level, MemoryLevel.EPISODIC)
 
@@ -241,8 +250,10 @@ class MemorySystem:
         )
 
         # Auto-consolidate check (store_count already incremented in store())
-        if (self.config.auto_consolidate
-                and self._store_count % (self.config.consolidation_interval * 5) == 0):
+        if (
+            self.config.auto_consolidate
+            and self._store_count % (self.config.consolidation_interval * 5) == 0
+        ):
             self.consolidate()
 
         return memory_id or f"mem_{self._store_count}"
@@ -252,12 +263,12 @@ class MemorySystem:
         from .fallback_memory import MemoryType as FallbackMemoryType
 
         type_map = {
-            'episodic': FallbackMemoryType.EPISODIC,
-            'semantic': FallbackMemoryType.SEMANTIC,
-            'procedural': FallbackMemoryType.PROCEDURAL,
+            "episodic": FallbackMemoryType.EPISODIC,
+            "semantic": FallbackMemoryType.SEMANTIC,
+            "procedural": FallbackMemoryType.PROCEDURAL,
             # Meta and Causal don't exist in fallback, map to semantic
-            'meta': FallbackMemoryType.SEMANTIC,
-            'causal': FallbackMemoryType.SEMANTIC,
+            "meta": FallbackMemoryType.SEMANTIC,
+            "causal": FallbackMemoryType.SEMANTIC,
         }
         mem_type = type_map.get(level, FallbackMemoryType.EPISODIC)
 
@@ -306,11 +317,15 @@ class MemorySystem:
             )
             return [
                 MemoryResult(
-                    content=getattr(r, 'content', str(r)),
-                    level=getattr(r, 'level', 'unknown') if not hasattr(r, 'level') or not hasattr(r.level, 'value') else r.level.value,
-                    relevance=getattr(r, 'relevance', 0.0),
-                    timestamp=getattr(r, 'timestamp', 0.0),
-                    metadata=getattr(r, 'metadata', {}),
+                    content=getattr(r, "content", str(r)),
+                    level=(
+                        getattr(r, "level", "unknown")
+                        if not hasattr(r, "level") or not hasattr(r.level, "value")
+                        else r.level.value
+                    ),
+                    relevance=getattr(r, "relevance", 0.0),
+                    timestamp=getattr(r, "timestamp", 0.0),
+                    metadata=getattr(r, "metadata", {}),
                 )
                 for r in (results if isinstance(results, list) else [])
             ]
@@ -324,9 +339,9 @@ class MemorySystem:
             results = self._backend.retrieve(query=query, top_k=top_k)
             return [
                 MemoryResult(
-                    content=r.get('content', str(r)) if isinstance(r, dict) else str(r),
-                    level=r.get('memory_type', 'episodic') if isinstance(r, dict) else 'episodic',
-                    relevance=r.get('relevance', 0.0) if isinstance(r, dict) else 0.0,
+                    content=r.get("content", str(r)) if isinstance(r, dict) else str(r),
+                    level=r.get("memory_type", "episodic") if isinstance(r, dict) else "episodic",
+                    relevance=r.get("relevance", 0.0) if isinstance(r, dict) else 0.0,
                 )
                 for r in (results if isinstance(results, list) else [])
             ]
@@ -368,11 +383,11 @@ class MemorySystem:
                 levels = None
                 if level:
                     level_map = {
-                        'episodic': MemoryLevel.EPISODIC,
-                        'semantic': MemoryLevel.SEMANTIC,
-                        'procedural': MemoryLevel.PROCEDURAL,
-                        'meta': MemoryLevel.META,
-                        'causal': MemoryLevel.CAUSAL,
+                        "episodic": MemoryLevel.EPISODIC,
+                        "semantic": MemoryLevel.SEMANTIC,
+                        "procedural": MemoryLevel.PROCEDURAL,
+                        "meta": MemoryLevel.META,
+                        "causal": MemoryLevel.CAUSAL,
                     }
                     mem_level = level_map.get(level)
                     if mem_level:
@@ -388,16 +403,22 @@ class MemorySystem:
 
                 return [
                     MemoryResult(
-                        content=getattr(r, 'content', str(r)),
-                        level=getattr(r, 'level', 'unknown') if not hasattr(r, 'level') or not hasattr(r.level, 'value') else r.level.value,
-                        relevance=getattr(r, 'relevance', 0.0),
-                        timestamp=getattr(r, 'timestamp', 0.0),
-                        metadata=getattr(r, 'metadata', {}),
+                        content=getattr(r, "content", str(r)),
+                        level=(
+                            getattr(r, "level", "unknown")
+                            if not hasattr(r, "level") or not hasattr(r.level, "value")
+                            else r.level.value
+                        ),
+                        relevance=getattr(r, "relevance", 0.0),
+                        timestamp=getattr(r, "timestamp", 0.0),
+                        metadata=getattr(r, "metadata", {}),
                     )
                     for r in (results if isinstance(results, list) else [])
                 ]
             except Exception as e:
-                logger.warning(f"Latency-aware retrieval failed: {e}, falling back to standard retrieval")
+                logger.warning(
+                    f"Latency-aware retrieval failed: {e}, falling back to standard retrieval"
+                )
                 # Fall back to standard retrieval
                 return self.retrieve(query, goal, top_k, level)
         else:
@@ -423,6 +444,7 @@ class MemorySystem:
             try:
                 # SwarmMemory.consolidate() is async
                 import asyncio
+
                 if asyncio.iscoroutinefunction(self._backend.consolidate):
                     result = await self._backend.consolidate()
                 else:
@@ -430,25 +452,25 @@ class MemorySystem:
                 elapsed = time.time() - start
                 logger.info(f"Memory consolidation complete ({elapsed:.1f}s)")
                 return {
-                    'success': True,
-                    'duration_s': elapsed,
-                    'result': result,
-                    'consolidation_count': self._consolidation_count,
+                    "success": True,
+                    "duration_s": elapsed,
+                    "result": result,
+                    "consolidation_count": self._consolidation_count,
                 }
             except Exception as e:
                 logger.warning(f"Consolidation failed: {e}")
-                return {'success': False, 'error': str(e)}
+                return {"success": False, "error": str(e)}
         else:
             # Fallback: LRU eviction (sync)
             try:
                 self._backend.prune()
                 return {
-                    'success': True,
-                    'backend': 'fallback',
-                    'action': 'prune',
+                    "success": True,
+                    "backend": "fallback",
+                    "action": "prune",
                 }
             except Exception as e:
-                return {'success': False, 'error': str(e)}
+                return {"success": False, "error": str(e)}
 
     async def record_episode(self, goal: str, result: Any, reward: float = 0.0) -> Any:
         """
@@ -469,17 +491,17 @@ class MemorySystem:
             content=content,
             level="episodic",
             goal=goal,
-            metadata={'reward': reward, 'episode': self._episode_count},
+            metadata={"reward": reward, "episode": self._episode_count},
             reward=reward,
         )
 
         # Auto-consolidate based on episode count
-        if (self.config.auto_consolidate
-                and self._episode_count % self.config.consolidation_interval == 0
-                and self._episode_count > 0):
-            logger.info(
-                f"Auto-consolidation triggered (episode {self._episode_count})"
-            )
+        if (
+            self.config.auto_consolidate
+            and self._episode_count % self.config.consolidation_interval == 0
+            and self._episode_count > 0
+        ):
+            logger.info(f"Auto-consolidation triggered (episode {self._episode_count})")
             await self.consolidate()
 
     def status(self) -> Dict[str, Any]:
@@ -490,17 +512,17 @@ class MemorySystem:
             Dict with backend info, counts, and health.
         """
         result = {
-            'backend': self._backend_type.value if self._backend_type else 'none',
-            'agent_name': self.config.agent_name,
-            'uptime_s': round(time.time() - self._init_time, 1),
-            'operations': {
-                'stores': self._store_count,
-                'retrieves': self._retrieve_count,
-                'consolidations': self._consolidation_count,
-                'episodes': self._episode_count,
+            "backend": self._backend_type.value if self._backend_type else "none",
+            "agent_name": self.config.agent_name,
+            "uptime_s": round(time.time() - self._init_time, 1),
+            "operations": {
+                "stores": self._store_count,
+                "retrieves": self._retrieve_count,
+                "consolidations": self._consolidation_count,
+                "episodes": self._episode_count,
             },
-            'auto_consolidate': self.config.auto_consolidate,
-            'consolidation_interval': self.config.consolidation_interval,
+            "auto_consolidate": self.config.auto_consolidate,
+            "consolidation_interval": self.config.consolidation_interval,
         }
 
         # Backend-specific stats
@@ -508,14 +530,16 @@ class MemorySystem:
             try:
                 levels = {}
                 for level_name, level_store in self._backend.memories.items():
-                    levels[level_name.value if hasattr(level_name, 'value') else str(level_name)] = len(level_store)
-                result['levels'] = levels
-                result['total_memories'] = sum(levels.values())
+                    levels[
+                        level_name.value if hasattr(level_name, "value") else str(level_name)
+                    ] = len(level_store)
+                result["levels"] = levels
+                result["total_memories"] = sum(levels.values())
             except Exception:
                 pass
         elif self._backend_type == MemoryBackend.FALLBACK:
             try:
-                result['total_memories'] = len(self._backend)
+                result["total_memories"] = len(self._backend)
             except Exception:
                 pass
 
@@ -525,9 +549,10 @@ class MemorySystem:
         """Clear all memories (use with caution)."""
         if self._backend_type == MemoryBackend.FULL:
             from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
+
             for level in MemoryLevel:
                 self._backend.memories[level].clear()
-        elif hasattr(self._backend, 'clear'):
+        elif hasattr(self._backend, "clear"):
             self._backend.clear()
         self._episode_count = 0
         self._store_count = 0

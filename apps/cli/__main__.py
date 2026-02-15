@@ -1,4 +1,5 @@
 from typing import Any
+
 """
 Jotty CLI Entry Point
 =====================
@@ -11,22 +12,25 @@ Usage:
 
 # CRITICAL: Suppress HuggingFace/BERT warnings BEFORE any other imports
 import os
-os.environ.setdefault('HF_HUB_DISABLE_PROGRESS_BARS', '1')
-os.environ.setdefault('TOKENIZERS_PARALLELISM', 'false')
-os.environ.setdefault('TF_CPP_MIN_LOG_LEVEL', '3')
+
+os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
+os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
+os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "3")
 
 import warnings
-warnings.filterwarnings('ignore', message='.*unauthenticated.*')
-warnings.filterwarnings('ignore', message='.*huggingface.*')
-warnings.filterwarnings('ignore', category=FutureWarning)
+
+warnings.filterwarnings("ignore", message=".*unauthenticated.*")
+warnings.filterwarnings("ignore", message=".*huggingface.*")
+warnings.filterwarnings("ignore", category=FutureWarning)
 
 import logging as _logging
-for _logger_name in ['safetensors', 'sentence_transformers', 'transformers', 'huggingface_hub']:
+
+for _logger_name in ["safetensors", "sentence_transformers", "transformers", "huggingface_hub"]:
     _logging.getLogger(_logger_name).setLevel(_logging.ERROR)
 
-import sys
-import asyncio
 import argparse
+import asyncio
+import sys
 from pathlib import Path
 
 
@@ -59,22 +63,21 @@ async def _list_commands(cli: Any, args: Any) -> Any:
 
     # Sort categories
     cat_order = ["ml", "research", "system", "general", "tools", "memory", "config"]
-    sorted_cats = sorted(categories.keys(), key=lambda x: cat_order.index(x) if x in cat_order else 99)
+    sorted_cats = sorted(
+        categories.keys(), key=lambda x: cat_order.index(x) if x in cat_order else 99
+    )
 
     for cat in sorted_cats:
         cmds = sorted(categories[cat], key=lambda x: x["name"])
         for cmd in cmds:
             aliases = ", ".join(cmd.get("aliases", []))
-            table.add_row(
-                f"/{cmd['name']}",
-                aliases,
-                cat,
-                cmd.get("description", "")[:45]
-            )
+            table.add_row(f"/{cmd['name']}", aliases, cat, cmd.get("description", "")[:45])
 
     console.print(table)
     console.print(f"\n[dim]Total: {len(commands)} commands[/dim]")
-    console.print("[dim]Use 'jotty' without args for interactive mode, then /help <command> for details[/dim]")
+    console.print(
+        "[dim]Use 'jotty' without args for interactive mode, then /help <command> for details[/dim]"
+    )
 
     return 0
 
@@ -112,6 +115,7 @@ async def _run_stock_ml(cli: Any, args: Any) -> Any:
     else:
         # No symbol provided, show help
         from rich.console import Console
+
         console = Console()
         console.print("[bold cyan]Stock ML - Machine Learning for Stock Prediction[/bold cyan]\n")
         console.print("[bold]Usage:[/bold]")
@@ -146,33 +150,22 @@ Slash Commands (interactive mode):
 
 For more info: https://github.com/yourusername/jotty
 """,
-        formatter_class=argparse.RawDescriptionHelpFormatter
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
-    parser.add_argument(
-        "-v", "--version",
-        action="store_true",
-        help="Show version and exit"
-    )
+    parser.add_argument("-v", "--version", action="store_true", help="Show version and exit")
 
     parser.add_argument(
-        "-c", "--config",
+        "-c",
+        "--config",
         type=str,
         default=None,
-        help="Path to config file (default: ~/.jotty/config.yaml)"
+        help="Path to config file (default: ~/.jotty/config.yaml)",
     )
 
-    parser.add_argument(
-        "--no-color",
-        action="store_true",
-        help="Disable colored output"
-    )
+    parser.add_argument("--no-color", action="store_true", help="Disable colored output")
 
-    parser.add_argument(
-        "--debug",
-        action="store_true",
-        help="Enable debug logging"
-    )
+    parser.add_argument("--debug", action="store_true", help="Enable debug logging")
 
     # Subcommands for single execution
     subparsers = parser.add_subparsers(dest="command", help="Commands")
@@ -191,10 +184,7 @@ For more info: https://github.com/yourusername/jotty
     # warmup command
     warmup_parser = subparsers.add_parser("warmup", help="Run DrZero warmup")
     warmup_parser.add_argument(
-        "--episodes", "-e",
-        type=int,
-        default=10,
-        help="Number of warmup episodes"
+        "--episodes", "-e", type=int, default=10, help="Number of warmup episodes"
     )
 
     # commands - list all slash commands
@@ -202,20 +192,32 @@ For more info: https://github.com/yourusername/jotty
     commands_parser.add_argument("--category", "-c", help="Filter by category")
 
     # stock-ml - direct access to stock ML pipeline
-    stockml_parser = subparsers.add_parser("stock-ml", help="Stock market ML prediction", aliases=["sml", "stockml"])
+    stockml_parser = subparsers.add_parser(
+        "stock-ml", help="Stock market ML prediction", aliases=["sml", "stockml"]
+    )
     stockml_parser.add_argument("symbol", nargs="?", help="Stock symbol (e.g., RELIANCE, TCS)")
-    stockml_parser.add_argument("--target", "-t", default="next_1d_up", help="Target type (next_Nd_up, return_Nd)")
-    stockml_parser.add_argument("--timeframe", "--tf", default="day", help="Timeframe (day, 15minute, etc.)")
+    stockml_parser.add_argument(
+        "--target", "-t", default="next_1d_up", help="Target type (next_Nd_up, return_Nd)"
+    )
+    stockml_parser.add_argument(
+        "--timeframe", "--tf", default="day", help="Timeframe (day, 15minute, etc.)"
+    )
     stockml_parser.add_argument("--years", "-y", type=int, default=5, help="Years of data")
     stockml_parser.add_argument("--sweep", action="store_true", help="Run multi-stock sweep")
     stockml_parser.add_argument("--stocks", help="Stock set for sweep (nifty50, nifty_bank, top10)")
     stockml_parser.add_argument("--compare", action="store_true", help="Compare all targets")
-    stockml_parser.add_argument("--leaderboard", "--lb", action="store_true", help="Show sweep leaderboard")
+    stockml_parser.add_argument(
+        "--leaderboard", "--lb", action="store_true", help="Show sweep leaderboard"
+    )
     stockml_parser.add_argument("--list", action="store_true", help="List available stocks")
     stockml_parser.add_argument("--sets", action="store_true", help="Show stock sets")
     stockml_parser.add_argument("--backtest", "--bt", action="store_true", help="Run backtesting")
-    stockml_parser.add_argument("--fundamentals", "--fund", action="store_true", help="Include fundamental features")
-    stockml_parser.add_argument("--wc", "--world-class", action="store_true", help="Run world-class comprehensive backtest")
+    stockml_parser.add_argument(
+        "--fundamentals", "--fund", action="store_true", help="Include fundamental features"
+    )
+    stockml_parser.add_argument(
+        "--wc", "--world-class", action="store_true", help="Run world-class comprehensive backtest"
+    )
 
     # ml - general ML command
     ml_parser = subparsers.add_parser("ml", help="Machine learning on any dataset")
@@ -237,8 +239,9 @@ For more info: https://github.com/yourusername/jotty
 
     # Handle version
     if args.version:
-        from . import __version__
         from .. import __version__ as jotty_version
+        from . import __version__
+
         print(f"Jotty CLI v{__version__}")
         print(f"Jotty SDK v{jotty_version}")
         return 0
@@ -246,17 +249,14 @@ For more info: https://github.com/yourusername/jotty
     # Configure logging
     if args.debug:
         import logging
+
         logging.basicConfig(level=logging.DEBUG)
 
     # Import JottyCLI (delayed to speed up help/version)
     from .app import JottyCLI
 
     # Create CLI instance
-    cli = JottyCLI(
-        config_path=args.config,
-        no_color=args.no_color,
-        debug=args.debug
-    )
+    cli = JottyCLI(config_path=args.config, no_color=args.no_color, debug=args.debug)
 
     # Handle subcommands (single execution mode)
     if args.command == "run":
@@ -317,6 +317,7 @@ For more info: https://github.com/yourusername/jotty
         print(f"Error: {e}")
         if args.debug:
             import traceback
+
             traceback.print_exc()
         return 1
 

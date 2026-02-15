@@ -23,16 +23,9 @@ Usage:
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, List, Optional
 
-from .base import (
-    SwarmTemplate,
-    AgentConfig,
-    StageConfig,
-    FeedbackConfig,
-    ModelTier,
-)
-
+from .base import AgentConfig, FeedbackConfig, ModelTier, StageConfig, SwarmTemplate
 
 # =============================================================================
 # PEDAGOGY CONSTANTS (used in prompts)
@@ -58,6 +51,7 @@ SCAFFOLD_RULES = """
 # SWARM SCIENCE TEMPLATE
 # =============================================================================
 
+
 class SwarmScience(SwarmTemplate):
     """
     World-class science teaching template.
@@ -68,7 +62,9 @@ class SwarmScience(SwarmTemplate):
 
     name = "SwarmScience"
     version = "1.0.0"
-    description = "World-class science teaching: building blocks to Olympiad-level, one concept at a time"
+    description = (
+        "World-class science teaching: building blocks to Olympiad-level, one concept at a time"
+    )
 
     supported_problem_types = [
         "science_teaching",
@@ -198,8 +194,8 @@ Output a structured summary (you can use bullets or short paragraphs):
 - Misconceptions to address: ...
 
 Keep it concise. This will guide the rest of the module.
-""" + STYLE_RULES,
-
+"""
+        + STYLE_RULES,
         "prerequisites": """You are writing the PREREQUISITES section of a learning module.
 
 Topic (main): {topic}
@@ -212,10 +208,12 @@ For each prerequisite:
 - End with one sentence: why this matters for understanding "{topic}".
 
 Rules:
-""" + STYLE_RULES + SCAFFOLD_RULES + """
+"""
+        + STYLE_RULES
+        + SCAFFOLD_RULES
+        + """
 Write the full Prerequisites section. Use clear headings for each prerequisite. Address {student_name} by name once at the start.
 """,
-
         "foundations": """You are writing the FOUNDATIONS section of a learning module.
 
 Topic: {topic}
@@ -229,10 +227,12 @@ Tasks:
 4. Keep to one main idea per paragraph. End the section with a one-sentence takeaway and a "so what."
 
 Rules:
-""" + STYLE_RULES + SCAFFOLD_RULES + """
+"""
+        + STYLE_RULES
+        + SCAFFOLD_RULES
+        + """
 Write the full Foundations section. Use headings. Address {student_name} occasionally. No filler.
 """,
-
         "core": """You are writing the CORE section of a learning module.
 
 Topic: {topic}
@@ -245,10 +245,12 @@ Tasks:
 3. Include one or two concrete examples. End with a clear takeaway and a "so what."
 
 Rules:
-""" + STYLE_RULES + SCAFFOLD_RULES + """
+"""
+        + STYLE_RULES
+        + SCAFFOLD_RULES
+        + """
 Write the full Core section. Use headings and short paragraphs. Define all technical terms. Address {student_name}.
 """,
-
         "depth": """You are writing the DEPTH section for a student aiming for competition level (e.g. International Science Olympiads).
 
 Topic: {topic}
@@ -261,10 +263,12 @@ Tasks:
 3. End with a short "Where this can go next" (what topics or competitions naturally follow).
 
 Rules:
-""" + STYLE_RULES + SCAFFOLD_RULES + """
+"""
+        + STYLE_RULES
+        + SCAFFOLD_RULES
+        + """
 Write the full Depth section. Encourage {student_name} by name. Stay rigorous but readable.
 """,
-
         "practice": """You are writing the PRACTICE section of a learning module.
 
 Topic: {topic}
@@ -278,7 +282,6 @@ Tasks:
 
 Rules: Clear wording. No trick questions; the goal is to reinforce understanding. Address {student_name}.
 """,
-
         "deliver": """You are assembling the final learning module.
 
 Topic: {topic}
@@ -313,7 +316,9 @@ Output the full markdown. It should be ready to save as a single file (e.g. scie
         if not isinstance(task, str):
             return "unknown"
         t = task.lower()
-        if any(w in t for w in ["science", "teach", "learn", "topic", "student", "olympiad", "module"]):
+        if any(
+            w in t for w in ["science", "teach", "learn", "topic", "student", "olympiad", "module"]
+        ):
             return "science_teaching"
         return "unknown"
 
@@ -324,7 +329,9 @@ Output the full markdown. It should be ready to save as a single file (e.g. scie
         student_name = kwargs.get("student_name", "").strip()
         if topic:
             return True
-        if isinstance(task, str) and ("topic" in task.lower() or "teach" in task.lower() or "science" in task.lower()):
+        if isinstance(task, str) and (
+            "topic" in task.lower() or "teach" in task.lower() or "science" in task.lower()
+        ):
             return True
         return bool(subject and topic and student_name)
 
@@ -392,8 +399,14 @@ Output the full markdown. It should be ready to save as a single file (e.g. scie
             "topic": topic,
             "student_name": student,
             "stages": [
-                {"name": "Prerequisites", "description": "Identify and explain building blocks, one concept at a time."},
-                {"name": "Foundations", "description": "Introduce topic from first principles; intuition before formalism."},
+                {
+                    "name": "Prerequisites",
+                    "description": "Identify and explain building blocks, one concept at a time.",
+                },
+                {
+                    "name": "Foundations",
+                    "description": "Introduce topic from first principles; intuition before formalism.",
+                },
                 {"name": "Core", "description": "Deep dive with clear structure and takeaways."},
                 {"name": "Depth", "description": "Extend to Olympiad/competition level."},
                 {"name": "Practice", "description": "3–5 tasks with full solutions."},

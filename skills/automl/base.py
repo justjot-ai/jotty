@@ -16,19 +16,21 @@ Every skill:
 3. Returns SkillResult with data and metrics
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Any, Optional, Union
-from enum import Enum
-from abc import ABC, abstractmethod
-import pandas as pd
-import numpy as np
 import logging
+from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, Dict, List, Optional, Union
+
+import numpy as np
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 
 
 class SkillCategory(Enum):
     """Categories of ML skills."""
+
     DATA_PROFILING = "data_profiling"
     DATA_CLEANING = "data_cleaning"
     FEATURE_ENGINEERING = "feature_engineering"
@@ -48,6 +50,7 @@ class SkillResult:
 
     All skills return this standardized result format.
     """
+
     skill_name: str
     category: SkillCategory
     success: bool
@@ -70,13 +73,13 @@ class SkillResult:
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
         return {
-            'skill_name': self.skill_name,
-            'category': self.category.value,
-            'success': self.success,
-            'metrics': self.metrics,
-            'metadata': self.metadata,
-            'error': self.error,
-            'execution_time_seconds': self.execution_time_seconds,
+            "skill_name": self.skill_name,
+            "category": self.category.value,
+            "success": self.success,
+            "metrics": self.metrics,
+            "metadata": self.metadata,
+            "error": self.error,
+            "execution_time_seconds": self.execution_time_seconds,
         }
 
 
@@ -130,7 +133,9 @@ class MLSkill(ABC):
         self._initialized = True
 
     @abstractmethod
-    async def execute(self, X: pd.DataFrame, y: Optional[pd.Series] = None, **context: Any) -> SkillResult:
+    async def execute(
+        self, X: pd.DataFrame, y: Optional[pd.Series] = None, **context: Any
+    ) -> SkillResult:
         """
         Execute the skill.
 
@@ -158,13 +163,15 @@ class MLSkill(ABC):
 
         return True
 
-    def _create_result(self,
-                       success: bool,
-                       data: Any = None,
-                       metrics: Dict = None,
-                       metadata: Dict = None,
-                       error: str = None,
-                       execution_time: float = 0.0) -> SkillResult:
+    def _create_result(
+        self,
+        success: bool,
+        data: Any = None,
+        metrics: Dict = None,
+        metadata: Dict = None,
+        error: str = None,
+        execution_time: float = 0.0,
+    ) -> SkillResult:
         """Helper to create standardized result."""
         return SkillResult(
             skill_name=self.name,
@@ -187,15 +194,15 @@ class MLSkill(ABC):
     def get_info(self) -> Dict[str, Any]:
         """Get skill information."""
         return {
-            'name': self.name,
-            'version': self.version,
-            'description': self.description,
-            'category': self.category.value,
-            'required_inputs': self.required_inputs,
-            'optional_inputs': self.optional_inputs,
-            'outputs': self.outputs,
-            'requires_llm': self.requires_llm,
-            'requires_gpu': self.requires_gpu,
+            "name": self.name,
+            "version": self.version,
+            "description": self.description,
+            "category": self.category.value,
+            "required_inputs": self.required_inputs,
+            "optional_inputs": self.optional_inputs,
+            "outputs": self.outputs,
+            "requires_llm": self.requires_llm,
+            "requires_gpu": self.requires_gpu,
         }
 
 
@@ -210,7 +217,9 @@ class SkillPipeline:
         self.skills = skills
         self._results: List[SkillResult] = []
 
-    async def execute(self, X: pd.DataFrame, y: pd.Series = None, **context: Any) -> List[SkillResult]:
+    async def execute(
+        self, X: pd.DataFrame, y: pd.Series = None, **context: Any
+    ) -> List[SkillResult]:
         """
         Execute all skills in sequence.
 
@@ -240,7 +249,7 @@ class SkillPipeline:
                     current_X = result.data
 
             # Update context with skill metadata
-            context[f'{skill.name}_result'] = result
+            context[f"{skill.name}_result"] = result
 
         return self._results
 
@@ -250,11 +259,7 @@ class SkillPipeline:
 
     def get_all_metrics(self) -> Dict[str, Dict]:
         """Aggregate metrics from all skills."""
-        return {
-            result.skill_name: result.metrics
-            for result in self._results
-            if result.success
-        }
+        return {result.skill_name: result.metrics for result in self._results if result.success}
 
 
 class SkillRegistry:
@@ -282,15 +287,11 @@ class SkillRegistry:
     @classmethod
     def list_skills(cls) -> List[Dict]:
         """List all registered skills."""
-        return [
-            skill_class({}).get_info()
-            for skill_class in cls._skills.values()
-        ]
+        return [skill_class({}).get_info() for skill_class in cls._skills.values()]
 
     @classmethod
     def get_by_category(cls, category: SkillCategory) -> List[str]:
         """Get skill names by category."""
         return [
-            name for name, skill_class in cls._skills.items()
-            if skill_class.category == category
+            name for name, skill_class in cls._skills.items() if skill_class.category == category
         ]

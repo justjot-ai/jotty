@@ -10,18 +10,24 @@ Multi-agent workflow:
 3. Transform to JustJot sections using registry-driven SectionTransformer
 4. Create idea on JustJot.ai via MCP client
 """
+
 import asyncio
 import inspect
-import logging
 import json
+import logging
 import os
-from typing import Dict, Any, List, Optional, Union
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper, async_tool_wrapper
+from Jotty.core.infrastructure.utils.tool_helpers import (
+    async_tool_wrapper,
+    tool_error,
+    tool_response,
+    tool_wrapper,
+)
 
 # Status emitter for progress updates
 status = SkillStatus("lida-to-justjot")
@@ -60,22 +66,23 @@ class LidaToJustJotSkill:
     def _get_viz_layer(self, df: pd.DataFrame):
         """Create VisualizationLayer from DataFrame."""
         from Jotty.core.capabilities.semantic.visualization import VisualizationLayer
+
         return VisualizationLayer.from_dataframe(df)
 
     def _get_idea_builder(self, viz_layer, config: Dict = None):
         """Create JustJotIdeaBuilder with config."""
         from Jotty.core.capabilities.semantic.visualization.justjot import (
             JustJotIdeaBuilder,
-            VisualizationIdeaConfig
+            VisualizationIdeaConfig,
         )
 
         builder_config = VisualizationIdeaConfig(
-            include_data=config.get('include_data', True) if config else True,
-            include_chart=config.get('include_chart', True) if config else True,
-            include_code=config.get('include_code', True) if config else True,
-            include_insights=config.get('include_insights', True) if config else True,
-            interactive=config.get('interactive', True) if config else True,
-            max_data_rows=config.get('max_data_rows', 100) if config else 100,
+            include_data=config.get("include_data", True) if config else True,
+            include_chart=config.get("include_chart", True) if config else True,
+            include_code=config.get("include_code", True) if config else True,
+            include_insights=config.get("include_insights", True) if config else True,
+            interactive=config.get("interactive", True) if config else True,
+            max_data_rows=config.get("max_data_rows", 100) if config else 100,
         )
 
         return JustJotIdeaBuilder(viz_layer, builder_config)
@@ -125,11 +132,11 @@ class LidaToJustJotSkill:
             # Step 2: Create idea builder with config
             logger.info("Step 2: Creating IdeaBuilder with config...")
             config = {
-                'include_data': include_data,
-                'include_chart': include_chart,
-                'include_code': include_code,
-                'include_insights': include_insights,
-                'interactive': interactive,
+                "include_data": include_data,
+                "include_chart": include_chart,
+                "include_code": include_code,
+                "include_insights": include_insights,
+                "interactive": interactive,
             }
             builder = self._get_idea_builder(viz_layer, config)
 
@@ -139,7 +146,7 @@ class LidaToJustJotSkill:
                 question=question,
                 title=title,
                 description=description,
-                tags=tags or ['lida', 'visualization', 'ai-generated'],
+                tags=tags or ["lida", "visualization", "ai-generated"],
             )
 
             # Step 4: Convert to MCP format
@@ -148,40 +155,34 @@ class LidaToJustJotSkill:
 
             # Add user assignment
             if user_id:
-                mcp_data['userId'] = user_id
+                mcp_data["userId"] = user_id
             if author:
-                mcp_data['author'] = author
+                mcp_data["author"] = author
 
             # Step 5: Create idea (MongoDB direct -> MCP fallback -> HTTP fallback)
             logger.info("Step 5: Creating idea in JustJot...")
             result = await self._create_idea_mcp(mcp_data)
 
-            if result.get('success'):
-                idea_id = result.get('id')
+            if result.get("success"):
+                idea_id = result.get("id")
                 logger.info(f"Successfully created idea: {idea_id}")
                 return {
-                    'success': True,
-                    'idea_id': idea_id,
-                    'title': idea.title,
-                    'description': idea.description,
-                    'sections': len(idea.sections),
-                    'section_types': [s.type for s in idea.sections],
-                    'tags': idea.tags,
-                    'method': result.get('method', 'mongodb'),
-                    'message': f'Visualization idea "{idea.title}" created with {len(idea.sections)} sections'
+                    "success": True,
+                    "idea_id": idea_id,
+                    "title": idea.title,
+                    "description": idea.description,
+                    "sections": len(idea.sections),
+                    "section_types": [s.type for s in idea.sections],
+                    "tags": idea.tags,
+                    "method": result.get("method", "mongodb"),
+                    "message": f'Visualization idea "{idea.title}" created with {len(idea.sections)} sections',
                 }
             else:
-                return {
-                    'success': False,
-                    'error': result.get('error', 'Failed to create idea')
-                }
+                return {"success": False, "error": result.get("error", "Failed to create idea")}
 
         except Exception as e:
             logger.error(f"LIDA-to-JustJot error: {e}", exc_info=True)
-            return {
-                'success': False,
-                'error': str(e)
-            }
+            return {"success": False, "error": str(e)}
 
     async def create_dashboard_idea(
         self,
@@ -212,49 +213,49 @@ class LidaToJustJotSkill:
             logger.info(f"Starting dashboard creation for: {user_request}")
 
             viz_layer = self._get_viz_layer(df)
-            builder = self._get_idea_builder(viz_layer, {
-                'include_data': True,
-                'include_insights': True,
-                'interactive': True,
-            })
+            builder = self._get_idea_builder(
+                viz_layer,
+                {
+                    "include_data": True,
+                    "include_insights": True,
+                    "interactive": True,
+                },
+            )
 
             idea = builder.create_dashboard_idea(
                 user_request=user_request,
                 num_charts=num_charts,
                 title=title,
-                tags=tags or ['dashboard', 'lida', 'ai-generated'],
+                tags=tags or ["dashboard", "lida", "ai-generated"],
             )
 
             mcp_data = builder.to_justjot_mcp_format(idea)
             if user_id:
-                mcp_data['userId'] = user_id
+                mcp_data["userId"] = user_id
             if author:
-                mcp_data['author'] = author
+                mcp_data["author"] = author
 
             result = await self._create_idea_mcp(mcp_data)
 
-            if result.get('success'):
+            if result.get("success"):
                 return {
-                    'success': True,
-                    'idea_id': result.get('id'),
-                    'title': idea.title,
-                    'sections': len(idea.sections),
-                    'charts': num_charts,
-                    'tags': idea.tags,
-                    'message': f'Dashboard "{idea.title}" created with {len(idea.sections)} sections'
+                    "success": True,
+                    "idea_id": result.get("id"),
+                    "title": idea.title,
+                    "sections": len(idea.sections),
+                    "charts": num_charts,
+                    "tags": idea.tags,
+                    "message": f'Dashboard "{idea.title}" created with {len(idea.sections)} sections',
                 }
             else:
                 return {
-                    'success': False,
-                    'error': result.get('error', 'Failed to create dashboard')
+                    "success": False,
+                    "error": result.get("error", "Failed to create dashboard"),
                 }
 
         except Exception as e:
             logger.error(f"Dashboard creation error: {e}", exc_info=True)
-            return {
-                'success': False,
-                'error': str(e)
-            }
+            return {"success": False, "error": str(e)}
 
     async def create_custom_idea(
         self,
@@ -304,9 +305,9 @@ class LidaToJustJotSkill:
             validated_sections = []
 
             for section_data in sections:
-                section_type = section_data.get('type', 'text')
-                section_title = section_data.get('title', 'Section')
-                content = section_data.get('content', '')
+                section_type = section_data.get("type", "text")
+                section_title = section_data.get("title", "Section")
+                content = section_data.get("content", "")
 
                 # Use transformer for proper content serialization
                 section = transformer.transform(section_type, content, section_title)
@@ -317,55 +318,49 @@ class LidaToJustJotSkill:
                 title=title,
                 description=description or f"Custom idea with {len(validated_sections)} sections",
                 sections=validated_sections,
-                tags=tags or ['custom', 'ai-generated'],
+                tags=tags or ["custom", "ai-generated"],
                 template_name="Blank",
-                status="Draft"
+                status="Draft",
             )
 
             # Convert to MCP format
             mcp_data = {
-                'title': idea.title,
-                'description': idea.description,
-                'tags': idea.tags,
-                'templateName': idea.template_name,
-                'status': idea.status,
-                'sections': [s.to_dict() for s in idea.sections]
+                "title": idea.title,
+                "description": idea.description,
+                "tags": idea.tags,
+                "templateName": idea.template_name,
+                "status": idea.status,
+                "sections": [s.to_dict() for s in idea.sections],
             }
 
             if user_id:
-                mcp_data['userId'] = user_id
+                mcp_data["userId"] = user_id
             if author:
-                mcp_data['author'] = author
+                mcp_data["author"] = author
 
             result = await self._create_idea_mcp(mcp_data)
 
-            if result.get('success'):
+            if result.get("success"):
                 return {
-                    'success': True,
-                    'idea_id': result.get('id'),
-                    'title': idea.title,
-                    'sections': len(idea.sections),
-                    'section_types': [s.type for s in idea.sections],
-                    'message': f'Custom idea "{idea.title}" created'
+                    "success": True,
+                    "idea_id": result.get("id"),
+                    "title": idea.title,
+                    "sections": len(idea.sections),
+                    "section_types": [s.type for s in idea.sections],
+                    "message": f'Custom idea "{idea.title}" created',
                 }
             else:
-                return {
-                    'success': False,
-                    'error': result.get('error', 'Failed to create idea')
-                }
+                return {"success": False, "error": result.get("error", "Failed to create idea")}
 
         except Exception as e:
             logger.error(f"Custom idea creation error: {e}", exc_info=True)
-            return {
-                'success': False,
-                'error': str(e)
-            }
+            return {"success": False, "error": str(e)}
 
     async def _create_idea_mcp(self, mcp_data: Dict[str, Any]) -> Dict[str, Any]:
         """Create idea via JustJot (direct MongoDB preferred)."""
         # Try direct MongoDB first (most reliable)
         result = await self._create_idea_mongodb(mcp_data)
-        if result.get('success') and result.get('id'):
+        if result.get("success") and result.get("id"):
             return result
 
         # Fallback to mcp-justjot HTTP API skill
@@ -375,76 +370,84 @@ class LidaToJustJotSkill:
     async def _create_idea_mongodb(self, mcp_data: Dict[str, Any]) -> Dict[str, Any]:
         """Create idea directly in MongoDB (bypasses MCP/HTTP for reliability)."""
         try:
-            from pymongo import MongoClient
             from datetime import datetime
+
             from bson import ObjectId
+            from pymongo import MongoClient
 
             # Try multiple MongoDB URIs in order of preference
-            mongodb_uri = os.environ.get('MONGODB_URI')
+            mongodb_uri = os.environ.get("MONGODB_URI")
 
             if not mongodb_uri:
                 # Try to load from JustJot.ai .env.local
-                justjot_env = Path('/var/www/sites/personal/stock_market/JustJot.ai/.env.local')
+                justjot_env = Path("/var/www/sites/personal/stock_market/JustJot.ai/.env.local")
                 if justjot_env.exists():
                     logger.info(f"Loading MongoDB URI from {justjot_env}")
                     with open(justjot_env) as f:
                         for line in f:
-                            if line.startswith('MONGODB_URI='):
-                                mongodb_uri = line.split('=', 1)[1].strip().strip('"').strip("'")
+                            if line.startswith("MONGODB_URI="):
+                                mongodb_uri = line.split("=", 1)[1].strip().strip('"').strip("'")
                                 logger.info(f"Found MONGODB_URI in .env.local")
                                 break
 
             # Always use JustJot production MongoDB for reliability
-            if not mongodb_uri or 'localhost' in mongodb_uri or '127.0.0.1' in mongodb_uri or 'planmyinvesting' in mongodb_uri:
+            if (
+                not mongodb_uri
+                or "localhost" in mongodb_uri
+                or "127.0.0.1" in mongodb_uri
+                or "planmyinvesting" in mongodb_uri
+            ):
                 # Use JustJot production MongoDB (same as MCP server uses)
-                mongodb_uri = 'mongodb://justjot:ksG07jjmU9lO5zNd61W3Su9J@150.230.143.6:27017/justjot?authSource=admin'
+                mongodb_uri = "mongodb://justjot:ksG07jjmU9lO5zNd61W3Su9J@150.230.143.6:27017/justjot?authSource=admin"
                 logger.info("Using JustJot production MongoDB")
 
             logger.info(f"Connecting to MongoDB at {mongodb_uri.split('@')[-1].split('/')[0]}...")
             client = MongoClient(mongodb_uri, serverSelectionTimeoutMS=5000)
 
             # Get database name from URI or default
-            db_name = 'justjot'  # Default to JustJot production DB
-            if '/' in mongodb_uri:
-                db_part = mongodb_uri.split('/')[-1].split('?')[0]
-                if db_part and db_part not in ['', 'admin']:
+            db_name = "justjot"  # Default to JustJot production DB
+            if "/" in mongodb_uri:
+                db_part = mongodb_uri.split("/")[-1].split("?")[0]
+                if db_part and db_part not in ["", "admin"]:
                     db_name = db_part
             logger.info(f"Using database: {db_name}")
 
             db = client[db_name]
-            ideas_collection = db['ideas']
+            ideas_collection = db["ideas"]
 
             # Prepare idea document
             now = datetime.utcnow()
             idea_doc = {
-                'title': mcp_data.get('title', 'Untitled'),
-                'description': mcp_data.get('description', ''),
-                'status': mcp_data.get('status', 'Draft'),
-                'templateName': mcp_data.get('templateName', 'Blank'),
-                'tags': mcp_data.get('tags', []),
-                'sections': [],
-                'createdAt': now,
-                'updatedAt': now,
+                "title": mcp_data.get("title", "Untitled"),
+                "description": mcp_data.get("description", ""),
+                "status": mcp_data.get("status", "Draft"),
+                "templateName": mcp_data.get("templateName", "Blank"),
+                "tags": mcp_data.get("tags", []),
+                "sections": [],
+                "createdAt": now,
+                "updatedAt": now,
             }
 
             # Add userId if provided
-            if mcp_data.get('userId'):
-                idea_doc['userId'] = mcp_data['userId']
+            if mcp_data.get("userId"):
+                idea_doc["userId"] = mcp_data["userId"]
 
             # Add author if provided
-            if mcp_data.get('author'):
-                idea_doc['author'] = mcp_data['author']
+            if mcp_data.get("author"):
+                idea_doc["author"] = mcp_data["author"]
 
             # Process sections
-            for idx, section in enumerate(mcp_data.get('sections', [])):
-                idea_doc['sections'].append({
-                    'index': idx,
-                    'title': section.get('title', f'Section {idx + 1}'),
-                    'type': section.get('type', 'text'),
-                    'content': section.get('content', ''),
-                    'notes': '',
-                    'isBookmarked': False,
-                })
+            for idx, section in enumerate(mcp_data.get("sections", [])):
+                idea_doc["sections"].append(
+                    {
+                        "index": idx,
+                        "title": section.get("title", f"Section {idx + 1}"),
+                        "type": section.get("type", "text"),
+                        "content": section.get("content", ""),
+                        "notes": "",
+                        "isBookmarked": False,
+                    }
+                )
 
             # Insert into MongoDB
             result = ideas_collection.insert_one(idea_doc)
@@ -454,27 +457,27 @@ class LidaToJustJotSkill:
             logger.info(f"Created idea directly in MongoDB: {idea_id}")
 
             return {
-                'success': True,
-                'id': idea_id,
-                'title': idea_doc['title'],
-                'sections': len(idea_doc['sections']),
-                'method': 'mongodb-direct',
+                "success": True,
+                "id": idea_id,
+                "title": idea_doc["title"],
+                "sections": len(idea_doc["sections"]),
+                "method": "mongodb-direct",
             }
 
         except Exception as e:
             logger.warning(f"Direct MongoDB failed: {e}")
-            return {'success': False, 'error': str(e)}
+            return {"success": False, "error": str(e)}
 
     async def _create_idea_http(self, mcp_data: Dict[str, Any]) -> Dict[str, Any]:
         """Create idea via mcp-justjot HTTP API skill."""
         try:
-            skill = self.registry.get_skill('mcp-justjot')
+            skill = self.registry.get_skill("mcp-justjot")
             if not skill:
-                return {'success': False, 'error': 'mcp-justjot skill not found'}
+                return {"success": False, "error": "mcp-justjot skill not found"}
 
-            create_tool = skill.tools.get('create_idea_tool')
+            create_tool = skill.tools.get("create_idea_tool")
             if not create_tool:
-                return {'success': False, 'error': 'create_idea_tool not found'}
+                return {"success": False, "error": "create_idea_tool not found"}
 
             logger.info("Using mcp-justjot skill...")
             if inspect.iscoroutinefunction(create_tool):
@@ -482,13 +485,13 @@ class LidaToJustJotSkill:
             else:
                 result = create_tool(mcp_data)
 
-            if result.get('success'):
-                result['method'] = 'http-api'
+            if result.get("success"):
+                result["method"] = "http-api"
             return result
 
         except Exception as e:
             logger.error(f"HTTP API error: {e}", exc_info=True)
-            return {'success': False, 'error': str(e)}
+            return {"success": False, "error": str(e)}
 
     def get_available_section_types(self) -> List[Dict[str, str]]:
         """Get all available section types from JustJot registry."""
@@ -497,10 +500,10 @@ class LidaToJustJotSkill:
         types = get_all_section_types()
         return [
             {
-                'id': type_id,
-                'label': info.label if hasattr(info, 'label') else type_id,
-                'category': info.category if hasattr(info, 'category') else 'Other',
-                'description': info.description if hasattr(info, 'description') else '',
+                "id": type_id,
+                "label": info.label if hasattr(info, "label") else type_id,
+                "category": info.category if hasattr(info, "category") else "Other",
+                "description": info.description if hasattr(info, "description") else "",
             }
             for type_id, info in types.items()
         ]
@@ -508,6 +511,7 @@ class LidaToJustJotSkill:
     def get_section_types_context(self) -> str:
         """Get LLM context for section type selection."""
         from Jotty.core.capabilities.semantic.visualization.justjot import get_section_types_context
+
         return get_section_types_context()
 
 
@@ -516,6 +520,7 @@ class LidaToJustJotSkill:
 # ============================================
 
 _skill_instance = None
+
 
 def _get_skill() -> LidaToJustJotSkill:
     """Get or create skill instance."""
@@ -548,36 +553,36 @@ async def visualize_to_idea_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success status, idea_id, and details
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     # Extract parameters
-    data = params.get('data')
-    question = params.get('question')
+    data = params.get("data")
+    question = params.get("question")
 
     if data is None:
-        return {'success': False, 'error': 'data parameter is required'}
+        return {"success": False, "error": "data parameter is required"}
     if not question:
-        return {'success': False, 'error': 'question parameter is required'}
+        return {"success": False, "error": "question parameter is required"}
 
     # Convert data to DataFrame
     df = _to_dataframe(data)
     if df is None:
-        return {'success': False, 'error': 'Failed to convert data to DataFrame'}
+        return {"success": False, "error": "Failed to convert data to DataFrame"}
 
     skill = _get_skill()
     return await skill.visualize_to_idea(
         df=df,
         question=question,
-        title=params.get('title'),
-        description=params.get('description'),
-        tags=params.get('tags'),
-        user_id=params.get('userId'),
-        author=params.get('author'),
-        include_data=params.get('include_data', True),
-        include_chart=params.get('include_chart', True),
-        include_code=params.get('include_code', True),
-        include_insights=params.get('include_insights', True),
-        interactive=params.get('interactive', True),
+        title=params.get("title"),
+        description=params.get("description"),
+        tags=params.get("tags"),
+        user_id=params.get("userId"),
+        author=params.get("author"),
+        include_data=params.get("include_data", True),
+        include_chart=params.get("include_chart", True),
+        include_code=params.get("include_code", True),
+        include_insights=params.get("include_insights", True),
+        interactive=params.get("interactive", True),
     )
 
 
@@ -599,29 +604,29 @@ async def create_dashboard_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success status and details
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
-    data = params.get('data')
-    request = params.get('request')
+    data = params.get("data")
+    request = params.get("request")
 
     if data is None:
-        return {'success': False, 'error': 'data parameter is required'}
+        return {"success": False, "error": "data parameter is required"}
     if not request:
-        return {'success': False, 'error': 'request parameter is required'}
+        return {"success": False, "error": "request parameter is required"}
 
     df = _to_dataframe(data)
     if df is None:
-        return {'success': False, 'error': 'Failed to convert data to DataFrame'}
+        return {"success": False, "error": "Failed to convert data to DataFrame"}
 
     skill = _get_skill()
     return await skill.create_dashboard_idea(
         df=df,
         user_request=request,
-        num_charts=params.get('num_charts', 4),
-        title=params.get('title'),
-        tags=params.get('tags'),
-        user_id=params.get('userId'),
-        author=params.get('author'),
+        num_charts=params.get("num_charts", 4),
+        title=params.get("title"),
+        tags=params.get("tags"),
+        user_id=params.get("userId"),
+        author=params.get("author"),
     )
 
 
@@ -652,23 +657,23 @@ async def create_custom_idea_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             ]
         })
     """
-    status.set_callback(params.pop('_status_callback', None))
-    title = params.get('title')
-    sections = params.get('sections')
+    status.set_callback(params.pop("_status_callback", None))
+    title = params.get("title")
+    sections = params.get("sections")
 
     if not title:
-        return {'success': False, 'error': 'title parameter is required'}
+        return {"success": False, "error": "title parameter is required"}
     if not sections or not isinstance(sections, list):
-        return {'success': False, 'error': 'sections parameter is required (list of dicts)'}
+        return {"success": False, "error": "sections parameter is required (list of dicts)"}
 
     skill = _get_skill()
     return await skill.create_custom_idea(
         sections=sections,
         title=title,
-        description=params.get('description'),
-        tags=params.get('tags'),
-        user_id=params.get('userId'),
-        author=params.get('author'),
+        description=params.get("description"),
+        tags=params.get("tags"),
+        user_id=params.get("userId"),
+        author=params.get("author"),
     )
 
 
@@ -680,7 +685,7 @@ def get_section_types_tool(params: Dict[str, Any] = None) -> Dict[str, Any]:
     Returns:
         Dictionary with available section types and their info
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     skill = _get_skill()
     types = skill.get_available_section_types()
@@ -688,16 +693,16 @@ def get_section_types_tool(params: Dict[str, Any] = None) -> Dict[str, Any]:
     # Group by category
     by_category = {}
     for t in types:
-        cat = t.get('category', 'Other')
+        cat = t.get("category", "Other")
         if cat not in by_category:
             by_category[cat] = []
         by_category[cat].append(t)
 
     return {
-        'success': True,
-        'count': len(types),
-        'types': types,
-        'by_category': by_category,
+        "success": True,
+        "count": len(types),
+        "types": types,
+        "by_category": by_category,
     }
 
 
@@ -709,15 +714,15 @@ def get_section_context_tool(params: Dict[str, Any] = None) -> Dict[str, Any]:
     Returns:
         Dictionary with context string for LLM prompts
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     skill = _get_skill()
     context = skill.get_section_types_context()
 
     return {
-        'success': True,
-        'context': context,
-        'usage': 'Include this context in LLM prompts to help select appropriate section types'
+        "success": True,
+        "context": context,
+        "usage": "Include this context in LLM prompts to help select appropriate section types",
     }
 
 
@@ -729,16 +734,17 @@ def _to_dataframe(data: Any) -> Optional[pd.DataFrame]:
     if isinstance(data, str):
         # Check if it's a file path
         if os.path.exists(data):
-            if data.endswith('.csv'):
+            if data.endswith(".csv"):
                 return pd.read_csv(data)
-            elif data.endswith(('.xlsx', '.xls')):
+            elif data.endswith((".xlsx", ".xls")):
                 return pd.read_excel(data)
-            elif data.endswith('.json'):
+            elif data.endswith(".json"):
                 return pd.read_json(data)
         else:
             # Try parsing as CSV string
             try:
                 from io import StringIO
+
                 return pd.read_csv(StringIO(data))
             except (ValueError, pd.errors.ParserError):
                 pass
@@ -767,10 +773,10 @@ def _to_dataframe(data: Any) -> Optional[pd.DataFrame]:
 
 
 __all__ = [
-    'LidaToJustJotSkill',
-    'visualize_to_idea_tool',
-    'create_dashboard_tool',
-    'create_custom_idea_tool',
-    'get_section_types_tool',
-    'get_section_context_tool',
+    "LidaToJustJotSkill",
+    "visualize_to_idea_tool",
+    "create_dashboard_tool",
+    "create_custom_idea_tool",
+    "get_section_types_tool",
+    "get_section_context_tool",
 ]

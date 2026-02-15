@@ -1,23 +1,38 @@
 """Cron Job Manager Skill — parse, explain, validate cron expressions."""
-from datetime import datetime, timedelta
-from typing import Dict, Any, List
 
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from datetime import datetime, timedelta
+from typing import Any, Dict, List
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("cron-job-manager")
 
 FIELD_NAMES = ["minute", "hour", "day_of_month", "month", "day_of_week"]
 FIELD_RANGES = [(0, 59), (0, 23), (1, 31), (1, 12), (0, 7)]
 MONTH_NAMES = {
-    "jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6,
-    "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12,
+    "jan": 1,
+    "feb": 2,
+    "mar": 3,
+    "apr": 4,
+    "may": 5,
+    "jun": 6,
+    "jul": 7,
+    "aug": 8,
+    "sep": 9,
+    "oct": 10,
+    "nov": 11,
+    "dec": 12,
 }
 DAY_NAMES = {"sun": 0, "mon": 1, "tue": 2, "wed": 3, "thu": 4, "fri": 5, "sat": 6}
 
 COMMON = {
-    "@yearly": "0 0 1 1 *", "@annually": "0 0 1 1 *", "@monthly": "0 0 1 * *",
-    "@weekly": "0 0 * * 0", "@daily": "0 0 * * *", "@midnight": "0 0 * * *",
+    "@yearly": "0 0 1 1 *",
+    "@annually": "0 0 1 1 *",
+    "@monthly": "0 0 1 * *",
+    "@weekly": "0 0 * * 0",
+    "@daily": "0 0 * * *",
+    "@midnight": "0 0 * * *",
     "@hourly": "0 * * * *",
 }
 
@@ -51,8 +66,9 @@ def explain_cron_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     explanations = [_explain_field(f, n) for f, n in zip(fields, FIELD_NAMES)]
     explanation = "Runs at " + ", ".join(explanations)
 
-    return tool_response(expression=expr, explanation=explanation,
-                         fields={n: f for n, f in zip(FIELD_NAMES, fields)})
+    return tool_response(
+        expression=expr, explanation=explanation, fields={n: f for n, f in zip(FIELD_NAMES, fields)}
+    )
 
 
 @tool_wrapper(required_params=["expression"])

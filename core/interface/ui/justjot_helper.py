@@ -25,10 +25,11 @@ Usage:
 This works for ALL 70+ JustJot section types automatically!
 """
 
-from typing import Dict, Any, Union, Optional
+import logging
+from typing import Any, Dict, Optional, Union
+
 from .a2ui import format_section
 from .schema_validator import schema_registry
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +38,7 @@ def return_section(
     section_type: str,
     content: Union[Dict[str, Any], str],
     title: Optional[str] = None,
-    props: Optional[Dict[str, Any]] = None
+    props: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     Return a JustJot section for rendering in supervisor chat.
@@ -96,10 +97,7 @@ def return_section(
     return format_section(section_type, content, title, props)
 
 
-def return_kanban(
-    columns: list,
-    title: Optional[str] = "Tasks"
-) -> Dict[str, Any]:
+def return_kanban(columns: list, title: Optional[str] = "Tasks") -> Dict[str, Any]:
     """
     Return a kanban board (convenience wrapper).
 
@@ -132,17 +130,11 @@ def return_kanban(
             title="Sprint 23"
         )
     """
-    return return_section(
-        section_type="kanban-board",
-        content={"columns": columns},
-        title=title
-    )
+    return return_section(section_type="kanban-board", content={"columns": columns}, title=title)
 
 
 def return_chart(
-    chart_type: str,
-    data: Dict[str, Any],
-    title: Optional[str] = "Chart"
+    chart_type: str, data: Dict[str, Any], title: Optional[str] = "Chart"
 ) -> Dict[str, Any]:
     """
     Return a chart (convenience wrapper).
@@ -166,16 +158,11 @@ def return_chart(
         )
     """
     return return_section(
-        section_type="chart",
-        content={"type": chart_type, "data": data},
-        title=title
+        section_type="chart", content={"type": chart_type, "data": data}, title=title
     )
 
 
-def return_mermaid(
-    diagram: str,
-    title: Optional[str] = "Diagram"
-) -> Dict[str, Any]:
+def return_mermaid(diagram: str, title: Optional[str] = "Diagram") -> Dict[str, Any]:
     """
     Return a Mermaid diagram (convenience wrapper).
 
@@ -197,41 +184,30 @@ def return_mermaid(
             title="Process Flow"
         )
     """
-    return return_section(
-        section_type="mermaid",
-        content=diagram,
-        title=title
-    )
+    return return_section(section_type="mermaid", content=diagram, title=title)
 
 
-def return_data_table(
-    csv_data: str,
-    title: Optional[str] = "Data"
-) -> Dict[str, Any]:
+def return_data_table(csv_data: str, title: Optional[str] = "Data") -> Dict[str, Any]:
     """
-    Return a data table (convenience wrapper).
+        Return a data table (convenience wrapper).
 
-    Args:
-        csv_data: CSV-formatted data
-        title: Table title
+        Args:
+            csv_data: CSV-formatted data
+            title: Table title
 
-    Returns:
-        A2UI response with data-table section
+        Returns:
+            A2UI response with data-table section
 
-    Example:
-        response = return_data_table(
-            csv_data='''Name,Role,Salary
-Alice,Engineer,120000
-Bob,Designer,95000
-Charlie,PM,110000''',
-            title="Team Directory"
-        )
+        Example:
+            response = return_data_table(
+                csv_data='''Name,Role,Salary
+    Alice,Engineer,120000
+    Bob,Designer,95000
+    Charlie,PM,110000''',
+                title="Team Directory"
+            )
     """
-    return return_section(
-        section_type="data-table",
-        content=csv_data,
-        title=title
-    )
+    return return_section(section_type="data-table", content=csv_data, title=title)
 
 
 def _generate_preview_url(url: str, format: str) -> Optional[str]:
@@ -243,23 +219,23 @@ def _generate_preview_url(url: str, format: str) -> Optional[str]:
     """
     from urllib.parse import quote
 
-    format_lower = format.lower().replace('.', '')
+    format_lower = format.lower().replace(".", "")
 
     # PDF can be previewed directly by browsers
-    if format_lower == 'pdf':
+    if format_lower == "pdf":
         return url
 
     # Office formats use Google Docs Viewer
-    if format_lower in ['docx', 'pptx', 'xlsx', 'doc', 'ppt', 'xls']:
+    if format_lower in ["docx", "pptx", "xlsx", "doc", "ppt", "xls"]:
         # Google Docs Viewer requires a publicly accessible URL
         # If it's a relative path, we need to make it absolute
-        if url.startswith('/'):
+        if url.startswith("/"):
             # Relative URL - frontend will need to resolve this
             # Return a marker that frontend can process
             return f"gdocs:{url}"
-        elif url.startswith('http'):
+        elif url.startswith("http"):
             # Absolute URL - use Google Docs Viewer directly
-            encoded_url = quote(url, safe='')
+            encoded_url = quote(url, safe="")
             return f"https://docs.google.com/viewer?url={encoded_url}&embedded=true"
         else:
             # Local file path - can't preview with Google Docs
@@ -276,7 +252,7 @@ def return_file_download(
     size: Optional[str] = None,
     preview: bool = True,
     description: Optional[str] = None,
-    title: Optional[str] = None
+    title: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Return a downloadable file section for inline display in chat.
@@ -310,13 +286,9 @@ def return_file_download(
             title='Your Report is Ready'
         )
     """
-    format_lower = format.lower().replace('.', '')
+    format_lower = format.lower().replace(".", "")
 
-    content = {
-        "url": url,
-        "filename": filename,
-        "format": format_lower
-    }
+    content = {"url": url, "filename": filename, "format": format_lower}
 
     if size:
         content["size"] = size
@@ -333,9 +305,7 @@ def return_file_download(
             content["previewUrl"] = preview_url
 
     return return_section(
-        section_type="file-download",
-        content=content,
-        title=title or f" {filename}"
+        section_type="file-download", content=content, title=title or f" {filename}"
     )
 
 
@@ -344,7 +314,7 @@ def return_image(
     alt: Optional[str] = None,
     caption: Optional[str] = None,
     width: Optional[str] = None,
-    title: Optional[str] = None
+    title: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Return an image section for inline display in chat.
@@ -375,8 +345,4 @@ def return_image(
     if width:
         content["width"] = width
 
-    return return_section(
-        section_type="image",
-        content=content,
-        title=title
-    )
+    return return_section(section_type="image", content=content, title=title)

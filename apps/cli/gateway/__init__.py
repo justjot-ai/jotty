@@ -1,4 +1,5 @@
 from typing import Any
+
 """
 Jotty Unified Gateway
 =====================
@@ -19,9 +20,9 @@ Usage (jotty.justjot.ai):
     python -m Jotty.cli.gateway --port 8080  # Custom port
 """
 
-from .server import UnifiedGateway, start_gateway
-from .channels import ChannelRouter, MessageEvent, ChannelType, ResponseEvent
+from .channels import ChannelRouter, ChannelType, MessageEvent, ResponseEvent
 from .responders import ChannelResponderRegistry, get_responder_registry
+from .server import UnifiedGateway, start_gateway
 from .sessions import PersistentSessionManager, get_session_manager
 
 __all__ = [
@@ -48,38 +49,32 @@ def main() -> Any:
     import os
 
     parser = argparse.ArgumentParser(
-        prog="jotty-gateway",
-        description="Jotty Unified Gateway - WebSocket + HTTP API server"
+        prog="jotty-gateway", description="Jotty Unified Gateway - WebSocket + HTTP API server"
     )
     parser.add_argument(
-        "--host", "-H",
+        "--host",
+        "-H",
         default=os.getenv("JOTTY_HOST", "0.0.0.0"),
-        help="Host to bind to (default: 0.0.0.0)"
+        help="Host to bind to (default: 0.0.0.0)",
     )
     parser.add_argument(
-        "--port", "-p",
+        "--port",
+        "-p",
         type=int,
         default=int(os.getenv("JOTTY_PORT", "8766")),
-        help="Port to bind to (default: 8766)"
+        help="Port to bind to (default: 8766)",
     )
-    parser.add_argument(
-        "--no-cli",
-        action="store_true",
-        help="Run without JottyCLI (echo mode)"
-    )
-    parser.add_argument(
-        "--debug",
-        action="store_true",
-        help="Enable debug logging"
-    )
+    parser.add_argument("--no-cli", action="store_true", help="Run without JottyCLI (echo mode)")
+    parser.add_argument("--debug", action="store_true", help="Enable debug logging")
 
     args = parser.parse_args()
 
     # Configure logging
     import logging
+
     logging.basicConfig(
         level=logging.DEBUG if args.debug else logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
 
     logger = logging.getLogger(__name__)
@@ -89,6 +84,7 @@ def main() -> Any:
     if not args.no_cli:
         try:
             from ..app import JottyCLI
+
             cli = JottyCLI(no_color=True)
             logger.info("JottyCLI initialized for message processing")
         except Exception as e:

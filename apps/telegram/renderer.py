@@ -6,9 +6,9 @@ Formats Jotty output for Telegram display.
 Handles markdown conversion, message splitting, and formatting.
 """
 
+import html
 import re
 from typing import List, Tuple
-import html
 
 
 class TelegramRenderer:
@@ -60,16 +60,16 @@ class TelegramRenderer:
         last_end = 0
 
         # Find code blocks (``` ... ```) and inline code (` ... `)
-        code_pattern = r'```[\s\S]*?```|`[^`]+`'
+        code_pattern = r"```[\s\S]*?```|`[^`]+`"
 
         for match in re.finditer(code_pattern, text):
             # Process text before code block
-            before = text[last_end:match.start()]
+            before = text[last_end : match.start()]
             parts.append(cls._escape_markdown(before))
 
             # Keep code block as-is (but format for Telegram)
             code = match.group()
-            if code.startswith('```'):
+            if code.startswith("```"):
                 # Multi-line code block
                 parts.append(code)
             else:
@@ -81,7 +81,7 @@ class TelegramRenderer:
         # Process remaining text
         parts.append(cls._escape_markdown(text[last_end:]))
 
-        return ''.join(parts)
+        return "".join(parts)
 
     @classmethod
     def _escape_markdown(cls, text: str) -> str:
@@ -91,7 +91,7 @@ class TelegramRenderer:
         Special chars: _ * [ ] ( ) ~ ` > # + - = | { } . !
         """
         # Characters that need escaping in MarkdownV2
-        special_chars = r'_*[]()~>#+-=|{}.!'
+        special_chars = r"_*[]()~>#+-=|{}.!"
 
         # Don't escape inside URLs
         # Simple approach: escape character by character
@@ -102,9 +102,9 @@ class TelegramRenderer:
             char = text[i]
 
             # Check for URLs (don't escape inside)
-            if text[i:i+4] in ('http', 'www.'):
+            if text[i : i + 4] in ("http", "www."):
                 # Find end of URL
-                url_match = re.match(r'https?://[^\s\)]+|\www\.[^\s\)]+', text[i:])
+                url_match = re.match(r"https?://[^\s\)]+|\www\.[^\s\)]+", text[i:])
                 if url_match:
                     result.append(url_match.group())
                     i += len(url_match.group())
@@ -112,13 +112,13 @@ class TelegramRenderer:
 
             # Escape special characters
             if char in special_chars:
-                result.append('\\' + char)
+                result.append("\\" + char)
             else:
                 result.append(char)
 
             i += 1
 
-        return ''.join(result)
+        return "".join(result)
 
     @classmethod
     def _split_message(cls, text: str) -> List[str]:
@@ -142,19 +142,19 @@ class TelegramRenderer:
             split_at = cls.MAX_MESSAGE_LENGTH
 
             # Try to split at paragraph
-            para_break = remaining[:split_at].rfind('\n\n')
+            para_break = remaining[:split_at].rfind("\n\n")
             if para_break > cls.MAX_MESSAGE_LENGTH // 2:
                 split_at = para_break + 2
 
             # Try to split at line
-            elif '\n' in remaining[:split_at]:
-                line_break = remaining[:split_at].rfind('\n')
+            elif "\n" in remaining[:split_at]:
+                line_break = remaining[:split_at].rfind("\n")
                 if line_break > cls.MAX_MESSAGE_LENGTH // 2:
                     split_at = line_break + 1
 
             # Try to split at sentence
-            elif '. ' in remaining[:split_at]:
-                sentence_break = remaining[:split_at].rfind('. ')
+            elif ". " in remaining[:split_at]:
+                sentence_break = remaining[:split_at].rfind(". ")
                 if sentence_break > cls.MAX_MESSAGE_LENGTH // 2:
                     split_at = sentence_break + 2
 
@@ -226,14 +226,14 @@ Your session persists across messages\\."""
             f"Created: {session_data.get('created_at', 'unknown')[:10]}",
         ]
 
-        interface_summary = session_data.get('interface_summary', {})
+        interface_summary = session_data.get("interface_summary", {})
         if interface_summary:
             lines.append("")
             lines.append("*Messages by interface:*")
             for iface, count in interface_summary.items():
                 lines.append(f"  {iface}: {count}")
 
-        return '\n'.join(lines)
+        return "\n".join(lines)
 
     @classmethod
     def format_history(cls, messages: List[dict], limit: int = 10) -> str:
@@ -244,9 +244,9 @@ Your session persists across messages\\."""
         lines = ["📜 *Recent History*", ""]
 
         for msg in messages[-limit:]:
-            role = msg.get('role', 'unknown')
-            content = msg.get('content', '')[:100]
-            interface = msg.get('interface', 'cli')
+            role = msg.get("role", "unknown")
+            content = msg.get("content", "")[:100]
+            interface = msg.get("interface", "cli")
 
             role_emoji = "👤" if role == "user" else "🤖"
             interface_tag = f"\\[{interface}\\]" if interface != "telegram" else ""
@@ -258,4 +258,4 @@ Your session persists across messages\\."""
 
             lines.append(f"{role_emoji} {interface_tag} {content}")
 
-        return '\n'.join(lines)
+        return "\n".join(lines)

@@ -1,10 +1,11 @@
 """Hash Calculator Skill — compute and verify hashes."""
+
 import hashlib
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any, Dict
 
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("hash-calculator")
 
@@ -35,8 +36,9 @@ def hash_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     else:
         h.update(text.encode("utf-8"))
 
-    return tool_response(hash=h.hexdigest(), algorithm=algo,
-                         input_type="file" if file_path else "text")
+    return tool_response(
+        hash=h.hexdigest(), algorithm=algo, input_type="file" if file_path else "text"
+    )
 
 
 @tool_wrapper(required_params=["expected_hash"])
@@ -47,8 +49,12 @@ def verify_hash_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     if not result.get("success"):
         return result
     match = result["hash"].lower() == params["expected_hash"].strip().lower()
-    return tool_response(match=match, computed_hash=result["hash"],
-                         expected_hash=params["expected_hash"], algorithm=result["algorithm"])
+    return tool_response(
+        match=match,
+        computed_hash=result["hash"],
+        expected_hash=params["expected_hash"],
+        algorithm=result["algorithm"],
+    )
 
 
 __all__ = ["hash_tool", "verify_hash_tool"]

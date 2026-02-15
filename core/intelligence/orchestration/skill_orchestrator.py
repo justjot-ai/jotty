@@ -26,20 +26,27 @@ Components:
 """
 
 import logging
-from typing import Dict, List, Any, Optional, Tuple, Callable
+from typing import Any, Callable, Dict, List, Optional, Tuple
+
 import numpy as np
 import pandas as pd
 
 # Import from extracted modules
 from .skill_types import (
-    ProblemType, SkillCategory, SkillResult, PipelineResult,
-    ProgressTracker, SkillAdapter
+    PipelineResult,
+    ProblemType,
+    ProgressTracker,
+    SkillAdapter,
+    SkillCategory,
+    SkillResult,
 )
 
 # Import ML skills from proper location (core/skills/ml/)
 try:
     from Jotty.core.capabilities.skills.ml.eda import EDASkill as EDAAnalyzer
-    from Jotty.core.capabilities.skills.ml.llm_reasoner import LLMFeatureReasonerSkill as LLMFeatureReasoner
+    from Jotty.core.capabilities.skills.ml.llm_reasoner import (
+        LLMFeatureReasonerSkill as LLMFeatureReasoner,
+    )
 except ImportError:
     # Fallback: use inline implementations if skills not available
     EDAAnalyzer = None
@@ -121,7 +128,7 @@ class SkillOrchestrator(FeatureEngineeringMixin, FeatureSelectionMixin, ModelPip
         from sklearn.preprocessing import LabelEncoder
 
         X_out = X.copy()
-        for col in X_out.select_dtypes(include=['object', 'category']).columns:
+        for col in X_out.select_dtypes(include=["object", "category"]).columns:
             try:
                 X_out[col] = LabelEncoder().fit_transform(X_out[col].astype(str))
             except Exception:
@@ -143,10 +150,10 @@ class SkillOrchestrator(FeatureEngineeringMixin, FeatureSelectionMixin, ModelPip
         Returns:
             np.ndarray of scaled numeric features.
         """
-        from sklearn.preprocessing import StandardScaler, LabelEncoder
+        from sklearn.preprocessing import LabelEncoder, StandardScaler
 
         X_numeric = X.copy()
-        for col in X_numeric.select_dtypes(include=['object', 'category']).columns:
+        for col in X_numeric.select_dtypes(include=["object", "category"]).columns:
             try:
                 X_numeric[col] = LabelEncoder().fit_transform(X_numeric[col].astype(str))
             except Exception:
@@ -171,7 +178,9 @@ class SkillOrchestrator(FeatureEngineeringMixin, FeatureSelectionMixin, ModelPip
             self._build_skill_adapters()
             self._initialized = True
 
-            logger.info(f"SkillOrchestrator initialized with {len(self._skill_adapters)} skill adapters")
+            logger.info(
+                f"SkillOrchestrator initialized with {len(self._skill_adapters)} skill adapters"
+            )
 
         except Exception as e:
             logger.warning(f"SkillOrchestrator init failed: {e}")
@@ -180,9 +189,22 @@ class SkillOrchestrator(FeatureEngineeringMixin, FeatureSelectionMixin, ModelPip
     def _build_skill_adapters(self) -> Any:
         """Build adapters for all ML-related skills."""
         ml_skill_keywords = [
-            'data', 'feature', 'model', 'automl', 'hyperopt', 'ensemble',
-            'metric', 'shap', 'pycaret', 'sklearn', 'xgboost', 'lightgbm',
-            'clustering', 'dimensionality', 'statistical', 'time-series'
+            "data",
+            "feature",
+            "model",
+            "automl",
+            "hyperopt",
+            "ensemble",
+            "metric",
+            "shap",
+            "pycaret",
+            "sklearn",
+            "xgboost",
+            "lightgbm",
+            "clustering",
+            "dimensionality",
+            "statistical",
+            "time-series",
         ]
 
         for skill_name, skill_def in self._skills_registry.loaded_skills.items():
@@ -202,7 +224,7 @@ class SkillOrchestrator(FeatureEngineeringMixin, FeatureSelectionMixin, ModelPip
         n_unique = y.nunique()
 
         # Check dtype
-        if y.dtype == 'object' or y.dtype == 'bool':
+        if y.dtype == "object" or y.dtype == "bool":
             return ProblemType.CLASSIFICATION
 
         # Check if categorical (few unique values)
@@ -214,18 +236,19 @@ class SkillOrchestrator(FeatureEngineeringMixin, FeatureSelectionMixin, ModelPip
     def _get_skills_by_category(self, category: SkillCategory) -> List[SkillAdapter]:
         """Get all skills for a category."""
         return [
-            adapter for adapter in self._skill_adapters.values()
-            if adapter.category == category
+            adapter for adapter in self._skill_adapters.values() if adapter.category == category
         ]
 
-    async def solve(self,
-                    X: pd.DataFrame,
-                    y: pd.Series = None,
-                    problem_type: str = "auto",
-                    target_metric: str = "auto",
-                    time_budget: int = 300,
-                    business_context: str = "",
-                    on_stage_complete: Callable = None) -> PipelineResult:
+    async def solve(
+        self,
+        X: pd.DataFrame,
+        y: pd.Series = None,
+        problem_type: str = "auto",
+        target_metric: str = "auto",
+        time_budget: int = 300,
+        business_context: str = "",
+        on_stage_complete: Callable = None,
+    ) -> PipelineResult:
         """
         Solve any ML problem by orchestrating skills.
 
@@ -265,18 +288,20 @@ class SkillOrchestrator(FeatureEngineeringMixin, FeatureSelectionMixin, ModelPip
             else:
                 target_metric = "silhouette"
 
-        logger.info(f"Problem: {prob_type.value} | Metric: {target_metric} | Features: {X.shape[1]} | Samples: {len(X)}")
+        logger.info(
+            f"Problem: {prob_type.value} | Metric: {target_metric} | Features: {X.shape[1]} | Samples: {len(X)}"
+        )
         logger.info("=" * 60)
 
         # Step 3: Execute pipeline
         context = {
-            'X': X.copy(),
-            'y': y.copy() if y is not None else None,
-            'X_original': X.copy(),
-            'problem_type': prob_type,
-            'target_metric': target_metric,
-            'time_budget': time_budget,
-            'business_context': business_context,
+            "X": X.copy(),
+            "y": y.copy() if y is not None else None,
+            "X_original": X.copy(),
+            "problem_type": prob_type,
+            "target_metric": target_metric,
+            "time_budget": time_budget,
+            "business_context": business_context,
         }
 
         skill_results = []
@@ -288,19 +313,24 @@ class SkillOrchestrator(FeatureEngineeringMixin, FeatureSelectionMixin, ModelPip
 
             try:
                 suggestions = await self._llm_reasoner.reason_features(
-                    context['X'], context['y'], prob_type.value, business_context
+                    context["X"], context["y"], prob_type.value, business_context
                 )
                 if suggestions:
-                    context['X'] = self._llm_reasoner.apply_suggestions(context['X'], suggestions)
-                    context['llm_features'] = len(suggestions)
+                    context["X"] = self._llm_reasoner.apply_suggestions(context["X"], suggestions)
+                    context["llm_features"] = len(suggestions)
 
                 if self._progress:
-                    self._progress.complete_stage("LLM_FEATURE_REASONING",
-                        {'suggestions': len(suggestions), 'applied': context.get('llm_features', 0)})
+                    self._progress.complete_stage(
+                        "LLM_FEATURE_REASONING",
+                        {
+                            "suggestions": len(suggestions),
+                            "applied": context.get("llm_features", 0),
+                        },
+                    )
             except Exception as e:
                 logger.debug(f"LLM reasoning skipped: {e}")
                 if self._progress:
-                    self._progress.complete_stage("LLM_FEATURE_REASONING", {'skipped': True})
+                    self._progress.complete_stage("LLM_FEATURE_REASONING", {"skipped": True})
 
         # Step 4: Execute pipeline stages
         for category in self.PIPELINE_ORDER:
@@ -312,113 +342,144 @@ class SkillOrchestrator(FeatureEngineeringMixin, FeatureSelectionMixin, ModelPip
             if result.success:
                 # Update context with result
                 if result.data is not None:
-                    if category in [SkillCategory.DATA_CLEANING,
-                                    SkillCategory.FEATURE_ENGINEERING,
-                                    SkillCategory.FEATURE_SELECTION]:
-                        context['X'] = result.data
+                    if category in [
+                        SkillCategory.DATA_CLEANING,
+                        SkillCategory.FEATURE_ENGINEERING,
+                        SkillCategory.FEATURE_SELECTION,
+                    ]:
+                        context["X"] = result.data
 
                 # After feature engineering, ensure all columns are numeric
                 # LLM feature reasoning and various skills can leave string
                 # columns that break downstream StandardScaler / corr calls
                 if category == SkillCategory.FEATURE_ENGINEERING:
-                    context['X'] = self._ensure_numeric(context['X'])
-                    context['X'] = self._drop_target_leaks(context['X'], context['y'])
+                    context["X"] = self._ensure_numeric(context["X"])
+                    context["X"] = self._drop_target_leaks(context["X"], context["y"])
 
                 if result.data is not None:
-                    if category in [SkillCategory.MODEL_SELECTION,
-                                     SkillCategory.HYPERPARAMETER_OPTIMIZATION,
-                                     SkillCategory.ENSEMBLE]:
-                        context['model'] = result.data
-                        context['score'] = result.metrics.get('score', 0)
+                    if category in [
+                        SkillCategory.MODEL_SELECTION,
+                        SkillCategory.HYPERPARAMETER_OPTIMIZATION,
+                        SkillCategory.ENSEMBLE,
+                    ]:
+                        context["model"] = result.data
+                        context["score"] = result.metrics.get("score", 0)
 
                 if self._progress:
                     self._progress.complete_stage(category.value, result.metrics)
 
                 if on_stage_complete:
                     try:
-                        on_stage_complete(category.value, {
-                            'success': result.success,
-                            'metrics': result.metrics,
-                            'error': result.error,
-                        })
+                        on_stage_complete(
+                            category.value,
+                            {
+                                "success": result.success,
+                                "metrics": result.metrics,
+                                "error": result.error,
+                            },
+                        )
                     except Exception:
                         pass
             else:
                 if self._progress:
-                    self._progress.complete_stage(category.value, {'skipped': result.error or 'failed'})
+                    self._progress.complete_stage(
+                        category.value, {"skipped": result.error or "failed"}
+                    )
 
                 if on_stage_complete:
                     try:
-                        on_stage_complete(category.value, {
-                            'success': False,
-                            'metrics': result.metrics,
-                            'error': result.error,
-                        })
+                        on_stage_complete(
+                            category.value,
+                            {
+                                "success": False,
+                                "metrics": result.metrics,
+                                "error": result.error,
+                            },
+                        )
                     except Exception:
                         pass
 
         # Compile initial result
-        best_score = context.get('score', 0)
-        best_model = context.get('model')
+        best_score = context.get("score", 0)
+        best_model = context.get("model")
 
         # ================================================================
         # LLM FEEDBACK LOOP (10/10 Feature) - Iterate if time allows
         # ================================================================
-        feature_importance = context.get('feature_importance', {})
+        feature_importance = context.get("feature_importance", {})
 
         # Lower threshold to 60s to allow feedback loop in most cases
-        if (self._use_llm_features and self._llm_reasoner and
-            feature_importance and time_budget >= 60 and len(feature_importance) > 5):
+        if (
+            self._use_llm_features
+            and self._llm_reasoner
+            and feature_importance
+            and time_budget >= 60
+            and len(feature_importance) > 5
+        ):
 
             logger.info("Running LLM Feedback Loop...")
             try:
                 import lightgbm as lgb
-                from sklearn.model_selection import cross_val_score, StratifiedKFold, KFold
-                from sklearn.preprocessing import StandardScaler, LabelEncoder
+                from sklearn.model_selection import KFold, StratifiedKFold, cross_val_score
+                from sklearn.preprocessing import LabelEncoder, StandardScaler
 
                 # Generate improved features based on what worked
                 feedback_suggestions = await self._llm_reasoner.reason_with_feedback(
-                    context['X_original'], context['y'], prob_type.value,
-                    business_context, feature_importance, iteration=1
+                    context["X_original"],
+                    context["y"],
+                    prob_type.value,
+                    business_context,
+                    feature_importance,
+                    iteration=1,
                 )
 
                 if feedback_suggestions:
                     # Apply new features to original X
                     X_improved = self._llm_reasoner.apply_suggestions(
-                        context['X_original'], feedback_suggestions, drop_text_cols=True
+                        context["X_original"], feedback_suggestions, drop_text_cols=True
                     )
 
                     # Quick evaluation: does it improve score?
                     if prob_type == ProblemType.CLASSIFICATION:
                         cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=42)
-                        test_model = lgb.LGBMClassifier(n_estimators=100, random_state=42, verbose=-1)
-                        scoring = 'accuracy'
+                        test_model = lgb.LGBMClassifier(
+                            n_estimators=100, random_state=42, verbose=-1
+                        )
+                        scoring = "accuracy"
                     else:
                         cv = KFold(n_splits=3, shuffle=True, random_state=42)
-                        test_model = lgb.LGBMRegressor(n_estimators=100, random_state=42, verbose=-1)
-                        scoring = 'r2'
+                        test_model = lgb.LGBMRegressor(
+                            n_estimators=100, random_state=42, verbose=-1
+                        )
+                        scoring = "r2"
 
                     # Prepare improved features
                     X_improved = X_improved.fillna(0).replace([np.inf, -np.inf], 0)
 
                     # Encode any remaining categoricals
-                    for col in X_improved.select_dtypes(include=['object', 'category']).columns:
+                    for col in X_improved.select_dtypes(include=["object", "category"]).columns:
                         le = LabelEncoder()
                         X_improved[col] = le.fit_transform(X_improved[col].astype(str))
 
                     scaler = StandardScaler()
                     X_scaled = scaler.fit_transform(X_improved)
 
-                    feedback_score = cross_val_score(test_model, X_scaled, y, cv=cv, scoring=scoring).mean()
+                    feedback_score = cross_val_score(
+                        test_model, X_scaled, y, cv=cv, scoring=scoring
+                    ).mean()
 
                     if feedback_score > best_score:
-                        logger.info(f"Feedback Loop IMPROVED: {best_score:.4f} -> {feedback_score:.4f}")
+                        logger.info(
+                            f"Feedback Loop IMPROVED: {best_score:.4f} -> {feedback_score:.4f}"
+                        )
                         best_score = feedback_score
                         test_model.fit(X_scaled, y)
                         best_model = test_model
-                        context['X'] = X_improved
+                        context["X"] = X_improved
                     else:
-                        logger.info(f"Feedback Loop: no improvement ({feedback_score:.4f} vs {best_score:.4f})")
+                        logger.info(
+                            f"Feedback Loop: no improvement ({feedback_score:.4f} vs {best_score:.4f})"
+                        )
 
             except Exception as e:
                 logger.debug(f"LLM feedback loop failed: {e}")
@@ -427,11 +488,11 @@ class SkillOrchestrator(FeatureEngineeringMixin, FeatureSelectionMixin, ModelPip
             problem_type=prob_type,
             best_score=best_score,
             best_model=best_model,
-            feature_count=context['X'].shape[1],
+            feature_count=context["X"].shape[1],
             skill_results=skill_results,
-            predictions=context.get('predictions'),
-            feature_importance=context.get('feature_importance'),
-            processed_X=context['X'],
+            predictions=context.get("predictions"),
+            feature_importance=context.get("feature_importance"),
+            processed_X=context["X"],
         )
 
         # Final progress summary
@@ -439,7 +500,9 @@ class SkillOrchestrator(FeatureEngineeringMixin, FeatureSelectionMixin, ModelPip
             self._progress.finish(best_score)
         else:
             logger.info("=" * 60)
-            logger.info(f"COMPLETE | Score: {best_score:.4f} | Features: {X.shape[1]} -> {result.feature_count}")
+            logger.info(
+                f"COMPLETE | Score: {best_score:.4f} | Features: {X.shape[1]} -> {result.feature_count}"
+            )
             logger.info("=" * 60)
 
         return result
@@ -461,9 +524,9 @@ class SkillOrchestrator(FeatureEngineeringMixin, FeatureSelectionMixin, ModelPip
 
     async def _builtin_stage(self, category: SkillCategory, context: Dict) -> SkillResult:
         """Built-in implementations for each stage."""
-        X = context.get('X')
-        y = context.get('y')
-        problem_type = context.get('problem_type')
+        X = context.get("X")
+        y = context.get("y")
+        problem_type = context.get("problem_type")
 
         try:
             if category == SkillCategory.DATA_PROFILING:
@@ -498,7 +561,7 @@ class SkillOrchestrator(FeatureEngineeringMixin, FeatureSelectionMixin, ModelPip
                     skill_name=f"builtin_{category.value}",
                     category=category,
                     success=False,
-                    error="Not implemented"
+                    error="Not implemented",
                 )
 
         except Exception as e:
@@ -506,30 +569,30 @@ class SkillOrchestrator(FeatureEngineeringMixin, FeatureSelectionMixin, ModelPip
                 skill_name=f"builtin_{category.value}",
                 category=category,
                 success=False,
-                error=str(e)
+                error=str(e),
             )
 
     async def _builtin_profiling(self, X: pd.DataFrame, y: pd.Series) -> SkillResult:
         """Profile the dataset."""
         profile = {
-            'n_samples': len(X),
-            'n_features': X.shape[1],
-            'missing_total': int(X.isnull().sum().sum()),
-            'missing_pct': float(X.isnull().sum().sum() / X.size * 100),
-            'numeric_cols': len(X.select_dtypes(include=[np.number]).columns),
-            'categorical_cols': len(X.select_dtypes(include=['object']).columns),
+            "n_samples": len(X),
+            "n_features": X.shape[1],
+            "missing_total": int(X.isnull().sum().sum()),
+            "missing_pct": float(X.isnull().sum().sum() / X.size * 100),
+            "numeric_cols": len(X.select_dtypes(include=[np.number]).columns),
+            "categorical_cols": len(X.select_dtypes(include=["object"]).columns),
         }
 
         if y is not None:
-            profile['target_unique'] = int(y.nunique())
-            profile['target_missing'] = int(y.isnull().sum())
+            profile["target_unique"] = int(y.nunique())
+            profile["target_missing"] = int(y.isnull().sum())
 
         return SkillResult(
             skill_name="builtin_profiler",
             category=SkillCategory.DATA_PROFILING,
             success=True,
             metrics=profile,
-            metadata=profile
+            metadata=profile,
         )
 
     async def _builtin_cleaning(self, X: pd.DataFrame, y: pd.Series) -> SkillResult:
@@ -538,29 +601,31 @@ class SkillOrchestrator(FeatureEngineeringMixin, FeatureSelectionMixin, ModelPip
 
         # Handle missing values
         for col in X_clean.columns:
-            if X_clean[col].dtype in ['int64', 'float64']:
+            if X_clean[col].dtype in ["int64", "float64"]:
                 X_clean[col] = X_clean[col].fillna(X_clean[col].median())
             else:
-                X_clean[col] = X_clean[col].fillna(X_clean[col].mode().iloc[0] if len(X_clean[col].mode()) > 0 else 'MISSING')
+                X_clean[col] = X_clean[col].fillna(
+                    X_clean[col].mode().iloc[0] if len(X_clean[col].mode()) > 0 else "MISSING"
+                )
 
         return SkillResult(
             skill_name="builtin_cleaner",
             category=SkillCategory.DATA_CLEANING,
             success=True,
             data=X_clean,
-            metrics={'cleaned_missing': int(X.isnull().sum().sum())}
+            metrics={"cleaned_missing": int(X.isnull().sum().sum())},
         )
 
     async def _builtin_evaluation(self, context: Dict) -> SkillResult:
         """Evaluate the model."""
-        score = context.get('score', 0)
-        model = context.get('model')
+        score = context.get("score", 0)
+        model = context.get("model")
 
         # Handle model type safely (model could be None, DataFrame, or actual model)
         if model is None:
-            model_type = 'None'
+            model_type = "None"
         elif isinstance(model, pd.DataFrame):
-            model_type = 'DataFrame'
+            model_type = "DataFrame"
         else:
             model_type = type(model).__name__
 
@@ -568,46 +633,52 @@ class SkillOrchestrator(FeatureEngineeringMixin, FeatureSelectionMixin, ModelPip
             skill_name="builtin_evaluator",
             category=SkillCategory.EVALUATION,
             success=True,
-            metrics={'final_score': score},
-            metadata={'model_type': model_type}
+            metrics={"final_score": score},
+            metadata={"model_type": model_type},
         )
 
     async def _builtin_explanation(self, context: Dict) -> SkillResult:
         """Generate model explanations."""
-        model = context.get('model')
-        X = context.get('X')
+        model = context.get("model")
+        X = context.get("X")
 
         feature_importance = {}
 
         # Check model safely (avoid DataFrame truthiness issue)
-        if model is not None and not isinstance(model, pd.DataFrame) and hasattr(model, 'feature_importances_'):
+        if (
+            model is not None
+            and not isinstance(model, pd.DataFrame)
+            and hasattr(model, "feature_importances_")
+        ):
             importance = model.feature_importances_
             feature_importance = dict(zip(X.columns, importance))
-        elif model is not None and not isinstance(model, pd.DataFrame) and hasattr(model, 'estimators_'):
+        elif (
+            model is not None
+            and not isinstance(model, pd.DataFrame)
+            and hasattr(model, "estimators_")
+        ):
             # Voting ensemble - aggregate from sub-models
             importances = []
             for name, est in model.estimators_:
-                if hasattr(est, 'feature_importances_'):
+                if hasattr(est, "feature_importances_"):
                     importances.append(est.feature_importances_)
             if importances:
                 avg_importance = np.mean(importances, axis=0)
                 feature_importance = dict(zip(X.columns, avg_importance))
 
-        context['feature_importance'] = feature_importance
+        context["feature_importance"] = feature_importance
 
         # Sort by importance
-        sorted_importance = dict(sorted(
-            feature_importance.items(),
-            key=lambda x: x[1],
-            reverse=True
-        )[:10])
+        sorted_importance = dict(
+            sorted(feature_importance.items(), key=lambda x: x[1], reverse=True)[:10]
+        )
 
         return SkillResult(
             skill_name="builtin_explainer",
             category=SkillCategory.EXPLANATION,
             success=True,
-            metrics={'top_features': len(sorted_importance)},
-            metadata={'feature_importance': sorted_importance}
+            metrics={"top_features": len(sorted_importance)},
+            metadata={"feature_importance": sorted_importance},
         )
 
 

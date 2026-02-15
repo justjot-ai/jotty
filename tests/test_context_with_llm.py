@@ -13,14 +13,15 @@ This uses SMALL, CHEAP prompts to minimize cost while testing real behavior.
 """
 
 import asyncio
-import os
 import logging
-from typing import Dict, Any
+import os
 from pathlib import Path
+from typing import Any, Dict
 
 # Load .env file
 try:
     from dotenv import load_dotenv
+
     env_file = Path(__file__).parent / ".env"
     if env_file.exists():
         load_dotenv(env_file)
@@ -30,10 +31,7 @@ except ImportError:
     pass
 
 # Setup logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(message)s'
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
 
@@ -45,6 +43,7 @@ async def test_simple_llm_call():
 
     try:
         import dspy
+
         from Jotty.core.infrastructure.context import SmartContextManager
         from Jotty.core.infrastructure.foundation.direct_anthropic_lm import DirectAnthropicLM
 
@@ -62,7 +61,7 @@ async def test_simple_llm_call():
         # Build prompt
         result = ctx.build_context(
             system_prompt="You are a test assistant.",
-            user_input="Say 'Context consolidation successful' if you can read this."
+            user_input="Say 'Context consolidation successful' if you can read this.",
         )
 
         logger.info(f"✓ Context built: {result['stats']['total_tokens']} tokens")
@@ -71,6 +70,7 @@ async def test_simple_llm_call():
         # Make LLM call
         class SimpleQA(dspy.Signature):
             """Answer a simple question."""
+
             question = dspy.InputField()
             answer = dspy.OutputField()
 
@@ -88,6 +88,7 @@ async def test_simple_llm_call():
     except Exception as e:
         logger.error(f"❌ TEST 1 FAILED: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -100,7 +101,8 @@ async def test_context_with_swarm():
 
     try:
         import dspy
-        from Jotty.core.infrastructure.context import SmartContextManager, ContextPriority
+
+        from Jotty.core.infrastructure.context import ContextPriority, SmartContextManager
         from Jotty.core.infrastructure.foundation.direct_anthropic_lm import DirectAnthropicLM
 
         # Setup DSPy with Jotty's DirectAnthropicLM (uses API directly)
@@ -116,17 +118,16 @@ async def test_context_with_swarm():
 
         # Build context and verify budget management works
         result = ctx.build_context(
-            system_prompt="You are a test assistant",
-            user_input="Confirm you can see the context"
+            system_prompt="You are a test assistant", user_input="Confirm you can see the context"
         )
 
         logger.info(f"✓ Context built: {result['stats']['total_tokens']} tokens")
         logger.info(f"✓ Budget tracking: {result['stats']['budget_remaining']} remaining")
 
         # Verify budget management
-        assert result['stats']['total_tokens'] > 0, "Should have token count"
-        assert result['stats']['budget_remaining'] > 0, "Should have budget remaining"
-        assert result['preserved']['goal'], "Should preserve goal"
+        assert result["stats"]["total_tokens"] > 0, "Should have token count"
+        assert result["stats"]["budget_remaining"] > 0, "Should have budget remaining"
+        assert result["preserved"]["goal"], "Should preserve goal"
 
         logger.info("✅ TEST 2 PASSED\n")
         return True
@@ -134,6 +135,7 @@ async def test_context_with_swarm():
     except Exception as e:
         logger.error(f"❌ TEST 2 FAILED: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -146,10 +148,11 @@ async def test_dspy_patching():
 
     try:
         import dspy
+
         from Jotty.core.infrastructure.context import (
             SmartContextManager,
             patch_dspy_with_guard,
-            unpatch_dspy
+            unpatch_dspy,
         )
         from Jotty.core.infrastructure.foundation.direct_anthropic_lm import DirectAnthropicLM
 
@@ -166,6 +169,7 @@ async def test_dspy_patching():
         # Make a simple call
         class Echo(dspy.Signature):
             """Echo back the input."""
+
             text = dspy.InputField()
             echo = dspy.OutputField()
 
@@ -184,6 +188,7 @@ async def test_dspy_patching():
     except Exception as e:
         logger.error(f"❌ TEST 3 FAILED: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -196,6 +201,7 @@ async def test_function_wrapping_real():
 
     try:
         import dspy
+
         from Jotty.core.infrastructure.context import SmartContextManager
         from Jotty.core.infrastructure.foundation.direct_anthropic_lm import DirectAnthropicLM
 
@@ -209,6 +215,7 @@ async def test_function_wrapping_real():
         def call_llm(prompt: str) -> str:
             class Answer(dspy.Signature):
                 """Answer the question."""
+
                 question = dspy.InputField()
                 answer = dspy.OutputField()
 
@@ -233,6 +240,7 @@ async def test_function_wrapping_real():
     except Exception as e:
         logger.error(f"❌ TEST 4 FAILED: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 

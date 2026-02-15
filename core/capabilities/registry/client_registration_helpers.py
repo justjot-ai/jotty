@@ -9,14 +9,17 @@ This provides high-level convenience functions that make registration simple
 and follow DRY principles.
 """
 
-from typing import Dict, Any, Callable, List, Optional
 import logging
-from .agui_component_registry import get_agui_registry, AGUIComponentAdapter
+from typing import Any, Callable, Dict, List, Optional
+
+from .agui_component_registry import AGUIComponentAdapter, get_agui_registry
 
 logger = logging.getLogger(__name__)
 
 
-def register_agui_adapter_from_registry(adapter_registry: Dict[str, Any], client_id: str = 'unknown', version: str = '1.0.0') -> Any:
+def register_agui_adapter_from_registry(
+    adapter_registry: Dict[str, Any], client_id: str = "unknown", version: str = "1.0.0"
+) -> Any:
     """
     Register adapters from a client's adapter registry dict.
 
@@ -45,13 +48,13 @@ def register_agui_adapter_from_registry(adapter_registry: Dict[str, Any], client
     for section_type, adapter_funcs in adapter_registry.items():
         try:
             # Extract adapter functions
-            to_a2ui_func = adapter_funcs.get('toA2UI')
-            to_agui_func = adapter_funcs.get('toAGUI')
-            from_a2ui_func = adapter_funcs.get('fromA2UI')
-            from_agui_func = adapter_funcs.get('fromAGUI')
+            to_a2ui_func = adapter_funcs.get("toA2UI")
+            to_agui_func = adapter_funcs.get("toAGUI")
+            from_a2ui_func = adapter_funcs.get("fromA2UI")
+            from_agui_func = adapter_funcs.get("fromAGUI")
 
             # Generate label and category from section type
-            label = section_type.replace('-', ' ').replace('_', ' ').title()
+            label = section_type.replace("-", " ").replace("_", " ").title()
             category = _guess_category_from_section_type(section_type)
 
             # Determine content type
@@ -68,11 +71,11 @@ def register_agui_adapter_from_registry(adapter_registry: Dict[str, Any], client
                 to_agui_func=to_agui_func,
                 from_a2ui_func=from_a2ui_func,
                 from_agui_func=from_agui_func,
-                description=f'{label} adapter for AGUI/A2UI protocols',
+                description=f"{label} adapter for AGUI/A2UI protocols",
                 bidirectional=bidirectional,
                 content_type=content_type,
                 client_id=client_id,
-                version=version
+                version=version,
             )
             count += 1
         except Exception as e:
@@ -82,7 +85,12 @@ def register_agui_adapter_from_registry(adapter_registry: Dict[str, Any], client
     return count
 
 
-def register_agui_adapters_from_module(adapter_module: Any, section_types: List[str], client_id: str = 'unknown', version: str = '1.0.0') -> Any:
+def register_agui_adapters_from_module(
+    adapter_module: Any,
+    section_types: List[str],
+    client_id: str = "unknown",
+    version: str = "1.0.0",
+) -> Any:
     """
     Register adapters from a module containing adapter functions.
 
@@ -112,12 +120,12 @@ def register_agui_adapters_from_module(adapter_module: Any, section_types: List[
     for section_type in section_types:
         try:
             # Convert section-type to function name format: dataTableToA2UI
-            func_name_base = ''.join(word.capitalize() for word in section_type.split('-'))
+            func_name_base = "".join(word.capitalize() for word in section_type.split("-"))
             func_name_base = func_name_base[0].lower() + func_name_base[1:]  # camelCase
 
             # Look for adapter functions
-            to_a2ui_name = f'{func_name_base}ToA2UI'
-            to_agui_name = f'{func_name_base}ToAGUI'
+            to_a2ui_name = f"{func_name_base}ToA2UI"
+            to_agui_name = f"{func_name_base}ToAGUI"
 
             to_a2ui_func = getattr(adapter_module, to_a2ui_name, None)
             to_agui_func = getattr(adapter_module, to_agui_name, None)
@@ -126,7 +134,7 @@ def register_agui_adapters_from_module(adapter_module: Any, section_types: List[
                 logger.debug(f"No adapter functions found for {section_type}")
                 continue
 
-            label = section_type.replace('-', ' ').replace('_', ' ').title()
+            label = section_type.replace("-", " ").replace("_", " ").title()
             category = _guess_category_from_section_type(section_type)
             content_type = _guess_content_type(section_type)
 
@@ -136,10 +144,10 @@ def register_agui_adapters_from_module(adapter_module: Any, section_types: List[
                 category=category,
                 to_a2ui_func=to_a2ui_func,
                 to_agui_func=to_agui_func,
-                description=f'{label} adapter for AGUI/A2UI protocols',
+                description=f"{label} adapter for AGUI/A2UI protocols",
                 content_type=content_type,
                 client_id=client_id,
-                version=version
+                version=version,
             )
             count += 1
         except Exception as e:
@@ -149,7 +157,13 @@ def register_agui_adapters_from_module(adapter_module: Any, section_types: List[
     return count
 
 
-def register_generic_agui_adapter(section_type: str, to_a2ui_func: Callable, to_agui_func: Optional[Callable] = None, client_id: str = 'unknown', **kwargs: Any) -> Any:
+def register_generic_agui_adapter(
+    section_type: str,
+    to_a2ui_func: Callable,
+    to_agui_func: Optional[Callable] = None,
+    client_id: str = "unknown",
+    **kwargs: Any,
+) -> Any:
     """
     Register a single AGUI adapter.
 
@@ -177,19 +191,19 @@ def register_generic_agui_adapter(section_type: str, to_a2ui_func: Callable, to_
     registry = get_agui_registry()
 
     # Set defaults
-    if 'label' not in kwargs:
-        kwargs['label'] = section_type.replace('-', ' ').replace('_', ' ').title()
-    if 'category' not in kwargs:
-        kwargs['category'] = _guess_category_from_section_type(section_type)
-    if 'content_type' not in kwargs:
-        kwargs['content_type'] = _guess_content_type(section_type)
+    if "label" not in kwargs:
+        kwargs["label"] = section_type.replace("-", " ").replace("_", " ").title()
+    if "category" not in kwargs:
+        kwargs["category"] = _guess_category_from_section_type(section_type)
+    if "content_type" not in kwargs:
+        kwargs["content_type"] = _guess_content_type(section_type)
 
     registry.register(
         section_type=section_type,
         to_a2ui_func=to_a2ui_func,
         to_agui_func=to_agui_func,
         client_id=client_id,
-        **kwargs
+        **kwargs,
     )
 
     logger.info(f" Registered AGUI adapter: {section_type} ({client_id})")
@@ -247,30 +261,31 @@ def export_adapters_for_agent(client_id: Optional[str] = None) -> Dict[str, Any]
 
 # Helper functions
 
+
 def _guess_category_from_section_type(section_type: str) -> str:
     """Guess category from section type name."""
-    if any(kw in section_type.lower() for kw in ['chart', 'graph', 'plot']):
-        return 'Visualization'
-    if any(kw in section_type.lower() for kw in ['table', 'data', 'csv']):
-        return 'Data'
-    if any(kw in section_type.lower() for kw in ['kanban', 'board', 'todos']):
-        return 'Project Management'
-    if any(kw in section_type.lower() for kw in ['diagram', 'mermaid', 'excalidraw']):
-        return 'Diagrams'
-    if any(kw in section_type.lower() for kw in ['code', 'latex', 'markdown']):
-        return 'Code & Text'
-    if any(kw in section_type.lower() for kw in ['decision', 'log']):
-        return 'Project Management'
-    return 'Content'
+    if any(kw in section_type.lower() for kw in ["chart", "graph", "plot"]):
+        return "Visualization"
+    if any(kw in section_type.lower() for kw in ["table", "data", "csv"]):
+        return "Data"
+    if any(kw in section_type.lower() for kw in ["kanban", "board", "todos"]):
+        return "Project Management"
+    if any(kw in section_type.lower() for kw in ["diagram", "mermaid", "excalidraw"]):
+        return "Diagrams"
+    if any(kw in section_type.lower() for kw in ["code", "latex", "markdown"]):
+        return "Code & Text"
+    if any(kw in section_type.lower() for kw in ["decision", "log"]):
+        return "Project Management"
+    return "Content"
 
 
 def _guess_content_type(section_type: str) -> str:
     """Guess content type from section type name."""
-    if section_type in ['text', 'markdown']:
-        return 'markdown'
-    if section_type in ['code', 'latex']:
-        return 'text'
-    if section_type == 'csv':
-        return 'csv'
+    if section_type in ["text", "markdown"]:
+        return "markdown"
+    if section_type in ["code", "latex"]:
+        return "text"
+    if section_type == "csv":
+        return "csv"
     # Most section types use JSON
-    return 'json'
+    return "json"

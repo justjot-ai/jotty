@@ -3,10 +3,11 @@
 DSPy TypeScript Bridge Integration Tests
 Tests the complete flow: TypeScript → DSPy → MCP tools → response
 """
-import sys
 import asyncio
-import pytest
+import sys
 from pathlib import Path
+
+import pytest
 
 # Add supervisor to path (Jotty is now a pip package)
 sys.path.insert(0, "/var/www/sites/personal/stock_market/JustJot.ai/supervisor")
@@ -19,7 +20,8 @@ def test_dspy_bridge_imports():
     print("=" * 80)
 
     try:
-        from dspy_bridge import get_or_create_agent, DSPY_AVAILABLE
+        from dspy_bridge import DSPY_AVAILABLE, get_or_create_agent
+
         print("✅ dspy_bridge imported successfully")
         print(f"   DSPy available: {DSPY_AVAILABLE}")
         return True
@@ -27,6 +29,7 @@ def test_dspy_bridge_imports():
     except ImportError as e:
         print(f"❌ dspy_bridge import failed: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -38,14 +41,14 @@ def test_agent_creation():
     print("=" * 80)
 
     try:
-        from dspy_bridge import get_or_create_agent, DSPY_AVAILABLE
+        from dspy_bridge import DSPY_AVAILABLE, get_or_create_agent
 
         if not DSPY_AVAILABLE:
             print("⚠️  DSPy not available - skipping test")
             return True
 
         async def create():
-            agent = await get_or_create_agent('research-assistant')
+            agent = await get_or_create_agent("research-assistant")
             return agent
 
         agent = asyncio.run(create())
@@ -60,6 +63,7 @@ def test_agent_creation():
     except Exception as e:
         print(f"❌ Agent creation failed: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -71,7 +75,7 @@ def test_bridge_execution():
     print("=" * 80)
 
     try:
-        from dspy_bridge import get_or_create_agent, DSPY_AVAILABLE
+        from dspy_bridge import DSPY_AVAILABLE, get_or_create_agent
 
         if not DSPY_AVAILABLE:
             print("⚠️  DSPy not available - skipping test")
@@ -82,10 +86,9 @@ def test_bridge_execution():
             # POST /api/dspy/execute
             # { "agentId": "research-assistant", "query": "List all ideas" }
 
-            agent = await get_or_create_agent('research-assistant')
+            agent = await get_or_create_agent("research-assistant")
             result = await agent.execute(
-                query="List the first 3 ideas in JustJot",
-                conversation_history=""
+                query="List the first 3 ideas in JustJot", conversation_history=""
             )
             return result
 
@@ -102,6 +105,7 @@ def test_bridge_execution():
     except Exception as e:
         print(f"❌ Bridge execution failed: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -113,8 +117,8 @@ def test_flask_blueprint():
     print("=" * 80)
 
     try:
-        from flask import Flask
         from dspy_bridge import register_dspy_routes
+        from flask import Flask
 
         app = Flask(__name__)
         register_dspy_routes(app)
@@ -122,10 +126,10 @@ def test_flask_blueprint():
         # Check that routes are registered
         routes = [str(rule) for rule in app.url_map.iter_rules()]
         expected_routes = [
-            '/api/dspy/execute',
-            '/api/dspy/stream',
-            '/api/dspy/agents',
-            '/api/dspy/health'
+            "/api/dspy/execute",
+            "/api/dspy/stream",
+            "/api/dspy/agents",
+            "/api/dspy/health",
         ]
 
         print("✅ Flask blueprint registered")
@@ -143,6 +147,7 @@ def test_flask_blueprint():
     except Exception as e:
         print(f"❌ Flask blueprint test failed: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -154,14 +159,14 @@ def test_health_endpoint():
     print("=" * 80)
 
     try:
+        from dspy_bridge import DSPY_AVAILABLE, register_dspy_routes
         from flask import Flask
-        from dspy_bridge import register_dspy_routes, DSPY_AVAILABLE
 
         app = Flask(__name__)
         register_dspy_routes(app)
 
         with app.test_client() as client:
-            response = client.get('/api/dspy/health')
+            response = client.get("/api/dspy/health")
             data = response.get_json()
 
             print("✅ Health endpoint working")
@@ -175,6 +180,7 @@ def test_health_endpoint():
     except Exception as e:
         print(f"❌ Health endpoint test failed: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -186,21 +192,21 @@ def test_list_agents_endpoint():
     print("=" * 80)
 
     try:
-        from flask import Flask
         from dspy_bridge import register_dspy_routes
+        from flask import Flask
 
         app = Flask(__name__)
         register_dspy_routes(app)
 
         with app.test_client() as client:
-            response = client.get('/api/dspy/agents')
+            response = client.get("/api/dspy/agents")
             data = response.get_json()
 
             print("✅ List agents endpoint working")
             print(f"   Success: {data.get('success')}")
             print(f"   Agents count: {len(data.get('agents', []))}")
 
-            for agent in data.get('agents', []):
+            for agent in data.get("agents", []):
                 print(f"   - {agent['id']}: {agent['name']} ({agent['tools']} tools)")
 
             print()
@@ -209,6 +215,7 @@ def test_list_agents_endpoint():
     except Exception as e:
         print(f"❌ List agents endpoint test failed: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -254,7 +261,9 @@ def run_all_tests():
         print()
         print("Next steps:")
         print("  1. Deploy supervisor container with DSPy bridge")
-        print("  2. Test from Next.js app: import { executeDSPyAgent } from '@/lib/ai/agents/dspy-client'")
+        print(
+            "  2. Test from Next.js app: import { executeDSPyAgent } from '@/lib/ai/agents/dspy-client'"
+        )
         print("  3. Migrate first agent (Research Assistant) to use DSPy")
     elif passed >= total - 2:
         print("✅ Core bridge components working!")

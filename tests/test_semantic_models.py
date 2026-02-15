@@ -8,52 +8,54 @@ Tests cover:
 
 All tests are offline, unit-level, and use mocks where needed.
 """
-import pytest
-from datetime import datetime, timedelta
-from dateutil.relativedelta import relativedelta
-from unittest.mock import patch, MagicMock
-from typing import Dict, Any
 
-# Semantic models imports
-from Jotty.core.capabilities.semantic.models import (
-    ColumnType,
-    RelationType,
-    MeasureType,
-    Column,
-    ForeignKey,
-    Index,
-    Table,
-    Relationship,
-    Schema,
-)
+from datetime import datetime, timedelta
+from typing import Any, Dict
+from unittest.mock import MagicMock, patch
+
+import pytest
+from dateutil.relativedelta import relativedelta
 
 # LookML models imports
 from Jotty.core.capabilities.semantic.lookml.models import (
-    DimensionType,
-    MeasureType as LookMLMeasureType,
-    JoinType,
-    Relationship as LookMLRelationship,
     Dimension,
-    Measure,
-    View,
-    Join,
+    DimensionType,
     Explore,
+    Join,
+    JoinType,
     LookMLModel,
+    Measure,
+)
+from Jotty.core.capabilities.semantic.lookml.models import MeasureType as LookMLMeasureType
+from Jotty.core.capabilities.semantic.lookml.models import Relationship as LookMLRelationship
+from Jotty.core.capabilities.semantic.lookml.models import View
+
+# Semantic models imports
+from Jotty.core.capabilities.semantic.models import (
+    Column,
+    ColumnType,
+    ForeignKey,
+    Index,
+    MeasureType,
+    Relationship,
+    RelationType,
+    Schema,
+    Table,
 )
 
 # Date preprocessor imports
 from Jotty.core.capabilities.semantic.query.date_preprocessor import (
-    DateFormat,
     BaseDatePreprocessor,
+    DateFormat,
     DatePreprocessor,
-    SQLDatePreprocessor,
     DatePreprocessorFactory,
+    SQLDatePreprocessor,
 )
-
 
 # =============================================================================
 # Test Semantic Models - Enums
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestColumnType:
@@ -145,6 +147,7 @@ class TestMeasureType:
 # =============================================================================
 # Test Semantic Models - Column
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestColumn:
@@ -357,15 +360,14 @@ class TestColumn:
 # Test Semantic Models - ForeignKey, Index
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestForeignKey:
     """Test ForeignKey dataclass."""
 
     def test_basic_creation(self):
         fk = ForeignKey(
-            columns=["customer_id"],
-            referenced_table="customers",
-            referenced_columns=["id"]
+            columns=["customer_id"], referenced_table="customers", referenced_columns=["id"]
         )
         assert fk.columns == ["customer_id"]
         assert fk.referenced_table == "customers"
@@ -377,7 +379,7 @@ class TestForeignKey:
             columns=["order_id"],
             referenced_table="orders",
             referenced_columns=["id"],
-            constraint_name="fk_order"
+            constraint_name="fk_order",
         )
         assert fk.constraint_name == "fk_order"
 
@@ -385,7 +387,7 @@ class TestForeignKey:
         fk = ForeignKey(
             columns=["user_id", "org_id"],
             referenced_table="user_orgs",
-            referenced_columns=["user_id", "org_id"]
+            referenced_columns=["user_id", "org_id"],
         )
         assert len(fk.columns) == 2
         assert len(fk.referenced_columns) == 2
@@ -413,6 +415,7 @@ class TestIndex:
 # =============================================================================
 # Test Semantic Models - Table
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestTable:
@@ -444,17 +447,14 @@ class TestTable:
             columns=[
                 Column(name="Id", data_type="int"),
                 Column(name="Email", data_type="varchar"),
-            ]
+            ],
         )
         col = table.get_column("id")
         assert col is not None
         assert col.name == "Id"
 
     def test_get_column_uppercase(self):
-        table = Table(
-            name="users",
-            columns=[Column(name="email", data_type="varchar")]
-        )
+        table = Table(name="users", columns=[Column(name="email", data_type="varchar")])
         col = table.get_column("EMAIL")
         assert col is not None
         assert col.name == "email"
@@ -471,7 +471,7 @@ class TestTable:
                 Column(name="id", data_type="int"),
                 Column(name="customer_id", data_type="int"),
                 Column(name="total_amount", data_type="decimal"),
-            ]
+            ],
         )
         dimensions = table.dimensions
         assert len(dimensions) == 2
@@ -484,7 +484,7 @@ class TestTable:
                 Column(name="id", data_type="int"),
                 Column(name="total_amount", data_type="decimal"),
                 Column(name="revenue", data_type="float"),
-            ]
+            ],
         )
         measures = table.measures
         assert len(measures) == 2
@@ -492,9 +492,7 @@ class TestTable:
 
     def test_with_foreign_keys(self):
         fk = ForeignKey(
-            columns=["customer_id"],
-            referenced_table="customers",
-            referenced_columns=["id"]
+            columns=["customer_id"], referenced_table="customers", referenced_columns=["id"]
         )
         table = Table(name="orders", foreign_keys=[fk])
         assert len(table.foreign_keys) == 1
@@ -509,6 +507,7 @@ class TestTable:
 # Test Semantic Models - Relationship
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestRelationship:
     """Test Relationship dataclass."""
@@ -518,7 +517,7 @@ class TestRelationship:
             from_table="orders",
             from_columns=["customer_id"],
             to_table="customers",
-            to_columns=["id"]
+            to_columns=["id"],
         )
         assert rel.from_table == "orders"
         assert rel.from_columns == ["customer_id"]
@@ -532,7 +531,7 @@ class TestRelationship:
             from_table="orders",
             from_columns=["customer_id"],
             to_table="customers",
-            to_columns=["id"]
+            to_columns=["id"],
         )
         assert rel.sql_on == "orders.customer_id = customers.id"
 
@@ -541,9 +540,11 @@ class TestRelationship:
             from_table="order_items",
             from_columns=["order_id", "product_id"],
             to_table="products",
-            to_columns=["order_id", "id"]
+            to_columns=["order_id", "id"],
         )
-        expected = "order_items.order_id = products.order_id AND order_items.product_id = products.id"
+        expected = (
+            "order_items.order_id = products.order_id AND order_items.product_id = products.id"
+        )
         assert rel.sql_on == expected
 
     def test_one_to_one_relationship(self):
@@ -552,7 +553,7 @@ class TestRelationship:
             from_columns=["profile_id"],
             to_table="profiles",
             to_columns=["id"],
-            relation_type=RelationType.ONE_TO_ONE
+            relation_type=RelationType.ONE_TO_ONE,
         )
         assert rel.relation_type == RelationType.ONE_TO_ONE
 
@@ -562,7 +563,7 @@ class TestRelationship:
             from_columns=["customer_id"],
             to_table="customers",
             to_columns=["id"],
-            join_type="inner"
+            join_type="inner",
         )
         assert rel.join_type == "inner"
 
@@ -570,6 +571,7 @@ class TestRelationship:
 # =============================================================================
 # Test Semantic Models - Schema
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestSchema:
@@ -590,7 +592,7 @@ class TestSchema:
             tables=[
                 Table(name="users"),
                 Table(name="orders"),
-            ]
+            ],
         )
         table = schema.get_table("users")
         assert table is not None
@@ -602,10 +604,7 @@ class TestSchema:
         assert table is not None
 
     def test_get_table_by_full_name(self):
-        schema = Schema(
-            name="public",
-            tables=[Table(name="users", schema="public")]
-        )
+        schema = Schema(name="public", tables=[Table(name="users", schema="public")])
         table = schema.get_table("public.users")
         assert table is not None
 
@@ -625,12 +624,12 @@ class TestSchema:
                         ForeignKey(
                             columns=["customer_id"],
                             referenced_table="customers",
-                            referenced_columns=["id"]
+                            referenced_columns=["id"],
                         )
-                    ]
+                    ],
                 ),
                 Table(name="customers", primary_keys=["id"]),
-            ]
+            ],
         )
         schema.infer_relationships()
         assert len(schema.relationships) == 1
@@ -650,12 +649,12 @@ class TestSchema:
                         ForeignKey(
                             columns=["profile_id"],
                             referenced_table="profiles",
-                            referenced_columns=["id"]
+                            referenced_columns=["id"],
                         )
-                    ]
+                    ],
                 ),
                 Table(name="profiles", primary_keys=["id"]),
-            ]
+            ],
         )
         schema.infer_relationships()
         assert len(schema.relationships) == 1
@@ -672,11 +671,11 @@ class TestSchema:
                         ForeignKey(
                             columns=["customer_id"],
                             referenced_table="customers",
-                            referenced_columns=["id"]
+                            referenced_columns=["id"],
                         )
-                    ]
+                    ],
                 )
-            ]
+            ],
         )
         schema.infer_relationships()
         schema.infer_relationships()
@@ -702,10 +701,10 @@ class TestSchema:
                     from_table="orders",
                     from_columns=["user_id"],
                     to_table="users",
-                    to_columns=["id"]
+                    to_columns=["id"],
                 )
             ],
-            version="2.0"
+            version="2.0",
         )
         result = schema.to_dict()
         assert result["name"] == "public"
@@ -720,6 +719,7 @@ class TestSchema:
 # =============================================================================
 # Test LookML Models - Enums
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestDimensionType:
@@ -823,6 +823,7 @@ class TestLookMLRelationship:
 # Test LookML Models - Dimension
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestDimension:
     """Test Dimension dataclass."""
@@ -847,7 +848,7 @@ class TestDimension:
             description="Unique user identifier",
             primary_key=True,
             hidden=False,
-            group_label="User Info"
+            group_label="User Info",
         )
         assert dim.type == DimensionType.NUMBER
         assert dim.sql == "${TABLE}.id"
@@ -898,6 +899,7 @@ class TestDimension:
 # Test LookML Models - Measure
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestMeasure:
     """Test Measure dataclass."""
@@ -922,7 +924,7 @@ class TestMeasure:
             description="Sum of all revenue",
             hidden=False,
             drill_fields=["user_id", "order_date"],
-            filters={"status": "completed"}
+            filters={"status": "completed"},
         )
         assert measure.type == LookMLMeasureType.SUM
         assert measure.sql == "${TABLE}.revenue"
@@ -977,6 +979,7 @@ class TestMeasure:
 # Test LookML Models - View
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestView:
     """Test View dataclass."""
@@ -997,7 +1000,7 @@ class TestView:
             label="Users",
             description="User data",
             dimensions=[Dimension(name="id")],
-            measures=[Measure(name="count")]
+            measures=[Measure(name="count")],
         )
         assert view.sql_table_name == "public.users"
         assert view.label == "Users"
@@ -1030,14 +1033,8 @@ class TestView:
     def test_to_dict_with_dimensions_and_measures(self):
         view = View(
             name="users",
-            dimensions=[
-                Dimension(name="id", type=DimensionType.NUMBER),
-                Dimension(name="email")
-            ],
-            measures=[
-                Measure(name="count"),
-                Measure(name="total", type=LookMLMeasureType.SUM)
-            ]
+            dimensions=[Dimension(name="id", type=DimensionType.NUMBER), Dimension(name="email")],
+            measures=[Measure(name="count"), Measure(name="total", type=LookMLMeasureType.SUM)],
         )
         result = view.to_dict()
         assert len(result["dimensions"]) == 2
@@ -1049,6 +1046,7 @@ class TestView:
 # =============================================================================
 # Test LookML Models - Join
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestJoin:
@@ -1068,7 +1066,7 @@ class TestJoin:
             type=JoinType.INNER,
             relationship=LookMLRelationship.ONE_TO_MANY,
             sql_on="${orders.customer_id} = ${customers.id}",
-            foreign_key="customer_id"
+            foreign_key="customer_id",
         )
         assert join.type == JoinType.INNER
         assert join.relationship == LookMLRelationship.ONE_TO_MANY
@@ -1085,11 +1083,7 @@ class TestJoin:
         assert "foreign_key" not in result
 
     def test_to_dict_with_foreign_key(self):
-        join = Join(
-            name="orders",
-            sql_on="${users.id} = ${orders.user_id}",
-            foreign_key="user_id"
-        )
+        join = Join(name="orders", sql_on="${users.id} = ${orders.user_id}", foreign_key="user_id")
         result = join.to_dict()
         assert result["foreign_key"] == "user_id"
 
@@ -1097,6 +1091,7 @@ class TestJoin:
 # =============================================================================
 # Test LookML Models - Explore
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestExplore:
@@ -1120,7 +1115,7 @@ class TestExplore:
             description="User explore",
             joins=[Join(name="orders", sql_on="${users.id} = ${orders.user_id}")],
             always_filter={"status": "active"},
-            hidden=True
+            hidden=True,
         )
         assert explore.view_name == "user_view"
         assert explore.label == "Users"
@@ -1157,18 +1152,15 @@ class TestExplore:
             name="users",
             joins=[
                 Join(name="orders", sql_on="${users.id} = ${orders.user_id}"),
-                Join(name="profiles", sql_on="${users.profile_id} = ${profiles.id}")
-            ]
+                Join(name="profiles", sql_on="${users.profile_id} = ${profiles.id}"),
+            ],
         )
         result = explore.to_dict()
         assert len(result["joins"]) == 2
         assert result["joins"][0]["name"] == "orders"
 
     def test_to_dict_with_always_filter(self):
-        explore = Explore(
-            name="users",
-            always_filter={"status": "active", "deleted": "false"}
-        )
+        explore = Explore(name="users", always_filter={"status": "active", "deleted": "false"})
         result = explore.to_dict()
         assert "always_filter" in result
         filters = result["always_filter"]["filters"]
@@ -1184,6 +1176,7 @@ class TestExplore:
 # =============================================================================
 # Test LookML Models - LookMLModel
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestLookMLModel:
@@ -1201,7 +1194,7 @@ class TestLookMLModel:
             name="analytics",
             connection="database",
             views=[View(name="users"), View(name="orders")],
-            explores=[Explore(name="users")]
+            explores=[Explore(name="users")],
         )
         assert model.connection == "database"
         assert len(model.views) == 2
@@ -1212,7 +1205,7 @@ class TestLookMLModel:
             name="analytics",
             connection="db",
             views=[View(name="users")],
-            explores=[Explore(name="users")]
+            explores=[Explore(name="users")],
         )
         result = model.to_dict()
         assert result["name"] == "analytics"
@@ -1221,13 +1214,7 @@ class TestLookMLModel:
         assert len(result["explores"]) == 1
 
     def test_get_view_exists(self):
-        model = LookMLModel(
-            name="model",
-            views=[
-                View(name="users"),
-                View(name="orders")
-            ]
-        )
+        model = LookMLModel(name="model", views=[View(name="users"), View(name="orders")])
         view = model.get_view("users")
         assert view is not None
         assert view.name == "users"
@@ -1241,6 +1228,7 @@ class TestLookMLModel:
 # =============================================================================
 # Test Date Preprocessor - DateFormat
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestDateFormat:
@@ -1262,6 +1250,7 @@ class TestDateFormat:
 # =============================================================================
 # Test Date Preprocessor - BaseDatePreprocessor
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestBaseDatePreprocessor:
@@ -1288,7 +1277,7 @@ class TestBaseDatePreprocessor:
         assert "month to date" in preprocessor.special_dates
 
     def test_get_quarter_dates_current_q1(self):
-        with patch('Jotty.core.semantic.query.date_preprocessor.datetime') as mock_dt:
+        with patch("Jotty.core.semantic.query.date_preprocessor.datetime") as mock_dt:
             mock_dt.now.return_value = datetime(2024, 2, 15)
             mock_dt.side_effect = lambda *args, **kw: datetime(*args, **kw)
             start, end = BaseDatePreprocessor._get_quarter_dates(0)
@@ -1298,7 +1287,7 @@ class TestBaseDatePreprocessor:
             assert end.day == 31
 
     def test_get_quarter_dates_current_q2(self):
-        with patch('Jotty.core.semantic.query.date_preprocessor.datetime') as mock_dt:
+        with patch("Jotty.core.semantic.query.date_preprocessor.datetime") as mock_dt:
             mock_dt.now.return_value = datetime(2024, 5, 15)
             mock_dt.side_effect = lambda *args, **kw: datetime(*args, **kw)
             start, end = BaseDatePreprocessor._get_quarter_dates(0)
@@ -1306,7 +1295,7 @@ class TestBaseDatePreprocessor:
             assert end.month == 6
 
     def test_get_quarter_dates_current_q3(self):
-        with patch('Jotty.core.semantic.query.date_preprocessor.datetime') as mock_dt:
+        with patch("Jotty.core.semantic.query.date_preprocessor.datetime") as mock_dt:
             mock_dt.now.return_value = datetime(2024, 8, 15)
             mock_dt.side_effect = lambda *args, **kw: datetime(*args, **kw)
             start, end = BaseDatePreprocessor._get_quarter_dates(0)
@@ -1314,7 +1303,7 @@ class TestBaseDatePreprocessor:
             assert end.month == 9
 
     def test_get_quarter_dates_current_q4(self):
-        with patch('Jotty.core.semantic.query.date_preprocessor.datetime') as mock_dt:
+        with patch("Jotty.core.semantic.query.date_preprocessor.datetime") as mock_dt:
             mock_dt.now.return_value = datetime(2024, 11, 15)
             mock_dt.side_effect = lambda *args, **kw: datetime(*args, **kw)
             start, end = BaseDatePreprocessor._get_quarter_dates(0)
@@ -1322,7 +1311,7 @@ class TestBaseDatePreprocessor:
             assert end.month == 12
 
     def test_get_quarter_dates_last_quarter(self):
-        with patch('Jotty.core.semantic.query.date_preprocessor.datetime') as mock_dt:
+        with patch("Jotty.core.semantic.query.date_preprocessor.datetime") as mock_dt:
             mock_dt.now.return_value = datetime(2024, 5, 15)
             mock_dt.side_effect = lambda *args, **kw: datetime(*args, **kw)
             start, end = BaseDatePreprocessor._get_quarter_dates(-1)
@@ -1330,7 +1319,7 @@ class TestBaseDatePreprocessor:
             assert end.month == 3
 
     def test_get_quarter_dates_year_wraparound_backwards(self):
-        with patch('Jotty.core.semantic.query.date_preprocessor.datetime') as mock_dt:
+        with patch("Jotty.core.semantic.query.date_preprocessor.datetime") as mock_dt:
             mock_dt.now.return_value = datetime(2024, 2, 15)
             mock_dt.side_effect = lambda *args, **kw: datetime(*args, **kw)
             start, end = BaseDatePreprocessor._get_quarter_dates(-1)
@@ -1340,7 +1329,7 @@ class TestBaseDatePreprocessor:
             assert end.month == 12
 
     def test_get_quarter_dates_year_wraparound_forwards(self):
-        with patch('Jotty.core.semantic.query.date_preprocessor.datetime') as mock_dt:
+        with patch("Jotty.core.semantic.query.date_preprocessor.datetime") as mock_dt:
             mock_dt.now.return_value = datetime(2024, 11, 15)
             mock_dt.side_effect = lambda *args, **kw: datetime(*args, **kw)
             start, end = BaseDatePreprocessor._get_quarter_dates(1)
@@ -1351,6 +1340,7 @@ class TestBaseDatePreprocessor:
 # =============================================================================
 # Test Date Preprocessor - DatePreprocessor (MongoDB)
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestDatePreprocessor:
@@ -1369,17 +1359,14 @@ class TestDatePreprocessor:
 
     def test_get_context_hint_with_dates(self):
         preprocessor = DatePreprocessor()
-        context = {
-            "start_date": "2024-01-01T00:00:00",
-            "end_date": "2024-12-31T23:59:59"
-        }
+        context = {"start_date": "2024-01-01T00:00:00", "end_date": "2024-12-31T23:59:59"}
         hint = preprocessor.get_context_hint(context)
         assert "Date Context" in hint
         assert "start_date" in hint
         assert "end_date" in hint
         assert "$match" in hint
 
-    @patch('Jotty.core.semantic.query.date_preprocessor.datetime')
+    @patch("Jotty.core.semantic.query.date_preprocessor.datetime")
     def test_preprocess_today(self, mock_datetime):
         mock_now = datetime(2024, 2, 14, 15, 30, 0)
         mock_datetime.now.return_value = mock_now
@@ -1392,7 +1379,7 @@ class TestDatePreprocessor:
         assert "today_end" in context
         assert "2024-02-14" in modified_query
 
-    @patch('Jotty.core.semantic.query.date_preprocessor.datetime')
+    @patch("Jotty.core.semantic.query.date_preprocessor.datetime")
     def test_preprocess_yesterday(self, mock_datetime):
         mock_now = datetime(2024, 2, 14, 15, 30, 0)
         mock_datetime.now.return_value = mock_now
@@ -1405,7 +1392,7 @@ class TestDatePreprocessor:
         assert "yesterday_end" in context
         assert "2024-02-13" in modified_query
 
-    @patch('Jotty.core.semantic.query.date_preprocessor.datetime')
+    @patch("Jotty.core.semantic.query.date_preprocessor.datetime")
     def test_preprocess_last_7_days(self, mock_datetime):
         mock_now = datetime(2024, 2, 14, 15, 30, 0)
         mock_datetime.now.return_value = mock_now
@@ -1418,7 +1405,7 @@ class TestDatePreprocessor:
         assert "end_date" in context
         assert "2024-02-07" in modified_query
 
-    @patch('Jotty.core.semantic.query.date_preprocessor.datetime')
+    @patch("Jotty.core.semantic.query.date_preprocessor.datetime")
     def test_preprocess_past_30_days(self, mock_datetime):
         mock_now = datetime(2024, 2, 14, 15, 30, 0)
         mock_datetime.now.return_value = mock_now
@@ -1429,12 +1416,13 @@ class TestDatePreprocessor:
 
         assert "start_date" in context
         expected_start = mock_now - timedelta(days=30)
-        assert expected_start.strftime('%Y-%m-%d') in modified_query
+        assert expected_start.strftime("%Y-%m-%d") in modified_query
 
 
 # =============================================================================
 # Test Date Preprocessor - SQLDatePreprocessor
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestSQLDatePreprocessor:
@@ -1531,7 +1519,7 @@ class TestSQLDatePreprocessor:
         assert "Oracle" in hint
         assert "TO_TIMESTAMP" in hint
 
-    @patch('Jotty.core.semantic.query.date_preprocessor.datetime')
+    @patch("Jotty.core.semantic.query.date_preprocessor.datetime")
     def test_preprocess_last_month(self, mock_datetime):
         mock_now = datetime(2024, 2, 14, 15, 30, 0)
         mock_datetime.now.return_value = mock_now
@@ -1547,6 +1535,7 @@ class TestSQLDatePreprocessor:
 # =============================================================================
 # Test Date Preprocessor - DatePreprocessorFactory
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestDatePreprocessorFactory:

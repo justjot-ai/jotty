@@ -6,10 +6,10 @@ Preview Command
 """
 
 import logging
-import subprocess
 import shutil
+import subprocess
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional, Tuple, Any
+from typing import TYPE_CHECKING, Any, Optional, Tuple
 
 from .base import BaseCommand, CommandResult, ParsedArgs
 
@@ -43,19 +43,19 @@ class PreviewCommand(BaseCommand):
             return cls._tools_cache
 
         tools = {
-            'glow': shutil.which('glow'),        # Markdown
-            'bat': shutil.which('bat') or shutil.which('batcat'),  # Code/text
-            'catdoc': shutil.which('catdoc'),    # DOCX
-            'pdftotext': shutil.which('pdftotext'),  # PDF
-            'chafa': shutil.which('chafa'),      # Images
-            'timg': shutil.which('timg'),        # Images (alt)
-            'viu': shutil.which('viu'),          # Images (alt)
-            'pandoc': shutil.which('pandoc'),    # Universal converter
-            'lynx': shutil.which('lynx'),        # HTML
-            'w3m': shutil.which('w3m'),          # HTML (alt)
-            'jq': shutil.which('jq'),            # JSON
-            'hexyl': shutil.which('hexyl'),      # Binary/hex
-            'exiftool': shutil.which('exiftool'), # Metadata
+            "glow": shutil.which("glow"),  # Markdown
+            "bat": shutil.which("bat") or shutil.which("batcat"),  # Code/text
+            "catdoc": shutil.which("catdoc"),  # DOCX
+            "pdftotext": shutil.which("pdftotext"),  # PDF
+            "chafa": shutil.which("chafa"),  # Images
+            "timg": shutil.which("timg"),  # Images (alt)
+            "viu": shutil.which("viu"),  # Images (alt)
+            "pandoc": shutil.which("pandoc"),  # Universal converter
+            "lynx": shutil.which("lynx"),  # HTML
+            "w3m": shutil.which("w3m"),  # HTML (alt)
+            "jq": shutil.which("jq"),  # JSON
+            "hexyl": shutil.which("hexyl"),  # Binary/hex
+            "exiftool": shutil.which("exiftool"),  # Metadata
         }
 
         cls._tools_cache = tools
@@ -66,7 +66,7 @@ class PreviewCommand(BaseCommand):
 
         if not args.positional:
             # Show last generated file or usage
-            if hasattr(cli, '_last_output_path') and cli._last_output_path:
+            if hasattr(cli, "_last_output_path") and cli._last_output_path:
                 file_path = cli._last_output_path
             else:
                 cli.renderer.info("Usage: /preview <file>")
@@ -80,7 +80,7 @@ class PreviewCommand(BaseCommand):
         if file_path == "tools":
             return await self._show_tools(cli)
         elif file_path == "last":
-            if hasattr(cli, '_last_output_path') and cli._last_output_path:
+            if hasattr(cli, "_last_output_path") and cli._last_output_path:
                 file_path = cli._last_output_path
             else:
                 cli.renderer.warning("No recent file to preview.")
@@ -94,8 +94,8 @@ class PreviewCommand(BaseCommand):
             return CommandResult.fail("File not found")
 
         # Get options
-        max_lines = args.flags.get('lines', 50)
-        raw_mode = args.flags.get('raw', False)
+        max_lines = args.flags.get("lines", 50)
+        raw_mode = args.flags.get("raw", False)
 
         # Preview the file
         await self._preview_file(cli, path, max_lines, raw_mode)
@@ -110,24 +110,28 @@ class PreviewCommand(BaseCommand):
         cli.renderer.print("[dim]" + "─" * 50 + "[/dim]")
 
         tool_info = [
-            ('glow', 'Markdown', 'go install github.com/charmbracelet/glow@latest'),
-            ('bat', 'Code/Text', 'apt install bat'),
-            ('catdoc', 'DOCX', 'apt install catdoc'),
-            ('pdftotext', 'PDF', 'apt install poppler-utils'),
-            ('chafa', 'Images', 'apt install chafa'),
-            ('pandoc', 'Universal', 'apt install pandoc'),
-            ('jq', 'JSON', 'apt install jq'),
-            ('hexyl', 'Binary', 'cargo install hexyl'),
+            ("glow", "Markdown", "go install github.com/charmbracelet/glow@latest"),
+            ("bat", "Code/Text", "apt install bat"),
+            ("catdoc", "DOCX", "apt install catdoc"),
+            ("pdftotext", "PDF", "apt install poppler-utils"),
+            ("chafa", "Images", "apt install chafa"),
+            ("pandoc", "Universal", "apt install pandoc"),
+            ("jq", "JSON", "apt install jq"),
+            ("hexyl", "Binary", "cargo install hexyl"),
         ]
 
         for tool, purpose, install in tool_info:
             status = "[green][/green]" if tools.get(tool) else "[red][/red]"
-            cli.renderer.print(f"  {status} [cyan]{tool:12}[/cyan] {purpose:12} [dim]{install}[/dim]")
+            cli.renderer.print(
+                f"  {status} [cyan]{tool:12}[/cyan] {purpose:12} [dim]{install}[/dim]"
+            )
 
         cli.renderer.print("[dim]" + "─" * 50 + "[/dim]")
         return CommandResult.ok()
 
-    async def _preview_file(self, cli: 'JottyCLI', path: Path, max_lines: int = 50, raw: bool = False) -> Any:
+    async def _preview_file(
+        self, cli: "JottyCLI", path: Path, max_lines: int = 50, raw: bool = False
+    ) -> Any:
         """Preview a file with the best available tool."""
         tools = self.detect_tools()
         suffix = path.suffix.lower()
@@ -140,19 +144,19 @@ class PreviewCommand(BaseCommand):
 
         try:
             # Route to appropriate previewer
-            if suffix in ['.md', '.markdown']:
+            if suffix in [".md", ".markdown"]:
                 await self._preview_markdown(cli, path, tools, raw)
-            elif suffix in ['.pdf']:
+            elif suffix in [".pdf"]:
                 await self._preview_pdf(cli, path, tools, max_lines)
-            elif suffix in ['.docx', '.doc']:
+            elif suffix in [".docx", ".doc"]:
                 await self._preview_docx(cli, path, tools, max_lines)
-            elif suffix in ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg']:
+            elif suffix in [".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg"]:
                 await self._preview_image(cli, path, tools)
-            elif suffix in ['.json']:
+            elif suffix in [".json"]:
                 await self._preview_json(cli, path, tools, max_lines)
-            elif suffix in ['.html', '.htm']:
+            elif suffix in [".html", ".htm"]:
                 await self._preview_html(cli, path, tools, max_lines)
-            elif suffix in ['.csv', '.tsv']:
+            elif suffix in [".csv", ".tsv"]:
                 await self._preview_csv(cli, path, max_lines)
             elif self._is_binary(path):
                 await self._preview_binary(cli, path, tools)
@@ -167,12 +171,14 @@ class PreviewCommand(BaseCommand):
 
         cli.renderer.print("[dim]" + "─" * 60 + "[/dim]")
 
-    async def _preview_markdown(self, cli: 'JottyCLI', path: Path, tools: dict, raw: bool) -> Any:
+    async def _preview_markdown(self, cli: "JottyCLI", path: Path, tools: dict, raw: bool) -> Any:
         """Preview markdown with glow or rich."""
-        if tools['glow'] and not raw:
+        if tools["glow"] and not raw:
             result = subprocess.run(
-                [tools['glow'], '-s', 'dark', '-w', '100', str(path)],
-                capture_output=True, text=True, timeout=10
+                [tools["glow"], "-s", "dark", "-w", "100", str(path)],
+                capture_output=True,
+                text=True,
+                timeout=10,
             )
             if result.returncode == 0:
                 print(result.stdout)
@@ -182,29 +188,35 @@ class PreviewCommand(BaseCommand):
         content = path.read_text()
         cli.renderer.markdown(content)
 
-    async def _preview_pdf(self, cli: 'JottyCLI', path: Path, tools: dict, max_lines: int) -> Any:
+    async def _preview_pdf(self, cli: "JottyCLI", path: Path, tools: dict, max_lines: int) -> Any:
         """Preview PDF with pdftotext."""
-        if tools['pdftotext']:
+        if tools["pdftotext"]:
             result = subprocess.run(
-                [tools['pdftotext'], '-layout', '-nopgbrk', str(path), '-'],
-                capture_output=True, text=True, timeout=30
+                [tools["pdftotext"], "-layout", "-nopgbrk", str(path), "-"],
+                capture_output=True,
+                text=True,
+                timeout=30,
             )
             if result.returncode == 0:
-                lines = result.stdout.split('\n')[:max_lines]
+                lines = result.stdout.split("\n")[:max_lines]
                 for line in lines:
                     print(line)
-                if len(result.stdout.split('\n')) > max_lines:
-                    cli.renderer.print(f"[dim]... ({len(result.stdout.split(chr(10))) - max_lines} more lines)[/dim]")
+                if len(result.stdout.split("\n")) > max_lines:
+                    cli.renderer.print(
+                        f"[dim]... ({len(result.stdout.split(chr(10))) - max_lines} more lines)[/dim]"
+                    )
                 return
 
         # Try pandoc
-        if tools['pandoc']:
+        if tools["pandoc"]:
             result = subprocess.run(
-                [tools['pandoc'], '-f', 'pdf', '-t', 'plain', str(path)],
-                capture_output=True, text=True, timeout=30
+                [tools["pandoc"], "-f", "pdf", "-t", "plain", str(path)],
+                capture_output=True,
+                text=True,
+                timeout=30,
             )
             if result.returncode == 0:
-                lines = result.stdout.split('\n')[:max_lines]
+                lines = result.stdout.split("\n")[:max_lines]
                 for line in lines:
                     print(line)
                 return
@@ -213,28 +225,29 @@ class PreviewCommand(BaseCommand):
         # Show metadata at least
         await self._show_file_metadata(cli, path, tools)
 
-    async def _preview_docx(self, cli: 'JottyCLI', path: Path, tools: dict, max_lines: int) -> Any:
+    async def _preview_docx(self, cli: "JottyCLI", path: Path, tools: dict, max_lines: int) -> Any:
         """Preview DOCX with catdoc or pandoc."""
-        if tools['catdoc']:
+        if tools["catdoc"]:
             result = subprocess.run(
-                [tools['catdoc'], '-w', str(path)],
-                capture_output=True, text=True, timeout=10
+                [tools["catdoc"], "-w", str(path)], capture_output=True, text=True, timeout=10
             )
             if result.returncode == 0:
-                lines = result.stdout.split('\n')[:max_lines]
+                lines = result.stdout.split("\n")[:max_lines]
                 for line in lines:
                     print(line)
-                if len(result.stdout.split('\n')) > max_lines:
+                if len(result.stdout.split("\n")) > max_lines:
                     cli.renderer.print(f"[dim]... (truncated)[/dim]")
                 return
 
-        if tools['pandoc']:
+        if tools["pandoc"]:
             result = subprocess.run(
-                [tools['pandoc'], '-f', 'docx', '-t', 'plain', str(path)],
-                capture_output=True, text=True, timeout=10
+                [tools["pandoc"], "-f", "docx", "-t", "plain", str(path)],
+                capture_output=True,
+                text=True,
+                timeout=10,
             )
             if result.returncode == 0:
-                lines = result.stdout.split('\n')[:max_lines]
+                lines = result.stdout.split("\n")[:max_lines]
                 for line in lines:
                     print(line)
                 return
@@ -242,33 +255,36 @@ class PreviewCommand(BaseCommand):
         cli.renderer.warning("DOCX preview requires catdoc or pandoc")
         cli.renderer.info("  apt install catdoc  OR  apt install pandoc")
 
-    async def _preview_image(self, cli: 'JottyCLI', path: Path, tools: dict) -> Any:
+    async def _preview_image(self, cli: "JottyCLI", path: Path, tools: dict) -> Any:
         """Preview image in terminal."""
         # Try chafa (best quality)
-        if tools['chafa']:
+        if tools["chafa"]:
             result = subprocess.run(
-                [tools['chafa'], '--size=80x40', '--colors=256', str(path)],
-                capture_output=True, text=True, timeout=10
+                [tools["chafa"], "--size=80x40", "--colors=256", str(path)],
+                capture_output=True,
+                text=True,
+                timeout=10,
             )
             if result.returncode == 0:
                 print(result.stdout)
                 return
 
         # Try timg
-        if tools['timg']:
+        if tools["timg"]:
             result = subprocess.run(
-                [tools['timg'], '-g', '80x40', str(path)],
-                capture_output=True, text=True, timeout=10
+                [tools["timg"], "-g", "80x40", str(path)],
+                capture_output=True,
+                text=True,
+                timeout=10,
             )
             if result.returncode == 0:
                 print(result.stdout)
                 return
 
         # Try viu
-        if tools['viu']:
+        if tools["viu"]:
             result = subprocess.run(
-                [tools['viu'], '-w', '80', str(path)],
-                capture_output=True, text=True, timeout=10
+                [tools["viu"], "-w", "80", str(path)], capture_output=True, text=True, timeout=10
             )
             if result.returncode == 0:
                 print(result.stdout)
@@ -279,69 +295,77 @@ class PreviewCommand(BaseCommand):
         # Show metadata
         await self._show_file_metadata(cli, path, tools)
 
-    async def _preview_json(self, cli: 'JottyCLI', path: Path, tools: dict, max_lines: int) -> Any:
+    async def _preview_json(self, cli: "JottyCLI", path: Path, tools: dict, max_lines: int) -> Any:
         """Preview JSON with syntax highlighting."""
-        if tools['jq']:
+        if tools["jq"]:
             result = subprocess.run(
-                [tools['jq'], '-C', '.', str(path)],
-                capture_output=True, text=True, timeout=10
+                [tools["jq"], "-C", ".", str(path)], capture_output=True, text=True, timeout=10
             )
             if result.returncode == 0:
-                lines = result.stdout.split('\n')[:max_lines]
+                lines = result.stdout.split("\n")[:max_lines]
                 for line in lines:
                     print(line)
                 return
 
-        if tools['bat']:
+        if tools["bat"]:
             result = subprocess.run(
-                [tools['bat'], '--color=always', '-l', 'json', str(path)],
-                capture_output=True, text=True, timeout=10
+                [tools["bat"], "--color=always", "-l", "json", str(path)],
+                capture_output=True,
+                text=True,
+                timeout=10,
             )
             if result.returncode == 0:
-                lines = result.stdout.split('\n')[:max_lines]
+                lines = result.stdout.split("\n")[:max_lines]
                 for line in lines:
                     print(line)
                 return
 
         # Fallback to python json
         import json
+
         content = json.loads(path.read_text())
         formatted = json.dumps(content, indent=2)
-        lines = formatted.split('\n')[:max_lines]
+        lines = formatted.split("\n")[:max_lines]
         for line in lines:
             print(line)
 
-    async def _preview_html(self, cli: 'JottyCLI', path: Path, tools: dict, max_lines: int) -> Any:
+    async def _preview_html(self, cli: "JottyCLI", path: Path, tools: dict, max_lines: int) -> Any:
         """Preview HTML as text."""
-        if tools['lynx']:
+        if tools["lynx"]:
             result = subprocess.run(
-                [tools['lynx'], '-dump', '-width=100', str(path)],
-                capture_output=True, text=True, timeout=10
+                [tools["lynx"], "-dump", "-width=100", str(path)],
+                capture_output=True,
+                text=True,
+                timeout=10,
             )
             if result.returncode == 0:
-                lines = result.stdout.split('\n')[:max_lines]
+                lines = result.stdout.split("\n")[:max_lines]
                 for line in lines:
                     print(line)
                 return
 
-        if tools['w3m']:
+        if tools["w3m"]:
             result = subprocess.run(
-                [tools['w3m'], '-dump', '-cols', '100', str(path)],
-                capture_output=True, text=True, timeout=10
+                [tools["w3m"], "-dump", "-cols", "100", str(path)],
+                capture_output=True,
+                text=True,
+                timeout=10,
             )
             if result.returncode == 0:
-                lines = result.stdout.split('\n')[:max_lines]
+                lines = result.stdout.split("\n")[:max_lines]
                 for line in lines:
                     print(line)
                 return
 
-        if tools['pandoc']:
+        if tools["pandoc"]:
             result = subprocess.run(
-                [tools['pandoc'], '-f', 'html', '-t', 'plain', str(path)],
-                capture_output=True, text=True, timeout=10
+                [tools["pandoc"], "-f", "html", "-t", "plain", str(path)],
+                capture_output=True,
+                text=True,
+                timeout=10,
             )
             if result.returncode == 0:
-                lines = result.stdout.split('\n')[:max_lines]
+                lines = result.stdout.split("\n")[:max_lines]
                 for line in lines:
                     print(line)
                 return
@@ -349,13 +373,13 @@ class PreviewCommand(BaseCommand):
         # Raw HTML with bat
         await self._preview_code(cli, path, tools, max_lines, False)
 
-    async def _preview_csv(self, cli: 'JottyCLI', path: Path, max_lines: int) -> Any:
+    async def _preview_csv(self, cli: "JottyCLI", path: Path, max_lines: int) -> Any:
         """Preview CSV as table."""
         import csv
 
-        with open(path, 'r') as f:
+        with open(path, "r") as f:
             reader = csv.reader(f)
-            rows = list(reader)[:max_lines + 1]
+            rows = list(reader)[: max_lines + 1]
 
         if not rows:
             cli.renderer.print("[dim]Empty file[/dim]")
@@ -375,17 +399,29 @@ class PreviewCommand(BaseCommand):
 
         # Print rows
         for row in rows[1:]:
-            row_str = " │ ".join(str(c)[:w].ljust(w) if i < len(row) else " " * w
-                                 for i, (c, w) in enumerate(zip(row + [''] * len(col_widths), col_widths)))
+            row_str = " │ ".join(
+                str(c)[:w].ljust(w) if i < len(row) else " " * w
+                for i, (c, w) in enumerate(zip(row + [""] * len(col_widths), col_widths))
+            )
             print(row_str)
 
-    async def _preview_code(self, cli: 'JottyCLI', path: Path, tools: dict, max_lines: int, raw: bool) -> Any:
+    async def _preview_code(
+        self, cli: "JottyCLI", path: Path, tools: dict, max_lines: int, raw: bool
+    ) -> Any:
         """Preview code/text with syntax highlighting."""
-        if tools['bat'] and not raw:
+        if tools["bat"] and not raw:
             result = subprocess.run(
-                [tools['bat'], '--color=always', '--style=numbers,changes',
-                 '-r', f'1:{max_lines}', str(path)],
-                capture_output=True, text=True, timeout=10
+                [
+                    tools["bat"],
+                    "--color=always",
+                    "--style=numbers,changes",
+                    "-r",
+                    f"1:{max_lines}",
+                    str(path),
+                ],
+                capture_output=True,
+                text=True,
+                timeout=10,
             )
             if result.returncode == 0:
                 print(result.stdout)
@@ -394,12 +430,11 @@ class PreviewCommand(BaseCommand):
         # Fallback to raw
         await self._preview_raw(cli, path, max_lines)
 
-    async def _preview_binary(self, cli: 'JottyCLI', path: Path, tools: dict) -> Any:
+    async def _preview_binary(self, cli: "JottyCLI", path: Path, tools: dict) -> Any:
         """Preview binary file with hexyl."""
-        if tools['hexyl']:
+        if tools["hexyl"]:
             result = subprocess.run(
-                [tools['hexyl'], '-n', '256', str(path)],
-                capture_output=True, text=True, timeout=10
+                [tools["hexyl"], "-n", "256", str(path)], capture_output=True, text=True, timeout=10
             )
             if result.returncode == 0:
                 print(result.stdout)
@@ -407,8 +442,7 @@ class PreviewCommand(BaseCommand):
 
         # xxd fallback
         result = subprocess.run(
-            ['xxd', '-l', '256', str(path)],
-            capture_output=True, text=True, timeout=10
+            ["xxd", "-l", "256", str(path)], capture_output=True, text=True, timeout=10
         )
         if result.returncode == 0:
             print(result.stdout)
@@ -416,10 +450,10 @@ class PreviewCommand(BaseCommand):
 
         cli.renderer.print("[dim]Binary file - use hexyl for preview[/dim]")
 
-    async def _preview_raw(self, cli: 'JottyCLI', path: Path, max_lines: int) -> Any:
+    async def _preview_raw(self, cli: "JottyCLI", path: Path, max_lines: int) -> Any:
         """Raw text preview."""
         try:
-            with open(path, 'r', errors='replace') as f:
+            with open(path, "r", errors="replace") as f:
                 for i, line in enumerate(f):
                     if i >= max_lines:
                         cli.renderer.print(f"[dim]... (truncated at {max_lines} lines)[/dim]")
@@ -428,28 +462,41 @@ class PreviewCommand(BaseCommand):
         except Exception as e:
             cli.renderer.error(f"Cannot read file: {e}")
 
-    async def _show_file_metadata(self, cli: 'JottyCLI', path: Path, tools: dict) -> Any:
+    async def _show_file_metadata(self, cli: "JottyCLI", path: Path, tools: dict) -> Any:
         """Show file metadata."""
         import os
         from datetime import datetime
 
         stat = path.stat()
         cli.renderer.print(f"[dim]Size: {self._format_size(stat.st_size)}[/dim]")
-        cli.renderer.print(f"[dim]Modified: {datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S')}[/dim]")
+        cli.renderer.print(
+            f"[dim]Modified: {datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S')}[/dim]"
+        )
 
-        if tools['exiftool']:
+        if tools["exiftool"]:
             result = subprocess.run(
-                [tools['exiftool'], '-s', '-s', '-s',
-                 '-FileType', '-ImageSize', '-PageCount', '-Author', str(path)],
-                capture_output=True, text=True, timeout=5
+                [
+                    tools["exiftool"],
+                    "-s",
+                    "-s",
+                    "-s",
+                    "-FileType",
+                    "-ImageSize",
+                    "-PageCount",
+                    "-Author",
+                    str(path),
+                ],
+                capture_output=True,
+                text=True,
+                timeout=5,
             )
             if result.returncode == 0 and result.stdout.strip():
-                for line in result.stdout.strip().split('\n')[:5]:
+                for line in result.stdout.strip().split("\n")[:5]:
                     cli.renderer.print(f"[dim]{line}[/dim]")
 
     def _format_size(self, size: int) -> str:
         """Format file size."""
-        for unit in ['B', 'KB', 'MB', 'GB']:
+        for unit in ["B", "KB", "MB", "GB"]:
             if size < 1024:
                 return f"{size:.1f} {unit}"
             size /= 1024
@@ -458,9 +505,9 @@ class PreviewCommand(BaseCommand):
     def _is_binary(self, path: Path) -> bool:
         """Check if file is binary."""
         try:
-            with open(path, 'rb') as f:
+            with open(path, "rb") as f:
                 chunk = f.read(8192)
-                return b'\x00' in chunk
+                return b"\x00" in chunk
         except (OSError, IOError):
             # File not readable
             return False
@@ -468,7 +515,7 @@ class PreviewCommand(BaseCommand):
     def get_completions(self, partial: str) -> list:
         """Get file path completions."""
         if not partial:
-            return ['last', 'tools']
+            return ["last", "tools"]
 
         path = Path(partial).expanduser()
 
@@ -477,4 +524,4 @@ class PreviewCommand(BaseCommand):
         elif path.parent.exists():
             return [str(p) for p in path.parent.glob(f"{path.name}*")][:20]
 
-        return ['last', 'tools']
+        return ["last", "tools"]

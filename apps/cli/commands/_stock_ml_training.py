@@ -6,12 +6,12 @@ Extended training modes for StockMLCommand: comparison, world-class backtest,
 sweep, unified training, cross-stock normalization, comprehensive features.
 """
 
-import warnings
 import json
-from typing import TYPE_CHECKING, Dict, Any, Optional, List, Tuple
+import warnings
 from pathlib import Path
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
-warnings.filterwarnings('ignore')
+warnings.filterwarnings("ignore")
 
 from .base import CommandResult, ParsedArgs
 
@@ -26,19 +26,19 @@ class StockMLTrainingMixin:
     by StockMLCommand.execute() based on subcommand parsing.
     """
 
-    async def _run_comparison(self, args: ParsedArgs, cli: "JottyCLI", symbol: str) -> CommandResult:
+    async def _run_comparison(
+        self, args: ParsedArgs, cli: "JottyCLI", symbol: str
+    ) -> CommandResult:
         """Run comparison across multiple targets and timeframes."""
-        import pandas as pd
         import numpy as np
+        import pandas as pd
 
         years = int(args.flags.get("years", args.flags.get("y", "3")))
         use_mlflow = "mlflow" in args.flags
         experiment_name = args.flags.get("experiment", f"stock_{symbol}_compare")
 
         # Define comparison configs
-        targets_to_test = [
-            "next_1d_up", "next_5d_up", "next_10d_up", "next_20d_up", "next_30d_up"
-        ]
+        targets_to_test = ["next_1d_up", "next_5d_up", "next_10d_up", "next_20d_up", "next_30d_up"]
         timeframes_to_test = ["day"]  # Can expand: ["day", "60minute"]
 
         # Check if user specified specific targets or timeframes
@@ -48,7 +48,9 @@ class StockMLTrainingMixin:
             timeframes_to_test = args.flags["compare-timeframes"].split(",")
 
         cli.renderer.header(f"Stock ML Comparison: {symbol}")
-        cli.renderer.info(f"Testing {len(targets_to_test)} targets × {len(timeframes_to_test)} timeframes")
+        cli.renderer.info(
+            f"Testing {len(targets_to_test)} targets × {len(timeframes_to_test)} timeframes"
+        )
         cli.renderer.info("")
 
         all_results = []
@@ -79,17 +81,19 @@ class StockMLTrainingMixin:
                     # Quick training with just best models
                     result = await self._quick_train(X, y, feature_names, target_config, cli)
 
-                    all_results.append({
-                        'timeframe': timeframe,
-                        'target': target_type,
-                        'days': target_config['days'],
-                        'type': target_config['type'],
-                        'samples': len(X),
-                        'best_model': result['best_model'],
-                        'accuracy': result.get('accuracy', 0),
-                        'auc': result.get('auc', 0),
-                        'f1': result.get('f1', 0),
-                    })
+                    all_results.append(
+                        {
+                            "timeframe": timeframe,
+                            "target": target_type,
+                            "days": target_config["days"],
+                            "type": target_config["type"],
+                            "samples": len(X),
+                            "best_model": result["best_model"],
+                            "accuracy": result.get("accuracy", 0),
+                            "auc": result.get("auc", 0),
+                            "f1": result.get("f1", 0),
+                        }
+                    )
                 except Exception as e:
                     cli.renderer.error(f"  Failed: {e}")
                     continue
@@ -102,12 +106,18 @@ class StockMLTrainingMixin:
         cli.renderer.info("")
         cli.renderer.header("Comparison Results")
         cli.renderer.info("")
-        cli.renderer.info("┌─────────────┬────────────┬───────────┬──────────┬──────────┬──────────┬─────────────────┐")
-        cli.renderer.info("│  Timeframe  │   Target   │   Days    │ Samples  │ Accuracy │  AUC     │   Best Model    │")
-        cli.renderer.info("├─────────────┼────────────┼───────────┼──────────┼──────────┼──────────┼─────────────────┤")
+        cli.renderer.info(
+            "┌─────────────┬────────────┬───────────┬──────────┬──────────┬──────────┬─────────────────┐"
+        )
+        cli.renderer.info(
+            "│  Timeframe  │   Target   │   Days    │ Samples  │ Accuracy │  AUC     │   Best Model    │"
+        )
+        cli.renderer.info(
+            "├─────────────┼────────────┼───────────┼──────────┼──────────┼──────────┼─────────────────┤"
+        )
 
         # Sort by AUC descending
-        sorted_results = sorted(all_results, key=lambda x: -x['auc'])
+        sorted_results = sorted(all_results, key=lambda x: -x["auc"])
 
         for r in sorted_results:
             marker = "" if r == sorted_results[0] else " "
@@ -116,7 +126,9 @@ class StockMLTrainingMixin:
                 f"{r['accuracy']:^8.4f} │ {r['auc']:^8.4f} │ {r['best_model']:<15} │"
             )
 
-        cli.renderer.info("└─────────────┴────────────┴───────────┴──────────┴──────────┴──────────┴─────────────────┘")
+        cli.renderer.info(
+            "└─────────────┴────────────┴───────────┴──────────┴──────────┴──────────┴─────────────────┘"
+        )
 
         # Summary
         best = sorted_results[0]
@@ -131,43 +143,52 @@ class StockMLTrainingMixin:
         # Log to MLflow if enabled
         if use_mlflow:
             from Jotty.core.capabilities.skills.ml import MLflowTrackerSkill
+
             from .ml import MLCommand
 
             tracker = MLflowTrackerSkill()
             await tracker.init(experiment_name=experiment_name)
             await tracker.start_run(run_name=f"{symbol}_comparison")
 
-            await tracker.log_params({
-                'symbol': symbol,
-                'targets_tested': ','.join(targets_to_test),
-                'timeframes_tested': ','.join(timeframes_to_test),
-                'best_target': best['target'],
-                'best_timeframe': best['timeframe'],
-            })
+            await tracker.log_params(
+                {
+                    "symbol": symbol,
+                    "targets_tested": ",".join(targets_to_test),
+                    "timeframes_tested": ",".join(timeframes_to_test),
+                    "best_target": best["target"],
+                    "best_timeframe": best["timeframe"],
+                }
+            )
 
-            await tracker.log_metrics({
-                'best_auc': best['auc'],
-                'best_accuracy': best['accuracy'],
-                'n_configurations': len(all_results),
-            })
+            await tracker.log_metrics(
+                {
+                    "best_auc": best["auc"],
+                    "best_accuracy": best["accuracy"],
+                    "n_configurations": len(all_results),
+                }
+            )
 
             run_info = await tracker.end_run()
             if run_info:
-                MLCommand.save_mlflow_state(experiment_name, run_info['run_id'])
+                MLCommand.save_mlflow_state(experiment_name, run_info["run_id"])
                 cli.renderer.info(f"MLflow run: {run_info['run_id']}")
 
-        return CommandResult.ok(data={
-            'symbol': symbol,
-            'results': sorted_results,
-            'best': best,
-        })
+        return CommandResult.ok(
+            data={
+                "symbol": symbol,
+                "results": sorted_results,
+                "best": best,
+            }
+        )
 
-    async def _quick_train(self, X: Any, y: Any, feature_names: Any, target_config: Any, cli: Any) -> Dict[str, Any]:
+    async def _quick_train(
+        self, X: Any, y: Any, feature_names: Any, target_config: Any, cli: Any
+    ) -> Dict[str, Any]:
         """Quick training with fewer models for comparison mode."""
         import numpy as np
         from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
 
-        is_classification = target_config['type'] == 'classification'
+        is_classification = target_config["type"] == "classification"
 
         # Time series split
         split_idx = int(len(X) * 0.8)
@@ -178,9 +199,13 @@ class StockMLTrainingMixin:
         import lightgbm as lgb
 
         if is_classification:
-            model = lgb.LGBMClassifier(n_estimators=100, learning_rate=0.1, verbose=-1, random_state=42)
+            model = lgb.LGBMClassifier(
+                n_estimators=100, learning_rate=0.1, verbose=-1, random_state=42
+            )
         else:
-            model = lgb.LGBMRegressor(n_estimators=100, learning_rate=0.1, verbose=-1, random_state=42)
+            model = lgb.LGBMRegressor(
+                n_estimators=100, learning_rate=0.1, verbose=-1, random_state=42
+            )
 
         model.fit(X_train.values, y_train.values)
         pred = model.predict(X_test.values)
@@ -196,28 +221,30 @@ class StockMLTrainingMixin:
                 auc = acc
 
             return {
-                'best_model': 'LightGBM',
-                'accuracy': acc,
-                'f1': f1,
-                'auc': auc,
+                "best_model": "LightGBM",
+                "accuracy": acc,
+                "f1": f1,
+                "auc": auc,
             }
         else:
             from sklearn.metrics import r2_score
+
             r2 = r2_score(y_test, pred)
             return {
-                'best_model': 'LightGBM',
-                'r2': r2,
-                'accuracy': r2,  # For sorting
-                'auc': r2,
-                'f1': 0,
+                "best_model": "LightGBM",
+                "r2": r2,
+                "accuracy": r2,  # For sorting
+                "auc": r2,
+                "f1": 0,
             }
 
     async def _run_world_class_backtest(self, args: ParsedArgs, cli: "JottyCLI") -> CommandResult:
         """Run world-class comprehensive backtest with institutional-grade analysis."""
-        import pandas as pd
-        import numpy as np
         from datetime import datetime
         from pathlib import Path
+
+        import numpy as np
+        import pandas as pd
 
         # Parse arguments
         symbol = args.positional[0].upper() if args.positional else None
@@ -244,7 +271,7 @@ class StockMLTrainingMixin:
         try:
             # Parse target config
             target_config = self._parse_target(target_type)
-            is_classification = target_config['type'] == 'classification'
+            is_classification = target_config["type"] == "classification"
 
             # Load data
             cli.renderer.status(f"Loading {symbol} data...")
@@ -253,7 +280,9 @@ class StockMLTrainingMixin:
                 cli.renderer.error(f"Insufficient data for {symbol}")
                 return CommandResult.fail("Insufficient data")
 
-            cli.renderer.info(f"Loaded {len(df)} records ({df['date'].min().date()} to {df['date'].max().date()})")
+            cli.renderer.info(
+                f"Loaded {len(df)} records ({df['date'].min().date()} to {df['date'].max().date()})"
+            )
 
             # Create features
             cli.renderer.status("Engineering features...")
@@ -266,6 +295,7 @@ class StockMLTrainingMixin:
 
             # Scale features
             from sklearn.preprocessing import StandardScaler
+
             scaler = StandardScaler()
             X_scaled = pd.DataFrame(scaler.fit_transform(X), index=X.index, columns=X.columns)
 
@@ -280,78 +310,154 @@ class StockMLTrainingMixin:
             import xgboost as xgb
 
             # Detect if intraday timeframe (use RoMaD-optimized params)
-            is_intraday = timeframe.lower() in ['15min', '15minute', '30min', '30minute',
-                                                  '60min', '60minute', 'hourly']
+            is_intraday = timeframe.lower() in [
+                "15min",
+                "15minute",
+                "30min",
+                "30minute",
+                "60min",
+                "60minute",
+                "hourly",
+            ]
 
             if is_classification:
                 if is_intraday:
                     # RoMaD-optimized params for intraday (shallow trees, slow learning)
                     models = {
-                        'LightGBM': lgb.LGBMClassifier(
-                            n_estimators=386, learning_rate=0.0067, max_depth=4,
-                            num_leaves=32, min_child_samples=7, subsample=0.80,
-                            colsample_bytree=0.50, reg_alpha=0.013, reg_lambda=0.017,
-                            verbose=-1, random_state=42, n_jobs=-1,
+                        "LightGBM": lgb.LGBMClassifier(
+                            n_estimators=386,
+                            learning_rate=0.0067,
+                            max_depth=4,
+                            num_leaves=32,
+                            min_child_samples=7,
+                            subsample=0.80,
+                            colsample_bytree=0.50,
+                            reg_alpha=0.013,
+                            reg_lambda=0.017,
+                            verbose=-1,
+                            random_state=42,
+                            n_jobs=-1,
                         ),
-                        'XGBoost': xgb.XGBClassifier(
-                            n_estimators=400, learning_rate=0.01, max_depth=4,
-                            min_child_weight=5, subsample=0.75, colsample_bytree=0.5,
-                            gamma=0.05, reg_alpha=0.01, reg_lambda=0.02,
-                            verbosity=0, random_state=42, n_jobs=-1, tree_method='hist',
+                        "XGBoost": xgb.XGBClassifier(
+                            n_estimators=400,
+                            learning_rate=0.01,
+                            max_depth=4,
+                            min_child_weight=5,
+                            subsample=0.75,
+                            colsample_bytree=0.5,
+                            gamma=0.05,
+                            reg_alpha=0.01,
+                            reg_lambda=0.02,
+                            verbosity=0,
+                            random_state=42,
+                            n_jobs=-1,
+                            tree_method="hist",
                         ),
                     }
                 else:
                     # Daily timeframe params (deeper trees, faster learning)
                     models = {
-                        'LightGBM': lgb.LGBMClassifier(
-                            n_estimators=500, learning_rate=0.02, max_depth=8,
-                            num_leaves=63, min_child_samples=20, subsample=0.8,
-                            colsample_bytree=0.8, reg_alpha=0.1, reg_lambda=0.1,
-                            verbose=-1, random_state=42, n_jobs=-1,
+                        "LightGBM": lgb.LGBMClassifier(
+                            n_estimators=500,
+                            learning_rate=0.02,
+                            max_depth=8,
+                            num_leaves=63,
+                            min_child_samples=20,
+                            subsample=0.8,
+                            colsample_bytree=0.8,
+                            reg_alpha=0.1,
+                            reg_lambda=0.1,
+                            verbose=-1,
+                            random_state=42,
+                            n_jobs=-1,
                         ),
-                        'XGBoost': xgb.XGBClassifier(
-                            n_estimators=500, learning_rate=0.02, max_depth=7,
-                            min_child_weight=3, subsample=0.8, colsample_bytree=0.8,
-                            gamma=0.1, reg_alpha=0.1, reg_lambda=1.0,
-                            verbosity=0, random_state=42, n_jobs=-1, tree_method='hist',
+                        "XGBoost": xgb.XGBClassifier(
+                            n_estimators=500,
+                            learning_rate=0.02,
+                            max_depth=7,
+                            min_child_weight=3,
+                            subsample=0.8,
+                            colsample_bytree=0.8,
+                            gamma=0.1,
+                            reg_alpha=0.1,
+                            reg_lambda=1.0,
+                            verbosity=0,
+                            random_state=42,
+                            n_jobs=-1,
+                            tree_method="hist",
                         ),
                     }
             else:
                 if is_intraday:
                     # RoMaD-optimized params for intraday regression
                     models = {
-                        'LightGBM': lgb.LGBMRegressor(
-                            n_estimators=386, learning_rate=0.0067, max_depth=4,
-                            num_leaves=32, min_child_samples=7, subsample=0.80,
-                            colsample_bytree=0.50, reg_alpha=0.013, reg_lambda=0.017,
-                            verbose=-1, random_state=42, n_jobs=-1,
+                        "LightGBM": lgb.LGBMRegressor(
+                            n_estimators=386,
+                            learning_rate=0.0067,
+                            max_depth=4,
+                            num_leaves=32,
+                            min_child_samples=7,
+                            subsample=0.80,
+                            colsample_bytree=0.50,
+                            reg_alpha=0.013,
+                            reg_lambda=0.017,
+                            verbose=-1,
+                            random_state=42,
+                            n_jobs=-1,
                         ),
-                        'XGBoost': xgb.XGBRegressor(
-                            n_estimators=400, learning_rate=0.01, max_depth=4,
-                            min_child_weight=5, subsample=0.75, colsample_bytree=0.5,
-                            gamma=0.05, reg_alpha=0.01, reg_lambda=0.02,
-                            verbosity=0, random_state=42, n_jobs=-1, tree_method='hist',
+                        "XGBoost": xgb.XGBRegressor(
+                            n_estimators=400,
+                            learning_rate=0.01,
+                            max_depth=4,
+                            min_child_weight=5,
+                            subsample=0.75,
+                            colsample_bytree=0.5,
+                            gamma=0.05,
+                            reg_alpha=0.01,
+                            reg_lambda=0.02,
+                            verbosity=0,
+                            random_state=42,
+                            n_jobs=-1,
+                            tree_method="hist",
                         ),
                     }
                 else:
                     # Daily timeframe params
                     models = {
-                        'LightGBM': lgb.LGBMRegressor(
-                            n_estimators=500, learning_rate=0.02, max_depth=8,
-                            num_leaves=63, min_child_samples=20, subsample=0.8,
-                            colsample_bytree=0.8, reg_alpha=0.1, reg_lambda=0.1,
-                            verbose=-1, random_state=42, n_jobs=-1,
+                        "LightGBM": lgb.LGBMRegressor(
+                            n_estimators=500,
+                            learning_rate=0.02,
+                            max_depth=8,
+                            num_leaves=63,
+                            min_child_samples=20,
+                            subsample=0.8,
+                            colsample_bytree=0.8,
+                            reg_alpha=0.1,
+                            reg_lambda=0.1,
+                            verbose=-1,
+                            random_state=42,
+                            n_jobs=-1,
                         ),
-                        'XGBoost': xgb.XGBRegressor(
-                            n_estimators=500, learning_rate=0.02, max_depth=7,
-                            min_child_weight=3, subsample=0.8, colsample_bytree=0.8,
-                            gamma=0.1, reg_alpha=0.1, reg_lambda=1.0,
-                            verbosity=0, random_state=42, n_jobs=-1, tree_method='hist',
+                        "XGBoost": xgb.XGBRegressor(
+                            n_estimators=500,
+                            learning_rate=0.02,
+                            max_depth=7,
+                            min_child_weight=3,
+                            subsample=0.8,
+                            colsample_bytree=0.8,
+                            gamma=0.1,
+                            reg_alpha=0.1,
+                            reg_lambda=1.0,
+                            verbosity=0,
+                            random_state=42,
+                            n_jobs=-1,
+                            tree_method="hist",
                         ),
                     }
 
             # Find best model
-            from sklearn.metrics import accuracy_score, roc_auc_score, f1_score, r2_score
+            from sklearn.metrics import accuracy_score, f1_score, r2_score, roc_auc_score
+
             best_model = None
             best_score = -np.inf
             best_name = None
@@ -385,17 +491,17 @@ class StockMLTrainingMixin:
                 predictions = best_model.predict(X_test.values)
 
             # Get price data for backtesting
-            test_dates = df.loc[X_test.index, 'date']
-            test_prices = df.loc[X_test.index, 'close'].values
+            test_dates = df.loc[X_test.index, "date"]
+            test_prices = df.loc[X_test.index, "close"].values
 
             # Run World-Class Backtest Engine
             cli.renderer.info("")
             cli.renderer.header("Running World-Class Backtest Engine")
 
             from Jotty.core.capabilities.skills.ml import (
-                WorldClassBacktestEngine,
-                TransactionCosts,
                 ComprehensiveBacktestReportGenerator,
+                TransactionCosts,
+                WorldClassBacktestEngine,
             )
 
             # Initialize engine
@@ -442,8 +548,7 @@ class StockMLTrainingMixin:
             cli.renderer.status("Generating reports...")
             try:
                 md_path, pdf_path = await report_generator.generate_report(
-                    result=result,
-                    template_name="quantitative"
+                    result=result, template_name="quantitative"
                 )
                 cli.renderer.info(f"Markdown: {md_path}")
                 cli.renderer.info(f"PDF: {pdf_path}")
@@ -474,47 +579,71 @@ class StockMLTrainingMixin:
 
             cli.renderer.info("")
             cli.renderer.info("┌─────────────────────────────────────────────────────────┐")
-            cli.renderer.info(f"│  Total Return (Gross):      {result.total_return*100:>+8.2f}%                   │")
-            cli.renderer.info(f"│  Total Return (Net):        {result.total_return_net*100:>+8.2f}%                   │")
-            cli.renderer.info(f"│  Sharpe Ratio:              {result.sharpe_ratio:>+8.2f}                     │")
-            cli.renderer.info(f"│  Sortino Ratio:             {result.sortino_ratio:>+8.2f}                     │")
-            cli.renderer.info(f"│  Max Drawdown:              {risk.max_drawdown*100:>+8.2f}%                   │")
-            cli.renderer.info(f"│  Win Rate:                  {result.win_rate*100:>8.1f}%                   │")
+            cli.renderer.info(
+                f"│  Total Return (Gross):      {result.total_return*100:>+8.2f}%                   │"
+            )
+            cli.renderer.info(
+                f"│  Total Return (Net):        {result.total_return_net*100:>+8.2f}%                   │"
+            )
+            cli.renderer.info(
+                f"│  Sharpe Ratio:              {result.sharpe_ratio:>+8.2f}                     │"
+            )
+            cli.renderer.info(
+                f"│  Sortino Ratio:             {result.sortino_ratio:>+8.2f}                     │"
+            )
+            cli.renderer.info(
+                f"│  Max Drawdown:              {risk.max_drawdown*100:>+8.2f}%                   │"
+            )
+            cli.renderer.info(
+                f"│  Win Rate:                  {result.win_rate*100:>8.1f}%                   │"
+            )
             cli.renderer.info("├─────────────────────────────────────────────────────────┤")
             is_significant = stats.p_value < 0.05
-            cli.renderer.info(f"│  P-Value:                   {stats.p_value:>8.4f}                     │")
-            cli.renderer.info(f"│  Statistically Significant: {'Yes' if is_significant else 'No':>8}                     │")
-            cli.renderer.info(f"│  Monte Carlo P(Profit):     {mc.prob_positive*100:>8.1f}%                   │")
+            cli.renderer.info(
+                f"│  P-Value:                   {stats.p_value:>8.4f}                     │"
+            )
+            cli.renderer.info(
+                f"│  Statistically Significant: {'Yes' if is_significant else 'No':>8}                     │"
+            )
+            cli.renderer.info(
+                f"│  Monte Carlo P(Profit):     {mc.prob_positive*100:>8.1f}%                   │"
+            )
             cli.renderer.info("└─────────────────────────────────────────────────────────┘")
 
-            return CommandResult.ok(data={
-                'symbol': symbol,
-                'total_return': result.total_return,
-                'total_return_net': result.total_return_net,
-                'sharpe_ratio': result.sharpe_ratio,
-                'max_drawdown': risk.max_drawdown,
-                'p_value': stats.p_value,
-                'is_significant': is_significant,
-                'report_paths': {
-                    'markdown': str(md_path) if md_path else None,
-                    'pdf': str(pdf_path) if pdf_path else None,
+            return CommandResult.ok(
+                data={
+                    "symbol": symbol,
+                    "total_return": result.total_return,
+                    "total_return_net": result.total_return_net,
+                    "sharpe_ratio": result.sharpe_ratio,
+                    "max_drawdown": risk.max_drawdown,
+                    "p_value": stats.p_value,
+                    "is_significant": is_significant,
+                    "report_paths": {
+                        "markdown": str(md_path) if md_path else None,
+                        "pdf": str(pdf_path) if pdf_path else None,
+                    },
                 }
-            })
+            )
 
         except Exception as e:
             cli.renderer.error(f"World-class backtest failed: {e}")
             import traceback
+
             traceback.print_exc()
             return CommandResult.fail(str(e))
 
     async def _run_sweep(self, args: ParsedArgs, cli: "JottyCLI") -> CommandResult:
         """Run comprehensive sweep across stocks, targets, timeframes, periods."""
-        import pandas as pd
         from datetime import datetime
+
+        import pandas as pd
 
         # Parse sweep parameters
         stocks_input = args.flags.get("stocks", args.flags.get("s", "top10"))
-        targets_input = args.flags.get("sweep-targets", "next_1d_up,next_5d_up,next_10d_up,next_20d_up")
+        targets_input = args.flags.get(
+            "sweep-targets", "next_1d_up,next_5d_up,next_10d_up,next_20d_up"
+        )
         timeframes_input = args.flags.get("sweep-timeframes", "day")
         periods_input = args.flags.get("sweep-periods", "3")
         use_mlflow = "mlflow" in args.flags
@@ -560,27 +689,35 @@ class StockMLTrainingMixin:
                     for target_type in targets:
                         completed += 1
                         target_config = self._parse_target(target_type)
-                        cli.renderer.status(f"[{completed}/{total_configs}] {symbol} {target_type} {timeframe} {years}y")
+                        cli.renderer.status(
+                            f"[{completed}/{total_configs}] {symbol} {target_type} {timeframe} {years}y"
+                        )
 
                         try:
-                            X, y, feature_names = self._create_features_and_target(df.copy(), target_config)
+                            X, y, feature_names = self._create_features_and_target(
+                                df.copy(), target_config
+                            )
                             if X is None or len(X) < 100:
                                 continue
 
-                            result = await self._quick_train(X, y, feature_names, target_config, cli)
+                            result = await self._quick_train(
+                                X, y, feature_names, target_config, cli
+                            )
 
-                            all_results.append({
-                                'symbol': symbol,
-                                'target': target_type,
-                                'days': target_config['days'],
-                                'timeframe': timeframe,
-                                'years': years,
-                                'samples': len(X),
-                                'accuracy': result.get('accuracy', 0),
-                                'auc': result.get('auc', 0),
-                                'f1': result.get('f1', 0),
-                                'timestamp': datetime.now().isoformat(),
-                            })
+                            all_results.append(
+                                {
+                                    "symbol": symbol,
+                                    "target": target_type,
+                                    "days": target_config["days"],
+                                    "timeframe": timeframe,
+                                    "years": years,
+                                    "samples": len(X),
+                                    "accuracy": result.get("accuracy", 0),
+                                    "auc": result.get("auc", 0),
+                                    "f1": result.get("f1", 0),
+                                    "timestamp": datetime.now().isoformat(),
+                                }
+                            )
                         except Exception as e:
                             continue
 
@@ -589,15 +726,21 @@ class StockMLTrainingMixin:
             return CommandResult.fail("No results")
 
         # Sort by AUC
-        sorted_results = sorted(all_results, key=lambda x: -x['auc'])
+        sorted_results = sorted(all_results, key=lambda x: -x["auc"])
 
         # Display top results
         cli.renderer.info("")
         cli.renderer.header(f"Sweep Results (Top 20 of {len(all_results)})")
         cli.renderer.info("")
-        cli.renderer.info("┌──────────────┬─────────────┬───────────┬──────────┬────────┬──────────┬──────────┐")
-        cli.renderer.info("│    Symbol    │   Target    │ Timeframe │  Years   │ Samples│ Accuracy │   AUC    │")
-        cli.renderer.info("├──────────────┼─────────────┼───────────┼──────────┼────────┼──────────┼──────────┤")
+        cli.renderer.info(
+            "┌──────────────┬─────────────┬───────────┬──────────┬────────┬──────────┬──────────┐"
+        )
+        cli.renderer.info(
+            "│    Symbol    │   Target    │ Timeframe │  Years   │ Samples│ Accuracy │   AUC    │"
+        )
+        cli.renderer.info(
+            "├──────────────┼─────────────┼───────────┼──────────┼────────┼──────────┼──────────┤"
+        )
 
         for i, r in enumerate(sorted_results[:20]):
             marker = "" if i == 0 else " "
@@ -606,18 +749,20 @@ class StockMLTrainingMixin:
                 f"{r['samples']:^6} │ {r['accuracy']:^8.4f} │ {r['auc']:^8.4f} │"
             )
 
-        cli.renderer.info("└──────────────┴─────────────┴───────────┴──────────┴────────┴──────────┴──────────┘")
+        cli.renderer.info(
+            "└──────────────┴─────────────┴───────────┴──────────┴────────┴──────────┴──────────┘"
+        )
 
         # Summary statistics
         cli.renderer.info("")
         cli.renderer.info("Summary by Stock (avg AUC):")
         stock_aucs = {}
         for r in all_results:
-            if r['symbol'] not in stock_aucs:
-                stock_aucs[r['symbol']] = []
-            stock_aucs[r['symbol']].append(r['auc'])
+            if r["symbol"] not in stock_aucs:
+                stock_aucs[r["symbol"]] = []
+            stock_aucs[r["symbol"]].append(r["auc"])
 
-        stock_avg = [(s, sum(aucs)/len(aucs)) for s, aucs in stock_aucs.items()]
+        stock_avg = [(s, sum(aucs) / len(aucs)) for s, aucs in stock_aucs.items()]
         stock_avg.sort(key=lambda x: -x[1])
         for symbol, avg_auc in stock_avg[:10]:
             cli.renderer.info(f"  {symbol:<12} {avg_auc:.4f}")
@@ -626,11 +771,11 @@ class StockMLTrainingMixin:
         cli.renderer.info("Summary by Target (avg AUC):")
         target_aucs = {}
         for r in all_results:
-            if r['target'] not in target_aucs:
-                target_aucs[r['target']] = []
-            target_aucs[r['target']].append(r['auc'])
+            if r["target"] not in target_aucs:
+                target_aucs[r["target"]] = []
+            target_aucs[r["target"]].append(r["auc"])
 
-        target_avg = [(t, sum(aucs)/len(aucs)) for t, aucs in target_aucs.items()]
+        target_avg = [(t, sum(aucs) / len(aucs)) for t, aucs in target_aucs.items()]
         target_avg.sort(key=lambda x: -x[1])
         for target, avg_auc in target_avg:
             cli.renderer.info(f"  {target:<15} {avg_auc:.4f}")
@@ -654,48 +799,56 @@ class StockMLTrainingMixin:
         # Log to MLflow if enabled
         if use_mlflow:
             from Jotty.core.capabilities.skills.ml import MLflowTrackerSkill
+
             from .ml import MLCommand
 
             tracker = MLflowTrackerSkill()
             await tracker.init(experiment_name=experiment_name)
             await tracker.start_run(run_name=f"sweep_{datetime.now().strftime('%Y%m%d_%H%M')}")
 
-            await tracker.log_params({
-                'stocks': stocks_input,
-                'targets': targets_input,
-                'timeframes': timeframes_input,
-                'periods': periods_input,
-                'total_configs': total_configs,
-                'successful_configs': len(all_results),
-                'best_symbol': best['symbol'],
-                'best_target': best['target'],
-            })
+            await tracker.log_params(
+                {
+                    "stocks": stocks_input,
+                    "targets": targets_input,
+                    "timeframes": timeframes_input,
+                    "periods": periods_input,
+                    "total_configs": total_configs,
+                    "successful_configs": len(all_results),
+                    "best_symbol": best["symbol"],
+                    "best_target": best["target"],
+                }
+            )
 
-            await tracker.log_metrics({
-                'best_auc': best['auc'],
-                'best_accuracy': best['accuracy'],
-                'avg_auc': sum(r['auc'] for r in all_results) / len(all_results),
-            })
+            await tracker.log_metrics(
+                {
+                    "best_auc": best["auc"],
+                    "best_accuracy": best["accuracy"],
+                    "avg_auc": sum(r["auc"] for r in all_results) / len(all_results),
+                }
+            )
 
             run_info = await tracker.end_run()
             if run_info:
-                MLCommand.save_mlflow_state(experiment_name, run_info['run_id'])
+                MLCommand.save_mlflow_state(experiment_name, run_info["run_id"])
                 cli.renderer.info(f"MLflow run: {run_info['run_id']}")
 
-        return CommandResult.ok(data={
-            'total_configs': total_configs,
-            'successful': len(all_results),
-            'results': sorted_results,
-            'best': best,
-        })
+        return CommandResult.ok(
+            data={
+                "total_configs": total_configs,
+                "successful": len(all_results),
+                "results": sorted_results,
+                "best": best,
+            }
+        )
 
     async def _run_unified_training(self, args: ParsedArgs, cli: "JottyCLI") -> CommandResult:
         """Train a unified model across multiple stocks with normalized features."""
-        import pandas as pd
-        import numpy as np
         from datetime import datetime
+
+        import numpy as np
+        import pandas as pd
+        from sklearn.metrics import accuracy_score, f1_score, r2_score, roc_auc_score
         from sklearn.preprocessing import StandardScaler
-        from sklearn.metrics import accuracy_score, f1_score, roc_auc_score, r2_score
 
         # Parse parameters
         stocks_input = args.flags.get("stocks", args.flags.get("s", "nifty_bank"))
@@ -713,7 +866,7 @@ class StockMLTrainingMixin:
             return CommandResult.fail("No stocks")
 
         target_config = self._parse_target(target_type)
-        is_classification = target_config['type'] == 'classification'
+        is_classification = target_config["type"] == "classification"
 
         cli.renderer.header("Unified Cross-Stock Training")
         cli.renderer.info(f"Stock Set:   {stocks_input} ({len(stocks)} stocks)")
@@ -753,15 +906,13 @@ class StockMLTrainingMixin:
                 # Normalize features per stock (z-score)
                 scaler = StandardScaler()
                 X_normalized = pd.DataFrame(
-                    scaler.fit_transform(X),
-                    columns=feature_names,
-                    index=X.index
+                    scaler.fit_transform(X), columns=feature_names, index=X.index
                 )
                 stock_scalers[symbol] = scaler
 
                 # Add stock-agnostic meta features (relative to stock's own history)
-                X_normalized['_symbol'] = symbol
-                X_normalized['_target'] = y.values
+                X_normalized["_symbol"] = symbol
+                X_normalized["_target"] = y.values
 
                 all_train_data.append(X_normalized)
 
@@ -777,9 +928,9 @@ class StockMLTrainingMixin:
         cli.renderer.info(f"Combined training samples: {len(combined_train)}")
 
         # Extract features and target
-        feature_cols = [c for c in combined_train.columns if not c.startswith('_')]
+        feature_cols = [c for c in combined_train.columns if not c.startswith("_")]
         X_train_all = combined_train[feature_cols]
-        y_train_all = combined_train['_target']
+        y_train_all = combined_train["_target"]
 
         # Time-based split within combined data (80/20)
         split_idx = int(len(X_train_all) * 0.8)
@@ -799,7 +950,7 @@ class StockMLTrainingMixin:
 
         if is_classification:
             models = {
-                'LightGBM': lgb.LGBMClassifier(
+                "LightGBM": lgb.LGBMClassifier(
                     n_estimators=500,
                     learning_rate=0.02,
                     max_depth=8,
@@ -813,7 +964,7 @@ class StockMLTrainingMixin:
                     random_state=42,
                     n_jobs=-1,
                 ),
-                'XGBoost': xgb.XGBClassifier(
+                "XGBoost": xgb.XGBClassifier(
                     n_estimators=500,
                     learning_rate=0.02,
                     max_depth=7,
@@ -826,12 +977,12 @@ class StockMLTrainingMixin:
                     verbosity=0,
                     random_state=42,
                     n_jobs=-1,
-                    tree_method='hist',
+                    tree_method="hist",
                 ),
             }
         else:
             models = {
-                'LightGBM': lgb.LGBMRegressor(
+                "LightGBM": lgb.LGBMRegressor(
                     n_estimators=500,
                     learning_rate=0.02,
                     max_depth=8,
@@ -845,7 +996,7 @@ class StockMLTrainingMixin:
                     random_state=42,
                     n_jobs=-1,
                 ),
-                'XGBoost': xgb.XGBRegressor(
+                "XGBoost": xgb.XGBRegressor(
                     n_estimators=500,
                     learning_rate=0.02,
                     max_depth=7,
@@ -858,7 +1009,7 @@ class StockMLTrainingMixin:
                     verbosity=0,
                     random_state=42,
                     n_jobs=-1,
-                    tree_method='hist',
+                    tree_method="hist",
                 ),
             }
 
@@ -882,12 +1033,12 @@ class StockMLTrainingMixin:
                     # ROC AUC calculation failed
                     auc = acc
                 score = auc
-                results.append({'model': name, 'accuracy': acc, 'f1': f1, 'auc': auc})
+                results.append({"model": name, "accuracy": acc, "f1": f1, "auc": auc})
                 cli.renderer.info(f"  {name}: Acc={acc:.4f}, F1={f1:.4f}, AUC={auc:.4f}")
             else:
                 r2 = r2_score(y_val, pred)
                 score = r2
-                results.append({'model': name, 'r2': r2})
+                results.append({"model": name, "r2": r2})
                 cli.renderer.info(f"  {name}: R²={r2:.4f}")
 
             if score > best_score:
@@ -932,16 +1083,13 @@ class StockMLTrainingMixin:
                         # ROC AUC calculation failed
                         auc = acc
 
-                    holdout_results.append({
-                        'symbol': symbol,
-                        'accuracy': acc,
-                        'auc': auc,
-                        'samples': len(X_test)
-                    })
+                    holdout_results.append(
+                        {"symbol": symbol, "accuracy": acc, "auc": auc, "samples": len(X_test)}
+                    )
                     cli.renderer.info(f"  {symbol}: Acc={acc:.4f}, AUC={auc:.4f} (n={len(X_test)})")
                 else:
                     r2 = r2_score(y_test, pred)
-                    holdout_results.append({'symbol': symbol, 'r2': r2, 'samples': len(X_test)})
+                    holdout_results.append({"symbol": symbol, "r2": r2, "samples": len(X_test)})
                     cli.renderer.info(f"  {symbol}: R²={r2:.4f} (n={len(X_test)})")
 
             except Exception as e:
@@ -958,17 +1106,21 @@ class StockMLTrainingMixin:
             cli.renderer.info("│     Model       │ Accuracy │    F1    │  ROC-AUC │")
             cli.renderer.info("├─────────────────┼──────────┼──────────┼──────────┤")
             for r in results:
-                marker = " " if r['model'] == best_name else " "
-                cli.renderer.info(f"│{marker}{r['model']:<13} │ {r['accuracy']:^8.4f} │ {r['f1']:^8.4f} │ {r['auc']:^8.4f} │")
+                marker = " " if r["model"] == best_name else " "
+                cli.renderer.info(
+                    f"│{marker}{r['model']:<13} │ {r['accuracy']:^8.4f} │ {r['f1']:^8.4f} │ {r['auc']:^8.4f} │"
+                )
             cli.renderer.info("└─────────────────┴──────────┴──────────┴──────────┘")
 
             if holdout_results:
-                avg_holdout_auc = sum(r['auc'] for r in holdout_results) / len(holdout_results)
+                avg_holdout_auc = sum(r["auc"] for r in holdout_results) / len(holdout_results)
                 cli.renderer.info("")
                 cli.renderer.info(f"Holdout Generalization:")
                 cli.renderer.info(f"  Average AUC on unseen stocks: {avg_holdout_auc:.4f}")
                 cli.renderer.info(f"  Validation AUC:               {best_score:.4f}")
-                cli.renderer.info(f"  Generalization gap:           {best_score - avg_holdout_auc:.4f}")
+                cli.renderer.info(
+                    f"  Generalization gap:           {best_score - avg_holdout_auc:.4f}"
+                )
 
         cli.renderer.info("")
         cli.renderer.info(f"Best Unified Model: {best_name}")
@@ -977,10 +1129,12 @@ class StockMLTrainingMixin:
         cli.renderer.info(f"Total Samples:      {len(combined_train)}")
 
         # Feature importance
-        if hasattr(best_model, 'feature_importances_'):
+        if hasattr(best_model, "feature_importances_"):
             raw_importance = best_model.feature_importances_
             total = sum(raw_importance) if sum(raw_importance) > 0 else 1
-            importance = {feat: (imp / total) * 100 for feat, imp in zip(feature_cols, raw_importance)}
+            importance = {
+                feat: (imp / total) * 100 for feat, imp in zip(feature_cols, raw_importance)
+            }
             sorted_imp = sorted(importance.items(), key=lambda x: -x[1])[:15]
 
             cli.renderer.info("")
@@ -996,26 +1150,31 @@ class StockMLTrainingMixin:
         # Log to MLflow
         if use_mlflow:
             from Jotty.core.capabilities.skills.ml import MLflowTrackerSkill
+
             from .ml import MLCommand
 
             tracker = MLflowTrackerSkill()
             await tracker.init(experiment_name=experiment_name)
-            await tracker.start_run(run_name=f"unified_{stocks_input}_{datetime.now().strftime('%Y%m%d_%H%M')}")
+            await tracker.start_run(
+                run_name=f"unified_{stocks_input}_{datetime.now().strftime('%Y%m%d_%H%M')}"
+            )
 
-            await tracker.log_params({
-                'stock_set': stocks_input,
-                'n_train_stocks': len(train_stocks),
-                'n_holdout_stocks': len(holdout_stocks),
-                'target': target_type,
-                'timeframe': timeframe,
-                'years': years,
-                'total_samples': len(combined_train),
-            })
+            await tracker.log_params(
+                {
+                    "stock_set": stocks_input,
+                    "n_train_stocks": len(train_stocks),
+                    "n_holdout_stocks": len(holdout_stocks),
+                    "target": target_type,
+                    "timeframe": timeframe,
+                    "years": years,
+                    "total_samples": len(combined_train),
+                }
+            )
 
-            metrics = {'validation_score': best_score, 'n_samples': len(combined_train)}
+            metrics = {"validation_score": best_score, "n_samples": len(combined_train)}
             if holdout_results and is_classification:
-                metrics['holdout_avg_auc'] = avg_holdout_auc
-                metrics['generalization_gap'] = best_score - avg_holdout_auc
+                metrics["holdout_avg_auc"] = avg_holdout_auc
+                metrics["generalization_gap"] = best_score - avg_holdout_auc
 
             await tracker.log_metrics(metrics)
 
@@ -1025,17 +1184,19 @@ class StockMLTrainingMixin:
 
             run_info = await tracker.end_run()
             if run_info:
-                MLCommand.save_mlflow_state(experiment_name, run_info['run_id'])
+                MLCommand.save_mlflow_state(experiment_name, run_info["run_id"])
 
-        return CommandResult.ok(data={
-            'stock_set': stocks_input,
-            'train_stocks': train_stocks,
-            'holdout_stocks': holdout_stocks,
-            'best_model': best_name,
-            'validation_score': best_score,
-            'holdout_results': holdout_results,
-            'total_samples': len(combined_train),
-        })
+        return CommandResult.ok(
+            data={
+                "stock_set": stocks_input,
+                "train_stocks": train_stocks,
+                "holdout_stocks": holdout_stocks,
+                "best_model": best_name,
+                "validation_score": best_score,
+                "holdout_results": holdout_results,
+                "total_samples": len(combined_train),
+            }
+        )
 
     async def _run_cross_stock_normalized(self, args: ParsedArgs, cli: "JottyCLI") -> CommandResult:
         """
@@ -1047,10 +1208,11 @@ class StockMLTrainingMixin:
         3. Market regime indicators (shared across stocks)
         4. Leave-one-out cross-validation across stocks
         """
-        import pandas as pd
-        import numpy as np
-        from sklearn.preprocessing import StandardScaler
         from datetime import datetime
+
+        import numpy as np
+        import pandas as pd
+        from sklearn.preprocessing import StandardScaler
 
         cli.renderer.header("Cross-Stock Normalized Training")
 
@@ -1095,20 +1257,16 @@ class StockMLTrainingMixin:
 
             # Z-score normalize features per stock
             scaler = StandardScaler()
-            X_normalized = pd.DataFrame(
-                scaler.fit_transform(X),
-                columns=X.columns,
-                index=X.index
-            )
+            X_normalized = pd.DataFrame(scaler.fit_transform(X), columns=X.columns, index=X.index)
 
             # Add stock identifier and sector
-            X_normalized['_symbol'] = symbol
-            X_normalized['_sector'] = self._infer_sector(symbol)
+            X_normalized["_symbol"] = symbol
+            X_normalized["_sector"] = self._infer_sector(symbol)
 
             normalized_data[symbol] = {
-                'X': X_normalized,
-                'y': y,
-                'scaler': scaler,
+                "X": X_normalized,
+                "y": y,
+                "scaler": scaler,
             }
 
             if feature_names is None:
@@ -1123,18 +1281,18 @@ class StockMLTrainingMixin:
         # Compute sector averages for relative features
         sector_stats = {}
         for symbol, data in normalized_data.items():
-            sector = data['X']['_sector'].iloc[0]
+            sector = data["X"]["_sector"].iloc[0]
             if sector not in sector_stats:
                 sector_stats[sector] = []
-            sector_stats[sector].append(data['X'][feature_names].mean())
+            sector_stats[sector].append(data["X"][feature_names].mean())
 
         # Add sector-relative features
         for symbol, data in normalized_data.items():
-            sector = data['X']['_sector'].iloc[0]
+            sector = data["X"]["_sector"].iloc[0]
             if sector in sector_stats and len(sector_stats[sector]) > 1:
                 sector_mean = pd.concat(sector_stats[sector], axis=1).mean(axis=1)
                 for feat in feature_names[:10]:  # Top 10 features
-                    data['X'][f'{feat}_vs_sector'] = data['X'][feat] - sector_mean.get(feat, 0)
+                    data["X"][f"{feat}_vs_sector"] = data["X"][feat] - sector_mean.get(feat, 0)
 
         cli.renderer.info(f"  Added sector-relative features")
 
@@ -1142,13 +1300,13 @@ class StockMLTrainingMixin:
         cli.renderer.info("")
         cli.renderer.info("Phase 4: Leave-One-Out Cross-Validation...")
 
-        from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+        from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
         from sklearn.metrics import roc_auc_score
 
         results = []
         symbols = list(normalized_data.keys())
 
-        for holdout_symbol in symbols[:min(5, len(symbols))]:  # Test on first 5
+        for holdout_symbol in symbols[: min(5, len(symbols))]:  # Test on first 5
             # Train on all except holdout
             train_X_list = []
             train_y_list = []
@@ -1156,29 +1314,26 @@ class StockMLTrainingMixin:
             for symbol, data in normalized_data.items():
                 if symbol != holdout_symbol:
                     # Drop metadata columns for training
-                    X_train = data['X'].drop(columns=['_symbol', '_sector'], errors='ignore')
+                    X_train = data["X"].drop(columns=["_symbol", "_sector"], errors="ignore")
                     train_X_list.append(X_train)
-                    train_y_list.append(data['y'])
+                    train_y_list.append(data["y"])
 
             X_train_combined = pd.concat(train_X_list, ignore_index=True)
             y_train_combined = pd.concat(train_y_list, ignore_index=True)
 
             # Train model
             model = GradientBoostingClassifier(
-                n_estimators=100,
-                max_depth=5,
-                learning_rate=0.1,
-                random_state=42
+                n_estimators=100, max_depth=5, learning_rate=0.1, random_state=42
             )
 
             # Align features
-            train_features = [c for c in X_train_combined.columns if not c.startswith('_')]
+            train_features = [c for c in X_train_combined.columns if not c.startswith("_")]
             model.fit(X_train_combined[train_features].fillna(0), y_train_combined)
 
             # Test on holdout
             holdout_data = normalized_data[holdout_symbol]
-            X_holdout = holdout_data['X'].drop(columns=['_symbol', '_sector'], errors='ignore')
-            y_holdout = holdout_data['y']
+            X_holdout = holdout_data["X"].drop(columns=["_symbol", "_sector"], errors="ignore")
+            y_holdout = holdout_data["y"]
 
             # Align holdout features
             for col in train_features:
@@ -1189,27 +1344,31 @@ class StockMLTrainingMixin:
             y_pred_proba = model.predict_proba(X_holdout.fillna(0))[:, 1]
             auc = roc_auc_score(y_holdout, y_pred_proba)
 
-            results.append({
-                'holdout': holdout_symbol,
-                'auc': auc,
-                'n_train': len(y_train_combined),
-                'n_test': len(y_holdout),
-            })
+            results.append(
+                {
+                    "holdout": holdout_symbol,
+                    "auc": auc,
+                    "n_train": len(y_train_combined),
+                    "n_test": len(y_holdout),
+                }
+            )
 
-            cli.renderer.info(f"  {holdout_symbol}: AUC={auc:.4f} (trained on {len(y_train_combined)} samples)")
+            cli.renderer.info(
+                f"  {holdout_symbol}: AUC={auc:.4f} (trained on {len(y_train_combined)} samples)"
+            )
 
         # ============ Results Summary ============
         cli.renderer.info("")
         cli.renderer.header("Cross-Stock Results")
 
-        avg_auc = np.mean([r['auc'] for r in results])
-        std_auc = np.std([r['auc'] for r in results])
+        avg_auc = np.mean([r["auc"] for r in results])
+        std_auc = np.std([r["auc"] for r in results])
 
         cli.renderer.info(f"Average AUC: {avg_auc:.4f} ± {std_auc:.4f}")
         cli.renderer.info("")
 
         cli.renderer.info("Per-Stock Performance:")
-        for r in sorted(results, key=lambda x: -x['auc']):
+        for r in sorted(results, key=lambda x: -x["auc"]):
             cli.renderer.info(f"  {r['holdout']:<12}: {r['auc']:.4f}")
 
         # Key insight
@@ -1219,16 +1378,22 @@ class StockMLTrainingMixin:
         elif std_auc < 0.10:
             cli.renderer.info("MODERATE VARIANCE - Some stock-specific patterns")
         else:
-            cli.renderer.info("HIGH VARIANCE - Consider more normalization or sector-specific models")
+            cli.renderer.info(
+                "HIGH VARIANCE - Consider more normalization or sector-specific models"
+            )
 
-        return CommandResult.ok(data={
-            'avg_auc': avg_auc,
-            'std_auc': std_auc,
-            'results': results,
-            'stocks_used': list(normalized_data.keys()),
-        })
+        return CommandResult.ok(
+            data={
+                "avg_auc": avg_auc,
+                "std_auc": std_auc,
+                "results": results,
+                "stocks_used": list(normalized_data.keys()),
+            }
+        )
 
-    async def _run_with_comprehensive_features(self, args: ParsedArgs, cli: "JottyCLI") -> CommandResult:
+    async def _run_with_comprehensive_features(
+        self, args: ParsedArgs, cli: "JottyCLI"
+    ) -> CommandResult:
         """
         Run ML with comprehensive features from /ml skills.
 
@@ -1237,8 +1402,8 @@ class StockMLTrainingMixin:
         - LLMFeatureReasonerSkill (multi-perspective)
         - Additional stock-specific features
         """
-        import pandas as pd
         import numpy as np
+        import pandas as pd
 
         cli.renderer.header("Comprehensive Features ML")
 
@@ -1308,9 +1473,9 @@ class StockMLTrainingMixin:
         cli.renderer.info("")
         cli.renderer.info("Training with comprehensive features...")
 
-        from sklearn.model_selection import TimeSeriesSplit
         from sklearn.ensemble import GradientBoostingClassifier
-        from sklearn.metrics import roc_auc_score, accuracy_score
+        from sklearn.metrics import accuracy_score, roc_auc_score
+        from sklearn.model_selection import TimeSeriesSplit
 
         tscv = TimeSeriesSplit(n_splits=5)
         scores = []
@@ -1322,10 +1487,7 @@ class StockMLTrainingMixin:
             y_val = y.iloc[val_idx]
 
             model = GradientBoostingClassifier(
-                n_estimators=100,
-                max_depth=5,
-                learning_rate=0.1,
-                random_state=42
+                n_estimators=100, max_depth=5, learning_rate=0.1, random_state=42
             )
             model.fit(X_train, y_train)
 
@@ -1350,10 +1512,11 @@ class StockMLTrainingMixin:
             pct = (imp / total_imp) * 100
             cli.renderer.info(f"  {feat:<35}: {pct:>5.1f}%")
 
-        return CommandResult.ok(data={
-            'symbol': symbol,
-            'auc': avg_auc,
-            'n_features': len(X_enhanced.columns),
-            'top_features': importance.head(20).to_dict(),
-        })
-
+        return CommandResult.ok(
+            data={
+                "symbol": symbol,
+                "auc": avg_auc,
+                "n_features": len(X_enhanced.columns),
+                "top_features": importance.head(20).to_dict(),
+            }
+        )

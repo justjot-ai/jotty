@@ -16,12 +16,13 @@ All tests are fast (< 1s), offline, no real LLM calls.
 
 import asyncio
 import json
-import time
 import threading
-import pytest
-from pathlib import Path
-from unittest.mock import Mock, MagicMock, patch, AsyncMock
+import time
 from collections import OrderedDict
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+
+import pytest
 
 from Jotty.core.infrastructure.utils.llm_cache import (
     CachedResponse,
@@ -29,7 +30,6 @@ from Jotty.core.infrastructure.utils.llm_cache import (
     LLMCallCache,
     get_cache,
 )
-
 
 # =============================================================================
 # CachedResponse Tests
@@ -221,8 +221,14 @@ class TestCacheStats:
         """to_dict returns exactly the expected keys."""
         stats = CacheStats()
         expected_keys = {
-            "hits", "misses", "evictions", "expirations",
-            "total_requests", "total_saved_calls", "cache_size", "hit_rate",
+            "hits",
+            "misses",
+            "evictions",
+            "expirations",
+            "total_requests",
+            "total_saved_calls",
+            "cache_size",
+            "hit_rate",
         }
         assert set(stats.to_dict().keys()) == expected_keys
 
@@ -426,8 +432,12 @@ class TestGetSet:
         """Disabled cache always returns None on get."""
         cache = LLMCallCache(enabled=False)
         cache._cache["hash1"] = CachedResponse(
-            response="val", prompt_hash="hash1", model="m",
-            temperature=0.0, created_at=time.time(), ttl_seconds=3600.0,
+            response="val",
+            prompt_hash="hash1",
+            model="m",
+            temperature=0.0,
+            created_at=time.time(),
+            ttl_seconds=3600.0,
         )
         assert cache.get("hash1") is None
 
@@ -496,16 +506,28 @@ class TestTTLExpiration:
         """cleanup_expired removes all expired entries at once."""
         now = time.time()
         self.cache._cache["expired1"] = CachedResponse(
-            response="old1", prompt_hash="expired1", model="m",
-            temperature=0.0, created_at=now - 200, ttl_seconds=100.0,
+            response="old1",
+            prompt_hash="expired1",
+            model="m",
+            temperature=0.0,
+            created_at=now - 200,
+            ttl_seconds=100.0,
         )
         self.cache._cache["expired2"] = CachedResponse(
-            response="old2", prompt_hash="expired2", model="m",
-            temperature=0.0, created_at=now - 300, ttl_seconds=100.0,
+            response="old2",
+            prompt_hash="expired2",
+            model="m",
+            temperature=0.0,
+            created_at=now - 300,
+            ttl_seconds=100.0,
         )
         self.cache._cache["valid"] = CachedResponse(
-            response="fresh", prompt_hash="valid", model="m",
-            temperature=0.0, created_at=now, ttl_seconds=3600.0,
+            response="fresh",
+            prompt_hash="valid",
+            model="m",
+            temperature=0.0,
+            created_at=now,
+            ttl_seconds=3600.0,
         )
         removed = self.cache.cleanup_expired()
         assert removed == 2
@@ -522,8 +544,12 @@ class TestTTLExpiration:
     def test_cleanup_expired_updates_stats(self):
         """cleanup_expired increments the expirations stat."""
         self.cache._cache["exp"] = CachedResponse(
-            response="old", prompt_hash="exp", model="m",
-            temperature=0.0, created_at=time.time() - 200, ttl_seconds=100.0,
+            response="old",
+            prompt_hash="exp",
+            model="m",
+            temperature=0.0,
+            created_at=time.time() - 200,
+            ttl_seconds=100.0,
         )
         self.cache.cleanup_expired()
         assert self.cache.stats().expirations == 1
@@ -532,12 +558,20 @@ class TestTTLExpiration:
         """cleanup_expired updates cache_size stat."""
         now = time.time()
         self.cache._cache["exp"] = CachedResponse(
-            response="old", prompt_hash="exp", model="m",
-            temperature=0.0, created_at=now - 200, ttl_seconds=100.0,
+            response="old",
+            prompt_hash="exp",
+            model="m",
+            temperature=0.0,
+            created_at=now - 200,
+            ttl_seconds=100.0,
         )
         self.cache._cache["fresh"] = CachedResponse(
-            response="new", prompt_hash="fresh", model="m",
-            temperature=0.0, created_at=now, ttl_seconds=3600.0,
+            response="new",
+            prompt_hash="fresh",
+            model="m",
+            temperature=0.0,
+            created_at=now,
+            ttl_seconds=3600.0,
         )
         self.cache.cleanup_expired()
         assert self.cache.stats().cache_size == 1
@@ -772,6 +806,7 @@ class TestCachedDecoratorSync:
 
     def test_decorator_preserves_function_name(self):
         """Decorated function preserves original __name__ via functools.wraps."""
+
         @self.cache.cached()
         def my_special_func(prompt):
             return prompt
@@ -780,6 +815,7 @@ class TestCachedDecoratorSync:
 
     def test_decorator_with_custom_ttl(self):
         """Decorator passes custom TTL to the cache."""
+
         @self.cache.cached(model="gpt-4", temperature=0.5, ttl=30.0)
         def my_llm(prompt):
             return "answer"
@@ -791,6 +827,7 @@ class TestCachedDecoratorSync:
 
     def test_decorator_passes_extra_args_to_func(self):
         """Decorated function can receive extra args beyond prompt."""
+
         @self.cache.cached(model="gpt-4")
         def my_llm(prompt, system_msg="default"):
             return f"{prompt} | {system_msg}"
@@ -834,10 +871,16 @@ class TestCachedDecoratorAsync:
 
         # Use get_or_call_async directly (the intended async API)
         r1 = await self.cache.get_or_call_async(
-            prompt="hello", llm_func=my_async_llm, model="claude", temperature=0.0,
+            prompt="hello",
+            llm_func=my_async_llm,
+            model="claude",
+            temperature=0.0,
         )
         r2 = await self.cache.get_or_call_async(
-            prompt="hello", llm_func=my_async_llm, model="claude", temperature=0.0,
+            prompt="hello",
+            llm_func=my_async_llm,
+            model="claude",
+            temperature=0.0,
         )
         assert r1 == "async: hello"
         assert r2 == "async: hello"
@@ -846,6 +889,7 @@ class TestCachedDecoratorAsync:
     @pytest.mark.asyncio
     async def test_decorator_async_preserves_name(self):
         """Async decorated function preserves __name__."""
+
         @self.cache.cached()
         async def my_async_func(prompt):
             return prompt
@@ -855,6 +899,7 @@ class TestCachedDecoratorAsync:
     @pytest.mark.asyncio
     async def test_decorator_detects_async_correctly(self):
         """The decorator returns an async wrapper for async functions."""
+
         @self.cache.cached()
         async def async_fn(prompt):
             return prompt
@@ -990,8 +1035,12 @@ class TestDisabledCache:
     def test_get_returns_none(self):
         """Disabled cache always returns None from get."""
         self.cache._cache["test"] = CachedResponse(
-            response="val", prompt_hash="test", model="m",
-            temperature=0.0, created_at=time.time(), ttl_seconds=3600.0,
+            response="val",
+            prompt_hash="test",
+            model="m",
+            temperature=0.0,
+            created_at=time.time(),
+            ttl_seconds=3600.0,
         )
         assert self.cache.get("test") is None
 
@@ -1058,8 +1107,12 @@ class TestPersistence:
         cache.set("fresh", response="good")
         # Manually add an expired entry
         cache._cache["expired"] = CachedResponse(
-            response="old", prompt_hash="expired", model="m",
-            temperature=0.0, created_at=time.time() - 7200, ttl_seconds=3600.0,
+            response="old",
+            prompt_hash="expired",
+            model="m",
+            temperature=0.0,
+            created_at=time.time() - 7200,
+            ttl_seconds=3600.0,
         )
         cache._save_to_disk()
         data = json.loads(persist_file.read_text())
@@ -1314,6 +1367,7 @@ class TestEdgeCases:
 
     def test_get_or_call_when_llm_func_raises(self):
         """get_or_call propagates exceptions from llm_func."""
+
         def failing_llm(prompt):
             raise ValueError("API error")
 
@@ -1323,6 +1377,7 @@ class TestEdgeCases:
     @pytest.mark.asyncio
     async def test_get_or_call_async_when_llm_func_raises(self):
         """get_or_call_async propagates exceptions from async llm_func."""
+
         async def failing_async_llm(prompt):
             raise RuntimeError("Async API error")
 

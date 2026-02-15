@@ -15,12 +15,12 @@ Legacy (kept for backward compatibility, prefer ModeRouter):
 - WorkflowAPI: Old workflow-specific API
 """
 
-from .mode_router import ModeRouter, get_mode_router, RouteResult
+from .chat_api import ChatAPI
+from .mode_router import ModeRouter, RouteResult, get_mode_router
 from .openapi import generate_openapi_spec
 
 # Legacy imports (backward compatibility)
 from .unified import JottyAPI
-from .chat_api import ChatAPI
 from .workflow_api import WorkflowAPI
 
 __all__ = [

@@ -4,12 +4,12 @@ Multi-perspective educational swarm that explores ANY topic from 6 distinct
 perspectives in 4 languages, producing professional PDF + HTML output.
 """
 
-import re
 import logging
-from typing import Dict, Any, Optional, List
+import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
 from ..swarm_types import SwarmConfig, SwarmResult
 
@@ -20,8 +20,10 @@ logger = logging.getLogger(__name__)
 # ENUMS
 # =============================================================================
 
+
 class PerspectiveType(Enum):
     """The 6 learning perspectives."""
+
     INTUITIVE_VISUAL = "intuitive_visual"
     STRUCTURED_FRAMEWORK = "structured_framework"
     STORYTELLING = "storytelling"
@@ -32,6 +34,7 @@ class PerspectiveType(Enum):
 
 class Language(Enum):
     """Supported languages for multilingual content."""
+
     ENGLISH = "english"
     HINDI = "hindi"
     KANNADA = "kannada"
@@ -40,24 +43,27 @@ class Language(Enum):
 
 class AgeGroup(Enum):
     """Target age groups."""
-    EARLY_PRIMARY = "early_primary"    # K-2
-    PRIMARY = "primary"                # 3-5
-    MIDDLE = "middle"                  # 6-8
-    HIGH = "high"                      # 9-12
+
+    EARLY_PRIMARY = "early_primary"  # K-2
+    PRIMARY = "primary"  # 3-5
+    MIDDLE = "middle"  # 6-8
+    HIGH = "high"  # 9-12
     GENERAL = "general"
 
 
 class ContentDepth(Enum):
     """How deep to go in a single session."""
-    QUICK = "quick"                    # 15 min focused sprint
-    STANDARD = "standard"              # 45 min full lesson
-    DEEP = "deep"                      # 90 min deep dive
-    COMPREHENSIVE = "comprehensive"    # 2+ hours
+
+    QUICK = "quick"  # 15 min focused sprint
+    STANDARD = "standard"  # 45 min full lesson
+    DEEP = "deep"  # 90 min deep dive
+    COMPREHENSIVE = "comprehensive"  # 2+ hours
 
 
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
+
 
 @dataclass
 class PerspectiveLearningConfig(SwarmConfig):
@@ -67,9 +73,14 @@ class PerspectiveLearningConfig(SwarmConfig):
     student_name: str = "Student"
     age_group: AgeGroup = AgeGroup.PRIMARY
     depth: ContentDepth = ContentDepth.STANDARD
-    languages: List[Language] = field(default_factory=lambda: [
-        Language.ENGLISH, Language.HINDI, Language.KANNADA, Language.FRENCH
-    ])
+    languages: List[Language] = field(
+        default_factory=lambda: [
+            Language.ENGLISH,
+            Language.HINDI,
+            Language.KANNADA,
+            Language.FRENCH,
+        ]
+    )
     perspectives: List[PerspectiveType] = field(default_factory=lambda: list(PerspectiveType))
 
     # Celebration and engagement
@@ -92,6 +103,7 @@ class PerspectiveLearningConfig(SwarmConfig):
         self.domain = "perspective_learning"
         if self.llm_timeout <= 0:
             from Jotty.core.infrastructure.foundation.config_defaults import LLM_TIMEOUT_SECONDS
+
             self.llm_timeout = LLM_TIMEOUT_SECONDS
 
 
@@ -99,9 +111,11 @@ class PerspectiveLearningConfig(SwarmConfig):
 # DATA CLASSES
 # =============================================================================
 
+
 @dataclass
 class PerspectiveSection:
     """A section of content from one perspective."""
+
     perspective: PerspectiveType
     title: str
     content: str
@@ -113,6 +127,7 @@ class PerspectiveSection:
 @dataclass
 class LanguageContent:
     """Content in a specific language."""
+
     language: Language
     summary: str
     key_vocabulary: List[str] = field(default_factory=list)
@@ -124,6 +139,7 @@ class LanguageContent:
 @dataclass
 class DebatePoint:
     """A point in a debate/critical thinking section."""
+
     position: str
     argument: str
     evidence: str
@@ -134,6 +150,7 @@ class DebatePoint:
 @dataclass
 class ProjectActivity:
     """A hands-on project activity."""
+
     title: str
     description: str
     materials: List[str] = field(default_factory=list)
@@ -145,6 +162,7 @@ class ProjectActivity:
 @dataclass
 class FrameworkModel:
     """A mental model or framework for structured thinking."""
+
     name: str
     description: str
     how_to_use: str
@@ -155,6 +173,7 @@ class FrameworkModel:
 @dataclass
 class LessonContent:
     """Complete assembled lesson content with all perspectives and languages."""
+
     topic: str
     student_name: str
     central_idea: str
@@ -175,6 +194,7 @@ class LessonContent:
 @dataclass
 class PerspectiveLearningResult(SwarmResult):
     """Result from PerspectiveLearningSwarm."""
+
     content: Optional[LessonContent] = None
     student_name: str = ""
     topic: str = ""
@@ -188,14 +208,15 @@ class PerspectiveLearningResult(SwarmResult):
 # HELPERS
 # =============================================================================
 
+
 def format_steps_on_newlines(text: str) -> str:
     """Post-process text to ensure steps are on separate lines."""
     if not text:
         return text
 
-    text = re.sub(r'(?<=[.!?:,])\s*(Step\s*\d+)\s*:', r'\n\n\1:', text)
-    text = re.sub(r'(?<=[.!?])\s*(\d+)\.\s+', r'\n\n\1. ', text)
-    text = re.sub(r'\n{3,}', '\n\n', text)
+    text = re.sub(r"(?<=[.!?:,])\s*(Step\s*\d+)\s*:", r"\n\n\1:", text)
+    text = re.sub(r"(?<=[.!?])\s*(\d+)\.\s+", r"\n\n\1. ", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
 
     return text.strip()
 
@@ -217,9 +238,19 @@ LANGUAGE_LABELS = {
 
 
 __all__ = [
-    'PerspectiveType', 'Language', 'AgeGroup', 'ContentDepth',
-    'PerspectiveLearningConfig', 'PerspectiveSection', 'LanguageContent',
-    'DebatePoint', 'ProjectActivity', 'FrameworkModel',
-    'LessonContent', 'PerspectiveLearningResult',
-    'format_steps_on_newlines', 'PERSPECTIVE_LABELS', 'LANGUAGE_LABELS',
+    "PerspectiveType",
+    "Language",
+    "AgeGroup",
+    "ContentDepth",
+    "PerspectiveLearningConfig",
+    "PerspectiveSection",
+    "LanguageContent",
+    "DebatePoint",
+    "ProjectActivity",
+    "FrameworkModel",
+    "LessonContent",
+    "PerspectiveLearningResult",
+    "format_steps_on_newlines",
+    "PERSPECTIVE_LABELS",
+    "LANGUAGE_LABELS",
 ]

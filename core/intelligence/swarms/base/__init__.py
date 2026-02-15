@@ -42,28 +42,22 @@ Usage:
             return ReviewResult(findings=team_result.merged_output)
 """
 
-from .agent_team import (
-    AgentTeam,
-    AgentSpec,
-    TeamResult,
-    CoordinationPattern,
-    MergeStrategy,
-)
-from .domain_swarm import DomainSwarm, PhaseExecutor, _split_field, _safe_join, _safe_num
+from .agent_team import AgentSpec, AgentTeam, CoordinationPattern, MergeStrategy, TeamResult
+from .domain_swarm import DomainSwarm, PhaseExecutor, _safe_join, _safe_num, _split_field
 
 __all__ = [
     # Team composition
-    'AgentTeam',
-    'AgentSpec',
-    'TeamResult',
+    "AgentTeam",
+    "AgentSpec",
+    "TeamResult",
     # Coordination patterns
-    'CoordinationPattern',
-    'MergeStrategy',
+    "CoordinationPattern",
+    "MergeStrategy",
     # Swarm base
-    'DomainSwarm',
-    'PhaseExecutor',
+    "DomainSwarm",
+    "PhaseExecutor",
     # Defensive utilities
-    '_split_field',
-    '_safe_join',
-    '_safe_num',
+    "_split_field",
+    "_safe_join",
+    "_safe_num",
 ]

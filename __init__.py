@@ -35,32 +35,33 @@ See docs/JOTTY_ARCHITECTURE.md for complete documentation.
 All heavy imports are lazy — ``import Jotty`` is lightweight (~50ms).
 """
 
+import importlib as _importlib
+
 # =============================================================================
 # PYDANTIC WARNING SUPPRESSION (Must be before any imports)
 # =============================================================================
 import os
 import warnings
-import importlib as _importlib
 
 # Suppress Pydantic serialization warnings from LiteLLM
-os.environ.setdefault('PYDANTIC_WARNINGS', 'none')
+os.environ.setdefault("PYDANTIC_WARNINGS", "none")
 
 warnings.filterwarnings(
-    'ignore', category=UserWarning, module='pydantic.main',
-    message='.*PydanticSerializationUnexpectedValue.*'
+    "ignore",
+    category=UserWarning,
+    module="pydantic.main",
+    message=".*PydanticSerializationUnexpectedValue.*",
 )
 warnings.filterwarnings(
-    'ignore', category=UserWarning, module='pydantic.*',
-    message='.*serialized value may not be as expected.*'
+    "ignore",
+    category=UserWarning,
+    module="pydantic.*",
+    message=".*serialized value may not be as expected.*",
 )
 warnings.filterwarnings(
-    'ignore', category=UserWarning, module='pydantic.*',
-    message='.*Expected.*fields but got.*'
+    "ignore", category=UserWarning, module="pydantic.*", message=".*Expected.*fields but got.*"
 )
-warnings.filterwarnings(
-    'ignore', category=UserWarning,
-    message='.*Pydantic serializer warnings.*'
-)
+warnings.filterwarnings("ignore", category=UserWarning, message=".*Pydantic serializer warnings.*")
 
 __version__ = "3.0.0"
 __author__ = "Jotty AI"
@@ -77,12 +78,10 @@ _LAZY_IMPORTS: dict[str, str] = {
     "ExecutionResult": ".core.modes.execution.types",
     "TierExecutor": ".core.modes.execution.executor",
     "TierDetector": ".core.modes.execution.tier_detector",
-
     # --- COMPOSITE AGENT (Agent/Swarm Unification) ---
     "CompositeAgent": ".core.modes.agent.base.composite_agent",
     "CompositeAgentConfig": ".core.modes.agent.base.composite_agent",
     "UnifiedResult": ".core.modes.agent.base.composite_agent",
-
     # --- ORCHESTRATION & FOUNDATION ---
     "Orchestrator": ".core.intelligence.orchestration",
     "TodoItem": ".core.intelligence.orchestration.swarm_roadmap",
@@ -101,36 +100,29 @@ _LAZY_IMPORTS: dict[str, str] = {
     "GoalNode": ".core.infrastructure.foundation.data_structures",
     "CausalLink": ".core.infrastructure.foundation.data_structures",
     "SwarmResult": ".core.infrastructure.data.io_manager",
-
     # --- TOOL MANAGEMENT ---
     "ToolShed": ".core.infrastructure.metadata.tool_shed",
     "ToolSchema": ".core.infrastructure.metadata.tool_shed",
     "ToolResult": ".core.infrastructure.metadata.tool_shed",
     "CapabilityIndex": ".core.infrastructure.metadata.tool_shed",
-
     # --- SHAPED REWARDS ---
     "ShapedRewardManager": ".core.intelligence.learning.shaped_rewards",
     "RewardCondition": ".core.intelligence.learning.shaped_rewards",
-
     # --- MEMORY ---
     "SwarmMemory": ".core.intelligence.memory.cortex",
     "MemoryCluster": ".core.intelligence.memory.consolidation",
-
     # --- LEARNING ---
     "TDLambdaLearner": ".core.intelligence.learning.learning",
     "AdaptiveLearningRate": ".core.intelligence.learning.learning",
     "ReasoningCreditAssigner": ".core.intelligence.learning.learning",
-
     # --- CONTEXT ---
     "GlobalContextGuard": ".core.infrastructure.context.global_context_guard",
     "patch_dspy_with_guard": ".core.infrastructure.context.global_context_guard",
     "unpatch_dspy": ".core.infrastructure.context.global_context_guard",
-
     # --- UNIVERSAL WRAPPER ---
     "JottyUniversal": ".core.infrastructure.integration.universal_wrapper",
     "SmartConfig": ".core.infrastructure.integration.universal_wrapper",
     "jotty_universal": ".core.infrastructure.integration.universal_wrapper",
-
     # --- STATE ---
     "AgenticState": ".core.intelligence.orchestration.swarm_roadmap",
     "TrajectoryStep": ".core.intelligence.orchestration.swarm_roadmap",
@@ -138,16 +130,13 @@ _LAZY_IMPORTS: dict[str, str] = {
     "SwarmTaskBoard": ".core.intelligence.orchestration.swarm_roadmap",
     "SubtaskState": ".core.intelligence.orchestration.swarm_roadmap",
     "TaskStatus": ".core.intelligence.orchestration.swarm_roadmap",
-
     # --- PREDICTIVE MARL ---
     "LLMTrajectoryPredictor": ".core.intelligence.learning.predictive_marl",
     "DivergenceMemory": ".core.intelligence.learning.predictive_marl",
     "CooperativeCreditAssigner": ".core.intelligence.learning.predictive_marl",
     "AgentModel": ".core.intelligence.learning.predictive_marl",
-
     # --- CLI ---
     "JottyCLI": ".cli.app",
-
     # --- SDK ---
     "JottyClient": ".sdk.client",
     "JottySync": ".sdk.client",
@@ -156,10 +145,8 @@ _LAZY_IMPORTS: dict[str, str] = {
     "SDKEvent": ".core.infrastructure.foundation.types.sdk_types",
     "ModeRouter": ".core.interface.api.mode_router",
     "get_mode_router": ".core.interface.api.mode_router",
-
     # --- CAPABILITY DISCOVERY ---
     "capabilities": ".core.capabilities",
-
     # --- SUBSYSTEM FACADES ---
     "MemorySystem": ".core.intelligence.memory.memory_system",
     "BudgetTracker": ".core.infrastructure.utils.budget_tracker",
@@ -167,14 +154,12 @@ _LAZY_IMPORTS: dict[str, str] = {
     "LLMCallCache": ".core.infrastructure.utils.llm_cache",
     "SmartTokenizer": ".core.infrastructure.utils.tokenizer",
     "ChatExecutor": ".core.intelligence.orchestration.unified_executor",
-
     # --- ORCHESTRATION (hidden components surfaced) ---
     "SwarmIntelligence": ".core.intelligence.orchestration.swarm_intelligence",
     "ParadigmExecutor": ".core.intelligence.orchestration.paradigm_executor",
     "EnsembleManager": ".core.intelligence.orchestration.ensemble_manager",
     "ModelTierRouter": ".core.intelligence.orchestration.model_tier_router",
 }
-
 
 
 def __getattr__(name: str):

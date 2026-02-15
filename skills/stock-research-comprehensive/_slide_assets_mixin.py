@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 class SlideAssetsMixin:
     def _get_styles(self) -> str:
         """Get CSS styles with enhanced visual polish and interactivity"""
-        return f'''<style>
+        return f"""<style>
     body {{ font-family: 'Inter', sans-serif; }}
     .mono {{ font-family: 'JetBrains Mono', monospace; }}
 
@@ -248,11 +248,11 @@ class SlideAssetsMixin:
       .fixed {{ display: none !important; }}
       body {{ background: white !important; color: black !important; }}
     }}
-  </style>'''
+  </style>"""
 
     def _get_navigation(self, total_slides: int) -> str:
         """Get enhanced navigation HTML with progress bar, shortcuts, and grid mode"""
-        return f'''
+        return f"""
 <!-- Top Progress Bar -->
 <div id="progressBar" class="fixed top-0 left-0 w-full h-1 bg-[{self.colors['border']}]/30 z-50">
   <div id="progressFill" class="h-full bg-gradient-to-r from-[{self.config.accent_color}] via-[{self.colors['accent_purple']}] to-[{self.colors['accent_blue']}] transition-all duration-500 ease-out" style="width: 0%"></div>
@@ -368,19 +368,19 @@ class SlideAssetsMixin:
       </div>
     </div>
   </div>
-</div>'''
+</div>"""
 
     def _get_branding(self) -> str:
         """Get branding HTML - positioned at top-left for visibility"""
-        return f'''
+        return f"""
 <div class="fixed top-6 left-6 flex items-center gap-2 z-50">
   <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-orange-500/30">J</div>
   <span class="text-white/80 text-sm font-medium hidden md:inline">{html.escape(self.config.branding)}</span>
-</div>'''
+</div>"""
 
     def _get_scripts(self, total_slides: int) -> str:
         """Get enhanced JavaScript with grid view, progress bar, and shortcuts"""
-        return f'''
+        return f"""
 <script>
   let currentSlide = 1;
   const totalSlides = {total_slides};
@@ -781,5 +781,4 @@ class SlideAssetsMixin:
       toggleSlideshow();
     }}
   }});
-</script>'''
-
+</script>"""

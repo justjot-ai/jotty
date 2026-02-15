@@ -84,19 +84,19 @@ async def main():
     print("EXPERT AGENTS TEST SUITE")
     print("=" * 80)
     print()
-    
+
     # Test Mermaid Expert
     mermaid_expert = await test_mermaid_expert()
-    
+
     print("\n" + "=" * 80 + "\n")
-    
+
     # Test Pipeline Expert
     pipeline_expert = await test_pipeline_expert()
-    
+
     print("\n" + "=" * 80)
     print("✅ ALL TESTS COMPLETE")
     print("=" * 80)
-    
+
     return mermaid_expert, pipeline_expert
 
 

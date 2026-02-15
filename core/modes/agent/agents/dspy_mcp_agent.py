@@ -2,12 +2,14 @@
 DSPy Agent with MCP Tool Support
 Enables DSPy agents to call MCP tools from JustJot
 """
-import dspy
+
 import json
 import logging
-from typing import List, Dict, Any, Optional
 import sys
 from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+import dspy
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +32,7 @@ class ToolUseSignature(dspy.Signature):
     reasoning = dspy.OutputField(desc="Step-by-step reasoning about which tools to use and why")
     tool_calls = dspy.OutputField(
         desc="List of tool calls in JSON array format: "
-             '[{"name": "tool_name", "arguments": {"arg1": "value1"}}, ...]'
+        '[{"name": "tool_name", "arguments": {"arg1": "value1"}}, ...]'
     )
     response = dspy.OutputField(desc="Final response to user incorporating tool results")
 
@@ -51,7 +53,9 @@ class ToolResultIntegrationSignature(dspy.Signature):
 class DSPyMCPAgent:
     """DSPy agent that can use MCP tools for enhanced capabilities"""
 
-    def __init__(self, name: str, description: str, system_prompt: Optional[str] = None, base_url: str = None) -> None:
+    def __init__(
+        self, name: str, description: str, system_prompt: Optional[str] = None, base_url: str = None
+    ) -> None:
         """
         Initialize DSPy agent with MCP tool support
 
@@ -79,10 +83,7 @@ class DSPyMCPAgent:
         logger.info(f"{self.name}: Discovered {len(self.mcp_executor.available_tools)} MCP tools")
 
     async def execute(
-        self,
-        query: str,
-        conversation_history: str = "",
-        max_tool_iterations: int = 3
+        self, query: str, conversation_history: str = "", max_tool_iterations: int = 3
     ) -> Dict[str, Any]:
         """
         Execute agent with MCP tool support
@@ -119,7 +120,7 @@ class DSPyMCPAgent:
                 plan_result = self.tool_planner(
                     query=enhanced_query,
                     available_tools=tools_description,
-                    conversation_history=conversation_history
+                    conversation_history=conversation_history,
                 )
             except Exception as e:
                 logger.warning(f"DSPy planning error: {e}")
@@ -129,7 +130,7 @@ class DSPyMCPAgent:
                     "tool_calls": [],
                     "tool_results": [],
                     "response": f"I encountered an error while planning: {str(e)}",
-                    "error": str(e)
+                    "error": str(e),
                 }
 
             # Parse tool calls
@@ -147,19 +148,23 @@ class DSPyMCPAgent:
 
                 try:
                     result = await self.mcp_executor.execute_tool(tool_name, arguments)
-                    tool_results.append({
-                        "tool": tool_name,
-                        "arguments": arguments,
-                        "result": result,
-                        "success": True
-                    })
+                    tool_results.append(
+                        {
+                            "tool": tool_name,
+                            "arguments": arguments,
+                            "result": result,
+                            "success": True,
+                        }
+                    )
                 except Exception as e:
-                    tool_results.append({
-                        "tool": tool_name,
-                        "arguments": arguments,
-                        "error": str(e),
-                        "success": False
-                    })
+                    tool_results.append(
+                        {
+                            "tool": tool_name,
+                            "arguments": arguments,
+                            "error": str(e),
+                            "success": False,
+                        }
+                    )
 
             all_tool_calls.extend(tool_calls)
             all_tool_results.extend(tool_results)
@@ -175,7 +180,7 @@ class DSPyMCPAgent:
                     query=query,
                     tool_calls=json.dumps(all_tool_calls, indent=2),
                     tool_results=json.dumps(all_tool_results, indent=2),
-                    conversation_history=conversation_history
+                    conversation_history=conversation_history,
                 )
                 final_response = final_result.final_response
             except Exception as e:
@@ -189,7 +194,7 @@ class DSPyMCPAgent:
             "tool_calls": all_tool_calls,
             "tool_results": all_tool_results,
             "response": final_response,
-            "iterations": iteration
+            "iterations": iteration,
         }
 
     def _parse_tool_calls(self, tool_calls_str: str) -> List[Dict[str, Any]]:
@@ -207,7 +212,8 @@ class DSPyMCPAgent:
             # If not JSON, try to extract tool calls from text
             # Look for patterns like: {"name": "...", "arguments": {...}}
             import re
-            matches = re.findall(r'\{[^}]+\}', tool_calls_str)
+
+            matches = re.findall(r"\{[^}]+\}", tool_calls_str)
             tool_calls = []
             for match in matches:
                 try:
@@ -225,7 +231,9 @@ class DSPyMCPAgent:
             if result.get("success"):
                 lines.append(f"{i}. {result['tool']}: {result['result']}")
             else:
-                lines.append(f"{i}. {result['tool']}: ERROR - {result.get('error', 'Unknown error')}")
+                lines.append(
+                    f"{i}. {result['tool']}: ERROR - {result.get('error', 'Unknown error')}"
+                )
         return "\n".join(lines)
 
     def _has_sufficient_results(self, tool_results: List[Dict[str, Any]]) -> bool:

@@ -1,7 +1,9 @@
 """Generate HTML tables from structured data."""
-from typing import Dict, Any, List
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+
+from typing import Any, Dict, List
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("html-table-generator")
 
@@ -20,7 +22,9 @@ def generate_html_table(params: Dict[str, Any]) -> Dict[str, Any]:
     caption = params.get("caption", "")
 
     if sort_by and sort_by in data[0]:
-        data = sorted(data, key=lambda r: r.get(sort_by, ""), reverse=params.get("descending", False))
+        data = sorted(
+            data, key=lambda r: r.get(sort_by, ""), reverse=params.get("descending", False)
+        )
 
     headers = list(data[0].keys())
     cls = f' class="{css_class}"' if css_class else ""

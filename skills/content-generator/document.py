@@ -5,13 +5,14 @@ Simplified from JustJot.ai Document model
 """
 
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Any
 from datetime import datetime
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
 
 class SectionType(Enum):
     """Types of sections in a document"""
+
     TEXT = "text"
     CODE = "code"
     MERMAID = "mermaid"
@@ -23,6 +24,7 @@ class SectionType(Enum):
 @dataclass
 class Section:
     """A section in a document"""
+
     type: SectionType
     content: str
     title: Optional[str] = None
@@ -101,14 +103,17 @@ class Document:
 
         return "\n".join(parts)
 
-    def add_section(self, section_type: SectionType, content: str, title: Optional[str] = None, language: Optional[str] = None, **metadata: Any) -> 'Document':
+    def add_section(
+        self,
+        section_type: SectionType,
+        content: str,
+        title: Optional[str] = None,
+        language: Optional[str] = None,
+        **metadata: Any,
+    ) -> "Document":
         """Add a section to the document"""
         section = Section(
-            type=section_type,
-            content=content,
-            title=title,
-            language=language,
-            metadata=metadata
+            type=section_type, content=content, title=title, language=language, metadata=metadata
         )
         self.sections.append(section)
         return self

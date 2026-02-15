@@ -1,7 +1,10 @@
 """Mortgage calculator — payment, total interest, amortization."""
-from typing import Dict, Any
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+
+from typing import Any, Dict
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
+
 status = SkillStatus("mortgage-calculator")
 
 
@@ -39,14 +42,21 @@ def mortgage_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         yr_principal += mp
         if m % 12 == 0:
             yr_num = m // 12
-            yearly.append({"year": yr_num, "principal_paid": round(yr_principal, 2),
-                           "interest_paid": round(yr_interest, 2),
-                           "remaining_balance": max(round(balance, 2), 0)})
+            yearly.append(
+                {
+                    "year": yr_num,
+                    "principal_paid": round(yr_principal, 2),
+                    "interest_paid": round(yr_interest, 2),
+                    "remaining_balance": max(round(balance, 2), 0),
+                }
+            )
             yr_principal = yr_interest = 0.0
     summary = yearly[:5] + (yearly[-1:] if len(yearly) > 5 else [])
     return tool_response(
-        monthly_payment=monthly, total_paid=total_paid,
-        total_interest=total_interest, term_months=n,
+        monthly_payment=monthly,
+        total_paid=total_paid,
+        total_interest=total_interest,
+        term_months=n,
         amortization_summary=summary,
     )
 

@@ -4,11 +4,12 @@ DDL Schema Extractor
 Extracts schema from DDL strings using sqlglot and simple-ddl-parser.
 Supports parsing DDL from multiple database dialects.
 """
-from typing import List, Optional, Dict, Any
-import logging
 
-from .base import BaseExtractor
+import logging
+from typing import Any, Dict, List, Optional
+
 from ..models import Column, ForeignKey, Index
+from .base import BaseExtractor
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +47,7 @@ class DDLExtractor(BaseExtractor):
         "duckdb": "duckdb",
     }
 
-    def __init__(self, ddl: str, dialect: str = 'postgres') -> None:
+    def __init__(self, ddl: str, dialect: str = "postgres") -> None:
         """
         Initialize DDL extractor.
 
@@ -92,7 +93,7 @@ class DDLExtractor(BaseExtractor):
         result = parser.run(output_mode="python")
 
         for table_def in result:
-            table_name = table_def.get('table_name', '')
+            table_name = table_def.get("table_name", "")
             if not table_name:
                 continue
 
@@ -100,42 +101,46 @@ class DDLExtractor(BaseExtractor):
             primary_keys = []
             foreign_keys = []
 
-            for col in table_def.get('columns', []):
-                col_name = col.get('name', '')
-                col_type = col.get('type', 'unknown')
+            for col in table_def.get("columns", []):
+                col_name = col.get("name", "")
+                col_type = col.get("type", "unknown")
 
                 # Handle type with size
-                if col.get('size'):
+                if col.get("size"):
                     col_type = f"{col_type}({col.get('size')})"
 
-                columns.append({
-                    'name': col_name,
-                    'type': col_type,
-                    'nullable': not col.get('nullable', True) == False,
-                    'default': col.get('default'),
-                })
+                columns.append(
+                    {
+                        "name": col_name,
+                        "type": col_type,
+                        "nullable": not col.get("nullable", True) == False,
+                        "default": col.get("default"),
+                    }
+                )
 
-                if col.get('primary_key'):
+                if col.get("primary_key"):
                     primary_keys.append(col_name)
 
             # Extract primary key constraint
-            pk_constraint = table_def.get('primary_key', [])
+            pk_constraint = table_def.get("primary_key", [])
             if pk_constraint:
                 primary_keys.extend([pk for pk in pk_constraint if pk not in primary_keys])
 
             # Extract foreign keys
-            for fk in table_def.get('constraints', {}).get('foreign_keys', []):
-                foreign_keys.append({
-                    'columns': fk.get('columns', []),
-                    'referenced_table': fk.get('reference', {}).get('table', ''),
-                    'referenced_columns': fk.get('reference', {}).get('columns', []),
-                })
+            for fk in table_def.get("constraints", {}).get("foreign_keys", []):
+                foreign_keys.append(
+                    {
+                        "columns": fk.get("columns", []),
+                        "referenced_table": fk.get("reference", {}).get("table", ""),
+                        "referenced_columns": fk.get("reference", {}).get("columns", []),
+                    }
+                )
 
             self._parsed_tables[table_name] = {
-                'columns': columns,
-                'primary_keys': primary_keys,
-                'foreign_keys': foreign_keys,
-                'schema': table_def.get('schema'),
+                "columns": columns,
+                "primary_keys": primary_keys,
+                "foreign_keys": foreign_keys,
+                "schema": table_def.get("schema"),
             }
 
     def _parse_with_sqlglot(self) -> Any:
@@ -180,14 +185,20 @@ class DDLExtractor(BaseExtractor):
                         elif isinstance(constraint.kind, exp.PrimaryKeyColumnConstraint):
                             is_pk = True
                         elif isinstance(constraint.kind, exp.DefaultColumnConstraint):
-                            default = constraint.kind.this.sql(dialect=self.dialect) if constraint.kind.this else None
+                            default = (
+                                constraint.kind.this.sql(dialect=self.dialect)
+                                if constraint.kind.this
+                                else None
+                            )
 
-                    columns.append({
-                        'name': col_name,
-                        'type': col_type,
-                        'nullable': nullable,
-                        'default': default,
-                    })
+                    columns.append(
+                        {
+                            "name": col_name,
+                            "type": col_type,
+                            "nullable": nullable,
+                            "default": default,
+                        }
+                    )
 
                     if is_pk:
                         primary_keys.append(col_name)
@@ -195,25 +206,27 @@ class DDLExtractor(BaseExtractor):
                 # Handle table-level constraints
                 elif isinstance(col_def, exp.PrimaryKey):
                     for expr in col_def.expressions:
-                        if hasattr(expr, 'name'):
+                        if hasattr(expr, "name"):
                             primary_keys.append(expr.name)
 
                 elif isinstance(col_def, exp.ForeignKey):
-                    fk_cols = [e.name for e in col_def.expressions if hasattr(e, 'name')]
-                    ref = col_def.args.get('reference')
+                    fk_cols = [e.name for e in col_def.expressions if hasattr(e, "name")]
+                    ref = col_def.args.get("reference")
                     if ref:
                         ref_table = ref.this.name if ref.this else ""
-                        ref_cols = [e.name for e in ref.expressions if hasattr(e, 'name')]
-                        foreign_keys.append({
-                            'columns': fk_cols,
-                            'referenced_table': ref_table,
-                            'referenced_columns': ref_cols,
-                        })
+                        ref_cols = [e.name for e in ref.expressions if hasattr(e, "name")]
+                        foreign_keys.append(
+                            {
+                                "columns": fk_cols,
+                                "referenced_table": ref_table,
+                                "referenced_columns": ref_cols,
+                            }
+                        )
 
             self._parsed_tables[table_name] = {
-                'columns': columns,
-                'primary_keys': primary_keys,
-                'foreign_keys': foreign_keys,
+                "columns": columns,
+                "primary_keys": primary_keys,
+                "foreign_keys": foreign_keys,
             }
 
     def _extract_tables(self) -> List[str]:
@@ -225,39 +238,43 @@ class DDLExtractor(BaseExtractor):
         table_data = self._parsed_tables.get(table_name, {})
         columns = []
 
-        for col in table_data.get('columns', []):
-            columns.append(Column(
-                name=col['name'],
-                data_type=col['type'],
-                nullable=col.get('nullable', True),
-                default=col.get('default'),
-            ))
+        for col in table_data.get("columns", []):
+            columns.append(
+                Column(
+                    name=col["name"],
+                    data_type=col["type"],
+                    nullable=col.get("nullable", True),
+                    default=col.get("default"),
+                )
+            )
 
         return columns
 
     def _extract_primary_keys(self, table_name: str) -> List[str]:
         """Extract primary key column names."""
         table_data = self._parsed_tables.get(table_name, {})
-        return table_data.get('primary_keys', [])
+        return table_data.get("primary_keys", [])
 
     def _extract_foreign_keys(self, table_name: str) -> List[ForeignKey]:
         """Extract foreign keys."""
         table_data = self._parsed_tables.get(table_name, {})
         foreign_keys = []
 
-        for fk in table_data.get('foreign_keys', []):
-            foreign_keys.append(ForeignKey(
-                columns=fk['columns'],
-                referenced_table=fk['referenced_table'],
-                referenced_columns=fk['referenced_columns'],
-            ))
+        for fk in table_data.get("foreign_keys", []):
+            foreign_keys.append(
+                ForeignKey(
+                    columns=fk["columns"],
+                    referenced_table=fk["referenced_table"],
+                    referenced_columns=fk["referenced_columns"],
+                )
+            )
 
         return foreign_keys
 
     @classmethod
     def from_file(cls, file_path: str, dialect: str = "postgres") -> "DDLExtractor":
         """Create extractor from DDL file."""
-        with open(file_path, 'r') as f:
+        with open(file_path, "r") as f:
             ddl = f.read()
         return cls(ddl, dialect)
 

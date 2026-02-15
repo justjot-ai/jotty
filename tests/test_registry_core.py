@@ -3,14 +3,16 @@ Tests for Registry Core Module
 =================================
 Tests for UnifiedRegistry, skill discovery, and tool management.
 """
-import pytest
-from unittest.mock import MagicMock, patch
-from typing import Dict, Any, List
 
+from typing import Any, Dict, List
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 # =============================================================================
 # UnifiedRegistry Creation Tests
 # =============================================================================
+
 
 class TestUnifiedRegistryCreation:
     """Tests for UnifiedRegistry initialization and singleton."""
@@ -19,8 +21,10 @@ class TestUnifiedRegistryCreation:
     def test_singleton_creation(self):
         """get_unified_registry returns singleton."""
         from Jotty.core.capabilities.registry.unified_registry import (
-            get_unified_registry, reset_unified_registry,
+            get_unified_registry,
+            reset_unified_registry,
         )
+
         reset_unified_registry()
         r1 = get_unified_registry()
         r2 = get_unified_registry()
@@ -31,8 +35,10 @@ class TestUnifiedRegistryCreation:
     def test_reset_singleton(self):
         """reset_unified_registry clears singleton."""
         from Jotty.core.capabilities.registry.unified_registry import (
-            get_unified_registry, reset_unified_registry,
+            get_unified_registry,
+            reset_unified_registry,
         )
+
         reset_unified_registry()
         r1 = get_unified_registry()
         reset_unified_registry()
@@ -44,8 +50,10 @@ class TestUnifiedRegistryCreation:
     def test_list_skills_returns_list(self):
         """list_skills returns list of strings."""
         from Jotty.core.capabilities.registry.unified_registry import (
-            get_unified_registry, reset_unified_registry,
+            get_unified_registry,
+            reset_unified_registry,
         )
+
         reset_unified_registry()
         registry = get_unified_registry()
         skills = registry.list_skills()
@@ -58,6 +66,7 @@ class TestUnifiedRegistryCreation:
 # Skill Discovery Tests
 # =============================================================================
 
+
 class TestSkillDiscovery:
     """Tests for task-based skill discovery."""
 
@@ -65,48 +74,55 @@ class TestSkillDiscovery:
     def test_discover_for_task_returns_dict(self):
         """discover_for_task returns dict with skills and ui keys."""
         from Jotty.core.capabilities.registry.unified_registry import (
-            get_unified_registry, reset_unified_registry,
+            get_unified_registry,
+            reset_unified_registry,
         )
+
         reset_unified_registry()
         registry = get_unified_registry()
         result = registry.discover_for_task("research AI trends")
         assert isinstance(result, dict)
-        assert 'skills' in result
-        assert isinstance(result['skills'], list)
+        assert "skills" in result
+        assert isinstance(result["skills"], list)
         reset_unified_registry()
 
     @pytest.mark.unit
     def test_discover_for_chart_task(self):
         """discover_for_task matches chart UI for charting tasks."""
         from Jotty.core.capabilities.registry.unified_registry import (
-            get_unified_registry, reset_unified_registry,
+            get_unified_registry,
+            reset_unified_registry,
         )
+
         reset_unified_registry()
         registry = get_unified_registry()
         result = registry.discover_for_task("create a chart showing trends")
-        if 'ui' in result:
-            ui_names = [u if isinstance(u, str) else u.get('type', '') for u in result['ui']]
+        if "ui" in result:
+            ui_names = [u if isinstance(u, str) else u.get("type", "") for u in result["ui"]]
             # Chart should be suggested for charting tasks
-            assert any('chart' in str(u).lower() for u in result.get('ui', []))
+            assert any("chart" in str(u).lower() for u in result.get("ui", []))
         reset_unified_registry()
 
     @pytest.mark.unit
     def test_discover_empty_task(self):
         """discover_for_task handles empty task string."""
         from Jotty.core.capabilities.registry.unified_registry import (
-            get_unified_registry, reset_unified_registry,
+            get_unified_registry,
+            reset_unified_registry,
         )
+
         reset_unified_registry()
         registry = get_unified_registry()
         result = registry.discover_for_task("")
         assert isinstance(result, dict)
-        assert 'skills' in result
+        assert "skills" in result
         reset_unified_registry()
 
 
 # =============================================================================
 # Tool Management Tests
 # =============================================================================
+
 
 class TestToolManagement:
     """Tests for tool retrieval and validation."""
@@ -115,8 +131,10 @@ class TestToolManagement:
     def test_get_claude_tools_returns_list(self):
         """get_claude_tools returns list of tool dicts."""
         from Jotty.core.capabilities.registry.unified_registry import (
-            get_unified_registry, reset_unified_registry,
+            get_unified_registry,
+            reset_unified_registry,
         )
+
         reset_unified_registry()
         registry = get_unified_registry()
         skills = registry.list_skills()
@@ -129,14 +147,16 @@ class TestToolManagement:
     def test_validate_tools_existing(self):
         """validate_tools returns True for existing tools."""
         from Jotty.core.capabilities.registry.unified_registry import (
-            get_unified_registry, reset_unified_registry,
+            get_unified_registry,
+            reset_unified_registry,
         )
+
         reset_unified_registry()
         registry = get_unified_registry()
         skills = registry.list_skills()
         if skills:
             skill = registry.get_skill(skills[0])
-            if skill and hasattr(skill, 'tools') and skill.tools:
+            if skill and hasattr(skill, "tools") and skill.tools:
                 tool_name = list(skill.tools.keys())[0]
                 validation = registry.validate_tools([tool_name])
                 assert tool_name in validation
@@ -146,8 +166,10 @@ class TestToolManagement:
     def test_validate_tools_nonexistent(self):
         """validate_tools returns False for nonexistent tools."""
         from Jotty.core.capabilities.registry.unified_registry import (
-            get_unified_registry, reset_unified_registry,
+            get_unified_registry,
+            reset_unified_registry,
         )
+
         reset_unified_registry()
         registry = get_unified_registry()
         validation = registry.validate_tools(["nonexistent_tool_xyz"])
@@ -158,14 +180,16 @@ class TestToolManagement:
     def test_get_scoped_tools_limits_count(self):
         """get_scoped_tools respects max_tools limit."""
         from Jotty.core.capabilities.registry.unified_registry import (
-            get_unified_registry, reset_unified_registry,
+            get_unified_registry,
+            reset_unified_registry,
         )
+
         reset_unified_registry()
         registry = get_unified_registry()
         tools = registry.get_scoped_tools(
             "research complex topic with many tools",
             max_tools=3,
-            format='names',
+            format="names",
         )
         assert isinstance(tools, list)
         assert len(tools) <= 3
@@ -176,6 +200,7 @@ class TestToolManagement:
 # Registry Summary Tests
 # =============================================================================
 
+
 class TestRegistrySummary:
     """Tests for registry summary and info methods."""
 
@@ -183,47 +208,54 @@ class TestRegistrySummary:
     def test_get_all_returns_complete_info(self):
         """get_all returns skills and ui info."""
         from Jotty.core.capabilities.registry.unified_registry import (
-            get_unified_registry, reset_unified_registry,
+            get_unified_registry,
+            reset_unified_registry,
         )
+
         reset_unified_registry()
         registry = get_unified_registry()
         info = registry.get_all()
         assert isinstance(info, dict)
-        assert 'skills' in info
-        assert 'ui' in info
+        assert "skills" in info
+        assert "ui" in info
         reset_unified_registry()
 
     @pytest.mark.unit
     def test_get_summary_structure(self):
         """get_summary returns correct structure."""
         from Jotty.core.capabilities.registry.unified_registry import (
-            get_unified_registry, reset_unified_registry,
+            get_unified_registry,
+            reset_unified_registry,
         )
+
         reset_unified_registry()
         registry = get_unified_registry()
         summary = registry.get_summary()
         assert isinstance(summary, dict)
-        assert 'skills' in summary
-        assert 'count' in summary['skills']
+        assert "skills" in summary
+        assert "count" in summary["skills"]
         reset_unified_registry()
 
     @pytest.mark.unit
     def test_get_enabled_defaults(self):
         """get_enabled_defaults returns skills and UI components."""
         from Jotty.core.capabilities.registry.unified_registry import (
-            get_unified_registry, reset_unified_registry,
+            get_unified_registry,
+            reset_unified_registry,
         )
+
         reset_unified_registry()
         registry = get_unified_registry()
         defaults = registry.get_enabled_defaults()
         assert isinstance(defaults, dict)
-        assert 'skills' in defaults or 'ui' in defaults
+        assert "skills" in defaults or "ui" in defaults
         reset_unified_registry()
 
 
 # =============================================================================
 # UI Registry Tests
 # =============================================================================
+
 
 class TestUIRegistry:
     """Tests for UI component management."""
@@ -232,8 +264,10 @@ class TestUIRegistry:
     def test_list_ui_components(self):
         """list_ui_components returns list."""
         from Jotty.core.capabilities.registry.unified_registry import (
-            get_unified_registry, reset_unified_registry,
+            get_unified_registry,
+            reset_unified_registry,
         )
+
         reset_unified_registry()
         registry = get_unified_registry()
         components = registry.list_ui_components()
@@ -244,8 +278,10 @@ class TestUIRegistry:
     def test_get_ui_categories(self):
         """get_ui_categories returns list of category strings."""
         from Jotty.core.capabilities.registry.unified_registry import (
-            get_unified_registry, reset_unified_registry,
+            get_unified_registry,
+            reset_unified_registry,
         )
+
         reset_unified_registry()
         registry = get_unified_registry()
         categories = registry.get_ui_categories()
@@ -259,19 +295,25 @@ class TestUIRegistry:
 
 try:
     from Jotty.core.capabilities.registry.composite_skill import (
-        CompositeSkill, ExecutionMode, create_composite_skill,
+        CompositeSkill,
+        ExecutionMode,
+        create_composite_skill,
     )
+
     COMPOSITE_AVAILABLE = True
 except ImportError:
     COMPOSITE_AVAILABLE = False
 
 try:
     from Jotty.core.capabilities.registry.api import RegistryAPI
+
     API_AVAILABLE = True
 except ImportError:
     API_AVAILABLE = False
 
-skipif_composite = pytest.mark.skipif(not COMPOSITE_AVAILABLE, reason="composite_skill not importable")
+skipif_composite = pytest.mark.skipif(
+    not COMPOSITE_AVAILABLE, reason="composite_skill not importable"
+)
 skipif_api = pytest.mark.skipif(not API_AVAILABLE, reason="registry api not importable")
 
 
@@ -327,8 +369,10 @@ class TestCompositeSkillSequential:
         skill = MagicMock()
         tools = {}
         for name, result in tool_results.items():
+
             async def _tool(params, r=result):
                 return r
+
             tools[name] = _tool
         skill.tools = tools
         registry.get_skill.return_value = skill
@@ -338,7 +382,8 @@ class TestCompositeSkillSequential:
     async def test_single_step_success(self):
         registry = self._make_registry({"do_thing": {"success": True, "data": "ok"}})
         skill = CompositeSkill(
-            name="test", description="test",
+            name="test",
+            description="test",
             steps=[{"skill_name": "s1", "tool_name": "do_thing"}],
         )
         result = await skill.execute({"input": "val"}, registry)
@@ -346,12 +391,15 @@ class TestCompositeSkillSequential:
 
     @pytest.mark.asyncio
     async def test_step_failure_stops(self):
-        registry = self._make_registry({
-            "bad": {"success": False, "error": "oops"},
-            "good": {"success": True},
-        })
+        registry = self._make_registry(
+            {
+                "bad": {"success": False, "error": "oops"},
+                "good": {"success": True},
+            }
+        )
         skill = CompositeSkill(
-            name="fail", description="test",
+            name="fail",
+            description="test",
             steps=[
                 {"skill_name": "s1", "tool_name": "bad", "required": True},
                 {"skill_name": "s1", "tool_name": "good"},
@@ -364,7 +412,8 @@ class TestCompositeSkillSequential:
     async def test_custom_output_key(self):
         registry = self._make_registry({"tool": {"success": True}})
         skill = CompositeSkill(
-            name="keyed", description="test",
+            name="keyed",
+            description="test",
             steps=[{"skill_name": "s1", "tool_name": "tool", "output_key": "my_result"}],
         )
         result = await skill.execute({}, registry)
@@ -381,7 +430,8 @@ class TestCompositeSkillErrors:
         registry = MagicMock()
         registry.get_skill.return_value = None
         skill = CompositeSkill(
-            name="noskill", description="test",
+            name="noskill",
+            description="test",
             steps=[{"skill_name": "missing", "tool_name": "tool"}],
         )
         result = await skill.execute({}, registry)
@@ -394,7 +444,8 @@ class TestCompositeSkillErrors:
         registry = MagicMock()
         registry.get_skill.return_value = mock_skill
         skill = CompositeSkill(
-            name="notool", description="test",
+            name="notool",
+            description="test",
             steps=[{"skill_name": "s1", "tool_name": "missing_tool"}],
         )
         result = await skill.execute({}, registry)
@@ -403,13 +454,16 @@ class TestCompositeSkillErrors:
     @pytest.mark.asyncio
     async def test_tool_exception_caught(self):
         mock_skill = MagicMock()
+
         async def _failing(params):
             raise RuntimeError("kaboom")
+
         mock_skill.tools = {"explode": _failing}
         registry = MagicMock()
         registry.get_skill.return_value = mock_skill
         skill = CompositeSkill(
-            name="exploding", description="test",
+            name="exploding",
+            description="test",
             steps=[{"skill_name": "s1", "tool_name": "explode"}],
         )
         result = await skill.execute({}, registry)
@@ -435,6 +489,7 @@ class TestCreateCompositeSkillFactory:
 # =============================================================================
 # RegistryAPI Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 @skipif_api
@@ -545,6 +600,7 @@ class TestRegistryAPIEndpoints:
 # UnifiedRegistry Isolated Tests (Mocked Sub-Registries)
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestUnifiedRegistryIsolated:
     """Tests for UnifiedRegistry with fully mocked sub-registries."""
@@ -575,10 +631,12 @@ class TestUnifiedRegistryIsolated:
             "calculator": calc_skill,
         }
         mock_skills.get_skill = lambda name: mock_skills.loaded_skills.get(name)
-        mock_skills.discover = MagicMock(return_value=[
-            {"name": "web-search", "relevance_score": 5},
-            {"name": "calculator", "relevance_score": 0},
-        ])
+        mock_skills.discover = MagicMock(
+            return_value=[
+                {"name": "web-search", "relevance_score": 5},
+                {"name": "calculator", "relevance_score": 0},
+            ]
+        )
 
         mock_ui = MagicMock()
         mock_ui.list_types.return_value = ["chart", "data-table", "text", "code"]
@@ -765,34 +823,34 @@ class TestUnifiedRegistryIsolated:
     def test_get_scoped_tools_names(self):
         """get_scoped_tools with format='names' returns skill names."""
         reg = self._make_registry()
-        names = reg.get_scoped_tools("search web", max_tools=5, format='names')
+        names = reg.get_scoped_tools("search web", max_tools=5, format="names")
         assert isinstance(names, list)
         assert all(isinstance(n, str) for n in names)
 
     def test_get_scoped_tools_claude(self):
         """get_scoped_tools with format='claude' returns tool dicts."""
         reg = self._make_registry()
-        tools = reg.get_scoped_tools("search web", max_tools=5, format='claude')
+        tools = reg.get_scoped_tools("search web", max_tools=5, format="claude")
         assert isinstance(tools, list)
         assert all(isinstance(t, dict) for t in tools)
 
     def test_get_scoped_tools_full(self):
         """get_scoped_tools with format='full' returns skill objects."""
         reg = self._make_registry()
-        skills = reg.get_scoped_tools("search web", max_tools=5, format='full')
+        skills = reg.get_scoped_tools("search web", max_tools=5, format="full")
         assert isinstance(skills, list)
 
     def test_get_scoped_tools_max_limit(self):
         """get_scoped_tools respects max_tools."""
         reg = self._make_registry()
-        tools = reg.get_scoped_tools("search", max_tools=1, format='names')
+        tools = reg.get_scoped_tools("search", max_tools=1, format="names")
         assert len(tools) <= 1
 
     def test_get_scoped_tools_fallback_empty_discovery(self):
         """get_scoped_tools falls back when discovery returns empty."""
         reg = self._make_registry()
         reg._skills.discover.return_value = []
-        names = reg.get_scoped_tools("anything", max_tools=5, format='names')
+        names = reg.get_scoped_tools("anything", max_tools=5, format="names")
         assert isinstance(names, list)
         assert len(names) > 0  # Falls back to first N skills
 
@@ -812,6 +870,7 @@ class TestUnifiedRegistryIsolated:
 # Legacy Functions Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestLegacyFunctions:
     """Tests for deprecated get_tools_registry and get_widget_registry."""
@@ -819,10 +878,13 @@ class TestLegacyFunctions:
     def test_get_tools_registry_returns_skills(self):
         """get_tools_registry returns skills registry with deprecation warning."""
         from Jotty.core.capabilities.registry.unified_registry import (
-            get_tools_registry, reset_unified_registry,
+            get_tools_registry,
+            reset_unified_registry,
         )
+
         reset_unified_registry()
         import logging
+
         with patch.object(logging.getLogger("Jotty.core.registry.unified_registry"), "warning"):
             result = get_tools_registry()
         assert result is not None
@@ -831,10 +893,13 @@ class TestLegacyFunctions:
     def test_get_widget_registry_returns_ui(self):
         """get_widget_registry returns UI registry with deprecation warning."""
         from Jotty.core.capabilities.registry.unified_registry import (
-            get_widget_registry, reset_unified_registry,
+            get_widget_registry,
+            reset_unified_registry,
         )
+
         reset_unified_registry()
         import logging
+
         with patch.object(logging.getLogger("Jotty.core.registry.unified_registry"), "warning"):
             result = get_widget_registry()
         assert result is not None

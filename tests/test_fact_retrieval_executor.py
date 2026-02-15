@@ -3,10 +3,11 @@ Tests for Fact-Retrieval Executor
 """
 
 import pytest
+
 from Jotty.core.modes.execution.fact_retrieval_executor import (
-    FactRetrievalExecutor,
     AnswerFormat,
-    QuestionAnalysis
+    FactRetrievalExecutor,
+    QuestionAnalysis,
 )
 
 
@@ -21,15 +22,15 @@ class TestFactRetrievalExecutor:
 
         # Math question
         tools = executor._auto_detect_tools("Calculate 234 * 567", None)
-        assert 'calculator' in tools
+        assert "calculator" in tools
 
         # Search question
         tools = executor._auto_detect_tools("What is the capital of France?", None)
-        assert 'web-search' in tools
+        assert "web-search" in tools
 
         # Audio attachment
         tools = executor._auto_detect_tools("Transcribe this", ["audio.mp3"])
-        assert 'whisper' in tools or 'openai-whisper-api' in tools
+        assert "whisper" in tools or "openai-whisper-api" in tools
 
     @pytest.mark.unit
     def test_dependency_extraction(self):
@@ -42,15 +43,11 @@ class TestFactRetrievalExecutor:
         assert len(deps) == 0
 
         # Single dependency
-        deps = executor._extract_dependencies(
-            "What is the capital of {Step 1}?"
-        )
+        deps = executor._extract_dependencies("What is the capital of {Step 1}?")
         assert deps == [0]  # Step 1 → index 0
 
         # Multiple dependencies
-        deps = executor._extract_dependencies(
-            "Compare {Step 1} and {Step 2}"
-        )
+        deps = executor._extract_dependencies("Compare {Step 1} and {Step 2}")
         assert set(deps) == {0, 1}
 
     @pytest.mark.unit

@@ -4,17 +4,20 @@ Weather Forecast Skill
 Fetch weather forecasts using OpenWeather API.
 Follows Anthropic best practices for tool design.
 """
-from typing import Dict, Any
+
 import os
+from typing import Any, Dict
+
 import requests
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("weather-forecast")
 
 
-@tool_wrapper(required_params=['location'])
+@tool_wrapper(required_params=["location"])
 def weather_forecast_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Fetch weather forecast for any location using OpenWeather API.
@@ -30,14 +33,14 @@ def weather_forecast_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, location, current, forecast, error
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
-    location = params.get('location', '').strip()
-    units = params.get('units', 'metric')
-    forecast_days = params.get('forecast_days', 3)
+    location = params.get("location", "").strip()
+    units = params.get("units", "metric")
+    forecast_days = params.get("forecast_days", 3)
 
     # Validate units
-    valid_units = ['metric', 'imperial', 'kelvin']
+    valid_units = ["metric", "imperial", "kelvin"]
     if units not in valid_units:
         return tool_error(
             f'Invalid units: "{units}". Must be one of: metric, imperial, kelvin. '
@@ -52,11 +55,11 @@ def weather_forecast_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         )
 
     # Get API key
-    api_key = os.getenv('OPENWEATHER_API_KEY')
+    api_key = os.getenv("OPENWEATHER_API_KEY")
     if not api_key:
         return tool_error(
-            'OpenWeather API key not found. '
-            'Get free key at https://openweathermap.org/api and set OPENWEATHER_API_KEY environment variable. '
+            "OpenWeather API key not found. "
+            "Get free key at https://openweathermap.org/api and set OPENWEATHER_API_KEY environment variable. "
             'Example: export OPENWEATHER_API_KEY="your_key_here"'
         )
 
@@ -65,11 +68,7 @@ def weather_forecast_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         status.emit("Fetching", f"🌤️ Fetching weather for {location}...")
 
         current_url = "https://api.openweathermap.org/data/2.5/weather"
-        current_params = {
-            'q': location,
-            'appid': api_key,
-            'units': units
-        }
+        current_params = {"q": location, "appid": api_key, "units": units}
 
         current_response = requests.get(current_url, params=current_params, timeout=10)
 
@@ -81,13 +80,13 @@ def weather_forecast_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             )
         elif current_response.status_code == 401:
             return tool_error(
-                'Invalid API key. Verify OPENWEATHER_API_KEY is correct. '
-                'Get new key at https://openweathermap.org/api'
+                "Invalid API key. Verify OPENWEATHER_API_KEY is correct. "
+                "Get new key at https://openweathermap.org/api"
             )
         elif current_response.status_code == 429:
             return tool_error(
-                'Rate limit exceeded. Free tier: 60 calls/minute. '
-                'Wait 60 seconds or upgrade at https://openweathermap.org/price'
+                "Rate limit exceeded. Free tier: 60 calls/minute. "
+                "Wait 60 seconds or upgrade at https://openweathermap.org/price"
             )
 
         current_response.raise_for_status()
@@ -95,12 +94,12 @@ def weather_forecast_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
         # Parse current weather
         current_weather = {
-            'temperature': current_data['main']['temp'],
-            'feels_like': current_data['main']['feels_like'],
-            'humidity': current_data['main']['humidity'],
-            'pressure': current_data['main']['pressure'],
-            'description': current_data['weather'][0]['description'],
-            'wind_speed': current_data['wind']['speed'],
+            "temperature": current_data["main"]["temp"],
+            "feels_like": current_data["main"]["feels_like"],
+            "humidity": current_data["main"]["humidity"],
+            "pressure": current_data["main"]["pressure"],
+            "description": current_data["weather"][0]["description"],
+            "wind_speed": current_data["wind"]["speed"],
         }
 
         # Fetch forecast
@@ -108,10 +107,10 @@ def weather_forecast_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
         forecast_url = "https://api.openweathermap.org/data/2.5/forecast"
         forecast_params = {
-            'q': location,
-            'appid': api_key,
-            'units': units,
-            'cnt': forecast_days * 8  # 8 forecasts per day (3-hour intervals)
+            "q": location,
+            "appid": api_key,
+            "units": units,
+            "cnt": forecast_days * 8,  # 8 forecasts per day (3-hour intervals)
         }
 
         forecast_response = requests.get(forecast_url, params=forecast_params, timeout=10)
@@ -123,19 +122,23 @@ def weather_forecast_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         current_day = None
         day_data = []
 
-        for item in forecast_data['list'][:forecast_days * 8]:
-            date = item['dt_txt'].split(' ')[0]
-            
+        for item in forecast_data["list"][: forecast_days * 8]:
+            date = item["dt_txt"].split(" ")[0]
+
             if date != current_day:
                 if day_data:
                     # Average the day's forecasts
-                    avg_temp = sum(d['main']['temp'] for d in day_data) / len(day_data)
-                    daily_forecasts.append({
-                        'date': current_day,
-                        'temperature': round(avg_temp, 1),
-                        'description': day_data[len(day_data)//2]['weather'][0]['description'],
-                        'humidity': day_data[len(day_data)//2]['main']['humidity']
-                    })
+                    avg_temp = sum(d["main"]["temp"] for d in day_data) / len(day_data)
+                    daily_forecasts.append(
+                        {
+                            "date": current_day,
+                            "temperature": round(avg_temp, 1),
+                            "description": day_data[len(day_data) // 2]["weather"][0][
+                                "description"
+                            ],
+                            "humidity": day_data[len(day_data) // 2]["main"]["humidity"],
+                        }
+                    )
                 current_day = date
                 day_data = [item]
             else:
@@ -143,51 +146,48 @@ def weather_forecast_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
         # Add last day
         if day_data:
-            avg_temp = sum(d['main']['temp'] for d in day_data) / len(day_data)
-            daily_forecasts.append({
-                'date': current_day,
-                'temperature': round(avg_temp, 1),
-                'description': day_data[len(day_data)//2]['weather'][0]['description'],
-                'humidity': day_data[len(day_data)//2]['main']['humidity']
-            })
+            avg_temp = sum(d["main"]["temp"] for d in day_data) / len(day_data)
+            daily_forecasts.append(
+                {
+                    "date": current_day,
+                    "temperature": round(avg_temp, 1),
+                    "description": day_data[len(day_data) // 2]["weather"][0]["description"],
+                    "humidity": day_data[len(day_data) // 2]["main"]["humidity"],
+                }
+            )
 
         status.emit("Complete", "✅ Weather data retrieved!")
 
         # Unit symbol
-        unit_symbol = {
-            'metric': '°C',
-            'imperial': '°F',
-            'kelvin': 'K'
-        }[units]
+        unit_symbol = {"metric": "°C", "imperial": "°F", "kelvin": "K"}[units]
 
         return tool_response(
-            location=current_data['name'] + ', ' + current_data['sys']['country'],
+            location=current_data["name"] + ", " + current_data["sys"]["country"],
             current=current_weather,
             forecast=daily_forecasts[:forecast_days],
             units=units,
-            unit_symbol=unit_symbol
+            unit_symbol=unit_symbol,
         )
 
     except requests.Timeout:
         return tool_error(
-            'Request timeout. Check internet connection. '
-            'OpenWeather API may be slow, try again in a few seconds.'
+            "Request timeout. Check internet connection. "
+            "OpenWeather API may be slow, try again in a few seconds."
         )
     except requests.RequestException as e:
         return tool_error(
-            f'Weather API request failed: {str(e)}. '
-            f'Check internet connection and API key validity.'
+            f"Weather API request failed: {str(e)}. "
+            f"Check internet connection and API key validity."
         )
     except KeyError as e:
         return tool_error(
-            f'Unexpected API response format. Missing field: {str(e)}. '
-            f'OpenWeather API may have changed. Contact support.'
+            f"Unexpected API response format. Missing field: {str(e)}. "
+            f"OpenWeather API may have changed. Contact support."
         )
     except Exception as e:
         return tool_error(
-            f'Weather fetch failed: {str(e)}. '
-            f'Verify location format: "City" or "City, Country"'
+            f"Weather fetch failed: {str(e)}. " f'Verify location format: "City" or "City, Country"'
         )
 
 
-__all__ = ['weather_forecast_tool']
+__all__ = ["weather_forecast_tool"]

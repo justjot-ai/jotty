@@ -7,9 +7,10 @@ Generate professional documents and presentations:
 - Template-based content
 """
 
-from typing import Dict, Any
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from typing import Any, Dict
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("content-generator")
 
@@ -46,18 +47,12 @@ def generate_document(params: Dict[str, Any]) -> Dict[str, Any]:
 
         generator = DocumentGenerator()
         file_path = generator.generate(
-            content=content,
-            format=format,
-            title=title,
-            output_path=output_path
+            content=content, format=format, title=title, output_path=output_path
         )
 
         status.complete("Document generated")
 
-        return tool_response(
-            file_path=file_path,
-            format=format
-        )
+        return tool_response(file_path=file_path, format=format)
 
     except Exception as e:
         status.error(f"Failed: {e}")
@@ -96,19 +91,12 @@ def generate_presentation(params: Dict[str, Any]) -> Dict[str, Any]:
 
         generator = SlidesGenerator()
         file_path = generator.generate(
-            slides=slides,
-            format=format,
-            theme=theme,
-            output_path=output_path
+            slides=slides, format=format, theme=theme, output_path=output_path
         )
 
         status.complete(f"Presentation generated with {len(slides)} slides")
 
-        return tool_response(
-            file_path=file_path,
-            slide_count=len(slides),
-            format=format
-        )
+        return tool_response(file_path=file_path, slide_count=len(slides), format=format)
 
     except Exception as e:
         status.error(f"Failed: {e}")

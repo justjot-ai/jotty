@@ -16,7 +16,7 @@ warnings.warn(
     "core.learning.learning_manager is deprecated. "
     "Use core.learning.learning_coordinator instead.",
     DeprecationWarning,
-    stacklevel=2
+    stacklevel=2,
 )
 
 # Re-export everything from learning_coordinator for backward compatibility
@@ -28,8 +28,8 @@ from .learning_coordinator import (
 )
 
 __all__ = [
-    'LearningManager',
-    'LearningSession',
-    'LearningUpdate',
-    'get_learning_coordinator',
+    "LearningManager",
+    "LearningSession",
+    "LearningUpdate",
+    "get_learning_coordinator",
 ]

@@ -3,8 +3,10 @@ Unit tests for AgentConfig.
 
 Tests agent configuration validation, parameter mappings, and tool setup.
 """
-import pytest
+
 from unittest.mock import Mock
+
+import pytest
 
 
 class TestAgentConfigInitialization:
@@ -74,7 +76,7 @@ class TestParameterMappings:
             parameter_mappings={
                 "query": "context.query",
                 "date": "context.current_date",
-            }
+            },
         )
 
         assert "query" in config.parameter_mappings
@@ -95,7 +97,7 @@ class TestParameterMappings:
                 "preprocessed_data": "PreprocessorAgent.data",
                 "metadata": "MetadataAgent.metadata",
             },
-            dependencies=["PreprocessorAgent", "MetadataAgent"]
+            dependencies=["PreprocessorAgent", "MetadataAgent"],
         )
 
         assert "preprocessed_data" in config.parameter_mappings

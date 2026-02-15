@@ -22,28 +22,29 @@ Usage:
 """
 
 import logging
-from typing import Dict, Any, Optional, List, AsyncIterator, Union
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any, AsyncIterator, Dict, List, Optional, Union
 
 logger = logging.getLogger(__name__)
 
 # Absolute imports - single source of truth
 from Jotty.core.infrastructure.foundation.types.sdk_types import (
-    ExecutionMode,
     ChannelType,
-    SDKEventType,
-    ResponseFormat,
     ExecutionContext,
+    ExecutionMode,
+    ResponseFormat,
     SDKEvent,
-    SDKResponse,
+    SDKEventType,
     SDKRequest,
+    SDKResponse,
 )
 
 
 @dataclass
 class RouteResult:
     """Result from mode routing."""
+
     success: bool
     content: Any
     mode: ExecutionMode
@@ -112,6 +113,7 @@ class ModeRouter:
 
         try:
             from Jotty.core.infrastructure.foundation.unified_lm_provider import configure_dspy_lm
+
             lm = configure_dspy_lm()
             if lm:
                 self._lm_configured = True
@@ -130,6 +132,7 @@ class ModeRouter:
 
         try:
             from Jotty.core.capabilities.registry import get_unified_registry
+
             self._registry = get_unified_registry()
         except Exception as e:
             logger.warning(f"Could not initialize registry: {e}")
@@ -139,6 +142,7 @@ class ModeRouter:
     def _get_executor(self, context: Optional[ExecutionContext] = None) -> Any:
         """Get ChatExecutor with callbacks from context."""
         from Jotty.core.intelligence.orchestration.unified_executor import ChatExecutor
+
         status_cb = context.status_callback if context else None
         stream_cb = context.stream_callback if context else None
         return ChatExecutor(
@@ -150,18 +154,17 @@ class ModeRouter:
         """Get or create AutoAgent."""
         try:
             from Jotty.core.modes.agent.auto_agent import AutoAgent
+
             return AutoAgent(
                 max_steps=context.max_steps if context else 10,
-                timeout=int(context.timeout) if context else 300
+                timeout=int(context.timeout) if context else 300,
             )
         except ImportError:
             logger.warning("AutoAgent not available")
             return None
 
     async def route(
-        self,
-        request: Union[str, SDKRequest],
-        context: ExecutionContext
+        self, request: Union[str, SDKRequest], context: ExecutionContext
     ) -> RouteResult:
         """
         Route request to appropriate mode handler.
@@ -201,7 +204,7 @@ class ModeRouter:
                         success=False,
                         content=None,
                         mode=mode,
-                        error="Skill name required for SKILL mode"
+                        error="Skill name required for SKILL mode",
                     )
             elif mode == ExecutionMode.AGENT:
                 if isinstance(request, SDKRequest) and request.agent_name:
@@ -216,10 +219,10 @@ class ModeRouter:
             result.execution_time = (datetime.now() - start_time).total_seconds()
 
             # Emit complete event
-            context.emit_event(SDKEventType.COMPLETE, {
-                "success": result.success,
-                "execution_time": result.execution_time
-            })
+            context.emit_event(
+                SDKEventType.COMPLETE,
+                {"success": result.success, "execution_time": result.execution_time},
+            )
 
             return result
 
@@ -231,14 +234,10 @@ class ModeRouter:
                 content=None,
                 mode=mode,
                 execution_time=(datetime.now() - start_time).total_seconds(),
-                error=str(e)
+                error=str(e),
             )
 
-    async def _handle_chat(
-        self,
-        message: str,
-        context: ExecutionContext
-    ) -> RouteResult:
+    async def _handle_chat(self, message: str, context: ExecutionContext) -> RouteResult:
         """
         Handle chat mode via TierExecutor.
 
@@ -261,12 +260,12 @@ class ModeRouter:
                 success=result.success,
                 content=result.content,
                 mode=ExecutionMode.CHAT,
-                skills_used=getattr(result, 'tools_used', []),
-                steps_executed=getattr(result, 'steps_taken', 1),
+                skills_used=getattr(result, "tools_used", []),
+                steps_executed=getattr(result, "steps_taken", 1),
                 metadata={
-                    "output_format": getattr(result, 'output_format', 'markdown'),
-                    "output_path": getattr(result, 'output_path', None),
-                    "was_streamed": getattr(result, 'was_streamed', False),
+                    "output_format": getattr(result, "output_format", "markdown"),
+                    "output_path": getattr(result, "output_path", None),
+                    "was_streamed": getattr(result, "was_streamed", False),
                 },
             )
 
@@ -280,11 +279,7 @@ class ModeRouter:
                 errors=[str(e)],
             )
 
-    async def _handle_workflow(
-        self,
-        goal: str,
-        context: ExecutionContext
-    ) -> RouteResult:
+    async def _handle_workflow(self, goal: str, context: ExecutionContext) -> RouteResult:
         """Handle workflow mode request using AutoAgent."""
         context.emit_event(SDKEventType.PLANNING, {"goal": goal})
 
@@ -294,7 +289,7 @@ class ModeRouter:
                 success=False,
                 content=None,
                 mode=ExecutionMode.WORKFLOW,
-                error="AutoAgent not available"
+                error="AutoAgent not available",
             )
 
         # Status callback to emit events during execution
@@ -305,20 +300,50 @@ class ModeRouter:
             result = await agent.execute(goal, status_callback=status_callback)
 
             # Get errors from result (dict or object attribute)
-            errors = result.get('errors', []) if isinstance(result, dict) else getattr(result, 'errors', [])
-            stopped_early = result.get('stopped_early', False) if isinstance(result, dict) else getattr(result, 'stopped_early', False)
-            success = result.get('success', True) if isinstance(result, dict) else getattr(result, 'success', True)
+            errors = (
+                result.get("errors", [])
+                if isinstance(result, dict)
+                else getattr(result, "errors", [])
+            )
+            stopped_early = (
+                result.get("stopped_early", False)
+                if isinstance(result, dict)
+                else getattr(result, "stopped_early", False)
+            )
+            success = (
+                result.get("success", True)
+                if isinstance(result, dict)
+                else getattr(result, "success", True)
+            )
 
             return RouteResult(
                 success=success,
-                content=result.get('final_output') if isinstance(result, dict) else getattr(result, 'final_output', result),
+                content=(
+                    result.get("final_output")
+                    if isinstance(result, dict)
+                    else getattr(result, "final_output", result)
+                ),
                 mode=ExecutionMode.WORKFLOW,
-                skills_used=result.get('skills_used', []) if isinstance(result, dict) else getattr(result, 'skills_used', []),
-                steps_executed=result.get('steps_executed', 0) if isinstance(result, dict) else getattr(result, 'steps_executed', 0),
+                skills_used=(
+                    result.get("skills_used", [])
+                    if isinstance(result, dict)
+                    else getattr(result, "skills_used", [])
+                ),
+                steps_executed=(
+                    result.get("steps_executed", 0)
+                    if isinstance(result, dict)
+                    else getattr(result, "steps_executed", 0)
+                ),
                 error=errors[0] if errors else None,
                 errors=errors or [],
                 stopped_early=stopped_early,
-                metadata={"task_type": result.get('task_type', 'unknown') if isinstance(result, dict) else getattr(result, 'task_type', 'unknown')},
+                metadata={
+                    "task_type": (
+                        result.get("task_type", "unknown")
+                        if isinstance(result, dict)
+                        else getattr(result, "task_type", "unknown")
+                    )
+                },
             )
 
         except Exception as e:
@@ -333,10 +358,7 @@ class ModeRouter:
             )
 
     async def _handle_skill(
-        self,
-        skill_name: str,
-        params: Any,
-        context: ExecutionContext
+        self, skill_name: str, params: Any, context: ExecutionContext
     ) -> RouteResult:
         """Handle direct skill execution."""
         context.emit_event(SDKEventType.SKILL_START, {"skill": skill_name})
@@ -346,7 +368,7 @@ class ModeRouter:
                 success=False,
                 content=None,
                 mode=ExecutionMode.SKILL,
-                error="Registry not available"
+                error="Registry not available",
             )
 
         try:
@@ -356,18 +378,19 @@ class ModeRouter:
                     success=False,
                     content=None,
                     mode=ExecutionMode.SKILL,
-                    error=f"Skill not found: {skill_name}"
+                    error=f"Skill not found: {skill_name}",
                 )
 
             # Parse params if string
             if isinstance(params, str):
                 import json
+
                 try:
                     params = json.loads(params)
                 except (json.JSONDecodeError, ValueError):
                     params = {"input": params}
 
-            result = await skill.execute(params) if hasattr(skill, 'execute') else skill.run(params)
+            result = await skill.execute(params) if hasattr(skill, "execute") else skill.run(params)
 
             context.emit_event(SDKEventType.SKILL_COMPLETE, {"skill": skill_name, "result": result})
 
@@ -379,18 +402,10 @@ class ModeRouter:
             )
 
         except Exception as e:
-            return RouteResult(
-                success=False,
-                content=None,
-                mode=ExecutionMode.SKILL,
-                error=str(e)
-            )
+            return RouteResult(success=False, content=None, mode=ExecutionMode.SKILL, error=str(e))
 
     async def _handle_agent(
-        self,
-        agent_name: str,
-        task: str,
-        context: ExecutionContext
+        self, agent_name: str, task: str, context: ExecutionContext
     ) -> RouteResult:
         """Handle direct agent execution."""
         context.emit_event(SDKEventType.AGENT_START, {"agent": agent_name})
@@ -399,10 +414,7 @@ class ModeRouter:
         agent = self._get_auto_agent(context)
         if agent is None:
             return RouteResult(
-                success=False,
-                content=None,
-                mode=ExecutionMode.AGENT,
-                error="Agent not available"
+                success=False, content=None, mode=ExecutionMode.AGENT, error="Agent not available"
             )
 
         try:
@@ -420,45 +432,40 @@ class ModeRouter:
             )
 
         except Exception as e:
-            return RouteResult(
-                success=False,
-                content=None,
-                mode=ExecutionMode.AGENT,
-                error=str(e)
-            )
+            return RouteResult(success=False, content=None, mode=ExecutionMode.AGENT, error=str(e))
 
     # =========================================================================
     # CONVENIENCE METHODS
     # =========================================================================
 
-    async def chat(self, message: str, context: Optional[ExecutionContext] = None, **kwargs: Any) -> RouteResult:
+    async def chat(
+        self, message: str, context: Optional[ExecutionContext] = None, **kwargs: Any
+    ) -> RouteResult:
         """Execute chat mode."""
         if context is None:
-            context = ExecutionContext(
-                mode=ExecutionMode.CHAT,
-                channel=ChannelType.SDK,
-                **kwargs
-            )
+            context = ExecutionContext(mode=ExecutionMode.CHAT, channel=ChannelType.SDK, **kwargs)
         return await self.route(message, context.with_mode(ExecutionMode.CHAT))
 
-    async def workflow(self, goal: str, context: Optional[ExecutionContext] = None, **kwargs: Any) -> RouteResult:
+    async def workflow(
+        self, goal: str, context: Optional[ExecutionContext] = None, **kwargs: Any
+    ) -> RouteResult:
         """Execute workflow mode."""
         if context is None:
             context = ExecutionContext(
-                mode=ExecutionMode.WORKFLOW,
-                channel=ChannelType.SDK,
-                **kwargs
+                mode=ExecutionMode.WORKFLOW, channel=ChannelType.SDK, **kwargs
             )
         return await self.route(goal, context.with_mode(ExecutionMode.WORKFLOW))
 
-    async def skill(self, skill_name: str, params: Dict[str, Any], context: Optional[ExecutionContext] = None, **kwargs: Any) -> RouteResult:
+    async def skill(
+        self,
+        skill_name: str,
+        params: Dict[str, Any],
+        context: Optional[ExecutionContext] = None,
+        **kwargs: Any,
+    ) -> RouteResult:
         """Execute a skill directly."""
         if context is None:
-            context = ExecutionContext(
-                mode=ExecutionMode.SKILL,
-                channel=ChannelType.SDK,
-                **kwargs
-            )
+            context = ExecutionContext(mode=ExecutionMode.SKILL, channel=ChannelType.SDK, **kwargs)
         request = SDKRequest(
             content=str(params),
             mode=ExecutionMode.SKILL,
@@ -466,7 +473,9 @@ class ModeRouter:
         )
         return await self.route(request, context.with_mode(ExecutionMode.SKILL))
 
-    async def stream(self, content: str, context: Optional[ExecutionContext] = None, **kwargs: Any) -> AsyncIterator[SDKEvent]:
+    async def stream(
+        self, content: str, context: Optional[ExecutionContext] = None, **kwargs: Any
+    ) -> AsyncIterator[SDKEvent]:
         """
         Stream execution with events.
 
@@ -477,10 +486,7 @@ class ModeRouter:
 
         if context is None:
             context = ExecutionContext(
-                mode=ExecutionMode.CHAT,
-                channel=ChannelType.SDK,
-                streaming=True,
-                **kwargs
+                mode=ExecutionMode.CHAT, channel=ChannelType.SDK, streaming=True, **kwargs
             )
 
         # Queue-based event delivery (instant, no polling)
@@ -532,15 +538,9 @@ class ModeRouter:
         # Get result and yield final complete event
         try:
             result = task.result()
-            yield SDKEvent(
-                type=SDKEventType.COMPLETE,
-                data=result.to_sdk_response().to_dict()
-            )
+            yield SDKEvent(type=SDKEventType.COMPLETE, data=result.to_sdk_response().to_dict())
         except Exception as e:
-            yield SDKEvent(
-                type=SDKEventType.ERROR,
-                data={"error": str(e)}
-            )
+            yield SDKEvent(type=SDKEventType.ERROR, data={"error": str(e)})
 
 
 # Singleton instance

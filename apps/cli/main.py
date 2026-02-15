@@ -17,16 +17,16 @@ Usage:
     python -m Jotty.apps.cli.main
 """
 
-import sys
 import asyncio
+import sys
 from pathlib import Path
 
 
 def main():
     """Main entry point for Jotty CLI."""
     try:
-        from Jotty.apps.cli.app import JottyCLI
         from Jotty.apps.cli.__main__ import main as cli_main
+        from Jotty.apps.cli.app import JottyCLI
 
         # Run the CLI
         cli_main()
@@ -37,6 +37,7 @@ def main():
     except Exception as e:
         print(f"❌ Error starting Jotty CLI: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 

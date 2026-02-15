@@ -1,10 +1,12 @@
 """DNS Lookup Skill — resolve domain records."""
-import socket
-import requests
-from typing import Dict, Any, List
 
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+import socket
+from typing import Any, Dict, List
+
+import requests
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("dns-lookup")
 
@@ -32,16 +34,22 @@ def dns_lookup_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
         records = []
         for answer in data.get("Answer", []):
-            records.append({
-                "name": answer.get("name", ""),
-                "type": answer.get("type", 0),
-                "ttl": answer.get("TTL", 0),
-                "data": answer.get("data", ""),
-            })
+            records.append(
+                {
+                    "name": answer.get("name", ""),
+                    "type": answer.get("type", 0),
+                    "ttl": answer.get("TTL", 0),
+                    "data": answer.get("data", ""),
+                }
+            )
 
-        return tool_response(domain=domain, record_type=record_type,
-                             records=records, count=len(records),
-                             status_code=data.get("Status", -1))
+        return tool_response(
+            domain=domain,
+            record_type=record_type,
+            records=records,
+            count=len(records),
+            status_code=data.get("Status", -1),
+        )
     except requests.RequestException as e:
         return tool_error(f"DNS lookup failed: {e}")
 

@@ -14,7 +14,7 @@ Usage:
 
 import asyncio
 import logging
-from typing import Dict, Any, Optional, List
+from typing import Any, Dict, List, Optional
 
 from Jotty.core.infrastructure.foundation.data_structures import EpisodeResult
 
@@ -92,9 +92,7 @@ class TrainingDaemon:
                 try:
                     al = sm.learning.adaptive_learning
                     if al.state.is_converging and al.should_stop_early():
-                        logger.info(
-                            f" Training loop: converged after {i} tasks, stopping"
-                        )
+                        logger.info(f" Training loop: converged after {i} tasks, stopping")
                         break
                 except Exception as e:
                     logger.debug(f"Convergence check failed: {e}")
@@ -147,8 +145,7 @@ class TrainingDaemon:
 
         self._daemon_task = asyncio.ensure_future(_daemon())
         logger.info(
-            f" Training daemon started (max_tasks={max_tasks}, "
-            f"interval={interval_seconds}s)"
+            f" Training daemon started (max_tasks={max_tasks}, " f"interval={interval_seconds}s)"
         )
         return True
 
@@ -166,17 +163,14 @@ class TrainingDaemon:
 
     def status(self) -> Dict[str, Any]:
         """Get training daemon status."""
-        running = (
-            self._daemon_task is not None
-            and not self._daemon_task.done()
-        )
+        running = self._daemon_task is not None and not self._daemon_task.done()
         results = self._results or []
         succeeded = sum(1 for r in results if r and r.success)
 
         return {
-            'running': running,
-            'completed': len(results),
-            'succeeded': succeeded,
-            'success_rate': succeeded / len(results) if results else 0.0,
-            'pending_tasks': self.pending_count,
+            "running": running,
+            "completed": len(results),
+            "succeeded": succeeded,
+            "success_rate": succeeded / len(results) if results else 0.0,
+            "pending_tasks": self.pending_count,
         }

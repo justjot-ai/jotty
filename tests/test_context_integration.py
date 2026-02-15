@@ -16,13 +16,10 @@ Verifies:
 import asyncio
 import logging
 import os
-from typing import Dict, Any
+from typing import Any, Dict
 
 # Setup logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 
@@ -32,7 +29,7 @@ async def test_context_manager_basic():
     logger.info("TEST 1: Basic SmartContextManager")
     logger.info("=" * 60)
 
-    from Jotty.core.infrastructure.context import SmartContextManager, ContextPriority
+    from Jotty.core.infrastructure.context import ContextPriority, SmartContextManager
 
     ctx = SmartContextManager(max_tokens=10000)
 
@@ -44,8 +41,7 @@ async def test_context_manager_basic():
 
     # Build context
     result = ctx.build_context(
-        system_prompt="You are a test assistant",
-        user_input="Verify context management works"
+        system_prompt="You are a test assistant", user_input="Verify context management works"
     )
 
     logger.info(f"✓ Context built: {len(result['context'])} chars")
@@ -53,8 +49,8 @@ async def test_context_manager_basic():
     logger.info(f"✓ Preserved: {result['preserved']}")
     logger.info(f"✓ Budget remaining: {result['stats']['budget_remaining']} tokens")
 
-    assert result['preserved']['goal'], "Goal should be preserved"
-    assert result['preserved']['critical_memories'] > 0, "Critical memories preserved"
+    assert result["preserved"]["goal"], "Goal should be preserved"
+    assert result["preserved"]["critical_memories"] > 0, "Critical memories preserved"
 
     logger.info("✅ TEST 1 PASSED\n")
     return True
@@ -66,7 +62,7 @@ async def test_overflow_detection():
     logger.info("TEST 2: Overflow Detection")
     logger.info("=" * 60)
 
-    from Jotty.core.infrastructure.context import SmartContextManager, OverflowDetector
+    from Jotty.core.infrastructure.context import OverflowDetector, SmartContextManager
 
     detector = OverflowDetector(max_tokens=4000)
 
@@ -142,10 +138,10 @@ async def test_unified_imports():
 
     # Test new unified imports
     from Jotty.core.infrastructure.context import (
-        SmartContextManager,
-        OverflowDetector,
         ContextChunk,
         ContextPriority,
+        OverflowDetector,
+        SmartContextManager,
         context_utils,
         patch_dspy_with_guard,
         unpatch_dspy,
@@ -154,17 +150,18 @@ async def test_unified_imports():
     logger.info("✓ All unified imports work")
 
     # Test facade (backwards compatibility)
-    from Jotty.core.infrastructure.context.facade import (
-        get_context_manager,
-        get_context_guard,
-    )
+    from Jotty.core.infrastructure.context.facade import get_context_guard, get_context_manager
 
     ctx = get_context_manager()
     guard = get_context_guard()
 
     # Both should return SmartContextManager now
-    assert type(ctx).__name__ == "SmartContextManager", "get_context_manager returns SmartContextManager"
-    assert type(guard).__name__ == "SmartContextManager", "get_context_guard returns SmartContextManager (unified)"
+    assert (
+        type(ctx).__name__ == "SmartContextManager"
+    ), "get_context_manager returns SmartContextManager"
+    assert (
+        type(guard).__name__ == "SmartContextManager"
+    ), "get_context_guard returns SmartContextManager (unified)"
 
     logger.info(f"✓ get_context_manager: {type(ctx).__name__}")
     logger.info(f"✓ get_context_guard: {type(guard).__name__} (unified!)")
@@ -199,7 +196,9 @@ async def test_priority_consistency():
     for priority, expected_value in priorities.items():
         actual_value = priority.value
         logger.info(f"✓ {priority.name} = {actual_value} (expected {expected_value})")
-        assert actual_value == expected_value, f"{priority.name} should be {expected_value}, got {actual_value}"
+        assert (
+            actual_value == expected_value
+        ), f"{priority.name} should be {expected_value}, got {actual_value}"
 
     logger.info("✅ TEST 5 PASSED\n")
     return True
@@ -213,7 +212,9 @@ async def test_compression_strategies():
 
     from Jotty.core.infrastructure.context import context_utils
 
-    test_text = "Important information. " * 100 + "CRITICAL data here. " * 50 + "Normal text. " * 100
+    test_text = (
+        "Important information. " * 100 + "CRITICAL data here. " * 50 + "Normal text. " * 100
+    )
 
     # Test simple truncate
     result1 = context_utils.simple_truncate(test_text, target_tokens=100)
@@ -224,14 +225,18 @@ async def test_compression_strategies():
     logger.info(f"✓ prefix_suffix_compress: {len(test_text)} → {len(result2)} chars")
 
     # Test structured extract (preserves CRITICAL keywords)
-    result3 = context_utils.structured_extract(test_text, target_tokens=100, preserve_keywords=["CRITICAL"])
+    result3 = context_utils.structured_extract(
+        test_text, target_tokens=100, preserve_keywords=["CRITICAL"]
+    )
     logger.info(f"✓ structured_extract: {len(test_text)} → {len(result3)} chars")
     logger.info(f"  Preview: {result3[:100]}...")
     # Check if CRITICAL is preserved (case-insensitive)
     has_critical = "CRITICAL" in result3.upper()
     logger.info(f"  Has CRITICAL keyword: {has_critical}")
     if not has_critical:
-        logger.warning("  Note: CRITICAL keyword may have been truncated - this is OK for small target_tokens")
+        logger.warning(
+            "  Note: CRITICAL keyword may have been truncated - this is OK for small target_tokens"
+        )
 
     logger.info("✅ TEST 6 PASSED\n")
     return True
@@ -248,10 +253,7 @@ async def test_chunking():
     long_text = "Sentence one. " * 500 + "Sentence two. " * 500
 
     chunks = context_utils.create_chunks(
-        long_text,
-        max_chunk_tokens=500,
-        overlap_tokens=50,
-        preserve_sentences=True
+        long_text, max_chunk_tokens=500, overlap_tokens=50, preserve_sentences=True
     )
 
     logger.info(f"✓ Created {len(chunks)} chunks from {len(long_text)} chars")

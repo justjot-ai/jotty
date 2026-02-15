@@ -7,7 +7,7 @@ Base class for CLI plugins.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Optional, List, Dict, Any
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 if TYPE_CHECKING:
     from ..app import JottyCLI
@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 @dataclass
 class PluginInfo:
     """Plugin metadata."""
+
     name: str
     version: str
     description: str
@@ -41,7 +42,7 @@ class PluginBase(ABC):
         """Get plugin information."""
         pass
 
-    def on_load(self, cli: 'JottyCLI') -> Any:
+    def on_load(self, cli: "JottyCLI") -> Any:
         """
         Called when plugin is loaded.
 
@@ -50,7 +51,7 @@ class PluginBase(ABC):
         """
         pass
 
-    def on_unload(self, cli: 'JottyCLI') -> Any:
+    def on_unload(self, cli: "JottyCLI") -> Any:
         """
         Called when plugin is unloaded.
 
@@ -134,11 +135,7 @@ class SkillPlugin(PluginBase):
             category = "skills"
 
             async def execute(self, args: ParsedArgs, cli: "JottyCLI") -> CommandResult:
-                params = {
-                    "query": args.raw,
-                    "input": args.raw,
-                    **args.flags
-                }
+                params = {"query": args.raw, "input": args.raw, **args.flags}
 
                 # Get first tool from skill
                 tools = skill.tools

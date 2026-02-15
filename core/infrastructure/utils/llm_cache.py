@@ -15,14 +15,14 @@ Features:
 """
 
 import hashlib
-import time
 import json
 import logging
 import threading
-from typing import Optional, Dict, Any, Callable, Tuple
-from dataclasses import dataclass, field
+import time
 from collections import OrderedDict
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any, Callable, Dict, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +30,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class CachedResponse:
     """A cached LLM response with metadata."""
+
     response: Any
     prompt_hash: str
     model: str
@@ -45,17 +46,17 @@ class CachedResponse:
     def to_dict(self) -> Dict[str, Any]:
         """Serialize to dictionary."""
         return {
-            'response': self.response,
-            'prompt_hash': self.prompt_hash,
-            'model': self.model,
-            'temperature': self.temperature,
-            'created_at': self.created_at,
-            'ttl_seconds': self.ttl_seconds,
-            'hit_count': self.hit_count,
+            "response": self.response,
+            "prompt_hash": self.prompt_hash,
+            "model": self.model,
+            "temperature": self.temperature,
+            "created_at": self.created_at,
+            "ttl_seconds": self.ttl_seconds,
+            "hit_count": self.hit_count,
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'CachedResponse':
+    def from_dict(cls, data: Dict[str, Any]) -> "CachedResponse":
         """Deserialize from dictionary."""
         return cls(**data)
 
@@ -63,6 +64,7 @@ class CachedResponse:
 @dataclass
 class CacheStats:
     """Statistics about cache performance."""
+
     hits: int = 0
     misses: int = 0
     evictions: int = 0
@@ -81,14 +83,14 @@ class CacheStats:
     def to_dict(self) -> Dict[str, Any]:
         """Serialize to dictionary."""
         return {
-            'hits': self.hits,
-            'misses': self.misses,
-            'evictions': self.evictions,
-            'expirations': self.expirations,
-            'total_requests': self.total_requests,
-            'total_saved_calls': self.total_saved_calls,
-            'cache_size': self.cache_size,
-            'hit_rate': self.hit_rate,
+            "hits": self.hits,
+            "misses": self.misses,
+            "evictions": self.evictions,
+            "expirations": self.expirations,
+            "total_requests": self.total_requests,
+            "total_saved_calls": self.total_saved_calls,
+            "cache_size": self.cache_size,
+            "hit_rate": self.hit_rate,
         }
 
 
@@ -120,10 +122,16 @@ class LLMCallCache:
             return actual_llm_call(prompt)
     """
 
-    _instances: Dict[str, 'LLMCallCache'] = {}
+    _instances: Dict[str, "LLMCallCache"] = {}
     _instances_lock = threading.Lock()
 
-    def __init__(self, max_size: int = 1000, default_ttl: float = 3600.0, persist_path: Optional[str] = None, enabled: bool = True) -> None:
+    def __init__(
+        self,
+        max_size: int = 1000,
+        default_ttl: float = 3600.0,
+        persist_path: Optional[str] = None,
+        enabled: bool = True,
+    ) -> None:
         """
         Initialize LLM call cache.
 
@@ -157,7 +165,7 @@ class LLMCallCache:
         )
 
     @classmethod
-    def get_instance(cls, name: str = 'default', **kwargs: Any) -> 'LLMCallCache':
+    def get_instance(cls, name: str = "default", **kwargs: Any) -> "LLMCallCache":
         """
         Get a singleton cache instance by name (thread-safe, double-checked locking).
 
@@ -179,7 +187,9 @@ class LLMCallCache:
         """Reset all cached instances (for testing)."""
         cls._instances.clear()
 
-    def _compute_hash(self, prompt: str, model: str = '', temperature: float = 0.0, **extra_context: Any) -> str:
+    def _compute_hash(
+        self, prompt: str, model: str = "", temperature: float = 0.0, **extra_context: Any
+    ) -> str:
         """
         Compute cache key hash from prompt and parameters.
 
@@ -209,7 +219,7 @@ class LLMCallCache:
         key_string = "|".join(key_parts)
 
         # Compute SHA256 hash
-        return hashlib.sha256(key_string.encode('utf-8')).hexdigest()[:32]
+        return hashlib.sha256(key_string.encode("utf-8")).hexdigest()[:32]
 
     def get(self, prompt_hash: str) -> Optional[CachedResponse]:
         """
@@ -248,10 +258,7 @@ class LLMCallCache:
             self._stats.total_saved_calls += 1
             cached.hit_count += 1
 
-            logger.debug(
-                f"Cache HIT: {prompt_hash[:8]}... "
-                f"(hits: {cached.hit_count})"
-            )
+            logger.debug(f"Cache HIT: {prompt_hash[:8]}... " f"(hits: {cached.hit_count})")
 
             return cached
 
@@ -261,7 +268,7 @@ class LLMCallCache:
         response: Any,
         model: str = "",
         temperature: float = 0.0,
-        ttl: Optional[float] = None
+        ttl: Optional[float] = None,
     ) -> None:
         """
         Store response in cache.
@@ -297,8 +304,7 @@ class LLMCallCache:
             self._stats.cache_size = len(self._cache)
 
             logger.debug(
-                f"Cache SET: {prompt_hash[:8]}... "
-                f"(size: {len(self._cache)}/{self.max_size})"
+                f"Cache SET: {prompt_hash[:8]}... " f"(size: {len(self._cache)}/{self.max_size})"
             )
 
     def _evict_oldest(self) -> None:
@@ -309,7 +315,15 @@ class LLMCallCache:
             self._stats.evictions += 1
             logger.debug(f"Cache EVICT: {oldest_key[:8]}...")
 
-    def get_or_call(self, prompt: str, llm_func: Callable[[str], Any], model: str = '', temperature: float = 0.0, ttl: Optional[float] = None, **extra_context: Any) -> Any:
+    def get_or_call(
+        self,
+        prompt: str,
+        llm_func: Callable[[str], Any],
+        model: str = "",
+        temperature: float = 0.0,
+        ttl: Optional[float] = None,
+        **extra_context: Any,
+    ) -> Any:
         """
         Get cached response or call LLM function.
 
@@ -328,10 +342,7 @@ class LLMCallCache:
         """
         # Compute cache key
         prompt_hash = self._compute_hash(
-            prompt=prompt,
-            model=model,
-            temperature=temperature,
-            **extra_context
+            prompt=prompt, model=model, temperature=temperature, **extra_context
         )
 
         # Try cache first
@@ -349,12 +360,20 @@ class LLMCallCache:
             response=response,
             model=model,
             temperature=temperature,
-            ttl=ttl
+            ttl=ttl,
         )
 
         return response
 
-    async def get_or_call_async(self, prompt: str, llm_func: Callable[[str], Any], model: str = '', temperature: float = 0.0, ttl: Optional[float] = None, **extra_context: Any) -> Any:
+    async def get_or_call_async(
+        self,
+        prompt: str,
+        llm_func: Callable[[str], Any],
+        model: str = "",
+        temperature: float = 0.0,
+        ttl: Optional[float] = None,
+        **extra_context: Any,
+    ) -> Any:
         """
         Async version of get_or_call.
 
@@ -373,10 +392,7 @@ class LLMCallCache:
 
         # Compute cache key
         prompt_hash = self._compute_hash(
-            prompt=prompt,
-            model=model,
-            temperature=temperature,
-            **extra_context
+            prompt=prompt, model=model, temperature=temperature, **extra_context
         )
 
         # Try cache first
@@ -397,16 +413,13 @@ class LLMCallCache:
             response=response,
             model=model,
             temperature=temperature,
-            ttl=ttl
+            ttl=ttl,
         )
 
         return response
 
     def cached(
-        self,
-        model: str = "",
-        temperature: float = 0.0,
-        ttl: Optional[float] = None
+        self, model: str = "", temperature: float = 0.0, ttl: Optional[float] = None
     ) -> Callable:
         """
         Decorator for caching LLM function calls.
@@ -424,9 +437,10 @@ class LLMCallCache:
         Returns:
             Decorator function
         """
+
         def decorator(func: Callable) -> Callable:
-            import functools
             import asyncio
+            import functools
 
             @functools.wraps(func)
             def sync_wrapper(prompt: str, *args: Any, **kwargs: Any) -> Any:
@@ -435,7 +449,7 @@ class LLMCallCache:
                     llm_func=lambda p: func(p, *args, **kwargs),
                     model=model,
                     temperature=temperature,
-                    ttl=ttl
+                    ttl=ttl,
                 )
 
             @functools.wraps(func)
@@ -445,7 +459,7 @@ class LLMCallCache:
                     llm_func=lambda p: func(p, *args, **kwargs),
                     model=model,
                     temperature=temperature,
-                    ttl=ttl
+                    ttl=ttl,
                 )
 
             if asyncio.iscoroutinefunction(func):
@@ -494,10 +508,7 @@ class LLMCallCache:
             Number of entries removed
         """
         with self._lock:
-            expired = [
-                key for key, cached in self._cache.items()
-                if cached.is_expired()
-            ]
+            expired = [key for key, cached in self._cache.items() if cached.is_expired()]
             for key in expired:
                 del self._cache[key]
                 self._stats.expirations += 1
@@ -534,7 +545,7 @@ class LLMCallCache:
                 }
 
             self.persist_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(self.persist_path, 'w') as f:
+            with open(self.persist_path, "w") as f:
                 json.dump(data, f)
 
             logger.info(f"Cache saved to disk: {len(data)} entries")
@@ -547,7 +558,7 @@ class LLMCallCache:
             return
 
         try:
-            with open(self.persist_path, 'r') as f:
+            with open(self.persist_path, "r") as f:
                 data = json.load(f)
 
             with self._lock:
@@ -567,7 +578,8 @@ class LLMCallCache:
 # CONVENIENCE FUNCTIONS
 # =============================================================================
 
-def get_cache(name: str = 'default', **kwargs: Any) -> LLMCallCache:
+
+def get_cache(name: str = "default", **kwargs: Any) -> LLMCallCache:
     """Get a named cache instance."""
     return LLMCallCache.get_instance(name, **kwargs)
 
@@ -577,8 +589,8 @@ def get_cache(name: str = 'default', **kwargs: Any) -> LLMCallCache:
 # =============================================================================
 
 __all__ = [
-    'LLMCallCache',
-    'CachedResponse',
-    'CacheStats',
-    'get_cache',
+    "LLMCallCache",
+    "CachedResponse",
+    "CacheStats",
+    "get_cache",
 ]

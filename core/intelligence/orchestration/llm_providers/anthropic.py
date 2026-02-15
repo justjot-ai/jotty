@@ -5,23 +5,28 @@ Respects ANTHROPIC_BASE_URL (e.g. claude-code-router) so all v2 orchestration
 LLM calls can be routed through CCR when configured.
 """
 
-import os
 import asyncio
-from typing import Dict, Any, Optional, Callable, List
+import os
+from typing import Any, Callable, Dict, List, Optional
 
-from .base import LLMProvider, LLM_MAX_OUTPUT_TOKENS
+from .base import LLM_MAX_OUTPUT_TOKENS, LLMProvider
 from .types import LLMResponse, TextBlock, ToolUseBlock
 
 
 def _get_client_kwargs(api_key: Optional[str] = None) -> Any:
-    from Jotty.core.infrastructure.foundation.anthropic_client_kwargs import get_anthropic_client_kwargs
+    from Jotty.core.infrastructure.foundation.anthropic_client_kwargs import (
+        get_anthropic_client_kwargs,
+    )
+
     return get_anthropic_client_kwargs(api_key=api_key)
 
 
 class AnthropicProvider(LLMProvider):
     """Anthropic Claude provider."""
 
-    def __init__(self, model: str = 'claude-sonnet-4-20250514', api_key: Optional[str] = None) -> None:
+    def __init__(
+        self, model: str = "claude-sonnet-4-20250514", api_key: Optional[str] = None
+    ) -> None:
         self.model = model
         self._client_kwargs = _get_client_kwargs(api_key)
         self.api_key = self._client_kwargs.get("api_key") or os.environ.get("ANTHROPIC_API_KEY")
@@ -31,6 +36,7 @@ class AnthropicProvider(LLMProvider):
     def client(self) -> Any:
         if self._client is None:
             import anthropic
+
             self._client = anthropic.Anthropic(**self._client_kwargs)
         return self._client
 
@@ -43,14 +49,14 @@ class AnthropicProvider(LLMProvider):
         messages: List[Dict],
         tools: List[Dict],
         system: str,
-        max_tokens: int = LLM_MAX_OUTPUT_TOKENS
+        max_tokens: int = LLM_MAX_OUTPUT_TOKENS,
     ) -> LLMResponse:
         response = self.client.messages.create(
             model=self.model,
             max_tokens=max_tokens,
             system=system,
             messages=messages,
-            tools=self.convert_tools(tools)
+            tools=self.convert_tools(tools),
         )
         return self._parse_response(response)
 
@@ -60,7 +66,7 @@ class AnthropicProvider(LLMProvider):
         tools: List[Dict],
         system: str,
         stream_callback: Callable[[str], Any],
-        max_tokens: int = LLM_MAX_OUTPUT_TOKENS
+        max_tokens: int = LLM_MAX_OUTPUT_TOKENS,
     ) -> tuple:
         full_content = ""
 
@@ -69,7 +75,7 @@ class AnthropicProvider(LLMProvider):
             max_tokens=max_tokens,
             system=system,
             messages=messages,
-            tools=self.convert_tools(tools)
+            tools=self.convert_tools(tools),
         ) as stream:
             for text in stream.text_stream:
                 if text:
@@ -88,17 +94,17 @@ class AnthropicProvider(LLMProvider):
             if block.type == "text":
                 content.append(TextBlock(text=block.text))
             elif block.type == "tool_use":
-                content.append(ToolUseBlock(
-                    id=block.id,
-                    name=block.name,
-                    input=block.input
-                ))
+                content.append(ToolUseBlock(id=block.id, name=block.name, input=block.input))
 
         return LLMResponse(
             content=content,
             stop_reason=response.stop_reason,
-            usage={
-                "input_tokens": response.usage.input_tokens,
-                "output_tokens": response.usage.output_tokens
-            } if hasattr(response, 'usage') else None
+            usage=(
+                {
+                    "input_tokens": response.usage.input_tokens,
+                    "output_tokens": response.usage.output_tokens,
+                }
+                if hasattr(response, "usage")
+                else None
+            ),
         )

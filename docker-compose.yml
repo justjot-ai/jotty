@@ -33,11 +33,11 @@ services:
       - sqlite_data:/app/data
       - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql
     command: >
-      sh -c "mkdir -p /app/data && 
+      sh -c "mkdir -p /app/data &&
              touch /app/data/stock_market.db"
     restart: unless-stopped
 
-  # Cache Service  
+  # Cache Service
   cache:
     image: redis:7-alpine
     container_name: stock_cache
@@ -63,9 +63,9 @@ services:
       CORS_ORIGINS: http://localhost:3000,http://frontend:3000
       API_ENV: ${API_ENV:-development}
     command: >
-      uvicorn app:app 
-      --host 0.0.0.0 
-      --port 8000 
+      uvicorn app:app
+      --host 0.0.0.0
+      --port 8000
       --reload
     restart: unless-stopped
     healthcheck:
@@ -79,8 +79,8 @@ services:
     <<: *backend-service
     container_name: stock_worker
     command: >
-      celery -A app.celery worker 
-      --loglevel=info 
+      celery -A app.celery worker
+      --loglevel=info
       --concurrency=2
     restart: unless-stopped
     healthcheck:
@@ -94,8 +94,8 @@ services:
     <<: *backend-service
     container_name: stock_scheduler
     command: >
-      celery -A app.celery beat 
-      --loglevel=info 
+      celery -A app.celery beat
+      --loglevel=info
       --schedule=/tmp/celerybeat-schedule
     restart: unless-stopped
     volumes:

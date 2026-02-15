@@ -19,17 +19,18 @@ Endpoints:
 import asyncio
 import json
 import logging
-from typing import Dict, Any, Optional
 from pathlib import Path
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
 # Try to import FastAPI
 try:
-    from fastapi import FastAPI, HTTPException, BackgroundTasks
+    import uvicorn
+    from fastapi import BackgroundTasks, FastAPI, HTTPException
     from fastapi.middleware.cors import CORSMiddleware
     from pydantic import BaseModel
-    import uvicorn
+
     FASTAPI_AVAILABLE = True
 except ImportError:
     FASTAPI_AVAILABLE = False
@@ -39,6 +40,7 @@ except ImportError:
 
 class TaskRequest(BaseModel if FASTAPI_AVAILABLE else object):
     """Request model for task execution."""
+
     task: str
     options: Optional[Dict[str, Any]] = None
     async_mode: bool = False
@@ -46,6 +48,7 @@ class TaskRequest(BaseModel if FASTAPI_AVAILABLE else object):
 
 class CommandRequest(BaseModel if FASTAPI_AVAILABLE else object):
     """Request model for command execution."""
+
     command: str
     args: Optional[str] = ""
 
@@ -60,7 +63,7 @@ class JottyAPIServer:
     For n8n integration, use webhook nodes to call these endpoints.
     """
 
-    def __init__(self, host: str = '0.0.0.0', port: int = 8765) -> None:
+    def __init__(self, host: str = "0.0.0.0", port: int = 8765) -> None:
         self.host = host
         self.port = port
         self._cli = None
@@ -72,6 +75,7 @@ class JottyAPIServer:
         """Lazy-load JottyCLI (only needed for /api/command)."""
         if self._cli is None:
             from ..app import JottyCLI
+
             self._cli = JottyCLI()
         return self._cli
 
@@ -81,14 +85,19 @@ class JottyAPIServer:
             # Use absolute imports — works both when run as Jotty.cli.api.server
             # and when run standalone (background process with sys.path insert)
             from Jotty.core.interface.api.mode_router import get_mode_router
+
             self._router = get_mode_router()
         return self._router
 
-    def _make_context(self, mode: str = 'chat', **kwargs: Any) -> Any:
+    def _make_context(self, mode: str = "chat", **kwargs: Any) -> Any:
         """Create an ExecutionContext for ModeRouter calls."""
         from Jotty.core.infrastructure.foundation.types.sdk_types import (
-            ExecutionMode, ChannelType, ExecutionContext, ResponseFormat,
+            ChannelType,
+            ExecutionContext,
+            ExecutionMode,
+            ResponseFormat,
         )
+
         mode_map = {
             "chat": ExecutionMode.CHAT,
             "workflow": ExecutionMode.WORKFLOW,
@@ -187,17 +196,22 @@ class JottyAPIServer:
 
             skills = []
             for skill_info in registry.list_skills():
-                skills.append({
-                    "name": skill_info.get("name", ""),
-                    "category": skill_info.get("category", "general"),
-                    "description": (skill_info.get("description", "") or "")[:100],
-                })
+                skills.append(
+                    {
+                        "name": skill_info.get("name", ""),
+                        "category": skill_info.get("category", "general"),
+                        "description": (skill_info.get("description", "") or "")[:100],
+                    }
+                )
             return {"skills": skills, "count": len(skills)}
 
         @app.post("/api/skills/{skill_name}")
         async def execute_skill(skill_name: str, params: Dict[str, Any] = {}) -> Any:
             """Execute a specific skill via ModeRouter."""
-            from Jotty.core.infrastructure.foundation.types.sdk_types import SDKRequest, ExecutionMode
+            from Jotty.core.infrastructure.foundation.types.sdk_types import (
+                ExecutionMode,
+                SDKRequest,
+            )
 
             router = self._get_mode_router()
             context = self._make_context("skill")
@@ -237,13 +251,15 @@ class JottyAPIServer:
             commands = []
             for name, cmd in cli.command_registry._commands.items():
                 if name == cmd.name:  # Skip aliases
-                    commands.append({
-                        "name": cmd.name,
-                        "aliases": cmd.aliases,
-                        "description": cmd.description,
-                        "usage": cmd.usage,
-                        "category": cmd.category,
-                    })
+                    commands.append(
+                        {
+                            "name": cmd.name,
+                            "aliases": cmd.aliases,
+                            "description": cmd.description,
+                            "usage": cmd.usage,
+                            "category": cmd.category,
+                        }
+                    )
             return {"commands": commands, "count": len(commands)}
 
         self._app = app
@@ -290,7 +306,7 @@ class JottyAPIServer:
         await server.serve()
 
 
-def start_api_server(host: str = '0.0.0.0', port: int = 8765) -> Any:
+def start_api_server(host: str = "0.0.0.0", port: int = 8765) -> Any:
     """Start the Jotty API server."""
     server = JottyAPIServer(host, port)
     server.run()

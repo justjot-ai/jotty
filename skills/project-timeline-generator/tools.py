@@ -1,7 +1,9 @@
 """Project Timeline Generator Skill - text-based Gantt charts."""
-from typing import Dict, Any, List
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+
+from typing import Any, Dict, List
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("project-timeline-generator")
 
@@ -99,13 +101,15 @@ def generate_timeline_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
     task_summary = []
     for t in tasks:
-        task_summary.append({
-            "name": t.get("name"),
-            "start_day": t.get("start_day"),
-            "duration": t.get("duration"),
-            "end_day": t.get("_end"),
-            "depends_on": t.get("depends_on"),
-        })
+        task_summary.append(
+            {
+                "name": t.get("name"),
+                "start_day": t.get("start_day"),
+                "duration": t.get("duration"),
+                "end_day": t.get("_end"),
+                "depends_on": t.get("depends_on"),
+            }
+        )
 
     return tool_response(
         gantt_chart=gantt_text,

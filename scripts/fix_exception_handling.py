@@ -18,7 +18,7 @@ import ast
 import re
 import sys
 from pathlib import Path
-from typing import List, Tuple, Optional
+from typing import List, Optional, Tuple
 
 
 class ExceptionFixer(ast.NodeTransformer):
@@ -33,26 +33,30 @@ class ExceptionFixer(ast.NodeTransformer):
 
         # Check for bare except:
         if node.type is None:
-            self.fixes.append({
-                'line': node.lineno,
-                'type': 'bare_except',
-                'severity': 'HIGH',
-                'message': 'Bare except clause catches all exceptions',
-                'fix': 'Use specific exception or add logging if using Exception'
-            })
+            self.fixes.append(
+                {
+                    "line": node.lineno,
+                    "type": "bare_except",
+                    "severity": "HIGH",
+                    "message": "Bare except clause catches all exceptions",
+                    "fix": "Use specific exception or add logging if using Exception",
+                }
+            )
 
         # Check for broad Exception without logging
-        elif isinstance(node.type, ast.Name) and node.type.id == 'Exception':
+        elif isinstance(node.type, ast.Name) and node.type.id == "Exception":
             has_logging = self._has_logging_call(node)
 
             if not has_logging:
-                self.fixes.append({
-                    'line': node.lineno,
-                    'type': 'broad_exception_no_log',
-                    'severity': 'MEDIUM',
-                    'message': 'Broad except Exception without logging',
-                    'fix': 'Add: logger.exception(f"Error in {operation}: {e}")'
-                })
+                self.fixes.append(
+                    {
+                        "line": node.lineno,
+                        "type": "broad_exception_no_log",
+                        "severity": "MEDIUM",
+                        "message": "Broad except Exception without logging",
+                        "fix": 'Add: logger.exception(f"Error in {operation}: {e}")',
+                    }
+                )
 
         return self.generic_visit(node)
 
@@ -61,7 +65,7 @@ class ExceptionFixer(ast.NodeTransformer):
         for child in ast.walk(node):
             if isinstance(child, ast.Call):
                 if isinstance(child.func, ast.Attribute):
-                    if child.func.attr in ['error', 'exception', 'warning', 'critical']:
+                    if child.func.attr in ["error", "exception", "warning", "critical"]:
                         return True
         return False
 
@@ -93,11 +97,7 @@ def fix_file(file_path: Path, dry_run: bool = False) -> int:
     print(f"\n📄 {file_path.relative_to(Path.cwd())}")
 
     for issue in issues:
-        severity_emoji = {
-            'HIGH': '🔴',
-            'MEDIUM': '🟡',
-            'LOW': '🟢'
-        }.get(issue['severity'], 'ℹ️')
+        severity_emoji = {"HIGH": "🔴", "MEDIUM": "🟡", "LOW": "🟢"}.get(issue["severity"], "ℹ️")
 
         print(f"  {severity_emoji} Line {issue['line']}: {issue['message']}")
         print(f"     Fix: {issue['fix']}")
@@ -112,10 +112,10 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(description="Auto-fix exception handling")
-    parser.add_argument('path', nargs='?', help='File or directory to fix')
-    parser.add_argument('--all', action='store_true', help='Fix all core files')
-    parser.add_argument('--check', action='store_true', help='Check only (no fixes)')
-    parser.add_argument('--stats', action='store_true', help='Show statistics only')
+    parser.add_argument("path", nargs="?", help="File or directory to fix")
+    parser.add_argument("--all", action="store_true", help="Fix all core files")
+    parser.add_argument("--check", action="store_true", help="Check only (no fixes)")
+    parser.add_argument("--stats", action="store_true", help="Show statistics only")
 
     args = parser.parse_args()
 
@@ -123,16 +123,16 @@ def main():
     files = []
 
     if args.all:
-        files = list((root / 'core').rglob('*.py'))
+        files = list((root / "core").rglob("*.py"))
     elif args.path:
         p = Path(args.path)
         if p.is_file():
             files = [p]
         elif p.is_dir():
-            files = list(p.rglob('*.py'))
+            files = list(p.rglob("*.py"))
     else:
         # Default: check swarms
-        files = list((root / 'core' / 'swarms').rglob('*.py'))
+        files = list((root / "core" / "swarms").rglob("*.py"))
 
     if not files:
         print("No files to check")
@@ -149,7 +149,7 @@ def main():
             total_issues += issue_count
             files_with_issues += 1
 
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print(f"📊 Summary:")
     print(f"  Files analyzed: {len(files)}")
     print(f"  Files with issues: {files_with_issues}")

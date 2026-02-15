@@ -13,6 +13,7 @@ instead of research paper - this generates much more detailed educational conten
 import asyncio
 import os
 from pathlib import Path
+
 from dotenv import load_dotenv
 
 # Load environment
@@ -22,21 +23,21 @@ if env_path.exists():
 
 
 async def main():
-    from Jotty.core.modes.workflow import (
-        LearningWorkflow,
-        LearningLevel,
-        LearningDepth,
-        Subject,
-        OutputFormatManager,
-        OutputChannelManager,
-    )
-    from Jotty.core.intelligence.orchestration.swarm_adapter import SwarmAdapter
     from Jotty.core.intelligence.orchestration.multi_stage_pipeline import MergeStrategy
+    from Jotty.core.intelligence.orchestration.swarm_adapter import SwarmAdapter
+    from Jotty.core.modes.workflow import (
+        LearningDepth,
+        LearningLevel,
+        LearningWorkflow,
+        OutputChannelManager,
+        OutputFormatManager,
+        Subject,
+    )
 
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("COMPREHENSIVE MULTI-AGENT SYSTEMS COURSE")
     print("University/Research Level - Full Technical Deep Dive")
-    print("="*80 + "\n")
+    print("=" * 80 + "\n")
 
     # ═══════════════════════════════════════════════════════════════════════
     # STEP 1: Auto-Generate Comprehensive Learning Course
@@ -53,21 +54,21 @@ async def main():
         depth="marathon",  # Maximum depth - full day workshop
         level="research",  # Research/PhD level content
         deliverables=[
-            "curriculum",         # Learning plan
-            "concepts",          # Fundamental concepts
-            "intuition",         # Deep intuitive understanding
-            "patterns",          # Advanced patterns & techniques
-            "examples",          # Detailed worked examples
-            "problems",          # Challenge problems
-            "solutions",         # Comprehensive solutions
-            "mistakes",          # Common pitfalls
-            "connections",       # Links to other topics
-            "assessment",        # Tests and quizzes
+            "curriculum",  # Learning plan
+            "concepts",  # Fundamental concepts
+            "intuition",  # Deep intuitive understanding
+            "patterns",  # Advanced patterns & techniques
+            "examples",  # Detailed worked examples
+            "problems",  # Challenge problems
+            "solutions",  # Comprehensive solutions
+            "mistakes",  # Common pitfalls
+            "connections",  # Links to other topics
+            "assessment",  # Tests and quizzes
             "content_assembly",  # Final integration
         ],
         output_formats=["pdf"],  # Generate PDF
         send_telegram=False,  # We'll handle delivery manually
-        include_assessment=True
+        include_assessment=True,
     )
 
     print("✅ Created learning workflow with 11 comprehensive stages")
@@ -147,7 +148,7 @@ async def main():
         - Technical depth with examples
         - Clear definitions and formulas
         - Real-world applications
-        """
+        """,
     )
     print("✅ Customized 'concepts' for comprehensive technical depth (6000 tokens)")
 
@@ -201,7 +202,7 @@ async def main():
         - Pros and cons
         - Real-world examples
         - Common variations
-        """
+        """,
     )
     print("✅ Customized 'patterns' for advanced design patterns (6000 tokens)")
 
@@ -244,7 +245,7 @@ async def main():
         - Constraints and assumptions
         - Hints for approach
         - Difficulty rating (⭐ to ⭐⭐⭐⭐⭐)
-        """
+        """,
     )
     print("✅ Customized 'problems' for real-world challenges (6000 tokens)")
 
@@ -283,7 +284,7 @@ async def main():
 
         Write solutions as complete tutorial content, not brief answers.
         Target: 400-500 words per problem solution.
-        """
+        """,
     )
     print("✅ Customized 'solutions' for comprehensive explanations (8000 tokens)")
 
@@ -345,7 +346,7 @@ async def main():
         Use clear headers, subheaders, emphasis.
         Include diagrams (described textually).
         Target: 10,000-15,000 words total.
-        """
+        """,
     )
     print("✅ Customized 'content_assembly' for publication quality (6000 tokens)")
 
@@ -390,7 +391,7 @@ async def main():
     output_dir.mkdir(parents=True, exist_ok=True)
 
     markdown_path = output_dir / "multiagent_systems_course.md"
-    with open(markdown_path, 'w', encoding='utf-8') as f:
+    with open(markdown_path, "w", encoding="utf-8") as f:
         f.write(content_stage.result.output)
 
     content_size = len(content_stage.result.output)
@@ -417,7 +418,7 @@ async def main():
         markdown_path=str(markdown_path),
         title="Multi-Agent Systems: Comprehensive Technical Course",
         author="Jotty AI Learning Framework",
-        page_size="a4"
+        page_size="a4",
     )
 
     if pdf_result.success:
@@ -464,9 +465,7 @@ async def main():
 
     print(f"📤 Sending {file_format} to Telegram...")
     telegram_result = await channel_manager.send_to_telegram(
-        file_path=file_to_send,
-        caption=telegram_caption,
-        parse_mode="HTML"
+        file_path=file_to_send, caption=telegram_caption, parse_mode="HTML"
     )
 
     if telegram_result.success:
@@ -486,7 +485,7 @@ async def main():
     print("-" * 80 + "\n")
 
     # Get WhatsApp config from environment
-    whatsapp_to = os.environ.get('WHATSAPP_CHANNEL') or os.environ.get('WHATSAPP_TO')
+    whatsapp_to = os.environ.get("WHATSAPP_CHANNEL") or os.environ.get("WHATSAPP_TO")
     whatsapp_result = None
 
     if whatsapp_to:
@@ -511,10 +510,7 @@ async def main():
 _Generated by Jotty AI_"""
 
         whatsapp_result = await channel_manager.send_to_whatsapp(
-            to=whatsapp_to,
-            file_path=file_to_send,
-            caption=whatsapp_caption,
-            provider="baileys"
+            to=whatsapp_to, file_path=file_to_send, caption=whatsapp_caption, provider="baileys"
         )
 
         if whatsapp_result.success:
@@ -536,9 +532,9 @@ _Generated by Jotty AI_"""
     # FINAL SUMMARY
     # ═══════════════════════════════════════════════════════════════════════
 
-    print("="*80)
+    print("=" * 80)
     print("COMPREHENSIVE MULTI-AGENT SYSTEMS COURSE COMPLETE")
-    print("="*80 + "\n")
+    print("=" * 80 + "\n")
 
     channels_sent = []
     if telegram_result.success:
@@ -575,5 +571,5 @@ _Generated by Jotty AI_"""
     print()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     asyncio.run(main())

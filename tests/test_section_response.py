@@ -6,13 +6,13 @@ This demonstrates the CORRECT way to return JustJot sections
 from Jotty supervisor/agents.
 """
 
-import sys
 import json
+import sys
 
 # Add to path for imports
-sys.path.insert(0, '/var/www/sites/personal/stock_market/Jotty')
+sys.path.insert(0, "/var/www/sites/personal/stock_market/Jotty")
 
-from core.ui import return_section, return_kanban, return_chart, return_mermaid
+from core.ui import return_chart, return_kanban, return_mermaid, return_section
 
 
 def test_kanban_response():
@@ -32,9 +32,9 @@ def test_kanban_response():
                         "title": "Implement authentication",
                         "description": "Add OAuth support",
                         "priority": "high",
-                        "assignee": "Alice"
+                        "assignee": "Alice",
                     }
-                ]
+                ],
             },
             {
                 "id": "in_progress",
@@ -44,9 +44,9 @@ def test_kanban_response():
                         "id": "task-2",
                         "title": "Database migration",
                         "priority": "high",
-                        "assignee": "Bob"
+                        "assignee": "Bob",
                     }
-                ]
+                ],
             },
             {
                 "id": "done",
@@ -56,12 +56,12 @@ def test_kanban_response():
                         "id": "task-3",
                         "title": "Setup CI/CD",
                         "priority": "medium",
-                        "assignee": "Charlie"
+                        "assignee": "Charlie",
                     }
-                ]
-            }
+                ],
+            },
         ],
-        title="Sprint 23 Tasks"
+        title="Sprint 23 Tasks",
     )
 
     print(json.dumps(response, indent=2))
@@ -85,11 +85,8 @@ def test_chart_response():
 
     response = return_chart(
         chart_type="bar",
-        data={
-            "labels": ["Q1", "Q2", "Q3", "Q4"],
-            "values": [100, 150, 200, 250]
-        },
-        title="Revenue Growth"
+        data={"labels": ["Q1", "Q2", "Q3", "Q4"], "values": [100, 150, 200, 250]},
+        title="Revenue Growth",
     )
 
     print(json.dumps(response, indent=2))
@@ -115,7 +112,7 @@ graph TD
     B -->|Success| C[Dashboard]
     B -->|Fail| D[Login]
         """,
-        title="Authentication Flow"
+        title="Authentication Flow",
     )
 
     print(json.dumps(response, indent=2))
@@ -144,11 +141,11 @@ def test_generic_section():
                 "children": [
                     {"id": "1", "text": "Marketing"},
                     {"id": "2", "text": "Development"},
-                    {"id": "3", "text": "Sales"}
-                ]
+                    {"id": "3", "text": "Sales"},
+                ],
             }
         },
-        title="Launch Strategy"
+        title="Launch Strategy",
     )
 
     print(json.dumps(response, indent=2))

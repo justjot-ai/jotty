@@ -17,7 +17,7 @@ Usage:
     # Returns: 'In Progress'
 """
 
-from typing import Dict, Optional, Any
+from typing import Any, Dict, Optional
 
 
 class StatusTaxonomy:
@@ -35,30 +35,30 @@ class StatusTaxonomy:
 
     # Canonical status definitions
     CANONICAL_STATUSES = {
-        'backlog': {
-            'label': 'Backlog',
-            'description': 'Tasks waiting to be started',
-            'kanban_column': 'backlog',
-            'aliases': ['todo', 'pending', 'not_started', 'queue', 'waiting']
+        "backlog": {
+            "label": "Backlog",
+            "description": "Tasks waiting to be started",
+            "kanban_column": "backlog",
+            "aliases": ["todo", "pending", "not_started", "queue", "waiting"],
         },
-        'in_progress': {
-            'label': 'In Progress',
-            'description': 'Tasks currently being worked on',
-            'kanban_column': 'in_progress',
-            'aliases': ['active', 'doing', 'working', 'started', 'wip']
+        "in_progress": {
+            "label": "In Progress",
+            "description": "Tasks currently being worked on",
+            "kanban_column": "in_progress",
+            "aliases": ["active", "doing", "working", "started", "wip"],
         },
-        'completed': {
-            'label': 'Completed',
-            'description': 'Tasks finished successfully',
-            'kanban_column': 'completed',
-            'aliases': ['done', 'finished', 'closed', 'resolved', 'complete']
+        "completed": {
+            "label": "Completed",
+            "description": "Tasks finished successfully",
+            "kanban_column": "completed",
+            "aliases": ["done", "finished", "closed", "resolved", "complete"],
         },
-        'failed': {
-            'label': 'Failed',
-            'description': 'Tasks that encountered errors',
-            'kanban_column': 'failed',
-            'aliases': ['error', 'blocked', 'cancelled', 'rejected']
-        }
+        "failed": {
+            "label": "Failed",
+            "description": "Tasks that encountered errors",
+            "kanban_column": "failed",
+            "aliases": ["error", "blocked", "cancelled", "rejected"],
+        },
     }
 
     def __init__(self, custom_mapping: Optional[Dict[str, str]] = None) -> None:
@@ -77,7 +77,7 @@ class StatusTaxonomy:
             # Canonical status maps to itself
             self._alias_to_canonical[canonical] = canonical
             # Aliases map to canonical
-            for alias in config.get('aliases', []):
+            for alias in config.get("aliases", []):
                 self._alias_to_canonical[alias] = canonical
 
     def normalize(self, status: str) -> str:
@@ -98,7 +98,7 @@ class StatusTaxonomy:
             >>> taxonomy.normalize('done')
             'completed'
         """
-        status_lower = status.lower().replace(' ', '_').replace('-', '_')
+        status_lower = status.lower().replace(" ", "_").replace("-", "_")
 
         # Check custom mapping first
         if status_lower in self.custom_mapping:
@@ -109,7 +109,7 @@ class StatusTaxonomy:
             return self._alias_to_canonical[status_lower]
 
         # Default to backlog if unknown
-        return 'backlog'
+        return "backlog"
 
     def to_kanban_column(self, status: str) -> str:
         """
@@ -126,7 +126,7 @@ class StatusTaxonomy:
             'completed'
         """
         canonical = self.normalize(status)
-        return self.CANONICAL_STATUSES[canonical]['kanban_column']
+        return self.CANONICAL_STATUSES[canonical]["kanban_column"]
 
     def get_label(self, status: str) -> str:
         """
@@ -143,7 +143,7 @@ class StatusTaxonomy:
             'In Progress'
         """
         canonical = self.normalize(status)
-        return self.CANONICAL_STATUSES[canonical]['label']
+        return self.CANONICAL_STATUSES[canonical]["label"]
 
     def get_all_statuses(self) -> list:
         """Get list of all canonical statuses."""
@@ -166,11 +166,7 @@ class StatusTaxonomy:
         """
         columns = []
         for canonical, config in self.CANONICAL_STATUSES.items():
-            columns.append({
-                'id': config['kanban_column'],
-                'title': config['label'],
-                'items': []
-            })
+            columns.append({"id": config["kanban_column"], "title": config["label"], "items": []})
         return columns
 
 

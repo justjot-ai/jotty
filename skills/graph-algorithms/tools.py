@@ -1,10 +1,13 @@
 """Graph algorithms — Dijkstra, BFS, cycle detection, topological sort."""
+
 import heapq
-from typing import Dict, Any, List, Optional
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from typing import Any, Dict, List, Optional
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("graph-algorithms")
+
 
 def _bfs(graph: Dict, start: str) -> List[str]:
     visited, queue, order = set(), [start], []
@@ -18,6 +21,7 @@ def _bfs(graph: Dict, start: str) -> List[str]:
                 visited.add(n)
                 queue.append(n)
     return order
+
 
 def _dijkstra(graph: Dict, start: str, end: Optional[str] = None) -> Dict:
     dist = {start: 0}
@@ -43,9 +47,11 @@ def _dijkstra(graph: Dict, start: str, end: Optional[str] = None) -> Dict:
         return {"distances": dist, "path": path, "cost": dist[end]}
     return {"distances": dist}
 
+
 def _has_cycle(graph: Dict) -> bool:
     WHITE, GRAY, BLACK = 0, 1, 2
     color = {n: WHITE for n in graph}
+
     def dfs(u: str) -> bool:
         color[u] = GRAY
         for nb in graph.get(u, []):
@@ -56,10 +62,13 @@ def _has_cycle(graph: Dict) -> bool:
                 return True
         color[u] = BLACK
         return False
+
     return any(color.get(n, WHITE) == WHITE and dfs(n) for n in graph)
+
 
 def _topo_sort(graph: Dict) -> List[str]:
     visited, stack = set(), []
+
     def dfs(u: str) -> None:
         visited.add(u)
         for nb in graph.get(u, []):
@@ -67,10 +76,12 @@ def _topo_sort(graph: Dict) -> List[str]:
             if n not in visited:
                 dfs(n)
         stack.append(u)
+
     for n in graph:
         if n not in visited:
             dfs(n)
     return stack[::-1]
+
 
 @tool_wrapper(required_params=["operation", "graph"])
 def graph_tool(params: Dict[str, Any]) -> Dict[str, Any]:
@@ -95,5 +106,6 @@ def graph_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return tool_error(f"Unknown op: {op}. Use bfs/dijkstra/has_cycle/topological_sort")
     except Exception as e:
         return tool_error(str(e))
+
 
 __all__ = ["graph_tool"]

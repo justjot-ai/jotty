@@ -15,28 +15,7 @@ import shutil
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import Dict, Any, List, Optional, Tuple
-
-from .deck_judge import (
-    DiagramType,
-    DiagramDecision,
-    DiagramDecisionEngine,
-    DeckScore,
-    DeckJudge,
-    AutoImprovementLoop,
-    analyze_and_decide_diagrams,
-)
-
-from .visualization_planner import (
-    LIDAStylePlanner,
-    VisualizationSpec,
-    convert_specs_to_pptx_data,
-)
-
-from .diagram_image_generator import (
-    DiagramImageGenerator,
-    MermaidDiagramGenerator,
-)
+from typing import Any, Dict, List, Optional, Tuple
 
 # Import HTML slide generator
 from ..html_slide_generator import (
@@ -45,6 +24,17 @@ from ..html_slide_generator import (
     PresentationConfig,
     SlideType,
 )
+from .deck_judge import (
+    AutoImprovementLoop,
+    DeckJudge,
+    DeckScore,
+    DiagramDecision,
+    DiagramDecisionEngine,
+    DiagramType,
+    analyze_and_decide_diagrams,
+)
+from .diagram_image_generator import DiagramImageGenerator, MermaidDiagramGenerator
+from .visualization_planner import LIDAStylePlanner, VisualizationSpec, convert_specs_to_pptx_data
 
 logger = logging.getLogger(__name__)
 
@@ -63,8 +53,13 @@ def _find_libreoffice() -> Optional[str]:
         return _LIBREOFFICE_AVAILABLE
 
     # Try common LibreOffice executable names
-    for cmd in ['libreoffice', 'soffice', '/usr/bin/libreoffice', '/usr/bin/soffice',
-                '/Applications/LibreOffice.app/Contents/MacOS/soffice']:
+    for cmd in [
+        "libreoffice",
+        "soffice",
+        "/usr/bin/libreoffice",
+        "/usr/bin/soffice",
+        "/Applications/LibreOffice.app/Contents/MacOS/soffice",
+    ]:
         if shutil.which(cmd):
             _LIBREOFFICE_AVAILABLE = cmd
             return cmd
@@ -86,8 +81,10 @@ async def convert_pptx_to_pdf(pptx_path: str, output_dir: Optional[str] = None) 
     """
     libreoffice = _find_libreoffice()
     if not libreoffice:
-        logger.warning("⚠️ LibreOffice not found - PPTX to PDF conversion unavailable. "
-                      "Install LibreOffice for this feature: apt install libreoffice")
+        logger.warning(
+            "⚠️ LibreOffice not found - PPTX to PDF conversion unavailable. "
+            "Install LibreOffice for this feature: apt install libreoffice"
+        )
         return None
 
     pptx_file = Path(pptx_path)
@@ -104,20 +101,22 @@ async def convert_pptx_to_pdf(pptx_path: str, output_dir: Optional[str] = None) 
             lambda: subprocess.run(
                 [
                     libreoffice,
-                    '--headless',
-                    '--convert-to', 'pdf',
-                    '--outdir', str(out_dir),
-                    str(pptx_file)
+                    "--headless",
+                    "--convert-to",
+                    "pdf",
+                    "--outdir",
+                    str(out_dir),
+                    str(pptx_file),
                 ],
                 capture_output=True,
                 text=True,
-                timeout=120  # 2 minutes timeout for conversion
-            )
+                timeout=120,  # 2 minutes timeout for conversion
+            ),
         )
 
         if result.returncode == 0:
             # LibreOffice names output file same as input but with .pdf extension
-            pdf_path = out_dir / (pptx_file.stem + '.pdf')
+            pdf_path = out_dir / (pptx_file.stem + ".pdf")
             if pdf_path.exists():
                 logger.info(f"✅ Converted PPTX to PDF: {pdf_path}")
                 return str(pdf_path)
@@ -155,7 +154,7 @@ async def generate_learning_pptx(
     bingo_word: str = "Bingo",
     learning_time: str = "20-30 min",
     total_words: int = 0,
-    visualization_specs: Optional[Dict[str, Any]] = None
+    visualization_specs: Optional[Dict[str, Any]] = None,
 ) -> Optional[str]:
     """
     Generate a professional PowerPoint presentation from learning content.
@@ -196,11 +195,11 @@ async def generate_learning_pptx(
             "bingo_word": bingo_word,
             "learning_time": learning_time,
             "total_words": total_words,
-            "visualization_specs": visualization_specs or {}
+            "visualization_specs": visualization_specs or {},
         }
 
         # Write data to temp JSON file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(data, f, ensure_ascii=False)
             json_path = f.name
 
@@ -209,17 +208,17 @@ async def generate_learning_pptx(
             result = await asyncio.get_running_loop().run_in_executor(
                 None,
                 lambda: subprocess.run(
-                    ['node', str(GENERATE_SCRIPT), json_path, output_path],
+                    ["node", str(GENERATE_SCRIPT), json_path, output_path],
                     capture_output=True,
                     text=True,
                     timeout=60,
-                    cwd=str(SCRIPT_DIR)
-                )
+                    cwd=str(SCRIPT_DIR),
+                ),
             )
 
-            if result.returncode == 0 and 'SUCCESS:' in result.stdout:
+            if result.returncode == 0 and "SUCCESS:" in result.stdout:
                 # Find the SUCCESS: line (may have console.log output before it)
-                pptx_path = result.stdout.split('SUCCESS:')[1].strip().split('\n')[0]
+                pptx_path = result.stdout.split("SUCCESS:")[1].strip().split("\n")[0]
                 logger.info(f"✅ Generated PPTX: {pptx_path}")
                 return pptx_path
             else:
@@ -244,7 +243,7 @@ async def generate_intelligent_pptx(
     output_path: str,
     target_score: float = 9.5,
     max_iterations: int = 3,
-    use_lida_planning: bool = True
+    use_lida_planning: bool = True,
 ) -> Tuple[Optional[str], DeckScore]:
     """
     Generate a presentation with intelligent diagram selection and quality evaluation.
@@ -283,15 +282,14 @@ async def generate_intelligent_pptx(
     logger.info("🎨 Generating Mermaid diagram images...")
     try:
         diagram_generator = DiagramImageGenerator()
-        viz_specs = visualization_specs.get('visualization_specs', {})
-        if not viz_specs and paper_data.get('visualization_specs'):
-            viz_specs = paper_data.get('visualization_specs', {})
+        viz_specs = visualization_specs.get("visualization_specs", {})
+        if not viz_specs and paper_data.get("visualization_specs"):
+            viz_specs = paper_data.get("visualization_specs", {})
 
-        diagram_images = await diagram_generator.generate_all_diagrams(
-            paper_data,
-            viz_specs
+        diagram_images = await diagram_generator.generate_all_diagrams(paper_data, viz_specs)
+        logger.info(
+            f"✅ Generated {len(diagram_images)} diagram images: {list(diagram_images.keys())}"
         )
-        logger.info(f"✅ Generated {len(diagram_images)} diagram images: {list(diagram_images.keys())}")
     except Exception as e:
         logger.warning(f"Mermaid diagram generation failed: {e}")
         diagram_images = {}
@@ -308,37 +306,37 @@ async def generate_intelligent_pptx(
     # Step 3: Combine decisions with visualization specs and diagram images
     paper_data_with_specs = {
         **paper_data,
-        'diagram_decisions': {
+        "diagram_decisions": {
             dt.value: {
-                'should_include': decision.should_include,
-                'confidence': decision.confidence,
-                'reasoning': decision.reasoning
+                "should_include": decision.should_include,
+                "confidence": decision.confidence,
+                "reasoning": decision.reasoning,
             }
             for dt, decision in diagram_decisions.items()
         },
-        'visualization_specs': visualization_specs.get('visualization_specs', {}),
-        'diagram_images': diagram_images  # Mermaid-generated image paths
+        "visualization_specs": visualization_specs.get("visualization_specs", {}),
+        "diagram_images": diagram_images,  # Mermaid-generated image paths
     }
 
     # Step 4: Generate the presentation (PptxGenJS uses images when available)
-    viz_specs_data = visualization_specs.get('visualization_specs', {})
-    viz_specs_data['diagram_images'] = diagram_images  # Include image paths
+    viz_specs_data = visualization_specs.get("visualization_specs", {})
+    viz_specs_data["diagram_images"] = diagram_images  # Include image paths
 
     pptx_path = await generate_learning_pptx(
-        paper_title=paper_data.get('paper_title', 'Untitled'),
-        arxiv_id=paper_data.get('arxiv_id', ''),
-        authors=paper_data.get('authors', []),
-        hook=paper_data.get('hook', ''),
-        concepts=paper_data.get('concepts', []),
-        sections=paper_data.get('sections', []),
-        key_insights=paper_data.get('key_insights', []),
-        summary=paper_data.get('summary', ''),
-        next_steps=paper_data.get('next_steps', []),
+        paper_title=paper_data.get("paper_title", "Untitled"),
+        arxiv_id=paper_data.get("arxiv_id", ""),
+        authors=paper_data.get("authors", []),
+        hook=paper_data.get("hook", ""),
+        concepts=paper_data.get("concepts", []),
+        sections=paper_data.get("sections", []),
+        key_insights=paper_data.get("key_insights", []),
+        summary=paper_data.get("summary", ""),
+        next_steps=paper_data.get("next_steps", []),
         output_path=output_path,
-        bingo_word=paper_data.get('bingo_word', 'Eureka'),
-        learning_time=paper_data.get('learning_time', '30 min'),
-        total_words=paper_data.get('total_words', 0),
-        visualization_specs=viz_specs_data
+        bingo_word=paper_data.get("bingo_word", "Eureka"),
+        learning_time=paper_data.get("learning_time", "30 min"),
+        total_words=paper_data.get("total_words", 0),
+        visualization_specs=viz_specs_data,
     )
 
     if not pptx_path:
@@ -350,15 +348,19 @@ async def generate_intelligent_pptx(
 
     # Calculate approximate slide count based on content
     # Title + Agenda + Hook + Architecture + Concepts overview + individual concepts + sections + flow + comparison + insights + metrics + next steps + thank you
-    num_concepts = len(paper_data.get('concepts', []))
-    num_sections = len(paper_data.get('sections', []))
-    estimated_slides = 5 + num_concepts + num_sections + len(approved_diagrams) + 3  # base + concepts + sections + diagrams + closing
+    num_concepts = len(paper_data.get("concepts", []))
+    num_sections = len(paper_data.get("sections", []))
+    estimated_slides = (
+        5 + num_concepts + num_sections + len(approved_diagrams) + 3
+    )  # base + concepts + sections + diagrams + closing
 
     deck_info = {
-        'diagrams_included': approved_diagrams,
-        'has_code_examples': any(s.get('code_example') for s in paper_data.get('sections', [])),
-        'has_eureka_moments': any(s.get('has_bingo_moment') for s in paper_data.get('sections', [])),
-        'slide_count': estimated_slides,
+        "diagrams_included": approved_diagrams,
+        "has_code_examples": any(s.get("code_example") for s in paper_data.get("sections", [])),
+        "has_eureka_moments": any(
+            s.get("has_bingo_moment") for s in paper_data.get("sections", [])
+        ),
+        "slide_count": estimated_slides,
     }
 
     score = judge.evaluate(paper_data, deck_info, diagram_decisions)
@@ -378,10 +380,7 @@ async def generate_intelligent_pptx(
 
 
 async def generate_and_improve_pptx(
-    paper_data: Dict[str, Any],
-    output_path: str,
-    target_score: float = 9.5,
-    max_iterations: int = 5
+    paper_data: Dict[str, Any], output_path: str, target_score: float = 9.5, max_iterations: int = 5
 ) -> Tuple[Optional[str], DeckScore, str]:
     """
     Generate and iteratively improve a presentation until target score.
@@ -409,12 +408,12 @@ async def generate_and_improve_pptx(
         logger.info(f"\n🔄 Iteration {iteration}/{max_iterations}")
 
         # Generate and evaluate
-        iter_output = output_path.replace('.pptx', f'_v{iteration}.pptx')
+        iter_output = output_path.replace(".pptx", f"_v{iteration}.pptx")
         pptx_path, score = await generate_intelligent_pptx(
             current_data,
             iter_output if iteration > 1 else output_path,
             target_score=target_score,
-            max_iterations=1  # Single generation per iteration
+            max_iterations=1,  # Single generation per iteration
         )
 
         loop.record_iteration(iteration, score)
@@ -435,14 +434,14 @@ async def generate_and_improve_pptx(
         # Apply improvements to data for next iteration
         # (In a full implementation, this would modify content/structure)
         # For now, just update diagram decisions based on feedback
-        if plan['diagrams_to_remove']:
-            for diagram in plan['diagrams_to_remove']:
-                if 'diagram_decisions' not in current_data:
-                    current_data['diagram_decisions'] = {}
-                current_data['diagram_decisions'][diagram] = {
-                    'should_include': False,
-                    'confidence': 1.0,
-                    'reasoning': 'Removed by improvement loop'
+        if plan["diagrams_to_remove"]:
+            for diagram in plan["diagrams_to_remove"]:
+                if "diagram_decisions" not in current_data:
+                    current_data["diagram_decisions"] = {}
+                current_data["diagram_decisions"][diagram] = {
+                    "should_include": False,
+                    "confidence": 1.0,
+                    "reasoning": "Removed by improvement loop",
                 }
 
     progress_report = loop.get_progress_report()
@@ -465,7 +464,7 @@ async def generate_learning_html_slides(
     bingo_word: str = "Eureka",
     learning_time: str = "20-30 min",
     total_words: int = 0,
-    visualization_specs: Optional[Dict[str, Any]] = None
+    visualization_specs: Optional[Dict[str, Any]] = None,
 ) -> Optional[str]:
     """
     Generate interactive HTML slides from learning content.
@@ -530,10 +529,7 @@ async def generate_learning_html_slides(
         return None
 
 
-async def generate_learning_html(
-    paper_data: Dict[str, Any],
-    output_path: str
-) -> Optional[str]:
+async def generate_learning_html(paper_data: Dict[str, Any], output_path: str) -> Optional[str]:
     """
     Generate interactive HTML slides from paper data dict.
 
@@ -547,20 +543,20 @@ async def generate_learning_html(
         Path to generated HTML file, or None if generation failed
     """
     return await generate_learning_html_slides(
-        paper_title=paper_data.get('paper_title', 'Untitled'),
-        arxiv_id=paper_data.get('arxiv_id', ''),
-        authors=paper_data.get('authors', []),
-        hook=paper_data.get('hook', ''),
-        concepts=paper_data.get('concepts', []),
-        sections=paper_data.get('sections', []),
-        key_insights=paper_data.get('key_insights', []),
-        summary=paper_data.get('summary', ''),
-        next_steps=paper_data.get('next_steps', []),
+        paper_title=paper_data.get("paper_title", "Untitled"),
+        arxiv_id=paper_data.get("arxiv_id", ""),
+        authors=paper_data.get("authors", []),
+        hook=paper_data.get("hook", ""),
+        concepts=paper_data.get("concepts", []),
+        sections=paper_data.get("sections", []),
+        key_insights=paper_data.get("key_insights", []),
+        summary=paper_data.get("summary", ""),
+        next_steps=paper_data.get("next_steps", []),
         output_path=output_path,
-        bingo_word=paper_data.get('bingo_word', 'Eureka'),
-        learning_time=paper_data.get('learning_time', '20-30 min'),
-        total_words=paper_data.get('total_words', 0),
-        visualization_specs=paper_data.get('visualization_specs'),
+        bingo_word=paper_data.get("bingo_word", "Eureka"),
+        learning_time=paper_data.get("learning_time", "20-30 min"),
+        total_words=paper_data.get("total_words", 0),
+        visualization_specs=paper_data.get("visualization_specs"),
     )
 
 
@@ -570,62 +566,103 @@ def _transform_for_html_slides(paper_data: Dict[str, Any]) -> Dict[str, Any]:
     """
     # Extract concepts with proper structure
     concepts = []
-    for c in paper_data.get('concepts', []):
-        concepts.append({
-            "name": c.get('name', ''),
-            "description": c.get('description', ''),
-            "icon": _get_concept_icon(c.get('difficulty', 'intermediate')),
-            "formula": c.get('why_it_matters', '')[:50] if c.get('why_it_matters') else '',
-        })
+    for c in paper_data.get("concepts", []):
+        concepts.append(
+            {
+                "name": c.get("name", ""),
+                "description": c.get("description", ""),
+                "icon": _get_concept_icon(c.get("difficulty", "intermediate")),
+                "formula": c.get("why_it_matters", "")[:50] if c.get("why_it_matters") else "",
+            }
+        )
 
     # Build methodology steps from sections
     methodology_steps = []
-    for i, section in enumerate(paper_data.get('sections', [])[:4]):
-        methodology_steps.append({
-            "title": section.get('title', f'Step {i+1}'),
-            "description": section.get('content', '')[:100] + '...' if len(section.get('content', '')) > 100 else section.get('content', ''),
-        })
+    for i, section in enumerate(paper_data.get("sections", [])[:4]):
+        methodology_steps.append(
+            {
+                "title": section.get("title", f"Step {i+1}"),
+                "description": (
+                    section.get("content", "")[:100] + "..."
+                    if len(section.get("content", "")) > 100
+                    else section.get("content", "")
+                ),
+            }
+        )
 
     # Build comparison from concepts (old vs new paradigm)
     comparison = {
         "title": "Innovation Comparison",
         "before": {
             "title": "Previous Approach",
-            "items": ["Traditional methods", "Sequential processing", "Limited scalability", "Manual optimization"]
+            "items": [
+                "Traditional methods",
+                "Sequential processing",
+                "Limited scalability",
+                "Manual optimization",
+            ],
         },
         "after": {
-            "title": paper_data.get('paper_title', 'New Approach')[:30],
-            "items": paper_data.get('key_insights', ['Novel architecture', 'Parallel processing', 'Better scalability', 'Automated optimization'])[:4]
-        }
+            "title": paper_data.get("paper_title", "New Approach")[:30],
+            "items": paper_data.get(
+                "key_insights",
+                [
+                    "Novel architecture",
+                    "Parallel processing",
+                    "Better scalability",
+                    "Automated optimization",
+                ],
+            )[:4],
+        },
     }
 
     # Build timeline (if available, otherwise use generic)
-    timeline = paper_data.get('timeline', [
-        {"year": "Background", "title": "Prior Work", "description": "Foundation of this research area", "highlight": False},
-        {"year": "This Paper", "title": paper_data.get('paper_title', 'Current Work')[:30], "description": paper_data.get('hook', '')[:80], "highlight": True},
-        {"year": "Impact", "title": "Applications", "description": "Widespread adoption in industry and research", "highlight": False},
-    ])
+    timeline = paper_data.get(
+        "timeline",
+        [
+            {
+                "year": "Background",
+                "title": "Prior Work",
+                "description": "Foundation of this research area",
+                "highlight": False,
+            },
+            {
+                "year": "This Paper",
+                "title": paper_data.get("paper_title", "Current Work")[:30],
+                "description": paper_data.get("hook", "")[:80],
+                "highlight": True,
+            },
+            {
+                "year": "Impact",
+                "title": "Applications",
+                "description": "Widespread adoption in industry and research",
+                "highlight": False,
+            },
+        ],
+    )
 
     # Build takeaways from key_insights and next_steps
     takeaways = []
-    for insight in paper_data.get('key_insights', [])[:3]:
-        takeaways.append({"title": insight[:50], "description": insight[50:] if len(insight) > 50 else ""})
-    for step in paper_data.get('next_steps', [])[:1]:
+    for insight in paper_data.get("key_insights", [])[:3]:
+        takeaways.append(
+            {"title": insight[:50], "description": insight[50:] if len(insight) > 50 else ""}
+        )
+    for step in paper_data.get("next_steps", [])[:1]:
         takeaways.append({"title": "Next Step", "description": step})
 
     return {
-        "title": paper_data.get('paper_title', 'Untitled Paper'),
-        "arxiv_id": paper_data.get('arxiv_id', ''),
-        "authors": paper_data.get('authors', []),
-        "abstract": paper_data.get('hook', ''),
+        "title": paper_data.get("paper_title", "Untitled Paper"),
+        "arxiv_id": paper_data.get("arxiv_id", ""),
+        "authors": paper_data.get("authors", []),
+        "abstract": paper_data.get("hook", ""),
         "tags": _extract_tags(paper_data),
-        "year": paper_data.get('year', '2024'),
-        "citations": paper_data.get('citations', 'N/A'),
+        "year": paper_data.get("year", "2024"),
+        "citations": paper_data.get("citations", "N/A"),
         "concepts": concepts,
         "methodology_steps": methodology_steps,
         "comparison": comparison,
         "timeline": timeline,
-        "key_quote": paper_data.get('hook', '')[:200] if paper_data.get('hook') else '',
+        "key_quote": paper_data.get("hook", "")[:200] if paper_data.get("hook") else "",
         "takeaways": takeaways,
         "affiliations": {},
     }
@@ -643,7 +680,7 @@ def _get_concept_icon(difficulty: str) -> str:
         "deep": "🔬",
         "application": "🚀",
     }
-    return icons.get(difficulty.lower() if difficulty else 'intermediate', '💡')
+    return icons.get(difficulty.lower() if difficulty else "intermediate", "💡")
 
 
 def _extract_tags(paper_data: Dict[str, Any]) -> List[str]:
@@ -651,15 +688,15 @@ def _extract_tags(paper_data: Dict[str, Any]) -> List[str]:
     tags = []
 
     # Extract from concepts
-    for c in paper_data.get('concepts', [])[:2]:
-        if c.get('name'):
-            tags.append(c['name'][:15])
+    for c in paper_data.get("concepts", [])[:2]:
+        if c.get("name"):
+            tags.append(c["name"][:15])
 
     # Add difficulty-based tags
-    difficulties = set(c.get('difficulty', '') for c in paper_data.get('concepts', []))
-    if 'advanced' in difficulties or 'math' in difficulties:
+    difficulties = set(c.get("difficulty", "") for c in paper_data.get("concepts", []))
+    if "advanced" in difficulties or "math" in difficulties:
         tags.append("Advanced")
-    elif 'intermediate' in difficulties:
+    elif "intermediate" in difficulties:
         tags.append("Intermediate")
 
     # Default tags
@@ -669,10 +706,7 @@ def _extract_tags(paper_data: Dict[str, Any]) -> List[str]:
     return tags[:4]
 
 
-async def generate_learning_html(
-    paper_data: Dict[str, Any],
-    output_path: str
-) -> Optional[str]:
+async def generate_learning_html(paper_data: Dict[str, Any], output_path: str) -> Optional[str]:
     """
     Generate HTML slides from paper data.
 
@@ -696,19 +730,16 @@ async def generate_learning_html(
             "title": paper_data.get("paper_title", paper_data.get("title", "Research Paper")),
             "arxiv_id": paper_data.get("arxiv_id", ""),
             "authors": paper_data.get("authors", []),
-
             # Hook and abstract - use the full content
             "hook": paper_data.get("hook", ""),
             "abstract": paper_data.get("abstract", paper_data.get("summary", "")),
             "summary": paper_data.get("summary", ""),
-
             # Metadata
             "tags": paper_data.get("tags", ["Research", "AI"]),
             "year": paper_data.get("year", "2024"),
             "citations": paper_data.get("citations", "N/A"),
             "learning_time": paper_data.get("learning_time", "20-30 min"),
             "bingo_word": paper_data.get("bingo_word", "Eureka!"),
-
             # FULL concepts with ALL fields - don't truncate!
             "concepts": [
                 {
@@ -724,7 +755,6 @@ async def generate_learning_html(
                 }
                 for c in paper_data.get("concepts", [])
             ],
-
             # FULL sections with ALL fields - don't truncate!
             "sections": [
                 {
@@ -738,19 +768,18 @@ async def generate_learning_html(
                 }
                 for s in paper_data.get("sections", [])
             ],
-
             # Key insights - full list
             "key_insights": paper_data.get("key_insights", []),
-
             # Takeaways
             "takeaways": [
-                {"title": t.get("title", t) if isinstance(t, dict) else str(t), "description": t.get("description", "") if isinstance(t, dict) else ""}
+                {
+                    "title": t.get("title", t) if isinstance(t, dict) else str(t),
+                    "description": t.get("description", "") if isinstance(t, dict) else "",
+                }
                 for t in paper_data.get("takeaways", paper_data.get("key_insights", []))
             ],
-
             # Next steps
             "next_steps": paper_data.get("next_steps", []),
-
             # Visual elements
             "timeline": paper_data.get("timeline", []),
             "comparison": paper_data.get("comparison", {}),
@@ -758,16 +787,12 @@ async def generate_learning_html(
             "results": paper_data.get("results", {}),
             "pros": paper_data.get("pros", []),
             "cons": paper_data.get("cons", []),
-
             # Quote
             "key_quote": paper_data.get("key_quote", ""),
-
             # Methodology steps (can be derived from sections if not provided)
             "methodology_steps": paper_data.get("methodology_steps", []),
-
             # Affiliations
             "affiliations": paper_data.get("affiliations", {}),
-
             # Visualization specs
             "visualization_specs": paper_data.get("visualization_specs", {}),
         }
@@ -784,6 +809,7 @@ async def generate_learning_html(
     except Exception as e:
         logger.error(f"HTML slide generation error: {e}")
         import traceback
+
         logger.error(traceback.format_exc())
         return None
 
@@ -802,7 +828,7 @@ async def generate_learning_html_slides(
     bingo_word: str = "Eureka",
     learning_time: str = "20-30 min",
     total_words: int = 0,
-    visualization_specs: Optional[Dict[str, Any]] = None
+    visualization_specs: Optional[Dict[str, Any]] = None,
 ) -> Optional[str]:
     """
     Generate HTML slides with the SAME signature as generate_learning_pptx.
@@ -854,7 +880,7 @@ async def generate_all_formats(
     generate_html: bool = True,
     generate_pdf: bool = True,
     target_score: float = 9.5,
-    max_iterations: int = 3
+    max_iterations: int = 3,
 ) -> Dict[str, Optional[str]]:
     """
     Generate learning content in all requested formats.
@@ -874,16 +900,18 @@ async def generate_all_formats(
     Returns:
         Dict mapping format to output path (or None if not generated)
     """
-    from pathlib import Path
     import os
+    from pathlib import Path
 
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Generate safe filename from paper title
-    safe_title = "".join(c if c.isalnum() or c in (' ', '-', '_') else '_'
-                         for c in paper_data.get('paper_title', 'presentation')[:50])
-    safe_title = safe_title.strip().replace(' ', '_')
+    safe_title = "".join(
+        c if c.isalnum() or c in (" ", "-", "_") else "_"
+        for c in paper_data.get("paper_title", "presentation")[:50]
+    )
+    safe_title = safe_title.strip().replace(" ", "_")
 
     results = {
         "pptx": None,
@@ -895,10 +923,7 @@ async def generate_all_formats(
     if generate_pptx:
         pptx_path = str(output_dir / f"{safe_title}.pptx")
         pptx_result, score, _ = await generate_and_improve_pptx(
-            paper_data,
-            pptx_path,
-            target_score=target_score,
-            max_iterations=max_iterations
+            paper_data, pptx_path, target_score=target_score, max_iterations=max_iterations
         )
         results["pptx"] = pptx_result
         logger.info(f"📊 PPTX generated with score {score.overall:.1f}/10")
@@ -916,5 +941,3 @@ async def generate_all_formats(
 
     logger.info(f"📦 Generated formats: {[k for k, v in results.items() if v]}")
     return results
-
-

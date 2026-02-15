@@ -1,9 +1,11 @@
 """SEO Content Optimizer Skill - analyze text for SEO metrics."""
-import re
+
 import math
-from typing import Dict, Any, List
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+import re
+from typing import Any, Dict, List
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("seo-content-optimizer")
 
@@ -88,18 +90,26 @@ def analyze_seo_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         suggestions.append("Title is short. Aim for 30-60 characters.")
     for kw, info in kw_density.items():
         if info["density_pct"] < 0.5:
-            suggestions.append(f"Keyword '{kw}' density is low ({info['density_pct']}%). Aim for 1-2%.")
+            suggestions.append(
+                f"Keyword '{kw}' density is low ({info['density_pct']}%). Aim for 1-2%."
+            )
         elif info["density_pct"] > 3.0:
-            suggestions.append(f"Keyword '{kw}' density is high ({info['density_pct']}%). May be seen as stuffing.")
+            suggestions.append(
+                f"Keyword '{kw}' density is high ({info['density_pct']}%). May be seen as stuffing."
+            )
     if not any(s.startswith(("# ", "## ")) for s in text.split("\n")):
         suggestions.append("No headings detected. Use headings (H1, H2) to structure content.")
 
     return tool_response(
-        word_count=word_count, sentence_count=sentence_count,
+        word_count=word_count,
+        sentence_count=sentence_count,
         paragraph_count=len(paragraphs),
-        readability={"flesch_score": flesch, "level": _reading_level(flesch),
-                     "avg_sentence_length": avg_sentence_len,
-                     "avg_word_length": avg_word_len},
+        readability={
+            "flesch_score": flesch,
+            "level": _reading_level(flesch),
+            "avg_sentence_length": avg_sentence_len,
+            "avg_word_length": avg_word_len,
+        },
         keyword_density=kw_density,
         suggestions=suggestions,
     )

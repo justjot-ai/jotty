@@ -15,23 +15,24 @@ When user says "Build me a chat app" or "Create a dashboard",
 this provider generates a complete Streamlit app.
 """
 
-import os
-import time
-import logging
 import asyncio
-import subprocess
+import logging
+import os
 import shutil
+import subprocess
+import time
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-from dataclasses import dataclass, field
 
-from .base import SkillProvider, SkillCategory, ProviderCapability, ProviderResult
+from .base import ProviderCapability, ProviderResult, SkillCategory, SkillProvider
 
 logger = logging.getLogger(__name__)
 
 # Check if streamlit is available
 try:
     import streamlit
+
     STREAMLIT_AVAILABLE = True
     STREAMLIT_VERSION = streamlit.__version__
 except ImportError:
@@ -65,7 +66,7 @@ st.title("{title}")
 {body}
 '''
 
-CHAT_TEMPLATE = '''
+CHAT_TEMPLATE = """
 # Chat interface
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -88,9 +89,9 @@ if prompt := st.chat_input("What would you like to know?"):
         response = f"You said: {prompt}"
         st.markdown(response)
     st.session_state.messages.append({"role": "assistant", "content": response})
-'''
+"""
 
-DASHBOARD_TEMPLATE = '''
+DASHBOARD_TEMPLATE = """
 # Sidebar controls
 with st.sidebar:
     st.header("Settings")
@@ -110,9 +111,9 @@ with col2:
 # Data table
 st.subheader("Data")
 {table_block}
-'''
+"""
 
-FORM_TEMPLATE = '''
+FORM_TEMPLATE = """
 # Form
 with st.form("main_form"):
     st.subheader("Enter Details")
@@ -123,16 +124,16 @@ with st.form("main_form"):
         st.success("Form submitted!")
         # Task List: Process form data
         st.json({form_data})
-'''
+"""
 
 # =============================================================================
 # Feature Snippets (for editing existing apps)
 # =============================================================================
 
 FEATURE_SNIPPETS = {
-    'pdf_download': {
-        'import': 'import requests',
-        'code': '''
+    "pdf_download": {
+        "import": "import requests",
+        "code": """
                             # Download PDF button
                             arxiv_id = paper.entry_id.split('/')[-1]
                             if st.button(f" Download PDF", key=f"dl_{i}"):
@@ -150,13 +151,13 @@ FEATURE_SNIPPETS = {
                                         else:
                                             st.error("Failed to fetch PDF")
                                     except Exception as e:
-                                        st.error(f"Download error: {e}")''',
-        'insert_after': 'st.markdown(f"[arXiv]({paper.entry_id})")',
-        'keywords': ['download', 'pdf', 'save'],
+                                        st.error(f"Download error: {e}")""",
+        "insert_after": 'st.markdown(f"[arXiv]({paper.entry_id})")',
+        "keywords": ["download", "pdf", "save"],
     },
-    'export_csv': {
-        'import': '',
-        'code': '''
+    "export_csv": {
+        "import": "",
+        "code": """
 # Export to CSV
 if st.button(" Export to CSV"):
     csv = df.to_csv(index=False)
@@ -165,9 +166,9 @@ if st.button(" Export to CSV"):
         data=csv,
         file_name="export.csv",
         mime="text/csv"
-    )''',
-        'insert_after': 'st.dataframe',
-        'keywords': ['export', 'csv', 'download data'],
+    )""",
+        "insert_after": "st.dataframe",
+        "keywords": ["export", "csv", "download data"],
     },
 }
 
@@ -263,7 +264,7 @@ if st.button(" Search arXiv", type="primary") or search_query:
             st.info("Make sure to install: pip install arxiv")
 '''
 
-STOCK_ANALYSIS_TEMPLATE = '''
+STOCK_ANALYSIS_TEMPLATE = """
 import yfinance as yf
 import pandas as pd
 import plotly.graph_objects as go
@@ -311,12 +312,13 @@ if ticker:
             st.warning(f"No data found for {ticker}")
     except Exception as e:
         st.error(f"Error fetching data: {e}")
-'''
+"""
 
 
 @dataclass
 class StreamlitApp:
     """Represents a Streamlit app."""
+
     name: str
     path: Path
     main_file: str = "app.py"
@@ -378,8 +380,12 @@ class StreamlitProvider(SkillProvider):
         ]
 
         # Configuration
-        self.workspace_dir = Path(config.get('workspace_dir', './streamlit_apps')) if config else Path('./streamlit_apps')
-        self.default_port = config.get('default_port', 8501) if config else 8501
+        self.workspace_dir = (
+            Path(config.get("workspace_dir", "./streamlit_apps"))
+            if config
+            else Path("./streamlit_apps")
+        )
+        self.default_port = config.get("default_port", 8501) if config else 8501
 
         # Active apps
         self._apps: Dict[str, StreamlitApp] = {}
@@ -423,9 +429,11 @@ class StreamlitProvider(SkillProvider):
         """Install streamlit package."""
         try:
             process = await asyncio.create_subprocess_exec(
-                'pip', 'install', 'streamlit',
+                "pip",
+                "install",
+                "streamlit",
                 stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                stderr=asyncio.subprocess.PIPE,
             )
             stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=120)
 
@@ -464,22 +472,25 @@ class StreamlitProvider(SkillProvider):
 
         try:
             # Check for edit/modify requests first
-            if any(kw in task_lower for kw in ['add', 'edit', 'modify', 'update', 'include']):
+            if any(kw in task_lower for kw in ["add", "edit", "modify", "update", "include"]):
                 result = await self._edit_app(task, context)
             # Route to appropriate handler for new apps
-            elif any(kw in task_lower for kw in ['arxiv', 'paper', 'research', 'academic', 'publication', 'citation']):
+            elif any(
+                kw in task_lower
+                for kw in ["arxiv", "paper", "research", "academic", "publication", "citation"]
+            ):
                 result = await self._create_arxiv_app(task, context)
-            elif any(kw in task_lower for kw in ['chat', 'conversation', 'assistant', 'chatbot']):
+            elif any(kw in task_lower for kw in ["chat", "conversation", "assistant", "chatbot"]):
                 result = await self._create_chat_app(task, context)
-            elif any(kw in task_lower for kw in ['stock', 'finance', 'trading', 'market']):
+            elif any(kw in task_lower for kw in ["stock", "finance", "trading", "market"]):
                 result = await self._create_stock_app(task, context)
-            elif any(kw in task_lower for kw in ['dashboard', 'analytics', 'metrics']):
+            elif any(kw in task_lower for kw in ["dashboard", "analytics", "metrics"]):
                 result = await self._create_dashboard_app(task, context)
-            elif any(kw in task_lower for kw in ['form', 'input', 'survey']):
+            elif any(kw in task_lower for kw in ["form", "input", "survey"]):
                 result = await self._create_form_app(task, context)
-            elif any(kw in task_lower for kw in ['serve', 'run', 'start']):
+            elif any(kw in task_lower for kw in ["serve", "run", "start"]):
                 result = await self._serve(context)
-            elif any(kw in task_lower for kw in ['stop', 'shutdown']):
+            elif any(kw in task_lower for kw in ["stop", "shutdown"]):
                 result = await self._stop_server(context)
             else:
                 # Default: create based on detected type
@@ -510,10 +521,10 @@ class StreamlitProvider(SkillProvider):
         # Look for quoted names
         quoted = re.search(r'["\']([^"\']+)["\']', task)
         if quoted:
-            return quoted.group(1).lower().replace(' ', '_')
+            return quoted.group(1).lower().replace(" ", "_")
 
         # Look for "called X" or "named X"
-        named = re.search(r'(?:called|named)\s+(\w+)', task, re.IGNORECASE)
+        named = re.search(r"(?:called|named)\s+(\w+)", task, re.IGNORECASE)
         if named:
             return named.group(1).lower()
 
@@ -521,12 +532,12 @@ class StreamlitProvider(SkillProvider):
 
         # Domain-specific name mapping
         domain_keywords = {
-            'arxiv': 'arxiv_searcher',
-            'paper': 'paper_searcher',
-            'research': 'research_explorer',
-            'stock': 'stock_dashboard',
-            'finance': 'finance_app',
-            'trading': 'trading_app',
+            "arxiv": "arxiv_searcher",
+            "paper": "paper_searcher",
+            "research": "research_explorer",
+            "stock": "stock_dashboard",
+            "finance": "finance_app",
+            "trading": "trading_app",
         }
         for keyword, name in domain_keywords.items():
             if keyword in task_lower:
@@ -534,7 +545,7 @@ class StreamlitProvider(SkillProvider):
 
         # Extract key nouns
         words = task_lower.split()
-        keywords = ['app', 'dashboard', 'chat', 'analyzer', 'tool', 'interface', 'searcher']
+        keywords = ["app", "dashboard", "chat", "analyzer", "tool", "interface", "searcher"]
         for i, word in enumerate(words):
             if word in keywords and i > 0:
                 return f"{words[i-1]}_{word}"
@@ -543,7 +554,7 @@ class StreamlitProvider(SkillProvider):
 
     async def _create_chat_app(self, task: str, context: Dict[str, Any]) -> ProviderResult:
         """Create a chat interface app."""
-        app_name = context.get('app_name') or self._extract_app_name(task) or "chat_app"
+        app_name = context.get("app_name") or self._extract_app_name(task) or "chat_app"
 
         imports: list[Any] = []
         body = CHAT_TEMPLATE
@@ -559,7 +570,7 @@ class StreamlitProvider(SkillProvider):
 
     async def _create_stock_app(self, task: str, context: Dict[str, Any]) -> ProviderResult:
         """Create a stock analysis app."""
-        app_name = context.get('app_name') or self._extract_app_name(task) or "stock_dashboard"
+        app_name = context.get("app_name") or self._extract_app_name(task) or "stock_dashboard"
 
         imports = [
             "import yfinance as yf",
@@ -581,7 +592,7 @@ class StreamlitProvider(SkillProvider):
 
     async def _create_arxiv_app(self, task: str, context: Dict[str, Any]) -> ProviderResult:
         """Create an arXiv paper search app."""
-        app_name = context.get('app_name') or self._extract_app_name(task) or "arxiv_searcher"
+        app_name = context.get("app_name") or self._extract_app_name(task) or "arxiv_searcher"
 
         imports = [
             "import arxiv",
@@ -603,7 +614,7 @@ class StreamlitProvider(SkillProvider):
 
     async def _create_dashboard_app(self, task: str, context: Dict[str, Any]) -> ProviderResult:
         """Create a dashboard app."""
-        app_name = context.get('app_name') or self._extract_app_name(task) or "dashboard"
+        app_name = context.get("app_name") or self._extract_app_name(task) or "dashboard"
 
         imports = [
             "import pandas as pd",
@@ -611,12 +622,12 @@ class StreamlitProvider(SkillProvider):
         ]
 
         sidebar_controls = 'date_range = st.date_input("Date Range", [])'
-        metrics_block = '''st.metric("Total Users", "1,234", "+12%")
-    st.metric("Revenue", "$5,678", "+8%")'''
-        chart_block = '''chart_data = pd.DataFrame(np.random.randn(20, 3), columns=["A", "B", "C"])
-    st.line_chart(chart_data)'''
-        table_block = '''df = pd.DataFrame({"Column 1": [1, 2, 3], "Column 2": ["A", "B", "C"]})
-st.dataframe(df, use_container_width=True)'''
+        metrics_block = """st.metric("Total Users", "1,234", "+12%")
+    st.metric("Revenue", "$5,678", "+8%")"""
+        chart_block = """chart_data = pd.DataFrame(np.random.randn(20, 3), columns=["A", "B", "C"])
+    st.line_chart(chart_data)"""
+        table_block = """df = pd.DataFrame({"Column 1": [1, 2, 3], "Column 2": ["A", "B", "C"]})
+st.dataframe(df, use_container_width=True)"""
 
         body = DASHBOARD_TEMPLATE.format(
             sidebar_controls=sidebar_controls,
@@ -637,13 +648,13 @@ st.dataframe(df, use_container_width=True)'''
 
     async def _create_form_app(self, task: str, context: Dict[str, Any]) -> ProviderResult:
         """Create a form app."""
-        app_name = context.get('app_name') or self._extract_app_name(task) or "form_app"
+        app_name = context.get("app_name") or self._extract_app_name(task) or "form_app"
 
         imports: list[Any] = []
 
-        form_fields = '''name = st.text_input("Name")
+        form_fields = """name = st.text_input("Name")
     email = st.text_input("Email")
-    message = st.text_area("Message")'''
+    message = st.text_area("Message")"""
         form_data = '{"name": name, "email": email, "message": message}'
 
         body = FORM_TEMPLATE.format(
@@ -687,10 +698,10 @@ st.dataframe(df, use_container_width=True)'''
 
         # If no app found, try to find by domain keywords
         if not app_name:
-            if any(kw in task_lower for kw in ['arxiv', 'paper']):
-                app_name = 'arxiv_searcher'
-            elif any(kw in task_lower for kw in ['stock', 'finance']):
-                app_name = 'stock_dashboard'
+            if any(kw in task_lower for kw in ["arxiv", "paper"]):
+                app_name = "arxiv_searcher"
+            elif any(kw in task_lower for kw in ["stock", "finance"]):
+                app_name = "stock_dashboard"
 
         # Check if app exists on disk
         if app_name:
@@ -715,7 +726,7 @@ st.dataframe(df, use_container_width=True)'''
         # Find which feature to add
         feature_to_add = None
         for feature_name, feature_config in FEATURE_SNIPPETS.items():
-            if any(kw in task_lower for kw in feature_config['keywords']):
+            if any(kw in task_lower for kw in feature_config["keywords"]):
                 feature_to_add = feature_name
                 break
 
@@ -741,28 +752,27 @@ st.dataframe(df, use_container_width=True)'''
         feature = FEATURE_SNIPPETS[feature_to_add]
 
         # Add import if needed
-        if feature['import'] and feature['import'] not in existing_code:
+        if feature["import"] and feature["import"] not in existing_code:
             # Insert import after existing imports
-            import_line = feature['import']
-            if 'import streamlit as st' in existing_code:
+            import_line = feature["import"]
+            if "import streamlit as st" in existing_code:
                 existing_code = existing_code.replace(
-                    'import streamlit as st',
-                    f'import streamlit as st\n{import_line}'
+                    "import streamlit as st", f"import streamlit as st\n{import_line}"
                 )
 
         # Insert feature code after the marker
-        insert_marker = feature['insert_after']
+        insert_marker = feature["insert_after"]
         if insert_marker in existing_code:
             # Find the line and insert after it
-            lines = existing_code.split('\n')
+            lines = existing_code.split("\n")
             new_lines = []
             for line in lines:
                 new_lines.append(line)
                 if insert_marker in line:
                     # Add the feature code
-                    new_lines.append(feature['code'])
+                    new_lines.append(feature["code"])
 
-            existing_code = '\n'.join(new_lines)
+            existing_code = "\n".join(new_lines)
         else:
             return ProviderResult(
                 success=False,
@@ -779,10 +789,10 @@ st.dataframe(df, use_container_width=True)'''
             return ProviderResult(
                 success=True,
                 output={
-                    'app_name': app_name,
-                    'feature_added': feature_to_add,
-                    'app_path': str(app_path),
-                    'message': f"Added {feature_to_add} to {app_name}",
+                    "app_name": app_name,
+                    "feature_added": feature_to_add,
+                    "app_path": str(app_path),
+                    "message": f"Added {feature_to_add} to {app_name}",
                 },
                 category=SkillCategory.APP_BUILDING,
             )
@@ -828,8 +838,8 @@ st.dataframe(df, use_container_width=True)'''
             app_path.mkdir(parents=True, exist_ok=True)
 
             # Build app code
-            imports_str = '\n'.join(imports) if imports else ''
-            description_block = f'st.markdown("{description}")' if description else ''
+            imports_str = "\n".join(imports) if imports else ""
+            description_block = f'st.markdown("{description}")' if description else ""
 
             code = APP_TEMPLATE.format(
                 title=title,
@@ -849,7 +859,7 @@ st.dataframe(df, use_container_width=True)'''
             if extra_deps:
                 deps = ["streamlit"] + extra_deps
                 requirements_file = app_path / "requirements.txt"
-                requirements_file.write_text('\n'.join(deps))
+                requirements_file.write_text("\n".join(deps))
 
             # Create app object
             app = StreamlitApp(
@@ -865,15 +875,15 @@ st.dataframe(df, use_container_width=True)'''
             return ProviderResult(
                 success=True,
                 output={
-                    'app_name': app_name,
-                    'app_path': str(app_path),
-                    'main_file': str(app_file),
-                    'run_command': f"streamlit run {app_file}",
-                    'title': title,
-                    'message': f"App created! Run with: streamlit run {app_file}",
+                    "app_name": app_name,
+                    "app_path": str(app_path),
+                    "main_file": str(app_file),
+                    "run_command": f"streamlit run {app_file}",
+                    "title": title,
+                    "message": f"App created! Run with: streamlit run {app_file}",
                 },
                 category=SkillCategory.APP_BUILDING,
-                metadata={'extra_deps': extra_deps},
+                metadata={"extra_deps": extra_deps},
             )
 
         except Exception as e:
@@ -898,8 +908,8 @@ st.dataframe(df, use_container_width=True)'''
             return ProviderResult(
                 success=True,
                 output={
-                    'message': 'Server already running',
-                    'url': f"http://localhost:{app.server_port}",
+                    "message": "Server already running",
+                    "url": f"http://localhost:{app.server_port}",
                 },
                 category=SkillCategory.APP_BUILDING,
             )
@@ -910,7 +920,15 @@ st.dataframe(df, use_container_width=True)'''
 
             app_file = app.path / "app.py"
             app.server_process = subprocess.Popen(
-                ['streamlit', 'run', str(app_file), '--server.port', str(port), '--server.headless', 'true'],
+                [
+                    "streamlit",
+                    "run",
+                    str(app_file),
+                    "--server.port",
+                    str(port),
+                    "--server.headless",
+                    "true",
+                ],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
             )
@@ -923,9 +941,9 @@ st.dataframe(df, use_container_width=True)'''
                 return ProviderResult(
                     success=True,
                     output={
-                        'message': 'Server started',
-                        'url': f"http://localhost:{port}",
-                        'app': app.name,
+                        "message": "Server started",
+                        "url": f"http://localhost:{port}",
+                        "app": app.name,
                     },
                     category=SkillCategory.APP_BUILDING,
                 )
@@ -949,7 +967,7 @@ st.dataframe(df, use_container_width=True)'''
         if not app or not app.is_running():
             return ProviderResult(
                 success=True,
-                output={'message': 'No server running'},
+                output={"message": "No server running"},
                 category=SkillCategory.APP_BUILDING,
             )
 
@@ -962,7 +980,7 @@ st.dataframe(df, use_container_width=True)'''
 
             return ProviderResult(
                 success=True,
-                output={'message': 'Server stopped'},
+                output={"message": "Server stopped"},
                 category=SkillCategory.APP_BUILDING,
             )
 
@@ -983,7 +1001,7 @@ st.dataframe(df, use_container_width=True)'''
         for _ in range(max_attempts):
             try:
                 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                    s.bind(('localhost', port))
+                    s.bind(("localhost", port))
                     return port
             except OSError:
                 port += 1

@@ -1,4 +1,5 @@
 from typing import Any
+
 """
 JottyClaudeProvider adapter for ChatExecutor's provider interface.
 """
@@ -29,13 +30,13 @@ class JottyClaudeProviderAdapter:
         # Format messages for the LM
         prompt_parts = []
         for msg in messages:
-            role = msg.get('role', 'user')
-            content = msg.get('content', '')
-            if role == 'system':
+            role = msg.get("role", "user")
+            content = msg.get("content", "")
+            if role == "system":
                 prompt_parts.insert(0, f"System: {content}")
-            elif role == 'user':
+            elif role == "user":
                 prompt_parts.append(f"User: {content}")
-            elif role == 'assistant':
+            elif role == "assistant":
                 prompt_parts.append(f"Assistant: {content}")
 
         prompt = "\n\n".join(prompt_parts)
@@ -45,12 +46,12 @@ class JottyClaudeProviderAdapter:
             tool_desc_parts = []
             for t in tools:
                 # Handle Claude format (name at top level) or OpenAI format (function.name)
-                if 'function' in t:
-                    name = t['function'].get('name', 'unknown')
-                    desc = t['function'].get('description', '')
+                if "function" in t:
+                    name = t["function"].get("name", "unknown")
+                    desc = t["function"].get("description", "")
                 else:
-                    name = t.get('name', 'unknown')
-                    desc = t.get('description', '')
+                    name = t.get("name", "unknown")
+                    desc = t.get("description", "")
                 tool_desc_parts.append(f"- {name}: {desc}")
             tool_desc = "\n".join(tool_desc_parts)
             prompt += f"\n\nAvailable tools:\n{tool_desc}\n\nRespond with tool calls in JSON format if needed."
@@ -64,9 +65,9 @@ class JottyClaudeProviderAdapter:
                 content = str(response)
 
             return {
-                'content': content,
-                'tool_calls': [],  # JottyClaudeProvider doesn't support native tool calls yet
-                'stop_reason': 'end_turn'
+                "content": content,
+                "tool_calls": [],  # JottyClaudeProvider doesn't support native tool calls yet
+                "stop_reason": "end_turn",
             }
         except Exception as e:
             logger.error(f"JottyClaudeProvider call failed: {e}")

@@ -12,24 +12,25 @@ This enables a single LLM call where Claude decides which tools to use,
 eliminating the need for DSPy signatures or hardcoded decision logic.
 """
 
-import os
 import logging
-from pathlib import Path
-from typing import Dict, Any, List, Optional, Callable
+import os
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
+
 
 # Get output directory from environment or use sensible defaults
 # Priority: JOTTY_OUTPUT_DIR > /data/outputs (Docker) > ~/jotty/outputs (local)
 def _get_output_dir() -> Path:
     """Get the output directory for generated files."""
     # Check environment variable first
-    if os.environ.get('JOTTY_OUTPUT_DIR'):
-        output_dir = Path(os.environ['JOTTY_OUTPUT_DIR'])
+    if os.environ.get("JOTTY_OUTPUT_DIR"):
+        output_dir = Path(os.environ["JOTTY_OUTPUT_DIR"])
     # Check if /data exists (Docker container)
-    elif Path('/data').exists():
-        output_dir = Path('/data/outputs')
+    elif Path("/data").exists():
+        output_dir = Path("/data/outputs")
     # Fall back to home directory
     else:
         output_dir = Path.home() / "jotty" / "outputs"
@@ -40,10 +41,11 @@ def _get_output_dir() -> Path:
     except Exception as e:
         logger.warning(f"Could not create output dir {output_dir}: {e}")
         # Fallback to /tmp if all else fails
-        output_dir = Path('/tmp/jotty_outputs')
+        output_dir = Path("/tmp/jotty_outputs")
         output_dir.mkdir(parents=True, exist_ok=True)
 
     return output_dir
+
 
 OUTPUT_DIR = _get_output_dir()
 logger.info(f"UnifiedToolGenerator output directory: {OUTPUT_DIR}")
@@ -52,6 +54,7 @@ logger.info(f"UnifiedToolGenerator output directory: {OUTPUT_DIR}")
 @dataclass
 class ToolDefinition:
     """Tool definition with metadata."""
+
     name: str
     description: str
     parameters: Dict[str, Any]
@@ -67,7 +70,14 @@ class UnifiedToolGenerator:
     a unified set that Claude can choose from with tool_choice="auto".
     """
 
-    def __init__(self, include_input_tools: bool = True, include_output_tools: bool = True, include_visualization_tools: bool = True, include_skills_tools: bool = True, skills_filter: Optional[List[str]] = None) -> None:
+    def __init__(
+        self,
+        include_input_tools: bool = True,
+        include_output_tools: bool = True,
+        include_visualization_tools: bool = True,
+        include_skills_tools: bool = True,
+        skills_filter: Optional[List[str]] = None,
+    ) -> None:
         """
         Initialize tool generator.
 
@@ -98,6 +108,7 @@ class UnifiedToolGenerator:
         if self._schema_registry is None:
             try:
                 from Jotty.core.interface.ui.schema_validator import schema_registry
+
                 self._schema_registry = schema_registry
             except ImportError:
                 logger.warning("Schema registry not available")
@@ -109,6 +120,7 @@ class UnifiedToolGenerator:
         if self._skills_registry is None:
             try:
                 from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
+
                 self._skills_registry = get_skills_registry()
                 self._skills_registry.init()
             except ImportError:
@@ -163,16 +175,16 @@ class UnifiedToolGenerator:
                 "properties": {
                     "query": {
                         "type": "string",
-                        "description": "Search query to find relevant information"
+                        "description": "Search query to find relevant information",
                     },
                     "max_results": {
                         "type": "integer",
                         "description": "Maximum number of results (default: 10)",
-                        "default": 10
-                    }
+                        "default": 10,
+                    },
                 },
-                "required": ["query"]
-            }
+                "required": ["query"],
+            },
         }
         tools.append(web_search)
         self._executors["web_search"] = self._execute_web_search
@@ -184,13 +196,10 @@ class UnifiedToolGenerator:
             "input_schema": {
                 "type": "object",
                 "properties": {
-                    "file_path": {
-                        "type": "string",
-                        "description": "Absolute path to the file"
-                    }
+                    "file_path": {"type": "string", "description": "Absolute path to the file"}
                 },
-                "required": ["file_path"]
-            }
+                "required": ["file_path"],
+            },
         }
         tools.append(file_read)
         self._executors["file_read"] = self._execute_file_read
@@ -202,18 +211,15 @@ class UnifiedToolGenerator:
             "input_schema": {
                 "type": "object",
                 "properties": {
-                    "url": {
-                        "type": "string",
-                        "description": "URL to fetch and parse"
-                    },
+                    "url": {"type": "string", "description": "URL to fetch and parse"},
                     "extract_text": {
                         "type": "boolean",
                         "description": "Extract text content only (default: true)",
-                        "default": True
-                    }
+                        "default": True,
+                    },
                 },
-                "required": ["url"]
-            }
+                "required": ["url"],
+            },
         }
         tools.append(fetch_url)
         self._executors["fetch_url"] = self._execute_fetch_url
@@ -233,19 +239,16 @@ class UnifiedToolGenerator:
                 "properties": {
                     "content": {
                         "type": "string",
-                        "description": "Content to save (markdown or plain text)"
+                        "description": "Content to save (markdown or plain text)",
                     },
                     "filename": {
                         "type": "string",
-                        "description": "Output filename (without extension)"
+                        "description": "Output filename (without extension)",
                     },
-                    "title": {
-                        "type": "string",
-                        "description": "Document title"
-                    }
+                    "title": {"type": "string", "description": "Document title"},
                 },
-                "required": ["content"]
-            }
+                "required": ["content"],
+            },
         }
         tools.append(save_docx)
         self._executors["save_docx"] = self._execute_save_docx
@@ -259,19 +262,16 @@ class UnifiedToolGenerator:
                 "properties": {
                     "content": {
                         "type": "string",
-                        "description": "Content to save (markdown or plain text)"
+                        "description": "Content to save (markdown or plain text)",
                     },
                     "filename": {
                         "type": "string",
-                        "description": "Output filename (without extension)"
+                        "description": "Output filename (without extension)",
                     },
-                    "title": {
-                        "type": "string",
-                        "description": "Document title"
-                    }
+                    "title": {"type": "string", "description": "Document title"},
                 },
-                "required": ["content"]
-            }
+                "required": ["content"],
+            },
         }
         tools.append(save_pdf)
         self._executors["save_pdf"] = self._execute_save_pdf
@@ -283,14 +283,8 @@ class UnifiedToolGenerator:
             "input_schema": {
                 "type": "object",
                 "properties": {
-                    "title": {
-                        "type": "string",
-                        "description": "Presentation title"
-                    },
-                    "subtitle": {
-                        "type": "string",
-                        "description": "Presentation subtitle"
-                    },
+                    "title": {"type": "string", "description": "Presentation title"},
+                    "subtitle": {"type": "string", "description": "Presentation subtitle"},
                     "slides": {
                         "type": "array",
                         "description": "Array of slide objects with title and bullets",
@@ -298,21 +292,18 @@ class UnifiedToolGenerator:
                             "type": "object",
                             "properties": {
                                 "title": {"type": "string"},
-                                "bullets": {
-                                    "type": "array",
-                                    "items": {"type": "string"}
-                                }
-                            }
-                        }
+                                "bullets": {"type": "array", "items": {"type": "string"}},
+                            },
+                        },
                     },
                     "export_pdf": {
                         "type": "boolean",
                         "description": "Also export as PDF (default: false)",
-                        "default": False
-                    }
+                        "default": False,
+                    },
                 },
-                "required": ["title", "slides"]
-            }
+                "required": ["title", "slides"],
+            },
         }
         tools.append(save_slides)
         self._executors["save_slides"] = self._execute_save_slides
@@ -324,13 +315,10 @@ class UnifiedToolGenerator:
             "input_schema": {
                 "type": "object",
                 "properties": {
-                    "message": {
-                        "type": "string",
-                        "description": "Message content to send"
-                    }
+                    "message": {"type": "string", "description": "Message content to send"}
                 },
-                "required": ["message"]
-            }
+                "required": ["message"],
+            },
         }
         tools.append(send_telegram)
         self._executors["send_telegram"] = self._execute_send_telegram
@@ -342,22 +330,16 @@ class UnifiedToolGenerator:
             "input_schema": {
                 "type": "object",
                 "properties": {
-                    "title": {
-                        "type": "string",
-                        "description": "Idea title"
-                    },
-                    "content": {
-                        "type": "string",
-                        "description": "Idea content/description"
-                    },
+                    "title": {"type": "string", "description": "Idea title"},
+                    "content": {"type": "string", "description": "Idea content/description"},
                     "tags": {
                         "type": "array",
                         "items": {"type": "string"},
-                        "description": "Tags for categorization"
-                    }
+                        "description": "Tags for categorization",
+                    },
                 },
-                "required": ["title", "content"]
-            }
+                "required": ["title", "content"],
+            },
         }
         tools.append(save_justjot)
         self._executors["save_to_justjot"] = self._execute_save_justjot
@@ -384,24 +366,23 @@ class UnifiedToolGenerator:
                 # Sanitize the content schema for use as a property definition
                 # Remove meta-keywords that aren't valid in nested schemas
                 content_schema = self._sanitize_schema_for_property(
-                    schema.get('schema', {"type": "object"})
+                    schema.get("schema", {"type": "object"})
                 )
 
                 # Build tool definition
                 tool = {
                     "name": tool_name,
-                    "description": schema.get('description', f'Return {section_type} visualization'),
+                    "description": schema.get(
+                        "description", f"Return {section_type} visualization"
+                    ),
                     "input_schema": {
                         "type": "object",
                         "properties": {
                             "content": content_schema,
-                            "title": {
-                                "type": "string",
-                                "description": "Title for the section"
-                            }
+                            "title": {"type": "string", "description": "Title for the section"},
                         },
-                        "required": ["content"]
-                    }
+                        "required": ["content"],
+                    },
                 }
                 tools.append(tool)
 
@@ -416,7 +397,9 @@ class UnifiedToolGenerator:
 
         return tools
 
-    def _sanitize_schema_for_property(self, schema: Dict[str, Any], is_properties_dict: bool = False) -> Dict[str, Any]:
+    def _sanitize_schema_for_property(
+        self, schema: Dict[str, Any], is_properties_dict: bool = False
+    ) -> Dict[str, Any]:
         """
         Sanitize a JSON schema for use as a property definition.
 
@@ -438,22 +421,26 @@ class UnifiedToolGenerator:
 
         # Keywords to remove (not valid in nested property definitions or JSON Schema)
         invalid_keywords = {
-            '$schema', '$id', '$ref', '$defs', '$vocabulary',
-            '$comment', '$anchor', '$dynamicRef', '$dynamicAnchor',
-            'optional',  # Not valid JSON Schema - optionality is via "required"
-            'values',    # Custom extension - handled separately for enum conversion
-            'contentType',  # Custom extension
-            'transforms',   # Custom extension
-            'llmHint',      # Custom extension
+            "$schema",
+            "$id",
+            "$ref",
+            "$defs",
+            "$vocabulary",
+            "$comment",
+            "$anchor",
+            "$dynamicRef",
+            "$dynamicAnchor",
+            "optional",  # Not valid JSON Schema - optionality is via "required"
+            "values",  # Custom extension - handled separately for enum conversion
+            "contentType",  # Custom extension
+            "transforms",  # Custom extension
+            "llmHint",  # Custom extension
         }
 
         # Handle custom "type": "enum" conversion to proper JSON Schema
         # Only if this is a schema object (not a properties dict)
-        if not is_properties_dict and schema.get('type') == 'enum' and 'values' in schema:
-            return {
-                "type": "string",
-                "enum": schema['values']
-            }
+        if not is_properties_dict and schema.get("type") == "enum" and "values" in schema:
+            return {"type": "string", "enum": schema["values"]}
 
         # Create sanitized copy
         sanitized = {}
@@ -465,13 +452,21 @@ class UnifiedToolGenerator:
             if isinstance(value, dict):
                 # The "properties" key contains a dict of property names -> schemas
                 # Each value in "properties" is a schema, but the dict itself is not
-                if key == 'properties':
-                    sanitized[key] = self._sanitize_schema_for_property(value, is_properties_dict=True)
+                if key == "properties":
+                    sanitized[key] = self._sanitize_schema_for_property(
+                        value, is_properties_dict=True
+                    )
                 else:
-                    sanitized[key] = self._sanitize_schema_for_property(value, is_properties_dict=False)
+                    sanitized[key] = self._sanitize_schema_for_property(
+                        value, is_properties_dict=False
+                    )
             elif isinstance(value, list):
                 sanitized[key] = [
-                    self._sanitize_schema_for_property(item, is_properties_dict=False) if isinstance(item, dict) else item
+                    (
+                        self._sanitize_schema_for_property(item, is_properties_dict=False)
+                        if isinstance(item, dict)
+                        else item
+                    )
                     for item in value
                 ]
             else:
@@ -480,8 +475,8 @@ class UnifiedToolGenerator:
         # Only add "type": "object" if this is an actual schema (not a properties dict)
         # and it's missing a type specifier
         if not is_properties_dict:
-            if 'type' not in sanitized and 'anyOf' not in sanitized and 'oneOf' not in sanitized:
-                sanitized['type'] = 'object'
+            if "type" not in sanitized and "anyOf" not in sanitized and "oneOf" not in sanitized:
+                sanitized["type"] = "object"
 
         return sanitized
 
@@ -496,17 +491,11 @@ class UnifiedToolGenerator:
             "input_schema": {
                 "type": "object",
                 "properties": {
-                    "content": {
-                        "type": "string",
-                        "description": "Text or markdown content"
-                    },
-                    "title": {
-                        "type": "string",
-                        "description": "Optional title"
-                    }
+                    "content": {"type": "string", "description": "Text or markdown content"},
+                    "title": {"type": "string", "description": "Optional title"},
                 },
-                "required": ["content"]
-            }
+                "required": ["content"],
+            },
         }
         tools.append(return_text)
         self._executors["return_text"] = self._create_visualization_executor("text")
@@ -537,19 +526,19 @@ class UnifiedToolGenerator:
                                                     "id": {"type": "string"},
                                                     "title": {"type": "string"},
                                                     "description": {"type": "string"},
-                                                    "priority": {"type": "string"}
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
+                                                    "priority": {"type": "string"},
+                                                },
+                                            },
+                                        },
+                                    },
+                                },
                             }
-                        }
+                        },
                     },
-                    "title": {"type": "string"}
+                    "title": {"type": "string"},
                 },
-                "required": ["content"]
-            }
+                "required": ["content"],
+            },
         }
         tools.append(return_kanban)
         self._executors["return_kanban"] = self._create_visualization_executor("kanban-board")
@@ -567,18 +556,18 @@ class UnifiedToolGenerator:
                             "type": {
                                 "type": "string",
                                 "enum": ["bar", "line", "pie", "doughnut", "radar", "scatter"],
-                                "description": "Chart type"
+                                "description": "Chart type",
                             },
                             "data": {
                                 "type": "object",
-                                "description": "Chart data with labels and datasets"
-                            }
-                        }
+                                "description": "Chart data with labels and datasets",
+                            },
+                        },
                     },
-                    "title": {"type": "string"}
+                    "title": {"type": "string"},
                 },
-                "required": ["content"]
-            }
+                "required": ["content"],
+            },
         }
         tools.append(return_chart)
         self._executors["return_chart"] = self._create_visualization_executor("chart")
@@ -590,14 +579,11 @@ class UnifiedToolGenerator:
             "input_schema": {
                 "type": "object",
                 "properties": {
-                    "content": {
-                        "type": "string",
-                        "description": "Mermaid diagram syntax"
-                    },
-                    "title": {"type": "string"}
+                    "content": {"type": "string", "description": "Mermaid diagram syntax"},
+                    "title": {"type": "string"},
                 },
-                "required": ["content"]
-            }
+                "required": ["content"],
+            },
         }
         tools.append(return_mermaid)
         self._executors["return_mermaid"] = self._create_visualization_executor("mermaid")
@@ -609,14 +595,11 @@ class UnifiedToolGenerator:
             "input_schema": {
                 "type": "object",
                 "properties": {
-                    "content": {
-                        "type": "string",
-                        "description": "CSV-formatted data"
-                    },
-                    "title": {"type": "string"}
+                    "content": {"type": "string", "description": "CSV-formatted data"},
+                    "title": {"type": "string"},
                 },
-                "required": ["content"]
-            }
+                "required": ["content"],
+            },
         }
         tools.append(return_data_table)
         self._executors["return_data_table"] = self._create_visualization_executor("data-table")
@@ -628,35 +611,29 @@ class UnifiedToolGenerator:
             "input_schema": {
                 "type": "object",
                 "properties": {
-                    "url": {
-                        "type": "string",
-                        "description": "Path or URL to the file"
-                    },
-                    "filename": {
-                        "type": "string",
-                        "description": "Display name for the file"
-                    },
+                    "url": {"type": "string", "description": "Path or URL to the file"},
+                    "filename": {"type": "string", "description": "Display name for the file"},
                     "format": {
                         "type": "string",
                         "enum": ["pdf", "docx", "pptx", "xlsx", "csv", "txt", "md", "html", "zip"],
-                        "description": "File format"
+                        "description": "File format",
                     },
                     "size": {
                         "type": "string",
-                        "description": "Human-readable file size (e.g., '2.5 MB')"
+                        "description": "Human-readable file size (e.g., '2.5 MB')",
                     },
                     "preview": {
                         "type": "boolean",
-                        "description": "Show inline preview (default: true for PDF)"
+                        "description": "Show inline preview (default: true for PDF)",
                     },
                     "description": {
                         "type": "string",
-                        "description": "Brief description of the file"
+                        "description": "Brief description of the file",
                     },
-                    "title": {"type": "string"}
+                    "title": {"type": "string"},
                 },
-                "required": ["url", "filename", "format"]
-            }
+                "required": ["url", "filename", "format"],
+            },
         }
         tools.append(return_file_download)
         self._executors["return_file_download"] = self._execute_return_file_download
@@ -668,26 +645,17 @@ class UnifiedToolGenerator:
             "input_schema": {
                 "type": "object",
                 "properties": {
-                    "url": {
-                        "type": "string",
-                        "description": "Path or URL to the image"
-                    },
-                    "alt": {
-                        "type": "string",
-                        "description": "Alt text for accessibility"
-                    },
+                    "url": {"type": "string", "description": "Path or URL to the image"},
+                    "alt": {"type": "string", "description": "Alt text for accessibility"},
                     "caption": {
                         "type": "string",
-                        "description": "Caption displayed below the image"
+                        "description": "Caption displayed below the image",
                     },
-                    "width": {
-                        "type": "string",
-                        "description": "CSS width (e.g., '100%', '500px')"
-                    },
-                    "title": {"type": "string"}
+                    "width": {"type": "string", "description": "CSS width (e.g., '100%', '500px')"},
+                    "title": {"type": "string"},
                 },
-                "required": ["url"]
-            }
+                "required": ["url"],
+            },
         }
         tools.append(return_image)
         self._executors["return_image"] = self._create_visualization_executor("image")
@@ -717,12 +685,9 @@ class UnifiedToolGenerator:
                     "input_schema": {
                         "type": "object",
                         "properties": {
-                            "params": {
-                                "type": "object",
-                                "description": "Parameters for the skill"
-                            }
-                        }
-                    }
+                            "params": {"type": "object", "description": "Parameters for the skill"}
+                        },
+                    },
                 }
                 tools.append(tool)
 
@@ -757,14 +722,14 @@ class UnifiedToolGenerator:
         tools = self.generate_all_tools()
 
         category_prefixes = {
-            'input': ['web_search', 'file_read', 'fetch_url'],
-            'output': ['save_', 'send_'],
-            'visualization': ['return_'],
-            'skill': ['skill_']
+            "input": ["web_search", "file_read", "fetch_url"],
+            "output": ["save_", "send_"],
+            "visualization": ["return_"],
+            "skill": ["skill_"],
         }
 
         prefixes = category_prefixes.get(category, [])
-        return [t for t in tools if any(t['name'].startswith(p) for p in prefixes)]
+        return [t for t in tools if any(t["name"].startswith(p) for p in prefixes)]
 
     # ==========================================================================
     # Tool Executors
@@ -775,31 +740,30 @@ class UnifiedToolGenerator:
         if not self.skills_registry:
             return {"success": False, "error": "Skills registry not available"}
 
-        skill = self.skills_registry.get_skill('web-search')
+        skill = self.skills_registry.get_skill("web-search")
         if not skill:
             return {"success": False, "error": "web-search skill not found"}
 
-        search_tool = skill.tools.get('search_web_tool')
+        search_tool = skill.tools.get("search_web_tool")
         if not search_tool:
             return {"success": False, "error": "search_web_tool not found"}
 
         try:
-            result = search_tool({
-                'query': params.get('query', ''),
-                'max_results': params.get('max_results', 10)
-            })
+            result = search_tool(
+                {"query": params.get("query", ""), "max_results": params.get("max_results", 10)}
+            )
             return result
         except Exception as e:
             return {"success": False, "error": str(e)}
 
     async def _execute_file_read(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Execute file read."""
-        file_path = params.get('file_path')
+        file_path = params.get("file_path")
         if not file_path:
             return {"success": False, "error": "file_path required"}
 
         try:
-            with open(file_path, 'r') as f:
+            with open(file_path, "r") as f:
                 content = f.read()
             return {"success": True, "content": content}
         except Exception as e:
@@ -807,21 +771,23 @@ class UnifiedToolGenerator:
 
     async def _execute_fetch_url(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Execute URL fetch."""
-        url = params.get('url')
+        url = params.get("url")
         if not url:
             return {"success": False, "error": "url required"}
 
         try:
             import httpx
+
             async with httpx.AsyncClient() as client:
                 response = await client.get(url, timeout=30.0)
                 response.raise_for_status()
 
-                if params.get('extract_text', True):
+                if params.get("extract_text", True):
                     # Basic text extraction
                     from bs4 import BeautifulSoup
-                    soup = BeautifulSoup(response.text, 'html.parser')
-                    text = soup.get_text(separator='\n', strip=True)
+
+                    soup = BeautifulSoup(response.text, "html.parser")
+                    text = soup.get_text(separator="\n", strip=True)
                     return {"success": True, "content": text[:50000]}
                 else:
                     return {"success": True, "content": response.text[:50000]}
@@ -835,32 +801,36 @@ class UnifiedToolGenerator:
         if not self.skills_registry:
             return {"success": False, "error": "Skills registry not available"}
 
-        skill = self.skills_registry.get_skill('docx-tools')
+        skill = self.skills_registry.get_skill("docx-tools")
         if not skill:
             return {"success": False, "error": "docx-tools skill not found"}
 
-        create_tool = skill.tools.get('create_docx_tool')
+        create_tool = skill.tools.get("create_docx_tool")
         if not create_tool:
             return {"success": False, "error": "create_docx_tool not found"}
 
         try:
-            from pathlib import Path
             from datetime import datetime
+            from pathlib import Path
 
             output_dir = OUTPUT_DIR
 
-            filename = params.get('filename', f"document_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
-            display_name = params.get('title', filename)
+            filename = params.get(
+                "filename", f"document_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            )
+            display_name = params.get("title", filename)
             output_path = output_dir / f"{filename}.docx"
 
-            result = create_tool({
-                'content': params.get('content', ''),
-                'output_path': str(output_path),
-                'title': display_name
-            })
+            result = create_tool(
+                {
+                    "content": params.get("content", ""),
+                    "output_path": str(output_path),
+                    "title": display_name,
+                }
+            )
 
-            if result.get('success'):
-                file_path = result.get('file_path', str(output_path))
+            if result.get("success"):
+                file_path = result.get("file_path", str(output_path))
                 # Get file size
                 try:
                     size_bytes = Path(file_path).stat().st_size
@@ -875,7 +845,7 @@ class UnifiedToolGenerator:
                     format="docx",
                     size=size_str,
                     description=f"Word document created from your content",
-                    preview=True  # Enable preview via Google Docs Viewer
+                    preview=True,  # Enable preview via Google Docs Viewer
                 )
             return result
         except Exception as e:
@@ -886,35 +856,34 @@ class UnifiedToolGenerator:
         if not self.skills_registry:
             return {"success": False, "error": "Skills registry not available"}
 
-        skill = self.skills_registry.get_skill('document-converter')
+        skill = self.skills_registry.get_skill("document-converter")
         if not skill:
             return {"success": False, "error": "document-converter skill not found"}
 
-        convert_tool = skill.tools.get('convert_to_pdf_tool')
+        convert_tool = skill.tools.get("convert_to_pdf_tool")
         if not convert_tool:
             return {"success": False, "error": "convert_to_pdf_tool not found"}
 
         try:
-            from pathlib import Path
             from datetime import datetime
+            from pathlib import Path
 
             output_dir = OUTPUT_DIR
 
-            filename = params.get('filename', f"document_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
-            display_name = params.get('title', filename)
+            filename = params.get(
+                "filename", f"document_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            )
+            display_name = params.get("title", filename)
 
             # First save as markdown
             md_path = output_dir / f"{filename}.md"
-            md_path.write_text(params.get('content', ''))
+            md_path.write_text(params.get("content", ""))
 
             pdf_path = output_dir / f"{filename}.pdf"
-            result = convert_tool({
-                'input_file': str(md_path),
-                'output_file': str(pdf_path)
-            })
+            result = convert_tool({"input_file": str(md_path), "output_file": str(pdf_path)})
 
-            if result.get('success'):
-                file_path = result.get('output_path', str(pdf_path))
+            if result.get("success"):
+                file_path = result.get("output_path", str(pdf_path))
                 # Get file size
                 try:
                     size_bytes = Path(file_path).stat().st_size
@@ -929,7 +898,7 @@ class UnifiedToolGenerator:
                     format="pdf",
                     size=size_str,
                     description=f"PDF document ready for download",
-                    preview=True  # Enable PDF preview
+                    preview=True,  # Enable PDF preview
                 )
             return result
         except Exception as e:
@@ -940,11 +909,11 @@ class UnifiedToolGenerator:
         if not self.skills_registry:
             return {"success": False, "error": "Skills registry not available"}
 
-        skill = self.skills_registry.get_skill('slide-generator')
+        skill = self.skills_registry.get_skill("slide-generator")
         if not skill:
             return {"success": False, "error": "slide-generator skill not found"}
 
-        slides_tool = skill.tools.get('generate_slides_tool')
+        slides_tool = skill.tools.get("generate_slides_tool")
         if not slides_tool:
             return {"success": False, "error": "generate_slides_tool not found"}
 
@@ -953,18 +922,20 @@ class UnifiedToolGenerator:
 
             output_dir = OUTPUT_DIR
 
-            display_name = params.get('title', 'Presentation')
+            display_name = params.get("title", "Presentation")
 
-            result = slides_tool({
-                'title': display_name,
-                'subtitle': params.get('subtitle', ''),
-                'slides': params.get('slides', []),
-                'template': 'dark',
-                'output_path': str(output_dir)
-            })
+            result = slides_tool(
+                {
+                    "title": display_name,
+                    "subtitle": params.get("subtitle", ""),
+                    "slides": params.get("slides", []),
+                    "template": "dark",
+                    "output_path": str(output_dir),
+                }
+            )
 
-            if result.get('success'):
-                file_path = result.get('file_path')
+            if result.get("success"):
+                file_path = result.get("file_path")
                 if file_path:
                     # Get file size
                     try:
@@ -974,8 +945,8 @@ class UnifiedToolGenerator:
                         size_str = None
 
                     # Determine format from file extension
-                    ext = Path(file_path).suffix.lower().replace('.', '')
-                    fmt = ext if ext in ['pptx', 'pdf'] else 'pptx'
+                    ext = Path(file_path).suffix.lower().replace(".", "")
+                    fmt = ext if ext in ["pptx", "pdf"] else "pptx"
 
                     # Return file-download section for UI display
                     return self._create_file_download_section(
@@ -984,7 +955,7 @@ class UnifiedToolGenerator:
                         format=fmt,
                         size=size_str,
                         description=f"PowerPoint presentation with {len(params.get('slides', []))} slides",
-                        preview=True  # Enable preview via Google Docs Viewer
+                        preview=True,  # Enable preview via Google Docs Viewer
                     )
             return result
         except Exception as e:
@@ -995,18 +966,16 @@ class UnifiedToolGenerator:
         if not self.skills_registry:
             return {"success": False, "error": "Skills registry not available"}
 
-        skill = self.skills_registry.get_skill('telegram-sender')
+        skill = self.skills_registry.get_skill("telegram-sender")
         if not skill:
             return {"success": False, "error": "telegram-sender skill not found"}
 
-        send_tool = skill.tools.get('send_message_tool')
+        send_tool = skill.tools.get("send_message_tool")
         if not send_tool:
             return {"success": False, "error": "send_message_tool not found"}
 
         try:
-            result = send_tool({
-                'message': params.get('message', '')[:4000]
-            })
+            result = send_tool({"message": params.get("message", "")[:4000]})
             return result
         except Exception as e:
             return {"success": False, "error": str(e)}
@@ -1016,20 +985,21 @@ class UnifiedToolGenerator:
         if not self.skills_registry:
             return {"success": False, "error": "Skills registry not available"}
 
-        skill = self.skills_registry.get_skill('mcp-justjot')
+        skill = self.skills_registry.get_skill("mcp-justjot")
         if not skill:
             return {"success": False, "error": "JustJot skill not found"}
 
-        create_tool = skill.tools.get('create_idea_tool') or skill.tools.get('create_idea')
+        create_tool = skill.tools.get("create_idea_tool") or skill.tools.get("create_idea")
         if not create_tool:
             return {"success": False, "error": "create_idea tool not found"}
 
         try:
             import asyncio
+
             tool_params = {
-                'title': params.get('title', 'Untitled'),
-                'description': params.get('content', ''),
-                'tags': params.get('tags', ['jotty'])
+                "title": params.get("title", "Untitled"),
+                "description": params.get("content", ""),
+                "tags": params.get("tags", ["jotty"]),
             }
 
             if asyncio.iscoroutinefunction(create_tool):
@@ -1044,21 +1014,22 @@ class UnifiedToolGenerator:
         """Execute return_file_download tool - displays a file inline in chat."""
         try:
             from Jotty.core.interface.ui import return_file_download
+
             return return_file_download(
-                url=params.get('url', ''),
-                filename=params.get('filename', 'file'),
-                format=params.get('format', 'pdf'),
-                size=params.get('size'),
-                preview=params.get('preview', True),
-                description=params.get('description'),
-                title=params.get('title')
+                url=params.get("url", ""),
+                filename=params.get("filename", "file"),
+                format=params.get("format", "pdf"),
+                size=params.get("size"),
+                preview=params.get("preview", True),
+                description=params.get("description"),
+                title=params.get("title"),
             )
         except Exception as e:
             return {"success": False, "error": str(e)}
 
     def _format_file_size(self, size_bytes: int) -> str:
         """Format file size in human-readable format."""
-        for unit in ['B', 'KB', 'MB', 'GB']:
+        for unit in ["B", "KB", "MB", "GB"]:
             if size_bytes < 1024:
                 return f"{size_bytes:.1f} {unit}"
             size_bytes /= 1024
@@ -1071,7 +1042,7 @@ class UnifiedToolGenerator:
         format: str,
         size: str = None,
         description: str = None,
-        preview: bool = False
+        preview: bool = False,
     ) -> Dict[str, Any]:
         """
         Create a file-download section for displaying downloadable files in UI.
@@ -1081,6 +1052,7 @@ class UnifiedToolGenerator:
         """
         try:
             from Jotty.core.interface.ui import return_file_download
+
             return return_file_download(
                 url=file_path,
                 filename=filename,
@@ -1088,7 +1060,7 @@ class UnifiedToolGenerator:
                 size=size,
                 preview=preview,
                 description=description,
-                title=f" {filename}"
+                title=f" {filename}",
             )
         except ImportError:
             # Fallback if helper not available
@@ -1106,28 +1078,32 @@ class UnifiedToolGenerator:
                         "format": format,
                         "size": size,
                         "preview": preview,
-                        "description": description
+                        "description": description,
                     },
-                    "title": f" {filename}"
-                }
+                    "title": f" {filename}",
+                },
             }
 
     def _create_visualization_executor(self, section_type: str) -> Callable:
         """Create executor for visualization tool."""
+
         async def executor(params: Dict[str, Any]) -> Dict[str, Any]:
             try:
                 from Jotty.core.interface.ui import return_section
+
                 return return_section(
                     section_type=section_type,
-                    content=params.get('content'),
-                    title=params.get('title')
+                    content=params.get("content"),
+                    title=params.get("title"),
                 )
             except Exception as e:
                 return {"success": False, "error": str(e)}
+
         return executor
 
     def _create_skill_executor(self, skill_name: str) -> Callable:
         """Create executor for skill tool."""
+
         async def executor(params: Dict[str, Any]) -> Dict[str, Any]:
             if not self.skills_registry:
                 return {"success": False, "error": "Skills registry not available"}
@@ -1146,7 +1122,8 @@ class UnifiedToolGenerator:
 
             try:
                 import asyncio
-                tool_params = params.get('params', {})
+
+                tool_params = params.get("params", {})
 
                 if asyncio.iscoroutinefunction(tool):
                     result = await tool(tool_params)
@@ -1155,4 +1132,5 @@ class UnifiedToolGenerator:
                 return result
             except Exception as e:
                 return {"success": False, "error": str(e)}
+
         return executor

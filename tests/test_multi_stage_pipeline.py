@@ -6,9 +6,10 @@ Tests for Multi-Stage Pipeline
 Tests the high-level pipeline orchestrator for chaining multiple swarm executions.
 """
 
-import pytest
 import asyncio
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
 
 
 @pytest.mark.asyncio
@@ -17,8 +18,8 @@ async def test_pipeline_imports():
     from Jotty.core.intelligence.orchestration import (
         MultiStagePipeline,
         PipelineResult,
-        StageResult,
         StageConfig,
+        StageResult,
         create_pipeline,
         extract_code_from_markdown,
     )
@@ -35,9 +36,9 @@ async def test_pipeline_imports():
 async def test_pipeline_basic_usage():
     """Test basic pipeline creation and execution."""
     from Jotty.core.intelligence.orchestration import (
+        MergeStrategy,
         MultiStagePipeline,
         SwarmAdapter,
-        MergeStrategy
     )
 
     # Mock swarms
@@ -46,29 +47,22 @@ async def test_pipeline_basic_usage():
 
         async def execute(self, task):
             from Jotty.core.intelligence.orchestration import SwarmResult
+
             await asyncio.sleep(0.01)
             return SwarmResult(
                 swarm_name=self.name,
                 output=f"Result for: {task[:50]}",
                 success=True,
-                confidence=0.8
+                confidence=0.8,
             )
 
     # Create pipeline
     pipeline = MultiStagePipeline(task="Test task")
 
     # Add stages
-    pipeline.add_stage(
-        "stage1",
-        swarms=[MockSwarm()],
-        merge_strategy=MergeStrategy.BEST_OF_N
-    )
+    pipeline.add_stage("stage1", swarms=[MockSwarm()], merge_strategy=MergeStrategy.BEST_OF_N)
 
-    pipeline.add_stage(
-        "stage2",
-        swarms=[MockSwarm()],
-        merge_strategy=MergeStrategy.BEST_OF_N
-    )
+    pipeline.add_stage("stage2", swarms=[MockSwarm()], merge_strategy=MergeStrategy.BEST_OF_N)
 
     # Execute
     result = await pipeline.execute(auto_trace=False, verbose=False)
@@ -85,10 +79,7 @@ async def test_pipeline_basic_usage():
 @pytest.mark.asyncio
 async def test_pipeline_context_chaining():
     """Test that context passes between stages correctly."""
-    from Jotty.core.intelligence.orchestration import (
-        MultiStagePipeline,
-        MergeStrategy
-    )
+    from Jotty.core.intelligence.orchestration import MergeStrategy, MultiStagePipeline
 
     # Mock swarm that returns task (so we can verify context was passed)
     class ContextVerifySwarm:
@@ -96,20 +87,16 @@ async def test_pipeline_context_chaining():
 
         async def execute(self, task):
             from Jotty.core.intelligence.orchestration import SwarmResult
+
             return SwarmResult(
-                swarm_name=self.name,
-                output=f"Received task: {task}",
-                success=True,
-                confidence=0.9
+                swarm_name=self.name, output=f"Received task: {task}", success=True, confidence=0.9
             )
 
     pipeline = MultiStagePipeline(task="Main task")
 
     # Stage 1: Produces output
     pipeline.add_stage(
-        "producer",
-        swarms=[ContextVerifySwarm()],
-        merge_strategy=MergeStrategy.BEST_OF_N
+        "producer", swarms=[ContextVerifySwarm()], merge_strategy=MergeStrategy.BEST_OF_N
     )
 
     # Stage 2: Should receive Stage 1 output as context
@@ -117,7 +104,7 @@ async def test_pipeline_context_chaining():
         "consumer",
         swarms=[ContextVerifySwarm()],
         merge_strategy=MergeStrategy.BEST_OF_N,
-        context_from=["producer"]  # Request context from stage1
+        context_from=["producer"],  # Request context from stage1
     )
 
     result = await pipeline.execute(auto_trace=False, verbose=False)
@@ -131,18 +118,16 @@ async def test_pipeline_context_chaining():
 @pytest.mark.asyncio
 async def test_pipeline_multiple_context_sources():
     """Test stage receiving context from multiple previous stages."""
-    from Jotty.core.intelligence.orchestration import MultiStagePipeline, MergeStrategy
+    from Jotty.core.intelligence.orchestration import MergeStrategy, MultiStagePipeline
 
     class MockSwarm:
         name = "Mock"
 
         async def execute(self, task):
             from Jotty.core.intelligence.orchestration import SwarmResult
+
             return SwarmResult(
-                swarm_name=self.name,
-                output=f"Output: {task[:30]}",
-                success=True,
-                confidence=0.8
+                swarm_name=self.name, output=f"Output: {task[:30]}", success=True, confidence=0.8
             )
 
     pipeline = MultiStagePipeline(task="Test")
@@ -150,9 +135,7 @@ async def test_pipeline_multiple_context_sources():
     pipeline.add_stage("stage1", swarms=[MockSwarm()])
     pipeline.add_stage("stage2", swarms=[MockSwarm()])
     pipeline.add_stage(
-        "stage3",
-        swarms=[MockSwarm()],
-        context_from=["stage1", "stage2"]  # Multiple sources
+        "stage3", swarms=[MockSwarm()], context_from=["stage1", "stage2"]  # Multiple sources
     )
 
     result = await pipeline.execute(auto_trace=False, verbose=False)
@@ -165,18 +148,16 @@ async def test_pipeline_multiple_context_sources():
 @pytest.mark.asyncio
 async def test_pipeline_get_stage():
     """Test retrieving specific stage results."""
-    from Jotty.core.intelligence.orchestration import MultiStagePipeline, MergeStrategy
+    from Jotty.core.intelligence.orchestration import MergeStrategy, MultiStagePipeline
 
     class MockSwarm:
         name = "Mock"
 
         async def execute(self, task):
             from Jotty.core.intelligence.orchestration import SwarmResult
+
             return SwarmResult(
-                swarm_name=self.name,
-                output="Test output",
-                success=True,
-                confidence=0.7
+                swarm_name=self.name, output="Test output", success=True, confidence=0.7
             )
 
     pipeline = MultiStagePipeline(task="Test")
@@ -243,25 +224,17 @@ async def test_extract_code_from_markdown():
 @pytest.mark.asyncio
 async def test_pipeline_print_summary():
     """Test that PipelineResult.print_summary() works."""
-    from Jotty.core.intelligence.orchestration import (
-        PipelineResult,
-        StageResult,
-        SwarmResult
-    )
     import io
     import sys
+
+    from Jotty.core.intelligence.orchestration import PipelineResult, StageResult, SwarmResult
 
     # Create mock results
     stage_result = StageResult(
         stage_name="test_stage",
-        result=SwarmResult(
-            swarm_name="test",
-            output="Test output",
-            success=True,
-            confidence=0.8
-        ),
+        result=SwarmResult(swarm_name="test", output="Test output", success=True, confidence=0.8),
         execution_time=1.0,
-        cost=0.001
+        cost=0.001,
     )
 
     result = PipelineResult(
@@ -269,7 +242,7 @@ async def test_pipeline_print_summary():
         stages=[stage_result],
         total_cost=0.001,
         total_time=1.0,
-        final_result=stage_result
+        final_result=stage_result,
     )
 
     # Capture output
@@ -310,9 +283,7 @@ async def test_stage_config_context_template():
 
     # Create stage config with custom template
     config = StageConfig(
-        name="test",
-        swarms=[],
-        context_template="Previous results:\n{context}\n\nNow do:"
+        name="test", swarms=[], context_template="Previous results:\n{context}\n\nNow do:"
     )
 
     # Create mock previous results
@@ -321,7 +292,7 @@ async def test_stage_config_context_template():
             stage_name="stage1",
             result=SwarmResult("s1", "Output 1", True, 0.8),
             execution_time=1.0,
-            cost=0.001
+            cost=0.001,
         )
     }
 
@@ -336,20 +307,18 @@ async def test_stage_config_context_template():
 @pytest.mark.asyncio
 async def test_pipeline_with_max_context_chars():
     """Test that context is truncated to max_context_chars."""
-    from Jotty.core.intelligence.orchestration import MultiStagePipeline, MergeStrategy
+    from Jotty.core.intelligence.orchestration import MergeStrategy, MultiStagePipeline
 
     class VerboseSwarm:
         name = "Verbose"
 
         async def execute(self, task):
             from Jotty.core.intelligence.orchestration import SwarmResult
+
             # Return very long output
             long_output = "A" * 3000
             return SwarmResult(
-                swarm_name=self.name,
-                output=long_output,
-                success=True,
-                confidence=0.9
+                swarm_name=self.name, output=long_output, success=True, confidence=0.9
             )
 
     pipeline = MultiStagePipeline(task="Test")
@@ -358,7 +327,7 @@ async def test_pipeline_with_max_context_chars():
         "stage2",
         swarms=[VerboseSwarm()],
         context_from=["stage1"],
-        max_context_chars=500  # Limit context
+        max_context_chars=500,  # Limit context
     )
 
     result = await pipeline.execute(auto_trace=False, verbose=False)
@@ -373,14 +342,14 @@ async def test_pipeline_with_max_context_chars():
 
 
 @pytest.mark.asyncio
-@patch('os.getenv')
-@patch('anthropic.AsyncAnthropic')
+@patch("os.getenv")
+@patch("anthropic.AsyncAnthropic")
 async def test_pipeline_with_real_api_mocked(mock_anthropic, mock_getenv):
     """Test pipeline with mocked Anthropic API."""
     from Jotty.core.intelligence.orchestration import (
+        MergeStrategy,
         MultiStagePipeline,
         SwarmAdapter,
-        MergeStrategy
     )
 
     # Mock API
@@ -400,7 +369,7 @@ async def test_pipeline_with_real_api_mocked(mock_anthropic, mock_getenv):
     pipeline.add_stage(
         "stage1",
         swarms=SwarmAdapter.quick_swarms([("S1", "Prompt 1")]),
-        merge_strategy=MergeStrategy.BEST_OF_N
+        merge_strategy=MergeStrategy.BEST_OF_N,
     )
 
     result = await pipeline.execute(auto_trace=False, verbose=False)
@@ -410,5 +379,5 @@ async def test_pipeline_with_real_api_mocked(mock_anthropic, mock_getenv):
     assert result.stages[0].result.success is True
 
 
-if __name__ == '__main__':
-    pytest.main([__file__, '-v'])
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

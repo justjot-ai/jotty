@@ -8,11 +8,15 @@ and use Claude/DSPy for intelligent analysis, sentiment, and comparisons.
 
 import json
 import logging
-from typing import Dict, Any, List
+from typing import Any, Dict, List
 
 from Jotty.core.infrastructure.utils.env_loader import load_jotty_env
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import (
+    async_tool_wrapper,
+    tool_error,
+    tool_response,
+)
 
 load_jotty_env()
 logger = logging.getLogger(__name__)
@@ -23,6 +27,7 @@ def _get_pmi_client():
     """Lazy import to avoid circular deps with hyphenated directory."""
     import importlib.util
     from pathlib import Path
+
     spec = importlib.util.spec_from_file_location(
         "pmi_client",
         Path(__file__).resolve().parent.parent / "pmi-market-data" / "pmi_client.py",
@@ -41,6 +46,7 @@ def _get_lm():
     """Get the configured DSPy language model."""
     try:
         import dspy
+
         return dspy.settings.lm
     except Exception:
         return None
@@ -85,16 +91,25 @@ async def sentiment_analysis_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
     # Fetch quote and chart data
     quote = client.get("/v2/get_ltp", params={"symbol": symbol})
-    chart = client.get("/v2/get_chart_data", params={
-        "symbol": symbol, "interval": "1d", "days": 14,
-    })
+    chart = client.get(
+        "/v2/get_chart_data",
+        params={
+            "symbol": symbol,
+            "interval": "1d",
+            "days": 14,
+        },
+    )
 
-    quote_data = {
-        "ltp": quote.get("ltp"),
-        "change": quote.get("change"),
-        "change_percent": quote.get("change_percent"),
-        "volume": quote.get("volume"),
-    } if quote.get("success") else {}
+    quote_data = (
+        {
+            "ltp": quote.get("ltp"),
+            "change": quote.get("change"),
+            "change_percent": quote.get("change_percent"),
+            "volume": quote.get("volume"),
+        }
+        if quote.get("success")
+        else {}
+    )
 
     candles = chart.get("candles", chart.get("data", [])) if chart.get("success") else []
 
@@ -155,19 +170,26 @@ async def earnings_analysis_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     status.emit("Fetching", f"Getting financials for {symbol}...")
 
     # Fetch financials data
-    financials = client.get("/v2/get_financials", params={
-        "symbol": symbol,
-        "quarters": quarters,
-    })
+    financials = client.get(
+        "/v2/get_financials",
+        params={
+            "symbol": symbol,
+            "quarters": quarters,
+        },
+    )
 
     financials_data = financials.get("data", financials) if financials.get("success") else {}
 
     # Also get current quote for context
     quote = client.get("/v2/get_ltp", params={"symbol": symbol})
-    quote_data = {
-        "ltp": quote.get("ltp"),
-        "change_percent": quote.get("change_percent"),
-    } if quote.get("success") else {}
+    quote_data = (
+        {
+            "ltp": quote.get("ltp"),
+            "change_percent": quote.get("change_percent"),
+        }
+        if quote.get("success")
+        else {}
+    )
 
     status.emit("Analyzing", f"Analyzing earnings for {symbol}...")
 

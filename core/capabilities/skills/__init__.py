@@ -12,18 +12,12 @@ For the skills facade:
     from Jotty.core.capabilities.skills.facade import get_registry, list_providers
 """
 
-from .facade import (
-    get_registry,
-    list_providers,
-    get_provider,
-    list_skills,
-    list_components,
-)
+from .facade import get_provider, get_registry, list_components, list_providers, list_skills
 
 __all__ = [
-    'get_registry',
-    'list_providers',
-    'get_provider',
-    'list_skills',
-    'list_components',
+    "get_registry",
+    "list_providers",
+    "get_provider",
+    "list_skills",
+    "list_components",
 ]

@@ -5,11 +5,12 @@ Comprehensive CLI Tests
 Test all Jotty CLI features for automated testing and n8n workflows.
 """
 
-import pytest
 import asyncio
 import os
 import sys
 from pathlib import Path
+
+import pytest
 
 # Add Jotty to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -22,6 +23,7 @@ class TestCLICommands:
     def cli(self):
         """Create CLI instance."""
         from Jotty.apps.cli.app import JottyCLI
+
         return JottyCLI()
 
     @pytest.mark.asyncio
@@ -67,11 +69,14 @@ class TestMLPipeline:
     @pytest.fixture
     def cli(self):
         from Jotty.apps.cli.app import JottyCLI
+
         return JottyCLI()
 
     @pytest.mark.asyncio
     @pytest.mark.slow
-    @pytest.mark.skipif(not os.getenv('ANTHROPIC_API_KEY'), reason="Requires ANTHROPIC_API_KEY for real LLM calls")
+    @pytest.mark.skipif(
+        not os.getenv("ANTHROPIC_API_KEY"), reason="Requires ANTHROPIC_API_KEY for real LLM calls"
+    )
     async def test_ml_iris(self, cli):
         """Test /ml iris (fast dataset)."""
         result = await cli.run_once("/ml iris --iterations 1")
@@ -79,7 +84,9 @@ class TestMLPipeline:
 
     @pytest.mark.asyncio
     @pytest.mark.slow
-    @pytest.mark.skipif(not os.getenv('ANTHROPIC_API_KEY'), reason="Requires ANTHROPIC_API_KEY for real LLM calls")
+    @pytest.mark.skipif(
+        not os.getenv("ANTHROPIC_API_KEY"), reason="Requires ANTHROPIC_API_KEY for real LLM calls"
+    )
     async def test_ml_wine(self, cli):
         """Test /ml wine."""
         result = await cli.run_once("/ml wine --iterations 1")
@@ -92,6 +99,7 @@ class TestFileOperations:
     @pytest.fixture
     def cli(self):
         from Jotty.apps.cli.app import JottyCLI
+
         return JottyCLI()
 
     @pytest.mark.asyncio
@@ -119,11 +127,14 @@ class TestResearch:
     @pytest.fixture
     def cli(self):
         from Jotty.apps.cli.app import JottyCLI
+
         return JottyCLI()
 
     @pytest.mark.asyncio
     @pytest.mark.slow
-    @pytest.mark.skipif(not os.getenv('ANTHROPIC_API_KEY'), reason="Requires ANTHROPIC_API_KEY for real LLM calls")
+    @pytest.mark.skipif(
+        not os.getenv("ANTHROPIC_API_KEY"), reason="Requires ANTHROPIC_API_KEY for real LLM calls"
+    )
     async def test_research_quick(self, cli):
         """Test /research with quick mode."""
         result = await cli.run_once("/research python --quick")
@@ -136,6 +147,7 @@ class TestSessionManagement:
     @pytest.fixture
     def cli(self):
         from Jotty.apps.cli.app import JottyCLI
+
         return JottyCLI()
 
     @pytest.mark.asyncio
@@ -151,6 +163,7 @@ class TestWorkflowIntegration:
     @pytest.fixture
     def cli(self):
         from Jotty.apps.cli.app import JottyCLI
+
         return JottyCLI()
 
     @pytest.mark.asyncio
@@ -187,8 +200,19 @@ class TestCommandRegistry:
         assert len(registry._commands) >= 20
 
         # Check key commands exist
-        expected = ['run', 'skills', 'agents', 'ml', 'research', 'workflow',
-                   'preview', 'browse', 'export', 'resume', 'J']
+        expected = [
+            "run",
+            "skills",
+            "agents",
+            "ml",
+            "research",
+            "workflow",
+            "preview",
+            "browse",
+            "export",
+            "resume",
+            "J",
+        ]
         for cmd in expected:
             assert registry.get(cmd) is not None, f"Command {cmd} not found"
 
@@ -201,10 +225,10 @@ class TestCommandRegistry:
         register_all_commands(registry)
 
         # Test aliases
-        assert registry.get('n8n').name == 'workflow'
-        assert registry.get('schedule').name == 'workflow'
-        assert registry.get('automl').name == 'ml'
-        assert registry.get('search').name == 'research'
+        assert registry.get("n8n").name == "workflow"
+        assert registry.get("schedule").name == "workflow"
+        assert registry.get("automl").name == "ml"
+        assert registry.get("search").name == "research"
 
 
 class TestCompleter:
@@ -212,38 +236,40 @@ class TestCompleter:
 
     def test_command_completions(self):
         """Test command completions."""
+        from prompt_toolkit.document import Document
+
         from Jotty.apps.cli.commands import register_all_commands
         from Jotty.apps.cli.commands.base import CommandRegistry
         from Jotty.apps.cli.repl.completer import CommandCompleter
-        from prompt_toolkit.document import Document
 
         registry = CommandRegistry()
         register_all_commands(registry)
         completer = CommandCompleter(registry)
 
         # Test / completions
-        doc = Document('/')
+        doc = Document("/")
         completions = list(completer.get_completions(doc, None))
         assert len(completions) > 10
 
     def test_ml_dataset_completions(self):
         """Test ML dataset completions."""
+        from prompt_toolkit.document import Document
+
         from Jotty.apps.cli.commands import register_all_commands
         from Jotty.apps.cli.commands.base import CommandRegistry
         from Jotty.apps.cli.repl.completer import CommandCompleter
-        from prompt_toolkit.document import Document
 
         registry = CommandRegistry()
         register_all_commands(registry)
         completer = CommandCompleter(registry)
 
         # Test /ml completions
-        doc = Document('/ml ')
+        doc = Document("/ml ")
         completions = list(completer.get_completions(doc, None))
         completion_texts = [c.text for c in completions]
 
-        assert 'titanic' in completion_texts
-        assert 'iris' in completion_texts
+        assert "titanic" in completion_texts
+        assert "iris" in completion_texts
 
 
 class TestAPIServer:
@@ -253,6 +279,7 @@ class TestAPIServer:
         """Test API server can be created."""
         try:
             from Jotty.apps.cli.api import JottyAPIServer
+
             server = JottyAPIServer()
             assert server.port == 8765
         except ImportError:
@@ -262,6 +289,7 @@ class TestAPIServer:
         """Test FastAPI app can be created."""
         try:
             from Jotty.apps.cli.api import JottyAPIServer
+
             server = JottyAPIServer()
             app = server.create_app()
             assert app is not None
@@ -292,6 +320,7 @@ def run_workflow_tests():
 
 if __name__ == "__main__":
     import sys
+
     if len(sys.argv) > 1:
         test_type = sys.argv[1]
         if test_type == "quick":

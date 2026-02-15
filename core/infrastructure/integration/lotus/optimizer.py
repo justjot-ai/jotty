@@ -16,13 +16,13 @@ import asyncio
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional, Callable, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from .config import LotusConfig, ModelTier
-from .model_cascade import ModelCascade, CascadeResult
-from .semantic_cache import SemanticCache
-from .batch_executor import BatchExecutor, ParallelBatchExecutor
 from .adaptive_validator import AdaptiveValidator, ValidationDecision
+from .batch_executor import BatchExecutor, ParallelBatchExecutor
+from .config import LotusConfig, ModelTier
+from .model_cascade import CascadeResult, ModelCascade
+from .semantic_cache import SemanticCache
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +30,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class OptimizationStats:
     """Aggregated optimization statistics."""
+
     total_operations: int = 0
     cache_hits: int = 0
     cascade_proxy_resolved: int = 0
@@ -92,7 +93,9 @@ class LotusOptimizer:
         stats = optimizer.get_stats()
     """
 
-    def __init__(self, config: Optional[LotusConfig] = None, lm_provider: Optional[Any] = None) -> None:
+    def __init__(
+        self, config: Optional[LotusConfig] = None, lm_provider: Optional[Any] = None
+    ) -> None:
         """
         Initialize unified optimizer.
 
@@ -262,6 +265,7 @@ class LotusOptimizer:
         Returns:
             Filtered items
         """
+
         def prompt_fn(item: Any) -> Any:
             return f"Does this satisfy the condition: {condition}?\nItem: {item}\nAnswer YES or NO:"
 

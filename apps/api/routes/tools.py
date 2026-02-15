@@ -5,17 +5,16 @@ Tool routes - export, preview, proxy, MCP, code execution, web search.
 import asyncio
 import json
 import logging
-from typing import Optional, Dict, Any, List
 from datetime import datetime
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
 
-
 def register_tools_routes(app, api):
-    from fastapi import HTTPException, WebSocket, WebSocketDisconnect, UploadFile, File, Form
-    from fastapi.responses import FileResponse, JSONResponse, StreamingResponse, HTMLResponse
+    from fastapi import File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
+    from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
     from pydantic import BaseModel
 
     @app.post("/api/export")
@@ -37,7 +36,9 @@ def register_tools_routes(app, api):
             - Detailed error messages
         """
         from starlette.responses import FileResponse
-        from .export_utils import export_content as do_export, ExportError
+
+        from .export_utils import ExportError
+        from .export_utils import export_content as do_export
 
         content = request.get("content", "")
         export_format = request.get("format", "md").lower()
@@ -50,14 +51,13 @@ def register_tools_routes(app, api):
         try:
             # Use enhanced export utilities with fallbacks and templates
             output_file, media_type = do_export(
-                content=content,
-                format=export_format,
-                filename=filename,
-                title=title
+                content=content, format=export_format, filename=filename, title=title
             )
 
             if not output_file.exists():
-                raise HTTPException(status_code=500, detail="Conversion failed - output file not created")
+                raise HTTPException(
+                    status_code=500, detail="Conversion failed - output file not created"
+                )
 
             # Add headers for inline viewing (especially for PDF)
             headers = {}
@@ -70,7 +70,7 @@ def register_tools_routes(app, api):
                 filename=output_file.name,
                 media_type=media_type,
                 headers=headers,
-                background=None  # Don't delete file immediately
+                background=None,  # Don't delete file immediately
             )
 
         except ExportError as e:
@@ -89,10 +89,11 @@ def register_tools_routes(app, api):
             content: Markdown content to preview
             format: Target format (html, docx-preview)
         """
-        from starlette.responses import HTMLResponse, PlainTextResponse
-        import tempfile
         import subprocess
+        import tempfile
         from pathlib import Path
+
+        from starlette.responses import HTMLResponse, PlainTextResponse
 
         content = request.get("content", "")
         preview_format = request.get("format", "html").lower()
@@ -108,12 +109,20 @@ def register_tools_routes(app, api):
             if preview_format == "html":
                 # Convert to standalone HTML
                 output_file = temp_dir / "preview.html"
-                subprocess.run([
-                    "pandoc", str(md_file), "-o", str(output_file),
-                    "--standalone",
-                    "--metadata", "title=Preview",
-                    "--css", "data:text/css,body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:800px;margin:40px auto;padding:20px;line-height:1.6}pre{background:%23f5f5f5;padding:16px;border-radius:8px;overflow-x:auto}code{background:%23f0f0f0;padding:2px 6px;border-radius:4px}h1,h2,h3{margin-top:24px}"
-                ], check=True)
+                subprocess.run(
+                    [
+                        "pandoc",
+                        str(md_file),
+                        "-o",
+                        str(output_file),
+                        "--standalone",
+                        "--metadata",
+                        "title=Preview",
+                        "--css",
+                        "data:text/css,body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:800px;margin:40px auto;padding:20px;line-height:1.6}pre{background:%23f5f5f5;padding:16px;border-radius:8px;overflow-x:auto}code{background:%23f0f0f0;padding:2px 6px;border-radius:4px}h1,h2,h3{margin-top:24px}",
+                    ],
+                    check=True,
+                )
                 html_content = output_file.read_text(encoding="utf-8")
                 return HTMLResponse(content=html_content)
 
@@ -123,25 +132,25 @@ def register_tools_routes(app, api):
                 docx_file = temp_dir / "preview.docx"
                 html_file = temp_dir / "preview.html"
 
-                subprocess.run([
-                    "pandoc", str(md_file), "-o", str(docx_file)
-                ], check=True)
+                subprocess.run(["pandoc", str(md_file), "-o", str(docx_file)], check=True)
 
-                subprocess.run([
-                    "pandoc", str(docx_file), "-o", str(html_file),
-                    "--standalone"
-                ], check=True)
+                subprocess.run(
+                    ["pandoc", str(docx_file), "-o", str(html_file), "--standalone"], check=True
+                )
 
                 html_content = html_file.read_text(encoding="utf-8")
                 # Extract just the body content
                 import re
-                body_match = re.search(r'<body[^>]*>(.*?)</body>', html_content, re.DOTALL)
+
+                body_match = re.search(r"<body[^>]*>(.*?)</body>", html_content, re.DOTALL)
                 if body_match:
                     return HTMLResponse(content=body_match.group(1))
                 return HTMLResponse(content=html_content)
 
             else:
-                raise HTTPException(status_code=400, detail=f"Unsupported preview format: {preview_format}")
+                raise HTTPException(
+                    status_code=400, detail=f"Unsupported preview format: {preview_format}"
+                )
 
         except subprocess.CalledProcessError as e:
             logger.error(f"Preview conversion failed: {e}")
@@ -167,35 +176,35 @@ def register_tools_routes(app, api):
             raise HTTPException(status_code=400, detail="URL is required")
 
         # Validate URL
-        if not url.startswith(('http://', 'https://')):
-            url = 'https://' + url
+        if not url.startswith(("http://", "https://")):
+            url = "https://" + url
 
         try:
             async with httpx.AsyncClient(
                 follow_redirects=True,
                 timeout=30.0,
                 headers={
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                    'Accept-Language': 'en-US,en;q=0.5',
-                }
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                    "Accept-Language": "en-US,en;q=0.5",
+                },
             ) as client:
                 response = await client.get(url)
 
                 # Get content type
-                content_type = response.headers.get('content-type', 'text/html')
+                content_type = response.headers.get("content-type", "text/html")
 
                 # Build response headers - copy safe headers, skip restrictive ones
                 safe_headers = {}
                 skip_headers = {
-                    'x-frame-options',
-                    'content-security-policy',
-                    'content-security-policy-report-only',
-                    'x-content-type-options',
-                    'strict-transport-security',
-                    'transfer-encoding',
-                    'content-encoding',
-                    'content-length',  # Will be recalculated
+                    "x-frame-options",
+                    "content-security-policy",
+                    "content-security-policy-report-only",
+                    "x-content-type-options",
+                    "strict-transport-security",
+                    "transfer-encoding",
+                    "content-encoding",
+                    "content-length",  # Will be recalculated
                 }
 
                 for key, value in response.headers.items():
@@ -204,25 +213,26 @@ def register_tools_routes(app, api):
 
                 # For HTML content, inject base tag to fix relative URLs
                 content = response.content
-                if 'text/html' in content_type:
+                if "text/html" in content_type:
                     try:
-                        html = content.decode('utf-8', errors='replace')
+                        html = content.decode("utf-8", errors="replace")
                         # Parse the base URL
                         from urllib.parse import urlparse
+
                         parsed = urlparse(url)
                         base_url = f"{parsed.scheme}://{parsed.netloc}"
 
                         # Inject base tag if not present
-                        if '<base' not in html.lower():
+                        if "<base" not in html.lower():
                             # Insert base tag after <head>
-                            if '<head>' in html:
-                                html = html.replace('<head>', f'<head><base href="{base_url}/">', 1)
-                            elif '<head ' in html:
-                                html = html.replace('<head ', f'<base href="{base_url}/"><head ', 1)
-                            elif '<HEAD>' in html:
-                                html = html.replace('<HEAD>', f'<HEAD><base href="{base_url}/">', 1)
+                            if "<head>" in html:
+                                html = html.replace("<head>", f'<head><base href="{base_url}/">', 1)
+                            elif "<head " in html:
+                                html = html.replace("<head ", f'<base href="{base_url}/"><head ', 1)
+                            elif "<HEAD>" in html:
+                                html = html.replace("<HEAD>", f'<HEAD><base href="{base_url}/">', 1)
 
-                        content = html.encode('utf-8')
+                        content = html.encode("utf-8")
                     except Exception as e:
                         logger.debug(f"Failed to inject base tag: {e}")
 
@@ -230,7 +240,7 @@ def register_tools_routes(app, api):
                     content=content,
                     status_code=response.status_code,
                     headers=safe_headers,
-                    media_type=content_type.split(';')[0]  # Just the mime type, not charset
+                    media_type=content_type.split(";")[0],  # Just the mime type, not charset
                 )
 
         except httpx.TimeoutException:
@@ -265,28 +275,41 @@ def register_tools_routes(app, api):
                             "name": t.get("name", ""),
                             "description": t.get("description", ""),
                             "inputSchema": t.get("inputSchema", {}),
-                            "enabled": True
+                            "enabled": True,
                         }
                         for t in tools
                     ],
                     "count": len(tools),
-                    "connected": True
+                    "connected": True,
                 }
             except Exception as e:
                 logger.warning(f"MCP connection failed: {e}")
                 # Return fallback tools
                 return {
                     "tools": [
-                        {"name": "create_idea", "description": "Create a new idea/note", "enabled": True},
+                        {
+                            "name": "create_idea",
+                            "description": "Create a new idea/note",
+                            "enabled": True,
+                        },
                         {"name": "list_ideas", "description": "List all ideas", "enabled": True},
-                        {"name": "search_ideas", "description": "Search ideas by query", "enabled": True},
+                        {
+                            "name": "search_ideas",
+                            "description": "Search ideas by query",
+                            "enabled": True,
+                        },
                     ],
                     "count": 3,
                     "connected": False,
-                    "error": str(e)
+                    "error": str(e),
                 }
         except ImportError:
-            return {"tools": [], "count": 0, "connected": False, "error": "MCP client not available"}
+            return {
+                "tools": [],
+                "count": 0,
+                "connected": False,
+                "error": "MCP client not available",
+            }
 
     class MCPExecuteRequest(BaseModel):
         tool_name: str
@@ -296,14 +319,14 @@ def register_tools_routes(app, api):
     async def execute_mcp_tool(request: MCPExecuteRequest):
         """Execute an MCP tool and return result."""
         import time
+
         start_time = time.time()
 
         try:
             from Jotty.core.infrastructure.integration.mcp_client import call_justjot_mcp_tool
 
             result = await call_justjot_mcp_tool(
-                tool_name=request.tool_name,
-                arguments=request.arguments
+                tool_name=request.tool_name, arguments=request.arguments
             )
 
             duration_ms = int((time.time() - start_time) * 1000)
@@ -312,7 +335,7 @@ def register_tools_routes(app, api):
                 "success": True,
                 "tool_name": request.tool_name,
                 "result": result,
-                "duration_ms": duration_ms
+                "duration_ms": duration_ms,
             }
         except Exception as e:
             logger.error(f"MCP tool execution failed: {e}")
@@ -320,7 +343,7 @@ def register_tools_routes(app, api):
                 "success": False,
                 "tool_name": request.tool_name,
                 "error": str(e),
-                "duration_ms": int((time.time() - start_time) * 1000)
+                "duration_ms": int((time.time() - start_time) * 1000),
             }
 
     # ===== ARTIFACTS ENDPOINTS =====
@@ -357,30 +380,22 @@ def register_tools_routes(app, api):
             return {
                 "type": "mermaid",
                 "content": content,
-                "render_mode": "client"  # Render on client side
+                "render_mode": "client",  # Render on client side
             }
 
         if artifact_type == "html":
             # Return HTML for sandboxed iframe
-            return {
-                "type": "html",
-                "content": content,
-                "render_mode": "iframe"
-            }
+            return {"type": "html", "content": content, "render_mode": "iframe"}
 
         if artifact_type == "svg":
-            return {
-                "type": "svg",
-                "content": content,
-                "render_mode": "inline"
-            }
+            return {"type": "svg", "content": content, "render_mode": "inline"}
 
         # Default: code block
         return {
             "type": "code",
             "content": content,
             "language": request.get("language", ""),
-            "render_mode": "highlight"
+            "render_mode": "highlight",
         }
 
     # ===== CODE INTERPRETER ENDPOINTS =====
@@ -436,14 +451,14 @@ def register_tools_routes(app, api):
             # Use existing skill directly
             import sys
             from pathlib import Path
+
             skills_path = Path(__file__).parent.parent / "skills" / "web-search"
             if str(skills_path) not in sys.path:
                 sys.path.insert(0, str(skills_path))
             from tools import search_web_tool
 
             result = await asyncio.to_thread(
-                search_web_tool,
-                {"query": request.query, "max_results": request.max_results}
+                search_web_tool, {"query": request.query, "max_results": request.max_results}
             )
 
             return result  # Already has success, results, count, query
@@ -457,14 +472,14 @@ def register_tools_routes(app, api):
         try:
             import sys
             from pathlib import Path
+
             skills_path = Path(__file__).parent.parent / "skills" / "web-search"
             if str(skills_path) not in sys.path:
                 sys.path.insert(0, str(skills_path))
             from tools import search_web_tool
 
             result = await asyncio.to_thread(
-                search_web_tool,
-                {"query": query, "max_results": max_results}
+                search_web_tool, {"query": query, "max_results": max_results}
             )
 
             return result
@@ -479,4 +494,3 @@ def register_tools_routes(app, api):
         title: Optional[str] = None
         expires_in_days: Optional[int] = None
         branch_id: str = "main"
-

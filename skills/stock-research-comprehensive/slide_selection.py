@@ -4,22 +4,24 @@ Slide Selection - Intelligent slide type selection using heuristics and LLM.
 Extracted from html_slide_generator.py.
 """
 
-import re
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+import re
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
 try:
     import dspy
+
     DSPY_AVAILABLE = True
 except ImportError:
     dspy = None
     DSPY_AVAILABLE = False
 
-from .content_analysis import ContentPattern, ContentAnalysis, ContentAnalyzer
+from .content_analysis import ContentAnalysis, ContentAnalyzer, ContentPattern
+
 
 class SlideTypeSelector:
     """
@@ -61,7 +63,7 @@ class SlideTypeSelector:
         title: str = "",
         level: int = 1,
         force_variety: bool = True,
-        preferred_types: List[str] = None
+        preferred_types: List[str] = None,
     ) -> Tuple[str, ContentAnalysis]:
         """
         Select the best slide type for given content with maximum variety.
@@ -95,8 +97,10 @@ class SlideTypeSelector:
         # Also avoid same category as last 2 slides
         if force_variety and len(self.used_types) >= 2:
             last_categories = [self._get_category(t) for t in self.used_types[-2:]]
+
             def is_different_category(t: Any) -> Any:
                 return self._get_category(t) not in last_categories
+
             filtered = [t for t in candidates if is_different_category(t)]
             if filtered:
                 candidates = filtered
@@ -128,11 +132,11 @@ class SlideTypeSelector:
     def _get_level_suggestions(self, level: int) -> List[str]:
         """Get slide type suggestions based on content level."""
         suggestions = {
-            1: ["DEFINITION", "ICON_GRID", "TWO_COLUMN"],           # Basics
-            2: ["QUOTE", "DIAGRAM", "BEFORE_AFTER"],                 # Intuition
-            3: ["FORMULA", "CODE_BLOCK", "PROCESS_STEPS"],           # Math/Technical
-            4: ["STATS_GRID", "COMPARISON_TABLE", "PROS_CONS"],      # Applications
-            5: ["ARCHITECTURE", "TIMELINE", "FLOWCHART"],            # Advanced
+            1: ["DEFINITION", "ICON_GRID", "TWO_COLUMN"],  # Basics
+            2: ["QUOTE", "DIAGRAM", "BEFORE_AFTER"],  # Intuition
+            3: ["FORMULA", "CODE_BLOCK", "PROCESS_STEPS"],  # Math/Technical
+            4: ["STATS_GRID", "COMPARISON_TABLE", "PROS_CONS"],  # Applications
+            5: ["ARCHITECTURE", "TIMELINE", "FLOWCHART"],  # Advanced
         }
         return suggestions.get(level, ["TWO_COLUMN"])
 
@@ -170,7 +174,15 @@ class SlideTypeSelector:
 
     def suggest_missing_types(self) -> List[str]:
         """Suggest slide types that haven't been used for variety."""
-        all_types = {"DIAGRAM", "STATS_GRID", "QUOTE", "TIMELINE", "BEFORE_AFTER", "CODE_BLOCK", "PROS_CONS"}
+        all_types = {
+            "DIAGRAM",
+            "STATS_GRID",
+            "QUOTE",
+            "TIMELINE",
+            "BEFORE_AFTER",
+            "CODE_BLOCK",
+            "PROS_CONS",
+        }
         used = set(self.used_types)
         missing = all_types - used
         return list(missing)[:3]
@@ -183,6 +195,7 @@ class SlideTypeSelector:
 # Ensures consistency: similar content types get similar slide formats.
 
 if DSPY_AVAILABLE:
+
     class SlideSelectionSignature(dspy.Signature):
         """Select the optimal slide type for content.
 
@@ -200,16 +213,25 @@ if DSPY_AVAILABLE:
            - Only use CHART_* if there's numerical data to visualize
         3. READABILITY: Choose formats that make content easy to understand
         """
+
         content: str = dspy.InputField(desc="The content to display on this slide")
-        content_type: str = dspy.InputField(desc="Type: concept|section|math|code|comparison|summary")
+        content_type: str = dspy.InputField(
+            desc="Type: concept|section|math|code|comparison|summary"
+        )
         title: str = dspy.InputField(desc="Slide title")
         available_types: str = dspy.InputField(desc="Comma-separated list of available slide types")
         previously_used: str = dspy.InputField(desc="Recently used types (for variety)")
 
-        slide_type: str = dspy.OutputField(desc="Selected slide type (must be from available_types)")
+        slide_type: str = dspy.OutputField(
+            desc="Selected slide type (must be from available_types)"
+        )
         reasoning: str = dspy.OutputField(desc="Brief explanation of why this type is best")
-        has_displayable_math: bool = dspy.OutputField(desc="True if content has actual LaTeX/equations to render")
-        has_displayable_code: bool = dspy.OutputField(desc="True if content has actual code to display")
+        has_displayable_math: bool = dspy.OutputField(
+            desc="True if content has actual LaTeX/equations to render"
+        )
+        has_displayable_code: bool = dspy.OutputField(
+            desc="True if content has actual code to display"
+        )
 
 
 class LLMSlideSelector:
@@ -262,7 +284,7 @@ class LLMSlideSelector:
         content: str,
         title: str,
         content_type: str = "section",
-        force_consistency: bool = True
+        force_consistency: bool = True,
     ) -> Tuple[str, Dict[str, Any]]:
         """
         Select the best slide type for content.
@@ -280,7 +302,10 @@ class LLMSlideSelector:
         if force_consistency and content_type in self.content_type_mapping:
             chosen = self.content_type_mapping[content_type]
             self.used_types.append(chosen)
-            return chosen, {"source": "consistency", "reasoning": f"Consistent with other {content_type} slides"}
+            return chosen, {
+                "source": "consistency",
+                "reasoning": f"Consistent with other {content_type} slides",
+            }
 
         if self.use_llm and self._selector:
             return self._select_with_llm(content, title, content_type)
@@ -288,10 +313,7 @@ class LLMSlideSelector:
             return self._select_with_heuristics(content, title, content_type)
 
     def _select_with_llm(
-        self,
-        content: str,
-        title: str,
-        content_type: str
+        self, content: str, title: str, content_type: str
     ) -> Tuple[str, Dict[str, Any]]:
         """Use LLM for intelligent selection."""
         try:
@@ -304,7 +326,7 @@ class LLMSlideSelector:
                 content_type=content_type,
                 title=title,
                 available_types=", ".join(available),
-                previously_used=recently_used
+                previously_used=recently_used,
             )
 
             slide_type = str(result.slide_type).upper().strip()
@@ -330,7 +352,7 @@ class LLMSlideSelector:
                 "source": "llm",
                 "reasoning": str(result.reasoning),
                 "has_math": result.has_displayable_math,
-                "has_code": result.has_displayable_code
+                "has_code": result.has_displayable_code,
             }
 
         except Exception as e:
@@ -338,10 +360,7 @@ class LLMSlideSelector:
             return self._select_with_heuristics(content, title, content_type)
 
     def _select_with_heuristics(
-        self,
-        content: str,
-        title: str,
-        content_type: str
+        self, content: str, title: str, content_type: str
     ) -> Tuple[str, Dict[str, Any]]:
         """Fallback to heuristic selection."""
         # Simple mapping based on content_type
@@ -377,12 +396,12 @@ class LLMSlideSelector:
     def _has_latex(self, content: str) -> bool:
         """Check if content has actual LaTeX math."""
         latex_patterns = [
-            r'\$[^$]+\$',  # Inline math
-            r'\$\$[^$]+\$\$',  # Display math
-            r'\\frac\{',  # Fractions
-            r'\\sum',  # Sum
-            r'\\int',  # Integral
-            r'\\alpha|\\beta|\\gamma',  # Greek letters
+            r"\$[^$]+\$",  # Inline math
+            r"\$\$[^$]+\$\$",  # Display math
+            r"\\frac\{",  # Fractions
+            r"\\sum",  # Sum
+            r"\\int",  # Integral
+            r"\\alpha|\\beta|\\gamma",  # Greek letters
         ]
         return any(re.search(p, content) for p in latex_patterns)
 
@@ -393,15 +412,17 @@ class LLMSlideSelector:
 # Inspired by Microsoft LIDA: https://github.com/microsoft/lida
 # Generates visualization goals and specs for optimal slide content
 
+
 @dataclass
 class VisualizationGoal:
     """A visualization goal inspired by LIDA's goal generation."""
-    question: str           # What question does this viz answer?
-    viz_type: str           # Recommended visualization type
-    rationale: str          # Why this visualization?
+
+    question: str  # What question does this viz answer?
+    viz_type: str  # Recommended visualization type
+    rationale: str  # Why this visualization?
     data_fields: List[str]  # What data fields are needed
-    priority: int           # 1-5, higher = more important
-    aesthetic: str          # Visual style recommendation
+    priority: int  # 1-5, higher = more important
+    aesthetic: str  # Visual style recommendation
 
 
 class VisualizationGoalGenerator:
@@ -427,7 +448,7 @@ class VisualizationGoalGenerator:
                 rationale="Side-by-side comparison maximizes contrast perception",
                 data_fields=["before_state", "after_state", "change_metric"],
                 priority=5,
-                aesthetic="split-screen with highlight colors"
+                aesthetic="split-screen with highlight colors",
             ),
             VisualizationGoal(
                 question="Which option is better and why?",
@@ -435,7 +456,7 @@ class VisualizationGoalGenerator:
                 rationale="Tables enable systematic multi-attribute comparison",
                 data_fields=["items", "attributes", "values"],
                 priority=4,
-                aesthetic="alternating rows with accent highlights"
+                aesthetic="alternating rows with accent highlights",
             ),
         ],
         "process": [
@@ -445,7 +466,7 @@ class VisualizationGoalGenerator:
                 rationale="Sequential layout matches mental model of processes",
                 data_fields=["steps", "descriptions", "icons"],
                 priority=5,
-                aesthetic="numbered cards with connecting arrows"
+                aesthetic="numbered cards with connecting arrows",
             ),
             VisualizationGoal(
                 question="How does this flow work?",
@@ -453,7 +474,7 @@ class VisualizationGoalGenerator:
                 rationale="Flowcharts show decision points and branches",
                 data_fields=["nodes", "edges", "decisions"],
                 priority=4,
-                aesthetic="clean boxes with gradient connections"
+                aesthetic="clean boxes with gradient connections",
             ),
         ],
         "quantitative": [
@@ -463,7 +484,7 @@ class VisualizationGoalGenerator:
                 rationale="Large numbers with context create instant impact",
                 data_fields=["metrics", "values", "trends"],
                 priority=5,
-                aesthetic="big bold numbers with subtle animations"
+                aesthetic="big bold numbers with subtle animations",
             ),
             VisualizationGoal(
                 question="How do values compare?",
@@ -471,7 +492,7 @@ class VisualizationGoalGenerator:
                 rationale="Bar charts are universally understood for comparison",
                 data_fields=["categories", "values", "labels"],
                 priority=4,
-                aesthetic="gradient bars with value labels"
+                aesthetic="gradient bars with value labels",
             ),
         ],
         "temporal": [
@@ -481,7 +502,7 @@ class VisualizationGoalGenerator:
                 rationale="Timelines show progression and milestones",
                 data_fields=["dates", "events", "significance"],
                 priority=5,
-                aesthetic="horizontal flow with milestone markers"
+                aesthetic="horizontal flow with milestone markers",
             ),
         ],
         "structural": [
@@ -491,7 +512,7 @@ class VisualizationGoalGenerator:
                 rationale="Architecture diagrams reveal component relationships",
                 data_fields=["components", "connections", "layers"],
                 priority=5,
-                aesthetic="layered boxes with data flow arrows"
+                aesthetic="layered boxes with data flow arrows",
             ),
             VisualizationGoal(
                 question="What are the main components?",
@@ -499,7 +520,7 @@ class VisualizationGoalGenerator:
                 rationale="Diagrams abstract complexity into visual chunks",
                 data_fields=["elements", "relationships", "annotations"],
                 priority=4,
-                aesthetic="clean shapes with labeled connections"
+                aesthetic="clean shapes with labeled connections",
             ),
         ],
         "conceptual": [
@@ -509,7 +530,7 @@ class VisualizationGoalGenerator:
                 rationale="Clear definition with context builds foundation",
                 data_fields=["term", "definition", "examples"],
                 priority=5,
-                aesthetic="centered term with supporting text"
+                aesthetic="centered term with supporting text",
             ),
             VisualizationGoal(
                 question="What are the key points?",
@@ -517,7 +538,7 @@ class VisualizationGoalGenerator:
                 rationale="Bullet points chunk information for scanning",
                 data_fields=["points", "icons", "emphasis"],
                 priority=3,
-                aesthetic="icon-prefixed points with hierarchy"
+                aesthetic="icon-prefixed points with hierarchy",
             ),
         ],
         "code": [
@@ -527,7 +548,7 @@ class VisualizationGoalGenerator:
                 rationale="Code with syntax highlighting aids comprehension",
                 data_fields=["code", "language", "annotations"],
                 priority=5,
-                aesthetic="dark theme with syntax colors"
+                aesthetic="dark theme with syntax colors",
             ),
         ],
         "mathematical": [
@@ -537,7 +558,7 @@ class VisualizationGoalGenerator:
                 rationale="Centered formula with explanation builds understanding",
                 data_fields=["formula", "variables", "derivation"],
                 priority=5,
-                aesthetic="large centered equation with variable legend"
+                aesthetic="large centered equation with variable legend",
             ),
         ],
         "evaluative": [
@@ -547,7 +568,7 @@ class VisualizationGoalGenerator:
                 rationale="Two-column layout enables balanced evaluation",
                 data_fields=["pros", "cons", "neutral"],
                 priority=5,
-                aesthetic="green/red color coding with icons"
+                aesthetic="green/red color coding with icons",
             ),
         ],
         "inspirational": [
@@ -557,7 +578,7 @@ class VisualizationGoalGenerator:
                 rationale="Featured quotes create memorable moments",
                 data_fields=["quote", "author", "context"],
                 priority=4,
-                aesthetic="large italic text with attribution"
+                aesthetic="large italic text with attribution",
             ),
         ],
     }
@@ -565,7 +586,9 @@ class VisualizationGoalGenerator:
     def __init__(self) -> None:
         self.analyzer = ContentAnalyzer()
 
-    def generate_goals(self, content: str, title: str = "", max_goals: int = 3) -> List[VisualizationGoal]:
+    def generate_goals(
+        self, content: str, title: str = "", max_goals: int = 3
+    ) -> List[VisualizationGoal]:
         """
         Generate visualization goals for content.
 
@@ -619,5 +642,3 @@ class VisualizationGoalGenerator:
         """Get the single best visualization goal for content."""
         goals = self.generate_goals(content, title, max_goals=1)
         return goals[0] if goals else self.GOAL_TEMPLATES["conceptual"][0]
-
-

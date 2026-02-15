@@ -5,21 +5,23 @@ List, trigger, monitor, and manage n8n workflows.
 Each workflow is also registered as a derived Jotty skill for planner discovery.
 """
 
+import json
+import logging
 import os
 import re
-import json
 import time
-import logging
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
 
-from Jotty.core.infrastructure.utils.env_loader import load_jotty_env
 from Jotty.core.infrastructure.utils.api_client import BaseAPIClient
-from Jotty.core.infrastructure.utils.tool_helpers import (
-    tool_response, tool_error, async_tool_wrapper
-)
+from Jotty.core.infrastructure.utils.env_loader import load_jotty_env
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import (
+    async_tool_wrapper,
+    tool_error,
+    tool_response,
+)
 
 # Load environment variables
 load_jotty_env()
@@ -32,6 +34,7 @@ logger = logging.getLogger(__name__)
 # API CLIENT
 # =============================================================================
 
+
 class N8nAPIClient(BaseAPIClient):
     """n8n REST API client using X-N8N-API-KEY header auth."""
 
@@ -43,9 +46,7 @@ class N8nAPIClient(BaseAPIClient):
 
     def __init__(self, api_key: Optional[str] = None, base_url: Optional[str] = None):
         super().__init__(api_key or os.getenv("N8N_API_KEY"))
-        self.BASE_URL = (
-            base_url or os.getenv("N8N_BASE_URL", "")
-        ).rstrip("/")
+        self.BASE_URL = (base_url or os.getenv("N8N_BASE_URL", "")).rstrip("/")
 
     def _get_headers(self) -> Dict[str, str]:
         """n8n uses X-N8N-API-KEY header instead of Authorization."""
@@ -100,6 +101,7 @@ class N8nAPIClient(BaseAPIClient):
 # WORKFLOW ANALYZER
 # =============================================================================
 
+
 class N8nWorkflowAnalyzer:
     """Classifies workflow trigger type from nodes array and produces summaries."""
 
@@ -150,6 +152,7 @@ class N8nWorkflowAnalyzer:
 # =============================================================================
 # CAPABILITY INFERRER
 # =============================================================================
+
 
 class WorkflowCapabilityInferrer:
     """Infers domain-specific capabilities from workflow metadata.
@@ -209,7 +212,9 @@ class WorkflowCapabilityInferrer:
         caps: set = {"automation"}
 
         # Signal 1: tags
-        tags = [t.get("name", "") if isinstance(t, dict) else str(t) for t in workflow.get("tags", [])]
+        tags = [
+            t.get("name", "") if isinstance(t, dict) else str(t) for t in workflow.get("tags", [])
+        ]
         for tag in tags:
             tag_lower = tag.lower()
             for key, tag_caps in cls.TAG_MAP.items():
@@ -281,6 +286,7 @@ class WorkflowCapabilityInferrer:
 # DYNAMIC SKILL REGISTRAR
 # =============================================================================
 
+
 class N8nDynamicSkillRegistrar:
     """
     Fetches all workflows and registers each as a derived SkillDefinition
@@ -323,6 +329,7 @@ class N8nDynamicSkillRegistrar:
         if registry is None:
             try:
                 from Jotty.core.capabilities.registry import get_unified_registry
+
                 registry = get_unified_registry()
             except Exception:
                 logger.debug("Could not get registry for dynamic skill registration")
@@ -351,6 +358,7 @@ class N8nDynamicSkillRegistrar:
                 async def _trigger(params: Dict[str, Any]) -> Dict[str, Any]:
                     params["workflow_id"] = wid
                     return await trigger_n8n_workflow_tool(params)
+
                 _trigger.__name__ = f"trigger_{sname.replace('-', '_')}"
                 _trigger.__doc__ = f"Trigger n8n workflow: {wname}"
                 _trigger._required_params = []
@@ -397,19 +405,23 @@ class N8nDynamicSkillRegistrar:
         for wf in workflows:
             summary = N8nWorkflowAnalyzer.summarize_workflow(wf)
             trigger_type = summary["trigger_type"]
-            tags = [t.get("name", "") if isinstance(t, dict) else str(t) for t in wf.get("tags", [])]
+            tags = [
+                t.get("name", "") if isinstance(t, dict) else str(t) for t in wf.get("tags", [])
+            ]
 
-            skills.append({
-                "skill_name": cls._workflow_to_skill_name(wf),
-                "workflow_id": wf.get("id", ""),
-                "workflow_name": wf.get("name", ""),
-                "trigger_type": trigger_type,
-                "active": wf.get("active", False),
-                "description": WorkflowCapabilityInferrer.infer_description(wf, trigger_type),
-                "capabilities": WorkflowCapabilityInferrer.infer_capabilities(wf),
-                "use_when": WorkflowCapabilityInferrer.infer_use_when(wf),
-                "tags": tags,
-            })
+            skills.append(
+                {
+                    "skill_name": cls._workflow_to_skill_name(wf),
+                    "workflow_id": wf.get("id", ""),
+                    "workflow_name": wf.get("name", ""),
+                    "trigger_type": trigger_type,
+                    "active": wf.get("active", False),
+                    "description": WorkflowCapabilityInferrer.infer_description(wf, trigger_type),
+                    "capabilities": WorkflowCapabilityInferrer.infer_capabilities(wf),
+                    "use_when": WorkflowCapabilityInferrer.infer_use_when(wf),
+                    "tags": tags,
+                }
+            )
 
         envelope = {
             "schema_version": cls.SCHEMA_VERSION,
@@ -442,7 +454,11 @@ class N8nDynamicSkillRegistrar:
             return None
 
         if data.get("schema_version") != cls.SCHEMA_VERSION:
-            logger.debug("Cache schema mismatch (got %s, want %s)", data.get("schema_version"), cls.SCHEMA_VERSION)
+            logger.debug(
+                "Cache schema mismatch (got %s, want %s)",
+                data.get("schema_version"),
+                cls.SCHEMA_VERSION,
+            )
             return None
 
         return data
@@ -464,6 +480,7 @@ class N8nDynamicSkillRegistrar:
 # =============================================================================
 # TOOL FUNCTIONS
 # =============================================================================
+
 
 def _get_client(params: Dict[str, Any]) -> tuple:
     """Get N8n client, returning (client, error) tuple."""
@@ -693,6 +710,7 @@ async def activate_n8n_workflow_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 # WORKFLOW FACTORY
 # =============================================================================
 
+
 class N8nWorkflowFactory:
     """Creates n8n workflow definitions programmatically.
 
@@ -756,8 +774,9 @@ class N8nWorkflowFactory:
         }
 
     @classmethod
-    def _http_request_node(cls, url: str, method: str = "GET",
-                           node_id: str = "http-request") -> Dict[str, Any]:
+    def _http_request_node(
+        cls, url: str, method: str = "GET", node_id: str = "http-request"
+    ) -> Dict[str, Any]:
         """Create an HTTP request node."""
         return {
             "id": node_id,
@@ -769,8 +788,9 @@ class N8nWorkflowFactory:
         }
 
     @classmethod
-    def _telegram_node(cls, message_template: str,
-                       node_id: str = "telegram-send") -> Dict[str, Any]:
+    def _telegram_node(
+        cls, message_template: str, node_id: str = "telegram-send"
+    ) -> Dict[str, Any]:
         """Create a Telegram send message node."""
         return {
             "id": node_id,
@@ -801,8 +821,13 @@ class N8nWorkflowFactory:
 
     @classmethod
     def create_schedule_to_http_to_telegram(
-        cls, name: str, cron: str, http_url: str, http_method: str,
-        message_template: str, tags: List[str],
+        cls,
+        name: str,
+        cron: str,
+        http_url: str,
+        http_method: str,
+        message_template: str,
+        tags: List[str],
     ) -> Dict[str, Any]:
         """Build: ScheduleTrigger -> HTTP Request -> Telegram."""
         wf = cls._base_workflow(name, tags)
@@ -818,8 +843,12 @@ class N8nWorkflowFactory:
 
     @classmethod
     def create_webhook_to_http_to_telegram(
-        cls, name: str, webhook_path: str, http_url: str,
-        message_template: str, tags: List[str],
+        cls,
+        name: str,
+        webhook_path: str,
+        http_url: str,
+        message_template: str,
+        tags: List[str],
     ) -> Dict[str, Any]:
         """Build: Webhook -> HTTP Request -> Telegram."""
         wf = cls._base_workflow(name, tags)
@@ -835,7 +864,11 @@ class N8nWorkflowFactory:
 
     @classmethod
     def create_schedule_to_ssh_pipeline(
-        cls, name: str, cron: str, ssh_command: str, tags: List[str],
+        cls,
+        name: str,
+        cron: str,
+        ssh_command: str,
+        tags: List[str],
     ) -> Dict[str, Any]:
         """Build: ScheduleTrigger -> SSH -> conditional Telegram on error."""
         wf = cls._base_workflow(name, tags)
@@ -1008,11 +1041,12 @@ class N8nWorkflowFactory:
 
             # Strip read-only / private fields before POST
             tag_names = wf_def.pop("_tags", [])
-            payload = {k: v for k, v in wf_def.items()
-                       if k not in cls._READ_ONLY_FIELDS}
+            payload = {k: v for k, v in wf_def.items() if k not in cls._READ_ONLY_FIELDS}
 
             create_result = client._make_request(
-                "/api/v1/workflows", method="POST", json_data=payload,
+                "/api/v1/workflows",
+                method="POST",
+                json_data=payload,
             )
             if create_result.get("success"):
                 count += 1
@@ -1030,7 +1064,8 @@ class N8nWorkflowFactory:
             else:
                 logger.warning(
                     "Failed to create workflow '%s': %s",
-                    wf_def["name"], create_result.get("error"),
+                    wf_def["name"],
+                    create_result.get("error"),
                 )
 
         # Refresh cache with all workflows (existing + new)

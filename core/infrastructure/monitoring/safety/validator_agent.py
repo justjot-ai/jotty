@@ -14,14 +14,10 @@ Acts as the "immune system" for the execution pipeline.
 """
 
 import logging
-from typing import Dict, List, Any, Optional
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 
-from .validators import (
-    SafetyConstraint,
-    ValidationResult,
-    ValidationReport
-)
+from .validators import SafetyConstraint, ValidationReport, ValidationResult
 
 logger = logging.getLogger(__name__)
 
@@ -81,17 +77,10 @@ class ValidatorAgent:
     """
 
     # Pre-execution constraints (run before task starts)
-    PRE_EXECUTION_CONSTRAINTS = [
-        'cost_budget',
-        'rate_limit',
-        'malicious_input'
-    ]
+    PRE_EXECUTION_CONSTRAINTS = ["cost_budget", "rate_limit", "malicious_input"]
 
     # Post-execution constraints (run after task completes)
-    POST_EXECUTION_CONSTRAINTS = [
-        'pii_detection',
-        'quality_threshold'
-    ]
+    POST_EXECUTION_CONSTRAINTS = ["pii_detection", "quality_threshold"]
 
     def __init__(self, constraints: List[SafetyConstraint]) -> None:
         """
@@ -104,9 +93,7 @@ class ValidatorAgent:
         self.validation_history: List[ValidationReport] = []
         self.max_history = 1000  # Keep last 1000 validations
 
-        logger.info(
-            f" ValidatorAgent initialized with {len(constraints)} constraints"
-        )
+        logger.info(f" ValidatorAgent initialized with {len(constraints)} constraints")
 
     def validate_pre_execution(self, context: Dict[str, Any]) -> ValidationReport:
         """
@@ -138,7 +125,7 @@ class ValidatorAgent:
                     results.append(result)
 
                     # Log blocking failures immediately
-                    if not result.passed and result.severity == 'blocking':
+                    if not result.passed and result.severity == "blocking":
                         logger.error(
                             f"🚨 PRE-EXECUTION BLOCKED: {constraint_name} - {result.message}"
                         )
@@ -146,14 +133,16 @@ class ValidatorAgent:
                 except Exception as e:
                     logger.exception(f"Validation error in {constraint_name}: {e}")
                     # Continue with other validators even if one fails
-                    results.append(ValidationResult(
-                        passed=False,
-                        constraint=constraint_name,
-                        message=f"Validation error: {str(e)}",
-                        severity='blocking'
-                    ))
+                    results.append(
+                        ValidationResult(
+                            passed=False,
+                            constraint=constraint_name,
+                            message=f"Validation error: {str(e)}",
+                            severity="blocking",
+                        )
+                    )
 
-        return self._generate_report(results, stage='pre_execution', context=context)
+        return self._generate_report(results, stage="pre_execution", context=context)
 
     def validate_post_execution(self, context: Dict[str, Any]) -> ValidationReport:
         """
@@ -184,27 +173,26 @@ class ValidatorAgent:
                     results.append(result)
 
                     # Log blocking failures immediately
-                    if not result.passed and result.severity == 'blocking':
+                    if not result.passed and result.severity == "blocking":
                         logger.error(
                             f"🚨 POST-EXECUTION BLOCKED: {constraint_name} - {result.message}"
                         )
 
                 except Exception as e:
                     logger.exception(f"Validation error in {constraint_name}: {e}")
-                    results.append(ValidationResult(
-                        passed=False,
-                        constraint=constraint_name,
-                        message=f"Validation error: {str(e)}",
-                        severity='blocking'
-                    ))
+                    results.append(
+                        ValidationResult(
+                            passed=False,
+                            constraint=constraint_name,
+                            message=f"Validation error: {str(e)}",
+                            severity="blocking",
+                        )
+                    )
 
-        return self._generate_report(results, stage='post_execution', context=context)
+        return self._generate_report(results, stage="post_execution", context=context)
 
     def _generate_report(
-        self,
-        results: List[ValidationResult],
-        stage: str,
-        context: Dict[str, Any]
+        self, results: List[ValidationResult], stage: str, context: Dict[str, Any]
     ) -> ValidationReport:
         """
         Generate comprehensive validation report.
@@ -218,15 +206,9 @@ class ValidatorAgent:
             ValidationReport with aggregated results
         """
         # Categorize results
-        blocking_failures = [
-            r for r in results
-            if not r.passed and r.severity == 'blocking'
-        ]
+        blocking_failures = [r for r in results if not r.passed and r.severity == "blocking"]
 
-        warnings = [
-            r for r in results
-            if not r.passed and r.severity == 'warning'
-        ]
+        warnings = [r for r in results if not r.passed and r.severity == "warning"]
 
         # Overall pass = no blocking failures
         passed = len(blocking_failures) == 0
@@ -238,9 +220,7 @@ class ValidatorAgent:
             warnings=warnings,
             total_checks=len(results),
             timestamp=datetime.now().isoformat(),
-            metadata={
-                'constraint_results': {r.constraint: r.passed for r in results}
-            }
+            metadata={"constraint_results": {r.constraint: r.passed for r in results}},
         )
 
         # Store in history (limit size)
@@ -258,9 +238,7 @@ class ValidatorAgent:
                 logger.error(f"   - {failure.constraint}: {failure.message}")
         else:
             if warnings:
-                logger.warning(
-                    f"⚠️  {stage.upper()} PASSED with {len(warnings)} warnings"
-                )
+                logger.warning(f"⚠️  {stage.upper()} PASSED with {len(warnings)} warnings")
             else:
                 logger.debug(f"✅ {stage.upper()} PASSED ({len(results)} checks)")
 
@@ -274,11 +252,7 @@ class ValidatorAgent:
             Dict with pass rate, common failures, etc.
         """
         if not self.validation_history:
-            return {
-                'total_validations': 0,
-                'pass_rate': 0.0,
-                'common_failures': []
-            }
+            return {"total_validations": 0, "pass_rate": 0.0, "common_failures": []}
 
         total = len(self.validation_history)
         passed_count = sum(1 for r in self.validation_history if r.passed)
@@ -287,25 +261,21 @@ class ValidatorAgent:
         failure_counts = {}
         for report in self.validation_history:
             for failure in report.blocking_failures:
-                failure_counts[failure.constraint] = \
-                    failure_counts.get(failure.constraint, 0) + 1
+                failure_counts[failure.constraint] = failure_counts.get(failure.constraint, 0) + 1
 
         # Sort by frequency
-        common_failures = sorted(
-            failure_counts.items(),
-            key=lambda x: x[1],
-            reverse=True
-        )[:5]  # Top 5
+        common_failures = sorted(failure_counts.items(), key=lambda x: x[1], reverse=True)[
+            :5
+        ]  # Top 5
 
         return {
-            'total_validations': total,
-            'passed': passed_count,
-            'failed': total - passed_count,
-            'pass_rate': passed_count / total,
-            'common_failures': [
-                {'constraint': name, 'count': count}
-                for name, count in common_failures
-            ]
+            "total_validations": total,
+            "passed": passed_count,
+            "failed": total - passed_count,
+            "pass_rate": passed_count / total,
+            "common_failures": [
+                {"constraint": name, "count": count} for name, count in common_failures
+            ],
         }
 
     def enable_constraint(self, constraint_name: str) -> Any:
@@ -322,14 +292,11 @@ class ValidatorAgent:
 
     def get_enabled_constraints(self) -> List[str]:
         """Get list of enabled constraint names."""
-        return [
-            name for name, c in self.constraints.items()
-            if c.enabled
-        ]
+        return [name for name, c in self.constraints.items() if c.enabled]
 
 
 # =============================================================================
 # EXPORTS
 # =============================================================================
 
-__all__ = ['ValidatorAgent']
+__all__ = ["ValidatorAgent"]

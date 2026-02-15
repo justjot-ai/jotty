@@ -15,16 +15,18 @@ Supported databases:
 - SQL Server, Oracle, BigQuery
 - Redshift, ClickHouse, Trino
 """
-from typing import Dict, Any, Optional, List, Union, Literal
-from enum import Enum
-from abc import ABC, abstractmethod
+
 import logging
+from abc import ABC, abstractmethod
+from enum import Enum
+from typing import Any, Dict, List, Literal, Optional, Union
 
 logger = logging.getLogger(__name__)
 
 
 class OutputFormat(Enum):
     """Supported DataFrame output formats."""
+
     PANDAS = "pandas"
     POLARS = "polars"
     ARROW = "arrow"
@@ -34,6 +36,7 @@ class OutputFormat(Enum):
 
 class DatabaseProtocol(Enum):
     """Database connection protocols for ConnectorX."""
+
     POSTGRESQL = "postgresql"
     MYSQL = "mysql"
     MARIADB = "mariadb"
@@ -55,7 +58,9 @@ class BaseDataLoader(ABC):
     """
 
     @abstractmethod
-    def load(self, query: str, output_format: OutputFormat = OutputFormat.PANDAS, **kwargs: Any) -> Any:
+    def load(
+        self, query: str, output_format: OutputFormat = OutputFormat.PANDAS, **kwargs: Any
+    ) -> Any:
         """
         Load query results into a DataFrame.
 
@@ -113,34 +118,44 @@ class ConnectorXLoader(BaseDataLoader):
 
     # ConnectorX protocol mapping
     PROTOCOL_MAP = {
-        'postgresql': 'postgresql',
-        'postgres': 'postgresql',
-        'pg': 'postgresql',
-        'mysql': 'mysql',
-        'mariadb': 'mariadb',
-        'sqlite': 'sqlite',
-        'mssql': 'mssql',
-        'sqlserver': 'mssql',
-        'oracle': 'oracle',
-        'bigquery': 'bigquery',
-        'redshift': 'redshift',
-        'clickhouse': 'clickhouse',
-        'trino': 'trino',
+        "postgresql": "postgresql",
+        "postgres": "postgresql",
+        "pg": "postgresql",
+        "mysql": "mysql",
+        "mariadb": "mariadb",
+        "sqlite": "sqlite",
+        "mssql": "mssql",
+        "sqlserver": "mssql",
+        "oracle": "oracle",
+        "bigquery": "bigquery",
+        "redshift": "redshift",
+        "clickhouse": "clickhouse",
+        "trino": "trino",
     }
 
     # Default ports for databases
     DEFAULT_PORTS = {
-        'postgresql': 5432,
-        'mysql': 3306,
-        'mariadb': 3306,
-        'mssql': 1433,
-        'oracle': 1521,
-        'clickhouse': 9000,
-        'trino': 8080,
-        'redshift': 5439,
+        "postgresql": 5432,
+        "mysql": 3306,
+        "mariadb": 3306,
+        "mssql": 1433,
+        "oracle": 1521,
+        "clickhouse": 9000,
+        "trino": 8080,
+        "redshift": 5439,
     }
 
-    def __init__(self, db_type: str = None, host: str = 'localhost', port: int = None, database: str = '', user: str = '', password: str = '', connection_string: str = None, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        db_type: str = None,
+        host: str = "localhost",
+        port: int = None,
+        database: str = "",
+        user: str = "",
+        password: str = "",
+        connection_string: str = None,
+        **kwargs: Any,
+    ) -> None:
         """
         Initialize ConnectorX loader.
 
@@ -169,7 +184,7 @@ class ConnectorXLoader(BaseDataLoader):
     def _normalize_db_type(self, db_type: str) -> str:
         """Normalize database type to ConnectorX protocol."""
         if not db_type:
-            return 'postgresql'
+            return "postgresql"
         db_type = db_type.lower()
         return self.PROTOCOL_MAP.get(db_type, db_type)
 
@@ -177,11 +192,10 @@ class ConnectorXLoader(BaseDataLoader):
         """Validate ConnectorX is installed."""
         try:
             import connectorx
+
             self._cx = connectorx
         except ImportError:
-            raise ImportError(
-                "ConnectorX is not installed. Install with: pip install connectorx"
-            )
+            raise ImportError("ConnectorX is not installed. Install with: pip install connectorx")
 
     def get_connection_string(self) -> str:
         """
@@ -194,12 +208,13 @@ class ConnectorXLoader(BaseDataLoader):
             return self._connection_string
 
         # Build connection string based on database type
-        if self.db_type == 'sqlite':
+        if self.db_type == "sqlite":
             return f"sqlite://{self.database}"
 
         # URL encode password for special characters
         from urllib.parse import quote_plus
-        encoded_password = quote_plus(self.password) if self.password else ''
+
+        encoded_password = quote_plus(self.password) if self.password else ""
 
         # Build standard connection string
         auth = f"{self.user}:{encoded_password}@" if self.user else ""
@@ -214,7 +229,17 @@ class ConnectorXLoader(BaseDataLoader):
 
         return conn_str
 
-    def load(self, query: str, output_format: Union[OutputFormat, str] = OutputFormat.PANDAS, partition_on: str = None, partition_num: int = None, partition_range: tuple = None, protocol: str = None, return_type: str = None, **kwargs: Any) -> Any:
+    def load(
+        self,
+        query: str,
+        output_format: Union[OutputFormat, str] = OutputFormat.PANDAS,
+        partition_on: str = None,
+        partition_num: int = None,
+        partition_range: tuple = None,
+        protocol: str = None,
+        return_type: str = None,
+        **kwargs: Any,
+    ) -> Any:
         """
         Load query results using ConnectorX.
 
@@ -243,20 +268,20 @@ class ConnectorXLoader(BaseDataLoader):
 
         # Build ConnectorX parameters
         cx_params = {
-            'conn': conn_str,
-            'query': query,
-            'return_type': self._get_cx_return_type(output_format),
+            "conn": conn_str,
+            "query": query,
+            "return_type": self._get_cx_return_type(output_format),
         }
 
         # Add partitioning options for parallel loading
         if partition_on:
-            cx_params['partition_on'] = partition_on
+            cx_params["partition_on"] = partition_on
         if partition_num:
-            cx_params['partition_num'] = partition_num
+            cx_params["partition_num"] = partition_num
         if partition_range:
-            cx_params['partition_range'] = partition_range
+            cx_params["partition_range"] = partition_range
         if protocol:
-            cx_params['protocol'] = protocol
+            cx_params["protocol"] = protocol
 
         # Add any extra kwargs
         cx_params.update(kwargs)
@@ -274,15 +299,22 @@ class ConnectorXLoader(BaseDataLoader):
     def _get_cx_return_type(self, output_format: OutputFormat) -> str:
         """Map OutputFormat to ConnectorX return_type."""
         mapping = {
-            OutputFormat.PANDAS: 'pandas',
-            OutputFormat.POLARS: 'polars',
-            OutputFormat.ARROW: 'arrow',
-            OutputFormat.MODIN: 'modin',
-            OutputFormat.DASK: 'dask',
+            OutputFormat.PANDAS: "pandas",
+            OutputFormat.POLARS: "polars",
+            OutputFormat.ARROW: "arrow",
+            OutputFormat.MODIN: "modin",
+            OutputFormat.DASK: "dask",
         }
-        return mapping.get(output_format, 'pandas')
+        return mapping.get(output_format, "pandas")
 
-    def load_parallel(self, query: str, partition_column: str, num_partitions: int = 4, output_format: OutputFormat = OutputFormat.PANDAS, **kwargs: Any) -> Any:
+    def load_parallel(
+        self,
+        query: str,
+        partition_column: str,
+        num_partitions: int = 4,
+        output_format: OutputFormat = OutputFormat.PANDAS,
+        **kwargs: Any,
+    ) -> Any:
         """
         Load query results with automatic parallel partitioning.
 
@@ -303,7 +335,7 @@ class ConnectorXLoader(BaseDataLoader):
             output_format=output_format,
             partition_on=partition_column,
             partition_num=num_partitions,
-            **kwargs
+            **kwargs,
         )
 
     def test_connection(self) -> Dict[str, Any]:
@@ -339,19 +371,25 @@ class DataLoaderFactory:
 
     # Databases supported by ConnectorX
     CONNECTORX_SUPPORTED = {
-        'postgresql', 'postgres', 'pg',
-        'mysql', 'mariadb',
-        'sqlite',
-        'mssql', 'sqlserver',
-        'oracle',
-        'bigquery',
-        'redshift',
-        'clickhouse',
-        'trino',
+        "postgresql",
+        "postgres",
+        "pg",
+        "mysql",
+        "mariadb",
+        "sqlite",
+        "mssql",
+        "sqlserver",
+        "oracle",
+        "bigquery",
+        "redshift",
+        "clickhouse",
+        "trino",
     }
 
     @classmethod
-    def create(cls, db_type: str, use_connectorx: bool = True, **connection_params: Any) -> BaseDataLoader:
+    def create(
+        cls, db_type: str, use_connectorx: bool = True, **connection_params: Any
+    ) -> BaseDataLoader:
         """
         Create a data loader for the given database type.
 
@@ -363,7 +401,7 @@ class DataLoaderFactory:
         Returns:
             Appropriate DataLoader instance
         """
-        db_type_lower = db_type.lower() if db_type else 'postgresql'
+        db_type_lower = db_type.lower() if db_type else "postgresql"
 
         # Use ConnectorX for supported databases
         if use_connectorx and db_type_lower in cls.CONNECTORX_SUPPORTED:
@@ -389,16 +427,26 @@ class SQLAlchemyLoader(BaseDataLoader):
     """
 
     DRIVER_MAP = {
-        'postgresql': 'postgresql+psycopg2',
-        'mysql': 'mysql+pymysql',
-        'sqlite': 'sqlite',
-        'mssql': 'mssql+pymssql',
-        'oracle': 'oracle+oracledb',
+        "postgresql": "postgresql+psycopg2",
+        "mysql": "mysql+pymysql",
+        "sqlite": "sqlite",
+        "mssql": "mssql+pymssql",
+        "oracle": "oracle+oracledb",
     }
 
-    def __init__(self, db_type: str = None, host: str = 'localhost', port: int = None, database: str = '', user: str = '', password: str = '', connection_string: str = None, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        db_type: str = None,
+        host: str = "localhost",
+        port: int = None,
+        database: str = "",
+        user: str = "",
+        password: str = "",
+        connection_string: str = None,
+        **kwargs: Any,
+    ) -> None:
         """Initialize SQLAlchemy loader."""
-        self.db_type = db_type or 'postgresql'
+        self.db_type = db_type or "postgresql"
         self.host = host
         self.port = port
         self.database = database
@@ -417,10 +465,10 @@ class SQLAlchemyLoader(BaseDataLoader):
 
         driver = self.DRIVER_MAP.get(self.db_type, self.db_type)
 
-        if self.db_type == 'sqlite':
+        if self.db_type == "sqlite":
             return f"sqlite:///{self.database}"
 
-        encoded_password = quote_plus(self.password) if self.password else ''
+        encoded_password = quote_plus(self.password) if self.password else ""
         port_str = f":{self.port}" if self.port else ""
 
         return f"{driver}://{self.user}:{encoded_password}@{self.host}{port_str}/{self.database}"
@@ -430,10 +478,16 @@ class SQLAlchemyLoader(BaseDataLoader):
         """Get or create SQLAlchemy engine."""
         if self._engine is None:
             from sqlalchemy import create_engine
+
             self._engine = create_engine(self.get_connection_string())
         return self._engine
 
-    def load(self, query: str, output_format: Union[OutputFormat, str] = OutputFormat.PANDAS, **kwargs: Any) -> Any:
+    def load(
+        self,
+        query: str,
+        output_format: Union[OutputFormat, str] = OutputFormat.PANDAS,
+        **kwargs: Any,
+    ) -> Any:
         """Load query results using Pandas read_sql."""
         import pandas as pd
 
@@ -445,9 +499,11 @@ class SQLAlchemyLoader(BaseDataLoader):
 
         if output_format == OutputFormat.POLARS:
             import polars as pl
+
             return pl.from_pandas(df)
         elif output_format == OutputFormat.ARROW:
             import pyarrow as pa
+
             return pa.Table.from_pandas(df)
 
         return df
@@ -456,6 +512,7 @@ class SQLAlchemyLoader(BaseDataLoader):
         """Test database connection."""
         try:
             from sqlalchemy import text
+
             with self.engine.connect() as conn:
                 conn.execute(text("SELECT 1"))
             return {"success": True, "message": "Connection successful"}
@@ -464,10 +521,10 @@ class SQLAlchemyLoader(BaseDataLoader):
 
 
 __all__ = [
-    'BaseDataLoader',
-    'ConnectorXLoader',
-    'SQLAlchemyLoader',
-    'DataLoaderFactory',
-    'OutputFormat',
-    'DatabaseProtocol',
+    "BaseDataLoader",
+    "ConnectorXLoader",
+    "SQLAlchemyLoader",
+    "DataLoaderFactory",
+    "OutputFormat",
+    "DatabaseProtocol",
 ]

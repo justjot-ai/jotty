@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Fix broken imports in mixin files."""
 
-from pathlib import Path
 import re
+from pathlib import Path
 
 files_to_fix = [
     "core/intelligence/orchestration/_session_mixin.py",
@@ -39,55 +39,60 @@ for file_path in files_to_fix:
         continue
 
     content = p.read_text()
-    lines = content.split('\n')
+    lines = content.split("\n")
 
     # Find and fix broken first line
     fixed_lines = []
     i = 0
 
     # Handle broken future import
-    if i < len(lines) and 'from __future__' in lines[i]:
+    if i < len(lines) and "from __future__" in lines[i]:
         # Clean up the line - extract everything after 'from __future__'
         line = lines[i]
-        if 'from __future__ from pathlib' in line or 'from __future__ from typing' in line:
+        if "from __future__ from pathlib" in line or "from __future__ from typing" in line:
             # This line is broken, replace with correct future import
-            fixed_lines.append('from __future__ import annotations')
+            fixed_lines.append("from __future__ import annotations")
             i += 1
-        elif line.strip() == 'from __future__ import annotations':
+        elif line.strip() == "from __future__ import annotations":
             fixed_lines.append(line)
             i += 1
         else:
-            fixed_lines.append('from __future__ import annotations')
+            fixed_lines.append("from __future__ import annotations")
             i += 1
     else:
         # Add future import if missing
-        fixed_lines.append('from __future__ import annotations')
+        fixed_lines.append("from __future__ import annotations")
 
     # Skip broken lines (like "import annotations", "import Path" alone)
     while i < len(lines) and (
-        lines[i].strip() in ['import annotations', 'import Path', ''] or
-        lines[i].strip().startswith('#')
+        lines[i].strip() in ["import annotations", "import Path", ""]
+        or lines[i].strip().startswith("#")
     ):
-        if lines[i].strip() == '':
-            fixed_lines.append('')
+        if lines[i].strip() == "":
+            fixed_lines.append("")
         i += 1
 
     # Add the rest
     fixed_lines.extend(lines[i:])
 
     # Now ensure we have the necessary imports
-    new_content = '\n'.join(fixed_lines)
+    new_content = "\n".join(fixed_lines)
 
     # Add pathlib if needed
-    if 'from pathlib import Path' not in new_content:
+    if "from pathlib import Path" not in new_content:
         # Find where to insert (after __future__, before other imports)
-        lines = new_content.split('\n')
+        lines = new_content.split("\n")
         for idx, line in enumerate(lines):
-            if line.startswith('"""') or line.startswith('import ') or line.startswith('from ') and '__future__' not in line:
-                lines.insert(idx, 'from pathlib import Path')
-                lines.insert(idx+1, '')
+            if (
+                line.startswith('"""')
+                or line.startswith("import ")
+                or line.startswith("from ")
+                and "__future__" not in line
+            ):
+                lines.insert(idx, "from pathlib import Path")
+                lines.insert(idx + 1, "")
                 break
-        new_content = '\n'.join(lines)
+        new_content = "\n".join(lines)
 
     # Write back
     p.write_text(new_content)

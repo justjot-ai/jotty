@@ -4,16 +4,21 @@ Skill Creator Skill - Help create new Jotty skills.
 Generates templates, validates structure, and provides guidance
 for creating effective Jotty skills.
 """
+
 import asyncio
 import logging
-import re
-from pathlib import Path
-from typing import Dict, Any, Optional, List
-from datetime import datetime
 import os
+import re
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
+from Jotty.core.infrastructure.utils.tool_helpers import (
+    async_tool_wrapper,
+    tool_error,
+    tool_response,
+)
 
 # Status emitter for progress updates
 status = SkillStatus("skill-creator")
@@ -26,7 +31,7 @@ logger = logging.getLogger(__name__)
 async def create_skill_template_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Create a new skill template with proper structure.
-    
+
     Args:
         params:
             - skill_name (str): Name of skill (kebab-case)
@@ -34,45 +39,36 @@ async def create_skill_template_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - output_directory (str, optional): Output directory
             - include_tools (bool, optional): Include tools.py
             - include_requirements (bool, optional): Include requirements.txt
-    
+
     Returns:
         Dictionary with created files and paths
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
-    skill_name = params.get('skill_name', '')
-    description = params.get('description', '')
-    output_directory = params.get('output_directory', 'skills')
-    include_tools = params.get('include_tools', True)
-    include_requirements = params.get('include_requirements', True)
-    
+    skill_name = params.get("skill_name", "")
+    description = params.get("description", "")
+    output_directory = params.get("output_directory", "skills")
+    include_tools = params.get("include_tools", True)
+    include_requirements = params.get("include_requirements", True)
+
     if not skill_name:
-        return {
-            'success': False,
-            'error': 'skill_name is required'
-        }
-    
+        return {"success": False, "error": "skill_name is required"}
+
     if not description:
-        return {
-            'success': False,
-            'error': 'description is required'
-        }
-    
+        return {"success": False, "error": "description is required"}
+
     # Validate skill name (kebab-case)
-    if not re.match(r'^[a-z0-9]+(?:-[a-z0-9]+)*$', skill_name):
-        return {
-            'success': False,
-            'error': 'skill_name must be in kebab-case (e.g., my-skill-name)'
-        }
-    
+    if not re.match(r"^[a-z0-9]+(?:-[a-z0-9]+)*$", skill_name):
+        return {"success": False, "error": "skill_name must be in kebab-case (e.g., my-skill-name)"}
+
     try:
         # Create skill directory
         output_path = Path(os.path.expanduser(output_directory))
         skill_path = output_path / skill_name
         skill_path.mkdir(parents=True, exist_ok=True)
-        
+
         files_created = []
-        
+
         # Create SKILL.md
         skill_md_content = f"""# {skill_name.replace('-', ' ').title()} Skill
 
@@ -112,11 +108,11 @@ result = await tool_name_tool({{
 - `dependency1`: For feature X
 - `dependency2`: For feature Y
 """
-        
-        skill_md_path = skill_path / 'SKILL.md'
-        skill_md_path.write_text(skill_md_content, encoding='utf-8')
-        files_created.append('SKILL.md')
-        
+
+        skill_md_path = skill_path / "SKILL.md"
+        skill_md_path.write_text(skill_md_content, encoding="utf-8")
+        files_created.append("SKILL.md")
+
         # Create tools.py if requested
         if include_tools:
             tools_content = f'''"""
@@ -137,34 +133,34 @@ logger = logging.getLogger(__name__)
 async def tool_name_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     [Tool description]
-    
+
     Args:
         params:
             - param1 (type): Description
             - param2 (type, optional): Description
-    
+
     Returns:
         Dictionary with results
     """
     status.set_callback(params.pop('_status_callback', None))
 
     param1 = params.get('param1')
-    
+
     if not param1:
         return {{
             'success': False,
             'error': 'param1 is required'
         }}
-    
+
     try:
         # Implementation here
         result = {{'data': 'example'}}
-        
+
         return {{
             'success': True,
             'result': result
         }}
-        
+
     except Exception as e:
         logger.error(f"Tool execution failed: {{e}}", exc_info=True)
         return {{
@@ -172,11 +168,11 @@ async def tool_name_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             'error': str(e)
         }}
 '''
-            
-            tools_path = skill_path / 'tools.py'
-            tools_path.write_text(tools_content, encoding='utf-8')
-            files_created.append('tools.py')
-        
+
+            tools_path = skill_path / "tools.py"
+            tools_path.write_text(tools_content, encoding="utf-8")
+            files_created.append("tools.py")
+
         # Create requirements.txt if requested
         if include_requirements:
             requirements_content = """# Add your Python dependencies here
@@ -184,102 +180,84 @@ async def tool_name_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 # requests>=2.31.0
 # pandas>=2.0.0
 """
-            
-            requirements_path = skill_path / 'requirements.txt'
-            requirements_path.write_text(requirements_content, encoding='utf-8')
-            files_created.append('requirements.txt')
-        
-        return {
-            'success': True,
-            'skill_path': str(skill_path),
-            'files_created': files_created
-        }
-        
+
+            requirements_path = skill_path / "requirements.txt"
+            requirements_path.write_text(requirements_content, encoding="utf-8")
+            files_created.append("requirements.txt")
+
+        return {"success": True, "skill_path": str(skill_path), "files_created": files_created}
+
     except Exception as e:
         logger.error(f"Skill creation failed: {e}", exc_info=True)
-        return {
-            'success': False,
-            'error': str(e)
-        }
+        return {"success": False, "error": str(e)}
 
 
 @async_tool_wrapper()
 async def validate_skill_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Validate an existing skill's structure and metadata.
-    
+
     Args:
         params:
             - skill_path (str): Path to skill directory
-    
+
     Returns:
         Dictionary with validation results
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
-    skill_path = params.get('skill_path', '')
-    
+    skill_path = params.get("skill_path", "")
+
     if not skill_path:
-        return {
-            'success': False,
-            'error': 'skill_path is required'
-        }
-    
+        return {"success": False, "error": "skill_path is required"}
+
     skill_dir = Path(os.path.expanduser(skill_path))
-    
+
     if not skill_dir.exists():
-        return {
-            'success': False,
-            'error': f'Skill directory not found: {skill_path}'
-        }
-    
+        return {"success": False, "error": f"Skill directory not found: {skill_path}"}
+
     issues = []
     warnings = []
-    
+
     # Check for SKILL.md
-    skill_md = skill_dir / 'SKILL.md'
+    skill_md = skill_dir / "SKILL.md"
     if not skill_md.exists():
-        issues.append('SKILL.md is missing (required)')
+        issues.append("SKILL.md is missing (required)")
     else:
         # Validate SKILL.md content
-        content = skill_md.read_text(encoding='utf-8')
-        
+        content = skill_md.read_text(encoding="utf-8")
+
         # Check for YAML frontmatter
-        if not content.startswith('---'):
-            issues.append('SKILL.md missing YAML frontmatter')
+        if not content.startswith("---"):
+            issues.append("SKILL.md missing YAML frontmatter")
         else:
             # Extract frontmatter
-            parts = content.split('---', 2)
+            parts = content.split("---", 2)
             if len(parts) >= 3:
                 frontmatter = parts[1]
-                
+
                 # Check for name
-                if 'name:' not in frontmatter:
+                if "name:" not in frontmatter:
                     issues.append('YAML frontmatter missing "name" field')
-                
+
                 # Check for description
-                if 'description:' not in frontmatter:
+                if "description:" not in frontmatter:
                     issues.append('YAML frontmatter missing "description" field')
-    
+
     # Check for tools.py (optional but recommended)
-    tools_py = skill_dir / 'tools.py'
+    tools_py = skill_dir / "tools.py"
     if not tools_py.exists():
-        warnings.append('tools.py not found (recommended for Jotty skills)')
-    
+        warnings.append("tools.py not found (recommended for Jotty skills)")
+
     # Check for requirements.txt (optional)
-    requirements_txt = skill_dir / 'requirements.txt'
+    requirements_txt = skill_dir / "requirements.txt"
     if not requirements_txt.exists():
-        warnings.append('requirements.txt not found (optional but recommended)')
-    
+        warnings.append("requirements.txt not found (optional but recommended)")
+
     # Validate skill name matches directory name
-    if skill_dir.name != skill_dir.name.lower().replace('_', '-'):
-        warnings.append(f'Skill directory name should be kebab-case: {skill_dir.name}')
-    
+    if skill_dir.name != skill_dir.name.lower().replace("_", "-"):
+        warnings.append(f"Skill directory name should be kebab-case: {skill_dir.name}")
+
     valid = len(issues) == 0
-    
-    return {
-        'success': True,
-        'valid': valid,
-        'issues': issues,
-        'warnings': warnings
-    }
+
+    return {"success": True, "valid": valid, "issues": issues, "warnings": warnings}

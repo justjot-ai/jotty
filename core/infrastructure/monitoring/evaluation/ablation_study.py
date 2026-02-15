@@ -4,13 +4,14 @@ Ablation Study Framework
 Systematic evaluation of component contributions and hyperparameter tuning.
 Based on OAgents empirical validation approach.
 """
+
 import copy
 import itertools
 import logging
 import random
-from typing import Dict, List, Any, Optional, Callable
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Any, Callable, Dict, List, Optional
 
 from .benchmark import Benchmark, BenchmarkMetrics
 from .evaluation_protocol import EvaluationProtocol, EvaluationReport
@@ -20,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 class ComponentType(Enum):
     """Type of component for ablation."""
+
     FEATURE = "feature"  # Optional feature (can be disabled)
     MODULE = "module"  # Module/component (can be removed)
     CONFIG = "config"  # Configuration option (can be changed)
@@ -28,6 +30,7 @@ class ComponentType(Enum):
 @dataclass
 class ComponentContribution:
     """Contribution of a component to performance."""
+
     component_name: str
     component_type: ComponentType
     baseline_pass_rate: float
@@ -36,7 +39,7 @@ class ComponentContribution:
     contribution_percent: float  # Percentage change
     cost_impact: float  # Cost difference
     execution_time_impact: float  # Execution time difference
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
         return {
@@ -54,11 +57,12 @@ class ComponentContribution:
 @dataclass
 class AblationResult:
     """Result of ablation study."""
+
     study_name: str
     baseline_report: EvaluationReport
     component_contributions: List[ComponentContribution]
     recommendations: List[str] = field(default_factory=list)
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
         return {
@@ -72,12 +76,12 @@ class AblationResult:
 class AblationStudy:
     """
     Systematic ablation study framework.
-    
+
     Tests each component's contribution by:
     1. Running baseline (all components enabled)
     2. Running with component disabled/removed
     3. Comparing results
-    
+
     Usage:
         study = AblationStudy(
             benchmark=benchmark,
@@ -87,15 +91,23 @@ class AblationStudy:
                 {"name": "memory", "disable": lambda c: setattr(c, 'enable_memory', False)},
             ]
         )
-        
+
         result = study.run()
         print(f"Learning contribution: {result.component_contributions[0].contribution:.2%}")
     """
-    
-    def __init__(self, benchmark: Benchmark, agent_factory: Callable[[Any], Any], components: List[Dict[str, Any]], n_runs: int = 5, random_seed: int = 42, baseline_config: Optional[Any] = None) -> None:
+
+    def __init__(
+        self,
+        benchmark: Benchmark,
+        agent_factory: Callable[[Any], Any],
+        components: List[Dict[str, Any]],
+        n_runs: int = 5,
+        random_seed: int = 42,
+        baseline_config: Optional[Any] = None,
+    ) -> None:
         """
         Initialize ablation study.
-        
+
         Args:
             benchmark: Benchmark to use
             agent_factory: Function that creates agent from config
@@ -113,57 +125,59 @@ class AblationStudy:
         self.n_runs = n_runs
         self.random_seed = random_seed
         self.baseline_config = baseline_config
-    
+
     def run(self) -> AblationResult:
         """
         Run ablation study.
-        
+
         Returns:
             AblationResult with component contributions
         """
         logger.info(f"Starting ablation study on {self.benchmark.name}")
-        
+
         # Run baseline
         logger.info("Running baseline (all components enabled)...")
         baseline_agent = self.agent_factory(self.baseline_config)
         baseline_protocol = EvaluationProtocol(
-            benchmark=self.benchmark,
-            n_runs=self.n_runs,
-            random_seed=self.random_seed
+            benchmark=self.benchmark, n_runs=self.n_runs, random_seed=self.random_seed
         )
         baseline_report = baseline_protocol.evaluate(baseline_agent, save_results=False)
-        
+
         logger.info(f"Baseline pass rate: {baseline_report.mean_pass_rate:.2%}")
-        
+
         # Test each component
         contributions: List[ComponentContribution] = []
-        
+
         for component in self.components:
-            component_name = component['name']
-            disable_func = component['disable']
-            component_type = component.get('type', ComponentType.FEATURE)
-            
+            component_name = component["name"]
+            disable_func = component["disable"]
+            component_type = component.get("type", ComponentType.FEATURE)
+
             logger.info(f"Testing component: {component_name}")
-            
+
             # Create ablated config
             ablated_config = self._create_ablated_config(disable_func)
-            
+
             # Run ablated evaluation
             ablated_agent = self.agent_factory(ablated_config)
             ablated_protocol = EvaluationProtocol(
-                benchmark=self.benchmark,
-                n_runs=self.n_runs,
-                random_seed=self.random_seed
+                benchmark=self.benchmark, n_runs=self.n_runs, random_seed=self.random_seed
             )
             ablated_report = ablated_protocol.evaluate(ablated_agent, save_results=False)
-            
+
             # Calculate contribution
             contribution = baseline_report.mean_pass_rate - ablated_report.mean_pass_rate
-            contribution_percent = (contribution / baseline_report.mean_pass_rate * 100) if baseline_report.mean_pass_rate > 0 else 0.0
-            
+            contribution_percent = (
+                (contribution / baseline_report.mean_pass_rate * 100)
+                if baseline_report.mean_pass_rate > 0
+                else 0.0
+            )
+
             cost_impact = ablated_report.mean_cost - baseline_report.mean_cost
-            execution_time_impact = ablated_report.mean_execution_time - baseline_report.mean_execution_time
-            
+            execution_time_impact = (
+                ablated_report.mean_execution_time - baseline_report.mean_execution_time
+            )
+
             contrib = ComponentContribution(
                 component_name=component_name,
                 component_type=component_type,
@@ -172,52 +186,52 @@ class AblationStudy:
                 contribution=contribution,
                 contribution_percent=contribution_percent,
                 cost_impact=cost_impact,
-                execution_time_impact=execution_time_impact
+                execution_time_impact=execution_time_impact,
             )
-            
+
             contributions.append(contrib)
-            
+
             logger.info(
                 f"Component {component_name}: "
                 f"contribution={contribution:.2%}, "
                 f"cost_impact=${cost_impact:.4f}"
             )
-        
+
         # Generate recommendations
         recommendations = self._generate_recommendations(contributions, baseline_report)
-        
+
         return AblationResult(
             study_name=f"{self.benchmark.name}_ablation",
             baseline_report=baseline_report,
             component_contributions=contributions,
-            recommendations=recommendations
+            recommendations=recommendations,
         )
-    
+
     def _create_ablated_config(self, disable_func: Callable) -> Any:
         """Create ablated configuration."""
         # Create copy of baseline config
         if self.baseline_config is None:
             # Create default config
             from ..foundation.data_structures import SwarmLearningConfig
+
             config = SwarmConfig()
         else:
             # Copy config (simple copy for now)
             import copy
+
             config = copy.deepcopy(self.baseline_config)
-        
+
         # Apply disable function
         disable_func(config)
-        
+
         return config
-    
+
     def _generate_recommendations(
-        self,
-        contributions: List[ComponentContribution],
-        baseline_report: EvaluationReport
+        self, contributions: List[ComponentContribution], baseline_report: EvaluationReport
     ) -> List[str]:
         """Generate recommendations based on ablation results."""
         recommendations = []
-        
+
         # Find components with negative contribution (hurt performance)
         negative_contribs = [c for c in contributions if c.contribution < -0.01]
         if negative_contribs:
@@ -225,7 +239,7 @@ class AblationStudy:
                 f"Consider disabling {len(negative_contribs)} component(s) that hurt performance: "
                 f"{', '.join(c.component_name for c in negative_contribs)}"
             )
-        
+
         # Find components with minimal contribution (< 1%)
         minimal_contribs = [c for c in contributions if abs(c.contribution) < 0.01]
         if minimal_contribs:
@@ -234,7 +248,7 @@ class AblationStudy:
                 f"{', '.join(c.component_name for c in minimal_contribs)}. "
                 f"Consider removing for simplicity."
             )
-        
+
         # Find high-cost components
         high_cost = [c for c in contributions if c.cost_impact > 0.1]
         if high_cost:
@@ -243,7 +257,7 @@ class AblationStudy:
                 f"{', '.join(c.component_name for c in high_cost)}. "
                 f"Consider optimizing or disabling if not critical."
             )
-        
+
         # Find critical components (>5% contribution)
         critical = [c for c in contributions if c.contribution > 0.05]
         if critical:
@@ -264,6 +278,7 @@ class AblationStudy:
 @dataclass
 class ConfigSearchGroup:
     """Defines one tunable parameter group for hyperparameter sweeps."""
+
     name: str
     params: Dict[str, List[Any]]
     constraints: List[Callable] = field(default_factory=list)
@@ -281,6 +296,7 @@ class ConfigSearchGroup:
 @dataclass
 class ConfigTrialResult:
     """Result from evaluating one config variant."""
+
     config_overrides: Dict[str, Any]
     group_name: str
     report: EvaluationReport
@@ -299,6 +315,7 @@ class ConfigTrialResult:
 @dataclass
 class TuningResult:
     """Full tuning study result."""
+
     baseline_report: EvaluationReport
     trials: List[ConfigTrialResult]
     best_trial: Optional[ConfigTrialResult]
@@ -403,9 +420,7 @@ DEFAULT_SEARCH_GROUPS: List[ConfigSearchGroup] = [
             "max_actor_iters": [25, 50, 100],
             "llm_timeout_seconds": [60.0, 180.0, 300.0],
         },
-        constraints=[
-            lambda c: c["max_llm_calls_per_agent"] <= c["max_llm_calls_per_episode"]
-        ],
+        constraints=[lambda c: c["max_llm_calls_per_agent"] <= c["max_llm_calls_per_episode"]],
         target_metric="pass_rate",
     ),
 ]
@@ -435,7 +450,18 @@ class ConfigTuner:
         "speed": 0.15,
     }
 
-    def __init__(self, benchmark: Benchmark, agent_factory: Callable[[Any], Any], search_groups: Optional[List[ConfigSearchGroup]] = None, n_runs: int = 3, strategy: str = 'random', max_trials: int = 50, objective_weights: Optional[Dict[str, float]] = None, baseline_config: Optional[Any] = None, random_seed: int = 42) -> None:
+    def __init__(
+        self,
+        benchmark: Benchmark,
+        agent_factory: Callable[[Any], Any],
+        search_groups: Optional[List[ConfigSearchGroup]] = None,
+        n_runs: int = 3,
+        strategy: str = "random",
+        max_trials: int = 50,
+        objective_weights: Optional[Dict[str, float]] = None,
+        baseline_config: Optional[Any] = None,
+        random_seed: int = 42,
+    ) -> None:
         """
         Initialize ConfigTuner.
 
@@ -488,9 +514,7 @@ class ConfigTuner:
         best_trial = max(all_trials, key=lambda t: t.composite_score) if all_trials else None
 
         # Generate recommendations
-        recommendations = self._generate_recommendations(
-            baseline_report, all_trials, best_trial
-        )
+        recommendations = self._generate_recommendations(baseline_report, all_trials, best_trial)
 
         return TuningResult(
             baseline_report=baseline_report,
@@ -535,9 +559,7 @@ class ConfigTuner:
         results.sort(key=lambda t: t.composite_score, reverse=True)
         return results
 
-    def _tune_sequential(
-        self, baseline_report: EvaluationReport
-    ) -> List[ConfigTrialResult]:
+    def _tune_sequential(self, baseline_report: EvaluationReport) -> List[ConfigTrialResult]:
         """
         Tune groups sequentially — carry best overrides forward.
 
@@ -587,18 +609,14 @@ class ConfigTuner:
         param_values = list(group.params.values())
 
         if self.strategy == "grid":
-            combos = [
-                dict(zip(param_names, vals))
-                for vals in itertools.product(*param_values)
-            ]
+            combos = [dict(zip(param_names, vals)) for vals in itertools.product(*param_values)]
         else:
             # random (also used as inner sampler for sequential)
             rng = random.Random(self.random_seed)
             combos = []
             for _ in range(self.max_trials):
                 combo = {
-                    name: rng.choice(values)
-                    for name, values in zip(param_names, param_values)
+                    name: rng.choice(values) for name, values in zip(param_names, param_values)
                 }
                 combos.append(combo)
 
@@ -621,6 +639,7 @@ class ConfigTuner:
         """Build a SwarmConfig with the given overrides applied."""
         if self.baseline_config is None:
             from ..foundation.data_structures import SwarmLearningConfig
+
             config = SwarmConfig()
         else:
             config = copy.deepcopy(self.baseline_config)
@@ -660,9 +679,7 @@ class ConfigTuner:
         return (w_pass * report.mean_pass_rate) - (w_cost * norm_cost) - (w_speed * norm_time)
 
     @staticmethod
-    def _check_constraints(
-        overrides: Dict[str, Any], constraints: List[Callable]
-    ) -> bool:
+    def _check_constraints(overrides: Dict[str, Any], constraints: List[Callable]) -> bool:
         """Check whether a config override dict satisfies all constraints."""
         for constraint in constraints:
             try:
@@ -693,9 +710,7 @@ class ConfigTuner:
                 f"Best trial ({best_trial.group_name}) improved composite score "
                 f"by {improvement:.4f} over baseline."
             )
-            recommendations.append(
-                f"Recommended overrides: {best_trial.config_overrides}"
-            )
+            recommendations.append(f"Recommended overrides: {best_trial.config_overrides}")
         else:
             recommendations.append(
                 "No trial improved over baseline. Current defaults may already be optimal."
@@ -704,7 +719,10 @@ class ConfigTuner:
         # Per-group bests
         groups_seen: Dict[str, ConfigTrialResult] = {}
         for trial in trials:
-            if trial.group_name not in groups_seen or trial.composite_score > groups_seen[trial.group_name].composite_score:
+            if (
+                trial.group_name not in groups_seen
+                or trial.composite_score > groups_seen[trial.group_name].composite_score
+            ):
                 groups_seen[trial.group_name] = trial
 
         for group_name, trial in groups_seen.items():

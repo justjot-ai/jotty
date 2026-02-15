@@ -8,19 +8,28 @@ Tracks:
 - Memory operation stats
 - Error rates
 """
+
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any
+import logging
 import threading
 import time
-import logging
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
 # Try to import Prometheus client, fall back to no-op
 try:
-    from prometheus_client import Counter, Histogram, Gauge, Info, CollectorRegistry, generate_latest
+    from prometheus_client import (
+        CollectorRegistry,
+        Counter,
+        Gauge,
+        Histogram,
+        Info,
+        generate_latest,
+    )
+
     PROMETHEUS_AVAILABLE = True
 except ImportError:
     PROMETHEUS_AVAILABLE = False
@@ -29,16 +38,27 @@ except ImportError:
 
 class NoOpMetric:
     """No-op metric when Prometheus not available."""
-    def inc(self, *args: Any, **kwargs: Any) -> None: pass
-    def dec(self, *args: Any, **kwargs: Any) -> None: pass
-    def set(self, *args: Any, **kwargs: Any) -> None: pass
-    def observe(self, *args: Any, **kwargs: Any) -> None: pass
-    def labels(self, *args: Any, **kwargs: Any) -> Any: return self
+
+    def inc(self, *args: Any, **kwargs: Any) -> None:
+        pass
+
+    def dec(self, *args: Any, **kwargs: Any) -> None:
+        pass
+
+    def set(self, *args: Any, **kwargs: Any) -> None:
+        pass
+
+    def observe(self, *args: Any, **kwargs: Any) -> None:
+        pass
+
+    def labels(self, *args: Any, **kwargs: Any) -> Any:
+        return self
 
 
 # =============================================================================
 # ExecutionRecord
 # =============================================================================
+
 
 @dataclass
 class ExecutionRecord:
@@ -64,6 +84,7 @@ class ExecutionRecord:
 # =============================================================================
 # AgentMetrics
 # =============================================================================
+
 
 @dataclass
 class AgentMetrics:
@@ -161,6 +182,7 @@ class AgentMetrics:
 # MetricsCollector
 # =============================================================================
 
+
 class MetricsCollector:
     """
     Jotty metrics collector with optional Prometheus export.
@@ -178,7 +200,7 @@ class MetricsCollector:
     def __init__(
         self,
         enabled: bool = True,
-        registry: Optional['CollectorRegistry'] = None,
+        registry: Optional["CollectorRegistry"] = None,
         max_history: int = 10000,
     ) -> None:
         """
@@ -207,57 +229,57 @@ class MetricsCollector:
             self.registry = registry or CollectorRegistry()
 
             self.skill_executions = Counter(
-                'jotty_skill_executions_total',
-                'Total skill executions',
-                ['skill_name', 'status'],
+                "jotty_skill_executions_total",
+                "Total skill executions",
+                ["skill_name", "status"],
                 registry=self.registry,
             )
             self.skill_duration = Histogram(
-                'jotty_skill_duration_seconds',
-                'Skill execution duration',
-                ['skill_name'],
+                "jotty_skill_duration_seconds",
+                "Skill execution duration",
+                ["skill_name"],
                 registry=self.registry,
             )
             self.agent_executions = Counter(
-                'jotty_agent_executions_total',
-                'Total agent executions',
-                ['agent_name', 'status'],
+                "jotty_agent_executions_total",
+                "Total agent executions",
+                ["agent_name", "status"],
                 registry=self.registry,
             )
             self.llm_tokens = Counter(
-                'jotty_llm_tokens_total',
-                'Total LLM tokens used',
-                ['model', 'type'],
+                "jotty_llm_tokens_total",
+                "Total LLM tokens used",
+                ["model", "type"],
                 registry=self.registry,
             )
             self.llm_cost = Counter(
-                'jotty_llm_cost_dollars',
-                'Total LLM cost in dollars',
-                ['model'],
+                "jotty_llm_cost_dollars",
+                "Total LLM cost in dollars",
+                ["model"],
                 registry=self.registry,
             )
             self.llm_calls = Counter(
-                'jotty_llm_calls_total',
-                'Total LLM API calls',
-                ['model', 'status'],
+                "jotty_llm_calls_total",
+                "Total LLM API calls",
+                ["model", "status"],
                 registry=self.registry,
             )
             self.memory_operations = Counter(
-                'jotty_memory_operations_total',
-                'Memory operations',
-                ['operation', 'level'],
+                "jotty_memory_operations_total",
+                "Memory operations",
+                ["operation", "level"],
                 registry=self.registry,
             )
             self.memory_size = Gauge(
-                'jotty_memory_size_bytes',
-                'Memory storage size',
-                ['level'],
+                "jotty_memory_size_bytes",
+                "Memory storage size",
+                ["level"],
                 registry=self.registry,
             )
             self.errors = Counter(
-                'jotty_errors_total',
-                'Total errors',
-                ['component', 'error_type'],
+                "jotty_errors_total",
+                "Total errors",
+                ["component", "error_type"],
                 registry=self.registry,
             )
             logger.info("Prometheus metrics enabled")
@@ -279,16 +301,18 @@ class MetricsCollector:
 
     def record_skill_execution(self, skill_name: str, duration: float, success: bool) -> Any:
         """Record skill execution metrics (Prometheus only)."""
-        status = 'success' if success else 'error'
+        status = "success" if success else "error"
         self.skill_executions.labels(skill_name=skill_name, status=status).inc()
         self.skill_duration.labels(skill_name=skill_name).observe(duration)
 
-    def record_llm_call(self, model: str, input_tokens: int, output_tokens: int, cost: float, success: bool) -> Any:
+    def record_llm_call(
+        self, model: str, input_tokens: int, output_tokens: int, cost: float, success: bool
+    ) -> Any:
         """Record LLM API call metrics (Prometheus only)."""
-        status = 'success' if success else 'error'
+        status = "success" if success else "error"
         self.llm_calls.labels(model=model, status=status).inc()
-        self.llm_tokens.labels(model=model, type='input').inc(input_tokens)
-        self.llm_tokens.labels(model=model, type='output').inc(output_tokens)
+        self.llm_tokens.labels(model=model, type="input").inc(input_tokens)
+        self.llm_tokens.labels(model=model, type="output").inc(output_tokens)
         self.llm_cost.labels(model=model).inc(cost)
 
     def record_error(self, component: str, error_type: str) -> Any:
@@ -348,7 +372,7 @@ class MetricsCollector:
             # Append record and trim to max_history
             self._records.append(record)
             if len(self._records) > self._max_history:
-                self._records = self._records[-self._max_history:]
+                self._records = self._records[-self._max_history :]
 
             # Update global counters
             total_tokens = input_tokens + output_tokens
@@ -379,14 +403,14 @@ class MetricsCollector:
 
         # Prometheus (best-effort, never blocks internal tracking)
         if self._prometheus_enabled:
-            status = 'success' if success else 'error'
+            status = "success" if success else "error"
             self.agent_executions.labels(agent_name=agent_name, status=status).inc()
             if input_tokens or output_tokens:
-                model = 'claude'
-                self.llm_tokens.labels(model=model, type='input').inc(input_tokens)
-                self.llm_tokens.labels(model=model, type='output').inc(output_tokens)
+                model = "claude"
+                self.llm_tokens.labels(model=model, type="input").inc(input_tokens)
+                self.llm_tokens.labels(model=model, type="output").inc(output_tokens)
             if actual_cost:
-                self.llm_cost.labels(model='claude').inc(actual_cost)
+                self.llm_cost.labels(model="claude").inc(actual_cost)
 
     # --- query methods --------------------------------------------------------
 
@@ -430,9 +454,7 @@ class MetricsCollector:
                         "p99_s": round(_helper.p99_duration_s, 3),
                     },
                 },
-                "per_agent": {
-                    name: am.to_dict() for name, am in self._agent_metrics.items()
-                },
+                "per_agent": {name: am.to_dict() for name, am in self._agent_metrics.items()},
                 "task_types": dict(self._task_types),
             }
 
@@ -470,13 +492,15 @@ class MetricsCollector:
             errors: List[Dict[str, Any]] = []
             for record in reversed(self._records):
                 if not record.success and record.error is not None:
-                    errors.append({
-                        "agent": record.agent_name,
-                        "task_type": record.task_type,
-                        "error": record.error,
-                        "timestamp": record.timestamp,
-                        "duration_s": record.duration_s,
-                    })
+                    errors.append(
+                        {
+                            "agent": record.agent_name,
+                            "task_type": record.task_type,
+                            "error": record.error,
+                            "timestamp": record.timestamp,
+                            "duration_s": record.duration_s,
+                        }
+                    )
                     if len(errors) >= limit:
                         break
             return errors
@@ -503,7 +527,7 @@ class MetricsCollector:
         """
         if self._prometheus_enabled:
             return generate_latest(self.registry)
-        return b''
+        return b""
 
 
 # =============================================================================

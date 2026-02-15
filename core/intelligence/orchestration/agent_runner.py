@@ -14,36 +14,41 @@ AgentScope-inspired lifecycle hooks (Gao et al., 2025):
 import asyncio
 import logging
 import time as _time
-from typing import Dict, Any, Optional, List, Callable
 from dataclasses import dataclass, field
+from typing import Any, Callable, Dict, List, Optional
 
-from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig, SwarmLearningConfig, EpisodeResult
-from Jotty.core.infrastructure.utils.async_utils import StatusReporter
+from Jotty.core.infrastructure.foundation.data_structures import (
+    EpisodeResult,
+    SwarmConfig,
+    SwarmLearningConfig,
+)
 from Jotty.core.infrastructure.foundation.exceptions import (
     AgentExecutionError,
-    ToolExecutionError,
-    LLMError,
+    ConsolidationError,
     DSPyError,
+    LearningError,
+    LLMError,
     MemoryRetrievalError,
     MemoryStorageError,
-    ConsolidationError,
-    LearningError,
+    ToolExecutionError,
 )
-from Jotty.core.modes.agent.tools.inspector import ValidatorAgent, MultiRoundValidator
+from Jotty.core.infrastructure.utils.async_utils import StatusReporter
+from Jotty.core.infrastructure.utils.prompt_selector import PromptSelector, get_prompt_selector
+from Jotty.core.intelligence.learning.learning import AdaptiveLearningRate, TDLambdaLearner
+from Jotty.core.intelligence.learning.shaped_rewards import ShapedRewardManager
 from Jotty.core.intelligence.memory.cortex import SwarmMemory
-from Jotty.core.infrastructure.utils.prompt_selector import get_prompt_selector, PromptSelector
 from Jotty.core.intelligence.orchestration.prompts import (
+    get_generic_auditor_prompt,
     get_swarm_architect_prompt,
     get_swarm_auditor_prompt,
-    get_generic_auditor_prompt,
 )
-from Jotty.core.intelligence.learning.learning import (
-    TDLambdaLearner, AdaptiveLearningRate,
-)
-from Jotty.core.intelligence.learning.shaped_rewards import ShapedRewardManager
 from Jotty.core.intelligence.orchestration.validation_gate import (
-    ValidationGate, ValidationMode, GateDecision, get_validation_gate,
+    GateDecision,
+    ValidationGate,
+    ValidationMode,
+    get_validation_gate,
 )
+from Jotty.core.modes.agent.tools.inspector import MultiRoundValidator, ValidatorAgent
 
 logger = logging.getLogger(__name__)
 
@@ -53,18 +58,19 @@ logger = logging.getLogger(__name__)
 # =========================================================================
 
 HOOK_TYPES = (
-    'pre_run',        # Before entire run() — modify goal, inject context
-    'post_run',       # After entire run() — record metrics, log results
-    'pre_architect',  # Before architect validation
-    'post_architect', # After architect — inspect/override proceed decision
-    'pre_execute',    # Before agent execution — last chance to modify goal
-    'post_execute',   # After agent execution — inspect/transform output
+    "pre_run",  # Before entire run() — modify goal, inject context
+    "post_run",  # After entire run() — record metrics, log results
+    "pre_architect",  # Before architect validation
+    "post_architect",  # After architect — inspect/override proceed decision
+    "pre_execute",  # Before agent execution — last chance to modify goal
+    "post_execute",  # After agent execution — inspect/transform output
 )
 
 
 @dataclass
 class AgentRunnerConfig:
     """Configuration for AgentRunner"""
+
     architect_prompts: List[str]
     auditor_prompts: List[str]
     config: SwarmConfig
@@ -82,6 +88,7 @@ class ExecutionContext:
     specific fields, and returns it. Replaces scattered locals() checks
     with explicit, defaulted fields.
     """
+
     goal: str
     kwargs: Dict[str, Any]
     start_time: float = 0.0
@@ -126,7 +133,7 @@ class TaskProgress:
         print(progress.render())
     """
 
-    def __init__(self, goal: str = '') -> None:
+    def __init__(self, goal: str = "") -> None:
         self.goal = goal
         self.steps: List[Dict[str, Any]] = []  # {name, status, started_at, finished_at}
         self.created_at = _time.time()
@@ -134,38 +141,42 @@ class TaskProgress:
     def add_step(self, name: str) -> int:
         """Add a step. Returns its index."""
         idx = len(self.steps)
-        self.steps.append({
-            'name': name, 'status': 'pending',
-            'started_at': None, 'finished_at': None,
-        })
+        self.steps.append(
+            {
+                "name": name,
+                "status": "pending",
+                "started_at": None,
+                "finished_at": None,
+            }
+        )
         return idx
 
     def start_step(self, idx: int) -> None:
         if 0 <= idx < len(self.steps):
-            self.steps[idx]['status'] = 'in_progress'
-            self.steps[idx]['started_at'] = _time.time()
+            self.steps[idx]["status"] = "in_progress"
+            self.steps[idx]["started_at"] = _time.time()
 
     def complete_step(self, idx: int) -> None:
         if 0 <= idx < len(self.steps):
-            self.steps[idx]['status'] = 'done'
-            self.steps[idx]['finished_at'] = _time.time()
+            self.steps[idx]["status"] = "done"
+            self.steps[idx]["finished_at"] = _time.time()
 
     def fail_step(self, idx: int) -> None:
         if 0 <= idx < len(self.steps):
-            self.steps[idx]['status'] = 'failed'
-            self.steps[idx]['finished_at'] = _time.time()
+            self.steps[idx]["status"] = "failed"
+            self.steps[idx]["finished_at"] = _time.time()
 
     def render(self) -> str:
         """Render checklist as text (suitable for status callback or logging)."""
-        icons = {'pending': '[ ]', 'in_progress': '[>]', 'done': '[x]', 'failed': '[!]'}
+        icons = {"pending": "[ ]", "in_progress": "[>]", "done": "[x]", "failed": "[!]"}
         lines = [f"Task: {self.goal}"] if self.goal else []
         for i, s in enumerate(self.steps):
-            icon = icons.get(s['status'], '[ ]')
+            icon = icons.get(s["status"], "[ ]")
             elapsed = ""
-            if s['status'] == 'done' and s['started_at'] and s['finished_at']:
+            if s["status"] == "done" and s["started_at"] and s["finished_at"]:
                 elapsed = f" ({s['finished_at'] - s['started_at']:.1f}s)"
             lines.append(f"  {icon} {s['name']}{elapsed}")
-        done = sum(1 for s in self.steps if s['status'] == 'done')
+        done = sum(1 for s in self.steps if s["status"] == "done")
         total = len(self.steps)
         if total:
             lines.append(f"  Progress: {done}/{total} ({done/total:.0%})")
@@ -173,27 +184,41 @@ class TaskProgress:
 
     def summary(self) -> Dict[str, Any]:
         """Machine-readable summary."""
-        done = sum(1 for s in self.steps if s['status'] == 'done')
-        failed = sum(1 for s in self.steps if s['status'] == 'failed')
+        done = sum(1 for s in self.steps if s["status"] == "done")
+        failed = sum(1 for s in self.steps if s["status"] == "failed")
         return {
-            'total': len(self.steps), 'done': done, 'failed': failed,
-            'completion_pct': done / len(self.steps) if self.steps else 0,
-            'steps': [{'name': s['name'], 'status': s['status']} for s in self.steps],
+            "total": len(self.steps),
+            "done": done,
+            "failed": failed,
+            "completion_pct": done / len(self.steps) if self.steps else 0,
+            "steps": [{"name": s["name"], "status": s["status"]} for s in self.steps],
         }
 
 
 class AgentRunner:
     """
     Executes ONE agent with validation and learning.
-    
+
     V2 User-Friendly Component:
     - Wraps agent execution
     - Provides Architect (pre-execution)
     - Provides Auditor (post-execution)
     - Handles learning and memory
     """
-    
-    def __init__(self, agent: Any, config: AgentRunnerConfig, task_planner: Any = None, task_board: Any = None, swarm_memory: Any = None, swarm_state_manager: Any = None, learning_manager: Any = None, transfer_learning: Any = None, swarm_terminal: Any = None, swarm_intelligence: Any = None) -> None:
+
+    def __init__(
+        self,
+        agent: Any,
+        config: AgentRunnerConfig,
+        task_planner: Any = None,
+        task_board: Any = None,
+        swarm_memory: Any = None,
+        swarm_state_manager: Any = None,
+        learning_manager: Any = None,
+        transfer_learning: Any = None,
+        swarm_terminal: Any = None,
+        swarm_intelligence: Any = None,
+    ) -> None:
         """
         Initialize AgentRunner.
 
@@ -224,10 +249,9 @@ class AgentRunner:
         if swarm_terminal is None and config.enable_terminal:
             try:
                 from .swarm_terminal import SwarmTerminal
+
                 self.swarm_terminal = SwarmTerminal(
-                    config=config.config,
-                    auto_fix=True,
-                    max_fix_attempts=3
+                    config=config.config, auto_fix=True, max_fix_attempts=3
                 )
                 logger.info(f" SwarmTerminal enabled for agent '{self.agent_name}'")
             except Exception as e:
@@ -237,14 +261,14 @@ class AgentRunner:
         if self.swarm_state_manager:
             self.agent_tracker = self.swarm_state_manager.get_agent_tracker(self.agent_name)
             logger.info(f" AgentStateTracker initialized for '{self.agent_name}'")
-        
+
         from pathlib import Path
-        
+
         from Jotty.core.infrastructure.foundation.data_structures import SharedScratchpad
-        
+
         # Shared scratchpad for agent communication
         scratchpad = SharedScratchpad()
-        
+
         # Architect (pre-execution planning)
         architect_agents = [
             ValidatorAgent(
@@ -252,11 +276,11 @@ class AgentRunner:
                 is_architect=True,
                 tools=[],
                 config=config.config,
-                scratchpad=scratchpad
+                scratchpad=scratchpad,
             )
             for prompt in config.architect_prompts
         ]
-        
+
         # Auditor (post-execution validation)
         auditor_agents = [
             ValidatorAgent(
@@ -264,15 +288,15 @@ class AgentRunner:
                 is_architect=False,
                 tools=[],
                 config=config.config,
-                scratchpad=scratchpad
+                scratchpad=scratchpad,
             )
             for prompt in config.auditor_prompts
         ]
-        
+
         # Multi-round validators
         self.architect_validator = MultiRoundValidator(architect_agents, config.config)
         self.auditor_validator = MultiRoundValidator(auditor_agents, config.config)
-        
+
         # Per-agent memory: use the shared swarm memory if available,
         # otherwise fall back to creating a standalone instance.
         # This ensures all agents share the same memory store (with
@@ -285,20 +309,18 @@ class AgentRunner:
                 logger.debug(f"Agent '{self.agent_name}' using shared swarm memory")
             else:
                 # Fallback: standalone memory (no sharing)
-                self.agent_memory = SwarmMemory(
-                    config=config.config,
-                    agent_name=self.agent_name
-                )
+                self.agent_memory = SwarmMemory(config=config.config, agent_name=self.agent_name)
                 logger.debug(f"Agent '{self.agent_name}' using standalone memory (no swarm memory)")
-        
+
         # Per-agent learning: prefer the swarm-level learning_manager if available,
         # so all agents contribute to a single shared learner.
         # Falls back to standalone TDLambdaLearner only when no swarm context exists.
         from Jotty.core.intelligence.learning.learning import AdaptiveLearningRate
+
         self.agent_learner: Optional[TDLambdaLearner] = None
         self._using_shared_learner = False
         if config.enable_learning:
-            if learning_manager is not None and hasattr(learning_manager, 'td_learner'):
+            if learning_manager is not None and hasattr(learning_manager, "td_learner"):
                 # Shared learner from SwarmLearningPipeline
                 self.agent_learner = learning_manager.td_learner
                 self._using_shared_learner = True
@@ -306,10 +328,7 @@ class AgentRunner:
             else:
                 # Standalone fallback
                 adaptive_lr = AdaptiveLearningRate(config.config)
-                self.agent_learner = TDLambdaLearner(
-                    config=config.config,
-                    adaptive_lr=adaptive_lr
-                )
+                self.agent_learner = TDLambdaLearner(config=config.config, adaptive_lr=adaptive_lr)
                 logger.debug(f"Agent '{self.agent_name}' using standalone TD-Lambda learner")
 
         # Shaped rewards for dense learning signal
@@ -328,11 +347,13 @@ class AgentRunner:
         # - One side-effect per turn: prevent cascading mutations
         # - Path access control: block sensitive file operations
         from Jotty.core.capabilities.registry.tool_validation import ToolGuard
+
         self.tool_guard = ToolGuard()
 
         # Host provider (Cline HostProvider pattern):
         # Core never imports CLI/Web directly — uses HostProvider.
         from Jotty.core.interface.interfaces.host_provider import HostProvider
+
         self._host = HostProvider.get()
 
         # Task progress tracker (Cline Focus Chain pattern):
@@ -343,7 +364,7 @@ class AgentRunner:
 
         # Prompt selector for dynamic template selection
         self._prompt_selector: Optional[PromptSelector] = None
-        self._current_task_type: str = 'default'
+        self._current_task_type: str = "default"
         self._scratchpad = scratchpad  # Store for validator recreation
 
         # Swarm-level prompts cache
@@ -376,32 +397,38 @@ class AgentRunner:
         BaseAgent._post_hooks -> AgentRunner 'post_execute'
         """
         agent = self.agent
-        if not hasattr(agent, '_pre_hooks') and not hasattr(agent, '_post_hooks'):
+        if not hasattr(agent, "_pre_hooks") and not hasattr(agent, "_post_hooks"):
             return
 
         # Wrap BaseAgent hooks to match AgentRunner's hook signature (**context)
-        for pre_hook in getattr(agent, '_pre_hooks', []):
+        for pre_hook in getattr(agent, "_pre_hooks", []):
+
             def _wrap_pre(fn: Any = pre_hook, **ctx: Any) -> None:
                 try:
                     if asyncio.iscoroutinefunction(fn):
                         # Can't await in sync hook runner — skip async agent hooks
-                        logger.debug(f"Skipping async agent pre-hook (not supported in AgentRunner)")
+                        logger.debug(
+                            f"Skipping async agent pre-hook (not supported in AgentRunner)"
+                        )
                         return
-                    fn(agent, **{k: v for k, v in ctx.items() if k in ('goal', 'kwargs')})
+                    fn(agent, **{k: v for k, v in ctx.items() if k in ("goal", "kwargs")})
                 except Exception as e:
                     logger.debug(f"Bridged agent pre-hook failed: {e}")
-            self.add_hook('pre_execute', _wrap_pre, name=f"agent_bridge_pre_{id(pre_hook)}")
 
-        for post_hook in getattr(agent, '_post_hooks', []):
+            self.add_hook("pre_execute", _wrap_pre, name=f"agent_bridge_pre_{id(pre_hook)}")
+
+        for post_hook in getattr(agent, "_post_hooks", []):
+
             def _wrap_post(fn: Any = post_hook, **ctx: Any) -> None:
                 try:
                     if asyncio.iscoroutinefunction(fn):
                         return
-                    result = ctx.get('agent_output')
-                    fn(agent, result, **{k: v for k, v in ctx.items() if k == 'goal'})
+                    result = ctx.get("agent_output")
+                    fn(agent, result, **{k: v for k, v in ctx.items() if k == "goal"})
                 except Exception as e:
                     logger.debug(f"Bridged agent post-hook failed: {e}")
-            self.add_hook('post_execute', _wrap_post, name=f"agent_bridge_post_{id(post_hook)}")
+
+            self.add_hook("post_execute", _wrap_post, name=f"agent_bridge_post_{id(post_hook)}")
 
     # =========================================================================
     # LIFECYCLE HOOKS (AgentScope-inspired)
@@ -430,10 +457,7 @@ class AgentRunner:
             runner.add_hook('post_run', log_timing)
         """
         if hook_type not in self._hooks:
-            raise ValueError(
-                f"Unknown hook type '{hook_type}'. "
-                f"Valid: {', '.join(HOOK_TYPES)}"
-            )
+            raise ValueError(f"Unknown hook type '{hook_type}'. " f"Valid: {', '.join(HOOK_TYPES)}")
         hook_name = name or f"{hook_type}_{len(self._hooks[hook_type])}"
         fn._hook_name = hook_name  # tag for removal
         self._hooks[hook_type].append(fn)
@@ -444,7 +468,7 @@ class AgentRunner:
         """Remove a named hook. Returns True if found."""
         hooks = self._hooks.get(hook_type, [])
         for i, fn in enumerate(hooks):
-            if getattr(fn, '_hook_name', None) == name:
+            if getattr(fn, "_hook_name", None) == name:
                 hooks.pop(i)
                 return True
         return False
@@ -469,7 +493,7 @@ class AgentRunner:
                 if isinstance(result, dict):
                     context.update(result)
             except Exception as e:
-                hook_name = getattr(fn, '_hook_name', '?')
+                hook_name = getattr(fn, "_hook_name", "?")
                 logger.warning(f" Hook {hook_type}/{hook_name} failed: {e}")
         return context
 
@@ -487,7 +511,7 @@ class AgentRunner:
                 self._prompt_selector = get_prompt_selector()
             except Exception as e:
                 logger.warning(f"Prompt selector not available: {e}")
-                return 'default'
+                return "default"
 
         # Detect task type from goal
         task_type = self._prompt_selector.detect_task_type(goal)
@@ -508,7 +532,7 @@ class AgentRunner:
                     is_architect=True,
                     tools=[],
                     config=self.config.config,
-                    scratchpad=self._scratchpad
+                    scratchpad=self._scratchpad,
                 )
             ]
 
@@ -518,7 +542,7 @@ class AgentRunner:
                     is_architect=False,
                     tools=[],
                     config=self.config.config,
-                    scratchpad=self._scratchpad
+                    scratchpad=self._scratchpad,
                 )
             ]
 
@@ -529,12 +553,16 @@ class AgentRunner:
                     import tempfile
 
                     # Create temp files for swarm prompts (ValidatorAgent needs file paths)
-                    swarm_arch_file = tempfile.NamedTemporaryFile(mode='w', suffix='_swarm_architect.md', delete=False)
+                    swarm_arch_file = tempfile.NamedTemporaryFile(
+                        mode="w", suffix="_swarm_architect.md", delete=False
+                    )
                     swarm_arch_file.write(get_swarm_architect_prompt())
                     swarm_arch_file.close()
 
-                    swarm_aud_file = tempfile.NamedTemporaryFile(mode='w', suffix='_swarm_auditor.md', delete=False)
-                    swarm_aud_file.write(get_swarm_auditor_prompt('coordination'))
+                    swarm_aud_file = tempfile.NamedTemporaryFile(
+                        mode="w", suffix="_swarm_auditor.md", delete=False
+                    )
+                    swarm_aud_file.write(get_swarm_auditor_prompt("coordination"))
                     swarm_aud_file.close()
 
                     # Add swarm architect (orchestration readiness)
@@ -544,7 +572,7 @@ class AgentRunner:
                             is_architect=True,
                             tools=[],
                             config=self.config.config,
-                            scratchpad=self._scratchpad
+                            scratchpad=self._scratchpad,
                         )
                     )
 
@@ -555,7 +583,7 @@ class AgentRunner:
                             is_architect=False,
                             tools=[],
                             config=self.config.config,
-                            scratchpad=self._scratchpad
+                            scratchpad=self._scratchpad,
                         )
                     )
 
@@ -576,7 +604,10 @@ class AgentRunner:
             # Fallback to generic auditor if task-specific prompts fail
             try:
                 import tempfile
-                generic_aud_file = tempfile.NamedTemporaryFile(mode='w', suffix='_generic_auditor.md', delete=False)
+
+                generic_aud_file = tempfile.NamedTemporaryFile(
+                    mode="w", suffix="_generic_auditor.md", delete=False
+                )
                 generic_aud_file.write(get_generic_auditor_prompt())
                 generic_aud_file.close()
 
@@ -586,7 +617,7 @@ class AgentRunner:
                         is_architect=False,
                         tools=[],
                         config=self.config.config,
-                        scratchpad=self._scratchpad
+                        scratchpad=self._scratchpad,
                     )
                 ]
                 self.auditor_validator = MultiRoundValidator(auditor_agents, self.config.config)
@@ -611,35 +642,35 @@ class AgentRunner:
         Prevents learning context from eating up the model's context window.
         """
         parts = []
-        _max_chars = getattr(
-            self.config.config, 'max_learning_context_chars', 8000
-        )
+        _max_chars = getattr(self.config.config, "max_learning_context_chars", 8000)
 
         # 1. Memory retrieval
         if self.agent_memory:
             try:
                 from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
-                memory_budget = getattr(
-                    self.config.config, 'memory_retrieval_budget', 3000
-                )
+
+                memory_budget = getattr(self.config.config, "memory_retrieval_budget", 3000)
                 # Use fast retrieval (keyword + recency + value, NO LLM call).
                 # The full LLM-scored retrieve() costs 1+ extra LLM calls per
                 # execution; for pre-execution context injection, fast retrieval
                 # gives 80% of the recall at 0% of the latency cost.
                 _retrieve_fn = getattr(
-                    self.agent_memory, 'retrieve_fast',
+                    self.agent_memory,
+                    "retrieve_fast",
                     self.agent_memory.retrieve,  # fallback if not available
                 )
                 relevant_memories = _retrieve_fn(
                     query=goal,
                     goal=goal,
                     budget_tokens=memory_budget,
-                    levels=[MemoryLevel.SEMANTIC, MemoryLevel.PROCEDURAL, MemoryLevel.META]
+                    levels=[MemoryLevel.SEMANTIC, MemoryLevel.PROCEDURAL, MemoryLevel.META],
                 )
                 if relevant_memories:
                     context = "\n".join([m.content for m in relevant_memories[:5]])
                     parts.append(f"Relevant past experience:\n{context}")
-                    logger.info(f"Memory retrieval: {len(relevant_memories)} memories injected as context")
+                    logger.info(
+                        f"Memory retrieval: {len(relevant_memories)} memories injected as context"
+                    )
             except (MemoryRetrievalError, KeyError, TypeError) as e:
                 logger.debug(f"Memory retrieval skipped: {e}")
             except Exception as e:
@@ -649,10 +680,10 @@ class AgentRunner:
         #    Include task_type so Q-learner matches relevant lessons only
         if self.learning_manager:
             try:
-                _task_type = ''
+                _task_type = ""
                 if self.transfer_learning:
                     _task_type = self.transfer_learning.extractor.extract_task_type(goal)
-                state = {'query': goal, 'agent': self.agent_name, 'task_type': _task_type}
+                state = {"query": goal, "agent": self.agent_name, "task_type": _task_type}
                 q_context = self.learning_manager.get_learned_context(state)
                 if q_context:
                     parts.append(f"Learned Insights:\n{q_context}")
@@ -662,8 +693,10 @@ class AgentRunner:
         # 3. Transferable learning context (cross-swarm, cross-goal)
         if self.transfer_learning:
             try:
-                transfer_context = self.transfer_learning.format_context_for_agent(goal, self.agent_name)
-                if transfer_context and 'Transferable Learnings' in transfer_context:
+                transfer_context = self.transfer_learning.format_context_for_agent(
+                    goal, self.agent_name
+                )
+                if transfer_context and "Transferable Learnings" in transfer_context:
                     parts.append(transfer_context)
             except (LearningError, KeyError, AttributeError) as e:
                 logger.debug(f"Transfer learning context injection skipped: {e}")
@@ -681,8 +714,12 @@ class AgentRunner:
                         f"specialization={_spec}, {profile.total_tasks} tasks completed."
                     )
 
-                if hasattr(_si, 'stigmergy'):
-                    task_type = self.transfer_learning.extractor.extract_task_type(goal) if self.transfer_learning else None
+                if hasattr(_si, "stigmergy"):
+                    task_type = (
+                        self.transfer_learning.extractor.extract_task_type(goal)
+                        if self.transfer_learning
+                        else None
+                    )
                     if task_type:
                         route_signals = _si.stigmergy.get_route_signals(task_type)
                         if route_signals:
@@ -727,9 +764,7 @@ class AgentRunner:
                     # Keep start + end, mark middle as compressed
                     keep = max(100, per_part_budget)
                     half = keep // 2
-                    compressed_parts.append(
-                        p[:half] + "\n[...compressed...]\n" + p[-half:]
-                    )
+                    compressed_parts.append(p[:half] + "\n[...compressed...]\n" + p[-half:])
             parts = compressed_parts
             logger.debug(
                 f"Context budget: compressed {total_chars} → "
@@ -741,7 +776,18 @@ class AgentRunner:
             logger.info(f" Context {i}: {p[:500]}")
         return parts
 
-    async def _record_post_execution_learning(self, goal: str, agent_output: Any, success: bool, trajectory: list, architect_results: list, auditor_results: list, architect_shaped_reward: float, duration: float, kwargs: dict) -> dict:
+    async def _record_post_execution_learning(
+        self,
+        goal: str,
+        agent_output: Any,
+        success: bool,
+        trajectory: list,
+        architect_results: list,
+        auditor_results: list,
+        architect_shaped_reward: float,
+        duration: float,
+        kwargs: dict,
+    ) -> dict:
         """Stage 3: Record learning data (memory, TD-lambda, Q-learning, feedback).
 
         Returns dict with episode_memory_entry, tagged_outputs, agent_contributions.
@@ -752,11 +798,12 @@ class AgentRunner:
         episode_memory_entry = None
         if self.agent_memory:
             from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
+
             episode_memory_entry = self.agent_memory.store(
                 content=f"Goal: {goal}\nOutput: {str(agent_output)[:500]}",
                 level=MemoryLevel.EPISODIC,
-                context={'agent': self.agent_name, 'goal': goal},
-                goal=goal
+                context={"agent": self.agent_name, "goal": goal},
+                goal=goal,
             )
 
         # Shaped rewards after auditor validation
@@ -765,21 +812,17 @@ class AgentRunner:
             auditor_shaped_reward = self.shaped_reward_manager.check_rewards(
                 event_type="validation",
                 state={
-                    'auditor_results': auditor_results,
-                    'passed': success,
-                    'goal': goal,
-                    'output': str(agent_output)[:500]
+                    "auditor_results": auditor_results,
+                    "passed": success,
+                    "goal": goal,
+                    "output": str(agent_output)[:500],
                 },
-                trajectory=trajectory
+                trajectory=trajectory,
             )
             self.shaped_reward_manager.check_rewards(
                 event_type="actor_complete",
-                state={
-                    'output': str(agent_output)[:500],
-                    'success': success,
-                    'goal': goal
-                },
-                trajectory=trajectory
+                state={"output": str(agent_output)[:500], "success": success, "goal": goal},
+                trajectory=trajectory,
             )
 
         # TD(lambda) learning update
@@ -790,7 +833,9 @@ class AgentRunner:
                 self.agent_learner.record_access(episode_memory_entry, step_reward=step_reward)
 
             terminal_reward = 1.0 if success else -0.5
-            shaped_total = self.shaped_reward_manager.get_total_reward() if self.shaped_reward_manager else 0.0
+            shaped_total = (
+                self.shaped_reward_manager.get_total_reward() if self.shaped_reward_manager else 0.0
+            )
             final_reward = terminal_reward + shaped_total
 
             memories_dict = {}
@@ -798,17 +843,18 @@ class AgentRunner:
                 memories_dict[episode_memory_entry.key] = episode_memory_entry
 
             updates = self.agent_learner.end_episode(
-                final_reward=final_reward,
-                memories=memories_dict
+                final_reward=final_reward, memories=memories_dict
             )
             if updates:
-                logger.debug(f"Learning: Updated {len(updates)} memory values (shaped={shaped_total:.3f})")
+                logger.debug(
+                    f"Learning: Updated {len(updates)} memory values (shaped={shaped_total:.3f})"
+                )
 
         # Q-learning record
         if self.learning_manager:
             try:
-                q_state = {'query': goal, 'agent': self.agent_name, 'success': success}
-                q_action = {'actor': self.agent_name, 'task': goal[:100]}
+                q_state = {"query": goal, "agent": self.agent_name, "success": success}
+                q_action = {"actor": self.agent_name, "task": goal[:100]}
                 q_reward = final_reward if final_reward else (1.0 if success else -0.5)
                 self.learning_manager.record_outcome(q_state, q_action, q_reward, done=True)
             except (LearningError, KeyError, AttributeError) as e:
@@ -824,45 +870,53 @@ class AgentRunner:
         # Executor feedback to SwarmIntelligence
         if self.swarm_intelligence:
             try:
-                detected_task_type = self._current_task_type if hasattr(self, '_current_task_type') else None
+                detected_task_type = (
+                    self._current_task_type if hasattr(self, "_current_task_type") else None
+                )
                 # Extract skills actually used from agent output
                 _tools_used = []
                 if isinstance(agent_output, dict):
-                    _tools_used = list(agent_output.get('skills_used', []))
-                if not _tools_used and hasattr(agent_output, 'skills_used'):
-                    _tools_used = list(getattr(agent_output, 'skills_used', []))
+                    _tools_used = list(agent_output.get("skills_used", []))
+                if not _tools_used and hasattr(agent_output, "skills_used"):
+                    _tools_used = list(getattr(agent_output, "skills_used", []))
                 self.swarm_intelligence.receive_executor_feedback(
                     task_id=f"{self.agent_name}_{int(time.time())}",
                     success=success,
                     tools_used=_tools_used,
                     execution_time=duration,
                     error_type=None,
-                    task_type=detected_task_type
+                    task_type=detected_task_type,
                 )
             except Exception as fb_err:
                 logger.debug(f"Executor feedback skipped: {fb_err}")
 
         # Build tagged outputs
         from Jotty.core.infrastructure.foundation.types.learning_types import TaggedOutput
+
         tagged_outputs = []
         if auditor_results:
             for result in auditor_results:
                 if result.output_tag:
-                    tagged_outputs.append(TaggedOutput(
-                        name=self.agent_name,
-                        tag=result.output_tag,
-                        why_useful=result.why_useful or result.reasoning,
-                        content=agent_output
-                    ))
+                    tagged_outputs.append(
+                        TaggedOutput(
+                            name=self.agent_name,
+                            tag=result.output_tag,
+                            why_useful=result.why_useful or result.reasoning,
+                            content=agent_output,
+                        )
+                    )
 
         # Build agent contributions
         agent_contributions = {}
         if architect_results:
             from Jotty.core.infrastructure.foundation.types.agent_types import AgentContribution
+
             for result in architect_results:
                 agent_contributions[result.agent_name] = AgentContribution(
                     agent_name=result.agent_name,
-                    contribution_score=result.confidence if result.should_proceed else -result.confidence,
+                    contribution_score=(
+                        result.confidence if result.should_proceed else -result.confidence
+                    ),
                     decision="approve" if result.should_proceed else "reject",
                     decision_correct=success,
                     counterfactual_impact=0.5,
@@ -870,13 +924,13 @@ class AgentRunner:
                     evidence_used=[],
                     tools_used=result.tool_calls or [],
                     decision_timing=0.5,
-                    temporal_weight=1.0
+                    temporal_weight=1.0,
                 )
 
         return {
-            'episode_memory_entry': episode_memory_entry,
-            'tagged_outputs': tagged_outputs,
-            'agent_contributions': agent_contributions,
+            "episode_memory_entry": episode_memory_entry,
+            "tagged_outputs": tagged_outputs,
+            "agent_contributions": agent_contributions,
         }
 
     async def run(self, goal: str, **kwargs: Any) -> EpisodeResult:
@@ -913,6 +967,7 @@ class AgentRunner:
         except Exception as e:
             if ctx is None:
                 import time as _t
+
                 ctx = ExecutionContext(goal=goal, kwargs=kwargs, start_time=_t.time())
             return await self._handle_execution_error(ctx, e)
 
@@ -926,6 +981,7 @@ class AgentRunner:
         Returns a populated ExecutionContext ready for subsequent stages.
         """
         import time
+
         ctx = ExecutionContext(
             goal=goal,
             kwargs=kwargs,
@@ -933,9 +989,9 @@ class AgentRunner:
         )
 
         # Extract flags
-        skip_validation = ctx.kwargs.pop('skip_validation', False)
-        validation_mode_override = ctx.kwargs.pop('validation_mode', None)
-        ctx.status_callback = ctx.kwargs.pop('status_callback', None)
+        skip_validation = ctx.kwargs.pop("skip_validation", False)
+        validation_mode_override = ctx.kwargs.pop("validation_mode", None)
+        ctx.status_callback = ctx.kwargs.pop("status_callback", None)
 
         ctx._status = StatusReporter(ctx.status_callback, logger, emoji=" ")
 
@@ -943,7 +999,11 @@ class AgentRunner:
         if skip_validation:
             force_mode = ValidationMode.DIRECT
         elif validation_mode_override:
-            mode_map = {"direct": ValidationMode.DIRECT, "audit": ValidationMode.AUDIT_ONLY, "full": ValidationMode.FULL}
+            mode_map = {
+                "direct": ValidationMode.DIRECT,
+                "audit": ValidationMode.AUDIT_ONLY,
+                "full": ValidationMode.FULL,
+            }
             force_mode = mode_map.get(str(validation_mode_override).lower(), None)
         else:
             force_mode = None
@@ -959,7 +1019,10 @@ class AgentRunner:
         )
 
         # Derive skip flags from gate decision
-        ctx.skip_architect = ctx.gate_decision.mode in (ValidationMode.DIRECT, ValidationMode.AUDIT_ONLY)
+        ctx.skip_architect = ctx.gate_decision.mode in (
+            ValidationMode.DIRECT,
+            ValidationMode.AUDIT_ONLY,
+        )
         ctx.skip_auditor = ctx.gate_decision.mode == ValidationMode.DIRECT
 
         mode_labels = {
@@ -988,12 +1051,14 @@ class AgentRunner:
 
         # Hook: pre_run — modify goal, inject context, log start
         hook_ctx = self._run_hooks(
-            'pre_run',
-            goal=goal, agent_name=self.agent_name,
+            "pre_run",
+            goal=goal,
+            agent_name=self.agent_name,
             skip_validation=ctx.skip_architect and ctx.skip_auditor,
-            gate_decision=ctx.gate_decision, kwargs=ctx.kwargs,
+            gate_decision=ctx.gate_decision,
+            kwargs=ctx.kwargs,
         )
-        ctx.goal = hook_ctx.get('goal', goal)
+        ctx.goal = hook_ctx.get("goal", goal)
 
         # Dynamic prompt selection based on task type
         if not ctx.skip_architect:
@@ -1018,16 +1083,17 @@ class AgentRunner:
         ctx.learning_context_parts = self._gather_learning_context(ctx.goal)
 
         if ctx.learning_context_parts:
-            ctx.kwargs['learning_context'] = "\n\n".join(ctx.learning_context_parts)
+            ctx.kwargs["learning_context"] = "\n\n".join(ctx.learning_context_parts)
             logger.info(
                 f"Learning context: {len(ctx.learning_context_parts)} sections "
                 f"({sum(len(p) for p in ctx.learning_context_parts)} chars)"
             )
 
         # Pass workspace_dir so project rules get loaded
-        if 'workspace_dir' not in ctx.kwargs:
+        if "workspace_dir" not in ctx.kwargs:
             import os
-            ctx.kwargs['workspace_dir'] = os.getcwd()
+
+            ctx.kwargs["workspace_dir"] = os.getcwd()
 
         ctx.enriched_goal = ctx.goal
         ctx.task_progress.complete_step(0)  # Context gathered
@@ -1037,39 +1103,44 @@ class AgentRunner:
         """Architect (pre-execution) validation + shaped reward."""
         if not ctx.skip_architect:
             # Hook: pre_architect
-            self._run_hooks('pre_architect', goal=ctx.goal, agent_name=self.agent_name)
+            self._run_hooks("pre_architect", goal=ctx.goal, agent_name=self.agent_name)
 
             ctx.task_progress.start_step(1)  # Validate approach
             ctx._status("Architect", "validating approach")
             ctx.architect_results, ctx.proceed = await self.architect_validator.validate(
                 goal=ctx.goal,
-                inputs={'goal': ctx.goal, **ctx.kwargs},
+                inputs={"goal": ctx.goal, **ctx.kwargs},
                 trajectory=[],
-                is_architect=True
+                is_architect=True,
             )
 
             # Track architect validation in state
             if self.swarm_state_manager:
                 avg_confidence = (
                     sum(r.confidence for r in ctx.architect_results) / len(ctx.architect_results)
-                    if ctx.architect_results else 0.0
+                    if ctx.architect_results
+                    else 0.0
                 )
                 self.agent_tracker.record_validation(
-                    validation_type='architect',
+                    validation_type="architect",
                     passed=ctx.proceed,
                     confidence=avg_confidence,
-                    feedback=ctx.architect_results[0].reasoning if ctx.architect_results else None
+                    feedback=ctx.architect_results[0].reasoning if ctx.architect_results else None,
                 )
-                self.swarm_state_manager.record_swarm_step({
-                    'agent': self.agent_name,
-                    'step': 'architect',
-                    'proceed': ctx.proceed,
-                    'confidence': avg_confidence,
-                    'architect_confidence': avg_confidence
-                })
+                self.swarm_state_manager.record_swarm_step(
+                    {
+                        "agent": self.agent_name,
+                        "step": "architect",
+                        "proceed": ctx.proceed,
+                        "confidence": avg_confidence,
+                        "architect_confidence": avg_confidence,
+                    }
+                )
 
             if ctx.architect_results:
-                avg_confidence = sum(r.confidence for r in ctx.architect_results) / len(ctx.architect_results)
+                avg_confidence = sum(r.confidence for r in ctx.architect_results) / len(
+                    ctx.architect_results
+                )
                 logger.debug(
                     f"Architect confidence: {avg_confidence:.2f} "
                     f"(Decision: {'PROCEED' if ctx.proceed else 'BLOCKED'})"
@@ -1077,17 +1148,24 @@ class AgentRunner:
 
             # Hook: post_architect — inspect/override proceed decision
             arch_ctx = self._run_hooks(
-                'post_architect', goal=ctx.goal, agent_name=self.agent_name,
-                architect_results=ctx.architect_results, proceed=ctx.proceed,
+                "post_architect",
+                goal=ctx.goal,
+                agent_name=self.agent_name,
+                architect_results=ctx.architect_results,
+                proceed=ctx.proceed,
             )
-            ctx.proceed = arch_ctx.get('proceed', ctx.proceed)
+            ctx.proceed = arch_ctx.get("proceed", ctx.proceed)
 
             # Shaped reward: architect validation
             if self.shaped_reward_manager and ctx.architect_results:
                 ctx.architect_shaped_reward = self.shaped_reward_manager.check_rewards(
                     event_type="actor_start",
-                    state={'architect_results': ctx.architect_results, 'proceed': ctx.proceed, 'goal': ctx.goal},
-                    trajectory=[]
+                    state={
+                        "architect_results": ctx.architect_results,
+                        "proceed": ctx.proceed,
+                        "goal": ctx.goal,
+                    },
+                    trajectory=[],
                 )
         else:
             logger.info(f" Skipping architect: gate={ctx.gate_decision.mode.value}")
@@ -1099,16 +1177,19 @@ class AgentRunner:
         """Pre-execute hook, workspace checkpoint, agent execution, trajectory building."""
         # Hook: pre_execute — last chance to modify goal
         exec_ctx = self._run_hooks(
-            'pre_execute', goal=ctx.enriched_goal, agent_name=self.agent_name,
+            "pre_execute",
+            goal=ctx.enriched_goal,
+            agent_name=self.agent_name,
             architect_results=ctx.architect_results,
         )
-        ctx.enriched_goal = exec_ctx.get('goal', ctx.enriched_goal)
+        ctx.enriched_goal = exec_ctx.get("goal", ctx.enriched_goal)
 
         ctx.task_progress.start_step(2)  # Execute task
 
         # Workspace checkpoint before execution (Cline checkpoint pattern)
         try:
             from .workspace_checkpoint import WorkspaceCheckpoint
+
             _ws_cp = WorkspaceCheckpoint()
             if _ws_cp._git_available:
                 ctx.ws_checkpoint_id = _ws_cp.save(f"pre-exec:{ctx.goal[:50]}")
@@ -1119,11 +1200,11 @@ class AgentRunner:
         ctx._status("Agent", "executing task (this may take a while)")
 
         # Execute agent (handles AutoAgent, DSPy, callable)
-        if hasattr(self.agent, 'execute'):
+        if hasattr(self.agent, "execute"):
             if ctx.status_callback:
-                ctx.kwargs['status_callback'] = ctx.status_callback
+                ctx.kwargs["status_callback"] = ctx.status_callback
             ctx.agent_output = await self.agent.execute(ctx.enriched_goal, **ctx.kwargs)
-        elif hasattr(self.agent, 'forward'):
+        elif hasattr(self.agent, "forward"):
             ctx.agent_output = self.agent(goal=ctx.goal, **ctx.kwargs)
         else:
             ctx.agent_output = (
@@ -1134,23 +1215,23 @@ class AgentRunner:
 
         # Determine inner success from agent output
         ctx.inner_success = True
-        if hasattr(ctx.agent_output, 'success'):
+        if hasattr(ctx.agent_output, "success"):
             ctx.inner_success = bool(ctx.agent_output.success)
         elif isinstance(ctx.agent_output, dict):
-            ctx.inner_success = bool(ctx.agent_output.get('success', True))
+            ctx.inner_success = bool(ctx.agent_output.get("success", True))
 
         # Build rich trajectory from ExecutionResult
         _skills_used = []
-        if hasattr(ctx.agent_output, 'skills_used') and ctx.agent_output.skills_used:
+        if hasattr(ctx.agent_output, "skills_used") and ctx.agent_output.skills_used:
             _skills_used = list(ctx.agent_output.skills_used)
         elif isinstance(ctx.agent_output, dict):
-            _skills_used = list(ctx.agent_output.get('skills_used', []))
+            _skills_used = list(ctx.agent_output.get("skills_used", []))
 
         _outputs = {}
-        if hasattr(ctx.agent_output, 'outputs') and isinstance(ctx.agent_output.outputs, dict):
+        if hasattr(ctx.agent_output, "outputs") and isinstance(ctx.agent_output.outputs, dict):
             _outputs = ctx.agent_output.outputs
         elif isinstance(ctx.agent_output, dict):
-            _outputs = ctx.agent_output.get('outputs', {})
+            _outputs = ctx.agent_output.get("outputs", {})
 
         # Add one trajectory entry per executed step (skill)
         ctx.trajectory = []
@@ -1159,28 +1240,35 @@ class AgentRunner:
                 step_success = True
                 step_skill = step_name
                 if isinstance(step_data, dict):
-                    step_success = step_data.get('success', True)
-                    step_skill = step_data.get('skill', step_name)
-                ctx.trajectory.append({
-                    'step': i,
-                    'skill': step_skill,
-                    'action': step_name,
-                    'success': step_success,
-                    'output': str(step_data)[:200] if step_data else None,
-                })
+                    step_success = step_data.get("success", True)
+                    step_skill = step_data.get("skill", step_name)
+                ctx.trajectory.append(
+                    {
+                        "step": i,
+                        "skill": step_skill,
+                        "action": step_name,
+                        "success": step_success,
+                        "output": str(step_data)[:200] if step_data else None,
+                    }
+                )
         else:
-            ctx.trajectory.append({
-                'step': 1,
-                'action': 'execute',
-                'skills_used': _skills_used,
-                'output': str(ctx.agent_output)[:500] if ctx.agent_output else None,
-                'success': ctx.inner_success,
-            })
+            ctx.trajectory.append(
+                {
+                    "step": 1,
+                    "action": "execute",
+                    "skills_used": _skills_used,
+                    "output": str(ctx.agent_output)[:500] if ctx.agent_output else None,
+                    "success": ctx.inner_success,
+                }
+            )
 
         # Hook: post_execute — inspect/transform output before auditor
         self._run_hooks(
-            'post_execute', goal=ctx.enriched_goal, agent_name=self.agent_name,
-            agent_output=ctx.agent_output, inner_success=ctx.inner_success,
+            "post_execute",
+            goal=ctx.enriched_goal,
+            agent_name=self.agent_name,
+            agent_output=ctx.agent_output,
+            inner_success=ctx.inner_success,
         )
 
         ctx.task_progress.complete_step(2)  # Task executed
@@ -1193,17 +1281,21 @@ class AgentRunner:
         if not ctx.skip_auditor:
             ctx.auditor_results, passed = await self.auditor_validator.validate(
                 goal=ctx.goal,
-                inputs={'goal': ctx.goal, 'output': str(ctx.agent_output)},
+                inputs={"goal": ctx.goal, "output": str(ctx.agent_output)},
                 trajectory=ctx.trajectory,
-                is_architect=False
+                is_architect=False,
             )
 
             ctx.success = passed and ctx.inner_success
-            ctx.auditor_reasoning = ctx.auditor_results[0].reasoning if ctx.auditor_results else "No feedback"
-            ctx.auditor_confidence = ctx.auditor_results[0].confidence if ctx.auditor_results else 0.0
+            ctx.auditor_reasoning = (
+                ctx.auditor_results[0].reasoning if ctx.auditor_results else "No feedback"
+            )
+            ctx.auditor_confidence = (
+                ctx.auditor_results[0].confidence if ctx.auditor_results else 0.0
+            )
 
             # JUDGE INTERVENTION (MALLM-inspired turn regeneration)
-            _judge_retried = ctx.kwargs.get('_judge_retried', False)
+            _judge_retried = ctx.kwargs.get("_judge_retried", False)
             if (
                 not ctx.success
                 and not _judge_retried
@@ -1219,9 +1311,11 @@ class AgentRunner:
 
                 # Hook: allow external observers to see intervention
                 self._run_hooks(
-                    'post_execute', goal=ctx.enriched_goal,
+                    "post_execute",
+                    goal=ctx.enriched_goal,
                     agent_name=self.agent_name,
-                    agent_output=ctx.agent_output, inner_success=False,
+                    agent_output=ctx.agent_output,
+                    inner_success=False,
                     judge_intervention=True,
                     auditor_reasoning=ctx.auditor_reasoning,
                 )
@@ -1233,17 +1327,17 @@ class AgentRunner:
                 )
 
                 # Re-run execution with feedback
-                if hasattr(self.agent, 'execute'):
+                if hasattr(self.agent, "execute"):
                     retry_kwargs = dict(ctx.kwargs)
-                    retry_kwargs['_judge_retried'] = True
-                    existing_lc = retry_kwargs.get('learning_context', '') or ''
-                    retry_kwargs['learning_context'] = (
-                        existing_lc + '\n\n' + judge_feedback
+                    retry_kwargs["_judge_retried"] = True
+                    existing_lc = retry_kwargs.get("learning_context", "") or ""
+                    retry_kwargs["learning_context"] = (
+                        existing_lc + "\n\n" + judge_feedback
                     ).strip()
                     if ctx.status_callback:
-                        retry_kwargs['status_callback'] = ctx.status_callback
+                        retry_kwargs["status_callback"] = ctx.status_callback
                     ctx.agent_output = await self.agent.execute(ctx.enriched_goal, **retry_kwargs)
-                elif hasattr(self.agent, 'forward'):
+                elif hasattr(self.agent, "forward"):
                     ctx.agent_output = self.agent(goal=ctx.goal, **ctx.kwargs)
                 else:
                     ctx.agent_output = (
@@ -1254,20 +1348,24 @@ class AgentRunner:
 
                 # Re-validate after retry
                 ctx.inner_success = True
-                if hasattr(ctx.agent_output, 'success'):
+                if hasattr(ctx.agent_output, "success"):
                     ctx.inner_success = bool(ctx.agent_output.success)
                 elif isinstance(ctx.agent_output, dict):
-                    ctx.inner_success = bool(ctx.agent_output.get('success', True))
+                    ctx.inner_success = bool(ctx.agent_output.get("success", True))
 
                 ctx.auditor_results, passed = await self.auditor_validator.validate(
                     goal=ctx.goal,
-                    inputs={'goal': ctx.goal, 'output': str(ctx.agent_output)},
+                    inputs={"goal": ctx.goal, "output": str(ctx.agent_output)},
                     trajectory=ctx.trajectory,
-                    is_architect=False
+                    is_architect=False,
                 )
                 ctx.success = passed and ctx.inner_success
-                ctx.auditor_reasoning = ctx.auditor_results[0].reasoning if ctx.auditor_results else "No feedback"
-                ctx.auditor_confidence = ctx.auditor_results[0].confidence if ctx.auditor_results else 0.0
+                ctx.auditor_reasoning = (
+                    ctx.auditor_results[0].reasoning if ctx.auditor_results else "No feedback"
+                )
+                ctx.auditor_confidence = (
+                    ctx.auditor_results[0].confidence if ctx.auditor_results else 0.0
+                )
 
                 logger.info(
                     f" Judge retry result: "
@@ -1278,21 +1376,23 @@ class AgentRunner:
             # Track auditor validation in state
             if self.swarm_state_manager:
                 self.agent_tracker.record_validation(
-                    validation_type='auditor',
+                    validation_type="auditor",
                     passed=passed,
                     confidence=ctx.auditor_confidence,
-                    feedback=ctx.auditor_reasoning
+                    feedback=ctx.auditor_reasoning,
                 )
                 output_type = type(ctx.agent_output).__name__
                 self.agent_tracker.record_output(ctx.agent_output, output_type)
-                self.swarm_state_manager.record_swarm_step({
-                    'agent': self.agent_name,
-                    'step': 'auditor',
-                    'success': ctx.success,
-                    'validation_passed': passed,
-                    'auditor_result': ctx.auditor_reasoning[:100],
-                    'auditor_confidence': ctx.auditor_confidence
-                })
+                self.swarm_state_manager.record_swarm_step(
+                    {
+                        "agent": self.agent_name,
+                        "step": "auditor",
+                        "success": ctx.success,
+                        "validation_passed": passed,
+                        "auditor_result": ctx.auditor_reasoning[:100],
+                        "auditor_confidence": ctx.auditor_confidence,
+                    }
+                )
         else:
             # DIRECT mode: skip auditor, but respect inner execution result
             logger.info(f" Skipping auditor: gate={ctx.gate_decision.mode.value}")
@@ -1304,15 +1404,15 @@ class AgentRunner:
 
         # Update trajectory with validation result
         if ctx.trajectory:
-            ctx.trajectory[0]['success'] = ctx.success
-            ctx.trajectory[0]['validation'] = {
-                'passed': passed,
-                'confidence': ctx.auditor_confidence,
-                'tag': (
+            ctx.trajectory[0]["success"] = ctx.success
+            ctx.trajectory[0]["validation"] = {
+                "passed": passed,
+                "confidence": ctx.auditor_confidence,
+                "tag": (
                     ctx.auditor_results[0].output_tag.value
                     if ctx.auditor_results and ctx.auditor_results[0].output_tag
                     else None
-                )
+                ),
             }
 
         return ctx
@@ -1320,25 +1420,30 @@ class AgentRunner:
     async def _record_and_build_result(self, ctx: ExecutionContext) -> EpisodeResult:
         """Record learning, build EpisodeResult, post_run hook."""
         import time
+
         ctx.duration = time.time() - ctx.start_time
         ctx.learning_data = await self._record_post_execution_learning(
-            goal=ctx.goal, agent_output=ctx.agent_output, success=ctx.success,
-            trajectory=ctx.trajectory, architect_results=ctx.architect_results,
+            goal=ctx.goal,
+            agent_output=ctx.agent_output,
+            success=ctx.success,
+            trajectory=ctx.trajectory,
+            architect_results=ctx.architect_results,
             auditor_results=ctx.auditor_results or [],
             architect_shaped_reward=ctx.architect_shaped_reward,
-            duration=ctx.duration, kwargs=ctx.kwargs
+            duration=ctx.duration,
+            kwargs=ctx.kwargs,
         )
 
         episode_result = EpisodeResult(
             output=ctx.agent_output,
             success=ctx.success,
             trajectory=ctx.trajectory,
-            tagged_outputs=ctx.learning_data['tagged_outputs'],
+            tagged_outputs=ctx.learning_data["tagged_outputs"],
             episode=0,
             execution_time=ctx.duration,
             architect_results=ctx.architect_results or [],
             auditor_results=ctx.auditor_results or [],
-            agent_contributions=ctx.learning_data['agent_contributions']
+            agent_contributions=ctx.learning_data["agent_contributions"],
         )
 
         # Expose workspace checkpoint for rollback by caller
@@ -1365,15 +1470,21 @@ class AgentRunner:
 
         # Hook: post_run — record metrics, log results, send notifications
         self._run_hooks(
-            'post_run', goal=ctx.goal, agent_name=self.agent_name,
-            result=episode_result, success=ctx.success, elapsed=ctx.duration,
+            "post_run",
+            goal=ctx.goal,
+            agent_name=self.agent_name,
+            result=episode_result,
+            success=ctx.success,
+            elapsed=ctx.duration,
             gate_decision=ctx.gate_decision,
             task_progress=ctx.task_progress.summary() if ctx.task_progress else None,
         )
 
         return episode_result
 
-    async def _handle_execution_error(self, ctx: ExecutionContext, error: Exception) -> EpisodeResult:
+    async def _handle_execution_error(
+        self, ctx: ExecutionContext, error: Exception
+    ) -> EpisodeResult:
         """Exception classification, auto-fix via SwarmTerminal, error recording."""
         import time
 
@@ -1400,7 +1511,10 @@ class AgentRunner:
 
         else:
             # Unexpected errors — log full traceback, attempt auto-fix
-            logger.error(f" Agent execution failed (unexpected {type(error).__name__}): {error}", exc_info=True)
+            logger.error(
+                f" Agent execution failed (unexpected {type(error).__name__}): {error}",
+                exc_info=True,
+            )
             error_str = str(error)
             error_type = type(error).__name__
             fix_applied = False
@@ -1410,7 +1524,15 @@ class AgentRunner:
             if self.swarm_terminal:
                 try:
                     logger.info(f" Attempting auto-fix via SwarmTerminal...")
-                    error_keywords = ['command', 'module', 'import', 'pip', 'npm', 'permission', 'not found']
+                    error_keywords = [
+                        "command",
+                        "module",
+                        "import",
+                        "pip",
+                        "npm",
+                        "permission",
+                        "not found",
+                    ]
                     if any(kw in error_str.lower() for kw in error_keywords):
                         diagnostics = await self.swarm_terminal.diagnose_system()
                         solution = await self.swarm_terminal._find_solution(ctx.goal, error_str)
@@ -1427,8 +1549,8 @@ class AgentRunner:
                             if fix_applied:
                                 logger.info(f" Retrying execution after fix...")
                                 ctx._status("Retrying", "after auto-fix")
-                                if not ctx.kwargs.get('_retry_after_fix'):
-                                    ctx.kwargs['_retry_after_fix'] = True
+                                if not ctx.kwargs.get("_retry_after_fix"):
+                                    ctx.kwargs["_retry_after_fix"] = True
                                     return await self.run(ctx.goal, **ctx.kwargs)
 
                 except Exception as fix_error:
@@ -1439,31 +1561,35 @@ class AgentRunner:
             self.agent_tracker.record_error(
                 error=error_str,
                 error_type=error_type,
-                context={'goal': ctx.goal, 'kwargs': ctx.kwargs, 'fix_applied': fix_applied}
+                context={"goal": ctx.goal, "kwargs": ctx.kwargs, "fix_applied": fix_applied},
             )
-            self.swarm_state_manager.record_swarm_step({
-                'agent': self.agent_name,
-                'step': 'error',
-                'error': error_str,
-                'error_type': error_type,
-                'success': False,
-                'fix_applied': fix_applied,
-                'fix_description': fix_description
-            })
+            self.swarm_state_manager.record_swarm_step(
+                {
+                    "agent": self.agent_name,
+                    "step": "error",
+                    "error": error_str,
+                    "error_type": error_type,
+                    "success": False,
+                    "fix_applied": fix_applied,
+                    "fix_description": fix_description,
+                }
+            )
 
         duration = time.time() - ctx.start_time
 
         # Agent0: Send executor feedback for failed execution
         if self.swarm_intelligence:
             try:
-                detected_task_type = self._current_task_type if hasattr(self, '_current_task_type') else None
+                detected_task_type = (
+                    self._current_task_type if hasattr(self, "_current_task_type") else None
+                )
                 self.swarm_intelligence.receive_executor_feedback(
                     task_id=f"{self.agent_name}_{int(time.time())}",
                     success=False,
                     tools_used=[],
                     execution_time=duration,
                     error_type=error_type,
-                    task_type=detected_task_type
+                    task_type=detected_task_type,
                 )
                 logger.debug(f"Executor feedback sent: success=False, error_type={error_type}")
             except Exception as fb_err:
@@ -1478,14 +1604,25 @@ class AgentRunner:
         return EpisodeResult(
             output=None,
             success=False,
-            trajectory=[{'step': 0, 'action': 'error', 'error': error_str, 'error_type': error_type, 'fix_applied': fix_applied}],
+            trajectory=[
+                {
+                    "step": 0,
+                    "action": "error",
+                    "error": error_str,
+                    "error_type": error_type,
+                    "fix_applied": fix_applied,
+                }
+            ],
             tagged_outputs=[],
             episode=0,
             execution_time=duration,
             architect_results=ctx.architect_results,
             auditor_results=[],
             agent_contributions={},
-            alerts=[f"{error_type}: {error_str[:100]}" + (f" (fix applied: {fix_description})" if fix_applied else "")]
+            alerts=[
+                f"{error_type}: {error_str[:100]}"
+                + (f" (fix applied: {fix_description})" if fix_applied else "")
+            ],
         )
 
     @property

@@ -7,6 +7,7 @@ from typing import Any
 @dataclass
 class IntelligenceConfig:
     """Trust tuning, routing, agent communication, and local mode."""
+
     trust_decrease_on_struggle: float = 0.1
     trust_increase_on_excel: float = 0.05
     trust_min: float = 0.1
@@ -28,14 +29,14 @@ class IntelligenceConfig:
     def __post_init__(self) -> None:
         # Unit interval [0, 1] fields
         _unit_fields = {
-            'trust_decrease_on_struggle': self.trust_decrease_on_struggle,
-            'trust_increase_on_excel': self.trust_increase_on_excel,
-            'trust_min': self.trust_min,
-            'adaptation_struggle_threshold': self.adaptation_struggle_threshold,
-            'adaptation_excel_threshold': self.adaptation_excel_threshold,
-            'stigmergy_routing_threshold': self.stigmergy_routing_threshold,
-            'morph_min_rcs': self.morph_min_rcs,
-            'judge_intervention_confidence': self.judge_intervention_confidence,
+            "trust_decrease_on_struggle": self.trust_decrease_on_struggle,
+            "trust_increase_on_excel": self.trust_increase_on_excel,
+            "trust_min": self.trust_min,
+            "adaptation_struggle_threshold": self.adaptation_struggle_threshold,
+            "adaptation_excel_threshold": self.adaptation_excel_threshold,
+            "stigmergy_routing_threshold": self.stigmergy_routing_threshold,
+            "morph_min_rcs": self.morph_min_rcs,
+            "judge_intervention_confidence": self.judge_intervention_confidence,
         }
         for name, val in _unit_fields.items():
             if not (0.0 <= val <= 1.0):
@@ -43,10 +44,10 @@ class IntelligenceConfig:
 
         # Positive integer fields
         _pos_int_fields = {
-            'adaptation_interval': self.adaptation_interval,
-            'memory_retrieval_budget': self.memory_retrieval_budget,
-            'collective_memory_limit': self.collective_memory_limit,
-            'max_messages_per_episode': self.max_messages_per_episode,
+            "adaptation_interval": self.adaptation_interval,
+            "memory_retrieval_budget": self.memory_retrieval_budget,
+            "collective_memory_limit": self.collective_memory_limit,
+            "max_messages_per_episode": self.max_messages_per_episode,
         }
         for name, val in _pos_int_fields.items():
             if val < 1:

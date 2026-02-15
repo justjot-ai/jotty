@@ -7,11 +7,16 @@ Model explainability and interpretation using SHAP values.
 
 import logging
 from typing import Any, Dict, List, Optional
+
 import numpy as np
 import pandas as pd
 
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
+from Jotty.core.infrastructure.utils.tool_helpers import (
+    async_tool_wrapper,
+    tool_error,
+    tool_response,
+)
 
 # Status emitter for progress updates
 status = SkillStatus("shap-explainer")
@@ -36,17 +41,17 @@ async def shap_explain_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with SHAP values and feature importance
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     import shap
 
     logger.info("[SHAP] Generating explanations...")
 
-    model = params.get('model')
-    data = params.get('data')
-    feature_names = params.get('feature_names')
-    explainer_type = params.get('explainer_type', 'auto')
-    max_samples = params.get('max_samples', 100)
+    model = params.get("model")
+    data = params.get("data")
+    feature_names = params.get("feature_names")
+    explainer_type = params.get("explainer_type", "auto")
+    max_samples = params.get("max_samples", 100)
 
     if isinstance(data, str):
         data = pd.read_csv(data)
@@ -59,10 +64,12 @@ async def shap_explain_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         X = np.array(data)
 
     # Select appropriate explainer
-    if explainer_type == 'tree' or (explainer_type == 'auto' and hasattr(model, 'feature_importances_')):
+    if explainer_type == "tree" or (
+        explainer_type == "auto" and hasattr(model, "feature_importances_")
+    ):
         explainer = shap.TreeExplainer(model)
         shap_values = explainer.shap_values(X)
-    elif explainer_type == 'linear':
+    elif explainer_type == "linear":
         explainer = shap.LinearExplainer(model, X[:max_samples])
         shap_values = explainer.shap_values(X)
     else:  # kernel or auto fallback
@@ -88,11 +95,15 @@ async def shap_explain_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     logger.info(f"[SHAP] Explained {len(X)} samples")
 
     return {
-        'success': True,
-        'shap_values': main_shap.tolist() if isinstance(main_shap, np.ndarray) else main_shap,
-        'expected_value': float(explainer.expected_value[0]) if isinstance(explainer.expected_value, (list, np.ndarray)) else float(explainer.expected_value),
-        'feature_importance': dict(sorted_importance),
-        'top_features': [f[0] for f in sorted_importance[:10]],
+        "success": True,
+        "shap_values": main_shap.tolist() if isinstance(main_shap, np.ndarray) else main_shap,
+        "expected_value": (
+            float(explainer.expected_value[0])
+            if isinstance(explainer.expected_value, (list, np.ndarray))
+            else float(explainer.expected_value)
+        ),
+        "feature_importance": dict(sorted_importance),
+        "top_features": [f[0] for f in sorted_importance[:10]],
     }
 
 
@@ -111,16 +122,16 @@ async def shap_importance_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with feature importance ranking
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     import shap
 
     logger.info("[SHAP] Calculating feature importance...")
 
-    model = params.get('model')
-    data = params.get('data')
-    target = params.get('target')
-    top_k = params.get('top_k', 20)
+    model = params.get("model")
+    data = params.get("data")
+    target = params.get("target")
+    top_k = params.get("top_k", 20)
 
     if isinstance(data, str):
         data = pd.read_csv(data)
@@ -143,26 +154,29 @@ async def shap_importance_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
     # Handle multi-class
     if isinstance(shap_values, list):
-        main_shap = shap_values[1] if len(shap_values) == 2 else np.mean([np.abs(sv) for sv in shap_values], axis=0)
+        main_shap = (
+            shap_values[1]
+            if len(shap_values) == 2
+            else np.mean([np.abs(sv) for sv in shap_values], axis=0)
+        )
     else:
         main_shap = shap_values
 
     # Mean absolute SHAP
     importance = np.abs(main_shap).mean(axis=0)
-    importance_df = pd.DataFrame({
-        'feature': feature_names,
-        'importance': importance
-    }).sort_values('importance', ascending=False)
+    importance_df = pd.DataFrame({"feature": feature_names, "importance": importance}).sort_values(
+        "importance", ascending=False
+    )
 
     top_features = importance_df.head(top_k)
 
     logger.info(f"[SHAP] Top feature: {top_features.iloc[0]['feature']}")
 
     return {
-        'success': True,
-        'feature_importance': importance_df.to_dict('records'),
-        'top_features': top_features['feature'].tolist(),
-        'importance_values': top_features['importance'].tolist(),
+        "success": True,
+        "feature_importance": importance_df.to_dict("records"),
+        "top_features": top_features["feature"].tolist(),
+        "importance_values": top_features["importance"].tolist(),
     }
 
 
@@ -181,16 +195,16 @@ async def shap_local_explain_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with local explanation for the instance(s)
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     import shap
 
     logger.info("[SHAP] Generating local explanation...")
 
-    model = params.get('model')
-    data = params.get('data')
-    instance_idx = params.get('instance_idx', 0)
-    feature_names = params.get('feature_names')
+    model = params.get("model")
+    data = params.get("data")
+    instance_idx = params.get("instance_idx", 0)
+    feature_names = params.get("feature_names")
 
     if isinstance(data, str):
         data = pd.read_csv(data)
@@ -230,27 +244,35 @@ async def shap_local_explain_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         contributions = []
         for j, (shap_val, feat_val) in enumerate(zip(instance_shap, instance_values)):
             feat_name = feature_names[j] if feature_names else f"feature_{j}"
-            contributions.append({
-                'feature': feat_name,
-                'value': float(feat_val),
-                'shap_value': float(shap_val),
-                'impact': 'positive' if shap_val > 0 else 'negative'
-            })
+            contributions.append(
+                {
+                    "feature": feat_name,
+                    "value": float(feat_val),
+                    "shap_value": float(shap_val),
+                    "impact": "positive" if shap_val > 0 else "negative",
+                }
+            )
 
         # Sort by absolute SHAP value
-        contributions.sort(key=lambda x: abs(x['shap_value']), reverse=True)
+        contributions.sort(key=lambda x: abs(x["shap_value"]), reverse=True)
 
-        explanations.append({
-            'instance_idx': idx,
-            'contributions': contributions[:15],  # Top 15 features
-            'base_value': float(explainer.expected_value[0]) if isinstance(explainer.expected_value, (list, np.ndarray)) else float(explainer.expected_value),
-        })
+        explanations.append(
+            {
+                "instance_idx": idx,
+                "contributions": contributions[:15],  # Top 15 features
+                "base_value": (
+                    float(explainer.expected_value[0])
+                    if isinstance(explainer.expected_value, (list, np.ndarray))
+                    else float(explainer.expected_value)
+                ),
+            }
+        )
 
     logger.info(f"[SHAP] Explained {len(explanations)} instance(s)")
 
     return {
-        'success': True,
-        'explanations': explanations,
+        "success": True,
+        "explanations": explanations,
     }
 
 
@@ -268,15 +290,15 @@ async def shap_interaction_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with interaction values
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     import shap
 
     logger.info("[SHAP] Computing interaction values...")
 
-    model = params.get('model')
-    data = params.get('data')
-    max_samples = params.get('max_samples', 500)
+    model = params.get("model")
+    data = params.get("data")
+    max_samples = params.get("max_samples", 500)
 
     if isinstance(data, str):
         data = pd.read_csv(data)
@@ -289,13 +311,12 @@ async def shap_interaction_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         explainer = shap.TreeExplainer(model)
         interaction_values = explainer.shap_interaction_values(X)
     except Exception as e:
-        return {
-            'success': False,
-            'error': f"Interaction values require tree-based model: {str(e)}"
-        }
+        return {"success": False, "error": f"Interaction values require tree-based model: {str(e)}"}
 
     if isinstance(interaction_values, list):
-        main_interactions = interaction_values[1] if len(interaction_values) == 2 else interaction_values[0]
+        main_interactions = (
+            interaction_values[1] if len(interaction_values) == 2 else interaction_values[0]
+        )
     else:
         main_interactions = interaction_values
 
@@ -306,19 +327,21 @@ async def shap_interaction_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     top_interactions = []
     for i in range(len(feature_names)):
         for j in range(i + 1, len(feature_names)):
-            top_interactions.append({
-                'feature1': feature_names[i],
-                'feature2': feature_names[j],
-                'interaction_strength': float(mean_interactions[i, j])
-            })
+            top_interactions.append(
+                {
+                    "feature1": feature_names[i],
+                    "feature2": feature_names[j],
+                    "interaction_strength": float(mean_interactions[i, j]),
+                }
+            )
 
-    top_interactions.sort(key=lambda x: x['interaction_strength'], reverse=True)
+    top_interactions.sort(key=lambda x: x["interaction_strength"], reverse=True)
 
     logger.info(f"[SHAP] Found {len(top_interactions)} interactions")
 
     return {
-        'success': True,
-        'top_interactions': top_interactions[:20],
-        'interaction_matrix': mean_interactions.tolist(),
-        'feature_names': feature_names,
+        "success": True,
+        "top_interactions": top_interactions[:20],
+        "interaction_matrix": mean_interactions.tolist(),
+        "feature_names": feature_names,
     }

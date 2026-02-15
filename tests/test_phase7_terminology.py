@@ -9,29 +9,32 @@ NOTE: SingleAgentOrchestrator was never implemented. The architecture
 evolved to use Orchestrator directly. These tests are skipped.
 """
 
-import sys
 import os
+import sys
 
 # Add Jotty to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import pytest
 import warnings
 
-pytestmark = pytest.mark.skip(reason="SingleAgentOrchestrator was never implemented; architecture uses Orchestrator directly")
+import pytest
+
+pytestmark = pytest.mark.skip(
+    reason="SingleAgentOrchestrator was never implemented; architecture uses Orchestrator directly"
+)
 
 
 def test_single_agent_orchestrator_import():
     """New class name imports successfully."""
     from core.orchestration import SingleAgentOrchestrator
+
     assert SingleAgentOrchestrator is not None
     print("✓ SingleAgentOrchestrator imports successfully")
 
 
 def test_jotty_core_backward_compat():
     """Old Orchestrator name still works (deprecated alias)."""
-    from core.orchestration import Orchestrator
-    from core.orchestration import SingleAgentOrchestrator
+    from core.orchestration import Orchestrator, SingleAgentOrchestrator
 
     # Orchestrator is an alias for SingleAgentOrchestrator
     assert Orchestrator is SingleAgentOrchestrator
@@ -40,8 +43,8 @@ def test_jotty_core_backward_compat():
 
 def test_jotty_core_module_import():
     """Old jotty_core module import still works."""
-    from core.orchestration.jotty_core import Orchestrator
     from core.orchestration import SingleAgentOrchestrator
+    from core.orchestration.jotty_core import Orchestrator
 
     assert Orchestrator is SingleAgentOrchestrator
     print("✓ jotty_core module import works (deprecated)")
@@ -49,8 +52,9 @@ def test_jotty_core_module_import():
 
 def test_actor_parameter_backward_compat():
     """Old 'actor' parameter still works with deprecation warning."""
-    from core.orchestration import SingleAgentOrchestrator
     import dspy
+
+    from core.orchestration import SingleAgentOrchestrator
 
     # Create a simple agent
     agent = dspy.ChainOfThought("question -> answer")
@@ -63,7 +67,7 @@ def test_actor_parameter_backward_compat():
             architect_prompts=[],
             auditor_prompts=[],
             architect_tools=[],
-            auditor_tools=[]
+            auditor_tools=[],
         )
 
         # Should have deprecation warning
@@ -79,8 +83,9 @@ def test_actor_parameter_backward_compat():
 
 def test_agent_parameter_new():
     """New 'agent' parameter works without warning."""
-    from core.orchestration import SingleAgentOrchestrator
     import dspy
+
+    from core.orchestration import SingleAgentOrchestrator
 
     # Create a simple agent
     agent = dspy.ChainOfThought("question -> answer")
@@ -93,11 +98,13 @@ def test_agent_parameter_new():
             architect_prompts=[],
             auditor_prompts=[],
             architect_tools=[],
-            auditor_tools=[]
+            auditor_tools=[],
         )
 
         # Filter for DeprecationWarnings only
-        deprecation_warnings = [warning for warning in w if issubclass(warning.category, DeprecationWarning)]
+        deprecation_warnings = [
+            warning for warning in w if issubclass(warning.category, DeprecationWarning)
+        ]
 
         # Should have no deprecation warnings
         assert len(deprecation_warnings) == 0
@@ -108,21 +115,18 @@ def test_agent_parameter_new():
 
 def test_instance_variable_name():
     """Internal instance variable is named 'agent'."""
-    from core.orchestration import SingleAgentOrchestrator
     import dspy
+
+    from core.orchestration import SingleAgentOrchestrator
 
     agent = dspy.ChainOfThought("question -> answer")
 
     orch = SingleAgentOrchestrator(
-        agent=agent,
-        architect_prompts=[],
-        auditor_prompts=[],
-        architect_tools=[],
-        auditor_tools=[]
+        agent=agent, architect_prompts=[], auditor_prompts=[], architect_tools=[], auditor_tools=[]
     )
 
     # Should have 'agent' attribute
-    assert hasattr(orch, 'agent')
+    assert hasattr(orch, "agent")
     assert orch.agent is agent
 
     print("✓ Instance variable is named 'agent'")
@@ -130,7 +134,7 @@ def test_instance_variable_name():
 
 def test_package_exports():
     """Package __init__.py exports new names correctly."""
-    from core.orchestration import SingleAgentOrchestrator, Orchestrator
+    from core.orchestration import Orchestrator, SingleAgentOrchestrator
 
     # Both should be available
     assert SingleAgentOrchestrator is not None
@@ -145,10 +149,9 @@ def test_package_exports():
 def test_orchestration_layer_imports():
     """Orchestration layer imports work correctly."""
     # New import path
-    from core.orchestration.single_agent_orchestrator import SingleAgentOrchestrator
-
     # Old import path
     from core.orchestration.jotty_core import Orchestrator
+    from core.orchestration.single_agent_orchestrator import SingleAgentOrchestrator
 
     # Should be the same
     assert Orchestrator is SingleAgentOrchestrator
@@ -157,9 +160,9 @@ def test_orchestration_layer_imports():
 
 
 if __name__ == "__main__":
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("Phase 7 Refactoring Tests - Terminology Standardization")
-    print("="*60 + "\n")
+    print("=" * 60 + "\n")
 
     test_single_agent_orchestrator_import()
     test_jotty_core_backward_compat()
@@ -170,6 +173,6 @@ if __name__ == "__main__":
     test_package_exports()
     test_orchestration_layer_imports()
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("✅ All Phase 7 tests passed!")
-    print("="*60 + "\n")
+    print("=" * 60 + "\n")

@@ -19,31 +19,35 @@ Supports:
 
 Set BROWSER_BACKEND='selenium' to use Selenium, or use cdp_url for CDP connection.
 """
-import atexit
-import os
-import json
+
 import asyncio
+import atexit
 import base64
+import json
 import logging
-from pathlib import Path
-from typing import Dict, Any, Optional, List
+import os
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 logger = logging.getLogger(__name__)
 
 # Configuration
-BROWSER_BACKEND = os.environ.get('BROWSER_BACKEND', 'playwright')
+BROWSER_BACKEND = os.environ.get("BROWSER_BACKEND", "playwright")
 
 # Try to import Playwright
 PLAYWRIGHT_AVAILABLE = False
 try:
-    from playwright.async_api import async_playwright, Browser, Page, BrowserContext
+    from playwright.async_api import Browser, BrowserContext, Page, async_playwright
+
     PLAYWRIGHT_AVAILABLE = True
 except ImportError:
-    logger.warning("Playwright not installed. Run: pip install playwright && playwright install chromium")
+    logger.warning(
+        "Playwright not installed. Run: pip install playwright && playwright install chromium"
+    )
 
 # Try to import Selenium
 
@@ -54,10 +58,11 @@ SELENIUM_AVAILABLE = False
 try:
     from selenium import webdriver
     from selenium.webdriver.chrome.options import Options as ChromeOptions
-    from selenium.webdriver.common.by import By
-    from selenium.webdriver.support.ui import WebDriverWait
-    from selenium.webdriver.support import expected_conditions as EC
     from selenium.webdriver.common.action_chains import ActionChains
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support import expected_conditions as EC
+    from selenium.webdriver.support.ui import WebDriverWait
+
     SELENIUM_AVAILABLE = True
 except ImportError:
     logger.info("Selenium not installed. Run: pip install selenium")
@@ -102,7 +107,11 @@ class BrowserSession:
     def _emit_event(event_type: str, data: dict) -> None:
         """Emit an event via AgentEventBroadcaster (lazy import)."""
         try:
-            from Jotty.core.infrastructure.utils.async_utils import AgentEventBroadcaster, AgentEvent
+            from Jotty.core.infrastructure.utils.async_utils import (
+                AgentEvent,
+                AgentEventBroadcaster,
+            )
+
             broadcaster = AgentEventBroadcaster.get_instance()
             data["skill"] = "browser-automation"
             broadcaster.emit_async(AgentEvent(type=event_type, data=data))
@@ -117,16 +126,15 @@ class BrowserSession:
         if self._playwright is None:
             self._playwright = await async_playwright().start()
             self._browser = await self._playwright.chromium.launch(
-                headless=True,
-                args=['--no-sandbox', '--disable-dev-shm-usage']
+                headless=True, args=["--no-sandbox", "--disable-dev-shm-usage"]
             )
 
         if self._context is None or new_context:
             if self._context:
                 await self._context.close()
             self._context = await self._browser.new_context(
-                viewport={'width': 1920, 'height': 1080},
-                user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                viewport={"width": 1920, "height": 1080},
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
             )
             self._page = await self._context.new_page()
 
@@ -173,7 +181,11 @@ class SeleniumBrowserSession:
     def _emit_event(event_type: str, data: dict) -> None:
         """Emit an event via AgentEventBroadcaster (lazy import)."""
         try:
-            from Jotty.core.infrastructure.utils.async_utils import AgentEventBroadcaster, AgentEvent
+            from Jotty.core.infrastructure.utils.async_utils import (
+                AgentEvent,
+                AgentEventBroadcaster,
+            )
+
             broadcaster = AgentEventBroadcaster.get_instance()
             data["skill"] = "browser-automation"
             broadcaster.emit_async(AgentEvent(type=event_type, data=data))
@@ -201,16 +213,20 @@ class SeleniumBrowserSession:
 
         if cdp_url:
             # Connect to existing browser via CDP (for Electron embedding)
-            options.add_experimental_option("debuggerAddress", cdp_url.replace("http://", "").replace("https://", ""))
+            options.add_experimental_option(
+                "debuggerAddress", cdp_url.replace("http://", "").replace("https://", "")
+            )
         else:
             # Standard Chrome options
             if headless:
-                options.add_argument('--headless=new')
-            options.add_argument('--no-sandbox')
-            options.add_argument('--disable-dev-shm-usage')
-            options.add_argument('--disable-gpu')
-            options.add_argument('--window-size=1920,1080')
-            options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36')
+                options.add_argument("--headless=new")
+            options.add_argument("--no-sandbox")
+            options.add_argument("--disable-dev-shm-usage")
+            options.add_argument("--disable-gpu")
+            options.add_argument("--window-size=1920,1080")
+            options.add_argument(
+                "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            )
 
         self._driver = webdriver.Chrome(options=options)
         self._driver.implicitly_wait(10)
@@ -228,7 +244,9 @@ class SeleniumBrowserSession:
         SeleniumBrowserSession._instance = None
         self._emit_event("tool_end", {"action": "close", "backend": "selenium"})
 
-    def navigate(self, url: str, wait_for: Optional[str] = None, timeout: int = 30) -> Dict[str, Any]:
+    def navigate(
+        self, url: str, wait_for: Optional[str] = None, timeout: int = 30
+    ) -> Dict[str, Any]:
         """Navigate to URL using Selenium."""
         self._emit_event("tool_start", {"action": "navigate", "url": url, "backend": "selenium"})
         driver = self.get_driver()
@@ -239,16 +257,16 @@ class SeleniumBrowserSession:
                 EC.presence_of_element_located((By.CSS_SELECTOR, wait_for))
             )
 
-        self._emit_event("tool_end", {"action": "navigate", "url": driver.current_url, "backend": "selenium"})
-        return {
-            'success': True,
-            'url': driver.current_url,
-            'title': driver.title
-        }
+        self._emit_event(
+            "tool_end", {"action": "navigate", "url": driver.current_url, "backend": "selenium"}
+        )
+        return {"success": True, "url": driver.current_url, "title": driver.title}
 
     def screenshot(self, selector: Optional[str] = None, full_page: bool = False) -> bytes:
         """Take screenshot using Selenium."""
-        self._emit_event("tool_start", {"action": "screenshot", "selector": selector, "backend": "selenium"})
+        self._emit_event(
+            "tool_start", {"action": "screenshot", "selector": selector, "backend": "selenium"}
+        )
         driver = self.get_driver()
 
         if selector:
@@ -286,7 +304,7 @@ class SeleniumBrowserSession:
             element = driver.find_element(By.CSS_SELECTOR, selector)
             return element.text
         else:
-            return driver.find_element(By.TAG_NAME, 'body').text
+            return driver.find_element(By.TAG_NAME, "body").text
 
     def execute_script(self, script: str, *args) -> Any:
         """Execute JavaScript using Selenium."""
@@ -302,28 +320,34 @@ class SeleniumBrowserSession:
         """
         driver = self.get_driver()
         try:
-            raw = driver.execute_cdp_cmd('Accessibility.getFullAXTree', {
-                'max_depth': max_depth,
-            })
-            nodes = raw.get('nodes', [])
+            raw = driver.execute_cdp_cmd(
+                "Accessibility.getFullAXTree",
+                {
+                    "max_depth": max_depth,
+                },
+            )
+            nodes = raw.get("nodes", [])
             # Simplify: extract role, name, value, and children count
             simplified = []
             for node in nodes[:200]:  # Cap to prevent huge outputs
-                props = node.get('properties', [])
-                prop_dict = {p['name']: p.get('value', {}).get('value', '')
-                             for p in props if 'name' in p}
-                simplified.append({
-                    'nodeId': node.get('nodeId'),
-                    'role': node.get('role', {}).get('value', ''),
-                    'name': node.get('name', {}).get('value', ''),
-                    'description': node.get('description', {}).get('value', ''),
-                    'focusable': prop_dict.get('focusable', False),
-                    'children_count': len(node.get('childIds', [])),
-                })
-            return {'success': True, 'nodes': simplified, 'total': len(nodes)}
+                props = node.get("properties", [])
+                prop_dict = {
+                    p["name"]: p.get("value", {}).get("value", "") for p in props if "name" in p
+                }
+                simplified.append(
+                    {
+                        "nodeId": node.get("nodeId"),
+                        "role": node.get("role", {}).get("value", ""),
+                        "name": node.get("name", {}).get("value", ""),
+                        "description": node.get("description", {}).get("value", ""),
+                        "focusable": prop_dict.get("focusable", False),
+                        "children_count": len(node.get("childIds", [])),
+                    }
+                )
+            return {"success": True, "nodes": simplified, "total": len(nodes)}
         except Exception as e:
             logger.warning(f"CDP Accessibility.getFullAXTree failed: {e}")
-            return {'success': False, 'error': str(e)}
+            return {"success": False, "error": str(e)}
 
     def get_dom_structure(self, selector: str = "body", max_depth: int = 3) -> Dict[str, Any]:
         """Get DOM structure with visibility, bounds, and interactive state.
@@ -364,10 +388,10 @@ class SeleniumBrowserSession:
         try:
             tree = driver.execute_script(js, selector, max_depth)
             if tree is None:
-                return {'success': False, 'error': f'Selector not found: {selector}'}
-            return {'success': True, 'tree': tree}
+                return {"success": False, "error": f"Selector not found: {selector}"}
+            return {"success": True, "tree": tree}
         except Exception as e:
-            return {'success': False, 'error': str(e)}
+            return {"success": False, "error": str(e)}
 
     def cdp_click(self, x: int, y: int) -> Dict[str, Any]:
         """Coordinate-based click via CDP Input.dispatchMouseEvent.
@@ -377,28 +401,40 @@ class SeleniumBrowserSession:
         """
         driver = self.get_driver()
         try:
-            driver.execute_cdp_cmd('Input.dispatchMouseEvent', {
-                'type': 'mousePressed', 'x': x, 'y': y,
-                'button': 'left', 'clickCount': 1,
-            })
-            driver.execute_cdp_cmd('Input.dispatchMouseEvent', {
-                'type': 'mouseReleased', 'x': x, 'y': y,
-                'button': 'left', 'clickCount': 1,
-            })
-            return {'success': True, 'x': x, 'y': y, 'method': 'cdp_click'}
+            driver.execute_cdp_cmd(
+                "Input.dispatchMouseEvent",
+                {
+                    "type": "mousePressed",
+                    "x": x,
+                    "y": y,
+                    "button": "left",
+                    "clickCount": 1,
+                },
+            )
+            driver.execute_cdp_cmd(
+                "Input.dispatchMouseEvent",
+                {
+                    "type": "mouseReleased",
+                    "x": x,
+                    "y": y,
+                    "button": "left",
+                    "clickCount": 1,
+                },
+            )
+            return {"success": True, "x": x, "y": y, "method": "cdp_click"}
         except Exception as e:
-            return {'success': False, 'error': str(e), 'x': x, 'y': y}
+            return {"success": False, "error": str(e), "x": x, "y": y}
 
 
 def _selenium_navigate(params: Dict[str, Any]) -> Dict[str, Any]:
     """Navigate using Selenium backend."""
     try:
-        url = params.get('url')
-        wait_for = params.get('wait_for')
-        wait_timeout = params.get('wait_timeout', 30000) // 1000  # Convert to seconds
-        take_screenshot = params.get('screenshot', False)
-        extract_text = params.get('extract_text', True)
-        cdp_url = params.get('cdp_url')
+        url = params.get("url")
+        wait_for = params.get("wait_for")
+        wait_timeout = params.get("wait_timeout", 30000) // 1000  # Convert to seconds
+        take_screenshot = params.get("screenshot", False)
+        extract_text = params.get("extract_text", True)
+        cdp_url = params.get("cdp_url")
 
         session = SeleniumBrowserSession.get_instance()
         driver = session.get_driver(cdp_url=cdp_url)
@@ -406,29 +442,29 @@ def _selenium_navigate(params: Dict[str, Any]) -> Dict[str, Any]:
         result = session.navigate(url, wait_for, wait_timeout)
 
         if extract_text:
-            result['text'] = session.extract_text()[:50000]
-            result['text_length'] = len(result['text'])
+            result["text"] = session.extract_text()[:50000]
+            result["text_length"] = len(result["text"])
 
         if take_screenshot:
             screenshot_bytes = session.screenshot()
-            result['screenshot_base64'] = base64.b64encode(screenshot_bytes).decode('utf-8')
+            result["screenshot_base64"] = base64.b64encode(screenshot_bytes).decode("utf-8")
 
-        result['backend'] = 'selenium'
+        result["backend"] = "selenium"
         return result
 
     except Exception as e:
         logger.error(f"Selenium navigation error: {e}", exc_info=True)
-        return {'success': False, 'error': str(e), 'backend': 'selenium'}
+        return {"success": False, "error": str(e), "backend": "selenium"}
 
 
 def _selenium_screenshot(params: Dict[str, Any]) -> Dict[str, Any]:
     """Take screenshot using Selenium backend."""
     try:
-        url = params.get('url')
-        selector = params.get('selector')
-        full_page = params.get('full_page', False)
-        save_path = params.get('save_path')
-        cdp_url = params.get('cdp_url')
+        url = params.get("url")
+        selector = params.get("selector")
+        full_page = params.get("full_page", False)
+        save_path = params.get("save_path")
+        cdp_url = params.get("cdp_url")
 
         session = SeleniumBrowserSession.get_instance()
         driver = session.get_driver(cdp_url=cdp_url)
@@ -439,23 +475,23 @@ def _selenium_screenshot(params: Dict[str, Any]) -> Dict[str, Any]:
         screenshot_bytes = session.screenshot(selector, full_page)
 
         result = {
-            'success': True,
-            'screenshot_base64': base64.b64encode(screenshot_bytes).decode('utf-8'),
-            'size_bytes': len(screenshot_bytes),
-            'backend': 'selenium'
+            "success": True,
+            "screenshot_base64": base64.b64encode(screenshot_bytes).decode("utf-8"),
+            "size_bytes": len(screenshot_bytes),
+            "backend": "selenium",
         }
 
         if save_path:
             save_path = Path(save_path)
             save_path.parent.mkdir(parents=True, exist_ok=True)
             save_path.write_bytes(screenshot_bytes)
-            result['saved_path'] = str(save_path)
+            result["saved_path"] = str(save_path)
 
         return result
 
     except Exception as e:
         logger.error(f"Selenium screenshot error: {e}", exc_info=True)
-        return {'success': False, 'error': str(e), 'backend': 'selenium'}
+        return {"success": False, "error": str(e), "backend": "selenium"}
 
 
 @tool_wrapper()
@@ -483,38 +519,41 @@ async def browser_navigate_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - backend (str): Which backend was used
             - error (str, optional): Error message if failed
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
-    url = params.get('url')
+    url = params.get("url")
     if not url:
-        return {'success': False, 'error': 'url parameter is required'}
+        return {"success": False, "error": "url parameter is required"}
 
-    backend = params.get('backend', BROWSER_BACKEND)
-    cdp_url = params.get('cdp_url')
+    backend = params.get("backend", BROWSER_BACKEND)
+    cdp_url = params.get("cdp_url")
 
     # Use Selenium if CDP URL provided or backend is selenium
-    if (cdp_url or backend == 'selenium') and SELENIUM_AVAILABLE:
+    if (cdp_url or backend == "selenium") and SELENIUM_AVAILABLE:
         return _selenium_navigate(params)
 
     if not PLAYWRIGHT_AVAILABLE:
-        return {'success': False, 'error': 'Playwright not installed. Run: pip install playwright && playwright install chromium'}
+        return {
+            "success": False,
+            "error": "Playwright not installed. Run: pip install playwright && playwright install chromium",
+        }
 
     try:
-        url = params.get('url')
+        url = params.get("url")
         if not url:
-            return {'success': False, 'error': 'url parameter is required'}
+            return {"success": False, "error": "url parameter is required"}
 
-        wait_for = params.get('wait_for')
-        wait_timeout = params.get('wait_timeout', 30000)
-        take_screenshot = params.get('screenshot', False)
-        extract_text = params.get('extract_text', True)
+        wait_for = params.get("wait_for")
+        wait_timeout = params.get("wait_timeout", 30000)
+        take_screenshot = params.get("screenshot", False)
+        extract_text = params.get("extract_text", True)
 
         session = await BrowserSession.get_instance()
         page = await session.get_page()
 
         # Navigate
         logger.info(f"Navigating to: {url}")
-        await page.goto(url, wait_until='networkidle', timeout=wait_timeout)
+        await page.goto(url, wait_until="networkidle", timeout=wait_timeout)
 
         # Wait for specific element if requested
         if wait_for:
@@ -524,28 +563,24 @@ async def browser_navigate_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         title = await page.title()
         final_url = page.url
 
-        result = {
-            'success': True,
-            'url': final_url,
-            'title': title
-        }
+        result = {"success": True, "url": final_url, "title": title}
 
         # Extract text
         if extract_text:
-            text = await page.evaluate('() => document.body.innerText')
-            result['text'] = text[:50000]  # Limit size
-            result['text_length'] = len(text)
+            text = await page.evaluate("() => document.body.innerText")
+            result["text"] = text[:50000]  # Limit size
+            result["text_length"] = len(text)
 
         # Take screenshot
         if take_screenshot:
             screenshot_bytes = await page.screenshot(full_page=False)
-            result['screenshot_base64'] = base64.b64encode(screenshot_bytes).decode('utf-8')
+            result["screenshot_base64"] = base64.b64encode(screenshot_bytes).decode("utf-8")
 
         return result
 
     except Exception as e:
         logger.error(f"Browser navigation error: {e}", exc_info=True)
-        return {'success': False, 'error': str(e)}
+        return {"success": False, "error": str(e)}
 
 
 @tool_wrapper()
@@ -571,49 +606,46 @@ async def browser_screenshot_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - height (int): Image height
             - error (str, optional): Error message if failed
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     if not PLAYWRIGHT_AVAILABLE:
-        return {'success': False, 'error': 'Playwright not installed'}
+        return {"success": False, "error": "Playwright not installed"}
 
     try:
-        url = params.get('url')
-        full_page = params.get('full_page', False)
-        selector = params.get('selector')
-        save_path = params.get('save_path')
-        img_format = params.get('format', 'png')
-        quality = params.get('quality', 80)
+        url = params.get("url")
+        full_page = params.get("full_page", False)
+        selector = params.get("selector")
+        save_path = params.get("save_path")
+        img_format = params.get("format", "png")
+        quality = params.get("quality", 80)
 
         session = await BrowserSession.get_instance()
         page = await session.get_page()
 
         # Navigate if URL provided
         if url:
-            await page.goto(url, wait_until='networkidle')
+            await page.goto(url, wait_until="networkidle")
 
         # Screenshot options
-        screenshot_opts = {
-            'full_page': full_page,
-            'type': img_format
-        }
+        screenshot_opts = {"full_page": full_page, "type": img_format}
 
-        if img_format == 'jpeg':
-            screenshot_opts['quality'] = quality
+        if img_format == "jpeg":
+            screenshot_opts["quality"] = quality
 
         # Take screenshot
         if selector:
             element = await page.query_selector(selector)
             if not element:
-                return {'success': False, 'error': f'Element not found: {selector}'}
+                return {"success": False, "error": f"Element not found: {selector}"}
             screenshot_bytes = await element.screenshot(**screenshot_opts)
         else:
             screenshot_bytes = await page.screenshot(**screenshot_opts)
 
         result = {
-            'success': True,
-            'screenshot_base64': base64.b64encode(screenshot_bytes).decode('utf-8'),
-            'format': img_format,
-            'size_bytes': len(screenshot_bytes)
+            "success": True,
+            "screenshot_base64": base64.b64encode(screenshot_bytes).decode("utf-8"),
+            "format": img_format,
+            "size_bytes": len(screenshot_bytes),
         }
 
         # Save to file if path provided
@@ -621,13 +653,13 @@ async def browser_screenshot_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             save_path = Path(save_path)
             save_path.parent.mkdir(parents=True, exist_ok=True)
             save_path.write_bytes(screenshot_bytes)
-            result['saved_path'] = str(save_path)
+            result["saved_path"] = str(save_path)
 
         return result
 
     except Exception as e:
         logger.error(f"Screenshot error: {e}", exc_info=True)
-        return {'success': False, 'error': str(e)}
+        return {"success": False, "error": str(e)}
 
 
 @tool_wrapper()
@@ -651,27 +683,27 @@ async def browser_fill_form_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - url_after (str): URL after submission
             - error (str, optional): Error message if failed
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     if not PLAYWRIGHT_AVAILABLE:
-        return {'success': False, 'error': 'Playwright not installed'}
+        return {"success": False, "error": "Playwright not installed"}
 
     try:
-        url = params.get('url')
-        fields = params.get('fields', {})
-        submit_selector = params.get('submit_selector')
-        wait_after_submit = params.get('wait_after_submit')
-        take_screenshot = params.get('screenshot', False)
+        url = params.get("url")
+        fields = params.get("fields", {})
+        submit_selector = params.get("submit_selector")
+        wait_after_submit = params.get("wait_after_submit")
+        take_screenshot = params.get("screenshot", False)
 
         if not fields:
-            return {'success': False, 'error': 'fields parameter is required'}
+            return {"success": False, "error": "fields parameter is required"}
 
         session = await BrowserSession.get_instance()
         page = await session.get_page()
 
         # Navigate if URL provided
         if url:
-            await page.goto(url, wait_until='networkidle')
+            await page.goto(url, wait_until="networkidle")
 
         # Fill each field
         fields_filled = 0
@@ -680,19 +712,19 @@ async def browser_fill_form_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                 element = await page.query_selector(selector)
                 if element:
                     # Check element type
-                    tag_name = await element.evaluate('el => el.tagName.toLowerCase()')
+                    tag_name = await element.evaluate("el => el.tagName.toLowerCase()")
                     input_type = await element.evaluate('el => el.type || ""')
 
-                    if tag_name == 'select':
+                    if tag_name == "select":
                         await element.select_option(value)
-                    elif input_type == 'checkbox':
+                    elif input_type == "checkbox":
                         if value:
                             await element.check()
                         else:
                             await element.uncheck()
-                    elif input_type == 'radio':
+                    elif input_type == "radio":
                         await element.check()
-                    elif input_type == 'file':
+                    elif input_type == "file":
                         await element.set_input_files(value)
                     else:
                         await element.fill(value)
@@ -702,37 +734,33 @@ async def browser_fill_form_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             except Exception as e:
                 logger.warning(f"Could not fill {selector}: {e}")
 
-        result = {
-            'success': True,
-            'fields_filled': fields_filled,
-            'submitted': False
-        }
+        result = {"success": True, "fields_filled": fields_filled, "submitted": False}
 
         # Submit if requested
         if submit_selector:
             submit_btn = await page.query_selector(submit_selector)
             if submit_btn:
                 await submit_btn.click()
-                result['submitted'] = True
+                result["submitted"] = True
 
                 # Wait for navigation or element
                 if wait_after_submit:
                     await page.wait_for_selector(wait_after_submit, timeout=30000)
                 else:
-                    await page.wait_for_load_state('networkidle')
+                    await page.wait_for_load_state("networkidle")
 
-                result['url_after'] = page.url
+                result["url_after"] = page.url
 
         # Screenshot if requested
         if take_screenshot:
             screenshot_bytes = await page.screenshot()
-            result['screenshot_base64'] = base64.b64encode(screenshot_bytes).decode('utf-8')
+            result["screenshot_base64"] = base64.b64encode(screenshot_bytes).decode("utf-8")
 
         return result
 
     except Exception as e:
         logger.error(f"Form fill error: {e}", exc_info=True)
-        return {'success': False, 'error': str(e)}
+        return {"success": False, "error": str(e)}
 
 
 @tool_wrapper()
@@ -755,38 +783,38 @@ async def browser_click_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - url_after (str): URL after click
             - error (str, optional): Error message if failed
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     if not PLAYWRIGHT_AVAILABLE:
-        return {'success': False, 'error': 'Playwright not installed'}
+        return {"success": False, "error": "Playwright not installed"}
 
     try:
-        selector = params.get('selector')
-        url = params.get('url')
-        wait_for = params.get('wait_for')
-        double_click = params.get('double_click', False)
-        right_click = params.get('right_click', False)
-        take_screenshot = params.get('screenshot', False)
+        selector = params.get("selector")
+        url = params.get("url")
+        wait_for = params.get("wait_for")
+        double_click = params.get("double_click", False)
+        right_click = params.get("right_click", False)
+        take_screenshot = params.get("screenshot", False)
 
         if not selector:
-            return {'success': False, 'error': 'selector parameter is required'}
+            return {"success": False, "error": "selector parameter is required"}
 
         session = await BrowserSession.get_instance()
         page = await session.get_page()
 
         # Navigate if URL provided
         if url:
-            await page.goto(url, wait_until='networkidle')
+            await page.goto(url, wait_until="networkidle")
 
         # Find and click element
         element = await page.query_selector(selector)
         if not element:
-            return {'success': False, 'error': f'Element not found: {selector}'}
+            return {"success": False, "error": f"Element not found: {selector}"}
 
         if double_click:
             await element.dblclick()
         elif right_click:
-            await element.click(button='right')
+            await element.click(button="right")
         else:
             await element.click()
 
@@ -796,21 +824,18 @@ async def browser_click_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         else:
             await asyncio.sleep(1)  # Brief wait for any JS effects
 
-        result = {
-            'success': True,
-            'url_after': page.url
-        }
+        result = {"success": True, "url_after": page.url}
 
         # Screenshot if requested
         if take_screenshot:
             screenshot_bytes = await page.screenshot()
-            result['screenshot_base64'] = base64.b64encode(screenshot_bytes).decode('utf-8')
+            result["screenshot_base64"] = base64.b64encode(screenshot_bytes).decode("utf-8")
 
         return result
 
     except Exception as e:
         logger.error(f"Click error: {e}", exc_info=True)
-        return {'success': False, 'error': str(e)}
+        return {"success": False, "error": str(e)}
 
 
 @tool_wrapper()
@@ -831,43 +856,43 @@ async def browser_extract_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - data (dict): Extracted data by name
             - error (str, optional): Error message if failed
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     if not PLAYWRIGHT_AVAILABLE:
-        return {'success': False, 'error': 'Playwright not installed'}
+        return {"success": False, "error": "Playwright not installed"}
 
     try:
-        url = params.get('url')
-        selectors = params.get('selectors', {})
-        extract_all = params.get('extract_all', False)
-        attributes = params.get('attributes', {})
+        url = params.get("url")
+        selectors = params.get("selectors", {})
+        extract_all = params.get("extract_all", False)
+        attributes = params.get("attributes", {})
 
         if not selectors:
-            return {'success': False, 'error': 'selectors parameter is required'}
+            return {"success": False, "error": "selectors parameter is required"}
 
         session = await BrowserSession.get_instance()
         page = await session.get_page()
 
         # Navigate if URL provided
         if url:
-            await page.goto(url, wait_until='networkidle')
+            await page.goto(url, wait_until="networkidle")
 
         data = {}
 
         for name, selector in selectors.items():
             try:
-                attr = attributes.get(name, 'innerText')
+                attr = attributes.get(name, "innerText")
 
                 if extract_all:
                     elements = await page.query_selector_all(selector)
                     values = []
                     for el in elements:
-                        if attr == 'innerText':
+                        if attr == "innerText":
                             val = await el.inner_text()
-                        elif attr == 'innerHTML':
+                        elif attr == "innerHTML":
                             val = await el.inner_html()
-                        elif attr == 'href':
-                            val = await el.get_attribute('href')
+                        elif attr == "href":
+                            val = await el.get_attribute("href")
                         else:
                             val = await el.get_attribute(attr)
                         values.append(val)
@@ -875,9 +900,9 @@ async def browser_extract_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                 else:
                     element = await page.query_selector(selector)
                     if element:
-                        if attr == 'innerText':
+                        if attr == "innerText":
                             data[name] = await element.inner_text()
-                        elif attr == 'innerHTML':
+                        elif attr == "innerHTML":
                             data[name] = await element.inner_html()
                         else:
                             data[name] = await element.get_attribute(attr)
@@ -887,15 +912,11 @@ async def browser_extract_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                 logger.warning(f"Could not extract {name}: {e}")
                 data[name] = None
 
-        return {
-            'success': True,
-            'data': data,
-            'url': page.url
-        }
+        return {"success": True, "data": data, "url": page.url}
 
     except Exception as e:
         logger.error(f"Extract error: {e}", exc_info=True)
-        return {'success': False, 'error': str(e)}
+        return {"success": False, "error": str(e)}
 
 
 @tool_wrapper()
@@ -915,25 +936,25 @@ async def browser_execute_js_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - result: Return value from script
             - error (str, optional): Error message if failed
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     if not PLAYWRIGHT_AVAILABLE:
-        return {'success': False, 'error': 'Playwright not installed'}
+        return {"success": False, "error": "Playwright not installed"}
 
     try:
-        script = params.get('script')
-        url = params.get('url')
-        args = params.get('args', [])
+        script = params.get("script")
+        url = params.get("url")
+        args = params.get("args", [])
 
         if not script:
-            return {'success': False, 'error': 'script parameter is required'}
+            return {"success": False, "error": "script parameter is required"}
 
         session = await BrowserSession.get_instance()
         page = await session.get_page()
 
         # Navigate if URL provided
         if url:
-            await page.goto(url, wait_until='networkidle')
+            await page.goto(url, wait_until="networkidle")
 
         # Execute script
         if args:
@@ -941,15 +962,11 @@ async def browser_execute_js_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         else:
             result = await page.evaluate(script)
 
-        return {
-            'success': True,
-            'result': result,
-            'url': page.url
-        }
+        return {"success": True, "result": result, "url": page.url}
 
     except Exception as e:
         logger.error(f"JS execution error: {e}", exc_info=True)
-        return {'success': False, 'error': str(e)}
+        return {"success": False, "error": str(e)}
 
 
 @tool_wrapper()
@@ -970,40 +987,35 @@ async def browser_wait_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - found (bool): Whether element was found
             - error (str, optional): Error message if failed
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     if not PLAYWRIGHT_AVAILABLE:
-        return {'success': False, 'error': 'Playwright not installed'}
+        return {"success": False, "error": "Playwright not installed"}
 
     try:
-        selector = params.get('selector')
-        state = params.get('state', 'visible')
-        timeout = params.get('timeout', 30000)
-        url = params.get('url')
+        selector = params.get("selector")
+        state = params.get("state", "visible")
+        timeout = params.get("timeout", 30000)
+        url = params.get("url")
 
         if not selector:
-            return {'success': False, 'error': 'selector parameter is required'}
+            return {"success": False, "error": "selector parameter is required"}
 
         session = await BrowserSession.get_instance()
         page = await session.get_page()
 
         # Navigate if URL provided
         if url:
-            await page.goto(url, wait_until='networkidle')
+            await page.goto(url, wait_until="networkidle")
 
         # Wait for element
         await page.wait_for_selector(selector, state=state, timeout=timeout)
 
-        return {
-            'success': True,
-            'found': True,
-            'selector': selector,
-            'state': state
-        }
+        return {"success": True, "found": True, "selector": selector, "state": state}
 
     except Exception as e:
         logger.error(f"Wait error: {e}", exc_info=True)
-        return {'success': False, 'error': str(e), 'found': False}
+        return {"success": False, "error": str(e), "found": False}
 
 
 @tool_wrapper()
@@ -1018,14 +1030,14 @@ async def browser_close_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         Dictionary with:
             - success (bool): Whether close succeeded
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     try:
         session = await BrowserSession.get_instance()
         await session.close()
-        return {'success': True, 'message': 'Browser session closed'}
+        return {"success": True, "message": "Browser session closed"}
     except Exception as e:
-        return {'success': False, 'error': str(e)}
+        return {"success": False, "error": str(e)}
 
 
 @tool_wrapper()
@@ -1048,50 +1060,48 @@ async def browser_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - size_bytes (int): PDF file size
             - error (str, optional): Error message if failed
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     if not PLAYWRIGHT_AVAILABLE:
-        return {'success': False, 'error': 'Playwright not installed'}
+        return {"success": False, "error": "Playwright not installed"}
 
     try:
-        url = params.get('url')
-        save_path = params.get('save_path')
-        paper_format = params.get('format', 'A4')
-        landscape = params.get('landscape', False)
-        print_background = params.get('print_background', True)
+        url = params.get("url")
+        save_path = params.get("save_path")
+        paper_format = params.get("format", "A4")
+        landscape = params.get("landscape", False)
+        print_background = params.get("print_background", True)
 
         if not save_path:
-            return {'success': False, 'error': 'save_path parameter is required'}
+            return {"success": False, "error": "save_path parameter is required"}
 
         session = await BrowserSession.get_instance()
         page = await session.get_page()
 
         # Navigate if URL provided
         if url:
-            await page.goto(url, wait_until='networkidle')
+            await page.goto(url, wait_until="networkidle")
 
         # Generate PDF
         save_path = Path(save_path)
         save_path.parent.mkdir(parents=True, exist_ok=True)
 
         pdf_bytes = await page.pdf(
-            format=paper_format,
-            landscape=landscape,
-            print_background=print_background
+            format=paper_format, landscape=landscape, print_background=print_background
         )
 
         save_path.write_bytes(pdf_bytes)
 
         return {
-            'success': True,
-            'saved_path': str(save_path),
-            'size_bytes': len(pdf_bytes),
-            'url': page.url
+            "success": True,
+            "saved_path": str(save_path),
+            "size_bytes": len(pdf_bytes),
+            "url": page.url,
         }
 
     except Exception as e:
         logger.error(f"PDF generation error: {e}", exc_info=True)
-        return {'success': False, 'error': str(e)}
+        return {"success": False, "error": str(e)}
 
 
 @tool_wrapper()
@@ -1116,40 +1126,33 @@ def browser_connect_cdp_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - title (str): Page title if test_navigate provided
             - error (str, optional): Error message if failed
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     if not SELENIUM_AVAILABLE:
-        return {
-            'success': False,
-            'error': 'Selenium not installed. Run: pip install selenium'
-        }
+        return {"success": False, "error": "Selenium not installed. Run: pip install selenium"}
 
     try:
-        cdp_url = params.get('cdp_url')
-        test_navigate = params.get('test_navigate')
+        cdp_url = params.get("cdp_url")
+        test_navigate = params.get("test_navigate")
 
         if not cdp_url:
-            return {'success': False, 'error': 'cdp_url parameter is required'}
+            return {"success": False, "error": "cdp_url parameter is required"}
 
         session = SeleniumBrowserSession.get_instance()
         driver = session.get_driver(cdp_url=cdp_url)
 
-        result = {
-            'success': True,
-            'cdp_url': cdp_url,
-            'backend': 'selenium_cdp'
-        }
+        result = {"success": True, "cdp_url": cdp_url, "backend": "selenium_cdp"}
 
         if test_navigate:
             driver.get(test_navigate)
-            result['title'] = driver.title
-            result['url'] = driver.current_url
+            result["title"] = driver.title
+            result["url"] = driver.current_url
 
         return result
 
     except Exception as e:
         logger.error(f"CDP connection error: {e}", exc_info=True)
-        return {'success': False, 'error': str(e)}
+        return {"success": False, "error": str(e)}
 
 
 @tool_wrapper()
@@ -1164,14 +1167,14 @@ def browser_close_selenium_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         Dictionary with:
             - success (bool): Whether close succeeded
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     try:
         session = SeleniumBrowserSession.get_instance()
         session.close()
-        return {'success': True, 'message': 'Selenium session closed'}
+        return {"success": True, "message": "Selenium session closed"}
     except Exception as e:
-        return {'success': False, 'error': str(e)}
+        return {"success": False, "error": str(e)}
 
 
 # =========================================================================
@@ -1194,26 +1197,26 @@ async def browser_save_cookies_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, saved_path, cookie_count
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     if not PLAYWRIGHT_AVAILABLE:
-        return tool_error('Playwright not installed')
+        return tool_error("Playwright not installed")
 
     try:
         session = await BrowserSession.get_instance()
         if not session._context:
-            return tool_error('No active browser context. Navigate to a page first.')
+            return tool_error("No active browser context. Navigate to a page first.")
 
         cookies = await session._context.cookies()
 
-        name = params.get('name', 'default')
-        save_path = params.get('save_path')
+        name = params.get("name", "default")
+        save_path = params.get("save_path")
         if not save_path:
             Path(COOKIE_STORAGE_PATH).mkdir(parents=True, exist_ok=True)
             save_path = os.path.join(COOKIE_STORAGE_PATH, f"{name}_cookies.json")
 
         Path(save_path).parent.mkdir(parents=True, exist_ok=True)
-        with open(save_path, 'w') as f:
+        with open(save_path, "w") as f:
             json.dump(cookies, f, indent=2)
 
         logger.info(f"Saved {len(cookies)} cookies to {save_path}")
@@ -1237,21 +1240,21 @@ async def browser_load_cookies_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, loaded_path, cookie_count
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     if not PLAYWRIGHT_AVAILABLE:
-        return tool_error('Playwright not installed')
+        return tool_error("Playwright not installed")
 
     try:
-        name = params.get('name', 'default')
-        load_path = params.get('load_path')
+        name = params.get("name", "default")
+        load_path = params.get("load_path")
         if not load_path:
             load_path = os.path.join(COOKIE_STORAGE_PATH, f"{name}_cookies.json")
 
         if not os.path.exists(load_path):
-            return tool_error(f'Cookie file not found: {load_path}')
+            return tool_error(f"Cookie file not found: {load_path}")
 
-        with open(load_path, 'r') as f:
+        with open(load_path, "r") as f:
             cookies = json.load(f)
 
         session = await BrowserSession.get_instance()
@@ -1278,14 +1281,14 @@ async def browser_reset_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, message
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     if not PLAYWRIGHT_AVAILABLE:
-        return tool_error('Playwright not installed')
+        return tool_error("Playwright not installed")
 
     try:
         session = await BrowserSession.get_instance()
-        keep_browser = params.get('keep_browser', True)
+        keep_browser = params.get("keep_browser", True)
 
         if keep_browser and session._browser:
             if session._context:
@@ -1294,10 +1297,10 @@ async def browser_reset_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                 session._page = None
             # Get fresh page (creates new context)
             await session.get_page(new_context=True)
-            return tool_response(message='Browser context reset with fresh state')
+            return tool_response(message="Browser context reset with fresh state")
         else:
             await session.close()
-            return tool_response(message='Browser session fully closed and reset')
+            return tool_response(message="Browser session fully closed and reset")
 
     except Exception as e:
         logger.error(f"Browser reset error: {e}", exc_info=True)
@@ -1320,20 +1323,20 @@ def browser_accessibility_tree_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, nodes (list of accessible elements), total count
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     if not SELENIUM_AVAILABLE:
-        return {'success': False, 'error': 'Selenium not installed'}
+        return {"success": False, "error": "Selenium not installed"}
 
     try:
-        max_depth = params.get('max_depth', 5)
-        cdp_url = params.get('cdp_url')
+        max_depth = params.get("max_depth", 5)
+        cdp_url = params.get("cdp_url")
 
         session = SeleniumBrowserSession.get_instance()
         session.get_driver(cdp_url=cdp_url)
         return session.get_accessibility_tree(max_depth)
     except Exception as e:
-        return {'success': False, 'error': str(e)}
+        return {"success": False, "error": str(e)}
 
 
 @tool_wrapper()
@@ -1353,21 +1356,21 @@ def browser_dom_structure_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, tree (nested DOM structure)
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     if not SELENIUM_AVAILABLE:
-        return {'success': False, 'error': 'Selenium not installed'}
+        return {"success": False, "error": "Selenium not installed"}
 
     try:
-        selector = params.get('selector', 'body')
-        max_depth = params.get('max_depth', 3)
-        cdp_url = params.get('cdp_url')
+        selector = params.get("selector", "body")
+        max_depth = params.get("max_depth", 3)
+        cdp_url = params.get("cdp_url")
 
         session = SeleniumBrowserSession.get_instance()
         session.get_driver(cdp_url=cdp_url)
         return session.get_dom_structure(selector, max_depth)
     except Exception as e:
-        return {'success': False, 'error': str(e)}
+        return {"success": False, "error": str(e)}
 
 
 @tool_wrapper()
@@ -1387,43 +1390,43 @@ def browser_cdp_click_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, x, y coordinates clicked
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     if not SELENIUM_AVAILABLE:
-        return {'success': False, 'error': 'Selenium not installed'}
+        return {"success": False, "error": "Selenium not installed"}
 
-    x = params.get('x')
-    y = params.get('y')
+    x = params.get("x")
+    y = params.get("y")
     if x is None or y is None:
-        return {'success': False, 'error': 'x and y coordinates are required'}
+        return {"success": False, "error": "x and y coordinates are required"}
 
     try:
-        cdp_url = params.get('cdp_url')
+        cdp_url = params.get("cdp_url")
         session = SeleniumBrowserSession.get_instance()
         session.get_driver(cdp_url=cdp_url)
         return session.cdp_click(int(x), int(y))
     except Exception as e:
-        return {'success': False, 'error': str(e)}
+        return {"success": False, "error": str(e)}
 
 
 __all__ = [
-    'browser_navigate_tool',
-    'browser_screenshot_tool',
-    'browser_fill_form_tool',
-    'browser_click_tool',
-    'browser_extract_tool',
-    'browser_execute_js_tool',
-    'browser_wait_tool',
-    'browser_close_tool',
-    'browser_pdf_tool',
-    'browser_connect_cdp_tool',
-    'browser_close_selenium_tool',
+    "browser_navigate_tool",
+    "browser_screenshot_tool",
+    "browser_fill_form_tool",
+    "browser_click_tool",
+    "browser_extract_tool",
+    "browser_execute_js_tool",
+    "browser_wait_tool",
+    "browser_close_tool",
+    "browser_pdf_tool",
+    "browser_connect_cdp_tool",
+    "browser_close_selenium_tool",
     # Session persistence
-    'browser_save_cookies_tool',
-    'browser_load_cookies_tool',
-    'browser_reset_tool',
+    "browser_save_cookies_tool",
+    "browser_load_cookies_tool",
+    "browser_reset_tool",
     # CDP/Accessibility
-    'browser_accessibility_tree_tool',
-    'browser_dom_structure_tool',
-    'browser_cdp_click_tool',
+    "browser_accessibility_tree_tool",
+    "browser_dom_structure_tool",
+    "browser_cdp_click_tool",
 ]

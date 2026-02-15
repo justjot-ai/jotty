@@ -10,12 +10,13 @@ World-class broker report components including:
 - Professional formatting utilities
 """
 
-import pandas as pd
-import numpy as np
-from dataclasses import dataclass, field
-from typing import Dict, List, Any, Optional, Tuple
-from datetime import datetime
 import logging
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple
+
+import numpy as np
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,8 @@ logger = logging.getLogger(__name__)
 # CURRENCY HELPERS
 # =============================================================================
 
-def get_currency_info(exchange: str = 'NSE') -> Dict[str, Any]:
+
+def get_currency_info(exchange: str = "NSE") -> Dict[str, Any]:
     """Get currency symbol and formatting based on exchange.
 
     Args:
@@ -33,24 +35,24 @@ def get_currency_info(exchange: str = 'NSE') -> Dict[str, Any]:
     Returns:
         Dict with 'symbol', 'suffix', 'unit', 'divisor', and 'unit_large' keys
     """
-    us_exchanges = {'US', 'NYSE', 'NASDAQ', 'AMEX'}
+    us_exchanges = {"US", "NYSE", "NASDAQ", "AMEX"}
     if exchange.upper() in us_exchanges:
         return {
-            'symbol': '$',
-            'suffix': '',
-            'unit': 'B',
-            'unit_large': 'B',
-            'divisor': 1e9,
-            'label': 'USD'
+            "symbol": "$",
+            "suffix": "",
+            "unit": "B",
+            "unit_large": "B",
+            "divisor": 1e9,
+            "label": "USD",
         }
     else:
         return {
-            'symbol': '₹',
-            'suffix': ' Cr',
-            'unit': 'Cr',
-            'unit_large': 'Lakh Cr',
-            'divisor': 1e7,
-            'label': 'INR'
+            "symbol": "₹",
+            "suffix": " Cr",
+            "unit": "Cr",
+            "unit_large": "Lakh Cr",
+            "divisor": 1e7,
+            "label": "INR",
         }
 
 
@@ -58,9 +60,11 @@ def get_currency_info(exchange: str = 'NSE') -> Dict[str, Any]:
 # DATA CLASSES
 # =============================================================================
 
+
 @dataclass
 class CompanySnapshot:
     """First-page investment snapshot."""
+
     ticker: str
     company_name: str
     current_price: float
@@ -101,6 +105,7 @@ class CompanySnapshot:
 @dataclass
 class FinancialStatements:
     """5-year financial statements data."""
+
     years: List[str] = field(default_factory=list)
 
     # Income Statement
@@ -131,6 +136,7 @@ class FinancialStatements:
 @dataclass
 class DCFModel:
     """DCF valuation model data."""
+
     # Projections
     projection_years: List[str] = field(default_factory=list)
     revenue_projections: List[float] = field(default_factory=list)
@@ -165,14 +171,16 @@ class DCFModel:
         """Calculate WACC."""
         cost_of_equity = self.risk_free_rate + (self.beta * self.equity_risk_premium)
         equity_weight = 100 - self.debt_weight
-        wacc = (cost_of_equity * equity_weight / 100) + \
-               (self.cost_of_debt * (1 - self.tax_rate / 100) * self.debt_weight / 100)
+        wacc = (cost_of_equity * equity_weight / 100) + (
+            self.cost_of_debt * (1 - self.tax_rate / 100) * self.debt_weight / 100
+        )
         return wacc
 
 
 @dataclass
 class PeerComparison:
     """Peer company comparison data."""
+
     companies: List[str] = field(default_factory=list)
     market_caps: List[float] = field(default_factory=list)
     pe_ratios: List[float] = field(default_factory=list)
@@ -187,6 +195,7 @@ class PeerComparison:
 # =============================================================================
 # FINANCIAL TABLES FORMATTER
 # =============================================================================
+
 
 class FinancialTablesFormatter:
     """Format financial data into professional tables."""
@@ -222,13 +231,15 @@ class FinancialTablesFormatter:
         sign = "+" if growth > 0 else ""
         return f"{sign}{growth:.1f}%"
 
-    def create_income_statement_table(self, data: FinancialStatements, exchange: str = 'NSE') -> str:
+    def create_income_statement_table(
+        self, data: FinancialStatements, exchange: str = "NSE"
+    ) -> str:
         """Create formatted income statement table."""
         if not data.years:
             return "No income statement data available."
 
         curr = get_currency_info(exchange)
-        sym = curr['symbol']
+        sym = curr["symbol"]
 
         # Header row
         header = "| Particulars | " + " | ".join(data.years) + " | CAGR |"
@@ -268,12 +279,16 @@ class FinancialTablesFormatter:
         rows.append("| **Margins** | " + " | ".join([""] * len(data.years)) + " | |")
 
         if data.ebitda_margin:
-            margin_row = "| EBITDA Margin | " + " | ".join([self.format_percentage(v) for v in data.ebitda_margin])
+            margin_row = "| EBITDA Margin | " + " | ".join(
+                [self.format_percentage(v) for v in data.ebitda_margin]
+            )
             margin_row += " | - |"
             rows.append(margin_row)
 
         if data.pat_margin:
-            margin_row = "| PAT Margin | " + " | ".join([self.format_percentage(v) for v in data.pat_margin])
+            margin_row = "| PAT Margin | " + " | ".join(
+                [self.format_percentage(v) for v in data.pat_margin]
+            )
             margin_row += " | - |"
             rows.append(margin_row)
 
@@ -290,22 +305,32 @@ class FinancialTablesFormatter:
         rows = []
 
         if data.roe:
-            rows.append("| ROE (%) | " + " | ".join([self.format_percentage(v) for v in data.roe]) + " |")
+            rows.append(
+                "| ROE (%) | " + " | ".join([self.format_percentage(v) for v in data.roe]) + " |"
+            )
 
         if data.roce:
-            rows.append("| ROCE (%) | " + " | ".join([self.format_percentage(v) for v in data.roce]) + " |")
+            rows.append(
+                "| ROCE (%) | " + " | ".join([self.format_percentage(v) for v in data.roce]) + " |"
+            )
 
         if data.debt_equity:
-            rows.append("| Debt/Equity | " + " | ".join([f"{v:.2f}" for v in data.debt_equity]) + " |")
+            rows.append(
+                "| Debt/Equity | " + " | ".join([f"{v:.2f}" for v in data.debt_equity]) + " |"
+            )
 
         if data.current_ratio:
-            rows.append("| Current Ratio | " + " | ".join([f"{v:.2f}" for v in data.current_ratio]) + " |")
+            rows.append(
+                "| Current Ratio | " + " | ".join([f"{v:.2f}" for v in data.current_ratio]) + " |"
+            )
 
         return "\n".join([header, separator] + rows)
 
     def create_snapshot_box(self, snapshot: CompanySnapshot) -> str:
         """Create first-page investment snapshot box."""
-        upside_str = f"+{snapshot.upside:.1f}%" if snapshot.upside > 0 else f"{snapshot.upside:.1f}%"
+        upside_str = (
+            f"+{snapshot.upside:.1f}%" if snapshot.upside > 0 else f"{snapshot.upside:.1f}%"
+        )
 
         box = f"""
 ┌─────────────────────────────────────────────────────────────────┐
@@ -328,12 +353,13 @@ class FinancialTablesFormatter:
         if len(values) < 2 or values[0] <= 0 or values[-1] <= 0:
             return 0.0
         n = len(values) - 1
-        return (pow(values[-1] / values[0], 1/n) - 1) * 100
+        return (pow(values[-1] / values[0], 1 / n) - 1) * 100
 
 
 # =============================================================================
 # DCF VALUATION MODEL
 # =============================================================================
+
 
 class DCFCalculator:
     """DCF valuation calculator with sensitivity analysis."""
@@ -365,7 +391,9 @@ class DCFCalculator:
         # Terminal value (Exit Multiple)
         terminal_ebitda = self.model.ebitda_projections[-1] if self.model.ebitda_projections else 0
         terminal_value_multiple = terminal_ebitda * self.model.exit_multiple
-        pv_terminal_multiple = terminal_value_multiple / pow(1 + wacc, len(self.model.fcf_projections))
+        pv_terminal_multiple = terminal_value_multiple / pow(
+            1 + wacc, len(self.model.fcf_projections)
+        )
 
         # Enterprise Value (average of both methods)
         ev_gordon = total_pv_fcf + pv_terminal_gordon
@@ -396,11 +424,13 @@ class DCFCalculator:
             "wacc": self.model.wacc,
         }
 
-    def create_sensitivity_matrix(self,
-                                   wacc_range: List[float] = None,
-                                   growth_range: List[float] = None,
-                                   shares_outstanding: float = 1.0,
-                                   net_debt: float = 0.0) -> pd.DataFrame:
+    def create_sensitivity_matrix(
+        self,
+        wacc_range: List[float] = None,
+        growth_range: List[float] = None,
+        shares_outstanding: float = 1.0,
+        net_debt: float = 0.0,
+    ) -> pd.DataFrame:
         """Create WACC vs Terminal Growth sensitivity matrix."""
         if wacc_range is None:
             wacc_range = [8.0, 9.0, 10.0, 11.0, 12.0]
@@ -423,8 +453,12 @@ class DCFCalculator:
                 growth_decimal = growth / 100
 
                 if self.model.fcf_projections:
-                    pv_fcf = sum([fcf / pow(1 + wacc_decimal, i + 1)
-                                  for i, fcf in enumerate(self.model.fcf_projections)])
+                    pv_fcf = sum(
+                        [
+                            fcf / pow(1 + wacc_decimal, i + 1)
+                            for i, fcf in enumerate(self.model.fcf_projections)
+                        ]
+                    )
 
                     terminal_fcf = self.model.fcf_projections[-1] * (1 + growth_decimal)
                     if wacc_decimal > growth_decimal:
@@ -445,15 +479,17 @@ class DCFCalculator:
 
             matrix.append(row)
 
-        df = pd.DataFrame(matrix,
-                          index=[f"WACC {w}%" for w in wacc_range],
-                          columns=[f"TG {g}%" for g in growth_range])
+        df = pd.DataFrame(
+            matrix,
+            index=[f"WACC {w}%" for w in wacc_range],
+            columns=[f"TG {g}%" for g in growth_range],
+        )
         return df
 
-    def format_sensitivity_table(self, df: pd.DataFrame, exchange: str = 'NSE') -> str:
+    def format_sensitivity_table(self, df: pd.DataFrame, exchange: str = "NSE") -> str:
         """Format sensitivity matrix as markdown table."""
         curr = get_currency_info(exchange)
-        sym = curr['symbol']
+        sym = curr["symbol"]
 
         lines = ["### Sensitivity Analysis: WACC vs Terminal Growth", ""]
 
@@ -469,11 +505,11 @@ class DCFCalculator:
 
         return "\n".join(lines)
 
-    def format_dcf_summary(self, result: Dict[str, float], exchange: str = 'NSE') -> str:
+    def format_dcf_summary(self, result: Dict[str, float], exchange: str = "NSE") -> str:
         """Format DCF results as markdown."""
         curr = get_currency_info(exchange)
-        sym = curr['symbol']
-        unit = curr['unit']
+        sym = curr["symbol"]
+        unit = curr["unit"]
 
         return f"""
 ### DCF Valuation Summary
@@ -500,6 +536,7 @@ class DCFCalculator:
 # PEER COMPARISON MODULE
 # =============================================================================
 
+
 class PeerComparisonFormatter:
     """Format peer comparison data."""
 
@@ -508,8 +545,12 @@ class PeerComparisonFormatter:
         if not data.companies:
             return "No peer comparison data available."
 
-        header = "| Company | Mkt Cap (Cr) | P/E | P/B | EV/EBITDA | ROE (%) | ROCE (%) | Rev Gr (%) |"
-        separator = "|---------|-------------:|----:|----:|----------:|--------:|---------:|-----------:|"
+        header = (
+            "| Company | Mkt Cap (Cr) | P/E | P/B | EV/EBITDA | ROE (%) | ROCE (%) | Rev Gr (%) |"
+        )
+        separator = (
+            "|---------|-------------:|----:|----:|----------:|--------:|---------:|-----------:|"
+        )
 
         rows = []
         for i, company in enumerate(data.companies):
@@ -540,11 +581,9 @@ class PeerComparisonFormatter:
 
         return "\n".join([header, separator] + rows)
 
-    def calculate_relative_valuation(self,
-                                      target_eps: float,
-                                      target_bv: float,
-                                      peer_pe_median: float,
-                                      peer_pb_median: float) -> Dict[str, float]:
+    def calculate_relative_valuation(
+        self, target_eps: float, target_bv: float, peer_pe_median: float, peer_pb_median: float
+    ) -> Dict[str, float]:
         """Calculate implied price from peer multiples."""
         pe_implied = target_eps * peer_pe_median
         pb_implied = target_bv * peer_pb_median
@@ -563,12 +602,14 @@ class PeerComparisonFormatter:
 # CHART GENERATOR (Text-based for markdown, can be extended for matplotlib)
 # =============================================================================
 
+
 class ChartGenerator:
     """Generate charts for reports (ASCII and matplotlib)."""
 
     @staticmethod
-    def create_bar_chart_ascii(values: List[float], labels: List[str],
-                                title: str = "", width: int = 40) -> str:
+    def create_bar_chart_ascii(
+        values: List[float], labels: List[str], title: str = "", width: int = 40
+    ) -> str:
         """Create ASCII bar chart."""
         if not values or not labels:
             return ""
@@ -607,10 +648,12 @@ class ChartGenerator:
         return sparkline
 
     @staticmethod
-    def create_football_field_ascii(valuations: Dict[str, Tuple[float, float, float]],
-                                     current_price: float,
-                                     width: int = 50,
-                                     exchange: str = 'NSE') -> str:
+    def create_football_field_ascii(
+        valuations: Dict[str, Tuple[float, float, float]],
+        current_price: float,
+        width: int = 50,
+        exchange: str = "NSE",
+    ) -> str:
         """
         Create ASCII football field chart.
 
@@ -624,7 +667,7 @@ class ChartGenerator:
             return ""
 
         curr = get_currency_info(exchange)
-        sym = curr['symbol']
+        sym = curr["symbol"]
 
         # Find overall range
         all_vals = []
@@ -686,9 +729,10 @@ class ChartGenerator:
         Returns list of generated file paths.
         """
         try:
-            import matplotlib.pyplot as plt
             import matplotlib.dates as mdates
-            plt.style.use('seaborn-v0_8-whitegrid')
+            import matplotlib.pyplot as plt
+
+            plt.style.use("seaborn-v0_8-whitegrid")
         except ImportError:
             logger.warning("matplotlib not available for chart generation")
             return []
@@ -696,31 +740,36 @@ class ChartGenerator:
         chart_files = []
 
         # 1. Revenue & PAT Trend Chart - only if we have valid data
-        if ('years' in data and data['years'] and
-            'revenue' in data and self._has_valid_data(data['revenue']) and
-            'pat' in data and self._has_valid_data(data['pat'])):
+        if (
+            "years" in data
+            and data["years"]
+            and "revenue" in data
+            and self._has_valid_data(data["revenue"])
+            and "pat" in data
+            and self._has_valid_data(data["pat"])
+        ):
 
             fig, ax1 = plt.subplots(figsize=(10, 6))
 
-            x = range(len(data['years']))
-            ax1.bar(x, data['revenue'], color='steelblue', alpha=0.7, label='Revenue')
-            ax1.set_ylabel('Revenue (Cr)', color='steelblue')
-            ax1.tick_params(axis='y', labelcolor='steelblue')
+            x = range(len(data["years"]))
+            ax1.bar(x, data["revenue"], color="steelblue", alpha=0.7, label="Revenue")
+            ax1.set_ylabel("Revenue (Cr)", color="steelblue")
+            ax1.tick_params(axis="y", labelcolor="steelblue")
 
             ax2 = ax1.twinx()
-            ax2.plot(x, data['pat'], color='darkgreen', marker='o', linewidth=2, label='PAT')
-            ax2.set_ylabel('PAT (Cr)', color='darkgreen')
-            ax2.tick_params(axis='y', labelcolor='darkgreen')
+            ax2.plot(x, data["pat"], color="darkgreen", marker="o", linewidth=2, label="PAT")
+            ax2.set_ylabel("PAT (Cr)", color="darkgreen")
+            ax2.tick_params(axis="y", labelcolor="darkgreen")
 
             ax1.set_xticks(x)
-            ax1.set_xticklabels(data['years'])
-            ax1.set_title('Revenue & PAT Trend', fontsize=14, fontweight='bold')
+            ax1.set_xticklabels(data["years"])
+            ax1.set_title("Revenue & PAT Trend", fontsize=14, fontweight="bold")
 
-            fig.legend(loc='upper left', bbox_to_anchor=(0.1, 0.9))
+            fig.legend(loc="upper left", bbox_to_anchor=(0.1, 0.9))
             plt.tight_layout()
 
             filepath = f"{output_dir}/revenue_pat_trend.png"
-            plt.savefig(filepath, dpi=150, bbox_inches='tight')
+            plt.savefig(filepath, dpi=150, bbox_inches="tight")
             plt.close()
             chart_files.append(filepath)
             logger.info(f"✅ Generated: Revenue & PAT Trend")
@@ -729,31 +778,48 @@ class ChartGenerator:
 
         # 2. Margin Trend Chart - only if we have valid margin data
         has_margin_data = (
-            'years' in data and data['years'] and
-            (('ebitda_margin' in data and self._has_valid_data(data['ebitda_margin'])) or
-             ('pat_margin' in data and self._has_valid_data(data['pat_margin'])))
+            "years" in data
+            and data["years"]
+            and (
+                ("ebitda_margin" in data and self._has_valid_data(data["ebitda_margin"]))
+                or ("pat_margin" in data and self._has_valid_data(data["pat_margin"]))
+            )
         )
 
         if has_margin_data:
             fig, ax = plt.subplots(figsize=(10, 6))
 
-            x = range(len(data['years']))
+            x = range(len(data["years"]))
 
-            if 'ebitda_margin' in data and self._has_valid_data(data['ebitda_margin']):
-                ax.plot(x, data['ebitda_margin'], marker='o', label='EBITDA Margin', linewidth=2, color='#2c5282')
-            if 'pat_margin' in data and self._has_valid_data(data['pat_margin']):
-                ax.plot(x, data['pat_margin'], marker='s', label='PAT Margin', linewidth=2, color='#38a169')
+            if "ebitda_margin" in data and self._has_valid_data(data["ebitda_margin"]):
+                ax.plot(
+                    x,
+                    data["ebitda_margin"],
+                    marker="o",
+                    label="EBITDA Margin",
+                    linewidth=2,
+                    color="#2c5282",
+                )
+            if "pat_margin" in data and self._has_valid_data(data["pat_margin"]):
+                ax.plot(
+                    x,
+                    data["pat_margin"],
+                    marker="s",
+                    label="PAT Margin",
+                    linewidth=2,
+                    color="#38a169",
+                )
 
             ax.set_xticks(x)
-            ax.set_xticklabels(data['years'])
-            ax.set_ylabel('Margin (%)')
-            ax.set_title('Margin Trend', fontsize=14, fontweight='bold')
+            ax.set_xticklabels(data["years"])
+            ax.set_ylabel("Margin (%)")
+            ax.set_title("Margin Trend", fontsize=14, fontweight="bold")
             ax.legend()
             ax.grid(True, alpha=0.3)
 
             plt.tight_layout()
             filepath = f"{output_dir}/margin_trend.png"
-            plt.savefig(filepath, dpi=150, bbox_inches='tight')
+            plt.savefig(filepath, dpi=150, bbox_inches="tight")
             plt.close()
             chart_files.append(filepath)
             logger.info(f"✅ Generated: Margin Trend")
@@ -762,30 +828,33 @@ class ChartGenerator:
 
         # 3. ROE/ROCE Chart - only if we have valid return data
         has_return_data = (
-            'years' in data and data['years'] and
-            (('roe' in data and self._has_valid_data(data['roe'])) or
-             ('roce' in data and self._has_valid_data(data['roce'])))
+            "years" in data
+            and data["years"]
+            and (
+                ("roe" in data and self._has_valid_data(data["roe"]))
+                or ("roce" in data and self._has_valid_data(data["roce"]))
+            )
         )
 
         if has_return_data:
             fig, ax = plt.subplots(figsize=(10, 6))
 
-            x = range(len(data['years']))
+            x = range(len(data["years"]))
 
-            if 'roe' in data and self._has_valid_data(data['roe']):
-                ax.bar([i - 0.2 for i in x], data['roe'], width=0.4, label='ROE', color='coral')
-            if 'roce' in data and self._has_valid_data(data['roce']):
-                ax.bar([i + 0.2 for i in x], data['roce'], width=0.4, label='ROCE', color='teal')
+            if "roe" in data and self._has_valid_data(data["roe"]):
+                ax.bar([i - 0.2 for i in x], data["roe"], width=0.4, label="ROE", color="coral")
+            if "roce" in data and self._has_valid_data(data["roce"]):
+                ax.bar([i + 0.2 for i in x], data["roce"], width=0.4, label="ROCE", color="teal")
 
             ax.set_xticks(x)
-            ax.set_xticklabels(data['years'])
-            ax.set_ylabel('Return (%)')
-            ax.set_title('ROE & ROCE Trend', fontsize=14, fontweight='bold')
+            ax.set_xticklabels(data["years"])
+            ax.set_ylabel("Return (%)")
+            ax.set_title("ROE & ROCE Trend", fontsize=14, fontweight="bold")
             ax.legend()
 
             plt.tight_layout()
             filepath = f"{output_dir}/roe_roce_trend.png"
-            plt.savefig(filepath, dpi=150, bbox_inches='tight')
+            plt.savefig(filepath, dpi=150, bbox_inches="tight")
             plt.close()
             chart_files.append(filepath)
             logger.info(f"✅ Generated: ROE & ROCE Trend")
@@ -799,15 +868,13 @@ class ChartGenerator:
 # REPORT TEMPLATE
 # =============================================================================
 
+
 class ScenarioAnalyzer:
     """Bull/Base/Bear scenario analysis generator."""
 
     @staticmethod
     def generate_scenarios(
-        current_price: float,
-        dcf_price: float,
-        analyst_target: float,
-        company_data: Dict[str, Any]
+        current_price: float, dcf_price: float, analyst_target: float, company_data: Dict[str, Any]
     ) -> Dict[str, Dict[str, Any]]:
         """Generate three scenarios with probabilities."""
 
@@ -821,65 +888,66 @@ class ScenarioAnalyzer:
 
         # Calculate base targets
         base_target = analyst_target if analyst_target > 0 else dcf_price
-        revenue_growth = company_data.get('revenue_growth', 10) or 10
-        pe_ratio = company_data.get('pe_ratio', 20) or 20
+        revenue_growth = company_data.get("revenue_growth", 10) or 10
+        pe_ratio = company_data.get("pe_ratio", 20) or 20
 
         scenarios = {
-            'bull': {
-                'name': 'Bull Case',
-                'probability': 25,
-                'target': base_target * 1.25,
-                'upside': ((base_target * 1.25) / current_price - 1) * 100,
-                'revenue_growth': revenue_growth * 1.3,
-                'margin_expansion': 150,  # bps
-                'pe_multiple': pe_ratio * 1.15,
-                'key_drivers': [
-                    'Faster-than-expected market share gains',
-                    'Successful new product/segment launches',
-                    'Margin expansion from operating leverage',
-                    'Industry tailwinds and favorable policy changes'
-                ]
+            "bull": {
+                "name": "Bull Case",
+                "probability": 25,
+                "target": base_target * 1.25,
+                "upside": ((base_target * 1.25) / current_price - 1) * 100,
+                "revenue_growth": revenue_growth * 1.3,
+                "margin_expansion": 150,  # bps
+                "pe_multiple": pe_ratio * 1.15,
+                "key_drivers": [
+                    "Faster-than-expected market share gains",
+                    "Successful new product/segment launches",
+                    "Margin expansion from operating leverage",
+                    "Industry tailwinds and favorable policy changes",
+                ],
             },
-            'base': {
-                'name': 'Base Case',
-                'probability': 50,
-                'target': base_target,
-                'upside': ((base_target) / current_price - 1) * 100,
-                'revenue_growth': revenue_growth,
-                'margin_expansion': 0,
-                'pe_multiple': pe_ratio,
-                'key_drivers': [
-                    'Steady growth in line with guidance',
-                    'Stable market share in core segments',
-                    'Margins maintained at current levels',
-                    'Normal competitive intensity'
-                ]
+            "base": {
+                "name": "Base Case",
+                "probability": 50,
+                "target": base_target,
+                "upside": ((base_target) / current_price - 1) * 100,
+                "revenue_growth": revenue_growth,
+                "margin_expansion": 0,
+                "pe_multiple": pe_ratio,
+                "key_drivers": [
+                    "Steady growth in line with guidance",
+                    "Stable market share in core segments",
+                    "Margins maintained at current levels",
+                    "Normal competitive intensity",
+                ],
             },
-            'bear': {
-                'name': 'Bear Case',
-                'probability': 25,
-                'target': base_target * 0.75,
-                'upside': ((base_target * 0.75) / current_price - 1) * 100,
-                'revenue_growth': revenue_growth * 0.5,
-                'margin_expansion': -200,  # bps
-                'pe_multiple': pe_ratio * 0.85,
-                'key_drivers': [
-                    'Slower demand growth due to macro headwinds',
-                    'Increased competitive pressure',
-                    'Margin compression from input cost inflation',
-                    'Execution challenges or regulatory hurdles'
-                ]
-            }
+            "bear": {
+                "name": "Bear Case",
+                "probability": 25,
+                "target": base_target * 0.75,
+                "upside": ((base_target * 0.75) / current_price - 1) * 100,
+                "revenue_growth": revenue_growth * 0.5,
+                "margin_expansion": -200,  # bps
+                "pe_multiple": pe_ratio * 0.85,
+                "key_drivers": [
+                    "Slower demand growth due to macro headwinds",
+                    "Increased competitive pressure",
+                    "Margin compression from input cost inflation",
+                    "Execution challenges or regulatory hurdles",
+                ],
+            },
         }
 
         return scenarios
 
     @staticmethod
-    def format_scenario_table(scenarios: Dict[str, Dict[str, Any]], current_price: float,
-                               exchange: str = 'NSE') -> str:
+    def format_scenario_table(
+        scenarios: Dict[str, Dict[str, Any]], current_price: float, exchange: str = "NSE"
+    ) -> str:
         """Format scenarios as markdown."""
         curr = get_currency_info(exchange)
-        sym = curr['symbol']
+        sym = curr["symbol"]
 
         # Guard against zero/None current_price
         if not current_price or current_price <= 0:
@@ -893,16 +961,18 @@ class ScenarioAnalyzer:
 | Scenario | Probability | Target Price | Upside | Revenue Growth | Multiple |
 |----------|:-----------:|-------------:|-------:|---------------:|---------:|
 """
-        for key in ['bull', 'base', 'bear']:
+        for key in ["bull", "base", "bear"]:
             s = scenarios[key]
-            label = 'BULL' if key == 'bull' else 'BASE' if key == 'base' else 'BEAR'
-            upside_str = f"+{s['upside']:.1f}%" if s['upside'] > 0 else f"{s['upside']:.1f}%"
+            label = "BULL" if key == "bull" else "BASE" if key == "base" else "BEAR"
+            upside_str = f"+{s['upside']:.1f}%" if s["upside"] > 0 else f"{s['upside']:.1f}%"
             output += f"| **{label}** | {s['probability']}% | {sym}{s['target']:,.0f} | {upside_str} | {s['revenue_growth']:.1f}% | {s['pe_multiple']:.1f}x |\n"
 
         # Probability-weighted target
-        weighted_target = sum(s['probability'] * s['target'] / 100 for s in scenarios.values())
+        weighted_target = sum(s["probability"] * s["target"] / 100 for s in scenarios.values())
         weighted_upside = ((weighted_target / current_price) - 1) * 100
-        upside_str = f"+{weighted_upside:.1f}%" if weighted_upside > 0 else f"{weighted_upside:.1f}%"
+        upside_str = (
+            f"+{weighted_upside:.1f}%" if weighted_upside > 0 else f"{weighted_upside:.1f}%"
+        )
         output += f"| **Weighted Avg** | 100% | **{sym}{weighted_target:,.0f}** | **{upside_str}** | - | - |\n"
 
         output += """
@@ -912,10 +982,10 @@ class ScenarioAnalyzer:
 ### Bull Case (25% Probability)
 
 """
-        s = scenarios['bull']
+        s = scenarios["bull"]
         output += f"**Target Price:** {sym}{s['target']:,.0f} | **Upside:** +{s['upside']:.1f}%\n\n"
         output += "**Key Assumptions:**\n\n"
-        for driver in s['key_drivers']:
+        for driver in s["key_drivers"]:
             output += f"- {driver}\n"
 
         output += """
@@ -925,11 +995,11 @@ class ScenarioAnalyzer:
 ### Base Case (50% Probability)
 
 """
-        s = scenarios['base']
-        upside_str = f"+{s['upside']:.1f}%" if s['upside'] > 0 else f"{s['upside']:.1f}%"
+        s = scenarios["base"]
+        upside_str = f"+{s['upside']:.1f}%" if s["upside"] > 0 else f"{s['upside']:.1f}%"
         output += f"**Target Price:** {sym}{s['target']:,.0f} | **Upside:** {upside_str}\n\n"
         output += "**Key Assumptions:**\n\n"
-        for driver in s['key_drivers']:
+        for driver in s["key_drivers"]:
             output += f"- {driver}\n"
 
         output += """
@@ -939,11 +1009,11 @@ class ScenarioAnalyzer:
 ### Bear Case (25% Probability)
 
 """
-        s = scenarios['bear']
-        upside_str = f"+{s['upside']:.1f}%" if s['upside'] > 0 else f"{s['upside']:.1f}%"
+        s = scenarios["bear"]
+        upside_str = f"+{s['upside']:.1f}%" if s["upside"] > 0 else f"{s['upside']:.1f}%"
         output += f"**Target Price:** {sym}{s['target']:,.0f} | **Downside:** {upside_str}\n\n"
         output += "**Key Assumptions:**\n\n"
-        for driver in s['key_drivers']:
+        for driver in s["key_drivers"]:
             output += f"- {driver}\n"
 
         return output
@@ -955,49 +1025,101 @@ class CatalystsGenerator:
     @staticmethod
     def generate_catalysts(company_data: Dict[str, Any]) -> Dict[str, List[Dict[str, str]]]:
         """Generate near-term and long-term catalysts."""
-        sector = company_data.get('sector', '')
+        sector = company_data.get("sector", "")
 
         # Generic catalysts by timeframe
         near_term = [
-            {'event': 'Quarterly earnings announcement', 'timeline': '0-3 months', 'impact': 'High'},
-            {'event': 'Annual general meeting', 'timeline': '1-2 months', 'impact': 'Medium'},
-            {'event': 'Dividend declaration', 'timeline': '0-3 months', 'impact': 'Medium'},
+            {
+                "event": "Quarterly earnings announcement",
+                "timeline": "0-3 months",
+                "impact": "High",
+            },
+            {"event": "Annual general meeting", "timeline": "1-2 months", "impact": "Medium"},
+            {"event": "Dividend declaration", "timeline": "0-3 months", "impact": "Medium"},
         ]
 
         medium_term = [
-            {'event': 'New product/service launches', 'timeline': '3-6 months', 'impact': 'High'},
-            {'event': 'Capacity expansion completion', 'timeline': '6-12 months', 'impact': 'High'},
-            {'event': 'Strategic partnerships/acquisitions', 'timeline': '6-12 months', 'impact': 'High'},
+            {"event": "New product/service launches", "timeline": "3-6 months", "impact": "High"},
+            {"event": "Capacity expansion completion", "timeline": "6-12 months", "impact": "High"},
+            {
+                "event": "Strategic partnerships/acquisitions",
+                "timeline": "6-12 months",
+                "impact": "High",
+            },
         ]
 
         long_term = [
-            {'event': 'Market share gains in key segments', 'timeline': '12-24 months', 'impact': 'High'},
-            {'event': 'Geographic expansion', 'timeline': '12-36 months', 'impact': 'Medium'},
-            {'event': 'Margin expansion from scale', 'timeline': '12-24 months', 'impact': 'Medium'},
+            {
+                "event": "Market share gains in key segments",
+                "timeline": "12-24 months",
+                "impact": "High",
+            },
+            {"event": "Geographic expansion", "timeline": "12-36 months", "impact": "Medium"},
+            {
+                "event": "Margin expansion from scale",
+                "timeline": "12-24 months",
+                "impact": "Medium",
+            },
         ]
 
         # Sector-specific catalysts
-        if 'Technology' in sector or 'IT' in sector:
-            near_term.append({'event': 'Large deal wins announcement', 'timeline': '0-3 months', 'impact': 'High'})
-            medium_term.append({'event': 'AI/Digital services ramp-up', 'timeline': '6-12 months', 'impact': 'High'})
-        elif 'Financial' in sector or 'Bank' in sector:
-            near_term.append({'event': 'RBI policy rate decision', 'timeline': '0-2 months', 'impact': 'High'})
-            medium_term.append({'event': 'NIM expansion from rate cycle', 'timeline': '6-12 months', 'impact': 'High'})
-        elif 'Energy' in sector:
-            near_term.append({'event': 'Crude oil price movements', 'timeline': 'Ongoing', 'impact': 'High'})
-            medium_term.append({'event': 'Green energy projects commissioning', 'timeline': '6-12 months', 'impact': 'High'})
-        elif 'Consumer' in sector:
-            near_term.append({'event': 'Festive season demand', 'timeline': '0-3 months', 'impact': 'High'})
-            medium_term.append({'event': 'Rural recovery and distribution expansion', 'timeline': '6-12 months', 'impact': 'Medium'})
-        elif 'Pharma' in sector or 'Healthcare' in sector:
-            near_term.append({'event': 'US FDA approvals', 'timeline': '0-6 months', 'impact': 'High'})
-            medium_term.append({'event': 'New drug launches', 'timeline': '6-18 months', 'impact': 'High'})
+        if "Technology" in sector or "IT" in sector:
+            near_term.append(
+                {
+                    "event": "Large deal wins announcement",
+                    "timeline": "0-3 months",
+                    "impact": "High",
+                }
+            )
+            medium_term.append(
+                {
+                    "event": "AI/Digital services ramp-up",
+                    "timeline": "6-12 months",
+                    "impact": "High",
+                }
+            )
+        elif "Financial" in sector or "Bank" in sector:
+            near_term.append(
+                {"event": "RBI policy rate decision", "timeline": "0-2 months", "impact": "High"}
+            )
+            medium_term.append(
+                {
+                    "event": "NIM expansion from rate cycle",
+                    "timeline": "6-12 months",
+                    "impact": "High",
+                }
+            )
+        elif "Energy" in sector:
+            near_term.append(
+                {"event": "Crude oil price movements", "timeline": "Ongoing", "impact": "High"}
+            )
+            medium_term.append(
+                {
+                    "event": "Green energy projects commissioning",
+                    "timeline": "6-12 months",
+                    "impact": "High",
+                }
+            )
+        elif "Consumer" in sector:
+            near_term.append(
+                {"event": "Festive season demand", "timeline": "0-3 months", "impact": "High"}
+            )
+            medium_term.append(
+                {
+                    "event": "Rural recovery and distribution expansion",
+                    "timeline": "6-12 months",
+                    "impact": "Medium",
+                }
+            )
+        elif "Pharma" in sector or "Healthcare" in sector:
+            near_term.append(
+                {"event": "US FDA approvals", "timeline": "0-6 months", "impact": "High"}
+            )
+            medium_term.append(
+                {"event": "New drug launches", "timeline": "6-18 months", "impact": "High"}
+            )
 
-        return {
-            'near_term': near_term,
-            'medium_term': medium_term,
-            'long_term': long_term
-        }
+        return {"near_term": near_term, "medium_term": medium_term, "long_term": long_term}
 
     @staticmethod
     def format_catalysts(catalysts: Dict[str, List[Dict[str, str]]]) -> str:
@@ -1010,20 +1132,32 @@ class CatalystsGenerator:
 | Event | Timeline | Impact |
 |-------|:--------:|:------:|
 """
-        for cat in catalysts['near_term']:
-            impact_badge = '🔴 High' if cat['impact'] == 'High' else '🟡 Medium' if cat['impact'] == 'Medium' else '🟢 Low'
+        for cat in catalysts["near_term"]:
+            impact_badge = (
+                "🔴 High"
+                if cat["impact"] == "High"
+                else "🟡 Medium" if cat["impact"] == "Medium" else "🟢 Low"
+            )
             output += f"| {cat['event']} | {cat['timeline']} | {impact_badge} |\n"
 
         output += "\n### Medium-Term Catalysts (6-12 months)\n\n"
         output += "| Event | Timeline | Impact |\n|-------|:--------:|:------:|\n"
-        for cat in catalysts['medium_term']:
-            impact_badge = '🔴 High' if cat['impact'] == 'High' else '🟡 Medium' if cat['impact'] == 'Medium' else '🟢 Low'
+        for cat in catalysts["medium_term"]:
+            impact_badge = (
+                "🔴 High"
+                if cat["impact"] == "High"
+                else "🟡 Medium" if cat["impact"] == "Medium" else "🟢 Low"
+            )
             output += f"| {cat['event']} | {cat['timeline']} | {impact_badge} |\n"
 
         output += "\n### Long-Term Catalysts (12+ months)\n\n"
         output += "| Event | Timeline | Impact |\n|-------|:--------:|:------:|\n"
-        for cat in catalysts['long_term']:
-            impact_badge = '🔴 High' if cat['impact'] == 'High' else '🟡 Medium' if cat['impact'] == 'Medium' else '🟢 Low'
+        for cat in catalysts["long_term"]:
+            impact_badge = (
+                "🔴 High"
+                if cat["impact"] == "High"
+                else "🟡 Medium" if cat["impact"] == "Medium" else "🟢 Low"
+            )
             output += f"| {cat['event']} | {cat['timeline']} | {impact_badge} |\n"
 
         return output
@@ -1034,98 +1168,132 @@ class IndustryAnalyzer:
 
     # US Industry Data
     US_INDUSTRY_DATA = {
-        'Technology': {
-            'market_size': '$5+ Trillion',
-            'growth_rate': '8-12%',
-            'key_players': 'Apple, Microsoft, Google, Amazon, Meta, Nvidia',
-            'drivers': ['AI revolution', 'Cloud computing', 'Digital transformation', 'Enterprise software'],
-            'challenges': ['Antitrust regulation', 'Talent competition', 'Valuation concerns'],
-            'outlook': 'Positive - AI/ML driving next wave of growth'
+        "Technology": {
+            "market_size": "$5+ Trillion",
+            "growth_rate": "8-12%",
+            "key_players": "Apple, Microsoft, Google, Amazon, Meta, Nvidia",
+            "drivers": [
+                "AI revolution",
+                "Cloud computing",
+                "Digital transformation",
+                "Enterprise software",
+            ],
+            "challenges": ["Antitrust regulation", "Talent competition", "Valuation concerns"],
+            "outlook": "Positive - AI/ML driving next wave of growth",
         },
-        'Financial Services': {
-            'market_size': '$4+ Trillion',
-            'growth_rate': '5-8%',
-            'key_players': 'JPMorgan, Bank of America, Wells Fargo, Goldman Sachs',
-            'drivers': ['Interest rate environment', 'Wealth management', 'Digital banking', 'Capital markets'],
-            'challenges': ['Regulatory scrutiny', 'Fintech disruption', 'Credit quality'],
-            'outlook': 'Positive - Benefiting from higher rates and capital markets activity'
+        "Financial Services": {
+            "market_size": "$4+ Trillion",
+            "growth_rate": "5-8%",
+            "key_players": "JPMorgan, Bank of America, Wells Fargo, Goldman Sachs",
+            "drivers": [
+                "Interest rate environment",
+                "Wealth management",
+                "Digital banking",
+                "Capital markets",
+            ],
+            "challenges": ["Regulatory scrutiny", "Fintech disruption", "Credit quality"],
+            "outlook": "Positive - Benefiting from higher rates and capital markets activity",
         },
-        'Energy': {
-            'market_size': '$3+ Trillion',
-            'growth_rate': '3-6%',
-            'key_players': 'ExxonMobil, Chevron, ConocoPhillips, Schlumberger',
-            'drivers': ['Energy security', 'LNG exports', 'Renewable transition', 'Upstream investment'],
-            'challenges': ['Commodity volatility', 'ESG pressure', 'Transition risks'],
-            'outlook': 'Neutral - Balancing traditional energy with clean transition'
+        "Energy": {
+            "market_size": "$3+ Trillion",
+            "growth_rate": "3-6%",
+            "key_players": "ExxonMobil, Chevron, ConocoPhillips, Schlumberger",
+            "drivers": [
+                "Energy security",
+                "LNG exports",
+                "Renewable transition",
+                "Upstream investment",
+            ],
+            "challenges": ["Commodity volatility", "ESG pressure", "Transition risks"],
+            "outlook": "Neutral - Balancing traditional energy with clean transition",
         },
-        'Consumer Discretionary': {
-            'market_size': '$2+ Trillion',
-            'growth_rate': '4-7%',
-            'key_players': 'Amazon, Tesla, Home Depot, Nike, McDonald\'s',
-            'drivers': ['E-commerce growth', 'Consumer spending', 'Innovation', 'Brand strength'],
-            'challenges': ['Inflation impact', 'Supply chain', 'Consumer sentiment'],
-            'outlook': 'Positive - Resilient consumer spending'
+        "Consumer Discretionary": {
+            "market_size": "$2+ Trillion",
+            "growth_rate": "4-7%",
+            "key_players": "Amazon, Tesla, Home Depot, Nike, McDonald's",
+            "drivers": ["E-commerce growth", "Consumer spending", "Innovation", "Brand strength"],
+            "challenges": ["Inflation impact", "Supply chain", "Consumer sentiment"],
+            "outlook": "Positive - Resilient consumer spending",
         },
-        'Healthcare': {
-            'market_size': '$4+ Trillion',
-            'growth_rate': '6-9%',
-            'key_players': 'Johnson & Johnson, UnitedHealth, Pfizer, Eli Lilly, Merck',
-            'drivers': ['Aging population', 'Biotech innovation', 'Drug pricing reform', 'Healthcare access'],
-            'challenges': ['Patent cliffs', 'Regulatory approval', 'Drug pricing'],
-            'outlook': 'Positive - Innovation pipeline and demographic tailwinds'
-        }
+        "Healthcare": {
+            "market_size": "$4+ Trillion",
+            "growth_rate": "6-9%",
+            "key_players": "Johnson & Johnson, UnitedHealth, Pfizer, Eli Lilly, Merck",
+            "drivers": [
+                "Aging population",
+                "Biotech innovation",
+                "Drug pricing reform",
+                "Healthcare access",
+            ],
+            "challenges": ["Patent cliffs", "Regulatory approval", "Drug pricing"],
+            "outlook": "Positive - Innovation pipeline and demographic tailwinds",
+        },
     }
 
     # India Industry Data
     INDIA_INDUSTRY_DATA = {
-        'Technology': {
-            'market_size': '₹15+ Lakh Cr',
-            'growth_rate': '12-15%',
-            'key_players': 'TCS, Infosys, Wipro, HCL Tech',
-            'drivers': ['Digital transformation', 'Cloud adoption', 'AI/ML integration', 'Cost arbitrage'],
-            'challenges': ['Talent attrition', 'Currency volatility', 'Client budget constraints'],
-            'outlook': 'Positive - Strong demand for digital services globally'
+        "Technology": {
+            "market_size": "₹15+ Lakh Cr",
+            "growth_rate": "12-15%",
+            "key_players": "TCS, Infosys, Wipro, HCL Tech",
+            "drivers": [
+                "Digital transformation",
+                "Cloud adoption",
+                "AI/ML integration",
+                "Cost arbitrage",
+            ],
+            "challenges": ["Talent attrition", "Currency volatility", "Client budget constraints"],
+            "outlook": "Positive - Strong demand for digital services globally",
         },
-        'Financial Services': {
-            'market_size': '₹200+ Lakh Cr (Credit)',
-            'growth_rate': '13-16%',
-            'key_players': 'HDFC Bank, ICICI Bank, SBI, Kotak',
-            'drivers': ['Credit growth', 'Financial inclusion', 'Digital banking', 'Rising income levels'],
-            'challenges': ['NPA management', 'Regulatory changes', 'Fintech competition'],
-            'outlook': 'Positive - Structural growth from under-penetration'
+        "Financial Services": {
+            "market_size": "₹200+ Lakh Cr (Credit)",
+            "growth_rate": "13-16%",
+            "key_players": "HDFC Bank, ICICI Bank, SBI, Kotak",
+            "drivers": [
+                "Credit growth",
+                "Financial inclusion",
+                "Digital banking",
+                "Rising income levels",
+            ],
+            "challenges": ["NPA management", "Regulatory changes", "Fintech competition"],
+            "outlook": "Positive - Structural growth from under-penetration",
         },
-        'Energy': {
-            'market_size': '₹25+ Lakh Cr',
-            'growth_rate': '5-8%',
-            'key_players': 'Reliance, ONGC, BPCL, IOC',
-            'drivers': ['Fuel demand growth', 'Petrochemical expansion', 'Green energy transition'],
-            'challenges': ['Crude price volatility', 'Regulatory pricing', 'Green transition'],
-            'outlook': 'Neutral - Transition phase with green energy focus'
+        "Energy": {
+            "market_size": "₹25+ Lakh Cr",
+            "growth_rate": "5-8%",
+            "key_players": "Reliance, ONGC, BPCL, IOC",
+            "drivers": ["Fuel demand growth", "Petrochemical expansion", "Green energy transition"],
+            "challenges": ["Crude price volatility", "Regulatory pricing", "Green transition"],
+            "outlook": "Neutral - Transition phase with green energy focus",
         },
-        'Consumer Defensive': {
-            'market_size': '₹8+ Lakh Cr',
-            'growth_rate': '8-12%',
-            'key_players': 'HUL, ITC, Nestle, Britannia',
-            'drivers': ['Rising consumption', 'Premiumization', 'Rural penetration'],
-            'challenges': ['Input cost inflation', 'Competition', 'Changing preferences'],
-            'outlook': 'Positive - Structural consumption growth story'
+        "Consumer Defensive": {
+            "market_size": "₹8+ Lakh Cr",
+            "growth_rate": "8-12%",
+            "key_players": "HUL, ITC, Nestle, Britannia",
+            "drivers": ["Rising consumption", "Premiumization", "Rural penetration"],
+            "challenges": ["Input cost inflation", "Competition", "Changing preferences"],
+            "outlook": "Positive - Structural consumption growth story",
         },
-        'Healthcare': {
-            'market_size': '₹6+ Lakh Cr',
-            'growth_rate': '10-14%',
-            'key_players': 'Sun Pharma, Dr. Reddy\'s, Cipla, Divi\'s',
-            'drivers': ['Aging population', 'Healthcare spending', 'Generic demand', 'Exports'],
-            'challenges': ['US pricing pressure', 'FDA compliance', 'R&D intensity'],
-            'outlook': 'Positive - Strong export and domestic demand'
-        }
+        "Healthcare": {
+            "market_size": "₹6+ Lakh Cr",
+            "growth_rate": "10-14%",
+            "key_players": "Sun Pharma, Dr. Reddy's, Cipla, Divi's",
+            "drivers": ["Aging population", "Healthcare spending", "Generic demand", "Exports"],
+            "challenges": ["US pricing pressure", "FDA compliance", "R&D intensity"],
+            "outlook": "Positive - Strong export and domestic demand",
+        },
     }
 
     @staticmethod
-    def get_industry_analysis(sector: str, company_data: Dict[str, Any], exchange: str = 'NSE') -> str:
+    def get_industry_analysis(
+        sector: str, company_data: Dict[str, Any], exchange: str = "NSE"
+    ) -> str:
         """Generate industry analysis section."""
         # Select industry data based on exchange
-        is_us = exchange.upper() in ('US', 'NYSE', 'NASDAQ', 'AMEX')
-        industry_db = IndustryAnalyzer.US_INDUSTRY_DATA if is_us else IndustryAnalyzer.INDIA_INDUSTRY_DATA
+        is_us = exchange.upper() in ("US", "NYSE", "NASDAQ", "AMEX")
+        industry_db = (
+            IndustryAnalyzer.US_INDUSTRY_DATA if is_us else IndustryAnalyzer.INDIA_INDUSTRY_DATA
+        )
 
         # Find matching sector
         industry_info = None
@@ -1137,12 +1305,12 @@ class IndustryAnalyzer:
         if not industry_info:
             curr = get_currency_info(exchange)
             industry_info = {
-                'market_size': 'Data not available',
-                'growth_rate': 'Industry average',
-                'key_players': 'Various players',
-                'drivers': ['Market demand', 'Economic growth', 'Industry trends'],
-                'challenges': ['Competition', 'Regulatory environment', 'Economic cycles'],
-                'outlook': 'Refer to industry-specific reports'
+                "market_size": "Data not available",
+                "growth_rate": "Industry average",
+                "key_players": "Various players",
+                "drivers": ["Market demand", "Economic growth", "Industry trends"],
+                "challenges": ["Competition", "Regulatory environment", "Economic cycles"],
+                "outlook": "Refer to industry-specific reports",
             }
 
         output = f"""
@@ -1160,11 +1328,11 @@ class IndustryAnalyzer:
 ### Growth Drivers
 
 """
-        for i, driver in enumerate(industry_info['drivers'], 1):
+        for i, driver in enumerate(industry_info["drivers"], 1):
             output += f"{i}. **{driver}**\n"
 
         output += "\n### Key Challenges\n\n"
-        for i, challenge in enumerate(industry_info['challenges'], 1):
+        for i, challenge in enumerate(industry_info["challenges"], 1):
             output += f"{i}. {challenge}\n"
 
         output += f"""
@@ -1187,23 +1355,21 @@ class EarningsProjector:
 
     @staticmethod
     def generate_projections(
-        company_data: Dict[str, Any],
-        dcf_model: 'DCFModel',
-        exchange: str = 'NSE'
+        company_data: Dict[str, Any], dcf_model: "DCFModel", exchange: str = "NSE"
     ) -> str:
         """Generate forward earnings estimates table."""
         curr = get_currency_info(exchange)
-        sym = curr['symbol']
-        unit = curr['unit']
-        divisor = curr['divisor']
+        sym = curr["symbol"]
+        unit = curr["unit"]
+        divisor = curr["divisor"]
 
         current_year = datetime.now().year
 
         # Get base metrics - use exchange-appropriate divisor
-        revenue = company_data.get('revenue', 0) / divisor
-        ebitda = company_data.get('ebitda', 0) / divisor
-        eps = company_data.get('eps', 0)
-        growth = company_data.get('revenue_growth', 10) / 100
+        revenue = company_data.get("revenue", 0) / divisor
+        ebitda = company_data.get("ebitda", 0) / divisor
+        eps = company_data.get("eps", 0)
+        growth = company_data.get("revenue_growth", 10) / 100
 
         # Generate projections
         years = [f"FY{y}E" for y in range(current_year + 1, current_year + 4)]
@@ -1217,42 +1383,52 @@ class EarningsProjector:
             # Apply growth with slight deceleration
             growth_adj = growth * (1 - 0.05 * i)
             r = r * (1 + growth_adj)
-            e = r * (ebitda / revenue if revenue > 0 else 0.2) * (1 + 0.01 * i)  # Slight margin expansion
+            e = (
+                r * (ebitda / revenue if revenue > 0 else 0.2) * (1 + 0.01 * i)
+            )  # Slight margin expansion
             ep = ep * (1 + growth_adj * 1.1)  # EPS grows faster due to operating leverage
 
             rev_proj.append(r)
             ebitda_proj.append(e)
             eps_proj.append(ep)
 
-        output = """
+        output = (
+            """
 ## Earnings Estimates & Projections
 
 ### Consensus Estimates
 
-| Metric | """ + " | ".join(years) + """ | 3Y CAGR |
-|--------|""" + "|".join(["------:"] * 4) + """|
+| Metric | """
+            + " | ".join(years)
+            + """ | 3Y CAGR |
+|--------|"""
+            + "|".join(["------:"] * 4)
+            + """|
 """
+        )
         # Revenue
-        rev_cagr = ((rev_proj[-1] / revenue) ** (1/3) - 1) * 100 if revenue > 0 else 0
+        rev_cagr = ((rev_proj[-1] / revenue) ** (1 / 3) - 1) * 100 if revenue > 0 else 0
         output += f"| **Revenue ({sym} {unit})** | {rev_proj[0]:,.0f} | {rev_proj[1]:,.0f} | {rev_proj[2]:,.0f} | {rev_cagr:.1f}% |\n"
 
         # EBITDA
-        ebitda_cagr = ((ebitda_proj[-1] / ebitda) ** (1/3) - 1) * 100 if ebitda > 0 else 0
+        ebitda_cagr = ((ebitda_proj[-1] / ebitda) ** (1 / 3) - 1) * 100 if ebitda > 0 else 0
         output += f"| **EBITDA ({sym} {unit})** | {ebitda_proj[0]:,.0f} | {ebitda_proj[1]:,.0f} | {ebitda_proj[2]:,.0f} | {ebitda_cagr:.1f}% |\n"
 
         # EBITDA Margin
-        margins = [e/r*100 if r > 0 else 0 for e, r in zip(ebitda_proj, rev_proj)]
+        margins = [e / r * 100 if r > 0 else 0 for e, r in zip(ebitda_proj, rev_proj)]
         output += f"| EBITDA Margin (%) | {margins[0]:.1f}% | {margins[1]:.1f}% | {margins[2]:.1f}% | - |\n"
 
         # EPS
-        eps_cagr = ((eps_proj[-1] / eps) ** (1/3) - 1) * 100 if eps > 0 else 0
+        eps_cagr = ((eps_proj[-1] / eps) ** (1 / 3) - 1) * 100 if eps > 0 else 0
         output += f"| **EPS ({sym})** | {eps_proj[0]:.2f} | {eps_proj[1]:.2f} | {eps_proj[2]:.2f} | {eps_cagr:.1f}% |\n"
 
         # Implied P/E at target
-        cmp = company_data.get('current_price', 0)
+        cmp = company_data.get("current_price", 0)
         if cmp > 0:
             fwd_pe = [cmp / e if e > 0 else 0 for e in eps_proj]
-            output += f"| P/E at CMP | {fwd_pe[0]:.1f}x | {fwd_pe[1]:.1f}x | {fwd_pe[2]:.1f}x | - |\n"
+            output += (
+                f"| P/E at CMP | {fwd_pe[0]:.1f}x | {fwd_pe[1]:.1f}x | {fwd_pe[2]:.1f}x | - |\n"
+            )
 
         output += """
 ### Key Assumptions
@@ -1270,78 +1446,87 @@ class PriceChartGenerator:
 
     @staticmethod
     def create_price_chart(
-        prices: List[float],
-        dates: List[str],
-        ticker: str,
-        output_dir: str,
-        exchange: str = 'NSE'
+        prices: List[float], dates: List[str], ticker: str, output_dir: str, exchange: str = "NSE"
     ) -> Optional[str]:
         """Generate price chart with moving averages."""
         try:
-            import matplotlib.pyplot as plt
-            import matplotlib.dates as mdates
             from datetime import datetime as dt
+
+            import matplotlib.dates as mdates
+            import matplotlib.pyplot as plt
             import numpy as np
 
             curr = get_currency_info(exchange)
-            sym = curr['symbol']
+            sym = curr["symbol"]
 
             if len(prices) < 20:
                 return None
 
-            plt.style.use('seaborn-v0_8-whitegrid')
-            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8),
-                                            gridspec_kw={'height_ratios': [3, 1]})
+            plt.style.use("seaborn-v0_8-whitegrid")
+            fig, (ax1, ax2) = plt.subplots(
+                2, 1, figsize=(12, 8), gridspec_kw={"height_ratios": [3, 1]}
+            )
 
             # Convert dates
             x = list(range(len(prices)))
 
             # Price plot
-            ax1.plot(x, prices, color='#2c5282', linewidth=1.5, label='Price')
+            ax1.plot(x, prices, color="#2c5282", linewidth=1.5, label="Price")
 
             # Moving averages
             if len(prices) >= 20:
-                sma20 = np.convolve(prices, np.ones(20)/20, mode='valid')
-                ax1.plot(x[19:], sma20, color='#38a169', linewidth=1,
-                        label='20-Day SMA', linestyle='--')
+                sma20 = np.convolve(prices, np.ones(20) / 20, mode="valid")
+                ax1.plot(
+                    x[19:], sma20, color="#38a169", linewidth=1, label="20-Day SMA", linestyle="--"
+                )
 
             if len(prices) >= 50:
-                sma50 = np.convolve(prices, np.ones(50)/50, mode='valid')
-                ax1.plot(x[49:], sma50, color='#d69e2e', linewidth=1,
-                        label='50-Day SMA', linestyle='--')
+                sma50 = np.convolve(prices, np.ones(50) / 50, mode="valid")
+                ax1.plot(
+                    x[49:], sma50, color="#d69e2e", linewidth=1, label="50-Day SMA", linestyle="--"
+                )
 
             if len(prices) >= 200:
-                sma200 = np.convolve(prices, np.ones(200)/200, mode='valid')
-                ax1.plot(x[199:], sma200, color='#e53e3e', linewidth=1,
-                        label='200-Day SMA', linestyle='-.')
+                sma200 = np.convolve(prices, np.ones(200) / 200, mode="valid")
+                ax1.plot(
+                    x[199:],
+                    sma200,
+                    color="#e53e3e",
+                    linewidth=1,
+                    label="200-Day SMA",
+                    linestyle="-.",
+                )
 
-            ax1.set_title(f'{ticker} - Price Chart with Moving Averages',
-                         fontsize=14, fontweight='bold', color='#1a365d')
-            ax1.set_ylabel(f'Price ({sym})', fontsize=10)
-            ax1.legend(loc='upper left', fontsize=8)
+            ax1.set_title(
+                f"{ticker} - Price Chart with Moving Averages",
+                fontsize=14,
+                fontweight="bold",
+                color="#1a365d",
+            )
+            ax1.set_ylabel(f"Price ({sym})", fontsize=10)
+            ax1.legend(loc="upper left", fontsize=8)
             ax1.grid(True, alpha=0.3)
 
             # Fill between 52-week high/low
             high = max(prices[-252:]) if len(prices) >= 252 else max(prices)
             low = min(prices[-252:]) if len(prices) >= 252 else min(prices)
-            ax1.axhline(y=high, color='#38a169', linestyle=':', alpha=0.5, label='52W High')
-            ax1.axhline(y=low, color='#e53e3e', linestyle=':', alpha=0.5, label='52W Low')
+            ax1.axhline(y=high, color="#38a169", linestyle=":", alpha=0.5, label="52W High")
+            ax1.axhline(y=low, color="#e53e3e", linestyle=":", alpha=0.5, label="52W Low")
 
             # Volume/RSI proxy (use price momentum)
             if len(prices) >= 14:
                 # Calculate simple momentum
-                momentum = [prices[i] - prices[i-14] for i in range(14, len(prices))]
-                colors = ['#38a169' if m > 0 else '#e53e3e' for m in momentum]
+                momentum = [prices[i] - prices[i - 14] for i in range(14, len(prices))]
+                colors = ["#38a169" if m > 0 else "#e53e3e" for m in momentum]
                 ax2.bar(x[14:], momentum, color=colors, alpha=0.6)
-                ax2.axhline(y=0, color='gray', linestyle='-', linewidth=0.5)
-                ax2.set_ylabel('14-Day Momentum', fontsize=10)
-                ax2.set_xlabel('Trading Days', fontsize=10)
+                ax2.axhline(y=0, color="gray", linestyle="-", linewidth=0.5)
+                ax2.set_ylabel("14-Day Momentum", fontsize=10)
+                ax2.set_xlabel("Trading Days", fontsize=10)
 
             plt.tight_layout()
 
             filepath = f"{output_dir}/{ticker}_price_chart.png"
-            plt.savefig(filepath, dpi=150, bbox_inches='tight',
-                       facecolor='white', edgecolor='none')
+            plt.savefig(filepath, dpi=150, bbox_inches="tight", facecolor="white", edgecolor="none")
             plt.close()
 
             return filepath
@@ -1364,9 +1549,9 @@ class ReportTemplate:
         self.earnings_projector = EarningsProjector()
         self.price_chart_generator = PriceChartGenerator()
 
-    def generate_cover_page(self, snapshot: CompanySnapshot,
-                             investment_thesis: List[str],
-                             key_risks: List[str]) -> str:
+    def generate_cover_page(
+        self, snapshot: CompanySnapshot, investment_thesis: List[str], key_risks: List[str]
+    ) -> str:
         """Generate professional cover page."""
 
         rating_emoji = {"BUY": "🟢", "HOLD": "🟡", "SELL": "🔴"}.get(snapshot.rating.upper(), "⚪")
@@ -1424,13 +1609,15 @@ class ReportTemplate:
 """
         return cover
 
-    def generate_valuation_section(self,
-                                    dcf_calc: DCFCalculator,
-                                    dcf_result: Dict[str, float],
-                                    peer_data: PeerComparison,
-                                    target_company: str,
-                                    current_price: float,
-                                    exchange: str = 'NSE') -> str:
+    def generate_valuation_section(
+        self,
+        dcf_calc: DCFCalculator,
+        dcf_result: Dict[str, float],
+        peer_data: PeerComparison,
+        target_company: str,
+        current_price: float,
+        exchange: str = "NSE",
+    ) -> str:
         """Generate complete valuation section."""
 
         section = """
@@ -1450,8 +1637,7 @@ We employ multiple valuation methodologies to arrive at our target price:
 
         # Sensitivity Matrix
         sensitivity_df = dcf_calc.create_sensitivity_matrix(
-            shares_outstanding=1.0,  # Placeholder
-            net_debt=0.0
+            shares_outstanding=1.0, net_debt=0.0  # Placeholder
         )
         section += dcf_calc.format_sensitivity_table(sensitivity_df, exchange)
         section += "\n"
@@ -1463,13 +1649,17 @@ We employ multiple valuation methodologies to arrive at our target price:
 
         # Football Field
         valuations = {
-            "DCF": (dcf_result.get('implied_price', 0) * 0.85,
-                    dcf_result.get('implied_price', 0),
-                    dcf_result.get('implied_price', 0) * 1.15),
+            "DCF": (
+                dcf_result.get("implied_price", 0) * 0.85,
+                dcf_result.get("implied_price", 0),
+                dcf_result.get("implied_price", 0) * 1.15,
+            ),
             "P/E Comps": (current_price * 0.9, current_price * 1.1, current_price * 1.3),
             "EV/EBITDA": (current_price * 0.85, current_price * 1.05, current_price * 1.25),
         }
         section += "\n"
-        section += self.chart_generator.create_football_field_ascii(valuations, current_price, exchange=exchange)
+        section += self.chart_generator.create_football_field_ascii(
+            valuations, current_price, exchange=exchange
+        )
 
         return section

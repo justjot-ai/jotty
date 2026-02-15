@@ -7,7 +7,8 @@ Supports optional LLM fallback for ambiguous cases.
 """
 
 import logging
-from typing import Optional, Tuple, Any
+from typing import Any, Optional, Tuple
+
 from .types import ExecutionTier
 
 logger = logging.getLogger(__name__)
@@ -23,34 +24,70 @@ class TierDetector:
 
     # Keywords that indicate different complexity levels
     DIRECT_INDICATORS = [
-        'what is', 'calculate', 'convert', 'translate',
-        'define', 'explain briefly', 'simple question',
-        'lookup', 'find', 'search for',
+        "what is",
+        "calculate",
+        "convert",
+        "translate",
+        "define",
+        "explain briefly",
+        "simple question",
+        "lookup",
+        "find",
+        "search for",
     ]
 
     LEARNING_INDICATORS = [
-        'learn from', 'improve', 'optimize', 'remember',
-        'get better at', 'track performance', 'validate',
+        "learn from",
+        "improve",
+        "optimize",
+        "remember",
+        "get better at",
+        "track performance",
+        "validate",
     ]
 
     RESEARCH_INDICATORS = [
-        'experiment', 'benchmark', 'compare approaches',
-        'analyze in depth', 'research thoroughly',
-        'multi-round', 'self-improve',
+        "experiment",
+        "benchmark",
+        "compare approaches",
+        "analyze in depth",
+        "research thoroughly",
+        "multi-round",
+        "self-improve",
     ]
 
     AUTONOMOUS_INDICATORS = [
-        'sandbox', 'isolated', 'untrusted', 'coalition', 'consensus',
-        'curriculum', 'agent0', 'autonomous', 'multi-swarm',
-        'byzantine', 'trust', 'install', 'execute code',
+        "sandbox",
+        "isolated",
+        "untrusted",
+        "coalition",
+        "consensus",
+        "curriculum",
+        "agent0",
+        "autonomous",
+        "multi-swarm",
+        "byzantine",
+        "trust",
+        "install",
+        "execute code",
     ]
 
     MULTI_STEP_INDICATORS = [
-        'and then', 'after that', 'followed by',
-        'first', 'second', 'third', 'finally',
-        'step 1', 'step 2',
-        'analyze and', 'research and', 'create and',
-        'compile and', 'gather and', 'process and',
+        "and then",
+        "after that",
+        "followed by",
+        "first",
+        "second",
+        "third",
+        "finally",
+        "step 1",
+        "step 2",
+        "analyze and",
+        "research and",
+        "create and",
+        "compile and",
+        "gather and",
+        "process and",
     ]
 
     def __init__(self, enable_llm_fallback: bool = False) -> None:
@@ -59,10 +96,7 @@ class TierDetector:
         self._llm_classifier = None
 
     def detect(
-        self,
-        goal: str,
-        context: Optional[dict] = None,
-        force_tier: Optional[ExecutionTier] = None
+        self, goal: str, context: Optional[dict] = None, force_tier: Optional[ExecutionTier] = None
     ) -> ExecutionTier:
         """
         Detect appropriate tier for the goal.
@@ -171,7 +205,9 @@ class TierDetector:
                 logger.warning(f"LLM tier classification failed, using heuristic: {e}")
 
         self.detection_cache[cache_key] = tier
-        logger.info(f"Auto-detected tier: {tier.name} (conf={confidence:.2f}) for goal: {goal[:50]}...")
+        logger.info(
+            f"Auto-detected tier: {tier.name} (conf={confidence:.2f}) for goal: {goal[:50]}..."
+        )
         return tier
 
     def _is_simple_query(self, goal_lower: str) -> bool:
@@ -275,6 +311,7 @@ class _TierClassifierLLM:
     def _get_client(self) -> Any:
         if self._client is None:
             import anthropic
+
             self._client = anthropic.AsyncAnthropic()
         return self._client
 
@@ -289,10 +326,12 @@ class _TierClassifierLLM:
             model="claude-haiku-4-5-20251001",
             max_tokens=8,
             temperature=0.0,
-            messages=[{
-                "role": "user",
-                "content": self._CLASSIFICATION_PROMPT.format(goal=goal[:500]),
-            }],
+            messages=[
+                {
+                    "role": "user",
+                    "content": self._CLASSIFICATION_PROMPT.format(goal=goal[:500]),
+                }
+            ],
         )
         text = response.content[0].text.strip() if response.content else ""
         # Extract first digit

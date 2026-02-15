@@ -7,25 +7,25 @@ Tests for the 9+ rating features:
 4. Real-world LLM integration test (optional, requires API key)
 """
 
-import json
 import asyncio
+import json
 import os
 import tempfile
-import pytest
 from pathlib import Path
-from unittest.mock import patch, AsyncMock
+from unittest.mock import AsyncMock, patch
+
+import pytest
 
 pytestmark = pytest.mark.skipif(
-    not os.getenv('ANTHROPIC_API_KEY'),
-    reason="Requires ANTHROPIC_API_KEY for real LLM calls"
+    not os.getenv("ANTHROPIC_API_KEY"), reason="Requires ANTHROPIC_API_KEY for real LLM calls"
 )
 
-from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig, EpisodeResult
-
+from Jotty.core.infrastructure.foundation.data_structures import EpisodeResult, SwarmConfig
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _cfg(base_path=None):
     cfg = SwarmConfig()
@@ -49,15 +49,20 @@ def _episode(success=True, output="ok"):
 
 
 def _agent(name):
-    return type('A', (), {'name': name})()
+    return type("A", (), {"name": name})()
 
 
 def _agent_spec(name, capabilities=None):
     from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
-    dummy = type('DummyAgent', (), {
-        'forward': lambda self, **kw: None,
-        'config': type('C', (), {'system_prompt': None})(),
-    })()
+
+    dummy = type(
+        "DummyAgent",
+        (),
+        {
+            "forward": lambda self, **kw: None,
+            "config": type("C", (), {"system_prompt": None})(),
+        },
+    )()
     spec = AgentConfig(name=name, agent=dummy)
     if capabilities:
         spec.capabilities = capabilities
@@ -66,12 +71,14 @@ def _agent_spec(name, capabilities=None):
 
 def _pipeline(base_path=None):
     from Jotty.core.intelligence.orchestration.learning_pipeline import SwarmLearningPipeline
+
     return SwarmLearningPipeline(_cfg(base_path))
 
 
 # ===========================================================================
 # 1. Autonomous Training Scheduler
 # ===========================================================================
+
 
 class TestTrainingScheduler:
     """Prove start_training_loop drains queue and respects convergence."""
@@ -104,7 +111,7 @@ class TestTrainingScheduler:
             return _episode(True, f"trained on: {goal[:30]}")
 
         async def _test():
-            with patch.object(sm, 'run', side_effect=fake_run):
+            with patch.object(sm, "run", side_effect=fake_run):
                 results = await sm.start_training_loop(max_tasks=3)
             return results
 
@@ -143,7 +150,7 @@ class TestTrainingScheduler:
             return _episode(True, "trained")
 
         async def _test():
-            with patch.object(sm, 'run', side_effect=fake_run):
+            with patch.object(sm, "run", side_effect=fake_run):
                 results = await sm.start_training_loop(
                     max_tasks=10,
                     stop_on_convergence=True,
@@ -152,8 +159,7 @@ class TestTrainingScheduler:
 
         results = asyncio.run(_test())
         # Should stop immediately (0 tasks) because convergence detected
-        assert len(results) == 0, \
-            f"Should stop on convergence, but ran {len(results)} tasks"
+        assert len(results) == 0, f"Should stop on convergence, but ran {len(results)} tasks"
 
     def test_training_loop_stops_on_empty_queue(self):
         """Loop should stop when queue is drained."""
@@ -179,6 +185,7 @@ class TestTrainingScheduler:
 # 2. Stigmergy Persistence
 # ===========================================================================
 
+
 class TestStigmergyPersistence:
     """Prove pheromone trails survive save/load cycle."""
 
@@ -188,22 +195,22 @@ class TestStigmergyPersistence:
             # Session 1: deposit signals and save
             lp1 = _pipeline(base_path=tmpdir)
             lp1.stigmergy.deposit(
-                signal_type='route',
-                content={'task_type': 'coding', 'agent': 'coder'},
-                agent='coder',
+                signal_type="route",
+                content={"task_type": "coding", "agent": "coder"},
+                agent="coder",
                 strength=0.9,
             )
             lp1.stigmergy.deposit(
-                signal_type='success',
-                content={'task_type': 'coding', 'goal': 'fix bug'},
-                agent='coder',
+                signal_type="success",
+                content={"task_type": "coding", "goal": "fix bug"},
+                agent="coder",
                 strength=0.8,
             )
             assert len(lp1.stigmergy.signals) == 2
 
             # Save
             lp1.auto_save()
-            stig_path = Path(tmpdir) / 'stigmergy.json'
+            stig_path = Path(tmpdir) / "stigmergy.json"
             assert stig_path.exists()
 
             # Session 2: load and verify
@@ -212,29 +219,29 @@ class TestStigmergyPersistence:
             assert len(lp2.stigmergy.signals) == 2
 
             # Route signal should still work
-            routes = lp2.stigmergy.get_route_signals('coding')
-            assert 'coder' in routes
-            assert routes['coder'] > 0
+            routes = lp2.stigmergy.get_route_signals("coding")
+            assert "coder" in routes
+            assert routes["coder"] > 0
 
     def test_stigmergy_file_format(self):
         """Saved file should be valid JSON with expected structure."""
         with tempfile.TemporaryDirectory() as tmpdir:
             lp = _pipeline(base_path=tmpdir)
             lp.stigmergy.deposit(
-                signal_type='route',
-                content={'task_type': 'analysis', 'agent': 'analyst'},
-                agent='analyst',
+                signal_type="route",
+                content={"task_type": "analysis", "agent": "analyst"},
+                agent="analyst",
                 strength=0.7,
             )
             lp.auto_save()
 
-            stig_path = Path(tmpdir) / 'stigmergy.json'
+            stig_path = Path(tmpdir) / "stigmergy.json"
             with open(stig_path) as f:
                 data = json.load(f)
 
-            assert 'signals' in data
-            assert 'decay_rate' in data
-            assert len(data['signals']) == 1
+            assert "signals" in data
+            assert "decay_rate" in data
+            assert len(data["signals"]) == 1
 
     def test_empty_stigmergy_save_load(self):
         """Empty stigmergy should save/load cleanly."""
@@ -251,6 +258,7 @@ class TestStigmergyPersistence:
 # 3. Credit-Driven Pruning
 # ===========================================================================
 
+
 class TestCreditPruning:
     """Prove that low-value learnings are pruned from transfer store."""
 
@@ -261,12 +269,14 @@ class TestCreditPruning:
 
         # Add 25 experiences to transfer learning (above the 20 threshold)
         for i in range(25):
-            lp.transfer_learning.experiences.append({
-                'query': f'task_{i}',
-                'action': f'action_{i}',
-                'success': i % 3 == 0,  # Only 1/3 succeed
-                'reward': 1.0 if i % 3 == 0 else 0.0,
-            })
+            lp.transfer_learning.experiences.append(
+                {
+                    "query": f"task_{i}",
+                    "action": f"action_{i}",
+                    "success": i % 3 == 0,  # Only 1/3 succeed
+                    "reward": 1.0 if i % 3 == 0 else 0.0,
+                }
+            )
 
         before = len(lp.transfer_learning.experiences)
 
@@ -291,27 +301,31 @@ class TestCreditPruning:
 
         # Record some improvements as high-value
         lp.credit_assigner.record_improvement_application(
-            improvement={'learned_pattern': 'use_structured_prompts', 'task': 'coding'},
+            improvement={"learned_pattern": "use_structured_prompts", "task": "coding"},
             student_score=0.2,
             teacher_score=0.0,
             final_score=0.95,
-            context={'task': 'coding'},
+            context={"task": "coding"},
         )
 
         # Add the high-value experience to transfer learning
-        lp.transfer_learning.experiences.append({
-            'query': 'use_structured_prompts',
-            'action': 'coding',
-            'success': True,
-        })
+        lp.transfer_learning.experiences.append(
+            {
+                "query": "use_structured_prompts",
+                "action": "coding",
+                "success": True,
+            }
+        )
 
         # Add many low-value experiences
         for i in range(25):
-            lp.transfer_learning.experiences.append({
-                'query': f'random_noise_{i}',
-                'action': f'failed_{i}',
-                'success': False,
-            })
+            lp.transfer_learning.experiences.append(
+                {
+                    "query": f"random_noise_{i}",
+                    "action": f"failed_{i}",
+                    "success": False,
+                }
+            )
 
         # Trigger pruning at episode 10
         agent = _agent("worker")
@@ -324,14 +338,16 @@ class TestCreditPruning:
             )
 
         # The high-value experience should survive
-        remaining_queries = [e.get('query', '') for e in lp.transfer_learning.experiences]
-        assert 'use_structured_prompts' in remaining_queries, \
-            "High-credit experience should survive pruning"
+        remaining_queries = [e.get("query", "") for e in lp.transfer_learning.experiences]
+        assert (
+            "use_structured_prompts" in remaining_queries
+        ), "High-credit experience should survive pruning"
 
 
 # ===========================================================================
 # 4. Real-World LLM Integration (optional)
 # ===========================================================================
+
 
 class TestRealWorldIntegration:
     """
@@ -343,9 +359,9 @@ class TestRealWorldIntegration:
     def check_llm(self):
         """Skip if no LLM is configured."""
         import os
+
         has_key = any(
-            os.environ.get(k)
-            for k in ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'GROQ_API_KEY']
+            os.environ.get(k) for k in ["ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GROQ_API_KEY"]
         )
         if not has_key:
             pytest.skip("No LLM API key configured")
@@ -387,6 +403,7 @@ class TestRealWorldIntegration:
 # Integration: Full lifecycle across sessions
 # ===========================================================================
 
+
 class TestFullLifecycle:
     """End-to-end: generate tasks, train, persist, reload, verify improvement."""
 
@@ -399,7 +416,7 @@ class TestFullLifecycle:
             # 10 successful analysis episodes
             for i in range(10):
                 ep = _episode(True)
-                ep.agent_name = 'analyst'
+                ep.agent_name = "analyst"
                 lp1.post_episode(
                     result=ep,
                     goal=f"Analyze data set {i}",
@@ -420,8 +437,8 @@ class TestFullLifecycle:
             # Verify state before save
             assert len(lp1.stigmergy.signals) > 0
             assert lp1.byzantine_verifier.verified_count == 15
-            routes1 = lp1.stigmergy.get_route_signals('analysis')
-            assert 'analyst' in routes1
+            routes1 = lp1.stigmergy.get_route_signals("analysis")
+            assert "analyst" in routes1
 
             # Save
             lp1.auto_save()
@@ -429,20 +446,20 @@ class TestFullLifecycle:
             # --- Session 2: Reload stigmergy only (skip heavy embedding reload) ---
             lp2 = _pipeline(base_path=tmpdir)
             # Load just stigmergy (the feature we're testing)
-            stig_path = Path(tmpdir) / 'stigmergy.json'
+            stig_path = Path(tmpdir) / "stigmergy.json"
             if stig_path.exists():
                 from Jotty.core.intelligence.orchestration.stigmergy import StigmergyLayer
+
                 with open(stig_path) as f:
                     lp2.stigmergy = StigmergyLayer.from_dict(json.load(f))
 
             # Stigmergy should persist
             assert len(lp2.stigmergy.signals) > 0
-            routes2 = lp2.stigmergy.get_route_signals('analysis')
-            assert 'analyst' in routes2
+            routes2 = lp2.stigmergy.get_route_signals("analysis")
+            assert "analyst" in routes2
 
             # Route strength should match (within decay tolerance)
-            assert routes2['analyst'] > 0, \
-                f"Analyst route should persist, got {routes2}"
+            assert routes2["analyst"] > 0, f"Analyst route should persist, got {routes2}"
 
     def test_training_loop_with_mocked_execution(self):
         """Full training loop: plateau → queue → train → learn."""
@@ -475,7 +492,7 @@ class TestFullLifecycle:
             return _episode(True, f"learned: {goal[:30]}")
 
         async def _test():
-            with patch.object(sm, 'run', side_effect=fake_run):
+            with patch.object(sm, "run", side_effect=fake_run):
                 results = await sm.start_training_loop(max_tasks=3)
             return results
 

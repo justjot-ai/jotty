@@ -8,26 +8,27 @@ Main JottyCLI class that orchestrates the interactive CLI.
 import asyncio
 import logging
 from pathlib import Path
-from typing import Optional, Any
+from typing import Any, Optional
 
+from .commands import register_all_commands
+from .commands.base import CommandRegistry, ParsedArgs
+from .commands.help_cmd import ClearCommand, HistoryCommand, QuitCommand
 from .config.loader import ConfigLoader
 from .config.schema import CLIConfig
-from .ui.renderer import RichRenderer, MarkdownStreamRenderer, DesktopNotifier, REPLState
-from .ui.status import create_status_callback
-from .ui.result_display import display_result
-from .repl.engine import REPLEngine, SimpleREPL
-from .repl.session import SessionManager
-from .repl.history import HistoryManager
-from .commands.base import CommandRegistry, ParsedArgs
-from .commands import register_all_commands
-from .commands.help_cmd import QuitCommand, ClearCommand, HistoryCommand
 from .plugins.loader import PluginLoader
+from .repl.engine import REPLEngine, SimpleREPL
+from .repl.history import HistoryManager
+from .repl.session import SessionManager
+from .ui.renderer import DesktopNotifier, MarkdownStreamRenderer, REPLState, RichRenderer
+from .ui.result_display import display_result
+from .ui.status import create_status_callback
 
 logger = logging.getLogger(__name__)
 
 # Check for prompt_toolkit
 try:
     import prompt_toolkit
+
     PROMPT_TOOLKIT_AVAILABLE = True
 except ImportError:
     PROMPT_TOOLKIT_AVAILABLE = False
@@ -45,7 +46,9 @@ class JottyCLI:
     - Plugin system
     """
 
-    def __init__(self, config_path: Optional[str] = None, no_color: bool = False, debug: bool = False) -> None:
+    def __init__(
+        self, config_path: Optional[str] = None, no_color: bool = False, debug: bool = False
+    ) -> None:
         """
         Initialize JottyCLI.
 
@@ -66,8 +69,16 @@ class JottyCLI:
             # Suppress noisy loggers in non-debug mode
             logging.basicConfig(level=logging.WARNING)
             # Only show errors from internal components
-            for noisy_logger in ['dspy', 'httpx', 'anthropic', 'openai', 'urllib3',
-                                  'weasyprint', 'fontTools', 'PIL']:
+            for noisy_logger in [
+                "dspy",
+                "httpx",
+                "anthropic",
+                "openai",
+                "urllib3",
+                "weasyprint",
+                "fontTools",
+                "PIL",
+            ]:
                 logging.getLogger(noisy_logger).setLevel(logging.ERROR)
 
         # UI Renderer
@@ -132,12 +143,14 @@ class JottyCLI:
         if self._sdk_client is None:
             try:
                 from ...sdk.client import Jotty
+
                 # Use local mode (direct API access, no HTTP)
                 self._sdk_client = Jotty().use_local()
                 logger.info("SDK client initialized (local mode)")
             except ImportError:
                 # Fallback to absolute import
                 from sdk.client import Jotty
+
                 self._sdk_client = Jotty().use_local()
                 logger.info("SDK client initialized (local mode)")
 
@@ -153,20 +166,27 @@ class JottyCLI:
         if self._swarm_manager is None:
             try:
                 # Suppress HuggingFace/BERT warnings before loading Orchestrator
+                import logging as _logging
                 import os
                 import warnings
-                import logging as _logging
-                os.environ.setdefault('HF_HUB_DISABLE_PROGRESS_BARS', '1')
-                os.environ.setdefault('TOKENIZERS_PARALLELISM', 'false')
-                os.environ.setdefault('TQDM_DISABLE', '1')
-                warnings.filterwarnings('ignore', message='.*unauthenticated.*')
-                warnings.filterwarnings('ignore', message='.*huggingface.*')
-                for _name in ['safetensors', 'sentence_transformers', 'transformers', 'huggingface_hub']:
+
+                os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
+                os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
+                os.environ.setdefault("TQDM_DISABLE", "1")
+                warnings.filterwarnings("ignore", message=".*unauthenticated.*")
+                warnings.filterwarnings("ignore", message=".*huggingface.*")
+                for _name in [
+                    "safetensors",
+                    "sentence_transformers",
+                    "transformers",
+                    "huggingface_hub",
+                ]:
                     _logging.getLogger(_name).setLevel(_logging.ERROR)
 
                 # Suppress stdout/stderr during model loading
-                import sys
                 import io
+                import sys
+
                 _old_stdout, _old_stderr = sys.stdout, sys.stderr
 
                 # Use SDK for LM configuration (clean architecture)
@@ -210,11 +230,11 @@ class JottyCLI:
 
                 # Import Orchestrator and SwarmConfig locally (internal implementation)
                 try:
-                    from ..core.intelligence.orchestration import Orchestrator
                     from ..core.infrastructure.foundation.data_structures import SwarmConfig
+                    from ..core.intelligence.orchestration import Orchestrator
                 except ImportError:
-                    from Jotty.core.intelligence.orchestration import Orchestrator
                     from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
+                    from Jotty.core.intelligence.orchestration import Orchestrator
 
                 # Create SwarmConfig from CLI config
                 jotty_config = SwarmConfig(
@@ -381,13 +401,14 @@ class JottyCLI:
             self.renderer.error(f"Command error: {e}")
             if self.config.debug:
                 import traceback
+
                 traceback.print_exc()
             return True
 
     def _is_simple_query(self, text: str) -> bool:
         """Check if query is simple greeting (not a task)."""
         # Only greetings and very basic queries - NOT task requests
-        simple_greetings = ['hello', 'hi', 'hey', 'help', 'thanks', 'bye']
+        simple_greetings = ["hello", "hi", "hey", "help", "thanks", "bye"]
         text_lower = text.lower().strip()
 
         # Only exact greetings or very short non-task queries
@@ -396,7 +417,18 @@ class JottyCLI:
 
         # Very short AND no action words = simple
         if len(text.split()) <= 3:
-            action_words = ['search', 'find', 'create', 'generate', 'send', 'compare', 'analyze', 'research', 'pdf', 'telegram']
+            action_words = [
+                "search",
+                "find",
+                "create",
+                "generate",
+                "send",
+                "compare",
+                "analyze",
+                "research",
+                "pdf",
+                "telegram",
+            ]
             if not any(w in text_lower for w in action_words):
                 return True
 
@@ -412,15 +444,15 @@ class JottyCLI:
         Returns:
             True to continue
         """
-        import time
         import re
+        import time
 
         # Add to conversation
         self.session.add_message("user", text)
         start_time = time.time()
 
         # Set REPL state to executing
-        if hasattr(self.repl, 'set_repl_state'):
+        if hasattr(self.repl, "set_repl_state"):
             self.repl.set_repl_state(REPLState.EXECUTING)
 
         try:
@@ -442,7 +474,7 @@ class JottyCLI:
             self.session.add_message("assistant", output_text)
 
             # Display result using extracted module
-            if not hasattr(self, '_output_history'):
+            if not hasattr(self, "_output_history"):
                 self._output_history = []
 
             file_paths = display_result(self.renderer, result, elapsed, self._output_history)
@@ -451,8 +483,8 @@ class JottyCLI:
                 self._last_output_path = file_paths[0][1]
                 await self._auto_preview_file(file_paths[0][1])
             elif result.success and not file_paths:
-                full_content = str(result.output if hasattr(result, 'output') else result)
-                if not getattr(result, 'was_streamed', False):
+                full_content = str(result.output if hasattr(result, "output") else result)
+                if not getattr(result, "was_streamed", False):
                     self.renderer.newline()
                     await self._show_export_options(full_content)
 
@@ -474,10 +506,11 @@ class JottyCLI:
             self.session.add_message("assistant", f"Error: {e}")
             if self.config.debug:
                 import traceback
+
                 traceback.print_exc()
         finally:
             # Restore REPL state to input
-            if hasattr(self.repl, 'set_repl_state'):
+            if hasattr(self.repl, "set_repl_state"):
                 self.repl.set_repl_state(REPLState.INPUT)
 
         return True
@@ -541,7 +574,9 @@ class JottyCLI:
                 self.error = rr.error
                 self.alerts = [rr.error] if rr.error else []
                 self.output_path = rr.metadata.get("output_path") if rr.metadata else None
-                self.output_format = rr.metadata.get("output_format", "markdown") if rr.metadata else "markdown"
+                self.output_format = (
+                    rr.metadata.get("output_format", "markdown") if rr.metadata else "markdown"
+                )
                 self.steps_taken = rr.steps_executed
                 self.was_streamed = streamed  # Flag to skip re-rendering
 
@@ -567,16 +602,16 @@ class JottyCLI:
         """
         # Markers that indicate enrichment context (to be stripped)
         context_markers = [
-            '\n[Multi-Perspective Analysis',
-            '\nLearned Insights:',
-            '\n# Transferable Learnings',
-            '\n# Q-Learning Lessons',
-            '\n## Task Type Pattern',
-            '\n## Role Advice',
-            '\n## Meta-Learning Advice',
-            '\n\n---\n',  # Common separator before context
-            '\nBased on previous learnings:',
-            '\nRecommended approach:',
+            "\n[Multi-Perspective Analysis",
+            "\nLearned Insights:",
+            "\n# Transferable Learnings",
+            "\n# Q-Learning Lessons",
+            "\n## Task Type Pattern",
+            "\n## Role Advice",
+            "\n## Meta-Learning Advice",
+            "\n\n---\n",  # Common separator before context
+            "\nBased on previous learnings:",
+            "\nRecommended approach:",
         ]
 
         cleaned = task
@@ -598,30 +633,30 @@ class JottyCLI:
             /export all m       - Export all outputs to markdown
         """
         # Initialize output history if needed
-        if not hasattr(self, '_output_history'):
+        if not hasattr(self, "_output_history"):
             self._output_history = []
 
         args_parts = args.strip().lower().split()
 
         # /export list - show recent outputs
-        if args_parts and args_parts[0] == 'list':
+        if args_parts and args_parts[0] == "list":
             await self._show_output_list()
             return
 
         # /export all [formats] - export entire conversation
-        if args_parts and args_parts[0] == 'all':
-            formats = args_parts[1] if len(args_parts) > 1 else ''
+        if args_parts and args_parts[0] == "all":
+            formats = args_parts[1] if len(args_parts) > 1 else ""
             await self._export_all_outputs(formats)
             return
 
         # Parse message index and format flags
         msg_index = 1  # Default: last message
-        format_flags = ''
+        format_flags = ""
 
         for part in args_parts:
             if part.isdigit():
                 msg_index = int(part)
-            elif part.replace('-', '').isdigit():
+            elif part.replace("-", "").isdigit():
                 msg_index = abs(int(part))
             else:
                 format_flags += part
@@ -632,7 +667,9 @@ class JottyCLI:
             return
 
         if msg_index > len(self._output_history):
-            self.renderer.warning(f"Only {len(self._output_history)} outputs available. Use /export list")
+            self.renderer.warning(
+                f"Only {len(self._output_history)} outputs available. Use /export list"
+            )
             return
 
         # Get content (1 = last, 2 = second-to-last, etc.)
@@ -645,16 +682,16 @@ class JottyCLI:
             return
 
         # Process export flags
-        if 'c' in format_flags:
+        if "c" in format_flags:
             await self._copy_to_clipboard(content)
-        if 'd' in format_flags:
+        if "d" in format_flags:
             await self._export_to_docx(content)
-        if 'p' in format_flags:
+        if "p" in format_flags:
             await self._export_to_pdf(content)
-        if 'm' in format_flags:
+        if "m" in format_flags:
             await self._export_to_markdown(content)
 
-        if not any(c in format_flags for c in 'cdpm'):
+        if not any(c in format_flags for c in "cdpm"):
             self.renderer.info("Usage: /export [N] [c]opy [d]ocx [p]df [m]arkdown")
             self.renderer.info("  /export         - last output, interactive")
             self.renderer.info("  /export cdp     - last output as copy+docx+pdf")
@@ -664,13 +701,13 @@ class JottyCLI:
 
     async def _show_output_list(self) -> Any:
         """Show list of recent outputs for selection."""
-        if not hasattr(self, '_output_history') or not self._output_history:
+        if not hasattr(self, "_output_history") or not self._output_history:
             self.renderer.warning("No outputs yet.")
             return
 
         self.renderer.print("\n[bold]Recent Outputs:[/bold]")
         for i, content in enumerate(reversed(self._output_history), 1):
-            preview = content[:80].replace('\n', ' ')
+            preview = content[:80].replace("\n", " ")
             if len(content) > 80:
                 preview += "..."
             self.renderer.print(f"  [cyan]{i}[/cyan]: {preview}")
@@ -679,25 +716,24 @@ class JottyCLI:
 
     async def _export_all_outputs(self, formats: str) -> Any:
         """Export all outputs as single document."""
-        if not hasattr(self, '_output_history') or not self._output_history:
+        if not hasattr(self, "_output_history") or not self._output_history:
             self.renderer.warning("No outputs to export.")
             return
 
         # Combine all outputs
-        combined = "\n\n---\n\n".join([
-            f"## Output {i+1}\n\n{content}"
-            for i, content in enumerate(self._output_history)
-        ])
+        combined = "\n\n---\n\n".join(
+            [f"## Output {i+1}\n\n{content}" for i, content in enumerate(self._output_history)]
+        )
 
-        formats = formats or 'm'  # Default to markdown
+        formats = formats or "m"  # Default to markdown
 
-        if 'c' in formats:
+        if "c" in formats:
             await self._copy_to_clipboard(combined)
-        if 'd' in formats:
+        if "d" in formats:
             await self._export_to_docx(combined)
-        if 'p' in formats:
+        if "p" in formats:
             await self._export_to_pdf(combined)
-        if 'm' in formats:
+        if "m" in formats:
             await self._export_to_markdown(combined)
 
     async def _show_export_options(self, content: str) -> Any:
@@ -732,21 +768,21 @@ class JottyCLI:
             # Process each character as an action
             actions_taken = []
 
-            if 'c' in choice:
+            if "c" in choice:
                 await self._copy_to_clipboard(content)
-                actions_taken.append('copy')
+                actions_taken.append("copy")
 
-            if 'd' in choice:
+            if "d" in choice:
                 await self._export_to_docx(content)
-                actions_taken.append('docx')
+                actions_taken.append("docx")
 
-            if 'p' in choice:
+            if "p" in choice:
                 await self._export_to_pdf(content)
-                actions_taken.append('pdf')
+                actions_taken.append("pdf")
 
-            if 'm' in choice:
+            if "m" in choice:
                 await self._export_to_markdown(content)
-                actions_taken.append('markdown')
+                actions_taken.append("markdown")
 
         except (EOFError, KeyboardInterrupt):
             pass  # User cancelled
@@ -760,10 +796,9 @@ class JottyCLI:
             # 1. xclip (Linux)
             try:
                 process = subprocess.Popen(
-                    ['xclip', '-selection', 'clipboard'],
-                    stdin=subprocess.PIPE
+                    ["xclip", "-selection", "clipboard"], stdin=subprocess.PIPE
                 )
-                process.communicate(content.encode('utf-8'))
+                process.communicate(content.encode("utf-8"))
                 self.renderer.success("Copied to clipboard!")
                 return
             except FileNotFoundError:
@@ -772,10 +807,9 @@ class JottyCLI:
             # 2. xsel (Linux)
             try:
                 process = subprocess.Popen(
-                    ['xsel', '--clipboard', '--input'],
-                    stdin=subprocess.PIPE
+                    ["xsel", "--clipboard", "--input"], stdin=subprocess.PIPE
                 )
-                process.communicate(content.encode('utf-8'))
+                process.communicate(content.encode("utf-8"))
                 self.renderer.success("Copied to clipboard!")
                 return
             except FileNotFoundError:
@@ -783,8 +817,8 @@ class JottyCLI:
 
             # 3. pbcopy (macOS)
             try:
-                process = subprocess.Popen(['pbcopy'], stdin=subprocess.PIPE)
-                process.communicate(content.encode('utf-8'))
+                process = subprocess.Popen(["pbcopy"], stdin=subprocess.PIPE)
+                process.communicate(content.encode("utf-8"))
                 self.renderer.success("Copied to clipboard!")
                 return
             except FileNotFoundError:
@@ -793,6 +827,7 @@ class JottyCLI:
             # 4. pyperclip fallback
             try:
                 import pyperclip
+
                 pyperclip.copy(content)
                 self.renderer.success("Copied to clipboard!")
                 return
@@ -806,9 +841,9 @@ class JottyCLI:
 
     async def _export_to_docx(self, content: str) -> Any:
         """Export content to DOCX file with LaTeX math support."""
-        from pathlib import Path
-        from datetime import datetime
         import subprocess
+        from datetime import datetime
+        from pathlib import Path
 
         output_dir = Path.home() / "jotty" / "outputs"
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -820,7 +855,7 @@ class JottyCLI:
         prepared_content = self._prepare_content_with_latex(content)
 
         # Check if content has LaTeX
-        has_latex = '$' in content or '\\[' in content or '\\(' in content
+        has_latex = "$" in content or "\\[" in content or "\\(" in content
 
         try:
             # Method 1: Use pandoc for LaTeX → DOCX (converts to OMML equations)
@@ -829,8 +864,9 @@ class JottyCLI:
                     md_path = output_dir / f"export_{timestamp}.md"
                     md_path.write_text(prepared_content)
                     subprocess.run(
-                        ['pandoc', str(md_path), '-o', str(output_path)],
-                        check=True, capture_output=True
+                        ["pandoc", str(md_path), "-o", str(output_path)],
+                        check=True,
+                        capture_output=True,
                     )
                     self.renderer.success(f"Saved: {output_path}")
                     return
@@ -838,30 +874,25 @@ class JottyCLI:
                     pass  # Fall through to other methods
 
             registry = self.get_skills_registry()
-            skill = registry.get_skill('docx-tools')
+            skill = registry.get_skill("docx-tools")
 
             if skill:
                 # Try professional checklist first if content looks like a checklist
-                if '- [ ]' in content or '- [x]' in content:
-                    tool = skill.tools.get('create_professional_checklist_tool')
+                if "- [ ]" in content or "- [x]" in content:
+                    tool = skill.tools.get("create_professional_checklist_tool")
                     if tool:
-                        result = tool({
-                            'content': content,
-                            'output_path': str(output_path),
-                            'title': 'Export'
-                        })
-                        if result.get('success'):
+                        result = tool(
+                            {"content": content, "output_path": str(output_path), "title": "Export"}
+                        )
+                        if result.get("success"):
                             self.renderer.success(f"Saved: {result.get('file_path')}")
                             return
 
                 # Fall back to regular docx
-                tool = skill.tools.get('create_docx_tool')
+                tool = skill.tools.get("create_docx_tool")
                 if tool:
-                    result = tool({
-                        'content': content,
-                        'output_path': str(output_path)
-                    })
-                    if result.get('success'):
+                    result = tool({"content": content, "output_path": str(output_path)})
+                    if result.get("success"):
                         self.renderer.success(f"Saved: {result.get('file_path')}")
                         return
 
@@ -873,9 +904,9 @@ class JottyCLI:
 
     async def _export_to_pdf(self, content: str) -> Any:
         """Export content to PDF file with LaTeX math support."""
-        from pathlib import Path
-        from datetime import datetime
         import subprocess
+        from datetime import datetime
+        from pathlib import Path
 
         output_dir = Path.home() / "jotty" / "outputs"
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -892,14 +923,21 @@ class JottyCLI:
             md_path.write_text(prepared_content)
 
             # Check if content has LaTeX
-            has_latex = '$' in content or '\\[' in content or '\\(' in content
+            has_latex = "$" in content or "\\[" in content or "\\(" in content
 
             # Method 1: Pandoc with xelatex (best for LaTeX)
             try:
-                cmd = ['pandoc', str(md_path), '-o', str(pdf_path),
-                       '--pdf-engine=xelatex', '-V', 'geometry:margin=1in']
+                cmd = [
+                    "pandoc",
+                    str(md_path),
+                    "-o",
+                    str(pdf_path),
+                    "--pdf-engine=xelatex",
+                    "-V",
+                    "geometry:margin=1in",
+                ]
                 if has_latex:
-                    cmd.extend(['--mathjax'])  # Enable math processing
+                    cmd.extend(["--mathjax"])  # Enable math processing
                 subprocess.run(cmd, check=True, capture_output=True)
                 self.renderer.success(f"Saved: {pdf_path}")
                 return
@@ -909,8 +947,7 @@ class JottyCLI:
             # Method 2: Pandoc with pdflatex
             try:
                 subprocess.run(
-                    ['pandoc', str(md_path), '-o', str(pdf_path)],
-                    check=True, capture_output=True
+                    ["pandoc", str(md_path), "-o", str(pdf_path)], check=True, capture_output=True
                 )
                 self.renderer.success(f"Saved: {pdf_path}")
                 return
@@ -965,21 +1002,20 @@ class JottyCLI:
 
             # Method 4: Document-converter skill
             registry = self.get_skills_registry()
-            skill = registry.get_skill('document-converter')
+            skill = registry.get_skill("document-converter")
             if skill:
-                tool = skill.tools.get('convert_to_pdf_tool')
+                tool = skill.tools.get("convert_to_pdf_tool")
                 if tool:
-                    result = tool({
-                        'input_path': str(md_path),
-                        'output_path': str(pdf_path)
-                    })
-                    if result.get('success'):
+                    result = tool({"input_path": str(md_path), "output_path": str(pdf_path)})
+                    if result.get("success"):
                         self.renderer.success(f"Saved: {pdf_path}")
                         return
 
             # Fallback
             self.renderer.success(f"Saved markdown: {md_path}")
-            self.renderer.warning("PDF: Install pandoc (`apt install pandoc texlive-xetex`) or weasyprint (`pip install weasyprint`)")
+            self.renderer.warning(
+                "PDF: Install pandoc (`apt install pandoc texlive-xetex`) or weasyprint (`pip install weasyprint`)"
+            )
 
         except Exception as e:
             self.renderer.error(f"PDF export failed: {e}")
@@ -987,6 +1023,7 @@ class JottyCLI:
     def _markdown_to_html(self, md_content: str) -> str:
         """Convert markdown to HTML with LaTeX support."""
         import re
+
         html = md_content
 
         # Protect LaTeX blocks from other processing
@@ -994,46 +1031,51 @@ class JottyCLI:
 
         # Block LaTeX: $$...$$
         def save_block_latex(match: Any) -> Any:
-            latex_blocks.append(('block', match.group(1)))
-            return f'__LATEX_BLOCK_{len(latex_blocks)-1}__'
-        html = re.sub(r'\$\$(.+?)\$\$', save_block_latex, html, flags=re.DOTALL)
+            latex_blocks.append(("block", match.group(1)))
+            return f"__LATEX_BLOCK_{len(latex_blocks)-1}__"
+
+        html = re.sub(r"\$\$(.+?)\$\$", save_block_latex, html, flags=re.DOTALL)
 
         # Inline LaTeX: $...$
         def save_inline_latex(match: Any) -> Any:
-            latex_blocks.append(('inline', match.group(1)))
-            return f'__LATEX_INLINE_{len(latex_blocks)-1}__'
-        html = re.sub(r'\$(.+?)\$', save_inline_latex, html)
+            latex_blocks.append(("inline", match.group(1)))
+            return f"__LATEX_INLINE_{len(latex_blocks)-1}__"
+
+        html = re.sub(r"\$(.+?)\$", save_inline_latex, html)
 
         # Headers
-        html = re.sub(r'^### (.+)$', r'<h3>\1</h3>', html, flags=re.MULTILINE)
-        html = re.sub(r'^## (.+)$', r'<h2>\1</h2>', html, flags=re.MULTILINE)
-        html = re.sub(r'^# (.+)$', r'<h1>\1</h1>', html, flags=re.MULTILINE)
+        html = re.sub(r"^### (.+)$", r"<h3>\1</h3>", html, flags=re.MULTILINE)
+        html = re.sub(r"^## (.+)$", r"<h2>\1</h2>", html, flags=re.MULTILINE)
+        html = re.sub(r"^# (.+)$", r"<h1>\1</h1>", html, flags=re.MULTILINE)
 
         # Bold and italic
-        html = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', html)
-        html = re.sub(r'\*(.+?)\*', r'<em>\1</em>', html)
+        html = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", html)
+        html = re.sub(r"\*(.+?)\*", r"<em>\1</em>", html)
 
         # Code
-        html = re.sub(r'`(.+?)`', r'<code>\1</code>', html)
+        html = re.sub(r"`(.+?)`", r"<code>\1</code>", html)
 
         # Lists
-        html = re.sub(r'^- \[ \] (.+)$', r'<li> \1</li>', html, flags=re.MULTILINE)
-        html = re.sub(r'^- \[x\] (.+)$', r'<li> \1</li>', html, flags=re.MULTILINE)
-        html = re.sub(r'^- (.+)$', r'<li>\1</li>', html, flags=re.MULTILINE)
-        html = re.sub(r'^• (.+)$', r'<li>\1</li>', html, flags=re.MULTILINE)
+        html = re.sub(r"^- \[ \] (.+)$", r"<li> \1</li>", html, flags=re.MULTILINE)
+        html = re.sub(r"^- \[x\] (.+)$", r"<li> \1</li>", html, flags=re.MULTILINE)
+        html = re.sub(r"^- (.+)$", r"<li>\1</li>", html, flags=re.MULTILINE)
+        html = re.sub(r"^• (.+)$", r"<li>\1</li>", html, flags=re.MULTILINE)
 
         # Paragraphs
-        html = re.sub(r'\n\n', r'</p><p>', html)
-        html = f'<p>{html}</p>'
+        html = re.sub(r"\n\n", r"</p><p>", html)
+        html = f"<p>{html}</p>"
 
         # Restore LaTeX with MathJax/KaTeX compatible format
         for i, (latex_type, latex_content) in enumerate(latex_blocks):
-            if latex_type == 'block':
-                html = html.replace(f'__LATEX_BLOCK_{i}__',
-                    f'<div class="math-block">\\[{latex_content}\\]</div>')
+            if latex_type == "block":
+                html = html.replace(
+                    f"__LATEX_BLOCK_{i}__", f'<div class="math-block">\\[{latex_content}\\]</div>'
+                )
             else:
-                html = html.replace(f'__LATEX_INLINE_{i}__',
-                    f'<span class="math-inline">\\({latex_content}\\)</span>')
+                html = html.replace(
+                    f"__LATEX_INLINE_{i}__",
+                    f'<span class="math-inline">\\({latex_content}\\)</span>',
+                )
 
         return html
 
@@ -1043,15 +1085,15 @@ class JottyCLI:
 
         # Ensure LaTeX delimiters are consistent
         # Convert \[ \] to $$ $$ for pandoc compatibility
-        content = re.sub(r'\\\[(.+?)\\\]', r'$$\1$$', content, flags=re.DOTALL)
-        content = re.sub(r'\\\((.+?)\\\)', r'$\1$', content)
+        content = re.sub(r"\\\[(.+?)\\\]", r"$$\1$$", content, flags=re.DOTALL)
+        content = re.sub(r"\\\((.+?)\\\)", r"$\1$", content)
 
         return content
 
     async def _export_to_markdown(self, content: str) -> Any:
         """Export content to Markdown file."""
-        from pathlib import Path
         from datetime import datetime
+        from pathlib import Path
 
         output_dir = Path.home() / "jotty" / "outputs"
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -1080,68 +1122,80 @@ class JottyCLI:
 
         try:
             # Quick preview based on file type
-            if suffix in ['.md', '.txt']:
+            if suffix in [".md", ".txt"]:
                 content = path.read_text()
-                lines = content.split('\n')[:max_lines]
+                lines = content.split("\n")[:max_lines]
                 for line in lines:
                     print(line)
-                if len(content.split('\n')) > max_lines:
-                    self.renderer.print(f"[dim]... ({len(content.split(chr(10))) - max_lines} more lines)[/dim]")
+                if len(content.split("\n")) > max_lines:
+                    self.renderer.print(
+                        f"[dim]... ({len(content.split(chr(10))) - max_lines} more lines)[/dim]"
+                    )
 
-            elif suffix == '.pdf':
-                import subprocess
+            elif suffix == ".pdf":
                 import shutil
-                pdftotext = shutil.which('pdftotext')
+                import subprocess
+
+                pdftotext = shutil.which("pdftotext")
                 if pdftotext:
                     result = subprocess.run(
-                        [pdftotext, '-layout', '-nopgbrk', str(path), '-'],
-                        capture_output=True, text=True, timeout=10
+                        [pdftotext, "-layout", "-nopgbrk", str(path), "-"],
+                        capture_output=True,
+                        text=True,
+                        timeout=10,
                     )
                     if result.returncode == 0:
-                        lines = result.stdout.split('\n')[:max_lines]
+                        lines = result.stdout.split("\n")[:max_lines]
                         for line in lines:
                             print(line)
-                        if len(result.stdout.split('\n')) > max_lines:
+                        if len(result.stdout.split("\n")) > max_lines:
                             self.renderer.print("[dim]...[/dim]")
                 else:
-                    self.renderer.print("[dim]Install pdftotext for preview: apt install poppler-utils[/dim]")
+                    self.renderer.print(
+                        "[dim]Install pdftotext for preview: apt install poppler-utils[/dim]"
+                    )
 
-            elif suffix in ['.docx', '.doc']:
-                import subprocess
+            elif suffix in [".docx", ".doc"]:
                 import shutil
-                catdoc = shutil.which('catdoc')
+                import subprocess
+
+                catdoc = shutil.which("catdoc")
                 if catdoc:
                     result = subprocess.run(
-                        [catdoc, str(path)],
-                        capture_output=True, text=True, timeout=10
+                        [catdoc, str(path)], capture_output=True, text=True, timeout=10
                     )
                     if result.returncode == 0:
-                        lines = result.stdout.split('\n')[:max_lines]
+                        lines = result.stdout.split("\n")[:max_lines]
                         for line in lines:
                             print(line)
-                        if len(result.stdout.split('\n')) > max_lines:
+                        if len(result.stdout.split("\n")) > max_lines:
                             self.renderer.print("[dim]...[/dim]")
                 else:
                     self.renderer.print("[dim]Install catdoc for preview: apt install catdoc[/dim]")
 
-            elif suffix in ['.png', '.jpg', '.jpeg', '.gif']:
-                import subprocess
+            elif suffix in [".png", ".jpg", ".jpeg", ".gif"]:
                 import shutil
-                chafa = shutil.which('chafa')
+                import subprocess
+
+                chafa = shutil.which("chafa")
                 if chafa:
                     result = subprocess.run(
-                        [chafa, '--size=60x20', str(path)],
-                        capture_output=True, text=True, timeout=10
+                        [chafa, "--size=60x20", str(path)],
+                        capture_output=True,
+                        text=True,
+                        timeout=10,
                     )
                     if result.returncode == 0:
                         print(result.stdout)
                 else:
-                    self.renderer.print("[dim]Install chafa for image preview: apt install chafa[/dim]")
+                    self.renderer.print(
+                        "[dim]Install chafa for image preview: apt install chafa[/dim]"
+                    )
 
             else:
                 # Generic file - show first few lines
                 try:
-                    with open(path, 'r', errors='replace') as f:
+                    with open(path, "r", errors="replace") as f:
                         for i, line in enumerate(f):
                             if i >= max_lines:
                                 self.renderer.print("[dim]...[/dim]")
@@ -1165,9 +1219,9 @@ class JottyCLI:
 
             # Find the most recent session that isn't current
             for session_info in sessions:
-                if session_info['session_id'] != self.session.session_id:
+                if session_info["session_id"] != self.session.session_id:
                     # Load this session
-                    self.session.load(session_info['session_id'])
+                    self.session.load(session_info["session_id"])
                     msg_count = len(self.session.conversation_history)
                     self.renderer.info(
                         f"Auto-resumed session: {session_info['session_id'][:8]}... "
@@ -1198,6 +1252,7 @@ class JottyCLI:
             return self._clipboard_watcher
         try:
             from .heartbeat.monitors import ClipboardWatcher
+
             self._clipboard_watcher = ClipboardWatcher()
             self._clipboard_watcher.start()
         except Exception:
@@ -1238,7 +1293,9 @@ class JottyCLI:
 def main() -> Any:
     """Main entry point."""
     import sys
+
     from . import __main__
+
     sys.exit(__main__.main())
 
 

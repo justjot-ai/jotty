@@ -23,13 +23,19 @@ Tests cover:
 
 import asyncio
 import math
-import pytest
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
-from Jotty.core.infrastructure.context.context_manager import ContextPriority, ContextChunk, SmartContextManager
+import pytest
+
+from Jotty.core.infrastructure.context.context_manager import (
+    ContextChunk,
+    ContextPriority,
+    SmartContextManager,
+)
 
 try:
     from Jotty.core.infrastructure.context.chunker import ContextChunker
+
     HAS_CHUNKER = True
 except ImportError:
     HAS_CHUNKER = False
@@ -37,16 +43,20 @@ except ImportError:
 # --- Compressor ---
 try:
     from Jotty.core.infrastructure.context.compressor import AgenticCompressor
+
     HAS_COMPRESSOR = True
 except ImportError:
     HAS_COMPRESSOR = False
 
 # --- ContentGate / RelevanceEstimator ---
 try:
+    from Jotty.core.infrastructure.context.content_gate import ContentChunk as GateContentChunk
     from Jotty.core.infrastructure.context.content_gate import (
-        ContentGate, ContentChunk as GateContentChunk,
-        ProcessedContent, RelevanceEstimator,
+        ContentGate,
+        ProcessedContent,
+        RelevanceEstimator,
     )
+
     HAS_CONTENT_GATE = True
 except ImportError:
     HAS_CONTENT_GATE = False
@@ -54,8 +64,11 @@ except ImportError:
 # --- ContextGradient / ContextApplier ---
 try:
     from Jotty.core.infrastructure.context.context_gradient import (
-        ContextGradient, ContextApplier, ContextUpdate,
+        ContextApplier,
+        ContextGradient,
+        ContextUpdate,
     )
+
     HAS_CONTEXT_GRADIENT = True
 except ImportError:
     HAS_CONTEXT_GRADIENT = False
@@ -63,6 +76,7 @@ except ImportError:
 # --- ContextGuard (LLMContextManager) ---
 try:
     from Jotty.core.infrastructure.context.context_guard import LLMContextManager
+
     HAS_CONTEXT_GUARD = True
 except ImportError:
     HAS_CONTEXT_GUARD = False
@@ -70,9 +84,14 @@ except ImportError:
 # --- GlobalContextGuard, OverflowDetector, ContentCompressor ---
 try:
     from Jotty.core.infrastructure.context.global_context_guard import (
-        GlobalContextGuard, OverflowDetector, ContextOverflowInfo,
-        ContentCompressor, patch_dspy_with_guard, unpatch_dspy,
+        ContentCompressor,
+        ContextOverflowInfo,
+        GlobalContextGuard,
+        OverflowDetector,
+        patch_dspy_with_guard,
+        unpatch_dspy,
     )
+
     HAS_GLOBAL_GUARD = True
 except ImportError:
     HAS_GLOBAL_GUARD = False
@@ -221,6 +240,7 @@ class TestContextChunker:
 # AgenticCompressor tests (compressor.py)
 # =============================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_COMPRESSOR, reason="AgenticCompressor requires DSPy")
 class TestContextCompressor:
@@ -251,7 +271,9 @@ class TestContextCompressor:
     @pytest.mark.asyncio
     @patch("Jotty.core.context.compressor.SmartTokenizer")
     @patch("Jotty.core.context.compressor.dspy")
-    async def test_compress_returns_content_unchanged_when_under_budget(self, mock_dspy, mock_tok_cls):
+    async def test_compress_returns_content_unchanged_when_under_budget(
+        self, mock_dspy, mock_tok_cls
+    ):
         """If content tokens <= target, return as-is."""
         mock_tok = Mock()
         mock_tok.count_tokens.return_value = 50
@@ -353,7 +375,9 @@ class TestContextCompressor:
         mock_dspy.context.return_value.__exit__ = Mock(return_value=False)
 
         result = await comp.compress(
-            "long content ...", {"actor_name": "a", "goal": "g"}, target_tokens=100,
+            "long content ...",
+            {"actor_name": "a", "goal": "g"},
+            target_tokens=100,
         )
         assert result == "bad compression"
 
@@ -379,7 +403,9 @@ class TestContextCompressor:
         mock_dspy.context.return_value.__exit__ = Mock(return_value=False)
 
         result = await comp.compress(
-            "long ...", {"actor_name": "a"}, target_tokens=100,
+            "long ...",
+            {"actor_name": "a"},
+            target_tokens=100,
         )
         assert result == "ok"
 
@@ -473,6 +499,7 @@ class TestContextCompressor:
 # =============================================================================
 # ContentGate / RelevanceEstimator tests (content_gate.py)
 # =============================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_CONTENT_GATE, reason="ContentGate requires DSPy")
@@ -686,10 +713,12 @@ class TestContentGate:
         gate = ContentGate(max_tokens=28000)
         # Mock _create_chunks to avoid the source's infinite-loop edge case
         # and to control the test precisely
-        gate._create_chunks = Mock(return_value=[
-            GateContentChunk(content="chunk one content", index=0, total_chunks=2),
-            GateContentChunk(content="chunk two content", index=1, total_chunks=2),
-        ])
+        gate._create_chunks = Mock(
+            return_value=[
+                GateContentChunk(content="chunk one content", index=0, total_chunks=2),
+                GateContentChunk(content="chunk two content", index=1, total_chunks=2),
+            ]
+        )
         # Patch the relevance estimator to avoid LLM calls
         gate.relevance_estimator = Mock()
         gate.relevance_estimator.estimate_relevance = AsyncMock(return_value=(0.5, "key info"))
@@ -720,6 +749,7 @@ class TestContentGate:
 # =============================================================================
 # ContextGradient / ContextApplier tests (context_gradient.py)
 # =============================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_CONTEXT_GRADIENT, reason="ContextGradient requires DSPy")
@@ -907,14 +937,24 @@ class TestContextGradient:
         """compute_gradient calls all sub-gradients and aggregates."""
         cg = ContextGradient()
         # Mock the sub methods
-        cg._compute_memory_gradient = Mock(return_value=ContextUpdate(
-            component="memory", update_type="add", content="lesson",
-            confidence=0.9, priority=0.5,
-        ))
-        cg._compute_q_gradient = Mock(return_value=ContextUpdate(
-            component="q_table", update_type="modify", content="q update",
-            confidence=0.9, priority=0.3,
-        ))
+        cg._compute_memory_gradient = Mock(
+            return_value=ContextUpdate(
+                component="memory",
+                update_type="add",
+                content="lesson",
+                confidence=0.9,
+                priority=0.5,
+            )
+        )
+        cg._compute_q_gradient = Mock(
+            return_value=ContextUpdate(
+                component="q_table",
+                update_type="modify",
+                content="q update",
+                confidence=0.9,
+                priority=0.3,
+            )
+        )
         cg._compute_dqn_gradient = Mock(return_value=None)
         cg._compute_cooperation_gradient = Mock(return_value=[])
 
@@ -941,9 +981,11 @@ class TestContextApplier:
         """Memory update adds lesson to context."""
         ca = ContextApplier()
         update = ContextUpdate(
-            component="memory", update_type="add",
+            component="memory",
+            update_type="add",
             content="always check before acting",
-            confidence=0.9, priority=0.5,
+            confidence=0.9,
+            priority=0.5,
             metadata={"when_to_apply": "always", "agent": "test"},
         )
         context = {}
@@ -958,9 +1000,11 @@ class TestContextApplier:
         """Q-table update sets correct key-value."""
         ca = ContextApplier()
         update = ContextUpdate(
-            component="q_table", update_type="modify",
+            component="q_table",
+            update_type="modify",
             content="Q(s,a) = 0.8",
-            confidence=0.9, priority=0.5,
+            confidence=0.9,
+            priority=0.5,
             metadata={"state_key": "state1", "action": "act1", "new_q": 0.8},
         )
         result = ca.apply_updates([update], {})
@@ -971,9 +1015,11 @@ class TestContextApplier:
         """DQN update appends corrections."""
         ca = ContextApplier()
         update = ContextUpdate(
-            component="dqn", update_type="modify",
+            component="dqn",
+            update_type="modify",
             content="adjust predictions",
-            confidence=0.7, priority=0.3,
+            confidence=0.7,
+            priority=0.3,
             metadata={"divergences": {"agent_b": 0.5}},
         )
         result = ca.apply_updates([update], {})
@@ -985,8 +1031,11 @@ class TestContextApplier:
         """Cooperation update appends insight."""
         ca = ContextApplier()
         update = ContextUpdate(
-            component="cooperation", update_type="add",
-            content="sharing worked", confidence=0.8, priority=0.5,
+            component="cooperation",
+            update_type="add",
+            content="sharing worked",
+            confidence=0.8,
+            priority=0.5,
             metadata={"recommendation": "share more"},
         )
         result = ca.apply_updates([update], {})
@@ -999,13 +1048,19 @@ class TestContextApplier:
         ca = ContextApplier()
         updates = [
             ContextUpdate(
-                component="memory", update_type="add", content="lesson1",
-                confidence=0.8, priority=0.5,
+                component="memory",
+                update_type="add",
+                content="lesson1",
+                confidence=0.8,
+                priority=0.5,
                 metadata={"when_to_apply": "always", "agent": "a"},
             ),
             ContextUpdate(
-                component="q_table", update_type="modify", content="q1",
-                confidence=0.9, priority=0.3,
+                component="q_table",
+                update_type="modify",
+                content="q1",
+                confidence=0.9,
+                priority=0.3,
                 metadata={"state_key": "s1", "action": "a1", "new_q": 0.6},
             ),
         ]
@@ -1018,8 +1073,11 @@ class TestContextApplier:
         """Original context data is preserved."""
         ca = ContextApplier()
         update = ContextUpdate(
-            component="memory", update_type="add", content="new",
-            confidence=0.5, priority=0.5,
+            component="memory",
+            update_type="add",
+            content="new",
+            confidence=0.5,
+            priority=0.5,
             metadata={"when_to_apply": "now", "agent": "a"},
         )
         existing = {"existing_key": "existing_value", "memory": [{"lesson": "old"}]}
@@ -1053,8 +1111,11 @@ class TestContextUpdate:
     def test_default_metadata(self):
         """Default metadata is empty dict."""
         cu = ContextUpdate(
-            component="q_table", update_type="modify",
-            content="test", confidence=0.5, priority=0.5,
+            component="q_table",
+            update_type="modify",
+            content="test",
+            confidence=0.5,
+            priority=0.5,
         )
         assert cu.metadata == {}
 
@@ -1062,6 +1123,7 @@ class TestContextUpdate:
 # =============================================================================
 # LLMContextManager (context_guard.py) tests
 # =============================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_CONTEXT_GUARD, reason="LLMContextManager import failed")
@@ -1270,6 +1332,7 @@ class TestContextGuard:
 # GlobalContextGuard / OverflowDetector / ContentCompressor tests
 # (global_context_guard.py)
 # =============================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_GLOBAL_GUARD, reason="GlobalContextGuard import failed")

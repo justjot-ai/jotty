@@ -1,9 +1,10 @@
 """CI/CD Pipeline Builder Skill — generate GitHub Actions YAML."""
-import json
-from typing import Dict, Any, List
 
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+import json
+from typing import Any, Dict, List
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("ci-cd-pipeline-builder")
 
@@ -150,9 +151,12 @@ def github_actions_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         lines.append("          DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}")
 
     yaml_content = "\n".join(lines)
-    return tool_response(yaml=yaml_content,
-                         file_path=f".github/workflows/{lang}-ci.yml",
-                         language=lang, features=features)
+    return tool_response(
+        yaml=yaml_content,
+        file_path=f".github/workflows/{lang}-ci.yml",
+        language=lang,
+        features=features,
+    )
 
 
 __all__ = ["github_actions_tool"]

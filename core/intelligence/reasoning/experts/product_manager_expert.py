@@ -8,16 +8,21 @@ Evaluates product requirements for:
 - Technical feasibility
 """
 
+from typing import Any, Dict, List, Optional
+
 import dspy
-from typing import Dict, Any, List, Optional
+
 from .base_expert import BaseExpert
 
 
 class ProductRequirementsGenerator(dspy.Signature):
     """Generate product requirements with user stories."""
+
     feature_description: str = dspy.InputField()
     previous_feedback: str = dspy.InputField(desc="Feedback from previous iterations")
-    requirements: str = dspy.OutputField(desc="Complete PRD with user stories, acceptance criteria, metrics")
+    requirements: str = dspy.OutputField(
+        desc="Complete PRD with user stories, acceptance criteria, metrics"
+    )
 
 
 class ProductManagerExpertAgent(BaseExpert):
@@ -39,7 +44,9 @@ class ProductManagerExpertAgent(BaseExpert):
         """Create teacher agent (not used for PM)."""
         return None
 
-    async def _evaluate_domain(self, output: Any, gold_standard: str, task: str, context: Dict[str, Any]) -> Dict[str, Any]:
+    async def _evaluate_domain(
+        self, output: Any, gold_standard: str, task: str, context: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Evaluate product requirements quality."""
 
         score = 0.0
@@ -47,8 +54,12 @@ class ProductManagerExpertAgent(BaseExpert):
 
         # Check for key components
         has_user_stories = "user story" in output.lower() or "as a" in output.lower()
-        has_acceptance_criteria = "acceptance criteria" in output.lower() or "given" in output.lower()
-        has_metrics = "metric" in output.lower() or "kpi" in output.lower() or "measure" in output.lower()
+        has_acceptance_criteria = (
+            "acceptance criteria" in output.lower() or "given" in output.lower()
+        )
+        has_metrics = (
+            "metric" in output.lower() or "kpi" in output.lower() or "measure" in output.lower()
+        )
         has_business_value = "value" in output.lower() or "benefit" in output.lower()
 
         # Scoring
@@ -77,18 +88,21 @@ class ProductManagerExpertAgent(BaseExpert):
             score *= 0.8
             issues.append("Requirements too brief (< 500 chars)")
 
-        status = "EXCELLENT" if score >= 0.9 else "GOOD" if score >= 0.7 else "NEEDS_IMPROVEMENT" if score >= 0.5 else "POOR"
+        status = (
+            "EXCELLENT"
+            if score >= 0.9
+            else "GOOD" if score >= 0.7 else "NEEDS_IMPROVEMENT" if score >= 0.5 else "POOR"
+        )
 
         suggestions = ""
         if score < 0.9:
-            suggestions = "Add more detail to: " + ", ".join(issues[:3]) if issues else "Expand on current requirements"
+            suggestions = (
+                "Add more detail to: " + ", ".join(issues[:3])
+                if issues
+                else "Expand on current requirements"
+            )
 
-        return {
-            'score': score,
-            'status': status,
-            'issues': issues,
-            'suggestions': suggestions
-        }
+        return {"score": score, "status": status, "issues": issues, "suggestions": suggestions}
 
     def _get_default_training_cases(self) -> List[Dict[str, Any]]:
         return []

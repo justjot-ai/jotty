@@ -13,23 +13,22 @@ Integrates with:
 """
 
 import asyncio
-import logging
 import json
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, Any, Optional, Callable, List
+from typing import Any, Callable, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
 # Absolute imports - single source of truth
-from Jotty.sdk import (
-    ExecutionContext, ExecutionMode, ChannelType, ResponseFormat,
-)
+from Jotty.sdk import ChannelType, ExecutionContext, ExecutionMode, ResponseFormat
 
 
 @dataclass
 class MessageEvent:
     """Incoming message from any channel."""
+
     channel: ChannelType
     channel_id: str  # Chat/channel ID
     user_id: str
@@ -56,13 +55,14 @@ class MessageEvent:
             "content": self.content,
             "timestamp": self.timestamp.isoformat(),
             "message_id": self.message_id,
-            "attachments": self.attachments
+            "attachments": self.attachments,
         }
 
 
 @dataclass
 class ResponseEvent:
     """Outgoing response to a channel."""
+
     channel: ChannelType
     channel_id: str
     content: str
@@ -101,6 +101,7 @@ class ChannelRouter:
         if self._session_manager is None and self._use_persistent_sessions:
             try:
                 from .sessions import get_session_manager
+
                 self._session_manager = get_session_manager()
             except ImportError:
                 logger.warning("Persistent sessions not available, using legacy")
@@ -133,30 +134,35 @@ class ChannelRouter:
         # Check trust if trust manager is configured
         if self._trust_manager:
             trust_result = self._trust_manager.check_message(
-                event.channel,
-                event.user_id,
-                event.content
+                event.channel, event.user_id, event.content
             )
 
             if not trust_result.get("proceed"):
                 # User not authorized - send trust response
                 response_text = trust_result.get("response", "Not authorized")
-                await self._send_response(ResponseEvent(
-                    channel=event.channel,
-                    channel_id=event.channel_id,
-                    content=response_text,
-                    reply_to=event.message_id
-                ))
+                await self._send_response(
+                    ResponseEvent(
+                        channel=event.channel,
+                        channel_id=event.channel_id,
+                        content=response_text,
+                        reply_to=event.message_id,
+                    )
+                )
                 return response_text
 
             # Check if pairing just succeeded - send success message
-            if trust_result.get("response") and "successful" in trust_result.get("response", "").lower():
-                await self._send_response(ResponseEvent(
-                    channel=event.channel,
-                    channel_id=event.channel_id,
-                    content=trust_result["response"],
-                    reply_to=event.message_id
-                ))
+            if (
+                trust_result.get("response")
+                and "successful" in trust_result.get("response", "").lower()
+            ):
+                await self._send_response(
+                    ResponseEvent(
+                        channel=event.channel,
+                        channel_id=event.channel_id,
+                        content=trust_result["response"],
+                        reply_to=event.message_id,
+                    )
+                )
                 # Continue processing the original message if it wasn't just the code
                 if event.content.strip().isdigit() and len(event.content.strip()) == 6:
                     return trust_result["response"]
@@ -175,13 +181,14 @@ class ChannelRouter:
                     user_id=event.user_id,
                     channel=sdk_channel,
                     channel_id=event.channel_id,
-                    user_name=event.user_name
+                    user_name=event.user_name,
                 )
                 # Add message to session history
-                sdk_session.add_message("user", event.content, {
-                    "channel": event.channel.value,
-                    "message_id": event.message_id
-                })
+                sdk_session.add_message(
+                    "user",
+                    event.content,
+                    {"channel": event.channel.value, "message_id": event.message_id},
+                )
                 session_data = {"context": sdk_session.get_history(10)}
             except Exception as e:
                 logger.warning(f"Persistent session error: {e}, using legacy")
@@ -193,7 +200,7 @@ class ChannelRouter:
                 self._legacy_sessions[session_key] = {
                     "created": datetime.now().isoformat(),
                     "message_count": 0,
-                    "context": []
+                    "context": [],
                 }
 
             session_data = self._legacy_sessions[session_key]
@@ -201,11 +208,9 @@ class ChannelRouter:
             session_data["last_message"] = datetime.now().isoformat()
 
             # Add to context (keep last 10 messages)
-            session_data["context"].append({
-                "role": "user",
-                "content": event.content,
-                "timestamp": event.timestamp.isoformat()
-            })
+            session_data["context"].append(
+                {"role": "user", "content": event.content, "timestamp": event.timestamp.isoformat()}
+            )
             session_data["context"] = session_data["context"][-10:]
 
         # Create ExecutionContext if SDK types available
@@ -237,27 +242,28 @@ class ChannelRouter:
             except Exception as e:
                 logger.warning(f"Failed to save session: {e}")
         elif session_data:
-            session_data["context"].append({
-                "role": "assistant",
-                "content": response_text,
-                "timestamp": datetime.now().isoformat()
-            })
+            session_data["context"].append(
+                {
+                    "role": "assistant",
+                    "content": response_text,
+                    "timestamp": datetime.now().isoformat(),
+                }
+            )
 
         # Send response back
-        await self._send_response(ResponseEvent(
-            channel=event.channel,
-            channel_id=event.channel_id,
-            content=response_text,
-            reply_to=event.message_id
-        ))
+        await self._send_response(
+            ResponseEvent(
+                channel=event.channel,
+                channel_id=event.channel_id,
+                content=response_text,
+                reply_to=event.message_id,
+            )
+        )
 
         return response_text
 
     async def _process_with_jotty(
-        self,
-        event: MessageEvent,
-        session: Dict,
-        context: Optional[Any] = None
+        self, event: MessageEvent, session: Dict, context: Optional[Any] = None
     ) -> str:
         """
         Process message via ModeRouter (preferred) or JottyCLI (fallback).
@@ -273,6 +279,7 @@ class ChannelRouter:
         # ModeRouter: canonical execution path
         try:
             from Jotty.core.interface.api.mode_router import get_mode_router
+
             router = get_mode_router()
 
             # Create ExecutionContext if not provided
@@ -307,16 +314,14 @@ class ChannelRouter:
         # Fallback: JottyCLI
         try:
             if self._cli:
-                if context and hasattr(self._cli, 'run_once_with_context'):
+                if context and hasattr(self._cli, "run_once_with_context"):
                     result = await self._cli.run_once_with_context(
-                        event.content,
-                        context=context,
-                        history=session.get("context", [])
+                        event.content, context=context, history=session.get("context", [])
                     )
                 else:
                     result = await self._cli.run_once(event.content)
 
-                if hasattr(result, 'output'):
+                if hasattr(result, "output"):
                     return result.output or str(result)
                 return str(result)
             else:
@@ -330,6 +335,7 @@ class ChannelRouter:
         # Apply channel-specific formatting before sending
         try:
             from .responders import get_responder_registry
+
             registry = get_responder_registry()
             response.content = registry.format_for_channel(response.content, response.channel)
         except Exception:
@@ -358,7 +364,9 @@ class ChannelRouter:
         session_key = f"{channel.value}:{channel_id}:{user_id}"
         return self._legacy_sessions.get(session_key)
 
-    async def get_session_async(self, channel: ChannelType, channel_id: str, user_id: str) -> Optional[Dict]:
+    async def get_session_async(
+        self, channel: ChannelType, channel_id: str, user_id: str
+    ) -> Optional[Dict]:
         """Get session for a user/channel (async version for persistent lookup)."""
         session_manager = self._get_session_manager()
         if session_manager:
@@ -380,6 +388,7 @@ class ChannelRouter:
         if session_manager:
             # Schedule async deletion
             import asyncio
+
             try:
                 loop = asyncio.get_running_loop()
                 loop.create_task(session_manager.delete(user_id))

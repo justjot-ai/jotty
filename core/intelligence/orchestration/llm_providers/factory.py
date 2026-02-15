@@ -2,25 +2,24 @@
 Provider factory and auto-detection.
 """
 
-import os
 import logging
+import os
 from typing import Optional
 
-from .base import LLMProvider
-from .anthropic import AnthropicProvider
-from .openai import OpenAIProvider, OpenRouterProvider, GroqProvider
-from .google import GoogleProvider
-from .adapter import JottyClaudeProviderAdapter
-from Jotty.core.infrastructure.foundation.config_defaults import MODEL_SONNET, DEFAULTS
+from Jotty.core.infrastructure.foundation.config_defaults import DEFAULTS, MODEL_SONNET
 from Jotty.core.infrastructure.foundation.exceptions import InvalidConfigError
+
+from .adapter import JottyClaudeProviderAdapter
+from .anthropic import AnthropicProvider
+from .base import LLMProvider
+from .google import GoogleProvider
+from .openai import GroqProvider, OpenAIProvider, OpenRouterProvider
 
 logger = logging.getLogger(__name__)
 
 
 def create_provider(
-    provider: str,
-    model: Optional[str] = None,
-    api_key: Optional[str] = None
+    provider: str, model: Optional[str] = None, api_key: Optional[str] = None
 ) -> LLMProvider:
     """
     Create LLM provider instance.
@@ -36,27 +35,29 @@ def create_provider(
     provider = provider.lower()
 
     default_models = {
-        'anthropic': MODEL_SONNET,
-        'openai': DEFAULTS.MODEL_OPENAI_DEFAULT,
-        'openrouter': 'anthropic/claude-3.5-sonnet',
-        'groq': 'llama-3.1-70b-versatile',
-        'google': 'gemini-2.0-flash-exp'
+        "anthropic": MODEL_SONNET,
+        "openai": DEFAULTS.MODEL_OPENAI_DEFAULT,
+        "openrouter": "anthropic/claude-3.5-sonnet",
+        "groq": "llama-3.1-70b-versatile",
+        "google": "gemini-2.0-flash-exp",
     }
 
-    model = model or default_models.get(provider, 'gpt-4o')
+    model = model or default_models.get(provider, "gpt-4o")
 
-    if provider == 'anthropic':
+    if provider == "anthropic":
         return AnthropicProvider(model=model, api_key=api_key)
-    elif provider == 'openai':
+    elif provider == "openai":
         return OpenAIProvider(model=model, api_key=api_key)
-    elif provider == 'openrouter':
+    elif provider == "openrouter":
         return OpenRouterProvider(model=model, api_key=api_key)
-    elif provider == 'groq':
+    elif provider == "groq":
         return GroqProvider(model=model, api_key=api_key)
-    elif provider == 'google':
+    elif provider == "google":
         return GoogleProvider(model=model, api_key=api_key)
     else:
-        raise InvalidConfigError(f"Unknown provider: {provider}. Supported: anthropic, openai, openrouter, groq, google")
+        raise InvalidConfigError(
+            f"Unknown provider: {provider}. Supported: anthropic, openai, openrouter, groq, google"
+        )
 
 
 def auto_detect_provider() -> tuple:
@@ -72,21 +73,25 @@ def auto_detect_provider() -> tuple:
     """
     # 1. Try JottyClaudeProvider first (uses Claude CLI, most reliable)
     try:
-        from Jotty.core.infrastructure.foundation.jotty_claude_provider import JottyClaudeProvider, is_claude_available
+        from Jotty.core.infrastructure.foundation.jotty_claude_provider import (
+            JottyClaudeProvider,
+            is_claude_available,
+        )
+
         if is_claude_available():
             provider = JottyClaudeProvider(auto_start=True)
             # Return a wrapper that uses JottyClaudeProvider
-            return 'jotty-claude', JottyClaudeProviderAdapter(provider)
+            return "jotty-claude", JottyClaudeProviderAdapter(provider)
     except Exception as e:
         logger.debug(f"JottyClaudeProvider not available: {e}")
 
     # 2. Check API key providers
     providers_to_check = [
-        ('anthropic', 'ANTHROPIC_API_KEY'),
-        ('openai', 'OPENAI_API_KEY'),
-        ('openrouter', 'OPENROUTER_API_KEY'),
-        ('groq', 'GROQ_API_KEY'),
-        ('google', 'GOOGLE_API_KEY'),
+        ("anthropic", "ANTHROPIC_API_KEY"),
+        ("openai", "OPENAI_API_KEY"),
+        ("openrouter", "OPENROUTER_API_KEY"),
+        ("groq", "GROQ_API_KEY"),
+        ("google", "GOOGLE_API_KEY"),
     ]
 
     for provider_name, env_key in providers_to_check:
@@ -97,4 +102,6 @@ def auto_detect_provider() -> tuple:
                 logger.warning(f"Failed to initialize {provider_name}: {e}")
                 continue
 
-    raise InvalidConfigError("No LLM provider available. Set one of: ANTHROPIC_API_KEY, OPENAI_API_KEY, OPENROUTER_API_KEY, GROQ_API_KEY, GOOGLE_API_KEY, or install Claude CLI")
+    raise InvalidConfigError(
+        "No LLM provider available. Set one of: ANTHROPIC_API_KEY, OPENAI_API_KEY, OPENROUTER_API_KEY, GROQ_API_KEY, GOOGLE_API_KEY, or install Claude CLI"
+    )

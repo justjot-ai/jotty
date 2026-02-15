@@ -14,63 +14,71 @@ Covers:
 All tests use mocks -- no LLM calls, no API keys, runs offline.
 """
 
+import asyncio
 import json
 import math
 import os
 import time
-import asyncio
-import pytest
-from datetime import datetime
-from pathlib import Path
-from unittest.mock import Mock, AsyncMock, patch, MagicMock, PropertyMock
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, Mock, PropertyMock, patch
+
+import pytest
 
 # ---------------------------------------------------------------------------
 # Safe imports with skip guards
 # ---------------------------------------------------------------------------
 try:
     from Jotty.core.infrastructure.persistence.persistence import Vault
+
     HAS_VAULT = True
 except ImportError:
     HAS_VAULT = False
 
 try:
     from Jotty.core.infrastructure.persistence.session_manager import SessionManager
+
     HAS_SESSION_MANAGER = True
 except ImportError:
     HAS_SESSION_MANAGER = False
 
 try:
     from Jotty.core.infrastructure.persistence.scratchpad_persistence import ScratchpadPersistence
+
     HAS_SCRATCHPAD = True
 except ImportError:
     HAS_SCRATCHPAD = False
 
 try:
     from Jotty.core.infrastructure.foundation.types.agent_types import (
-        SharedScratchpad,
         AgentMessage,
+        SharedScratchpad,
     )
     from Jotty.core.infrastructure.foundation.types.enums import CommunicationType
+
     HAS_AGENT_TYPES = True
 except ImportError:
     HAS_AGENT_TYPES = False
 
 try:
     from Jotty.core.infrastructure.data.data_registry import DataArtifact, DataRegistry
+
     HAS_DATA_REGISTRY = True
 except ImportError:
     HAS_DATA_REGISTRY = False
 
 try:
     from Jotty.core.infrastructure.data.parameter_resolver import AgenticParameterResolver
+
     HAS_PARAM_RESOLVER = True
 except ImportError:
     HAS_PARAM_RESOLVER = False
 
 try:
     from Jotty.core.infrastructure.data.feedback_router import AgenticFeedbackRouter
+
     HAS_FEEDBACK_ROUTER = True
 except ImportError:
     HAS_FEEDBACK_ROUTER = False
@@ -81,12 +89,14 @@ try:
         InformationWeightedMemory,
         SurpriseEstimator,
     )
+
     HAS_INFO_STORAGE = True
 except ImportError:
     HAS_INFO_STORAGE = False
 
 try:
-    from Jotty.core.modes.agent.feedback_channel import FeedbackType, FeedbackMessage
+    from Jotty.core.modes.agent.feedback_channel import FeedbackMessage, FeedbackType
+
     HAS_FEEDBACK_CHANNEL = True
 except ImportError:
     HAS_FEEDBACK_CHANNEL = False
@@ -95,6 +105,7 @@ except ImportError:
 # ===========================================================================
 # Helpers -- lightweight mock objects used across test classes
 # ===========================================================================
+
 
 class _MockTaskStatus(Enum):
     PENDING = "pending"
@@ -181,6 +192,7 @@ def _make_mock_config(tmp_path, **overrides):
 # 1. Vault (core/persistence/persistence.py)
 # ===========================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_VAULT, reason="Vault not importable")
 class TestVault:
@@ -263,7 +275,9 @@ class TestVault:
         vault = Vault(str(tmp_path))
         memory = Mock()
         memory.storage = {
-            "episodic": [{"content": "hello", "context": {}, "goal": "g", "value": 1.0, "timestamp": 0}]
+            "episodic": [
+                {"content": "hello", "context": {}, "goal": "g", "value": 1.0, "timestamp": 0}
+            ]
         }
         vault.save_memory(memory, name="shared")
 
@@ -276,7 +290,9 @@ class TestVault:
     def test_save_memory_local(self, tmp_path):
         vault = Vault(str(tmp_path))
         memory = Mock()
-        memory.storage = {"semantic": [{"content": "fact", "context": {}, "goal": "", "value": 0, "timestamp": 0}]}
+        memory.storage = {
+            "semantic": [{"content": "fact", "context": {}, "goal": "", "value": 0, "timestamp": 0}]
+        }
         vault.save_memory(memory, name="loader")
 
         local_file = tmp_path / "jotty_state" / "memories" / "local_memories" / "loader.json"
@@ -284,12 +300,17 @@ class TestVault:
 
     def test_save_memory_max_per_level(self, tmp_path):
         vault = Vault(str(tmp_path))
-        entries = [{"content": f"m{i}", "context": {}, "goal": "", "value": 0, "timestamp": 0} for i in range(200)]
+        entries = [
+            {"content": f"m{i}", "context": {}, "goal": "", "value": 0, "timestamp": 0}
+            for i in range(200)
+        ]
         memory = Mock()
         memory.storage = {"level": entries}
         vault.save_memory(memory, name="shared", max_per_level=50)
 
-        data = json.loads((tmp_path / "jotty_state" / "memories" / "shared_memory.json").read_text())
+        data = json.loads(
+            (tmp_path / "jotty_state" / "memories" / "shared_memory.json").read_text()
+        )
         assert len(data["level"]) == 50
 
     # -- save_brain_state ---------------------------------------------------
@@ -356,6 +377,7 @@ class TestVault:
 # ===========================================================================
 # 2. SessionManager (core/persistence/session_manager.py)
 # ===========================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_SESSION_MANAGER, reason="SessionManager not importable")
@@ -528,6 +550,7 @@ class TestSessionManager:
 # 3. ScratchpadPersistence (core/persistence/scratchpad_persistence.py)
 # ===========================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(
     not (HAS_SCRATCHPAD and HAS_AGENT_TYPES),
@@ -658,6 +681,7 @@ class TestScratchpadPersistence:
 # 4. DataRegistry (core/data/data_registry.py)
 # ===========================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_DATA_REGISTRY, reason="DataRegistry not importable")
 class TestDataArtifact:
@@ -665,8 +689,11 @@ class TestDataArtifact:
 
     def test_default_fields(self):
         artifact = DataArtifact(
-            id="a1", name="Test", source_actor="Actor1",
-            data="hello", data_type="str",
+            id="a1",
+            name="Test",
+            source_actor="Actor1",
+            data="hello",
+            data_type="str",
         )
         assert artifact.id == "a1"
         assert artifact.tags == []
@@ -674,39 +701,56 @@ class TestDataArtifact:
 
     def test_matches_query_type(self):
         artifact = DataArtifact(
-            id="a1", name="Test", source_actor="Actor1",
-            data="hello", data_type="html",
+            id="a1",
+            name="Test",
+            source_actor="Actor1",
+            data="hello",
+            data_type="html",
         )
         assert artifact.matches_query({"type": "html"}) == pytest.approx(0.5)
         assert artifact.matches_query({"type": "json"}) == pytest.approx(0.0)
 
     def test_matches_query_tag(self):
         artifact = DataArtifact(
-            id="a1", name="Test", source_actor="Actor1",
-            data="hello", data_type="str", tags=["finance", "report"],
+            id="a1",
+            name="Test",
+            source_actor="Actor1",
+            data="hello",
+            data_type="str",
+            tags=["finance", "report"],
         )
         assert artifact.matches_query({"tag": "finance"}) == pytest.approx(0.3)
         assert artifact.matches_query({"tag": "unknown"}) == pytest.approx(0.0)
 
     def test_matches_query_tags_list(self):
         artifact = DataArtifact(
-            id="a1", name="Test", source_actor="Actor1",
-            data="hello", data_type="str", tags=["finance", "report"],
+            id="a1",
+            name="Test",
+            source_actor="Actor1",
+            data="hello",
+            data_type="str",
+            tags=["finance", "report"],
         )
         score = artifact.matches_query({"tags": ["finance", "report", "chart"]})
         assert score == pytest.approx(0.2, abs=0.01)
 
     def test_matches_query_actor(self):
         artifact = DataArtifact(
-            id="a1", name="Test", source_actor="Actor1",
-            data="hello", data_type="str",
+            id="a1",
+            name="Test",
+            source_actor="Actor1",
+            data="hello",
+            data_type="str",
         )
         assert artifact.matches_query({"actor": "Actor1"}) == pytest.approx(0.4)
 
     def test_matches_query_fields(self):
         artifact = DataArtifact(
-            id="a1", name="Test", source_actor="Actor1",
-            data="hello", data_type="str",
+            id="a1",
+            name="Test",
+            source_actor="Actor1",
+            data="hello",
+            data_type="str",
             schema={"col1": "int", "col2": "str"},
         )
         score = artifact.matches_query({"fields": ["col1"]})
@@ -714,8 +758,11 @@ class TestDataArtifact:
 
     def test_matches_query_combined(self):
         artifact = DataArtifact(
-            id="a1", name="Test", source_actor="Actor1",
-            data="hello", data_type="html",
+            id="a1",
+            name="Test",
+            source_actor="Actor1",
+            data="hello",
+            data_type="html",
             tags=["finance"],
         )
         score = artifact.matches_query({"type": "html", "tag": "finance", "actor": "Actor1"})
@@ -727,11 +774,13 @@ class TestDataArtifact:
 class TestDataRegistry:
     """Tests for the DataRegistry."""
 
-    def _make_artifact(self, id="a1", name="Art1", actor="Actor1",
-                       data_type="html", tags=None):
+    def _make_artifact(self, id="a1", name="Art1", actor="Actor1", data_type="html", tags=None):
         return DataArtifact(
-            id=id, name=name, source_actor=actor,
-            data="<div>test</div>", data_type=data_type,
+            id=id,
+            name=name,
+            source_actor=actor,
+            data="<div>test</div>",
+            data_type=data_type,
             tags=tags or [],
         )
 
@@ -829,6 +878,7 @@ class TestDataRegistry:
 # 5. AgenticParameterResolver (core/data/parameter_resolver.py)
 # ===========================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_PARAM_RESOLVER, reason="AgenticParameterResolver not importable")
 class TestAgenticParameterResolver:
@@ -856,7 +906,15 @@ class TestAgenticParameterResolver:
             parameter_name="html_content",
             parameter_type=str,
             parameter_purpose="Render the HTML page",
-            available_data={"html_data": {"value": "<div/>", "type": "str", "description": "Page HTML", "tags": [], "source": "Scraper"}},
+            available_data={
+                "html_data": {
+                    "value": "<div/>",
+                    "type": "str",
+                    "description": "Page HTML",
+                    "tags": [],
+                    "source": "Scraper",
+                }
+            },
         )
         assert key == "html_data"
         assert confidence == pytest.approx(0.9)
@@ -894,7 +952,15 @@ class TestAgenticParameterResolver:
             parameter_name="data",
             parameter_type=list,
             parameter_purpose="Process data",
-            available_data={"some_key": {"value": [], "type": "list", "description": "data", "tags": [], "source": "x"}},
+            available_data={
+                "some_key": {
+                    "value": [],
+                    "type": "list",
+                    "description": "data",
+                    "tags": [],
+                    "source": "x",
+                }
+            },
             min_confidence=0.7,
         )
         assert key is None
@@ -932,6 +998,7 @@ class TestAgenticParameterResolver:
 # ===========================================================================
 # 6. AgenticFeedbackRouter (core/data/feedback_router.py)
 # ===========================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(
@@ -1043,6 +1110,7 @@ class TestAgenticFeedbackRouter:
 # 7. InformationTheoreticStorage (core/data/information_storage.py)
 # ===========================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_INFO_STORAGE, reason="InformationTheoreticStorage not importable")
 class TestInformationWeightedMemory:
@@ -1050,16 +1118,24 @@ class TestInformationWeightedMemory:
 
     def test_default_creation(self):
         mem = InformationWeightedMemory(
-            key="k1", content="test", information_content=2.0,
-            frequency_estimate=0.25, llm_surprise=0.5, detail_level="normal",
+            key="k1",
+            content="test",
+            information_content=2.0,
+            frequency_estimate=0.25,
+            llm_surprise=0.5,
+            detail_level="normal",
         )
         assert mem.key == "k1"
         assert mem.detail_level == "normal"
 
     def test_negative_info_content_clamped(self):
         mem = InformationWeightedMemory(
-            key="k1", content="test", information_content=-1.0,
-            frequency_estimate=0.5, llm_surprise=0.5, detail_level="minimal",
+            key="k1",
+            content="test",
+            information_content=-1.0,
+            frequency_estimate=0.5,
+            llm_surprise=0.5,
+            detail_level="minimal",
         )
         assert mem.information_content == 0
 
@@ -1137,7 +1213,9 @@ class TestInformationTheoreticStorage:
         assert len(storage.memories) == 0
 
     def test_init_custom_params(self):
-        storage = InformationTheoreticStorage(alpha=0.7, min_info_threshold=1.0, max_info_threshold=5.0)
+        storage = InformationTheoreticStorage(
+            alpha=0.7, min_info_threshold=1.0, max_info_threshold=5.0
+        )
         assert storage.alpha == 0.7
         assert storage.min_info_threshold == 1.0
         assert storage.max_info_threshold == 5.0
@@ -1151,13 +1229,19 @@ class TestInformationTheoreticStorage:
 
     def test_compute_event_signature_different_events(self):
         storage = InformationTheoreticStorage()
-        sig1 = storage._compute_event_signature({"type": "action", "outcome": "success", "agent": "A"})
-        sig2 = storage._compute_event_signature({"type": "action", "outcome": "failure", "agent": "A"})
+        sig1 = storage._compute_event_signature(
+            {"type": "action", "outcome": "success", "agent": "A"}
+        )
+        sig2 = storage._compute_event_signature(
+            {"type": "action", "outcome": "failure", "agent": "A"}
+        )
         assert sig1 != sig2
 
     def test_summarize_event(self):
         storage = InformationTheoreticStorage()
-        summary = storage._summarize_event({"agent": "TestAgent", "action": "fetch", "outcome": "ok"})
+        summary = storage._summarize_event(
+            {"agent": "TestAgent", "action": "fetch", "outcome": "ok"}
+        )
         assert "TestAgent" in summary
         assert "fetch" in summary
         assert "ok" in summary
@@ -1209,12 +1293,16 @@ class TestInformationTheoreticStorage:
         """Test information content computation with mocked surprise."""
         storage = InformationTheoreticStorage(alpha=0.5)
         storage.surprise_estimator = Mock()
-        storage.surprise_estimator.estimate_surprise = AsyncMock(return_value=(0.7, "Somewhat surprising"))
+        storage.surprise_estimator.estimate_surprise = AsyncMock(
+            return_value=(0.7, "Somewhat surprising")
+        )
 
         event = {"type": "action", "outcome": "failure", "agent": "A"}
         context = {"task": "test"}
 
-        info, detail_level, freq_est, surprise = await storage.compute_information_content(event, context)
+        info, detail_level, freq_est, surprise = await storage.compute_information_content(
+            event, context
+        )
 
         assert storage.total_events == 1
         assert surprise == pytest.approx(0.7)
@@ -1259,7 +1347,9 @@ class TestInformationTheoreticStorage:
         """Test storing a memory with mocked surprise."""
         storage = InformationTheoreticStorage()
         storage.surprise_estimator = Mock()
-        storage.surprise_estimator.estimate_surprise = AsyncMock(return_value=(0.9, "Very surprising"))
+        storage.surprise_estimator.estimate_surprise = AsyncMock(
+            return_value=(0.9, "Very surprising")
+        )
 
         event = {"type": "crash", "outcome": "failure", "agent": "C"}
         memory = await storage.store(event, {"task": "deployment"}, "Full crash log")

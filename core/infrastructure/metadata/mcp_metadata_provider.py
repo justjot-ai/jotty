@@ -1,4 +1,5 @@
 from typing import Any
+
 """
 MCP Metadata Provider for Jotty
 ================================
@@ -57,7 +58,8 @@ True SaaS Principle:
 """
 
 import logging
-from typing import Dict, Any, List, Optional, Callable
+from typing import Any, Callable, Dict, List, Optional
+
 from .base_metadata_provider import BaseMetadataProvider
 
 logger = logging.getLogger(__name__)
@@ -110,7 +112,14 @@ class MCPMetadataProvider(BaseMetadataProvider):
         HTTP API calls, or any other MCP client implementation).
     """
 
-    def __init__(self, list_resources_fn: Optional[Callable] = None, read_resource_fn: Optional[Callable] = None, server: Optional[str] = None, token_budget: int = 100000, enable_caching: bool = True) -> None:
+    def __init__(
+        self,
+        list_resources_fn: Optional[Callable] = None,
+        read_resource_fn: Optional[Callable] = None,
+        server: Optional[str] = None,
+        token_budget: int = 100000,
+        enable_caching: bool = True,
+    ) -> None:
         """
         Initialize MCP metadata provider with injected MCP tool functions.
 
@@ -142,9 +151,7 @@ class MCPMetadataProvider(BaseMetadataProvider):
     # =========================================================================
 
     def list_mcp_resources(
-        self,
-        server: Optional[str] = None,
-        limit: int = 100
+        self, server: Optional[str] = None, limit: int = 100
     ) -> List[Dict[str, Any]]:
         """
         List all available MCP resources.
@@ -199,19 +206,17 @@ class MCPMetadataProvider(BaseMetadataProvider):
 
         # Filter by server if specified
         if server:
-            resources = [r for r in resources if r.get('server') == server]
+            resources = [r for r in resources if r.get("server") == server]
 
         # Limit results
         resources = resources[:limit]
 
-        logger.info(f" Listed {len(resources)} MCP resources (server={server or self.server or 'all'})")
+        logger.info(
+            f" Listed {len(resources)} MCP resources (server={server or self.server or 'all'})"
+        )
         return resources
 
-    def read_mcp_resource(
-        self,
-        uri: str,
-        server: Optional[str] = None
-    ) -> Dict[str, Any]:
+    def read_mcp_resource(self, uri: str, server: Optional[str] = None) -> Dict[str, Any]:
         """
         Read a specific MCP resource by URI.
 
@@ -253,10 +258,7 @@ class MCPMetadataProvider(BaseMetadataProvider):
             raise
 
     def search_mcp_resources(
-        self,
-        query: str,
-        server: Optional[str] = None,
-        limit: int = 10
+        self, query: str, server: Optional[str] = None, limit: int = 10
     ) -> List[Dict[str, Any]]:
         """
         Search MCP resources by query string.
@@ -288,8 +290,8 @@ class MCPMetadataProvider(BaseMetadataProvider):
         matching = []
 
         for resource in resources:
-            name = resource.get('name', '').lower()
-            description = resource.get('description', '').lower()
+            name = resource.get("name", "").lower()
+            description = resource.get("description", "").lower()
 
             if query_lower in name or query_lower in description:
                 matching.append(resource)
@@ -304,7 +306,13 @@ class MCPMetadataProvider(BaseMetadataProvider):
     # Protocol Methods (Required by BaseMetadataProvider)
     # =========================================================================
 
-    def get_context_for_actor(self, actor_name: str, query: str, previous_outputs: Optional[Dict[str, Any]] = None, **kwargs: Any) -> Dict[str, Any]:
+    def get_context_for_actor(
+        self,
+        actor_name: str,
+        query: str,
+        previous_outputs: Optional[Dict[str, Any]] = None,
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
         """
         Return MCP resources relevant to the actor's query.
 
@@ -335,30 +343,30 @@ class MCPMetadataProvider(BaseMetadataProvider):
             ```
         """
         context = {
-            'current_query': query,
-            'actor_name': actor_name,
+            "current_query": query,
+            "actor_name": actor_name,
         }
 
         # Add list of available resources (lightweight)
         if self._list_resources_fn:
             try:
                 resources = self.list_mcp_resources(limit=50)
-                context['available_mcp_resources'] = [
+                context["available_mcp_resources"] = [
                     {
-                        'name': r.get('name'),
-                        'uri': r.get('uri'),
-                        'description': r.get('description', '')[:100]  # Truncate
+                        "name": r.get("name"),
+                        "uri": r.get("uri"),
+                        "description": r.get("description", "")[:100],  # Truncate
                     }
                     for r in resources[:10]  # Top 10 for context
                 ]
 
                 # If query mentions specific terms, add search results
-                search_terms = ['idea', 'template', 'document', 'note']
+                search_terms = ["idea", "template", "document", "note"]
                 if any(term in query.lower() for term in search_terms):
                     # Extract search query from user query
                     # Simple heuristic: use words after common phrases
                     search_query = query.lower()
-                    for prefix in ['show me', 'find', 'list', 'get']:
+                    for prefix in ["show me", "find", "list", "get"]:
                         if prefix in search_query:
                             search_query = search_query.split(prefix, 1)[1].strip()
                             break
@@ -367,7 +375,7 @@ class MCPMetadataProvider(BaseMetadataProvider):
                     if search_query and len(search_query) > 3:
                         results = self.search_mcp_resources(search_query, limit=5)
                         if results:
-                            context['mcp_search_results'] = results
+                            context["mcp_search_results"] = results
 
             except Exception as e:
                 logger.warning(f" Failed to fetch MCP resources: {e}")
@@ -385,8 +393,8 @@ class MCPMetadataProvider(BaseMetadataProvider):
             Dictionary with MCP server info
         """
         return {
-            'mcp_server': self.server or 'all',
-            'mcp_enabled': self._list_resources_fn is not None
+            "mcp_server": self.server or "all",
+            "mcp_enabled": self._list_resources_fn is not None,
         }
 
 
@@ -394,7 +402,10 @@ class MCPMetadataProvider(BaseMetadataProvider):
 # Helper Function: Create MCP Provider from Python Functions
 # =============================================================================
 
-def create_mcp_provider_from_functions(list_fn: Callable, read_fn: Callable, server: Optional[str] = None, **kwargs: Any) -> MCPMetadataProvider:
+
+def create_mcp_provider_from_functions(
+    list_fn: Callable, read_fn: Callable, server: Optional[str] = None, **kwargs: Any
+) -> MCPMetadataProvider:
     """
     Create MCP provider from Python functions (SIMPLE INTERFACE).
 
@@ -433,8 +444,5 @@ def create_mcp_provider_from_functions(list_fn: Callable, read_fn: Callable, ser
         ```
     """
     return MCPMetadataProvider(
-        list_resources_fn=list_fn,
-        read_resource_fn=read_fn,
-        server=server,
-        **kwargs
+        list_resources_fn=list_fn, read_resource_fn=read_fn, server=server, **kwargs
     )

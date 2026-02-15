@@ -1,9 +1,11 @@
 """Currency Converter Skill — convert currencies using frankfurter.app."""
-import requests
-from typing import Dict, Any
 
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from typing import Any, Dict
+
+import requests
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("currency-converter")
 
@@ -21,8 +23,9 @@ def convert_currency_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     to_cur = params["to_currency"].upper().strip()
 
     if from_cur == to_cur:
-        return tool_response(converted=amount, rate=1.0,
-                             from_currency=from_cur, to_currency=to_cur, amount=amount)
+        return tool_response(
+            converted=amount, rate=1.0, from_currency=from_cur, to_currency=to_cur, amount=amount
+        )
 
     try:
         resp = requests.get(
@@ -64,8 +67,7 @@ def list_rates_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         )
         resp.raise_for_status()
         data = resp.json()
-        return tool_response(base=base, rates=data.get("rates", {}),
-                             date=data.get("date", ""))
+        return tool_response(base=base, rates=data.get("rates", {}), date=data.get("date", ""))
     except requests.RequestException as e:
         return tool_error(f"Failed to fetch rates: {e}")
 

@@ -4,10 +4,11 @@ Unit tests for OpenCode Zen provider integration.
 Tests model selection, fallback behavior, fuzzy matching,
 free model defaults, and the full create_lm flow.
 """
-import os
-import pytest
-from unittest.mock import patch, MagicMock
 
+import os
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -25,12 +26,14 @@ def _set_zen_key(monkeypatch):
 @pytest.fixture
 def provider():
     from Jotty.core.infrastructure.foundation.unified_lm_provider import UnifiedLMProvider
+
     return UnifiedLMProvider
 
 
 # ---------------------------------------------------------------------------
 # Static data sanity checks
 # ---------------------------------------------------------------------------
+
 
 class TestZenModelRegistry:
     """Verify the static model registry is consistent."""
@@ -47,7 +50,7 @@ class TestZenModelRegistry:
 
     @pytest.mark.unit
     def test_all_models_have_valid_format(self, provider):
-        valid_formats = {'openai', 'anthropic', 'google'}
+        valid_formats = {"openai", "anthropic", "google"}
         for model_id, (endpoint, fmt) in provider.ZEN_MODELS.items():
             assert fmt in valid_formats, f"Model '{model_id}' has invalid format '{fmt}'"
             assert endpoint, f"Model '{model_id}' has empty endpoint"
@@ -60,6 +63,7 @@ class TestZenModelRegistry:
 # ---------------------------------------------------------------------------
 # Default / free model selection
 # ---------------------------------------------------------------------------
+
 
 class TestZenDefaults:
     """Test that free models are always the default."""
@@ -99,6 +103,7 @@ class TestZenDefaults:
 # Unknown model fallback (the main bug fix)
 # ---------------------------------------------------------------------------
 
+
 class TestZenUnknownModelFallback:
     """Unknown models should fall back to free model, NOT raise."""
 
@@ -123,10 +128,12 @@ class TestZenUnknownModelFallback:
     def test_unknown_model_logs_warning(self, provider, caplog):
         """Unknown model should produce a warning log."""
         import logging
+
         with caplog.at_level(logging.WARNING):
             provider._create_zen_lm(model="bogus-model-abc", api_key=FAKE_ZEN_KEY)
-        assert any("Unknown Zen model" in r.message for r in caplog.records), \
-            "Expected a warning about unknown Zen model"
+        assert any(
+            "Unknown Zen model" in r.message for r in caplog.records
+        ), "Expected a warning about unknown Zen model"
 
     @pytest.mark.unit
     def test_gibberish_model_falls_back(self, provider):
@@ -138,6 +145,7 @@ class TestZenUnknownModelFallback:
 # ---------------------------------------------------------------------------
 # Fuzzy matching
 # ---------------------------------------------------------------------------
+
 
 class TestZenFuzzyMatch:
     """Fuzzy matching should prefer free models."""
@@ -186,6 +194,7 @@ class TestZenFuzzyMatch:
 # API key handling
 # ---------------------------------------------------------------------------
 
+
 class TestZenApiKey:
     """Test API key resolution."""
 
@@ -193,6 +202,7 @@ class TestZenApiKey:
     def test_missing_api_key_raises(self, provider, monkeypatch):
         """No API key at all should raise InvalidConfigError."""
         from Jotty.core.infrastructure.foundation.exceptions import InvalidConfigError
+
         monkeypatch.delenv("OPENCODE_ZEN_API_KEY", raising=False)
         with pytest.raises(InvalidConfigError, match="API key required"):
             provider._create_zen_lm(model="glm-4.7-free")
@@ -215,26 +225,27 @@ class TestZenApiKey:
 # create_lm integration (top-level entry point)
 # ---------------------------------------------------------------------------
 
+
 class TestZenCreateLm:
     """Test via the public create_lm() entry point."""
 
     @pytest.mark.unit
     def test_create_lm_zen_no_model(self, provider):
         """create_lm('zen') should default to a free model."""
-        lm = provider.create_lm('zen', inject_context=False)
+        lm = provider.create_lm("zen", inject_context=False)
         expected = provider.ZEN_FREE_MODELS[0]
         assert expected in lm.model
 
     @pytest.mark.unit
     def test_create_lm_zen_explicit_free(self, provider):
         """create_lm('zen', model='big-pickle') should work."""
-        lm = provider.create_lm('zen', model='big-pickle', inject_context=False)
-        assert 'big-pickle' in lm.model
+        lm = provider.create_lm("zen", model="big-pickle", inject_context=False)
+        assert "big-pickle" in lm.model
 
     @pytest.mark.unit
     def test_create_lm_zen_unknown_falls_back(self, provider):
         """create_lm('zen', model='doesnt-exist') should fall back, not raise."""
-        lm = provider.create_lm('zen', model='doesnt-exist', inject_context=False)
+        lm = provider.create_lm("zen", model="doesnt-exist", inject_context=False)
         expected = provider.ZEN_FREE_MODELS[0]
         assert expected in lm.model
 
@@ -242,6 +253,7 @@ class TestZenCreateLm:
 # ---------------------------------------------------------------------------
 # list_zen_models
 # ---------------------------------------------------------------------------
+
 
 class TestListZenModels:
     """Test the model listing helper."""
@@ -251,30 +263,31 @@ class TestListZenModels:
         models = provider.list_zen_models()
         assert len(models) == len(provider.ZEN_MODELS)
         for mid in models:
-            assert 'endpoint' in models[mid]
-            assert 'format' in models[mid]
-            assert 'free' in models[mid]
+            assert "endpoint" in models[mid]
+            assert "format" in models[mid]
+            assert "free" in models[mid]
 
     @pytest.mark.unit
     def test_list_free_only(self, provider):
         models = provider.list_zen_models(free_only=True)
         assert len(models) == len(provider.ZEN_FREE_MODELS)
         for mid in models:
-            assert models[mid]['free'] is True
+            assert models[mid]["free"] is True
 
     @pytest.mark.unit
     def test_free_models_marked_correctly(self, provider):
         models = provider.list_zen_models()
         for mid in provider.ZEN_FREE_MODELS:
-            assert models[mid]['free'] is True
+            assert models[mid]["free"] is True
         # At least one paid model should be marked as not free
-        paid = [mid for mid in models if not models[mid]['free']]
+        paid = [mid for mid in models if not models[mid]["free"]]
         assert len(paid) > 0
 
 
 # ---------------------------------------------------------------------------
 # Endpoint format correctness
 # ---------------------------------------------------------------------------
+
 
 class TestZenEndpointFormats:
     """Verify the DSPy model prefix matches the API format."""
@@ -283,25 +296,28 @@ class TestZenEndpointFormats:
     def test_openai_format_models_get_openai_prefix(self, provider):
         """OpenAI-compatible models should get 'openai/' prefix."""
         for model_id, (_, fmt) in provider.ZEN_MODELS.items():
-            if fmt == 'openai':
+            if fmt == "openai":
                 lm = provider._create_zen_lm(model=model_id, api_key=FAKE_ZEN_KEY)
-                assert lm.model.startswith("openai/"), \
-                    f"Model '{model_id}' (openai fmt) should have 'openai/' prefix, got '{lm.model}'"
+                assert lm.model.startswith(
+                    "openai/"
+                ), f"Model '{model_id}' (openai fmt) should have 'openai/' prefix, got '{lm.model}'"
 
     @pytest.mark.unit
     def test_anthropic_format_models_get_anthropic_prefix(self, provider):
         """Anthropic-compatible models should get 'anthropic/' prefix."""
         for model_id, (_, fmt) in provider.ZEN_MODELS.items():
-            if fmt == 'anthropic':
+            if fmt == "anthropic":
                 lm = provider._create_zen_lm(model=model_id, api_key=FAKE_ZEN_KEY)
-                assert lm.model.startswith("anthropic/"), \
-                    f"Model '{model_id}' (anthropic fmt) should have 'anthropic/' prefix, got '{lm.model}'"
+                assert lm.model.startswith(
+                    "anthropic/"
+                ), f"Model '{model_id}' (anthropic fmt) should have 'anthropic/' prefix, got '{lm.model}'"
 
     @pytest.mark.unit
     def test_google_format_models_get_google_prefix(self, provider):
         """Google-compatible models should get 'google/' prefix."""
         for model_id, (_, fmt) in provider.ZEN_MODELS.items():
-            if fmt == 'google':
+            if fmt == "google":
                 lm = provider._create_zen_lm(model=model_id, api_key=FAKE_ZEN_KEY)
-                assert lm.model.startswith("google/"), \
-                    f"Model '{model_id}' (google fmt) should have 'google/' prefix, got '{lm.model}'"
+                assert lm.model.startswith(
+                    "google/"
+                ), f"Model '{model_id}' (google fmt) should have 'google/' prefix, got '{lm.model}'"

@@ -8,16 +8,20 @@ Tests for core/monitoring/profiler.py:
 """
 
 import time
+
 import pytest
 
 from Jotty.core.infrastructure.monitoring.monitoring.profiler import (
-    PerformanceProfiler, ProfileSegment, ProfileReport, profile_function,
+    PerformanceProfiler,
+    ProfileReport,
+    ProfileSegment,
+    profile_function,
 )
-
 
 # =============================================================================
 # ProfileSegment Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestProfileSegment:
@@ -25,8 +29,10 @@ class TestProfileSegment:
 
     def test_basic_creation(self):
         seg = ProfileSegment(
-            name="test", duration=0.5,
-            start_time=1000.0, end_time=1000.5,
+            name="test",
+            duration=0.5,
+            start_time=1000.0,
+            end_time=1000.5,
         )
         assert seg.name == "test"
         assert seg.duration == 0.5
@@ -35,42 +41,51 @@ class TestProfileSegment:
 
     def test_with_metadata(self):
         seg = ProfileSegment(
-            name="llm_call", duration=1.0,
-            start_time=0.0, end_time=1.0,
+            name="llm_call",
+            duration=1.0,
+            start_time=0.0,
+            end_time=1.0,
             metadata={"model": "claude"},
         )
         assert seg.metadata == {"model": "claude"}
 
     def test_to_dict(self):
         seg = ProfileSegment(
-            name="test", duration=0.5,
-            start_time=1000.0, end_time=1000.5,
+            name="test",
+            duration=0.5,
+            start_time=1000.0,
+            end_time=1000.5,
             metadata={"key": "val"},
         )
         d = seg.to_dict()
-        assert d['name'] == "test"
-        assert d['duration'] == 0.5
-        assert d['metadata'] == {"key": "val"}
-        assert d['children'] == []
+        assert d["name"] == "test"
+        assert d["duration"] == 0.5
+        assert d["metadata"] == {"key": "val"}
+        assert d["children"] == []
 
     def test_to_dict_with_children(self):
         child = ProfileSegment(
-            name="child", duration=0.1,
-            start_time=0.0, end_time=0.1,
+            name="child",
+            duration=0.1,
+            start_time=0.0,
+            end_time=0.1,
         )
         parent = ProfileSegment(
-            name="parent", duration=0.5,
-            start_time=0.0, end_time=0.5,
+            name="parent",
+            duration=0.5,
+            start_time=0.0,
+            end_time=0.5,
             children=[child],
         )
         d = parent.to_dict()
-        assert len(d['children']) == 1
-        assert d['children'][0]['name'] == "child"
+        assert len(d["children"]) == 1
+        assert d["children"][0]["name"] == "child"
 
 
 # =============================================================================
 # ProfileReport Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestProfileReport:
@@ -99,16 +114,17 @@ class TestProfileReport:
             memory_usage=128.5,
         )
         d = report.to_dict()
-        assert d['total_duration'] == 2.0
-        assert len(d['segments']) == 1
-        assert len(d['slowest_segments']) == 1
-        assert d['call_counts'] == {"total_calls": 50}
-        assert d['memory_usage'] == 128.5
+        assert d["total_duration"] == 2.0
+        assert len(d["segments"]) == 1
+        assert len(d["slowest_segments"]) == 1
+        assert d["call_counts"] == {"total_calls": 50}
+        assert d["memory_usage"] == 128.5
 
 
 # =============================================================================
 # PerformanceProfiler Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestPerformanceProfiler:
@@ -285,6 +301,7 @@ class TestPerformanceProfiler:
 # =============================================================================
 # Standalone profile_function Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestStandaloneProfileFunction:

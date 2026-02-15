@@ -4,17 +4,19 @@ Simple Profiling Utilities for Jotty
 
 Lightweight timing decorators and context managers for performance analysis.
 """
-import time
+
 import functools
 import logging
-from typing import Optional, Dict, List, Any
+import time
 from contextlib import contextmanager
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
 # Import ProfilingReport for detailed profiling
 try:
     from .profiling_report import ProfilingReport
+
     PROFILING_REPORT_AVAILABLE = True
 except ImportError:
     PROFILING_REPORT_AVAILABLE = False
@@ -45,11 +47,11 @@ class ExecutionTimer:
 
         times = self.timings[operation]
         return {
-            'count': len(times),
-            'total': sum(times),
-            'avg': sum(times) / len(times),
-            'min': min(times),
-            'max': max(times)
+            "count": len(times),
+            "total": sum(times),
+            "avg": sum(times) / len(times),
+            "min": min(times),
+            "max": max(times),
         }
 
     def get_all_stats(self) -> Dict[str, Dict[str, float]]:
@@ -67,11 +69,7 @@ class ExecutionTimer:
         logger.info("=" * 70)
 
         # Sort by total time descending
-        sorted_ops = sorted(
-            self.timings.items(),
-            key=lambda x: sum(x[1]),
-            reverse=True
-        )
+        sorted_ops = sorted(self.timings.items(), key=lambda x: sum(x[1]), reverse=True)
 
         for operation, times in sorted_ops:
             stats = self.get_stats(operation)
@@ -89,7 +87,7 @@ class ExecutionTimer:
         if self.profiling_report:
             self.profiling_report.entries.clear()
 
-    def set_profiling_report(self, report: 'ProfilingReport') -> None:
+    def set_profiling_report(self, report: "ProfilingReport") -> None:
         """Set the profiling report for detailed tracking."""
         self.profiling_report = report
 
@@ -117,7 +115,9 @@ def set_overall_timing(start_time: float, end_time: float) -> None:
 
 
 @contextmanager
-def timed_block(operation: str, component: str = 'Other', enabled: bool = True, **metadata: Any) -> None:
+def timed_block(
+    operation: str, component: str = "Other", enabled: bool = True, **metadata: Any
+) -> None:
     """
     Context manager for timing a block of code.
 
@@ -146,11 +146,7 @@ def timed_block(operation: str, component: str = 'Other', enabled: bool = True, 
         # Record in detailed profiling report if available
         if _global_timer.profiling_report:
             _global_timer.profiling_report.record_timing(
-                operation=operation,
-                component=component,
-                start_time=start,
-                end_time=end,
-                **metadata
+                operation=operation, component=component, start_time=start, end_time=end, **metadata
             )
 
 
@@ -167,6 +163,7 @@ def timed(operation: Optional[str] = None, enabled: bool = True) -> Any:
         def fetch_data():
             ...
     """
+
     def decorator(func: Any) -> Any:
         op_name = operation or f"{func.__module__}.{func.__name__}"
 
@@ -197,6 +194,7 @@ def timed(operation: Optional[str] = None, enabled: bool = True) -> Any:
                 _global_timer.record(op_name, duration)
 
         import asyncio
+
         if asyncio.iscoroutinefunction(func):
             return async_wrapper
         return sync_wrapper

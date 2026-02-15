@@ -1,9 +1,10 @@
 """Regex Tester Skill — test, match, and explain regex patterns."""
-import re
-from typing import Dict, Any, List
 
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+import re
+from typing import Any, Dict, List
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("regex-tester")
 
@@ -54,7 +55,9 @@ def regex_replace_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     count = int(params.get("count", 0))  # 0 = all
 
     try:
-        result, n = re.subn(params["pattern"], replacement, params["text"], count=count, flags=flags)
+        result, n = re.subn(
+            params["pattern"], replacement, params["text"], count=count, flags=flags
+        )
     except re.error as e:
         return tool_error(f"Invalid regex: {e}")
 

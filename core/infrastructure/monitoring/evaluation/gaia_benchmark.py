@@ -4,12 +4,13 @@ GAIA Benchmark Integration
 GAIA (General AI Assistant) benchmark for evaluating agents.
 Based on OAgents GAIA integration.
 """
+
 import json
 import logging
 import re
 import string
 from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, List, Optional
 
 from .benchmark import Benchmark, BenchmarkResult
 
@@ -93,16 +94,16 @@ class GAIABenchmark(Benchmark):
                 try:
                     with open(task_file) as f:
                         task_data = json.load(f)
-                        task_data['split'] = split_name
+                        task_data["split"] = split_name
                         # Resolve attachment path so the agent can read the file (e.g. Excel, PDF, audio)
-                        attachment_path = task_data.get('attachment_path')
+                        attachment_path = task_data.get("attachment_path")
                         if attachment_path:
                             full_path = (split_dir / attachment_path).resolve()
                             if full_path.exists():
-                                task_data['attachment_local_path'] = str(full_path)
+                                task_data["attachment_local_path"] = str(full_path)
                         # Apply level filter
                         if level is not None:
-                            task_level = task_data.get('Level')
+                            task_level = task_data.get("Level")
                             if task_level is None or int(task_level) != level:
                                 continue
                         tasks.append(task_data)
@@ -110,11 +111,11 @@ class GAIABenchmark(Benchmark):
                     logger.warning(f"Failed to load {task_file}: {e}")
 
         # Deterministic order so --max-tasks 10 always runs the same 10 tasks
-        tasks.sort(key=lambda t: (t.get('split', ''), t.get('task_id', t.get('file_name', ''))))
+        tasks.sort(key=lambda t: (t.get("split", ""), t.get("task_id", t.get("file_name", ""))))
 
         logger.info(f"Loaded {len(tasks)} GAIA tasks")
         return tasks
-    
+
     def evaluate_task(self, task: Dict[str, Any], agent: Any, **kwargs: Any) -> BenchmarkResult:
         """
         Evaluate agent on GAIA task.
@@ -130,10 +131,12 @@ class GAIABenchmark(Benchmark):
         """
         import time
 
-        task_id = task.get('task_id', task.get('file_name', 'unknown'))
-        question = task.get('Question', '')
-        expected_answer = task.get('Final answer', '')
-        attachment_paths = [task['attachment_local_path']] if task.get('attachment_local_path') else []
+        task_id = task.get("task_id", task.get("file_name", "unknown"))
+        question = task.get("Question", "")
+        expected_answer = task.get("Final answer", "")
+        attachment_paths = (
+            [task["attachment_local_path"]] if task.get("attachment_local_path") else []
+        )
 
         # Execute agent (pass attachment paths and expected so adapter can use DSPy for answer format)
         # When task has attachments, force AGENTIC so read_file / tools are available
@@ -142,9 +145,9 @@ class GAIABenchmark(Benchmark):
             run_kwargs = {**kwargs, "expected_answer": expected_answer}
             if attachment_paths:
                 run_kwargs["force_tier"] = "AGENTIC"
-            if hasattr(agent, 'run'):
+            if hasattr(agent, "run"):
                 answer = agent.run(question, attachment_paths=attachment_paths, **run_kwargs)
-            elif hasattr(agent, 'execute'):
+            elif hasattr(agent, "execute"):
                 answer = agent.execute(question, attachment_paths=attachment_paths, **run_kwargs)
             else:
                 raise ValueError("Agent must have 'run' or 'execute' method")
@@ -160,20 +163,17 @@ class GAIABenchmark(Benchmark):
                 answer=str(answer),
                 execution_time=execution_time,
                 metadata={
-                    'expected_answer': expected_answer,
-                    'question': question,
-                    'split': task.get('split', 'unknown'),
-                    'level': task.get('Level'),
-                }
+                    "expected_answer": expected_answer,
+                    "question": question,
+                    "split": task.get("split", "unknown"),
+                    "level": task.get("Level"),
+                },
             )
 
         except Exception as e:
             execution_time = time.time() - start_time
             return BenchmarkResult(
-                task_id=task_id,
-                success=False,
-                error=str(e),
-                execution_time=execution_time
+                task_id=task_id, success=False, error=str(e), execution_time=execution_time
             )
 
     @staticmethod
@@ -190,11 +190,11 @@ class GAIABenchmark(Benchmark):
 
         for prefix in _ANSWER_PREFIXES:
             if text_lower.startswith(prefix):
-                text = text[len(prefix):].strip()
+                text = text[len(prefix) :].strip()
                 text_lower = text.lower()
 
         # Strip trailing period (common LLM habit) if answer is not just "."
-        if len(text) > 1 and text.endswith('.'):
+        if len(text) > 1 and text.endswith("."):
             text = text[:-1].strip()
 
         return text
@@ -203,9 +203,9 @@ class GAIABenchmark(Benchmark):
     def _strip_currency_pct(s: str) -> str:
         """Strip leading $ and trailing % for numeric comparison."""
         s = s.strip()
-        if s.startswith('$'):
+        if s.startswith("$"):
             s = s[1:]
-        if s.endswith('%'):
+        if s.endswith("%"):
             s = s[:-1]
         return s.strip()
 
@@ -214,11 +214,7 @@ class GAIABenchmark(Benchmark):
         """Rough token estimate (~4 chars per token)."""
         return max(1, len(text) // 4)
 
-    def validate_answer(
-        self,
-        task: Dict[str, Any],
-        answer: str
-    ) -> bool:
+    def validate_answer(self, task: Dict[str, Any], answer: str) -> bool:
         """
         Validate answer against GAIA expected answer.
 
@@ -229,7 +225,7 @@ class GAIABenchmark(Benchmark):
         4. Punctuation-removed text comparison
         5. Containment: expected appears at start/end of actual (verbose LLM)
         """
-        expected_raw = task.get('Final answer', '').strip()
+        expected_raw = task.get("Final answer", "").strip()
         if not expected_raw:
             return False
 
@@ -242,8 +238,8 @@ class GAIABenchmark(Benchmark):
 
         # Numeric comparison with currency/% stripping
         try:
-            actual_num = float(self._strip_currency_pct(actual).replace(',', ''))
-            expected_num = float(self._strip_currency_pct(expected).replace(',', ''))
+            actual_num = float(self._strip_currency_pct(actual).replace(",", ""))
+            expected_num = float(self._strip_currency_pct(expected).replace(",", ""))
             if abs(actual_num - expected_num) < 0.01:
                 return True
             # Integer tolerance: accept within ±6 for whole numbers when both > 100 (e.g. 519 vs 525)
@@ -258,8 +254,8 @@ class GAIABenchmark(Benchmark):
             pass
 
         # Punctuation-removed text comparison
-        actual_clean = actual.translate(str.maketrans('', '', string.punctuation))
-        expected_clean = expected.translate(str.maketrans('', '', string.punctuation))
+        actual_clean = actual.translate(str.maketrans("", "", string.punctuation))
+        expected_clean = expected.translate(str.maketrans("", "", string.punctuation))
 
         if actual_clean and actual_clean == expected_clean:
             return True

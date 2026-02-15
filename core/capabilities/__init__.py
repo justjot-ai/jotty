@@ -17,7 +17,7 @@ Usage:
 """
 
 import logging
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +65,7 @@ def explain(component: str) -> str:
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
 
 def _execution_paths() -> Dict[str, Any]:
     return {
@@ -172,6 +173,7 @@ def _swarms() -> list:
     """List available domain swarms (safe import)."""
     try:
         from Jotty.core.intelligence.swarms.registry import SwarmRegistry
+
         return SwarmRegistry.list_all()
     except Exception:
         return []
@@ -181,6 +183,7 @@ def _skills_count() -> int:
     """Count registered skills (safe import)."""
     try:
         from Jotty.core.capabilities.registry import get_unified_registry
+
         registry = get_unified_registry()
         return len(registry.list_skills())
     except Exception:
@@ -190,10 +193,22 @@ def _skills_count() -> int:
 def _providers() -> list:
     """List known skill providers with install status."""
     provider_info = [
-        {"name": "browser-use", "module": "browser_use", "description": "Web automation via browser-use library"},
-        {"name": "openhands", "module": "openhands", "description": "Terminal/code via OpenHands SDK"},
+        {
+            "name": "browser-use",
+            "module": "browser_use",
+            "description": "Web automation via browser-use library",
+        },
+        {
+            "name": "openhands",
+            "module": "openhands",
+            "description": "Terminal/code via OpenHands SDK",
+        },
         {"name": "agent-s", "module": "agent_s", "description": "GUI/computer control via Agent-S"},
-        {"name": "open-interpreter", "module": "interpreter", "description": "Local code execution"},
+        {
+            "name": "open-interpreter",
+            "module": "interpreter",
+            "description": "Local code execution",
+        },
         {"name": "streamlit", "module": "streamlit", "description": "App building (open source)"},
         {"name": "morph", "module": "morph", "description": "Cloud app building"},
         {"name": "n8n", "module": None, "description": "Workflow automation (API-based)"},
@@ -210,11 +225,13 @@ def _providers() -> list:
                 pass
         else:
             installed = None  # API-based, no local module
-        result.append({
-            "name": p["name"],
-            "description": p["description"],
-            "installed": installed,
-        })
+        result.append(
+            {
+                "name": p["name"],
+                "description": p["description"],
+                "installed": installed,
+            }
+        )
     return result
 
 

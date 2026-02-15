@@ -18,12 +18,14 @@ Covers:
 
 All external dependencies (builtin widgets, supervisor widgets) are mocked.
 """
-import sys
+
 import json
-import pytest
+import sys
 from pathlib import Path
-from unittest.mock import Mock, MagicMock, patch, call
-from typing import Dict, Any, List
+from typing import Any, Dict, List
+from unittest.mock import MagicMock, Mock, call, patch
+
+import pytest
 
 # Ensure project root is importable
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -33,12 +35,13 @@ try:
     from Jotty.core.capabilities.registry.ui_registry import (
         UIComponent,
         UIRegistry,
-        get_ui_registry,
-        reset_ui_registry,
-        get_widget_registry_compat,
-        get_agui_registry_compat,
         _load_builtin_components,
+        get_agui_registry_compat,
+        get_ui_registry,
+        get_widget_registry_compat,
+        reset_ui_registry,
     )
+
     UI_REGISTRY_AVAILABLE = True
 except ImportError:
     UI_REGISTRY_AVAILABLE = False
@@ -47,6 +50,7 @@ except ImportError:
 # =============================================================================
 # UIComponent Dataclass Tests
 # =============================================================================
+
 
 @pytest.mark.skipif(not UI_REGISTRY_AVAILABLE, reason="UIRegistry not importable")
 @pytest.mark.unit
@@ -116,31 +120,46 @@ class TestUIComponentToDict:
         comp = UIComponent(component_type="x", label="X", category="C")
         d = comp.to_dict()
         expected_keys = {
-            'component_type', 'label', 'category', 'icon', 'description',
-            'content_type', 'has_own_ui', 'content_schema', 'client_id',
-            'version', 'bidirectional', 'has_to_a2ui', 'has_to_agui',
-            'has_from_a2ui', 'has_from_agui',
+            "component_type",
+            "label",
+            "category",
+            "icon",
+            "description",
+            "content_type",
+            "has_own_ui",
+            "content_schema",
+            "client_id",
+            "version",
+            "bidirectional",
+            "has_to_a2ui",
+            "has_to_agui",
+            "has_from_a2ui",
+            "has_from_agui",
         }
         assert set(d.keys()) == expected_keys
 
     def test_to_dict_has_adapter_flags(self):
         """to_dict reflects adapter availability."""
         comp = UIComponent(
-            component_type="x", label="X", category="C",
+            component_type="x",
+            label="X",
+            category="C",
             to_a2ui_func=lambda x: x,
         )
         d = comp.to_dict()
-        assert d['has_to_a2ui'] is True
-        assert d['has_to_agui'] is False
+        assert d["has_to_a2ui"] is True
+        assert d["has_to_agui"] is False
 
     def test_to_dict_serialized_adapter_flag(self):
         """to_dict detects serialized adapter strings."""
         comp = UIComponent(
-            component_type="x", label="X", category="C",
+            component_type="x",
+            label="X",
+            category="C",
             to_agui="function code",
         )
         d = comp.to_dict()
-        assert d['has_to_agui'] is True
+        assert d["has_to_agui"] is True
 
 
 @pytest.mark.skipif(not UI_REGISTRY_AVAILABLE, reason="UIRegistry not importable")
@@ -161,12 +180,12 @@ class TestUIComponentWidgetDict:
             content_schema="{}",
         )
         d = comp.to_widget_dict()
-        assert d['value'] == "chart"
-        assert d['label'] == "Chart"
-        assert d['icon'] == "C"
-        assert d['hasOwnUI'] is True
-        assert d['contentType'] == "json"
-        assert d['contentSchema'] == "{}"
+        assert d["value"] == "chart"
+        assert d["label"] == "Chart"
+        assert d["icon"] == "C"
+        assert d["hasOwnUI"] is True
+        assert d["contentType"] == "json"
+        assert d["contentSchema"] == "{}"
 
 
 @pytest.mark.skipif(not UI_REGISTRY_AVAILABLE, reason="UIRegistry not importable")
@@ -186,11 +205,11 @@ class TestUIComponentAguiDict:
             version="1.5.0",
         )
         d = comp.to_agui_dict()
-        assert d['section_type'] == "mermaid"
-        assert d['label'] == "Mermaid"
-        assert d['bidirectional'] is True
-        assert d['client_id'] == "justjot"
-        assert d['version'] == "1.5.0"
+        assert d["section_type"] == "mermaid"
+        assert d["label"] == "Mermaid"
+        assert d["bidirectional"] is True
+        assert d["client_id"] == "justjot"
+        assert d["version"] == "1.5.0"
 
 
 @pytest.mark.skipif(not UI_REGISTRY_AVAILABLE, reason="UIRegistry not importable")
@@ -201,14 +220,16 @@ class TestUIComponentJsonSerializable:
     def test_to_json_serializable_includes_adapter_code(self):
         """to_json_serializable includes serialized adapter code strings."""
         comp = UIComponent(
-            component_type="x", label="X", category="C",
+            component_type="x",
+            label="X",
+            category="C",
             to_a2ui="adapter code A2UI",
             from_agui="adapter code from AGUI",
         )
         d = comp.to_json_serializable()
-        assert d['to_a2ui'] == "adapter code A2UI"
-        assert d['from_agui'] == "adapter code from AGUI"
-        assert d['to_agui'] is None
+        assert d["to_a2ui"] == "adapter code A2UI"
+        assert d["from_agui"] == "adapter code from AGUI"
+        assert d["to_agui"] is None
 
     def test_to_json_serializable_is_json_safe(self):
         """to_json_serializable output can be JSON-serialized."""
@@ -231,7 +252,9 @@ class TestUIComponentHasAdapters:
     def test_has_func_adapter(self):
         """has_adapters is True when a func adapter is set."""
         comp = UIComponent(
-            component_type="x", label="X", category="C",
+            component_type="x",
+            label="X",
+            category="C",
             to_a2ui_func=lambda x: x,
         )
         assert comp.has_adapters is True
@@ -239,7 +262,9 @@ class TestUIComponentHasAdapters:
     def test_has_string_adapter(self):
         """has_adapters is True when a serialized adapter is set."""
         comp = UIComponent(
-            component_type="x", label="X", category="C",
+            component_type="x",
+            label="X",
+            category="C",
             from_agui="code",
         )
         assert comp.has_adapters is True
@@ -247,7 +272,9 @@ class TestUIComponentHasAdapters:
     def test_has_mixed_adapters(self):
         """has_adapters is True with mixed func and string adapters."""
         comp = UIComponent(
-            component_type="x", label="X", category="C",
+            component_type="x",
+            label="X",
+            category="C",
             to_a2ui_func=lambda x: x,
             from_agui="code",
         )
@@ -257,6 +284,7 @@ class TestUIComponentHasAdapters:
 # =============================================================================
 # UIRegistry Initialization Tests
 # =============================================================================
+
 
 @pytest.mark.skipif(not UI_REGISTRY_AVAILABLE, reason="UIRegistry not importable")
 @pytest.mark.unit
@@ -275,6 +303,7 @@ class TestUIRegistryInit:
 # =============================================================================
 # UIRegistry Registration Tests
 # =============================================================================
+
 
 @pytest.mark.skipif(not UI_REGISTRY_AVAILABLE, reason="UIRegistry not importable")
 @pytest.mark.unit
@@ -442,6 +471,7 @@ class TestUIRegistryRegisterFromAgui:
 # UIRegistry Retrieval Tests
 # =============================================================================
 
+
 @pytest.mark.skipif(not UI_REGISTRY_AVAILABLE, reason="UIRegistry not importable")
 @pytest.mark.unit
 class TestUIRegistryRetrieval:
@@ -450,10 +480,28 @@ class TestUIRegistryRetrieval:
     def _make_registry(self):
         """Create a registry with a few pre-registered components."""
         reg = UIRegistry()
-        reg.register(component_type="text", label="Text", category="Content", content_type="markdown", client_id="jotty")
-        reg.register(component_type="code", label="Code", category="Content", content_type="code", client_id="jotty")
-        reg.register(component_type="chart", label="Chart", category="Viz", content_type="json", client_id="justjot",
-                     to_a2ui_func=lambda x: [{"type": "chart"}])
+        reg.register(
+            component_type="text",
+            label="Text",
+            category="Content",
+            content_type="markdown",
+            client_id="jotty",
+        )
+        reg.register(
+            component_type="code",
+            label="Code",
+            category="Content",
+            content_type="code",
+            client_id="jotty",
+        )
+        reg.register(
+            component_type="chart",
+            label="Chart",
+            category="Viz",
+            content_type="json",
+            client_id="justjot",
+            to_a2ui_func=lambda x: [{"type": "chart"}],
+        )
         return reg
 
     def test_get_existing(self):
@@ -532,6 +580,7 @@ class TestUIRegistryRetrieval:
 # =============================================================================
 # UIRegistry Conversion Tests
 # =============================================================================
+
 
 @pytest.mark.skipif(not UI_REGISTRY_AVAILABLE, reason="UIRegistry not importable")
 @pytest.mark.unit
@@ -648,6 +697,7 @@ class TestUIRegistryConversion:
 # UIRegistry API Response Tests
 # =============================================================================
 
+
 @pytest.mark.skipif(not UI_REGISTRY_AVAILABLE, reason="UIRegistry not importable")
 @pytest.mark.unit
 class TestUIRegistryApiResponse:
@@ -663,29 +713,29 @@ class TestUIRegistryApiResponse:
         """to_api_response returns dict with expected keys."""
         reg = self._make_registry()
         resp = reg.to_api_response()
-        assert 'components' in resp
-        assert 'categories' in resp
-        assert 'clients' in resp
-        assert 'count' in resp
-        assert 'with_adapters' in resp
-        assert resp['count'] == 2
-        assert resp['with_adapters'] == 1
+        assert "components" in resp
+        assert "categories" in resp
+        assert "clients" in resp
+        assert "count" in resp
+        assert "with_adapters" in resp
+        assert resp["count"] == 2
+        assert resp["with_adapters"] == 1
 
     def test_to_api_response_components_are_dicts(self):
         """to_api_response components are dict-serialized."""
         reg = self._make_registry()
         resp = reg.to_api_response()
-        for comp in resp['components']:
+        for comp in resp["components"]:
             assert isinstance(comp, dict)
-            assert 'component_type' in comp
+            assert "component_type" in comp
 
     def test_export_for_remote_agent_all(self):
         """export_for_remote_agent returns all components when no client_id."""
         reg = self._make_registry()
         export = reg.export_for_remote_agent()
-        assert export['count'] == 2
-        assert export['client_id'] is None
-        assert len(export['components']) == 2
+        assert export["count"] == 2
+        assert export["client_id"] is None
+        assert len(export["components"]) == 2
 
     def test_export_for_remote_agent_by_client(self):
         """export_for_remote_agent filters by client_id."""
@@ -693,21 +743,22 @@ class TestUIRegistryApiResponse:
         reg.register(component_type="a", label="A", category="C", client_id="app1")
         reg.register(component_type="b", label="B", category="C", client_id="app2")
         export = reg.export_for_remote_agent(client_id="app1")
-        assert export['count'] == 1
-        assert export['client_id'] == "app1"
+        assert export["count"] == 1
+        assert export["client_id"] == "app1"
 
     def test_export_for_remote_agent_uses_json_serializable(self):
         """export_for_remote_agent uses to_json_serializable format."""
         reg = UIRegistry()
         reg.register(component_type="x", label="X", category="C", to_a2ui="code_str")
         export = reg.export_for_remote_agent()
-        comp = export['components'][0]
-        assert comp['to_a2ui'] == "code_str"
+        comp = export["components"][0]
+        assert comp["to_a2ui"] == "code_str"
 
 
 # =============================================================================
 # UIRegistry Utility Tests
 # =============================================================================
+
 
 @pytest.mark.skipif(not UI_REGISTRY_AVAILABLE, reason="UIRegistry not importable")
 @pytest.mark.unit
@@ -787,14 +838,14 @@ class TestUIRegistryMerge:
         reg = UIRegistry()
         mock_widget = MagicMock()
         mock_widget.to_dict.return_value = {
-            'value': 'table',
-            'label': 'Table',
-            'icon': 'T',
-            'description': 'A table',
-            'category': 'Data',
-            'hasOwnUI': False,
-            'contentType': 'json',
-            'contentSchema': '{}',
+            "value": "table",
+            "label": "Table",
+            "icon": "T",
+            "description": "A table",
+            "category": "Data",
+            "hasOwnUI": False,
+            "contentType": "json",
+            "contentSchema": "{}",
         }
 
         mock_widget_registry = MagicMock()
@@ -810,6 +861,7 @@ class TestUIRegistryMerge:
 # =============================================================================
 # Global Singleton Tests
 # =============================================================================
+
 
 @pytest.mark.skipif(not UI_REGISTRY_AVAILABLE, reason="UIRegistry not importable")
 @pytest.mark.unit
@@ -860,6 +912,7 @@ class TestUIRegistrySingleton:
 # Builtin Components Loading Tests
 # =============================================================================
 
+
 @pytest.mark.skipif(not UI_REGISTRY_AVAILABLE, reason="UIRegistry not importable")
 @pytest.mark.unit
 class TestLoadBuiltinComponents:
@@ -871,7 +924,9 @@ class TestLoadBuiltinComponents:
         # Mock the supervisor import to avoid import errors
         mock_supervisor.side_effect = ImportError("no supervisor")
         reg = UIRegistry()
-        with patch("Jotty.core.registry.ui_registry.get_supervisor_widgets", side_effect=ImportError):
+        with patch(
+            "Jotty.core.registry.ui_registry.get_supervisor_widgets", side_effect=ImportError
+        ):
             _load_builtin_components(reg)
         # Core components should be loaded
         assert len(reg.get_all()) >= 12  # At least 12 core components

@@ -13,13 +13,13 @@ Provides:
 - Chat with documents/folders context
 """
 
-import os
-import json
 import hashlib
+import json
 import logging
-from pathlib import Path
-from typing import Optional, List, Dict, Any, Tuple
+import os
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +53,7 @@ class RAGConfig:
         self,
         chunk_size: int = DEFAULT_CHUNK_SIZE,
         overlap: int = DEFAULT_OVERLAP,
-        embedding_model: str = DEFAULT_EMBEDDING_MODEL
+        embedding_model: str = DEFAULT_EMBEDDING_MODEL,
     ):
         self.chunk_size = chunk_size
         self.overlap = overlap
@@ -64,7 +64,7 @@ class RAGConfig:
             "chunk_size": self.chunk_size,
             "overlap": self.overlap,
             "embedding_model": self.embedding_model,
-            "embedding_dim": self.EMBEDDING_MODELS.get(self.embedding_model, {}).get("dim", 384)
+            "embedding_dim": self.EMBEDDING_MODELS.get(self.embedding_model, {}).get("dim", 384),
         }
 
     @classmethod
@@ -72,7 +72,7 @@ class RAGConfig:
         return cls(
             chunk_size=data.get("chunk_size", cls.DEFAULT_CHUNK_SIZE),
             overlap=data.get("overlap", cls.DEFAULT_OVERLAP),
-            embedding_model=data.get("embedding_model", cls.DEFAULT_EMBEDDING_MODEL)
+            embedding_model=data.get("embedding_model", cls.DEFAULT_EMBEDDING_MODEL),
         )
 
 
@@ -123,7 +123,7 @@ class DocumentProcessor:
         self,
         chunk_size: Optional[int] = None,
         overlap: Optional[int] = None,
-        embedding_model: Optional[str] = None
+        embedding_model: Optional[str] = None,
     ) -> RAGConfig:
         """Update RAG configuration."""
         if chunk_size is not None:
@@ -163,8 +163,7 @@ class DocumentProcessor:
                 from chromadb.config import Settings
 
                 self._chroma_client = chromadb.PersistentClient(
-                    path=str(VECTORS_DIR),
-                    settings=Settings(anonymized_telemetry=False)
+                    path=str(VECTORS_DIR), settings=Settings(anonymized_telemetry=False)
                 )
                 logger.info(f"ChromaDB initialized at {VECTORS_DIR}")
             except ImportError:
@@ -177,8 +176,7 @@ class DocumentProcessor:
         """Get or create the documents collection."""
         if self._collection is None:
             self._collection = self.chroma_client.get_or_create_collection(
-                name="jotty_documents",
-                metadata={"hnsw:space": "cosine"}
+                name="jotty_documents", metadata={"hnsw:space": "cosine"}
             )
         return self._collection
 
@@ -186,7 +184,10 @@ class DocumentProcessor:
     def embedding_model(self):
         """Lazy-load sentence-transformers model based on config."""
         # Reload if model changed
-        if self._embedding_model is not None and self._embedding_model_name != self.config.embedding_model:
+        if (
+            self._embedding_model is not None
+            and self._embedding_model_name != self.config.embedding_model
+        ):
             self._embedding_model = None
 
         if self._embedding_model is None:
@@ -198,7 +199,9 @@ class DocumentProcessor:
                 self._embedding_model_name = model_name
                 logger.info(f"Loaded embedding model: {model_name}")
             except ImportError:
-                logger.warning("sentence-transformers not installed. Run: pip install sentence-transformers")
+                logger.warning(
+                    "sentence-transformers not installed. Run: pip install sentence-transformers"
+                )
                 raise
         return self._embedding_model
 
@@ -255,23 +258,25 @@ class DocumentProcessor:
         suffix = path.suffix.lower()
 
         try:
-            if suffix == '.txt':
-                text = path.read_text(encoding='utf-8')
-            elif suffix == '.md':
-                text = path.read_text(encoding='utf-8')
-            elif suffix == '.json':
+            if suffix == ".txt":
+                text = path.read_text(encoding="utf-8")
+            elif suffix == ".md":
+                text = path.read_text(encoding="utf-8")
+            elif suffix == ".json":
                 data = json.loads(path.read_text())
                 text = json.dumps(data, indent=2)
-            elif suffix == '.csv':
+            elif suffix == ".csv":
                 import csv
-                with open(path, 'r', encoding='utf-8') as f:
+
+                with open(path, "r", encoding="utf-8") as f:
                     reader = csv.reader(f)
                     rows = list(reader)
                 text = "\n".join([", ".join(row) for row in rows])
-            elif suffix == '.pdf':
+            elif suffix == ".pdf":
                 # Try pypdf as fallback
                 try:
                     from pypdf import PdfReader
+
                     reader = PdfReader(file_path)
                     text = "\n\n".join([page.extract_text() or "" for page in reader.pages])
                 except ImportError:
@@ -284,7 +289,9 @@ class DocumentProcessor:
         except Exception as e:
             return f"[Error reading file: {e}]", {"error": str(e)}
 
-    def chunk_text(self, text: str, chunk_size: Optional[int] = None, overlap: Optional[int] = None) -> List[str]:
+    def chunk_text(
+        self, text: str, chunk_size: Optional[int] = None, overlap: Optional[int] = None
+    ) -> List[str]:
         """Split text into overlapping chunks for embedding."""
         chunk_size = chunk_size or self.config.chunk_size
         overlap = overlap or self.config.overlap
@@ -301,8 +308,8 @@ class DocumentProcessor:
             # Try to end at a sentence boundary
             if end < len(text):
                 # Look for sentence end within last 100 chars
-                for sep in ['. ', '.\n', '? ', '!\n', '\n\n']:
-                    last_sep = text[end-100:end].rfind(sep)
+                for sep in [". ", ".\n", "? ", "!\n", "\n\n"]:
+                    last_sep = text[end - 100 : end].rfind(sep)
                     if last_sep != -1:
                         end = end - 100 + last_sep + len(sep)
                         break
@@ -322,7 +329,7 @@ class DocumentProcessor:
         folder_id: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
         chunk_size: Optional[int] = None,
-        overlap: Optional[int] = None
+        overlap: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
         Upload and process a document.
@@ -383,7 +390,7 @@ class DocumentProcessor:
                 ids=chunk_ids,
                 embeddings=embeddings,
                 documents=chunks,
-                metadatas=chunk_metas
+                metadatas=chunk_metas,
             )
 
             embedded = True
@@ -406,9 +413,9 @@ class DocumentProcessor:
             "rag_config": {
                 "chunk_size": chunk_size or self.config.chunk_size,
                 "overlap": overlap or self.config.overlap,
-                "embedding_model": self.config.embedding_model
+                "embedding_model": self.config.embedding_model,
             },
-            "metadata": {**(metadata or {}), **parse_meta}
+            "metadata": {**(metadata or {}), **parse_meta},
         }
 
         # Save to index
@@ -488,7 +495,7 @@ class DocumentProcessor:
         query: str,
         folder_id: Optional[str] = None,
         doc_ids: Optional[List[str]] = None,
-        n_results: int = 5
+        n_results: int = 5,
     ) -> List[Dict[str, Any]]:
         """
         Search documents using vector similarity.
@@ -518,18 +525,20 @@ class DocumentProcessor:
                 query_embeddings=[query_embedding],
                 n_results=n_results,
                 where=where_filter,
-                include=["documents", "metadatas", "distances"]
+                include=["documents", "metadatas", "distances"],
             )
 
             # Format results
             chunks = []
             for i, doc in enumerate(results["documents"][0]):
-                chunks.append({
-                    "text": doc,
-                    "metadata": results["metadatas"][0][i],
-                    "distance": results["distances"][0][i],
-                    "relevance": 1 - results["distances"][0][i],  # cosine similarity
-                })
+                chunks.append(
+                    {
+                        "text": doc,
+                        "metadata": results["metadatas"][0][i],
+                        "distance": results["distances"][0][i],
+                        "relevance": 1 - results["distances"][0][i],  # cosine similarity
+                    }
+                )
 
             return chunks
 
@@ -538,11 +547,7 @@ class DocumentProcessor:
             return []
 
     def get_context_for_chat(
-        self,
-        query: str,
-        context_type: str,
-        context_id: str,
-        max_tokens: int = 2000
+        self, query: str, context_type: str, context_id: str, max_tokens: int = 2000
     ) -> str:
         """
         Get relevant context for chat based on context type.
@@ -584,7 +589,7 @@ class DocumentProcessor:
 
         # Rough token estimation (4 chars per token)
         if len(combined) > max_tokens * 4:
-            combined = combined[:max_tokens * 4] + "\n\n[Context truncated...]"
+            combined = combined[: max_tokens * 4] + "\n\n[Context truncated...]"
 
         return combined
 

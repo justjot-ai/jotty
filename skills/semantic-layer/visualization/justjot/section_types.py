@@ -7,11 +7,11 @@ section-registry.ts - the single source of truth.
 This ensures LIDA can work with ALL JustJot section types and their schemas.
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, Any, Optional, List, Union
-from enum import Enum
 import json
 import logging
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, Dict, List, Optional, Union
 
 logger = logging.getLogger(__name__)
 
@@ -20,9 +20,11 @@ logger = logging.getLogger(__name__)
 # Registry-Driven Section Types
 # ============================================
 
+
 def get_section_registry() -> Any:
     """Lazy import of section registry to avoid circular imports."""
     from .section_registry import get_registry
+
     return get_registry()
 
 
@@ -60,8 +62,10 @@ def get_all_categories() -> List[str]:
 # Chart Types (from JustJot chartTypes.ts)
 # ============================================
 
+
 class ChartType(str, Enum):
     """JustJot chart types for the 'chart' section type."""
+
     BAR = "bar"
     COLUMN = "column"
     LINE = "line"
@@ -115,9 +119,11 @@ def map_lida_chart_type(lida_type: str) -> ChartType:
 # Chart Data Structures
 # ============================================
 
+
 @dataclass
 class Dataset:
     """Chart dataset - single data series."""
+
     id: str
     label: str
     values: List[Union[float, int, None]]
@@ -146,14 +152,12 @@ class Dataset:
 @dataclass
 class ChartData:
     """Chart data structure with labels and datasets."""
+
     labels: List[str]
     datasets: List[Dataset]
 
     def to_dict(self) -> Dict:
-        return {
-            "labels": self.labels,
-            "datasets": [ds.to_dict() for ds in self.datasets]
-        }
+        return {"labels": self.labels, "datasets": [ds.to_dict() for ds in self.datasets]}
 
 
 @dataclass
@@ -199,6 +203,7 @@ class AnimationConfig:
 @dataclass
 class ReferenceLine:
     """Reference/threshold line on chart."""
+
     id: str
     axis: str
     value: float
@@ -208,15 +213,19 @@ class ReferenceLine:
 
     def to_dict(self) -> Dict:
         return {
-            "id": self.id, "axis": self.axis, "value": self.value,
-            "label": self.label, "color": self.color,
-            "strokeDasharray": self.strokeDasharray
+            "id": self.id,
+            "axis": self.axis,
+            "value": self.value,
+            "label": self.label,
+            "color": self.color,
+            "strokeDasharray": self.strokeDasharray,
         }
 
 
 @dataclass
 class ChartAnnotations:
     """Chart annotations - reference lines, areas, text."""
+
     referenceLines: List[ReferenceLine] = field(default_factory=list)
 
     def to_dict(self) -> Dict:
@@ -226,6 +235,7 @@ class ChartAnnotations:
 @dataclass
 class ChartCustomization:
     """Chart customization options."""
+
     colors: Optional[List[str]] = None
     useGradient: bool = False
     title: Optional[TitleConfig] = None
@@ -258,9 +268,11 @@ class ChartCustomization:
 # Section Content Classes
 # ============================================
 
+
 @dataclass
 class ChartSectionContent:
     """JustJot Chart Section Content (V2 Schema)."""
+
     version: int = 2
     type: ChartType = ChartType.BAR
     title: Optional[str] = None
@@ -287,6 +299,7 @@ class ChartSectionContent:
 @dataclass
 class DataTableSectionContent:
     """JustJot Data Table Section Content (CSV format)."""
+
     csv_content: str = ""
 
     def to_content(self) -> str:
@@ -296,6 +309,7 @@ class DataTableSectionContent:
 @dataclass
 class CodeSectionContent:
     """JustJot Code Section Content."""
+
     code: str = ""
     language: str = "python"
 
@@ -306,6 +320,7 @@ class CodeSectionContent:
 @dataclass
 class TextSectionContent:
     """JustJot Text/Markdown Section Content."""
+
     markdown: str = ""
 
     def to_content(self) -> str:
@@ -315,6 +330,7 @@ class TextSectionContent:
 @dataclass
 class HTMLSectionContent:
     """JustJot HTML Section Content for interactive visualizations."""
+
     html: str = ""
 
     def to_content(self) -> str:
@@ -325,6 +341,7 @@ class HTMLSectionContent:
 # JustJot Section and Idea Structures
 # ============================================
 
+
 @dataclass
 class JustJotSection:
     """
@@ -332,19 +349,16 @@ class JustJotSection:
 
     The type can be ANY valid section type from the registry.
     """
+
     title: str
     type: str  # Any section type from registry (e.g., 'chart', 'kanban-board', 'timeline')
     content: str  # JSON string or plain text depending on type's contentType
 
     def to_dict(self) -> Dict:
-        return {
-            "title": self.title,
-            "type": self.type,
-            "content": self.content
-        }
+        return {"title": self.title, "type": self.type, "content": self.content}
 
     @classmethod
-    def create(cls, title: str, section_type: str, content: Any) -> 'JustJotSection':
+    def create(cls, title: str, section_type: str, content: Any) -> "JustJotSection":
         """
         Create a section with automatic content serialization based on type.
 
@@ -357,7 +371,7 @@ class JustJotSection:
 
         if isinstance(content, str):
             content_str = content
-        elif content_type == 'json':
+        elif content_type == "json":
             content_str = json.dumps(content) if not isinstance(content, str) else content
         else:
             content_str = str(content)
@@ -368,6 +382,7 @@ class JustJotSection:
 @dataclass
 class JustJotIdea:
     """A complete JustJot idea with multiple sections."""
+
     title: str
     description: Optional[str] = None
     sections: List[JustJotSection] = field(default_factory=list)
@@ -385,13 +400,14 @@ class JustJotIdea:
             "sections": [s.to_dict() for s in self.sections],
             "tags": self.tags,
             "templateName": self.template_name,
-            "status": self.status
+            "status": self.status,
         }
 
 
 # ============================================
 # Section Type Context for LLM
 # ============================================
+
 
 def get_section_types_context() -> str:
     """
@@ -408,7 +424,7 @@ def get_section_types_context() -> str:
         "# JustJot Section Types Reference",
         "",
         "Available section types for creating ideas and visualizations:",
-        ""
+        "",
     ]
 
     for category in sorted(categories):
@@ -422,7 +438,7 @@ def get_section_types_context() -> str:
                 context_lines.append(f"- **Description**: {t.description}")
                 context_lines.append(f"- **Content Type**: {t.content_type}")
                 if t.content_schema:
-                    schema_preview = t.content_schema[:200].replace('\n', '\\n')
+                    schema_preview = t.content_schema[:200].replace("\n", "\\n")
                     context_lines.append(f"- **Schema Example**: `{schema_preview}...`")
                 context_lines.append("")
 
@@ -440,7 +456,7 @@ def get_visualization_types_context() -> str:
         "# Visualization Section Types",
         "",
         "Section types most suitable for data visualization and analysis:",
-        ""
+        "",
     ]
 
     for t in viz_types:
@@ -510,7 +526,7 @@ def suggest_section_type(
         return "html"
 
     # Default to chart for numeric visualization
-    if data_type in ['numeric', 'quantitative'] or visualization_goal:
+    if data_type in ["numeric", "quantitative"] or visualization_goal:
         return "chart"
 
     # Text content
@@ -520,6 +536,7 @@ def suggest_section_type(
 # ============================================
 # Chart Data Normalization Utilities
 # ============================================
+
 
 def normalize_chart_value(value: Any) -> None:
     """Normalize a chart value - convert float to int if whole number."""
@@ -546,10 +563,10 @@ def normalize_chart_data(data: dict) -> dict:
     if not isinstance(data, dict):
         return data
 
-    if 'data' in data and 'datasets' in data['data']:
-        for dataset in data['data']['datasets']:
-            if 'values' in dataset:
-                dataset['values'] = [normalize_chart_value(v) for v in dataset['values']]
+    if "data" in data and "datasets" in data["data"]:
+        for dataset in data["data"]["datasets"]:
+            if "values" in dataset:
+                dataset["values"] = [normalize_chart_value(v) for v in dataset["values"]]
 
     return data
 

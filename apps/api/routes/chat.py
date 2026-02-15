@@ -5,17 +5,16 @@ Chat routes - messaging, streaming, WebSocket, command streaming.
 import asyncio
 import json
 import logging
-from typing import Optional, Dict, Any, List
 from datetime import datetime
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
 
-
 def register_chat_routes(app, api):
-    from fastapi import HTTPException, WebSocket, WebSocketDisconnect, UploadFile, File, Form
-    from fastapi.responses import FileResponse, JSONResponse, StreamingResponse, HTMLResponse
+    from fastapi import File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
+    from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
     from pydantic import BaseModel
 
     @app.get("/api/commands")
@@ -33,9 +32,7 @@ def register_chat_routes(app, api):
     async def execute_command(request: CommandRequest):
         """Execute a CLI command."""
         result = await api.execute_command(
-            command=request.command,
-            args=request.args,
-            session_id=request.session_id
+            command=request.command, args=request.args, session_id=request.session_id
         )
         return result
 
@@ -46,13 +43,14 @@ def register_chat_routes(app, api):
 
         Streams command output in real-time for long-running commands like /ml.
         """
-        from starlette.responses import StreamingResponse
+        import io
         import json
         import queue
-        import threading
-        import sys
-        import io
         import re
+        import sys
+        import threading
+
+        from starlette.responses import StreamingResponse
 
         async def event_generator():
             # Thread-safe queue for output
@@ -67,8 +65,8 @@ def register_chat_routes(app, api):
 
             def clean_text(text):
                 """Remove ANSI codes and Rich markup."""
-                clean = re.sub(r'\x1b\[[0-9;]*m', '', str(text))
-                clean = re.sub(r'\[/?[^\]]*\]', '', clean)
+                clean = re.sub(r"\x1b\[[0-9;]*m", "", str(text))
+                clean = re.sub(r"\[/?[^\]]*\]", "", clean)
                 return clean.strip()
 
             def add_output(text):
@@ -89,8 +87,8 @@ def register_chat_routes(app, api):
                         # Also write to original for logging
                         self.original.write(text)
                         # Process for queue
-                        if '\n' in text or '\r' in text:
-                            parts = re.split(r'[\n\r]+', self.buffer + text)
+                        if "\n" in text or "\r" in text:
+                            parts = re.split(r"[\n\r]+", self.buffer + text)
                             self.buffer = ""
                             for part in parts:
                                 cleaned = clean_text(part)
@@ -114,6 +112,7 @@ def register_chat_routes(app, api):
             try:
                 # Get CLI instance (create fresh one for thread safety)
                 from ..cli.app import JottyCLI
+
                 cli = JottyCLI(no_color=True)
 
                 def capture_print(text, *a, **kw):
@@ -128,13 +127,16 @@ def register_chat_routes(app, api):
                 cli.renderer.error = lambda t: add_output(f"❌ {t}")
 
                 # Capture panel output
-                original_panel = getattr(cli.renderer, 'panel', None)
-                cli.renderer.panel = lambda content, **kwargs: add_output(f"📋 {kwargs.get('title', 'Panel')}:\n{content}")
+                original_panel = getattr(cli.renderer, "panel", None)
+                cli.renderer.panel = lambda content, **kwargs: add_output(
+                    f"📋 {kwargs.get('title', 'Panel')}:\n{content}"
+                )
 
                 # Capture tree output
-                original_tree = getattr(cli.renderer, 'tree', None)
+                original_tree = getattr(cli.renderer, "tree", None)
+
                 def capture_tree(data, **kwargs):
-                    title = kwargs.get('title', 'Data')
+                    title = kwargs.get("title", "Data")
                     if isinstance(data, dict):
                         lines = [f"🌳 {title}:"]
                         for k, v in data.items():
@@ -142,19 +144,23 @@ def register_chat_routes(app, api):
                         add_output("\n".join(lines))
                     else:
                         add_output(f"🌳 {title}: {data}")
+
                 cli.renderer.tree = capture_tree
 
                 # Capture table output
                 original_print_table = cli.renderer.tables.print_table
+
                 def capture_table(table):
                     try:
                         from rich.console import Console
+
                         string_io = io.StringIO()
                         console = Console(file=string_io, force_terminal=False, no_color=True)
                         console.print(table)
                         add_output(string_io.getvalue())
                     except Exception:
                         add_output(str(table))
+
                 cli.renderer.tables.print_table = capture_table
 
                 # Wrap stdout to capture print statements
@@ -225,7 +231,7 @@ def register_chat_routes(app, api):
                 "Cache-Control": "no-cache",
                 "Connection": "keep-alive",
                 "X-Accel-Buffering": "no",
-            }
+            },
         )
 
     class ChatRequest(BaseModel):
@@ -255,12 +261,10 @@ def register_chat_routes(app, api):
         Non-streaming endpoint for simple integrations.
         """
         import uuid
+
         session_id = request.session_id or str(uuid.uuid4())[:8]
 
-        result = await api.process_message(
-            message=request.message,
-            session_id=session_id
-        )
+        result = await api.process_message(message=request.message, session_id=session_id)
 
         return ChatResponse(**result)
 
@@ -272,8 +276,9 @@ def register_chat_routes(app, api):
         Returns Server-Sent Events for real-time streaming.
         Uses asyncio.Queue for proper async handling without blocking.
         """
-        from starlette.responses import StreamingResponse
         import json
+
+        from starlette.responses import StreamingResponse
 
         session_id = session_id or str(uuid.uuid4())[:8]
 
@@ -284,6 +289,7 @@ def register_chat_routes(app, api):
         async def process_message_async():
             """Process message and put events in queue."""
             try:
+
                 async def async_stream_cb(chunk: str):
                     """Async callback that puts chunks in queue."""
                     logger.info(f"STREAM_CB: '{chunk[:30]}...' queued")
@@ -298,12 +304,14 @@ def register_chat_routes(app, api):
                     message=message,
                     session_id=session_id,
                     stream_callback=async_stream_cb,
-                    status_callback=async_status_cb
+                    status_callback=async_status_cb,
                 )
                 await event_queue.put({"type": "complete", "result": result})
             except Exception as e:
                 logger.error(f"Chat processing error: {e}", exc_info=True)
-                await event_queue.put({"type": "complete", "result": {"success": False, "error": str(e)}})
+                await event_queue.put(
+                    {"type": "complete", "result": {"success": False, "error": str(e)}}
+                )
             finally:
                 done_event.set()
 
@@ -348,7 +356,7 @@ def register_chat_routes(app, api):
                 "X-Content-Type-Options": "nosniff",
                 "Pragma": "no-cache",
                 "Expires": "0",
-            }
+            },
         )
 
     @app.post("/api/chat/context")
@@ -368,7 +376,7 @@ def register_chat_routes(app, api):
             context = processor.get_context_for_chat(
                 query=request.message,
                 context_type=request.context_type,
-                context_id=request.context_id
+                context_id=request.context_id,
             )
 
             # Build enhanced message with context
@@ -384,10 +392,7 @@ QUESTION: {request.message}"""
 
             # Process through normal chat flow
             session_id = request.session_id or str(uuid.uuid4())[:8]
-            result = await api.process_message(
-                message=enhanced_message,
-                session_id=session_id
-            )
+            result = await api.process_message(message=enhanced_message, session_id=session_id)
 
             # Add context info to result
             result["context_used"] = bool(context)
@@ -402,17 +407,16 @@ QUESTION: {request.message}"""
 
     @app.get("/api/chat/context/stream")
     async def chat_with_context_stream(
-        message: str,
-        context_type: str,
-        context_id: str,
-        session_id: Optional[str] = None
+        message: str, context_type: str, context_id: str, session_id: Optional[str] = None
     ):
         """SSE streaming chat with document/folder context."""
-        from starlette.responses import StreamingResponse
-        from .documents import get_document_processor
-        import queue
         import concurrent.futures
         import json
+        import queue
+
+        from starlette.responses import StreamingResponse
+
+        from .documents import get_document_processor
 
         session_id = session_id or str(uuid.uuid4())[:8]
 
@@ -421,9 +425,7 @@ QUESTION: {request.message}"""
             try:
                 processor = get_document_processor()
                 context = processor.get_context_for_chat(
-                    query=message,
-                    context_type=context_type,
-                    context_id=context_id
+                    query=message, context_type=context_type, context_id=context_id
                 )
             except Exception as e:
                 logger.error(f"Failed to get context: {e}")
@@ -463,7 +465,7 @@ QUESTION: {message}"""
                                 message=enhanced_message,
                                 session_id=session_id,
                                 stream_callback=sync_stream_cb,
-                                status_callback=sync_status_cb
+                                status_callback=sync_status_cb,
                             )
                         )
                         result_holder["result"] = result
@@ -505,7 +507,7 @@ QUESTION: {message}"""
                 "Cache-Control": "no-cache, no-store, no-transform, must-revalidate",
                 "Connection": "keep-alive",
                 "X-Accel-Buffering": "no",
-            }
+            },
         )
 
     # ===== AG-UI PROTOCOL ENDPOINT =====
@@ -548,17 +550,21 @@ QUESTION: {message}"""
                     attachments = data.get("attachments", [])
 
                     # Debug logging for attachments
-                    logger.info(f"WS message received: content length={len(content)}, attachments={len(attachments)}")
+                    logger.info(
+                        f"WS message received: content length={len(content)}, attachments={len(attachments)}"
+                    )
                     if attachments:
                         for i, att in enumerate(attachments):
-                            data_preview = att.get('data', '')[:50] if att.get('data') else 'None'
-                            logger.info(f"  Attachment {i}: type={att.get('type')}, name={att.get('name')}, data_start={data_preview}")
+                            data_preview = att.get("data", "")[:50] if att.get("data") else "None"
+                            logger.info(
+                                f"  Attachment {i}: type={att.get('type')}, name={att.get('name')}, data_start={data_preview}"
+                            )
 
                     if not content.strip() and not attachments:
                         continue
 
-                    import queue
                     import concurrent.futures
+                    import queue
 
                     # Thread-safe queue for events
                     event_queue = queue.Queue()
@@ -575,7 +581,9 @@ QUESTION: {message}"""
                     status_detail = "Starting..."
                     if attachments:
                         status_detail = f"Processing {len(attachments)} image(s)..."
-                    await websocket.send_json({"type": "status", "stage": "processing", "detail": status_detail})
+                    await websocket.send_json(
+                        {"type": "status", "stage": "processing", "detail": status_detail}
+                    )
 
                     # Run processing in thread
                     def process_sync():
@@ -589,11 +597,13 @@ QUESTION: {message}"""
                                         session_id=session_id,
                                         stream_callback=sync_stream_cb,
                                         status_callback=sync_status_cb,
-                                        attachments=attachments
+                                        attachments=attachments,
                                     )
                                 )
                                 result_holder["result"] = result
-                                logger.info(f"WS result: success={result.get('success')}, path={result.get('output_path')}")
+                                logger.info(
+                                    f"WS result: success={result.get('success')}, path={result.get('output_path')}"
+                                )
                             finally:
                                 loop.close()
                         except Exception as e:
@@ -633,20 +643,28 @@ QUESTION: {message}"""
                     result = result_holder["result"]
                     logger.info(f"WS final result check: {result}")
                     if result and result.get("success"):
-                        await websocket.send_json({
-                            "type": "complete",
-                            "result": {
-                                "success": True,
-                                "message_id": result.get("message_id", ""),
-                                "content": result.get("content", ""),
-                                "output_path": result.get("output_path")
+                        await websocket.send_json(
+                            {
+                                "type": "complete",
+                                "result": {
+                                    "success": True,
+                                    "message_id": result.get("message_id", ""),
+                                    "content": result.get("content", ""),
+                                    "output_path": result.get("output_path"),
+                                },
                             }
-                        })
+                        )
                     else:
-                        await websocket.send_json({
-                            "type": "error",
-                            "error": result.get("error", "Unknown error") if result else "Processing failed"
-                        })
+                        await websocket.send_json(
+                            {
+                                "type": "error",
+                                "error": (
+                                    result.get("error", "Unknown error")
+                                    if result
+                                    else "Processing failed"
+                                ),
+                            }
+                        )
 
                 elif data.get("type") == "ping":
                     await websocket.send_json({"type": "pong"})
@@ -661,4 +679,3 @@ QUESTION: {message}"""
     # ===== URL PROXY ENDPOINT =====
     # Server-side proxy to load websites that block iframe embedding
     # Strips X-Frame-Options and Content-Security-Policy headers
-

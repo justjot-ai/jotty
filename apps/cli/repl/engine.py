@@ -5,14 +5,15 @@ REPL Engine
 Main REPL (Read-Eval-Print Loop) engine using prompt_toolkit.
 """
 
-import sys
 import logging
-from typing import TYPE_CHECKING, Optional, Callable, Awaitable, Any
+import sys
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Optional
 
 try:
     from prompt_toolkit import PromptSession
-    from prompt_toolkit.styles import Style
     from prompt_toolkit.formatted_text import HTML
+    from prompt_toolkit.styles import Style
+
     PROMPT_TOOLKIT_AVAILABLE = True
 except ImportError:
     PROMPT_TOOLKIT_AVAILABLE = False
@@ -20,9 +21,9 @@ except ImportError:
     Style = None
     HTML = None
 
-from .history import HistoryManager
-from .completer import CommandCompleter, SimpleCompleter
 from ..ui.renderer import FooterHints, REPLState
+from .completer import CommandCompleter, SimpleCompleter
+from .history import HistoryManager
 
 if TYPE_CHECKING:
     from ..commands.base import CommandRegistry
@@ -41,7 +42,14 @@ class REPLEngine:
     - Vi/Emacs key bindings
     """
 
-    def __init__(self, command_registry: 'CommandRegistry', history_file: Optional[str] = None, prompt_text: str = 'jotty> ', multiline: bool = False, vi_mode: bool = False) -> None:
+    def __init__(
+        self,
+        command_registry: "CommandRegistry",
+        history_file: Optional[str] = None,
+        prompt_text: str = "jotty> ",
+        multiline: bool = False,
+        vi_mode: bool = False,
+    ) -> None:
         """
         Initialize REPL engine.
 
@@ -79,14 +87,16 @@ class REPLEngine:
             return None
 
         # Style - colors for different UI elements
-        style = Style.from_dict({
-            "": "ansiwhite",           # Default text
-            "completion-menu": "bg:ansiblack ansiwhite",
-            "completion-menu.completion": "bg:ansiblack ansiwhite",
-            "completion-menu.completion.current": "bg:ansicyan ansiblack",
-            "completion-menu.meta.completion": "bg:ansiblack ansigray",
-            "completion-menu.meta.completion.current": "bg:ansicyan ansiblack",
-        })
+        style = Style.from_dict(
+            {
+                "": "ansiwhite",  # Default text
+                "completion-menu": "bg:ansiblack ansiwhite",
+                "completion-menu.completion": "bg:ansiblack ansiwhite",
+                "completion-menu.completion.current": "bg:ansicyan ansiblack",
+                "completion-menu.meta.completion": "bg:ansiblack ansigray",
+                "completion-menu.meta.completion.current": "bg:ansicyan ansiblack",
+            }
+        )
 
         # Bottom toolbar callback
         def _bottom_toolbar() -> Any:
@@ -106,7 +116,11 @@ class REPLEngine:
 
         return session
 
-    async def run(self, handler: Callable[[str], Awaitable[bool]], welcome_callback: Optional[Callable[[], None]] = None) -> Any:
+    async def run(
+        self,
+        handler: Callable[[str], Awaitable[bool]],
+        welcome_callback: Optional[Callable[[], None]] = None,
+    ) -> Any:
         """
         Run the REPL loop.
 
@@ -156,6 +170,7 @@ class REPLEngine:
                 logger.error(f"REPL error: {e}")
                 if logger.level <= logging.DEBUG:
                     import traceback
+
                     traceback.print_exc()
 
         self._running = False
@@ -177,10 +192,10 @@ class REPLEngine:
                 else:
                     # Fallback to sync prompt in thread
                     import asyncio
+
                     loop = asyncio.get_running_loop()
                     return await loop.run_in_executor(
-                        None,
-                        lambda: self._session.prompt(self.prompt_text)
+                        None, lambda: self._session.prompt(self.prompt_text)
                     )
             except EOFError:
                 return None
@@ -235,12 +250,16 @@ class SimpleREPL:
     Fallback for environments without prompt_toolkit.
     """
 
-    def __init__(self, command_registry: 'CommandRegistry', prompt_text: str = 'jotty> ') -> None:
+    def __init__(self, command_registry: "CommandRegistry", prompt_text: str = "jotty> ") -> None:
         self.command_registry = command_registry
         self.prompt_text = prompt_text
         self._running = False
 
-    async def run(self, handler: Callable[[str], Awaitable[bool]], welcome_callback: Optional[Callable[[], None]] = None) -> Any:
+    async def run(
+        self,
+        handler: Callable[[str], Awaitable[bool]],
+        welcome_callback: Optional[Callable[[], None]] = None,
+    ) -> Any:
         """Run simple REPL loop."""
         self._running = True
 

@@ -7,17 +7,17 @@ memory entries, goal hierarchies, and causal knowledge.
 Extracted from data_structures.py for better organization.
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Any, Optional, Tuple
-from datetime import datetime
 import hashlib
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple
 
 from .enums import MemoryLevel
-
 
 # =============================================================================
 # GOAL HIERARCHY (Aristotle Enhancement)
 # =============================================================================
+
 
 @dataclass
 class GoalNode:
@@ -36,21 +36,22 @@ class GoalNode:
             ├── pandas_queries
             └── visualization
     """
+
     goal_id: str
     goal_text: str
     parent_id: Optional[str] = None
     children_ids: List[str] = field(default_factory=list)
 
     # Goal characteristics for matching
-    domain: str = "general"           # sql, python, api, etc.
-    operation_type: str = "query"     # query, mutation, analysis
+    domain: str = "general"  # sql, python, api, etc.
+    operation_type: str = "query"  # query, mutation, analysis
     entities: List[str] = field(default_factory=list)  # tables, objects involved
 
     # Learning state
     episode_count: int = 0
     success_rate: float = 0.5
 
-    def similarity_score(self, other: 'GoalNode') -> float:
+    def similarity_score(self, other: "GoalNode") -> float:
         """Compute structural similarity for knowledge transfer."""
         score = 0.0
 
@@ -81,12 +82,18 @@ class GoalHierarchy:
     """
     NEW: Manages the goal hierarchy for knowledge transfer.
     """
+
     nodes: Dict[str, GoalNode] = field(default_factory=dict)
     root_id: str = "root"
 
-    def add_goal(self, goal_text: str, domain: str = "general",
-                 operation_type: str = "query", entities: List[str] = None,
-                 parent_id: str = None) -> str:
+    def add_goal(
+        self,
+        goal_text: str,
+        domain: str = "general",
+        operation_type: str = "query",
+        entities: List[str] = None,
+        parent_id: str = None,
+    ) -> str:
         """Add a new goal, auto-detecting hierarchy position."""
         goal_id = hashlib.md5(goal_text.encode()).hexdigest()
 
@@ -105,7 +112,7 @@ class GoalHierarchy:
             parent_id=parent_id,
             domain=domain,
             operation_type=operation_type,
-            entities=entities or []
+            entities=entities or [],
         )
 
         self.nodes[goal_id] = node
@@ -147,6 +154,7 @@ class GoalHierarchy:
 # CAUSAL KNOWLEDGE (Aristotle Enhancement)
 # =============================================================================
 
+
 @dataclass
 class CausalLink:
     """
@@ -154,9 +162,10 @@ class CausalLink:
 
     Captures WHY something works, not just WHAT works.
     """
-    cause: str                    # "Trino parser requires type annotation"
-    effect: str                   # "DATE literal needed for date columns"
-    confidence: float = 0.5       # Confidence in causal relationship
+
+    cause: str  # "Trino parser requires type annotation"
+    effect: str  # "DATE literal needed for date columns"
+    confidence: float = 0.5  # Confidence in causal relationship
 
     # Evidence
     supporting_episodes: List[int] = field(default_factory=list)
@@ -199,9 +208,11 @@ class CausalLink:
 # MEMORY ENTRIES (Enhanced)
 # =============================================================================
 
+
 @dataclass
 class GoalValue:
     """Value estimate for a specific goal."""
+
     value: float = 0.5
     access_count: int = 0
     last_updated: datetime = field(default_factory=datetime.now)
@@ -216,6 +227,7 @@ class MemoryEntry:
     """
     Enhanced memory entry with all A-Team improvements.
     """
+
     key: str
     content: str
     level: MemoryLevel
@@ -263,8 +275,9 @@ class MemoryEntry:
             return self.goal_values[goal].value
         return self.default_value
 
-    def get_value_with_transfer(self, goal: str, goal_hierarchy: GoalHierarchy,
-                                 transfer_weight: float = 0.3) -> float:
+    def get_value_with_transfer(
+        self, goal: str, goal_hierarchy: GoalHierarchy, transfer_weight: float = 0.3
+    ) -> float:
         """
         NEW: Get value with knowledge transfer from related goals.
         """
@@ -297,8 +310,9 @@ class MemoryEntry:
 
         return self.default_value
 
-    def get_ucb_score(self, goal: str, total_accesses: int,
-                      c: float = 2.0, goal_hierarchy: GoalHierarchy = None) -> float:
+    def get_ucb_score(
+        self, goal: str, total_accesses: int, c: float = 2.0, goal_hierarchy: GoalHierarchy = None
+    ) -> float:
         """Get UCB score for exploration-exploitation balance."""
         if goal_hierarchy:
             value = self.get_value_with_transfer(goal, goal_hierarchy)
@@ -306,8 +320,9 @@ class MemoryEntry:
             value = self.get_value(goal)
 
         if self.ucb_visits == 0:
-            return float('inf')  # Unexplored = highest priority
+            return float("inf")  # Unexplored = highest priority
 
         import math
+
         exploration_bonus = c * math.sqrt(math.log(total_accesses + 1) / self.ucb_visits)
         return value + exploration_bonus

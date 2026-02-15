@@ -1,8 +1,10 @@
 """RSS Feed Reader Skill - fetch and parse RSS/Atom feeds."""
+
 import xml.etree.ElementTree as ET
-from typing import Dict, Any, List, Optional
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from typing import Any, Dict, List, Optional
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("rss-feed-reader")
 
@@ -29,13 +31,15 @@ def _parse_rss(root: ET.Element, limit: int) -> dict:
     description = _text(channel.find("description"))
     items = []
     for item in channel.findall("item")[:limit]:
-        items.append({
-            "title": _text(item.find("title")),
-            "link": _text(item.find("link")),
-            "description": _text(item.find("description"))[:500],
-            "pub_date": _text(item.find("pubDate")),
-            "author": _text(item.find("dc:creator", NS)) or _text(item.find("author")),
-        })
+        items.append(
+            {
+                "title": _text(item.find("title")),
+                "link": _text(item.find("link")),
+                "description": _text(item.find("description"))[:500],
+                "pub_date": _text(item.find("pubDate")),
+                "author": _text(item.find("dc:creator", NS)) or _text(item.find("author")),
+            }
+        )
     return {"title": title, "description": description, "items": items}
 
 
@@ -47,13 +51,16 @@ def _parse_atom(root: ET.Element, limit: int) -> dict:
         link_el = entry.find(f"{{{ns}}}link")
         link = link_el.get("href", "") if link_el is not None else ""
         summary = _text(entry.find(f"{{{ns}}}summary")) or _text(entry.find(f"{{{ns}}}content"))
-        items.append({
-            "title": _text(entry.find(f"{{{ns}}}title")),
-            "link": link,
-            "description": summary[:500],
-            "pub_date": _text(entry.find(f"{{{ns}}}updated")) or _text(entry.find(f"{{{ns}}}published")),
-            "author": _text(entry.find(f"{{{ns}}}author/{{{ns}}}name")),
-        })
+        items.append(
+            {
+                "title": _text(entry.find(f"{{{ns}}}title")),
+                "link": link,
+                "description": summary[:500],
+                "pub_date": _text(entry.find(f"{{{ns}}}updated"))
+                or _text(entry.find(f"{{{ns}}}published")),
+                "author": _text(entry.find(f"{{{ns}}}author/{{{ns}}}name")),
+            }
+        )
     return {"title": title, "description": "", "items": items}
 
 
@@ -66,6 +73,7 @@ def fetch_rss_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
     try:
         import requests
+
         resp = requests.get(url, timeout=15, headers={"User-Agent": "JottyRSSReader/1.0"})
         resp.raise_for_status()
         xml_text = resp.text

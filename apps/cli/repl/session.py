@@ -6,22 +6,23 @@ Manages CLI session state, history, and context.
 Supports cross-interface sync for CLI, Telegram, and Web UI.
 """
 
-import json
-import uuid
-import logging
-import threading
-import hashlib
-import secrets
 import base64
-from pathlib import Path
-from typing import Optional, List, Dict, Any
+import hashlib
+import json
+import logging
+import secrets
+import threading
+import uuid
 from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
 
 class InterfaceType:
     """Interface type constants for message tracking."""
+
     CLI = "cli"
     TELEGRAM = "telegram"
     WEB = "web"
@@ -31,7 +32,18 @@ class InterfaceType:
 class Message:
     """A message in the conversation with interface tracking and branching support."""
 
-    def __init__(self, role: str, content: str, timestamp: Optional[datetime] = None, metadata: Optional[Dict[str, Any]] = None, interface: str = InterfaceType.CLI, message_id: Optional[str] = None, user_id: Optional[str] = None, parent_id: Optional[str] = None, branch_id: str = 'main') -> None:
+    def __init__(
+        self,
+        role: str,
+        content: str,
+        timestamp: Optional[datetime] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        interface: str = InterfaceType.CLI,
+        message_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+        parent_id: Optional[str] = None,
+        branch_id: str = "main",
+    ) -> None:
         self.role = role
         self.content = content
         self.timestamp = timestamp or datetime.now()
@@ -74,7 +86,17 @@ class Message:
 class ShareLink:
     """Represents a shareable link for a conversation session."""
 
-    def __init__(self, session_id: str, token: Optional[str] = None, title: Optional[str] = None, expires_at: Optional[datetime] = None, created_at: Optional[datetime] = None, access_count: int = 0, is_active: bool = True, branch_id: str = 'main') -> None:
+    def __init__(
+        self,
+        session_id: str,
+        token: Optional[str] = None,
+        title: Optional[str] = None,
+        expires_at: Optional[datetime] = None,
+        created_at: Optional[datetime] = None,
+        access_count: int = 0,
+        is_active: bool = True,
+        branch_id: str = "main",
+    ) -> None:
         self.session_id = session_id
         self.token = token or secrets.token_urlsafe(16)
         self.title = title
@@ -106,7 +128,7 @@ class ShareLink:
             "access_count": self.access_count,
             "is_active": self.is_active,
             "branch_id": self.branch_id,
-            "is_valid": self.is_valid
+            "is_valid": self.is_valid,
         }
 
     @classmethod
@@ -115,11 +137,15 @@ class ShareLink:
             session_id=data["session_id"],
             token=data.get("token"),
             title=data.get("title"),
-            expires_at=datetime.fromisoformat(data["expires_at"]) if data.get("expires_at") else None,
-            created_at=datetime.fromisoformat(data["created_at"]) if data.get("created_at") else None,
+            expires_at=(
+                datetime.fromisoformat(data["expires_at"]) if data.get("expires_at") else None
+            ),
+            created_at=(
+                datetime.fromisoformat(data["created_at"]) if data.get("created_at") else None
+            ),
             access_count=data.get("access_count", 0),
             is_active=data.get("is_active", True),
-            branch_id=data.get("branch_id", "main")
+            branch_id=data.get("branch_id", "main"),
         )
 
 
@@ -137,7 +163,9 @@ class ShareLinkRegistry:
                 if cls._instance is None:
                     cls._instance = super().__new__(cls)
                     cls._instance._links: Dict[str, ShareLink] = {}  # token -> ShareLink
-                    cls._instance._session_links: Dict[str, List[str]] = {}  # session_id -> [tokens]
+                    cls._instance._session_links: Dict[str, List[str]] = (
+                        {}
+                    )  # session_id -> [tokens]
                     cls._instance._share_dir = Path("~/.jotty/shares").expanduser()
                     cls._instance._share_dir.mkdir(parents=True, exist_ok=True)
                     cls._instance._load_links()
@@ -174,7 +202,7 @@ class ShareLinkRegistry:
         session_id: str,
         title: Optional[str] = None,
         expires_in_days: Optional[int] = None,
-        branch_id: str = "main"
+        branch_id: str = "main",
     ) -> ShareLink:
         """Create a new share link for a session."""
         with self._lock:
@@ -183,10 +211,7 @@ class ShareLinkRegistry:
                 expires_at = datetime.now() + timedelta(days=expires_in_days)
 
             link = ShareLink(
-                session_id=session_id,
-                title=title,
-                expires_at=expires_at,
-                branch_id=branch_id
+                session_id=session_id, title=title, expires_at=expires_at, branch_id=branch_id
             )
 
             self._links[link.token] = link
@@ -231,7 +256,7 @@ class ShareLinkRegistry:
                 session_id=old_link.session_id,
                 title=old_link.title,
                 expires_at=datetime.now() + timedelta(days=expires_in_days),
-                branch_id=old_link.branch_id
+                branch_id=old_link.branch_id,
             )
 
             # Revoke old link
@@ -292,10 +317,7 @@ class SessionRegistry:
         return cls._instance
 
     def get_session(
-        self,
-        session_id: str,
-        create: bool = True,
-        interface: str = InterfaceType.CLI
+        self, session_id: str, create: bool = True, interface: str = InterfaceType.CLI
     ) -> Optional["SessionManager"]:
         """
         Get or create a session by ID.
@@ -362,7 +384,15 @@ class SessionManager:
     # Constants for temporary chat
     TEMP_CHAT_EXPIRY_DAYS = 30
 
-    def __init__(self, session_id: Optional[str] = None, session_dir: Optional[str] = None, context_window: int = 20, auto_save: bool = True, interface: str = InterfaceType.CLI, is_temporary: bool = False) -> None:
+    def __init__(
+        self,
+        session_id: Optional[str] = None,
+        session_dir: Optional[str] = None,
+        context_window: int = 20,
+        auto_save: bool = True,
+        interface: str = InterfaceType.CLI,
+        is_temporary: bool = False,
+    ) -> None:
         """
         Initialize session manager.
 
@@ -400,7 +430,14 @@ class SessionManager:
         """Get session file path."""
         return self.session_dir / f"{self.session_id}.json"
 
-    def add_message(self, role: str, content: str, metadata: Optional[Dict[str, Any]] = None, interface: Optional[str] = None, user_id: Optional[str] = None) -> Any:
+    def add_message(
+        self,
+        role: str,
+        content: str,
+        metadata: Optional[Dict[str, Any]] = None,
+        interface: Optional[str] = None,
+        user_id: Optional[str] = None,
+    ) -> Any:
         """
         Add message to history.
 
@@ -416,7 +453,7 @@ class SessionManager:
             content=content,
             metadata=metadata,
             interface=interface or self.last_interface,
-            user_id=user_id
+            user_id=user_id,
         )
         self.conversation_history.append(message)
 
@@ -430,7 +467,7 @@ class SessionManager:
         Returns:
             List of last N messages as dicts
         """
-        messages = self.conversation_history[-self.context_window:]
+        messages = self.conversation_history[-self.context_window :]
         return [{"role": m.role, "content": m.content} for m in messages]
 
     def get_history(self, limit: int = None) -> List[Dict[str, Any]]:
@@ -509,7 +546,11 @@ class SessionManager:
                 data = json.load(f)
 
             self.session_id = data.get("session_id", self.session_id)
-            self.created_at = datetime.fromisoformat(data["created_at"]) if data.get("created_at") else datetime.now()
+            self.created_at = (
+                datetime.fromisoformat(data["created_at"])
+                if data.get("created_at")
+                else datetime.now()
+            )
             self.working_dir = Path(data.get("working_dir", "."))
             self.context_window = data.get("context_window", 20)
             self.metadata = data.get("metadata", {})
@@ -520,14 +561,18 @@ class SessionManager:
 
             # Load temporary chat data
             self.is_temporary = data.get("is_temporary", False)
-            self.expires_at = datetime.fromisoformat(data["expires_at"]) if data.get("expires_at") else None
+            self.expires_at = (
+                datetime.fromisoformat(data["expires_at"]) if data.get("expires_at") else None
+            )
 
             logger.info(f"Session loaded: {self.session_id}")
 
         except Exception as e:
             logger.error(f"Failed to load session: {e}")
 
-    def list_sessions(self, include_temporary: bool = False, include_expired: bool = False) -> List[Dict[str, Any]]:
+    def list_sessions(
+        self, include_temporary: bool = False, include_expired: bool = False
+    ) -> List[Dict[str, Any]]:
         """
         List available sessions.
 
@@ -556,15 +601,17 @@ class SessionManager:
                 if is_expired and not include_expired:
                     continue
 
-                sessions.append({
-                    "session_id": data.get("session_id", file.stem),
-                    "created_at": data.get("created_at"),
-                    "message_count": len(data.get("conversation_history", [])),
-                    "path": str(file),
-                    "is_temporary": is_temp,
-                    "expires_at": expires_at_str,
-                    "is_expired": is_expired,
-                })
+                sessions.append(
+                    {
+                        "session_id": data.get("session_id", file.stem),
+                        "created_at": data.get("created_at"),
+                        "message_count": len(data.get("conversation_history", [])),
+                        "path": str(file),
+                        "is_temporary": is_temp,
+                        "expires_at": expires_at_str,
+                        "is_expired": is_expired,
+                    }
+                )
             except Exception:
                 continue
 
@@ -619,7 +666,7 @@ class SessionManager:
             "last_interface": self.last_interface,
             "interface_summary": self.get_interface_summary(),
             "branches": self.get_branches(),
-            "active_branch": getattr(self, 'active_branch', 'main'),
+            "active_branch": getattr(self, "active_branch", "main"),
             "is_temporary": self.is_temporary,
             "expires_at": self.expires_at.isoformat() if self.expires_at else None,
             "is_expired": self.is_expired,
@@ -721,15 +768,17 @@ class SessionManager:
                     "message_count": 0,
                     "messages": [],
                     "parent_branch": None,
-                    "fork_point": None
+                    "fork_point": None,
                 }
             tree[branch]["message_count"] += 1
-            tree[branch]["messages"].append({
-                "message_id": msg.message_id,
-                "role": msg.role,
-                "preview": msg.content[:50] + "..." if len(msg.content) > 50 else msg.content,
-                "parent_id": msg.parent_id
-            })
+            tree[branch]["messages"].append(
+                {
+                    "message_id": msg.message_id,
+                    "role": msg.role,
+                    "preview": msg.content[:50] + "..." if len(msg.content) > 50 else msg.content,
+                    "parent_id": msg.parent_id,
+                }
+            )
 
             # Track parent branch from metadata
             if "parent_branch" in msg.metadata:
@@ -739,11 +788,7 @@ class SessionManager:
 
         return tree
 
-    def create_branch(
-        self,
-        from_message_id: str,
-        branch_name: Optional[str] = None
-    ) -> str:
+    def create_branch(self, from_message_id: str, branch_name: Optional[str] = None) -> str:
         """
         Create a new branch from a specific message.
 
@@ -777,13 +822,13 @@ class SessionManager:
             new_branch_id = f"branch_{branch_num}"
 
         # Store branch metadata
-        if not hasattr(self, 'branch_metadata'):
+        if not hasattr(self, "branch_metadata"):
             self.branch_metadata = {}
 
         self.branch_metadata[new_branch_id] = {
             "parent_branch": source_msg.branch_id,
             "fork_point": from_message_id,
-            "created_at": datetime.now().isoformat()
+            "created_at": datetime.now().isoformat(),
         }
 
         # Set active branch
@@ -796,10 +841,7 @@ class SessionManager:
         return new_branch_id
 
     def edit_message(
-        self,
-        message_id: str,
-        new_content: str,
-        create_branch: bool = True
+        self, message_id: str, new_content: str, create_branch: bool = True
     ) -> Optional[str]:
         """
         Edit a message, optionally creating a new branch.
@@ -840,8 +882,8 @@ class SessionManager:
                     **target_msg.metadata,
                     "edited_from": message_id,
                     "parent_branch": target_msg.branch_id,
-                    "fork_point": message_id
-                }
+                    "fork_point": message_id,
+                },
             )
             self.conversation_history.append(edited_msg)
 
@@ -892,13 +934,13 @@ class SessionManager:
         Returns:
             List of messages as dicts for LLM context
         """
-        branch_id = branch_id or getattr(self, 'active_branch', 'main')
+        branch_id = branch_id or getattr(self, "active_branch", "main")
 
         # Get messages for this branch
         branch_messages = self.get_branch_messages(branch_id)
 
         # If branch has parent, include parent messages up to fork point
-        if hasattr(self, 'branch_metadata') and branch_id in self.branch_metadata:
+        if hasattr(self, "branch_metadata") and branch_id in self.branch_metadata:
             meta = self.branch_metadata[branch_id]
             parent_branch = meta.get("parent_branch")
             fork_point = meta.get("fork_point")
@@ -912,7 +954,7 @@ class SessionManager:
                 branch_messages = parent_messages + branch_messages
 
         # Apply context window limit
-        messages = branch_messages[-self.context_window:]
+        messages = branch_messages[-self.context_window :]
         return [{"role": m.role, "content": m.content} for m in messages]
 
     def delete_branch(self, branch_id: str) -> bool:
@@ -932,17 +974,16 @@ class SessionManager:
 
         # Remove all messages in this branch
         self.conversation_history = [
-            m for m in self.conversation_history
-            if m.branch_id != branch_id
+            m for m in self.conversation_history if m.branch_id != branch_id
         ]
 
         # Remove branch metadata
-        if hasattr(self, 'branch_metadata') and branch_id in self.branch_metadata:
+        if hasattr(self, "branch_metadata") and branch_id in self.branch_metadata:
             del self.branch_metadata[branch_id]
 
         # Switch to main if we deleted active branch
-        if getattr(self, 'active_branch', 'main') == branch_id:
-            self.active_branch = 'main'
+        if getattr(self, "active_branch", "main") == branch_id:
+            self.active_branch = "main"
 
         if self.auto_save:
             self.save()

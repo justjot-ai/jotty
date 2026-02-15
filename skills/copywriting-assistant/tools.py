@@ -1,7 +1,9 @@
 """Copywriting Assistant Skill - marketing copy frameworks."""
-from typing import Dict, Any
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+
+from typing import Any, Dict
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("copywriting-assistant")
 
@@ -119,7 +121,9 @@ def generate_copy_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         framework=fw["name"],
         framework_sections=fw["sections"],
         section_descriptions=dict(zip(fw["sections"], fw["descriptions"])),
-        product=product, audience=audience, tone=tone,
+        product=product,
+        audience=audience,
+        tone=tone,
     )
 
 

@@ -12,9 +12,11 @@ from typing import Any, Dict, List, Optional
 # Source definitions: Microsoft, Hugging Face, and other players
 # -----------------------------------------------------------------------------
 
+
 @dataclass
 class LLMDocSource:
     """Single open-source LLM doc or dataset source."""
+
     id: str
     name: str
     provider: str  # e.g. "microsoft", "huggingface"
@@ -176,6 +178,7 @@ def load_hf_dataset_info(repo_id: str, config: Optional[str] = None) -> Optional
     """
     try:
         from huggingface_hub import dataset_info
+
         info = dataset_info(repo_id, token=None)
         return {
             "id": repo_id,

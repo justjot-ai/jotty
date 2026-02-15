@@ -1,4 +1,5 @@
 from typing import Any
+
 """
 Data Analysis Swarm - World-Class Data Science & Analytics
 ==========================================================
@@ -49,20 +50,26 @@ Date: February 2026
 """
 
 import asyncio
-import logging
 import json
-import dspy
-from typing import Dict, Any, Optional, List
+import logging
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
+import dspy
+
+from Jotty.core.modes.agent.base import BaseSwarmAgent, DomainAgent, DomainAgentConfig
+
+from .base import AgentTeam, DomainSwarm, _split_field
 from .base_swarm import (
-    BaseSwarm, SwarmBaseConfig, SwarmResult, AgentRole,
-    register_swarm, ExecutionTrace
+    AgentRole,
+    BaseSwarm,
+    ExecutionTrace,
+    SwarmBaseConfig,
+    SwarmResult,
+    register_swarm,
 )
-from .base import DomainSwarm, AgentTeam, _split_field
 from .swarm_signatures import DataAnalysisSwarmSignature
-from Jotty.core.modes.agent.base import DomainAgent, DomainAgentConfig, BaseSwarmAgent
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +77,7 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
+
 
 class AnalysisType(Enum):
     EDA = "eda"
@@ -99,9 +107,10 @@ class VisualizationType(Enum):
 @dataclass
 class DataAnalysisConfig(SwarmBaseConfig):
     """Configuration for DataAnalysisSwarm."""
-    analysis_types: List[AnalysisType] = field(default_factory=lambda: [
-        AnalysisType.EDA, AnalysisType.STATISTICAL
-    ])
+
+    analysis_types: List[AnalysisType] = field(
+        default_factory=lambda: [AnalysisType.EDA, AnalysisType.STATISTICAL]
+    )
     include_visualizations: bool = True
     include_ml_recommendations: bool = True
     include_insights: bool = True
@@ -118,6 +127,7 @@ class DataAnalysisConfig(SwarmBaseConfig):
 @dataclass
 class DataProfile:
     """Data profiling results."""
+
     row_count: int
     column_count: int
     columns: Dict[str, Dict[str, Any]]
@@ -130,6 +140,7 @@ class DataProfile:
 @dataclass
 class StatisticalResult:
     """Statistical analysis results."""
+
     descriptive_stats: Dict[str, Dict[str, float]]
     correlations: Dict[str, Dict[str, float]]
     distributions: Dict[str, str]
@@ -140,6 +151,7 @@ class StatisticalResult:
 @dataclass
 class Insight:
     """A data insight."""
+
     title: str
     description: str
     evidence: str
@@ -151,6 +163,7 @@ class Insight:
 @dataclass
 class MLRecommendation:
     """ML model recommendation."""
+
     task_type: str
     recommended_models: List[str]
     feature_importance: Dict[str, float]
@@ -161,6 +174,7 @@ class MLRecommendation:
 @dataclass
 class Visualization:
     """Visualization specification."""
+
     viz_type: VisualizationType
     title: str
     description: str
@@ -171,6 +185,7 @@ class Visualization:
 @dataclass
 class AnalysisResult(SwarmResult):
     """Result from DataAnalysisSwarm."""
+
     profile: Optional[DataProfile] = None
     statistics: Optional[StatisticalResult] = None
     insights: List[Insight] = field(default_factory=list)
@@ -184,6 +199,7 @@ class AnalysisResult(SwarmResult):
 # DSPy SIGNATURES
 # =============================================================================
 
+
 class DataProfilingSignature(dspy.Signature):
     """Profile a dataset.
 
@@ -196,6 +212,7 @@ class DataProfilingSignature(dspy.Signature):
 
     Be thorough in profiling.
     """
+
     data_summary: str = dspy.InputField(desc="JSON summary of data structure")
     sample_data: str = dspy.InputField(desc="Sample rows from the dataset")
     column_info: str = dspy.InputField(desc="Column names and inferred types")
@@ -218,6 +235,7 @@ class EDASignature(dspy.Signature):
 
     Think like a detective finding clues in data.
     """
+
     data_profile: str = dspy.InputField(desc="Data profile summary")
     statistics: str = dspy.InputField(desc="Descriptive statistics")
     question: str = dspy.InputField(desc="Analysis question or objective")
@@ -246,15 +264,26 @@ class StatisticalAnalysisSignature(dspy.Signature):
 
     Apply appropriate tests for the data types. Always output valid JSON/structured data.
     """
-    data_summary: str = dspy.InputField(desc="Data summary JSON - may include raw_text field with text data to extract values from")
+
+    data_summary: str = dspy.InputField(
+        desc="Data summary JSON - may include raw_text field with text data to extract values from"
+    )
     columns_of_interest: str = dspy.InputField(desc="Columns to analyze (or 'text' for text data)")
     analysis_goals: str = dspy.InputField(desc="Statistical analysis goals")
 
     reasoning: str = dspy.OutputField(desc="Brief reasoning about the analysis approach")
-    descriptive: str = dspy.OutputField(desc="Descriptive statistics as JSON object with keys like mean, median, std, min, max, sum, count")
-    distributions: str = dspy.OutputField(desc="Distribution analysis: normal/skewed/uniform and key observations")
-    correlations: str = dspy.OutputField(desc="Correlation summary: positive/negative/none and relationships found")
-    hypothesis_tests: str = dspy.OutputField(desc="Statistical tests results, separated by | (e.g., 'trend: increasing | best: Q4 | growth: 15%')")
+    descriptive: str = dspy.OutputField(
+        desc="Descriptive statistics as JSON object with keys like mean, median, std, min, max, sum, count"
+    )
+    distributions: str = dspy.OutputField(
+        desc="Distribution analysis: normal/skewed/uniform and key observations"
+    )
+    correlations: str = dspy.OutputField(
+        desc="Correlation summary: positive/negative/none and relationships found"
+    )
+    hypothesis_tests: str = dspy.OutputField(
+        desc="Statistical tests results, separated by | (e.g., 'trend: increasing | best: Q4 | growth: 15%')"
+    )
 
 
 class InsightGenerationSignature(dspy.Signature):
@@ -269,11 +298,14 @@ class InsightGenerationSignature(dspy.Signature):
 
     Quality over quantity.
     """
+
     analysis_results: str = dspy.InputField(desc="All analysis results")
     business_context: str = dspy.InputField(desc="Business context if available")
     question: str = dspy.InputField(desc="Original analysis question")
 
-    insights: str = dspy.OutputField(desc="JSON list of insights with title, description, evidence, impact")
+    insights: str = dspy.OutputField(
+        desc="JSON list of insights with title, description, evidence, impact"
+    )
     key_findings: str = dspy.OutputField(desc="Top 3 key findings, separated by |")
     recommendations: str = dspy.OutputField(desc="Action recommendations, separated by |")
 
@@ -290,13 +322,18 @@ class MLRecommendationSignature(dspy.Signature):
 
     Consider data characteristics and business goals.
     """
+
     data_profile: str = dspy.InputField(desc="Data profile")
     target_column: str = dspy.InputField(desc="Target variable if applicable")
     goal: str = dspy.InputField(desc="ML goal")
 
-    task_type: str = dspy.OutputField(desc="ML task type: classification, regression, clustering, etc.")
+    task_type: str = dspy.OutputField(
+        desc="ML task type: classification, regression, clustering, etc."
+    )
     recommended_models: str = dspy.OutputField(desc="Recommended models, separated by |")
-    feature_engineering: str = dspy.OutputField(desc="Feature engineering suggestions, separated by |")
+    feature_engineering: str = dspy.OutputField(
+        desc="Feature engineering suggestions, separated by |"
+    )
     preprocessing: str = dspy.OutputField(desc="Preprocessing steps, separated by |")
     evaluation_metrics: str = dspy.OutputField(desc="Recommended metrics, separated by |")
 
@@ -313,11 +350,14 @@ class VisualizationSignature(dspy.Signature):
 
     Visualize to illuminate, not complicate.
     """
+
     data_summary: str = dspy.InputField(desc="Data summary")
     insights: str = dspy.InputField(desc="Insights to visualize")
     audience: str = dspy.InputField(desc="Target audience")
 
-    visualizations: str = dspy.OutputField(desc="JSON list of visualization specs with type, columns, description")
+    visualizations: str = dspy.OutputField(
+        desc="JSON list of visualization specs with type, columns, description"
+    )
     chart_recommendations: str = dspy.OutputField(desc="Chart type recommendations, separated by |")
     design_tips: str = dspy.OutputField(desc="Design tips, separated by |")
 
@@ -327,28 +367,28 @@ class VisualizationSignature(dspy.Signature):
 # =============================================================================
 
 
-
 class DataProfilerAgent(BaseSwarmAgent):
     """Profiles datasets."""
 
-    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
+    def __init__(
+        self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = ""
+    ) -> None:
         super().__init__(memory, context, bus, signature=DataProfilingSignature)
         self._profiler = dspy.ChainOfThought(DataProfilingSignature)
         self.learned_context = learned_context
 
     async def profile(
-        self,
-        data_summary: Dict[str, Any],
-        sample_data: List[Dict],
-        column_info: Dict[str, str]
+        self, data_summary: Dict[str, Any], sample_data: List[Dict], column_info: Dict[str, str]
     ) -> Dict[str, Any]:
         """Profile the dataset."""
         try:
-            context_suffix = f"\n\n[Learned Context]: {self.learned_context}" if self.learned_context else ""
+            context_suffix = (
+                f"\n\n[Learned Context]: {self.learned_context}" if self.learned_context else ""
+            )
             result = self._profiler(
                 data_summary=json.dumps(data_summary) + context_suffix,
                 sample_data=json.dumps(sample_data[:10]),
-                column_info=json.dumps(column_info)
+                column_info=json.dumps(column_info),
             )
 
             try:
@@ -359,71 +399,70 @@ class DataProfilerAgent(BaseSwarmAgent):
             quality_issues = _split_field(result.quality_issues)
             recommendations = _split_field(result.recommendations)
 
-            self._broadcast("data_profiled", {
-                'columns': len(column_info),
-                'issues': len(quality_issues)
-            })
+            self._broadcast(
+                "data_profiled", {"columns": len(column_info), "issues": len(quality_issues)}
+            )
 
             return {
-                'profile_summary': str(result.profile_summary),
-                'column_profiles': column_profiles,
-                'quality_issues': quality_issues,
-                'recommendations': recommendations
+                "profile_summary": str(result.profile_summary),
+                "column_profiles": column_profiles,
+                "quality_issues": quality_issues,
+                "recommendations": recommendations,
             }
 
         except Exception as e:
             logger.error(f"Data profiling failed: {e}")
-            return {'error': str(e)}
+            return {"error": str(e)}
 
 
 class EDAAgent(BaseSwarmAgent):
     """Performs exploratory data analysis."""
 
-    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
+    def __init__(
+        self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = ""
+    ) -> None:
         super().__init__(memory, context, bus, signature=EDASignature)
         self._explorer = dspy.ChainOfThought(EDASignature)
         self.learned_context = learned_context
 
     async def explore(
-        self,
-        data_profile: str,
-        statistics: str,
-        question: str = "Explore the data"
+        self, data_profile: str, statistics: str, question: str = "Explore the data"
     ) -> Dict[str, Any]:
         """Perform EDA."""
         try:
-            context_suffix = f"\n\n[Learned Context]: {self.learned_context}" if self.learned_context else ""
+            context_suffix = (
+                f"\n\n[Learned Context]: {self.learned_context}" if self.learned_context else ""
+            )
             result = self._explorer(
-                data_profile=data_profile,
-                statistics=statistics,
-                question=question + context_suffix
+                data_profile=data_profile, statistics=statistics, question=question + context_suffix
             )
 
             patterns = _split_field(result.patterns)
             relationships = _split_field(result.relationships)
             anomalies = _split_field(result.anomalies)
 
-            self._broadcast("eda_completed", {
-                'patterns': len(patterns),
-                'relationships': len(relationships)
-            })
+            self._broadcast(
+                "eda_completed", {"patterns": len(patterns), "relationships": len(relationships)}
+            )
 
             return {
-                'patterns': patterns,
-                'relationships': relationships,
-                'anomalies': anomalies,
-                'exploration_summary': str(result.exploration_summary)
+                "patterns": patterns,
+                "relationships": relationships,
+                "anomalies": anomalies,
+                "exploration_summary": str(result.exploration_summary),
             }
 
         except Exception as e:
             logger.error(f"EDA failed: {e}")
-            return {'error': str(e)}
+            return {"error": str(e)}
 
 
 class StatisticalAgent(BaseSwarmAgent):
     """Performs statistical analysis."""
 
-    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
+    def __init__(
+        self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = ""
+    ) -> None:
         super().__init__(memory, context, bus, signature=StatisticalAnalysisSignature)
         self._analyst = dspy.ChainOfThought(StatisticalAnalysisSignature)
         self.learned_context = learned_context
@@ -432,63 +471,70 @@ class StatisticalAgent(BaseSwarmAgent):
         self,
         data_summary: str,
         columns: List[str],
-        goals: str = "Comprehensive statistical analysis"
+        goals: str = "Comprehensive statistical analysis",
     ) -> Dict[str, Any]:
         """Perform statistical analysis."""
         try:
-            context_suffix = f"\n\n[Learned Context]: {self.learned_context}" if self.learned_context else ""
+            context_suffix = (
+                f"\n\n[Learned Context]: {self.learned_context}" if self.learned_context else ""
+            )
             result = self._analyst(
                 data_summary=data_summary,
                 columns_of_interest=json.dumps(columns) if columns else '["text"]',
-                analysis_goals=goals + context_suffix
+                analysis_goals=goals + context_suffix,
             )
 
             try:
                 descriptive = json.loads(result.descriptive)
             except Exception:
                 # If not valid JSON, create a simple dict
-                descriptive = {'raw': str(result.descriptive)}
+                descriptive = {"raw": str(result.descriptive)}
 
             hypothesis_tests = _split_field(result.hypothesis_tests)
 
-            self._broadcast("statistics_completed", {
-                'tests': len(hypothesis_tests)
-            })
+            self._broadcast("statistics_completed", {"tests": len(hypothesis_tests)})
 
             return {
-                'reasoning': str(getattr(result, 'reasoning', '')),
-                'descriptive': descriptive,
-                'distributions': str(result.distributions),
-                'correlations': str(result.correlations),
-                'hypothesis_tests': hypothesis_tests
+                "reasoning": str(getattr(result, "reasoning", "")),
+                "descriptive": descriptive,
+                "distributions": str(result.distributions),
+                "correlations": str(result.correlations),
+                "hypothesis_tests": hypothesis_tests,
             }
 
         except Exception as e:
             logger.error(f"Statistical analysis failed: {e}")
-            return {'error': str(e), 'descriptive': {}, 'distributions': '', 'correlations': '', 'hypothesis_tests': []}
+            return {
+                "error": str(e),
+                "descriptive": {},
+                "distributions": "",
+                "correlations": "",
+                "hypothesis_tests": [],
+            }
 
 
 class InsightAgent(BaseSwarmAgent):
     """Generates insights."""
 
-    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
+    def __init__(
+        self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = ""
+    ) -> None:
         super().__init__(memory, context, bus, signature=InsightGenerationSignature)
         self._generator = dspy.ChainOfThought(InsightGenerationSignature)
         self.learned_context = learned_context
 
     async def generate(
-        self,
-        analysis_results: str,
-        business_context: str = "",
-        question: str = ""
+        self, analysis_results: str, business_context: str = "", question: str = ""
     ) -> List[Insight]:
         """Generate insights."""
         try:
-            context_suffix = f"\n\n[Learned Context]: {self.learned_context}" if self.learned_context else ""
+            context_suffix = (
+                f"\n\n[Learned Context]: {self.learned_context}" if self.learned_context else ""
+            )
             result = self._generator(
                 analysis_results=analysis_results + context_suffix,
                 business_context=business_context or "General analysis",
-                question=question or "What are the key insights?"
+                question=question or "What are the key insights?",
             )
 
             try:
@@ -498,18 +544,18 @@ class InsightAgent(BaseSwarmAgent):
 
             insights = []
             for ins in insights_data:
-                insights.append(Insight(
-                    title=ins.get('title', ''),
-                    description=ins.get('description', ''),
-                    evidence=ins.get('evidence', ''),
-                    impact=ins.get('impact', ''),
-                    confidence=ins.get('confidence', 0.7),
-                    category=ins.get('category', 'general')
-                ))
+                insights.append(
+                    Insight(
+                        title=ins.get("title", ""),
+                        description=ins.get("description", ""),
+                        evidence=ins.get("evidence", ""),
+                        impact=ins.get("impact", ""),
+                        confidence=ins.get("confidence", 0.7),
+                        category=ins.get("category", "general"),
+                    )
+                )
 
-            self._broadcast("insights_generated", {
-                'insight_count': len(insights)
-            })
+            self._broadcast("insights_generated", {"insight_count": len(insights)})
 
             return insights
 
@@ -521,40 +567,40 @@ class InsightAgent(BaseSwarmAgent):
 class MLRecommenderAgent(BaseSwarmAgent):
     """Recommends ML approaches."""
 
-    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
+    def __init__(
+        self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = ""
+    ) -> None:
         super().__init__(memory, context, bus, signature=MLRecommendationSignature)
         self._recommender = dspy.ChainOfThought(MLRecommendationSignature)
         self.learned_context = learned_context
 
     async def recommend(
-        self,
-        data_profile: str,
-        target_column: str = "",
-        goal: str = ""
+        self, data_profile: str, target_column: str = "", goal: str = ""
     ) -> MLRecommendation:
         """Recommend ML approach."""
         try:
-            context_suffix = f"\n\n[Learned Context]: {self.learned_context}" if self.learned_context else ""
+            context_suffix = (
+                f"\n\n[Learned Context]: {self.learned_context}" if self.learned_context else ""
+            )
             result = self._recommender(
                 data_profile=data_profile,
                 target_column=target_column or "Not specified",
-                goal=(goal or "Build predictive model") + context_suffix
+                goal=(goal or "Build predictive model") + context_suffix,
             )
 
             models = _split_field(result.recommended_models)
             preprocessing = _split_field(result.preprocessing)
 
-            self._broadcast("ml_recommended", {
-                'task_type': str(result.task_type),
-                'model_count': len(models)
-            })
+            self._broadcast(
+                "ml_recommended", {"task_type": str(result.task_type), "model_count": len(models)}
+            )
 
             return MLRecommendation(
                 task_type=str(result.task_type),
                 recommended_models=models,
                 feature_importance={},
                 preprocessing_steps=preprocessing,
-                expected_performance="Depends on data quality and feature engineering"
+                expected_performance="Depends on data quality and feature engineering",
             )
 
         except Exception as e:
@@ -564,31 +610,30 @@ class MLRecommenderAgent(BaseSwarmAgent):
                 recommended_models=[],
                 feature_importance={},
                 preprocessing_steps=[],
-                expected_performance="Error in recommendation"
+                expected_performance="Error in recommendation",
             )
 
 
 class VisualizationAgent(BaseSwarmAgent):
     """Recommends visualizations."""
 
-    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
+    def __init__(
+        self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = ""
+    ) -> None:
         super().__init__(memory, context, bus, signature=VisualizationSignature)
         self._visualizer = dspy.ChainOfThought(VisualizationSignature)
         self.learned_context = learned_context
 
     async def recommend(
-        self,
-        data_summary: str,
-        insights: str,
-        audience: str = "analysts"
+        self, data_summary: str, insights: str, audience: str = "analysts"
     ) -> List[Visualization]:
         """Recommend visualizations."""
         try:
-            context_suffix = f"\n\n[Learned Context]: {self.learned_context}" if self.learned_context else ""
+            context_suffix = (
+                f"\n\n[Learned Context]: {self.learned_context}" if self.learned_context else ""
+            )
             result = self._visualizer(
-                data_summary=data_summary + context_suffix,
-                insights=insights,
-                audience=audience
+                data_summary=data_summary + context_suffix, insights=insights, audience=audience
             )
 
             try:
@@ -598,23 +643,23 @@ class VisualizationAgent(BaseSwarmAgent):
 
             visualizations = []
             for viz in viz_data:
-                viz_type = viz.get('type', 'distribution')
+                viz_type = viz.get("type", "distribution")
                 try:
                     viz_enum = VisualizationType(viz_type)
                 except Exception:
                     viz_enum = VisualizationType.DISTRIBUTION
 
-                visualizations.append(Visualization(
-                    viz_type=viz_enum,
-                    title=viz.get('title', ''),
-                    description=viz.get('description', ''),
-                    columns=viz.get('columns', []),
-                    code=viz.get('code', '')
-                ))
+                visualizations.append(
+                    Visualization(
+                        viz_type=viz_enum,
+                        title=viz.get("title", ""),
+                        description=viz.get("description", ""),
+                        columns=viz.get("columns", []),
+                        code=viz.get("code", ""),
+                    )
+                )
 
-            self._broadcast("visualizations_recommended", {
-                'viz_count': len(visualizations)
-            })
+            self._broadcast("visualizations_recommended", {"viz_count": len(visualizations)})
 
             return visualizations
 
@@ -626,6 +671,7 @@ class VisualizationAgent(BaseSwarmAgent):
 # =============================================================================
 # DATA ANALYSIS SWARM
 # =============================================================================
+
 
 @register_swarm("data_analysis")
 class DataAnalysisSwarm(DomainSwarm):
@@ -651,6 +697,9 @@ class DataAnalysisSwarm(DomainSwarm):
         (VisualizationAgent, "Visualization", "_visualization_agent"),
     )
     SWARM_SIGNATURE = DataAnalysisSwarmSignature
+    TASK_TYPE = "data_analysis"
+    DEFAULT_TOOLS = ["data_profile", "eda_analyze", "insight_generate"]
+    RESULT_CLASS = AnalysisResult
 
     def __init__(self, config: DataAnalysisConfig = None) -> None:
         super().__init__(config or DataAnalysisConfig())
@@ -660,11 +709,7 @@ class DataAnalysisSwarm(DomainSwarm):
         return await self.analyze(data, **kwargs)
 
     async def analyze(
-        self,
-        data: Any,
-        question: str = "",
-        target_column: str = "",
-        business_context: str = ""
+        self, data: Any, question: str = "", target_column: str = "", business_context: str = ""
     ) -> AnalysisResult:
         """
         Perform comprehensive data analysis.
@@ -678,94 +723,109 @@ class DataAnalysisSwarm(DomainSwarm):
         Returns:
             AnalysisResult with complete analysis
         """
-        # Note: Pre-execution learning and agent init handled by DomainSwarm.execute()
-
-        logger.info(f"DataAnalysisSwarm starting...")
+        logger.info("DataAnalysisSwarm starting...")
 
         # Convert data to analyzable format
         if isinstance(data, dict):
             data_summary = data
-            sample_data = data.get('sample', [])
-            column_info = data.get('columns', {})
+            sample_data = data.get("sample", [])
+            column_info = data.get("columns", {})
         elif isinstance(data, str):
-            # Handle text/string data - pass directly for LLM analysis
-            # The LLM can extract structured data from natural language
             data_summary = {
-                'type': 'text_data',
-                'description': 'Data provided as text/natural language',
-                'raw_text': data[:2000],  # Limit to avoid context overflow
-                'shape': [1, 1],  # Treat as single text block
+                "type": "text_data",
+                "description": "Data provided as text/natural language",
+                "raw_text": data[:2000],
+                "shape": [1, 1],
             }
-            sample_data = [{'text': data[:500]}]
-            column_info = {'text': 'string'}
+            sample_data = [{"text": data[:500]}]
+            column_info = {"text": "string"}
             logger.info("Received text data - will extract structured info via LLM")
         else:
-            # Assume pandas DataFrame
             try:
                 import pandas as pd
+
                 if isinstance(data, pd.DataFrame):
                     data_summary = {
-                        'shape': list(data.shape),
-                        'columns': list(data.columns),
-                        'dtypes': {col: str(dtype) for col, dtype in data.dtypes.items()},
-                        'missing': data.isnull().sum().to_dict()
+                        "shape": list(data.shape),
+                        "columns": list(data.columns),
+                        "dtypes": {col: str(dtype) for col, dtype in data.dtypes.items()},
+                        "missing": data.isnull().sum().to_dict(),
                     }
-                    sample_data = data.head(10).to_dict('records')
+                    sample_data = data.head(10).to_dict("records")
                     column_info = {col: str(dtype) for col, dtype in data.dtypes.items()}
                 else:
-                    # Fallback: convert to string representation
                     data_str = str(data)
                     data_summary = {
-                        'type': 'unknown_converted',
-                        'description': f'Data of type {type(data).__name__} converted to text',
-                        'raw_text': data_str[:2000],
-                        'shape': [1, 1],
+                        "type": "unknown_converted",
+                        "description": f"Data of type {type(data).__name__} converted to text",
+                        "raw_text": data_str[:2000],
+                        "shape": [1, 1],
                     }
-                    sample_data = [{'text': data_str[:500]}]
-                    column_info = {'text': 'string'}
+                    sample_data = [{"text": data_str[:500]}]
+                    column_info = {"text": "string"}
             except Exception as e:
-                # Last resort: treat as text
                 data_str = str(data)
                 data_summary = {
-                    'type': 'fallback_text',
-                    'description': f'Could not process data: {e}',
-                    'raw_text': data_str[:2000],
-                    'shape': [1, 1],
+                    "type": "fallback_text",
+                    "description": f"Could not process data: {e}",
+                    "raw_text": data_str[:2000],
+                    "shape": [1, 1],
                 }
-                sample_data = [{'text': data_str[:500]}]
-                column_info = {'text': 'string'}
+                sample_data = [{"text": data_str[:500]}]
+                column_info = {"text": "string"}
 
         config = self.config
+        shape = data_summary.get("shape", [0, 0])
 
-        return await self._safe_execute_domain(
-            task_type='data_analysis',
-            default_tools=['data_profile', 'eda_analyze', 'insight_generate'],
-            result_class=AnalysisResult,
+        self._run_input = {
+            "question": question,
+            "target_column": target_column,
+            "business_context": business_context,
+            "row_count": shape[0],
+            "column_count": shape[1] if len(shape) > 1 else 0,
+            "column_names": list(column_info.keys()),
+        }
+
+        return await self.run_domain(
             execute_fn=lambda executor: self._execute_phases(
-                executor, data_summary, sample_data, column_info,
-                config, question, target_column, business_context
+                executor,
+                data_summary,
+                sample_data,
+                column_info,
+                config,
+                question,
+                target_column,
+                business_context,
             ),
-            output_data_fn=lambda result: {
-                'rows': result.profile.row_count if result.profile else 0,
-                'columns': result.profile.column_count if result.profile else 0,
-                'data_quality_score': result.data_quality_score,
-                'insights_count': len(result.insights),
-                'visualizations_count': len(result.visualizations),
-                'has_ml_recommendation': result.ml_recommendations is not None,
-                'hypothesis_tests_count': len(result.statistics.hypothesis_tests) if result.statistics else 0,
-                'quality_issues_count': len(result.profile.columns) if result.profile else 0,
-            },
-            input_data_fn=lambda: {
-                'question': question,
-                'target_column': target_column,
-                'business_context': business_context,
-                'row_count': data_summary.get('shape', [0, 0])[0],
-                'column_count': data_summary.get('shape', [0, 0])[1] if len(data_summary.get('shape', [])) > 1 else 0,
-                'column_names': list(column_info.keys()),
-            },
         )
 
-    async def _execute_phases(self, executor: Any, data_summary: Dict[str, Any], sample_data: List[Dict], column_info: Dict[str, str], config: DataAnalysisConfig, question: str, target_column: str, business_context: str) -> AnalysisResult:
+    def _build_output_data(self, result: AnalysisResult) -> Dict[str, Any]:
+        return {
+            "rows": result.profile.row_count if result.profile else 0,
+            "columns": result.profile.column_count if result.profile else 0,
+            "data_quality_score": result.data_quality_score,
+            "insights_count": len(result.insights),
+            "visualizations_count": len(result.visualizations),
+            "has_ml_recommendation": result.ml_recommendations is not None,
+            "hypothesis_tests_count": (
+                len(result.statistics.hypothesis_tests) if result.statistics else 0
+            ),
+        }
+
+    def _build_input_data(self) -> Dict[str, Any]:
+        return getattr(self, "_run_input", {})
+
+    async def _execute_phases(
+        self,
+        executor: Any,
+        data_summary: Dict[str, Any],
+        sample_data: List[Dict],
+        column_info: Dict[str, str],
+        config: DataAnalysisConfig,
+        question: str,
+        target_column: str,
+        business_context: str,
+    ) -> AnalysisResult:
         """Execute the domain-specific analysis phases using PhaseExecutor.
 
         Args:
@@ -785,91 +845,113 @@ class DataAnalysisSwarm(DomainSwarm):
         # PHASE 1: DATA PROFILING
         # =================================================================
         profile_result = await executor.run_phase(
-            1, "Data Profiling", "DataProfiler", AgentRole.ACTOR,
+            1,
+            "Data Profiling",
+            "DataProfiler",
+            AgentRole.ACTOR,
             self._profiler.profile(data_summary, sample_data, column_info),
-            input_data={'rows': data_summary.get('shape', [0, 0])[0],
-                        'cols': data_summary.get('shape', [0, 0])[1] if len(data_summary.get('shape', [])) > 1 else 0},
-            tools_used=['data_profile'],
+            input_data={
+                "rows": data_summary.get("shape", [0, 0])[0],
+                "cols": (
+                    data_summary.get("shape", [0, 0])[1]
+                    if len(data_summary.get("shape", [])) > 1
+                    else 0
+                ),
+            },
+            tools_used=["data_profile"],
         )
 
         profile = DataProfile(
-            row_count=data_summary.get('shape', [0, 0])[0],
-            column_count=data_summary.get('shape', [0, 0])[1] if len(data_summary.get('shape', [])) > 1 else 0,
-            columns=profile_result.get('column_profiles', {}),
-            missing_summary=data_summary.get('missing', {}),
+            row_count=data_summary.get("shape", [0, 0])[0],
+            column_count=(
+                data_summary.get("shape", [0, 0])[1]
+                if len(data_summary.get("shape", [])) > 1
+                else 0
+            ),
+            columns=profile_result.get("column_profiles", {}),
+            missing_summary=data_summary.get("missing", {}),
             duplicates=0,
             memory_usage="Unknown",
-            data_types=column_info
+            data_types=column_info,
         )
 
         # =================================================================
         # PHASE 2: STATISTICAL ANALYSIS & EDA (parallel)
         # =================================================================
         stats_result, eda_result = await executor.run_parallel(
-            2, "Statistical Analysis & EDA",
+            2,
+            "Statistical Analysis & EDA",
             [
-                ("Statistical", AgentRole.EXPERT,
-                 self._statistical_agent.analyze(
-                     json.dumps(data_summary),
-                     list(column_info.keys()),
-                     "Comprehensive analysis"
-                 ),
-                 ['stats_analyze']),
-                ("EDA", AgentRole.ACTOR,
-                 self._eda_agent.explore(
-                     profile_result.get('profile_summary', ''),
-                     json.dumps(data_summary),
-                     question or "Explore the data"
-                 ),
-                 ['eda_explore']),
+                (
+                    "Statistical",
+                    AgentRole.EXPERT,
+                    self._statistical_agent.analyze(
+                        json.dumps(data_summary), list(column_info.keys()), "Comprehensive analysis"
+                    ),
+                    ["stats_analyze"],
+                ),
+                (
+                    "EDA",
+                    AgentRole.ACTOR,
+                    self._eda_agent.explore(
+                        profile_result.get("profile_summary", ""),
+                        json.dumps(data_summary),
+                        question or "Explore the data",
+                    ),
+                    ["eda_explore"],
+                ),
             ],
         )
 
         statistics = StatisticalResult(
-            descriptive_stats=stats_result.get('descriptive', {}),
+            descriptive_stats=stats_result.get("descriptive", {}),
             correlations={},
             distributions={},
             outliers={},
-            hypothesis_tests=[{'test': t} for t in stats_result.get('hypothesis_tests', [])]
+            hypothesis_tests=[{"test": t} for t in stats_result.get("hypothesis_tests", [])],
         )
 
         # =================================================================
         # PHASE 3: INSIGHTS & ML RECOMMENDATIONS (parallel)
         # =================================================================
-        analysis_summary = json.dumps({
-            'profile': profile_result,
-            'eda': eda_result,
-            'statistics': stats_result
-        })
+        analysis_summary = json.dumps(
+            {"profile": profile_result, "eda": eda_result, "statistics": stats_result}
+        )
 
         phase3_tasks = [
-            ("Insight", AgentRole.EXPERT,
-             self._insight_agent.generate(
-                 analysis_summary, business_context, question
-             ),
-             ['insight_generate']),
+            (
+                "Insight",
+                AgentRole.EXPERT,
+                self._insight_agent.generate(analysis_summary, business_context, question),
+                ["insight_generate"],
+            ),
         ]
 
         if config.include_ml_recommendations and target_column:
             phase3_tasks.append(
-                ("MLRecommender", AgentRole.PLANNER,
-                 self._ml_recommender.recommend(
-                     profile_result.get('profile_summary', ''),
-                     target_column,
-                     f"Predict {target_column}"
-                 ),
-                 ['ml_recommend']),
+                (
+                    "MLRecommender",
+                    AgentRole.PLANNER,
+                    self._ml_recommender.recommend(
+                        profile_result.get("profile_summary", ""),
+                        target_column,
+                        f"Predict {target_column}",
+                    ),
+                    ["ml_recommend"],
+                ),
             )
 
         phase3_results = await executor.run_parallel(
-            3, "Insights & ML Recommendations", phase3_tasks,
+            3,
+            "Insights & ML Recommendations",
+            phase3_tasks,
         )
 
         insights = phase3_results[0]
-        if isinstance(insights, dict) and 'error' in insights:
+        if isinstance(insights, dict) and "error" in insights:
             insights = []
         ml_rec = phase3_results[1] if len(phase3_results) > 1 else None
-        if isinstance(ml_rec, dict) and 'error' in ml_rec:
+        if isinstance(ml_rec, dict) and "error" in ml_rec:
             ml_rec = None
 
         # =================================================================
@@ -877,18 +959,23 @@ class DataAnalysisSwarm(DomainSwarm):
         # =================================================================
         visualizations = []
         if config.include_visualizations:
-            insights_summary = json.dumps([
-                {'title': i.title, 'description': i.description}
-                for i in (insights if isinstance(insights, list) else [])
-            ])
+            insights_summary = json.dumps(
+                [
+                    {"title": i.title, "description": i.description}
+                    for i in (insights if isinstance(insights, list) else [])
+                ]
+            )
 
             visualizations = await executor.run_phase(
-                4, "Visualization Recommendations", "Visualization", AgentRole.ACTOR,
+                4,
+                "Visualization Recommendations",
+                "Visualization",
+                AgentRole.ACTOR,
                 self._visualization_agent.recommend(
                     json.dumps(data_summary), insights_summary, "analysts"
                 ),
-                input_data={'include_viz': config.include_visualizations},
-                tools_used=['viz_recommend'],
+                input_data={"include_viz": config.include_visualizations},
+                tools_used=["viz_recommend"],
             )
 
         # =================================================================
@@ -897,10 +984,15 @@ class DataAnalysisSwarm(DomainSwarm):
         exec_time = executor.elapsed()
 
         # Calculate quality score
-        missing_ratio = sum(data_summary.get('missing', {}).values()) / (
-            profile.row_count * profile.column_count
-        ) if profile.row_count * profile.column_count > 0 else 0
-        quality_score = max(0, 1 - missing_ratio - len(profile_result.get('quality_issues', [])) * 0.1)
+        missing_ratio = (
+            sum(data_summary.get("missing", {}).values())
+            / (profile.row_count * profile.column_count)
+            if profile.row_count * profile.column_count > 0
+            else 0
+        )
+        quality_score = max(
+            0, 1 - missing_ratio - len(profile_result.get("quality_issues", [])) * 0.1
+        )
 
         # Build summary
         insights_count = len(insights) if isinstance(insights, list) else 0
@@ -920,11 +1012,15 @@ class DataAnalysisSwarm(DomainSwarm):
             swarm_name=self.config.name,
             domain=self.config.domain,
             output={
-                'summary': summary.strip(),
-                'insights': [getattr(i, 'title', str(i)) for i in insights] if isinstance(insights, list) else [],
-                'data_quality_score': quality_score,
-                'row_count': profile.row_count,
-                'column_count': profile.column_count,
+                "summary": summary.strip(),
+                "insights": (
+                    [getattr(i, "title", str(i)) for i in insights]
+                    if isinstance(insights, list)
+                    else []
+                ),
+                "data_quality_score": quality_score,
+                "row_count": profile.row_count,
+                "column_count": profile.column_count,
             },
             execution_time=exec_time,
             profile=profile,
@@ -933,13 +1029,14 @@ class DataAnalysisSwarm(DomainSwarm):
             ml_recommendations=ml_rec,
             visualizations=visualizations,
             summary=summary.strip(),
-            data_quality_score=quality_score
+            data_quality_score=quality_score,
         )
 
 
 # =============================================================================
 # CONVENIENCE FUNCTIONS
 # =============================================================================
+
 
 async def analyze_data(data: Any, **kwargs: Any) -> AnalysisResult:
     """
@@ -963,24 +1060,24 @@ def analyze_data_sync(data: Any, **kwargs: Any) -> AnalysisResult:
 # =============================================================================
 
 __all__ = [
-    'DataAnalysisSwarm',
-    'DataAnalysisConfig',
-    'AnalysisResult',
-    'DataProfile',
-    'StatisticalResult',
-    'Insight',
-    'MLRecommendation',
-    'Visualization',
-    'AnalysisType',
-    'DataType',
-    'VisualizationType',
-    'analyze_data',
-    'analyze_data_sync',
+    "DataAnalysisSwarm",
+    "DataAnalysisConfig",
+    "AnalysisResult",
+    "DataProfile",
+    "StatisticalResult",
+    "Insight",
+    "MLRecommendation",
+    "Visualization",
+    "AnalysisType",
+    "DataType",
+    "VisualizationType",
+    "analyze_data",
+    "analyze_data_sync",
     # Agents
-    'DataProfilerAgent',
-    'EDAAgent',
-    'StatisticalAgent',
-    'InsightAgent',
-    'MLRecommenderAgent',
-    'VisualizationAgent',
+    "DataProfilerAgent",
+    "EDAAgent",
+    "StatisticalAgent",
+    "InsightAgent",
+    "MLRecommenderAgent",
+    "VisualizationAgent",
 ]

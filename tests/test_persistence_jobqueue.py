@@ -26,30 +26,35 @@ import pytest
 
 try:
     from Jotty.core.infrastructure.persistence.shared_context import SharedContext
+
     SHARED_CONTEXT_AVAILABLE = True
 except ImportError:
     SHARED_CONTEXT_AVAILABLE = False
 
 try:
     from Jotty.core.infrastructure.job_queue.task import Task, TaskPriority
+
     TASK_AVAILABLE = True
 except ImportError:
     TASK_AVAILABLE = False
 
 try:
     from Jotty.core.infrastructure.job_queue.task_queue import TaskQueue
+
     TASK_QUEUE_AVAILABLE = True
 except ImportError:
     TASK_QUEUE_AVAILABLE = False
 
 try:
     from Jotty.core.infrastructure.job_queue.memory_queue import MemoryTaskQueue
+
     MEMORY_QUEUE_AVAILABLE = True
 except ImportError:
     MEMORY_QUEUE_AVAILABLE = False
 
 try:
     from Jotty.core.infrastructure.job_queue.sqlite_queue import SQLiteTaskQueue
+
     SQLITE_QUEUE_AVAILABLE = True
 except ImportError:
     SQLITE_QUEUE_AVAILABLE = False
@@ -58,6 +63,7 @@ except ImportError:
 # ---------------------------------------------------------------------------
 # Helper: run async in sync context
 # ---------------------------------------------------------------------------
+
 
 def run_async(coro):
     """Run an async coroutine synchronously."""
@@ -71,6 +77,7 @@ def run_async(coro):
 # ===========================================================================
 # 1. SharedContext Tests
 # ===========================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not SHARED_CONTEXT_AVAILABLE, reason="SharedContext not importable")
@@ -339,6 +346,7 @@ class TestSharedContextThreadSafety:
 # 2. TaskPriority Enum Tests
 # ===========================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(not TASK_AVAILABLE, reason="Task/TaskPriority not importable")
 class TestTaskPriority:
@@ -383,6 +391,7 @@ class TestTaskPriority:
 # ===========================================================================
 # 3. Task Dataclass Tests
 # ===========================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not TASK_AVAILABLE, reason="Task not importable")
@@ -456,14 +465,38 @@ class TestTaskToDict:
         task = Task(task_id="T-010", title="DictTest")
         d = task.to_dict()
         expected_keys = {
-            'task_id', 'title', 'description', 'category', 'priority',
-            'tags', 'status', 'progress_percent', 'pid', 'worktree_path',
-            'git_branch', 'log_file', 'created_at', 'started_at',
-            'completed_at', 'last_heartbeat', 'estimated_hours',
-            'actual_hours', 'error_message', 'retry_count', 'max_retries',
-            'depends_on', 'blocks', 'created_by', 'assigned_to',
-            'agent_type', 'context_files', 'task_content', 'filename',
-            'reference_apps', 'estimated_effort', 'metadata',
+            "task_id",
+            "title",
+            "description",
+            "category",
+            "priority",
+            "tags",
+            "status",
+            "progress_percent",
+            "pid",
+            "worktree_path",
+            "git_branch",
+            "log_file",
+            "created_at",
+            "started_at",
+            "completed_at",
+            "last_heartbeat",
+            "estimated_hours",
+            "actual_hours",
+            "error_message",
+            "retry_count",
+            "max_retries",
+            "depends_on",
+            "blocks",
+            "created_by",
+            "assigned_to",
+            "agent_type",
+            "context_files",
+            "task_content",
+            "filename",
+            "reference_apps",
+            "estimated_effort",
+            "metadata",
         }
         assert expected_keys.issubset(set(d.keys()))
 
@@ -471,14 +504,14 @@ class TestTaskToDict:
         now = datetime(2025, 7, 1, 10, 30, 0)
         task = Task(task_id="T-011", title="ISO", created_at=now)
         d = task.to_dict()
-        assert d['created_at'] == now.isoformat()
+        assert d["created_at"] == now.isoformat()
 
     def test_to_dict_none_datetime_fields(self):
         task = Task(task_id="T-012", title="NullDates")
         d = task.to_dict()
-        assert d['started_at'] is None
-        assert d['completed_at'] is None
-        assert d['last_heartbeat'] is None
+        assert d["started_at"] is None
+        assert d["completed_at"] is None
+        assert d["last_heartbeat"] is None
 
     def test_to_dict_preserves_values(self):
         task = Task(
@@ -493,15 +526,15 @@ class TestTaskToDict:
             created_by="user",
         )
         d = task.to_dict()
-        assert d['task_id'] == "T-013"
-        assert d['title'] == "FullTask"
-        assert d['description'] == "A full task"
-        assert d['category'] == "testing"
-        assert d['priority'] == 2
-        assert d['status'] == "pending"
-        assert d['progress_percent'] == 50
-        assert d['retry_count'] == 1
-        assert d['created_by'] == "user"
+        assert d["task_id"] == "T-013"
+        assert d["title"] == "FullTask"
+        assert d["description"] == "A full task"
+        assert d["category"] == "testing"
+        assert d["priority"] == 2
+        assert d["status"] == "pending"
+        assert d["progress_percent"] == 50
+        assert d["retry_count"] == 1
+        assert d["created_by"] == "user"
 
 
 @pytest.mark.unit
@@ -529,18 +562,18 @@ class TestTaskFromDict:
 
     def test_from_dict_datetime_iso_parsing(self):
         d = {
-            'task_id': 'T-021',
-            'title': 'ISO Parse',
-            'created_at': '2025-06-15T12:00:00',
+            "task_id": "T-021",
+            "title": "ISO Parse",
+            "created_at": "2025-06-15T12:00:00",
         }
         task = Task.from_dict(d)
         assert task.created_at == datetime(2025, 6, 15, 12, 0, 0)
 
     def test_from_dict_datetime_z_suffix(self):
         d = {
-            'task_id': 'T-022',
-            'title': 'Z Suffix',
-            'created_at': '2025-06-15T12:00:00Z',
+            "task_id": "T-022",
+            "title": "Z Suffix",
+            "created_at": "2025-06-15T12:00:00Z",
         }
         task = Task.from_dict(d)
         assert task.created_at is not None
@@ -551,8 +584,8 @@ class TestTaskFromDict:
 
     def test_from_dict_defaults_for_missing_fields(self):
         d = {
-            'task_id': 'T-023',
-            'title': 'Minimal',
+            "task_id": "T-023",
+            "title": "Minimal",
         }
         task = Task.from_dict(d)
         assert task.description == ""
@@ -568,18 +601,18 @@ class TestTaskFromDict:
     def test_from_dict_with_datetime_object(self):
         now = datetime.now()
         d = {
-            'task_id': 'T-024',
-            'title': 'DatetimeObj',
-            'created_at': now,
+            "task_id": "T-024",
+            "title": "DatetimeObj",
+            "created_at": now,
         }
         task = Task.from_dict(d)
         assert task.created_at == now
 
     def test_from_dict_with_none_created_at(self):
         d = {
-            'task_id': 'T-025',
-            'title': 'NoDate',
-            'created_at': None,
+            "task_id": "T-025",
+            "title": "NoDate",
+            "created_at": None,
         }
         task = Task.from_dict(d)
         # from_dict sets created_at to None, then __post_init__ sets it to now
@@ -589,6 +622,7 @@ class TestTaskFromDict:
 # ===========================================================================
 # 4. TaskQueue Abstract Class Tests
 # ===========================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not TASK_QUEUE_AVAILABLE, reason="TaskQueue not importable")
@@ -603,16 +637,28 @@ class TestTaskQueueAbstract:
         abstract_methods = set()
         for name in dir(TaskQueue):
             method = getattr(TaskQueue, name, None)
-            if callable(method) and getattr(method, '__isabstractmethod__', False):
+            if callable(method) and getattr(method, "__isabstractmethod__", False):
                 abstract_methods.add(name)
 
         expected = {
-            'enqueue', 'dequeue', 'get_task', 'update_status',
-            'heartbeat', 'get_running_count', 'get_running_count_by_agent',
-            'get_stats', 'get_tasks_by_status', 'get_running_tasks',
-            'get_by_filename', 'update_task_priority', 'update_task_metadata',
-            'delete_task', 'create_task', 'reset_task_to_backlog',
-            'validate_pids', 'export_to_json',
+            "enqueue",
+            "dequeue",
+            "get_task",
+            "update_status",
+            "heartbeat",
+            "get_running_count",
+            "get_running_count_by_agent",
+            "get_stats",
+            "get_tasks_by_status",
+            "get_running_tasks",
+            "get_by_filename",
+            "update_task_priority",
+            "update_task_metadata",
+            "delete_task",
+            "create_task",
+            "reset_task_to_backlog",
+            "validate_pids",
+            "export_to_json",
         }
         assert expected.issubset(abstract_methods)
 
@@ -620,6 +666,7 @@ class TestTaskQueueAbstract:
 # ===========================================================================
 # 5. MemoryTaskQueue Tests
 # ===========================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(
@@ -778,11 +825,11 @@ class TestMemoryTaskQueueStatistics:
     def test_stats_empty_queue(self):
         queue = MemoryTaskQueue()
         stats = run_async(queue.get_stats())
-        assert stats['pending'] == 0
-        assert stats['in_progress'] == 0
-        assert stats['completed'] == 0
-        assert stats['failed'] == 0
-        assert stats['active_pids'] == 0
+        assert stats["pending"] == 0
+        assert stats["in_progress"] == 0
+        assert stats["completed"] == 0
+        assert stats["failed"] == 0
+        assert stats["active_pids"] == 0
 
     def test_stats_with_tasks(self):
         queue = MemoryTaskQueue()
@@ -793,11 +840,11 @@ class TestMemoryTaskQueueStatistics:
         run_async(queue.enqueue(t2))
         run_async(queue.enqueue(t3))
         stats = run_async(queue.get_stats())
-        assert stats['pending'] == 1
-        assert stats['in_progress'] == 1
-        assert stats['completed'] == 1
-        assert stats['active_pids'] == 1
-        assert 100 in stats['pids']
+        assert stats["pending"] == 1
+        assert stats["in_progress"] == 1
+        assert stats["completed"] == 1
+        assert stats["active_pids"] == 1
+        assert 100 in stats["pids"]
 
 
 @pytest.mark.unit
@@ -828,6 +875,7 @@ class TestMemoryTaskQueueClear:
 # ===========================================================================
 # 6. SQLiteTaskQueue Tests
 # ===========================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(
@@ -982,8 +1030,8 @@ class TestSQLiteTaskQueueStatistics:
         db_path = str(tmp_path / "test.db")
         queue = SQLiteTaskQueue(db_path)
         stats = run_async(queue.get_stats())
-        assert stats['pending'] == 0
-        assert stats['completed'] == 0
+        assert stats["pending"] == 0
+        assert stats["completed"] == 0
 
     def test_stats_with_tasks(self, tmp_path):
         db_path = str(tmp_path / "test.db")
@@ -993,8 +1041,8 @@ class TestSQLiteTaskQueueStatistics:
         run_async(queue.enqueue(t1))
         run_async(queue.enqueue(t2))
         stats = run_async(queue.get_stats())
-        assert stats['pending'] == 1
-        assert stats['completed'] == 1
+        assert stats["pending"] == 1
+        assert stats["completed"] == 1
 
 
 @pytest.mark.unit

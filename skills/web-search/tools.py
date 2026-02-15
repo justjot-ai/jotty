@@ -5,18 +5,18 @@ Search the web using Google (Serper API), SearXNG, or DuckDuckGo.
 Refactored to use Jotty core utilities.
 """
 
+import logging
 import os
 import re
-import time
-import logging
 import threading
+import time
+from typing import Any, Dict, List, Optional
+
 import requests
-from typing import Dict, Any, List, Optional
 
-from Jotty.core.infrastructure.utils.env_loader import load_jotty_env, get_env
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
-
+from Jotty.core.infrastructure.utils.env_loader import get_env, load_jotty_env
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 load_jotty_env()
 
@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 SERPER_API_KEY = get_env("SERPER_API_KEY")
 SEARXNG_URL = get_env("SEARXNG_URL")  # e.g. "http://localhost:8080"
-HEADERS = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
 
 # Try to load duckduckgo-search library
 
@@ -36,9 +36,11 @@ DDGS = None
 try:
     try:
         from ddgs import DDGS
+
         DDG_AVAILABLE = True
     except ImportError:
         from duckduckgo_search import DDGS
+
         DDG_AVAILABLE = True
 except ImportError:
     logger.info("duckduckgo-search/ddgs library not available, using HTML parsing fallback")
@@ -108,20 +110,20 @@ def _serper_search(query: str, num_results: int = 10) -> List[Dict[str, str]]:
         raise ValueError("SERPER_API_KEY not set")
 
     response = requests.post(
-        'https://google.serper.dev/search',
-        headers={'X-API-KEY': SERPER_API_KEY, 'Content-Type': 'application/json'},
-        json={'q': query, 'num': num_results},
-        timeout=10
+        "https://google.serper.dev/search",
+        headers={"X-API-KEY": SERPER_API_KEY, "Content-Type": "application/json"},
+        json={"q": query, "num": num_results},
+        timeout=10,
     )
     response.raise_for_status()
 
     return [
         {
-            'title': item.get('title', 'Untitled'),
-            'url': item.get('link', ''),
-            'snippet': item.get('snippet', '')
+            "title": item.get("title", "Untitled"),
+            "url": item.get("link", ""),
+            "snippet": item.get("snippet", ""),
         }
-        for item in response.json().get('organic', [])
+        for item in response.json().get("organic", [])
     ]
 
 
@@ -137,14 +139,14 @@ def _searxng_search(query: str, num_results: int = 10) -> List[Dict[str, str]]:
     if not SEARXNG_URL:
         raise ValueError("SEARXNG_URL not set")
 
-    base_url = SEARXNG_URL.rstrip('/')
+    base_url = SEARXNG_URL.rstrip("/")
     response = requests.get(
-        f'{base_url}/search',
+        f"{base_url}/search",
         params={
-            'q': query,
-            'format': 'json',
-            'pageno': 1,
-            'categories': 'general',
+            "q": query,
+            "format": "json",
+            "pageno": 1,
+            "categories": "general",
         },
         headers=HEADERS,
         timeout=10,
@@ -153,12 +155,14 @@ def _searxng_search(query: str, num_results: int = 10) -> List[Dict[str, str]]:
 
     data = response.json()
     results = []
-    for item in data.get('results', [])[:num_results]:
-        results.append({
-            'title': item.get('title', 'Untitled'),
-            'url': item.get('url', ''),
-            'snippet': item.get('content', ''),
-        })
+    for item in data.get("results", [])[:num_results]:
+        results.append(
+            {
+                "title": item.get("title", "Untitled"),
+                "url": item.get("url", ""),
+                "snippet": item.get("content", ""),
+            }
+        )
     return results
 
 
@@ -169,9 +173,9 @@ def _ddg_search(query: str, max_results: int) -> List[Dict[str, str]]:
 
     return [
         {
-            'title': item.get('title', 'Untitled'),
-            'url': item.get('href') or item.get('url', ''),
-            'snippet': item.get('body', '') or item.get('snippet', '')
+            "title": item.get("title", "Untitled"),
+            "url": item.get("href") or item.get("url", ""),
+            "snippet": item.get("body", "") or item.get("snippet", ""),
         }
         for item in results_list
     ]
@@ -180,10 +184,7 @@ def _ddg_search(query: str, max_results: int) -> List[Dict[str, str]]:
 def _ddg_html_search(query: str, max_results: int) -> List[Dict[str, str]]:
     """Fallback: Search using DuckDuckGo HTML."""
     response = requests.get(
-        'https://html.duckduckgo.com/html/',
-        params={'q': query},
-        headers=HEADERS,
-        timeout=10
+        "https://html.duckduckgo.com/html/", params={"q": query}, headers=HEADERS, timeout=10
     )
     response.raise_for_status()
 
@@ -203,19 +204,22 @@ def _ddg_html_search(query: str, max_results: int) -> List[Dict[str, str]]:
                 break
 
             url_match = match.group(1) if len(match.groups()) >= 1 else None
-            title = match.group(2) if len(match.groups()) >= 2 else ''
+            title = match.group(2) if len(match.groups()) >= 2 else ""
 
             if not url_match or url_match in seen_urls:
                 continue
 
-            if any(skip in url_match.lower() for skip in ['duckduckgo.com', 'javascript:', 'data:', 'mailto:']):
+            if any(
+                skip in url_match.lower()
+                for skip in ["duckduckgo.com", "javascript:", "data:", "mailto:"]
+            ):
                 continue
 
             seen_urls.add(url_match)
-            title = re.sub(r'&[^;]+;', '', title.strip()).replace('&nbsp;', ' ').strip()
+            title = re.sub(r"&[^;]+;", "", title.strip()).replace("&nbsp;", " ").strip()
 
             if title and len(title) > 3:
-                results.append({'title': title, 'url': url_match, 'snippet': ''})
+                results.append({"title": title, "url": url_match, "snippet": ""})
 
         if results:
             break
@@ -238,27 +242,37 @@ def _scrape_url(url: str, max_length: int = 10000) -> Dict[str, Any]:
 
     html = result.content
 
-    title_match = re.search(r'<title[^>]*>([^<]+)</title>', html, re.IGNORECASE)
-    title = title_match.group(1).strip() if title_match else 'Untitled'
+    title_match = re.search(r"<title[^>]*>([^<]+)</title>", html, re.IGNORECASE)
+    title = title_match.group(1).strip() if title_match else "Untitled"
 
-    html = re.sub(r'<script[^>]*>.*?</script>', '', html, flags=re.DOTALL | re.IGNORECASE)
-    html = re.sub(r'<style[^>]*>.*?</style>', '', html, flags=re.DOTALL | re.IGNORECASE)
+    html = re.sub(r"<script[^>]*>.*?</script>", "", html, flags=re.DOTALL | re.IGNORECASE)
+    html = re.sub(r"<style[^>]*>.*?</style>", "", html, flags=re.DOTALL | re.IGNORECASE)
 
-    text = re.sub(r'<[^>]+>', ' ', html)
-    text = re.sub(r'\s+', ' ', text).strip()
+    text = re.sub(r"<[^>]+>", " ", html)
+    text = re.sub(r"\s+", " ", text).strip()
 
-    for entity, char in [('&nbsp;', ' '), ('&amp;', '&'), ('&lt;', '<'),
-                          ('&gt;', '>'), ('&quot;', '"'), ('&#39;', "'")]:
+    for entity, char in [
+        ("&nbsp;", " "),
+        ("&amp;", "&"),
+        ("&lt;", "<"),
+        ("&gt;", ">"),
+        ("&quot;", '"'),
+        ("&#39;", "'"),
+    ]:
         text = text.replace(entity, char)
 
     if len(text) > max_length:
-        text = text[:max_length] + '...'
+        text = text[:max_length] + "..."
 
-    proxy_note = ' (via proxy)' if result.used_proxy else ''
-    return {'title': title, 'content': text, 'fetched_via': 'proxy' if result.used_proxy else 'direct'}
+    proxy_note = " (via proxy)" if result.used_proxy else ""
+    return {
+        "title": title,
+        "content": text,
+        "fetched_via": "proxy" if result.used_proxy else "direct",
+    }
 
 
-@tool_wrapper(required_params=['query'])
+@tool_wrapper(required_params=["query"])
 def search_web_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Search the web using Google (Serper API), SearXNG, or DuckDuckGo.
@@ -274,11 +288,11 @@ def search_web_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, results, count, query, provider
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
-    query = params['query']
-    max_results = min(params.get('max_results', 10), 20)
-    provider_pref = params.get('provider', 'auto')
+    query = params["query"]
+    max_results = min(params.get("max_results", 10), 20)
+    provider_pref = params.get("provider", "auto")
 
     # Show search query (truncated)
     query_display = query[:50] + "..." if len(query) > 50 else query
@@ -292,12 +306,12 @@ def search_web_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return cached
 
     # Priority 1: Serper API
-    if SERPER_API_KEY and provider_pref in ('auto', 'serper'):
+    if SERPER_API_KEY and provider_pref in ("auto", "serper"):
         try:
             results = _serper_search(query, max_results)
             if results:
                 response = tool_response(
-                    results=results, count=len(results), query=query, provider='serper'
+                    results=results, count=len(results), query=query, provider="serper"
                 )
                 _search_cache.set(cache_key, response)
                 return response
@@ -305,12 +319,12 @@ def search_web_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             logger.warning(f"Serper API failed: {e}, falling back")
 
     # Priority 2: SearXNG (self-hosted, open-source)
-    if SEARXNG_URL and provider_pref in ('auto', 'searxng'):
+    if SEARXNG_URL and provider_pref in ("auto", "searxng"):
         try:
             results = _searxng_search(query, max_results)
             if results:
                 response = tool_response(
-                    results=results, count=len(results), query=query, provider='searxng'
+                    results=results, count=len(results), query=query, provider="searxng"
                 )
                 _search_cache.set(cache_key, response)
                 return response
@@ -318,12 +332,12 @@ def search_web_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             logger.warning(f"SearXNG failed: {e}, falling back to DuckDuckGo")
 
     # Priority 3: DuckDuckGo library
-    if DDG_AVAILABLE and provider_pref in ('auto', 'duckduckgo'):
+    if DDG_AVAILABLE and provider_pref in ("auto", "duckduckgo"):
         try:
             results = _ddg_search(query, max_results)
             if results:
                 response = tool_response(
-                    results=results, count=len(results), query=query, provider='duckduckgo'
+                    results=results, count=len(results), query=query, provider="duckduckgo"
                 )
                 _search_cache.set(cache_key, response)
                 return response
@@ -334,15 +348,15 @@ def search_web_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     try:
         results = _ddg_html_search(query, max_results)
         response = tool_response(
-            results=results, count=len(results), query=query, provider='duckduckgo_html'
+            results=results, count=len(results), query=query, provider="duckduckgo_html"
         )
         _search_cache.set(cache_key, response)
         return response
     except requests.RequestException as e:
-        return tool_error(f'Network error: {str(e)}')
+        return tool_error(f"Network error: {str(e)}")
 
 
-@tool_wrapper(required_params=['url'])
+@tool_wrapper(required_params=["url"])
 def fetch_webpage_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Fetch and extract text content from a web page.
@@ -356,53 +370,63 @@ def fetch_webpage_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, url, title, content, length
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
-    url = params['url']
+    url = params["url"]
     # Show URL being fetched (truncated)
     url_display = url[:60] + "..." if len(url) > 60 else url
     status.emit("Fetching", f"🌐 {url_display}")
 
-    if '{' in url or '${' in url:
-        return tool_error(f'URL contains unresolved template variables: {url}')
+    if "{" in url or "${" in url:
+        return tool_error(f"URL contains unresolved template variables: {url}")
 
-    max_length = params.get('max_length', 10000)
+    max_length = params.get("max_length", 10000)
 
     # Smart fetch: direct → proxy on 403/429 → graceful skip
     from Jotty.core.infrastructure.utils.smart_fetcher import smart_fetch
+
     result = smart_fetch(url, timeout=15, max_proxy_attempts=2)
 
     if result.skipped:
         return tool_error(result.error)
 
     if not result.success:
-        return tool_error(f'Failed to fetch: {result.error}')
+        return tool_error(f"Failed to fetch: {result.error}")
 
     html = result.content
 
-    title_match = re.search(r'<title[^>]*>([^<]+)</title>', html, re.IGNORECASE)
-    title = title_match.group(1).strip() if title_match else 'Untitled'
+    title_match = re.search(r"<title[^>]*>([^<]+)</title>", html, re.IGNORECASE)
+    title = title_match.group(1).strip() if title_match else "Untitled"
 
-    html = re.sub(r'<script[^>]*>.*?</script>', '', html, flags=re.DOTALL | re.IGNORECASE)
-    html = re.sub(r'<style[^>]*>.*?</style>', '', html, flags=re.DOTALL | re.IGNORECASE)
+    html = re.sub(r"<script[^>]*>.*?</script>", "", html, flags=re.DOTALL | re.IGNORECASE)
+    html = re.sub(r"<style[^>]*>.*?</style>", "", html, flags=re.DOTALL | re.IGNORECASE)
 
-    text = re.sub(r'<[^>]+>', ' ', html)
-    text = re.sub(r'\s+', ' ', text).strip()
+    text = re.sub(r"<[^>]+>", " ", html)
+    text = re.sub(r"\s+", " ", text).strip()
 
-    for entity, char in [('&nbsp;', ' '), ('&amp;', '&'), ('&lt;', '<'),
-                          ('&gt;', '>'), ('&quot;', '"'), ('&#39;', "'")]:
+    for entity, char in [
+        ("&nbsp;", " "),
+        ("&amp;", "&"),
+        ("&lt;", "<"),
+        ("&gt;", ">"),
+        ("&quot;", '"'),
+        ("&#39;", "'"),
+    ]:
         text = text.replace(entity, char)
 
     if len(text) > max_length:
-        text = text[:max_length] + '...'
+        text = text[:max_length] + "..."
 
     return tool_response(
-        url=url, title=title, content=text, length=len(text),
-        fetched_via='proxy' if result.used_proxy else 'direct',
+        url=url,
+        title=title,
+        content=text,
+        length=len(text),
+        fetched_via="proxy" if result.used_proxy else "direct",
     )
 
 
-@tool_wrapper(required_params=['query'])
+@tool_wrapper(required_params=["query"])
 def search_and_scrape_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Search web and scrape content from top results.
@@ -417,58 +441,58 @@ def search_and_scrape_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, query, results, count, scraped_count, provider
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
-    query = params['query']
-    num_results = params.get('num_results', 5)
-    scrape_top = params.get('scrape_top', 3)
-    max_content_length = params.get('max_content_length', 5000)
+    query = params["query"]
+    num_results = params.get("num_results", 5)
+    scrape_top = params.get("scrape_top", 3)
+    max_content_length = params.get("max_content_length", 5000)
 
-    search_result = search_web_tool({'query': query, 'max_results': num_results})
+    search_result = search_web_tool({"query": query, "max_results": num_results})
 
-    if not search_result.get('success'):
+    if not search_result.get("success"):
         return search_result
 
-    results = search_result.get('results', [])
+    results = search_result.get("results", [])
     scraped_count = 0
 
     # Parallelize URL scraping — biggest latency win (22s → ~5s for 3 URLs)
-    to_scrape = [(i, r) for i, r in enumerate(results[:scrape_top]) if r.get('url')]
+    to_scrape = [(i, r) for i, r in enumerate(results[:scrape_top]) if r.get("url")]
     if to_scrape:
         from concurrent.futures import ThreadPoolExecutor, as_completed
 
         def _scrape_one(idx_result):
             idx, result = idx_result
-            url = result['url']
+            url = result["url"]
             try:
                 scraped = _scrape_url(url, max_content_length)
-                return idx, scraped.get('content', ''), None
+                return idx, scraped.get("content", ""), None
             except Exception as e:
-                return idx, '', str(e)
+                return idx, "", str(e)
 
         with ThreadPoolExecutor(max_workers=min(len(to_scrape), 5)) as executor:
             futures = {executor.submit(_scrape_one, item): item for item in to_scrape}
             for future in as_completed(futures):
                 idx, content, error = future.result()
                 if content:
-                    results[idx]['content'] = content
-                    results[idx]['content_length'] = len(content)
+                    results[idx]["content"] = content
+                    results[idx]["content_length"] = len(content)
                     scraped_count += 1
                 elif error:
                     logger.warning(f"Failed to scrape {results[idx].get('url')}: {error}")
-                    results[idx]['content'] = ''
-                    results[idx]['scrape_error'] = error
+                    results[idx]["content"] = ""
+                    results[idx]["scrape_error"] = error
 
     return tool_response(
         query=query,
         results=results,
         count=len(results),
         scraped_count=scraped_count,
-        provider=search_result.get('provider', 'unknown')
+        provider=search_result.get("provider", "unknown"),
     )
 
 
-@tool_wrapper(required_params=['url'])
+@tool_wrapper(required_params=["url"])
 def serper_scrape_website_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Scrape a website using Serper API for clean markdown extraction.
@@ -484,44 +508,50 @@ def serper_scrape_website_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, url, title, content, content_length
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
-    url = params['url']
-    max_length = params.get('max_length', 100000)
+    url = params["url"]
+    max_length = params.get("max_length", 100000)
 
     if not SERPER_API_KEY:
-        return tool_error('SERPER_API_KEY not set. Required for website scraping.')
+        return tool_error("SERPER_API_KEY not set. Required for website scraping.")
 
     url_display = url[:60] + "..." if len(url) > 60 else url
     status.emit("Scraping", f"Scraping {url_display}")
 
     try:
         response = requests.post(
-            'https://scrape.serper.dev/',
-            headers={'X-API-KEY': SERPER_API_KEY, 'Content-Type': 'application/json'},
-            json={'url': url},
-            timeout=30
+            "https://scrape.serper.dev/",
+            headers={"X-API-KEY": SERPER_API_KEY, "Content-Type": "application/json"},
+            json={"url": url},
+            timeout=30,
         )
         response.raise_for_status()
         data = response.json()
 
-        content = data.get('markdown', data.get('text', ''))
-        title = data.get('title', '')
+        content = data.get("markdown", data.get("text", ""))
+        title = data.get("title", "")
 
         if len(content) > max_length:
-            content = content[:max_length] + '...'
+            content = content[:max_length] + "..."
 
         return tool_response(
             url=url,
             title=title,
             content=content,
             content_length=len(content),
-            provider='serper_scrape'
+            provider="serper_scrape",
         )
     except requests.RequestException as e:
-        return tool_error(f'Scraping failed: {str(e)}')
+        return tool_error(f"Scraping failed: {str(e)}")
     except Exception as e:
-        return tool_error(f'Error scraping website: {str(e)}')
+        return tool_error(f"Error scraping website: {str(e)}")
 
 
-__all__ = ['search_web_tool', 'fetch_webpage_tool', 'search_and_scrape_tool', 'serper_scrape_website_tool', 'SearchCache']
+__all__ = [
+    "search_web_tool",
+    "fetch_webpage_tool",
+    "search_and_scrape_tool",
+    "serper_scrape_website_tool",
+    "SearchCache",
+]

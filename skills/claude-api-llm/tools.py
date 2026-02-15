@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +33,7 @@ status = SkillStatus("claude-api-llm")
 # =============================================================================
 # CLAUDE API CLIENT (Singleton)
 # =============================================================================
+
 
 class ClaudeAPIClient:
     """Reusable Anthropic API client with tool_use support.
@@ -76,7 +77,9 @@ class ClaudeAPIClient:
         except ImportError:
             pass
 
-        from Jotty.core.infrastructure.foundation.anthropic_client_kwargs import get_anthropic_client_kwargs
+        from Jotty.core.infrastructure.foundation.anthropic_client_kwargs import (
+            get_anthropic_client_kwargs,
+        )
         from Jotty.core.infrastructure.foundation.config_defaults import MODEL_SONNET
 
         kwargs = get_anthropic_client_kwargs()
@@ -220,10 +223,12 @@ class ClaudeAPIClient:
                     or "Too Many Requests" in err_str
                 )
                 if is_rate_limit and attempt < max_retries:
-                    delay = base_delay * (2 ** attempt)
+                    delay = base_delay * (2**attempt)
                     logger.info(
                         "Rate limited (attempt %d/%d), retrying in %.0fs...",
-                        attempt + 1, max_retries, delay,
+                        attempt + 1,
+                        max_retries,
+                        delay,
                     )
                     _time.sleep(delay)
                 else:
@@ -233,6 +238,7 @@ class ClaudeAPIClient:
         """Track API call cost via CostTracker."""
         try:
             from Jotty.core.infrastructure.foundation.direct_anthropic_lm import get_cost_tracker
+
             usage = getattr(response, "usage", None)
             if usage:
                 tracker = get_cost_tracker()
@@ -249,6 +255,7 @@ class ClaudeAPIClient:
 # =============================================================================
 # LINT GATING
 # =============================================================================
+
 
 class LintGate:
     """Syntax validation for generated code."""
@@ -281,6 +288,7 @@ class LintGate:
 # =============================================================================
 # TOOL 1: generate_code_tool
 # =============================================================================
+
 
 @tool_wrapper()
 def generate_code_tool(params: Dict[str, Any]) -> Dict[str, Any]:
@@ -350,14 +358,25 @@ def generate_code_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         for lint_attempt in range(max_lint_retries + 1):
             # On retry, include the lint error as feedback
             if lint_attempt > 0 and last_lint_error:
-                messages.append({
-                    "role": "assistant",
-                    "content": [{"type": "tool_use", "id": "retry", "name": "create_file", "input": _last_input}],
-                })
-                messages.append({
-                    "role": "user",
-                    "content": f"The code has a syntax error: {last_lint_error}. Please fix it and try again.",
-                })
+                messages.append(
+                    {
+                        "role": "assistant",
+                        "content": [
+                            {
+                                "type": "tool_use",
+                                "id": "retry",
+                                "name": "create_file",
+                                "input": _last_input,
+                            }
+                        ],
+                    }
+                )
+                messages.append(
+                    {
+                        "role": "user",
+                        "content": f"The code has a syntax error: {last_lint_error}. Please fix it and try again.",
+                    }
+                )
 
             response = api.call_with_tools(
                 messages=messages,
@@ -390,7 +409,12 @@ def generate_code_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                 )
 
             last_lint_error = lint_error
-            logger.warning("Lint failed (attempt %d/%d): %s", lint_attempt + 1, max_lint_retries + 1, lint_error)
+            logger.warning(
+                "Lint failed (attempt %d/%d): %s",
+                lint_attempt + 1,
+                max_lint_retries + 1,
+                lint_error,
+            )
 
         # All lint retries exhausted — return code with lint_passed=False
         status.emit("Warning", "Code generated but lint validation failed")
@@ -412,6 +436,7 @@ def generate_code_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 # =============================================================================
 # TOOL 2: generate_text_tool
 # =============================================================================
+
 
 @tool_wrapper()
 def generate_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
@@ -465,6 +490,7 @@ def generate_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 # TOOL 3: agentic_generate_tool
 # =============================================================================
 
+
 class AgenticToolExecutor:
     """Executes tool calls from the agentic loop.
 
@@ -472,7 +498,7 @@ class AgenticToolExecutor:
     (file-operations, terminal-session) with lint-gating for code writes.
     """
 
-    SANDBOX_ENV_STRIP_PATTERNS = ('SECRET', 'KEY', 'TOKEN', 'PASSWORD', 'CREDENTIAL')
+    SANDBOX_ENV_STRIP_PATTERNS = ("SECRET", "KEY", "TOKEN", "PASSWORD", "CREDENTIAL")
 
     def __init__(self, working_directory: str = "/tmp", sandbox_level: str = "sandboxed"):
         self.working_directory = working_directory
@@ -500,11 +526,13 @@ class AgenticToolExecutor:
         except Exception as e:
             result = {"success": False, "error": str(e)}
 
-        self.tool_call_history.append({
-            "tool": tool_name,
-            "input": tool_input,
-            "result": result,
-        })
+        self.tool_call_history.append(
+            {
+                "tool": tool_name,
+                "input": tool_input,
+                "result": result,
+            }
+        )
 
         return json.dumps(result, default=str)
 
@@ -525,7 +553,10 @@ class AgenticToolExecutor:
         if file_path.suffix.lower() == ".py":
             lint_error = LintGate.validate_python(content)
             if lint_error:
-                return {"success": False, "error": f"Lint failed: {lint_error}. Fix the code and try again."}
+                return {
+                    "success": False,
+                    "error": f"Lint failed: {lint_error}. Fix the code and try again.",
+                }
 
         file_path.parent.mkdir(parents=True, exist_ok=True)
         file_path.write_text(content, encoding="utf-8")
@@ -541,8 +572,10 @@ class AgenticToolExecutor:
 
         try:
             from Jotty.core.intelligence.orchestration.sandbox_manager import (
-                SandboxManager, TrustLevel,
+                SandboxManager,
+                TrustLevel,
             )
+
             trust_map = {
                 "trusted": TrustLevel.TRUSTED,
                 "sandboxed": TrustLevel.SANDBOXED,
@@ -561,6 +594,7 @@ class AgenticToolExecutor:
             )
 
             import asyncio
+
             try:
                 loop = asyncio.get_running_loop()
                 # Already inside an async context — fall back to sync with sanitization
@@ -568,9 +602,7 @@ class AgenticToolExecutor:
             except RuntimeError:
                 # No running loop — we can use asyncio.run
                 sandbox = SandboxManager()
-                result = asyncio.run(
-                    sandbox.execute_sandboxed(code, trust)
-                )
+                result = asyncio.run(sandbox.execute_sandboxed(code, trust))
                 self.execution_output.append(result.stdout or "")
                 return {
                     "success": result.success,
@@ -658,7 +690,10 @@ class AgenticToolExecutor:
         if file_path.suffix.lower() == ".py":
             lint_error = LintGate.validate_python(new_content)
             if lint_error:
-                return {"success": False, "error": f"Edit would produce invalid syntax: {lint_error}"}
+                return {
+                    "success": False,
+                    "error": f"Edit would produce invalid syntax: {lint_error}",
+                }
 
         file_path.write_text(new_content, encoding="utf-8")
         return {"success": True, "path": str(file_path)}
@@ -705,26 +740,36 @@ class AgenticToolExecutor:
                 if replace and not replace.endswith("\n"):
                     replace_lines = replace.splitlines(keepends=False)
                     replace_lines = [l + "\n" for l in replace_lines]
-                lines[best_start:best_start + len(search_lines)] = replace_lines
+                lines[best_start : best_start + len(search_lines)] = replace_lines
                 content = "".join(lines)
                 applied += 1
 
         if applied == 0:
-            return {"success": False, "error": "No edits could be applied", "applied": 0, "total": len(edits)}
+            return {
+                "success": False,
+                "error": "No edits could be applied",
+                "applied": 0,
+                "total": len(edits),
+            }
 
         # Lint gate for Python files
         if file_path.suffix.lower() == ".py":
             lint_error = LintGate.validate_python(content)
             if lint_error:
-                return {"success": False, "error": f"Edit would produce invalid syntax: {lint_error}"}
+                return {
+                    "success": False,
+                    "error": f"Edit would produce invalid syntax: {lint_error}",
+                }
 
         # Generate diff preview
-        diff_lines = list(difflib.unified_diff(
-            original.splitlines(keepends=True),
-            content.splitlines(keepends=True),
-            fromfile=str(file_path),
-            tofile=str(file_path),
-        ))
+        diff_lines = list(
+            difflib.unified_diff(
+                original.splitlines(keepends=True),
+                content.splitlines(keepends=True),
+                fromfile=str(file_path),
+                tofile=str(file_path),
+            )
+        )
         diff_preview = "".join(diff_lines[:50])
 
         file_path.write_text(content, encoding="utf-8")
@@ -746,7 +791,7 @@ class AgenticToolExecutor:
         window = len(search_lines)
 
         for i in range(len(lines) - window + 1):
-            candidate = "".join(lines[i:i + window])
+            candidate = "".join(lines[i : i + window])
             ratio = difflib.SequenceMatcher(None, search_block, candidate).ratio()
             if ratio > best_ratio:
                 best_ratio = ratio
@@ -821,7 +866,10 @@ AGENTIC_TOOL_DEFINITIONS = [
                     "items": {
                         "type": "object",
                         "properties": {
-                            "search": {"type": "string", "description": "Text to find (fuzzy match)"},
+                            "search": {
+                                "type": "string",
+                                "description": "Text to find (fuzzy match)",
+                            },
                             "replace": {"type": "string", "description": "Replacement text"},
                         },
                         "required": ["search", "replace"],
@@ -842,14 +890,41 @@ class ContextBuilder:
     """
 
     SKIP_DIRS = {
-        '.git', '__pycache__', 'node_modules', '.venv', 'venv',
-        'env', '.env', 'dist', 'build', '.pytest_cache', '.mypy_cache',
-        '.tox', '.eggs', '*.egg-info',
+        ".git",
+        "__pycache__",
+        "node_modules",
+        ".venv",
+        "venv",
+        "env",
+        ".env",
+        "dist",
+        "build",
+        ".pytest_cache",
+        ".mypy_cache",
+        ".tox",
+        ".eggs",
+        "*.egg-info",
     }
     CODE_EXTENSIONS = {
-        '.py', '.js', '.ts', '.jsx', '.tsx', '.java', '.go', '.rs',
-        '.cpp', '.h', '.hpp', '.css', '.html', '.json', '.yaml', '.yml',
-        '.toml', '.md', '.sh',
+        ".py",
+        ".js",
+        ".ts",
+        ".jsx",
+        ".tsx",
+        ".java",
+        ".go",
+        ".rs",
+        ".cpp",
+        ".h",
+        ".hpp",
+        ".css",
+        ".html",
+        ".json",
+        ".yaml",
+        ".yml",
+        ".toml",
+        ".md",
+        ".sh",
     }
     MAX_CONTEXT_CHARS = 50000  # ~12K tokens
     MAX_TREE_LINES = 200
@@ -857,8 +932,14 @@ class ContextBuilder:
     MAX_DEPTH = 3
     MAX_FILE_CHARS = 5000
     PRIORITY_PATTERNS = [
-        'README', 'setup.py', 'pyproject.toml', 'package.json',
-        'main.py', 'app.py', 'index.', '__init__.py',
+        "README",
+        "setup.py",
+        "pyproject.toml",
+        "package.json",
+        "main.py",
+        "app.py",
+        "index.",
+        "__init__.py",
     ]
 
     @classmethod
@@ -880,7 +961,7 @@ class ContextBuilder:
             # Prune skipped directories in-place
             dirnames[:] = [d for d in dirnames if d not in cls.SKIP_DIRS]
             rel = os.path.relpath(dirpath, root)
-            depth = rel.count(os.sep) if rel != '.' else 0
+            depth = rel.count(os.sep) if rel != "." else 0
             if depth > cls.MAX_DEPTH:
                 continue
             indent = "  " * depth
@@ -890,7 +971,7 @@ class ContextBuilder:
                     tree_lines.append(f"{indent}  {f}")
                     file_list.append(os.path.join(dirpath, f))
 
-        tree = "\n".join(tree_lines[:cls.MAX_TREE_LINES])
+        tree = "\n".join(tree_lines[: cls.MAX_TREE_LINES])
 
         # Include small key files (README, config, main entry points)
         context_parts = [f"PROJECT STRUCTURE:\n{tree}\n"]
@@ -900,19 +981,18 @@ class ContextBuilder:
         prioritized = sorted(
             file_list,
             key=lambda f: next(
-                (i for i, p in enumerate(cls.PRIORITY_PATTERNS)
-                 if p in os.path.basename(f)),
+                (i for i, p in enumerate(cls.PRIORITY_PATTERNS) if p in os.path.basename(f)),
                 999,
             ),
         )
 
-        for fpath in prioritized[:cls.MAX_FILES]:
+        for fpath in prioritized[: cls.MAX_FILES]:
             if budget <= 0:
                 break
             try:
-                content = Path(fpath).read_text(encoding='utf-8')
+                content = Path(fpath).read_text(encoding="utf-8")
                 if len(content) > cls.MAX_FILE_CHARS:
-                    content = content[:cls.MAX_FILE_CHARS] + "\n... (truncated)"
+                    content = content[: cls.MAX_FILE_CHARS] + "\n... (truncated)"
                 rel = os.path.relpath(fpath, root)
                 entry = f"\n--- {rel} ---\n{content}\n"
                 if len(entry) <= budget:
@@ -1020,22 +1100,26 @@ def agentic_generate_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                     assistant_content.append({"type": "text", "text": block.text})
                 elif block.type == "tool_use":
                     has_tool_use = True
-                    assistant_content.append({
-                        "type": "tool_use",
-                        "id": block.id,
-                        "name": block.name,
-                        "input": block.input,
-                    })
+                    assistant_content.append(
+                        {
+                            "type": "tool_use",
+                            "id": block.id,
+                            "name": block.name,
+                            "input": block.input,
+                        }
+                    )
 
                     # Execute the tool
                     status.emit("Tool", f"Executing {block.name}...")
                     result_str = executor.execute_tool(block.name, block.input)
 
-                    tool_results.append({
-                        "type": "tool_result",
-                        "tool_use_id": block.id,
-                        "content": result_str,
-                    })
+                    tool_results.append(
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": block.id,
+                            "content": result_str,
+                        }
+                    )
 
             # Add assistant response to messages
             messages.append({"role": "assistant", "content": assistant_content})
@@ -1081,6 +1165,7 @@ def agentic_generate_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 # =============================================================================
 # TOOL 4: structured_output_tool
 # =============================================================================
+
 
 @tool_wrapper()
 def structured_output_tool(params: Dict[str, Any]) -> Dict[str, Any]:
@@ -1149,6 +1234,7 @@ def structured_output_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 # =============================================================================
 # HELPERS
 # =============================================================================
+
 
 def _extract_tool_input(response) -> Optional[Dict[str, Any]]:
     """Extract the input dict from the first tool_use block in a response."""

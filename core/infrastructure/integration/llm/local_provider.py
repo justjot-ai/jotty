@@ -6,12 +6,15 @@ Routes to Ollama/llama.cpp when local_mode=True.
 Provides fully local inference with no external API calls.
 """
 
-import os
 import logging
-from typing import Optional, Dict, Any
+import os
 from dataclasses import dataclass
+from typing import Any, Dict, Optional
 
-from Jotty.core.infrastructure.foundation.config_defaults import LLM_TEMPERATURE, LLM_TIMEOUT_SECONDS
+from Jotty.core.infrastructure.foundation.config_defaults import (
+    LLM_TEMPERATURE,
+    LLM_TIMEOUT_SECONDS,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +22,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class LocalLLMResponse:
     """Response from local LLM."""
+
     success: bool
     text: str = ""
     error: str = ""
@@ -39,7 +43,7 @@ class LocalLLMProvider:
         response = await provider.generate("What is 2+2?")
     """
 
-    def __init__(self, model: str = 'ollama/llama3') -> None:
+    def __init__(self, model: str = "ollama/llama3") -> None:
         """
         Initialize local LLM provider.
 
@@ -53,6 +57,7 @@ class LocalLLMProvider:
         # Ollama settings (centralized defaults)
         try:
             from ..foundation.config_defaults import DEFAULTS as _DEFAULTS
+
             _ollama_default = _DEFAULTS.OLLAMA_URL
         except ImportError:
             _ollama_default = "http://localhost:11434"
@@ -72,7 +77,13 @@ class LocalLLMProvider:
             self.provider_type = "ollama"
             self.model_name = self.model_spec
 
-    async def generate(self, prompt: str, max_tokens: int = 2048, temperature: float = LLM_TEMPERATURE, **kwargs: Any) -> LocalLLMResponse:
+    async def generate(
+        self,
+        prompt: str,
+        max_tokens: int = 2048,
+        temperature: float = LLM_TEMPERATURE,
+        **kwargs: Any,
+    ) -> LocalLLMResponse:
         """
         Generate text using local LLM.
 
@@ -92,14 +103,11 @@ class LocalLLMProvider:
             return LocalLLMResponse(
                 success=False,
                 error=f"Unknown local provider: {self.provider_type}",
-                model=self.model_spec
+                model=self.model_spec,
             )
 
     async def _generate_ollama(
-        self,
-        prompt: str,
-        max_tokens: int,
-        temperature: float
+        self, prompt: str, max_tokens: int, temperature: float
     ) -> LocalLLMResponse:
         """Generate using Ollama API."""
         try:
@@ -108,7 +116,7 @@ class LocalLLMProvider:
             return LocalLLMResponse(
                 success=False,
                 error="httpx not installed. Run: pip install httpx",
-                model=self.model_spec
+                model=self.model_spec,
             )
 
         try:
@@ -119,12 +127,9 @@ class LocalLLMProvider:
                         "model": self.model_name,
                         "prompt": prompt,
                         "stream": False,
-                        "options": {
-                            "num_predict": max_tokens,
-                            "temperature": temperature
-                        }
+                        "options": {"num_predict": max_tokens, "temperature": temperature},
                     },
-                    timeout=float(LLM_TIMEOUT_SECONDS)
+                    timeout=float(LLM_TIMEOUT_SECONDS),
                 )
 
                 if response.status_code == 200:
@@ -133,43 +138,34 @@ class LocalLLMProvider:
                         success=True,
                         text=data.get("response", ""),
                         model=self.model_spec,
-                        provider="ollama"
+                        provider="ollama",
                     )
                 else:
                     return LocalLLMResponse(
                         success=False,
                         error=f"Ollama error: {response.status_code} - {response.text}",
-                        model=self.model_spec
+                        model=self.model_spec,
                     )
 
         except httpx.ConnectError:
             return LocalLLMResponse(
                 success=False,
                 error=f"Cannot connect to Ollama at {self.ollama_host}. Is Ollama running?",
-                model=self.model_spec
+                model=self.model_spec,
             )
         except Exception as e:
             logger.error(f"Ollama error: {e}", exc_info=True)
-            return LocalLLMResponse(
-                success=False,
-                error=str(e),
-                model=self.model_spec
-            )
+            return LocalLLMResponse(success=False, error=str(e), model=self.model_spec)
 
     async def _generate_llamacpp(
-        self,
-        prompt: str,
-        max_tokens: int,
-        temperature: float
+        self, prompt: str, max_tokens: int, temperature: float
     ) -> LocalLLMResponse:
         """Generate using llama.cpp server API."""
         try:
             import httpx
         except ImportError:
             return LocalLLMResponse(
-                success=False,
-                error="httpx not installed",
-                model=self.model_spec
+                success=False, error="httpx not installed", model=self.model_spec
             )
 
         try:
@@ -180,9 +176,9 @@ class LocalLLMProvider:
                         "prompt": prompt,
                         "n_predict": max_tokens,
                         "temperature": temperature,
-                        "stream": False
+                        "stream": False,
                     },
-                    timeout=float(LLM_TIMEOUT_SECONDS)
+                    timeout=float(LLM_TIMEOUT_SECONDS),
                 )
 
                 if response.status_code == 200:
@@ -191,37 +187,38 @@ class LocalLLMProvider:
                         success=True,
                         text=data.get("content", ""),
                         model=self.model_spec,
-                        provider="llamacpp"
+                        provider="llamacpp",
                     )
                 else:
                     return LocalLLMResponse(
                         success=False,
                         error=f"llama.cpp error: {response.status_code}",
-                        model=self.model_spec
+                        model=self.model_spec,
                     )
 
         except httpx.ConnectError:
             return LocalLLMResponse(
                 success=False,
                 error=f"Cannot connect to llama.cpp at {self.llamacpp_host}",
-                model=self.model_spec
+                model=self.model_spec,
             )
         except Exception as e:
             logger.error(f"llama.cpp error: {e}", exc_info=True)
-            return LocalLLMResponse(
-                success=False,
-                error=str(e),
-                model=self.model_spec
-            )
+            return LocalLLMResponse(success=False, error=str(e), model=self.model_spec)
 
-    def generate_sync(self, prompt: str, max_tokens: int = 2048, temperature: float = LLM_TEMPERATURE, **kwargs: Any) -> LocalLLMResponse:
+    def generate_sync(
+        self,
+        prompt: str,
+        max_tokens: int = 2048,
+        temperature: float = LLM_TEMPERATURE,
+        **kwargs: Any,
+    ) -> LocalLLMResponse:
         """Synchronous wrapper for generate()."""
         import asyncio
+
         loop = asyncio.new_event_loop()
         try:
-            return loop.run_until_complete(
-                self.generate(prompt, max_tokens, temperature, **kwargs)
-            )
+            return loop.run_until_complete(self.generate(prompt, max_tokens, temperature, **kwargs))
         finally:
             loop.close()
 
@@ -234,6 +231,7 @@ class LocalLLMProvider:
 
         try:
             from ..foundation.config_defaults import DEFAULTS as _DEFAULTS
+
             _ollama_default = _DEFAULTS.OLLAMA_URL
         except ImportError:
             _ollama_default = "http://localhost:11434"

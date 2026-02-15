@@ -1,8 +1,11 @@
 """Word frequency analyzer — count, rank, cloud data."""
+
 import re
-from typing import Dict, Any
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from typing import Any, Dict
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
+
 status = SkillStatus("word-frequency-analyzer")
 
 _STOP = frozenset(
@@ -37,7 +40,8 @@ def word_freq_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     max_count = top[0][1] if top else 1
     cloud = [{"word": w, "count": c, "weight": round(c / max_count, 3)} for w, c in top]
     return tool_response(
-        total_words=total, unique_words=len(freq),
+        total_words=total,
+        unique_words=len(freq),
         top_words=[{"word": w, "count": c} for w, c in top],
         word_cloud_data=cloud,
         stop_words_excluded=not include_stop,

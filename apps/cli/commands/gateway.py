@@ -5,11 +5,11 @@ Gateway Command
 /gateway - Start unified message gateway
 """
 
-import logging
 import asyncio
+import logging
+import os
 import subprocess
 import sys
-import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -56,7 +56,9 @@ class GatewayCommand(BaseCommand):
             cli.renderer.error(f"Unknown subcommand: {subcommand}")
             return CommandResult.fail("Unknown subcommand")
 
-    async def _start_gateway(self, cli: "JottyCLI", host: str, port: int, foreground: bool) -> CommandResult:
+    async def _start_gateway(
+        self, cli: "JottyCLI", host: str, port: int, foreground: bool
+    ) -> CommandResult:
         """Start the gateway server."""
         import socket
 
@@ -84,13 +86,13 @@ class GatewayCommand(BaseCommand):
         jotty_path = str(Path(__file__).parent.parent.parent.resolve())
 
         # Create server script
-        server_script = f'''
+        server_script = f"""
 import sys
 sys.path.insert(0, "{jotty_path}")
 from Jotty.apps.cli.gateway import UnifiedGateway
 gateway = UnifiedGateway("{host}", {port})
 gateway.run()
-'''
+"""
 
         # Write to temp file
         script_path = Path.home() / ".jotty" / "gateway_server.py"
@@ -105,7 +107,7 @@ gateway.run()
             [sys.executable, str(script_path)],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            start_new_session=True
+            start_new_session=True,
         )
 
         # Save PID
@@ -152,8 +154,9 @@ gateway.run()
         cli.renderer.info("Press Ctrl+C to stop")
 
         try:
-            from ..gateway import UnifiedGateway
             import uvicorn
+
+            from ..gateway import UnifiedGateway
 
             gateway = UnifiedGateway(host, port)
             gateway.set_cli(cli)
@@ -200,13 +203,16 @@ gateway.run()
         """Check gateway status."""
         try:
             import aiohttp
+
             async with aiohttp.ClientSession() as session:
                 async with session.get(f"http://localhost:{port}/health", timeout=5) as resp:
                     if resp.status == 200:
                         data = await resp.json()
                         cli.renderer.success("Gateway is running")
                         cli.renderer.print(f"  Active sessions: {data.get('active_sessions', 0)}")
-                        cli.renderer.print(f"  WebSocket clients: {data.get('websocket_clients', 0)}")
+                        cli.renderer.print(
+                            f"  WebSocket clients: {data.get('websocket_clients', 0)}"
+                        )
                         return CommandResult.ok(data=data)
                     else:
                         cli.renderer.warning(f"Gateway returned {resp.status}")
@@ -248,7 +254,9 @@ gateway.run()
         cli.renderer.print("")
 
         cli.renderer.print("[cyan]WebSocket:[/cyan]")
-        cli.renderer.print(f"  Connect to: ws://{public_url.replace('http://', '').replace('https://', '')}/ws")
+        cli.renderer.print(
+            f"  Connect to: ws://{public_url.replace('http://', '').replace('https://', '')}/ws"
+        )
         cli.renderer.print("")
 
         return CommandResult.ok()

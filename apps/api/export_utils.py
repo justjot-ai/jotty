@@ -10,13 +10,13 @@ Professional document export with:
 - Error recovery and detailed logging
 """
 
-import subprocess
-import tempfile
 import logging
 import shutil
+import subprocess
+import tempfile
+from datetime import datetime
 from pathlib import Path
 from typing import Optional, Tuple
-from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -147,10 +147,7 @@ class DocumentExporter:
         """Run pandoc with error capture."""
         try:
             result = subprocess.run(
-                ["pandoc"] + args,
-                capture_output=True,
-                text=True,
-                timeout=timeout
+                ["pandoc"] + args, capture_output=True, text=True, timeout=timeout
             )
             if result.returncode != 0:
                 return False, result.stderr or "Unknown error"
@@ -176,9 +173,12 @@ class DocumentExporter:
         output = self.temp_dir / f"{filename}.html"
 
         args = [
-            str(md_file), "-o", str(output),
+            str(md_file),
+            "-o",
+            str(output),
             "--highlight-style=pygments",
-            "--metadata", f"title={filename}",
+            "--metadata",
+            f"title={filename}",
         ]
         if standalone:
             args.append("--standalone")
@@ -211,11 +211,15 @@ class DocumentExporter:
 
         for engine in engines:
             args = [
-                str(md_file), "-o", str(output),
+                str(md_file),
+                "-o",
+                str(output),
                 f"--pdf-engine={engine}",
                 f"--template={template_file}",
-                "-V", f"title={title}",
-                "-V", f"date={date}",
+                "-V",
+                f"title={title}",
+                "-V",
+                f"date={date}",
                 "--highlight-style=tango",
             ]
 
@@ -231,6 +235,7 @@ class DocumentExporter:
         # Final fallback: HTML -> PDF via weasyprint
         try:
             import weasyprint
+
             html_file = self.export_html(content, filename, standalone=True)
             weasyprint.HTML(filename=str(html_file)).write_pdf(str(output))
             if output.exists():
@@ -252,8 +257,11 @@ class DocumentExporter:
         title = title or filename
 
         args = [
-            str(md_file), "-o", str(output),
-            "--metadata", f"title={title}",
+            str(md_file),
+            "-o",
+            str(output),
+            "--metadata",
+            f"title={title}",
             "--highlight-style=tango",
         ]
 
@@ -290,12 +298,18 @@ class DocumentExporter:
 
         for theme in themes:
             args = [
-                str(md_file), "-o", str(output),
-                "-t", "beamer",
+                str(md_file),
+                "-o",
+                str(output),
+                "-t",
+                "beamer",
                 "--pdf-engine=xelatex",
-                "-V", f"theme:{theme}",
-                "-V", f"title={title}",
-                "-V", f"date={date}",
+                "-V",
+                f"theme:{theme}",
+                "-V",
+                f"title={title}",
+                "-V",
+                f"date={date}",
                 "--highlight-style=tango",
             ]
 
@@ -319,8 +333,11 @@ class DocumentExporter:
         title = title or filename
 
         args = [
-            str(md_file), "-o", str(output),
-            "--metadata", f"title={title}",
+            str(md_file),
+            "-o",
+            str(output),
+            "--metadata",
+            f"title={title}",
             "--highlight-style=tango",
             "--toc",
         ]
@@ -341,14 +358,12 @@ class DocumentExporter:
 
 class ExportError(Exception):
     """Export operation failed."""
+
     pass
 
 
 def export_content(
-    content: str,
-    format: str,
-    filename: str = "export",
-    title: Optional[str] = None
+    content: str, format: str, filename: str = "export", title: Optional[str] = None
 ) -> Tuple[Path, str]:
     """
     Export content to specified format.

@@ -12,7 +12,7 @@ Usage:
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING, Optional, Any
+from typing import TYPE_CHECKING, Any, Optional
 
 from .base import BaseCommand, CommandResult, ParsedArgs
 
@@ -59,7 +59,7 @@ class TelegramCommand(BaseCommand):
             from ...telegram.bot import TelegramBotHandler
 
             # Create status callback
-            def status_callback(stage: str, detail: str = '') -> Any:
+            def status_callback(stage: str, detail: str = "") -> Any:
                 if cli.renderer:
                     cli.renderer.status(f"[Telegram] {stage}: {detail}")
 
@@ -90,8 +90,7 @@ class TelegramCommand(BaseCommand):
 
         except ImportError as e:
             return CommandResult.fail(
-                f"Missing dependency: {e}\n"
-                "Install with: pip install python-telegram-bot"
+                f"Missing dependency: {e}\n" "Install with: pip install python-telegram-bot"
             )
         except ValueError as e:
             return CommandResult.fail(str(e))
@@ -131,8 +130,7 @@ class TelegramCommand(BaseCommand):
         """Get bot status."""
         if self._bot is None:
             return CommandResult.ok(
-                "Telegram Bot Status: STOPPED\n"
-                "Use /telegram start to start the bot."
+                "Telegram Bot Status: STOPPED\n" "Use /telegram start to start the bot."
             )
 
         running = self._bot._application is not None
@@ -143,7 +141,9 @@ class TelegramCommand(BaseCommand):
         ]
 
         if self._bot.allowed_chat_ids:
-            status_lines.append(f"Allowed chat IDs: {', '.join(map(str, self._bot.allowed_chat_ids))}")
+            status_lines.append(
+                f"Allowed chat IDs: {', '.join(map(str, self._bot.allowed_chat_ids))}"
+            )
         else:
             status_lines.append("Allowed chat IDs: All")
 

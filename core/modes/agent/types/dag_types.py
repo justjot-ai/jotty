@@ -1,17 +1,17 @@
 """DAG Agent types — enums, signatures, data structures."""
 
 import logging
-from typing import List, Dict, Any, Optional
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
 import dspy
 
-from ..orchestration.swarm_roadmap import SwarmTaskBoard
 from ..foundation.data_structures import SwarmConfig, SwarmLearningConfig
+from ..learning.learning import AdaptiveLearningRate, TDLambdaLearner
 from ..memory.cortex import SwarmMemory
-from ..learning.learning import TDLambdaLearner, AdaptiveLearningRate
+from ..orchestration.swarm_roadmap import SwarmTaskBoard
 from ..persistence.shared_context import SharedContext
 from .axon import MessageBus
 from .base import AgentConfig as _OrigAgentConfig  # not used directly for DAGAgentMixin
@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 # BASE AGENT MIXIN FOR DAG AGENTS
 # =============================================================================
+
 
 class DAGAgentMixin:
     """
@@ -44,6 +45,7 @@ class DAGAgentMixin:
         # Use a lightweight SimpleNamespace instead of AgentConfig (which
         # requires an ``agent`` DSPy module).  Tests only need ``.name``.
         from types import SimpleNamespace
+
         self._agent_config = SimpleNamespace(
             name=name,
             enable_memory=True,
@@ -89,9 +91,7 @@ class DAGAgentMixin:
         """Get agent execution metrics (BaseAgent-compatible format)."""
         metrics = self._metrics.copy()
         if metrics["total_executions"] > 0:
-            metrics["success_rate"] = (
-                metrics["successful_executions"] / metrics["total_executions"]
-            )
+            metrics["success_rate"] = metrics["successful_executions"] / metrics["total_executions"]
             metrics["avg_execution_time"] = (
                 metrics["total_execution_time"] / metrics["total_executions"]
             )
@@ -125,13 +125,14 @@ class DAGAgentMixin:
             "name": self._agent_config.name,
             "class": self.__class__.__name__,
             "metrics": self.get_metrics(),
-            "initialized": getattr(self, '_initialized', False),
+            "initialized": getattr(self, "_initialized", False),
         }
 
 
 # =============================================================================
 # SHARED SWARM RESOURCES (Singleton pattern for true sharing)
 # =============================================================================
+
 
 class SwarmResources:
     """
@@ -143,6 +144,7 @@ class SwarmResources:
     - bus: Inter-agent communication
     - learner: Shared learning from outcomes
     """
+
     _instance = None
 
     def __new__(cls, config: SwarmConfig = None) -> Any:
@@ -159,8 +161,7 @@ class SwarmResources:
 
         # Shared memory - ALL agents use this
         self.memory = SwarmMemory(
-            config=self.config,
-            agent_name="SwarmShared"  # Single shared instance
+            config=self.config, agent_name="SwarmShared"  # Single shared instance
         )
 
         # Shared context (taskboard)
@@ -171,16 +172,13 @@ class SwarmResources:
 
         # Shared learner
         adaptive_lr = AdaptiveLearningRate(self.config)
-        self.learner = TDLambdaLearner(
-            config=self.config,
-            adaptive_lr=adaptive_lr
-        )
+        self.learner = TDLambdaLearner(config=self.config, adaptive_lr=adaptive_lr)
 
         self._initialized = True
         logger.info(" SwarmResources initialized (shared memory, context, bus, learner)")
 
     @classmethod
-    def get_instance(cls, config: SwarmConfig = None) -> 'SwarmResources':
+    def get_instance(cls, config: SwarmConfig = None) -> "SwarmResources":
         """Get or create the singleton instance."""
         return cls(config)
 
@@ -194,8 +192,10 @@ class SwarmResources:
 # TASK TYPES (Extended from Jotty)
 # =============================================================================
 
+
 class TaskType(Enum):
     """Task type classification for DAG nodes."""
+
     SETUP = "setup"
     IMPLEMENTATION = "implementation"
     TESTING = "testing"
@@ -209,6 +209,7 @@ class TaskType(Enum):
 # =============================================================================
 # DSPy SIGNATURES - Task Breakdown
 # =============================================================================
+
 
 class ExtractTasksSignature(dspy.Signature):
     """Extract PRODUCTION-QUALITY tasks from an implementation plan.
@@ -247,7 +248,10 @@ class ExtractTasksSignature(dspy.Signature):
     TASK: Build unified task management UI | TYPE: implementation | DESC: Rich terminal UI with Kanban board view (Jira), project hierarchy (Asana), and daily planner sections (Any.do). Include drag-drop, keyboard navigation, color themes | FILES: ui.py
     QUALITY: Use rich library, support vim keybindings, 60fps animations, <100ms response time
     """
-    implementation_plan: str = dspy.InputField(desc="The implementation plan - consolidate similar requirements into ONE unified solution")
+
+    implementation_plan: str = dspy.InputField(
+        desc="The implementation plan - consolidate similar requirements into ONE unified solution"
+    )
 
     tasks_list: str = dspy.OutputField(
         desc="4-6 PRODUCTION-QUALITY tasks. Consolidate similar apps. Include quality criteria for each."
@@ -272,6 +276,7 @@ class IdentifyDependenciesSignature(dspy.Signature):
     TASK_ID: task_2 | DEPENDS_ON: task_1
     TASK_ID: task_3 | DEPENDS_ON: task_1, task_2
     """
+
     tasks_list: str = dspy.InputField(desc="List of tasks extracted from plan")
 
     dependencies_graph: str = dspy.OutputField(
@@ -293,9 +298,8 @@ class OptimizeWorkflowSignature(dspy.Signature):
     STAGE 3 (parallel): task_4, task_5
     BOTTLENECK: task_3 blocks 2 downstream tasks
     """
-    tasks_with_dependencies: str = dspy.InputField(
-        desc="Tasks with their dependencies"
-    )
+
+    tasks_with_dependencies: str = dspy.InputField(desc="Tasks with their dependencies")
 
     optimized_workflow: str = dspy.OutputField(
         desc="Optimized workflow with stages and parallel execution groups"
@@ -305,6 +309,7 @@ class OptimizeWorkflowSignature(dspy.Signature):
 # =============================================================================
 # DSPy SIGNATURES - Actor Assignment
 # =============================================================================
+
 
 class ActorAssignmentSignature(dspy.Signature):
     """Assign the best actor to a task based on capabilities.
@@ -319,6 +324,7 @@ class ActorAssignmentSignature(dspy.Signature):
 
     IMPORTANT: Return the EXACT actor name from available_actors.
     """
+
     task_id: str = dspy.InputField(desc="Task identifier")
     task_name: str = dspy.InputField(desc="Task name/title")
     task_type: str = dspy.InputField(desc="Task type: setup, implementation, testing, etc.")
@@ -329,9 +335,7 @@ class ActorAssignmentSignature(dspy.Signature):
     assigned_actor_name: str = dspy.OutputField(
         desc="Name of the assigned actor (must match exactly from available_actors)"
     )
-    reasoning: str = dspy.OutputField(
-        desc="Brief explanation of why this actor was chosen"
-    )
+    reasoning: str = dspy.OutputField(desc="Brief explanation of why this actor was chosen")
 
 
 class DAGValidationSignature(dspy.Signature):
@@ -348,6 +352,7 @@ class DAGValidationSignature(dspy.Signature):
     - issues_found: List of issues or "none"
     - recommendations: Suggestions for fixing issues
     """
+
     dag_summary: str = dspy.InputField(desc="DAG statistics and structure summary")
     tasks_info: str = dspy.InputField(desc="JSON of all tasks with dependencies")
     assignments_info: str = dspy.InputField(desc="JSON of task-to-actor assignments")
@@ -370,21 +375,22 @@ class OptimizeDAGSignature(dspy.Signature):
     KEEP: task_1 | REASON: Core implementation task
     REMOVE: task_5 | REASON: Docker setup not needed for local dev
     """
+
     tasks_summary: str = dspy.InputField(desc="Summary of all tasks")
     available_capabilities: str = dspy.InputField(desc="Combined capabilities of all actors")
 
-    optimization_plan: str = dspy.OutputField(
-        desc="List of KEEP/REMOVE decisions with reasons"
-    )
+    optimization_plan: str = dspy.OutputField(desc="List of KEEP/REMOVE decisions with reasons")
 
 
 # =============================================================================
 # ACTOR REPRESENTATION
 # =============================================================================
 
+
 @dataclass
 class Actor:
     """Represents an actor/agent that can execute tasks."""
+
     name: str
     capabilities: List[str]  # e.g., ["git", "coding", "web_search", "testing"]
     description: Optional[str] = None
@@ -410,9 +416,11 @@ class Actor:
 # EXECUTABLE DAG (Enhanced with Jotty integration)
 # =============================================================================
 
+
 @dataclass
 class TrajectoryStep:
     """A single step in the DAG execution trajectory."""
+
     step_idx: int = 0
     timestamp: Optional[datetime] = None
     action_type: str = ""
@@ -430,6 +438,7 @@ class ExecutableDAG:
 
     Integrates with Jotty's SwarmTaskBoard for execution tracking.
     """
+
     markovian_todo: SwarmTaskBoard
     assignments: Dict[str, Actor]  # task_id -> Actor
     validation_passed: bool
@@ -452,7 +461,8 @@ class ExecutableDAG:
         while remaining:
             # Find tasks with all dependencies satisfied
             stage = [
-                task_id for task_id in remaining
+                task_id
+                for task_id in remaining
                 if all(dep in completed for dep in self.markovian_todo.subtasks[task_id].depends_on)
             ]
             if not stage:
@@ -464,7 +474,9 @@ class ExecutableDAG:
 
         return stages
 
-    def add_trajectory_step(self, task_id: str, action_type: str, action_content: str, observation: str, reward: float) -> Any:
+    def add_trajectory_step(
+        self, task_id: str, action_type: str, action_content: str, observation: str, reward: float
+    ) -> Any:
         """Record an execution step."""
         step = TrajectoryStep(
             step_idx=len(self.trajectory),
@@ -474,7 +486,7 @@ class ExecutableDAG:
             context_summary=f"Task: {task_id}",
             activated_memories=[],
             observation=observation,
-            reward=reward
+            reward=reward,
         )
         self.trajectory.append(step)
 
@@ -515,11 +527,10 @@ class ExecutableDAG:
                     "reward": s.reward,
                 }
                 for s in self.trajectory
-            ]
+            ],
         }
 
 
 # =============================================================================
 # TASK BREAKDOWN AGENT
 # =============================================================================
-

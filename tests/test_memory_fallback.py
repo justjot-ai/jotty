@@ -10,23 +10,25 @@ Comprehensive tests covering:
 
 import json
 import time
-import pytest
-from pathlib import Path
 from collections import OrderedDict
-from unittest.mock import Mock, MagicMock, AsyncMock, patch, mock_open
 from datetime import datetime
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, Mock, mock_open, patch
+
+import pytest
 
 # ---------------------------------------------------------------------------
 # Safe imports with skip guards
 # ---------------------------------------------------------------------------
 
 try:
+    from Jotty.core.intelligence.memory.fallback_memory import MemoryEntry as FallbackMemoryEntry
     from Jotty.core.intelligence.memory.fallback_memory import (
-        SimpleFallbackMemory,
-        MemoryEntry as FallbackMemoryEntry,
         MemoryType,
+        SimpleFallbackMemory,
         get_fallback_memory,
     )
+
     FALLBACK_AVAILABLE = True
 except ImportError:
     FALLBACK_AVAILABLE = False
@@ -36,17 +38,19 @@ try:
         MemoryPersistence,
         enable_memory_persistence,
     )
+
     PERSISTENCE_AVAILABLE = True
 except ImportError:
     PERSISTENCE_AVAILABLE = False
 
 try:
     from Jotty.core.intelligence.memory.memory_system import (
-        MemorySystem,
         MemoryBackend,
         MemoryConfig,
         MemoryResult,
+        MemorySystem,
     )
+
     SYSTEM_AVAILABLE = True
 except ImportError:
     SYSTEM_AVAILABLE = False
@@ -654,6 +658,7 @@ class TestMemoryPersistenceInit:
     def test_level_files_are_defined(self, tmp_path):
         """All five level files are configured."""
         from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
+
         mock_memory = MagicMock()
         mock_memory.memories = {}
         mp = MemoryPersistence(mock_memory, tmp_path)
@@ -669,8 +674,13 @@ class TestMemoryPersistenceSave:
     @pytest.mark.unit
     def test_save_creates_json_files(self, tmp_path):
         """save() writes one JSON file per memory level."""
-        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel, MemoryEntry, GoalValue
         from datetime import datetime
+
+        from Jotty.core.infrastructure.foundation.data_structures import (
+            GoalValue,
+            MemoryEntry,
+            MemoryLevel,
+        )
 
         mock_memory = MagicMock()
         # Create a real entry to save
@@ -786,6 +796,7 @@ class TestMemoryPersistenceLoad:
     def test_load_skips_missing_files(self, tmp_path):
         """load() skips levels with no file present."""
         from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
+
         mock_memory = MagicMock()
         mock_memory.memories = {level: {} for level in MemoryLevel}
         mp = MemoryPersistence(mock_memory, tmp_path)
@@ -798,28 +809,28 @@ class TestMemoryPersistenceLoad:
         from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
 
         # Write a test file
-        entry_data = [{
-            "key": "loaded_key",
-            "content": "loaded content",
-            "level": "episodic",
-            "context": {"source": "test"},
-            "created_at": datetime.now().isoformat(),
-            "last_accessed": datetime.now().isoformat(),
-            "access_count": 5,
-            "ucb_visits": 2,
-            "token_count": 10,
-            "default_value": 0.6,
-            "goal_values": {
-                "research": {"value": 0.7, "access_count": 3}
-            },
-            "causal_links": [],
-            "content_hash": "abc",
-            "similar_entries": [],
-            "source_episode": 1,
-            "source_agent": "test_agent",
-            "is_protected": True,
-            "protection_reason": "important",
-        }]
+        entry_data = [
+            {
+                "key": "loaded_key",
+                "content": "loaded content",
+                "level": "episodic",
+                "context": {"source": "test"},
+                "created_at": datetime.now().isoformat(),
+                "last_accessed": datetime.now().isoformat(),
+                "access_count": 5,
+                "ucb_visits": 2,
+                "token_count": 10,
+                "default_value": 0.6,
+                "goal_values": {"research": {"value": 0.7, "access_count": 3}},
+                "causal_links": [],
+                "content_hash": "abc",
+                "similar_entries": [],
+                "source_episode": 1,
+                "source_agent": "test_agent",
+                "is_protected": True,
+                "protection_reason": "important",
+            }
+        ]
         epi_file = tmp_path / "episodic_memories.json"
         epi_file.write_text(json.dumps(entry_data))
 
@@ -868,6 +879,7 @@ class TestEnableMemoryPersistence:
     def test_custom_dir(self, tmp_path):
         """Custom persistence_dir is used."""
         from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
+
         mock_memory = MagicMock()
         mock_memory.memories = {level: {} for level in MemoryLevel}
         custom_dir = tmp_path / "custom"
@@ -1205,6 +1217,7 @@ class TestMemorySystemClear:
         ms._backend_type = MemoryBackend.FULL
 
         from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
+
         mock_memories = {level: MagicMock() for level in MemoryLevel}
         ms._backend = MagicMock()
         ms._backend.memories = mock_memories

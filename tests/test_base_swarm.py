@@ -14,76 +14,78 @@ Target: ~150 tests
 
 import asyncio
 import json
-import pytest
 import tempfile
 import time
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import Mock, AsyncMock, MagicMock, patch
-from typing import Dict, Any, List
+from typing import Any, Dict, List
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
-# Import swarm types
-from Jotty.core.intelligence.swarms.swarm_types import (
-    AgentRole,
-    EvaluationResult,
-    ImprovementType,
-    GoldStandard,
-    Evaluation,
-    ImprovementSuggestion,
-    SwarmAgentConfig,
-    ExecutionTrace,
-    SwarmBaseConfig,
-    SwarmResult,
-)
-
-# Import base swarm
-from Jotty.core.intelligence.swarms.base_swarm import BaseSwarm
+import pytest
 
 # Import learning mixin
 from Jotty.core.intelligence.swarms._learning_mixin import SwarmLearningMixin
 
-# Import improvement agents
-from Jotty.core.intelligence.swarms.improvement_agents import (
-    ExpertAgent,
-    ReviewerAgent,
-    PlannerAgent,
-    ActorAgent,
-    AuditorAgent,
-    LearnerAgent,
-    CollapsedEvaluator,
-    CollapsedExecutor,
-)
+# Import base swarm
+from Jotty.core.intelligence.swarms.base_swarm import BaseSwarm
 
 # Import evaluation components
 from Jotty.core.intelligence.swarms.evaluation import (
+    EvaluationHistory,
     GoldStandardDB,
     ImprovementHistory,
-    EvaluationHistory,
 )
 
+# Import improvement agents
+from Jotty.core.intelligence.swarms.improvement_agents import (
+    ActorAgent,
+    AuditorAgent,
+    CollapsedEvaluator,
+    CollapsedExecutor,
+    ExpertAgent,
+    LearnerAgent,
+    PlannerAgent,
+    ReviewerAgent,
+)
+
+# Import swarm types
+from Jotty.core.intelligence.swarms.swarm_types import (
+    AgentRole,
+    Evaluation,
+    EvaluationResult,
+    ExecutionTrace,
+    GoldStandard,
+    ImprovementSuggestion,
+    ImprovementType,
+    SwarmAgentConfig,
+    SwarmBaseConfig,
+    SwarmResult,
+)
 
 # =============================================================================
 # CONCRETE TEST SWARM
 # =============================================================================
+
 
 class ConcreteSwarm(BaseSwarm):
     """Concrete implementation of BaseSwarm for testing."""
 
     async def execute(self, *args, **kwargs):
         """Simple execute implementation."""
-        task = kwargs.get('task', 'test_task')
+        task = kwargs.get("task", "test_task")
         return SwarmResult(
             success=True,
             swarm_name=self.config.name,
             domain=self.config.domain,
             output={"result": "done", "task": task},
-            execution_time=1.0
+            execution_time=1.0,
         )
 
 
 # =============================================================================
 # FIXTURES
 # =============================================================================
+
 
 @pytest.fixture
 def swarm_config():
@@ -121,10 +123,9 @@ def mock_swarm_intelligence():
     """Create mock SwarmIntelligence instance."""
     si = Mock()
     si.curriculum_generator = Mock()
-    si.curriculum_generator.get_curriculum_stats = Mock(return_value={
-        'feedback_count': 5,
-        'tool_success_rates': {'tool1': 0.9, 'tool2': 0.4}
-    })
+    si.curriculum_generator.get_curriculum_stats = Mock(
+        return_value={"feedback_count": 5, "tool_success_rates": {"tool1": 0.9, "tool2": 0.4}}
+    )
     si.agent_profiles = {}
     si.morph_scorer = Mock()
     si.morph_scorer.compute_all_scores = Mock(return_value={})
@@ -132,19 +133,21 @@ def mock_swarm_intelligence():
     si.morph_score_history = []
     si.tool_manager = Mock()
     si.tool_manager.auto_register_from_rates = Mock()
-    si.tool_manager.analyze_tools = Mock(return_value={
-        'weak_tools': [],
-        'strong_tools': [],
-        'suggested_removals': [],
-        'replacements': {}
-    })
-    si.tool_manager.get_active_tools = Mock(return_value=['tool1', 'tool2'])
+    si.tool_manager.analyze_tools = Mock(
+        return_value={
+            "weak_tools": [],
+            "strong_tools": [],
+            "suggested_removals": [],
+            "replacements": {},
+        }
+    )
+    si.tool_manager.get_active_tools = Mock(return_value=["tool1", "tool2"])
     si.register_agent = Mock()
     si.save = Mock()
     si.load = Mock(return_value=True)
     si.receive_executor_feedback = Mock()
     si.record_task_result = Mock()
-    si.get_available_agents = Mock(return_value=['agent1', 'agent2'])
+    si.get_available_agents = Mock(return_value=["agent1", "agent2"])
     si.gossip_receive = Mock(return_value=[])
     si._tree_built = False
     si.calculate_backpressure = Mock(return_value=0.3)
@@ -167,7 +170,7 @@ def mock_swarm_intelligence():
     si.process_in_chunks = AsyncMock(return_value=[])
     si.cache_result = Mock()
     si.get_cached = Mock(return_value=None)
-    si.get_cache_stats = Mock(return_value={'hits': 0, 'misses': 0, 'hit_rate': 0, 'size': 0})
+    si.get_cache_stats = Mock(return_value={"hits": 0, "misses": 0, "hit_rate": 0, "size": 0})
     return si
 
 
@@ -185,6 +188,7 @@ def mock_memory():
 # =============================================================================
 # TEST CLASS 1: BaseSwarm Initialization
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestBaseSwarmInit:
@@ -241,6 +245,7 @@ class TestBaseSwarmInit:
 # TEST CLASS 2: Shared Resources
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestBaseSwarmSharedResources:
     """Test _init_shared_resources method."""
@@ -279,6 +284,7 @@ class TestBaseSwarmSharedResources:
 # =============================================================================
 # TEST CLASS 3: Self-Improvement
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestBaseSwarmSelfImprovement:
@@ -332,7 +338,7 @@ class TestBaseSwarmSelfImprovement:
             task_type="test",
             input_data={"query": "test"},
             expected_output={"result": "expected"},
-            evaluation_criteria={"accuracy": 1.0}
+            evaluation_criteria={"accuracy": 1.0},
         )
 
         assert gs_id is not None
@@ -360,7 +366,7 @@ class TestBaseSwarmSelfImprovement:
             priority=5,
             expected_impact=0.8,
             implementation_details={},
-            based_on_evaluations=[]
+            based_on_evaluations=[],
         )
         swarm._improvement_history.record_suggestion(suggestion)
 
@@ -372,6 +378,7 @@ class TestBaseSwarmSelfImprovement:
 # =============================================================================
 # TEST CLASS 4: Tracing
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestBaseSwarmTracing:
@@ -391,7 +398,7 @@ class TestBaseSwarmTracing:
             output_data={"output": "data"},
             success=True,
             phase_start=phase_start,
-            tools_used=["tool1"]
+            tools_used=["tool1"],
         )
 
         assert len(swarm._traces) == 1
@@ -412,7 +419,7 @@ class TestBaseSwarmTracing:
             output_data={"test": "output"},
             execution_time=1.5,
             success=True,
-            tools_used=["tool1", "tool2"]
+            tools_used=["tool1", "tool2"],
         )
 
         assert len(swarm._traces) == 1
@@ -424,6 +431,7 @@ class TestBaseSwarmTracing:
 # =============================================================================
 # TEST CLASS 5: Caching
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestBaseSwarmCaching:
@@ -470,13 +478,14 @@ class TestBaseSwarmCaching:
 
         stats = swarm._get_cache_stats()
 
-        assert 'hits' in stats
-        assert 'misses' in stats
+        assert "hits" in stats
+        assert "misses" in stats
 
 
 # =============================================================================
 # TEST CLASS 6: Circuit Breaker
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestBaseSwarmCircuitBreaker:
@@ -515,6 +524,7 @@ class TestBaseSwarmCircuitBreaker:
 # TEST CLASS 7: Priority Queue
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestBaseSwarmPriorityQueue:
     """Test priority queue methods."""
@@ -525,12 +535,7 @@ class TestBaseSwarmPriorityQueue:
         swarm._swarm_intelligence = mock_swarm_intelligence
         mock_swarm_intelligence.enqueue_task = Mock()
 
-        swarm._enqueue_task(
-            task_id="task1",
-            task_type="test",
-            priority=8,
-            context={"data": "test"}
-        )
+        swarm._enqueue_task(task_id="task1", task_type="test", priority=8, context={"data": "test"})
 
         mock_swarm_intelligence.enqueue_task.assert_called_once()
 
@@ -559,6 +564,7 @@ class TestBaseSwarmPriorityQueue:
 # TEST CLASS 8: Task Decomposition
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestBaseSwarmTaskDecomposition:
     """Test task decomposition and aggregation."""
@@ -571,7 +577,7 @@ class TestBaseSwarmTaskDecomposition:
 
         subtasks = [
             {"type": "research", "context": {}, "priority": 5},
-            {"type": "analyze", "context": {}, "priority": 3}
+            {"type": "analyze", "context": {}, "priority": 3},
         ]
 
         result = swarm._decompose_task("task1", "complex", subtasks, parallel=True)
@@ -605,6 +611,7 @@ class TestBaseSwarmTaskDecomposition:
 # TEST CLASS 9: Parallel Execution
 # =============================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.asyncio
 class TestBaseSwarmParallel:
@@ -620,7 +627,7 @@ class TestBaseSwarmParallel:
 
         tasks = [
             {"task_id": "t1", "func": mock_func, "args": [], "kwargs": {}},
-            {"task_id": "t2", "func": mock_func, "args": [], "kwargs": {}}
+            {"task_id": "t2", "func": mock_func, "args": [], "kwargs": {}},
         ]
 
         result = await swarm._execute_parallel(tasks, timeout=10.0)
@@ -639,7 +646,7 @@ class TestBaseSwarmParallel:
 
         tasks = [
             {"task_id": "t1", "func": async_func, "args": [5], "kwargs": {}},
-            {"task_id": "t2", "func": sync_func, "args": [10], "kwargs": {}}
+            {"task_id": "t2", "func": sync_func, "args": [10], "kwargs": {}},
         ]
 
         results = await swarm._execute_parallel(tasks)
@@ -682,6 +689,7 @@ class TestBaseSwarmParallel:
 # TEST CLASS 10: Load Balancing
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestBaseSwarmLoadBalancing:
     """Test load balancing methods."""
@@ -721,6 +729,7 @@ class TestBaseSwarmLoadBalancing:
 # TEST CLASS 11: SwarmLearningMixin
 # =============================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.asyncio
 class TestSwarmLearningMixin:
@@ -731,10 +740,10 @@ class TestSwarmLearningMixin:
         swarm = ConcreteSwarm(swarm_config)
 
         # This will auto-connect SI in the method, so mock the connect
-        with patch.object(swarm, 'connect_swarm_intelligence'):
+        with patch.object(swarm, "connect_swarm_intelligence"):
             context = await swarm._pre_execute_learning()
 
-            assert 'has_learning' in context
+            assert "has_learning" in context
 
     async def test_pre_execute_learning_with_si(self, swarm_config, mock_swarm_intelligence):
         """Test pre-execute learning with SI."""
@@ -743,9 +752,9 @@ class TestSwarmLearningMixin:
 
         context = await swarm._pre_execute_learning()
 
-        assert 'has_learning' in context
-        assert 'tool_performance' in context
-        assert 'agent_scores' in context
+        assert "has_learning" in context
+        assert "tool_performance" in context
+        assert "agent_scores" in context
 
     async def test_post_execute_learning(self, swarm_config, mock_swarm_intelligence):
         """Test post-execute learning sends feedback."""
@@ -758,22 +767,21 @@ class TestSwarmLearningMixin:
             tools_used=["tool1"],
             task_type="test",
             output_data={"result": "done"},
-            input_data={"query": "test"}
+            input_data={"query": "test"},
         )
 
         mock_swarm_intelligence.receive_executor_feedback.assert_called_once()
 
-    async def test_post_execute_learning_recomputes_scores(self, swarm_config, mock_swarm_intelligence):
+    async def test_post_execute_learning_recomputes_scores(
+        self, swarm_config, mock_swarm_intelligence
+    ):
         """Test that post-execute recomputes morph scores."""
         swarm = ConcreteSwarm(swarm_config)
         swarm._swarm_intelligence = mock_swarm_intelligence
         mock_swarm_intelligence.agent_profiles = {"agent1": Mock()}
 
         await swarm._post_execute_learning(
-            success=True,
-            execution_time=1.0,
-            tools_used=[],
-            task_type="test"
+            success=True, execution_time=1.0, tools_used=[], task_type="test"
         )
 
         mock_swarm_intelligence.morph_scorer.compute_all_scores.assert_called_once()
@@ -791,16 +799,16 @@ class TestSwarmLearningMixin:
         """Test context string building with learning data."""
         swarm = ConcreteSwarm(swarm_config)
         swarm._learned_context = {
-            'has_learning': True,
-            'tool_performance': {'tool1': 0.9},
-            'agent_scores': {},
-            'weak_tools': [{'tool': 'bad_tool', 'success_rate': 0.3, 'total': 5}],
-            'strong_tools': [{'tool': 'good_tool', 'success_rate': 0.95, 'total': 10}],
-            'recommendations': [],
-            'expert_knowledge': [],
-            'prior_failures': [],
-            'score_trends': {},
-            'coordination': {},
+            "has_learning": True,
+            "tool_performance": {"tool1": 0.9},
+            "agent_scores": {},
+            "weak_tools": [{"tool": "bad_tool", "success_rate": 0.3, "total": 5}],
+            "strong_tools": [{"tool": "good_tool", "success_rate": 0.95, "total": 10}],
+            "recommendations": [],
+            "expert_knowledge": [],
+            "prior_failures": [],
+            "score_trends": {},
+            "coordination": {},
         }
 
         text = swarm._build_learned_context_string()
@@ -817,10 +825,7 @@ class TestSwarmLearningMixin:
 
         # Mock memory entry
         mock_entry = Mock()
-        mock_entry.content = json.dumps({
-            'learned_pattern': 'Test pattern',
-            'domain': 'test'
-        })
+        mock_entry.content = json.dumps({"learned_pattern": "Test pattern", "domain": "test"})
         mock_memory.retrieve_by_domain = Mock(return_value=[mock_entry])
 
         knowledge = swarm._retrieve_expert_knowledge()
@@ -831,19 +836,22 @@ class TestSwarmLearningMixin:
         """Test prior failure analysis."""
         swarm = ConcreteSwarm(swarm_config)
         swarm._evaluation_history = Mock()
-        swarm._evaluation_history.get_failures = Mock(return_value=[
-            {'overall_score': 0.3, 'feedback': 'Test failure', 'timestamp': '2024-01-01'}
-        ])
+        swarm._evaluation_history.get_failures = Mock(
+            return_value=[
+                {"overall_score": 0.3, "feedback": "Test failure", "timestamp": "2024-01-01"}
+            ]
+        )
 
         failures = swarm._analyze_prior_failures()
 
         assert len(failures) > 0
-        assert failures[0]['source'] == 'evaluation'
+        assert failures[0]["source"] == "evaluation"
 
 
 # =============================================================================
 # TEST CLASS 12: Improvement Agents
 # =============================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.asyncio
@@ -853,9 +861,7 @@ class TestImprovementAgents:
     def test_expert_agent_creation(self, tmp_path):
         """Test ExpertAgent creation."""
         config = SwarmAgentConfig(
-            role=AgentRole.EXPERT,
-            name="TestExpert",
-            system_prompt="You are an expert"
+            role=AgentRole.EXPERT, name="TestExpert", system_prompt="You are an expert"
         )
         gold_db = GoldStandardDB(str(tmp_path / "gold"))
 
@@ -865,10 +871,7 @@ class TestImprovementAgents:
 
     def test_reviewer_agent_creation(self, tmp_path):
         """Test ReviewerAgent creation."""
-        config = SwarmAgentConfig(
-            role=AgentRole.REVIEWER,
-            name="TestReviewer"
-        )
+        config = SwarmAgentConfig(role=AgentRole.REVIEWER, name="TestReviewer")
         history = ImprovementHistory(str(tmp_path / "history"))
 
         reviewer = ReviewerAgent(config, history)
@@ -877,10 +880,7 @@ class TestImprovementAgents:
 
     def test_planner_agent_creation(self, tmp_path):
         """Test PlannerAgent creation."""
-        config = SwarmAgentConfig(
-            role=AgentRole.PLANNER,
-            name="TestPlanner"
-        )
+        config = SwarmAgentConfig(role=AgentRole.PLANNER, name="TestPlanner")
         history = ImprovementHistory(str(tmp_path / "history"))
 
         planner = PlannerAgent(config, history)
@@ -889,10 +889,7 @@ class TestImprovementAgents:
 
     def test_actor_agent_creation(self, tmp_path):
         """Test ActorAgent creation."""
-        config = SwarmAgentConfig(
-            role=AgentRole.ACTOR,
-            name="TestActor"
-        )
+        config = SwarmAgentConfig(role=AgentRole.ACTOR, name="TestActor")
         history = ImprovementHistory(str(tmp_path / "history"))
 
         actor = ActorAgent(config, history)
@@ -901,10 +898,7 @@ class TestImprovementAgents:
 
     def test_auditor_agent_creation(self):
         """Test AuditorAgent creation."""
-        config = SwarmAgentConfig(
-            role=AgentRole.AUDITOR,
-            name="TestAuditor"
-        )
+        config = SwarmAgentConfig(role=AgentRole.AUDITOR, name="TestAuditor")
 
         auditor = AuditorAgent(config)
 
@@ -912,10 +906,7 @@ class TestImprovementAgents:
 
     def test_learner_agent_creation(self):
         """Test LearnerAgent creation."""
-        config = SwarmAgentConfig(
-            role=AgentRole.LEARNER,
-            name="TestLearner"
-        )
+        config = SwarmAgentConfig(role=AgentRole.LEARNER, name="TestLearner")
 
         learner = LearnerAgent(config)
 
@@ -923,29 +914,23 @@ class TestImprovementAgents:
 
     async def test_auditor_non_blocking(self):
         """Test that AuditorAgent is non-blocking on failure."""
-        config = SwarmAgentConfig(
-            role=AgentRole.AUDITOR,
-            name="TestAuditor"
-        )
+        config = SwarmAgentConfig(role=AgentRole.AUDITOR, name="TestAuditor")
         auditor = AuditorAgent(config)
 
         # Mock execute to raise error
         auditor.execute = AsyncMock(side_effect=Exception("test error"))
 
-        result = await auditor.audit_evaluation(
-            evaluation={},
-            output_data={},
-            context="test"
-        )
+        result = await auditor.audit_evaluation(evaluation={}, output_data={}, context="test")
 
         # Should default to passed=True
-        assert result['passed'] is True
-        assert 'non-blocking' in result['reasoning'].lower()
+        assert result["passed"] is True
+        assert "non-blocking" in result["reasoning"].lower()
 
 
 # =============================================================================
 # TEST CLASS 13: Edge Cases
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestBaseSwarmEdgeCases:
@@ -959,11 +944,7 @@ class TestBaseSwarmEdgeCases:
 
     def test_none_config_values(self):
         """Test handling of None config values."""
-        config = SwarmBaseConfig(
-            name="Test",
-            domain="test",
-            gold_standard_path=None
-        )
+        config = SwarmBaseConfig(name="Test", domain="test", gold_standard_path=None)
 
         swarm = ConcreteSwarm(config)
 
@@ -1000,6 +981,7 @@ class TestBaseSwarmEdgeCases:
 # TEST CLASS 14: SwarmIntelligence Connection
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestBaseSwarmSwarmIntelligence:
     """Test SwarmIntelligence connection and integration."""
@@ -1013,7 +995,9 @@ class TestBaseSwarmSwarmIntelligence:
         assert swarm._swarm_intelligence == mock_swarm_intelligence
         assert swarm._training_mode is False
 
-    def test_connect_swarm_intelligence_with_training(self, swarm_config, mock_swarm_intelligence, tmp_path):
+    def test_connect_swarm_intelligence_with_training(
+        self, swarm_config, mock_swarm_intelligence, tmp_path
+    ):
         """Test SI connection with training enabled."""
         mock_swarm_intelligence.enable_training_mode = Mock()
         swarm = ConcreteSwarm(swarm_config)
@@ -1028,10 +1012,7 @@ class TestBaseSwarmSwarmIntelligence:
         swarm._swarm_intelligence = mock_swarm_intelligence
 
         swarm._send_executor_feedback(
-            task_type="test",
-            success=True,
-            tools_used=["tool1"],
-            execution_time=1.5
+            task_type="test", success=True, tools_used=["tool1"], execution_time=1.5
         )
 
         mock_swarm_intelligence.receive_executor_feedback.assert_called_once()
@@ -1054,13 +1035,14 @@ class TestBaseSwarmSwarmIntelligence:
 
         analysis = swarm._manage_tools()
 
-        assert 'weak_tools' in analysis
-        assert 'strong_tools' in analysis
+        assert "weak_tools" in analysis
+        assert "strong_tools" in analysis
 
 
 # =============================================================================
 # TEST CLASS 15: Coordination Protocols
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestBaseSwarmCoordination:
@@ -1073,10 +1055,7 @@ class TestBaseSwarmCoordination:
         mock_swarm_intelligence.initiate_handoff = Mock(return_value={"handoff_id": "h1"})
 
         result = swarm._handoff_task(
-            task_id="task1",
-            to_agent="agent2",
-            task_type="test",
-            progress=0.5
+            task_id="task1", to_agent="agent2", task_type="test", progress=0.5
         )
 
         assert result is not None
@@ -1090,11 +1069,7 @@ class TestBaseSwarmCoordination:
         mock_coalition.members = ["a1", "a2"]
         mock_swarm_intelligence.form_coalition = Mock(return_value=mock_coalition)
 
-        coalition = swarm._form_coalition(
-            task_type="complex",
-            min_agents=2,
-            max_agents=5
-        )
+        coalition = swarm._form_coalition(task_type="complex", min_agents=2, max_agents=5)
 
         assert coalition is not None
 
@@ -1102,17 +1077,11 @@ class TestBaseSwarmCoordination:
         """Test smart routing."""
         swarm = ConcreteSwarm(swarm_config)
         swarm._swarm_intelligence = mock_swarm_intelligence
-        mock_swarm_intelligence.smart_route = Mock(return_value={
-            "assigned_agent": "agent1",
-            "method": "auction",
-            "confidence": 0.9
-        })
-
-        result = swarm._smart_route(
-            task_id="task1",
-            task_type="test",
-            prefer_coalition=False
+        mock_swarm_intelligence.smart_route = Mock(
+            return_value={"assigned_agent": "agent1", "method": "auction", "confidence": 0.9}
         )
+
+        result = swarm._smart_route(task_id="task1", task_type="test", prefer_coalition=False)
 
         assert result["assigned_agent"] == "agent1"
 
@@ -1122,10 +1091,7 @@ class TestBaseSwarmCoordination:
         swarm._swarm_intelligence = mock_swarm_intelligence
         mock_swarm_intelligence.gossip_broadcast = Mock(return_value={"broadcast_id": "b1"})
 
-        result = swarm._gossip_broadcast(
-            message_type="status",
-            content={"status": "running"}
-        )
+        result = swarm._gossip_broadcast(message_type="status", content={"status": "running"})
 
         assert result is not None
 
@@ -1133,15 +1099,11 @@ class TestBaseSwarmCoordination:
         """Test Byzantine voting."""
         swarm = ConcreteSwarm(swarm_config)
         swarm._swarm_intelligence = mock_swarm_intelligence
-        mock_swarm_intelligence.byzantine_vote = Mock(return_value={
-            "decision": "option1",
-            "consensus": True
-        })
-
-        result = swarm._byzantine_vote(
-            question="Which option?",
-            options=["option1", "option2"]
+        mock_swarm_intelligence.byzantine_vote = Mock(
+            return_value={"decision": "option1", "consensus": True}
         )
+
+        result = swarm._byzantine_vote(question="Which option?", options=["option1", "option2"])
 
         assert result["consensus"] is True
 
@@ -1150,6 +1112,7 @@ class TestBaseSwarmCoordination:
 # TEST CLASS 16: Collapsed Agents
 # =============================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.asyncio
 class TestCollapsedAgents:
@@ -1157,10 +1120,7 @@ class TestCollapsedAgents:
 
     def test_collapsed_evaluator_creation(self, tmp_path):
         """Test CollapsedEvaluator creation."""
-        config = SwarmAgentConfig(
-            role=AgentRole.EXPERT,
-            name="CollapsedEval"
-        )
+        config = SwarmAgentConfig(role=AgentRole.EXPERT, name="CollapsedEval")
         gold_db = GoldStandardDB(str(tmp_path / "gold"))
         history = ImprovementHistory(str(tmp_path / "history"))
 
@@ -1170,10 +1130,7 @@ class TestCollapsedAgents:
 
     def test_collapsed_executor_creation(self, tmp_path):
         """Test CollapsedExecutor creation."""
-        config = SwarmAgentConfig(
-            role=AgentRole.ACTOR,
-            name="CollapsedExec"
-        )
+        config = SwarmAgentConfig(role=AgentRole.ACTOR, name="CollapsedExec")
         history = ImprovementHistory(str(tmp_path / "history"))
 
         executor = CollapsedExecutor(config, history)
@@ -1182,10 +1139,7 @@ class TestCollapsedAgents:
 
     def test_collapsed_evaluator_derive_suggestions(self, tmp_path):
         """Test suggestion derivation in CollapsedEvaluator."""
-        config = SwarmAgentConfig(
-            role=AgentRole.EXPERT,
-            name="CollapsedEval"
-        )
+        config = SwarmAgentConfig(role=AgentRole.EXPERT, name="CollapsedEval")
         gold_db = GoldStandardDB(str(tmp_path / "gold"))
         history = ImprovementHistory(str(tmp_path / "history"))
 
@@ -1197,7 +1151,7 @@ class TestCollapsedAgents:
             scores={"accuracy": 0.4, "completeness": 0.3},
             overall_score=0.35,
             result=EvaluationResult.NEEDS_IMPROVEMENT,
-            feedback=["Low accuracy", "Incomplete"]
+            feedback=["Low accuracy", "Incomplete"],
         )
 
         suggestions = evaluator._derive_suggestions(evaluation)
@@ -1207,18 +1161,13 @@ class TestCollapsedAgents:
 
     def test_collapsed_executor_extract_learnings(self, tmp_path):
         """Test learning extraction in CollapsedExecutor."""
-        config = SwarmAgentConfig(
-            role=AgentRole.ACTOR,
-            name="CollapsedExec"
-        )
+        config = SwarmAgentConfig(role=AgentRole.ACTOR, name="CollapsedExec")
         history = ImprovementHistory(str(tmp_path / "history"))
 
         executor = CollapsedExecutor(config, history)
 
         learnings = executor._extract_learnings_from_output(
-            output={"result": "success"},
-            confidence=0.9,
-            task="test task"
+            output={"result": "success"}, confidence=0.9, task="test task"
         )
 
         assert len(learnings) > 0
@@ -1228,6 +1177,7 @@ class TestCollapsedAgents:
 # =============================================================================
 # TEST CLASS 17: Additional BaseSwarm Methods
 # =============================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.asyncio
@@ -1241,8 +1191,8 @@ class TestBaseSwarmAdditional:
 
         result = await swarm._run_auto_warmup(num_episodes=3)
 
-        assert 'swarm' in result
-        assert result['mode'] == 'cold_start'
+        assert "swarm" in result
+        assert result["mode"] == "cold_start"
 
     async def test_evaluate_output_no_gold(self, swarm_config, tmp_path):
         """Test evaluation with no matching gold standard."""
@@ -1251,9 +1201,7 @@ class TestBaseSwarmAdditional:
         swarm._init_self_improvement()
 
         evaluation = await swarm._evaluate_output(
-            output={"result": "test"},
-            task_type="unknown",
-            input_data={"query": "test"}
+            output={"result": "test"}, task_type="unknown", input_data={"query": "test"}
         )
 
         assert evaluation is None
@@ -1265,19 +1213,19 @@ class TestBaseSwarmAdditional:
         swarm._init_self_improvement()
 
         # Add gold standard
-        swarm._gold_db.add(GoldStandard(
-            id="gs1",
-            domain="test",
-            task_type="test_task",
-            input_data={"query": "test"},
-            expected_output={"result": "expected"},
-            evaluation_criteria={"accuracy": 1.0}
-        ))
+        swarm._gold_db.add(
+            GoldStandard(
+                id="gs1",
+                domain="test",
+                task_type="test_task",
+                input_data={"query": "test"},
+                expected_output={"result": "expected"},
+                evaluation_criteria={"accuracy": 1.0},
+            )
+        )
 
         evaluation = await swarm._evaluate_output(
-            output={"result": "test"},
-            task_type="test_task",
-            input_data={"query": "test"}
+            output={"result": "test"}, task_type="test_task", input_data={"query": "test"}
         )
 
         # Should use rule-based evaluation
@@ -1296,13 +1244,11 @@ class TestBaseSwarmAdditional:
             task_type="test",
             input_data={},
             expected_output={"key1": "value1"},
-            evaluation_criteria={}
+            evaluation_criteria={},
         )
 
         evaluation = swarm._rule_based_evaluate(
-            gold_standard=gold,
-            output={"key1": "value1", "key2": "value2"},
-            task_type="test"
+            gold_standard=gold, output={"key1": "value1", "key2": "value2"}, task_type="test"
         )
 
         assert evaluation is not None
@@ -1321,14 +1267,14 @@ class TestBaseSwarmAdditional:
             scores={"accuracy": 0.95},
             overall_score=0.95,
             result=EvaluationResult.EXCELLENT,
-            feedback=[]
+            feedback=[],
         )
 
         swarm._curate_gold_standard(
             task_type="test_task",
             input_data={"query": "test"},
             output_data={"result": "test"},
-            evaluation=evaluation
+            evaluation=evaluation,
         )
 
         # Should add to gold DB - use list_all() method
@@ -1340,6 +1286,7 @@ class TestBaseSwarmAdditional:
 # TEST CLASS 18: Memory Integration
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestBaseSwarmMemoryIntegration:
     """Test memory system integration."""
@@ -1350,10 +1297,7 @@ class TestBaseSwarmMemoryIntegration:
         swarm._memory = mock_memory
 
         swarm._store_execution_as_improvement(
-            success=True,
-            execution_time=2.5,
-            tools_used=["tool1", "tool2"],
-            task_type="test_task"
+            success=True, execution_time=2.5, tools_used=["tool1", "tool2"], task_type="test_task"
         )
 
         mock_memory.store.assert_called_once()
@@ -1370,7 +1314,7 @@ class TestBaseSwarmMemoryIntegration:
             input_data={},
             output_data={},
             execution_time=1.0,
-            success=True
+            success=True,
         )
 
         assert mock_memory.store.called
@@ -1379,6 +1323,7 @@ class TestBaseSwarmMemoryIntegration:
 # =============================================================================
 # TEST CLASS 19: Evaluation History
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestEvaluationHistory:
@@ -1400,7 +1345,7 @@ class TestEvaluationHistory:
             scores={"accuracy": 0.8},
             overall_score=0.8,
             result=EvaluationResult.GOOD,
-            feedback=[]
+            feedback=[],
         )
 
         history.record(evaluation)
@@ -1412,14 +1357,16 @@ class TestEvaluationHistory:
         history = EvaluationHistory(str(tmp_path / "eval"))
 
         for i in range(5):
-            history.record(Evaluation(
-                gold_standard_id=f"gs{i}",
-                actual_output={},
-                scores={},
-                overall_score=0.8,
-                result=EvaluationResult.GOOD,
-                feedback=[]
-            ))
+            history.record(
+                Evaluation(
+                    gold_standard_id=f"gs{i}",
+                    actual_output={},
+                    scores={},
+                    overall_score=0.8,
+                    result=EvaluationResult.GOOD,
+                    feedback=[],
+                )
+            )
 
         # get_average_score may return slightly different due to rounding or recent selection
         avg = history.get_average_score(3)
@@ -1432,6 +1379,7 @@ class TestEvaluationHistory:
 # TEST CLASS 20: Learning Pathways
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestLearningPathways:
     """Test learning pathway initialization and coordination defaults."""
@@ -1442,33 +1390,38 @@ class TestLearningPathways:
         # Simulate the default learned context produced by _pre_execute_learning
         # when SwarmIntelligence is unavailable.
         swarm._learned_context = {
-            'has_learning': False,
-            'tool_performance': {},
-            'agent_scores': {},
-            'weak_tools': [],
-            'strong_tools': [],
-            'recommendations': [],
-            'warmup_completed': False,
-            'coordination': {},
+            "has_learning": False,
+            "tool_performance": {},
+            "agent_scores": {},
+            "weak_tools": [],
+            "strong_tools": [],
+            "recommendations": [],
+            "warmup_completed": False,
+            "coordination": {},
         }
         expected_keys = {
-            'has_learning', 'tool_performance', 'agent_scores',
-            'weak_tools', 'strong_tools', 'recommendations',
-            'warmup_completed', 'coordination',
+            "has_learning",
+            "tool_performance",
+            "agent_scores",
+            "weak_tools",
+            "strong_tools",
+            "recommendations",
+            "warmup_completed",
+            "coordination",
         }
         assert expected_keys.issubset(swarm._learned_context.keys())
-        assert swarm._learned_context['has_learning'] is False
+        assert swarm._learned_context["has_learning"] is False
 
     def test_coordination_defaults(self, swarm_config):
         """Coordination pre-execution returns safe defaults when SI is None."""
         swarm = ConcreteSwarm(swarm_config)
         coord = swarm._coordinate_pre_execution(None)
-        assert coord['available_agents'] == []
-        assert coord['circuit_blocked'] == []
-        assert coord['gossip_messages_processed'] == 0
-        assert coord['supervisor_tree_built'] is False
-        assert coord['backpressure'] == 0.0
-        assert coord['should_accept'] is True
+        assert coord["available_agents"] == []
+        assert coord["circuit_blocked"] == []
+        assert coord["gossip_messages_processed"] == 0
+        assert coord["supervisor_tree_built"] is False
+        assert coord["backpressure"] == 0.0
+        assert coord["should_accept"] is True
 
 
 # =============================================================================

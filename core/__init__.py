@@ -1,4 +1,5 @@
 from typing import Any
+
 """
 JOTTY Core Module - Multi-Agent AI Framework
 =============================================
@@ -11,23 +12,32 @@ JOTTY Core Module - Multi-Agent AI Framework
 Heavy modules are lazily loaded — ``import core`` is lightweight.
 """
 
+import importlib as _importlib
+
 # =============================================================================
 # PYDANTIC WARNING SUPPRESSION (Must be before any imports)
 # =============================================================================
 import os
 import warnings
-import importlib as _importlib
 
-os.environ.setdefault('PYDANTIC_WARNINGS', 'none')
+os.environ.setdefault("PYDANTIC_WARNINGS", "none")
 
-warnings.filterwarnings('ignore', category=UserWarning, module='pydantic.main',
-                         message='.*PydanticSerializationUnexpectedValue.*')
-warnings.filterwarnings('ignore', category=UserWarning, module='pydantic.*',
-                         message='.*serialized value may not be as expected.*')
-warnings.filterwarnings('ignore', category=UserWarning, module='pydantic.*',
-                         message='.*Expected.*fields but got.*')
-warnings.filterwarnings('ignore', category=UserWarning,
-                         message='.*Pydantic serializer warnings.*')
+warnings.filterwarnings(
+    "ignore",
+    category=UserWarning,
+    module="pydantic.main",
+    message=".*PydanticSerializationUnexpectedValue.*",
+)
+warnings.filterwarnings(
+    "ignore",
+    category=UserWarning,
+    module="pydantic.*",
+    message=".*serialized value may not be as expected.*",
+)
+warnings.filterwarnings(
+    "ignore", category=UserWarning, module="pydantic.*", message=".*Expected.*fields but got.*"
+)
+warnings.filterwarnings("ignore", category=UserWarning, message=".*Pydantic serializer warnings.*")
 
 # =============================================================================
 # EAGER: Only truly lightweight (stdlib/typing) — everything else is LAZY.

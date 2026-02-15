@@ -5,24 +5,20 @@ Document routes - upload, list, search, RAG config.
 import asyncio
 import json
 import logging
-from typing import Optional, Dict, Any, List
 from datetime import datetime
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
 
-
 def register_document_routes(app, api):
-    from fastapi import HTTPException, WebSocket, WebSocketDisconnect, UploadFile, File, Form
-    from fastapi.responses import FileResponse, JSONResponse, StreamingResponse, HTMLResponse
+    from fastapi import File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
+    from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
     from pydantic import BaseModel
 
     @app.post("/api/documents/upload")
-    async def upload_document(
-        file: UploadFile = File(...),
-        folder_id: Optional[str] = Form(None)
-    ):
+    async def upload_document(file: UploadFile = File(...), folder_id: Optional[str] = Form(None)):
         """
         Upload a document for RAG processing.
 
@@ -35,19 +31,14 @@ def register_document_routes(app, api):
             content = await file.read()
 
             doc_info = await processor.upload_document(
-                file_content=content,
-                filename=file.filename,
-                folder_id=folder_id
+                file_content=content, filename=file.filename, folder_id=folder_id
             )
 
-            return {
-                "success": True,
-                "document": doc_info
-            }
+            return {"success": True, "document": doc_info}
         except ImportError as e:
             raise HTTPException(
                 status_code=501,
-                detail=f"Document processing not available. Install dependencies: pip install chromadb sentence-transformers unstructured[all-docs]. Error: {str(e)}"
+                detail=f"Document processing not available. Install dependencies: pip install chromadb sentence-transformers unstructured[all-docs]. Error: {str(e)}",
             )
         except Exception as e:
             logger.error(f"Upload failed: {e}", exc_info=True)
@@ -118,7 +109,7 @@ def register_document_routes(app, api):
                 query=request.get("query", ""),
                 folder_id=request.get("folder_id"),
                 doc_ids=request.get("doc_ids"),
-                n_results=request.get("n_results", 5)
+                n_results=request.get("n_results", 5),
             )
 
             return {"results": results}
@@ -131,12 +122,12 @@ def register_document_routes(app, api):
     @app.get("/api/rag/config")
     async def get_rag_config():
         """Get current RAG configuration."""
-        from .documents import get_document_processor, RAGConfig
+        from .documents import RAGConfig, get_document_processor
 
         processor = get_document_processor()
         return {
             "config": processor.config.to_dict(),
-            "available_models": RAGConfig.EMBEDDING_MODELS
+            "available_models": RAGConfig.EMBEDDING_MODELS,
         }
 
     class RAGConfigUpdateRequest(BaseModel):
@@ -147,7 +138,7 @@ def register_document_routes(app, api):
     @app.post("/api/rag/config")
     async def update_rag_config(request: RAGConfigUpdateRequest):
         """Update RAG configuration."""
-        from .documents import get_document_processor, RAGConfig
+        from .documents import RAGConfig, get_document_processor
 
         processor = get_document_processor()
 
@@ -155,11 +146,13 @@ def register_document_routes(app, api):
         if request.embedding_model and request.embedding_model not in RAGConfig.EMBEDDING_MODELS:
             raise HTTPException(
                 status_code=400,
-                detail=f"Invalid embedding model. Available: {list(RAGConfig.EMBEDDING_MODELS.keys())}"
+                detail=f"Invalid embedding model. Available: {list(RAGConfig.EMBEDDING_MODELS.keys())}",
             )
 
         # Validate chunk_size
-        if request.chunk_size is not None and (request.chunk_size < 100 or request.chunk_size > 4000):
+        if request.chunk_size is not None and (
+            request.chunk_size < 100 or request.chunk_size > 4000
+        ):
             raise HTTPException(status_code=400, detail="chunk_size must be between 100 and 4000")
 
         # Validate overlap
@@ -169,7 +162,7 @@ def register_document_routes(app, api):
         config = processor.update_config(
             chunk_size=request.chunk_size,
             overlap=request.overlap,
-            embedding_model=request.embedding_model
+            embedding_model=request.embedding_model,
         )
 
         return {"success": True, "config": config.to_dict()}
@@ -217,10 +210,7 @@ def register_document_routes(app, api):
             ]
 
             processor.collection.add(
-                ids=new_chunk_ids,
-                embeddings=embeddings,
-                documents=chunks,
-                metadatas=chunk_metas
+                ids=new_chunk_ids, embeddings=embeddings, documents=chunks, metadatas=chunk_metas
             )
 
             # Update document info
@@ -233,7 +223,7 @@ def register_document_routes(app, api):
                 "success": True,
                 "doc_id": doc_id,
                 "chunk_count": len(chunks),
-                "config": processor.config.to_dict()
+                "config": processor.config.to_dict(),
             }
 
         except Exception as e:
@@ -245,4 +235,3 @@ def register_document_routes(app, api):
         context_type: str  # 'folder', 'document', 'chat'
         context_id: str
         session_id: Optional[str] = None
-

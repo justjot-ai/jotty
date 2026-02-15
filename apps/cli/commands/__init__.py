@@ -1,4 +1,5 @@
 from typing import Any
+
 """
 CLI Commands Module
 ===================
@@ -6,41 +7,42 @@ CLI Commands Module
 Slash commands for Jotty CLI.
 """
 
-from .base import BaseCommand, CommandResult, CommandRegistry
-from .run import RunCommand
 from .agents import AgentsCommand
-from .skills import SkillsCommand
-from .swarm import SwarmCommand
-from .learn import LearnCommand
-from .memory import MemoryCommand
-from .config_cmd import ConfigCommand
-from .stats import StatsCommand
-from .plan import PlanCommand
-from .git import GitCommand
-from .help_cmd import HelpCommand
-from .tools import ToolsCommand
-from .justjot import JustJotCommand
-from .resume import ResumeCommand
-from .export import ExportCommand
-from .ml import MLCommand
-from .mlflow_cmd import MLflowCommand
-from .stock_ml import StockMLCommand
-from .preview import PreviewCommand
+from .backtest_report import BacktestReportCommand, BatchBacktestReportCommand
+from .base import BaseCommand, CommandRegistry, CommandResult
 from .browse import BrowseCommand
-from .research import ResearchCommand
-from .workflow import WorkflowCommand
-from .telegram_bot import TelegramCommand
-from .web_server import WebServerCommand
-from .model_chat import ModelChatCommand
+from .config_cmd import ConfigCommand
+from .export import ExportCommand
 from .gateway import GatewayCommand
+from .git import GitCommand
+
 # WhatsApp moved to apps/whatsapp/
 # from .whatsapp_cmd import WhatsAppCommand  # TODO: Import from apps.whatsapp.command
 from .heartbeat_cmd import HeartbeatCommand, RemindCommand
-from .task_queue import TaskCommand
-from .supervisor_cmd import SupervisorCommand
-from .swimlane import SwimlaneCommand
-from .backtest_report import BacktestReportCommand, BatchBacktestReportCommand
+from .help_cmd import HelpCommand
+from .justjot import JustJotCommand
+from .learn import LearnCommand
+from .memory import MemoryCommand
+from .ml import MLCommand
+from .mlflow_cmd import MLflowCommand
+from .model_chat import ModelChatCommand
+from .plan import PlanCommand
+from .preview import PreviewCommand
+from .research import ResearchCommand
+from .resume import ResumeCommand
+from .run import RunCommand
 from .sdk_cmd import SDKCommand
+from .skills import SkillsCommand
+from .stats import StatsCommand
+from .stock_ml import StockMLCommand
+from .supervisor_cmd import SupervisorCommand
+from .swarm import SwarmCommand
+from .swimlane import SwimlaneCommand
+from .task_queue import TaskCommand
+from .telegram_bot import TelegramCommand
+from .tools import ToolsCommand
+from .web_server import WebServerCommand
+from .workflow import WorkflowCommand
 
 __all__ = [
     "BaseCommand",

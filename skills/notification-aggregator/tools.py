@@ -1,11 +1,13 @@
 """Notification Aggregator Skill - route notifications to channels."""
+
 import json
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, Any, List
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from typing import Any, Dict, List
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("notification-aggregator")
 logger = logging.getLogger("jotty.skills.notification-aggregator")
@@ -31,8 +33,12 @@ def _send_console(notification: dict) -> bool:
 
 
 def _send_log(notification: dict) -> bool:
-    level_map = {"INFO": logging.INFO, "WARNING": logging.WARNING,
-                 "ERROR": logging.ERROR, "CRITICAL": logging.CRITICAL}
+    level_map = {
+        "INFO": logging.INFO,
+        "WARNING": logging.WARNING,
+        "ERROR": logging.ERROR,
+        "CRITICAL": logging.CRITICAL,
+    }
     log_level = level_map.get(notification["level"], logging.INFO)
     logger.log(log_level, "%s: %s", notification["title"], notification["message"])
     return True
@@ -41,6 +47,7 @@ def _send_log(notification: dict) -> bool:
 def _send_webhook(notification: dict, url: str) -> bool:
     try:
         import requests
+
         resp = requests.post(url, json=notification, timeout=10)
         return resp.status_code < 400
     except Exception:
@@ -103,7 +110,8 @@ def send_notification_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             failed.append({"channel": ch, "error": "delivery failed"})
 
     return tool_response(
-        delivered=delivered, failed=failed,
+        delivered=delivered,
+        failed=failed,
         notification=notification,
         total_channels=len(channels),
     )

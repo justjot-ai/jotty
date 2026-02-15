@@ -1,8 +1,10 @@
 """Convert between human-readable schedules and cron expressions."""
+
 import re
-from typing import Dict, Any
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from typing import Any, Dict
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("crontab-scheduler")
 
@@ -12,10 +14,21 @@ _PATTERNS = [
     (r"every\s+hour", "0 * * * *"),
     (r"every\s+(\d+)\s+hours?", "0 */{1} * * *"),
     (r"every\s+day\s+at\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?", "_daily"),
-    (r"every\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\s+at\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?", "_weekly"),
+    (
+        r"every\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\s+at\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?",
+        "_weekly",
+    ),
     (r"every\s+month\s+on\s+day\s+(\d{1,2})\s+at\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?", "_monthly"),
 ]
-_DAYS = {"monday": 1, "tuesday": 2, "wednesday": 3, "thursday": 4, "friday": 5, "saturday": 6, "sunday": 0}
+_DAYS = {
+    "monday": 1,
+    "tuesday": 2,
+    "wednesday": 3,
+    "thursday": 4,
+    "friday": 5,
+    "saturday": 6,
+    "sunday": 0,
+}
 _FIELD_NAMES = ["minute", "hour", "day of month", "month", "day of week"]
 
 
@@ -57,14 +70,19 @@ def schedule_to_cron(params: Dict[str, Any]) -> Dict[str, Any]:
         return tool_response(cron=f"{minute} {hour} * * *", description=text)
 
     # every <weekday> at H
-    m = re.match(r"every\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\s+at\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?", text)
+    m = re.match(
+        r"every\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\s+at\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?",
+        text,
+    )
     if m:
         minute, hour = _resolve_hour(m.group(2), m.group(3), m.group(4))
         dow = _DAYS[m.group(1)]
         return tool_response(cron=f"{minute} {hour} * * {dow}", description=text)
 
     # every month on day N at H
-    m = re.match(r"every\s+month\s+on\s+day\s+(\d{1,2})\s+at\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?", text)
+    m = re.match(
+        r"every\s+month\s+on\s+day\s+(\d{1,2})\s+at\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?", text
+    )
     if m:
         minute, hour = _resolve_hour(m.group(2), m.group(3), m.group(4))
         return tool_response(cron=f"{minute} {hour} {m.group(1)} * *", description=text)

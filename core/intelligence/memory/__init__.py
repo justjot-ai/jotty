@@ -1,4 +1,5 @@
 from typing import Any
+
 """
 Memory Layer - Hierarchical Memory Systems
 ==========================================
@@ -12,19 +13,6 @@ RECOMMENDED ENTRY POINT:
 
 import importlib as _importlib
 
-# ── Eager imports (lightweight, no DSPy) ────────────────────────────
-from .memory_orchestrator import (
-    BrainPreset,
-    ConsolidationTrigger,
-    Experience,
-    SimpleBrain,
-    calculate_chunk_size,
-    get_model_context,
-    load_brain_config,
-    BrainInspiredMemoryManager,
-    EpisodicMemory,
-    SemanticPattern,
-)
 from .consolidation_engine import (
     AgentAbstractor,
     AgentRole,
@@ -36,6 +24,7 @@ from .consolidation_engine import (
     MemoryCandidate,
     SharpWaveRippleConsolidator,
 )
+from .incremental_consolidation import IncrementalConsolidator, get_incremental_consolidator
 from .llm_rag import (
     CausalExtractor,
     DeduplicationEngine,
@@ -44,21 +33,22 @@ from .llm_rag import (
     RecencyValueRanker,
     SlidingWindowChunker,
 )
-from .incremental_consolidation import (
-    IncrementalConsolidator,
-    get_incremental_consolidator,
-)
 
-from .mongodb_backend import (
-    MongoDBMemoryBackend,
-    enable_mongodb_memory,
+# ── Eager imports (lightweight, no DSPy) ────────────────────────────
+from .memory_orchestrator import (
+    BrainInspiredMemoryManager,
+    BrainPreset,
+    ConsolidationTrigger,
+    EpisodicMemory,
+    Experience,
+    SemanticPattern,
+    SimpleBrain,
+    calculate_chunk_size,
+    get_model_context,
+    load_brain_config,
 )
-from .memory_system import (
-    MemorySystem,
-    MemoryConfig,
-    MemoryBackend,
-    MemoryResult,
-)
+from .memory_system import MemoryBackend, MemoryConfig, MemoryResult, MemorySystem
+from .mongodb_backend import MongoDBMemoryBackend, enable_mongodb_memory
 
 # ── Lazy imports (DSPy-dependent, loaded on first access) ───────────
 _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
@@ -75,10 +65,10 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
 
 
 _FACADE_IMPORTS = {
-    'get_memory_system',
-    'get_brain_manager',
-    'get_consolidator',
-    'get_rag_retriever',
+    "get_memory_system",
+    "get_brain_manager",
+    "get_consolidator",
+    "get_rag_retriever",
 }
 
 
@@ -91,6 +81,7 @@ def __getattr__(name: str) -> Any:
         return value
     if name in _FACADE_IMPORTS:
         from . import facade
+
         value = getattr(facade, name)
         globals()[name] = value
         return value
@@ -99,55 +90,55 @@ def __getattr__(name: str) -> Any:
 
 __all__ = [
     # memory_system (PREFERRED entry point)
-    'MemorySystem',
-    'MemoryConfig',
-    'MemoryBackend',
-    'MemoryResult',
+    "MemorySystem",
+    "MemoryConfig",
+    "MemoryBackend",
+    "MemoryResult",
     # memory_orchestrator
-    'SimpleBrain',
-    'BrainPreset',
-    'ConsolidationTrigger',
-    'Experience',
-    'calculate_chunk_size',
-    'get_model_context',
-    'load_brain_config',
-    'BrainInspiredMemoryManager',
-    'EpisodicMemory',
-    'SemanticPattern',
+    "SimpleBrain",
+    "BrainPreset",
+    "ConsolidationTrigger",
+    "Experience",
+    "calculate_chunk_size",
+    "get_model_context",
+    "load_brain_config",
+    "BrainInspiredMemoryManager",
+    "EpisodicMemory",
+    "SemanticPattern",
     # consolidation_engine
-    'AgentAbstractor',
-    'AgentRole',
-    'BrainMode',
-    'BrainModeConfig',
-    'BrainStateMachine',
-    'ConsolidationResult',
-    'HippocampalExtractor',
-    'MemoryCandidate',
-    'SharpWaveRippleConsolidator',
+    "AgentAbstractor",
+    "AgentRole",
+    "BrainMode",
+    "BrainModeConfig",
+    "BrainStateMachine",
+    "ConsolidationResult",
+    "HippocampalExtractor",
+    "MemoryCandidate",
+    "SharpWaveRippleConsolidator",
     # cortex
-    'SwarmMemory',
-    'MemoryCluster',
-    'MemoryLevelClassificationSignature',
-    'MemoryLevelClassifier',
-    'MetaWisdomSignature',
-    'PatternExtractionSignature',
-    'ProceduralExtractionSignature',
+    "SwarmMemory",
+    "MemoryCluster",
+    "MemoryLevelClassificationSignature",
+    "MemoryLevelClassifier",
+    "MetaWisdomSignature",
+    "PatternExtractionSignature",
+    "ProceduralExtractionSignature",
     # llm_rag
-    'CausalExtractor',
-    'DeduplicationEngine',
-    'LLMRAGRetriever',
-    'LLMRelevanceScorer',
-    'RecencyValueRanker',
-    'SlidingWindowChunker',
+    "CausalExtractor",
+    "DeduplicationEngine",
+    "LLMRAGRetriever",
+    "LLMRelevanceScorer",
+    "RecencyValueRanker",
+    "SlidingWindowChunker",
     # mongodb_backend
-    'MongoDBMemoryBackend',
-    'enable_mongodb_memory',
+    "MongoDBMemoryBackend",
+    "enable_mongodb_memory",
     # facade
-    'get_memory_system',
-    'get_brain_manager',
-    'get_consolidator',
-    'get_rag_retriever',
+    "get_memory_system",
+    "get_brain_manager",
+    "get_consolidator",
+    "get_rag_retriever",
     # incremental consolidation
-    'IncrementalConsolidator',
-    'get_incremental_consolidator',
+    "IncrementalConsolidator",
+    "get_incremental_consolidator",
 ]

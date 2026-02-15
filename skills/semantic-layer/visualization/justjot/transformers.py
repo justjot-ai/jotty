@@ -10,26 +10,27 @@ Specialized transformer (for complex LIDA code analysis):
 - ChartTransformer: Extracts chart data from LIDA-generated visualization code
 """
 
-import re
 import json
 import logging
-from typing import Dict, Any, Optional, List, Union
+import re
+from typing import Any, Dict, List, Optional, Union
+
 import pandas as pd
 
 from .section_types import (
-    JustJotSection,
+    DEFAULT_COLORS,
+    AxisConfig,
+    ChartCustomization,
+    ChartData,
     ChartSectionContent,
     ChartType,
-    ChartData,
     Dataset,
-    ChartCustomization,
-    TitleConfig,
-    AxisConfig,
+    JustJotSection,
     LegendConfig,
-    map_lida_chart_type,
-    DEFAULT_COLORS,
+    TitleConfig,
     get_section_content_type,
     get_section_type_info,
+    map_lida_chart_type,
 )
 
 logger = logging.getLogger(__name__)
@@ -52,12 +53,7 @@ class SectionTransformer:
         section = transformer.transform('text', '# Hello', 'Intro')
     """
 
-    def transform(
-        self,
-        section_type: str,
-        content: Any,
-        title: str = None
-    ) -> JustJotSection:
+    def transform(self, section_type: str, content: Any, title: str = None) -> JustJotSection:
         """
         Transform content to any JustJot section type.
 
@@ -75,16 +71,12 @@ class SectionTransformer:
 
         # Generate default title if not provided
         if not title:
-            title = type_info.label if type_info else section_type.replace('-', ' ').title()
+            title = type_info.label if type_info else section_type.replace("-", " ").title()
 
         # Serialize content based on registry's contentType
         content_str = self._serialize_content(content, content_type)
 
-        return JustJotSection(
-            title=title,
-            type=section_type,
-            content=content_str
-        )
+        return JustJotSection(title=title, type=section_type, content=content_str)
 
     def _serialize_content(self, content: Any, content_type: str) -> str:
         """Serialize content based on section's contentType."""
@@ -93,11 +85,11 @@ class SectionTransformer:
             return content
 
         # DataFrame to CSV
-        if hasattr(content, 'to_csv'):
+        if hasattr(content, "to_csv"):
             return content.to_csv(index=False)
 
         # JSON content type
-        if content_type == 'json':
+        if content_type == "json":
             return json.dumps(content)
 
         # Default string conversion
@@ -106,9 +98,9 @@ class SectionTransformer:
     def transform_dataframe(
         self,
         df: pd.DataFrame,
-        section_type: str = 'data-table',
-        title: str = 'Data',
-        max_rows: int = 100
+        section_type: str = "data-table",
+        title: str = "Data",
+        max_rows: int = 100,
     ) -> JustJotSection:
         """
         Transform DataFrame to a data section (csv or data-table).
@@ -126,38 +118,28 @@ class SectionTransformer:
         return self.transform(section_type, display_df, title)
 
     def transform_text(
-        self,
-        text: str,
-        title: str = 'Text',
-        as_markdown: bool = True
+        self, text: str, title: str = "Text", as_markdown: bool = True
     ) -> JustJotSection:
         """Transform text content to text section."""
         content = text
-        if as_markdown and text and not text.startswith('#'):
+        if as_markdown and text and not text.startswith("#"):
             content = f"## {title}\n\n{text}"
-        return self.transform('text', content, title)
+        return self.transform("text", content, title)
 
     def transform_code(
-        self,
-        code: str,
-        title: str = 'Code',
-        language: str = 'python'
+        self, code: str, title: str = "Code", language: str = "python"
     ) -> JustJotSection:
         """Transform code to code section."""
         # Clean code
-        lines = code.split('\n')
+        lines = code.split("\n")
         cleaned = [line for line in lines if line.strip() or lines.index(line) > 0]
-        clean_code = '\n'.join(cleaned).strip()
+        clean_code = "\n".join(cleaned).strip()
 
-        return self.transform('code', clean_code, f"{title} ({language})")
+        return self.transform("code", clean_code, f"{title} ({language})")
 
-    def transform_html(
-        self,
-        html: str,
-        title: str = 'Interactive'
-    ) -> JustJotSection:
+    def transform_html(self, html: str, title: str = "Interactive") -> JustJotSection:
         """Transform HTML to html section (for Plotly/Altair)."""
-        return self.transform('html', html, title)
+        return self.transform("html", html, title)
 
 
 class ChartTransformer:
@@ -178,11 +160,7 @@ class ChartTransformer:
         self.colors = colors or DEFAULT_COLORS
 
     def transform(
-        self,
-        chart_result: Any,
-        df: pd.DataFrame,
-        title: str = None,
-        chart_type: str = None
+        self, chart_result: Any, df: pd.DataFrame, title: str = None, chart_type: str = None
     ) -> JustJotSection:
         """
         Transform LIDA ChartResult to JustJot chart section.
@@ -196,7 +174,7 @@ class ChartTransformer:
         Returns:
             JustJotSection with V2 chart content
         """
-        code = getattr(chart_result, 'code', '') or ''
+        code = getattr(chart_result, "code", "") or ""
 
         # Extract info from LIDA code
         extracted_type = chart_type or self._extract_chart_type(code)
@@ -209,14 +187,16 @@ class ChartTransformer:
         # Build datasets
         datasets = []
         if extracted_data:
-            labels = extracted_data.get('labels', [])
-            for i, ds_data in enumerate(extracted_data.get('datasets', [])):
-                datasets.append(Dataset(
-                    id=str(i + 1),
-                    label=ds_data.get('label', f'Series {i + 1}'),
-                    values=ds_data.get('values', []),
-                    color=self.colors[i % len(self.colors)]
-                ))
+            labels = extracted_data.get("labels", [])
+            for i, ds_data in enumerate(extracted_data.get("datasets", [])):
+                datasets.append(
+                    Dataset(
+                        id=str(i + 1),
+                        label=ds_data.get("label", f"Series {i + 1}"),
+                        values=ds_data.get("values", []),
+                        color=self.colors[i % len(self.colors)],
+                    )
+                )
             chart_data = ChartData(labels=labels, datasets=datasets)
         else:
             chart_data = self._create_fallback_data(df, jj_chart_type)
@@ -224,11 +204,11 @@ class ChartTransformer:
         # Create customization
         x_label, y_label = self._extract_axis_labels(code)
         customization = ChartCustomization(
-            colors=self.colors[:len(datasets)] if datasets else self.colors[:1],
+            colors=self.colors[: len(datasets)] if datasets else self.colors[:1],
             title=TitleConfig(text=extracted_title) if extracted_title else None,
             xAxis=AxisConfig(label=x_label, show=True) if x_label else None,
             yAxis=AxisConfig(label=y_label, show=True) if y_label else None,
-            legend=LegendConfig(show=len(datasets) > 1, position="bottom")
+            legend=LegendConfig(show=len(datasets) > 1, position="bottom"),
         )
 
         # Build content
@@ -238,45 +218,43 @@ class ChartTransformer:
             title=extracted_title,
             data=chart_data,
             customization=customization,
-            metadata={"source": "lida"}
+            metadata={"source": "lida"},
         )
 
         return JustJotSection(
-            title=extracted_title or "Visualization",
-            type="chart",
-            content=content.to_json()
+            title=extracted_title or "Visualization", type="chart", content=content.to_json()
         )
 
     def _extract_chart_type(self, code: str) -> str:
         """Extract chart type from LIDA-generated code."""
         patterns = [
-            (r'px\.bar\s*\(', 'bar'),
-            (r'px\.line\s*\(', 'line'),
-            (r'px\.scatter\s*\(', 'scatter'),
-            (r'px\.pie\s*\(', 'pie'),
-            (r'px\.area\s*\(', 'area'),
-            (r'px\.histogram\s*\(', 'bar'),
-            (r'px\.box\s*\(', 'bar'),
-            (r'px\.funnel\s*\(', 'funnel'),
-            (r'go\.Heatmap', 'heatmap'),
-            (r'\.plot\s*\(.*kind\s*=\s*[\'"]bar', 'bar'),
-            (r'\.plot\s*\(.*kind\s*=\s*[\'"]line', 'line'),
-            (r'\.plot\s*\(.*kind\s*=\s*[\'"]pie', 'pie'),
-            (r'sns\.barplot', 'bar'),
-            (r'sns\.lineplot', 'line'),
-            (r'sns\.scatterplot', 'scatter'),
-            (r'sns\.heatmap', 'heatmap'),
-            (r'plt\.bar\s*\(', 'bar'),
-            (r'plt\.plot\s*\(', 'line'),
-            (r'plt\.scatter\s*\(', 'scatter'),
-            (r'plt\.pie\s*\(', 'pie'),
+            (r"px\.bar\s*\(", "bar"),
+            (r"px\.line\s*\(", "line"),
+            (r"px\.scatter\s*\(", "scatter"),
+            (r"px\.pie\s*\(", "pie"),
+            (r"px\.area\s*\(", "area"),
+            (r"px\.histogram\s*\(", "bar"),
+            (r"px\.box\s*\(", "bar"),
+            (r"px\.funnel\s*\(", "funnel"),
+            (r"go\.Heatmap", "heatmap"),
+            (r'\.plot\s*\(.*kind\s*=\s*[\'"]bar', "bar"),
+            (r'\.plot\s*\(.*kind\s*=\s*[\'"]line', "line"),
+            (r'\.plot\s*\(.*kind\s*=\s*[\'"]pie', "pie"),
+            (r"sns\.barplot", "bar"),
+            (r"sns\.lineplot", "line"),
+            (r"sns\.scatterplot", "scatter"),
+            (r"sns\.heatmap", "heatmap"),
+            (r"plt\.bar\s*\(", "bar"),
+            (r"plt\.plot\s*\(", "line"),
+            (r"plt\.scatter\s*\(", "scatter"),
+            (r"plt\.pie\s*\(", "pie"),
         ]
 
         for pattern, chart_type in patterns:
             if re.search(pattern, code, re.IGNORECASE):
                 return chart_type
 
-        return 'bar'
+        return "bar"
 
     def _extract_title(self, code: str) -> Optional[str]:
         """Extract chart title from code."""
@@ -331,11 +309,13 @@ class ChartTransformer:
                 if group_col in df.columns and agg_col in df.columns:
                     grouped = df.groupby(group_col)[agg_col].agg(agg_func).reset_index()
                     return {
-                        'labels': grouped[group_col].astype(str).tolist(),
-                        'datasets': [{
-                            'label': f'{agg_func.title()} of {agg_col}',
-                            'values': grouped[agg_col].tolist()
-                        }]
+                        "labels": grouped[group_col].astype(str).tolist(),
+                        "datasets": [
+                            {
+                                "label": f"{agg_func.title()} of {agg_col}",
+                                "values": grouped[agg_col].tolist(),
+                            }
+                        ],
                     }
 
             # Try x, y column extraction
@@ -345,7 +325,7 @@ class ChartTransformer:
             if x_match and y_match:
                 x_col, y_col = x_match.group(1), y_match.group(1)
                 if x_col in df.columns and y_col in df.columns:
-                    if df[x_col].dtype == 'object':
+                    if df[x_col].dtype == "object":
                         grouped = df.groupby(x_col)[y_col].sum().reset_index()
                         labels = grouped[x_col].astype(str).tolist()
                         values = grouped[y_col].tolist()
@@ -353,10 +333,7 @@ class ChartTransformer:
                         labels = df[x_col].astype(str).tolist()[:50]
                         values = df[y_col].tolist()[:50]
 
-                    return {
-                        'labels': labels,
-                        'datasets': [{'label': y_col, 'values': values}]
-                    }
+                    return {"labels": labels, "datasets": [{"label": y_col, "values": values}]}
 
         except Exception as e:
             logger.warning(f"Failed to extract data from code: {e}")
@@ -365,8 +342,8 @@ class ChartTransformer:
 
     def _create_fallback_data(self, df: pd.DataFrame, chart_type: ChartType) -> ChartData:
         """Create fallback chart data from DataFrame."""
-        cat_cols = df.select_dtypes(include=['object', 'category']).columns
-        num_cols = df.select_dtypes(include=['number']).columns
+        cat_cols = df.select_dtypes(include=["object", "category"]).columns
+        num_cols = df.select_dtypes(include=["number"]).columns
 
         if len(cat_cols) > 0 and len(num_cols) > 0:
             grouped = df.groupby(cat_cols[0])[num_cols[0]].sum().reset_index()
@@ -381,7 +358,7 @@ class ChartTransformer:
 
         return ChartData(
             labels=labels,
-            datasets=[Dataset(id="1", label="Value", values=values, color=self.colors[0])]
+            datasets=[Dataset(id="1", label="Value", values=values, color=self.colors[0])],
         )
 
 
@@ -389,7 +366,10 @@ class ChartTransformer:
 # Convenience Function
 # ============================================
 
-def transform_to_section(section_type: str, content: Any, title: str = None, **kwargs: Any) -> JustJotSection:
+
+def transform_to_section(
+    section_type: str, content: Any, title: str = None, **kwargs: Any
+) -> JustJotSection:
     """
     Transform any content to a JustJot section.
 
@@ -417,5 +397,3 @@ def transform_to_section(section_type: str, content: Any, title: str = None, **k
         }, 'Project Timeline')
     """
     return SectionTransformer().transform(section_type, content, title)
-
-

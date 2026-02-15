@@ -10,16 +10,20 @@ Reduces boilerplate for complex multi-stage workflows.
 """
 
 from __future__ import annotations  # Enable forward references
-from typing import List, Dict, Any, Optional, Callable
-from dataclasses import dataclass, field
+
 import time
-from .multi_swarm_coordinator import MultiSwarmCoordinator, SwarmResult, MergeStrategy
+from dataclasses import dataclass, field
+from typing import Any, Callable, Dict, List, Optional
+
 from Jotty.core.infrastructure.monitoring.observability import get_distributed_tracer
+
+from .multi_swarm_coordinator import MergeStrategy, MultiSwarmCoordinator, SwarmResult
 
 
 @dataclass
 class StageConfig:
     """Configuration for a single pipeline stage."""
+
     name: str
     swarms: List[Any]
     merge_strategy: MergeStrategy = MergeStrategy.BEST_OF_N
@@ -36,7 +40,7 @@ class StageConfig:
         for stage_name in self.context_from:
             if stage_name in previous_results:
                 result = previous_results[stage_name]
-                output = result.result.output[:self.max_context_chars]
+                output = result.result.output[: self.max_context_chars]
                 context_parts.append(f"[{stage_name.upper()}]\n{output}")
 
         context = "\n\n".join(context_parts)
@@ -50,6 +54,7 @@ class StageConfig:
 @dataclass
 class StageResult:
     """Result from a single pipeline stage."""
+
     stage_name: str
     result: SwarmResult
     execution_time: float
@@ -60,6 +65,7 @@ class StageResult:
 @dataclass
 class PipelineResult:
     """Result from complete pipeline execution."""
+
     task: str
     stages: List[StageResult]
     total_cost: float
@@ -75,9 +81,9 @@ class PipelineResult:
 
     def print_summary(self, verbose: bool = True) -> Any:
         """Print formatted pipeline summary."""
-        print("\n" + "="*80)
+        print("\n" + "=" * 80)
         print("MULTI-STAGE PIPELINE RESULTS")
-        print("="*80 + "\n")
+        print("=" * 80 + "\n")
 
         print(f"📋 Task: {self.task[:80]}...")
         print(f"📊 Total Stages: {len(self.stages)}")
@@ -141,7 +147,7 @@ class MultiStagePipeline:
         merge_strategy: MergeStrategy = MergeStrategy.BEST_OF_N,
         context_from: Optional[List[str]] = None,
         context_template: Optional[str] = None,
-        max_context_chars: int = 1500
+        max_context_chars: int = 1500,
     ) -> "MultiStagePipeline":
         """
         Add a stage to the pipeline.
@@ -157,21 +163,19 @@ class MultiStagePipeline:
         Returns:
             Self for chaining
         """
-        self.stages.append(StageConfig(
-            name=name,
-            swarms=swarms,
-            merge_strategy=merge_strategy,
-            context_from=context_from or [],
-            context_template=context_template,
-            max_context_chars=max_context_chars
-        ))
+        self.stages.append(
+            StageConfig(
+                name=name,
+                swarms=swarms,
+                merge_strategy=merge_strategy,
+                context_from=context_from or [],
+                context_template=context_template,
+                max_context_chars=max_context_chars,
+            )
+        )
         return self
 
-    async def execute(
-        self,
-        auto_trace: bool = True,
-        verbose: bool = True
-    ) -> PipelineResult:
+    async def execute(self, auto_trace: bool = True, verbose: bool = True) -> PipelineResult:
         """
         Execute the complete pipeline.
 
@@ -219,13 +223,11 @@ class MultiStagePipeline:
 
                     # Execute stage
                     result = await self.coordinator.execute_parallel(
-                        swarms=stage.swarms,
-                        task=stage_task,
-                        merge_strategy=stage.merge_strategy
+                        swarms=stage.swarms, task=stage_task, merge_strategy=stage.merge_strategy
                     )
 
                     execution_time = time.time() - stage_start
-                    cost = result.metadata.get('cost_usd', 0.0)
+                    cost = result.metadata.get("cost_usd", 0.0)
                     total_cost += cost
 
                     stage_result = StageResult(
@@ -233,15 +235,17 @@ class MultiStagePipeline:
                         result=result,
                         execution_time=execution_time,
                         cost=cost,
-                        trace_id=stage_trace_id
+                        trace_id=stage_trace_id,
                     )
 
                     results.append(stage_result)
                     results_by_name[stage.name] = stage_result
 
                     if verbose:
-                        print(f"  ✓ {stage.name}: {result.confidence:.2f} confidence, "
-                              f"${cost:.6f}, {execution_time:.2f}s\n")
+                        print(
+                            f"  ✓ {stage.name}: {result.confidence:.2f} confidence, "
+                            f"${cost:.6f}, {execution_time:.2f}s\n"
+                        )
 
                 finally:
                     if stage_trace_ctx:
@@ -258,7 +262,7 @@ class MultiStagePipeline:
             stages=results,
             total_cost=total_cost,
             total_time=total_time,
-            final_result=results[-1] if results else None
+            final_result=results[-1] if results else None,
         )
 
 

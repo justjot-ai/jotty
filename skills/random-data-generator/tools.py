@@ -1,17 +1,59 @@
 """Generate random test data without external dependencies."""
+
 import random
 import string
-from typing import Dict, Any, List
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from typing import Any, Dict, List
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("random-data-generator")
 
-_FIRST = ["Alice", "Bob", "Charlie", "Diana", "Eve", "Frank", "Grace", "Hank",
-          "Ivy", "Jack", "Kate", "Leo", "Mia", "Noah", "Olivia", "Paul",
-          "Quinn", "Rose", "Sam", "Tina", "Uma", "Vince", "Wendy", "Xander", "Yara", "Zane"]
-_LAST = ["Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller",
-         "Davis", "Rodriguez", "Martinez", "Wilson", "Anderson", "Thomas", "Lee", "Harris"]
+_FIRST = [
+    "Alice",
+    "Bob",
+    "Charlie",
+    "Diana",
+    "Eve",
+    "Frank",
+    "Grace",
+    "Hank",
+    "Ivy",
+    "Jack",
+    "Kate",
+    "Leo",
+    "Mia",
+    "Noah",
+    "Olivia",
+    "Paul",
+    "Quinn",
+    "Rose",
+    "Sam",
+    "Tina",
+    "Uma",
+    "Vince",
+    "Wendy",
+    "Xander",
+    "Yara",
+    "Zane",
+]
+_LAST = [
+    "Smith",
+    "Johnson",
+    "Williams",
+    "Brown",
+    "Jones",
+    "Garcia",
+    "Miller",
+    "Davis",
+    "Rodriguez",
+    "Martinez",
+    "Wilson",
+    "Anderson",
+    "Thomas",
+    "Lee",
+    "Harris",
+]
 _DOMAINS = ["example.com", "test.org", "demo.net", "sample.io", "mock.dev"]
 _STREETS = ["Main St", "Oak Ave", "Pine Rd", "Elm Dr", "Cedar Ln", "Maple Blvd", "Park Way"]
 _CITIES = ["Springfield", "Riverside", "Georgetown", "Fairview", "Madison", "Clinton", "Franklin"]
@@ -35,9 +77,12 @@ def _phone() -> str:
 
 
 def _address() -> Dict[str, str]:
-    return {"street": f"{random.randint(1,9999)} {random.choice(_STREETS)}",
-            "city": random.choice(_CITIES), "state": random.choice(_STATES),
-            "zip": f"{random.randint(10000,99999)}"}
+    return {
+        "street": f"{random.randint(1,9999)} {random.choice(_STREETS)}",
+        "city": random.choice(_CITIES),
+        "state": random.choice(_STATES),
+        "zip": f"{random.randint(10000,99999)}",
+    }
 
 
 @tool_wrapper(required_params=["type"])

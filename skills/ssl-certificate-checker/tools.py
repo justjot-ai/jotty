@@ -1,11 +1,12 @@
 """SSL Certificate Checker Skill — check cert validity and expiry."""
-import ssl
-import socket
-from datetime import datetime, timezone
-from typing import Dict, Any
 
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+import socket
+import ssl
+from datetime import datetime, timezone
+from typing import Any, Dict
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("ssl-certificate-checker")
 
@@ -20,7 +21,7 @@ def check_ssl_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     # Strip protocol if provided
     for prefix in ("https://", "http://"):
         if hostname.startswith(prefix):
-            hostname = hostname[len(prefix):]
+            hostname = hostname[len(prefix) :]
     hostname = hostname.rstrip("/").split("/")[0]
 
     try:
@@ -39,7 +40,9 @@ def check_ssl_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         not_before = cert.get("notBefore", "")
 
         # Parse expiry date
-        expire_dt = datetime.strptime(not_after, "%b %d %H:%M:%S %Y %Z").replace(tzinfo=timezone.utc)
+        expire_dt = datetime.strptime(not_after, "%b %d %H:%M:%S %Y %Z").replace(
+            tzinfo=timezone.utc
+        )
         now = datetime.now(timezone.utc)
         days_remaining = (expire_dt - now).days
         is_valid = days_remaining > 0

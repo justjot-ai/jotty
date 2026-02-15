@@ -56,8 +56,11 @@ class CurriculumArchitectSignature(dspy.Signature):
     Think: "If I had to teach this to a brilliant kid who's never seen it, what's the
     perfect sequence so they discover it themselves?"
     """
+
     subject: str = dspy.InputField(desc="Subject area (e.g., mathematics, biology, physics)")
-    topic: str = dspy.InputField(desc="Specific topic to teach (e.g., Number Theory, Human Body Parts)")
+    topic: str = dspy.InputField(
+        desc="Specific topic to teach (e.g., Number Theory, Human Body Parts)"
+    )
     student_name: str = dspy.InputField(desc="Student's name for personalization")
     current_level: str = dspy.InputField(desc="Student's current knowledge level")
     target_level: str = dspy.InputField(desc="Target mastery level (e.g., olympiad, 5th_grader)")
@@ -128,6 +131,7 @@ class ConceptDecomposerSignature(dspy.Signature):
 
     EVERY output field must be DETAILED and SPECIFIC. No one-liners.
     """
+
     concept_name: str = dspy.InputField(desc="Name of the concept to decompose")
     concept_description: str = dspy.InputField(desc="Brief description of the concept")
     subject: str = dspy.InputField(desc="Subject area")
@@ -198,6 +202,7 @@ class IntuitionBuilderSignature(dspy.Signature):
 
     The student should think "of course it works that way!" before seeing any formula.
     """
+
     concept: str = dspy.InputField(desc="Concept with description")
     why_it_matters: str = dspy.InputField(desc="Why this concept matters for success")
     student_name: str = dspy.InputField(desc="Student's name")
@@ -260,6 +265,7 @@ class PatternHunterSignature(dspy.Signature):
 
     Think: "What would a grandmaster competitor's pattern library look like for this topic?"
     """
+
     topic: str = dspy.InputField(desc="Topic to find patterns in")
     subject: str = dspy.InputField(desc="Subject area")
     concepts: str = dspy.InputField(desc="Key concepts covered")
@@ -317,11 +323,16 @@ class ProblemCrafterSignature(dspy.Signature):
     6. Which pattern from the pattern library it exercises
     7. Where natural, connect back to the running_example scenario
     """
+
     topic: str = dspy.InputField(desc="Topic for problems")
     subject: str = dspy.InputField(desc="Subject area")
     concepts: str = dspy.InputField(desc="Concepts to test")
-    patterns: str = dspy.InputField(desc="Patterns to exercise (JSON with name, description, when_to_use, template, trigger)")
-    running_example: str = dspy.InputField(desc="Running example/scenario to reference in problems where natural")
+    patterns: str = dspy.InputField(
+        desc="Patterns to exercise (JSON with name, description, when_to_use, template, trigger)"
+    )
+    running_example: str = dspy.InputField(
+        desc="Running example/scenario to reference in problems where natural"
+    )
     tier: str = dspy.InputField(desc="Difficulty tier: foundation/intermediate/advanced/olympiad")
     count: str = dspy.InputField(desc="Number of problems to generate")
     student_name: str = dspy.InputField(desc="Student's name")
@@ -364,6 +375,7 @@ class SolutionStrategistSignature(dspy.Signature):
     - Example: A full worked example (5-8 sentences) showing the strategy in action
     - Include a "WHY does this work?" reasoning section for every strategy
     """
+
     topic: str = dspy.InputField(desc="Topic area")
     subject: str = dspy.InputField(desc="Subject area")
     concepts: str = dspy.InputField(desc="Concepts being taught")
@@ -408,10 +420,13 @@ class MistakeAnalyzerSignature(dspy.Signature):
     familiar context. Focus on mistakes that are SUBTLE — where students feel
     confident they're right but are actually wrong.
     """
+
     topic: str = dspy.InputField(desc="Topic to analyze mistakes for")
     subject: str = dspy.InputField(desc="Subject area")
     concepts: str = dspy.InputField(desc="Concepts covered")
-    running_example: str = dspy.InputField(desc="Running example/scenario to reference in trap questions")
+    running_example: str = dspy.InputField(
+        desc="Running example/scenario to reference in trap questions"
+    )
     target_level: str = dspy.InputField(desc="Competition level")
 
     mistakes_json: str = dspy.OutputField(
@@ -453,6 +468,7 @@ class ConnectionMapperSignature(dspy.Signature):
        showing what becomes possible when you combine knowledge
     4. NEXT TOPICS — Recommended study order with rationale
     """
+
     topic: str = dspy.InputField(desc="Current topic")
     subject: str = dspy.InputField(desc="Subject area")
     concepts: str = dspy.InputField(desc="Concepts covered")
@@ -513,6 +529,7 @@ class ContentAssemblerSignature(dspy.Signature):
     Each transition should feel natural. The student should NEVER feel lost.
     Personalize for {student_name} throughout.
     """
+
     student_name: str = dspy.InputField(desc="Student's name")
     topic: str = dspy.InputField(desc="Topic being taught")
     subject: str = dspy.InputField(desc="Subject area")
@@ -573,6 +590,7 @@ class SingleTopicDeepSignature(dspy.Signature):
     TOTAL TARGET: 4000-6000 words of world-class content.
     Use {student_name} throughout for personalization.
     """
+
     student_name: str = dspy.InputField(desc="Student's name")
     topic: str = dspy.InputField(desc="Topic to teach")
     subject: str = dspy.InputField(desc="Subject area")
@@ -680,10 +698,15 @@ class NarrativeEditorSignature(dspy.Signature):
     CRITICAL: Keep the same overall structure and LENGTH. Do NOT summarize or shorten.
     Your output must be at LEAST 90% the length of the input. Enhance, don't compress.
     """
+
     assembled_content: str = dspy.InputField(desc="The assembled lesson content in markdown")
     running_example: str = dspy.InputField(desc="The running example/scenario to thread throughout")
-    key_insights: str = dspy.InputField(desc="Key insights to use as specific breakthrough moments, separated by |")
-    pattern_names: str = dspy.InputField(desc="Pattern names from Pattern Library to reference in problems, separated by |")
+    key_insights: str = dspy.InputField(
+        desc="Key insights to use as specific breakthrough moments, separated by |"
+    )
+    pattern_names: str = dspy.InputField(
+        desc="Pattern names from Pattern Library to reference in problems, separated by |"
+    )
     student_name: str = dspy.InputField(desc="Student's name for personalization")
     topic: str = dspy.InputField(desc="Topic being taught")
 
@@ -738,6 +761,7 @@ class RankTipsSignature(dspy.Signature):
     BEFORE finding the LCD — this saves 10-15 seconds per problem. For example, with
     3/12 + 5/18, notice both 12 and 18 are divisible by 6, so LCD is 36, not 216."
     """
+
     topic: str = dspy.InputField(desc="Topic being studied")
     subject: str = dspy.InputField(desc="Subject area")
     target_level: str = dspy.InputField(desc="Competition/exam level")
@@ -753,10 +777,16 @@ class RankTipsSignature(dspy.Signature):
 
 
 __all__ = [
-    'CurriculumArchitectSignature', 'ConceptDecomposerSignature',
-    'IntuitionBuilderSignature', 'PatternHunterSignature',
-    'ProblemCrafterSignature', 'SolutionStrategistSignature',
-    'MistakeAnalyzerSignature', 'ConnectionMapperSignature',
-    'ContentAssemblerSignature', 'SingleTopicDeepSignature',
-    'NarrativeEditorSignature', 'RankTipsSignature',
+    "CurriculumArchitectSignature",
+    "ConceptDecomposerSignature",
+    "IntuitionBuilderSignature",
+    "PatternHunterSignature",
+    "ProblemCrafterSignature",
+    "SolutionStrategistSignature",
+    "MistakeAnalyzerSignature",
+    "ConnectionMapperSignature",
+    "ContentAssemblerSignature",
+    "SingleTopicDeepSignature",
+    "NarrativeEditorSignature",
+    "RankTipsSignature",
 ]

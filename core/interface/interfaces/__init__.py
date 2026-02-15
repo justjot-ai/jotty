@@ -6,8 +6,15 @@ Unified message and interface types for multi-frontend support.
 Enables CLI, Telegram, and Web UI to share the same backend.
 """
 
-from .message import JottyMessage, InterfaceType, Attachment, InternalEvent, EventType, MessageAdapter
-from .host_provider import HostProvider, Host, CLIHost, NullHost
+from .host_provider import CLIHost, Host, HostProvider, NullHost
+from .message import (
+    Attachment,
+    EventType,
+    InterfaceType,
+    InternalEvent,
+    JottyMessage,
+    MessageAdapter,
+)
 
 __all__ = [
     "JottyMessage",

@@ -23,27 +23,30 @@ Key Features:
 
 # Suppress HuggingFace/BERT warnings early
 import os as _os
+
 # HF_TOKEN should be set via environment variable, not hardcoded
-_os.environ.setdefault('HF_HUB_DISABLE_PROGRESS_BARS', '1')
-_os.environ.setdefault('HF_HUB_DISABLE_TELEMETRY', '1')
-_os.environ.setdefault('TOKENIZERS_PARALLELISM', 'false')
-_os.environ.setdefault('TQDM_DISABLE', '1')
+_os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
+_os.environ.setdefault("HF_HUB_DISABLE_TELEMETRY", "1")
+_os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
+_os.environ.setdefault("TQDM_DISABLE", "1")
 
 import warnings as _warnings
-_warnings.filterwarnings('ignore', message='.*unauthenticated.*')
-_warnings.filterwarnings('ignore', message='.*huggingface.*')
+
+_warnings.filterwarnings("ignore", message=".*unauthenticated.*")
+_warnings.filterwarnings("ignore", message=".*huggingface.*")
 
 import logging as _logging
-for _name in ['safetensors', 'sentence_transformers', 'transformers', 'huggingface_hub']:
+
+for _name in ["safetensors", "sentence_transformers", "transformers", "huggingface_hub"]:
     _logging.getLogger(_name).setLevel(_logging.ERROR)
 
 from .app import JottyCLI
-from .repl.engine import REPLEngine
-from .repl.session import SessionManager
-from .commands.base import BaseCommand, CommandResult, CommandRegistry
-from .ui.renderer import RichRenderer
+from .commands.base import BaseCommand, CommandRegistry, CommandResult
 from .config.loader import ConfigLoader
 from .config.schema import CLIConfig
+from .repl.engine import REPLEngine
+from .repl.session import SessionManager
+from .ui.renderer import RichRenderer
 
 __all__ = [
     "JottyCLI",

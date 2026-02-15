@@ -16,26 +16,23 @@ from typing import List, Optional
 # Professional Color Scheme (Inspired by Goldman Sachs / Morgan Stanley)
 COLORS = {
     # Primary
-    'primary_dark': '#1a365d',      # Deep Navy Blue
-    'primary': '#2c5282',           # Navy Blue
-    'primary_light': '#4299e1',     # Light Blue
-
+    "primary_dark": "#1a365d",  # Deep Navy Blue
+    "primary": "#2c5282",  # Navy Blue
+    "primary_light": "#4299e1",  # Light Blue
     # Accent
-    'accent_green': '#38a169',      # Buy Green
-    'accent_yellow': '#d69e2e',     # Hold Yellow
-    'accent_red': '#e53e3e',        # Sell Red
-
+    "accent_green": "#38a169",  # Buy Green
+    "accent_yellow": "#d69e2e",  # Hold Yellow
+    "accent_red": "#e53e3e",  # Sell Red
     # Neutrals
-    'text_dark': '#1a202c',         # Almost Black
-    'text': '#2d3748',              # Dark Gray
-    'text_light': '#718096',        # Medium Gray
-    'border': '#e2e8f0',            # Light Gray
-    'background': '#f7fafc',        # Off White
-    'white': '#ffffff',
-
+    "text_dark": "#1a202c",  # Almost Black
+    "text": "#2d3748",  # Dark Gray
+    "text_light": "#718096",  # Medium Gray
+    "border": "#e2e8f0",  # Light Gray
+    "background": "#f7fafc",  # Off White
+    "white": "#ffffff",
     # Table
-    'table_header': '#2c5282',      # Navy
-    'table_row_alt': '#f7fafc',     # Light Gray
+    "table_header": "#2c5282",  # Navy
+    "table_row_alt": "#f7fafc",  # Light Gray
 }
 
 # CSS Template for WeasyPrint/HTML to PDF conversion
@@ -748,27 +745,29 @@ def markdown_to_styled_html(markdown_content: str, title: str = "Research Report
     div_matches = re.findall(div_pattern, markdown_content)
 
     # Replace div tags with markers
-    markdown_content = re.sub(r'<div class="cover-page">\s*', '', markdown_content)
-    markdown_content = re.sub(r'<div class="metrics-grid">\s*', '', markdown_content)
-    markdown_content = re.sub(r'<div class="rating-badge rating-\w+">\s*', '', markdown_content)
-    markdown_content = re.sub(r'</div>', '', markdown_content)
+    markdown_content = re.sub(r'<div class="cover-page">\s*', "", markdown_content)
+    markdown_content = re.sub(r'<div class="metrics-grid">\s*', "", markdown_content)
+    markdown_content = re.sub(r'<div class="rating-badge rating-\w+">\s*', "", markdown_content)
+    markdown_content = re.sub(r"</div>", "", markdown_content)
 
     try:
         import markdown
-        from markdown.extensions.tables import TableExtension
         from markdown.extensions.fenced_code import FencedCodeExtension
+        from markdown.extensions.tables import TableExtension
     except ImportError:
         # Fallback: basic conversion
         html_content = _basic_markdown_to_html(markdown_content)
         return HTML_TEMPLATE.format(title=title, css=CSS_TEMPLATE, content=html_content)
 
     # Convert markdown to HTML
-    md = markdown.Markdown(extensions=[
-        'tables',
-        'fenced_code',
-        'nl2br',
-        'sane_lists',
-    ])
+    md = markdown.Markdown(
+        extensions=[
+            "tables",
+            "fenced_code",
+            "nl2br",
+            "sane_lists",
+        ]
+    )
 
     html_content = md.convert(markdown_content)
 
@@ -783,98 +782,77 @@ def _enhance_html(html: str) -> str:
     import re
 
     # Add page breaks before major sections (h2)
-    html = re.sub(
-        r'<h2>',
-        '<div class="page-break"></div>\n<h2>',
-        html
-    )
+    html = re.sub(r"<h2>", '<div class="page-break"></div>\n<h2>', html)
 
     # Remove first page break (before first h2)
-    html = html.replace('<div class="page-break"></div>\n<h2>', '<h2>', 1)
+    html = html.replace('<div class="page-break"></div>\n<h2>', "<h2>", 1)
 
     # Style cover page rating badge (large format)
     html = re.sub(
         r'<div class="rating-badge rating-buy">\s*\s*BUY\s*</div>',
         '<div class="rating-badge rating-buy"> BUY</div>',
-        html
+        html,
     )
     html = re.sub(
         r'<div class="rating-badge rating-hold">\s*\s*HOLD\s*</div>',
         '<div class="rating-badge rating-hold">● HOLD</div>',
-        html
+        html,
     )
     html = re.sub(
         r'<div class="rating-badge rating-sell">\s*\s*SELL\s*</div>',
         '<div class="rating-badge rating-sell"> SELL</div>',
-        html
+        html,
     )
 
     # Style inline rating badges
-    html = re.sub(
-        r'\s*BUY',
-        '<span class="rating-box rating-buy">BUY</span>',
-        html
-    )
-    html = re.sub(
-        r'\s*HOLD',
-        '<span class="rating-box rating-hold">HOLD</span>',
-        html
-    )
-    html = re.sub(
-        r'\s*SELL',
-        '<span class="rating-box rating-sell">SELL</span>',
-        html
-    )
+    html = re.sub(r"\s*BUY", '<span class="rating-box rating-buy">BUY</span>', html)
+    html = re.sub(r"\s*HOLD", '<span class="rating-box rating-hold">HOLD</span>', html)
+    html = re.sub(r"\s*SELL", '<span class="rating-box rating-sell">SELL</span>', html)
 
     # Style scenario analysis section headers with background boxes
     html = re.sub(
-        r'<h3>Bull Case([^<]*)</h3>',
+        r"<h3>Bull Case([^<]*)</h3>",
         r'</div><div class="scenario-bull"><h3 style="color:#276749;margin-top:0;"> Bull Case\1</h3>',
-        html
+        html,
     )
     html = re.sub(
-        r'<h3>Base Case([^<]*)</h3>',
+        r"<h3>Base Case([^<]*)</h3>",
         r'</div><div class="scenario-base"><h3 style="color:#744210;margin-top:0;"> Base Case\1</h3>',
-        html
+        html,
     )
     html = re.sub(
-        r'<h3>Bear Case([^<]*)</h3>',
+        r"<h3>Bear Case([^<]*)</h3>",
         r'</div><div class="scenario-bear"><h3 style="color:#742a2a;margin-top:0;"> Bear Case\1</h3>',
-        html
+        html,
     )
 
     # Clean up any empty divs at the start
-    html = re.sub(r'^</div>', '', html)
+    html = re.sub(r"^</div>", "", html)
 
     # Ensure scenario divs are closed properly before next h2
-    html = re.sub(r'(<div class="scenario-\w+">.*?)(<div class="page-break">)', r'\1</div>\2', html, flags=re.DOTALL)
+    html = re.sub(
+        r'(<div class="scenario-\w+">.*?)(<div class="page-break">)',
+        r"\1</div>\2",
+        html,
+        flags=re.DOTALL,
+    )
 
     # Style upside/downside percentages (only in specific contexts, not globally)
     # This prevents color bleeding - we only style explicit "Upside:" and "Downside:" mentions
+    html = re.sub(r"Upside:\s*\+(\d+\.?\d*%)", r'Upside: <span class="upside">+\1</span>', html)
     html = re.sub(
-        r'Upside:\s*\+(\d+\.?\d*%)',
-        r'Upside: <span class="upside">+\1</span>',
-        html
-    )
-    html = re.sub(
-        r'Downside:\s*-(\d+\.?\d*%)',
-        r'Downside: <span class="downside">-\1</span>',
-        html
+        r"Downside:\s*-(\d+\.?\d*%)", r'Downside: <span class="downside">-\1</span>', html
     )
 
     # Add avoid-break to tables
-    html = re.sub(
-        r'<table>',
-        '<table class="avoid-break">',
-        html
-    )
+    html = re.sub(r"<table>", '<table class="avoid-break">', html)
 
     # Wrap investment thesis sections
     html = re.sub(
         r'(<h3>Investment Thesis</h3>)(.*?)(<h3>|<h2>|<div class="page-break">)',
         r'<div class="thesis-box">\1\2</div>\3',
         html,
-        flags=re.DOTALL
+        flags=re.DOTALL,
     )
 
     # Wrap risk sections
@@ -882,17 +860,17 @@ def _enhance_html(html: str) -> str:
         r'(<h3>Key (?:Investment )?Risks</h3>)(.*?)(<h3>|<h2>|<div class="page-break">)',
         r'<div class="risk-box">\1\2</div>\3',
         html,
-        flags=re.DOTALL
+        flags=re.DOTALL,
     )
 
     # Style impact badges in catalysts (contained styling)
-    html = re.sub(r' High', '<strong style="color:#e53e3e">High</strong>', html)
-    html = re.sub(r' Medium', '<strong style="color:#d69e2e">Medium</strong>', html)
-    html = re.sub(r' Low', '<strong style="color:#38a169">Low</strong>', html)
+    html = re.sub(r" High", '<strong style="color:#e53e3e">High</strong>', html)
+    html = re.sub(r" Medium", '<strong style="color:#d69e2e">Medium</strong>', html)
+    html = re.sub(r" Low", '<strong style="color:#38a169">Low</strong>', html)
 
     # Style checkmarks and warnings (contained styling)
-    html = re.sub(r' ', '<span style="color:#38a169;font-weight:bold"></span> ', html)
-    html = re.sub(r' ', '<span style="color:#d69e2e;font-weight:bold"></span> ', html)
+    html = re.sub(r" ", '<span style="color:#38a169;font-weight:bold"></span> ', html)
+    html = re.sub(r" ", '<span style="color:#d69e2e;font-weight:bold"></span> ', html)
 
     return html
 
@@ -904,66 +882,63 @@ def _basic_markdown_to_html(markdown_content: str) -> str:
     html = markdown_content
 
     # Headers
-    html = re.sub(r'^#### (.+)$', r'<h4>\1</h4>', html, flags=re.MULTILINE)
-    html = re.sub(r'^### (.+)$', r'<h3>\1</h3>', html, flags=re.MULTILINE)
-    html = re.sub(r'^## (.+)$', r'<h2>\1</h2>', html, flags=re.MULTILINE)
-    html = re.sub(r'^# (.+)$', r'<h1>\1</h1>', html, flags=re.MULTILINE)
+    html = re.sub(r"^#### (.+)$", r"<h4>\1</h4>", html, flags=re.MULTILINE)
+    html = re.sub(r"^### (.+)$", r"<h3>\1</h3>", html, flags=re.MULTILINE)
+    html = re.sub(r"^## (.+)$", r"<h2>\1</h2>", html, flags=re.MULTILINE)
+    html = re.sub(r"^# (.+)$", r"<h1>\1</h1>", html, flags=re.MULTILINE)
 
     # Bold and italic
-    html = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', html)
-    html = re.sub(r'\*(.+?)\*', r'<em>\1</em>', html)
+    html = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", html)
+    html = re.sub(r"\*(.+?)\*", r"<em>\1</em>", html)
 
     # Code blocks
-    html = re.sub(r'```(.*?)```', r'<pre><code>\1</code></pre>', html, flags=re.DOTALL)
+    html = re.sub(r"```(.*?)```", r"<pre><code>\1</code></pre>", html, flags=re.DOTALL)
 
     # Horizontal rules
-    html = re.sub(r'^---+$', r'<hr>', html, flags=re.MULTILINE)
+    html = re.sub(r"^---+$", r"<hr>", html, flags=re.MULTILINE)
 
     # Lists
-    html = re.sub(r'^\d+\. (.+)$', r'<li>\1</li>', html, flags=re.MULTILINE)
-    html = re.sub(r'^- (.+)$', r'<li>\1</li>', html, flags=re.MULTILINE)
+    html = re.sub(r"^\d+\. (.+)$", r"<li>\1</li>", html, flags=re.MULTILINE)
+    html = re.sub(r"^- (.+)$", r"<li>\1</li>", html, flags=re.MULTILINE)
 
     # Simple table conversion
-    lines = html.split('\n')
+    lines = html.split("\n")
     in_table = False
     new_lines = []
 
     for line in lines:
-        if '|' in line and not line.strip().startswith('```'):
+        if "|" in line and not line.strip().startswith("```"):
             if not in_table:
-                new_lines.append('<table>')
+                new_lines.append("<table>")
                 in_table = True
 
-            if line.strip().startswith('|---') or line.strip().startswith('| ---'):
+            if line.strip().startswith("|---") or line.strip().startswith("| ---"):
                 continue  # Skip separator rows
 
-            cells = [c.strip() for c in line.split('|')[1:-1]]
+            cells = [c.strip() for c in line.split("|")[1:-1]]
             if cells:
-                row = '<tr>' + ''.join(f'<td>{c}</td>' for c in cells) + '</tr>'
+                row = "<tr>" + "".join(f"<td>{c}</td>" for c in cells) + "</tr>"
                 new_lines.append(row)
         else:
             if in_table:
-                new_lines.append('</table>')
+                new_lines.append("</table>")
                 in_table = False
             new_lines.append(line)
 
     if in_table:
-        new_lines.append('</table>')
+        new_lines.append("</table>")
 
-    html = '\n'.join(new_lines)
+    html = "\n".join(new_lines)
 
     # Paragraphs
-    html = re.sub(r'\n\n+', r'</p>\n<p>', html)
-    html = '<p>' + html + '</p>'
+    html = re.sub(r"\n\n+", r"</p>\n<p>", html)
+    html = "<p>" + html + "</p>"
 
     return html
 
 
 async def convert_md_to_pdf(
-    md_path: str,
-    output_path: str = None,
-    template_name: str = None,
-    chart_files: List[str] = None
+    md_path: str, output_path: str = None, template_name: str = None, chart_files: List[str] = None
 ) -> str:
     """
     Convert markdown file to professionally styled PDF.
@@ -977,29 +952,30 @@ async def convert_md_to_pdf(
     Returns:
         Path to generated PDF
     """
-    from pathlib import Path
     import base64
+    from pathlib import Path
 
     md_file = Path(md_path)
     if not md_file.exists():
         raise FileNotFoundError(f"Markdown file not found: {md_path}")
 
     # Read markdown
-    with open(md_file, 'r', encoding='utf-8') as f:
+    with open(md_file, "r", encoding="utf-8") as f:
         markdown_content = f.read()
 
     # Determine output path
     if output_path is None:
-        output_path = str(md_file.with_suffix('.pdf'))
+        output_path = str(md_file.with_suffix(".pdf"))
 
     # Convert markdown to HTML first
-    title = md_file.stem.replace('_', ' ').title()
+    title = md_file.stem.replace("_", " ").title()
 
     # Get template if specified
     html_content = None
     if template_name:
         try:
             from .templates import TemplateRegistry
+
             template = TemplateRegistry.get(template_name)
             if template:
                 inner_html = _markdown_to_html_content(markdown_content)
@@ -1014,44 +990,45 @@ async def convert_md_to_pdf(
     # Embed charts AFTER HTML conversion (avoids markdown parsing issues)
     if chart_files:
         charts_html = '<div class="page-break"></div>\n'
-        charts_html += '<h2>Charts & Visualizations</h2>\n'
+        charts_html += "<h2>Charts & Visualizations</h2>\n"
 
         valid_charts = 0
         for chart_path in chart_files:
             chart_file = Path(chart_path)
             if chart_file.exists() and chart_file.stat().st_size > 1000:  # Skip tiny/empty files
-                with open(chart_file, 'rb') as f:
-                    data = base64.b64encode(f.read()).decode('utf-8')
-                chart_name = chart_file.stem.replace('_', ' ').title()
+                with open(chart_file, "rb") as f:
+                    data = base64.b64encode(f.read()).decode("utf-8")
+                chart_name = chart_file.stem.replace("_", " ").title()
 
-                charts_html += f'''<div class="chart-container" style="page-break-inside:avoid;margin:16pt 0;text-align:center;">
+                charts_html += f"""<div class="chart-container" style="page-break-inside:avoid;margin:16pt 0;text-align:center;">
 <img src="data:image/png;base64,{data}" alt="{chart_name}" style="max-width:100%;height:auto;border:1px solid #e2e8f0;border-radius:4pt;" />
 <p style="text-align:center;font-size:9pt;color:#666;margin-top:6pt;">{chart_name}</p>
-</div>\n'''
+</div>\n"""
                 valid_charts += 1
 
         # Only add charts section if we have valid charts
         if valid_charts > 0:
             # Insert before Technical Analysis section in HTML
-            if '<h2>Technical Analysis</h2>' in html_content:
+            if "<h2>Technical Analysis</h2>" in html_content:
                 html_content = html_content.replace(
-                    '<h2>Technical Analysis</h2>',
-                    charts_html + '\n<h2>Technical Analysis</h2>'
+                    "<h2>Technical Analysis</h2>", charts_html + "\n<h2>Technical Analysis</h2>"
                 )
-            elif '<h2>' in html_content:
+            elif "<h2>" in html_content:
                 # Find last h2 and insert after it
-                last_h2_pos = html_content.rfind('</body>')
+                last_h2_pos = html_content.rfind("</body>")
                 if last_h2_pos > 0:
-                    html_content = html_content[:last_h2_pos] + charts_html + html_content[last_h2_pos:]
+                    html_content = (
+                        html_content[:last_h2_pos] + charts_html + html_content[last_h2_pos:]
+                    )
 
     # Fallback check (in case above didn't set it)
     if html_content is None:
-        title = md_file.stem.replace('_', ' ').title()
+        title = md_file.stem.replace("_", " ").title()
         html_content = markdown_to_styled_html(markdown_content, title)
 
     # Try WeasyPrint first (best quality)
     try:
-        from weasyprint import HTML, CSS
+        from weasyprint import CSS, HTML
 
         html_doc = HTML(string=html_content, base_url=str(md_file.parent))
         html_doc.write_pdf(output_path)
@@ -1065,13 +1042,13 @@ async def convert_md_to_pdf(
         import pdfkit
 
         options = {
-            'page-size': 'A4',
-            'margin-top': '20mm',
-            'margin-right': '15mm',
-            'margin-bottom': '25mm',
-            'margin-left': '15mm',
-            'encoding': 'UTF-8',
-            'enable-local-file-access': None,
+            "page-size": "A4",
+            "margin-top": "20mm",
+            "margin-right": "15mm",
+            "margin-bottom": "25mm",
+            "margin-left": "15mm",
+            "encoding": "UTF-8",
+            "enable-local-file-access": None,
         }
 
         pdfkit.from_string(html_content, output_path, options=options)
@@ -1081,13 +1058,12 @@ async def convert_md_to_pdf(
         pass
 
     # Fallback: save HTML for manual conversion
-    html_path = str(Path(output_path).with_suffix('.html'))
-    with open(html_path, 'w', encoding='utf-8') as f:
+    html_path = str(Path(output_path).with_suffix(".html"))
+    with open(html_path, "w", encoding="utf-8") as f:
         f.write(html_content)
 
     raise ImportError(
-        f"No PDF library available. Install weasyprint or pdfkit. "
-        f"HTML saved to: {html_path}"
+        f"No PDF library available. Install weasyprint or pdfkit. " f"HTML saved to: {html_path}"
     )
 
 
@@ -1096,12 +1072,13 @@ def _markdown_to_html_content(markdown_content: str) -> str:
     import re
 
     # Pre-process: Remove div tags
-    markdown_content = re.sub(r'<div class="[^"]*">\s*', '', markdown_content)
-    markdown_content = re.sub(r'</div>', '', markdown_content)
+    markdown_content = re.sub(r'<div class="[^"]*">\s*', "", markdown_content)
+    markdown_content = re.sub(r"</div>", "", markdown_content)
 
     try:
         import markdown
-        md = markdown.Markdown(extensions=['tables', 'fenced_code', 'nl2br', 'sane_lists'])
+
+        md = markdown.Markdown(extensions=["tables", "fenced_code", "nl2br", "sane_lists"])
         html_content = md.convert(markdown_content)
         return _enhance_html(html_content)
     except ImportError:

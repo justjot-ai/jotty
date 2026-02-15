@@ -14,22 +14,25 @@ Setup:
    - WHATSAPP_TOKEN: Permanent access token
 """
 
-import os
 import logging
 import mimetypes
-import requests
+import os
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
+
+import requests
+
+from Jotty.core.infrastructure.utils.api_client import BaseAPIClient
+from Jotty.core.infrastructure.utils.async_utils import run_sync
 
 # Use centralized utilities
 from Jotty.core.infrastructure.utils.env_loader import load_jotty_env
-from Jotty.core.infrastructure.utils.api_client import BaseAPIClient
-from Jotty.core.infrastructure.utils.tool_helpers import (
-    tool_response, tool_error, async_tool_wrapper
-)
-from Jotty.core.infrastructure.utils.async_utils import run_sync
-
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import (
+    async_tool_wrapper,
+    tool_error,
+    tool_response,
+)
 
 # Load environment variables
 
@@ -66,10 +69,10 @@ class WhatsAppAPIClient(BaseAPIClient):
 
 def _get_client(params: Dict[str, Any]) -> tuple:
     """Get WhatsApp client, returning (client, error) tuple."""
-    client = WhatsAppAPIClient(params.get('phone_id'), params.get('token'))
+    client = WhatsAppAPIClient(params.get("phone_id"), params.get("token"))
     if not client.phone_id or not client.token:
         return None, tool_error(
-            'WhatsApp credentials required. Set WHATSAPP_PHONE_ID and WHATSAPP_TOKEN env vars'
+            "WhatsApp credentials required. Set WHATSAPP_PHONE_ID and WHATSAPP_TOKEN env vars"
         )
     return client, None
 
@@ -98,7 +101,7 @@ async def _upload_media(client: WhatsAppAPIClient, file_path: str) -> Dict[str, 
                 headers={"Authorization": f"Bearer {client.token}"},
                 files=files,
                 data=data,
-                timeout=60
+                timeout=60,
             )
 
         if response.status_code in [200, 201]:
@@ -110,7 +113,7 @@ async def _upload_media(client: WhatsAppAPIClient, file_path: str) -> Dict[str, 
         return tool_error(str(e))
 
 
-@async_tool_wrapper(required_params=['to', 'message'])
+@async_tool_wrapper(required_params=["to", "message"])
 async def send_whatsapp_message_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Send a text message via WhatsApp.
@@ -126,23 +129,20 @@ async def send_whatsapp_message_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, message_id, to
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     client, error = _get_client(params)
     if error:
         return error
 
-    to = _clean_phone(params['to'])
+    to = _clean_phone(params["to"])
 
     payload = {
         "messaging_product": "whatsapp",
         "recipient_type": "individual",
         "to": to,
         "type": "text",
-        "text": {
-            "preview_url": params.get("preview_url", False),
-            "body": params['message']
-        }
+        "text": {"preview_url": params.get("preview_url", False), "body": params["message"]},
     }
 
     logger.info(f"Sending WhatsApp message to {to}")
@@ -150,15 +150,12 @@ async def send_whatsapp_message_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
     if result.get("success"):
         messages = result.get("messages", [])
-        return tool_response(
-            message_id=messages[0].get("id") if messages else None,
-            to=to
-        )
+        return tool_response(message_id=messages[0].get("id") if messages else None, to=to)
 
     return result
 
 
-@async_tool_wrapper(required_params=['to'])
+@async_tool_wrapper(required_params=["to"])
 async def send_whatsapp_image_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Send an image via WhatsApp.
@@ -173,7 +170,7 @@ async def send_whatsapp_image_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, message_id, to
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     if not params.get("image_url") and not params.get("image_path"):
         return tool_error("image_url or image_path is required")
@@ -182,7 +179,7 @@ async def send_whatsapp_image_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     if error:
         return error
 
-    to = _clean_phone(params['to'])
+    to = _clean_phone(params["to"])
 
     # If local path, upload first
     if params.get("image_path") and not params.get("image_url"):
@@ -196,27 +193,19 @@ async def send_whatsapp_image_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     if params.get("caption"):
         image_payload["caption"] = params["caption"]
 
-    payload = {
-        "messaging_product": "whatsapp",
-        "to": to,
-        "type": "image",
-        "image": image_payload
-    }
+    payload = {"messaging_product": "whatsapp", "to": to, "type": "image", "image": image_payload}
 
     logger.info(f"Sending WhatsApp image to {to}")
     result = client._make_request("messages", json_data=payload)
 
     if result.get("success"):
         messages = result.get("messages", [])
-        return tool_response(
-            message_id=messages[0].get("id") if messages else None,
-            to=to
-        )
+        return tool_response(message_id=messages[0].get("id") if messages else None, to=to)
 
     return result
 
 
-@async_tool_wrapper(required_params=['to'])
+@async_tool_wrapper(required_params=["to"])
 async def send_whatsapp_document_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Send a document via WhatsApp.
@@ -232,7 +221,7 @@ async def send_whatsapp_document_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, message_id, to
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     if not params.get("document_url") and not params.get("document_path"):
         return tool_error("document_url or document_path is required")
@@ -241,7 +230,7 @@ async def send_whatsapp_document_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     if error:
         return error
 
-    to = _clean_phone(params['to'])
+    to = _clean_phone(params["to"])
     filename = params.get("filename")
 
     # If local path, upload first
@@ -264,7 +253,7 @@ async def send_whatsapp_document_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         "messaging_product": "whatsapp",
         "to": to,
         "type": "document",
-        "document": doc_payload
+        "document": doc_payload,
     }
 
     logger.info(f"Sending WhatsApp document to {to}")
@@ -272,15 +261,12 @@ async def send_whatsapp_document_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
     if result.get("success"):
         messages = result.get("messages", [])
-        return tool_response(
-            message_id=messages[0].get("id") if messages else None,
-            to=to
-        )
+        return tool_response(message_id=messages[0].get("id") if messages else None, to=to)
 
     return result
 
 
-@async_tool_wrapper(required_params=['to', 'template_name'])
+@async_tool_wrapper(required_params=["to", "template_name"])
 async def send_whatsapp_template_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Send a template message via WhatsApp.
@@ -295,18 +281,18 @@ async def send_whatsapp_template_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, message_id, to, template
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     client, error = _get_client(params)
     if error:
         return error
 
-    to = _clean_phone(params['to'])
-    template_name = params['template_name']
+    to = _clean_phone(params["to"])
+    template_name = params["template_name"]
 
     template_payload = {
         "name": template_name,
-        "language": {"code": params.get("language_code", "en_US")}
+        "language": {"code": params.get("language_code", "en_US")},
     }
 
     if params.get("components"):
@@ -316,7 +302,7 @@ async def send_whatsapp_template_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         "messaging_product": "whatsapp",
         "to": to,
         "type": "template",
-        "template": template_payload
+        "template": template_payload,
     }
 
     logger.info(f"Sending WhatsApp template '{template_name}' to {to}")
@@ -325,15 +311,13 @@ async def send_whatsapp_template_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     if result.get("success"):
         messages = result.get("messages", [])
         return tool_response(
-            message_id=messages[0].get("id") if messages else None,
-            to=to,
-            template=template_name
+            message_id=messages[0].get("id") if messages else None, to=to, template=template_name
         )
 
     return result
 
 
-@async_tool_wrapper(required_params=['to', 'latitude', 'longitude'])
+@async_tool_wrapper(required_params=["to", "latitude", "longitude"])
 async def send_whatsapp_location_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Send a location via WhatsApp.
@@ -349,18 +333,15 @@ async def send_whatsapp_location_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, message_id, to
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     client, error = _get_client(params)
     if error:
         return error
 
-    to = _clean_phone(params['to'])
+    to = _clean_phone(params["to"])
 
-    location_payload = {
-        "latitude": str(params['latitude']),
-        "longitude": str(params['longitude'])
-    }
+    location_payload = {"latitude": str(params["latitude"]), "longitude": str(params["longitude"])}
 
     if params.get("name"):
         location_payload["name"] = params["name"]
@@ -371,7 +352,7 @@ async def send_whatsapp_location_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         "messaging_product": "whatsapp",
         "to": to,
         "type": "location",
-        "location": location_payload
+        "location": location_payload,
     }
 
     logger.info(f"Sending WhatsApp location to {to}")
@@ -379,15 +360,12 @@ async def send_whatsapp_location_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
     if result.get("success"):
         messages = result.get("messages", [])
-        return tool_response(
-            message_id=messages[0].get("id") if messages else None,
-            to=to
-        )
+        return tool_response(message_id=messages[0].get("id") if messages else None, to=to)
 
     return result
 
 
-@async_tool_wrapper(required_params=['message_id'])
+@async_tool_wrapper(required_params=["message_id"])
 async def mark_message_read_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Mark a message as read.
@@ -399,7 +377,7 @@ async def mark_message_read_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     client, error = _get_client(params)
     if error:
@@ -408,14 +386,14 @@ async def mark_message_read_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     payload = {
         "messaging_product": "whatsapp",
         "status": "read",
-        "message_id": params['message_id']
+        "message_id": params["message_id"],
     }
 
     result = client._make_request("messages", json_data=payload)
     return tool_response() if result.get("success") else result
 
 
-@async_tool_wrapper(required_params=['to', 'media_path'])
+@async_tool_wrapper(required_params=["to", "media_path"])
 async def send_whatsapp_media_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Send media via WhatsApp with automatic provider selection.
@@ -431,32 +409,36 @@ async def send_whatsapp_media_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, message_id, provider
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
     try:
         from .providers import get_provider
 
         provider_name = params.get("provider", "auto")
         provider = get_provider(provider_name)
         return await provider.send_media(
-            params['to'],
-            params['media_path'],
+            params["to"],
+            params["media_path"],
             params.get("media_type", "image"),
-            params.get("caption", "")
+            params.get("caption", ""),
         )
     except ImportError:
         # Fallback to Business API if providers not available
         if params.get("media_type", "image") == "document":
-            return await send_whatsapp_document_tool({
-                'to': params['to'],
-                'document_path': params['media_path'],
-                'caption': params.get('caption', '')
-            })
+            return await send_whatsapp_document_tool(
+                {
+                    "to": params["to"],
+                    "document_path": params["media_path"],
+                    "caption": params.get("caption", ""),
+                }
+            )
         else:
-            return await send_whatsapp_image_tool({
-                'to': params['to'],
-                'image_path': params['media_path'],
-                'caption': params.get('caption', '')
-            })
+            return await send_whatsapp_image_tool(
+                {
+                    "to": params["to"],
+                    "image_path": params["media_path"],
+                    "caption": params.get("caption", ""),
+                }
+            )
 
 
 @async_tool_wrapper()
@@ -471,7 +453,7 @@ async def get_whatsapp_status_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, connected, phone, name, provider
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
     try:
         from .providers import get_provider
 
@@ -483,38 +465,31 @@ async def get_whatsapp_status_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         client, error = _get_client(params)
         if error:
             return tool_response(connected=False, provider="business", error="Not configured")
-        return tool_response(
-            connected=True,
-            provider="business",
-            phone=client.phone_id
-        )
+        return tool_response(connected=True, provider="business", phone=client.phone_id)
 
 
 # Convenience functions for direct import using centralized run_sync
 def send_whatsapp_message(phone: str, message: str, provider: str = "auto") -> Dict[str, Any]:
     """Send WhatsApp message synchronously."""
-    return run_sync(send_whatsapp_message_tool({
-        'to': phone,
-        'message': message,
-        'provider': provider
-    }))
+    return run_sync(
+        send_whatsapp_message_tool({"to": phone, "message": message, "provider": provider})
+    )
 
 
-def send_whatsapp_media(phone: str, media_path: str, caption: str = "", provider: str = "auto") -> Dict[str, Any]:
+def send_whatsapp_media(
+    phone: str, media_path: str, caption: str = "", provider: str = "auto"
+) -> Dict[str, Any]:
     """Send WhatsApp media synchronously."""
-    return run_sync(send_whatsapp_media_tool({
-        'to': phone,
-        'media_path': media_path,
-        'caption': caption,
-        'provider': provider
-    }))
+    return run_sync(
+        send_whatsapp_media_tool(
+            {"to": phone, "media_path": media_path, "caption": caption, "provider": provider}
+        )
+    )
 
 
 def get_whatsapp_status(provider: str = "auto") -> Dict[str, Any]:
     """Get WhatsApp status synchronously."""
-    return run_sync(get_whatsapp_status_tool({
-        'provider': provider
-    }))
+    return run_sync(get_whatsapp_status_tool({"provider": provider}))
 
 
 # =========================================================================
@@ -522,7 +497,7 @@ def get_whatsapp_status(provider: str = "auto") -> Dict[str, Any]:
 # =========================================================================
 
 
-@async_tool_wrapper(required_params=['to'])
+@async_tool_wrapper(required_params=["to"])
 async def send_whatsapp_video_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Send a video via WhatsApp.
@@ -537,7 +512,7 @@ async def send_whatsapp_video_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, message_id, to
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     if not params.get("video_url") and not params.get("video_path"):
         return tool_error("video_url or video_path is required")
@@ -546,7 +521,7 @@ async def send_whatsapp_video_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     if error:
         return error
 
-    to = _clean_phone(params['to'])
+    to = _clean_phone(params["to"])
 
     if params.get("video_path") and not params.get("video_url"):
         upload_result = await _upload_media(client, params["video_path"])
@@ -559,21 +534,16 @@ async def send_whatsapp_video_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     if params.get("caption"):
         video_payload["caption"] = params["caption"]
 
-    payload = {
-        "messaging_product": "whatsapp", "to": to,
-        "type": "video", "video": video_payload
-    }
+    payload = {"messaging_product": "whatsapp", "to": to, "type": "video", "video": video_payload}
 
     result = client._make_request("messages", json_data=payload)
     if result.get("success"):
         messages = result.get("messages", [])
-        return tool_response(
-            message_id=messages[0].get("id") if messages else None, to=to
-        )
+        return tool_response(message_id=messages[0].get("id") if messages else None, to=to)
     return result
 
 
-@async_tool_wrapper(required_params=['to'])
+@async_tool_wrapper(required_params=["to"])
 async def send_whatsapp_audio_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Send an audio message via WhatsApp.
@@ -587,7 +557,7 @@ async def send_whatsapp_audio_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, message_id, to
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     if not params.get("audio_url") and not params.get("audio_path"):
         return tool_error("audio_url or audio_path is required")
@@ -596,7 +566,7 @@ async def send_whatsapp_audio_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     if error:
         return error
 
-    to = _clean_phone(params['to'])
+    to = _clean_phone(params["to"])
 
     if params.get("audio_path") and not params.get("audio_url"):
         upload_result = await _upload_media(client, params["audio_path"])
@@ -606,21 +576,16 @@ async def send_whatsapp_audio_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     else:
         audio_payload = {"link": params["audio_url"]}
 
-    payload = {
-        "messaging_product": "whatsapp", "to": to,
-        "type": "audio", "audio": audio_payload
-    }
+    payload = {"messaging_product": "whatsapp", "to": to, "type": "audio", "audio": audio_payload}
 
     result = client._make_request("messages", json_data=payload)
     if result.get("success"):
         messages = result.get("messages", [])
-        return tool_response(
-            message_id=messages[0].get("id") if messages else None, to=to
-        )
+        return tool_response(message_id=messages[0].get("id") if messages else None, to=to)
     return result
 
 
-@async_tool_wrapper(required_params=['message_id', 'emoji'])
+@async_tool_wrapper(required_params=["message_id", "emoji"])
 async def send_whatsapp_reaction_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     React to a WhatsApp message with an emoji.
@@ -633,7 +598,7 @@ async def send_whatsapp_reaction_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, message_id
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     client, error = _get_client(params)
     if error:
@@ -643,24 +608,21 @@ async def send_whatsapp_reaction_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         "messaging_product": "whatsapp",
         "recipient_type": "individual",
         "type": "reaction",
-        "reaction": {
-            "message_id": params['message_id'],
-            "emoji": params['emoji']
-        }
+        "reaction": {"message_id": params["message_id"], "emoji": params["emoji"]},
     }
 
     # Need a 'to' for the API but reaction goes to original sender
-    to = params.get('to')
+    to = params.get("to")
     if to:
         payload["to"] = _clean_phone(to)
 
     result = client._make_request("messages", json_data=payload)
     if result.get("success"):
-        return tool_response(reacted_to=params['message_id'], emoji=params['emoji'])
+        return tool_response(reacted_to=params["message_id"], emoji=params["emoji"])
     return result
 
 
-@async_tool_wrapper(required_params=['to', 'message'])
+@async_tool_wrapper(required_params=["to", "message"])
 async def send_whatsapp_reply_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Reply to a specific WhatsApp message.
@@ -674,21 +636,21 @@ async def send_whatsapp_reply_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, message_id, to, replied_to
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     client, error = _get_client(params)
     if error:
         return error
 
-    to = _clean_phone(params['to'])
-    reply_to = params.get('reply_to')
+    to = _clean_phone(params["to"])
+    reply_to = params.get("reply_to")
 
     payload = {
         "messaging_product": "whatsapp",
         "recipient_type": "individual",
         "to": to,
         "type": "text",
-        "text": {"body": params['message']}
+        "text": {"body": params["message"]},
     }
 
     if reply_to:
@@ -698,8 +660,7 @@ async def send_whatsapp_reply_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     if result.get("success"):
         messages = result.get("messages", [])
         return tool_response(
-            message_id=messages[0].get("id") if messages else None,
-            to=to, replied_to=reply_to
+            message_id=messages[0].get("id") if messages else None, to=to, replied_to=reply_to
         )
     return result
 
@@ -716,13 +677,13 @@ async def get_whatsapp_profile_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, profile data
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     client, error = _get_client(params)
     if error:
         return error
 
-    fields = params.get('fields', 'about,address,description,email,websites,profile_picture_url')
+    fields = params.get("fields", "about,address,description,email,websites,profile_picture_url")
 
     try:
         url = f"{client.BASE_URL}/{client.phone_id}/whatsapp_business_profile"
@@ -730,7 +691,7 @@ async def get_whatsapp_profile_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             url,
             headers={"Authorization": f"Bearer {client.token}"},
             params={"fields": fields},
-            timeout=30
+            timeout=30,
         )
 
         if response.status_code == 200:
@@ -744,7 +705,7 @@ async def get_whatsapp_profile_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return tool_error(str(e))
 
 
-@async_tool_wrapper(required_params=['to'])
+@async_tool_wrapper(required_params=["to"])
 async def send_whatsapp_contacts_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Send contact cards via WhatsApp.
@@ -760,9 +721,9 @@ async def send_whatsapp_contacts_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, message_id, to
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
-    contacts = params.get('contacts')
+    contacts = params.get("contacts")
     if not contacts:
         return tool_error("contacts list is required")
 
@@ -770,23 +731,18 @@ async def send_whatsapp_contacts_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     if error:
         return error
 
-    to = _clean_phone(params['to'])
+    to = _clean_phone(params["to"])
 
-    payload = {
-        "messaging_product": "whatsapp", "to": to,
-        "type": "contacts", "contacts": contacts
-    }
+    payload = {"messaging_product": "whatsapp", "to": to, "type": "contacts", "contacts": contacts}
 
     result = client._make_request("messages", json_data=payload)
     if result.get("success"):
         messages = result.get("messages", [])
-        return tool_response(
-            message_id=messages[0].get("id") if messages else None, to=to
-        )
+        return tool_response(message_id=messages[0].get("id") if messages else None, to=to)
     return result
 
 
-@async_tool_wrapper(required_params=['to'])
+@async_tool_wrapper(required_params=["to"])
 async def send_whatsapp_interactive_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Send interactive messages (buttons or lists) via WhatsApp.
@@ -805,49 +761,46 @@ async def send_whatsapp_interactive_tool(params: Dict[str, Any]) -> Dict[str, An
     Returns:
         Dictionary with success, message_id, to
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     client, error = _get_client(params)
     if error:
         return error
 
-    to = _clean_phone(params['to'])
-    interactive_type = params.get('interactive_type', 'button')
+    to = _clean_phone(params["to"])
+    interactive_type = params.get("interactive_type", "button")
 
-    interactive = {
-        "type": interactive_type,
-        "body": {"text": params.get('body', '')}
-    }
+    interactive = {"type": interactive_type, "body": {"text": params.get("body", "")}}
 
-    if params.get('header'):
-        interactive["header"] = {"type": "text", "text": params['header']}
-    if params.get('footer'):
-        interactive["footer"] = {"text": params['footer']}
+    if params.get("header"):
+        interactive["header"] = {"type": "text", "text": params["header"]}
+    if params.get("footer"):
+        interactive["footer"] = {"text": params["footer"]}
 
-    if interactive_type == 'button' and params.get('buttons'):
+    if interactive_type == "button" and params.get("buttons"):
         interactive["action"] = {
             "buttons": [
-                {"type": "reply", "reply": {"id": b.get('id', str(i)), "title": b['title']}}
-                for i, b in enumerate(params['buttons'][:3])
+                {"type": "reply", "reply": {"id": b.get("id", str(i)), "title": b["title"]}}
+                for i, b in enumerate(params["buttons"][:3])
             ]
         }
-    elif interactive_type == 'list' and params.get('sections'):
+    elif interactive_type == "list" and params.get("sections"):
         interactive["action"] = {
-            "button": params.get('button_text', 'Options'),
-            "sections": params['sections']
+            "button": params.get("button_text", "Options"),
+            "sections": params["sections"],
         }
 
     payload = {
-        "messaging_product": "whatsapp", "to": to,
-        "type": "interactive", "interactive": interactive
+        "messaging_product": "whatsapp",
+        "to": to,
+        "type": "interactive",
+        "interactive": interactive,
     }
 
     result = client._make_request("messages", json_data=payload)
     if result.get("success"):
         messages = result.get("messages", [])
-        return tool_response(
-            message_id=messages[0].get("id") if messages else None, to=to
-        )
+        return tool_response(message_id=messages[0].get("id") if messages else None, to=to)
     return result
 
 

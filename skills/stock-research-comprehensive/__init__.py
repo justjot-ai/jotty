@@ -5,24 +5,19 @@ Research Skills Module
 World-class broker-grade research report generation.
 """
 
+from .data_fetcher import FinancialDataConverter, ResearchDataFetcher
+from .enhanced_research import enhanced_stock_research_tool
 from .report_components import (
-    CompanySnapshot,
-    FinancialStatements,
-    DCFModel,
-    PeerComparison,
-    FinancialTablesFormatter,
-    DCFCalculator,
-    PeerComparisonFormatter,
     ChartGenerator,
+    CompanySnapshot,
+    DCFCalculator,
+    DCFModel,
+    FinancialStatements,
+    FinancialTablesFormatter,
+    PeerComparison,
+    PeerComparisonFormatter,
     ReportTemplate,
 )
-
-from .data_fetcher import (
-    ResearchDataFetcher,
-    FinancialDataConverter,
-)
-
-from .enhanced_research import enhanced_stock_research_tool
 
 __all__ = [
     # Data Classes

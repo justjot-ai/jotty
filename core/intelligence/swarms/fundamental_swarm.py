@@ -1,4 +1,5 @@
 from typing import Any
+
 """
 Fundamental Analysis Swarm - World-Class Financial Analysis
 ============================================================
@@ -51,20 +52,19 @@ Date: February 2026
 """
 
 import asyncio
-import logging
 import json
-import dspy
-from typing import Dict, Any, Optional, List
+import logging
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
-from .base_swarm import (
-    SwarmBaseConfig, SwarmResult, AgentRole,
-    register_swarm,
-)
-from .base import DomainSwarm, AgentTeam, _split_field, _safe_join, _safe_num
+import dspy
+
+from Jotty.core.modes.agent.base import BaseSwarmAgent, DomainAgent, DomainAgentConfig
+
+from .base import AgentTeam, DomainSwarm, _safe_join, _safe_num, _split_field
+from .base_swarm import AgentRole, SwarmBaseConfig, SwarmResult, register_swarm
 from .swarm_signatures import FundamentalSwarmSignature
-from Jotty.core.modes.agent.base import DomainAgent, DomainAgentConfig, BaseSwarmAgent
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +72,7 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
+
 
 class ValuationType(Enum):
     DCF = "dcf"
@@ -101,9 +102,10 @@ class RatingScale(Enum):
 @dataclass
 class FundamentalConfig(SwarmBaseConfig):
     """Configuration for FundamentalSwarm."""
-    valuation_methods: List[ValuationType] = field(default_factory=lambda: [
-        ValuationType.DCF, ValuationType.COMPARABLES
-    ])
+
+    valuation_methods: List[ValuationType] = field(
+        default_factory=lambda: [ValuationType.DCF, ValuationType.COMPARABLES]
+    )
     investment_style: InvestmentStyle = InvestmentStyle.QUALITY
     years_of_data: int = 5
     include_projections: bool = True
@@ -120,6 +122,7 @@ class FundamentalConfig(SwarmBaseConfig):
 @dataclass
 class FinancialMetrics:
     """Key financial metrics."""
+
     revenue: float = 0.0
     revenue_growth: float = 0.0
     gross_profit: float = 0.0
@@ -138,6 +141,7 @@ class FinancialMetrics:
 @dataclass
 class ValuationMetrics:
     """Valuation metrics."""
+
     pe_ratio: float = 0.0
     pb_ratio: float = 0.0
     ps_ratio: float = 0.0
@@ -152,6 +156,7 @@ class ValuationMetrics:
 @dataclass
 class QualityMetrics:
     """Quality and efficiency metrics."""
+
     roe: float = 0.0
     roce: float = 0.0
     roic: float = 0.0
@@ -167,6 +172,7 @@ class QualityMetrics:
 @dataclass
 class ValuationResult:
     """Result from valuation model."""
+
     method: ValuationType
     intrinsic_value: float
     upside_downside: float  # percentage
@@ -177,6 +183,7 @@ class ValuationResult:
 @dataclass
 class InvestmentThesis:
     """Complete investment thesis."""
+
     rating: RatingScale
     target_price: float
     current_price: float
@@ -192,6 +199,7 @@ class InvestmentThesis:
 @dataclass
 class FundamentalResult(SwarmResult):
     """Result from FundamentalSwarm."""
+
     ticker: str = ""
     company_name: str = ""
     financial_metrics: Optional[FinancialMetrics] = None
@@ -209,6 +217,7 @@ class FundamentalResult(SwarmResult):
 # DSPy SIGNATURES
 # =============================================================================
 
+
 class FinancialStatementSignature(dspy.Signature):
     """Analyze financial statements.
 
@@ -221,6 +230,7 @@ class FinancialStatementSignature(dspy.Signature):
 
     Be thorough and identify any red flags.
     """
+
     company: str = dspy.InputField(desc="Company name or ticker")
     financial_data: str = dspy.InputField(desc="JSON of financial data")
     years: int = dspy.InputField(desc="Years of data to analyze")
@@ -245,6 +255,7 @@ class RatioAnalysisSignature(dspy.Signature):
 
     Compare to industry averages and historical trends.
     """
+
     financial_data: str = dspy.InputField(desc="JSON of financial data")
     industry: str = dspy.InputField(desc="Industry for comparison")
     market_data: str = dspy.InputField(desc="Market data including price")
@@ -270,6 +281,7 @@ class DCFValuationSignature(dspy.Signature):
 
     Be conservative in assumptions.
     """
+
     company: str = dspy.InputField(desc="Company name")
     financial_data: str = dspy.InputField(desc="Historical financial data")
     growth_assumptions: str = dspy.InputField(desc="Growth assumptions")
@@ -296,6 +308,7 @@ class QualityEarningsSignature(dspy.Signature):
 
     Score earnings quality from 0-100.
     """
+
     financial_data: str = dspy.InputField(desc="Financial data including notes")
     cash_flows: str = dspy.InputField(desc="Cash flow statement")
 
@@ -319,6 +332,7 @@ class ManagementAnalysisSignature(dspy.Signature):
 
     Score management from 0-100.
     """
+
     company: str = dspy.InputField(desc="Company name")
     management_info: str = dspy.InputField(desc="Management team information")
     capital_history: str = dspy.InputField(desc="Historical capital allocation")
@@ -344,6 +358,7 @@ class CompetitiveMoatSignature(dspy.Signature):
 
     Score moat from 0-100.
     """
+
     company: str = dspy.InputField(desc="Company name")
     business_description: str = dspy.InputField(desc="Business model description")
     industry_data: str = dspy.InputField(desc="Industry and competitive data")
@@ -368,6 +383,7 @@ class InvestmentThesisSignature(dspy.Signature):
 
     Be objective and balanced.
     """
+
     company: str = dspy.InputField(desc="Company name")
     financial_summary: str = dspy.InputField(desc="Financial analysis summary")
     valuation_summary: str = dspy.InputField(desc="Valuation analysis summary")
@@ -389,72 +405,70 @@ class InvestmentThesisSignature(dspy.Signature):
 # =============================================================================
 
 
-
 class FinancialStatementAgent(BaseSwarmAgent):
     """Analyzes financial statements."""
 
-    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
+    def __init__(
+        self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = ""
+    ) -> None:
         super().__init__(memory, context, bus, signature=FinancialStatementSignature)
         self.learned_context = learned_context
         self._analyzer = dspy.ChainOfThought(FinancialStatementSignature)
 
     async def analyze(
-        self,
-        company: str,
-        financial_data: Dict[str, Any],
-        years: int = 5
+        self, company: str, financial_data: Dict[str, Any], years: int = 5
     ) -> Dict[str, Any]:
         """Analyze financial statements."""
         try:
-            company_input = f"{company}\n{self.learned_context}" if self.learned_context else company
+            company_input = (
+                f"{company}\n{self.learned_context}" if self.learned_context else company
+            )
             result = self._analyzer(
-                company=company_input,
-                financial_data=json.dumps(financial_data),
-                years=years
+                company=company_input, financial_data=json.dumps(financial_data), years=years
             )
 
             red_flags = _split_field(result.red_flags)
 
-            self._broadcast("financials_analyzed", {
-                'company': company,
-                'red_flags': len(red_flags)
-            })
+            self._broadcast(
+                "financials_analyzed", {"company": company, "red_flags": len(red_flags)}
+            )
 
             return {
-                'revenue_analysis': str(result.revenue_analysis),
-                'margin_analysis': str(result.margin_analysis),
-                'profitability': str(result.profitability),
-                'cash_flow_analysis': str(result.cash_flow_analysis),
-                'balance_sheet_health': str(result.balance_sheet_health),
-                'red_flags': red_flags
+                "revenue_analysis": str(result.revenue_analysis),
+                "margin_analysis": str(result.margin_analysis),
+                "profitability": str(result.profitability),
+                "cash_flow_analysis": str(result.cash_flow_analysis),
+                "balance_sheet_health": str(result.balance_sheet_health),
+                "red_flags": red_flags,
             }
 
         except Exception as e:
             logger.error(f"Financial statement analysis failed: {e}")
-            return {'error': str(e)}
+            return {"error": str(e)}
 
 
 class RatioAnalysisAgent(BaseSwarmAgent):
     """Performs ratio analysis."""
 
-    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
+    def __init__(
+        self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = ""
+    ) -> None:
         super().__init__(memory, context, bus, signature=RatioAnalysisSignature)
         self.learned_context = learned_context
         self._analyzer = dspy.ChainOfThought(RatioAnalysisSignature)
 
     async def analyze(
-        self,
-        financial_data: Dict[str, Any],
-        industry: str,
-        market_data: Dict[str, Any]
+        self, financial_data: Dict[str, Any], industry: str, market_data: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Perform ratio analysis."""
         try:
-            industry_input = f"{industry}\n{self.learned_context}" if self.learned_context else industry
+            industry_input = (
+                f"{industry}\n{self.learned_context}" if self.learned_context else industry
+            )
             result = self._analyzer(
                 financial_data=json.dumps(financial_data),
                 industry=industry_input,
-                market_data=json.dumps(market_data)
+                market_data=json.dumps(market_data),
             )
 
             # Parse ratios
@@ -468,29 +482,31 @@ class RatioAnalysisAgent(BaseSwarmAgent):
             except Exception:
                 valuation = {}
 
-            self._broadcast("ratios_calculated", {
-                'profitability_count': len(profitability),
-                'valuation_count': len(valuation)
-            })
+            self._broadcast(
+                "ratios_calculated",
+                {"profitability_count": len(profitability), "valuation_count": len(valuation)},
+            )
 
             return {
-                'profitability_ratios': profitability,
-                'efficiency_ratios': result.efficiency_ratios,
-                'liquidity_ratios': result.liquidity_ratios,
-                'solvency_ratios': result.solvency_ratios,
-                'valuation_ratios': valuation,
-                'interpretation': str(result.interpretation)
+                "profitability_ratios": profitability,
+                "efficiency_ratios": result.efficiency_ratios,
+                "liquidity_ratios": result.liquidity_ratios,
+                "solvency_ratios": result.solvency_ratios,
+                "valuation_ratios": valuation,
+                "interpretation": str(result.interpretation),
             }
 
         except Exception as e:
             logger.error(f"Ratio analysis failed: {e}")
-            return {'error': str(e)}
+            return {"error": str(e)}
 
 
 class ValuationAgent(BaseSwarmAgent):
     """Performs company valuation."""
 
-    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
+    def __init__(
+        self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = ""
+    ) -> None:
         super().__init__(memory, context, bus, signature=DCFValuationSignature)
         self.learned_context = learned_context
         self._dcf = dspy.ChainOfThought(DCFValuationSignature)
@@ -500,40 +516,41 @@ class ValuationAgent(BaseSwarmAgent):
         company: str,
         financial_data: Dict[str, Any],
         growth_assumptions: Dict[str, Any],
-        market_data: Dict[str, Any]
+        market_data: Dict[str, Any],
     ) -> ValuationResult:
         """Perform DCF valuation."""
         try:
-            company_input = f"{company}\n{self.learned_context}" if self.learned_context else company
+            company_input = (
+                f"{company}\n{self.learned_context}" if self.learned_context else company
+            )
             result = self._dcf(
                 company=company_input,
                 financial_data=json.dumps(financial_data),
                 growth_assumptions=json.dumps(growth_assumptions),
-                market_data=json.dumps(market_data)
+                market_data=json.dumps(market_data),
             )
 
-            current_price = market_data.get('current_price', 0)
+            current_price = market_data.get("current_price", 0)
             intrinsic = float(result.intrinsic_value) if result.intrinsic_value else 0
             upside = ((intrinsic - current_price) / current_price * 100) if current_price > 0 else 0
 
             assumptions = _split_field(result.key_assumptions)
 
-            self._broadcast("dcf_completed", {
-                'company': company,
-                'intrinsic_value': intrinsic,
-                'upside': upside
-            })
+            self._broadcast(
+                "dcf_completed",
+                {"company": company, "intrinsic_value": intrinsic, "upside": upside},
+            )
 
             return ValuationResult(
                 method=ValuationType.DCF,
                 intrinsic_value=intrinsic,
                 upside_downside=upside,
                 assumptions={
-                    'wacc': float(result.wacc) if result.wacc else 0,
-                    'terminal_value': float(result.terminal_value) if result.terminal_value else 0,
-                    'key_assumptions': assumptions
+                    "wacc": float(result.wacc) if result.wacc else 0,
+                    "terminal_value": float(result.terminal_value) if result.terminal_value else 0,
+                    "key_assumptions": assumptions,
                 },
-                confidence=0.7
+                confidence=0.7,
             )
 
         except Exception as e:
@@ -542,23 +559,23 @@ class ValuationAgent(BaseSwarmAgent):
                 method=ValuationType.DCF,
                 intrinsic_value=0,
                 upside_downside=0,
-                assumptions={'error': str(e)},
-                confidence=0
+                assumptions={"error": str(e)},
+                confidence=0,
             )
 
 
 class QualityEarningsAgent(BaseSwarmAgent):
     """Assesses earnings quality."""
 
-    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
+    def __init__(
+        self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = ""
+    ) -> None:
         super().__init__(memory, context, bus, signature=QualityEarningsSignature)
         self.learned_context = learned_context
         self._analyzer = dspy.ChainOfThought(QualityEarningsSignature)
 
     async def assess(
-        self,
-        financial_data: Dict[str, Any],
-        cash_flows: Dict[str, Any]
+        self, financial_data: Dict[str, Any], cash_flows: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Assess earnings quality."""
         try:
@@ -566,81 +583,92 @@ class QualityEarningsAgent(BaseSwarmAgent):
             if self.learned_context:
                 financial_data_input = f"{financial_data_input}\n{self.learned_context}"
             result = self._analyzer(
-                financial_data=financial_data_input,
-                cash_flows=json.dumps(cash_flows)
+                financial_data=financial_data_input, cash_flows=json.dumps(cash_flows)
             )
 
             adjustments = _split_field(result.adjustments)
             concerns = _split_field(result.concerns)
 
-            self._broadcast("quality_assessed", {
-                'quality_score': float(result.quality_score) if result.quality_score else 0
-            })
+            self._broadcast(
+                "quality_assessed",
+                {"quality_score": float(result.quality_score) if result.quality_score else 0},
+            )
 
             return {
-                'cash_conversion': float(result.cash_conversion) if result.cash_conversion else 0,
-                'accruals_quality': float(result.accruals_quality) if result.accruals_quality else 0,
-                'quality_score': float(result.quality_score) if result.quality_score else 0,
-                'adjustments': adjustments,
-                'concerns': concerns
+                "cash_conversion": float(result.cash_conversion) if result.cash_conversion else 0,
+                "accruals_quality": (
+                    float(result.accruals_quality) if result.accruals_quality else 0
+                ),
+                "quality_score": float(result.quality_score) if result.quality_score else 0,
+                "adjustments": adjustments,
+                "concerns": concerns,
             }
 
         except Exception as e:
             logger.error(f"Quality assessment failed: {e}")
-            return {'error': str(e)}
+            return {"error": str(e)}
 
 
 class ManagementAgent(BaseSwarmAgent):
     """Analyzes management quality."""
 
-    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
+    def __init__(
+        self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = ""
+    ) -> None:
         super().__init__(memory, context, bus, signature=ManagementAnalysisSignature)
         self.learned_context = learned_context
         self._analyzer = dspy.ChainOfThought(ManagementAnalysisSignature)
 
     async def analyze(
-        self,
-        company: str,
-        management_info: str,
-        capital_history: str,
-        governance: str
+        self, company: str, management_info: str, capital_history: str, governance: str
     ) -> Dict[str, Any]:
         """Analyze management."""
         try:
-            company_input = f"{company}\n{self.learned_context}" if self.learned_context else company
+            company_input = (
+                f"{company}\n{self.learned_context}" if self.learned_context else company
+            )
             result = self._analyzer(
                 company=company_input,
                 management_info=management_info,
                 capital_history=capital_history,
-                governance=governance
+                governance=governance,
             )
 
             strengths = _split_field(result.strengths)
             concerns = _split_field(result.concerns)
 
-            self._broadcast("management_analyzed", {
-                'company': company,
-                'overall_score': float(result.overall_score) if result.overall_score else 0
-            })
+            self._broadcast(
+                "management_analyzed",
+                {
+                    "company": company,
+                    "overall_score": float(result.overall_score) if result.overall_score else 0,
+                },
+            )
 
             return {
-                'execution_score': float(result.execution_score) if result.execution_score else 0,
-                'capital_allocation_score': float(result.capital_allocation_score) if result.capital_allocation_score else 0,
-                'governance_score': float(result.governance_score) if result.governance_score else 0,
-                'overall_score': float(result.overall_score) if result.overall_score else 0,
-                'strengths': strengths,
-                'concerns': concerns
+                "execution_score": float(result.execution_score) if result.execution_score else 0,
+                "capital_allocation_score": (
+                    float(result.capital_allocation_score) if result.capital_allocation_score else 0
+                ),
+                "governance_score": (
+                    float(result.governance_score) if result.governance_score else 0
+                ),
+                "overall_score": float(result.overall_score) if result.overall_score else 0,
+                "strengths": strengths,
+                "concerns": concerns,
             }
 
         except Exception as e:
             logger.error(f"Management analysis failed: {e}")
-            return {'error': str(e)}
+            return {"error": str(e)}
 
 
 class MoatAgent(BaseSwarmAgent):
     """Analyzes competitive moat."""
 
-    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
+    def __init__(
+        self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = ""
+    ) -> None:
         super().__init__(memory, context, bus, signature=CompetitiveMoatSignature)
         self.learned_context = learned_context
         self._analyzer = dspy.ChainOfThought(CompetitiveMoatSignature)
@@ -650,43 +678,50 @@ class MoatAgent(BaseSwarmAgent):
         company: str,
         business_description: str,
         industry_data: str,
-        financials: Dict[str, Any]
+        financials: Dict[str, Any],
     ) -> Dict[str, Any]:
         """Analyze competitive moat."""
         try:
-            company_input = f"{company}\n{self.learned_context}" if self.learned_context else company
+            company_input = (
+                f"{company}\n{self.learned_context}" if self.learned_context else company
+            )
             result = self._analyzer(
                 company=company_input,
                 business_description=business_description,
                 industry_data=industry_data,
-                financials=json.dumps(financials)
+                financials=json.dumps(financials),
             )
 
             moat_sources = _split_field(result.moat_sources)
             threats = _split_field(result.threats)
 
-            self._broadcast("moat_analyzed", {
-                'company': company,
-                'moat_score': float(result.moat_score) if result.moat_score else 0
-            })
+            self._broadcast(
+                "moat_analyzed",
+                {
+                    "company": company,
+                    "moat_score": float(result.moat_score) if result.moat_score else 0,
+                },
+            )
 
             return {
-                'moat_sources': moat_sources,
-                'moat_durability': str(result.moat_durability),
-                'industry_structure': str(result.industry_structure),
-                'moat_score': float(result.moat_score) if result.moat_score else 0,
-                'threats': threats
+                "moat_sources": moat_sources,
+                "moat_durability": str(result.moat_durability),
+                "industry_structure": str(result.industry_structure),
+                "moat_score": float(result.moat_score) if result.moat_score else 0,
+                "threats": threats,
             }
 
         except Exception as e:
             logger.error(f"Moat analysis failed: {e}")
-            return {'error': str(e)}
+            return {"error": str(e)}
 
 
 class ThesisAgent(BaseSwarmAgent):
     """Generates investment thesis."""
 
-    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
+    def __init__(
+        self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = ""
+    ) -> None:
         super().__init__(memory, context, bus, signature=InvestmentThesisSignature)
         self.learned_context = learned_context
         self._generator = dspy.ChainOfThought(InvestmentThesisSignature)
@@ -697,21 +732,23 @@ class ThesisAgent(BaseSwarmAgent):
         financial_summary: str,
         valuation_summary: str,
         quality_summary: str,
-        current_price: float
+        current_price: float,
     ) -> InvestmentThesis:
         """Generate investment thesis."""
         try:
-            company_input = f"{company}\n{self.learned_context}" if self.learned_context else company
+            company_input = (
+                f"{company}\n{self.learned_context}" if self.learned_context else company
+            )
             result = self._generator(
                 company=company_input,
                 financial_summary=financial_summary,
                 valuation_summary=valuation_summary,
                 quality_summary=quality_summary,
-                current_price=current_price
+                current_price=current_price,
             )
 
             # Parse rating
-            rating_str = str(result.rating).upper().replace(' ', '_')
+            rating_str = str(result.rating).upper().replace(" ", "_")
             rating = RatingScale.HOLD
             for r in RatingScale:
                 if r.value.upper() == rating_str:
@@ -724,11 +761,10 @@ class ThesisAgent(BaseSwarmAgent):
             risks = _split_field(result.key_risks)
             catalysts = _split_field(result.catalysts)
 
-            self._broadcast("thesis_generated", {
-                'company': company,
-                'rating': rating.value,
-                'target_price': target
-            })
+            self._broadcast(
+                "thesis_generated",
+                {"company": company, "rating": rating.value, "target_price": target},
+            )
 
             return InvestmentThesis(
                 rating=rating,
@@ -740,7 +776,7 @@ class ThesisAgent(BaseSwarmAgent):
                 bear_case=str(result.bear_case),
                 key_risks=risks,
                 key_catalysts=catalysts,
-                recommendation=str(result.recommendation)
+                recommendation=str(result.recommendation),
             )
 
         except Exception as e:
@@ -755,13 +791,14 @@ class ThesisAgent(BaseSwarmAgent):
                 bear_case="",
                 key_risks=[str(e)],
                 key_catalysts=[],
-                recommendation="Analysis failed"
+                recommendation="Analysis failed",
             )
 
 
 # =============================================================================
 # FUNDAMENTAL SWARM
 # =============================================================================
+
 
 @register_swarm("fundamental")
 class FundamentalSwarm(DomainSwarm):
@@ -802,7 +839,7 @@ class FundamentalSwarm(DomainSwarm):
         ticker: str,
         exchange: str = "NSE",
         financial_data: Dict[str, Any] = None,
-        market_data: Dict[str, Any] = None
+        market_data: Dict[str, Any] = None,
     ) -> FundamentalResult:
         """
         Perform comprehensive fundamental analysis.
@@ -821,51 +858,58 @@ class FundamentalSwarm(DomainSwarm):
         # Use provided data or create dummy for demo
         if not financial_data:
             financial_data = {
-                'revenue': [100000, 110000, 121000, 133100, 146410],
-                'net_income': [10000, 11500, 13000, 14800, 17000],
-                'total_assets': [200000, 220000, 242000, 266200, 292820],
-                'total_equity': [120000, 135000, 152000, 171000, 192000],
-                'total_debt': [50000, 52000, 54000, 56000, 58000],
-                'cash_flow_operations': [12000, 13500, 15000, 17000, 19500],
-                'capex': [8000, 9000, 10000, 11000, 12000]
+                "revenue": [100000, 110000, 121000, 133100, 146410],
+                "net_income": [10000, 11500, 13000, 14800, 17000],
+                "total_assets": [200000, 220000, 242000, 266200, 292820],
+                "total_equity": [120000, 135000, 152000, 171000, 192000],
+                "total_debt": [50000, 52000, 54000, 56000, 58000],
+                "cash_flow_operations": [12000, 13500, 15000, 17000, 19500],
+                "capex": [8000, 9000, 10000, 11000, 12000],
             }
 
         if not market_data:
             market_data = {
-                'current_price': 2500,
-                'market_cap': 1500000000,
-                'shares_outstanding': 600000
+                "current_price": 2500,
+                "market_cap": 1500000000,
+                "shares_outstanding": 600000,
             }
 
         return await self._safe_execute_domain(
-            task_type='fundamental_analysis',
-            default_tools=['financial_analyze', 'ratio_analyze', 'dcf_valuate'],
+            task_type="fundamental_analysis",
+            default_tools=["financial_analyze", "ratio_analyze", "dcf_valuate"],
             result_class=FundamentalResult,
             execute_fn=lambda executor: self._execute_phases(
                 executor, ticker, exchange, financial_data, market_data
             ),
             output_data_fn=lambda result: {
-                'rating': result.thesis.rating.value if result.thesis else 'N/A',
-                'target_price': result.thesis.target_price if result.thesis else 0,
-                'upside': result.thesis.upside if result.thesis else 0,
-                'intrinsic_value': result.valuations[0].intrinsic_value if result.valuations else 0,
-                'dcf_upside': result.valuations[0].upside_downside if result.valuations else 0,
-                'dcf_confidence': result.valuations[0].confidence if result.valuations else 0,
-                'moat_score': result.moat_score,
-                'earnings_quality': result.earnings_quality,
-                'num_valuations': len(result.valuations),
+                "rating": result.thesis.rating.value if result.thesis else "N/A",
+                "target_price": result.thesis.target_price if result.thesis else 0,
+                "upside": result.thesis.upside if result.thesis else 0,
+                "intrinsic_value": result.valuations[0].intrinsic_value if result.valuations else 0,
+                "dcf_upside": result.valuations[0].upside_downside if result.valuations else 0,
+                "dcf_confidence": result.valuations[0].confidence if result.valuations else 0,
+                "moat_score": result.moat_score,
+                "earnings_quality": result.earnings_quality,
+                "num_valuations": len(result.valuations),
             },
             input_data_fn=lambda: {
-                'ticker': ticker,
-                'exchange': exchange,
-                'current_price': market_data.get('current_price', 0),
-                'market_cap': market_data.get('market_cap', 0),
-                'years_of_data': self.config.years_of_data,
-                'investment_style': self.config.investment_style.value,
+                "ticker": ticker,
+                "exchange": exchange,
+                "current_price": market_data.get("current_price", 0),
+                "market_cap": market_data.get("market_cap", 0),
+                "years_of_data": self.config.years_of_data,
+                "investment_style": self.config.investment_style.value,
             },
         )
 
-    async def _execute_phases(self, executor: Any, ticker: str, exchange: str, financial_data: Dict[str, Any], market_data: Dict[str, Any]) -> FundamentalResult:
+    async def _execute_phases(
+        self,
+        executor: Any,
+        ticker: str,
+        exchange: str,
+        financial_data: Dict[str, Any],
+        market_data: Dict[str, Any],
+    ) -> FundamentalResult:
         """Execute all fundamental analysis phases using PhaseExecutor.
 
         Args:
@@ -882,14 +926,21 @@ class FundamentalSwarm(DomainSwarm):
         # PHASE 1: PARALLEL DATA COLLECTION & INITIAL ANALYSIS
         # =================================================================
         financial_result, ratio_result = await executor.run_parallel(
-            1, "Financial Statement & Ratio Analysis",
+            1,
+            "Financial Statement & Ratio Analysis",
             [
-                ("FinancialStatement", AgentRole.ACTOR,
-                 self._financial_agent.analyze(ticker, financial_data, 5),
-                 ['financial_analyze']),
-                ("RatioAnalysis", AgentRole.ACTOR,
-                 self._ratio_agent.analyze(financial_data, "Technology", market_data),
-                 ['ratio_analyze']),
+                (
+                    "FinancialStatement",
+                    AgentRole.ACTOR,
+                    self._financial_agent.analyze(ticker, financial_data, 5),
+                    ["financial_analyze"],
+                ),
+                (
+                    "RatioAnalysis",
+                    AgentRole.ACTOR,
+                    self._ratio_agent.analyze(financial_data, "Technology", market_data),
+                    ["ratio_analyze"],
+                ),
             ],
         )
 
@@ -897,45 +948,55 @@ class FundamentalSwarm(DomainSwarm):
         # PHASE 2: QUALITY & MOAT ANALYSIS (parallel)
         # =================================================================
         parallel_2_tasks = [
-            ("QualityEarnings", AgentRole.EXPERT,
-             self._quality_agent.assess(
-                 financial_data,
-                 {'operating': financial_data.get('cash_flow_operations', [])}
-             ),
-             ['quality_assess']),
-            ("Moat", AgentRole.EXPERT,
-             self._moat_agent.analyze(
-                 ticker,
-                 f"{ticker} is a leading company in its industry",
-                 "Competitive industry with multiple players",
-                 financial_data
-             ),
-             ['moat_analyze']),
+            (
+                "QualityEarnings",
+                AgentRole.EXPERT,
+                self._quality_agent.assess(
+                    financial_data, {"operating": financial_data.get("cash_flow_operations", [])}
+                ),
+                ["quality_assess"],
+            ),
+            (
+                "Moat",
+                AgentRole.EXPERT,
+                self._moat_agent.analyze(
+                    ticker,
+                    f"{ticker} is a leading company in its industry",
+                    "Competitive industry with multiple players",
+                    financial_data,
+                ),
+                ["moat_analyze"],
+            ),
         ]
 
         quality_result, moat_result = await executor.run_parallel(
-            2, "Quality & Moat Analysis", parallel_2_tasks,
+            2,
+            "Quality & Moat Analysis",
+            parallel_2_tasks,
         )
 
         # Provide safe defaults for exception results
-        if isinstance(quality_result, dict) and 'error' in quality_result:
-            quality_result = {'quality_score': 0}
-        if isinstance(moat_result, dict) and 'error' in moat_result:
-            moat_result = {'moat_score': 0}
+        if isinstance(quality_result, dict) and "error" in quality_result:
+            quality_result = {"quality_score": 0}
+        if isinstance(moat_result, dict) and "error" in moat_result:
+            moat_result = {"moat_score": 0}
 
         # =================================================================
         # PHASE 3: VALUATION
         # =================================================================
         dcf_result = await executor.run_phase(
-            3, "DCF Valuation", "Valuation", AgentRole.EXPERT,
+            3,
+            "DCF Valuation",
+            "Valuation",
+            AgentRole.EXPERT,
             self._valuation_agent.dcf_valuation(
                 ticker,
                 financial_data,
-                {'revenue_growth': 0.10, 'terminal_growth': 0.03},
-                market_data
+                {"revenue_growth": 0.10, "terminal_growth": 0.03},
+                market_data,
             ),
-            input_data={'ticker': ticker},
-            tools_used=['dcf_valuate'],
+            input_data={"ticker": ticker},
+            tools_used=["dcf_valuate"],
         )
 
         # =================================================================
@@ -958,29 +1019,32 @@ class FundamentalSwarm(DomainSwarm):
         """
 
         thesis = await executor.run_phase(
-            4, "Investment Thesis", "Thesis", AgentRole.PLANNER,
+            4,
+            "Investment Thesis",
+            "Thesis",
+            AgentRole.PLANNER,
             self._thesis_agent.generate(
                 ticker,
                 financial_summary,
                 valuation_summary,
                 quality_summary,
-                market_data.get('current_price', 0)
+                market_data.get("current_price", 0),
             ),
-            input_data={'ticker': ticker},
-            tools_used=['thesis_generate'],
+            input_data={"ticker": ticker},
+            tools_used=["thesis_generate"],
         )
 
         # =================================================================
         # BUILD RESULT
         # =================================================================
         financial_metrics = FinancialMetrics(
-            revenue=financial_data.get('revenue', [0])[-1] if financial_data.get('revenue') else 0,
-            net_income=financial_data.get('net_income', [0])[-1] if financial_data.get('net_income') else 0
+            revenue=financial_data.get("revenue", [0])[-1] if financial_data.get("revenue") else 0,
+            net_income=(
+                financial_data.get("net_income", [0])[-1] if financial_data.get("net_income") else 0
+            ),
         )
 
-        valuation_metrics = ValuationMetrics(
-            market_cap=market_data.get('market_cap', 0)
-        )
+        valuation_metrics = ValuationMetrics(market_cap=market_data.get("market_cap", 0))
 
         quality_metrics = QualityMetrics()
 
@@ -991,12 +1055,12 @@ class FundamentalSwarm(DomainSwarm):
             swarm_name=self.config.name,
             domain=self.config.domain,
             output={
-                'ticker': ticker,
-                'rating': thesis.rating.value,
-                'target_price': thesis.target_price,
-                'thesis': thesis.recommendation,
-                'moat_score': _safe_num(moat_result.get('moat_score', 0)),
-                'earnings_quality': _safe_num(quality_result.get('quality_score', 0)),
+                "ticker": ticker,
+                "rating": thesis.rating.value,
+                "target_price": thesis.target_price,
+                "thesis": thesis.recommendation,
+                "moat_score": _safe_num(moat_result.get("moat_score", 0)),
+                "earnings_quality": _safe_num(quality_result.get("quality_score", 0)),
             },
             execution_time=executor.elapsed(),
             ticker=ticker,
@@ -1006,15 +1070,16 @@ class FundamentalSwarm(DomainSwarm):
             quality_metrics=quality_metrics,
             valuations=[dcf_result],
             thesis=thesis,
-            moat_score=_safe_num(moat_result.get('moat_score', 0)),
+            moat_score=_safe_num(moat_result.get("moat_score", 0)),
             management_score=0,
-            earnings_quality=_safe_num(quality_result.get('quality_score', 0))
+            earnings_quality=_safe_num(quality_result.get("quality_score", 0)),
         )
 
 
 # =============================================================================
 # CONVENIENCE FUNCTIONS
 # =============================================================================
+
 
 async def analyze_fundamentals(ticker: str, **kwargs: Any) -> FundamentalResult:
     """
@@ -1038,25 +1103,25 @@ def analyze_fundamentals_sync(ticker: str, **kwargs: Any) -> FundamentalResult:
 # =============================================================================
 
 __all__ = [
-    'FundamentalSwarm',
-    'FundamentalConfig',
-    'FundamentalResult',
-    'FinancialMetrics',
-    'ValuationMetrics',
-    'QualityMetrics',
-    'ValuationResult',
-    'InvestmentThesis',
-    'ValuationType',
-    'InvestmentStyle',
-    'RatingScale',
-    'analyze_fundamentals',
-    'analyze_fundamentals_sync',
+    "FundamentalSwarm",
+    "FundamentalConfig",
+    "FundamentalResult",
+    "FinancialMetrics",
+    "ValuationMetrics",
+    "QualityMetrics",
+    "ValuationResult",
+    "InvestmentThesis",
+    "ValuationType",
+    "InvestmentStyle",
+    "RatingScale",
+    "analyze_fundamentals",
+    "analyze_fundamentals_sync",
     # Agents
-    'FinancialStatementAgent',
-    'RatioAnalysisAgent',
-    'ValuationAgent',
-    'QualityEarningsAgent',
-    'ManagementAgent',
-    'MoatAgent',
-    'ThesisAgent',
+    "FinancialStatementAgent",
+    "RatioAnalysisAgent",
+    "ValuationAgent",
+    "QualityEarningsAgent",
+    "ManagementAgent",
+    "MoatAgent",
+    "ThesisAgent",
 ]

@@ -8,15 +8,16 @@ Covers:
 """
 
 import asyncio
+from unittest.mock import AsyncMock, MagicMock, Mock, PropertyMock, patch
+
 import pytest
-from unittest.mock import Mock, AsyncMock, MagicMock, patch, PropertyMock
 
 from Jotty.core.infrastructure.foundation.data_structures import EpisodeResult
-
 
 # ──────────────────────────────────────────────────────────────────────
 # Helpers
 # ──────────────────────────────────────────────────────────────────────
+
 
 def _make_episode(output="agent output", success=True, agent_name="agent"):
     return EpisodeResult(
@@ -79,6 +80,7 @@ def _make_mock_manager(agent_names=None):
 # ──────────────────────────────────────────────────────────────────────
 # ParadigmExecutor — Relay
 # ──────────────────────────────────────────────────────────────────────
+
 
 @pytest.mark.unit
 @pytest.mark.asyncio
@@ -197,6 +199,7 @@ class TestParadigmExecutorRelay:
 # ParadigmExecutor — Debate
 # ──────────────────────────────────────────────────────────────────────
 
+
 @pytest.mark.unit
 @pytest.mark.asyncio
 class TestParadigmExecutorDebate:
@@ -302,6 +305,7 @@ class TestParadigmExecutorDebate:
 # ──────────────────────────────────────────────────────────────────────
 # ParadigmExecutor — Refinement
 # ──────────────────────────────────────────────────────────────────────
+
 
 @pytest.mark.unit
 @pytest.mark.asyncio
@@ -418,6 +422,7 @@ class TestParadigmExecutorRefinement:
 # Aggregate results and cooperative credit
 # ──────────────────────────────────────────────────────────────────────
 
+
 @pytest.mark.unit
 @pytest.mark.asyncio
 class TestAggregateAndCredit:
@@ -479,6 +484,7 @@ class TestAggregateAndCredit:
 # TierExecutor — Routing
 # ──────────────────────────────────────────────────────────────────────
 
+
 @pytest.mark.unit
 @pytest.mark.asyncio
 class TestExecutorTierRouting:
@@ -538,9 +544,7 @@ class TestExecutorTierRouting:
     async def test_execution_failure_returns_error_result(self, v3_executor):
         from Jotty.core.modes.execution.types import ExecutionConfig, ExecutionTier
 
-        v3_executor._provider.generate = AsyncMock(
-            side_effect=RuntimeError("LLM down")
-        )
+        v3_executor._provider.generate = AsyncMock(side_effect=RuntimeError("LLM down"))
         result = await v3_executor.execute(
             "Will fail",
             config=ExecutionConfig(tier=ExecutionTier.DIRECT),
@@ -553,40 +557,48 @@ class TestExecutorTierRouting:
 # Output extraction edge cases
 # ──────────────────────────────────────────────────────────────────────
 
+
 @pytest.mark.unit
 class TestOutputExtraction:
     """Tests for _extract_output_text edge cases."""
 
     def test_none_returns_empty(self):
         from Jotty.core.intelligence.orchestration.paradigm_executor import _extract_output_text
+
         assert _extract_output_text(None) == ""
 
     def test_string_passthrough(self):
         from Jotty.core.intelligence.orchestration.paradigm_executor import _extract_output_text
+
         assert _extract_output_text("hello world") == "hello world"
 
     def test_dict_content_field(self):
         from Jotty.core.intelligence.orchestration.paradigm_executor import _extract_output_text
+
         assert _extract_output_text({"content": "extracted"}) == "extracted"
 
     def test_dict_response_field(self):
         from Jotty.core.intelligence.orchestration.paradigm_executor import _extract_output_text
+
         assert _extract_output_text({"response": "from response"}) == "from response"
 
     def test_dict_priority_order(self):
         from Jotty.core.intelligence.orchestration.paradigm_executor import _extract_output_text
+
         # content should be tried before response
         result = _extract_output_text({"content": "first", "response": "second"})
         assert result == "first"
 
     def test_nested_final_output(self):
         from Jotty.core.intelligence.orchestration.paradigm_executor import _extract_output_text
+
         obj = Mock()
         obj.final_output = "clean text"
         assert _extract_output_text(obj) == "clean text"
 
     def test_nested_outputs_dict(self):
         from Jotty.core.intelligence.orchestration.paradigm_executor import _extract_output_text
+
         obj = Mock()
         obj.final_output = None
         obj.outputs = {"step_1": {"content": "step 1 result"}}
@@ -598,6 +610,7 @@ class TestOutputExtraction:
 
     def test_summary_fallback(self):
         from Jotty.core.intelligence.orchestration.paradigm_executor import _extract_output_text
+
         obj = Mock(spec=[])
         obj.summary = "summary text"
         assert _extract_output_text(obj) == "summary text"

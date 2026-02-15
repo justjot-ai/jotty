@@ -21,20 +21,22 @@ Covers:
 
 import ast
 import inspect
+from unittest.mock import MagicMock, Mock, patch
+
 import pytest
-from unittest.mock import Mock, MagicMock, patch
 
 # Try importing the module under test
 try:
     from Jotty.core.capabilities.registry.tool_validation import (
-        ToolValidator,
-        RegistryValidationResult,
-        MethodChecker,
-        validate_tool_attributes,
-        ToolGuard,
         AUTHORIZED_TYPES,
         TYPE_CONVERSION,
+        MethodChecker,
+        RegistryValidationResult,
+        ToolGuard,
+        ToolValidator,
+        validate_tool_attributes,
     )
+
     TOOL_VALIDATION_AVAILABLE = True
 except ImportError:
     TOOL_VALIDATION_AVAILABLE = False
@@ -48,14 +50,12 @@ skip_no_module = pytest.mark.skipif(
 # Helpers
 # =============================================================================
 
+
 def _make_valid_metadata(name="test_tool", input_names=None):
     """Create valid tool metadata with matching input names."""
     if input_names is None:
         input_names = ["x"]
-    inputs = {
-        n: {"type": "integer", "description": f"Input {n}"}
-        for n in input_names
-    }
+    inputs = {n: {"type": "integer", "description": f"Input {n}"} for n in input_names}
     return {
         "name": name,
         "description": f"A test tool named {name}",
@@ -76,6 +76,7 @@ def _make_simple_func(*param_names):
 
 def _make_valid_tool_class():
     """Create a valid tool class with all required attributes."""
+
     class ValidTool:
         name = "valid_tool"
         description = "A valid tool"
@@ -83,12 +84,14 @@ def _make_valid_tool_class():
             "query": {"type": "string", "description": "Search query"},
         }
         output_type = "string"
+
     return ValidTool
 
 
 # =============================================================================
 # TestRegistryValidationResult
 # =============================================================================
+
 
 @pytest.mark.unit
 @skip_no_module
@@ -104,17 +107,13 @@ class TestRegistryValidationResult:
 
     def test_invalid_result_with_errors(self):
         """Invalid result stores errors list."""
-        result = RegistryValidationResult(
-            valid=False, errors=["error1", "error2"]
-        )
+        result = RegistryValidationResult(valid=False, errors=["error1", "error2"])
         assert result.valid is False
         assert len(result.errors) == 2
 
     def test_result_with_warnings(self):
         """Result stores warnings list."""
-        result = RegistryValidationResult(
-            valid=True, warnings=["warn1"]
-        )
+        result = RegistryValidationResult(valid=True, warnings=["warn1"])
         assert result.warnings == ["warn1"]
 
     def test_to_dict(self):
@@ -150,6 +149,7 @@ class TestRegistryValidationResult:
 # TestToolValidatorInit
 # =============================================================================
 
+
 @pytest.mark.unit
 @skip_no_module
 class TestToolValidatorInit:
@@ -175,6 +175,7 @@ class TestToolValidatorInit:
 # TestToolValidatorValidateTool
 # =============================================================================
 
+
 @pytest.mark.unit
 @skip_no_module
 class TestToolValidatorValidateTool:
@@ -182,6 +183,7 @@ class TestToolValidatorValidateTool:
 
     def test_valid_tool_passes(self):
         """A well-formed tool passes validation."""
+
         def valid_tool(x):
             return {"result": x * 2}
 
@@ -269,6 +271,7 @@ class TestToolValidatorValidateTool:
 # TestToolValidatorSignature
 # =============================================================================
 
+
 @pytest.mark.unit
 @skip_no_module
 class TestToolValidatorSignature:
@@ -303,6 +306,7 @@ class TestToolValidatorSignature:
 
     def test_self_parameter_is_ignored(self):
         """'self' parameter is excluded from comparison."""
+
         class MyTool:
             def run(self, x):
                 pass
@@ -334,6 +338,7 @@ class TestToolValidatorSignature:
 # =============================================================================
 # TestToolValidatorTypes
 # =============================================================================
+
 
 @pytest.mark.unit
 @skip_no_module
@@ -409,6 +414,7 @@ class TestToolValidatorTypes:
 # TestToolValidatorCodeSafety
 # =============================================================================
 
+
 @pytest.mark.unit
 @skip_no_module
 class TestToolValidatorCodeSafety:
@@ -416,6 +422,7 @@ class TestToolValidatorCodeSafety:
 
     def test_safe_function_passes(self):
         """A safe function with no dangerous calls passes."""
+
         def safe_func(x):
             return x * 2
 
@@ -425,6 +432,7 @@ class TestToolValidatorCodeSafety:
 
     def test_strict_mode_runs_code_safety(self):
         """In strict mode, validate_tool calls code safety checks."""
+
         def simple_func(x):
             return x
 
@@ -436,6 +444,7 @@ class TestToolValidatorCodeSafety:
 
     def test_non_strict_mode_skips_code_safety(self):
         """In non-strict mode, code safety is not checked."""
+
         def simple_func(x):
             return x
 
@@ -458,6 +467,7 @@ class TestToolValidatorCodeSafety:
 # =============================================================================
 # TestMethodChecker
 # =============================================================================
+
 
 @pytest.mark.unit
 @skip_no_module
@@ -556,6 +566,7 @@ class TestMethodChecker:
 # TestValidateToolAttributes
 # =============================================================================
 
+
 @pytest.mark.unit
 @skip_no_module
 class TestValidateToolAttributes:
@@ -570,6 +581,7 @@ class TestValidateToolAttributes:
 
     def test_missing_name_attribute(self):
         """Missing 'name' attribute is an error."""
+
         class NoName:
             description = "desc"
             inputs = {}
@@ -581,6 +593,7 @@ class TestValidateToolAttributes:
 
     def test_missing_description_attribute(self):
         """Missing 'description' attribute is an error."""
+
         class NoDesc:
             name = "tool"
             inputs = {}
@@ -592,6 +605,7 @@ class TestValidateToolAttributes:
 
     def test_missing_inputs_attribute(self):
         """Missing 'inputs' attribute is an error."""
+
         class NoInputs:
             name = "tool"
             description = "desc"
@@ -603,6 +617,7 @@ class TestValidateToolAttributes:
 
     def test_missing_output_type_attribute(self):
         """Missing 'output_type' attribute is an error."""
+
         class NoOutput:
             name = "tool"
             description = "desc"
@@ -614,6 +629,7 @@ class TestValidateToolAttributes:
 
     def test_wrong_type_for_name(self):
         """Non-string name attribute is an error."""
+
         class BadName:
             name = 123
             description = "desc"
@@ -626,6 +642,7 @@ class TestValidateToolAttributes:
 
     def test_wrong_type_for_inputs(self):
         """Non-dict inputs attribute is an error."""
+
         class BadInputs:
             name = "tool"
             description = "desc"
@@ -638,6 +655,7 @@ class TestValidateToolAttributes:
 
     def test_input_spec_missing_type_key(self):
         """Input spec without 'type' key is an error."""
+
         class MissingType:
             name = "tool"
             description = "desc"
@@ -650,6 +668,7 @@ class TestValidateToolAttributes:
 
     def test_input_spec_missing_description_key(self):
         """Input spec without 'description' key is an error."""
+
         class MissingDesc:
             name = "tool"
             description = "desc"
@@ -661,6 +680,7 @@ class TestValidateToolAttributes:
 
     def test_input_spec_unauthorized_type(self):
         """Input spec with unauthorized type is an error."""
+
         class BadType:
             name = "tool"
             description = "desc"
@@ -673,6 +693,7 @@ class TestValidateToolAttributes:
 
     def test_output_type_unauthorized(self):
         """Unauthorized output_type is an error."""
+
         class BadOutput:
             name = "tool"
             description = "desc"
@@ -685,6 +706,7 @@ class TestValidateToolAttributes:
 
     def test_input_spec_non_dict_is_error(self):
         """Non-dict input spec value is an error."""
+
         class BadSpec:
             name = "tool"
             description = "desc"
@@ -697,6 +719,7 @@ class TestValidateToolAttributes:
 
     def test_multiple_valid_inputs(self):
         """Tool class with multiple valid inputs passes."""
+
         class MultiInput:
             name = "multi"
             description = "Multi-input tool"
@@ -714,6 +737,7 @@ class TestValidateToolAttributes:
 # =============================================================================
 # TestToolGuard
 # =============================================================================
+
 
 @pytest.mark.unit
 @skip_no_module
@@ -785,9 +809,7 @@ class TestToolGuard:
     def test_path_blocking_env_file(self):
         """Tool targeting .env path is blocked."""
         guard = ToolGuard()
-        allowed, reason = guard.check(
-            "write-file", "safe", mode="act", target_path="/app/.env"
-        )
+        allowed, reason = guard.check("write-file", "safe", mode="act", target_path="/app/.env")
         assert allowed is False
         assert ".env" in reason
 
@@ -803,8 +825,7 @@ class TestToolGuard:
         """Tool targeting credentials path is blocked."""
         guard = ToolGuard()
         allowed, reason = guard.check(
-            "read-file", "safe", mode="act",
-            target_path="/app/config/credentials.json"
+            "read-file", "safe", mode="act", target_path="/app/config/credentials.json"
         )
         assert allowed is False
 
@@ -812,17 +833,14 @@ class TestToolGuard:
         """Tool targeting a normal path is allowed."""
         guard = ToolGuard()
         allowed, reason = guard.check(
-            "write-file", "safe", mode="act",
-            target_path="/app/data/output.txt"
+            "write-file", "safe", mode="act", target_path="/app/data/output.txt"
         )
         assert allowed is True
 
     def test_custom_blocked_patterns(self):
         """Custom blocked path patterns are enforced."""
         guard = ToolGuard(blocked_path_patterns={"backup", "archive"})
-        allowed, _ = guard.check(
-            "write", "safe", mode="act", target_path="/data/backup/db.sql"
-        )
+        allowed, _ = guard.check("write", "safe", mode="act", target_path="/data/backup/db.sql")
         assert allowed is False
 
     def test_record_use_safe_does_not_set_flag(self):
@@ -874,6 +892,7 @@ class TestToolGuard:
 # =============================================================================
 # TestAuthorizedTypes
 # =============================================================================
+
 
 @pytest.mark.unit
 @skip_no_module

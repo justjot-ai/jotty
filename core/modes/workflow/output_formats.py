@@ -12,18 +12,19 @@ Uses:
 - presenton skill for presentations
 """
 
-import os
 import logging
-from pathlib import Path
-from typing import Dict, List, Any, Optional
+import os
 from dataclasses import dataclass
 from enum import Enum
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
 
 class OutputFormat(Enum):
     """Supported output formats."""
+
     PDF = "pdf"
     EPUB = "epub"
     HTML = "html"
@@ -35,6 +36,7 @@ class OutputFormat(Enum):
 @dataclass
 class OutputFormatResult:
     """Result from output format generation."""
+
     format: str
     success: bool
     file_path: Optional[str] = None
@@ -90,25 +92,26 @@ class OutputFormatManager:
         """Load required skills from Jotty registry."""
         try:
             from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
+
             self.registry = get_skills_registry()
             self.registry.init()
 
             # Load document converter skill
-            doc_skill = self.registry.get_skill('document-converter')
+            doc_skill = self.registry.get_skill("document-converter")
             if doc_skill and doc_skill.tools:
-                self.skills['document-converter'] = doc_skill.tools
+                self.skills["document-converter"] = doc_skill.tools
                 logger.info("✅ Loaded document-converter skill")
 
             # Load epub builder skill
-            epub_skill = self.registry.get_skill('epub-builder')
+            epub_skill = self.registry.get_skill("epub-builder")
             if epub_skill and epub_skill.tools:
-                self.skills['epub-builder'] = epub_skill.tools
+                self.skills["epub-builder"] = epub_skill.tools
                 logger.info("✅ Loaded epub-builder skill")
 
             # Load presenton skill
-            presenton_skill = self.registry.get_skill('presenton')
+            presenton_skill = self.registry.get_skill("presenton")
             if presenton_skill and presenton_skill.tools:
-                self.skills['presenton'] = presenton_skill.tools
+                self.skills["presenton"] = presenton_skill.tools
                 logger.info("✅ Loaded presenton skill")
 
         except Exception as e:
@@ -121,7 +124,7 @@ class OutputFormatManager:
         title: Optional[str] = None,
         author: Optional[str] = None,
         page_size: str = "a4",
-        output_path: Optional[str] = None
+        output_path: Optional[str] = None,
     ) -> OutputFormatResult:
         """
         Generate PDF from markdown.
@@ -136,20 +139,16 @@ class OutputFormatManager:
         Returns:
             OutputFormatResult with success status and file path
         """
-        if 'document-converter' not in self.skills:
+        if "document-converter" not in self.skills:
             return OutputFormatResult(
-                format="pdf",
-                success=False,
-                error="document-converter skill not available"
+                format="pdf", success=False, error="document-converter skill not available"
             )
 
         try:
-            convert_tool = self.skills['document-converter'].get('convert_to_pdf_tool')
+            convert_tool = self.skills["document-converter"].get("convert_to_pdf_tool")
             if not convert_tool:
                 return OutputFormatResult(
-                    format="pdf",
-                    success=False,
-                    error="convert_to_pdf_tool not found"
+                    format="pdf", success=False, error="convert_to_pdf_tool not found"
                 )
 
             # Determine output path
@@ -158,93 +157,75 @@ class OutputFormatManager:
                 output_path = str(self.output_dir / f"{base_name}.pdf")
 
             # Convert
-            result = convert_tool({
-                'input_file': markdown_path,
-                'output_file': output_path,
-                'page_size': page_size,
-                'title': title,
-                'author': author
-            })
+            result = convert_tool(
+                {
+                    "input_file": markdown_path,
+                    "output_file": output_path,
+                    "page_size": page_size,
+                    "title": title,
+                    "author": author,
+                }
+            )
 
-            if result.get('success'):
+            if result.get("success"):
                 logger.info(f"✅ Generated PDF: {result.get('output_path')}")
                 return OutputFormatResult(
                     format="pdf",
                     success=True,
-                    file_path=result.get('output_path'),
-                    metadata={'page_size': page_size}
+                    file_path=result.get("output_path"),
+                    metadata={"page_size": page_size},
                 )
             else:
                 return OutputFormatResult(
-                    format="pdf",
-                    success=False,
-                    error=result.get('error', 'Unknown error')
+                    format="pdf", success=False, error=result.get("error", "Unknown error")
                 )
 
         except Exception as e:
             logger.error(f"PDF generation failed: {e}")
-            return OutputFormatResult(
-                format="pdf",
-                success=False,
-                error=str(e)
-            )
+            return OutputFormatResult(format="pdf", success=False, error=str(e))
 
     def generate_epub(
-        self,
-        markdown_path: str,
-        title: str,
-        author: str,
-        output_path: Optional[str] = None
+        self, markdown_path: str, title: str, author: str, output_path: Optional[str] = None
     ) -> OutputFormatResult:
         """Generate EPUB from markdown."""
-        if 'document-converter' not in self.skills:
+        if "document-converter" not in self.skills:
             return OutputFormatResult(
-                format="epub",
-                success=False,
-                error="document-converter skill not available"
+                format="epub", success=False, error="document-converter skill not available"
             )
 
         try:
-            convert_tool = self.skills['document-converter'].get('convert_to_epub_tool')
+            convert_tool = self.skills["document-converter"].get("convert_to_epub_tool")
             if not convert_tool:
                 return OutputFormatResult(
-                    format="epub",
-                    success=False,
-                    error="convert_to_epub_tool not found"
+                    format="epub", success=False, error="convert_to_epub_tool not found"
                 )
 
             if output_path is None:
                 base_name = Path(markdown_path).stem
                 output_path = str(self.output_dir / f"{base_name}.epub")
 
-            result = convert_tool({
-                'input_file': markdown_path,
-                'output_file': output_path,
-                'title': title,
-                'author': author
-            })
+            result = convert_tool(
+                {
+                    "input_file": markdown_path,
+                    "output_file": output_path,
+                    "title": title,
+                    "author": author,
+                }
+            )
 
-            if result.get('success'):
+            if result.get("success"):
                 logger.info(f"✅ Generated EPUB: {result.get('output_path')}")
                 return OutputFormatResult(
-                    format="epub",
-                    success=True,
-                    file_path=result.get('output_path')
+                    format="epub", success=True, file_path=result.get("output_path")
                 )
             else:
                 return OutputFormatResult(
-                    format="epub",
-                    success=False,
-                    error=result.get('error', 'Unknown error')
+                    format="epub", success=False, error=result.get("error", "Unknown error")
                 )
 
         except Exception as e:
             logger.error(f"EPUB generation failed: {e}")
-            return OutputFormatResult(
-                format="epub",
-                success=False,
-                error=str(e)
-            )
+            return OutputFormatResult(format="epub", success=False, error=str(e))
 
     def generate_epub_with_chapters(
         self,
@@ -253,7 +234,7 @@ class OutputFormatManager:
         author: str,
         description: Optional[str] = None,
         language: str = "en",
-        output_path: Optional[str] = None
+        output_path: Optional[str] = None,
     ) -> OutputFormatResult:
         """
         Generate rich EPUB with chapters using epub-builder.
@@ -269,170 +250,139 @@ class OutputFormatManager:
         Returns:
             OutputFormatResult
         """
-        if 'epub-builder' not in self.skills:
+        if "epub-builder" not in self.skills:
             return OutputFormatResult(
-                format="epub",
-                success=False,
-                error="epub-builder skill not available"
+                format="epub", success=False, error="epub-builder skill not available"
             )
 
         try:
-            build_tool = self.skills['epub-builder'].get('build_epub_tool')
+            build_tool = self.skills["epub-builder"].get("build_epub_tool")
             if not build_tool:
                 return OutputFormatResult(
-                    format="epub",
-                    success=False,
-                    error="build_epub_tool not found"
+                    format="epub", success=False, error="build_epub_tool not found"
                 )
 
             if output_path is None:
-                safe_title = "".join(c for c in title if c.isalnum() or c in (' ', '-', '_')).strip()
-                safe_title = safe_title.replace(' ', '_')[:50]
+                safe_title = "".join(
+                    c for c in title if c.isalnum() or c in (" ", "-", "_")
+                ).strip()
+                safe_title = safe_title.replace(" ", "_")[:50]
                 output_path = str(self.output_dir / f"{safe_title}.epub")
 
-            result = build_tool({
-                'title': title,
-                'author': author,
-                'chapters': chapters,
-                'output_path': output_path,
-                'language': language,
-                'description': description
-            })
+            result = build_tool(
+                {
+                    "title": title,
+                    "author": author,
+                    "chapters": chapters,
+                    "output_path": output_path,
+                    "language": language,
+                    "description": description,
+                }
+            )
 
-            if result.get('success'):
-                logger.info(f"✅ Generated EPUB with {result.get('chapter_count')} chapters: {result.get('output_path')}")
+            if result.get("success"):
+                logger.info(
+                    f"✅ Generated EPUB with {result.get('chapter_count')} chapters: {result.get('output_path')}"
+                )
                 return OutputFormatResult(
                     format="epub",
                     success=True,
-                    file_path=result.get('output_path'),
-                    metadata={'chapter_count': result.get('chapter_count')}
+                    file_path=result.get("output_path"),
+                    metadata={"chapter_count": result.get("chapter_count")},
                 )
             else:
                 return OutputFormatResult(
-                    format="epub",
-                    success=False,
-                    error=result.get('error', 'Unknown error')
+                    format="epub", success=False, error=result.get("error", "Unknown error")
                 )
 
         except Exception as e:
             logger.error(f"EPUB generation failed: {e}")
-            return OutputFormatResult(
-                format="epub",
-                success=False,
-                error=str(e)
-            )
+            return OutputFormatResult(format="epub", success=False, error=str(e))
 
     def generate_html(
         self,
         markdown_path: str,
         title: Optional[str] = None,
         standalone: bool = True,
-        output_path: Optional[str] = None
+        output_path: Optional[str] = None,
     ) -> OutputFormatResult:
         """Generate HTML from markdown."""
-        if 'document-converter' not in self.skills:
+        if "document-converter" not in self.skills:
             return OutputFormatResult(
-                format="html",
-                success=False,
-                error="document-converter skill not available"
+                format="html", success=False, error="document-converter skill not available"
             )
 
         try:
-            convert_tool = self.skills['document-converter'].get('convert_to_html_tool')
+            convert_tool = self.skills["document-converter"].get("convert_to_html_tool")
             if not convert_tool:
                 return OutputFormatResult(
-                    format="html",
-                    success=False,
-                    error="convert_to_html_tool not found"
+                    format="html", success=False, error="convert_to_html_tool not found"
                 )
 
             if output_path is None:
                 base_name = Path(markdown_path).stem
                 output_path = str(self.output_dir / f"{base_name}.html")
 
-            result = convert_tool({
-                'input_file': markdown_path,
-                'output_file': output_path,
-                'title': title,
-                'standalone': standalone
-            })
+            result = convert_tool(
+                {
+                    "input_file": markdown_path,
+                    "output_file": output_path,
+                    "title": title,
+                    "standalone": standalone,
+                }
+            )
 
-            if result.get('success'):
+            if result.get("success"):
                 logger.info(f"✅ Generated HTML: {result.get('output_path')}")
                 return OutputFormatResult(
-                    format="html",
-                    success=True,
-                    file_path=result.get('output_path')
+                    format="html", success=True, file_path=result.get("output_path")
                 )
             else:
                 return OutputFormatResult(
-                    format="html",
-                    success=False,
-                    error=result.get('error', 'Unknown error')
+                    format="html", success=False, error=result.get("error", "Unknown error")
                 )
 
         except Exception as e:
             logger.error(f"HTML generation failed: {e}")
-            return OutputFormatResult(
-                format="html",
-                success=False,
-                error=str(e)
-            )
+            return OutputFormatResult(format="html", success=False, error=str(e))
 
     def generate_docx(
-        self,
-        markdown_path: str,
-        title: Optional[str] = None,
-        output_path: Optional[str] = None
+        self, markdown_path: str, title: Optional[str] = None, output_path: Optional[str] = None
     ) -> OutputFormatResult:
         """Generate DOCX from markdown."""
-        if 'document-converter' not in self.skills:
+        if "document-converter" not in self.skills:
             return OutputFormatResult(
-                format="docx",
-                success=False,
-                error="document-converter skill not available"
+                format="docx", success=False, error="document-converter skill not available"
             )
 
         try:
-            convert_tool = self.skills['document-converter'].get('convert_to_docx_tool')
+            convert_tool = self.skills["document-converter"].get("convert_to_docx_tool")
             if not convert_tool:
                 return OutputFormatResult(
-                    format="docx",
-                    success=False,
-                    error="convert_to_docx_tool not found"
+                    format="docx", success=False, error="convert_to_docx_tool not found"
                 )
 
             if output_path is None:
                 base_name = Path(markdown_path).stem
                 output_path = str(self.output_dir / f"{base_name}.docx")
 
-            result = convert_tool({
-                'input_file': markdown_path,
-                'output_file': output_path,
-                'title': title
-            })
+            result = convert_tool(
+                {"input_file": markdown_path, "output_file": output_path, "title": title}
+            )
 
-            if result.get('success'):
+            if result.get("success"):
                 logger.info(f"✅ Generated DOCX: {result.get('output_path')}")
                 return OutputFormatResult(
-                    format="docx",
-                    success=True,
-                    file_path=result.get('output_path')
+                    format="docx", success=True, file_path=result.get("output_path")
                 )
             else:
                 return OutputFormatResult(
-                    format="docx",
-                    success=False,
-                    error=result.get('error', 'Unknown error')
+                    format="docx", success=False, error=result.get("error", "Unknown error")
                 )
 
         except Exception as e:
             logger.error(f"DOCX generation failed: {e}")
-            return OutputFormatResult(
-                format="docx",
-                success=False,
-                error=str(e)
-            )
+            return OutputFormatResult(format="docx", success=False, error=str(e))
 
     def generate_presentation(
         self,
@@ -442,7 +392,7 @@ class OutputFormatManager:
         export_as: str = "pptx",
         tone: str = "professional",
         template: Optional[str] = None,
-        output_dir: Optional[str] = None
+        output_dir: Optional[str] = None,
     ) -> OutputFormatResult:
         """
         Generate presentation (PPTX or PDF) using presenton.
@@ -459,61 +409,62 @@ class OutputFormatManager:
         Returns:
             OutputFormatResult
         """
-        if 'presenton' not in self.skills:
+        if "presenton" not in self.skills:
             return OutputFormatResult(
-                format="presentation",
-                success=False,
-                error="presenton skill not available"
+                format="presentation", success=False, error="presenton skill not available"
             )
 
         try:
-            gen_tool = self.skills['presenton'].get('generate_presentation_tool')
+            gen_tool = self.skills["presenton"].get("generate_presentation_tool")
             if not gen_tool:
                 return OutputFormatResult(
                     format="presentation",
                     success=False,
-                    error="generate_presentation_tool not found"
+                    error="generate_presentation_tool not found",
                 )
 
-            result = gen_tool({
-                'content': content,
-                'n_slides': n_slides,
-                'export_as': export_as,
-                'tone': tone,
-                'template': template,
-                'auto_start': True
-            })
+            result = gen_tool(
+                {
+                    "content": content,
+                    "n_slides": n_slides,
+                    "export_as": export_as,
+                    "tone": tone,
+                    "template": template,
+                    "auto_start": True,
+                }
+            )
 
-            if result.get('success'):
-                file_path = result.get('file_path')
+            if result.get("success"):
+                file_path = result.get("file_path")
                 logger.info(f"✅ Generated presentation: {file_path}")
                 return OutputFormatResult(
                     format="presentation",
                     success=True,
                     file_path=file_path,
                     metadata={
-                        'presentation_id': result.get('presentation_id'),
-                        'edit_url': result.get('edit_url'),
-                        'n_slides': n_slides,
-                        'format': export_as
-                    }
+                        "presentation_id": result.get("presentation_id"),
+                        "edit_url": result.get("edit_url"),
+                        "n_slides": n_slides,
+                        "format": export_as,
+                    },
                 )
             else:
                 return OutputFormatResult(
-                    format="presentation",
-                    success=False,
-                    error=result.get('error', 'Unknown error')
+                    format="presentation", success=False, error=result.get("error", "Unknown error")
                 )
 
         except Exception as e:
             logger.error(f"Presentation generation failed: {e}")
-            return OutputFormatResult(
-                format="presentation",
-                success=False,
-                error=str(e)
-            )
+            return OutputFormatResult(format="presentation", success=False, error=str(e))
 
-    def generate_all(self, markdown_path: str, formats: List[str], title: str, author: Optional[str] = None, **kwargs: Any) -> Dict[str, OutputFormatResult]:
+    def generate_all(
+        self,
+        markdown_path: str,
+        formats: List[str],
+        title: str,
+        author: Optional[str] = None,
+        **kwargs: Any,
+    ) -> Dict[str, OutputFormatResult]:
         """
         Generate multiple output formats.
 
@@ -534,43 +485,35 @@ class OutputFormatManager:
 
             if fmt_lower == "pdf":
                 results["pdf"] = self.generate_pdf(
-                    markdown_path, title, author,
-                    page_size=kwargs.get('page_size', 'a4')
+                    markdown_path, title, author, page_size=kwargs.get("page_size", "a4")
                 )
 
             elif fmt_lower == "epub":
-                results["epub"] = self.generate_epub(
-                    markdown_path, title, author or "Unknown"
-                )
+                results["epub"] = self.generate_epub(markdown_path, title, author or "Unknown")
 
             elif fmt_lower == "html":
                 results["html"] = self.generate_html(
-                    markdown_path, title,
-                    standalone=kwargs.get('standalone', True)
+                    markdown_path, title, standalone=kwargs.get("standalone", True)
                 )
 
             elif fmt_lower == "docx":
-                results["docx"] = self.generate_docx(
-                    markdown_path, title
-                )
+                results["docx"] = self.generate_docx(markdown_path, title)
 
             elif fmt_lower == "presentation":
                 # Read markdown content for presentation
                 try:
-                    with open(markdown_path, 'r', encoding='utf-8') as f:
+                    with open(markdown_path, "r", encoding="utf-8") as f:
                         content = f.read()
                     results["presentation"] = self.generate_presentation(
                         content=content,
                         title=title,
-                        n_slides=kwargs.get('n_slides', 10),
-                        export_as=kwargs.get('export_as', 'pptx'),
-                        tone=kwargs.get('tone', 'professional')
+                        n_slides=kwargs.get("n_slides", 10),
+                        export_as=kwargs.get("export_as", "pptx"),
+                        tone=kwargs.get("tone", "professional"),
                     )
                 except Exception as e:
                     results["presentation"] = OutputFormatResult(
-                        format="presentation",
-                        success=False,
-                        error=f"Could not read markdown: {e}"
+                        format="presentation", success=False, error=f"Could not read markdown: {e}"
                     )
 
             else:
@@ -592,21 +535,17 @@ class OutputFormatManager:
         failed = [fmt for fmt, res in results.items() if not res.success]
 
         file_paths = {
-            fmt: res.file_path
-            for fmt, res in results.items()
-            if res.success and res.file_path
+            fmt: res.file_path for fmt, res in results.items() if res.success and res.file_path
         }
 
         return {
-            'total': len(results),
-            'successful': len(successful),
-            'failed': len(failed),
-            'successful_formats': successful,
-            'failed_formats': failed,
-            'file_paths': file_paths,
-            'errors': {
-                fmt: res.error
-                for fmt, res in results.items()
-                if not res.success and res.error
-            }
+            "total": len(results),
+            "successful": len(successful),
+            "failed": len(failed),
+            "successful_formats": successful,
+            "failed_formats": failed,
+            "file_paths": file_paths,
+            "errors": {
+                fmt: res.error for fmt, res in results.items() if not res.success and res.error
+            },
         }

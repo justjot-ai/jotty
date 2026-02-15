@@ -1,11 +1,14 @@
 """Statistics calculator — descriptive stats using stdlib statistics."""
-import statistics as st
+
 import math
-from typing import Dict, Any, List
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+import statistics as st
+from typing import Any, Dict, List
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("statistics-calculator")
+
 
 def _percentile(data: List[float], p: float) -> float:
     s = sorted(data)
@@ -14,6 +17,7 @@ def _percentile(data: List[float], p: float) -> float:
     if f == c:
         return s[int(k)]
     return s[f] * (c - k) + s[c] * (k - f)
+
 
 @tool_wrapper(required_params=["numbers"])
 def statistics_tool(params: Dict[str, Any]) -> Dict[str, Any]:
@@ -38,17 +42,24 @@ def statistics_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             p = float(params.get("percentile", 50))
             return tool_response(result=_percentile(nums, p))
         if op == "quartiles":
-            return tool_response(q1=_percentile(nums, 25), q2=_percentile(nums, 50), q3=_percentile(nums, 75))
+            return tool_response(
+                q1=_percentile(nums, 25), q2=_percentile(nums, 50), q3=_percentile(nums, 75)
+            )
         # summary
         result = {
-            "count": len(nums), "mean": st.mean(nums), "median": st.median(nums),
-            "min": min(nums), "max": max(nums),
+            "count": len(nums),
+            "mean": st.mean(nums),
+            "median": st.median(nums),
+            "min": min(nums),
+            "max": max(nums),
             "stdev": st.stdev(nums) if len(nums) > 1 else 0.0,
             "variance": st.variance(nums) if len(nums) > 1 else 0.0,
-            "q1": _percentile(nums, 25), "q3": _percentile(nums, 75),
+            "q1": _percentile(nums, 25),
+            "q3": _percentile(nums, 75),
         }
         return tool_response(**result)
     except Exception as e:
         return tool_error(str(e))
+
 
 __all__ = ["statistics_tool"]

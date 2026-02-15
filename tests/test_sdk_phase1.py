@@ -10,21 +10,27 @@ Tests for Phase 1A-1G SDK additions:
 - Document methods (upload_document, search_documents, chat_with_documents)
 """
 
-import pytest
 import asyncio
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
 from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+
+import pytest
+
+from Jotty.core.infrastructure.foundation.types.sdk_types import (
+    ExecutionMode,
+    SDKEvent,
+    SDKEventType,
+    SDKResponse,
+    SDKVoiceResponse,
+)
 
 # Import SDK (use Jotty.sdk for proper package resolution)
 from Jotty.sdk.client import Jotty, VoiceHandle
-from Jotty.core.infrastructure.foundation.types.sdk_types import (
-    SDKResponse, SDKVoiceResponse, SDKEvent, SDKEventType, ExecutionMode
-)
-
 
 # =============================================================================
 # FIXTURES
 # =============================================================================
+
 
 @pytest.fixture
 def sdk_client():
@@ -37,12 +43,14 @@ def sdk_client():
 def mock_voice_processor():
     """Mock voice processor for STT/TTS."""
     mock = Mock()
-    mock.speech_to_text = AsyncMock(return_value={
-        "success": True,
-        "text": "Hello world",
-        "confidence": 0.95,
-        "provider": "groq"
-    })
+    mock.speech_to_text = AsyncMock(
+        return_value={
+            "success": True,
+            "text": "Hello world",
+            "confidence": 0.95,
+            "provider": "groq",
+        }
+    )
     mock.text_to_speech = AsyncMock(return_value=b"fake_audio_data")
     return mock
 
@@ -52,13 +60,10 @@ def mock_memory():
     """Mock memory system."""
     mock = Mock()
     mock.store = Mock(return_value="mem-123")
-    mock.retrieve = Mock(return_value=[
-        Mock(content="Previous task", level="episodic", relevance=0.9, metadata={})
-    ])
-    mock.status = Mock(return_value={
-        "backend": "full",
-        "total_memories": 42
-    })
+    mock.retrieve = Mock(
+        return_value=[Mock(content="Previous task", level="episodic", relevance=0.9, metadata={})]
+    )
+    mock.status = Mock(return_value={"backend": "full", "total_memories": 42})
     return mock
 
 
@@ -66,19 +71,22 @@ def mock_memory():
 def mock_orchestrator():
     """Mock orchestrator for swarm."""
     mock = Mock()
-    mock.run = AsyncMock(return_value={
-        "success": True,
-        "final_output": "Swarm result",
-        "agents_used": ["researcher", "coder"],
-        "steps_executed": 3,
-        "metadata": {}
-    })
+    mock.run = AsyncMock(
+        return_value={
+            "success": True,
+            "final_output": "Swarm result",
+            "agents_used": ["researcher", "coder"],
+            "steps_executed": 3,
+            "metadata": {},
+        }
+    )
     return mock
 
 
 # =============================================================================
 # VOICE TESTS
 # =============================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.asyncio
@@ -95,13 +103,13 @@ async def test_voice_handle_creation(sdk_client):
 @pytest.mark.asyncio
 async def test_stt_local_mode(sdk_client):
     """Test STT in local mode delegates to modalities."""
-    with patch('Jotty.core.interface.modalities.voice.speech_to_text', new_callable=AsyncMock) as mock_stt:
+    with patch(
+        "Jotty.core.interface.modalities.voice.speech_to_text", new_callable=AsyncMock
+    ) as mock_stt:
         mock_stt.return_value = "Transcribed text"
 
         result = await sdk_client.stt(
-            audio_data=b"fake_audio",
-            mime_type="audio/webm",
-            provider="groq"
+            audio_data=b"fake_audio", mime_type="audio/webm", provider="groq"
         )
 
         assert isinstance(result, SDKVoiceResponse)
@@ -114,14 +122,12 @@ async def test_stt_local_mode(sdk_client):
 @pytest.mark.asyncio
 async def test_tts_local_mode(sdk_client):
     """Test TTS in local mode delegates to modalities."""
-    with patch('Jotty.core.interface.modalities.voice.text_to_speech', new_callable=AsyncMock) as mock_tts:
+    with patch(
+        "Jotty.core.interface.modalities.voice.text_to_speech", new_callable=AsyncMock
+    ) as mock_tts:
         mock_tts.return_value = b"audio_bytes"
 
-        audio = await sdk_client.tts(
-            text="Hello world",
-            voice="en-US-Ava",
-            provider="edge"
-        )
+        audio = await sdk_client.tts(text="Hello world", voice="en-US-Ava", provider="edge")
 
         assert isinstance(audio, bytes)
         assert audio == b"audio_bytes"
@@ -131,9 +137,11 @@ async def test_tts_local_mode(sdk_client):
 @pytest.mark.asyncio
 async def test_voice_chat_pipeline(sdk_client):
     """Test voice_chat executes STT → chat → TTS pipeline."""
-    with patch.object(sdk_client, 'stt') as mock_stt, \
-         patch.object(sdk_client, 'chat') as mock_chat, \
-         patch.object(sdk_client, 'tts') as mock_tts:
+    with (
+        patch.object(sdk_client, "stt") as mock_stt,
+        patch.object(sdk_client, "chat") as mock_chat,
+        patch.object(sdk_client, "tts") as mock_tts,
+    ):
 
         # Mock STT result
         mock_stt.return_value = SDKVoiceResponse(
@@ -141,22 +149,16 @@ async def test_voice_chat_pipeline(sdk_client):
             content="User question",
             user_text="User question",
             confidence=0.95,
-            mode=ExecutionMode.VOICE
+            mode=ExecutionMode.VOICE,
         )
 
         # Mock chat result
-        mock_chat.return_value = SDKResponse(
-            success=True,
-            content="Assistant answer"
-        )
+        mock_chat.return_value = SDKResponse(success=True, content="Assistant answer")
 
         # Mock TTS result
         mock_tts.return_value = b"response_audio"
 
-        result = await sdk_client.voice_chat(
-            audio_data=b"input_audio",
-            mime_type="audio/webm"
-        )
+        result = await sdk_client.voice_chat(audio_data=b"input_audio", mime_type="audio/webm")
 
         assert result.success
         assert result.user_text == "User question"
@@ -185,15 +187,15 @@ async def test_list_voices(sdk_client):
 # SWARM TESTS
 # =============================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.asyncio
 async def test_swarm_local_mode(sdk_client, mock_orchestrator):
     """Test swarm execution in local mode."""
-    with patch('Jotty.core.intelligence.orchestration.Orchestrator', return_value=mock_orchestrator):
-        result = await sdk_client.swarm(
-            goal="Research AI trends",
-            swarm_type="research"
-        )
+    with patch(
+        "Jotty.core.intelligence.orchestration.Orchestrator", return_value=mock_orchestrator
+    ):
+        result = await sdk_client.swarm(goal="Research AI trends", swarm_type="research")
 
         assert result.success
         assert result.content == "Swarm result"
@@ -206,12 +208,11 @@ async def test_swarm_local_mode(sdk_client, mock_orchestrator):
 @pytest.mark.asyncio
 async def test_swarm_stream(sdk_client, mock_orchestrator):
     """Test swarm streaming execution."""
-    with patch('Jotty.core.intelligence.orchestration.Orchestrator', return_value=mock_orchestrator):
+    with patch(
+        "Jotty.core.intelligence.orchestration.Orchestrator", return_value=mock_orchestrator
+    ):
         events = []
-        async for event in sdk_client.swarm_stream(
-            goal="Build a web scraper",
-            swarm_type="coding"
-        ):
+        async for event in sdk_client.swarm_stream(goal="Build a web scraper", swarm_type="coding"):
             events.append(event)
 
         # Should emit START and COMPLETE events
@@ -224,14 +225,16 @@ async def test_swarm_stream(sdk_client, mock_orchestrator):
 # CONFIGURATION TESTS
 # =============================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.asyncio
 async def test_configure_lm(sdk_client):
     """Test LM configuration via SDK."""
-    with patch('Jotty.core.intelligence.orchestration.llm_providers.provider_manager.configure_dspy_lm') as mock_config:
+    with patch(
+        "Jotty.core.intelligence.orchestration.llm_providers.provider_manager.configure_dspy_lm"
+    ) as mock_config:
         result = await sdk_client.configure_lm(
-            provider="anthropic",
-            model="claude-3-5-sonnet-20241022"
+            provider="anthropic", model="claude-3-5-sonnet-20241022"
         )
 
         assert result["success"]
@@ -239,8 +242,7 @@ async def test_configure_lm(sdk_client):
         assert result["model"] == "claude-3-5-sonnet-20241022"
 
         mock_config.assert_called_once_with(
-            provider="anthropic",
-            model="claude-3-5-sonnet-20241022"
+            provider="anthropic", model="claude-3-5-sonnet-20241022"
         )
 
 
@@ -248,10 +250,7 @@ async def test_configure_lm(sdk_client):
 @pytest.mark.asyncio
 async def test_configure_voice(sdk_client):
     """Test voice provider configuration."""
-    result = await sdk_client.configure_voice(
-        stt_provider="groq",
-        tts_provider="edge"
-    )
+    result = await sdk_client.configure_voice(stt_provider="groq", tts_provider="edge")
 
     assert result["stt_provider"] == "groq"
     assert result["tts_provider"] == "edge"
@@ -263,15 +262,14 @@ async def test_configure_voice(sdk_client):
 # MEMORY TESTS
 # =============================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.asyncio
 async def test_memory_store(sdk_client, mock_memory):
     """Test storing to memory via SDK."""
-    with patch('Jotty.core.intelligence.memory.facade.get_memory_system', return_value=mock_memory):
+    with patch("Jotty.core.intelligence.memory.facade.get_memory_system", return_value=mock_memory):
         result = await sdk_client.memory_store(
-            content="Task completed successfully",
-            level="episodic",
-            goal="research"
+            content="Task completed successfully", level="episodic", goal="research"
         )
 
         assert result.success
@@ -284,11 +282,8 @@ async def test_memory_store(sdk_client, mock_memory):
 @pytest.mark.asyncio
 async def test_memory_retrieve(sdk_client, mock_memory):
     """Test retrieving from memory via SDK."""
-    with patch('Jotty.core.intelligence.memory.facade.get_memory_system', return_value=mock_memory):
-        result = await sdk_client.memory_retrieve(
-            query="How to complete task?",
-            top_k=5
-        )
+    with patch("Jotty.core.intelligence.memory.facade.get_memory_system", return_value=mock_memory):
+        result = await sdk_client.memory_retrieve(query="How to complete task?", top_k=5)
 
         assert result.success
         assert len(result.content) == 1
@@ -300,7 +295,7 @@ async def test_memory_retrieve(sdk_client, mock_memory):
 @pytest.mark.asyncio
 async def test_memory_status(sdk_client, mock_memory):
     """Test memory status via SDK."""
-    with patch('Jotty.core.intelligence.memory.facade.get_memory_system', return_value=mock_memory):
+    with patch("Jotty.core.intelligence.memory.facade.get_memory_system", return_value=mock_memory):
         result = await sdk_client.memory_status()
 
         assert result.success
@@ -311,14 +306,14 @@ async def test_memory_status(sdk_client, mock_memory):
 # DOCUMENT TESTS
 # =============================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.asyncio
 async def test_upload_document(sdk_client, mock_memory):
     """Test document upload via SDK."""
-    with patch('Jotty.core.intelligence.memory.facade.get_memory_system', return_value=mock_memory):
+    with patch("Jotty.core.intelligence.memory.facade.get_memory_system", return_value=mock_memory):
         result = await sdk_client.upload_document(
-            file_content=b"Document content here",
-            filename="report.txt"
+            file_content=b"Document content here", filename="report.txt"
         )
 
         assert result.success
@@ -330,11 +325,8 @@ async def test_upload_document(sdk_client, mock_memory):
 @pytest.mark.asyncio
 async def test_search_documents(sdk_client, mock_memory):
     """Test document search via SDK."""
-    with patch('Jotty.core.intelligence.memory.facade.get_memory_system', return_value=mock_memory):
-        result = await sdk_client.search_documents(
-            query="machine learning",
-            top_k=3
-        )
+    with patch("Jotty.core.intelligence.memory.facade.get_memory_system", return_value=mock_memory):
+        result = await sdk_client.search_documents(query="machine learning", top_k=3)
 
         assert result.success
         # Delegates to memory_retrieve
@@ -345,17 +337,15 @@ async def test_search_documents(sdk_client, mock_memory):
 @pytest.mark.asyncio
 async def test_chat_with_documents(sdk_client, mock_memory):
     """Test RAG chat via SDK."""
-    with patch('Jotty.core.intelligence.memory.facade.get_memory_system', return_value=mock_memory), \
-         patch.object(sdk_client, 'chat') as mock_chat:
+    with (
+        patch("Jotty.core.intelligence.memory.facade.get_memory_system", return_value=mock_memory),
+        patch.object(sdk_client, "chat") as mock_chat,
+    ):
 
-        mock_chat.return_value = SDKResponse(
-            success=True,
-            content="Based on the documents..."
-        )
+        mock_chat.return_value = SDKResponse(success=True, content="Based on the documents...")
 
         result = await sdk_client.chat_with_documents(
-            message="What are the key findings?",
-            doc_ids=["doc-1", "doc-2"]
+            message="What are the key findings?", doc_ids=["doc-1", "doc-2"]
         )
 
         assert result.success
@@ -368,6 +358,7 @@ async def test_chat_with_documents(sdk_client, mock_memory):
 # =============================================================================
 # SDK EVENT TESTS
 # =============================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.asyncio
@@ -399,7 +390,7 @@ async def test_sdk_voice_response_serialization():
         audio_format="audio/mp3",
         confidence=0.95,
         provider="groq",
-        mode=ExecutionMode.VOICE
+        mode=ExecutionMode.VOICE,
     )
 
     response_dict = response.to_dict()

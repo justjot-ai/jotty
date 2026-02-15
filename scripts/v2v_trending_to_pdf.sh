@@ -32,10 +32,10 @@ from core.registry.skills_registry import get_skills_registry
 async def run_workflow():
     registry = get_skills_registry()
     registry.init()
-    
+
     composite_skill = registry.get_skill('v2v-to-pdf-telegram-remarkable')
     workflow_tool = composite_skill.tools.get('v2v_to_pdf_and_send_tool')
-    
+
     result = await workflow_tool({
         'query': '$QUERY',
         'title': 'V2V Trending: $QUERY',
@@ -43,7 +43,7 @@ async def run_workflow():
         'send_remarkable': $SEND_REMARKABLE,
         'telegram_chat_id': os.getenv('TELEGRAM_CHAT_ID')
     })
-    
+
     if result.get('success'):
         print(f"\n✅ Success!")
         print(f"   PDF: {result.get('pdf_path')}")

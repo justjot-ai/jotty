@@ -69,9 +69,9 @@ widget = create_widget_with_params(
 ```
 """
 
-from typing import Dict, Any, List, Optional
-from dataclasses import dataclass, field
 import json
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional
 
 
 @dataclass
@@ -82,6 +82,7 @@ class WidgetParamSchema:
     Defines what parameters a widget accepts, their types,
     valid values (enums), defaults, and documentation.
     """
+
     properties: Dict[str, Any] = field(default_factory=dict)
     required: List[str] = field(default_factory=list)
 
@@ -109,13 +110,19 @@ class WidgetParamSchema:
             expected_type = param_schema.get("type")
             if expected_type:
                 if not self._check_type(param_value, expected_type):
-                    return False, f"Parameter '{param_name}' must be {expected_type}, got {type(param_value).__name__}"
+                    return (
+                        False,
+                        f"Parameter '{param_name}' must be {expected_type}, got {type(param_value).__name__}",
+                    )
 
             # Enum validation
             if "enum" in param_schema:
                 if param_value not in param_schema["enum"]:
                     valid_values = ", ".join(f"'{v}'" for v in param_schema["enum"])
-                    return False, f"Parameter '{param_name}' must be one of: {valid_values}. Got: '{param_value}'"
+                    return (
+                        False,
+                        f"Parameter '{param_name}' must be one of: {valid_values}. Got: '{param_value}'",
+                    )
 
             # Range validation (for numbers)
             if expected_type in ["integer", "number"]:
@@ -135,7 +142,7 @@ class WidgetParamSchema:
             "boolean": bool,
             "array": list,
             "object": dict,
-            "null": type(None)
+            "null": type(None),
         }
 
         expected_py_type = type_map.get(expected_type)
@@ -166,11 +173,7 @@ def generate_param_docstring(param_schema: WidgetParamSchema, widget_id: str) ->
     Creates clear documentation that agents can understand,
     including enum values with descriptions.
     """
-    lines = [
-        f"Display {widget_id.replace('_', ' ')} widget.",
-        "",
-        "Parameters:"
-    ]
+    lines = [f"Display {widget_id.replace('_', ' ')} widget.", "", "Parameters:"]
 
     if not param_schema.properties:
         lines.append("  None (no parameters required)")
@@ -236,16 +239,21 @@ def generate_tool_examples(param_schema: WidgetParamSchema, widget_id: str) -> L
                 trigger = example["user_query"]
             else:
                 # Auto-generate from description
-                trigger = f"show {description.lower()}" if description else f"{param_name}={enum_val}"
+                trigger = (
+                    f"show {description.lower()}" if description else f"{param_name}={enum_val}"
+                )
 
             # Generate tool call
             params_json = json.dumps({param_name: enum_val})
-            tool_call = f'render_widget_tool(widget_id="{widget_id}", params=\'{params_json}\')'
+            tool_call = f"render_widget_tool(widget_id=\"{widget_id}\", params='{params_json}')"
 
             examples.append(f'User says "{trigger}" → {tool_call}')
 
     # Add default example (no params)
-    examples.insert(0, f'User says "show {widget_id.replace("_", " ")}" → render_widget_tool(widget_id="{widget_id}")')
+    examples.insert(
+        0,
+        f'User says "show {widget_id.replace("_", " ")}" → render_widget_tool(widget_id="{widget_id}")',
+    )
 
     return examples
 
@@ -264,29 +272,29 @@ STATUS_PARAM_SCHEMA = {
             {
                 "value": "backlog",
                 "description": "Tasks queued but not started (user's Task List list)",
-                "user_query": "show backlog tasks"
+                "user_query": "show backlog tasks",
             },
             {
                 "value": "pending",
                 "description": "Tasks ready to start (waiting for orchestrator)",
-                "user_query": "show pending tasks"
+                "user_query": "show pending tasks",
             },
             {
                 "value": "in_progress",
                 "description": "Currently running tasks",
-                "user_query": "show tasks in progress"
+                "user_query": "show tasks in progress",
             },
             {
                 "value": "completed",
                 "description": "Successfully finished tasks",
-                "user_query": "show completed tasks"
+                "user_query": "show completed tasks",
             },
             {
                 "value": "failed",
                 "description": "Tasks that encountered errors",
-                "user_query": "show failed tasks"
-            }
-        ]
+                "user_query": "show failed tasks",
+            },
+        ],
     }
 }
 
@@ -297,7 +305,7 @@ LIMIT_PARAM_SCHEMA = {
         "default": 100,
         "minimum": 1,
         "maximum": 1000,
-        "description": "Maximum number of items to return"
+        "description": "Maximum number of items to return",
     }
 }
 
@@ -309,12 +317,16 @@ TIME_RANGE_PARAM_SCHEMA = {
         "default": "week",
         "description": "Time range filter",
         "examples": [
-            {"value": "today", "description": "Today's data only", "user_query": "show today's data"},
+            {
+                "value": "today",
+                "description": "Today's data only",
+                "user_query": "show today's data",
+            },
             {"value": "week", "description": "Last 7 days", "user_query": "show this week"},
             {"value": "month", "description": "Last 30 days", "user_query": "show this month"},
             {"value": "year", "description": "Last 365 days", "user_query": "show this year"},
-            {"value": "all", "description": "All time data", "user_query": "show all data"}
-        ]
+            {"value": "all", "description": "All time data", "user_query": "show all data"},
+        ],
     }
 }
 
@@ -324,12 +336,12 @@ SORT_PARAM_SCHEMA = {
         "type": "string",
         "enum": ["date", "priority", "status", "name"],
         "default": "date",
-        "description": "Sort field"
+        "description": "Sort field",
     },
     "sort_order": {
         "type": "string",
         "enum": ["asc", "desc"],
         "default": "desc",
-        "description": "Sort order (ascending or descending)"
-    }
+        "description": "Sort order (ascending or descending)",
+    },
 }

@@ -20,49 +20,50 @@ with model-family-appropriate separators.
 
 import logging
 from enum import Enum
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
 
 class ModelFamily(Enum):
     """Model families with different prompt preferences."""
-    CLAUDE = "claude"       # XML structure, verbose OK
-    GPT = "gpt"             # Markdown structure, function_calling
-    GROQ = "groq"           # Fast inference, minimal prompt preferred
-    GEMINI = "gemini"       # Markdown, system instruction slot
-    GENERIC = "generic"     # Safe middle ground
+
+    CLAUDE = "claude"  # XML structure, verbose OK
+    GPT = "gpt"  # Markdown structure, function_calling
+    GROQ = "groq"  # Fast inference, minimal prompt preferred
+    GEMINI = "gemini"  # Markdown, system instruction slot
+    GENERIC = "generic"  # Safe middle ground
 
 
 def detect_model_family(model: str) -> ModelFamily:
     """Auto-detect model family from model name string. KISS heuristic."""
     m = model.lower()
-    if 'claude' in m or 'anthropic' in m or 'sonnet' in m or 'opus' in m or 'haiku' in m:
+    if "claude" in m or "anthropic" in m or "sonnet" in m or "opus" in m or "haiku" in m:
         return ModelFamily.CLAUDE
-    if 'gpt' in m or 'o1' in m or 'o3' in m or 'openai' in m:
+    if "gpt" in m or "o1" in m or "o3" in m or "openai" in m:
         return ModelFamily.GPT
-    if 'groq' in m or 'llama' in m or 'mixtral' in m or 'gemma' in m:
+    if "groq" in m or "llama" in m or "mixtral" in m or "gemma" in m:
         return ModelFamily.GROQ
-    if 'gemini' in m or 'google' in m:
+    if "gemini" in m or "google" in m:
         return ModelFamily.GEMINI
     return ModelFamily.GENERIC
 
 
 # Model-family-specific section separators and wrappers
 _SECTION_SEP = {
-    ModelFamily.CLAUDE:  "\n\n",        # Claude handles XML sections well
-    ModelFamily.GPT:     "\n\n---\n\n", # GPT likes markdown separators
-    ModelFamily.GROQ:    "\n\n",        # Minimal
-    ModelFamily.GEMINI:  "\n\n",
+    ModelFamily.CLAUDE: "\n\n",  # Claude handles XML sections well
+    ModelFamily.GPT: "\n\n---\n\n",  # GPT likes markdown separators
+    ModelFamily.GROQ: "\n\n",  # Minimal
+    ModelFamily.GEMINI: "\n\n",
     ModelFamily.GENERIC: "\n\n---\n\n",
 }
 
 # Max prompt length hints per family (chars, not tokens)
 _MAX_PROMPT_CHARS = {
-    ModelFamily.CLAUDE:  32000,  # Large context, verbose OK
-    ModelFamily.GPT:     24000,  # Moderate
-    ModelFamily.GROQ:    12000,  # Fast = short
-    ModelFamily.GEMINI:  24000,
+    ModelFamily.CLAUDE: 32000,  # Large context, verbose OK
+    ModelFamily.GPT: 24000,  # Moderate
+    ModelFamily.GROQ: 12000,  # Fast = short
+    ModelFamily.GEMINI: 24000,
     ModelFamily.GENERIC: 16000,
 }
 
@@ -74,7 +75,7 @@ class PromptComposer:
     Model-family aware: adjusts formatting and verbosity per LLM provider.
     """
 
-    def __init__(self, model: str = '') -> None:
+    def __init__(self, model: str = "") -> None:
         self.family = detect_model_family(model) if model else ModelFamily.GENERIC
         self.max_chars = _MAX_PROMPT_CHARS[self.family]
 
@@ -114,9 +115,7 @@ class PromptComposer:
 
         # 2. TOOLS
         if tools:
-            sections.append(self._format_tools(
-                tools, tool_descriptions or {}, trust_levels or {}
-            ))
+            sections.append(self._format_tools(tools, tool_descriptions or {}, trust_levels or {}))
 
         # 3. LEARNING CONTEXT
         if learning_context:
@@ -130,6 +129,7 @@ class PromptComposer:
         if workspace_dir:
             try:
                 from .rules import load_project_rules
+
                 rules = load_project_rules(workspace_dir)
                 if rules:
                     sections.append(self._wrap_section("Project Rules", rules))
@@ -231,7 +231,7 @@ class PromptComposer:
         return f"# Task\n{task}"
 
     def _wrap_section(self, name: str, content: str) -> str:
-        slug = name.lower().replace(' ', '_')
+        slug = name.lower().replace(" ", "_")
         if self.family == ModelFamily.CLAUDE:
             return f"<{slug}>\n{content}\n</{slug}>"
         return f"# {name}\n{content}"
@@ -249,9 +249,7 @@ class PromptComposer:
 
         half = self.max_chars // 2
         compressed = (
-            prompt[:half]
-            + "\n\n[...context compressed to fit model limit...]\n\n"
-            + prompt[-half:]
+            prompt[:half] + "\n\n[...context compressed to fit model limit...]\n\n" + prompt[-half:]
         )
         logger.debug(
             f"Prompt compressed: {len(prompt)} → {len(compressed)} chars "

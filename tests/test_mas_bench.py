@@ -12,9 +12,10 @@ All tests are mocked — no real Android device or emulator needed.
 """
 
 import json
-import pytest
-from unittest.mock import patch, MagicMock, PropertyMock
 from dataclasses import dataclass
+from unittest.mock import MagicMock, PropertyMock, patch
+
+import pytest
 
 # =============================================================================
 # Android Automation Tests
@@ -27,6 +28,7 @@ class TestUITreeParser:
     def _get_parser(self):
         import importlib.util
         from pathlib import Path
+
         spec = importlib.util.spec_from_file_location(
             "android_tools",
             Path(__file__).resolve().parent.parent / "skills" / "android-automation" / "tools.py",
@@ -37,13 +39,13 @@ class TestUITreeParser:
 
     def test_parse_simple_button(self):
         """Parse a simple Button element."""
-        xml = '''<hierarchy rotation="0">
+        xml = """<hierarchy rotation="0">
             <node class="android.widget.Button" text="Submit"
                   bounds="[100,200][300,250]" clickable="true"
                   focusable="true" enabled="true" selected="false"
                   checked="false" scrollable="false" long-clickable="false"
                   content-desc="" resource-id="com.app:id/btn_submit" />
-        </hierarchy>'''
+        </hierarchy>"""
         parser = self._get_parser()
         result = parser.parse(xml)
 
@@ -60,13 +62,13 @@ class TestUITreeParser:
 
     def test_parse_edittext(self):
         """EditText should map to 'textbox' role."""
-        xml = '''<hierarchy rotation="0">
+        xml = """<hierarchy rotation="0">
             <node class="android.widget.EditText" text=""
                   bounds="[10,50][500,100]" clickable="true"
                   focusable="true" enabled="true" selected="false"
                   checked="false" scrollable="false" long-clickable="false"
                   content-desc="Search" resource-id="com.app:id/search_input" />
-        </hierarchy>'''
+        </hierarchy>"""
         parser = self._get_parser()
         result = parser.parse(xml)
 
@@ -79,14 +81,17 @@ class TestUITreeParser:
         """Bounds string parsing."""
         parser = self._get_parser()
         assert parser._parse_bounds("[0,0][1080,2400]") == {
-            "left": 0, "top": 0, "right": 1080, "bottom": 2400
+            "left": 0,
+            "top": 0,
+            "right": 1080,
+            "bottom": 2400,
         }
         assert parser._parse_bounds("") == {}
         assert parser._parse_bounds("invalid") == {}
 
     def test_parse_nested_hierarchy(self):
         """Parse nested layout with children."""
-        xml = '''<hierarchy rotation="0">
+        xml = """<hierarchy rotation="0">
             <node class="android.widget.LinearLayout" bounds="[0,0][1080,2400]"
                   clickable="false" focusable="false" enabled="true"
                   selected="false" checked="false" scrollable="false"
@@ -102,7 +107,7 @@ class TestUITreeParser:
                       scrollable="false" long-clickable="false"
                       content-desc="" resource-id="com.app:id/ok_btn" />
             </node>
-        </hierarchy>'''
+        </hierarchy>"""
         parser = self._get_parser()
         result = parser.parse(xml)
 
@@ -113,7 +118,7 @@ class TestUITreeParser:
 
     def test_max_depth_limits_tree(self):
         """max_depth should limit tree parsing."""
-        xml = '''<hierarchy rotation="0">
+        xml = """<hierarchy rotation="0">
             <node class="android.widget.FrameLayout" bounds="[0,0][1080,2400]"
                   clickable="false" focusable="false" enabled="true"
                   selected="false" checked="false" scrollable="false"
@@ -129,7 +134,7 @@ class TestUITreeParser:
                           content-desc="" resource-id="" />
                 </node>
             </node>
-        </hierarchy>'''
+        </hierarchy>"""
         parser = self._get_parser()
 
         # depth=1 should not reach the button (depth 2)
@@ -154,13 +159,13 @@ class TestUITreeParser:
 
     def test_resource_id_as_fallback_name(self):
         """When text and desc are empty, resource_id should be used for name."""
-        xml = '''<hierarchy rotation="0">
+        xml = """<hierarchy rotation="0">
             <node class="android.widget.ImageButton" text=""
                   bounds="[900,10][960,60]" clickable="true" focusable="true"
                   enabled="true" selected="false" checked="false"
                   scrollable="false" long-clickable="false"
                   content-desc="" resource-id="com.app:id/menu_icon" />
-        </hierarchy>'''
+        </hierarchy>"""
         parser = self._get_parser()
         result = parser.parse(xml)
         elem = result["interactive_elements"][0]
@@ -173,6 +178,7 @@ class TestAndroidDevice:
     def _get_module(self):
         import importlib.util
         from pathlib import Path
+
         spec = importlib.util.spec_from_file_location(
             "android_tools",
             Path(__file__).resolve().parent.parent / "skills" / "android-automation" / "tools.py",
@@ -290,9 +296,7 @@ class TestAndroidDevice:
         dev._device = mock_device
 
         result = dev.launch_app("com.google.android.youtube")
-        mock_device.app_start.assert_called_once_with(
-            "com.google.android.youtube", wait=True
-        )
+        mock_device.app_start.assert_called_once_with("com.google.android.youtube", wait=True)
         assert result["package"] == "com.google.android.youtube"
         mod.AndroidDevice.reset()
 
@@ -380,21 +384,21 @@ class TestHybridActionRouter:
 
         skills = [
             {
-                'name': 'android-automation',
-                'description': 'Mobile GUI automation',
-                'executor_type': 'gui',
-                'tools': [{'name': 'tap_tool'}],
+                "name": "android-automation",
+                "description": "Mobile GUI automation",
+                "executor_type": "gui",
+                "tools": [{"name": "tap_tool"}],
             },
             {
-                'name': 'http-client',
-                'description': 'HTTP requests',
-                'executor_type': 'api',
-                'tools': [{'name': 'http_get_tool'}],
+                "name": "http-client",
+                "description": "HTTP requests",
+                "executor_type": "api",
+                "tools": [{"name": "http_get_tool"}],
             },
             {
-                'name': 'web-search',
-                'description': 'Web search',
-                'tools': [{'name': 'search_web_tool'}],
+                "name": "web-search",
+                "description": "Web search",
+                "tools": [{"name": "search_web_tool"}],
             },
         ]
 
@@ -402,15 +406,16 @@ class TestHybridActionRouter:
         with patch("Jotty.core.registry.skills_registry.get_skills_registry", return_value=None):
             result = planner._format_skills_for_planner(skills)
 
-        assert result[0]['executor_type'] == 'gui'
-        assert result[1]['executor_type'] == 'api'
+        assert result[0]["executor_type"] == "gui"
+        assert result[1]["executor_type"] == "api"
         # web-search has no executor_type in metadata — should not have it
-        assert 'executor_type' not in result[2]
+        assert "executor_type" not in result[2]
 
     @pytest.mark.unit
     def test_executor_type_in_planner_signature(self):
         """ExecutionPlanningSignature should mention hybrid routing."""
         from Jotty.core.modes.agent.planner_signatures import ExecutionPlanningSignature
+
         docstring = ExecutionPlanningSignature.__doc__
         assert "HYBRID ACTION ROUTING" in docstring
         assert "executor_type" in docstring
@@ -427,6 +432,7 @@ class TestActionTypeLearning:
 
     def _make_baseline(self):
         from Jotty.core.intelligence.learning.td_lambda import GroupedValueBaseline
+
         return GroupedValueBaseline(ema_alpha=0.3)
 
     def test_update_creates_composite_key(self):
@@ -512,32 +518,43 @@ class TestMASBenchResult:
     def test_step_ratio(self):
         """step_ratio should be total_steps / optimal_steps."""
         from Jotty.core.intelligence.orchestration.benchmarking import MASBenchResult
+
         r = MASBenchResult(task_id="t1", total_steps=10, optimal_steps=5)
         assert r.step_ratio == 2.0
 
     def test_step_ratio_zero_optimal(self):
         """step_ratio should handle optimal_steps=0."""
         from Jotty.core.intelligence.orchestration.benchmarking import MASBenchResult
+
         r = MASBenchResult(task_id="t1", total_steps=5, optimal_steps=0)
         assert r.step_ratio == 5.0
 
     def test_shortcut_success_rate(self):
         """SSR should be successes / calls."""
         from Jotty.core.intelligence.orchestration.benchmarking import MASBenchResult
+
         r = MASBenchResult(task_id="t1", shortcut_calls=10, shortcut_successes=8)
         assert r.shortcut_success_rate == 0.8
 
     def test_gui_shortcut_ratio(self):
         """GSAR should be shortcut / gui steps."""
         from Jotty.core.intelligence.orchestration.benchmarking import MASBenchResult
+
         r = MASBenchResult(task_id="t1", gui_steps=2, shortcut_steps=6)
         assert r.gui_shortcut_ratio == 3.0
 
     def test_to_dict(self):
         """to_dict should include all metrics."""
         from Jotty.core.intelligence.orchestration.benchmarking import MASBenchResult
-        r = MASBenchResult(task_id="t1", success=True, total_steps=3,
-                           optimal_steps=2, gui_steps=1, shortcut_steps=2)
+
+        r = MASBenchResult(
+            task_id="t1",
+            success=True,
+            total_steps=3,
+            optimal_steps=2,
+            gui_steps=1,
+            shortcut_steps=2,
+        )
         d = r.to_dict()
         assert d["task_id"] == "t1"
         assert d["success"] is True
@@ -550,6 +567,7 @@ class TestMASBenchRunner:
 
     def _make_runner(self):
         from Jotty.core.intelligence.orchestration.benchmarking import MASBenchRunner
+
         return MASBenchRunner()
 
     def test_add_task(self):
@@ -581,17 +599,17 @@ class TestMASBenchRunner:
         """evaluate_execution should compute all metrics."""
         runner = self._make_runner()
         task = {
-            'task_id': 't1',
-            'description': 'Add laptop to cart',
-            'app': 'com.amazon',
-            'optimal_steps': 3,
-            'difficulty': 2,
-            'cross_app': False,
+            "task_id": "t1",
+            "description": "Add laptop to cart",
+            "app": "com.amazon",
+            "optimal_steps": 3,
+            "difficulty": 2,
+            "cross_app": False,
         }
         steps = [
-            {'skill_name': 'http-client', 'status': 'completed'},
-            {'skill_name': 'android-automation', 'status': 'completed'},
-            {'skill_name': 'http-client', 'status': 'completed'},
+            {"skill_name": "http-client", "status": "completed"},
+            {"skill_name": "android-automation", "status": "completed"},
+            {"skill_name": "http-client", "status": "completed"},
         ]
         result = runner.evaluate_execution(
             task, steps, success=True, execution_time=15.0, token_cost=2.5
@@ -609,11 +627,11 @@ class TestMASBenchRunner:
     def test_evaluate_execution_with_failures(self):
         """Shortcut failures should reduce SSR."""
         runner = self._make_runner()
-        task = {'task_id': 't2', 'description': 'test', 'optimal_steps': 2}
+        task = {"task_id": "t2", "description": "test", "optimal_steps": 2}
         steps = [
-            {'skill_name': 'http-client', 'status': 'completed'},
-            {'skill_name': 'http-client', 'status': 'failed'},
-            {'skill_name': 'android-automation', 'status': 'completed'},
+            {"skill_name": "http-client", "status": "completed"},
+            {"skill_name": "http-client", "status": "failed"},
+            {"skill_name": "android-automation", "status": "completed"},
         ]
         result = runner.evaluate_execution(
             task, steps, success=False, execution_time=30.0, token_cost=5.0
@@ -625,38 +643,61 @@ class TestMASBenchRunner:
 
     def test_aggregate_metrics(self):
         """compute_aggregate_metrics should compute all 7 MAS-Bench metrics."""
-        from Jotty.core.intelligence.orchestration.benchmarking import MASBenchResult, MASBenchRunner
+        from Jotty.core.intelligence.orchestration.benchmarking import (
+            MASBenchResult,
+            MASBenchRunner,
+        )
 
         results = [
-            MASBenchResult(task_id="t1", success=True, total_steps=4,
-                           optimal_steps=3, gui_steps=1, shortcut_steps=3,
-                           shortcut_calls=3, shortcut_successes=3,
-                           execution_time_sec=10.0, token_cost_k=2.0,
-                           difficulty_level=1),
-            MASBenchResult(task_id="t2", success=False, total_steps=8,
-                           optimal_steps=5, gui_steps=5, shortcut_steps=3,
-                           shortcut_calls=3, shortcut_successes=2,
-                           execution_time_sec=30.0, token_cost_k=5.0,
-                           difficulty_level=2),
+            MASBenchResult(
+                task_id="t1",
+                success=True,
+                total_steps=4,
+                optimal_steps=3,
+                gui_steps=1,
+                shortcut_steps=3,
+                shortcut_calls=3,
+                shortcut_successes=3,
+                execution_time_sec=10.0,
+                token_cost_k=2.0,
+                difficulty_level=1,
+            ),
+            MASBenchResult(
+                task_id="t2",
+                success=False,
+                total_steps=8,
+                optimal_steps=5,
+                gui_steps=5,
+                shortcut_steps=3,
+                shortcut_calls=3,
+                shortcut_successes=2,
+                execution_time_sec=30.0,
+                token_cost_k=5.0,
+                difficulty_level=2,
+            ),
         ]
 
         metrics = MASBenchRunner.compute_aggregate_metrics(results)
 
-        assert metrics['SR'] == 0.5  # 1/2 success
-        assert metrics['SSR'] == 5 / 6  # 5/6 shortcut successes
-        assert metrics['MS'] == 6.0  # (4+8)/2
-        assert metrics['total_tasks'] == 2
+        assert metrics["SR"] == 0.5  # 1/2 success
+        assert metrics["SSR"] == 5 / 6  # 5/6 shortcut successes
+        assert metrics["MS"] == 6.0  # (4+8)/2
+        assert metrics["total_tasks"] == 2
 
     def test_aggregate_empty_results(self):
         """Empty results should return zeroed metrics."""
         from Jotty.core.intelligence.orchestration.benchmarking import MASBenchRunner
+
         metrics = MASBenchRunner.compute_aggregate_metrics([])
-        assert metrics['SR'] == 0
-        assert metrics['MS'] == 0
+        assert metrics["SR"] == 0
+        assert metrics["MS"] == 0
 
     def test_aggregate_by_difficulty(self):
         """Should break down SR by difficulty level."""
-        from Jotty.core.intelligence.orchestration.benchmarking import MASBenchResult, MASBenchRunner
+        from Jotty.core.intelligence.orchestration.benchmarking import (
+            MASBenchResult,
+            MASBenchRunner,
+        )
 
         results = [
             MASBenchResult(task_id="t1", success=True, difficulty_level=1),
@@ -665,12 +706,15 @@ class TestMASBenchRunner:
         ]
 
         metrics = MASBenchRunner.compute_aggregate_metrics(results)
-        assert metrics['SR_L1'] == 1.0  # 2/2
-        assert metrics['SR_L2'] == 0.0  # 0/1
+        assert metrics["SR_L1"] == 1.0  # 2/2
+        assert metrics["SR_L2"] == 0.0  # 0/1
 
     def test_aggregate_single_vs_cross_app(self):
         """Should break down SR by single-app vs cross-app."""
-        from Jotty.core.intelligence.orchestration.benchmarking import MASBenchResult, MASBenchRunner
+        from Jotty.core.intelligence.orchestration.benchmarking import (
+            MASBenchResult,
+            MASBenchRunner,
+        )
 
         results = [
             MASBenchResult(task_id="t1", success=True, is_cross_app=False),
@@ -679,18 +723,28 @@ class TestMASBenchRunner:
         ]
 
         metrics = MASBenchRunner.compute_aggregate_metrics(results)
-        assert metrics['SR_single_app'] == 1.0
-        assert metrics['SR_cross_app'] == 0.5
+        assert metrics["SR_single_app"] == 1.0
+        assert metrics["SR_cross_app"] == 0.5
 
     def test_summary_format(self):
         """summary() should return formatted string."""
-        from Jotty.core.intelligence.orchestration.benchmarking import MASBenchResult, MASBenchRunner
+        from Jotty.core.intelligence.orchestration.benchmarking import (
+            MASBenchResult,
+            MASBenchRunner,
+        )
 
         runner = MASBenchRunner()
         results = [
-            MASBenchResult(task_id="t1", success=True, total_steps=3,
-                           optimal_steps=3, shortcut_calls=2, shortcut_successes=2,
-                           execution_time_sec=5.0, token_cost_k=1.0),
+            MASBenchResult(
+                task_id="t1",
+                success=True,
+                total_steps=3,
+                optimal_steps=3,
+                shortcut_calls=2,
+                shortcut_successes=2,
+                execution_time_sec=5.0,
+                token_cost_k=1.0,
+            ),
         ]
 
         summary = runner.summary(results)
@@ -710,6 +764,7 @@ class TestAndroidToolSchemas:
     def _get_tools(self):
         import importlib.util
         from pathlib import Path
+
         spec = importlib.util.spec_from_file_location(
             "android_tools",
             Path(__file__).resolve().parent.parent / "skills" / "android-automation" / "tools.py",
@@ -721,6 +776,7 @@ class TestAndroidToolSchemas:
     def test_all_tools_have_returns_section(self):
         """Every android tool should have a Returns section in docstring."""
         from Jotty.core.modes.agent._execution_types import ToolSchema
+
         tools = self._get_tools()
         missing = []
         for name, func in tools.items():
@@ -732,6 +788,7 @@ class TestAndroidToolSchemas:
     def test_tap_tool_schema(self):
         """tap_tool should have x, y required params and x, y, action outputs."""
         from Jotty.core.modes.agent._execution_types import ToolSchema
+
         tools = self._get_tools()
         schema = ToolSchema.from_tool_function(tools["tap_tool"], "tap_tool")
         assert "x" in schema.required_param_names
@@ -742,6 +799,7 @@ class TestAndroidToolSchemas:
     def test_screenshot_tool_schema(self):
         """screenshot_tool should declare image_base64, width, height outputs."""
         from Jotty.core.modes.agent._execution_types import ToolSchema
+
         tools = self._get_tools()
         schema = ToolSchema.from_tool_function(tools["screenshot_tool"], "screenshot_tool")
         assert "image_base64" in schema.output_field_names
@@ -751,6 +809,7 @@ class TestAndroidToolSchemas:
     def test_get_ui_tree_tool_schema(self):
         """get_ui_tree_tool should declare tree, node_count, interactive_elements outputs."""
         from Jotty.core.modes.agent._execution_types import ToolSchema
+
         tools = self._get_tools()
         schema = ToolSchema.from_tool_function(tools["get_ui_tree_tool"], "get_ui_tree_tool")
         assert "tree" in schema.output_field_names

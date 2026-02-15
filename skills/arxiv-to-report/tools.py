@@ -1,15 +1,16 @@
 """ArXiv to Report Skill — download ArXiv papers, extract content, analyze, generate report."""
-import re
+
 import json
-import urllib.request
+import re
 import urllib.error
+import urllib.request
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
 
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("arxiv-to-report")
 
@@ -31,7 +32,7 @@ def _validate_arxiv_id(arxiv_id: str) -> Optional[str]:
     # Strip common prefixes
     for prefix in ("arxiv:", "arXiv:", "https://arxiv.org/abs/", "http://arxiv.org/abs/"):
         if cleaned.startswith(prefix):
-            cleaned = cleaned[len(prefix):]
+            cleaned = cleaned[len(prefix) :]
     cleaned = cleaned.strip("/").strip()
     if ARXIV_ID_PATTERN.match(cleaned):
         return cleaned
@@ -124,7 +125,7 @@ def _extract_key_findings(abstract: str, depth: str) -> List[str]:
         return ["No abstract available for analysis."]
 
     # Split into sentences (handle common abbreviations)
-    sentences = re.split(r'(?<=[.!?])\s+(?=[A-Z])', abstract)
+    sentences = re.split(r"(?<=[.!?])\s+(?=[A-Z])", abstract)
     sentences = [s.strip() for s in sentences if len(s.strip()) > 20]
 
     if not sentences:
@@ -181,29 +182,33 @@ def _generate_report_markdown(
     for i, finding in enumerate(key_findings, 1):
         sections.append(f"{i}. {finding}")
 
-    sections.extend([
-        "",
-        "---",
-        "",
-        "## Links",
-        "",
-        f"- [ArXiv Abstract](https://arxiv.org/abs/{arxiv_id})",
-    ])
+    sections.extend(
+        [
+            "",
+            "---",
+            "",
+            "## Links",
+            "",
+            f"- [ArXiv Abstract](https://arxiv.org/abs/{arxiv_id})",
+        ]
+    )
     if metadata.get("pdf_link"):
         sections.append(f"- [PDF Download]({metadata['pdf_link']})")
 
     if depth == "deep":
-        sections.extend([
-            "",
-            "---",
-            "",
-            "## Metadata",
-            "",
-            f"- **Number of Authors:** {len(metadata['authors'])}",
-            f"- **Primary Category:** {metadata['categories'][0] if metadata['categories'] else 'N/A'}",
-            f"- **All Categories:** {categories_str}",
-            f"- **Sentence Count in Abstract:** {len(key_findings)}",
-        ])
+        sections.extend(
+            [
+                "",
+                "---",
+                "",
+                "## Metadata",
+                "",
+                f"- **Number of Authors:** {len(metadata['authors'])}",
+                f"- **Primary Category:** {metadata['categories'][0] if metadata['categories'] else 'N/A'}",
+                f"- **All Categories:** {categories_str}",
+                f"- **Sentence Count in Abstract:** {len(key_findings)}",
+            ]
+        )
 
     sections.append("")
     return "\n".join(sections)

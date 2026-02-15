@@ -24,7 +24,7 @@ def get_skill_name(file_path: Path) -> str:
 
 def already_has_status(content: str) -> bool:
     """Check if file already has status support."""
-    return 'SkillStatus' in content or '_status_callback' in content or 'emit_status' in content
+    return "SkillStatus" in content or "_status_callback" in content or "emit_status" in content
 
 
 def add_status_import(content: str) -> str:
@@ -32,17 +32,17 @@ def add_status_import(content: str) -> str:
     import_line = "from Jotty.core.infrastructure.utils.skill_status import SkillStatus\n"
 
     # Find last import line
-    lines = content.split('\n')
+    lines = content.split("\n")
     last_import_idx = 0
     for i, line in enumerate(lines):
-        if line.startswith('import ') or line.startswith('from '):
+        if line.startswith("import ") or line.startswith("from "):
             last_import_idx = i
 
     # Insert after last import
     lines.insert(last_import_idx + 1, "")
     lines.insert(last_import_idx + 2, import_line.strip())
 
-    return '\n'.join(lines)
+    return "\n".join(lines)
 
 
 def add_status_init(content: str, skill_name: str) -> str:
@@ -50,19 +50,19 @@ def add_status_init(content: str, skill_name: str) -> str:
     init_code = f'\n# Status emitter for progress updates\nstatus = SkillStatus("{skill_name}")\n'
 
     # Find where to insert (after imports, before first function)
-    lines = content.split('\n')
+    lines = content.split("\n")
     insert_idx = 0
 
     for i, line in enumerate(lines):
-        if line.startswith('import ') or line.startswith('from ') or line.strip().startswith('#'):
+        if line.startswith("import ") or line.startswith("from ") or line.strip().startswith("#"):
             insert_idx = i + 1
-        elif line.startswith('def ') or line.startswith('async def ') or line.startswith('class '):
+        elif line.startswith("def ") or line.startswith("async def ") or line.startswith("class "):
             break
 
     # Insert init code
     lines.insert(insert_idx, init_code)
 
-    return '\n'.join(lines)
+    return "\n".join(lines)
 
 
 def add_callback_to_tool(content: str) -> str:
@@ -73,7 +73,7 @@ def add_callback_to_tool(content: str) -> str:
     def add_callback(match):
         func_def = match.group(1)
         indent = match.group(2)
-        docstring = match.group(3) or ''
+        docstring = match.group(3) or ""
 
         callback_line = f"{indent}status.set_callback(params.pop('_status_callback', None))\n"
 
@@ -92,9 +92,9 @@ def add_basic_status_calls(content: str, skill_name: str) -> str:
 
     # Find patterns like requests.get, search, fetch, etc. and add status before them
     patterns = [
-        (r'(\s+)(requests\.(get|post)\([^)]+\))', r'\1status.fetching("web data")\n\1\2'),
-        (r'(\s+)(search\([^)]+\))', r'\1status.searching("results")\n\1\2'),
-        (r'(\s+)(\.write_pdf\([^)]+\))', r'\1status.creating("PDF")\n\1\2'),
+        (r"(\s+)(requests\.(get|post)\([^)]+\))", r'\1status.fetching("web data")\n\1\2'),
+        (r"(\s+)(search\([^)]+\))", r'\1status.searching("results")\n\1\2'),
+        (r"(\s+)(\.write_pdf\([^)]+\))", r'\1status.creating("PDF")\n\1\2'),
     ]
 
     for pattern, replacement in patterns:

@@ -20,15 +20,15 @@ async def test_tough_mermaid_examples():
     print("TESTING MERMAID EXPERT WITH TOUGH EXAMPLES")
     print("=" * 80)
     print()
-    
+
     # Create expert agent
     expert = MermaidExpertAgent()
-    
+
     # Verify training data is available
     training_data = expert.get_training_data()
     print(f"Training data available: {len(training_data)} cases")
     print()
-    
+
     # Tough test cases
     tough_cases = [
         {
@@ -52,7 +52,7 @@ async def test_tough_mermaid_examples():
     C -->|No| G
     D -->|Yes| E
     D -->|No| H
-    E --> I"""
+    E --> I""",
         },
         {
             "name": "Complex Sequence Diagram with Loops",
@@ -63,7 +63,7 @@ async def test_tough_mermaid_examples():
     participant A as API
     participant D as Database
     participant E as Email Service
-    
+
     U->>A: POST /register
     A->>D: Check if user exists
     alt User exists
@@ -77,11 +77,11 @@ async def test_tough_mermaid_examples():
         E-->>A: Email sent
         A-->>U: Success: User registered
     end
-    
+
     loop Every 5 minutes
         A->>D: Check pending emails
         D-->>A: Pending emails list
-    end"""
+    end""",
         },
         {
             "name": "Complex Class Diagram with Relationships",
@@ -94,39 +94,39 @@ async def test_tough_mermaid_examples():
         +eat()
         +sleep()
     }
-    
+
     class Mammal {
         +bool hasFur
         +giveBirth()
     }
-    
+
     class Bird {
         +bool canFly
         +fly()
     }
-    
+
     class Dog {
         +String breed
         +bark()
     }
-    
+
     class Cat {
         +String color
         +meow()
     }
-    
+
     class Owner {
         +String name
         +List~Pet~ pets
         +feedPets()
     }
-    
+
     Animal <|-- Mammal
     Animal <|-- Bird
     Mammal <|-- Dog
     Mammal <|-- Cat
     Owner "1" --> "*" Animal : owns
-    Dog ..> Owner : loves"""
+    Dog ..> Owner : loves""",
         },
         {
             "name": "State Diagram with Nested States",
@@ -134,23 +134,23 @@ async def test_tough_mermaid_examples():
             "diagram_type": "state",
             "gold_standard": """stateDiagram-v2
     [*] --> Idle
-    
+
     Idle --> Processing : Start
     Processing --> Validating : Validate
     Processing --> Error : Invalid Input
-    
+
     state Processing {
         [*] --> Reading
         Reading --> Parsing
         Parsing --> Transforming
         Transforming --> [*]
     }
-    
+
     Validating --> Success : Valid
     Validating --> Error : Invalid
-    
+
     Error --> Idle : Retry
-    Success --> [*]"""
+    Success --> [*]""",
         },
         {
             "name": "Gantt Chart",
@@ -167,7 +167,7 @@ async def test_tough_mermaid_examples():
     Testing          :b2, after b1, 20d
     section Phase 3
     Deployment       :c1, 2024-04-01, 15d
-    Monitoring       :c2, after c1, 30d"""
+    Monitoring       :c2, after c1, 30d""",
         },
         {
             "name": "Git Graph",
@@ -182,7 +182,7 @@ async def test_tough_mermaid_examples():
     checkout main
     commit id: "Hotfix"
     merge develop
-    commit id: "Release"""
+    commit id: "Release""",
         },
         {
             "name": "Pie Chart",
@@ -192,7 +192,7 @@ async def test_tough_mermaid_examples():
     "North America" : 45
     "Europe" : 30
     "Asia" : 15
-    "Other" : 10"""
+    "Other" : 10""",
         },
         {
             "name": "Complex Flowchart with Subgraphs",
@@ -200,34 +200,34 @@ async def test_tough_mermaid_examples():
             "diagram_type": "flowchart",
             "gold_standard": """graph TD
     A[Start]
-    
+
     subgraph Authentication
         B[Login]
         C[Verify Token]
         D[Check Permissions]
     end
-    
+
     subgraph Processing
         E[Process Request]
         F[Validate Data]
         G[Transform Data]
     end
-    
+
     subgraph Response
         H[Format Response]
         I[Send Response]
     end
-    
+
     A --> Authentication
     Authentication --> Processing
     Processing --> Response
     Response --> J[End]
-    
+
     B --> C
     C --> D
     E --> F
     F --> G
-    H --> I"""
+    H --> I""",
         },
         {
             "name": "ER Diagram",
@@ -254,7 +254,7 @@ async def test_tough_mermaid_examples():
     LINE-ITEM {
         int quantity
         float price
-    }"""
+    }""",
         },
         {
             "name": "Journey Diagram",
@@ -273,15 +273,15 @@ async def test_tough_mermaid_examples():
     section Delivery
       Receive Email: 5: User
       Track Order: 4: User
-      Receive Product: 5: User"""
-        }
+      Receive Product: 5: User""",
+        },
     ]
-    
+
     print(f"Testing {len(tough_cases)} tough examples...")
     print()
-    
+
     results = []
-    
+
     for i, case in enumerate(tough_cases, 1):
         print(f"{'=' * 80}")
         print(f"TEST {i}/{len(tough_cases)}: {case['name']}")
@@ -291,89 +291,92 @@ async def test_tough_mermaid_examples():
         print()
         print(f"Expected Output:")
         print("```mermaid")
-        print(case['gold_standard'])
+        print(case["gold_standard"])
         print("```")
         print()
-        
+
         # Generate diagram
         try:
             generated = await expert.generate_mermaid(
-                description=case['description'],
-                diagram_type=case['diagram_type']
+                description=case["description"], diagram_type=case["diagram_type"]
             )
-            
+
             print(f"Generated Output:")
             print("```mermaid")
             print(generated)
             print("```")
             print()
-            
+
             # Evaluate
             eval_result = await expert._evaluate_domain(
                 output=generated,
-                gold_standard=case['gold_standard'],
-                task=case['name'],
-                context={"description": case['description']}
+                gold_standard=case["gold_standard"],
+                task=case["name"],
+                context={"description": case["description"]},
             )
-            
-            score = eval_result.get('score', 0.0)
-            status = eval_result.get('status', 'UNKNOWN')
-            matches = eval_result.get('matches_gold', False)
-            
+
+            score = eval_result.get("score", 0.0)
+            status = eval_result.get("status", "UNKNOWN")
+            matches = eval_result.get("matches_gold", False)
+
             print(f"Evaluation:")
             print(f"  Score: {score:.2f} / 1.0")
             print(f"  Status: {status}")
             print(f"  Matches Gold: {'✅ YES' if matches else '❌ NO'}")
-            
-            if eval_result.get('issues'):
+
+            if eval_result.get("issues"):
                 print(f"  Issues:")
-                for issue in eval_result['issues']:
+                for issue in eval_result["issues"]:
                     print(f"    - {issue}")
-            
-            results.append({
-                "name": case['name'],
-                "score": score,
-                "status": status,
-                "matches_gold": matches,
-                "generated": generated,
-                "expected": case['gold_standard']
-            })
-            
+
+            results.append(
+                {
+                    "name": case["name"],
+                    "score": score,
+                    "status": status,
+                    "matches_gold": matches,
+                    "generated": generated,
+                    "expected": case["gold_standard"],
+                }
+            )
+
         except Exception as e:
             print(f"❌ ERROR: {e}")
-            results.append({
-                "name": case['name'],
-                "score": 0.0,
-                "status": "ERROR",
-                "matches_gold": False,
-                "error": str(e)
-            })
-        
+            results.append(
+                {
+                    "name": case["name"],
+                    "score": 0.0,
+                    "status": "ERROR",
+                    "matches_gold": False,
+                    "error": str(e),
+                }
+            )
+
         print()
-    
+
     # Summary
     print("=" * 80)
     print("SUMMARY")
     print("=" * 80)
     print()
-    
+
     total = len(results)
-    passed = sum(1 for r in results if r['matches_gold'])
-    avg_score = sum(r['score'] for r in results) / total if total > 0 else 0.0
-    
+    passed = sum(1 for r in results if r["matches_gold"])
+    avg_score = sum(r["score"] for r in results) / total if total > 0 else 0.0
+
     print(f"Total Tests: {total}")
     print(f"Perfect Matches: {passed} ({passed/total*100:.1f}%)")
     print(f"Average Score: {avg_score:.2f} / 1.0")
     print()
-    
+
     print("Results by Test:")
     for i, result in enumerate(results, 1):
-        status_icon = "✅" if result['matches_gold'] else "⚠️" if result['score'] >= 0.5 else "❌"
+        status_icon = "✅" if result["matches_gold"] else "⚠️" if result["score"] >= 0.5 else "❌"
         print(f"  {status_icon} {i}. {result['name']}: {result['score']:.2f} ({result['status']})")
-    
+
     print()
     print("=" * 80)
-    
+
     return results
 
 

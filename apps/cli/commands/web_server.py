@@ -14,7 +14,7 @@ Usage:
 import asyncio
 import logging
 import threading
-from typing import TYPE_CHECKING, Optional, Any
+from typing import TYPE_CHECKING, Any, Optional
 
 from .base import BaseCommand, CommandResult, ParsedArgs
 
@@ -68,6 +68,7 @@ class WebServerCommand(BaseCommand):
 
         try:
             import uvicorn
+
             from ...web.api import create_app
 
             self._port = port
@@ -116,8 +117,7 @@ class WebServerCommand(BaseCommand):
 
         except ImportError as e:
             return CommandResult.fail(
-                f"Missing dependency: {e}\n"
-                "Install with: pip install fastapi uvicorn websockets"
+                f"Missing dependency: {e}\n" "Install with: pip install fastapi uvicorn websockets"
             )
         except Exception as e:
             logger.error(f"Failed to start server: {e}", exc_info=True)
@@ -136,8 +136,7 @@ class WebServerCommand(BaseCommand):
             self._server_thread = None
 
             return CommandResult.ok(
-                "Server stop requested.\n"
-                "Note: The server may take a moment to fully stop."
+                "Server stop requested.\n" "Note: The server may take a moment to fully stop."
             )
 
         except Exception as e:
@@ -148,16 +147,13 @@ class WebServerCommand(BaseCommand):
         """Get server status."""
         if not self._server_running:
             return CommandResult.ok(
-                "Web Server Status: STOPPED\n"
-                "Use /web start to start the server."
+                "Web Server Status: STOPPED\n" "Use /web start to start the server."
             )
 
         url = f"http://{self._host if self._host != '0.0.0.0' else 'localhost'}:{self._port}"
 
         return CommandResult.ok(
-            f"Web Server Status: RUNNING\n"
-            f"URL: {url}\n"
-            f"API Docs: {url}/docs"
+            f"Web Server Status: RUNNING\n" f"URL: {url}\n" f"API Docs: {url}/docs"
         )
 
     def _get_help(self) -> str:

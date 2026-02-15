@@ -5,16 +5,16 @@ Covers: LearningManager, LearningSession, LearningUpdate,
         _NoOpLearner, _NoOpMemory, get_learning_coordinator,
         reset_learning_coordinator.
 """
+
 import json
-import tempfile
 import shutil
+import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
-
 
 # ---------------------------------------------------------------------------
 # Imports with fallback
@@ -29,6 +29,7 @@ try:
         get_learning_coordinator,
         reset_learning_coordinator,
     )
+
     COORDINATOR_AVAILABLE = True
 except ImportError:
     COORDINATOR_AVAILABLE = False
@@ -43,9 +44,11 @@ skipif_unavailable = pytest.mark.skipif(
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class _StubConfig:
     """Minimal config that satisfies LearningManager.__init__."""
+
     output_base_dir: str = ""
     alpha: float = 0.3
     gamma: float = 0.9
@@ -61,9 +64,7 @@ class _StubConfig:
 def _make_manager(tmp_path: Path, **config_overrides) -> "LearningManager":
     """Create a LearningManager backed by a temp directory with no real deps."""
     cfg = _StubConfig(output_base_dir=str(tmp_path), **config_overrides)
-    with patch(
-        "Jotty.core.learning.learning_coordinator.LearningManager._init_core_learners"
-    ):
+    with patch("Jotty.core.learning.learning_coordinator.LearningManager._init_core_learners"):
         mgr = LearningManager(cfg, base_dir=str(tmp_path))
     return mgr
 
@@ -235,18 +236,14 @@ class TestLearningManagerAgentAccess:
     def test_get_agent_memory_creates_noop_when_import_fails(self, tmp_path):
         """get_agent_memory returns _NoOpMemory when fallback_memory unavailable."""
         mgr = _make_manager(tmp_path)
-        with patch.dict(
-            "sys.modules", {"Jotty.core.memory.fallback_memory": None}
-        ):
+        with patch.dict("sys.modules", {"Jotty.core.memory.fallback_memory": None}):
             mem = mgr.get_agent_memory("Agent1")
             assert isinstance(mem, _NoOpMemory)
 
     def test_get_agent_memory_caches(self, tmp_path):
         """Same agent name returns the same memory instance."""
         mgr = _make_manager(tmp_path)
-        with patch.dict(
-            "sys.modules", {"Jotty.core.memory.fallback_memory": None}
-        ):
+        with patch.dict("sys.modules", {"Jotty.core.memory.fallback_memory": None}):
             m1 = mgr.get_agent_memory("Agent1")
             m2 = mgr.get_agent_memory("Agent1")
             assert m1 is m2
@@ -275,9 +272,7 @@ class TestLearningManagerRecordExperience:
         """Passing a domain adds it to _current_domains."""
         mgr = _make_manager(tmp_path)
         mgr._shared_q_learner = None
-        mgr.record_experience(
-            "Agent1", {"s": 1}, {"a": 1}, 0.5, domain="microservices"
-        )
+        mgr.record_experience("Agent1", {"s": 1}, {"a": 1}, 0.5, domain="microservices")
         assert "microservices" in mgr._current_domains
 
     def test_record_outcome_delegates(self, tmp_path):
@@ -296,7 +291,9 @@ class TestLearningManagerRecordExperience:
         mgr = _make_manager(tmp_path)
         mgr._shared_q_learner = None
         update = mgr.record_outcome(
-            state={"s": 1}, action={"step": "write"}, reward=0.6,
+            state={"s": 1},
+            action={"step": "write"},
+            reward=0.6,
         )
         assert update.actor == "unknown"
 

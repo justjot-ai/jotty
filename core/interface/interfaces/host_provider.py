@@ -22,7 +22,7 @@ Usage:
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Optional, Any, Dict
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +51,9 @@ class Host(ABC):
         ...
 
     @abstractmethod
-    def log_tool_use(self, tool_name: str, trust_level: str, allowed: bool, reason: str = "") -> None:
+    def log_tool_use(
+        self, tool_name: str, trust_level: str, allowed: bool, reason: str = ""
+    ) -> None:
         """Log a tool use decision (for ToolGuard visibility)."""
         ...
 
@@ -60,11 +62,7 @@ class NullHost(Host):
     """Silent host — does nothing. Default before initialization."""
 
     # DRY: Level mapping constant
-    _LOG_LEVELS = {
-        'info': logging.INFO,
-        'warning': logging.WARNING,
-        'error': logging.ERROR
-    }
+    _LOG_LEVELS = {"info": logging.INFO, "warning": logging.WARNING, "error": logging.ERROR}
 
     def notify(self, message: str, level: str = "info") -> None:
         log_level = self._LOG_LEVELS.get(level, logging.INFO)
@@ -75,14 +73,16 @@ class NullHost(Host):
         return default
 
     def display_progress(self, progress: Any) -> None:
-        if hasattr(progress, 'render'):
+        if hasattr(progress, "render"):
             logger.info(f"[NullHost] {progress.render()}")
 
     def display_diff(self, diff_text: str, title: str = "") -> None:
         preview = diff_text[:500]
         logger.info(f"[NullHost] diff: {title}\n{preview}")
 
-    def log_tool_use(self, tool_name: str, trust_level: str, allowed: bool, reason: str = "") -> None:
+    def log_tool_use(
+        self, tool_name: str, trust_level: str, allowed: bool, reason: str = ""
+    ) -> None:
         status = "ALLOWED" if allowed else f"BLOCKED: {reason}"
         logger.debug(f"[ToolGuard] {tool_name} ({trust_level}) → {status}")
 
@@ -91,7 +91,7 @@ class CLIHost(Host):
     """CLI terminal host implementation."""
 
     # DRY: Level icons constant
-    _ICONS = {'info': 'ℹ', 'warning': '', 'error': ''}
+    _ICONS = {"info": "ℹ", "warning": "", "error": ""}
 
     # DRY: ANSI color codes
     _COLOR_GREEN = "\033[32m"
@@ -100,11 +100,12 @@ class CLIHost(Host):
     _MAX_DIFF_LINES = 50
 
     def notify(self, message: str, level: str = "info") -> None:
-        icon = self._ICONS.get(level, '')
+        icon = self._ICONS.get(level, "")
         logger.info(f" {icon} {message}")
 
     async def prompt_user(self, question: str, default: str = "") -> str:
         import asyncio
+
         prompt = f" {question}"
         if default:
             prompt += f" [{default}]"
@@ -114,7 +115,7 @@ class CLIHost(Host):
         return response.strip() or default
 
     def display_progress(self, progress: Any) -> None:
-        if hasattr(progress, 'render'):
+        if hasattr(progress, "render"):
             logger.info(progress.render())
         elif isinstance(progress, str):
             logger.info(progress)
@@ -124,8 +125,8 @@ class CLIHost(Host):
             logger.info(f"\n{'='*40} {title} {'='*40}")
 
         # DRY: Colorize diff lines
-        lines = diff_text.split('\n')
-        for line in lines[:self._MAX_DIFF_LINES]:
+        lines = diff_text.split("\n")
+        for line in lines[: self._MAX_DIFF_LINES]:
             colored_line = self._colorize_diff_line(line)
             logger.info(colored_line)
 
@@ -136,14 +137,16 @@ class CLIHost(Host):
 
     def _colorize_diff_line(self, line: str) -> str:
         """DRY helper: colorize a diff line based on prefix."""
-        if line.startswith('+'):
+        if line.startswith("+"):
             return f"{self._COLOR_GREEN}{line}{self._COLOR_RESET}"
-        elif line.startswith('-'):
+        elif line.startswith("-"):
             return f"{self._COLOR_RED}{line}{self._COLOR_RESET}"
         else:
             return line
 
-    def log_tool_use(self, tool_name: str, trust_level: str, allowed: bool, reason: str = "") -> None:
+    def log_tool_use(
+        self, tool_name: str, trust_level: str, allowed: bool, reason: str = ""
+    ) -> None:
         if not allowed:
             logger.warning(f"Tool blocked: {tool_name} ({trust_level}) — {reason}")
 
@@ -155,6 +158,7 @@ class HostProvider:
     Core code calls HostProvider.get() — never imports CLI/Web directly.
     Host environment calls HostProvider.initialize() at startup.
     """
+
     _instance: Optional[Host] = None
 
     @classmethod

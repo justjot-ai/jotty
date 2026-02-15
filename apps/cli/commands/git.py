@@ -6,8 +6,9 @@ Git integration for repository operations.
 """
 
 import subprocess
-from typing import TYPE_CHECKING
 from pathlib import Path
+from typing import TYPE_CHECKING
+
 from .base import BaseCommand, CommandResult, ParsedArgs
 
 if TYPE_CHECKING:
@@ -132,29 +133,20 @@ class GitCommand(BaseCommand):
                 if len(files) > 5:
                     output_lines.append(f"  ... and {len(files) - 5} more")
 
-        cli.renderer.panel(
-            "\n".join(output_lines),
-            title="Git Status",
-            style="cyan"
-        )
+        cli.renderer.panel("\n".join(output_lines), title="Git Status", style="cyan")
 
         return CommandResult.ok(data=changes)
 
     async def _git_log(self, limit: int, cli: "JottyCLI") -> CommandResult:
         """Show git log."""
-        success, stdout, stderr = self._run_git([
-            "log", f"-{limit}",
-            "--oneline", "--decorate"
-        ])
+        success, stdout, stderr = self._run_git(["log", f"-{limit}", "--oneline", "--decorate"])
 
         if not success:
             cli.renderer.error(f"Git error: {stderr}")
             return CommandResult.fail(stderr)
 
         cli.renderer.panel(
-            stdout.strip() or "No commits yet",
-            title=f"Git Log (last {limit})",
-            style="blue"
+            stdout.strip() or "No commits yet", title=f"Git Log (last {limit})", style="blue"
         )
 
         return CommandResult.ok(data={"log": stdout})
@@ -182,11 +174,7 @@ class GitCommand(BaseCommand):
             cli.renderer.error(f"Git error: {stderr}")
             return CommandResult.fail(stderr)
 
-        cli.renderer.panel(
-            stdout.strip() or "No branches",
-            title="Git Branches",
-            style="green"
-        )
+        cli.renderer.panel(stdout.strip() or "No branches", title="Git Branches", style="green")
 
         return CommandResult.ok(data={"branches": stdout})
 
@@ -444,10 +432,15 @@ class GitCommand(BaseCommand):
         full_message = f"[AI] {message}"
 
         # Commit with Jotty AI author
-        success, stdout, stderr = self._run_git([
-            "commit", "-m", full_message,
-            "--author", "Jotty AI <jotty@ai.local>",
-        ])
+        success, stdout, stderr = self._run_git(
+            [
+                "commit",
+                "-m",
+                full_message,
+                "--author",
+                "Jotty AI <jotty@ai.local>",
+            ]
+        )
 
         if not success:
             if "nothing to commit" in (stderr + stdout).lower():
@@ -462,7 +455,17 @@ class GitCommand(BaseCommand):
     def get_completions(self, partial: str) -> list:
         """Get subcommand completions."""
         subcommands = [
-            "status", "log", "diff", "branch", "commit", "push", "pull",
-            "stash", "checkout", "fetch", "undo", "auto-commit",
+            "status",
+            "log",
+            "diff",
+            "branch",
+            "commit",
+            "push",
+            "pull",
+            "stash",
+            "checkout",
+            "fetch",
+            "undo",
+            "auto-commit",
         ]
         return [s for s in subcommands if s.startswith(partial)]

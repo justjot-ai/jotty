@@ -1,5 +1,8 @@
 """Batch 1: Pure Python stdlib skills (20 skills)."""
-import sys, os
+
+import os
+import sys
+
 sys.path.insert(0, os.path.dirname(__file__))
 from generate_skills import create_skill
 
@@ -92,7 +95,8 @@ def verify_hash_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["hash_tool", "verify_hash_tool"]
-''')
+''',
+)
 
 # ── 2. password-generator ──────────────────────────────────────────
 create_skill(
@@ -251,7 +255,8 @@ def generate_passphrase_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["generate_password_tool", "generate_passphrase_tool"]
-''')
+''',
+)
 
 # ── 3. json-transformer ────────────────────────────────────────────
 create_skill(
@@ -395,7 +400,8 @@ def query_json_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["flatten_json_tool", "merge_json_tool", "query_json_tool"]
-''')
+''',
+)
 
 # ── 4. csv-analyzer ────────────────────────────────────────────────
 create_skill(
@@ -527,7 +533,8 @@ def csv_filter_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["csv_summary_tool", "csv_filter_tool"]
-''')
+''',
+)
 
 # ── 5. cron-job-manager ────────────────────────────────────────────
 create_skill(
@@ -650,7 +657,8 @@ def build_cron_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["explain_cron_tool", "validate_cron_tool", "build_cron_tool"]
-''')
+''',
+)
 
 # ── 6. base64-encoder ──────────────────────────────────────────────
 create_skill(
@@ -729,7 +737,8 @@ def base64_decode_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["base64_encode_tool", "base64_decode_tool"]
-''')
+''',
+)
 
 # ── 7. jwt-decoder ──────────────────────────────────────────────────
 create_skill(
@@ -740,7 +749,9 @@ create_skill(
     capabilities=["code"],
     triggers=["jwt", "decode jwt", "token", "inspect jwt", "json web token"],
     eval_tool="decode_jwt_tool",
-    eval_input={"token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U"},
+    eval_input={
+        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U"
+    },
     tool_docs="""### decode_jwt_tool
 Decode a JWT token without verification.
 
@@ -804,7 +815,8 @@ def decode_jwt_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["decode_jwt_tool"]
-''')
+''',
+)
 
 # ── 8. regex-tester ─────────────────────────────────────────────────
 create_skill(
@@ -903,7 +915,8 @@ def regex_split_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["regex_match_tool", "regex_replace_tool", "regex_split_tool"]
-''')
+''',
+)
 
 # ── 9. uuid-generator ──────────────────────────────────────────────
 create_skill(
@@ -988,7 +1001,8 @@ def generate_ulid_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["generate_uuid_tool", "generate_ulid_tool"]
-''')
+''',
+)
 
 # ── 10. diff-tool ──────────────────────────────────────────────────
 create_skill(
@@ -1057,7 +1071,8 @@ def diff_files_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["diff_text_tool", "diff_files_tool"]
-''')
+''',
+)
 
 # ── 11. data-anonymizer ────────────────────────────────────────────
 create_skill(
@@ -1129,7 +1144,8 @@ def anonymize_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["anonymize_text_tool"]
-''')
+''',
+)
 
 # ── 12. markdown-to-html ───────────────────────────────────────────
 create_skill(
@@ -1222,7 +1238,8 @@ def markdown_to_html_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["markdown_to_html_tool"]
-''')
+''',
+)
 
 # ── 13. lorem-ipsum-generator ──────────────────────────────────────
 create_skill(
@@ -1303,7 +1320,8 @@ def lorem_ipsum_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["lorem_ipsum_tool"]
-''')
+''',
+)
 
 # ── 14. url-parser ─────────────────────────────────────────────────
 create_skill(
@@ -1390,7 +1408,8 @@ def url_encode_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["parse_url_tool", "build_url_tool", "url_encode_tool"]
-''')
+''',
+)
 
 # ── 15. date-calculator ────────────────────────────────────────────
 create_skill(
@@ -1485,7 +1504,8 @@ def now_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["date_diff_tool", "date_add_tool", "now_tool"]
-''')
+''',
+)
 
 # ── 16. color-converter ────────────────────────────────────────────
 create_skill(
@@ -1591,7 +1611,8 @@ def complementary_color_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["convert_color_tool", "complementary_color_tool"]
-''')
+''',
+)
 
 # ── 17. env-config-manager ─────────────────────────────────────────
 create_skill(
@@ -1679,7 +1700,8 @@ def diff_env_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["parse_env_tool", "diff_env_tool"]
-''')
+''',
+)
 
 # ── 18. string-case-converter ──────────────────────────────────────
 create_skill(
@@ -1747,7 +1769,8 @@ def convert_case_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["convert_case_tool"]
-''')
+''',
+)
 
 # ── 19. ip-lookup ──────────────────────────────────────────────────
 create_skill(
@@ -1815,7 +1838,8 @@ def ip_lookup_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["ip_lookup_tool"]
-''')
+''',
+)
 
 # ── 20. dns-lookup ─────────────────────────────────────────────────
 create_skill(
@@ -1900,6 +1924,7 @@ def dns_all_records_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 __all__ = ["dns_lookup_tool", "dns_all_records_tool"]
-''')
+''',
+)
 
 print(f"\\nBatch 1 complete: 20 skills created.")

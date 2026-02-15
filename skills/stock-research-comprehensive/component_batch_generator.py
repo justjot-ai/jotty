@@ -11,8 +11,8 @@ This doesn't require LLM - it uses templates and patterns to generate variations
 """
 
 import logging
-from typing import Dict, List, Any
 from pathlib import Path
+from typing import Any, Dict, List
 
 logger = logging.getLogger(__name__)
 
@@ -76,16 +76,18 @@ class ComponentTemplateGenerator:
             for style in ["card", "minimal", "bordered", "gradient"]:
                 for show_progress in [True, False]:
                     variant_name = f"{name}_{style}{'_progress' if show_progress else ''}"
-                    variants.append({
-                        "name": variant_name,
-                        "category": "data",
-                        "description": f"{desc} with {style} style",
-                        "template": self._stats_template(count, style, show_progress),
-                        "data_schema": {
-                            "stats": f"Array of {count} stat objects",
-                            "title": "Optional title",
+                    variants.append(
+                        {
+                            "name": variant_name,
+                            "category": "data",
+                            "description": f"{desc} with {style} style",
+                            "template": self._stats_template(count, style, show_progress),
+                            "data_schema": {
+                                "stats": f"Array of {count} stat objects",
+                                "title": "Optional title",
+                            },
                         }
-                    })
+                    )
 
         return variants
 
@@ -110,12 +112,14 @@ class ComponentTemplateGenerator:
             for layout in ["vertical", "horizontal", "compact"]:
                 for border_style in ["none", "subtle", "gradient"]:
                     variant_name = f"{card_name}_{layout}_{border_style}"
-                    variants.append({
-                        "name": variant_name,
-                        "category": "content",
-                        "description": f"{description} - {layout} layout with {border_style} border",
-                        "template": self._card_template(card_name, layout, border_style),
-                    })
+                    variants.append(
+                        {
+                            "name": variant_name,
+                            "category": "content",
+                            "description": f"{description} - {layout} layout with {border_style} border",
+                            "template": self._card_template(card_name, layout, border_style),
+                        }
+                    )
 
         return variants
 
@@ -135,12 +139,14 @@ class ComponentTemplateGenerator:
             for style in styles:
                 for size in ["small", "medium", "large"]:
                     variant_name = f"chart_{chart_type}_{style}_{size}"
-                    variants.append({
-                        "name": variant_name,
-                        "category": "data",
-                        "description": f"{chart_type.title()} chart - {style} style, {size} size",
-                        "template": self._chart_template(chart_type, style, size),
-                    })
+                    variants.append(
+                        {
+                            "name": variant_name,
+                            "category": "data",
+                            "description": f"{chart_type.title()} chart - {style} style, {size} size",
+                            "template": self._chart_template(chart_type, style, size),
+                        }
+                    )
 
         return variants
 
@@ -160,12 +166,14 @@ class ComponentTemplateGenerator:
             for layout in layouts:
                 for animation in ["slide", "fade", "none"]:
                     variant_name = f"comparison_{comp_type}_{layout}_{animation}"
-                    variants.append({
-                        "name": variant_name,
-                        "category": "comparison",
-                        "description": f"{comp_type.replace('_', ' ').title()} comparison - {layout} layout",
-                        "template": self._comparison_template(comp_type, layout),
-                    })
+                    variants.append(
+                        {
+                            "name": variant_name,
+                            "category": "comparison",
+                            "description": f"{comp_type.replace('_', ' ').title()} comparison - {layout} layout",
+                            "template": self._comparison_template(comp_type, layout),
+                        }
+                    )
 
         return variants
 
@@ -185,12 +193,14 @@ class ComponentTemplateGenerator:
             for layout in layouts:
                 for connector in ["line", "arrow", "dotted", "none"]:
                     variant_name = f"process_{proc_type}_{layout}_{connector}"
-                    variants.append({
-                        "name": variant_name,
-                        "category": "process",
-                        "description": f"{proc_type.title()} - {layout} layout with {connector} connectors",
-                        "template": self._process_template(proc_type, layout, connector),
-                    })
+                    variants.append(
+                        {
+                            "name": variant_name,
+                            "category": "process",
+                            "description": f"{proc_type.title()} - {layout} layout with {connector} connectors",
+                            "template": self._process_template(proc_type, layout, connector),
+                        }
+                    )
 
         return variants
 
@@ -209,12 +219,14 @@ class ComponentTemplateGenerator:
             for style in styles:
                 for theme in ["dark", "light"]:
                     variant_name = f"{code_type}_{style}_{theme}"
-                    variants.append({
-                        "name": variant_name,
-                        "category": "code",
-                        "description": f"{code_type.replace('_', ' ').title()} - {style} with {theme} theme",
-                        "template": self._code_template(code_type, style, theme),
-                    })
+                    variants.append(
+                        {
+                            "name": variant_name,
+                            "category": "code",
+                            "description": f"{code_type.replace('_', ' ').title()} - {style} with {theme} theme",
+                            "template": self._code_template(code_type, style, theme),
+                        }
+                    )
 
         return variants
 
@@ -234,13 +246,17 @@ class ComponentTemplateGenerator:
         for diag_type, layouts in diagram_types:
             for layout in layouts:
                 for interactive in [True, False]:
-                    variant_name = f"diagram_{diag_type}_{layout}{'_interactive' if interactive else ''}"
-                    variants.append({
-                        "name": variant_name,
-                        "category": "visual",
-                        "description": f"{diag_type.title()} diagram - {layout} layout",
-                        "template": self._diagram_template(diag_type, layout, interactive),
-                    })
+                    variant_name = (
+                        f"diagram_{diag_type}_{layout}{'_interactive' if interactive else ''}"
+                    )
+                    variants.append(
+                        {
+                            "name": variant_name,
+                            "category": "visual",
+                            "description": f"{diag_type.title()} diagram - {layout} layout",
+                            "template": self._diagram_template(diag_type, layout, interactive),
+                        }
+                    )
 
         return variants
 
@@ -255,12 +271,10 @@ class ComponentTemplateGenerator:
             ("loss_curve", ["single", "multi", "with_validation"]),
             ("embedding_space", ["2d", "3d", "tsne"]),
             ("model_architecture", ["cnn", "rnn", "transformer", "custom"]),
-
             # Data specific
             ("dataset_preview", ["table", "grid", "samples"]),
             ("distribution", ["histogram", "density", "box"]),
             ("correlation", ["matrix", "scatter", "heatmap"]),
-
             # Results specific
             ("benchmark_table", ["simple", "highlighted", "ranked"]),
             ("ablation_study", ["table", "chart", "cards"]),
@@ -270,12 +284,14 @@ class ComponentTemplateGenerator:
         for spec_type, subtypes in specialized_types:
             for subtype in subtypes:
                 variant_name = f"specialized_{spec_type}_{subtype}"
-                variants.append({
-                    "name": variant_name,
-                    "category": "specialized",
-                    "description": f"{spec_type.replace('_', ' ').title()} - {subtype} variant",
-                    "template": self._specialized_template(spec_type, subtype),
-                })
+                variants.append(
+                    {
+                        "name": variant_name,
+                        "category": "specialized",
+                        "description": f"{spec_type.replace('_', ' ').title()} - {subtype} variant",
+                        "template": self._specialized_template(spec_type, subtype),
+                    }
+                )
 
         return variants
 
@@ -342,7 +358,7 @@ def generate_component_registry() -> Dict[str, int]:
     return {
         "total": len(all_variants),
         "by_category": registry,
-        "components": [v["name"] for v in all_variants]
+        "components": [v["name"] for v in all_variants],
     }
 
 
@@ -355,7 +371,7 @@ def save_component_manifest(output_path: str = None) -> Any:
 
     registry = generate_component_registry()
 
-    with open(output_path, 'w') as f:
+    with open(output_path, "w") as f:
         json.dump(registry, f, indent=2)
 
     logger.info(f"Saved manifest with {registry['total']} components to {output_path}")
@@ -373,7 +389,7 @@ if __name__ == "__main__":
     logger.info("Component Summary:")
     logger.info(f"   Total components: {registry['total']}")
     logger.info("   By category:")
-    for cat, count in sorted(registry['by_category'].items()):
+    for cat, count in sorted(registry["by_category"].items()):
         logger.info(f"   - {cat}: {count}")
 
     logger.info(f"Component library now has {registry['total']}+ variants!")

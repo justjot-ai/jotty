@@ -14,12 +14,12 @@ Cost Impact (example):
 
 import asyncio
 import logging
-from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional, Tuple, Callable
-from enum import Enum
 import time
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from .config import LotusConfig, CascadeThresholds, ModelTier
+from .config import CascadeThresholds, LotusConfig, ModelTier
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class CascadeResult:
     """Result from cascade execution."""
+
     item: Any
     result: Any
     confidence: float
@@ -39,10 +40,11 @@ class CascadeResult:
 @dataclass
 class CascadeStats:
     """Statistics from cascade execution."""
+
     total_items: int = 0
-    proxy_resolved: int = 0       # Resolved by fast tier
-    oracle_resolved: int = 0      # Needed balanced tier
-    fallback_resolved: int = 0    # Needed powerful tier
+    proxy_resolved: int = 0  # Resolved by fast tier
+    oracle_resolved: int = 0  # Needed balanced tier
+    fallback_resolved: int = 0  # Needed powerful tier
     total_cost: float = 0.0
     total_latency_ms: float = 0.0
     cache_hits: int = 0
@@ -73,7 +75,9 @@ class ModelCascade:
     DRY: Reuses LotusConfig for thresholds, model selection.
     """
 
-    def __init__(self, config: Optional[LotusConfig] = None, lm_provider: Optional[Any] = None) -> None:
+    def __init__(
+        self, config: Optional[LotusConfig] = None, lm_provider: Optional[Any] = None
+    ) -> None:
         """
         Initialize model cascade.
 
@@ -117,9 +121,7 @@ class ModelCascade:
 
         # Phase 1: Proxy scoring (batch call to fast model)
         logger.debug(f"Cascade Phase 1: Proxy scoring {len(items)} items")
-        proxy_results = await self._batch_score(
-            items, prompt_fn, parse_fn, ModelTier.FAST
-        )
+        proxy_results = await self._batch_score(items, prompt_fn, parse_fn, ModelTier.FAST)
 
         # Phase 2: Triage based on confidence
         confident_positive: List[CascadeResult] = []
@@ -129,28 +131,32 @@ class ModelCascade:
         for idx, (item, (result, confidence)) in enumerate(zip(items, proxy_results)):
             if confidence >= thresholds.tau_pos:
                 # High confidence - accept proxy result
-                confident_positive.append(CascadeResult(
-                    item=item,
-                    result=result,
-                    confidence=confidence,
-                    model_used=self.config.get_model(ModelTier.FAST),
-                    tier_used=ModelTier.FAST,
-                    cost_estimate=self._estimate_item_cost(ModelTier.FAST),
-                    latency_ms=0,  # Will be set at end
-                ))
+                confident_positive.append(
+                    CascadeResult(
+                        item=item,
+                        result=result,
+                        confidence=confidence,
+                        model_used=self.config.get_model(ModelTier.FAST),
+                        tier_used=ModelTier.FAST,
+                        cost_estimate=self._estimate_item_cost(ModelTier.FAST),
+                        latency_ms=0,  # Will be set at end
+                    )
+                )
                 self.stats.proxy_resolved += 1
 
             elif confidence <= thresholds.tau_neg:
                 # Low confidence - reject (for filter operations)
-                confident_negative.append(CascadeResult(
-                    item=item,
-                    result=False if operation == "filter" else None,
-                    confidence=confidence,
-                    model_used=self.config.get_model(ModelTier.FAST),
-                    tier_used=ModelTier.FAST,
-                    cost_estimate=self._estimate_item_cost(ModelTier.FAST),
-                    latency_ms=0,
-                ))
+                confident_negative.append(
+                    CascadeResult(
+                        item=item,
+                        result=False if operation == "filter" else None,
+                        confidence=confidence,
+                        model_used=self.config.get_model(ModelTier.FAST),
+                        tier_used=ModelTier.FAST,
+                        cost_estimate=self._estimate_item_cost(ModelTier.FAST),
+                        latency_ms=0,
+                    )
+                )
                 self.stats.proxy_resolved += 1
 
             else:
@@ -170,30 +176,34 @@ class ModelCascade:
             # Check if we need fallback to powerful tier
             for (item, orig_idx), (result, confidence) in zip(uncertain, oracle_scored):
                 if confidence >= 0.5:  # Oracle resolved it
-                    oracle_results.append(CascadeResult(
-                        item=item,
-                        result=result,
-                        confidence=confidence,
-                        model_used=self.config.get_model(ModelTier.BALANCED),
-                        tier_used=ModelTier.BALANCED,
-                        cost_estimate=self._estimate_item_cost(ModelTier.BALANCED),
-                        latency_ms=0,
-                    ))
+                    oracle_results.append(
+                        CascadeResult(
+                            item=item,
+                            result=result,
+                            confidence=confidence,
+                            model_used=self.config.get_model(ModelTier.BALANCED),
+                            tier_used=ModelTier.BALANCED,
+                            cost_estimate=self._estimate_item_cost(ModelTier.BALANCED),
+                            latency_ms=0,
+                        )
+                    )
                     self.stats.oracle_resolved += 1
                 else:
                     # Fallback to powerful tier
                     fallback_result = await self._single_score(
                         item, prompt_fn, parse_fn, ModelTier.POWERFUL
                     )
-                    oracle_results.append(CascadeResult(
-                        item=item,
-                        result=fallback_result[0],
-                        confidence=fallback_result[1],
-                        model_used=self.config.get_model(ModelTier.POWERFUL),
-                        tier_used=ModelTier.POWERFUL,
-                        cost_estimate=self._estimate_item_cost(ModelTier.POWERFUL),
-                        latency_ms=0,
-                    ))
+                    oracle_results.append(
+                        CascadeResult(
+                            item=item,
+                            result=fallback_result[0],
+                            confidence=fallback_result[1],
+                            model_used=self.config.get_model(ModelTier.POWERFUL),
+                            tier_used=ModelTier.POWERFUL,
+                            cost_estimate=self._estimate_item_cost(ModelTier.POWERFUL),
+                            latency_ms=0,
+                        )
+                    )
                     self.stats.fallback_resolved += 1
 
         # Combine results in original order
@@ -240,6 +250,7 @@ class ModelCascade:
             # Use DSPy or direct LM call for batch
             if self.lm_provider:
                 import dspy
+
                 with dspy.context(lm=self.lm_provider):
                     responses = await self._call_lm_batch(prompts, model_name)
             else:

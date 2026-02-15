@@ -14,7 +14,7 @@ Usage:
 import asyncio
 import logging
 import time
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 
 from Jotty.core.infrastructure.foundation.data_structures import EpisodeResult
 from Jotty.core.infrastructure.foundation.exceptions import AgentExecutionError, LLMError
@@ -30,28 +30,28 @@ def _extract_output_text(output: Any) -> str:
     if isinstance(output, str):
         return output
     # AgenticExecutionResult has .final_output or .outputs
-    if hasattr(output, 'final_output') and output.final_output:
+    if hasattr(output, "final_output") and output.final_output:
         return _extract_output_text(output.final_output)
-    if hasattr(output, 'outputs') and isinstance(output.outputs, dict):
+    if hasattr(output, "outputs") and isinstance(output.outputs, dict):
         # Get the last step's output
         for key in reversed(list(output.outputs.keys())):
             val = output.outputs[key]
             if isinstance(val, dict):
-                for field in ('content', 'response', 'text', 'output', 'article', 'code', 'result'):
+                for field in ("content", "response", "text", "output", "article", "code", "result"):
                     if field in val and val[field]:
                         return str(val[field])
             elif isinstance(val, str) and len(val) > 20:
                 return val
     # EpisodeResult has .output
-    if hasattr(output, 'output') and output.output is not None:
+    if hasattr(output, "output") and output.output is not None:
         return _extract_output_text(output.output)
     # dict
     if isinstance(output, dict):
-        for field in ('content', 'response', 'text', 'output', 'article', 'code', 'result'):
+        for field in ("content", "response", "text", "output", "article", "code", "result"):
             if field in output and output[field]:
                 return str(output[field])
     # Last resort: summary if available, otherwise str()
-    if hasattr(output, 'summary'):
+    if hasattr(output, "summary"):
         return output.summary
     return str(output)
 
@@ -67,7 +67,9 @@ class ParadigmExecutor:
     def __init__(self, manager: Any) -> None:
         self._manager = manager
 
-    async def run_agent(self, runner: Any, sub_goal: str, agent_name: str, **kwargs: Any) -> EpisodeResult:
+    async def run_agent(
+        self, runner: Any, sub_goal: str, agent_name: str, **kwargs: Any
+    ) -> EpisodeResult:
         """
         Run a single agent within a paradigm, using fast-path when possible.
 
@@ -77,27 +79,45 @@ class ParadigmExecutor:
         """
         sm = self._manager
         _tool_keywords = [
-            'search', 'fetch', 'scrape', 'download', 'upload',
-            'send', 'email', 'telegram', 'slack',
-            'create file', 'save file', 'write file', 'read file',
-            'execute', 'run code', 'compile', 'deploy',
-            'database', 'sql', 'api call',
+            "search",
+            "fetch",
+            "scrape",
+            "download",
+            "upload",
+            "send",
+            "email",
+            "telegram",
+            "slack",
+            "create file",
+            "save file",
+            "write file",
+            "read file",
+            "execute",
+            "run code",
+            "compile",
+            "deploy",
+            "database",
+            "sql",
+            "api call",
         ]
         _needs_tools = any(kw in sub_goal.lower() for kw in _tool_keywords)
 
         if not _needs_tools:
             # FAST PATH: Direct LLM call
             import dspy as _dspy
+
             lm = _dspy.settings.lm
             if lm:
                 try:
                     _start = time.time()
 
                     hook_ctx = runner._run_hooks(
-                        'pre_run', goal=sub_goal, agent_name=agent_name,
+                        "pre_run",
+                        goal=sub_goal,
+                        agent_name=agent_name,
                         fast_path=True,
                     )
-                    sub_goal = hook_ctx.get('goal', sub_goal)
+                    sub_goal = hook_ctx.get("goal", sub_goal)
 
                     _last_err = None
                     response = None
@@ -107,10 +127,15 @@ class ParadigmExecutor:
                             break
                         except Exception as _e:
                             _err_s = str(_e)
-                            if ('429' in _err_s or 'RateLimit' in _err_s or
-                                    'rate limit' in _err_s.lower()):
-                                _delay = 8.0 * (2 ** _attempt)
-                                logger.info(f"Paradigm fast-path rate limited, retry in {_delay:.0f}s")
+                            if (
+                                "429" in _err_s
+                                or "RateLimit" in _err_s
+                                or "rate limit" in _err_s.lower()
+                            ):
+                                _delay = 8.0 * (2**_attempt)
+                                logger.info(
+                                    f"Paradigm fast-path rate limited, retry in {_delay:.0f}s"
+                                )
                                 time.sleep(_delay)
                                 _last_err = _e
                             else:
@@ -123,8 +148,7 @@ class ParadigmExecutor:
 
                     _elapsed = time.time() - _start
                     logger.info(
-                        f" Paradigm fast-path: {agent_name} "
-                        f"({_elapsed:.1f}s, 1 LLM call)"
+                        f" Paradigm fast-path: {agent_name} " f"({_elapsed:.1f}s, 1 LLM call)"
                     )
 
                     result = EpisodeResult(
@@ -140,14 +164,22 @@ class ParadigmExecutor:
                     )
 
                     runner._run_hooks(
-                        'post_run', goal=sub_goal, agent_name=agent_name,
-                        result=result, success=result.success, elapsed=_elapsed,
+                        "post_run",
+                        goal=sub_goal,
+                        agent_name=agent_name,
+                        result=result,
+                        success=result.success,
+                        elapsed=_elapsed,
                     )
                     return result
                 except (AgentExecutionError, LLMError) as e:
-                    logger.warning(f"Fast-path failed for {agent_name} (recoverable): {e}, falling back to full pipeline")
+                    logger.warning(
+                        f"Fast-path failed for {agent_name} (recoverable): {e}, falling back to full pipeline"
+                    )
                 except Exception as e:
-                    logger.warning(f"Fast-path failed for {agent_name} (unexpected): {e}, falling back to full pipeline")
+                    logger.warning(
+                        f"Fast-path failed for {agent_name} (unexpected): {e}, falling back to full pipeline"
+                    )
 
         # FULL PATH: Use the complete AgentRunner pipeline
         return await runner.run(goal=sub_goal, **kwargs)
@@ -160,8 +192,8 @@ class ParadigmExecutor:
         the next agent's input fields by name/type match.
         """
         sm = self._manager
-        status_callback = kwargs.pop('status_callback', None)
-        kwargs.setdefault('ensemble', False)
+        status_callback = kwargs.pop("status_callback", None)
+        kwargs.setdefault("ensemble", False)
 
         all_results = {}
         enriched_goal = goal
@@ -173,14 +205,14 @@ class ParadigmExecutor:
             if not runner:
                 continue
 
-            caps = getattr(agent_config, 'capabilities', None)
+            caps = getattr(agent_config, "capabilities", None)
             sub_goal = caps[0] if caps else enriched_goal
 
             # Schema-aware wiring
             if prev_schema is not None and prev_output is not None:
                 try:
-                    cur_agent = getattr(runner, 'agent', None)
-                    if cur_agent and hasattr(cur_agent, 'get_io_schema'):
+                    cur_agent = getattr(runner, "agent", None)
+                    if cur_agent and hasattr(cur_agent, "get_io_schema"):
                         cur_schema = cur_agent.get_io_schema()
                         wired_kwargs = prev_schema.map_outputs(prev_output, cur_schema)
                         if wired_kwargs:
@@ -195,9 +227,7 @@ class ParadigmExecutor:
             safe_status(status_callback, f"Relay -> {agent_config.name}", sub_goal[:60])
 
             async with sm.agent_semaphore:
-                result = await self.run_agent(
-                    runner, sub_goal, agent_config.name, **kwargs
-                )
+                result = await self.run_agent(runner, sub_goal, agent_config.name, **kwargs)
 
             all_results[agent_config.name] = result
 
@@ -208,11 +238,11 @@ class ParadigmExecutor:
                     f"{_extract_output_text(result.output)[:2000]}"
                 )
                 try:
-                    cur_agent = getattr(runner, 'agent', None)
-                    if cur_agent and hasattr(cur_agent, 'get_io_schema'):
+                    cur_agent = getattr(runner, "agent", None)
+                    if cur_agent and hasattr(cur_agent, "get_io_schema"):
                         prev_schema = cur_agent.get_io_schema()
                         out = result.output
-                        prev_output = out if isinstance(out, dict) else {'output': str(out)}
+                        prev_output = out if isinstance(out, dict) else {"output": str(out)}
                     else:
                         prev_schema = None
                         prev_output = None
@@ -233,9 +263,9 @@ class ParadigmExecutor:
         Debate paradigm: agents produce drafts, then critique each other in rounds.
         """
         sm = self._manager
-        status_callback = kwargs.pop('status_callback', None)
-        max_debate_rounds = kwargs.pop('debate_rounds', 2)
-        kwargs.setdefault('ensemble', False)
+        status_callback = kwargs.pop("status_callback", None)
+        max_debate_rounds = kwargs.pop("debate_rounds", 2)
+        kwargs.setdefault("ensemble", False)
 
         all_results: Dict[str, EpisodeResult] = {}
 
@@ -247,14 +277,14 @@ class ParadigmExecutor:
             runner = sm.runners.get(agent_config.name)
             if not runner:
                 continue
-            sub_goal = getattr(agent_config, 'capabilities', None) and agent_config.capabilities[0] or goal
+            sub_goal = (
+                getattr(agent_config, "capabilities", None) and agent_config.capabilities[0] or goal
+            )
             draft_tasks.append((agent_config.name, runner, sub_goal))
 
         async def _run_draft(name: Any, runner: Any, sub_goal: Any) -> Any:
             async with sm.agent_semaphore:
-                return name, await self.run_agent(
-                    runner, sub_goal, name, **kwargs
-                )
+                return name, await self.run_agent(runner, sub_goal, name, **kwargs)
 
         draft_results = await asyncio.gather(
             *[_run_draft(n, r, g) for n, r, g in draft_tasks],
@@ -278,7 +308,9 @@ class ParadigmExecutor:
 
         # Rounds 2+: Critique
         for round_num in range(2, max_debate_rounds + 1):
-            safe_status(status_callback, f"Debate round {round_num}", "agents critiquing & refining")
+            safe_status(
+                status_callback, f"Debate round {round_num}", "agents critiquing & refining"
+            )
 
             critique_tasks = []
             for agent_config in sm.agents:
@@ -291,7 +323,11 @@ class ParadigmExecutor:
                     for name, text in drafts.items()
                     if name != agent_config.name
                 )
-                sub_goal = getattr(agent_config, 'capabilities', None) and agent_config.capabilities[0] or goal
+                sub_goal = (
+                    getattr(agent_config, "capabilities", None)
+                    and agent_config.capabilities[0]
+                    or goal
+                )
                 critique_goal = (
                     f"{sub_goal}\n\n"
                     f"Other agents produced these solutions. "
@@ -322,20 +358,20 @@ class ParadigmExecutor:
         Collective refinement paradigm: iterative improvement until quality stabilizes.
         """
         sm = self._manager
-        status_callback = kwargs.pop('status_callback', None)
-        max_iterations = kwargs.pop('refinement_iterations', 3)
-        kwargs.setdefault('ensemble', False)
+        status_callback = kwargs.pop("status_callback", None)
+        max_iterations = kwargs.pop("refinement_iterations", 3)
+        kwargs.setdefault("ensemble", False)
 
         first_agent = sm.agents[0]
         runner = sm.runners.get(first_agent.name)
-        sub_goal = getattr(first_agent, 'capabilities', None) and first_agent.capabilities[0] or goal
+        sub_goal = (
+            getattr(first_agent, "capabilities", None) and first_agent.capabilities[0] or goal
+        )
 
         safe_status(status_callback, "Refinement", f"initial draft by {first_agent.name}")
 
         async with sm.agent_semaphore:
-            result = await self.run_agent(
-                runner, sub_goal, first_agent.name, **kwargs
-            )
+            result = await self.run_agent(runner, sub_goal, first_agent.name, **kwargs)
 
         current_draft = _extract_output_text(result.output)[:3000]
         all_results = {first_agent.name: result}
@@ -363,13 +399,20 @@ class ParadigmExecutor:
                 if not refiner:
                     continue
 
-                refine_sub = getattr(agent_config, 'capabilities', None) and agent_config.capabilities[0] or goal
+                refine_sub = (
+                    getattr(agent_config, "capabilities", None)
+                    and agent_config.capabilities[0]
+                    or goal
+                )
                 refine_goal = (
-                    f"{refine_sub}\n\n"
-                    f"Here is the current draft. Improve it:\n{current_draft}"
+                    f"{refine_sub}\n\n" f"Here is the current draft. Improve it:\n{current_draft}"
                 )
 
-                safe_status(status_callback, f"Refinement iter {iteration}", f"{agent_config.name} improving")
+                safe_status(
+                    status_callback,
+                    f"Refinement iter {iteration}",
+                    f"{agent_config.name} improving",
+                )
 
                 async with sm.agent_semaphore:
                     ref_result = await self.run_agent(
@@ -397,7 +440,7 @@ class ParadigmExecutor:
                 success=False,
                 trajectory=[],
                 tagged_outputs=[],
-                episode=getattr(sm, 'episode_count', 0),
+                episode=getattr(sm, "episode_count", 0),
                 execution_time=0.0,
                 architect_results=[],
                 auditor_results=[],
@@ -419,14 +462,14 @@ class ParadigmExecutor:
 
         merged_trajectory = []
         for name, r in results.items():
-            for step in (r.trajectory or []):
+            for step in r.trajectory or []:
                 step_copy = dict(step)
-                step_copy['agent'] = name
+                step_copy["agent"] = name
                 merged_trajectory.append(step_copy)
 
         merged_contributions = {}
         for r in results.values():
-            if hasattr(r, 'agent_contributions') and r.agent_contributions:
+            if hasattr(r, "agent_contributions") and r.agent_contributions:
                 merged_contributions.update(r.agent_contributions)
 
         return EpisodeResult(
@@ -434,11 +477,11 @@ class ParadigmExecutor:
             success=all_success,
             trajectory=merged_trajectory,
             tagged_outputs=[],
-            episode=getattr(sm, 'episode_count', 0),
-            execution_time=sum(getattr(r, 'execution_time', 0) for r in results.values()),
+            episode=getattr(sm, "episode_count", 0),
+            execution_time=sum(getattr(r, "execution_time", 0) for r in results.values()),
             architect_results=[],
             auditor_results=[],
-            agent_contributions=merged_contributions
+            agent_contributions=merged_contributions,
         )
 
     def assign_cooperative_credit(self, results: Dict[str, EpisodeResult], goal: str) -> None:
@@ -463,19 +506,19 @@ class ParadigmExecutor:
             predictability_bonus = 0.5
 
             cooperative_reward = (
-                sm.credit_weights.get('base_reward') * base_reward +
-                sm.credit_weights.get('cooperation_bonus') * cooperation_bonus +
-                sm.credit_weights.get('predictability_bonus') * predictability_bonus
+                sm.credit_weights.get("base_reward") * base_reward
+                + sm.credit_weights.get("cooperation_bonus") * cooperation_bonus
+                + sm.credit_weights.get("predictability_bonus") * predictability_bonus
             )
 
             try:
-                state = {'query': goal, 'agent': agent_name, 'cooperative': True}
-                action = {'actor': agent_name, 'task': goal[:100]}
+                state = {"query": goal, "agent": agent_name, "cooperative": True}
+                action = {"actor": agent_name, "task": goal[:100]}
                 sm.learning_manager.record_outcome(state, action, cooperative_reward, done=True)
             except Exception as e:
                 logger.debug(f"Cooperative credit recording skipped for {agent_name}: {e}")
 
         if episode_success:
-            sm.credit_weights.update_from_feedback('cooperation_bonus', 0.1, reward=1.0)
+            sm.credit_weights.update_from_feedback("cooperation_bonus", 0.1, reward=1.0)
         else:
-            sm.credit_weights.update_from_feedback('base_reward', 0.05, reward=0.0)
+            sm.credit_weights.update_from_feedback("base_reward", 0.05, reward=0.0)

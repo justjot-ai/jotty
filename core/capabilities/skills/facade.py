@@ -14,13 +14,13 @@ Usage:
     providers = list_providers()
 """
 
-from typing import Optional, Dict, List, Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 if TYPE_CHECKING:
     from Jotty.core.capabilities.registry.unified_registry import UnifiedRegistry
 
 
-def get_registry() -> 'UnifiedRegistry':
+def get_registry() -> "UnifiedRegistry":
     """
     Return the UnifiedRegistry (single entry point for all capabilities).
 
@@ -28,6 +28,7 @@ def get_registry() -> 'UnifiedRegistry':
         UnifiedRegistry instance (singleton).
     """
     from Jotty.core.capabilities.registry import get_unified_registry
+
     return get_unified_registry()
 
 
@@ -79,17 +80,18 @@ def get_provider(name: str) -> Any:
         "browser-use": ("Jotty.core.skills.providers.browser_use_provider", "BrowserUseProvider"),
         "openhands": ("Jotty.core.skills.providers.openhands_provider", "OpenHandsProvider"),
         "agent-s": ("Jotty.core.skills.providers.agent_s_provider", "AgentSProvider"),
-        "open-interpreter": ("Jotty.core.skills.providers.open_interpreter_provider", "OpenInterpreterProvider"),
+        "open-interpreter": (
+            "Jotty.core.skills.providers.open_interpreter_provider",
+            "OpenInterpreterProvider",
+        ),
         "streamlit": ("Jotty.core.skills.providers.streamlit_provider", "StreamlitProvider"),
         "morph": ("Jotty.core.skills.providers.morph_provider", "MorphProvider"),
     }
     if name not in providers:
-        raise ValueError(
-            f"Unknown provider: {name!r}. "
-            f"Available: {list(providers.keys())}"
-        )
+        raise ValueError(f"Unknown provider: {name!r}. " f"Available: {list(providers.keys())}")
     module_path, class_name = providers[name]
     import importlib
+
     mod = importlib.import_module(module_path)
     cls = getattr(mod, class_name)
     return cls()
@@ -107,6 +109,7 @@ def list_skills(category: Optional[str] = None) -> List[str]:
     """
     try:
         from Jotty.core.capabilities.registry import get_unified_registry
+
         registry = get_unified_registry()
         all_skills = registry.list_skills()
         if category is None:
@@ -116,7 +119,7 @@ def list_skills(category: Optional[str] = None) -> List[str]:
         for skill_name in all_skills:
             try:
                 skill = registry.get_skill(skill_name)
-                skill_cat = getattr(skill, 'category', None) or ''
+                skill_cat = getattr(skill, "category", None) or ""
                 if category.lower() in str(skill_cat).lower():
                     filtered.append(skill_name)
             except Exception:

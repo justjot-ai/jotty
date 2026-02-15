@@ -1,13 +1,20 @@
 """Calculate and verify checksums using hashlib."""
+
 import hashlib
 from pathlib import Path
-from typing import Dict, Any
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from typing import Any, Dict
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("checksum-verifier")
 
-_ALGOS = {"md5": hashlib.md5, "sha1": hashlib.sha1, "sha256": hashlib.sha256, "sha512": hashlib.sha512}
+_ALGOS = {
+    "md5": hashlib.md5,
+    "sha1": hashlib.sha1,
+    "sha256": hashlib.sha256,
+    "sha512": hashlib.sha512,
+}
 
 
 def _hash_bytes(data: bytes, algo: str) -> str:
@@ -28,8 +35,7 @@ def calculate_checksum(params: Dict[str, Any]) -> Dict[str, Any]:
         return tool_error("Provide either text or file_path")
     if text:
         digest = _hash_bytes(text.encode("utf-8"), algo)
-        return tool_response(checksum=digest, algorithm=algo, input_type="text",
-                             length=len(text))
+        return tool_response(checksum=digest, algorithm=algo, input_type="text", length=len(text))
     p = Path(file_path)
     if not p.exists():
         return tool_error(f"File not found: {file_path}")
@@ -40,8 +46,13 @@ def calculate_checksum(params: Dict[str, Any]) -> Dict[str, Any]:
     with open(p, "rb") as f:
         for chunk in iter(lambda: f.read(8192), b""):
             hasher.update(chunk)
-    return tool_response(checksum=hasher.hexdigest(), algorithm=algo,
-                         input_type="file", file=str(p), size=p.stat().st_size)
+    return tool_response(
+        checksum=hasher.hexdigest(),
+        algorithm=algo,
+        input_type="file",
+        file=str(p),
+        size=p.stat().st_size,
+    )
 
 
 @tool_wrapper(required_params=["expected"])
@@ -54,8 +65,9 @@ def verify_checksum(params: Dict[str, Any]) -> Dict[str, Any]:
         return result
     actual = result["checksum"]
     match = actual == expected
-    return tool_response(match=match, expected=expected, actual=actual,
-                         algorithm=result["algorithm"])
+    return tool_response(
+        match=match, expected=expected, actual=actual, algorithm=result["algorithm"]
+    )
 
 
 __all__ = ["calculate_checksum", "verify_checksum"]

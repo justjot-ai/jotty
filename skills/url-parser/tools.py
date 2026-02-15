@@ -1,9 +1,10 @@
 """URL Parser Skill — parse and manipulate URLs."""
-from urllib.parse import urlparse, parse_qs, urlencode, urlunparse, quote, unquote
-from typing import Dict, Any
 
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from typing import Any, Dict
+from urllib.parse import parse_qs, quote, unquote, urlencode, urlparse, urlunparse
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("url-parser")
 
@@ -16,10 +17,14 @@ def parse_url_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         parsed = urlparse(params["url"])
         query_params = {k: v[0] if len(v) == 1 else v for k, v in parse_qs(parsed.query).items()}
         return tool_response(
-            scheme=parsed.scheme, host=parsed.hostname or "",
-            port=parsed.port, path=parsed.path,
-            query=query_params, fragment=parsed.fragment,
-            username=parsed.username, password=parsed.password,
+            scheme=parsed.scheme,
+            host=parsed.hostname or "",
+            port=parsed.port,
+            path=parsed.path,
+            query=query_params,
+            fragment=parsed.fragment,
+            username=parsed.username,
+            password=parsed.password,
         )
     except Exception as e:
         return tool_error(f"Failed to parse URL: {e}")

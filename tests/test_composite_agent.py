@@ -6,17 +6,18 @@ including configuration defaults, result conversion, sub-agent management,
 and factory methods (from_swarm, compose).
 """
 
-import pytest
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
 from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
+import pytest
+
+from Jotty.core.intelligence.swarms.base.agent_team import CoordinationPattern, MergeStrategy
+from Jotty.core.intelligence.swarms.swarm_types import AgentRole, ExecutionTrace, SwarmResult
 from Jotty.core.modes.agent.agents.composite_agent import (
     CompositeAgent,
     CompositeAgentConfig,
     UnifiedResult,
 )
-from Jotty.core.intelligence.swarms.swarm_types import SwarmResult, ExecutionTrace, AgentRole
-from Jotty.core.intelligence.swarms.base.agent_team import CoordinationPattern, MergeStrategy
 
 
 def _make_mock_base_agent(name="MockAgent", timeout=120.0):
@@ -46,6 +47,7 @@ def _make_mock_domain_swarm(name="TestSwarm", timeout_seconds=300):
 # CompositeAgentConfig
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestCompositeAgentConfig:
     """Tests for CompositeAgentConfig defaults and custom values."""
@@ -72,6 +74,7 @@ class TestCompositeAgentConfig:
 # =============================================================================
 # UnifiedResult
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestUnifiedResult:
@@ -181,13 +184,14 @@ class TestUnifiedResult:
 # CompositeAgent
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestCompositeAgent:
     """Tests for CompositeAgent init, sub-agent management, and factory methods."""
 
     def test_init_with_default_config(self):
         """CompositeAgent() uses default CompositeAgentConfig with name 'CompositeAgent'."""
-        with patch.object(CompositeAgentConfig, '__post_init__', lambda self: None):
+        with patch.object(CompositeAgentConfig, "__post_init__", lambda self: None):
             agent = CompositeAgent()
             assert agent.config.name == "CompositeAgent"
             assert agent.config.coordination_pattern == CoordinationPattern.PIPELINE
@@ -198,7 +202,7 @@ class TestCompositeAgent:
 
     def test_add_agent_and_get_agent(self):
         """add_agent stores a sub-agent retrievable via get_agent."""
-        with patch.object(CompositeAgentConfig, '__post_init__', lambda self: None):
+        with patch.object(CompositeAgentConfig, "__post_init__", lambda self: None):
             composite = CompositeAgent()
             mock_agent = _make_mock_base_agent("Coder")
 
@@ -210,7 +214,7 @@ class TestCompositeAgent:
 
     def test_add_agent_is_chainable(self):
         """add_agent returns self, allowing method chaining."""
-        with patch.object(CompositeAgentConfig, '__post_init__', lambda self: None):
+        with patch.object(CompositeAgentConfig, "__post_init__", lambda self: None):
             composite = CompositeAgent()
             agent_a = _make_mock_base_agent("A")
             agent_b = _make_mock_base_agent("B")
@@ -223,7 +227,7 @@ class TestCompositeAgent:
 
     def test_remove_agent(self):
         """remove_agent removes an existing sub-agent by name."""
-        with patch.object(CompositeAgentConfig, '__post_init__', lambda self: None):
+        with patch.object(CompositeAgentConfig, "__post_init__", lambda self: None):
             composite = CompositeAgent()
             mock_agent = _make_mock_base_agent("Temp")
 
@@ -236,13 +240,13 @@ class TestCompositeAgent:
 
     def test_remove_agent_missing_key_is_safe(self):
         """remove_agent on a nonexistent name does not raise."""
-        with patch.object(CompositeAgentConfig, '__post_init__', lambda self: None):
+        with patch.object(CompositeAgentConfig, "__post_init__", lambda self: None):
             composite = CompositeAgent()
             composite.remove_agent("nonexistent")  # should not raise
 
     def test_sub_agents_property_returns_copy(self):
         """sub_agents property returns a shallow copy, not the internal dict."""
-        with patch.object(CompositeAgentConfig, '__post_init__', lambda self: None):
+        with patch.object(CompositeAgentConfig, "__post_init__", lambda self: None):
             composite = CompositeAgent()
             mock_agent = _make_mock_base_agent("Worker")
             composite.add_agent("worker", mock_agent)
@@ -259,7 +263,7 @@ class TestCompositeAgent:
         """from_swarm creates a CompositeAgent that delegates to the swarm."""
         mock_swarm = _make_mock_domain_swarm("CodingSwarm", timeout_seconds=300)
 
-        with patch.object(CompositeAgentConfig, '__post_init__', lambda self: None):
+        with patch.object(CompositeAgentConfig, "__post_init__", lambda self: None):
             composite = CompositeAgent.from_swarm(mock_swarm)
 
             assert composite.config.name == "CodingSwarm"
@@ -272,7 +276,7 @@ class TestCompositeAgent:
         agent_a = _make_mock_base_agent("Architect", timeout=60.0)
         agent_b = _make_mock_base_agent("Developer", timeout=90.0)
 
-        with patch.object(CompositeAgentConfig, '__post_init__', lambda self: None):
+        with patch.object(CompositeAgentConfig, "__post_init__", lambda self: None):
             composite = CompositeAgent.compose(
                 "DevPipeline",
                 coordination=CoordinationPattern.PIPELINE,
@@ -324,6 +328,7 @@ def _make_failed_agent_result(error_msg, agent_name="TestAgent"):
 # TestCompositeAgentExecution
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestCompositeAgentExecution:
     """Tests for execution coordination patterns: pipeline, parallel, consensus."""
@@ -331,7 +336,7 @@ class TestCompositeAgentExecution:
     @pytest.mark.asyncio
     async def test_pipeline_sequential_execution(self):
         """Pipeline executes sub-agents in order, chaining outputs."""
-        with patch.object(CompositeAgentConfig, '__post_init__', lambda self: None):
+        with patch.object(CompositeAgentConfig, "__post_init__", lambda self: None):
             composite = CompositeAgent()
             composite.config.coordination_pattern = CoordinationPattern.PIPELINE
 
@@ -355,7 +360,7 @@ class TestCompositeAgentExecution:
     @pytest.mark.asyncio
     async def test_pipeline_dict_output_merging(self):
         """Pipeline merges dict outputs as kwargs for the next agent."""
-        with patch.object(CompositeAgentConfig, '__post_init__', lambda self: None):
+        with patch.object(CompositeAgentConfig, "__post_init__", lambda self: None):
             composite = CompositeAgent()
 
             agent_a = _make_mock_base_agent("AgentA")
@@ -378,7 +383,7 @@ class TestCompositeAgentExecution:
     @pytest.mark.asyncio
     async def test_pipeline_stops_on_first_failure(self):
         """Pipeline stops at first failed agent and returns failure."""
-        with patch.object(CompositeAgentConfig, '__post_init__', lambda self: None):
+        with patch.object(CompositeAgentConfig, "__post_init__", lambda self: None):
             composite = CompositeAgent()
 
             agent_a = _make_mock_base_agent("AgentA")
@@ -396,7 +401,7 @@ class TestCompositeAgentExecution:
     @pytest.mark.asyncio
     async def test_pipeline_non_dict_output_sets_task_key(self):
         """Pipeline sets 'task' and 'previous_output' keys for non-dict outputs."""
-        with patch.object(CompositeAgentConfig, '__post_init__', lambda self: None):
+        with patch.object(CompositeAgentConfig, "__post_init__", lambda self: None):
             composite = CompositeAgent()
 
             agent_a = _make_mock_base_agent("AgentA")
@@ -404,9 +409,7 @@ class TestCompositeAgentExecution:
                 "plain string output", "AgentA"
             )
             agent_b = _make_mock_base_agent("AgentB")
-            agent_b.execute.return_value = _make_successful_agent_result(
-                "final", "AgentB"
-            )
+            agent_b.execute.return_value = _make_successful_agent_result("final", "AgentB")
 
             composite.add_agent("a", agent_a).add_agent("b", agent_b)
 
@@ -419,7 +422,7 @@ class TestCompositeAgentExecution:
     @pytest.mark.asyncio
     async def test_pipeline_metadata_contains_stages(self):
         """Pipeline result metadata contains pipeline_stages list."""
-        with patch.object(CompositeAgentConfig, '__post_init__', lambda self: None):
+        with patch.object(CompositeAgentConfig, "__post_init__", lambda self: None):
             composite = CompositeAgent()
 
             agent_a = _make_mock_base_agent("A")
@@ -437,18 +440,14 @@ class TestCompositeAgentExecution:
     @pytest.mark.asyncio
     async def test_parallel_concurrent_execution(self):
         """Parallel runs all agents and merges successful outputs."""
-        with patch.object(CompositeAgentConfig, '__post_init__', lambda self: None):
+        with patch.object(CompositeAgentConfig, "__post_init__", lambda self: None):
             composite = CompositeAgent()
             composite.config.merge_strategy = MergeStrategy.COMBINE
 
             agent_a = _make_mock_base_agent("AgentA")
-            agent_a.execute.return_value = _make_successful_agent_result(
-                {"from": "a"}, "AgentA"
-            )
+            agent_a.execute.return_value = _make_successful_agent_result({"from": "a"}, "AgentA")
             agent_b = _make_mock_base_agent("AgentB")
-            agent_b.execute.return_value = _make_successful_agent_result(
-                {"from": "b"}, "AgentB"
-            )
+            agent_b.execute.return_value = _make_successful_agent_result({"from": "b"}, "AgentB")
 
             composite.add_agent("a", agent_a).add_agent("b", agent_b)
 
@@ -461,14 +460,12 @@ class TestCompositeAgentExecution:
     @pytest.mark.asyncio
     async def test_parallel_continues_despite_failures(self):
         """Parallel continues even when some agents fail, reports errors."""
-        with patch.object(CompositeAgentConfig, '__post_init__', lambda self: None):
+        with patch.object(CompositeAgentConfig, "__post_init__", lambda self: None):
             composite = CompositeAgent()
             composite.config.merge_strategy = MergeStrategy.COMBINE
 
             agent_a = _make_mock_base_agent("AgentA")
-            agent_a.execute.return_value = _make_successful_agent_result(
-                {"from": "a"}, "AgentA"
-            )
+            agent_a.execute.return_value = _make_successful_agent_result({"from": "a"}, "AgentA")
             agent_b = _make_mock_base_agent("AgentB")
             agent_b.execute.return_value = _make_failed_agent_result("fail!", "AgentB")
 
@@ -484,7 +481,7 @@ class TestCompositeAgentExecution:
     @pytest.mark.asyncio
     async def test_parallel_all_fail_returns_empty_output(self):
         """Parallel with all failures returns success=False (no outputs)."""
-        with patch.object(CompositeAgentConfig, '__post_init__', lambda self: None):
+        with patch.object(CompositeAgentConfig, "__post_init__", lambda self: None):
             composite = CompositeAgent()
             composite.config.merge_strategy = MergeStrategy.COMBINE
 
@@ -503,7 +500,7 @@ class TestCompositeAgentExecution:
     @pytest.mark.asyncio
     async def test_parallel_exception_recorded_as_error(self):
         """Parallel records raised exceptions in errors dict."""
-        with patch.object(CompositeAgentConfig, '__post_init__', lambda self: None):
+        with patch.object(CompositeAgentConfig, "__post_init__", lambda self: None):
             composite = CompositeAgent()
             composite.config.merge_strategy = MergeStrategy.COMBINE
 
@@ -522,7 +519,7 @@ class TestCompositeAgentExecution:
     @pytest.mark.asyncio
     async def test_consensus_majority_success(self):
         """Consensus passes when >50% of agents succeed."""
-        with patch.object(CompositeAgentConfig, '__post_init__', lambda self: None):
+        with patch.object(CompositeAgentConfig, "__post_init__", lambda self: None):
             composite = CompositeAgent()
 
             agent_a = _make_mock_base_agent("AgentA")
@@ -544,7 +541,7 @@ class TestCompositeAgentExecution:
     @pytest.mark.asyncio
     async def test_consensus_majority_failure(self):
         """Consensus fails when <=50% of agents succeed."""
-        with patch.object(CompositeAgentConfig, '__post_init__', lambda self: None):
+        with patch.object(CompositeAgentConfig, "__post_init__", lambda self: None):
             composite = CompositeAgent()
 
             agent_a = _make_mock_base_agent("AgentA")
@@ -566,17 +563,13 @@ class TestCompositeAgentExecution:
     @pytest.mark.asyncio
     async def test_consensus_returns_first_successful_output(self):
         """Consensus uses the first successful output as the consensus output."""
-        with patch.object(CompositeAgentConfig, '__post_init__', lambda self: None):
+        with patch.object(CompositeAgentConfig, "__post_init__", lambda self: None):
             composite = CompositeAgent()
 
             agent_a = _make_mock_base_agent("AgentA")
-            agent_a.execute.return_value = _make_successful_agent_result(
-                {"answer": "42"}, "AgentA"
-            )
+            agent_a.execute.return_value = _make_successful_agent_result({"answer": "42"}, "AgentA")
             agent_b = _make_mock_base_agent("AgentB")
-            agent_b.execute.return_value = _make_successful_agent_result(
-                {"answer": "43"}, "AgentB"
-            )
+            agent_b.execute.return_value = _make_successful_agent_result({"answer": "43"}, "AgentB")
 
             composite.add_agent("a", agent_a).add_agent("b", agent_b)
 
@@ -588,7 +581,7 @@ class TestCompositeAgentExecution:
     @pytest.mark.asyncio
     async def test_orchestrate_no_sub_agents_returns_failure(self):
         """_orchestrate with no sub-agents returns failure UnifiedResult."""
-        with patch.object(CompositeAgentConfig, '__post_init__', lambda self: None):
+        with patch.object(CompositeAgentConfig, "__post_init__", lambda self: None):
             composite = CompositeAgent()
 
             result = await composite._orchestrate(task="nothing")
@@ -601,14 +594,14 @@ class TestCompositeAgentExecution:
         assert CoordinationPattern.PIPELINE in _COORDINATION_DISPATCH
         assert CoordinationPattern.PARALLEL in _COORDINATION_DISPATCH
         assert CoordinationPattern.CONSENSUS in _COORDINATION_DISPATCH
-        assert _COORDINATION_DISPATCH[CoordinationPattern.PIPELINE] == '_execute_pipeline'
-        assert _COORDINATION_DISPATCH[CoordinationPattern.PARALLEL] == '_execute_parallel'
-        assert _COORDINATION_DISPATCH[CoordinationPattern.CONSENSUS] == '_execute_consensus'
+        assert _COORDINATION_DISPATCH[CoordinationPattern.PIPELINE] == "_execute_pipeline"
+        assert _COORDINATION_DISPATCH[CoordinationPattern.PARALLEL] == "_execute_parallel"
+        assert _COORDINATION_DISPATCH[CoordinationPattern.CONSENSUS] == "_execute_consensus"
 
     @pytest.mark.asyncio
     async def test_orchestrate_routes_to_pipeline(self):
         """_orchestrate routes PIPELINE pattern to _execute_pipeline."""
-        with patch.object(CompositeAgentConfig, '__post_init__', lambda self: None):
+        with patch.object(CompositeAgentConfig, "__post_init__", lambda self: None):
             composite = CompositeAgent()
             composite.config.coordination_pattern = CoordinationPattern.PIPELINE
 
@@ -616,7 +609,7 @@ class TestCompositeAgentExecution:
             agent_a.execute.return_value = _make_successful_agent_result("ok", "A")
             composite.add_agent("a", agent_a)
 
-            with patch.object(composite, '_execute_pipeline', new_callable=AsyncMock) as mock_pipe:
+            with patch.object(composite, "_execute_pipeline", new_callable=AsyncMock) as mock_pipe:
                 mock_pipe.return_value = UnifiedResult(
                     success=True, output="done", name="Test", execution_time=1.0
                 )
@@ -628,13 +621,14 @@ class TestCompositeAgentExecution:
 # TestMergeStrategies
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestMergeStrategies:
     """Tests for _merge_outputs with different MergeStrategy values."""
 
     def _make_composite_with_strategy(self, strategy):
         """Helper to create a CompositeAgent with a given merge strategy."""
-        with patch.object(CompositeAgentConfig, '__post_init__', lambda self: None):
+        with patch.object(CompositeAgentConfig, "__post_init__", lambda self: None):
             composite = CompositeAgent()
             composite.config.merge_strategy = strategy
             return composite
@@ -690,7 +684,7 @@ class TestMergeStrategies:
 
     def test_unknown_strategy_falls_back_to_dict(self):
         """Unrecognized strategy falls through and returns the outputs dict."""
-        with patch.object(CompositeAgentConfig, '__post_init__', lambda self: None):
+        with patch.object(CompositeAgentConfig, "__post_init__", lambda self: None):
             composite = CompositeAgent()
             # Set to a mock strategy value that is not in the switch
             composite.config.merge_strategy = MagicMock()
@@ -703,6 +697,7 @@ class TestMergeStrategies:
 # TestCompositeAgentFactoryMethods
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestCompositeAgentFactoryMethods:
     """Extended tests for from_swarm and compose factory methods."""
@@ -711,7 +706,7 @@ class TestCompositeAgentFactoryMethods:
         """from_swarm uses the swarm's timeout_seconds (300s default)."""
         mock_swarm = _make_mock_domain_swarm("MySwarm", timeout_seconds=300)
 
-        with patch.object(CompositeAgentConfig, '__post_init__', lambda self: None):
+        with patch.object(CompositeAgentConfig, "__post_init__", lambda self: None):
             composite = CompositeAgent.from_swarm(mock_swarm)
 
             assert composite.config.timeout == 300.0
@@ -720,7 +715,7 @@ class TestCompositeAgentFactoryMethods:
         """from_swarm uses a custom swarm timeout when set."""
         mock_swarm = _make_mock_domain_swarm("MySwarm", timeout_seconds=600)
 
-        with patch.object(CompositeAgentConfig, '__post_init__', lambda self: None):
+        with patch.object(CompositeAgentConfig, "__post_init__", lambda self: None):
             composite = CompositeAgent.from_swarm(mock_swarm)
 
             assert composite.config.timeout == 600.0
@@ -729,7 +724,7 @@ class TestCompositeAgentFactoryMethods:
         """from_swarm stores the original swarm in _wrapped_swarm."""
         mock_swarm = _make_mock_domain_swarm("TestSwarm")
 
-        with patch.object(CompositeAgentConfig, '__post_init__', lambda self: None):
+        with patch.object(CompositeAgentConfig, "__post_init__", lambda self: None):
             composite = CompositeAgent.from_swarm(mock_swarm)
 
             assert composite._wrapped_swarm is mock_swarm
@@ -739,7 +734,7 @@ class TestCompositeAgentFactoryMethods:
         mock_swarm = _make_mock_domain_swarm("TestSwarm")
         mock_signature = MagicMock()
 
-        with patch.object(CompositeAgentConfig, '__post_init__', lambda self: None):
+        with patch.object(CompositeAgentConfig, "__post_init__", lambda self: None):
             composite = CompositeAgent.from_swarm(mock_swarm, signature=mock_signature)
 
             assert composite.signature is mock_signature
@@ -751,7 +746,7 @@ class TestCompositeAgentFactoryMethods:
         mock_swarm.config = MagicMock(spec=[])  # empty spec = no attributes
         mock_swarm.config.name = "NoTimeoutSwarm"
 
-        with patch.object(CompositeAgentConfig, '__post_init__', lambda self: None):
+        with patch.object(CompositeAgentConfig, "__post_init__", lambda self: None):
             composite = CompositeAgent.from_swarm(mock_swarm)
 
             # getattr(swarm.config, 'timeout_seconds', 300) → 300
@@ -762,7 +757,7 @@ class TestCompositeAgentFactoryMethods:
         agent_a = _make_mock_base_agent("A", timeout=60.0)
         agent_b = _make_mock_base_agent("B", timeout=120.0)
 
-        with patch.object(CompositeAgentConfig, '__post_init__', lambda self: None):
+        with patch.object(CompositeAgentConfig, "__post_init__", lambda self: None):
             composite = CompositeAgent.compose(
                 "ParGroup",
                 coordination=CoordinationPattern.PARALLEL,
@@ -778,7 +773,7 @@ class TestCompositeAgentFactoryMethods:
         agent_b = _make_mock_base_agent("B", timeout=200.0)
         agent_c = _make_mock_base_agent("C", timeout=100.0)
 
-        with patch.object(CompositeAgentConfig, '__post_init__', lambda self: None):
+        with patch.object(CompositeAgentConfig, "__post_init__", lambda self: None):
             composite = CompositeAgent.compose(
                 "ConsGroup",
                 coordination=CoordinationPattern.CONSENSUS,
@@ -793,7 +788,7 @@ class TestCompositeAgentFactoryMethods:
         """compose always sets max_retries=1."""
         agent_a = _make_mock_base_agent("A", timeout=30.0)
 
-        with patch.object(CompositeAgentConfig, '__post_init__', lambda self: None):
+        with patch.object(CompositeAgentConfig, "__post_init__", lambda self: None):
             composite = CompositeAgent.compose(
                 "SingleAgent",
                 coordination=CoordinationPattern.PIPELINE,
@@ -804,7 +799,7 @@ class TestCompositeAgentFactoryMethods:
 
     def test_compose_no_agents_timeout_not_set(self):
         """compose with no agents does not crash on empty timeout list."""
-        with patch.object(CompositeAgentConfig, '__post_init__', lambda self: None):
+        with patch.object(CompositeAgentConfig, "__post_init__", lambda self: None):
             composite = CompositeAgent.compose("Empty")
             # No agents means agent_timeouts is empty, so timeout is not overridden
             assert len(composite.sub_agents) == 0
@@ -814,7 +809,7 @@ class TestCompositeAgentFactoryMethods:
         agent_a = _make_mock_base_agent("A", timeout=30.0)
         mock_sig = MagicMock()
 
-        with patch.object(CompositeAgentConfig, '__post_init__', lambda self: None):
+        with patch.object(CompositeAgentConfig, "__post_init__", lambda self: None):
             composite = CompositeAgent.compose(
                 "WithSig",
                 signature=mock_sig,
@@ -828,13 +823,14 @@ class TestCompositeAgentFactoryMethods:
 # TestCompositeAgentSubAgentManagement
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestCompositeAgentSubAgentManagement:
     """Extended tests for add_agent, remove_agent, get_agent, and sub_agents property."""
 
     def test_add_agent_returns_self_for_chaining(self):
         """add_agent returns self to allow method chaining."""
-        with patch.object(CompositeAgentConfig, '__post_init__', lambda self: None):
+        with patch.object(CompositeAgentConfig, "__post_init__", lambda self: None):
             composite = CompositeAgent()
             agent = _make_mock_base_agent("X")
             result = composite.add_agent("x", agent)
@@ -842,7 +838,7 @@ class TestCompositeAgentSubAgentManagement:
 
     def test_remove_agent_returns_self_for_chaining(self):
         """remove_agent returns self to allow method chaining."""
-        with patch.object(CompositeAgentConfig, '__post_init__', lambda self: None):
+        with patch.object(CompositeAgentConfig, "__post_init__", lambda self: None):
             composite = CompositeAgent()
             agent = _make_mock_base_agent("X")
             composite.add_agent("x", agent)
@@ -851,13 +847,13 @@ class TestCompositeAgentSubAgentManagement:
 
     def test_get_agent_returns_none_for_missing(self):
         """get_agent returns None when name is not found."""
-        with patch.object(CompositeAgentConfig, '__post_init__', lambda self: None):
+        with patch.object(CompositeAgentConfig, "__post_init__", lambda self: None):
             composite = CompositeAgent()
             assert composite.get_agent("nonexistent") is None
 
     def test_get_agent_returns_correct_agent(self):
         """get_agent returns the exact agent instance that was added."""
-        with patch.object(CompositeAgentConfig, '__post_init__', lambda self: None):
+        with patch.object(CompositeAgentConfig, "__post_init__", lambda self: None):
             composite = CompositeAgent()
             agent_x = _make_mock_base_agent("X")
             agent_y = _make_mock_base_agent("Y")
@@ -868,7 +864,7 @@ class TestCompositeAgentSubAgentManagement:
 
     def test_sub_agents_returns_read_only_snapshot(self):
         """sub_agents property returns a snapshot that does not affect internals."""
-        with patch.object(CompositeAgentConfig, '__post_init__', lambda self: None):
+        with patch.object(CompositeAgentConfig, "__post_init__", lambda self: None):
             composite = CompositeAgent()
             agent = _make_mock_base_agent("W")
             composite.add_agent("w", agent)
@@ -881,7 +877,7 @@ class TestCompositeAgentSubAgentManagement:
 
     def test_add_agent_overwrites_existing(self):
         """add_agent overwrites an agent if the same name is used."""
-        with patch.object(CompositeAgentConfig, '__post_init__', lambda self: None):
+        with patch.object(CompositeAgentConfig, "__post_init__", lambda self: None):
             composite = CompositeAgent()
             agent_v1 = _make_mock_base_agent("V1")
             agent_v2 = _make_mock_base_agent("V2")
@@ -894,7 +890,7 @@ class TestCompositeAgentSubAgentManagement:
 
     def test_remove_then_readd_agent(self):
         """An agent can be removed and re-added under the same name."""
-        with patch.object(CompositeAgentConfig, '__post_init__', lambda self: None):
+        with patch.object(CompositeAgentConfig, "__post_init__", lambda self: None):
             composite = CompositeAgent()
             agent = _make_mock_base_agent("Recyclable")
 
@@ -910,6 +906,7 @@ class TestCompositeAgentSubAgentManagement:
 # TestCompositeAgentUtility
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestCompositeAgentUtility:
     """Tests for __repr__, to_dict, get_io_schema, and extract_output."""
@@ -918,7 +915,7 @@ class TestCompositeAgentUtility:
         """__repr__ mentions the wrapped swarm class name."""
         mock_swarm = _make_mock_domain_swarm("CodingSwarm")
 
-        with patch.object(CompositeAgentConfig, '__post_init__', lambda self: None):
+        with patch.object(CompositeAgentConfig, "__post_init__", lambda self: None):
             composite = CompositeAgent.from_swarm(mock_swarm)
             r = repr(composite)
             assert "wraps=" in r
@@ -926,7 +923,7 @@ class TestCompositeAgentUtility:
 
     def test_repr_without_wrapped_swarm(self):
         """__repr__ shows agents list and coordination pattern."""
-        with patch.object(CompositeAgentConfig, '__post_init__', lambda self: None):
+        with patch.object(CompositeAgentConfig, "__post_init__", lambda self: None):
             composite = CompositeAgent()
             composite.config.coordination_pattern = CoordinationPattern.PARALLEL
             agent = _make_mock_base_agent("Worker")
@@ -937,7 +934,7 @@ class TestCompositeAgentUtility:
 
     def test_to_dict_includes_composite_fields(self):
         """to_dict includes type, coordination, merge_strategy, has_signature."""
-        with patch.object(CompositeAgentConfig, '__post_init__', lambda self: None):
+        with patch.object(CompositeAgentConfig, "__post_init__", lambda self: None):
             composite = CompositeAgent()
             composite.config.coordination_pattern = CoordinationPattern.PIPELINE
             composite.config.merge_strategy = MergeStrategy.COMBINE
@@ -953,7 +950,7 @@ class TestCompositeAgentUtility:
         """to_dict includes wrapped swarm class name."""
         mock_swarm = _make_mock_domain_swarm("ResearchSwarm")
 
-        with patch.object(CompositeAgentConfig, '__post_init__', lambda self: None):
+        with patch.object(CompositeAgentConfig, "__post_init__", lambda self: None):
             composite = CompositeAgent.from_swarm(mock_swarm)
             d = composite.to_dict()
             assert d["wrapped_swarm"] is not None

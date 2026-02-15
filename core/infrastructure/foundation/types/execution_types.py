@@ -24,6 +24,7 @@ class CoordinationPattern(Enum):
     BLACKBOARD: Shared workspace, agents contribute incrementally
     ROUND_ROBIN: Agents take turns on subtasks
     """
+
     NONE = "none"
     PIPELINE = "pipeline"
     PARALLEL = "parallel"
@@ -35,8 +36,9 @@ class CoordinationPattern(Enum):
 
 class MergeStrategy(Enum):
     """How to merge results from parallel execution."""
-    COMBINE = "combine"      # Combine all outputs into list
-    FIRST = "first"          # Take first successful result
-    BEST = "best"            # Use scoring to pick best
-    VOTE = "vote"            # Majority voting
-    CONCAT = "concat"        # Concatenate string outputs
+
+    COMBINE = "combine"  # Combine all outputs into list
+    FIRST = "first"  # Take first successful result
+    BEST = "best"  # Use scoring to pick best
+    VOTE = "vote"  # Majority voting
+    CONCAT = "concat"  # Concatenate string outputs

@@ -12,11 +12,11 @@ Includes tool-awareness (Agent0) and memory integration.
 Extracted from swarm_intelligence.py for modularity.
 """
 
-import time
 import logging
-from typing import Dict, List, Any, Optional, Tuple
-from dataclasses import dataclass, field
+import time
 from collections import defaultdict
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional, Tuple
 
 from .swarm_data_structures import AgentProfile
 
@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class SyntheticTask:
     """A self-generated task for agent training."""
+
     task_id: str
     task_type: str
     description: str
@@ -55,7 +56,9 @@ class CurriculumGenerator:
     This enables AUTONOMOUS SKILL IMPROVEMENT without user intervention.
     """
 
-    def __init__(self, config: Any = None, state_manager: Any = None, memory_system: Any = None) -> None:
+    def __init__(
+        self, config: Any = None, state_manager: Any = None, memory_system: Any = None
+    ) -> None:
         self.config = config
 
         # Agent0: Connect to existing infrastructure (DRY - don't duplicate)
@@ -67,37 +70,37 @@ class CurriculumGenerator:
         # attempt without additional context.  No {placeholder} strings
         # that produce "Analyze patterns in: users" (non-executable).
         self.task_templates: Dict[str, List[str]] = {
-            'aggregation': [
+            "aggregation": [
                 "How many countries in the world have a population over 100 million?",
                 "What is the approximate total market cap of the top 5 US tech companies?",
                 "List the 3 most common programming languages on GitHub and their approximate usage share.",
             ],
-            'analysis': [
+            "analysis": [
                 "Compare the pros and cons of Python vs Rust for web backend development.",
                 "Analyze why SQLite is preferred for mobile apps over PostgreSQL.",
                 "What are the key differences between REST and GraphQL APIs? Give concrete examples.",
             ],
-            'transformation': [
+            "transformation": [
                 "Convert this CSV header row into a SQL CREATE TABLE statement: name,age,email,created_at",
                 "Rewrite this Python 2 code to Python 3: print 'hello'; raw_input('name: ')",
-                "Convert this JSON to YAML: {\"name\": \"test\", \"version\": 1, \"tags\": [\"a\", \"b\"]}",
+                'Convert this JSON to YAML: {"name": "test", "version": 1, "tags": ["a", "b"]}',
             ],
-            'validation': [
+            "validation": [
                 "Is this a valid email address? Explain why or why not: user@.example.com",
                 "Check if this SQL query has any syntax errors: SELECT * FROM users WHERE name = 'John AND age > 30",
                 "Is this JSON valid? If not, fix it: {name: 'test', items: [1, 2,]}",
             ],
-            'coding': [
+            "coding": [
                 "Write a Python function that checks if a string is a palindrome.",
                 "Write a bash one-liner that finds all .py files modified in the last 24 hours.",
                 "Write a Python function that flattens a nested list of arbitrary depth.",
             ],
-            'research': [
+            "research": [
                 "What are the main differences between Docker and Podman?",
                 "Explain how HTTPS/TLS handshake works in simple terms.",
                 "What is the CAP theorem and how does it apply to distributed databases?",
             ],
-            'planning': [
+            "planning": [
                 "Create a step-by-step plan to migrate a monolith web app to microservices.",
                 "Plan the steps needed to set up CI/CD for a Python project using GitHub Actions.",
                 "Outline the steps to debug a memory leak in a Node.js application.",
@@ -118,25 +121,25 @@ class CurriculumGenerator:
         # Agent0: Tool-aware task templates — CONCRETE tasks that exercise
         # specific tool categories. No placeholders.
         self.tool_task_templates: Dict[str, Dict[str, Any]] = {
-            'search_analyze': {
-                'description': "Search the web for the latest Python 3.13 release notes and summarize the top 3 new features.",
-                'tools_hint': ['search', 'web_search', 'grep'],
-                'complexity': 'chain',
+            "search_analyze": {
+                "description": "Search the web for the latest Python 3.13 release notes and summarize the top 3 new features.",
+                "tools_hint": ["search", "web_search", "grep"],
+                "complexity": "chain",
             },
-            'read_transform': {
-                'description': "Read the file /etc/hostname and convert its content to uppercase.",
-                'tools_hint': ['read', 'file_read', 'converter'],
-                'complexity': 'chain',
+            "read_transform": {
+                "description": "Read the file /etc/hostname and convert its content to uppercase.",
+                "tools_hint": ["read", "file_read", "converter"],
+                "complexity": "chain",
             },
-            'execute_validate': {
-                'description': "Run 'python3 --version' and verify the output contains 'Python 3'.",
-                'tools_hint': ['bash', 'execute', 'validate'],
-                'complexity': 'chain',
+            "execute_validate": {
+                "description": "Run 'python3 --version' and verify the output contains 'Python 3'.",
+                "tools_hint": ["bash", "execute", "validate"],
+                "complexity": "chain",
             },
-            'multi_source': {
-                'description': "Find the current weather in Tokyo and the current USD/JPY exchange rate, then present both together.",
-                'tools_hint': ['search', 'read', 'fetch'],
-                'complexity': 'parallel',
+            "multi_source": {
+                "description": "Find the current weather in Tokyo and the current USD/JPY exchange rate, then present both together.",
+                "tools_hint": ["search", "read", "fetch"],
+                "complexity": "parallel",
             },
         }
 
@@ -148,9 +151,7 @@ class CurriculumGenerator:
         logger.info("CurriculumGenerator initialized (DrZero + Agent0 self-curriculum)")
 
     def generate_training_task(
-        self,
-        profiles: Dict[str, 'AgentProfile'],
-        target_agent: Optional[str] = None
+        self, profiles: Dict[str, "AgentProfile"], target_agent: Optional[str] = None
     ) -> SyntheticTask:
         """
         Generate a training task targeting current agent weaknesses.
@@ -179,15 +180,15 @@ class CurriculumGenerator:
             difficulty=difficulty,
             target_agent=target_agent,
             metadata={
-                'curriculum_round': self.total_generated,
-                'weakness_targeted': task_type,
-            }
+                "curriculum_round": self.total_generated,
+                "weakness_targeted": task_type,
+            },
         )
 
         # 4. Track for diversity
         self.generated_tasks.append(task)
         if len(self.generated_tasks) > self.max_history:
-            self.generated_tasks = self.generated_tasks[-self.max_history:]
+            self.generated_tasks = self.generated_tasks[-self.max_history :]
 
         self.total_generated += 1
         self.tasks_by_difficulty[f"{int(difficulty * 10) / 10:.1f}"] += 1
@@ -196,9 +197,7 @@ class CurriculumGenerator:
         return task
 
     def _select_task_type_by_weakness(
-        self,
-        profiles: Dict[str, 'AgentProfile'],
-        target_agent: Optional[str] = None
+        self, profiles: Dict[str, "AgentProfile"], target_agent: Optional[str] = None
     ) -> Tuple[str, float]:
         """
         Select task type based on agent weaknesses.
@@ -230,11 +229,13 @@ class CurriculumGenerator:
         # If no data, pick random type for exploration
         if weakest_type is None:
             import random
+
             weakest_type = random.choice(list(self.task_templates.keys()))
             lowest_rate = 0.5
 
         # Ensure diversity: occasionally pick other types
         import random
+
         if random.random() < 0.2:  # 20% exploration
             weakest_type = random.choice(list(self.task_templates.keys()))
 
@@ -275,9 +276,9 @@ class CurriculumGenerator:
         import random
 
         # Sample domains/fields
-        domains = ['users', 'transactions', 'events', 'logs', 'metrics', 'records']
-        fields = ['timestamp', 'value', 'count', 'status', 'category', 'score']
-        formats = ['json', 'csv', 'parquet', 'sql', 'xml']
+        domains = ["users", "transactions", "events", "logs", "metrics", "records"]
+        fields = ["timestamp", "value", "count", "status", "category", "score"]
+        formats = ["json", "csv", "parquet", "sql", "xml"]
 
         # Complexity scales with difficulty
         num_conditions = max(1, int(difficulty * 3))
@@ -285,33 +286,33 @@ class CurriculumGenerator:
         conditions = []
         for _ in range(num_conditions):
             field_name = random.choice(fields)
-            op = random.choice(['>', '<', '=', '!=', 'contains', 'between'])
+            op = random.choice([">", "<", "=", "!=", "contains", "between"])
             conditions.append(f"{field_name} {op} value")
 
         return {
-            'criteria': ' AND '.join(conditions[:2]),
-            'condition': conditions[0] if conditions else 'value > 0',
-            'field': random.choice(fields),
-            'field_a': random.choice(fields),
-            'field_b': random.choice(fields),
-            'domain': random.choice(domains),
-            'dataset': random.choice(domains),
-            'dataset_a': random.choice(domains),
-            'dataset_b': random.choice(domains),
-            'format_a': random.choice(formats),
-            'format_b': random.choice(formats),
-            'constraints': ', '.join(conditions[:num_conditions]),
-            'source_a': random.choice(domains),
-            'source_b': random.choice(domains),
-            'n': str(random.randint(5, 20) * int(difficulty * 2 + 1)),
-            'goal': f"Complete {random.choice(domains)} processing",
-            'complex_task': f"Analyze and transform {random.choice(domains)}",
-            'items': ', '.join(random.sample(fields, min(3, len(fields)))),
-            'task_type': random.choice(list(self.task_templates.keys())),
-            'topic': random.choice(domains),
-            'source': random.choice(domains),
-            'format': random.choice(formats),
-            'command': f"process_{random.choice(domains)}",
+            "criteria": " AND ".join(conditions[:2]),
+            "condition": conditions[0] if conditions else "value > 0",
+            "field": random.choice(fields),
+            "field_a": random.choice(fields),
+            "field_b": random.choice(fields),
+            "domain": random.choice(domains),
+            "dataset": random.choice(domains),
+            "dataset_a": random.choice(domains),
+            "dataset_b": random.choice(domains),
+            "format_a": random.choice(formats),
+            "format_b": random.choice(formats),
+            "constraints": ", ".join(conditions[:num_conditions]),
+            "source_a": random.choice(domains),
+            "source_b": random.choice(domains),
+            "n": str(random.randint(5, 20) * int(difficulty * 2 + 1)),
+            "goal": f"Complete {random.choice(domains)} processing",
+            "complex_task": f"Analyze and transform {random.choice(domains)}",
+            "items": ", ".join(random.sample(fields, min(3, len(fields)))),
+            "task_type": random.choice(list(self.task_templates.keys())),
+            "topic": random.choice(domains),
+            "source": random.choice(domains),
+            "format": random.choice(formats),
+            "command": f"process_{random.choice(domains)}",
         }
 
     def update_from_result(self, task: SyntheticTask, success: bool, execution_time: float) -> None:
@@ -340,12 +341,12 @@ class CurriculumGenerator:
     def get_curriculum_stats(self) -> Dict[str, Any]:
         """Get statistics about the curriculum."""
         return {
-            'total_generated': self.total_generated,
-            'difficulty_by_type': dict(self.difficulty_by_type),
-            'tasks_by_difficulty': dict(self.tasks_by_difficulty),
-            'recent_task_types': [t.task_type for t in self.generated_tasks[-10:]],
-            'tool_success_rates': dict(self._tool_success_rates),
-            'feedback_count': len(self._executor_feedback_history),
+            "total_generated": self.total_generated,
+            "difficulty_by_type": dict(self.difficulty_by_type),
+            "tasks_by_difficulty": dict(self.tasks_by_difficulty),
+            "recent_task_types": [t.task_type for t in self.generated_tasks[-10:]],
+            "tool_success_rates": dict(self._tool_success_rates),
+            "feedback_count": len(self._executor_feedback_history),
         }
 
     # =========================================================================
@@ -370,24 +371,33 @@ class CurriculumGenerator:
         self._memory_system = memory_system
         logger.debug("CurriculumGenerator connected to memory system")
 
-    def receive_executor_feedback(self, task_id: str, success: bool, tools_used: List[str], execution_time: float = 0.0, error_type: str = None) -> Any:
+    def receive_executor_feedback(
+        self,
+        task_id: str,
+        success: bool,
+        tools_used: List[str],
+        execution_time: float = 0.0,
+        error_type: str = None,
+    ) -> Any:
         """
         Agent0: Receive feedback from executor to adapt curriculum.
 
         Closes the loop: Executor performance -> Curriculum adaptation.
         """
         feedback = {
-            'task_id': task_id,
-            'success': success,
-            'tools_used': tools_used,
-            'execution_time': execution_time,
-            'error_type': error_type,
-            'timestamp': time.time(),
+            "task_id": task_id,
+            "success": success,
+            "tools_used": tools_used,
+            "execution_time": execution_time,
+            "error_type": error_type,
+            "timestamp": time.time(),
         }
 
         self._executor_feedback_history.append(feedback)
         if len(self._executor_feedback_history) > self._max_feedback_history:
-            self._executor_feedback_history = self._executor_feedback_history[-self._max_feedback_history:]
+            self._executor_feedback_history = self._executor_feedback_history[
+                -self._max_feedback_history :
+            ]
 
         # Update tool success rates
         for tool in tools_used:
@@ -413,21 +423,18 @@ class CurriculumGenerator:
 
         try:
             # Get all agent trackers from state manager
-            if hasattr(self._state_manager, 'agent_trackers'):
+            if hasattr(self._state_manager, "agent_trackers"):
                 # Build fresh snapshot into local dict
                 synced_rates: Dict[str, Tuple[int, int]] = {}
 
                 for agent_name, tracker in self._state_manager.agent_trackers.items():
                     state = tracker.get_state()
-                    tool_usage = state.get('tool_usage', {})
+                    tool_usage = state.get("tool_usage", {})
 
-                    for tool, count in tool_usage.get('successful', {}).items():
+                    for tool, count in tool_usage.get("successful", {}).items():
                         current = synced_rates.get(tool, (0, 0))
-                        failed_count = tool_usage.get('failed', {}).get(tool, 0)
-                        synced_rates[tool] = (
-                            current[0] + count,
-                            current[1] + count + failed_count
-                        )
+                        failed_count = tool_usage.get("failed", {}).get(tool, 0)
+                        synced_rates[tool] = (current[0] + count, current[1] + count + failed_count)
 
                 # Atomic replace — no inflation on repeated calls
                 self._tool_success_rates = synced_rates
@@ -448,15 +455,15 @@ class CurriculumGenerator:
             # Query for error patterns
             query = f"errors failures mistakes {target_agent or 'agent'}"
 
-            if hasattr(self._memory_system, 'recall'):
+            if hasattr(self._memory_system, "recall"):
                 results = self._memory_system.recall(query, top_k=5)
                 if results:
                     weaknesses = [str(r)[:100] for r in results[:3]]
 
-            elif hasattr(self._memory_system, 'query'):
+            elif hasattr(self._memory_system, "query"):
                 results = self._memory_system.query(query, limit=5)
                 if results:
-                    weaknesses = [r.get('content', '')[:100] for r in results[:3]]
+                    weaknesses = [r.get("content", "")[:100] for r in results[:3]]
 
         except Exception as e:
             logger.debug(f"Could not query memory for weaknesses: {e}")
@@ -465,9 +472,9 @@ class CurriculumGenerator:
 
     def generate_tool_aware_task(
         self,
-        profiles: Dict[str, 'AgentProfile'],
+        profiles: Dict[str, "AgentProfile"],
         target_agent: Optional[str] = None,
-        prefer_weak_tools: bool = True
+        prefer_weak_tools: bool = True,
     ) -> SyntheticTask:
         """
         Agent0: Generate a task designed for tool usage.
@@ -494,19 +501,19 @@ class CurriculumGenerator:
 
         # Calculate difficulty based on tool complexity
         complexity_difficulty = {
-            'single': 0.3,
-            'chain': 0.5,
-            'parallel': 0.7,
-            'conditional': 0.8,
+            "single": 0.3,
+            "chain": 0.5,
+            "parallel": 0.7,
+            "conditional": 0.8,
         }
-        base_difficulty = complexity_difficulty.get(template.get('complexity', 'single'), 0.4)
+        base_difficulty = complexity_difficulty.get(template.get("complexity", "single"), 0.4)
 
         # Adjust based on executor feedback
         recent_success_rate = self._get_recent_success_rate()
         difficulty = min(1.0, base_difficulty + (recent_success_rate - 0.5) * 0.2)
 
         # Templates are now concrete — no placeholder substitution needed
-        description = template['description']
+        description = template["description"]
 
         # Create task with tool hints in metadata
         task = SyntheticTask(
@@ -516,13 +523,13 @@ class CurriculumGenerator:
             difficulty=difficulty,
             target_agent=target_agent,
             metadata={
-                'curriculum_round': self.total_generated,
-                'tool_aware': True,
-                'tools_hint': template.get('tools_hint', []),
-                'complexity': template.get('complexity', 'single'),
-                'weak_tools_targeted': weak_tools[:3],
-                'memory_context': memory_hints[0] if memory_hints else None,
-            }
+                "curriculum_round": self.total_generated,
+                "tool_aware": True,
+                "tools_hint": template.get("tools_hint", []),
+                "complexity": template.get("complexity", "single"),
+                "weak_tools_targeted": weak_tools[:3],
+                "memory_context": memory_hints[0] if memory_hints else None,
+            },
         )
 
         self.generated_tasks.append(task)
@@ -538,7 +545,7 @@ class CurriculumGenerator:
         # Score templates by weak tool overlap
         scored = []
         for name, template in self.tool_task_templates.items():
-            tools_hint = template.get('tools_hint', [])
+            tools_hint = template.get("tools_hint", [])
             overlap = len(set(weak_tools) & set(tools_hint))
             scored.append((name, template, overlap))
 
@@ -558,13 +565,18 @@ class CurriculumGenerator:
         recent = self._executor_feedback_history[-20:]
         if not recent:
             return 0.5
-        return sum(1 for f in recent if f['success']) / len(recent)
+        return sum(1 for f in recent if f["success"]) / len(recent)
 
     # =========================================================================
     # REPLAY BUFFER: Generate tasks from real past executions
     # =========================================================================
 
-    def generate_replay_task(self, collective_memory: Any, profiles: Dict[str, 'AgentProfile'], target_agent: Optional[str] = None) -> Optional[SyntheticTask]:
+    def generate_replay_task(
+        self,
+        collective_memory: Any,
+        profiles: Dict[str, "AgentProfile"],
+        target_agent: Optional[str] = None,
+    ) -> Optional[SyntheticTask]:
         """
         Generate a training task from REAL past executions (replay buffer).
 
@@ -593,21 +605,20 @@ class CurriculumGenerator:
 
         # Prioritize failed tasks (these are where learning value is highest)
         failed_tasks = [
-            m for m in mem_list
-            if not m.get('success', True)
-            and m.get('context', {}).get('query', '')  # Must have a real query
+            m
+            for m in mem_list
+            if not m.get("success", True)
+            and m.get("context", {}).get("query", "")  # Must have a real query
         ]
 
         # Also include successful tasks for reinforcement (lower priority)
         successful_tasks = [
-            m for m in mem_list
-            if m.get('success', True)
-            and m.get('context', {}).get('query', '')
+            m for m in mem_list if m.get("success", True) and m.get("context", {}).get("query", "")
         ]
 
         # If targeting a specific agent, filter to their failures
         if target_agent:
-            agent_failed = [m for m in failed_tasks if m.get('agent') == target_agent]
+            agent_failed = [m for m in failed_tasks if m.get("agent") == target_agent]
             if agent_failed:
                 failed_tasks = agent_failed
 
@@ -627,16 +638,16 @@ class CurriculumGenerator:
         selected = random.choices(candidates, weights=weights, k=1)[0]
 
         # Extract real task description
-        context = selected.get('context', {})
+        context = selected.get("context", {})
         task_description = (
-            context.get('query', '')
-            or context.get('task', '')
-            or context.get('goal', '')
+            context.get("query", "")
+            or context.get("task", "")
+            or context.get("goal", "")
             or f"Repeat {selected.get('task_type', 'general')} task"
         )
 
-        task_type = selected.get('task_type', 'general')
-        was_success = selected.get('success', False)
+        task_type = selected.get("task_type", "general")
+        was_success = selected.get("success", False)
 
         # Calculate difficulty from historical performance
         difficulty = self.difficulty_by_type.get(task_type, 0.3)
@@ -648,19 +659,19 @@ class CurriculumGenerator:
             task_type=task_type,
             description=task_description,
             difficulty=difficulty,
-            target_agent=target_agent or selected.get('agent'),
+            target_agent=target_agent or selected.get("agent"),
             metadata={
-                'source': 'replay_buffer',
-                'original_success': was_success,
-                'original_agent': selected.get('agent', 'unknown'),
-                'original_time': selected.get('execution_time', 0),
-                'curriculum_round': self.total_generated,
-            }
+                "source": "replay_buffer",
+                "original_success": was_success,
+                "original_agent": selected.get("agent", "unknown"),
+                "original_time": selected.get("execution_time", 0),
+                "curriculum_round": self.total_generated,
+            },
         )
 
         self.generated_tasks.append(task)
         if len(self.generated_tasks) > self.max_history:
-            self.generated_tasks = self.generated_tasks[-self.max_history:]
+            self.generated_tasks = self.generated_tasks[-self.max_history :]
 
         self.total_generated += 1
 
@@ -670,7 +681,12 @@ class CurriculumGenerator:
         )
         return task
 
-    def generate_smart_task(self, profiles: Dict[str, 'AgentProfile'], collective_memory: Any = None, target_agent: Optional[str] = None) -> SyntheticTask:
+    def generate_smart_task(
+        self,
+        profiles: Dict[str, "AgentProfile"],
+        collective_memory: Any = None,
+        target_agent: Optional[str] = None,
+    ) -> SyntheticTask:
         """
         Smart task generation: prefer replay buffer, fall back to templates.
 
@@ -691,9 +707,7 @@ class CurriculumGenerator:
         # a template because it's a task the system actually encountered.
         if collective_memory and len(list(collective_memory)) > 0:
             replay_task = self.generate_replay_task(
-                collective_memory=collective_memory,
-                profiles=profiles,
-                target_agent=target_agent
+                collective_memory=collective_memory, profiles=profiles, target_agent=target_agent
             )
             if replay_task:
                 return replay_task
@@ -701,16 +715,11 @@ class CurriculumGenerator:
         # Fall back to tool-aware template
         if self._tool_success_rates:
             return self.generate_tool_aware_task(
-                profiles=profiles,
-                target_agent=target_agent,
-                prefer_weak_tools=True
+                profiles=profiles, target_agent=target_agent, prefer_weak_tools=True
             )
 
         # Last resort: basic template
-        return self.generate_training_task(
-            profiles=profiles,
-            target_agent=target_agent
-        )
+        return self.generate_training_task(profiles=profiles, target_agent=target_agent)
 
     def to_dict(self) -> Dict:
         """Serialize for persistence - includes full learning history."""
@@ -723,23 +732,25 @@ class CurriculumGenerator:
                 serializable_rates[tool] = rate
 
         return {
-            'difficulty_by_type': dict(self.difficulty_by_type),
-            'total_generated': self.total_generated,
-            'tasks_by_difficulty': dict(self.tasks_by_difficulty),
-            'tool_success_rates': serializable_rates,
-            'feedback_history': self._executor_feedback_history[-100:],
+            "difficulty_by_type": dict(self.difficulty_by_type),
+            "total_generated": self.total_generated,
+            "tasks_by_difficulty": dict(self.tasks_by_difficulty),
+            "tool_success_rates": serializable_rates,
+            "feedback_history": self._executor_feedback_history[-100:],
         }
 
     @classmethod
-    def from_dict(cls, data: Dict, config: Any = None, state_manager: Any = None, memory_system: Any = None) -> 'CurriculumGenerator':
+    def from_dict(
+        cls, data: Dict, config: Any = None, state_manager: Any = None, memory_system: Any = None
+    ) -> "CurriculumGenerator":
         """Deserialize from persistence - restores full learning state."""
         instance = cls(config, state_manager=state_manager, memory_system=memory_system)
-        instance.difficulty_by_type = defaultdict(lambda: 0.3, data.get('difficulty_by_type', {}))
-        instance.total_generated = data.get('total_generated', 0)
-        instance.tasks_by_difficulty = defaultdict(int, data.get('tasks_by_difficulty', {}))
+        instance.difficulty_by_type = defaultdict(lambda: 0.3, data.get("difficulty_by_type", {}))
+        instance.total_generated = data.get("total_generated", 0)
+        instance.tasks_by_difficulty = defaultdict(int, data.get("tasks_by_difficulty", {}))
 
         # Restore tool_success_rates (convert lists back to tuples)
-        raw_rates = data.get('tool_success_rates', {})
+        raw_rates = data.get("tool_success_rates", {})
         for tool, rate in raw_rates.items():
             if isinstance(rate, list) and len(rate) == 2:
                 instance._tool_success_rates[tool] = (rate[0], rate[1])
@@ -747,12 +758,12 @@ class CurriculumGenerator:
                 instance._tool_success_rates[tool] = rate
 
         # Restore feedback history
-        instance._executor_feedback_history = data.get('feedback_history', [])
+        instance._executor_feedback_history = data.get("feedback_history", [])
 
         return instance
 
 
 __all__ = [
-    'SyntheticTask',
-    'CurriculumGenerator',
+    "SyntheticTask",
+    "CurriculumGenerator",
 ]

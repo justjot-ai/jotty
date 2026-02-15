@@ -15,20 +15,20 @@ Integrates:
 import asyncio
 import logging
 import os
-from pathlib import Path
-from typing import Dict, Any, Optional, List
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
 
 def get_currency_info(exchange: str) -> Dict[str, str]:
     """Get currency symbol and formatting based on exchange."""
-    us_exchanges = {'US', 'NYSE', 'NASDAQ', 'AMEX'}
+    us_exchanges = {"US", "NYSE", "NASDAQ", "AMEX"}
     if exchange.upper() in us_exchanges:
-        return {'symbol': '$', 'suffix': '', 'unit': 'B', 'divisor': 1e9}
+        return {"symbol": "$", "suffix": "", "unit": "B", "divisor": 1e9}
     else:
-        return {'symbol': '₹', 'suffix': ' Cr', 'unit': 'Cr', 'divisor': 1e7}
+        return {"symbol": "₹", "suffix": " Cr", "unit": "Cr", "divisor": 1e7}
 
 
 async def enhanced_stock_research_tool(params: Dict[str, Any]) -> Dict[str, Any]:
@@ -53,52 +53,139 @@ async def enhanced_stock_research_tool(params: Dict[str, Any]) -> Dict[str, Any]
     """
     try:
         # Import components
+        from .data_fetcher import FinancialDataConverter, ResearchDataFetcher
         from .report_components import (
-            CompanySnapshot, FinancialStatements, DCFModel, PeerComparison,
-            FinancialTablesFormatter, DCFCalculator, PeerComparisonFormatter,
-            ChartGenerator, ReportTemplate, ScenarioAnalyzer, CatalystsGenerator,
-            IndustryAnalyzer, EarningsProjector, PriceChartGenerator
+            CatalystsGenerator,
+            ChartGenerator,
+            CompanySnapshot,
+            DCFCalculator,
+            DCFModel,
+            EarningsProjector,
+            FinancialStatements,
+            FinancialTablesFormatter,
+            IndustryAnalyzer,
+            PeerComparison,
+            PeerComparisonFormatter,
+            PriceChartGenerator,
+            ReportTemplate,
+            ScenarioAnalyzer,
         )
-        from .data_fetcher import ResearchDataFetcher, FinancialDataConverter
 
         # Parse parameters
-        ticker = params.get('ticker', '').upper().strip()
+        ticker = params.get("ticker", "").upper().strip()
         if not ticker:
-            return {'success': False, 'error': 'ticker parameter is required'}
+            return {"success": False, "error": "ticker parameter is required"}
 
-        company_name = params.get('company_name', ticker)
+        company_name = params.get("company_name", ticker)
 
         # Auto-detect exchange for US stocks (comprehensive list)
         US_TICKERS = {
             # FAANG+
-            'AAPL', 'MSFT', 'GOOGL', 'GOOG', 'AMZN', 'META', 'NVDA', 'TSLA', 'NFLX',
+            "AAPL",
+            "MSFT",
+            "GOOGL",
+            "GOOG",
+            "AMZN",
+            "META",
+            "NVDA",
+            "TSLA",
+            "NFLX",
             # Major tech
-            'AMD', 'INTC', 'QCOM', 'AVGO', 'TXN', 'MU', 'AMAT', 'LRCX', 'KLAC',
-            'CRM', 'ADBE', 'ORCL', 'IBM', 'CSCO', 'PYPL', 'SQ', 'SHOP', 'NOW',
+            "AMD",
+            "INTC",
+            "QCOM",
+            "AVGO",
+            "TXN",
+            "MU",
+            "AMAT",
+            "LRCX",
+            "KLAC",
+            "CRM",
+            "ADBE",
+            "ORCL",
+            "IBM",
+            "CSCO",
+            "PYPL",
+            "SQ",
+            "SHOP",
+            "NOW",
             # Finance
-            'JPM', 'BAC', 'WFC', 'GS', 'MS', 'C', 'USB', 'PNC', 'V', 'MA', 'AXP',
+            "JPM",
+            "BAC",
+            "WFC",
+            "GS",
+            "MS",
+            "C",
+            "USB",
+            "PNC",
+            "V",
+            "MA",
+            "AXP",
             # Consumer
-            'WMT', 'HD', 'COST', 'TGT', 'LOW', 'NKE', 'SBUX', 'MCD', 'DIS', 'CMCSA',
+            "WMT",
+            "HD",
+            "COST",
+            "TGT",
+            "LOW",
+            "NKE",
+            "SBUX",
+            "MCD",
+            "DIS",
+            "CMCSA",
             # Healthcare
-            'JNJ', 'UNH', 'PFE', 'MRK', 'ABBV', 'LLY', 'TMO', 'ABT', 'BMY', 'AMGN',
+            "JNJ",
+            "UNH",
+            "PFE",
+            "MRK",
+            "ABBV",
+            "LLY",
+            "TMO",
+            "ABT",
+            "BMY",
+            "AMGN",
             # Industrial
-            'CAT', 'DE', 'BA', 'HON', 'UPS', 'GE', 'MMM', 'LMT', 'RTX',
+            "CAT",
+            "DE",
+            "BA",
+            "HON",
+            "UPS",
+            "GE",
+            "MMM",
+            "LMT",
+            "RTX",
             # Consumer staples
-            'PG', 'KO', 'PEP', 'PM', 'MO', 'CL', 'EL',
+            "PG",
+            "KO",
+            "PEP",
+            "PM",
+            "MO",
+            "CL",
+            "EL",
             # Energy
-            'XOM', 'CVX', 'COP', 'SLB', 'EOG',
+            "XOM",
+            "CVX",
+            "COP",
+            "SLB",
+            "EOG",
             # Other major
-            'BRK.A', 'BRK.B', 'UBER', 'ABNB', 'COIN', 'SNOW', 'PLTR', 'RBLX',
+            "BRK.A",
+            "BRK.B",
+            "UBER",
+            "ABNB",
+            "COIN",
+            "SNOW",
+            "PLTR",
+            "RBLX",
         }
-        default_exchange = 'US' if ticker in US_TICKERS else 'NSE'
-        exchange = params.get('exchange', default_exchange)
-        peers = params.get('peers', [])
-        target_price = params.get('target_price')
-        rating = params.get('rating')
-        output_dir = params.get('output_dir', os.path.expanduser('~/jotty/reports'))
-        report_type = params.get('report_type', 'full')
-        include_charts = params.get('include_charts', True)
-        send_telegram = params.get('send_telegram', True)
+        default_exchange = "US" if ticker in US_TICKERS else "NSE"
+        exchange = params.get("exchange", default_exchange)
+        peers = params.get("peers", [])
+        target_price = params.get("target_price")
+        rating = params.get("rating")
+        output_dir = params.get("output_dir", os.path.expanduser("~/jotty/reports"))
+        report_type = params.get("report_type", "full")
+        include_charts = params.get("include_charts", True)
+        send_telegram = params.get("send_telegram", True)
 
         logger.info(f"📊 Starting enhanced research for {ticker}")
 
@@ -117,15 +204,15 @@ async def enhanced_stock_research_tool(params: Dict[str, Any]) -> Dict[str, Any]
         # Fetch main company data
         company_data = await fetcher.fetch_company_data(ticker, exchange)
 
-        if 'error' in company_data and not company_data.get('current_price'):
+        if "error" in company_data and not company_data.get("current_price"):
             return {
-                'success': False,
-                'error': f"Failed to fetch data for {ticker}: {company_data.get('error')}"
+                "success": False,
+                "error": f"Failed to fetch data for {ticker}: {company_data.get('error')}",
             }
 
         # Auto-detect peers if not provided
         if not peers:
-            sector = company_data.get('sector', '')
+            sector = company_data.get("sector", "")
             peers = _get_sector_peers(ticker, sector, exchange)
 
         # Fetch peer data
@@ -145,8 +232,8 @@ async def enhanced_stock_research_tool(params: Dict[str, Any]) -> Dict[str, Any]
         # Convert to data classes
         snapshot = FinancialDataConverter.to_company_snapshot(
             company_data,
-            target_price=target_price or analyst_data.get('target_mean'),
-            rating=rating
+            target_price=target_price or analyst_data.get("target_mean"),
+            rating=rating,
         )
 
         financials = FinancialDataConverter.to_financial_statements(company_data)
@@ -157,8 +244,8 @@ async def enhanced_stock_research_tool(params: Dict[str, Any]) -> Dict[str, Any]
         dcf_calc = DCFCalculator(dcf_model)
 
         # Calculate DCF
-        shares = company_data.get('shares_outstanding', 1e8) / 1e7  # Convert to Cr
-        net_debt = (company_data.get('total_debt', 0) - company_data.get('total_cash', 0)) / 1e7
+        shares = company_data.get("shares_outstanding", 1e8) / 1e7  # Convert to Cr
+        net_debt = (company_data.get("total_debt", 0) - company_data.get("total_cash", 0)) / 1e7
         dcf_result = dcf_calc.calculate_dcf(shares, net_debt)
 
         # ================================================================
@@ -178,7 +265,9 @@ async def enhanced_stock_research_tool(params: Dict[str, Any]) -> Dict[str, Any]
         report_sections = []
 
         # 1. Cover Page (Enhanced)
-        cover = _generate_enhanced_cover_page(snapshot, investment_thesis, key_risks, analyst_data, exchange)
+        cover = _generate_enhanced_cover_page(
+            snapshot, investment_thesis, key_risks, analyst_data, exchange
+        )
         report_sections.append(cover)
 
         # 2. Table of Contents (Enhanced)
@@ -186,7 +275,9 @@ async def enhanced_stock_research_tool(params: Dict[str, Any]) -> Dict[str, Any]
         report_sections.append(toc)
 
         # 3. Executive Summary
-        exec_summary = _generate_executive_summary(snapshot, company_data, analyst_data, dcf_result, exchange)
+        exec_summary = _generate_executive_summary(
+            snapshot, company_data, analyst_data, dcf_result, exchange
+        )
         report_sections.append(exec_summary)
 
         # 4. Company Overview
@@ -194,18 +285,20 @@ async def enhanced_stock_research_tool(params: Dict[str, Any]) -> Dict[str, Any]
         report_sections.append(company_overview)
 
         # 4.5 Recent News & Developments (from web search)
-        if company_data.get('web_search_news'):
+        if company_data.get("web_search_news"):
             news_section = _generate_news_section(company_data, ticker)
             report_sections.append(news_section)
 
         # 5. Industry Analysis (NEW)
         industry_section = IndustryAnalyzer.get_industry_analysis(
-            company_data.get('sector', ''), company_data, exchange
+            company_data.get("sector", ""), company_data, exchange
         )
         report_sections.append(industry_section)
 
         # 6. Financial Analysis
-        financial_section = _generate_financial_section(financials, formatter, company_data, exchange)
+        financial_section = _generate_financial_section(
+            financials, formatter, company_data, exchange
+        )
         report_sections.append(financial_section)
 
         # 7. Earnings Projections (NEW)
@@ -221,11 +314,13 @@ async def enhanced_stock_research_tool(params: Dict[str, Any]) -> Dict[str, Any]
         # 9. Scenario Analysis (NEW)
         scenarios = ScenarioAnalyzer.generate_scenarios(
             snapshot.current_price,
-            dcf_result.get('implied_price', 0),
-            analyst_data.get('target_mean', 0),
-            company_data
+            dcf_result.get("implied_price", 0),
+            analyst_data.get("target_mean", 0),
+            company_data,
         )
-        scenario_section = ScenarioAnalyzer.format_scenario_table(scenarios, snapshot.current_price, exchange)
+        scenario_section = ScenarioAnalyzer.format_scenario_table(
+            scenarios, snapshot.current_price, exchange
+        )
         report_sections.append(scenario_section)
 
         # 10. Catalysts Section (NEW)
@@ -234,7 +329,7 @@ async def enhanced_stock_research_tool(params: Dict[str, Any]) -> Dict[str, Any]
         report_sections.append(catalysts_section)
 
         # 11. Technical Analysis
-        if company_data.get('price_history'):
+        if company_data.get("price_history"):
             tech_section = _generate_technical_section(company_data, exchange)
             report_sections.append(tech_section)
 
@@ -262,14 +357,14 @@ async def enhanced_stock_research_tool(params: Dict[str, Any]) -> Dict[str, Any]
         # ================================================================
         logger.info("📄 Phase 4: Generating output files...")
 
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        safe_ticker = ticker.replace('/', '-').replace('\\', '-')
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        safe_ticker = ticker.replace("/", "-").replace("\\", "-")
 
         # Save markdown
         md_filename = f"{safe_ticker}_research_{timestamp}.md"
         md_path = output_path / md_filename
 
-        with open(md_path, 'w', encoding='utf-8') as f:
+        with open(md_path, "w", encoding="utf-8") as f:
             f.write(full_report)
 
         logger.info(f"✅ Markdown saved: {md_path}")
@@ -278,18 +373,18 @@ async def enhanced_stock_research_tool(params: Dict[str, Any]) -> Dict[str, Any]
         chart_files = []
         if include_charts:
             chart_data = {
-                'years': financials.years,
-                'revenue': financials.revenue,
-                'pat': financials.pat,
-                'ebitda_margin': financials.ebitda_margin,
-                'pat_margin': financials.pat_margin,
-                'roe': financials.roe,
-                'roce': financials.roce,
+                "years": financials.years,
+                "revenue": financials.revenue,
+                "pat": financials.pat,
+                "ebitda_margin": financials.ebitda_margin,
+                "pat_margin": financials.pat_margin,
+                "roe": financials.roe,
+                "roce": financials.roce,
             }
             chart_files = chart_gen.create_matplotlib_charts(chart_data, str(output_path))
 
             # Generate price chart with moving averages
-            prices = company_data.get('price_history', [])
+            prices = company_data.get("price_history", [])
             if prices and len(prices) >= 20:
                 price_chart = PriceChartGenerator.create_price_chart(
                     prices, [], ticker, str(output_path), exchange
@@ -305,9 +400,12 @@ async def enhanced_stock_research_tool(params: Dict[str, Any]) -> Dict[str, Any]
         pdf_path = None
         try:
             pdf_path = await _convert_to_pdf(
-                md_path, output_path, safe_ticker, timestamp,
+                md_path,
+                output_path,
+                safe_ticker,
+                timestamp,
                 chart_files=chart_files,
-                template_name=params.get('template', None)
+                template_name=params.get("template", None),
             )
             if pdf_path:
                 logger.info(f"✅ PDF saved: {pdf_path}")
@@ -320,60 +418,61 @@ async def enhanced_stock_research_tool(params: Dict[str, Any]) -> Dict[str, Any]
             telegram_sent = await _send_to_telegram(pdf_path, ticker, snapshot, exchange)
 
         return {
-            'success': True,
-            'ticker': ticker,
-            'company_name': snapshot.company_name,
-            'rating': snapshot.rating,
-            'target_price': snapshot.target_price,
-            'current_price': snapshot.current_price,
-            'upside': snapshot.upside,
-            'md_path': str(md_path),
-            'pdf_path': str(pdf_path) if pdf_path else None,
-            'chart_files': chart_files,
-            'telegram_sent': telegram_sent,
-            'data_sources': company_data.get('sources', []),
-            'dcf_implied_price': dcf_result.get('implied_price', 0),
+            "success": True,
+            "ticker": ticker,
+            "company_name": snapshot.company_name,
+            "rating": snapshot.rating,
+            "target_price": snapshot.target_price,
+            "current_price": snapshot.current_price,
+            "upside": snapshot.upside,
+            "md_path": str(md_path),
+            "pdf_path": str(pdf_path) if pdf_path else None,
+            "chart_files": chart_files,
+            "telegram_sent": telegram_sent,
+            "data_sources": company_data.get("sources", []),
+            "dcf_implied_price": dcf_result.get("implied_price", 0),
         }
 
     except Exception as e:
         logger.error(f"Enhanced research error: {e}", exc_info=True)
-        return {'success': False, 'error': str(e)}
+        return {"success": False, "error": str(e)}
 
 
 # =============================================================================
 # HELPER FUNCTIONS
 # =============================================================================
 
+
 def _get_sector_peers(ticker: str, sector: str, exchange: str) -> List[str]:
     """Get peer companies based on sector and exchange."""
 
     # US stock peers by sector
     us_sector_peers = {
-        'Technology': ['AAPL', 'MSFT', 'GOOGL', 'META', 'NVDA', 'AMD', 'INTC', 'CRM', 'ORCL'],
-        'Consumer Electronics': ['AAPL', 'SONY', 'DELL', 'HPQ', 'LOGI'],
-        'Semiconductors': ['NVDA', 'AMD', 'INTC', 'QCOM', 'AVGO', 'TXN', 'MU', 'AMAT'],
-        'Financial Services': ['JPM', 'BAC', 'WFC', 'GS', 'MS', 'C', 'USB', 'PNC'],
-        'Consumer Defensive': ['PG', 'KO', 'PEP', 'WMT', 'COST', 'CL', 'GIS', 'K'],
-        'Energy': ['XOM', 'CVX', 'COP', 'SLB', 'EOG', 'PXD', 'OXY'],
-        'Healthcare': ['JNJ', 'UNH', 'PFE', 'MRK', 'ABBV', 'LLY', 'TMO', 'ABT'],
-        'Industrials': ['CAT', 'DE', 'BA', 'HON', 'UPS', 'GE', 'MMM', 'LMT'],
-        'Consumer Cyclical': ['AMZN', 'TSLA', 'HD', 'NKE', 'MCD', 'SBUX', 'TGT'],
+        "Technology": ["AAPL", "MSFT", "GOOGL", "META", "NVDA", "AMD", "INTC", "CRM", "ORCL"],
+        "Consumer Electronics": ["AAPL", "SONY", "DELL", "HPQ", "LOGI"],
+        "Semiconductors": ["NVDA", "AMD", "INTC", "QCOM", "AVGO", "TXN", "MU", "AMAT"],
+        "Financial Services": ["JPM", "BAC", "WFC", "GS", "MS", "C", "USB", "PNC"],
+        "Consumer Defensive": ["PG", "KO", "PEP", "WMT", "COST", "CL", "GIS", "K"],
+        "Energy": ["XOM", "CVX", "COP", "SLB", "EOG", "PXD", "OXY"],
+        "Healthcare": ["JNJ", "UNH", "PFE", "MRK", "ABBV", "LLY", "TMO", "ABT"],
+        "Industrials": ["CAT", "DE", "BA", "HON", "UPS", "GE", "MMM", "LMT"],
+        "Consumer Cyclical": ["AMZN", "TSLA", "HD", "NKE", "MCD", "SBUX", "TGT"],
     }
 
     # Indian stock peers by sector
     india_sector_peers = {
-        'Technology': ['TCS', 'INFY', 'WIPRO', 'HCLTECH', 'TECHM', 'LTIM'],
-        'Financial Services': ['HDFCBANK', 'ICICIBANK', 'SBIN', 'KOTAKBANK', 'AXISBANK'],
-        'Consumer Defensive': ['HINDUNILVR', 'ITC', 'NESTLEIND', 'BRITANNIA', 'DABUR'],
-        'Energy': ['RELIANCE', 'ONGC', 'BPCL', 'IOC', 'GAIL'],
-        'Healthcare': ['SUNPHARMA', 'DRREDDY', 'CIPLA', 'DIVISLAB', 'BIOCON'],
-        'Industrials': ['LT', 'SIEMENS', 'ABB', 'BHEL', 'HAVELLS'],
-        'Basic Materials': ['TATASTEEL', 'JSWSTEEL', 'HINDALCO', 'VEDL', 'COALINDIA'],
-        'Consumer Cyclical': ['MARUTI', 'TATAMOTORS', 'M&M', 'BAJAJ-AUTO', 'EICHERMOT'],
+        "Technology": ["TCS", "INFY", "WIPRO", "HCLTECH", "TECHM", "LTIM"],
+        "Financial Services": ["HDFCBANK", "ICICIBANK", "SBIN", "KOTAKBANK", "AXISBANK"],
+        "Consumer Defensive": ["HINDUNILVR", "ITC", "NESTLEIND", "BRITANNIA", "DABUR"],
+        "Energy": ["RELIANCE", "ONGC", "BPCL", "IOC", "GAIL"],
+        "Healthcare": ["SUNPHARMA", "DRREDDY", "CIPLA", "DIVISLAB", "BIOCON"],
+        "Industrials": ["LT", "SIEMENS", "ABB", "BHEL", "HAVELLS"],
+        "Basic Materials": ["TATASTEEL", "JSWSTEEL", "HINDALCO", "VEDL", "COALINDIA"],
+        "Consumer Cyclical": ["MARUTI", "TATAMOTORS", "M&M", "BAJAJ-AUTO", "EICHERMOT"],
     }
 
     # Choose peer set based on exchange
-    is_us = exchange.upper() in ('US', 'NYSE', 'NASDAQ', 'AMEX')
+    is_us = exchange.upper() in ("US", "NYSE", "NASDAQ", "AMEX")
     sector_peers = us_sector_peers if is_us else india_sector_peers
 
     peers = sector_peers.get(sector, [])
@@ -384,7 +483,7 @@ def _get_sector_peers(ticker: str, sector: str, exchange: str) -> List[str]:
     return peers[:5]  # Return max 5 peers
 
 
-def _build_dcf_model(data: Dict[str, Any], financials: 'FinancialStatements') -> 'DCFModel':
+def _build_dcf_model(data: Dict[str, Any], financials: "FinancialStatements") -> "DCFModel":
     """Build DCF model from company data."""
     from .report_components import DCFModel
 
@@ -395,11 +494,11 @@ def _build_dcf_model(data: Dict[str, Any], financials: 'FinancialStatements') ->
     model.projection_years = [f"FY{y}" for y in range(current_year + 1, current_year + 6)]
 
     # Get latest financials
-    latest_revenue = financials.revenue[-1] if financials.revenue else data.get('revenue', 0) / 1e7
-    latest_ebitda = data.get('ebitda', 0) / 1e7
+    latest_revenue = financials.revenue[-1] if financials.revenue else data.get("revenue", 0) / 1e7
+    latest_ebitda = data.get("ebitda", 0) / 1e7
 
     # Calculate growth rate
-    revenue_growth = data.get('revenue_growth', 10)
+    revenue_growth = data.get("revenue_growth", 10)
     if financials.revenue and len(financials.revenue) >= 2:
         if financials.revenue[-2] > 0:
             revenue_growth = ((financials.revenue[-1] / financials.revenue[-2]) - 1) * 100
@@ -407,7 +506,7 @@ def _build_dcf_model(data: Dict[str, Any], financials: 'FinancialStatements') ->
     model.revenue_growth = min(max(revenue_growth, 5), 25)  # Cap between 5-25%
 
     # EBITDA margin
-    ebitda_margin = data.get('ebitda_margin', 20)
+    ebitda_margin = data.get("ebitda_margin", 20)
     model.ebitda_margin = ebitda_margin if ebitda_margin > 0 else 20
 
     # Project revenue and EBITDA
@@ -427,18 +526,19 @@ def _build_dcf_model(data: Dict[str, Any], financials: 'FinancialStatements') ->
         model.fcf_projections.append(fcf)
 
     # Set beta
-    model.beta = data.get('beta', 1.0) or 1.0
+    model.beta = data.get("beta", 1.0) or 1.0
 
     return model
 
 
-def _generate_investment_thesis(data: Dict[str, Any], snapshot: 'CompanySnapshot',
-                                  analyst: Dict[str, Any]) -> List[str]:
+def _generate_investment_thesis(
+    data: Dict[str, Any], snapshot: "CompanySnapshot", analyst: Dict[str, Any]
+) -> List[str]:
     """Generate investment thesis points."""
     thesis = []
 
     # Growth
-    growth = data.get('revenue_growth', 0)
+    growth = data.get("revenue_growth", 0)
     if growth > 15:
         thesis.append(f"Strong revenue growth of {growth:.1f}% indicates robust business momentum")
     elif growth > 10:
@@ -457,22 +557,26 @@ def _generate_investment_thesis(data: Dict[str, Any], snapshot: 'CompanySnapshot
         thesis.append(f"Fair valuation at {pe:.1f}x P/E justified by growth profile")
 
     # Market position
-    if data.get('sector'):
+    if data.get("sector"):
         thesis.append(f"Strong market position in {data.get('sector')} sector")
 
     # Analyst sentiment
-    if analyst.get('num_analysts', 0) > 5:
-        if analyst.get('upside', 0) > 10:
-            thesis.append(f"Positive analyst sentiment with {analyst.get('upside'):.1f}% upside to consensus target")
+    if analyst.get("num_analysts", 0) > 5:
+        if analyst.get("upside", 0) > 10:
+            thesis.append(
+                f"Positive analyst sentiment with {analyst.get('upside'):.1f}% upside to consensus target"
+            )
 
     # Dividend
     if snapshot.dividend_yield > 1:
-        thesis.append(f"Attractive dividend yield of {snapshot.dividend_yield:.1f}% provides downside protection")
+        thesis.append(
+            f"Attractive dividend yield of {snapshot.dividend_yield:.1f}% provides downside protection"
+        )
 
     return thesis[:5]  # Return top 5 points
 
 
-def _generate_key_risks(data: Dict[str, Any], snapshot: 'CompanySnapshot') -> List[str]:
+def _generate_key_risks(data: Dict[str, Any], snapshot: "CompanySnapshot") -> List[str]:
     """Generate key risk points."""
     risks = []
 
@@ -481,21 +585,21 @@ def _generate_key_risks(data: Dict[str, Any], snapshot: 'CompanySnapshot') -> Li
         risks.append("Rich valuation leaves limited margin of safety")
 
     # Debt risk
-    de_ratio = data.get('debt_to_equity', 0)
+    de_ratio = data.get("debt_to_equity", 0)
     if de_ratio > 1:
         risks.append(f"Elevated debt-to-equity ratio of {de_ratio:.2f}x increases financial risk")
 
     # Growth slowdown
-    if data.get('revenue_growth', 0) < 5:
+    if data.get("revenue_growth", 0) < 5:
         risks.append("Slowing growth may impact earnings trajectory")
 
     # Sector risks
-    sector = data.get('sector', '')
-    if 'Technology' in sector:
+    sector = data.get("sector", "")
+    if "Technology" in sector:
         risks.append("Technology disruption and talent retention challenges")
-    elif 'Financial' in sector:
+    elif "Financial" in sector:
         risks.append("Interest rate sensitivity and asset quality concerns")
-    elif 'Energy' in sector:
+    elif "Energy" in sector:
         risks.append("Commodity price volatility and regulatory changes")
 
     # Generic risks
@@ -505,14 +609,18 @@ def _generate_key_risks(data: Dict[str, Any], snapshot: 'CompanySnapshot') -> Li
     return risks[:5]
 
 
-def _generate_enhanced_cover_page(snapshot: 'CompanySnapshot', thesis: List[str],
-                                    risks: List[str], analyst: Dict[str, Any],
-                                    exchange: str = 'NSE') -> str:
+def _generate_enhanced_cover_page(
+    snapshot: "CompanySnapshot",
+    thesis: List[str],
+    risks: List[str],
+    analyst: Dict[str, Any],
+    exchange: str = "NSE",
+) -> str:
     """Generate world-class cover page with large rating badge."""
     # Get currency based on exchange
     curr = get_currency_info(exchange)
-    sym = curr['symbol']
-    unit = curr['unit']
+    sym = curr["symbol"]
+    unit = curr["unit"]
 
     rating_emoji = {"BUY": "🟢", "HOLD": "🟡", "SELL": "🔴"}.get(snapshot.rating.upper(), "⚪")
     upside = snapshot.upside
@@ -520,10 +628,14 @@ def _generate_enhanced_cover_page(snapshot: 'CompanySnapshot', thesis: List[str]
 
     # Calculate position from 52W range
     range_52w = snapshot.week_52_high - snapshot.week_52_low
-    position = ((snapshot.current_price - snapshot.week_52_low) / range_52w * 100) if range_52w > 0 else 50
+    position = (
+        ((snapshot.current_price - snapshot.week_52_low) / range_52w * 100) if range_52w > 0 else 50
+    )
 
     # Build investment thesis points
-    thesis_points = "\n".join([f"✓ {point}" for point in thesis[:5]]) if thesis else "✓ Strong market position"
+    thesis_points = (
+        "\n".join([f"✓ {point}" for point in thesis[:5]]) if thesis else "✓ Strong market position"
+    )
 
     # Build risk points
     risk_points = "\n".join([f"⚠ {risk}" for risk in risks[:3]]) if risks else "⚠ Market volatility"
@@ -608,13 +720,17 @@ def _generate_toc(report_type: str) -> str:
     return _generate_enhanced_toc(report_type)
 
 
-def _generate_executive_summary(snapshot: 'CompanySnapshot', data: Dict[str, Any],
-                                  analyst: Dict[str, Any], dcf: Dict[str, float],
-                                  exchange: str = 'NSE') -> str:
+def _generate_executive_summary(
+    snapshot: "CompanySnapshot",
+    data: Dict[str, Any],
+    analyst: Dict[str, Any],
+    dcf: Dict[str, float],
+    exchange: str = "NSE",
+) -> str:
     """Generate executive summary section."""
     curr = get_currency_info(exchange)
-    sym = curr['symbol']
-    unit = curr['unit']
+    sym = curr["symbol"]
+    unit = curr["unit"]
     upside_str = f"+{snapshot.upside:.1f}%" if snapshot.upside > 0 else f"{snapshot.upside:.1f}%"
 
     return f"""
@@ -648,12 +764,12 @@ from the current market price of {sym}{snapshot.current_price:,.2f}.
 """
 
 
-def _generate_company_overview(data: Dict[str, Any], exchange: str = 'NSE') -> str:
+def _generate_company_overview(data: Dict[str, Any], exchange: str = "NSE") -> str:
     """Generate company overview section."""
     curr = get_currency_info(exchange)
-    sym = curr['symbol']
-    unit = curr['unit']
-    divisor = curr['divisor']
+    sym = curr["symbol"]
+    unit = curr["unit"]
+    divisor = curr["divisor"]
     return f"""
 ## Company Overview
 
@@ -678,8 +794,8 @@ specifically within the **{data.get('industry', 'N/A')}** industry.
 
 def _generate_news_section(data: Dict[str, Any], ticker: str) -> str:
     """Generate recent news section from web search results."""
-    news_text = data.get('web_search_news', '')
-    news_results = data.get('web_search_results', [])
+    news_text = data.get("web_search_news", "")
+    news_results = data.get("web_search_results", [])
 
     if not news_text and not news_results:
         return ""
@@ -695,9 +811,9 @@ def _generate_news_section(data: Dict[str, Any], ticker: str) -> str:
     # Add formatted news items
     if news_results:
         for i, item in enumerate(news_results[:10], 1):
-            title = item.get('title', 'N/A')
-            snippet = item.get('snippet', '')[:200]
-            url = item.get('url', '')
+            title = item.get("title", "N/A")
+            snippet = item.get("snippet", "")[:200]
+            url = item.get("url", "")
             section += f"**{i}. {title}**\n"
             if snippet:
                 section += f"> {snippet}...\n"
@@ -715,15 +831,17 @@ def _generate_news_section(data: Dict[str, Any], ticker: str) -> str:
     return section
 
 
-def _generate_financial_section(financials: 'FinancialStatements',
-                                  formatter: 'FinancialTablesFormatter',
-                                  data: Dict[str, Any],
-                                  exchange: str = 'NSE') -> str:
+def _generate_financial_section(
+    financials: "FinancialStatements",
+    formatter: "FinancialTablesFormatter",
+    data: Dict[str, Any],
+    exchange: str = "NSE",
+) -> str:
     """Generate financial analysis section."""
     curr = get_currency_info(exchange)
-    sym = curr['symbol']
-    unit = curr['unit']
-    divisor = curr['divisor']
+    sym = curr["symbol"]
+    unit = curr["unit"]
+    divisor = curr["divisor"]
 
     section = """
 ## Financial Analysis
@@ -756,18 +874,18 @@ def _generate_financial_section(financials: 'FinancialStatements',
     return section
 
 
-def _generate_technical_section(data: Dict[str, Any], exchange: str = 'NSE') -> str:
+def _generate_technical_section(data: Dict[str, Any], exchange: str = "NSE") -> str:
     """Generate technical analysis section."""
     curr = get_currency_info(exchange)
-    sym = curr['symbol']
+    sym = curr["symbol"]
 
-    prices = data.get('price_history', [])
+    prices = data.get("price_history", [])
     if not prices:
         return ""
 
     current = prices[-1] if prices else 0
-    high_52w = data.get('week_52_high', 0)
-    low_52w = data.get('week_52_low', 0)
+    high_52w = data.get("week_52_high", 0)
+    low_52w = data.get("week_52_low", 0)
 
     # Simple moving averages
     sma_20 = sum(prices[-20:]) / 20 if len(prices) >= 20 else current
@@ -775,7 +893,11 @@ def _generate_technical_section(data: Dict[str, Any], exchange: str = 'NSE') -> 
     sma_200 = sum(prices[-200:]) / 200 if len(prices) >= 200 else current
 
     # Trend
-    trend = "Bullish" if current > sma_50 > sma_200 else "Bearish" if current < sma_50 < sma_200 else "Neutral"
+    trend = (
+        "Bullish"
+        if current > sma_50 > sma_200
+        else "Bearish" if current < sma_50 < sma_200 else "Neutral"
+    )
 
     return f"""
 ## Technical Analysis
@@ -809,7 +931,7 @@ def _generate_technical_section(data: Dict[str, Any], exchange: str = 'NSE') -> 
 """
 
 
-def _generate_shareholding_section(data: Dict[str, Any], snapshot: 'CompanySnapshot') -> str:
+def _generate_shareholding_section(data: Dict[str, Any], snapshot: "CompanySnapshot") -> str:
     """Generate shareholding pattern section."""
     promoter = snapshot.promoter_holding
     fii = snapshot.fii_holding
@@ -859,11 +981,15 @@ def _generate_risk_section(risks: List[str], data: Dict[str, Any]) -> str:
     return section
 
 
-def _generate_recommendation(snapshot: 'CompanySnapshot', dcf: Dict[str, float],
-                               analyst: Dict[str, Any], exchange: str = 'NSE') -> str:
+def _generate_recommendation(
+    snapshot: "CompanySnapshot",
+    dcf: Dict[str, float],
+    analyst: Dict[str, Any],
+    exchange: str = "NSE",
+) -> str:
     """Generate investment recommendation section."""
     curr = get_currency_info(exchange)
-    sym = curr['symbol']
+    sym = curr["symbol"]
     upside_str = f"+{snapshot.upside:.1f}%" if snapshot.upside > 0 else f"{snapshot.upside:.1f}%"
 
     return f"""
@@ -923,7 +1049,7 @@ async def _convert_to_pdf(
     ticker: str,
     timestamp: str,
     chart_files: List[str] = None,
-    template_name: str = None
+    template_name: str = None,
 ) -> Optional[str]:
     """Convert markdown to professionally styled PDF with embedded charts."""
     try:
@@ -933,11 +1059,9 @@ async def _convert_to_pdf(
         # Try our professional PDF template first
         try:
             from .pdf_template import convert_md_to_pdf
+
             result_path = await convert_md_to_pdf(
-                str(md_path),
-                str(pdf_path),
-                template_name=template_name,
-                chart_files=chart_files
+                str(md_path), str(pdf_path), template_name=template_name, chart_files=chart_files
             )
             if result_path:
                 logger.info(f"✅ Professional PDF generated: {result_path}")
@@ -950,29 +1074,35 @@ async def _convert_to_pdf(
         # Fallback to document-converter skill
         try:
             from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
+
             registry = get_skills_registry()
             registry.init()
 
-            converter = registry.get_skill('document-converter')
+            converter = registry.get_skill("document-converter")
             if converter:
-                convert_tool = converter.tools.get('convert_to_pdf_tool')
+                convert_tool = converter.tools.get("convert_to_pdf_tool")
                 if convert_tool:
                     import inspect
-                    if inspect.iscoroutinefunction(convert_tool):
-                        result = await convert_tool({
-                            'input_file': str(md_path),
-                            'output_file': str(pdf_path),
-                            'page_size': 'a4',
-                        })
-                    else:
-                        result = convert_tool({
-                            'input_file': str(md_path),
-                            'output_file': str(pdf_path),
-                            'page_size': 'a4',
-                        })
 
-                    if result.get('success'):
-                        return result.get('output_path', str(pdf_path))
+                    if inspect.iscoroutinefunction(convert_tool):
+                        result = await convert_tool(
+                            {
+                                "input_file": str(md_path),
+                                "output_file": str(pdf_path),
+                                "page_size": "a4",
+                            }
+                        )
+                    else:
+                        result = convert_tool(
+                            {
+                                "input_file": str(md_path),
+                                "output_file": str(pdf_path),
+                                "page_size": "a4",
+                            }
+                        )
+
+                    if result.get("success"):
+                        return result.get("output_path", str(pdf_path))
         except Exception as e:
             logger.warning(f"Document converter failed: {e}")
 
@@ -983,20 +1113,22 @@ async def _convert_to_pdf(
         return None
 
 
-async def _send_to_telegram(pdf_path: str, ticker: str, snapshot: 'CompanySnapshot',
-                            exchange: str = 'NSE') -> bool:
+async def _send_to_telegram(
+    pdf_path: str, ticker: str, snapshot: "CompanySnapshot", exchange: str = "NSE"
+) -> bool:
     """Send report to Telegram."""
     try:
         curr = get_currency_info(exchange)
-        sym = curr['symbol']
+        sym = curr["symbol"]
 
         from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
+
         registry = get_skills_registry()
         registry.init()
 
-        telegram = registry.get_skill('telegram-sender')
+        telegram = registry.get_skill("telegram-sender")
         if telegram:
-            send_tool = telegram.tools.get('send_telegram_file_tool')
+            send_tool = telegram.tools.get("send_telegram_file_tool")
             if send_tool:
                 caption = (
                     f"📊 {snapshot.company_name} ({ticker}) Research Report\n\n"
@@ -1005,18 +1137,23 @@ async def _send_to_telegram(pdf_path: str, ticker: str, snapshot: 'CompanySnapsh
                 )
 
                 import inspect
-                if inspect.iscoroutinefunction(send_tool):
-                    result = await send_tool({
-                        'file_path': pdf_path,
-                        'caption': caption,
-                    })
-                else:
-                    result = send_tool({
-                        'file_path': pdf_path,
-                        'caption': caption,
-                    })
 
-                return result.get('success', False)
+                if inspect.iscoroutinefunction(send_tool):
+                    result = await send_tool(
+                        {
+                            "file_path": pdf_path,
+                            "caption": caption,
+                        }
+                    )
+                else:
+                    result = send_tool(
+                        {
+                            "file_path": pdf_path,
+                            "caption": caption,
+                        }
+                    )
+
+                return result.get("success", False)
 
         return False
 

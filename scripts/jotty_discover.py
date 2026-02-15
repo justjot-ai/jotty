@@ -20,60 +20,56 @@ SWARM_MAPPING = {
     ("learning", "education", "teach", "study", "lesson", "tutorial", "k-12", "student"): {
         "swarm": "olympiad_learning_swarm",
         "description": "Generate educational content with PDF/HTML output",
-        "example": 'await learn_topic("math", "Calculus Basics", "Student")'
+        "example": 'await learn_topic("math", "Calculus Basics", "Student")',
     },
     ("arxiv", "paper", "research paper", "academic", "publication"): {
         "swarm": "arxiv_learning_swarm",
         "description": "Transform research papers into learning materials",
-        "example": 'await learn_paper("2301.00001")'
+        "example": 'await learn_paper("2301.00001")',
     },
-
     # Development
     ("code", "program", "develop", "implement", "build", "api", "function"): {
         "swarm": "coding_swarm",
         "description": "Generate, edit, and review code with tests",
-        "example": 'swarm.execute("Create REST API for users")'
+        "example": 'swarm.execute("Create REST API for users")',
     },
     ("test", "testing", "qa", "quality", "unit test"): {
         "swarm": "testing_swarm",
         "description": "Generate comprehensive test suites",
-        "example": 'swarm.execute(code_path="app.py")'
+        "example": 'swarm.execute(code_path="app.py")',
     },
     ("review", "code review", "audit", "quality check"): {
         "swarm": "review_swarm",
         "description": "Code review and quality analysis",
-        "example": 'swarm.execute(code_path="src/")'
+        "example": 'swarm.execute(code_path="src/")',
     },
-
     # Research & Analysis
     ("research", "investigate", "analyze", "report"): {
         "swarm": "research_swarm",
         "description": "Deep research with web search and PDF reports",
-        "example": 'swarm.execute(ticker="AAPL") or research_topic("AI trends")'
+        "example": 'swarm.execute(ticker="AAPL") or research_topic("AI trends")',
     },
     ("stock", "ticker", "company", "fundamental", "financial"): {
         "swarm": "fundamental_swarm",
         "description": "Financial statement and fundamental analysis",
-        "example": 'swarm.execute(ticker="MSFT")'
+        "example": 'swarm.execute(ticker="MSFT")',
     },
     ("data", "dataset", "statistics", "visualization", "chart"): {
         "swarm": "data_analysis_swarm",
         "description": "Data analysis and visualization",
-        "example": 'swarm.execute(data_path="sales.csv")'
+        "example": 'swarm.execute(data_path="sales.csv")',
     },
-
     # DevOps & Infrastructure
     ("docker", "kubernetes", "deploy", "ci/cd", "devops", "infrastructure"): {
         "swarm": "devops_swarm",
         "description": "Infrastructure and deployment automation",
-        "example": 'swarm.execute("Create Dockerfile for FastAPI")'
+        "example": 'swarm.execute("Create Dockerfile for FastAPI")',
     },
-
     # Writing & Content
     ("write", "blog", "article", "content", "copy", "marketing"): {
         "swarm": "idea_writer_swarm",
         "description": "Creative writing and content generation",
-        "example": 'swarm.execute(topic="AI in Healthcare", content_type="blog_post")'
+        "example": 'swarm.execute(topic="AI in Healthcare", content_type="blog_post")',
     },
 }
 
@@ -133,7 +129,9 @@ def main():
         module = f"Jotty.core.swarms.{top_swarm}"
         print(f"   from {module} import *")
     else:
-        print(f"   from Jotty.core.intelligence.swarms import {top_swarm.replace('_swarm', '').title()}Swarm")
+        print(
+            f"   from Jotty.core.intelligence.swarms import {top_swarm.replace('_swarm', '').title()}Swarm"
+        )
 
 
 if __name__ == "__main__":

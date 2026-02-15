@@ -16,31 +16,32 @@ Tests run fast (< 1s each) and offline.
 
 import json
 import os
+import shutil
 import sys
 import tempfile
-import shutil
-import pytest
 from pathlib import Path
 from unittest.mock import Mock, patch
+
+import pytest
 
 # Add Jotty to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.evaluation import (
-    GAIABenchmark,
     Benchmark,
-    BenchmarkResult,
     BenchmarkMetrics,
+    BenchmarkResult,
     CustomBenchmark,
+    EvalStore,
     EvaluationProtocol,
     EvaluationReport,
-    EvalStore,
+    GAIABenchmark,
 )
-
 
 # =============================================================================
 # Helpers
 # =============================================================================
+
 
 def _make_gaia_task(
     task_id="task_001",
@@ -125,6 +126,7 @@ class SlowAgent:
 # =============================================================================
 # 1. GAIABenchmark — Initialization & Task Loading
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestGAIABenchmarkInit:
@@ -240,6 +242,7 @@ class TestGAIABenchmarkLoadTasks:
 # 2. GAIABenchmark — Answer Validation
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestGAIAValidateAnswer:
     """GAIABenchmark answer validation logic."""
@@ -310,6 +313,7 @@ class TestGAIAValidateAnswer:
 # =============================================================================
 # 3. GAIABenchmark — Task Evaluation
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestGAIAEvaluateTask:
@@ -407,6 +411,7 @@ class TestGAIAEvaluateTask:
 # =============================================================================
 # 4. Benchmark.evaluate() — Full Benchmark Run
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestBenchmarkEvaluate:
@@ -515,6 +520,7 @@ class TestBenchmarkEvaluate:
 # 5. BenchmarkResult — Data Class
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestBenchmarkResult:
     """BenchmarkResult data class."""
@@ -553,9 +559,7 @@ class TestBenchmarkResult:
 
     def test_error_field(self):
         """Error field records failure reason."""
-        result = BenchmarkResult(
-            task_id="t1", success=False, error="Timeout"
-        )
+        result = BenchmarkResult(task_id="t1", success=False, error="Timeout")
         assert result.error == "Timeout"
         assert result.to_dict()["error"] == "Timeout"
 
@@ -563,6 +567,7 @@ class TestBenchmarkResult:
 # =============================================================================
 # 6. CustomBenchmark
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestCustomBenchmark:
@@ -594,9 +599,7 @@ class TestCustomBenchmark:
         def always_true(task, answer):
             return True
 
-        bench = CustomBenchmark(
-            name="custom", tasks=tasks, validate_func=always_true
-        )
+        bench = CustomBenchmark(name="custom", tasks=tasks, validate_func=always_true)
         metrics = bench.evaluate(MockAgent(answer="wrong"))
 
         assert metrics.pass_rate == 1.0
@@ -627,6 +630,7 @@ class TestCustomBenchmark:
 # =============================================================================
 # 7. EvalStore — SQLite Persistence
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestEvalStore:
@@ -779,6 +783,7 @@ class TestEvalStore:
 # 8. EvaluationProtocol — Multi-Run Evaluation
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestEvaluationProtocol:
     """EvaluationProtocol multi-run reproducible evaluation."""
@@ -860,6 +865,7 @@ class TestEvaluationProtocol:
 # =============================================================================
 # 9. Full Pipeline Integration — GAIABenchmark → EvalStore
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestGAIAPipeline:
@@ -988,6 +994,7 @@ class TestGAIAPipeline:
 # 10. Edge Cases & Robustness
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestEdgeCases:
     """Edge cases and boundary conditions."""
@@ -1016,10 +1023,7 @@ class TestEdgeCases:
     def test_large_benchmark(self, tmp_path):
         """Benchmark with many tasks doesn't crash."""
         tasks_data = {
-            "validation": [
-                _make_gaia_task(f"v{i}", f"Q{i}?", str(i))
-                for i in range(50)
-            ],
+            "validation": [_make_gaia_task(f"v{i}", f"Q{i}?", str(i)) for i in range(50)],
         }
         gaia_path = _make_gaia_dataset(tmp_path, tasks_data)
         bench = GAIABenchmark(benchmark_path=gaia_path)

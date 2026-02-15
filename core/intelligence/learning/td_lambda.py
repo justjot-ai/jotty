@@ -8,16 +8,27 @@ Core temporal-difference learning:
 
 import hashlib
 import logging
-from typing import Dict, List, Any, Optional, Tuple, TYPE_CHECKING
 from datetime import datetime
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+
 logger = logging.getLogger(__name__)
 
-from Jotty.core.infrastructure.foundation.data_structures import (
-    SwarmConfig, MemoryEntry, MemoryLevel, GoalValue,
-    ValidationResult, AgentContribution, StoredEpisode,
-    LearningMetrics, AlertType, GoalHierarchy, CausalLink
+from Jotty.core.infrastructure.foundation.configs.learning import (
+    LearningConfig as FocusedLearningConfig,
 )
-from Jotty.core.infrastructure.foundation.configs.learning import LearningConfig as FocusedLearningConfig
+from Jotty.core.infrastructure.foundation.data_structures import (
+    AgentContribution,
+    AlertType,
+    CausalLink,
+    GoalHierarchy,
+    GoalValue,
+    LearningMetrics,
+    MemoryEntry,
+    MemoryLevel,
+    StoredEpisode,
+    SwarmConfig,
+    ValidationResult,
+)
 
 if TYPE_CHECKING:
     from ..memory.cortex import SwarmMemory
@@ -32,11 +43,10 @@ def _ensure_swarm_config(config: Any) -> Any:
     return config
 
 
-
-
 # =============================================================================
 # HRPO-STYLE GROUPED LEARNING (DrZero-Inspired)
 # =============================================================================
+
 
 class GroupedValueBaseline:
     """
@@ -83,8 +93,7 @@ class GroupedValueBaseline:
 
         logger.info("GroupedValueBaseline initialized (HRPO-inspired)")
 
-    def get_baseline(self, task_type: str, domain: str = None,
-                     action_type: str = None) -> float:
+    def get_baseline(self, task_type: str, domain: str = None, action_type: str = None) -> float:
         """
         Get baseline value for a task type.
 
@@ -126,7 +135,9 @@ class GroupedValueBaseline:
         # Default baseline
         return 0.5
 
-    def update_group(self, task_type: str, reward: float, domain: str = None, action_type: str = None) -> Any:
+    def update_group(
+        self, task_type: str, reward: float, domain: str = None, action_type: str = None
+    ) -> Any:
         """
         Update group baseline from new sample.
 
@@ -144,15 +155,17 @@ class GroupedValueBaseline:
         # Update task-type baseline (EMA)
         old_baseline = self.group_baselines.get(task_type, 0.5)
         self.group_baselines[task_type] = (
-            (1 - self.ema_alpha) * old_baseline + self.ema_alpha * reward
-        )
+            1 - self.ema_alpha
+        ) * old_baseline + self.ema_alpha * reward
 
         # Track samples for variance estimation
         if task_type not in self.group_samples:
             self.group_samples[task_type] = []
         self.group_samples[task_type].append(reward)
         if len(self.group_samples[task_type]) > self.max_samples_per_group:
-            self.group_samples[task_type] = self.group_samples[task_type][-self.max_samples_per_group:]
+            self.group_samples[task_type] = self.group_samples[task_type][
+                -self.max_samples_per_group :
+            ]
 
         self.group_counts[task_type] = self.group_counts.get(task_type, 0) + 1
 
@@ -161,21 +174,23 @@ class GroupedValueBaseline:
             composite_key = f"{task_type}:{action_type}"
             old_composite = self.group_baselines.get(composite_key, 0.5)
             self.group_baselines[composite_key] = (
-                (1 - self.ema_alpha) * old_composite + self.ema_alpha * reward
-            )
+                1 - self.ema_alpha
+            ) * old_composite + self.ema_alpha * reward
             if composite_key not in self.group_samples:
                 self.group_samples[composite_key] = []
             self.group_samples[composite_key].append(reward)
             if len(self.group_samples[composite_key]) > self.max_samples_per_group:
-                self.group_samples[composite_key] = self.group_samples[composite_key][-self.max_samples_per_group:]
+                self.group_samples[composite_key] = self.group_samples[composite_key][
+                    -self.max_samples_per_group :
+                ]
             self.group_counts[composite_key] = self.group_counts.get(composite_key, 0) + 1
 
         # Update domain baseline if provided
         if domain:
             old_domain = self.domain_baselines.get(domain, 0.5)
-            self.domain_baselines[domain] = (
-                (1 - self.ema_alpha * 0.5) * old_domain + (self.ema_alpha * 0.5) * reward
-            )
+            self.domain_baselines[domain] = (1 - self.ema_alpha * 0.5) * old_domain + (
+                self.ema_alpha * 0.5
+            ) * reward
             domain_key = f"domain:{domain}"
             self.group_counts[domain_key] = self.group_counts.get(domain_key, 0) + 1
 
@@ -253,12 +268,9 @@ class GroupedValueBaseline:
             if task_type not in self.transfer_matrix:
                 self.transfer_matrix[task_type] = {}
             old_weight = self.transfer_matrix[task_type].get(other_type, 0.0)
-            self.transfer_matrix[task_type][other_type] = (
-                0.9 * old_weight + 0.1 * similarity
-            )
+            self.transfer_matrix[task_type][other_type] = 0.9 * old_weight + 0.1 * similarity
 
-    def get_best_action_type(self, task_type: str,
-                            candidates: List[str] = None) -> Optional[str]:
+    def get_best_action_type(self, task_type: str, candidates: List[str] = None) -> Optional[str]:
         """
         Get the best-performing action_type for a task_type.
 
@@ -274,7 +286,7 @@ class GroupedValueBaseline:
             Best action_type, or None if insufficient data.
         """
         if candidates is None:
-            candidates = ['api', 'gui', 'deeplink', 'rpa']
+            candidates = ["api", "gui", "deeplink", "rpa"]
 
         best_type = None
         best_value = -1.0
@@ -307,29 +319,33 @@ class GroupedValueBaseline:
     def get_statistics(self) -> Dict[str, Any]:
         """Get grouped learning statistics."""
         return {
-            'num_groups': len([k for k, v in self.group_counts.items() if v > 0 and not k.startswith('domain:')]),
-            'num_domains': len([k for k, v in self.group_counts.items() if k.startswith('domain:')]),
-            'group_baselines': dict(self.group_baselines),
-            'group_counts': dict(self.group_counts),
-            'total_samples': sum(len(s) for s in self.group_samples.values()),
+            "num_groups": len(
+                [k for k, v in self.group_counts.items() if v > 0 and not k.startswith("domain:")]
+            ),
+            "num_domains": len(
+                [k for k, v in self.group_counts.items() if k.startswith("domain:")]
+            ),
+            "group_baselines": dict(self.group_baselines),
+            "group_counts": dict(self.group_counts),
+            "total_samples": sum(len(s) for s in self.group_samples.values()),
         }
 
     def to_dict(self) -> Dict:
         """Serialize for persistence."""
         return {
-            'group_baselines': dict(self.group_baselines),
-            'group_counts': dict(self.group_counts),
-            'domain_baselines': dict(self.domain_baselines),
-            'ema_alpha': self.ema_alpha,
+            "group_baselines": dict(self.group_baselines),
+            "group_counts": dict(self.group_counts),
+            "domain_baselines": dict(self.domain_baselines),
+            "ema_alpha": self.ema_alpha,
         }
 
     @classmethod
-    def from_dict(cls, data: Dict, config: Any = None) -> 'GroupedValueBaseline':
+    def from_dict(cls, data: Dict, config: Any = None) -> "GroupedValueBaseline":
         """Deserialize from persistence."""
-        instance = cls(config, ema_alpha=data.get('ema_alpha', 0.1))
-        instance.group_baselines = dict(data.get('group_baselines', {}))
-        instance.group_counts = dict(data.get('group_counts', {}))
-        instance.domain_baselines = dict(data.get('domain_baselines', {}))
+        instance = cls(config, ema_alpha=data.get("ema_alpha", 0.1))
+        instance.group_baselines = dict(data.get("group_baselines", {}))
+        instance.group_counts = dict(data.get("group_counts", {}))
+        instance.domain_baselines = dict(data.get("domain_baselines", {}))
         return instance
 
 
@@ -337,21 +353,22 @@ class GroupedValueBaseline:
 # CORRECTED TD(λ) LEARNER
 # =============================================================================
 
+
 class TDLambdaLearner:
     """
     Correct TD(λ) implementation with all fixes.
-    
+
     TD Error: δ = R + γV(s') - V(s)
     Eligibility Trace: e_t(s) = γλe_{t-1}(s) + 1_{s_t=s}  (accumulating)
     Value Update: V(s) ← V(s) + αδe(s)
-    
+
     Key corrections:
     1. δ uses actual V(s'), not V(s)
     2. Traces are accumulating, not replacing
     3. Goal-conditioned values
     4. Terminal state has V(s') = 0
     """
-    
+
     def __init__(self, config: Any, adaptive_lr: AdaptiveLearningRate = None) -> None:
         self.config = _ensure_swarm_config(config)
         self.gamma = self.config.gamma
@@ -384,7 +401,7 @@ class TDLambdaLearner:
         self.tool_failure_threshold = 0.75  # Alert if success rate < 75%
         self.tool_degraded_threshold = 0.85  # Warning if success rate < 85%
         self.min_tool_samples = 5  # Need 5+ samples before making judgements
-    
+
     def start_episode(self, goal: str, task_type: str = "", domain: str = "") -> None:
         """
         Initialize for new episode.
@@ -401,8 +418,14 @@ class TDLambdaLearner:
         self.current_task_type = task_type or self._infer_task_type(goal)
         self.current_domain = domain
         self.intermediate_calc.reset()
-    
-    def update(self, state: Dict[str, Any], action: Dict[str, Any], reward: float, next_state: Dict[str, Any]) -> None:
+
+    def update(
+        self,
+        state: Dict[str, Any],
+        action: Dict[str, Any],
+        reward: float,
+        next_state: Dict[str, Any],
+    ) -> None:
         """
         Single-step TD(0) update for compatibility with agent runners.
 
@@ -419,14 +442,14 @@ class TDLambdaLearner:
             reward: Reward received (0.0 = failure, 1.0 = success)
             next_state: Next state dict (e.g., {'completed': True})
         """
-        goal = state.get('goal', 'general')
+        goal = state.get("goal", "general")
 
         # Start new episode if goal changed
         if goal != self.current_goal:
             self.start_episode(goal)
 
         # Derive a state key from goal + action type (KISS: no hashing, just concat)
-        action_type = action.get('type', action.get('action', 'default'))
+        action_type = action.get("type", action.get("action", "default"))
         state_key = f"{self.current_task_type}:{action_type}"
 
         # Get adapted learning rate
@@ -437,7 +460,7 @@ class TDLambdaLearner:
 
         # TD(0) update: V(s) ← V(s) + α(R - V(s))
         # At terminal step (next_state.completed), V(s') = 0 so δ = R - V(s)
-        is_terminal = next_state.get('completed', False)
+        is_terminal = next_state.get("completed", False)
         if is_terminal:
             td_error = reward - old_value
         else:
@@ -470,7 +493,7 @@ class TDLambdaLearner:
             f"TD(0) update: state={state_key}, V: {old_value:.3f}→{new_value:.3f}, "
             f"δ={td_error:.3f}, α={alpha:.4f}"
         )
-    
+
     def record_access(self, memory: MemoryEntry, step_reward: float = 0.0) -> float:
         """
         Record memory access and update eligibility trace.
@@ -535,24 +558,24 @@ class TDLambdaLearner:
             self.intermediate_calc.step_rewards.append(step_reward)
 
         return self.traces[key]
-    
+
     def record_access_from_hierarchical_memory(
         self,
-        memory: 'SwarmMemory',
+        memory: "SwarmMemory",
         domain: str,
         task_type: str,
         content: str,
         level: MemoryLevel,
-        step_reward: float = 0.0
+        step_reward: float = 0.0,
     ) -> float:
         """
         Record memory access from SwarmMemory using domain/task_type.
-        
+
         This method integrates RL layer with SwarmMemory by:
         1. Generating hierarchical key
         2. Finding or creating memory entry
         3. Recording access for TD(λ) learning
-        
+
         Args:
             memory: SwarmMemory instance
             domain: Domain identifier
@@ -560,39 +583,39 @@ class TDLambdaLearner:
             content: Memory content
             level: Memory level to check
             step_reward: Intermediate reward
-        
+
         Returns:
             Current trace value
         """
         # Generate hierarchical key
         content_hash = hashlib.md5(content.encode()).hexdigest()[:16]
         key = f"{domain}:{task_type}:{content_hash}"
-        
+
         # Find memory entry across all levels (check specified level first, then others)
         memory_entry = None
         levels_to_check = [level] + [l for l in MemoryLevel if l != level]
-        
+
         for check_level in levels_to_check:
             if check_level in memory.memories:
                 if key in memory.memories[check_level]:
                     memory_entry = memory.memories[check_level][key]
                     break
-        
+
         # If not found, create it (store in EPISODIC level)
         if not memory_entry:
             memory_entry = memory.store(
                 content=content,
                 level=MemoryLevel.EPISODIC,
-                context={'domain': domain, 'task_type': task_type},
-                goal=self.current_goal or 'general',
+                context={"domain": domain, "task_type": task_type},
+                goal=self.current_goal or "general",
                 domain=domain,
-                task_type=task_type
+                task_type=task_type,
             )
             key = memory_entry.key  # Use the actual key (may have been migrated)
-        
+
         # Record access using existing method
         return self.record_access(memory_entry, step_reward)
-    
+
     def _infer_task_type(self, goal: str) -> str:
         """
         Infer task type from goal string for HRPO grouping.
@@ -602,24 +625,26 @@ class TDLambdaLearner:
         goal_lower = goal.lower()
 
         task_type_keywords = {
-            'aggregation': ['count', 'sum', 'average', 'total', 'aggregate'],
-            'analysis': ['analyze', 'analysis', 'pattern', 'correlation', 'trend'],
-            'transformation': ['transform', 'convert', 'normalize', 'merge', 'join'],
-            'validation': ['validate', 'check', 'verify', 'test', 'ensure'],
-            'filtering': ['filter', 'select', 'where', 'top', 'remove'],
-            'planning': ['plan', 'decompose', 'prioritize', 'schedule', 'organize'],
+            "aggregation": ["count", "sum", "average", "total", "aggregate"],
+            "analysis": ["analyze", "analysis", "pattern", "correlation", "trend"],
+            "transformation": ["transform", "convert", "normalize", "merge", "join"],
+            "validation": ["validate", "check", "verify", "test", "ensure"],
+            "filtering": ["filter", "select", "where", "top", "remove"],
+            "planning": ["plan", "decompose", "prioritize", "schedule", "organize"],
         }
 
         for task_type, keywords in task_type_keywords.items():
             if any(kw in goal_lower for kw in keywords):
                 return task_type
 
-        return 'general'
+        return "general"
 
-    def end_episode(self,
-                    final_reward: float,
-                    memories: Dict[str, MemoryEntry],
-                    goal_hierarchy: Optional[GoalHierarchy] = None) -> List[Tuple[str, float, float]]:
+    def end_episode(
+        self,
+        final_reward: float,
+        memories: Dict[str, MemoryEntry],
+        goal_hierarchy: Optional[GoalHierarchy] = None,
+    ) -> List[Tuple[str, float, float]]:
         """
         Perform TD updates at episode end with HRPO group-relative baselines.
 
@@ -643,7 +668,9 @@ class TDLambdaLearner:
             alpha = self.alpha
 
         # Include intermediate rewards
-        total_reward = final_reward + self.intermediate_calc.get_discounted_intermediate_reward(self.gamma)
+        total_reward = final_reward + self.intermediate_calc.get_discounted_intermediate_reward(
+            self.gamma
+        )
 
         # =====================================================================
         # HRPO GROUP BASELINE COMPUTATION (DrZero-inspired variance reduction)
@@ -663,8 +690,7 @@ class TDLambdaLearner:
         # (huge success!). This gives more meaningful learning signal.
         # =====================================================================
         group_baseline = self.grouped_baseline.get_baseline(
-            self.current_task_type,
-            self.current_domain
+            self.current_task_type, self.current_domain
         )
 
         # Compute group-relative reward (HRPO insight: reduces variance)
@@ -749,9 +775,7 @@ class TDLambdaLearner:
 
         # DrZero HRPO: Update group baseline from this episode
         self.grouped_baseline.update_group(
-            self.current_task_type,
-            total_reward,
-            self.current_domain
+            self.current_task_type, total_reward, self.current_domain
         )
 
         # Optional: Value transfer to related goals
@@ -759,15 +783,15 @@ class TDLambdaLearner:
             self._transfer_values(memories, goal_hierarchy, updates)
 
         return updates
-    
+
     def end_episode_with_hierarchical_memory(
         self,
-        memory: 'SwarmMemory',
+        memory: "SwarmMemory",
         domain: str,
         goal: str,
         final_reward: float,
         goal_hierarchy: Optional[GoalHierarchy] = None,
-        task_type: str = None
+        task_type: str = None,
     ) -> List[Tuple[str, float, float]]:
         """
         Perform TD updates on SwarmMemory at episode end with HRPO baselines.
@@ -796,7 +820,9 @@ class TDLambdaLearner:
             alpha = self.alpha
 
         # Include intermediate rewards
-        total_reward = final_reward + self.intermediate_calc.get_discounted_intermediate_reward(self.gamma)
+        total_reward = final_reward + self.intermediate_calc.get_discounted_intermediate_reward(
+            self.gamma
+        )
 
         # DrZero HRPO: Get group baseline
         effective_task_type = task_type or self.current_task_type or self._infer_task_type(goal)
@@ -865,43 +891,50 @@ class TDLambdaLearner:
     def get_grouped_learning_stats(self) -> Dict[str, Any]:
         """Get statistics about HRPO grouped learning."""
         return self.grouped_baseline.get_statistics()
-    
-    def _transfer_values(self, memories: Dict[str, MemoryEntry], goal_hierarchy: GoalHierarchy, updates: List[Tuple[str, float, float]]) -> Any:
+
+    def _transfer_values(
+        self,
+        memories: Dict[str, MemoryEntry],
+        goal_hierarchy: GoalHierarchy,
+        updates: List[Tuple[str, float, float]],
+    ) -> Any:
         """Transfer value updates to related goals with discounting."""
-        transfer_weight = self.config.goal_transfer_weight * self.config.goal_transfer_discount # STANFORD FIX
-        
+        transfer_weight = (
+            self.config.goal_transfer_weight * self.config.goal_transfer_discount
+        )  # STANFORD FIX
+
         # Find related goals
         goal_id = None
         for gid, node in goal_hierarchy.nodes.items():
             if node.goal_text == self.current_goal:
                 goal_id = gid
                 break
-        
+
         if not goal_id:
             return
-        
+
         related = goal_hierarchy.get_related_goals(goal_id, max_distance=2)
-        
+
         for mem_key, old_v, new_v in updates:
             if mem_key not in memories:
                 continue
-            
+
             memory = memories[mem_key]
             delta = new_v - old_v
-            
+
             for related_id, similarity in related:
                 related_node = goal_hierarchy.nodes.get(related_id)
                 if not related_node:
                     continue
-                
+
                 related_goal = related_node.goal_text
-                
+
                 # Partial transfer
                 transfer_delta = delta * similarity * transfer_weight
-                
+
                 if related_goal not in memory.goal_values:
                     memory.goal_values[related_goal] = GoalValue()
-                
+
                 current = memory.goal_values[related_goal].value
                 memory.goal_values[related_goal].value = max(0, min(1, current + transfer_delta))
 
@@ -910,10 +943,7 @@ class TDLambdaLearner:
     # =========================================================================
 
     def update_tool_reliability(
-        self,
-        tool_name: str,
-        success: bool,
-        latency_ms: Optional[float] = None
+        self, tool_name: str, success: bool, latency_ms: Optional[float] = None
     ) -> Dict[str, Any]:
         """
         Track tool reliability for predictive maintenance.
@@ -948,33 +978,33 @@ class TDLambdaLearner:
         # Initialize tool stats if first time seeing this tool
         if tool_name not in self.tool_reliability:
             self.tool_reliability[tool_name] = {
-                'successes': 0,
-                'failures': 0,
-                'total': 0,
-                'latencies': [],  # Last 100 latencies
-                'first_seen': datetime.now().isoformat(),
-                'last_updated': datetime.now().isoformat()
+                "successes": 0,
+                "failures": 0,
+                "total": 0,
+                "latencies": [],  # Last 100 latencies
+                "first_seen": datetime.now().isoformat(),
+                "last_updated": datetime.now().isoformat(),
             }
 
         stats = self.tool_reliability[tool_name]
 
         # Update counts
-        stats['total'] += 1
+        stats["total"] += 1
         if success:
-            stats['successes'] += 1
+            stats["successes"] += 1
         else:
-            stats['failures'] += 1
+            stats["failures"] += 1
 
         # Track latency (keep last 100 samples for moving average)
         if latency_ms is not None:
-            stats['latencies'].append(latency_ms)
-            if len(stats['latencies']) > 100:
-                stats['latencies'].pop(0)  # Remove oldest
+            stats["latencies"].append(latency_ms)
+            if len(stats["latencies"]) > 100:
+                stats["latencies"].pop(0)  # Remove oldest
 
-        stats['last_updated'] = datetime.now().isoformat()
+        stats["last_updated"] = datetime.now().isoformat()
 
         # Compute success rate
-        success_rate = stats['successes'] / stats['total'] if stats['total'] > 0 else 1.0
+        success_rate = stats["successes"] / stats["total"] if stats["total"] > 0 else 1.0
 
         # Determine tool health status
         status = self._assess_tool_health(tool_name, success_rate, stats)
@@ -982,10 +1012,7 @@ class TDLambdaLearner:
         return status
 
     def _assess_tool_health(
-        self,
-        tool_name: str,
-        success_rate: float,
-        stats: Dict[str, Any]
+        self, tool_name: str, success_rate: float, stats: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
         Assess tool health and generate recommendations.
@@ -997,66 +1024,66 @@ class TDLambdaLearner:
 
         Returns status dict with recommendations.
         """
-        total = stats['total']
+        total = stats["total"]
 
         # Need minimum samples before making judgements
         if total < self.min_tool_samples:
             return {
-                'tool': tool_name,
-                'status': 'LEARNING',
-                'success_rate': success_rate,
-                'total_calls': total,
-                'message': f'Collecting data ({total}/{self.min_tool_samples} samples)',
-                'recommendations': []
+                "tool": tool_name,
+                "status": "LEARNING",
+                "success_rate": success_rate,
+                "total_calls": total,
+                "message": f"Collecting data ({total}/{self.min_tool_samples} samples)",
+                "recommendations": [],
             }
 
         # Calculate average latency
         avg_latency = None
-        if stats['latencies']:
-            avg_latency = sum(stats['latencies']) / len(stats['latencies'])
+        if stats["latencies"]:
+            avg_latency = sum(stats["latencies"]) / len(stats["latencies"])
 
         # Assess health
         if success_rate >= self.tool_degraded_threshold:
-            status = 'HEALTHY'
-            message = f'Tool operating normally ({success_rate:.1%} success)'
+            status = "HEALTHY"
+            message = f"Tool operating normally ({success_rate:.1%} success)"
             recommendations = []
 
         elif success_rate >= self.tool_failure_threshold:
-            status = 'DEGRADED'
+            status = "DEGRADED"
             message = (
-                f'Tool showing signs of degradation ({success_rate:.1%} success, '
-                f'below {self.tool_degraded_threshold:.0%} threshold)'
+                f"Tool showing signs of degradation ({success_rate:.1%} success, "
+                f"below {self.tool_degraded_threshold:.0%} threshold)"
             )
             recommendations = [
-                'Monitor closely for further degradation',
-                'Consider alternative tools if available',
-                'Check tool provider status page'
+                "Monitor closely for further degradation",
+                "Consider alternative tools if available",
+                "Check tool provider status page",
             ]
             logger.warning(f" {message}")
 
         else:
-            status = 'FAILING'
+            status = "FAILING"
             message = (
-                f'Tool is failing frequently ({success_rate:.1%} success, '
-                f'below {self.tool_failure_threshold:.0%} threshold)'
+                f"Tool is failing frequently ({success_rate:.1%} success, "
+                f"below {self.tool_failure_threshold:.0%} threshold)"
             )
             recommendations = [
-                '🚨 CRITICAL: Route to alternative tool immediately',
-                'Investigate root cause of failures',
-                'Alert on-call engineer if production-critical'
+                "🚨 CRITICAL: Route to alternative tool immediately",
+                "Investigate root cause of failures",
+                "Alert on-call engineer if production-critical",
             ]
             logger.error(f"🚨 {message}")
 
         return {
-            'tool': tool_name,
-            'status': status,
-            'success_rate': success_rate,
-            'total_calls': total,
-            'successes': stats['successes'],
-            'failures': stats['failures'],
-            'avg_latency_ms': avg_latency,
-            'message': message,
-            'recommendations': recommendations
+            "tool": tool_name,
+            "status": status,
+            "success_rate": success_rate,
+            "total_calls": total,
+            "successes": stats["successes"],
+            "failures": stats["failures"],
+            "avg_latency_ms": avg_latency,
+            "message": message,
+            "recommendations": recommendations,
         }
 
     def get_tool_health_report(self) -> Dict[str, Any]:
@@ -1071,30 +1098,30 @@ class TDLambdaLearner:
         failing = []
 
         for tool_name, stats in self.tool_reliability.items():
-            if stats['total'] < self.min_tool_samples:
+            if stats["total"] < self.min_tool_samples:
                 continue  # Skip tools still learning
 
-            success_rate = stats['successes'] / stats['total']
+            success_rate = stats["successes"] / stats["total"]
             status = self._assess_tool_health(tool_name, success_rate, stats)
 
-            if status['status'] == 'HEALTHY':
+            if status["status"] == "HEALTHY":
                 healthy.append(status)
-            elif status['status'] == 'DEGRADED':
+            elif status["status"] == "DEGRADED":
                 degraded.append(status)
-            elif status['status'] == 'FAILING':
+            elif status["status"] == "FAILING":
                 failing.append(status)
 
         return {
-            'timestamp': datetime.now().isoformat(),
-            'total_tools': len(self.tool_reliability),
-            'healthy': healthy,
-            'degraded': degraded,
-            'failing': failing,
-            'summary': {
-                'healthy_count': len(healthy),
-                'degraded_count': len(degraded),
-                'failing_count': len(failing)
-            }
+            "timestamp": datetime.now().isoformat(),
+            "total_tools": len(self.tool_reliability),
+            "healthy": healthy,
+            "degraded": degraded,
+            "failing": failing,
+            "summary": {
+                "healthy_count": len(healthy),
+                "degraded_count": len(degraded),
+                "failing_count": len(failing),
+            },
         }
 
     def should_avoid_tool(self, tool_name: str) -> bool:
@@ -1114,16 +1141,17 @@ class TDLambdaLearner:
             return False  # Unknown tool = no data = don't avoid
 
         stats = self.tool_reliability[tool_name]
-        if stats['total'] < self.min_tool_samples:
+        if stats["total"] < self.min_tool_samples:
             return False  # Not enough data yet
 
-        success_rate = stats['successes'] / stats['total']
+        success_rate = stats["successes"] / stats["total"]
         return success_rate < self.tool_failure_threshold
 
 
 # =============================================================================
 # Q-LEARNING FOR SKILL SELECTION
 # =============================================================================
+
 
 class SkillQTable:
     """Q-value table for skill selection: Q(task_type, skill) → expected reward.
@@ -1139,8 +1167,8 @@ class SkillQTable:
     """
 
     def __init__(self, alpha: float = 0.1, gamma: float = 0.9, epsilon: float = 0.15) -> None:
-        self.alpha = alpha      # Learning rate
-        self.gamma = gamma      # Discount factor
+        self.alpha = alpha  # Learning rate
+        self.gamma = gamma  # Discount factor
         self.epsilon = epsilon  # Exploration rate (epsilon-greedy)
         self._q: Dict[str, Dict[str, float]] = {}  # task_type → {skill → Q-value}
         self._counts: Dict[str, Dict[str, int]] = {}  # task_type → {skill → count}
@@ -1171,6 +1199,7 @@ class SkillQTable:
         epsilon, shuffles to encourage exploration.
         """
         import random
+
         if not available_skills:
             return []
 
@@ -1190,21 +1219,30 @@ class SkillQTable:
         return sorted_skills[:n]
 
     def to_dict(self) -> Dict:
-        return {'q': self._q, 'counts': self._counts,
-                'alpha': self.alpha, 'gamma': self.gamma, 'epsilon': self.epsilon}
+        return {
+            "q": self._q,
+            "counts": self._counts,
+            "alpha": self.alpha,
+            "gamma": self.gamma,
+            "epsilon": self.epsilon,
+        }
 
     @classmethod
-    def from_dict(cls, data: Dict) -> 'SkillQTable':
-        obj = cls(alpha=data.get('alpha', 0.1), gamma=data.get('gamma', 0.9),
-                  epsilon=data.get('epsilon', 0.15))
-        obj._q = data.get('q', {})
-        obj._counts = data.get('counts', {})
+    def from_dict(cls, data: Dict) -> "SkillQTable":
+        obj = cls(
+            alpha=data.get("alpha", 0.1),
+            gamma=data.get("gamma", 0.9),
+            epsilon=data.get("epsilon", 0.15),
+        )
+        obj._q = data.get("q", {})
+        obj._counts = data.get("counts", {})
         return obj
 
 
 # =============================================================================
 # COMA COUNTERFACTUAL CREDIT
 # =============================================================================
+
 
 class COMACredit:
     """Counterfactual Multi-Agent credit assignment.
@@ -1276,19 +1314,20 @@ class COMACredit:
         return {agent: self.get_credit(agent) for agent in self._history}
 
     def to_dict(self) -> Dict:
-        return {'history': self._history, 'counterfactual': self._counterfactual}
+        return {"history": self._history, "counterfactual": self._counterfactual}
 
     @classmethod
-    def from_dict(cls, data: Dict) -> 'COMACredit':
+    def from_dict(cls, data: Dict) -> "COMACredit":
         obj = cls()
-        obj._history = data.get('history', {})
-        obj._counterfactual = data.get('counterfactual', {})
+        obj._history = data.get("history", {})
+        obj._counterfactual = data.get("counterfactual", {})
         return obj
 
 
 # =============================================================================
 # LEARNED CONTEXT GENERATOR
 # =============================================================================
+
 
 def get_learned_context(
     td_learner: TDLambdaLearner,
@@ -1318,7 +1357,7 @@ def get_learned_context(
 
     # 1. Task type baseline info
     stats = td_learner.get_grouped_learning_stats()
-    baselines = stats.get('group_baselines', {})
+    baselines = stats.get("group_baselines", {})
     if task_type and task_type in baselines:
         baseline = baselines[task_type]
         variance = td_learner.grouped_baseline.get_group_variance(task_type)
@@ -1341,7 +1380,9 @@ def get_learned_context(
         if credits:
             top_agents = sorted(credits.items(), key=lambda x: x[1], reverse=True)[:3]
             if any(c > 0.05 for _, c in top_agents):
-                agent_strs = [f"{name} (+{credit:.0%})" for name, credit in top_agents if credit > 0.05]
+                agent_strs = [
+                    f"{name} (+{credit:.0%})" for name, credit in top_agents if credit > 0.05
+                ]
                 if agent_strs:
                     lines.append(f"Most effective agents: {', '.join(agent_strs)}")
 

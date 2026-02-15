@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 async def main():
-    from Jotty.core.capabilities.skills.providers import ProviderRegistry, ContributedSkill
+    from Jotty.core.capabilities.skills.providers import ContributedSkill, ProviderRegistry
 
     n8n_url = os.getenv("N8N_BASE_URL", "http://localhost:5678")
     ap_url = os.getenv("ACTIVEPIECES_BASE_URL", "http://localhost:8080")
@@ -58,7 +58,9 @@ async def main():
     if n8n.is_available and n8n.list_skills():
         first = n8n.list_skills()[0]
         wf_id = first.metadata.get("workflow_id")
-        print(f"\n[Optional] Run first n8n workflow? id={wf_id} (skipping actual run to avoid side effects)")
+        print(
+            f"\n[Optional] Run first n8n workflow? id={wf_id} (skipping actual run to avoid side effects)"
+        )
         # Uncomment to really run:
         # result = await n8n.execute("", {"workflow_id": wf_id, "payload": {}})
         # print(f"  result.success={result.success}, output={str(result.output)[:200]}")

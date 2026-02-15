@@ -6,11 +6,15 @@ Uses Claude CLI by default with fallback support.
 
 This allows LIDA to use the same LLM infrastructure as other Jotty skills.
 """
-import logging
-from typing import Dict, Any, Optional, List, Union
-from dataclasses import dataclass
 
-from Jotty.core.infrastructure.foundation.config_defaults import DEFAULT_MODEL_ALIAS, LLM_TIMEOUT_SECONDS
+import logging
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Union
+
+from Jotty.core.infrastructure.foundation.config_defaults import (
+    DEFAULT_MODEL_ALIAS,
+    LLM_TIMEOUT_SECONDS,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -18,14 +22,15 @@ logger = logging.getLogger(__name__)
 @dataclass
 class Message:
     """Message in a conversation (compatible with llmx.datamodel.Message)."""
+
     role: str
     content: str
 
     def __getitem__(self, key: Any) -> Any:
         """Support dict-like access for compatibility."""
-        if key == 'role':
+        if key == "role":
             return self.role
-        elif key == 'content':
+        elif key == "content":
             return self.content
         raise KeyError(key)
 
@@ -40,6 +45,7 @@ class Message:
 @dataclass
 class TextGenerationConfig:
     """Configuration for text generation."""
+
     n: int = 1
     temperature: float = 0.1
     max_tokens: Optional[int] = None
@@ -56,6 +62,7 @@ class TextGenerationConfig:
 @dataclass
 class TextGenerationResponse:
     """Response from text generation."""
+
     text: List[Message]
     config: TextGenerationConfig
     logprobs: Optional[Any] = None
@@ -77,7 +84,14 @@ class ClaudeLLMTextGenerator:
         manager = Manager(text_gen=text_gen)
     """
 
-    def __init__(self, provider: str = 'claude-cli', model: str = DEFAULT_MODEL_ALIAS, timeout: int = LLM_TIMEOUT_SECONDS, fallback: bool = True, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        provider: str = "claude-cli",
+        model: str = DEFAULT_MODEL_ALIAS,
+        timeout: int = LLM_TIMEOUT_SECONDS,
+        fallback: bool = True,
+        **kwargs: Any,
+    ) -> None:
         """
         Initialize Claude LLM text generator.
 
@@ -102,10 +116,13 @@ class ClaudeLLMTextGenerator:
         """Lazy import of core.llm.generate."""
         if self._llm_generate is None:
             from core.llm import generate
+
             self._llm_generate = generate
         return self._llm_generate
 
-    def generate(self, messages: Union[List[Dict], str], config: TextGenerationConfig = None, **kwargs: Any) -> TextGenerationResponse:
+    def generate(
+        self, messages: Union[List[Dict], str], config: TextGenerationConfig = None, **kwargs: Any
+    ) -> TextGenerationResponse:
         """
         Generate text using Claude LLM.
 
@@ -127,20 +144,20 @@ class ClaudeLLMTextGenerator:
             prompt_parts = []
             for msg in messages:
                 if isinstance(msg, dict):
-                    role = msg.get('role', 'user')
-                    content = msg.get('content', '')
-                elif hasattr(msg, 'role') and hasattr(msg, 'content'):
+                    role = msg.get("role", "user")
+                    content = msg.get("content", "")
+                elif hasattr(msg, "role") and hasattr(msg, "content"):
                     role = msg.role
                     content = msg.content
                 else:
                     content = str(msg)
-                    role = 'user'
+                    role = "user"
 
-                if role == 'system':
+                if role == "system":
                     prompt_parts.append(f"System: {content}")
-                elif role == 'user':
+                elif role == "user":
                     prompt_parts.append(f"User: {content}")
-                elif role == 'assistant':
+                elif role == "assistant":
                     prompt_parts.append(f"Assistant: {content}")
                 else:
                     prompt_parts.append(content)
@@ -163,21 +180,21 @@ class ClaudeLLMTextGenerator:
                 timeout=self.timeout,
                 fallback=self.fallback,
                 max_tokens=max_tokens,
-                **self.kwargs
+                **self.kwargs,
             )
 
             if response.success:
                 return TextGenerationResponse(
                     text=[Message(role="assistant", content=response.text)],
                     config=config,
-                    usage=response.usage or {"total_tokens": len(response.text.split())}
+                    usage=response.usage or {"total_tokens": len(response.text.split())},
                 )
             else:
                 logger.error(f"LLM generation failed: {response.error}")
                 return TextGenerationResponse(
                     text=[Message(role="assistant", content=f"Error: {response.error}")],
                     config=config,
-                    usage={"total_tokens": 0}
+                    usage={"total_tokens": 0},
                 )
 
         except Exception as e:
@@ -185,7 +202,7 @@ class ClaudeLLMTextGenerator:
             return TextGenerationResponse(
                 text=[Message(role="assistant", content=f"Error: {str(e)}")],
                 config=config,
-                usage={"total_tokens": 0}
+                usage={"total_tokens": 0},
             )
 
     def count_tokens(self, text: str) -> int:
@@ -203,7 +220,9 @@ class ClaudeLLMTextGenerator:
         return len(text) // 4
 
 
-def get_lida_text_generator(provider: str = 'claude-cli', model: str = DEFAULT_MODEL_ALIAS, **kwargs: Any) -> ClaudeLLMTextGenerator:
+def get_lida_text_generator(
+    provider: str = "claude-cli", model: str = DEFAULT_MODEL_ALIAS, **kwargs: Any
+) -> ClaudeLLMTextGenerator:
     """
     Get a LIDA-compatible text generator using Jotty's LLM infrastructure.
 
@@ -219,9 +238,9 @@ def get_lida_text_generator(provider: str = 'claude-cli', model: str = DEFAULT_M
 
 
 __all__ = [
-    'ClaudeLLMTextGenerator',
-    'get_lida_text_generator',
-    'Message',
-    'TextGenerationConfig',
-    'TextGenerationResponse',
+    "ClaudeLLMTextGenerator",
+    "get_lida_text_generator",
+    "Message",
+    "TextGenerationConfig",
+    "TextGenerationResponse",
 ]

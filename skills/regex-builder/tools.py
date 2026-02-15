@@ -1,29 +1,54 @@
 """Regex Builder Skill — build, test, and explain regex patterns."""
-import re
-from typing import Dict, Any
 
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+import re
+from typing import Any, Dict
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("regex-builder")
 
 _PRESETS = {
-    "email": {"pattern": r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", "description": "Email address"},
+    "email": {
+        "pattern": r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}",
+        "description": "Email address",
+    },
     "url": {"pattern": r'https?://[^\s<>"]+', "description": "HTTP/HTTPS URL"},
-    "phone": {"pattern": r"\+?1?[-.\s]?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}", "description": "US phone number"},
+    "phone": {
+        "pattern": r"\+?1?[-.\s]?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}",
+        "description": "US phone number",
+    },
     "ipv4": {"pattern": r"\b(?:\d{1,3}\.){3}\d{1,3}\b", "description": "IPv4 address"},
-    "date_iso": {"pattern": r"\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])", "description": "ISO date (YYYY-MM-DD)"},
-    "uuid": {"pattern": r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", "description": "UUID v4"},
+    "date_iso": {
+        "pattern": r"\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])",
+        "description": "ISO date (YYYY-MM-DD)",
+    },
+    "uuid": {
+        "pattern": r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+        "description": "UUID v4",
+    },
     "hex_color": {"pattern": r"#(?:[0-9a-fA-F]{3}){1,2}\b", "description": "Hex color code"},
     "ip": {"pattern": r"\b(?:\d{1,3}\.){3}\d{1,3}\b", "description": "IPv4 address"},
-    "date": {"pattern": r"\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])", "description": "ISO date"},
+    "date": {
+        "pattern": r"\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])",
+        "description": "ISO date",
+    },
 }
 
 _EXPLAIN = {
-    "\\d": "digit (0-9)", "\\w": "word char (a-z, A-Z, 0-9, _)", "\\s": "whitespace",
-    "\\b": "word boundary", ".": "any character", "+": "one or more", "*": "zero or more",
-    "?": "zero or one (optional)", "^": "start of string", "$": "end of string",
-    "\\D": "non-digit", "\\W": "non-word char", "\\S": "non-whitespace",
+    "\\d": "digit (0-9)",
+    "\\w": "word char (a-z, A-Z, 0-9, _)",
+    "\\s": "whitespace",
+    "\\b": "word boundary",
+    ".": "any character",
+    "+": "one or more",
+    "*": "zero or more",
+    "?": "zero or one (optional)",
+    "^": "start of string",
+    "$": "end of string",
+    "\\D": "non-digit",
+    "\\W": "non-word char",
+    "\\S": "non-whitespace",
 }
 
 
@@ -50,7 +75,9 @@ def regex_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         try:
             matches = re.findall(pattern, text)
             full = bool(re.fullmatch(pattern, text))
-            return tool_response(pattern=pattern, matches=matches, count=len(matches), full_match=full)
+            return tool_response(
+                pattern=pattern, matches=matches, count=len(matches), full_match=full
+            )
         except re.error as e:
             return tool_error(f"Invalid regex: {e}")
 

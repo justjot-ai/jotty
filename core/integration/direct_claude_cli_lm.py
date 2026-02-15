@@ -11,14 +11,16 @@ Features:
 - Tracks success/failure metrics
 """
 
-import subprocess
 import json
 import logging
-import time
 import random
+import subprocess
+import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional
+
 import dspy
+
 from Jotty.core.infrastructure.foundation.exceptions import LLMError
 
 logger = logging.getLogger(__name__)
@@ -63,12 +65,14 @@ class DirectClaudeCLI(dspy.BaseLM):
 
     # Model-specific timeout defaults (increased for complex DSPy prompts)
     MODEL_TIMEOUTS = {
-        "haiku": 60,   # Haiku is fast but DSPy prompts are complex
+        "haiku": 60,  # Haiku is fast but DSPy prompts are complex
         "sonnet": 120,  # Sonnet needs more time
-        "opus": 180,   # Opus is slower but higher quality
+        "opus": 180,  # Opus is slower but higher quality
     }
 
-    def __init__(self, model: str = '', max_retries: int = 0, base_timeout: int = None, **kwargs: Any) -> None:
+    def __init__(
+        self, model: str = "", max_retries: int = 0, base_timeout: int = None, **kwargs: Any
+    ) -> None:
         """
         Initialize Direct Claude CLI wrapper.
 
@@ -78,7 +82,11 @@ class DirectClaudeCLI(dspy.BaseLM):
             base_timeout: Base timeout in seconds (auto-set based on model if None)
             **kwargs: Additional arguments (ignored for compatibility)
         """
-        from Jotty.core.infrastructure.foundation.config_defaults import DEFAULT_MODEL_ALIAS, MAX_RETRIES
+        from Jotty.core.infrastructure.foundation.config_defaults import (
+            DEFAULT_MODEL_ALIAS,
+            MAX_RETRIES,
+        )
+
         model = model or DEFAULT_MODEL_ALIAS
         max_retries = max_retries or MAX_RETRIES
 
@@ -96,7 +104,9 @@ class DirectClaudeCLI(dspy.BaseLM):
         self.failed_calls = 0
         self.retried_calls = 0
 
-        logger.debug(f"DirectClaudeCLI initialized: model={model}, base_timeout={self.base_timeout}s")
+        logger.debug(
+            f"DirectClaudeCLI initialized: model={model}, base_timeout={self.base_timeout}s"
+        )
 
     def _is_retryable_error(self, error_msg: str) -> bool:
         """Check if error is retryable (not a policy violation).
@@ -117,7 +127,7 @@ class DirectClaudeCLI(dspy.BaseLM):
 
     def _calculate_delay(self, attempt: int) -> float:
         """Calculate delay with exponential backoff and jitter."""
-        delay = min(self.BASE_DELAY * (2 ** attempt), self.MAX_DELAY)
+        delay = min(self.BASE_DELAY * (2**attempt), self.MAX_DELAY)
         # Add jitter (±25%)
         jitter = delay * 0.25 * (2 * random.random() - 1)
         return delay + jitter
@@ -137,11 +147,11 @@ class DirectClaudeCLI(dspy.BaseLM):
         model = self.MODEL_MAP.get(self.model, self.model)
 
         result = subprocess.run(
-            ['claude', '--model', model, '--'],
+            ["claude", "--model", model, "--"],
             input=input_text,
             capture_output=True,
             text=True,
-            timeout=timeout
+            timeout=timeout,
         )
 
         if result.returncode != 0:
@@ -175,14 +185,14 @@ class DirectClaudeCLI(dspy.BaseLM):
             # Better formatting for DSPy messages - extract system prompt and user content
             parts = []
             for msg in messages:
-                role = msg.get('role', 'user')
-                content = msg.get('content', '')
-                if role == 'system':
+                role = msg.get("role", "user")
+                content = msg.get("content", "")
+                if role == "system":
                     # System prompts go first without role prefix
                     parts.insert(0, content)
-                elif role == 'user':
+                elif role == "user":
                     parts.append(content)
-                elif role == 'assistant':
+                elif role == "assistant":
                     parts.append(f"Assistant: {content}")
             input_text = "\n\n".join(parts)
         else:
@@ -212,13 +222,15 @@ class DirectClaudeCLI(dspy.BaseLM):
                     logger.info(f" Succeeded on retry {attempt}")
 
                 # Store in history
-                self.history.append({
-                    'prompt': input_text[:500],
-                    'response': response[:500],
-                    'model': self.model,
-                    'attempts': attempt + 1,
-                    'timestamp': datetime.now().isoformat()
-                })
+                self.history.append(
+                    {
+                        "prompt": input_text[:500],
+                        "response": response[:500],
+                        "model": self.model,
+                        "attempts": attempt + 1,
+                        "timestamp": datetime.now().isoformat(),
+                    }
+                )
 
                 logger.debug(f"Response: {response[:150]}...")
                 return [response]
@@ -271,24 +283,18 @@ class DirectClaudeCLI(dspy.BaseLM):
             Dictionary with recent history
         """
         recent = self.history[-n:] if self.history else []
-        return {
-            'history': recent,
-            'model': self.model
-        }
+        return {"history": recent, "model": self.model}
 
     def get_metrics(self) -> Dict[str, Any]:
         """Get call metrics for monitoring."""
-        success_rate = (
-            self.successful_calls / self.total_calls * 100
-            if self.total_calls > 0 else 0
-        )
+        success_rate = self.successful_calls / self.total_calls * 100 if self.total_calls > 0 else 0
         return {
-            'total_calls': self.total_calls,
-            'successful_calls': self.successful_calls,
-            'failed_calls': self.failed_calls,
-            'retried_calls': self.retried_calls,
-            'success_rate': f"{success_rate:.1f}%",
-            'model': self.model
+            "total_calls": self.total_calls,
+            "successful_calls": self.successful_calls,
+            "failed_calls": self.failed_calls,
+            "retried_calls": self.retried_calls,
+            "success_rate": f"{success_rate:.1f}%",
+            "model": self.model,
         }
 
     def reset_metrics(self) -> None:

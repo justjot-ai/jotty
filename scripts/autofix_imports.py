@@ -23,7 +23,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
-from typing import List, Dict, Tuple, Optional
+from typing import Dict, List, Optional, Tuple
 
 
 class ImportViolation:
@@ -52,16 +52,13 @@ class ImportLinterParser:
     # Regex to match violation lines like:
     # -   Jotty.apps.cli.commands.telegram_bot -> Jotty.apps.telegram_bot.bot (l.59)
     VIOLATION_PATTERN = re.compile(
-        r'-\s+(?P<source>[\w.]+)\s+->\s+(?P<target>[\w.]+)\s+\((?P<location>l\.\d+)\)'
+        r"-\s+(?P<source>[\w.]+)\s+->\s+(?P<target>[\w.]+)\s+\((?P<location>l\.\d+)\)"
     )
 
     # Regex to match contract headers like:
     # CLI must not import from other apps
     # -----------------------------------
-    CONTRACT_PATTERN = re.compile(
-        r'^(?P<name>.+?)\s*$\n-+$',
-        re.MULTILINE
-    )
+    CONTRACT_PATTERN = re.compile(r"^(?P<name>.+?)\s*$\n-+$", re.MULTILINE)
 
     @classmethod
     def parse(cls, output: str) -> Dict[str, List[ImportViolation]]:
@@ -74,12 +71,12 @@ class ImportLinterParser:
         violations_by_contract = {}
 
         # Split output into sections
-        lines = output.split('\n')
+        lines = output.split("\n")
         current_contract = None
 
         for i, line in enumerate(lines):
             # Check if this is a contract header
-            if i + 1 < len(lines) and lines[i + 1].startswith('---'):
+            if i + 1 < len(lines) and lines[i + 1].startswith("---"):
                 current_contract = line.strip()
                 violations_by_contract[current_contract] = []
                 continue
@@ -89,10 +86,10 @@ class ImportLinterParser:
                 match = cls.VIOLATION_PATTERN.match(line)
                 if match:
                     violation = ImportViolation(
-                        source=match.group('source'),
-                        target=match.group('target'),
-                        location=match.group('location'),
-                        contract=current_contract
+                        source=match.group("source"),
+                        target=match.group("target"),
+                        location=match.group("location"),
+                        contract=current_contract,
                     )
                     violations_by_contract[current_contract].append(violation)
 
@@ -106,8 +103,9 @@ class ImportLinterFixer:
         self.config_path = config_path
         self.config_content = config_path.read_text()
 
-    def add_ignore(self, contract_name: str, violations: List[ImportViolation],
-                   add_todo: bool = True) -> bool:
+    def add_ignore(
+        self, contract_name: str, violations: List[ImportViolation], add_todo: bool = True
+    ) -> bool:
         """
         Add violations to ignore_imports for a specific contract.
 
@@ -118,9 +116,8 @@ class ImportLinterFixer:
 
         # Find the contract section
         contract_section_pattern = re.compile(
-            rf'\[importlinter:contract:[^\]]+\]\s*\n'
-            rf'name\s*=\s*{re.escape(contract_name)}',
-            re.MULTILINE
+            rf"\[importlinter:contract:[^\]]+\]\s*\n" rf"name\s*=\s*{re.escape(contract_name)}",
+            re.MULTILINE,
         )
 
         match = contract_section_pattern.search(self.config_content)
@@ -132,21 +129,26 @@ class ImportLinterFixer:
         contract_start = match.start()
 
         # Look for existing ignore_imports section
-        next_section = self.config_content.find('[importlinter:', contract_start + 1)
+        next_section = self.config_content.find("[importlinter:", contract_start + 1)
         if next_section == -1:
             next_section = len(self.config_content)
 
         contract_section = self.config_content[contract_start:next_section]
 
         # Check if ignore_imports already exists
-        if 'ignore_imports' in contract_section:
+        if "ignore_imports" in contract_section:
             # Find the end of ignore_imports section
-            ignore_start = self.config_content.find('ignore_imports', contract_start)
+            ignore_start = self.config_content.find("ignore_imports", contract_start)
             ignore_end = ignore_start
 
             # Find the next section or end of contract
-            for line in self.config_content[ignore_start:next_section].split('\n'):
-                if line and not line.startswith(' ') and not line.startswith('\t') and line != 'ignore_imports':
+            for line in self.config_content[ignore_start:next_section].split("\n"):
+                if (
+                    line
+                    and not line.startswith(" ")
+                    and not line.startswith("\t")
+                    and line != "ignore_imports"
+                ):
                     break
                 ignore_end = self.config_content.find(line, ignore_end) + len(line)
 
@@ -159,20 +161,18 @@ class ImportLinterFixer:
             insert_pos = next_section
             if insert_pos > contract_start:
                 # Find last non-empty line
-                prev_newline = self.config_content.rfind('\n', contract_start, insert_pos - 1)
+                prev_newline = self.config_content.rfind("\n", contract_start, insert_pos - 1)
                 insert_pos = prev_newline + 1
 
             prefix = "ignore_imports =\n"
 
         # Generate ignore lines
         ignore_lines = [violation.to_ignore_line(add_todo) for violation in violations]
-        insert_text = prefix + '\n'.join(ignore_lines) + '\n'
+        insert_text = prefix + "\n".join(ignore_lines) + "\n"
 
         # Insert into config
         self.config_content = (
-            self.config_content[:insert_pos] +
-            insert_text +
-            self.config_content[insert_pos:]
+            self.config_content[:insert_pos] + insert_text + self.config_content[insert_pos:]
         )
 
         return True
@@ -188,10 +188,10 @@ def run_import_linter(verbose: bool = False) -> Tuple[int, str]:
     """
     try:
         result = subprocess.run(
-            ['lint-imports'] + (['--verbose'] if verbose else []),
+            ["lint-imports"] + (["--verbose"] if verbose else []),
             capture_output=True,
             text=True,
-            timeout=30
+            timeout=30,
         )
         return result.returncode, result.stdout + result.stderr
     except subprocess.TimeoutExpired:
@@ -204,16 +204,17 @@ def main():
     parser = argparse.ArgumentParser(
         description="Auto-discover and auto-fix import-linter violations"
     )
-    parser.add_argument('--dry-run', action='store_true',
-                       help="Show what would be fixed without making changes")
-    parser.add_argument('--no-todo', action='store_true',
-                       help="Don't add TODO comments to auto-fixed imports")
-    parser.add_argument('--verbose', action='store_true',
-                       help="Verbose output from import-linter")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Show what would be fixed without making changes"
+    )
+    parser.add_argument(
+        "--no-todo", action="store_true", help="Don't add TODO comments to auto-fixed imports"
+    )
+    parser.add_argument("--verbose", action="store_true", help="Verbose output from import-linter")
     args = parser.parse_args()
 
     # Find .importlinter config
-    config_path = Path('.importlinter')
+    config_path = Path(".importlinter")
     if not config_path.exists():
         print("❌ .importlinter not found in current directory")
         print("   Run from repository root: cd /path/to/Jotty")
@@ -231,18 +232,22 @@ def main():
 
     if not violations_by_contract:
         print("⚠️  import-linter failed but no violations were parsed.")
-        print("    This might be a different type of error (e.g., 'Modules have shared descendants')")
-        print("\n" + "="*80)
+        print(
+            "    This might be a different type of error (e.g., 'Modules have shared descendants')"
+        )
+        print("\n" + "=" * 80)
         print("IMPORT-LINTER OUTPUT:")
-        print("="*80)
+        print("=" * 80)
         print(output)
-        print("="*80)
+        print("=" * 80)
         print("\n💡 Manual intervention required - check output above")
         return 1
 
     # Display found violations
     total_violations = sum(len(v) for v in violations_by_contract.values())
-    print(f"\n📊 Found {total_violations} violation(s) across {len(violations_by_contract)} contract(s):\n")
+    print(
+        f"\n📊 Found {total_violations} violation(s) across {len(violations_by_contract)} contract(s):\n"
+    )
 
     for contract, violations in violations_by_contract.items():
         print(f"  📋 {contract}: {len(violations)} violation(s)")
@@ -292,5 +297,5 @@ def main():
         return 1
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

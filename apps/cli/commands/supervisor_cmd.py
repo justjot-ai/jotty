@@ -5,8 +5,9 @@ Supervisor Command
 Supervisor control and status.
 """
 
-import aiohttp
 from typing import TYPE_CHECKING
+
+import aiohttp
 
 from .base import BaseCommand, CommandResult, ParsedArgs
 

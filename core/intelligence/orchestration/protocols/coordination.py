@@ -6,13 +6,21 @@ These are mixed into SwarmIntelligence at class definition.
 """
 
 import hashlib
-import time
 import logging
-from typing import Dict, List, Any, Optional, Tuple, Callable
+import time
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from ..swarm_data_structures import (
-    AgentSpecialization, AgentProfile, ConsensusVote, SwarmDecision,
-    AgentSession, HandoffContext, Coalition, AuctionBid, GossipMessage, SupervisorNode,
+    AgentProfile,
+    AgentSession,
+    AgentSpecialization,
+    AuctionBid,
+    Coalition,
+    ConsensusVote,
+    GossipMessage,
+    HandoffContext,
+    SupervisorNode,
+    SwarmDecision,
 )
 
 logger = logging.getLogger(__name__)
@@ -20,7 +28,6 @@ logger = logging.getLogger(__name__)
 
 class CoordinationMixin:
     """Coordination protocol mixin: handoff, auction, coalition, gossip, supervisor hierarchy."""
-
 
     # =========================================================================
     # AGENT HANDOFF (SwarmAgentic Pattern)
@@ -35,7 +42,7 @@ class CoordinationMixin:
         context: Dict = None,
         partial_result: Any = None,
         progress: float = 0.0,
-        priority: int = 5
+        priority: int = 5,
     ) -> HandoffContext:
         """
         Initiate task handoff between agents with context preservation.
@@ -63,7 +70,7 @@ class CoordinationMixin:
             context=context or {},
             partial_result=partial_result,
             progress=progress,
-            priority=priority
+            priority=priority,
         )
         handoff.add_to_chain(from_agent)
 
@@ -73,13 +80,11 @@ class CoordinationMixin:
         self.gossip_broadcast(
             origin_agent=from_agent,
             message_type="handoff",
-            content={"task_id": task_id, "to": to_agent, "type": task_type}
+            content={"task_id": task_id, "to": to_agent, "type": task_type},
         )
 
         logger.info(f"Handoff initiated: {from_agent} → {to_agent} for task {task_id}")
         return handoff
-
-
 
     def accept_handoff(self, task_id: str, agent: str) -> Optional[HandoffContext]:
         """
@@ -95,8 +100,6 @@ class CoordinationMixin:
             return handoff
         return None
 
-
-
     def reject_handoff(self, task_id: str, agent: str, reason: str = "") -> bool:
         """
         Reject a handoff and find alternative agent.
@@ -108,8 +111,9 @@ class CoordinationMixin:
             return False
 
         # Find alternative via auction
-        available = [a for a in self.agent_profiles.keys()
-                     if a != agent and a not in handoff.handoff_chain]
+        available = [
+            a for a in self.agent_profiles.keys() if a != agent and a not in handoff.handoff_chain
+        ]
 
         if not available:
             logger.warning(f"Handoff rejected, no alternatives: {task_id}")
@@ -124,8 +128,6 @@ class CoordinationMixin:
 
         return False
 
-
-
     def get_pending_handoffs(self, agent: str) -> List[HandoffContext]:
         """Get all pending handoffs for an agent."""
         return [h for h in self.pending_handoffs.values() if h.to_agent == agent]
@@ -133,8 +135,6 @@ class CoordinationMixin:
     # =========================================================================
     # HIERARCHICAL SUPERVISOR TREE (SwarmSys O(log n) Pattern)
     # =========================================================================
-
-
 
     # =========================================================================
     # HIERARCHICAL SUPERVISOR TREE (SwarmSys O(log n) Pattern)
@@ -164,10 +164,7 @@ class CoordinationMixin:
         for i, agent in enumerate(agents):
             node_id = f"L{level}_{i}"
             node = SupervisorNode(
-                node_id=node_id,
-                agent_name=agent,
-                level=level,
-                supervised_agents=[agent]
+                node_id=node_id, agent_name=agent, level=level, supervised_agents=[agent]
             )
             self.supervisor_tree[node_id] = node
             current_level.append(node_id)
@@ -178,7 +175,7 @@ class CoordinationMixin:
             next_level = []
 
             for i in range(0, len(current_level), branching_factor):
-                children = current_level[i:i + branching_factor]
+                children = current_level[i : i + branching_factor]
                 if not children:
                     continue
 
@@ -186,7 +183,7 @@ class CoordinationMixin:
                 child_agents = [self.supervisor_tree[c].agent_name for c in children]
                 supervisor_agent = max(
                     child_agents,
-                    key=lambda a: self.agent_profiles.get(a, AgentProfile(a)).trust_score
+                    key=lambda a: self.agent_profiles.get(a, AgentProfile(a)).trust_score,
                 )
 
                 node_id = f"L{level}_{len(next_level)}"
@@ -200,7 +197,7 @@ class CoordinationMixin:
                     agent_name=supervisor_agent,
                     level=level,
                     children=children,
-                    supervised_agents=supervised
+                    supervised_agents=supervised,
                 )
                 self.supervisor_tree[node_id] = node
                 next_level.append(node_id)
@@ -208,9 +205,9 @@ class CoordinationMixin:
             current_level = next_level
 
         self._tree_built = True
-        logger.info(f"Supervisor tree built: {len(agents)} agents, {level + 1} levels, O(log {len(agents)}) = O({level + 1})")
-
-
+        logger.info(
+            f"Supervisor tree built: {len(agents)} agents, {level + 1} levels, O(log {len(agents)}) = O({level + 1})"
+        )
 
     def get_supervisor(self, agent: str) -> Optional[str]:
         """Get the supervisor agent for a given agent."""
@@ -221,16 +218,12 @@ class CoordinationMixin:
                     return parent_node.agent_name
         return None
 
-
-
     def get_supervised_agents(self, supervisor: str) -> List[str]:
         """Get all agents supervised by a given supervisor."""
         for node in self.supervisor_tree.values():
             if node.agent_name == supervisor:
                 return node.supervised_agents
         return []
-
-
 
     def route_via_hierarchy(self, task_type: str, from_agent: str = None) -> Optional[str]:
         """
@@ -285,18 +278,12 @@ class CoordinationMixin:
     # GOSSIP PROTOCOL (SwarmSys O(log n) Dissemination)
     # =========================================================================
 
-
-
     # =========================================================================
     # GOSSIP PROTOCOL (SwarmSys O(log n) Dissemination)
     # =========================================================================
 
     def gossip_broadcast(
-        self,
-        origin_agent: str,
-        message_type: str,
-        content: Dict[str, Any],
-        ttl: int = 3
+        self, origin_agent: str, message_type: str, content: Dict[str, Any], ttl: int = 3
     ) -> str:
         """
         Broadcast message via gossip protocol.
@@ -312,7 +299,9 @@ class CoordinationMixin:
         Returns:
             Message ID
         """
-        msg_id = hashlib.md5(f"{origin_agent}:{message_type}:{time.time()}".encode()).hexdigest()[:12]
+        msg_id = hashlib.md5(f"{origin_agent}:{message_type}:{time.time()}".encode()).hexdigest()[
+            :12
+        ]
 
         message = GossipMessage(
             message_id=msg_id,
@@ -320,11 +309,12 @@ class CoordinationMixin:
             origin_agent=origin_agent,
             message_type=message_type,
             ttl=ttl,
-            seen_by=[origin_agent]
+            seen_by=[origin_agent],
         )
 
         # Distribute to random subset of agents (gossip fanout)
         import random
+
         all_agents = [a for a in self.agent_profiles.keys() if a != origin_agent]
         fanout = min(3, len(all_agents))  # Gossip to 3 random agents
         targets = random.sample(all_agents, fanout) if all_agents else []
@@ -335,10 +325,10 @@ class CoordinationMixin:
             self.gossip_inbox[target].append(message)
 
         self.gossip_seen[msg_id] = True
-        logger.debug(f"Gossip broadcast: {message_type} from {origin_agent} to {len(targets)} agents")
+        logger.debug(
+            f"Gossip broadcast: {message_type} from {origin_agent} to {len(targets)} agents"
+        )
         return msg_id
-
-
 
     def gossip_receive(self, agent: str) -> List[GossipMessage]:
         """
@@ -356,8 +346,10 @@ class CoordinationMixin:
         # Propagate with reduced TTL
         for msg in to_propagate:
             import random
-            other_agents = [a for a in self.agent_profiles.keys()
-                          if a != agent and a not in msg.seen_by]
+
+            other_agents = [
+                a for a in self.agent_profiles.keys() if a != agent and a not in msg.seen_by
+            ]
             if other_agents:
                 target = random.choice(other_agents)
                 if target not in self.gossip_inbox:
@@ -365,8 +357,6 @@ class CoordinationMixin:
                 self.gossip_inbox[target].append(msg)
 
         return messages
-
-
 
     def gossip_query(self, query_type: str, agent: str = None) -> List[Dict]:
         """
@@ -381,19 +371,19 @@ class CoordinationMixin:
             for msg in inbox:
                 if msg.message_type == query_type:
                     if agent is None or msg.origin_agent == agent:
-                        results.append({
-                            "id": msg.message_id,
-                            "content": msg.content,
-                            "from": msg.origin_agent,
-                            "age": time.time() - msg.created_at
-                        })
+                        results.append(
+                            {
+                                "id": msg.message_id,
+                                "content": msg.content,
+                                "from": msg.origin_agent,
+                                "age": time.time() - msg.created_at,
+                            }
+                        )
         return results
 
     # =========================================================================
     # AUCTION-BASED TASK ALLOCATION (SwarmSys Contract-Net)
     # =========================================================================
-
-
 
     # =========================================================================
     # AUCTION-BASED TASK ALLOCATION (SwarmSys Contract-Net)
@@ -404,7 +394,7 @@ class CoordinationMixin:
         task_id: str,
         task_type: str,
         task_description: str = "",
-        deadline_seconds: float = 5.0
+        deadline_seconds: float = 5.0,
     ) -> str:
         """
         Start auction for task allocation.
@@ -430,14 +420,12 @@ class CoordinationMixin:
                 "task_id": task_id,
                 "task_type": task_type,
                 "description": task_description,
-                "deadline": time.time() + deadline_seconds
-            }
+                "deadline": time.time() + deadline_seconds,
+            },
         )
 
         logger.info(f"Auction started: {task_id} ({task_type})")
         return task_id
-
-
 
     def submit_bid(
         self,
@@ -445,7 +433,7 @@ class CoordinationMixin:
         agent_name: str,
         estimated_time: float = 10.0,
         confidence: float = 0.8,
-        reasoning: str = ""
+        reasoning: str = "",
     ) -> Optional[AuctionBid]:
         """
         Submit bid for an auction.
@@ -472,11 +460,15 @@ class CoordinationMixin:
         bid_value = profile.trust_score
 
         # Specialization match (check if agent specializes in this task type)
-        expected_spec = self._task_type_to_specialization(task_id.split("_")[0] if "_" in task_id else "general")
+        expected_spec = self._task_type_to_specialization(
+            task_id.split("_")[0] if "_" in task_id else "general"
+        )
         spec_match = 1.0 if profile.specialization == expected_spec else 0.5
 
         # Current load (based on pending handoffs)
-        current_load = len([h for h in self.pending_handoffs.values() if h.to_agent == agent_name]) / 5.0
+        current_load = (
+            len([h for h in self.pending_handoffs.values() if h.to_agent == agent_name]) / 5.0
+        )
         current_load = min(1.0, current_load)
 
         bid = AuctionBid(
@@ -487,14 +479,12 @@ class CoordinationMixin:
             confidence=confidence,
             specialization_match=spec_match,
             current_load=current_load,
-            reasoning=reasoning
+            reasoning=reasoning,
         )
 
         self.active_auctions[task_id].append(bid)
         logger.debug(f"Bid submitted: {agent_name} for {task_id} (score: {bid.score:.2f})")
         return bid
-
-
 
     def close_auction(self, task_id: str) -> Optional[str]:
         """
@@ -513,13 +503,8 @@ class CoordinationMixin:
         logger.info(f"Auction closed: {task_id} → {winner.agent_name} (score: {winner.score:.2f})")
         return winner.agent_name
 
-
-
     def auto_auction(
-        self,
-        task_id: str,
-        task_type: str,
-        available_agents: List[str] = None
+        self, task_id: str, task_type: str, available_agents: List[str] = None
     ) -> Optional[str]:
         """
         Run instant auction (no delay) for immediate task allocation.
@@ -541,8 +526,6 @@ class CoordinationMixin:
     # COALITION FORMATION (SwarmAgentic Dynamic Teams)
     # =========================================================================
 
-
-
     # =========================================================================
     # COALITION FORMATION (SwarmAgentic Dynamic Teams)
     # =========================================================================
@@ -552,7 +535,7 @@ class CoordinationMixin:
         task_type: str,
         required_roles: List[str] = None,
         min_agents: int = 2,
-        max_agents: int = 5
+        max_agents: int = 5,
     ) -> Optional[Coalition]:
         """
         Form dynamic coalition for complex tasks.
@@ -651,8 +634,7 @@ class CoordinationMixin:
         import random
 
         # STEP 1: Filter available agents (not in other coalitions)
-        available = [a for a in self.agent_profiles.keys()
-                    if a not in self.agent_coalitions]
+        available = [a for a in self.agent_profiles.keys() if a not in self.agent_coalitions]
 
         if len(available) < min_agents:
             logger.warning(f"Not enough agents for coalition: {len(available)} < {min_agents}")
@@ -687,9 +669,12 @@ class CoordinationMixin:
         for agent in available:
             profile = self.agent_profiles[agent]
             score = (
-                profile.get_success_rate(task_type) * 0.4 +  # Past performance
-                profile.trust_score * 0.3 +                  # Reliability
-                (1.0 if profile.specialization.value in (required_roles or []) else 0.5) * 0.3  # Role fit
+                profile.get_success_rate(task_type) * 0.4
+                + profile.trust_score * 0.3  # Past performance
+                + (  # Reliability
+                    1.0 if profile.specialization.value in (required_roles or []) else 0.5
+                )
+                * 0.3  # Role fit
             )
             scored.append((agent, score, profile.specialization.value))
 
@@ -720,7 +705,7 @@ class CoordinationMixin:
         roles_filled = {}
 
         # Phase 1: Fill required roles first
-        for role in (required_roles or []):
+        for role in required_roles or []:
             for agent, score, spec in scored:
                 if agent not in selected and spec == role:
                     selected.append(agent)
@@ -762,7 +747,7 @@ class CoordinationMixin:
             task_type=task_type,
             leader=leader,
             members=selected,
-            roles=roles_filled
+            roles=roles_filled,
         )
 
         # =====================================================================
@@ -794,14 +779,14 @@ class CoordinationMixin:
                 "coalition_id": coalition_id,
                 "task_type": task_type,
                 "members": selected,
-                "leader": leader
-            }
+                "leader": leader,
+            },
         )
 
-        logger.info(f"Coalition formed: {coalition_id} with {len(selected)} agents, leader: {leader}")
+        logger.info(
+            f"Coalition formed: {coalition_id} with {len(selected)} agents, leader: {leader}"
+        )
         return coalition
-
-
 
     def dissolve_coalition(self, coalition_id: str) -> None:
         """Dissolve a coalition after task completion."""
@@ -812,14 +797,10 @@ class CoordinationMixin:
             coalition.active = False
             logger.info(f"Coalition dissolved: {coalition_id}")
 
-
-
     def get_coalition(self, agent: str) -> Optional[Coalition]:
         """Get coalition an agent belongs to."""
         coalition_id = self.agent_coalitions.get(agent)
         return self.coalitions.get(coalition_id) if coalition_id else None
-
-
 
     def coalition_broadcast(self, coalition_id: str, message: Dict[str, Any]) -> None:
         """Broadcast message to all coalition members."""
@@ -830,15 +811,16 @@ class CoordinationMixin:
         for agent in coalition.members:
             if agent not in self.gossip_inbox:
                 self.gossip_inbox[agent] = []
-            self.gossip_inbox[agent].append(GossipMessage(
-                message_id=f"cb_{coalition_id}_{time.time()}",
-                content=message,
-                origin_agent=coalition.leader,
-                message_type="coalition_msg",
-                ttl=1  # Direct delivery only
-            ))
+            self.gossip_inbox[agent].append(
+                GossipMessage(
+                    message_id=f"cb_{coalition_id}_{time.time()}",
+                    content=message,
+                    origin_agent=coalition.leader,
+                    message_type="coalition_msg",
+                    ttl=1,  # Direct delivery only
+                )
+            )
 
     # =========================================================================
     # INTEGRATED ROUTING (Combines All Patterns)
     # =========================================================================
-

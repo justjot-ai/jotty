@@ -5,11 +5,11 @@ ElevenLabs Voice Provider
 Cloud TTS provider using ElevenLabs API.
 """
 
-import os
 import base64
 import logging
-from typing import Optional, AsyncIterator, Dict, Any
+import os
 from pathlib import Path
+from typing import Any, AsyncIterator, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +49,7 @@ class ElevenLabsProvider:
         text: str,
         voice_id: Optional[str] = None,
         output_path: Optional[str] = None,
-        model_id: str = "eleven_monolingual_v1"
+        model_id: str = "eleven_monolingual_v1",
     ) -> Dict[str, Any]:
         """
         Convert text to speech using ElevenLabs API.
@@ -67,15 +67,12 @@ class ElevenLabsProvider:
             import httpx
         except ImportError:
             return {
-                'success': False,
-                'error': 'httpx package not installed. Install with: pip install httpx'
+                "success": False,
+                "error": "httpx package not installed. Install with: pip install httpx",
             }
 
         if not self.api_key:
-            return {
-                'success': False,
-                'error': 'ELEVENLABS_API_KEY not set'
-            }
+            return {"success": False, "error": "ELEVENLABS_API_KEY not set"}
 
         voice = self._get_voice_id(voice_id)
 
@@ -90,50 +87,44 @@ class ElevenLabsProvider:
                     json={
                         "text": text,
                         "model_id": model_id,
-                        "voice_settings": {
-                            "stability": 0.5,
-                            "similarity_boost": 0.75
-                        }
+                        "voice_settings": {"stability": 0.5, "similarity_boost": 0.75},
                     },
-                    timeout=60.0
+                    timeout=60.0,
                 )
 
                 if response.status_code != 200:
                     return {
-                        'success': False,
-                        'error': f'ElevenLabs API error: {response.status_code} - {response.text}'
+                        "success": False,
+                        "error": f"ElevenLabs API error: {response.status_code} - {response.text}",
                     }
 
                 audio_data = response.content
 
                 result = {
-                    'success': True,
-                    'format': 'mp3',
-                    'provider': self.name,
-                    'voice_id': voice
+                    "success": True,
+                    "format": "mp3",
+                    "provider": self.name,
+                    "voice_id": voice,
                 }
 
                 if output_path:
                     Path(output_path).write_bytes(audio_data)
-                    result['audio_path'] = output_path
+                    result["audio_path"] = output_path
                 else:
-                    result['audio_base64'] = base64.b64encode(audio_data).decode('utf-8')
+                    result["audio_base64"] = base64.b64encode(audio_data).decode("utf-8")
 
                 return result
 
         except Exception as e:
             logger.error(f"ElevenLabs TTS error: {e}", exc_info=True)
-            return {
-                'success': False,
-                'error': str(e)
-            }
+            return {"success": False, "error": str(e)}
 
     async def stream_speech(
         self,
         text: str,
         voice_id: Optional[str] = None,
         chunk_size: int = 1024,
-        model_id: str = "eleven_monolingual_v1"
+        model_id: str = "eleven_monolingual_v1",
     ) -> AsyncIterator[bytes]:
         """
         Stream text-to-speech audio.
@@ -171,12 +162,9 @@ class ElevenLabsProvider:
                     json={
                         "text": text,
                         "model_id": model_id,
-                        "voice_settings": {
-                            "stability": 0.5,
-                            "similarity_boost": 0.75
-                        }
+                        "voice_settings": {"stability": 0.5, "similarity_boost": 0.75},
                     },
-                    timeout=60.0
+                    timeout=60.0,
                 ) as response:
                     if response.status_code != 200:
                         logger.error(f"ElevenLabs stream error: {response.status_code}")
@@ -189,12 +177,10 @@ class ElevenLabsProvider:
             logger.error(f"ElevenLabs stream error: {e}", exc_info=True)
 
     async def speech_to_text(
-        self,
-        audio_path: str,
-        language: Optional[str] = None
+        self, audio_path: str, language: Optional[str] = None
     ) -> Dict[str, Any]:
         """ElevenLabs doesn't provide STT - use Whisper instead."""
         return {
-            'success': False,
-            'error': 'ElevenLabs does not provide speech-to-text. Use Whisper provider.'
+            "success": False,
+            "error": "ElevenLabs does not provide speech-to-text. Use Whisper provider.",
         }

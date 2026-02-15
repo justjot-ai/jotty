@@ -30,21 +30,17 @@ Usage:
     session = await manager.find_by_channel(ChannelType.TELEGRAM, "chat-456")
 """
 
+import asyncio
 import json
 import logging
-from pathlib import Path
-from typing import Dict, Optional, List
 from datetime import datetime, timedelta
-import asyncio
+from pathlib import Path
+from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
 # Absolute imports - single source of truth
-from Jotty.sdk import (
-    ChannelType,
-    SDKSession,
-    ExecutionContext,
-)
+from Jotty.sdk import ChannelType, ExecutionContext, SDKSession
 
 
 class PersistentSessionManager:
@@ -58,7 +54,12 @@ class PersistentSessionManager:
     - Integrated with memory layer for context
     """
 
-    def __init__(self, storage_dir: Optional[Path] = None, max_inactive_days: int = 30, auto_save: bool = True) -> None:
+    def __init__(
+        self,
+        storage_dir: Optional[Path] = None,
+        max_inactive_days: int = 30,
+        auto_save: bool = True,
+    ) -> None:
         """
         Initialize session manager.
 
@@ -75,7 +76,7 @@ class PersistentSessionManager:
 
         # In-memory caches
         self._sessions: Dict[str, SDKSession] = {}  # user_id -> session
-        self._channel_index: Dict[str, str] = {}    # channel_key -> user_id
+        self._channel_index: Dict[str, str] = {}  # channel_key -> user_id
 
         # Background tasks
         self._save_queue: asyncio.Queue = asyncio.Queue()
@@ -96,7 +97,7 @@ class PersistentSessionManager:
         user_id: str,
         channel: Optional[ChannelType] = None,
         channel_id: Optional[str] = None,
-        user_name: Optional[str] = None
+        user_name: Optional[str] = None,
     ) -> SDKSession:
         """
         Get existing session or create new one.
@@ -127,11 +128,8 @@ class PersistentSessionManager:
         if session is None:
             # Create new session
             import uuid
-            session = SDKSession(
-                session_id=str(uuid.uuid4()),
-                user_id=user_id,
-                user_name=user_name
-            )
+
+            session = SDKSession(session_id=str(uuid.uuid4()), user_id=user_id, user_name=user_name)
             logger.info(f"Created new session for user {user_id}")
 
         # Link channel if provided
@@ -153,11 +151,7 @@ class PersistentSessionManager:
 
         return session
 
-    async def find_by_channel(
-        self,
-        channel: ChannelType,
-        channel_id: str
-    ) -> Optional[SDKSession]:
+    async def find_by_channel(self, channel: ChannelType, channel_id: str) -> Optional[SDKSession]:
         """
         Find session by channel.
 

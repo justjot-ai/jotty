@@ -57,4 +57,3 @@ trigger_feedback_to: [list of actors that need feedback]
 "Output is wrong. Tell Generator to fix it." ← Too vague, not coordination-focused!
 
 Remember: You validate COORDINATION, not correctness.
-

@@ -307,13 +307,13 @@ brew install openapi-generator
 
 ## 🎉 Benefits
 
-✅ **Single Source of Truth**: OpenAPI spec defines API contract  
-✅ **Automatic Sync**: CI/CD keeps SDKs in sync with API  
-✅ **Multi-Language**: Support 12+ languages with minimal effort  
-✅ **Type Safety**: Generated types match API exactly  
-✅ **Consistency**: Same API surface across all languages  
-✅ **Maintainability**: Update spec once, all SDKs update  
-✅ **Scalability**: Add new languages easily  
+✅ **Single Source of Truth**: OpenAPI spec defines API contract
+✅ **Automatic Sync**: CI/CD keeps SDKs in sync with API
+✅ **Multi-Language**: Support 12+ languages with minimal effort
+✅ **Type Safety**: Generated types match API exactly
+✅ **Consistency**: Same API surface across all languages
+✅ **Maintainability**: Update spec once, all SDKs update
+✅ **Scalability**: Add new languages easily
 
 ---
 

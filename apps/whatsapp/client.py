@@ -9,14 +9,14 @@ Manages Node.js subprocess and provides async API.
 import asyncio
 import json
 import logging
+import os
 import subprocess
 import sys
-import os
 import uuid
-from pathlib import Path
-from typing import Dict, Any, Optional, Callable, List
 from dataclasses import dataclass, field
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class WhatsAppWebMessage:
     """Incoming WhatsApp message."""
+
     id: str
     from_number: str
     to_number: str
@@ -109,7 +110,7 @@ class WhatsAppWebClient:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                bufsize=1
+                bufsize=1,
             )
 
             # Start reading output
@@ -129,21 +130,27 @@ class WhatsAppWebClient:
         # Create package.json if not exists
         package_json = package_dir / "package.json"
         if not package_json.exists():
-            package_json.write_text(json.dumps({
-                "name": "jotty-whatsapp-bridge",
-                "version": "1.0.0",
-                "dependencies": {
-                    "whatsapp-web.js": "^1.26.0",
-                    "qrcode-terminal": "^0.12.0"
-                }
-            }, indent=2))
+            package_json.write_text(
+                json.dumps(
+                    {
+                        "name": "jotty-whatsapp-bridge",
+                        "version": "1.0.0",
+                        "dependencies": {
+                            "whatsapp-web.js": "^1.26.0",
+                            "qrcode-terminal": "^0.12.0",
+                        },
+                    },
+                    indent=2,
+                )
+            )
 
         # Run npm install
         process = await asyncio.create_subprocess_exec(
-            "npm", "install",
+            "npm",
+            "install",
             cwd=str(package_dir),
             stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
+            stderr=asyncio.subprocess.PIPE,
         )
         await process.wait()
 
@@ -208,7 +215,7 @@ class WhatsAppWebClient:
                 chat_name=data.get("chat_name", ""),
                 sender_name=data.get("sender_name", ""),
                 has_media=data.get("has_media", False),
-                raw_data=data
+                raw_data=data,
             )
 
             # Call message handlers
@@ -237,31 +244,37 @@ class WhatsAppWebClient:
             request_id = data.get("request_id")
             if request_id and request_id in self._pending_requests:
                 future = self._pending_requests.pop(request_id)
-                future.set_result({
-                    "messages": data.get("messages", []),
-                    "chat_id": data.get("chat_id"),
-                    "error": data.get("error"),
-                })
+                future.set_result(
+                    {
+                        "messages": data.get("messages", []),
+                        "chat_id": data.get("chat_id"),
+                        "error": data.get("error"),
+                    }
+                )
 
         elif event_type == "store_stats":
             request_id = data.get("request_id")
             if request_id and request_id in self._pending_requests:
                 future = self._pending_requests.pop(request_id)
-                future.set_result({
-                    "chat_count": data.get("chat_count", 0),
-                    "message_jids": data.get("message_jids", []),
-                })
+                future.set_result(
+                    {
+                        "chat_count": data.get("chat_count", 0),
+                        "message_jids": data.get("message_jids", []),
+                    }
+                )
 
         elif event_type == "fetch_chat_history_done":
             request_id = data.get("request_id")
             if request_id and request_id in self._pending_requests:
                 future = self._pending_requests.pop(request_id)
-                future.set_result({
-                    "success": data.get("success", False),
-                    "message_count": data.get("message_count", 0),
-                    "error": data.get("error"),
-                    "note": data.get("note"),
-                })
+                future.set_result(
+                    {
+                        "success": data.get("success", False),
+                        "message_count": data.get("message_count", 0),
+                        "error": data.get("error"),
+                        "note": data.get("note"),
+                    }
+                )
 
         elif event_type == "contacts":
             request_id = data.get("request_id")
@@ -298,12 +311,9 @@ class WhatsAppWebClient:
         future = asyncio.get_running_loop().create_future()
         self._pending_requests[request_id] = future
 
-        self._send_command({
-            "action": "send_message",
-            "request_id": request_id,
-            "to": to,
-            "message": message
-        })
+        self._send_command(
+            {"action": "send_message", "request_id": request_id, "to": to, "message": message}
+        )
 
         try:
             result = await asyncio.wait_for(future, timeout=30)
@@ -313,11 +323,7 @@ class WhatsAppWebClient:
             return {"success": False, "error": "Timeout"}
 
     async def send_media(
-        self,
-        to: str,
-        file_path: Optional[str] = None,
-        url: Optional[str] = None,
-        caption: str = ""
+        self, to: str, file_path: Optional[str] = None, url: Optional[str] = None, caption: str = ""
     ) -> Dict[str, Any]:
         """
         Send media (image, document, etc).
@@ -335,12 +341,7 @@ class WhatsAppWebClient:
         future = asyncio.get_running_loop().create_future()
         self._pending_requests[request_id] = future
 
-        cmd = {
-            "action": "send_media",
-            "request_id": request_id,
-            "to": to,
-            "caption": caption
-        }
+        cmd = {"action": "send_media", "request_id": request_id, "to": to, "caption": caption}
 
         if file_path:
             cmd["file_path"] = file_path
@@ -362,11 +363,7 @@ class WhatsAppWebClient:
         future = asyncio.get_running_loop().create_future()
         self._pending_requests[request_id] = future
 
-        self._send_command({
-            "action": "get_chats",
-            "request_id": request_id,
-            "limit": limit
-        })
+        self._send_command({"action": "get_chats", "request_id": request_id, "limit": limit})
 
         try:
             return await asyncio.wait_for(future, timeout=30)
@@ -409,7 +406,11 @@ class WhatsAppWebClient:
 
         try:
             result = await asyncio.wait_for(future, timeout=30)
-            return result if isinstance(result, dict) else {"messages": [], "error": "Invalid response"}
+            return (
+                result
+                if isinstance(result, dict)
+                else {"messages": [], "error": "Invalid response"}
+            )
         except asyncio.TimeoutError:
             self._pending_requests.pop(request_id, None)
             return {"messages": [], "error": "Timeout"}
@@ -430,12 +431,14 @@ class WhatsAppWebClient:
         request_id = str(uuid.uuid4())
         future = asyncio.get_running_loop().create_future()
         self._pending_requests[request_id] = future
-        self._send_command({
-            "action": "fetch_chat_history",
-            "request_id": request_id,
-            "chat_id": chat_id,
-            "max_messages": min(int(max_messages), 1000),
-        })
+        self._send_command(
+            {
+                "action": "fetch_chat_history",
+                "request_id": request_id,
+                "chat_id": chat_id,
+                "max_messages": min(int(max_messages), 1000),
+            }
+        )
         try:
             return await asyncio.wait_for(future, timeout=600)
         except asyncio.TimeoutError:
@@ -460,11 +463,7 @@ class WhatsAppWebClient:
         future = asyncio.get_running_loop().create_future()
         self._pending_requests[request_id] = future
 
-        self._send_command({
-            "action": "get_contacts",
-            "request_id": request_id,
-            "limit": limit
-        })
+        self._send_command({"action": "get_contacts", "request_id": request_id, "limit": limit})
 
         try:
             return await asyncio.wait_for(future, timeout=30)

@@ -1,15 +1,24 @@
 """Date Calculator Skill — date arithmetic and formatting."""
-from datetime import datetime, timedelta, timezone
-from typing import Dict, Any
 
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("date-calculator")
 
-FORMATS = ["%Y-%m-%d", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M:%SZ",
-           "%Y-%m-%dT%H:%M:%S%z", "%m/%d/%Y", "%d/%m/%Y", "%B %d, %Y",
-           "%Y%m%d", "%d-%b-%Y"]
+FORMATS = [
+    "%Y-%m-%d",
+    "%Y-%m-%dT%H:%M:%S",
+    "%Y-%m-%dT%H:%M:%SZ",
+    "%Y-%m-%dT%H:%M:%S%z",
+    "%m/%d/%Y",
+    "%d/%m/%Y",
+    "%B %d, %Y",
+    "%Y%m%d",
+    "%d-%b-%Y",
+]
 
 
 def _parse_date(s: str) -> datetime:
@@ -33,8 +42,12 @@ def date_diff_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
     delta = abs(b - a)
     days = delta.days
-    return tool_response(days=days, weeks=round(days / 7, 1),
-                         months=round(days / 30.44, 1), years=round(days / 365.25, 2))
+    return tool_response(
+        days=days,
+        weeks=round(days / 7, 1),
+        months=round(days / 30.44, 1),
+        years=round(days / 365.25, 2),
+    )
 
 
 @tool_wrapper(required_params=["date"])
@@ -50,8 +63,9 @@ def date_add_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     weeks = int(params.get("weeks", 0))
     result = dt + timedelta(days=days, weeks=weeks)
 
-    return tool_response(result=result.strftime("%Y-%m-%d"), original=params["date"],
-                         added_days=days + weeks * 7)
+    return tool_response(
+        result=result.strftime("%Y-%m-%d"), original=params["date"], added_days=days + weeks * 7
+    )
 
 
 @tool_wrapper()
@@ -61,9 +75,12 @@ def now_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     tz_name = params.get("timezone", "UTC")
     now = datetime.now(timezone.utc)
     return tool_response(
-        iso=now.isoformat(), date=now.strftime("%Y-%m-%d"),
-        time=now.strftime("%H:%M:%S"), timestamp=int(now.timestamp()),
-        day_of_week=now.strftime("%A"), timezone="UTC",
+        iso=now.isoformat(),
+        date=now.strftime("%Y-%m-%d"),
+        time=now.strftime("%H:%M:%S"),
+        timestamp=int(now.timestamp()),
+        day_of_week=now.strftime("%A"),
+        timezone="UTC",
     )
 
 

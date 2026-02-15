@@ -1,8 +1,9 @@
 """Binary Converter Skill — convert bases and bitwise operations."""
-from typing import Dict, Any
 
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from typing import Any, Dict
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("binary-converter")
 
@@ -42,8 +43,9 @@ def binary_convert_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             return tool_error("value required")
         n = _to_int(str(value), fb)
         result = _from_int(n, tb)
-        return tool_response(original=value, from_base=fb, to_base=tb,
-                             result=result, decimal_value=n)
+        return tool_response(
+            original=value, from_base=fb, to_base=tb, result=result, decimal_value=n
+        )
 
     if action == "bitwise":
         op = params.get("op", "").upper()
@@ -51,8 +53,7 @@ def binary_convert_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         if op == "NOT":
             return tool_response(op=op, a=a, result=~a, binary=bin(~a & 0xFFFFFFFF))
         b = int(params.get("b", 0))
-        ops = {"AND": a & b, "OR": a | b, "XOR": a ^ b,
-               "LSHIFT": a << b, "RSHIFT": a >> b}
+        ops = {"AND": a & b, "OR": a | b, "XOR": a ^ b, "LSHIFT": a << b, "RSHIFT": a >> b}
         if op not in ops:
             return tool_error(f"Unknown op: {op}. Use: AND, OR, XOR, NOT, LSHIFT, RSHIFT")
         r = ops[op]

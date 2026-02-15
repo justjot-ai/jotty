@@ -8,8 +8,8 @@ Dual-provider WhatsApp support following OpenClaw patterns.
 """
 
 import os
-from typing import Optional
 from dataclasses import dataclass
+from typing import Optional
 
 
 @dataclass
@@ -33,7 +33,9 @@ class WhatsAppConfig:
         self.baileys_session_path = self.baileys_session_path or os.getenv("BAILEYS_SESSION_PATH")
         self.baileys_host = self.baileys_host or os.getenv("BAILEYS_HOST")
         self.business_phone_id = self.business_phone_id or os.getenv("WHATSAPP_PHONE_ID")
-        self.business_token = self.business_token or os.getenv("WHATSAPP_TOKEN") or os.getenv("WHATSAPP_ACCESS_TOKEN")
+        self.business_token = (
+            self.business_token or os.getenv("WHATSAPP_TOKEN") or os.getenv("WHATSAPP_ACCESS_TOKEN")
+        )
 
     @property
     def has_baileys(self) -> bool:
@@ -42,6 +44,7 @@ class WhatsAppConfig:
             return True
         if self.baileys_session_path:
             from pathlib import Path
+
             return Path(self.baileys_session_path).exists()
         return False
 
@@ -96,11 +99,13 @@ def get_provider(provider: str = "auto"):
 
     elif provider == "business":
         if not config.has_business_api:
-            raise RuntimeError("Business API not available. Set WHATSAPP_PHONE_ID and WHATSAPP_TOKEN")
+            raise RuntimeError(
+                "Business API not available. Set WHATSAPP_PHONE_ID and WHATSAPP_TOKEN"
+            )
         return BusinessAPIProvider()
 
     else:
         raise ValueError(f"Unknown WhatsApp provider: {provider}")
 
 
-__all__ = ['get_provider', 'get_config', 'WhatsAppConfig']
+__all__ = ["get_provider", "get_config", "WhatsAppConfig"]

@@ -27,36 +27,70 @@ Usage:
     result = await swarm.teach(topic="Number Theory")
 """
 
-from .types import (
-    Subject, DifficultyTier, LessonDepth, TeachingMode,
-    OlympiadLearningConfig, OlympiadLearningResult,
-    BuildingBlock, ConceptCore, PatternEntry, Problem,
-    StrategyCard, MistakeEntry, LessonSection, LessonContent,
-)
 from .agents import (
-    CurriculumArchitectAgent, ConceptDecomposerAgent,
-    IntuitionBuilderAgent, PatternHunterAgent,
-    ProblemCrafterAgent, SolutionStrategistAgent,
-    MistakeAnalyzerAgent, ConnectionMapperAgent,
-    ContentAssemblerAgent, UnifiedTopicAgent,
-    NarrativeEditorAgent, RankTipsAgent,
+    ConceptDecomposerAgent,
+    ConnectionMapperAgent,
+    ContentAssemblerAgent,
+    CurriculumArchitectAgent,
+    IntuitionBuilderAgent,
+    MistakeAnalyzerAgent,
+    NarrativeEditorAgent,
+    PatternHunterAgent,
+    ProblemCrafterAgent,
+    RankTipsAgent,
+    SolutionStrategistAgent,
+    UnifiedTopicAgent,
 )
 from .swarm import OlympiadLearningSwarm, learn_topic, learn_topic_sync
+from .types import (
+    BuildingBlock,
+    ConceptCore,
+    DifficultyTier,
+    LessonContent,
+    LessonDepth,
+    LessonSection,
+    MistakeEntry,
+    OlympiadLearningConfig,
+    OlympiadLearningResult,
+    PatternEntry,
+    Problem,
+    StrategyCard,
+    Subject,
+    TeachingMode,
+)
 
 __all__ = [
     # Swarm
-    'OlympiadLearningSwarm', 'OlympiadLearningConfig', 'OlympiadLearningResult',
+    "OlympiadLearningSwarm",
+    "OlympiadLearningConfig",
+    "OlympiadLearningResult",
     # Convenience
-    'learn_topic', 'learn_topic_sync',
+    "learn_topic",
+    "learn_topic_sync",
     # Types
-    'Subject', 'DifficultyTier', 'LessonDepth', 'TeachingMode',
-    'BuildingBlock', 'ConceptCore', 'PatternEntry', 'Problem',
-    'StrategyCard', 'MistakeEntry', 'LessonSection', 'LessonContent',
+    "Subject",
+    "DifficultyTier",
+    "LessonDepth",
+    "TeachingMode",
+    "BuildingBlock",
+    "ConceptCore",
+    "PatternEntry",
+    "Problem",
+    "StrategyCard",
+    "MistakeEntry",
+    "LessonSection",
+    "LessonContent",
     # Agents
-    'CurriculumArchitectAgent', 'ConceptDecomposerAgent',
-    'IntuitionBuilderAgent', 'PatternHunterAgent',
-    'ProblemCrafterAgent', 'SolutionStrategistAgent',
-    'MistakeAnalyzerAgent', 'ConnectionMapperAgent',
-    'ContentAssemblerAgent', 'UnifiedTopicAgent',
-    'NarrativeEditorAgent', 'RankTipsAgent',
+    "CurriculumArchitectAgent",
+    "ConceptDecomposerAgent",
+    "IntuitionBuilderAgent",
+    "PatternHunterAgent",
+    "ProblemCrafterAgent",
+    "SolutionStrategistAgent",
+    "MistakeAnalyzerAgent",
+    "ConnectionMapperAgent",
+    "ContentAssemblerAgent",
+    "UnifiedTopicAgent",
+    "NarrativeEditorAgent",
+    "RankTipsAgent",
 ]

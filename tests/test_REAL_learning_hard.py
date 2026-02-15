@@ -10,16 +10,16 @@ that are commonly missed on first try.
 """
 
 import asyncio
-import dspy
 import logging
 import os
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+
+import dspy
 import pytest
 
 pytestmark = pytest.mark.skipif(
-    not os.getenv('ANTHROPIC_API_KEY'),
-    reason="Requires ANTHROPIC_API_KEY for real LLM calls"
+    not os.getenv("ANTHROPIC_API_KEY"), reason="Requires ANTHROPIC_API_KEY for real LLM calls"
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -35,10 +35,10 @@ async def real_learning_hard():
     print("\nComplex task that requires learning to get right\n")
 
     # Configure
-    from core.integration.direct_claude_cli_lm import DirectClaudeCLI
     from core.experts.plantuml_expert import PlantUMLExpertAgent
+    from core.integration.direct_claude_cli_lm import DirectClaudeCLI
 
-    lm = DirectClaudeCLI(model='sonnet')
+    lm = DirectClaudeCLI(model="sonnet")
     dspy.configure(lm=lm)
 
     plantuml_expert = PlantUMLExpertAgent()
@@ -150,6 +150,7 @@ Order "1" --> "1" Payment
 
         class DiagramGenerator(dspy.Signature):
             """Generate PlantUML class diagram."""
+
             requirements: str = dspy.InputField()
             previous_feedback: str = dspy.InputField()
             diagram: str = dspy.OutputField()
@@ -165,7 +166,7 @@ Order "1" --> "1" Payment
         start = datetime.now()
         result = generator(
             requirements=task,
-            previous_feedback=f"Feedback from previous attempts:\n{feedback_text}"
+            previous_feedback=f"Feedback from previous attempts:\n{feedback_text}",
         )
         elapsed = (datetime.now() - start).total_seconds()
 
@@ -180,11 +181,11 @@ Order "1" --> "1" Payment
             output=diagram,
             gold_standard=gold_standard,
             task="E-commerce class diagram",
-            context={"diagram_type": "class", "iteration": iteration}
+            context={"diagram_type": "class", "iteration": iteration},
         )
 
-        score = evaluation.get('score', 0.0)
-        status = evaluation.get('status', 'UNKNOWN')
+        score = evaluation.get("score", 0.0)
+        status = evaluation.get("status", "UNKNOWN")
 
         print(f"  Score: {score:.2f}")
         print(f"  Status: {status}")
@@ -235,17 +236,19 @@ Order "1" --> "1" Payment
         final_score = (score + req_score) / 2
 
         # Store
-        history.append({
-            'iteration': iteration,
-            'diagram': diagram,
-            'score': final_score,
-            'evaluation_score': score,
-            'requirements_score': req_score,
-            'requirements_met': len(requirements_met),
-            'requirements_total': len(checks),
-            'missed': requirements_missed,
-            'time': elapsed
-        })
+        history.append(
+            {
+                "iteration": iteration,
+                "diagram": diagram,
+                "score": final_score,
+                "evaluation_score": score,
+                "requirements_score": req_score,
+                "requirements_met": len(requirements_met),
+                "requirements_total": len(checks),
+                "missed": requirements_missed,
+                "time": elapsed,
+            }
+        )
 
         # Learn for next iteration
         if iteration < iterations and final_score < 0.95:
@@ -279,17 +282,21 @@ Order "1" --> "1" Payment
     print("\n📈 Score Progression:")
     for i, h in enumerate(history, 1):
         delta = f" ({h['score'] - history[i-2]['score']:+.2f})" if i > 1 else ""
-        print(f"  Iteration {i}: {h['score']:.2f}{delta} - {h['requirements_met']}/{h['requirements_total']} requirements")
+        print(
+            f"  Iteration {i}: {h['score']:.2f}{delta} - {h['requirements_met']}/{h['requirements_total']} requirements"
+        )
 
-    initial = history[0]['score']
-    final = history[-1]['score']
+    initial = history[0]["score"]
+    final = history[-1]["score"]
     improvement = ((final - initial) / initial * 100) if initial > 0 else 0
 
     print(f"\n📊 Learning Metrics:")
     print(f"  Initial: {initial:.2f}")
     print(f"  Final: {final:.2f}")
     print(f"  Improvement: {improvement:+.1f}%")
-    print(f"  Evidence: Requirements met increased from {history[0]['requirements_met']} to {history[-1]['requirements_met']}")
+    print(
+        f"  Evidence: Requirements met increased from {history[0]['requirements_met']} to {history[-1]['requirements_met']}"
+    )
 
     # Save results
     doc = f"""# REAL Learning Results - Hard Challenge
@@ -371,7 +378,9 @@ Order "1" --> "1" Payment
         print("✅ SUCCESS: REAL LEARNING DEMONSTRATED")
         print(f"\nEvidence:")
         print(f"  - Score improved: {initial:.2f} → {final:.2f} ({improvement:+.1f}%)")
-        print(f"  - Requirements met: {history[0]['requirements_met']} → {history[-1]['requirements_met']}")
+        print(
+            f"  - Requirements met: {history[0]['requirements_met']} → {history[-1]['requirements_met']}"
+        )
         print(f"  - Used real Claude CLI")
         print(f"  - Used real expert evaluation")
         print(f"  - Applied real feedback")

@@ -13,4 +13,4 @@ Components:
 
 from .client import WhatsAppWebClient
 
-__all__ = ['WhatsAppWebClient']
+__all__ = ["WhatsAppWebClient"]

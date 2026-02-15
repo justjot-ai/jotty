@@ -20,19 +20,20 @@ Key Features:
 Note: This is framework code, not client-specific.
 """
 
-import os
+import importlib.util
 import json
 import logging
+import os
 import subprocess
-from pathlib import Path
-from typing import Dict, List, Optional, Any, Callable
 from dataclasses import dataclass, field
 from enum import Enum
-import importlib.util
+from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional
 
 # Load environment variables from .env file
 try:
     from dotenv import load_dotenv
+
     # Load .env from Jotty root directory
     current_file = Path(__file__).resolve()
     jotty_root = current_file.parent.parent.parent  # core/registry -> core -> Jotty
@@ -48,6 +49,7 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 # SKILL TYPE ENUM
 # =============================================================================
+
 
 class SkillType(Enum):
     """
@@ -66,6 +68,7 @@ class SkillType(Enum):
                Examples: search-summarize-pdf-telegram (web-search + claude-cli-llm +
                          document-converter + telegram-sender)
     """
+
     BASE = "base"
     DERIVED = "derived"
     COMPOSITE = "composite"
@@ -83,19 +86,18 @@ class TrustLevel(Enum):
     DESTRUCTIVE:  Irreversible actions. Full verification + user confirmation.
                   Examples: delete-file, drop-database, send-email-blast
     """
+
     SAFE = "safe"
     SIDE_EFFECT = "side_effect"
     DESTRUCTIVE = "destructive"
 
 
 # Auto-classify trust level from skill category/tags (heuristic)
-_SAFE_CATEGORIES = {'search', 'research', 'analysis', 'calculation', 'read', 'general'}
-_DESTRUCTIVE_TAGS = {'delete', 'drop', 'purge', 'destroy', 'remove', 'irreversible'}
+_SAFE_CATEGORIES = {"search", "research", "analysis", "calculation", "read", "general"}
+_DESTRUCTIVE_TAGS = {"delete", "drop", "purge", "destroy", "remove", "irreversible"}
 
 
-def _infer_trust_level(
-    category: str, tags: List[str], name: str
-) -> TrustLevel:
+def _infer_trust_level(category: str, tags: List[str], name: str) -> TrustLevel:
     """Infer trust level from skill metadata. KISS heuristic."""
     tag_set = {t.lower() for t in tags}
     if tag_set & _DESTRUCTIVE_TAGS:
@@ -103,7 +105,7 @@ def _infer_trust_level(
     if category.lower() in _SAFE_CATEGORIES:
         return TrustLevel.SAFE
     # Side-effect keywords in name
-    if any(kw in name.lower() for kw in ('send', 'create', 'write', 'post', 'update')):
+    if any(kw in name.lower() for kw in ("send", "create", "write", "post", "update")):
         return TrustLevel.SIDE_EFFECT
     return TrustLevel.SAFE  # default: safe
 
@@ -111,6 +113,7 @@ def _infer_trust_level(
 # =============================================================================
 # BASE SKILL CLASS
 # =============================================================================
+
 
 class BaseSkill:
     """
@@ -222,6 +225,7 @@ class BaseSkill:
         Default implementation wraps execute() as the main tool.
         Override for skills with multiple tools.
         """
+
         async def main_tool(params: dict) -> dict:
             self.setup()
             try:
@@ -247,6 +251,7 @@ class BaseSkill:
 # TOOL METADATA (Absorbed from ToolsRegistry)
 # =============================================================================
 
+
 @dataclass
 class ToolMetadata:
     """
@@ -257,6 +262,7 @@ class ToolMetadata:
 
     The SkillsRegistry is now the single source of truth for tools.
     """
+
     name: str  # Tool name within the skill
     description: str  # What this tool does
     category: str = "general"  # Category grouping
@@ -269,32 +275,33 @@ class ToolMetadata:
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for API responses."""
         return {
-            'name': self.name,
-            'description': self.description,
-            'category': self.category,
-            'mcp_enabled': self.mcp_enabled,
-            'parameters': self.parameters,
-            'returns': self.returns,
-            'examples': self.examples,
-            'tags': self.tags,
+            "name": self.name,
+            "description": self.description,
+            "category": self.category,
+            "mcp_enabled": self.mcp_enabled,
+            "parameters": self.parameters,
+            "returns": self.returns,
+            "examples": self.examples,
+            "tags": self.tags,
         }
 
     def to_claude_tool(self) -> Dict[str, Any]:
         """Convert to Claude API tool format."""
         return {
-            'name': self.name,
-            'description': self.description,
-            'input_schema': {
-                'type': 'object',
-                'properties': self.parameters.get('properties', {}),
-                'required': self.parameters.get('required', []),
-            }
+            "name": self.name,
+            "description": self.description,
+            "input_schema": {
+                "type": "object",
+                "properties": self.parameters.get("properties", {}),
+                "required": self.parameters.get("required", []),
+            },
         }
 
 
 # =============================================================================
 # SKILL DEFINITION (Enhanced with Tool Metadata)
 # =============================================================================
+
 
 class SkillDefinition:
     """
@@ -318,7 +325,27 @@ class SkillDefinition:
     └─────────────────────────────────────────────────────────────────────┘
     """
 
-    def __init__(self, name: str, description: str, tools: Optional[Dict[str, Callable]] = None, metadata: Optional[Dict[str, Any]] = None, _tool_loader: Optional[Callable] = None, tool_metadata: Optional[Dict[str, ToolMetadata]] = None, category: str = 'general', mcp_enabled: bool = False, tags: Optional[List[str]] = None, version: str = '1.0.0', capabilities: Optional[List[str]] = None, use_when: Optional[str] = None, skill_type: Optional[SkillType] = None, base_skills: Optional[List[str]] = None, execution_mode: Optional[str] = None, trust_level: Optional[TrustLevel] = None, context_gate: Optional[Callable] = None, executor_type: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        name: str,
+        description: str,
+        tools: Optional[Dict[str, Callable]] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        _tool_loader: Optional[Callable] = None,
+        tool_metadata: Optional[Dict[str, ToolMetadata]] = None,
+        category: str = "general",
+        mcp_enabled: bool = False,
+        tags: Optional[List[str]] = None,
+        version: str = "1.0.0",
+        capabilities: Optional[List[str]] = None,
+        use_when: Optional[str] = None,
+        skill_type: Optional[SkillType] = None,
+        base_skills: Optional[List[str]] = None,
+        execution_mode: Optional[str] = None,
+        trust_level: Optional[TrustLevel] = None,
+        context_gate: Optional[Callable] = None,
+        executor_type: Optional[str] = None,
+    ) -> None:
         self.name = name
         self.description = description
         self._tools = tools  # None until loaded (lazy) or pre-populated (eager)
@@ -348,9 +375,7 @@ class SkillDefinition:
 
         # Trust level: determines verification depth before execution.
         # Auto-inferred from category/tags if not explicitly set.
-        self.trust_level = trust_level or _infer_trust_level(
-            category, self.tags, name
-        )
+        self.trust_level = trust_level or _infer_trust_level(category, self.tags, name)
 
         # Context gate: optional function(task_context) → bool.
         # When set, skill is only available when gate returns True.
@@ -359,31 +384,47 @@ class SkillDefinition:
 
         # Executor type: classifies which execution surface this skill targets.
         # Auto-inferred from name/category/tags when not explicitly provided.
-        self.executor_type = executor_type or self._infer_executor_type(
-            name, category, self.tags
-        )
+        self.executor_type = executor_type or self._infer_executor_type(name, category, self.tags)
 
     @staticmethod
     def _infer_executor_type(name: str, category: str, tags: List[str]) -> str:
         """Infer executor surface from skill name, category, and tags."""
         combined = f"{name} {category} {' '.join(tags)}".lower()
-        if any(kw in combined for kw in ('browser', 'scrape', 'playwright', 'selenium', 'headless')):
-            return 'browser'
-        if any(kw in combined for kw in ('shell', 'terminal', 'exec', 'bash', 'command')):
-            return 'terminal'
-        if any(kw in combined for kw in ('search', 'web-search', 'google', 'bing', 'serp')):
-            return 'web_search'
-        if any(kw in combined for kw in ('pdf', 'doc', 'report', 'document', 'markdown')):
-            return 'doc_gen'
-        if any(kw in combined for kw in ('telegram', 'slack', 'discord', 'whatsapp', 'email', 'messaging', 'notification')):
-            return 'messaging'
-        if any(kw in combined for kw in ('code', 'python', 'javascript', 'compile', 'lint')):
-            return 'code'
-        if any(kw in combined for kw in ('data', 'csv', 'sql', 'database', 'analytics', 'chart', 'stock')):
-            return 'data'
-        if any(kw in combined for kw in ('llm', 'claude', 'openai', 'groq', 'generate', 'summarize')):
-            return 'llm'
-        return 'general'
+        if any(
+            kw in combined for kw in ("browser", "scrape", "playwright", "selenium", "headless")
+        ):
+            return "browser"
+        if any(kw in combined for kw in ("shell", "terminal", "exec", "bash", "command")):
+            return "terminal"
+        if any(kw in combined for kw in ("search", "web-search", "google", "bing", "serp")):
+            return "web_search"
+        if any(kw in combined for kw in ("pdf", "doc", "report", "document", "markdown")):
+            return "doc_gen"
+        if any(
+            kw in combined
+            for kw in (
+                "telegram",
+                "slack",
+                "discord",
+                "whatsapp",
+                "email",
+                "messaging",
+                "notification",
+            )
+        ):
+            return "messaging"
+        if any(kw in combined for kw in ("code", "python", "javascript", "compile", "lint")):
+            return "code"
+        if any(
+            kw in combined
+            for kw in ("data", "csv", "sql", "database", "analytics", "chart", "stock")
+        ):
+            return "data"
+        if any(
+            kw in combined for kw in ("llm", "claude", "openai", "groq", "generate", "summarize")
+        ):
+            return "llm"
+        return "general"
 
     @property
     def tools(self) -> Dict[str, Callable]:
@@ -436,15 +477,16 @@ class SkillDefinition:
            and required/optional from the function signature when sources 1-3
            produce no params.
         """
-        from Jotty.core.modes.agent._execution_types import ToolSchema, ToolParam
         import inspect
+
+        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
 
         tool_func = self.get_tool(tool_name)
         if tool_func is None:
             return None
 
         # Return cached schema if present
-        cached = getattr(tool_func, '_tool_schema', None)
+        cached = getattr(tool_func, "_tool_schema", None)
         if cached is not None:
             return cached
 
@@ -476,13 +518,18 @@ class SkillDefinition:
         dict-accepting params (the common ``params: dict`` pattern).
         """
         import inspect
+
         from Jotty.core.modes.agent._execution_types import ToolParam
 
         _TYPE_MAP = {
-            int: 'int', float: 'float', bool: 'bool',
-            str: 'str', list: 'list', dict: 'dict',
+            int: "int",
+            float: "float",
+            bool: "bool",
+            str: "str",
+            list: "list",
+            dict: "dict",
         }
-        _SKIP_NAMES = {'self', 'cls', 'kwargs', 'args'}
+        _SKIP_NAMES = {"self", "cls", "kwargs", "args"}
 
         try:
             sig = inspect.signature(func)
@@ -493,27 +540,29 @@ class SkillDefinition:
             if pname in _SKIP_NAMES:
                 continue
             # Skip the common "params: dict" single-arg pattern
-            if pname == 'params' and param.annotation in (dict, inspect.Parameter.empty):
+            if pname == "params" and param.annotation in (dict, inspect.Parameter.empty):
                 continue
 
             annotation = param.annotation
-            type_hint = 'str'
+            type_hint = "str"
             if annotation is not inspect.Parameter.empty:
-                type_hint = _TYPE_MAP.get(annotation, getattr(annotation, '__name__', 'str'))
+                type_hint = _TYPE_MAP.get(annotation, getattr(annotation, "__name__", "str"))
 
             required = param.default is inspect.Parameter.empty
             default = None if required else param.default
 
             aliases = schema._ALIASES.get(pname, [])
 
-            schema.params.append(ToolParam(
-                name=pname,
-                type_hint=type_hint,
-                required=required,
-                default=default,
-                description=f'The {pname} parameter',
-                aliases=aliases,
-            ))
+            schema.params.append(
+                ToolParam(
+                    name=pname,
+                    type_hint=type_hint,
+                    required=required,
+                    default=default,
+                    description=f"The {pname} parameter",
+                    aliases=aliases,
+                )
+            )
 
         return schema
 
@@ -533,25 +582,25 @@ class SkillDefinition:
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for API responses."""
         result = {
-            'name': self.name,
-            'description': self.description,
-            'category': self.category,
-            'mcp_enabled': self.mcp_enabled,
-            'tags': self.tags,
-            'version': self.version,
-            'tools': self.list_tools(),
-            'tool_count': len(self.tools),
-            'metadata': self.metadata,
-            'capabilities': self.capabilities,
-            'skill_type': self.skill_type.value,
-            'base_skills': self.base_skills,
-            'trust_level': self.trust_level.value,
-            'executor_type': self.executor_type,
+            "name": self.name,
+            "description": self.description,
+            "category": self.category,
+            "mcp_enabled": self.mcp_enabled,
+            "tags": self.tags,
+            "version": self.version,
+            "tools": self.list_tools(),
+            "tool_count": len(self.tools),
+            "metadata": self.metadata,
+            "capabilities": self.capabilities,
+            "skill_type": self.skill_type.value,
+            "base_skills": self.base_skills,
+            "trust_level": self.trust_level.value,
+            "executor_type": self.executor_type,
         }
         if self.skill_type == SkillType.COMPOSITE:
-            result['execution_mode'] = self.execution_mode
+            result["execution_mode"] = self.execution_mode
         if self.use_when:
-            result['use_when'] = self.use_when
+            result["use_when"] = self.use_when
         return result
 
     def to_claude_tools(self) -> List[Dict[str, Any]]:
@@ -566,30 +615,32 @@ class SkillDefinition:
                 tool = self.tools.get(tool_name)
                 if tool:
                     doc = tool.__doc__ or f"Tool: {tool_name}"
-                    claude_tools.append({
-                        'name': tool_name,
-                        'description': doc.strip().split('\n')[0],
-                        'input_schema': {'type': 'object', 'properties': {}},
-                    })
+                    claude_tools.append(
+                        {
+                            "name": tool_name,
+                            "description": doc.strip().split("\n")[0],
+                            "input_schema": {"type": "object", "properties": {}},
+                        }
+                    )
         return claude_tools
 
 
 class SkillsRegistry:
     """
     Skills Registry for Jotty Framework
-    
+
     Loads skills from disk and registers tools dynamically.
     Integrates with Jotty's existing tool system (no duplication).
-    
+
     Supports both:
     - Manual skills (written by developers)
     - AI-generated skills (created on-demand via SkillGenerator)
     """
-    
+
     def __init__(self, skills_dir: Optional[str] = None, skill_generator: Any = None) -> None:
         """
         Initialize skills registry.
-        
+
         Args:
             skills_dir: Directory containing skills (default: ~/jotty/skills)
             skill_generator: Optional SkillGenerator for AI-powered skill creation
@@ -597,7 +648,7 @@ class SkillsRegistry:
         if skills_dir is None:
             # Priority: env var > repo-relative > user home
             skills_dir = os.getenv("JOTTY_SKILLS_DIR")
-            
+
             if not skills_dir:
                 # Try repo-relative (for development)
                 # __file__ is core/registry/skills_registry.py
@@ -613,28 +664,32 @@ class SkillsRegistry:
                     # Fallback to user home (for installed packages)
                     home = os.path.expanduser("~")
                     skills_dir = os.path.join(home, "jotty", "skills")
-        
+
         self.skills_dir = Path(skills_dir)
         self.skills_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Also check Claude Code skills directory (~/.claude/skills)
         self.claude_skills_dir = Path.home() / ".claude" / "skills"
-        
+
         self.loaded_skills: Dict[str, SkillDefinition] = {}
         self.composite_skills: Dict[str, Any] = {}  # Store composite skills
         self.loaded_collections: Dict[str, Any] = {}  # Store loaded tool collections
         self.initialized = False
         self.skill_generator = skill_generator  # For AI-powered skill generation
-        
+
         # Dependency management
         from .skill_dependency_manager import get_dependency_manager
+
         self.dependency_manager = get_dependency_manager()
-    
+
     # Top skills by usage (referenced by most derived/composite skills)
     # Pre-warming these saves 1-3s on first task execution
     _TOP_SKILLS = [
-        'web-search', 'claude-cli-llm', 'calculator',
-        'file-operations', 'document-converter',
+        "web-search",
+        "claude-cli-llm",
+        "calculator",
+        "file-operations",
+        "document-converter",
     ]
 
     def init(self) -> None:
@@ -731,7 +786,12 @@ class SkillsRegistry:
             trigger_type = entry.get("trigger_type", "unknown")
 
             # Build lazy tool loader that binds workflow_id at load time
-            def _make_loader(wid: Any = wf_id, sname: Any = skill_name, wname: Any = wf_name, bskill: Any = base_skill_name) -> Dict:
+            def _make_loader(
+                wid: Any = wf_id,
+                sname: Any = skill_name,
+                wname: Any = wf_name,
+                bskill: Any = base_skill_name,
+            ) -> Dict:
                 def _loader() -> Dict:
                     # Import the trigger function from the base skill's tools.py
                     base_skill = self.loaded_skills.get(bskill)
@@ -755,6 +815,7 @@ class SkillsRegistry:
                     _trigger.__doc__ = f"Trigger n8n workflow: {wname}"
                     _trigger._required_params = []
                     return {_trigger.__name__: _trigger}
+
                 return _loader
 
             skill = SkillDefinition(
@@ -831,7 +892,7 @@ class SkillsRegistry:
             2. Installed skill packages (via 'jotty.skills' entry point group)
             3. Claude Code skills directory (~/.claude/skills)
         """
-        excluded_dirs = {'composite-templates', '__pycache__', '.git', '.DS_Store'}
+        excluded_dirs = {"composite-templates", "__pycache__", ".git", ".DS_Store"}
 
         # 1. Scan Jotty skills directory
         if self.skills_dir.exists():
@@ -854,7 +915,9 @@ class SkillsRegistry:
             for skill_dir in self.claude_skills_dir.iterdir():
                 if skill_dir.is_dir() and skill_dir.name not in excluded_dirs:
                     if skill_dir.name in self.loaded_skills:
-                        logger.debug(f"Skipping {skill_dir.name} from Claude directory (already registered)")
+                        logger.debug(
+                            f"Skipping {skill_dir.name} from Claude directory (already registered)"
+                        )
                         continue
                     try:
                         skill = self._register_lazy_skill(skill_dir.name, self.claude_skills_dir)
@@ -883,11 +946,11 @@ class SkillsRegistry:
         try:
             # Python 3.12+: entry_points(group=...) is preferred
             # Python 3.9-3.11: entry_points() returns a dict or SelectableGroups
-            eps = entry_points(group='jotty.skills')
+            eps = entry_points(group="jotty.skills")
         except TypeError:
             # Python 3.9 fallback
             all_eps = entry_points()
-            eps = all_eps.get('jotty.skills', [])
+            eps = all_eps.get("jotty.skills", [])
 
         for ep in eps:
             try:
@@ -901,7 +964,9 @@ class SkillsRegistry:
                 for skill_dir in plugin_dir.iterdir():
                     if skill_dir.is_dir() and skill_dir.name not in excluded_dirs:
                         if skill_dir.name in self.loaded_skills:
-                            logger.debug(f"Skipping plugin skill {skill_dir.name} (already registered)")
+                            logger.debug(
+                                f"Skipping plugin skill {skill_dir.name} (already registered)"
+                            )
                             continue
                         try:
                             skill = self._register_lazy_skill(skill_dir.name, plugin_dir)
@@ -933,6 +998,7 @@ class SkillsRegistry:
 
         # Create a loader closure that captures the skill directory info
         registry = self  # capture reference for closure
+
         def make_tool_loader(s_dir: Any, s_name: Any, is_cc_skill: Any, s_md: Any) -> Dict:
             def loader() -> Dict[str, Callable]:
                 # Dependency check deferred to first tool load
@@ -940,7 +1006,9 @@ class SkillsRegistry:
                 if dep_result["success"] and dep_result.get("installed"):
                     logger.info(f"Installed dependencies for {s_name}: {dep_result['installed']}")
                 elif not dep_result["success"]:
-                    logger.warning(f"Dependency install failed for {s_name}: {dep_result.get('error')}")
+                    logger.warning(
+                        f"Dependency install failed for {s_name}: {dep_result.get('error')}"
+                    )
 
                 if is_cc_skill:
                     md_content = s_md.read_text() if s_md.exists() else ""
@@ -950,38 +1018,39 @@ class SkillsRegistry:
                     if tools_file.exists():
                         return registry._load_tools_from_file(tools_file)
                     return {}
+
             return loader
 
         # Resolve SkillType from parsed metadata
-        parsed_type = skill_metadata.get('skill_type')
+        parsed_type = skill_metadata.get("skill_type")
         resolved_skill_type = None
-        if parsed_type == 'base':
+        if parsed_type == "base":
             resolved_skill_type = SkillType.BASE
-        elif parsed_type == 'derived':
+        elif parsed_type == "derived":
             resolved_skill_type = SkillType.DERIVED
-        elif parsed_type == 'composite':
+        elif parsed_type == "composite":
             resolved_skill_type = SkillType.COMPOSITE
 
         # Store triggers in metadata for discovery scoring
         skill_meta = {"path": str(skill_dir), "is_claude_code_skill": is_claude_code_skill}
-        if skill_metadata['triggers']:
-            skill_meta['triggers'] = skill_metadata['triggers']
+        if skill_metadata["triggers"]:
+            skill_meta["triggers"] = skill_metadata["triggers"]
 
         # Parse tool parameter schemas from SKILL.md
         tool_schemas = self._parse_tool_schemas(skill_md)
 
         return SkillDefinition(
             name=skill_name,
-            description=skill_metadata['description'] or f"Skill: {skill_name}",
+            description=skill_metadata["description"] or f"Skill: {skill_name}",
             _tool_loader=make_tool_loader(skill_dir, skill_name, is_claude_code_skill, skill_md),
             metadata=skill_meta,
             tool_metadata=tool_schemas,
-            category=skill_metadata.get('skill_category') or "general",
-            capabilities=skill_metadata['capabilities'],
-            use_when=skill_metadata['use_when'],
+            category=skill_metadata.get("skill_category") or "general",
+            capabilities=skill_metadata["capabilities"],
+            use_when=skill_metadata["use_when"],
             skill_type=resolved_skill_type,
-            base_skills=skill_metadata['base_skills'],
-            execution_mode=skill_metadata.get('execution_mode', ''),
+            base_skills=skill_metadata["base_skills"],
+            execution_mode=skill_metadata.get("execution_mode", ""),
         )
 
     def _parse_skill_metadata(self, skill_md: Path) -> Dict[str, Any]:
@@ -1021,14 +1090,14 @@ class SkillsRegistry:
         ```
         """
         metadata = {
-            'description': '',
-            'skill_type': None,  # None = not specified, will default to BASE
-            'base_skills': [],
-            'execution_mode': '',
-            'capabilities': [],
-            'use_when': '',
-            'triggers': [],
-            'skill_category': '',
+            "description": "",
+            "skill_type": None,  # None = not specified, will default to BASE
+            "base_skills": [],
+            "execution_mode": "",
+            "capabilities": [],
+            "use_when": "",
+            "triggers": [],
+            "skill_category": "",
         }
 
         if not skill_md.exists():
@@ -1044,12 +1113,12 @@ class SkillsRegistry:
                     frontmatter = content[3:end_idx].strip()
                     for fm_line in frontmatter.split("\n"):
                         if fm_line.startswith("description:"):
-                            fm_desc = fm_line[len("description:"):].strip().strip('"').strip("'")
+                            fm_desc = fm_line[len("description:") :].strip().strip('"').strip("'")
                             if fm_desc:
-                                metadata['description'] = fm_desc
-                                metadata['_desc_from_frontmatter'] = True
+                                metadata["description"] = fm_desc
+                                metadata["_desc_from_frontmatter"] = True
                     # Strip frontmatter from content for section parsing
-                    content = content[end_idx + 3:].lstrip("\n")
+                    content = content[end_idx + 3 :].lstrip("\n")
 
             lines = content.split("\n")
 
@@ -1063,40 +1132,55 @@ class SkillsRegistry:
                 if line.startswith("# ") and not title:
                     title = line[2:].strip()
                     # Find description from body only if frontmatter didn't provide one
-                    if not metadata['description']:
+                    if not metadata["description"]:
                         for j in range(i + 1, min(i + 5, len(lines))):
                             next_line = lines[j].strip()
-                            if next_line and not next_line.startswith("#") and not next_line.startswith("---"):
-                                metadata['description'] = next_line
+                            if (
+                                next_line
+                                and not next_line.startswith("#")
+                                and not next_line.startswith("---")
+                            ):
+                                metadata["description"] = next_line
                                 break
                     continue
 
                 # Detect section headers
                 if stripped.lower() in ["## description", "**description**", "description:"]:
-                    current_section = 'description'
+                    current_section = "description"
                     continue
                 elif stripped.lower() in ["## type", "**type**", "type:"]:
-                    current_section = 'type'
+                    current_section = "type"
                     continue
-                elif stripped.lower() in ["## base skills", "**base skills**", "base skills:",
-                                          "## base skill", "**base skill**", "base skill:"]:
-                    current_section = 'base_skills'
+                elif stripped.lower() in [
+                    "## base skills",
+                    "**base skills**",
+                    "base skills:",
+                    "## base skill",
+                    "**base skill**",
+                    "base skill:",
+                ]:
+                    current_section = "base_skills"
                     continue
-                elif stripped.lower() in ["## execution", "**execution**", "execution:",
-                                          "## execution mode", "**execution mode**"]:
-                    current_section = 'execution'
+                elif stripped.lower() in [
+                    "## execution",
+                    "**execution**",
+                    "execution:",
+                    "## execution mode",
+                    "**execution mode**",
+                ]:
+                    current_section = "execution"
                     continue
                 elif stripped.lower() in ["## capabilities", "**capabilities**", "capabilities:"]:
-                    current_section = 'capabilities'
+                    current_section = "capabilities"
                     continue
                 elif stripped.lower() in ["## use when", "**use when**", "use when:"]:
-                    current_section = 'use_when'
+                    current_section = "use_when"
                     continue
                 elif stripped.lower() in ["## triggers", "**triggers**", "triggers:"]:
-                    current_section = 'triggers'
+                    current_section = "triggers"
                     continue
                 elif stripped.lower() in ["## category", "**category**", "category:"]:
-                    current_section = 'skill_category'
+                    current_section = "skill_category"
                     continue
                 elif stripped.startswith("##") or stripped.startswith("**"):
                     current_section = None  # End of relevant sections
@@ -1105,69 +1189,69 @@ class SkillsRegistry:
                 # Parse section content
                 # Note: if frontmatter already set description (with "Use when..." info),
                 # the body ## Description section is skipped to preserve the richer version
-                if current_section == 'description' and stripped and not stripped.startswith("- "):
-                    if not metadata.get('_desc_from_frontmatter'):
-                        if metadata['description']:
-                            metadata['description'] += " " + stripped
+                if current_section == "description" and stripped and not stripped.startswith("- "):
+                    if not metadata.get("_desc_from_frontmatter"):
+                        if metadata["description"]:
+                            metadata["description"] += " " + stripped
                         else:
-                            metadata['description'] = stripped
+                            metadata["description"] = stripped
 
-                elif current_section == 'type' and stripped:
+                elif current_section == "type" and stripped:
                     type_val = stripped.lower().strip()
-                    if type_val in ('base', 'derived', 'composite'):
-                        metadata['skill_type'] = type_val
+                    if type_val in ("base", "derived", "composite"):
+                        metadata["skill_type"] = type_val
 
-                elif current_section == 'base_skills' and stripped.startswith("-"):
+                elif current_section == "base_skills" and stripped.startswith("-"):
                     skill_ref = stripped[1:].strip()
                     if skill_ref:
-                        metadata['base_skills'].append(skill_ref)
+                        metadata["base_skills"].append(skill_ref)
 
-                elif current_section == 'execution' and stripped:
+                elif current_section == "execution" and stripped:
                     mode_val = stripped.lower().strip()
-                    if mode_val in ('sequential', 'parallel', 'mixed'):
-                        metadata['execution_mode'] = mode_val
+                    if mode_val in ("sequential", "parallel", "mixed"):
+                        metadata["execution_mode"] = mode_val
 
-                elif current_section == 'capabilities' and stripped.startswith("-"):
+                elif current_section == "capabilities" and stripped.startswith("-"):
                     cap = stripped[1:].strip().lower()
                     if cap:
-                        metadata['capabilities'].append(cap)
+                        metadata["capabilities"].append(cap)
 
-                elif current_section == 'use_when' and stripped:
-                    if metadata['use_when']:
-                        metadata['use_when'] += " " + stripped
+                elif current_section == "use_when" and stripped:
+                    if metadata["use_when"]:
+                        metadata["use_when"] += " " + stripped
                     else:
-                        metadata['use_when'] = stripped
+                        metadata["use_when"] = stripped
 
-                elif current_section == 'triggers' and stripped.startswith("-"):
+                elif current_section == "triggers" and stripped.startswith("-"):
                     trigger = stripped[1:].strip().strip('"').strip("'")
                     if trigger:
-                        metadata['triggers'].append(trigger.lower())
+                        metadata["triggers"].append(trigger.lower())
 
-                elif current_section == 'skill_category' and stripped:
-                    metadata['skill_category'] = stripped.lower().strip()
+                elif current_section == "skill_category" and stripped:
+                    metadata["skill_category"] = stripped.lower().strip()
 
             # Fallback description to title
-            if not metadata['description']:
-                metadata['description'] = title
+            if not metadata["description"]:
+                metadata["description"] = title
 
             # Truncate description
-            metadata['description'] = metadata['description'][:500]
+            metadata["description"] = metadata["description"][:500]
 
             # Auto-infer use_when from description if not provided
             # This gives the LLM a selection hint without requiring manual SKILL.md edits
-            if not metadata['use_when'] and metadata['description']:
-                desc = metadata['description']
+            if not metadata["use_when"] and metadata["description"]:
+                desc = metadata["description"]
                 # Strip markdown formatting and truncate
-                clean = desc.replace('**', '').replace('*', '').strip()
+                clean = desc.replace("**", "").replace("*", "").strip()
                 if len(clean) > 10:
-                    metadata['use_when'] = clean[:120]
+                    metadata["use_when"] = clean[:120]
 
             # Infer skill_type from base_skills if not explicitly set
-            if metadata['skill_type'] is None:
-                if len(metadata['base_skills']) == 1:
-                    metadata['skill_type'] = 'derived'
-                elif len(metadata['base_skills']) >= 2:
-                    metadata['skill_type'] = 'composite'
+            if metadata["skill_type"] is None:
+                if len(metadata["base_skills"]) == 1:
+                    metadata["skill_type"] = "derived"
+                elif len(metadata["base_skills"]) >= 2:
+                    metadata["skill_type"] = "composite"
                 # else: leave as None, will default to BASE
 
         except Exception as e:
@@ -1175,7 +1259,7 @@ class SkillsRegistry:
 
         return metadata
 
-    def _parse_tool_schemas(self, skill_md: Path) -> Dict[str, 'ToolMetadata']:
+    def _parse_tool_schemas(self, skill_md: Path) -> Dict[str, "ToolMetadata"]:
         """Parse ## Tools section from SKILL.md to extract parameter schemas.
 
         Parses the common SKILL.md parameter documentation format::
@@ -1209,12 +1293,18 @@ class SkillsRegistry:
         in_params = False
 
         _TYPE_MAP = {
-            "str": "string", "string": "string",
-            "int": "integer", "integer": "integer",
-            "float": "number", "number": "number",
-            "bool": "boolean", "boolean": "boolean",
-            "list": "array", "array": "array",
-            "dict": "object", "object": "object",
+            "str": "string",
+            "string": "string",
+            "int": "integer",
+            "integer": "integer",
+            "float": "number",
+            "number": "number",
+            "bool": "boolean",
+            "boolean": "boolean",
+            "list": "array",
+            "array": "array",
+            "dict": "object",
+            "object": "object",
         }
 
         def _flush_tool() -> Any:
@@ -1276,7 +1366,7 @@ class SkillsRegistry:
             # Parse parameter line: - `name` (type, required/optional): Description
             if in_params and stripped.startswith("- `"):
                 param_match = re.match(
-                    r'^-\s*`(\w+)`\s*\((\w+)(?:,\s*(required|optional))?\):\s*(.*)',
+                    r"^-\s*`(\w+)`\s*\((\w+)(?:,\s*(required|optional))?\):\s*(.*)",
                     stripped,
                 )
                 if param_match:
@@ -1287,7 +1377,7 @@ class SkillsRegistry:
                     json_type = _TYPE_MAP.get(ptype, "string")
                     prop: Dict[str, Any] = {"type": json_type, "description": pdesc}
                     # Extract default from description
-                    default_match = re.search(r'\(default:\s*([^)]+)\)', pdesc)
+                    default_match = re.search(r"\(default:\s*([^)]+)\)", pdesc)
                     if default_match:
                         prop["default"] = default_match.group(1).strip()
                     current_params[pname] = prop
@@ -1296,7 +1386,13 @@ class SkillsRegistry:
                 continue
 
             # Collect tool description (text before **Parameters:** and not a list item)
-            if current_tool and not in_params and stripped and not stripped.startswith("**") and not stripped.startswith("- "):
+            if (
+                current_tool
+                and not in_params
+                and stripped
+                and not stripped.startswith("**")
+                and not stripped.startswith("- ")
+            ):
                 if current_desc:
                     current_desc += " " + stripped
                 else:
@@ -1308,7 +1404,7 @@ class SkillsRegistry:
     def _read_skill_description(self, skill_md: Path) -> str:
         """Read description from SKILL.md (lightweight metadata parsing)."""
         metadata = self._parse_skill_metadata(skill_md)
-        return metadata['description']
+        return metadata["description"]
 
     def load_all_skills(self) -> Dict[str, Callable]:
         """
@@ -1322,7 +1418,7 @@ class SkillsRegistry:
         for skill in self.loaded_skills.values():
             all_tools.update(skill.tools)  # Triggers lazy load
         return all_tools
-    
+
     def _load_skill(self, skill_name: str, base_dir: Optional[Path] = None) -> SkillDefinition:
         """
         Eagerly load a single skill from disk (tools imported immediately).
@@ -1341,7 +1437,9 @@ class SkillsRegistry:
         is_claude_code_skill = scripts_dir.exists() and scripts_dir.is_dir()
 
         if not tools_py.exists() and not is_claude_code_skill:
-            raise FileNotFoundError(f"Skill {skill_name} missing tools.py and no scripts/ directory found")
+            raise FileNotFoundError(
+                f"Skill {skill_name} missing tools.py and no scripts/ directory found"
+            )
 
         description = self._read_skill_description(skill_md)
 
@@ -1358,55 +1456,61 @@ class SkillsRegistry:
             name=skill_name,
             description=description or f"Skill: {skill_name}",
             tools=tools,
-            metadata={"path": str(skill_dir), "is_claude_code_skill": is_claude_code_skill}
+            metadata={"path": str(skill_dir), "is_claude_code_skill": is_claude_code_skill},
         )
-    
+
     def _load_tools_from_file(self, tools_file: Path) -> Dict[str, Callable]:
         """
         Load tools from a Python file.
-        
+
         For TypeScript/JavaScript skills, would need compilation step.
         This is a simplified version for Python tools.
-        
+
         Args:
             tools_file: Path to tools.py file
-            
+
         Returns:
             Dict mapping tool names to execute functions
         """
         tools: Dict[str, Callable] = {}
-        
+
         try:
             # Add venv site-packages to sys.path if available
             import sys
-            if hasattr(self, 'dependency_manager') and self.dependency_manager:
+
+            if hasattr(self, "dependency_manager") and self.dependency_manager:
                 venv_manager = self.dependency_manager.venv_manager
                 if venv_manager and venv_manager.shared_venv_path:
                     # Detect Python version dynamically
                     python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
-                    venv_site_packages = venv_manager.shared_venv_path / 'lib' / f'python{python_version}' / 'site-packages'
-                    
+                    venv_site_packages = (
+                        venv_manager.shared_venv_path
+                        / "lib"
+                        / f"python{python_version}"
+                        / "site-packages"
+                    )
+
                     # If not found, try to find any pythonX.Y directory
                     if not venv_site_packages.exists():
-                        lib_dir = venv_manager.shared_venv_path / 'lib'
+                        lib_dir = venv_manager.shared_venv_path / "lib"
                         if lib_dir.exists():
                             for subdir in lib_dir.iterdir():
-                                if subdir.is_dir() and subdir.name.startswith('python'):
-                                    potential_site_packages = subdir / 'site-packages'
+                                if subdir.is_dir() and subdir.name.startswith("python"):
+                                    potential_site_packages = subdir / "site-packages"
                                     if potential_site_packages.exists():
                                         venv_site_packages = potential_site_packages
                                         break
-                    
+
                     if venv_site_packages.exists() and str(venv_site_packages) not in sys.path:
                         sys.path.insert(0, str(venv_site_packages))
                         logger.debug(f"Added venv site-packages to sys.path: {venv_site_packages}")
-            
+
             # Dynamically import the module
             spec = importlib.util.spec_from_file_location("skill_tools", tools_file)
             if spec and spec.loader:
                 module = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(module)
-                
+
                 # Extract tool functions (functions decorated with @tool or named *_tool)
                 for attr_name in dir(module):
                     if not attr_name.startswith("_"):
@@ -1421,42 +1525,51 @@ class SkillsRegistry:
             # Retry once with isolated import (handles missing imports at module level)
             retry_tools = self._retry_load_with_isolation(tools_file, e)
             if retry_tools:
-                logger.info(f" Retry succeeded for {tools_file.parent.name}: {len(retry_tools)} tools loaded")
+                logger.info(
+                    f" Retry succeeded for {tools_file.parent.name}: {len(retry_tools)} tools loaded"
+                )
                 return retry_tools
 
             # Track failed skills for diagnostics
-            if not hasattr(self, '_failed_skills'):
+            if not hasattr(self, "_failed_skills"):
                 self._failed_skills = {}
             skill_name = tools_file.parent.name
             self._failed_skills[skill_name] = str(e)
-            logger.warning(f" Skill '{skill_name}' failed to load: {e}. "
-                          f"Fix: check imports in {tools_file}")
+            logger.warning(
+                f" Skill '{skill_name}' failed to load: {e}. " f"Fix: check imports in {tools_file}"
+            )
 
             # Fallback: create mock tools based on file content
             tools = self._create_mock_tools_from_file(tools_file)
-        
+
         return tools
-    
-    def _retry_load_with_isolation(self, tools_file: Path, original_error: Exception) -> Optional[Dict[str, Callable]]:
+
+    def _retry_load_with_isolation(
+        self, tools_file: Path, original_error: Exception
+    ) -> Optional[Dict[str, Callable]]:
         """
         Retry loading a tools module after attempting to fix common import issues.
-        
+
         Common issues:
         - Missing SkillStatus import → inject it before retrying
         - Missing optional dependencies → skip gracefully
         """
-        import sys
         import importlib.util
-        
+        import sys
+
         try:
             # Read the source to check for common fixable issues
             source = tools_file.read_text()
             error_str = str(original_error)
-            
+
             # If the error is a NameError for a known symbol, try injecting it
-            if 'SkillStatus' in error_str and 'SkillStatus' not in source.split('import')[-1] if 'import' in source else True:
+            if (
+                "SkillStatus" in error_str and "SkillStatus" not in source.split("import")[-1]
+                if "import" in source
+                else True
+            ):
                 logger.info(f"Retrying {tools_file.parent.name} with SkillStatus injection...")
-                
+
                 # Load with the missing name pre-injected
                 spec = importlib.util.spec_from_file_location(
                     f"skill_tools_retry_{tools_file.parent.name}", tools_file
@@ -1466,12 +1579,13 @@ class SkillsRegistry:
                     # Pre-inject SkillStatus
                     try:
                         from ..utils.skill_status import SkillStatus
+
                         module.SkillStatus = SkillStatus
                     except ImportError:
                         pass
-                    
+
                     spec.loader.exec_module(module)
-                    
+
                     tools = {}
                     for attr_name in dir(module):
                         if not attr_name.startswith("_"):
@@ -1483,37 +1597,39 @@ class SkillsRegistry:
                         return tools
         except Exception as retry_e:
             logger.debug(f"Retry also failed for {tools_file.parent.name}: {retry_e}")
-        
+
         return None
-    
+
     def get_failed_skills(self) -> Dict[str, str]:
         """Return dict of skill_name -> error_message for skills that failed to load."""
-        return getattr(self, '_failed_skills', {})
-    
+        return getattr(self, "_failed_skills", {})
+
     def _create_mock_tools_from_file(self, tools_file: Path) -> Dict[str, Callable]:
         """
         Create mock tools from file content (for testing/fallback).
-        
+
         In production, proper tool loading would be used.
         This is for testing integration only.
         """
         content = tools_file.read_text()
         tools: Dict[str, Callable] = {}
-        
+
         # Extract tool names from file (simplified)
         import re
-        tool_matches = re.findall(r'def\s+(\w+)\s*\(|(\w+)\s*=\s*tool\(', content)
-        
+
+        tool_matches = re.findall(r"def\s+(\w+)\s*\(|(\w+)\s*=\s*tool\(", content)
+
         for match in tool_matches:
             tool_name = match[0] or match[1]
             if tool_name:
                 # Create mock execute function
                 tools[tool_name] = self._create_mock_executor(tool_name)
-        
+
         return tools
-    
+
     def _create_mock_executor(self, tool_name: str) -> Callable:
         """Create mock executor for testing."""
+
         async def mock_execute(params: Dict[str, Any]) -> Dict[str, Any]:
             return {
                 "success": True,
@@ -1521,61 +1637,71 @@ class SkillsRegistry:
                 "params": params,
                 "message": f"Tool {tool_name} executed (mock - implement in tools.py)",
             }
+
         return mock_execute
-    
-    def _load_claude_code_skill(self, skill_dir: Path, skill_name: str, skill_md_content: str) -> Dict[str, Callable]:
+
+    def _load_claude_code_skill(
+        self, skill_dir: Path, skill_name: str, skill_md_content: str
+    ) -> Dict[str, Callable]:
         """
         Load Python-based Claude Code skill (e.g., last30days).
-        
+
         Claude Code skills have Python scripts in scripts/ directory instead of tools.py.
         This method creates wrapper tools that execute the Python scripts.
-        
+
         Args:
             skill_dir: Skill directory path
             skill_name: Skill name
             skill_md_content: Content of SKILL.md for metadata extraction
-            
+
         Returns:
             Dict mapping tool names to execute functions
         """
         tools: Dict[str, Callable] = {}
         scripts_dir = skill_dir / "scripts"
-        
+
         if not scripts_dir.exists():
             logger.warning(f"Claude Code skill {skill_name} has no scripts/ directory")
             return tools
-        
+
         # Look for main script (skill_name.py) or any .py files
         main_script = scripts_dir / f"{skill_name}.py"
-        
+
         if main_script.exists():
             # Create wrapper tool for main script
             tool_name = skill_name.replace("-", "_")
-            tools[tool_name] = self._create_claude_code_executor(main_script, skill_dir, skill_md_content)
+            tools[tool_name] = self._create_claude_code_executor(
+                main_script, skill_dir, skill_md_content
+            )
         else:
             # Look for other Python scripts
             for script_file in scripts_dir.glob("*.py"):
                 tool_name = script_file.stem.replace("-", "_")
-                tools[tool_name] = self._create_claude_code_executor(script_file, skill_dir, skill_md_content)
-        
+                tools[tool_name] = self._create_claude_code_executor(
+                    script_file, skill_dir, skill_md_content
+                )
+
         return tools
-    
-    def _create_claude_code_executor(self, script_path: Path, skill_dir: Path, skill_md_content: str) -> Callable:
+
+    def _create_claude_code_executor(
+        self, script_path: Path, skill_dir: Path, skill_md_content: str
+    ) -> Callable:
         """
         Create executor function for Claude Code Python script.
-        
+
         Args:
             script_path: Path to Python script
             skill_dir: Skill directory
             skill_md_content: SKILL.md content for description extraction
-            
+
         Returns:
             Callable tool executor function
         """
+
         async def execute_claude_code_skill(params: Dict[str, Any]) -> Dict[str, Any]:
             """
             Execute Claude Code Python skill script.
-            
+
             Supports common parameters:
             - topic: Research topic
             - tool: Target tool (e.g., "ChatGPT")
@@ -1588,31 +1714,31 @@ class SkillsRegistry:
             try:
                 # Build command arguments
                 args = []
-                
+
                 if params.get("topic"):
                     args.append(f'"{params["topic"]}"')
-                
+
                 if params.get("tool"):
                     args.append(f'for {params["tool"]}')
-                
+
                 if params.get("quick"):
                     args.append("--quick")
-                
+
                 if params.get("deep"):
                     args.append("--deep")
-                
+
                 if params.get("sources"):
                     args.append(f"--sources={params['sources']}")
-                
+
                 if params.get("emit"):
                     args.append(f"--emit={params['emit']}")
-                
+
                 if params.get("refresh"):
                     args.append("--refresh")
-                
+
                 # Execute Python script
                 cmd = ["python3", str(script_path)] + args
-                
+
                 result = subprocess.run(
                     cmd,
                     cwd=str(skill_dir),
@@ -1620,7 +1746,7 @@ class SkillsRegistry:
                     text=True,
                     timeout=120,  # 2 minutes timeout
                 )
-                
+
                 if result.returncode != 0:
                     logger.error(f"Claude Code skill execution failed: {result.stderr}")
                     return {
@@ -1628,7 +1754,7 @@ class SkillsRegistry:
                         "error": result.stderr or "Script execution failed",
                         "stdout": result.stdout,
                     }
-                
+
                 # Parse output based on emit format
                 if params.get("emit") == "json":
                     try:
@@ -1641,7 +1767,7 @@ class SkillsRegistry:
                             "format": "json",
                             "raw": True,
                         }
-                
+
                 return {
                     "success": True,
                     "output": result.stdout,
@@ -1658,13 +1784,13 @@ class SkillsRegistry:
                     "success": False,
                     "error": str(e),
                 }
-        
+
         return execute_claude_code_skill
-    
+
     def get_registered_tools(self) -> Dict[str, Callable]:
         """
         Get all registered tools from loaded skills.
-        
+
         Returns:
             Dict mapping tool names to execute functions
             (for merging into Jotty's tool registry)
@@ -1672,26 +1798,27 @@ class SkillsRegistry:
         tools: Dict[str, Callable] = {}
         for skill in self.loaded_skills.values():
             tools.update(skill.tools)
-        
+
         # Add package management tools
         from .skill_package_tools import create_package_management_tools
         from .skill_venv_manager import get_venv_manager
+
         venv_manager = get_venv_manager()
         package_tools = create_package_management_tools(venv_manager)
         tools.update(package_tools)
-        
+
         return tools
-    
+
     def get_tool_metadata(self) -> Dict[str, Dict[str, str]]:
         """
         Get tool metadata for all skill tools.
-        
+
         Returns:
             Dict mapping tool names to metadata
             (for merging into Jotty's tool metadata)
         """
         metadata: Dict[str, Dict[str, str]] = {}
-        
+
         for skill in self.loaded_skills.values():
             for tool_name in skill.tools.keys():
                 metadata[tool_name] = {
@@ -1699,9 +1826,9 @@ class SkillsRegistry:
                     "description": f"Tool from skill: {skill.name}",
                     "skill": skill.name,
                 }
-        
+
         return metadata
-    
+
     def list_skills(self, filter_type: Optional[SkillType] = None) -> List[Dict[str, Any]]:
         """List all registered skills without triggering lazy loading.
 
@@ -1767,7 +1894,9 @@ class SkillsRegistry:
         return counts
 
     def discover(
-        self, task: str, max_results: int = 50,
+        self,
+        task: str,
+        max_results: int = 50,
         task_context: Optional[Dict[str, Any]] = None,
     ) -> List[Dict[str, Any]]:
         """
@@ -1798,17 +1927,26 @@ class SkillsRegistry:
         task_lower = task.lower()
 
         stop_words = {
-            'the', 'and', 'for', 'with', 'how', 'what', 'are', 'is',
-            'to', 'of', 'in', 'on', 'a', 'an',
+            "the",
+            "and",
+            "for",
+            "with",
+            "how",
+            "what",
+            "are",
+            "is",
+            "to",
+            "of",
+            "in",
+            "on",
+            "a",
+            "an",
         }
-        task_words = set(
-            w for w in task_lower.split()
-            if len(w) > 2 and w not in stop_words
-        )
+        task_words = set(w for w in task_lower.split() if len(w) > 2 and w not in stop_words)
         # Simple stemming: "slides" -> "slide"
         stemmed = set(task_words)
         for w in task_words:
-            if w.endswith('s') and len(w) > 3:
+            if w.endswith("s") and len(w) > 3:
                 stemmed.add(w[:-1])
 
         scored = []
@@ -1820,7 +1958,7 @@ class SkillsRegistry:
                 continue
 
             name_lower = skill.name.lower()
-            desc_lower = (skill.description or '').lower()
+            desc_lower = (skill.description or "").lower()
 
             score = 0
             for word in stemmed:
@@ -1842,14 +1980,14 @@ class SkillsRegistry:
                             break
 
             # use_when match: check if task words appear in the use_when text
-            use_when_lower = (skill.use_when or '').lower()
+            use_when_lower = (skill.use_when or "").lower()
             if use_when_lower:
                 for word in stemmed:
                     if word in use_when_lower:
                         score += 1
 
             # Trigger match: token-based — all words in trigger must appear in task
-            triggers = skill.metadata.get('triggers', [])
+            triggers = skill.metadata.get("triggers", [])
             task_word_set = set(task_lower.split())
             for trigger in triggers:
                 trigger_words = trigger.lower().split()
@@ -1887,33 +2025,33 @@ class SkillsRegistry:
 
         return results[:max_results]
 
-    def _skill_to_discovery_dict(self, skill: 'SkillDefinition', score: int = 0) -> Dict[str, Any]:
+    def _skill_to_discovery_dict(self, skill: "SkillDefinition", score: int = 0) -> Dict[str, Any]:
         """Convert a SkillDefinition to a dict for discovery output."""
         tool_names = list(skill._tools.keys()) if skill.is_loaded else []
         d = {
-            'name': skill.name,
-            'description': skill.description or skill.name,
-            'category': skill.category,
-            'tools': tool_names,
-            'skill_type': skill.skill_type.value,
-            'base_skills': skill.base_skills,
-            'capabilities': skill.capabilities,
-            'relevance_score': score,
-            'trust_level': skill.trust_level.value,
+            "name": skill.name,
+            "description": skill.description or skill.name,
+            "category": skill.category,
+            "tools": tool_names,
+            "skill_type": skill.skill_type.value,
+            "base_skills": skill.base_skills,
+            "capabilities": skill.capabilities,
+            "relevance_score": score,
+            "trust_level": skill.trust_level.value,
         }
         if skill.executor_type:
-            d['executor_type'] = skill.executor_type
+            d["executor_type"] = skill.executor_type
         if skill.skill_type == SkillType.COMPOSITE and skill.execution_mode:
-            d['execution_mode'] = skill.execution_mode
+            d["execution_mode"] = skill.execution_mode
         if skill.use_when:
-            d['use_when'] = skill.use_when
+            d["use_when"] = skill.use_when
         return d
 
     def filter_skills_by_capabilities(
         self,
         required_capabilities: List[str],
         filter_type: Optional[SkillType] = None,
-        max_skills: int = 20
+        max_skills: int = 20,
     ) -> List[Dict[str, Any]]:
         """
         Filter skills by required capabilities.
@@ -1979,65 +2117,67 @@ class SkillsRegistry:
     def get_skill(self, name: str) -> Optional[SkillDefinition]:
         """Get a specific skill by name."""
         return self.loaded_skills.get(name)
-    
-    def load_collection(self, collection: 'ToolCollection', collection_name: Optional[str] = None) -> Dict[str, Callable]:
+
+    def load_collection(
+        self, collection: "ToolCollection", collection_name: Optional[str] = None
+    ) -> Dict[str, Callable]:
         """
         Load a tool collection into the registry.
-        
+
         Args:
             collection: ToolCollection instance
             collection_name: Optional name for the collection (default: auto-generated)
-            
+
         Returns:
             Dict mapping tool names to execute functions
-            
+
         Example:
             from core.registry.tool_collection import ToolCollection
-            
+
             collection = ToolCollection.from_hub("collection-slug", trust_remote_code=True)
             registry.load_collection(collection)
         """
         from .tool_collection import ToolCollection
-        
+
         if not isinstance(collection, ToolCollection):
             raise TypeError(f"Expected ToolCollection, got {type(collection)}")
-        
+
         # Generate collection name if not provided
         if collection_name is None:
             collection_name = f"collection_{len(self.loaded_collections)}"
-        
+
         # Convert tools to SkillDefinitions
         skill_definitions = collection.to_skill_definitions()
-        
+
         # Register each skill
         all_tools: Dict[str, Callable] = {}
         for skill_def in skill_definitions:
             if skill_def:
                 # Add collection prefix to avoid conflicts
                 prefixed_name = f"{collection_name}_{skill_def.name}"
-                
+
                 # Register skill
                 self.loaded_skills[prefixed_name] = skill_def
                 all_tools.update(skill_def.tools)
-                
+
                 logger.info(f"Loaded tool from collection: {prefixed_name}")
-        
+
         # Store collection
         self.loaded_collections[collection_name] = {
             "collection": collection,
             "tools": all_tools,
             "source": collection.source,
-            "metadata": collection.metadata
+            "metadata": collection.metadata,
         }
-        
+
         logger.info(f"Loaded collection '{collection_name}' with {len(skill_definitions)} tools")
-        
+
         return all_tools
-    
+
     def list_collections(self) -> List[Dict[str, Any]]:
         """
         List all loaded collections.
-        
+
         Returns:
             List of collection metadata dicts
         """
@@ -2046,63 +2186,62 @@ class SkillsRegistry:
                 "name": name,
                 "source": info["source"],
                 "tool_count": len(info["tools"]),
-                "metadata": info["metadata"]
+                "metadata": info["metadata"],
             }
             for name, info in self.loaded_collections.items()
         ]
-    
+
     def get_collection(self, name: str) -> Optional[Dict[str, Any]]:
         """
         Get a loaded collection by name.
-        
+
         Args:
             name: Collection name
-            
+
         Returns:
             Collection info dict or None
         """
         return self.loaded_collections.get(name)
-    
+
     # =============================================================================
     # Agent Conversion (Refactoring #4)
     # =============================================================================
-    
+
     async def get_agent_for_skill(self, skill_name: str, agent_name: Optional[str] = None) -> Any:
         """
         Get or create AgentConfig for a skill.
-        
+
         Args:
             skill_name: Name of skill
             agent_name: Optional custom agent name
-            
+
         Returns:
             AgentConfig or None
         """
         try:
             from .skill_to_agent_converter import SkillToAgentConverter
+
             converter = SkillToAgentConverter()
             return await converter.create_agent_from_skill_name(skill_name, agent_name)
         except Exception as e:
             logger.warning(f"Failed to convert skill '{skill_name}' to agent: {e}")
             return None
-    
-    async def list_agents_from_skills(
-        self,
-        agent_name_prefix: Optional[str] = None
-    ) -> List[Any]:
+
+    async def list_agents_from_skills(self, agent_name_prefix: Optional[str] = None) -> List[Any]:
         """
         List all agents created from skills.
-        
+
         Args:
             agent_name_prefix: Optional prefix for agent names
-            
+
         Returns:
             List of AgentConfig
         """
         try:
             from .skill_to_agent_converter import SkillToAgentConverter
+
             converter = SkillToAgentConverter()
-            
+
             skills = list(self.loaded_skills.values())
             return await converter.convert_skills_to_agents(skills, agent_name_prefix)
         except Exception as e:

@@ -16,26 +16,29 @@ import asyncio
 import logging
 import re
 import time
-from pathlib import Path
-from typing import Any, AsyncGenerator, Dict, Optional, List, Callable
 from datetime import datetime
+from pathlib import Path
+from typing import Any, AsyncGenerator, Callable, Dict, List, Optional
 
+from Jotty.core.infrastructure.foundation.exceptions import (
+    ConfigurationError,
+    ExecutionError,
+    LLMError,
+)
+from Jotty.core.infrastructure.monitoring.observability.tracing import SpanStatus
+from Jotty.core.intelligence.orchestration.paradigm_executor import _extract_output_text
+
+from .tier_detector import TierDetector
 from .types import (
     ExecutionConfig,
-    ExecutionTier,
-    ExecutionResult,
     ExecutionPlan,
+    ExecutionResult,
     ExecutionStep,
-    TierValidationResult,
+    ExecutionTier,
     MemoryContext,
     StreamEvent,
     StreamEventType,
-)
-from .tier_detector import TierDetector
-from Jotty.core.infrastructure.monitoring.observability.tracing import SpanStatus
-from Jotty.core.intelligence.orchestration.paradigm_executor import _extract_output_text
-from Jotty.core.infrastructure.foundation.exceptions import (
-    ExecutionError, LLMError, ConfigurationError,
+    TierValidationResult,
 )
 
 logger = logging.getLogger(__name__)
@@ -44,19 +47,23 @@ logger = logging.getLogger(__name__)
 class LLMProvider:
     """Lightweight adapter wrapping an LLM client with generate()/stream() for the executor."""
 
-    def __init__(self, provider: str = 'anthropic', model: Optional[str] = None) -> None:
-        self._provider_name = provider or 'anthropic'
-        self._model = model or 'claude-sonnet-4-20250514'
+    def __init__(self, provider: str = "anthropic", model: Optional[str] = None) -> None:
+        self._provider_name = provider or "anthropic"
+        self._model = model or "claude-sonnet-4-20250514"
         self._client: Any = None
 
     def _get_client(self) -> Any:
         if self._client is None:
-            if self._provider_name == 'anthropic':
+            if self._provider_name == "anthropic":
                 import anthropic
+
                 self._client = anthropic.AsyncAnthropic()
             else:
                 # Fallback: use DSPy LM via UnifiedLMProvider
-                from Jotty.core.infrastructure.foundation.unified_lm_provider import UnifiedLMProvider
+                from Jotty.core.infrastructure.foundation.unified_lm_provider import (
+                    UnifiedLMProvider,
+                )
+
                 self._client = UnifiedLMProvider.create_lm(self._provider_name, self._model)
         return self._client
 
@@ -65,13 +72,14 @@ class LLMProvider:
         try:
             # Get the skill registry
             from Jotty.core.capabilities.registry import get_unified_registry
+
             registry = get_unified_registry()
 
             # Find the tool across all skills
             tool_func = None
             for skill_name in registry.list_skills():
                 skill = registry.get_skill(skill_name)
-                if skill and hasattr(skill, 'tools') and tool_name in skill.tools:
+                if skill and hasattr(skill, "tools") and tool_name in skill.tools:
                     tool_func = skill.tools[tool_name]
                     logger.debug(f"Found tool '{tool_name}' in skill '{skill_name}'")
                     break
@@ -81,7 +89,11 @@ class LLMProvider:
                 return f"Tool '{tool_name}' not found"
 
             # Execute the tool
-            result = await tool_func(tool_input) if asyncio.iscoroutinefunction(tool_func) else tool_func(tool_input)
+            result = (
+                await tool_func(tool_input)
+                if asyncio.iscoroutinefunction(tool_func)
+                else tool_func(tool_input)
+            )
 
             # Handle case where result is a coroutine (tool returned async without being awaited)
             if asyncio.iscoroutine(result):
@@ -90,28 +102,37 @@ class LLMProvider:
             # Convert result to string
             if isinstance(result, dict):
                 # Extract relevant content from result
-                if 'output' in result:
-                    return str(result['output'])
-                elif 'result' in result:
-                    return str(result['result'])
-                elif 'content' in result:
-                    return str(result['content'])
+                if "output" in result:
+                    return str(result["output"])
+                elif "result" in result:
+                    return str(result["result"])
+                elif "content" in result:
+                    return str(result["content"])
                 else:
                     return str(result)
             else:
                 return str(result)
 
-        except Exception as e:
+        except (ExecutionError, LLMError, TimeoutError, ValueError, TypeError) as e:
             logger.error(f"Tool execution failed for {tool_name}: {e}", exc_info=True)
             return f"Error executing {tool_name}: {str(e)}"
+        except Exception as e:
+            logger.error(f"Tool execution failed unexpectedly for {tool_name}: {e}", exc_info=True)
+            return f"Error executing {tool_name}: {str(e)}"
 
-    async def generate(self, prompt: str, tools: Optional[Any] = None, temperature: float = 0.7,
-                       max_tokens: int = 4000, **kwargs: Any) -> Dict[str, Any]:
+    async def generate(
+        self,
+        prompt: str,
+        tools: Optional[Any] = None,
+        temperature: float = 0.7,
+        max_tokens: int = 4000,
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
         """Generate a response with tool-calling loop. Returns {'content': str, 'usage': {...}}."""
         client = self._get_client()
 
-        if self._provider_name == 'anthropic':
-            messages = [{'role': 'user', 'content': prompt}]
+        if self._provider_name == "anthropic":
+            messages = [{"role": "user", "content": prompt}]
             total_input_tokens = 0
             total_output_tokens = 0
 
@@ -120,57 +141,63 @@ class LLMProvider:
             MAX_ITERATIONS = 20
             for iteration in range(MAX_ITERATIONS):
                 api_kwargs = {
-                    'model': self._model,
-                    'max_tokens': max_tokens,
-                    'temperature': temperature,
-                    'messages': messages,
+                    "model": self._model,
+                    "max_tokens": max_tokens,
+                    "temperature": temperature,
+                    "messages": messages,
                 }
                 if tools:
-                    api_kwargs['tools'] = tools
+                    api_kwargs["tools"] = tools
 
                 response = await client.messages.create(**api_kwargs)
                 total_input_tokens += response.usage.input_tokens
                 total_output_tokens += response.usage.output_tokens
 
                 # Check if response contains tool calls
-                tool_use_blocks = [block for block in response.content if block.type == 'tool_use']
+                tool_use_blocks = [block for block in response.content if block.type == "tool_use"]
 
                 if not tool_use_blocks:
                     # No tool calls - extract final text answer
-                    content = ''.join(
-                        block.text for block in response.content if hasattr(block, 'text')
+                    content = "".join(
+                        block.text for block in response.content if hasattr(block, "text")
                     )
                     return {
-                        'content': content,
-                        'usage': {
-                            'input_tokens': total_input_tokens,
-                            'output_tokens': total_output_tokens,
+                        "content": content,
+                        "usage": {
+                            "input_tokens": total_input_tokens,
+                            "output_tokens": total_output_tokens,
                         },
                     }
 
                 # Execute tools and prepare tool results
-                messages.append({'role': 'assistant', 'content': response.content})
+                messages.append({"role": "assistant", "content": response.content})
 
                 tool_results = []
                 for tool_block in tool_use_blocks:
                     tool_result = await self._execute_tool(tool_block.name, tool_block.input)
                     logger.info(f"Tool '{tool_block.name}' returned: {tool_result[:200]}...")
-                    tool_results.append({
-                        'type': 'tool_result',
-                        'tool_use_id': tool_block.id,
-                        'content': tool_result,
-                    })
+                    tool_results.append(
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": tool_block.id,
+                            "content": tool_result,
+                        }
+                    )
 
                 # Add tool results to conversation
-                messages.append({'role': 'user', 'content': tool_results})
-                logger.debug(f"Continuing tool-calling loop iteration {iteration+1}/{MAX_ITERATIONS}")
+                messages.append({"role": "user", "content": tool_results})
+                logger.debug(
+                    f"Continuing tool-calling loop iteration {iteration+1}/{MAX_ITERATIONS}"
+                )
 
             # Max iterations reached - force final answer with one more call WITHOUT tools
             logger.warning(f"Max iterations ({MAX_ITERATIONS}) reached, forcing final answer")
-            messages.append({
-                'role': 'user',
-                'content': 'Based on all the information gathered above, provide ONLY the final answer to the question. No explanations, just the answer.'
-            })
+            messages.append(
+                {
+                    "role": "user",
+                    "content": "Based on all the information gathered above, provide ONLY the final answer to the question. No explanations, just the answer.",
+                }
+            )
             final_response = await client.messages.create(
                 model=self._model,
                 max_tokens=max_tokens,
@@ -181,52 +208,59 @@ class LLMProvider:
             total_input_tokens += final_response.usage.input_tokens
             total_output_tokens += final_response.usage.output_tokens
 
-            content = ''.join(
-                block.text for block in final_response.content if hasattr(block, 'text')
+            content = "".join(
+                block.text for block in final_response.content if hasattr(block, "text")
             )
             return {
-                'content': content,
-                'usage': {
-                    'input_tokens': total_input_tokens,
-                    'output_tokens': total_output_tokens,
+                "content": content,
+                "usage": {
+                    "input_tokens": total_input_tokens,
+                    "output_tokens": total_output_tokens,
                 },
             }
         else:
             # DSPy LM fallback
             result = client(prompt)
             text = result[0] if isinstance(result, list) else str(result)
-            return {'content': text, 'usage': {'input_tokens': 250, 'output_tokens': 250}}
+            return {"content": text, "usage": {"input_tokens": 250, "output_tokens": 250}}
 
-    async def stream(self, prompt: str, tools: Any = None, temperature: float = 0.7, max_tokens: int = 4000, **kwargs: Any) -> Any:
+    async def stream(
+        self,
+        prompt: str,
+        tools: Any = None,
+        temperature: float = 0.7,
+        max_tokens: int = 4000,
+        **kwargs: Any,
+    ) -> Any:
         """Stream tokens. Yields {'content': str} chunks, final chunk has 'usage'."""
         client = self._get_client()
 
-        if self._provider_name == 'anthropic':
+        if self._provider_name == "anthropic":
             api_kwargs = {
-                'model': self._model,
-                'max_tokens': max_tokens,
-                'temperature': temperature,
-                'messages': [{'role': 'user', 'content': prompt}],
+                "model": self._model,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+                "messages": [{"role": "user", "content": prompt}],
             }
             if tools:
-                api_kwargs['tools'] = tools
+                api_kwargs["tools"] = tools
 
             async with client.messages.stream(**api_kwargs) as stream:
                 async for text in stream.text_stream:
-                    yield {'content': text}
+                    yield {"content": text}
 
                 response = await stream.get_final_message()
                 yield {
-                    'content': '',
-                    'usage': {
-                        'input_tokens': response.usage.input_tokens,
-                        'output_tokens': response.usage.output_tokens,
+                    "content": "",
+                    "usage": {
+                        "input_tokens": response.usage.input_tokens,
+                        "output_tokens": response.usage.output_tokens,
                     },
                 }
         else:
             # Non-streaming fallback
             result = await self.generate(prompt, tools, temperature, max_tokens, **kwargs)
-            yield {'content': result['content'], 'usage': result.get('usage', {})}
+            yield {"content": result["content"], "usage": result.get("usage", {})}
 
 
 class ComplexityGate:
@@ -250,6 +284,7 @@ class ComplexityGate:
     def _get_client(self) -> Any:
         if self._client is None:
             import anthropic
+
             self._client = anthropic.AsyncAnthropic()
         return self._client
 
@@ -264,15 +299,24 @@ class ComplexityGate:
                 model="claude-haiku-4-5-20251001",
                 max_tokens=8,
                 temperature=0.0,
-                messages=[{
-                    "role": "user",
-                    "content": self._PROMPT.format(goal=goal[:500]),
-                }],
+                messages=[
+                    {
+                        "role": "user",
+                        "content": self._PROMPT.format(goal=goal[:500]),
+                    }
+                ],
             )
             text = response.content[0].text.strip().upper() if response.content else ""
             return text.startswith("DIRECT")
+        except (LLMError, ConfigurationError) as e:
+            logger.warning(
+                f"ComplexityGate classification failed (LLM/config), defaulting to planning: {e}"
+            )
+            return False
         except Exception as e:
-            logger.warning(f"ComplexityGate classification failed, defaulting to planning: {e}")
+            logger.warning(
+                f"ComplexityGate classification failed unexpectedly, defaulting to planning: {e}"
+            )
             return False
 
 
@@ -287,8 +331,16 @@ class TierExecutor:
     """
 
     # Prompt file paths for ValidatorAgent
-    _AUDITOR_PROMPT = Path(__file__).parent.parent.parent / 'configs' / 'prompts' / 'auditor' / 'base_auditor.md'
-    _ARCHITECT_PROMPT = Path(__file__).parent.parent.parent / 'configs' / 'prompts' / 'architect' / 'base_architect.md'
+    _AUDITOR_PROMPT = (
+        Path(__file__).parent.parent.parent / "configs" / "prompts" / "auditor" / "base_auditor.md"
+    )
+    _ARCHITECT_PROMPT = (
+        Path(__file__).parent.parent.parent
+        / "configs"
+        / "prompts"
+        / "architect"
+        / "base_architect.md"
+    )
 
     def __init__(
         self,
@@ -319,6 +371,7 @@ class TierExecutor:
         """Lazy-load UnifiedRegistry."""
         if self._registry is None:
             from Jotty.core.capabilities.registry import get_unified_registry
+
             self._registry = get_unified_registry()
         return self._registry
 
@@ -358,6 +411,7 @@ class TierExecutor:
         """Lazy-load MetricsCollector singleton."""
         if self._metrics is None:
             from Jotty.core.infrastructure.monitoring.observability import get_metrics
+
             self._metrics = get_metrics()
         return self._metrics
 
@@ -366,6 +420,7 @@ class TierExecutor:
         """Lazy-load TracingContext singleton."""
         if self._tracer is None:
             from Jotty.core.infrastructure.monitoring.observability import get_tracer
+
             self._tracer = get_tracer()
         return self._tracer
 
@@ -374,6 +429,7 @@ class TierExecutor:
         """Lazy-load CostTracker instance."""
         if self._cost_tracker is None:
             from Jotty.core.infrastructure.monitoring.monitoring.cost_tracker import CostTracker
+
             self._cost_tracker = CostTracker()
         return self._cost_tracker
 
@@ -392,11 +448,12 @@ class TierExecutor:
         """Create TaskPlanner directly — no adapter wrapper."""
         try:
             from Jotty.core.modes.agent.baseic_planner import TaskPlanner
+
             return TaskPlanner()
         except (ImportError, ConfigurationError) as e:
             logger.warning(f"TaskPlanner creation failed (config/import): {e}")
             return None
-        except Exception as e:
+        except (AttributeError, TypeError, ValueError) as e:
             logger.warning(f"TaskPlanner creation failed (unexpected): {e}")
             return None
 
@@ -407,8 +464,11 @@ class TierExecutor:
         cannot be instantiated (e.g. DSPy not configured).
         """
         try:
-            from Jotty.core.modes.agent.inspector import ValidatorAgent, MultiRoundValidator
-            from Jotty.core.infrastructure.foundation.data_structures import SwarmLearningConfig, SharedScratchpad
+            from Jotty.core.infrastructure.foundation.data_structures import (
+                SharedScratchpad,
+                SwarmLearningConfig,
+            )
+            from Jotty.core.modes.agent.inspector import MultiRoundValidator, ValidatorAgent
 
             swarm_config_dict = self.config.to_swarm_config()
             swarm_config = SwarmConfig(**swarm_config_dict)
@@ -425,15 +485,18 @@ class TierExecutor:
             # Inject DSPy LM so validation works without global dspy.configure()
             try:
                 import dspy
+
                 auditor._dspy_lm = dspy.LM(model="anthropic/claude-haiku-4-5-20251001")
             except Exception as lm_err:
                 logger.debug(f"Could not inject DSPy LM into auditor: {lm_err}")
 
             return MultiRoundValidator([auditor], swarm_config)
         except (ImportError, ConfigurationError) as e:
-            logger.warning(f"ValidatorAgent creation failed (config/import), using LLM fallback: {e}")
+            logger.warning(
+                f"ValidatorAgent creation failed (config/import), using LLM fallback: {e}"
+            )
             return _FallbackValidator(self.provider)
-        except Exception as e:
+        except (AttributeError, TypeError, ValueError) as e:
             logger.warning(f"ValidatorAgent creation failed (unexpected), using LLM fallback: {e}")
             return _FallbackValidator(self.provider)
 
@@ -456,37 +519,41 @@ class TierExecutor:
         # Classify task intent using semantic understanding
         from Jotty.core.modes.execution.intent_classifier import classify_task_intent
 
-        attachments = kwargs.get('attachments', [])
+        attachments = kwargs.get("attachments", [])
         intent_analysis = classify_task_intent(goal, attachments)
 
-        logger.info(f"Intent classified: {intent_analysis.intent.value} "
-                   f"(confidence: {intent_analysis.confidence:.2f})")
+        logger.info(
+            f"Intent classified: {intent_analysis.intent.value} "
+            f"(confidence: {intent_analysis.confidence:.2f})"
+        )
 
         # Route FACT_RETRIEVAL tasks to TIER 1 (DIRECT) with tools
         # This ensures proper tool-calling loop execution
-        if intent_analysis.intent.value == 'fact_retrieval':
+        if intent_analysis.intent.value == "fact_retrieval":
             logger.info("Routing FACT_RETRIEVAL to TIER 1 (DIRECT) with tool execution")
 
             # Force TIER 1 execution for fact-retrieval tasks
             config.tier = ExecutionTier.DIRECT
 
             # Pass intent for answer extraction
-            kwargs['_intent'] = 'fact_retrieval'
+            kwargs["_intent"] = "fact_retrieval"
 
             # Hint the registry with detected tools (helps skill discovery)
             if intent_analysis.required_tools:
-                kwargs['hint_skills'] = intent_analysis.required_tools
+                kwargs["hint_skills"] = intent_analysis.required_tools
                 logger.debug(f"Hinting tools for fact-retrieval: {intent_analysis.required_tools}")
 
             # Continue to normal execution (will hit TIER 1 path below)
 
         # Pop deprecated GAIA-specific hacks (no longer needed)
-        _skip_complexity_gate = kwargs.pop('skip_complexity_gate', False)
-        _hint_skills = kwargs.pop('hint_skills', [])
-        _skip_swarm_selection = kwargs.pop('skip_swarm_selection', False)
+        _skip_complexity_gate = kwargs.pop("skip_complexity_gate", False)
+        _hint_skills = kwargs.pop("hint_skills", [])
+        _skip_swarm_selection = kwargs.pop("skip_swarm_selection", False)
 
         if _skip_swarm_selection:
-            logger.warning("skip_swarm_selection is deprecated - using intent classification instead")
+            logger.warning(
+                "skip_swarm_selection is deprecated - using intent classification instead"
+            )
 
         # Auto-detect tier if not specified
         if config.tier is None:
@@ -494,10 +561,12 @@ class TierExecutor:
             logger.info(f"Auto-detected tier: {config.tier.name}")
 
         # Start trace
-        trace = self.tracer.new_trace(metadata={
-            'goal': goal[:200],
-            'tier': config.tier.name,
-        })
+        trace = self.tracer.new_trace(
+            metadata={
+                "goal": goal[:200],
+                "tier": config.tier.name,
+            }
+        )
 
         # Route to appropriate tier
         try:
@@ -506,7 +575,9 @@ class TierExecutor:
                     result = await self._execute_tier1(goal, config, status_callback, **kwargs)
                 elif config.tier == ExecutionTier.AGENTIC:
                     result = await self._execute_tier2(
-                        goal, config, status_callback,
+                        goal,
+                        config,
+                        status_callback,
                         skip_complexity_gate=_skip_complexity_gate,
                         hint_skills=_hint_skills,
                         **kwargs,
@@ -515,13 +586,17 @@ class TierExecutor:
                     result = await self._execute_tier3(goal, config, status_callback, **kwargs)
                 elif config.tier == ExecutionTier.AUTONOMOUS:
                     result = await self._execute_tier5(
-                        goal, config, status_callback,
+                        goal,
+                        config,
+                        status_callback,
                         skip_swarm_selection=_skip_swarm_selection,
                         **kwargs,
                     )
                 else:  # RESEARCH
                     result = await self._execute_tier4(
-                        goal, config, status_callback,
+                        goal,
+                        config,
+                        status_callback,
                         skip_swarm_selection=_skip_swarm_selection,
                         **kwargs,
                     )
@@ -543,12 +618,12 @@ class TierExecutor:
                 task_type=config.tier.name.lower(),
                 duration_s=result.latency_ms / 1000,
                 success=result.success,
-                input_tokens=result.metadata.get('tokens', 0),
+                input_tokens=result.metadata.get("tokens", 0),
                 output_tokens=0,
                 cost_usd=result.cost_usd,
                 llm_calls=result.llm_calls,
                 error=result.error,
-                metadata={'goal': goal[:200]},
+                metadata={"goal": goal[:200]},
             )
 
             logger.info(f"Execution complete: {result}")
@@ -557,7 +632,7 @@ class TierExecutor:
         except (ExecutionError, LLMError) as e:
             logger.warning(f"Execution failed (recoverable): {e}")
             self.tracer.end_trace()
-            duration_s = (time.time() - start_time)
+            duration_s = time.time() - start_time
 
             self.metrics.record_execution(
                 agent_name=f"tier_{config.tier.value}",
@@ -577,7 +652,7 @@ class TierExecutor:
         except Exception as e:
             logger.error(f"Execution failed (unexpected): {e}", exc_info=True)
             self.tracer.end_trace()
-            duration_s = (time.time() - start_time)
+            duration_s = time.time() - start_time
 
             self.metrics.record_execution(
                 agent_name=f"tier_{config.tier.value}",
@@ -599,7 +674,9 @@ class TierExecutor:
     # STREAMING
     # =========================================================================
 
-    async def stream(self, goal: str, config: Optional[ExecutionConfig] = None, **kwargs: Any) -> AsyncGenerator[StreamEvent, None]:
+    async def stream(
+        self, goal: str, config: Optional[ExecutionConfig] = None, **kwargs: Any
+    ) -> AsyncGenerator[StreamEvent, None]:
         """Stream execution events as an async generator."""
         config = config or self.config
 
@@ -609,7 +686,7 @@ class TierExecutor:
 
         yield StreamEvent(
             type=StreamEventType.STATUS,
-            data={'stage': 'start', 'detail': f'Tier {config.tier.name} detected'},
+            data={"stage": "start", "detail": f"Tier {config.tier.name} detected"},
             tier=config.tier,
         )
 
@@ -623,11 +700,13 @@ class TierExecutor:
         queue = asyncio.Queue()
 
         def _callback(stage: str, detail: str) -> Any:
-            queue.put_nowait(StreamEvent(
-                type=StreamEventType.STATUS,
-                data={'stage': stage, 'detail': detail},
-                tier=config.tier,
-            ))
+            queue.put_nowait(
+                StreamEvent(
+                    type=StreamEventType.STATUS,
+                    data={"stage": stage, "detail": detail},
+                    tier=config.tier,
+                )
+            )
 
         # Run execute() as a background task, feeding events via callback
         task = asyncio.create_task(
@@ -657,45 +736,47 @@ class TierExecutor:
         except Exception as e:
             yield StreamEvent(
                 type=StreamEventType.ERROR,
-                data={'error': str(e)},
+                data={"error": str(e)},
                 tier=config.tier,
             )
 
-    async def _stream_tier1(self, goal: str, config: ExecutionConfig, **kwargs: Any) -> AsyncGenerator[StreamEvent, None]:
+    async def _stream_tier1(
+        self, goal: str, config: ExecutionConfig, **kwargs: Any
+    ) -> AsyncGenerator[StreamEvent, None]:
         """Stream Tier 1 execution with token-level streaming."""
         tier = ExecutionTier.DIRECT
         start_time = time.time()
 
         # Start trace
-        trace = self.tracer.new_trace(metadata={'goal': goal[:200], 'tier': 'DIRECT'})
+        trace = self.tracer.new_trace(metadata={"goal": goal[:200], "tier": "DIRECT"})
 
         yield StreamEvent(
             type=StreamEventType.STATUS,
-            data={'stage': 'direct', 'detail': 'Discovering skills...'},
+            data={"stage": "direct", "detail": "Discovering skills..."},
             tier=tier,
         )
 
         # Discover skills
         discovery = self.registry.discover_for_task(goal)
-        raw_skills = discovery.get('skills', [])[:5]
-        skill_names = [s['name'] if isinstance(s, dict) else s for s in raw_skills]
+        raw_skills = discovery.get("skills", [])[:5]
+        skill_names = [s["name"] if isinstance(s, dict) else s for s in raw_skills]
         tools = self.registry.get_claude_tools(skill_names) if skill_names else []
 
         yield StreamEvent(
             type=StreamEventType.STATUS,
-            data={'stage': 'direct', 'detail': f'Found {len(skill_names)} skills, calling LLM...'},
+            data={"stage": "direct", "detail": f"Found {len(skill_names)} skills, calling LLM..."},
             tier=tier,
         )
 
-        model = self.config.model or 'claude-sonnet-4'
-        provider_name = self.config.provider or 'anthropic'
+        model = self.config.model or "claude-sonnet-4"
+        provider_name = self.config.provider or "anthropic"
 
         with self.tracer.span("execute", tier="DIRECT", goal=goal[:100]) as root_span:
             with self.tracer.span("tier1_llm_call", tools=len(tools), streaming=True) as llm_span:
                 llm_start = time.time()
 
                 # Try token streaming if provider supports it
-                if hasattr(self.provider, 'stream'):
+                if hasattr(self.provider, "stream"):
                     collected_tokens = []
                     usage = {}
 
@@ -705,16 +786,16 @@ class TierExecutor:
                         temperature=config.temperature,
                         max_tokens=config.max_tokens,
                     ):
-                        token = chunk.get('content', chunk.get('delta', ''))
+                        token = chunk.get("content", chunk.get("delta", ""))
                         if token:
                             collected_tokens.append(token)
                             yield StreamEvent(type=StreamEventType.TOKEN, data=token, tier=tier)
 
                         # Last chunk often carries usage
-                        if 'usage' in chunk:
-                            usage = chunk['usage']
+                        if "usage" in chunk:
+                            usage = chunk["usage"]
 
-                    output = ''.join(collected_tokens)
+                    output = "".join(collected_tokens)
                 else:
                     # Fallback to non-streaming
                     response = await self.provider.generate(
@@ -723,13 +804,13 @@ class TierExecutor:
                         temperature=config.temperature,
                         max_tokens=config.max_tokens,
                     )
-                    output = response.get('content', response)
-                    usage = response.get('usage', {})
+                    output = response.get("content", response)
+                    usage = response.get("usage", {})
 
                 llm_time = (time.time() - llm_start) * 1000
 
-                input_tokens = usage.get('input_tokens', 250)
-                output_tokens = usage.get('output_tokens', 250)
+                input_tokens = usage.get("input_tokens", 250)
+                output_tokens = usage.get("output_tokens", 250)
                 record = self.cost_tracker.record_llm_call(
                     provider=provider_name,
                     model=model,
@@ -758,24 +839,24 @@ class TierExecutor:
             completed_at=datetime.now(),
             trace=traces[-1] if traces else trace,
             metadata={
-                'skills_discovered': skill_names,
-                'tools_used': len(tools),
-                'tokens': input_tokens + output_tokens,
-                'streamed': hasattr(self.provider, 'stream'),
+                "skills_discovered": skill_names,
+                "tools_used": len(tools),
+                "tokens": input_tokens + output_tokens,
+                "streamed": hasattr(self.provider, "stream"),
             },
         )
 
         # Record to metrics
         self.metrics.record_execution(
-            agent_name='tier_1',
-            task_type='direct',
+            agent_name="tier_1",
+            task_type="direct",
             duration_s=latency_ms / 1000,
             success=True,
             input_tokens=input_tokens,
             output_tokens=output_tokens,
             cost_usd=record.cost,
             llm_calls=1,
-            metadata={'goal': goal[:200]},
+            metadata={"goal": goal[:200]},
         )
 
         yield StreamEvent(type=StreamEventType.RESULT, data=result, tier=tier)
@@ -784,7 +865,9 @@ class TierExecutor:
     # TIER 1: DIRECT - Single LLM call
     # =========================================================================
 
-    async def _execute_tier1(self, goal: str, config: ExecutionConfig, status_callback: Optional[Callable], **kwargs: Any) -> ExecutionResult:
+    async def _execute_tier1(
+        self, goal: str, config: ExecutionConfig, status_callback: Optional[Callable], **kwargs: Any
+    ) -> ExecutionResult:
         """Tier 1: Direct LLM call with tools. Expected: 1 LLM call, 1-2s, $0.01."""
         logger.info(f"[Tier 1: DIRECT] Executing: {goal[:50]}...")
 
@@ -793,26 +876,26 @@ class TierExecutor:
 
         # For fact-retrieval tasks, force essential research tools
         # The default discovery returns irrelevant skills (mindmap, slides, etc.)
-        if kwargs.get('_intent') == 'fact_retrieval':
+        if kwargs.get("_intent") == "fact_retrieval":
             # GAIA/fact-retrieval tasks need: search, PDF reading, calculator, files, browser automation
             # Top performers (75%+) use: multi-agent architecture, browser interaction, PDF parsing
             skill_names = [
-                'web-search',           # Web search + fetch_webpage_tool for PDFs
-                'web-scraper',          # Structured data extraction from HTML/tables
-                'browser-automation',   # Form filling, JS execution, table extraction
-                'document-converter',   # PDF/doc conversion
-                'pdf-tools',           # Advanced PDF parsing and text extraction
-                'calculator',          # Mathematical calculations
-                'file-operations',     # File I/O
-                'openai-whisper-api',  # Audio transcription for tasks with .mp3
-                'youtube-downloader',  # YouTube transcript download for video tasks (CORRECT NAME!)
+                "web-search",  # Web search + fetch_webpage_tool for PDFs
+                "web-scraper",  # Structured data extraction from HTML/tables
+                "browser-automation",  # Form filling, JS execution, table extraction
+                "document-converter",  # PDF/doc conversion
+                "pdf-tools",  # Advanced PDF parsing and text extraction
+                "calculator",  # Mathematical calculations
+                "file-operations",  # File I/O
+                "openai-whisper-api",  # Audio transcription for tasks with .mp3
+                "youtube-downloader",  # YouTube transcript download for video tasks (CORRECT NAME!)
             ]
             logger.info(f"Using curated tools for fact-retrieval: {skill_names}")
         else:
             # Normal discovery for other task types
             discovery = self.registry.discover_for_task(goal)
-            raw_skills = discovery.get('skills', [])[:5]
-            skill_names = [s['name'] if isinstance(s, dict) else s for s in raw_skills]
+            raw_skills = discovery.get("skills", [])[:5]
+            skill_names = [s["name"] if isinstance(s, dict) else s for s in raw_skills]
 
         if status_callback:
             status_callback("direct", f"Found {len(skill_names)} skills")
@@ -821,7 +904,9 @@ class TierExecutor:
         tools = []
         if skill_names:
             tools = self.registry.get_claude_tools(skill_names)
-            logger.info(f"Loaded {len(tools)} tool definitions: {[t.get('name', '?') for t in tools]}")
+            logger.info(
+                f"Loaded {len(tools)} tool definitions: {[t.get('name', '?') for t in tools]}"
+            )
 
         if status_callback:
             status_callback("direct", "Calling LLM...")
@@ -837,15 +922,15 @@ class TierExecutor:
             )
             llm_time = (time.time() - llm_start) * 1000
 
-            usage = response.get('usage', {})
-            input_tokens = usage.get('input_tokens', 250)
-            output_tokens = usage.get('output_tokens', 250)
+            usage = response.get("usage", {})
+            input_tokens = usage.get("input_tokens", 250)
+            output_tokens = usage.get("output_tokens", 250)
             tokens = input_tokens + output_tokens
 
             # Use CostTracker for precise cost
-            model = self.config.model or 'claude-sonnet-4'
+            model = self.config.model or "claude-sonnet-4"
             record = self.cost_tracker.record_llm_call(
-                provider=self.config.provider or 'anthropic',
+                provider=self.config.provider or "anthropic",
                 model=model,
                 input_tokens=input_tokens,
                 output_tokens=output_tokens,
@@ -857,11 +942,11 @@ class TierExecutor:
             llm_span.add_cost(input_tokens, output_tokens, cost)
 
         # Extract final answer content
-        output = response.get('content', response)
+        output = response.get("content", response)
 
         # For fact-retrieval tasks (from intent classification), extract concise answer
         # This ensures GAIA benchmark gets "79" not "The answer is 79 because..."
-        if kwargs.get('_intent') == 'fact_retrieval' and len(output) > 100:
+        if kwargs.get("_intent") == "fact_retrieval" and len(output) > 100:
             # Response is too verbose for a fact answer - extract the actual answer
             extraction_prompt = f"""Extract ONLY the final answer from this response. Return just the answer with no explanation.
 
@@ -881,22 +966,26 @@ Final Answer:"""
                 temperature=0.0,
                 max_tokens=100,
             )
-            extracted = extraction_response.get('content', '').strip()
+            extracted = extraction_response.get("content", "").strip()
 
             # Use extracted answer if it's significantly shorter and non-empty
             # BUT don't use it if it's empty or just says "Unable to..." or error messages
             # ALSO avoid over-extraction (e.g., "Rockhopper penguin" → "penguin")
-            if (extracted and
-                len(extracted) < len(output) / 3 and
-                len(extracted) > 0 and
-                not extracted.lower().startswith(('unable', 'error', 'i cannot', 'i apologize'))):
+            if (
+                extracted
+                and len(extracted) < len(output) / 3
+                and len(extracted) > 0
+                and not extracted.lower().startswith(("unable", "error", "i cannot", "i apologize"))
+            ):
 
                 # Check for over-extraction: if original is 2-5 words and extracted is 1, keep original
                 output_words = output.strip().split()
                 extracted_words = extracted.strip().split()
                 if len(output_words) >= 2 and len(extracted_words) == 1 and len(output_words) <= 5:
                     # Original is short (2-5 words), extracted to 1 word - too aggressive
-                    logger.warning(f"Skipping extraction: '{output}' → '{extracted}' (removes qualifier)")
+                    logger.warning(
+                        f"Skipping extraction: '{output}' → '{extracted}' (removes qualifier)"
+                    )
                 else:
                     logger.info(f"Extracted concise answer: '{extracted}' from verbose response")
                     output = extracted
@@ -913,34 +1002,43 @@ Final Answer:"""
             latency_ms=llm_time,
             cost_usd=cost,
             metadata={
-                'skills_discovered': skill_names,
-                'tools_used': len(tools),
-                'tokens': tokens,
-                '_intent': kwargs.get('_intent'),
-            }
+                "skills_discovered": skill_names,
+                "tools_used": len(tools),
+                "tokens": tokens,
+                "_intent": kwargs.get("_intent"),
+            },
         )
 
     def _is_numerical_question(self, question: str) -> bool:
         """Check if question expects a numerical answer."""
         q_lower = question.lower()
         numerical_indicators = [
-            'how many', 'how much', 'what number', 'calculate', 'count',
-            'what year', 'when was', 'what is the', 'round to',
-            'p-value', 'stock', 'price', 'newton', 'smallest n',
+            "how many",
+            "how much",
+            "what number",
+            "calculate",
+            "count",
+            "what year",
+            "when was",
+            "what is the",
+            "round to",
+            "p-value",
+            "stock",
+            "price",
+            "newton",
+            "smallest n",
         ]
         return any(indicator in q_lower for indicator in numerical_indicators)
 
     async def _validate_numerical_answer(
-        self,
-        question: str,
-        answer: str,
-        tools: list
+        self, question: str, answer: str, tools: list
     ) -> Optional[str]:
         """Validate numerical answer and correct if obviously wrong."""
         try:
             # Extract any numbers from the answer
             import re
-            numbers = re.findall(r'-?\d+\.?\d*', answer)
+
+            numbers = re.findall(r"-?\d+\.?\d*", answer)
             if not numbers:
                 return None  # No numbers to validate
 
@@ -949,8 +1047,10 @@ Final Answer:"""
                 num = float(numbers[0])
 
                 # If question mentions "million" but answer is small, likely wrong
-                if 'million' in question.lower() and num < 1000:
-                    logger.warning(f"Magnitude mismatch: question mentions 'million' but answer is {num}")
+                if "million" in question.lower() and num < 1000:
+                    logger.warning(
+                        f"Magnitude mismatch: question mentions 'million' but answer is {num}"
+                    )
                     # Ask LLM to recalculate
                     validation_prompt = f"""The question asks: {question}
 
@@ -967,12 +1067,12 @@ Correct answer:"""
                         temperature=0.0,
                         max_tokens=100,
                     )
-                    corrected = retry_response.get('content', '').strip()
+                    corrected = retry_response.get("content", "").strip()
                     if corrected and corrected != answer:
                         return corrected
 
             # Check for year questions
-            if any(word in question.lower() for word in ['year', 'when was']):
+            if any(word in question.lower() for word in ["year", "when was"]):
                 for num_str in numbers:
                     try:
                         year = int(float(num_str))
@@ -984,7 +1084,7 @@ Correct answer:"""
 
             return None  # No correction needed
 
-        except Exception as e:
+        except (LLMError, ValueError, TypeError) as e:
             logger.error(f"Validation error: {e}")
             return None
 
@@ -992,7 +1092,9 @@ Correct answer:"""
     # TIER 2: AGENTIC - Planning + Orchestration
     # =========================================================================
 
-    async def _execute_tier2(self, goal: str, config: ExecutionConfig, status_callback: Optional[Callable], **kwargs: Any) -> ExecutionResult:
+    async def _execute_tier2(
+        self, goal: str, config: ExecutionConfig, status_callback: Optional[Callable], **kwargs: Any
+    ) -> ExecutionResult:
         """Tier 2: Agentic execution with planning. Expected: 3-5 LLM calls, 3-5s, $0.03."""
         logger.info(f"[Tier 2: AGENTIC] Executing: {goal[:50]}...")
 
@@ -1000,8 +1102,8 @@ Correct answer:"""
         total_cost = 0.0
 
         # Extract GAIA-specific kwargs before they propagate
-        skip_gate = kwargs.pop('skip_complexity_gate', False)
-        hint_skills = kwargs.pop('hint_skills', [])
+        skip_gate = kwargs.pop("skip_complexity_gate", False)
+        hint_skills = kwargs.pop("hint_skills", [])
 
         # ComplexityGate: check if this can be answered directly without planning
         if skip_gate:
@@ -1009,7 +1111,7 @@ Correct answer:"""
         else:
             try:
                 skip_planning = await self.complexity_gate.should_skip_planning(goal)
-            except Exception as e:
+            except (LLMError, ConfigurationError, ConnectionError) as e:
                 logger.warning(f"ComplexityGate error, proceeding with planning: {e}")
                 skip_planning = False
 
@@ -1027,12 +1129,12 @@ Correct answer:"""
                 )
                 llm_duration = time.time() - llm_start
 
-                usage = response.get('usage', {})
-                input_tokens = usage.get('input_tokens', 250)
-                output_tokens = usage.get('output_tokens', 250)
+                usage = response.get("usage", {})
+                input_tokens = usage.get("input_tokens", 250)
+                output_tokens = usage.get("output_tokens", 250)
                 record = self.cost_tracker.record_llm_call(
-                    provider=self.config.provider or 'anthropic',
-                    model=self.config.model or 'claude-sonnet-4',
+                    provider=self.config.provider or "anthropic",
+                    model=self.config.model or "claude-sonnet-4",
                     input_tokens=input_tokens,
                     output_tokens=output_tokens,
                     success=True,
@@ -1041,14 +1143,14 @@ Correct answer:"""
                 bypass_span.add_cost(input_tokens, output_tokens, record.cost)
 
             return ExecutionResult(
-                output=response.get('content', response),
+                output=response.get("content", response),
                 tier=ExecutionTier.AGENTIC,
                 success=True,
                 llm_calls=1,
                 cost_usd=record.cost,
                 metadata={
-                    'complexity_gate': 'direct',
-                    'tokens': input_tokens + output_tokens,
+                    "complexity_gate": "direct",
+                    "tokens": input_tokens + output_tokens,
                 },
             )
 
@@ -1063,8 +1165,8 @@ Correct answer:"""
             total_llm_calls += 1
 
             plan_record = self.cost_tracker.record_llm_call(
-                provider=self.config.provider or 'anthropic',
-                model=self.config.model or 'claude-sonnet-4',
+                provider=self.config.provider or "anthropic",
+                model=self.config.model or "claude-sonnet-4",
                 input_tokens=500,
                 output_tokens=300,
                 success=True,
@@ -1087,37 +1189,44 @@ Correct answer:"""
 
             step.started_at = datetime.now()
 
-            with self.tracer.span(f"tier2_step_{step.step_num}", description=step.description[:80]) as step_span:
+            with self.tracer.span(
+                f"tier2_step_{step.step_num}", description=step.description[:80]
+            ) as step_span:
                 try:
                     step_result = await self._execute_step(step, config)
-                    step.result = step_result.get('output')
+                    step.result = step_result.get("output")
                     step.completed_at = datetime.now()
 
-                    step_calls = step_result.get('llm_calls', 1)
-                    step_cost = step_result.get('cost', 0.0)
+                    step_calls = step_result.get("llm_calls", 1)
+                    step_cost = step_result.get("cost", 0.0)
                     total_llm_calls += step_calls
                     total_cost += step_cost
                     step_span.add_cost(
-                        step_result.get('input_tokens', 0),
-                        step_result.get('output_tokens', 0),
+                        step_result.get("input_tokens", 0),
+                        step_result.get("output_tokens", 0),
                         step_cost,
                     )
 
                     results.append(step_result)
 
-                except Exception as e:
+                except (ExecutionError, LLMError, ValueError, TimeoutError) as e:
                     logger.error(f"Step {step.step_num} failed: {e}")
+                    step.error = str(e)
+                    step.completed_at = datetime.now()
+                    step_span.set_status(SpanStatus.ERROR, str(e))
+                except Exception as e:
+                    logger.error(f"Step {step.step_num} failed unexpectedly: {e}", exc_info=True)
                     step.error = str(e)
                     step.completed_at = datetime.now()
                     step_span.set_status(SpanStatus.ERROR, str(e))
 
         # Step 3: Synthesize results
         synthesis = await self._synthesize_results(results, goal)
-        total_llm_calls += synthesis.get('llm_calls', 0)
-        total_cost += synthesis.get('cost', 0.0)
+        total_llm_calls += synthesis.get("llm_calls", 0)
+        total_cost += synthesis.get("cost", 0.0)
 
         return ExecutionResult(
-            output=synthesis['output'],
+            output=synthesis["output"],
             tier=ExecutionTier.AGENTIC,
             success=all(s.is_complete and not s.error for s in plan.steps),
             llm_calls=total_llm_calls,
@@ -1130,7 +1239,9 @@ Correct answer:"""
     # TIER 3: LEARNING - Memory + Validation
     # =========================================================================
 
-    async def _execute_tier3(self, goal: str, config: ExecutionConfig, status_callback: Optional[Callable], **kwargs: Any) -> ExecutionResult:
+    async def _execute_tier3(
+        self, goal: str, config: ExecutionConfig, status_callback: Optional[Callable], **kwargs: Any
+    ) -> ExecutionResult:
         """Tier 3: Learning with memory and validation. Expected: 5-10 LLM calls, 5-10s, $0.06."""
         logger.info(f"[Tier 3: LEARNING] Executing: {goal[:50]}...")
 
@@ -1169,7 +1280,9 @@ Correct answer:"""
         )
 
         with self.tracer.span("tier3_execute") as exec_span:
-            result = await self._execute_tier2(enriched_goal, tier2_config, status_callback, **kwargs)
+            result = await self._execute_tier2(
+                enriched_goal, tier2_config, status_callback, **kwargs
+            )
             total_llm_calls += result.llm_calls
             total_cost += result.cost_usd
             exec_span.add_cost(0, 0, result.cost_usd)
@@ -1187,8 +1300,8 @@ Correct answer:"""
                 total_llm_calls += 1
 
                 val_record = self.cost_tracker.record_llm_call(
-                    provider=self.config.provider or 'anthropic',
-                    model=self.config.model or 'claude-sonnet-4',
+                    provider=self.config.provider or "anthropic",
+                    model=self.config.model or "claude-sonnet-4",
                     input_tokens=400,
                     output_tokens=200,
                     success=True,
@@ -1200,13 +1313,19 @@ Correct answer:"""
 
                 # Retry if validation fails and retries enabled
                 if not validation.success and config.validation_retries > 0:
-                    logger.info(f"Validation failed, retrying... ({config.validation_retries} attempts)")
+                    logger.info(
+                        f"Validation failed, retrying... ({config.validation_retries} attempts)"
+                    )
 
                     for attempt in range(config.validation_retries):
                         if status_callback:
-                            status_callback("retrying", f"Retry {attempt + 1}/{config.validation_retries}")
+                            status_callback(
+                                "retrying", f"Retry {attempt + 1}/{config.validation_retries}"
+                            )
 
-                        feedback_goal = f"{goal}\n\nPrevious attempt feedback: {validation.feedback}"
+                        feedback_goal = (
+                            f"{goal}\n\nPrevious attempt feedback: {validation.feedback}"
+                        )
                         retry_result = await self._execute_tier2(
                             feedback_goal, tier2_config, status_callback, **kwargs
                         )
@@ -1220,8 +1339,8 @@ Correct answer:"""
                         total_llm_calls += 1
 
                         retry_val_record = self.cost_tracker.record_llm_call(
-                            provider=self.config.provider or 'anthropic',
-                            model=self.config.model or 'claude-sonnet-4',
+                            provider=self.config.provider or "anthropic",
+                            model=self.config.model or "claude-sonnet-4",
                             input_tokens=400,
                             output_tokens=200,
                             success=True,
@@ -1258,11 +1377,13 @@ Correct answer:"""
     # TIER 4: RESEARCH - Domain Swarm Execution
     # =========================================================================
 
-    async def _execute_tier4(self, goal: str, config: ExecutionConfig, status_callback: Optional[Callable], **kwargs: Any) -> ExecutionResult:
+    async def _execute_tier4(
+        self, goal: str, config: ExecutionConfig, status_callback: Optional[Callable], **kwargs: Any
+    ) -> ExecutionResult:
         """Tier 4: Domain swarm execution. Expected: 10-30s, $0.15."""
         logger.info(f"[Tier 4: RESEARCH] Executing with domain swarm...")
 
-        skip_swarm = kwargs.pop('skip_swarm_selection', False)
+        skip_swarm = kwargs.pop("skip_swarm_selection", False)
 
         if status_callback:
             status_callback("research", "Selecting domain swarm...")
@@ -1279,23 +1400,31 @@ Correct answer:"""
         # Execute directly with tracing
         with self.tracer.span("tier4_swarm", swarm=swarm.__class__.__name__) as swarm_span:
             result = await swarm.execute(task=goal, **kwargs)
-            swarm_span.set_attribute("success", result.success if hasattr(result, 'success') else True)
+            swarm_span.set_attribute(
+                "success", result.success if hasattr(result, "success") else True
+            )
 
         # Wrap in ExecutionResult
         return ExecutionResult(
-            output=_extract_output_text(result.output) if hasattr(result, 'output') else {'result': str(result)},
+            output=(
+                _extract_output_text(result.output)
+                if hasattr(result, "output")
+                else {"result": str(result)}
+            ),
             tier=ExecutionTier.RESEARCH,
-            success=result.success if hasattr(result, 'success') else True,
+            success=result.success if hasattr(result, "success") else True,
             swarm_name=swarm.__class__.__name__,
-            metadata={'direct_swarm': True},
+            metadata={"direct_swarm": True},
         )
 
-    async def _execute_with_swarm_manager(self, goal: str, config: ExecutionConfig, status_callback: Optional[Callable], **kwargs: Any) -> ExecutionResult:
+    async def _execute_with_swarm_manager(
+        self, goal: str, config: ExecutionConfig, status_callback: Optional[Callable], **kwargs: Any
+    ) -> ExecutionResult:
         """Delegate to Orchestrator when no specific swarm matches."""
         logger.info("[Tier 4: RESEARCH] Delegating to Orchestrator...")
 
-        from Jotty.core.intelligence.orchestration import Orchestrator
         from Jotty.core.infrastructure.foundation.data_structures import SwarmLearningConfig
+        from Jotty.core.intelligence.orchestration import Orchestrator
 
         swarm_config_dict = config.to_swarm_config()
         swarm_config = SwarmConfig(**swarm_config_dict)
@@ -1304,11 +1433,7 @@ Correct answer:"""
         if status_callback:
             status_callback("research", "Executing with Orchestrator...")
 
-        sm_result = await swarm_manager.run(
-            goal=goal,
-            status_callback=status_callback,
-            **kwargs
-        )
+        sm_result = await swarm_manager.run(goal=goal, status_callback=status_callback, **kwargs)
 
         return ExecutionResult(
             output=_extract_output_text(sm_result.output),
@@ -1318,18 +1443,20 @@ Correct answer:"""
             latency_ms=int(sm_result.execution_time * 1000),
             cost_usd=0.0,
             episode=sm_result,
-            learning_data={'agent_contributions': sm_result.agent_contributions},
+            learning_data={"agent_contributions": sm_result.agent_contributions},
         )
 
     # =========================================================================
     # TIER 5: AUTONOMOUS - Sandbox + Coalition + Full Features
     # =========================================================================
 
-    async def _execute_tier5(self, goal: str, config: ExecutionConfig, status_callback: Optional[Callable], **kwargs: Any) -> ExecutionResult:
+    async def _execute_tier5(
+        self, goal: str, config: ExecutionConfig, status_callback: Optional[Callable], **kwargs: Any
+    ) -> ExecutionResult:
         """Tier 5: Autonomous execution with sandbox, coalition, curriculum."""
         logger.info(f"[Tier 5: AUTONOMOUS] Executing: {goal[:50]}...")
 
-        skip_swarm = kwargs.pop('skip_swarm_selection', False)
+        skip_swarm = kwargs.pop("skip_swarm_selection", False)
 
         if status_callback:
             status_callback("autonomous", "Selecting swarm...")
@@ -1341,13 +1468,14 @@ Correct answer:"""
             if config.enable_sandbox and swarm is not None:
                 try:
                     from Jotty.core.intelligence.orchestration.sandbox_manager import SandboxManager
+
                     sandbox = SandboxManager(trust_level=config.trust_level)
 
                     if status_callback:
                         status_callback("autonomous", "Executing in sandbox...")
 
                     result = await sandbox.execute(swarm, goal, **kwargs)
-                    sandbox_log = getattr(result, 'sandbox_log', None)
+                    sandbox_log = getattr(result, "sandbox_log", None)
                     auto_span.set_attribute("sandboxed", True)
                 except ImportError:
                     logger.warning("SandboxManager not available, executing without sandbox")
@@ -1355,20 +1483,27 @@ Correct answer:"""
                     if swarm is not None:
                         result = await swarm.execute(task=goal, **kwargs)
                     else:
-                        return await self._execute_with_swarm_manager(goal, config, status_callback, **kwargs)
+                        return await self._execute_with_swarm_manager(
+                            goal, config, status_callback, **kwargs
+                        )
             elif swarm is not None:
                 if status_callback:
                     status_callback("autonomous", f"Executing with {swarm.__class__.__name__}...")
                 result = await swarm.execute(task=goal, **kwargs)
                 auto_span.set_attribute("swarm", swarm.__class__.__name__)
             else:
-                return await self._execute_with_swarm_manager(goal, config, status_callback, **kwargs)
+                return await self._execute_with_swarm_manager(
+                    goal, config, status_callback, **kwargs
+                )
 
         # Optionally apply paradigm (debate/relay/refinement)
         paradigm_used = None
         if config.paradigm:
             try:
-                from Jotty.core.intelligence.orchestration.swarm_intelligence import SwarmIntelligence
+                from Jotty.core.intelligence.orchestration.swarm_intelligence import (
+                    SwarmIntelligence,
+                )
+
                 si = SwarmIntelligence()
                 paradigm_used = config.paradigm
                 logger.info(f"Applying paradigm: {config.paradigm}")
@@ -1376,13 +1511,17 @@ Correct answer:"""
                 logger.warning("SwarmIntelligence not available, skipping paradigm")
 
         return ExecutionResult(
-            output=_extract_output_text(result.output) if hasattr(result, 'output') else {'result': str(result)},
+            output=(
+                _extract_output_text(result.output)
+                if hasattr(result, "output")
+                else {"result": str(result)}
+            ),
             tier=ExecutionTier.AUTONOMOUS,
-            success=result.success if hasattr(result, 'success') else True,
+            success=result.success if hasattr(result, "success") else True,
             swarm_name=swarm.__class__.__name__ if swarm else None,
             paradigm_used=paradigm_used,
             sandbox_log=sandbox_log,
-            metadata={'autonomous': True, 'sandboxed': config.enable_sandbox},
+            metadata={"autonomous": True, "sandboxed": config.enable_sandbox},
         )
 
     # =========================================================================
@@ -1396,19 +1535,20 @@ Correct answer:"""
         if TierExecutor._swarms_registered:
             return
         swarm_modules = [
-            'Jotty.core.swarms.coding_swarm',
-            'Jotty.core.swarms.research_swarm',
-            'Jotty.core.swarms.testing_swarm',
-            'Jotty.core.swarms.review_swarm',
-            'Jotty.core.swarms.data_analysis_swarm',
-            'Jotty.core.swarms.devops_swarm',
-            'Jotty.core.swarms.idea_writer_swarm',
-            'Jotty.core.swarms.fundamental_swarm',
-            'Jotty.core.swarms.learning_swarm',
-            'Jotty.core.swarms.arxiv_learning_swarm',
-            'Jotty.core.swarms.olympiad_learning_swarm',
+            "Jotty.core.swarms.coding_swarm",
+            "Jotty.core.swarms.research_swarm",
+            "Jotty.core.swarms.testing_swarm",
+            "Jotty.core.swarms.review_swarm",
+            "Jotty.core.swarms.data_analysis_swarm",
+            "Jotty.core.swarms.devops_swarm",
+            "Jotty.core.swarms.idea_writer_swarm",
+            "Jotty.core.swarms.fundamental_swarm",
+            "Jotty.core.swarms.learning_swarm",
+            "Jotty.core.swarms.arxiv_learning_swarm",
+            "Jotty.core.swarms.olympiad_learning_swarm",
         ]
         import importlib
+
         for mod in swarm_modules:
             try:
                 importlib.import_module(mod)
@@ -1430,6 +1570,7 @@ Correct answer:"""
 
         # Use TaskClassifier for intelligent selection
         from .intent_classifier import get_task_classifier
+
         classifier = get_task_classifier()
         classification = classifier.classify_swarm(goal)
 
@@ -1449,7 +1590,9 @@ Correct answer:"""
     # HELPER METHODS
     # =========================================================================
 
-    async def _run_planner(self, goal: str, hint_skills: Optional[List[str]] = None) -> Dict[str, Any]:
+    async def _run_planner(
+        self, goal: str, hint_skills: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
         """Run TaskPlanner and return normalized plan dict.
 
         Calls planner.aplan_execution() directly. Handles both
@@ -1462,39 +1605,36 @@ Correct answer:"""
         planner = self.planner
 
         # If planner has .plan() (mock or legacy adapter), use it directly
-        if hasattr(planner, 'plan') and callable(getattr(planner, 'plan')):
+        if hasattr(planner, "plan") and callable(getattr(planner, "plan")):
             return await planner.plan(goal)
 
         # Real TaskPlanner: use aplan_execution
         skills = []
         try:
             discovery = self.registry.discover_for_task(goal)
-            skills = discovery.get('skills', [])[:10]
-        except Exception:
+            skills = discovery.get("skills", [])[:10]
+        except (ImportError, AttributeError, KeyError):
             pass
 
         # Merge hint skills (prepend so they're prioritized)
         if hint_skills:
-            existing_names = {
-                s['name'] if isinstance(s, dict) else s for s in skills
-            }
+            existing_names = {s["name"] if isinstance(s, dict) else s for s in skills}
             hint_dicts = [
-                {'name': s, 'description': s}
-                for s in hint_skills if s not in existing_names
+                {"name": s, "description": s} for s in hint_skills if s not in existing_names
             ]
             skills = hint_dicts + skills
 
         try:
             steps, reasoning = await planner.aplan_execution(
                 task=goal,
-                task_type='general',
+                task_type="general",
                 skills=skills,
             )
-        except Exception as e:
+        except (LLMError, ExecutionError, RuntimeError) as e:
             logger.warning(f"Async planning failed, trying sync: {e}")
             steps, reasoning = planner.plan_execution(
                 task=goal,
-                task_type='general',
+                task_type="general",
                 skills=skills,
             )
 
@@ -1502,14 +1642,14 @@ Correct answer:"""
         step_dicts = []
         for step in steps:
             step_dict = {
-                'description': getattr(step, 'description', str(step)),
-                'skill': getattr(step, 'skill_name', None),
+                "description": getattr(step, "description", str(step)),
+                "skill": getattr(step, "skill_name", None),
             }
-            if hasattr(step, 'depends_on'):
-                step_dict['depends_on'] = step.depends_on
+            if hasattr(step, "depends_on"):
+                step_dict["depends_on"] = step.depends_on
             step_dicts.append(step_dict)
 
-        return {'steps': step_dicts, 'reasoning': reasoning}
+        return {"steps": step_dicts, "reasoning": reasoning}
 
     def _parse_plan(self, goal: str, plan_result: Any) -> ExecutionPlan:
         """Convert planner output to ExecutionPlan.
@@ -1517,7 +1657,7 @@ Correct answer:"""
         Handles both dict results (from _run_planner) and
         raw ExecutionStep objects (from TaskPlanner).
         """
-        steps_data = plan_result.get('steps', [])
+        steps_data = plan_result.get("steps", [])
 
         steps = []
         for i, step_data in enumerate(steps_data):
@@ -1525,18 +1665,18 @@ Correct answer:"""
             if isinstance(step_data, dict):
                 step = ExecutionStep(
                     step_num=i + 1,
-                    description=step_data.get('description', f'Step {i+1}'),
-                    skill=step_data.get('skill'),
-                    depends_on=step_data.get('depends_on', []),
-                    can_parallelize=step_data.get('can_parallelize', False),
+                    description=step_data.get("description", f"Step {i+1}"),
+                    skill=step_data.get("skill"),
+                    depends_on=step_data.get("depends_on", []),
+                    can_parallelize=step_data.get("can_parallelize", False),
                 )
             else:
                 # Handle ExecutionStep objects from TaskPlanner
                 step = ExecutionStep(
                     step_num=i + 1,
-                    description=getattr(step_data, 'description', str(step_data)),
-                    skill=getattr(step_data, 'skill_name', None),
-                    depends_on=getattr(step_data, 'depends_on', []),
+                    description=getattr(step_data, "description", str(step_data)),
+                    skill=getattr(step_data, "skill_name", None),
+                    depends_on=getattr(step_data, "depends_on", []),
                     can_parallelize=False,
                 )
             steps.append(step)
@@ -1544,8 +1684,8 @@ Correct answer:"""
         return ExecutionPlan(
             goal=goal,
             steps=steps,
-            estimated_cost=plan_result.get('estimated_cost', 0.0),
-            estimated_time_ms=plan_result.get('estimated_time_ms', 0.0),
+            estimated_cost=plan_result.get("estimated_cost", 0.0),
+            estimated_time_ms=plan_result.get("estimated_time_ms", 0.0),
         )
 
     async def _execute_step(self, step: ExecutionStep, config: ExecutionConfig) -> Dict[str, Any]:
@@ -1555,8 +1695,8 @@ Correct answer:"""
             tools = skill.to_claude_tools()
         else:
             discovery = self.registry.discover_for_task(step.description)
-            raw_skills = discovery.get('skills', [])[:3]
-            skill_names = [s['name'] if isinstance(s, dict) else s for s in raw_skills]
+            raw_skills = discovery.get("skills", [])[:3]
+            skill_names = [s["name"] if isinstance(s, dict) else s for s in raw_skills]
             tools = self.registry.get_claude_tools(skill_names) if skill_names else []
 
         llm_start = time.time()
@@ -1568,12 +1708,12 @@ Correct answer:"""
         )
         llm_duration = time.time() - llm_start
 
-        usage = response.get('usage', {})
-        input_tokens = usage.get('input_tokens', 300)
-        output_tokens = usage.get('output_tokens', 200)
+        usage = response.get("usage", {})
+        input_tokens = usage.get("input_tokens", 300)
+        output_tokens = usage.get("output_tokens", 200)
         record = self.cost_tracker.record_llm_call(
-            provider=self.config.provider or 'anthropic',
-            model=self.config.model or 'claude-sonnet-4',
+            provider=self.config.provider or "anthropic",
+            model=self.config.model or "claude-sonnet-4",
             input_tokens=input_tokens,
             output_tokens=output_tokens,
             success=True,
@@ -1581,11 +1721,11 @@ Correct answer:"""
         )
 
         return {
-            'output': response.get('content', response),
-            'llm_calls': 1,
-            'cost': record.cost,
-            'input_tokens': input_tokens,
-            'output_tokens': output_tokens,
+            "output": response.get("content", response),
+            "llm_calls": 1,
+            "cost": record.cost,
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
         }
 
     def _fallback_aggregate(self, results: List[Dict], goal: str) -> str:
@@ -1594,18 +1734,16 @@ Correct answer:"""
             return "No results generated."
 
         if len(results) == 1:
-            return results[0].get('output', '')
+            return results[0].get("output", "")
 
         aggregated = f"Results for: {goal}\n\n"
         for i, result in enumerate(results, 1):
-            output = result.get('output', '')
+            output = result.get("output", "")
             aggregated += f"Step {i}:\n{output}\n\n"
 
         return aggregated.strip()
 
-    async def _synthesize_results(
-        self, results: List[Dict], goal: str
-    ) -> Dict[str, Any]:
+    async def _synthesize_results(self, results: List[Dict], goal: str) -> Dict[str, Any]:
         """Synthesize step results into a coherent response using LLM.
 
         For a single result, returns it as-is. For 2+ results, calls the
@@ -1615,13 +1753,13 @@ Correct answer:"""
             {'output': str, 'llm_calls': int, 'cost': float}
         """
         if not results:
-            return {'output': "No results generated.", 'llm_calls': 0, 'cost': 0.0}
+            return {"output": "No results generated.", "llm_calls": 0, "cost": 0.0}
 
         if len(results) == 1:
             return {
-                'output': results[0].get('output', ''),
-                'llm_calls': 0,
-                'cost': 0.0,
+                "output": results[0].get("output", ""),
+                "llm_calls": 0,
+                "cost": 0.0,
             }
 
         # Build synthesis prompt
@@ -1649,12 +1787,12 @@ Correct answer:"""
             )
             llm_duration = time.time() - llm_start
 
-            usage = response.get('usage', {})
-            input_tokens = usage.get('input_tokens', 400)
-            output_tokens = usage.get('output_tokens', 300)
+            usage = response.get("usage", {})
+            input_tokens = usage.get("input_tokens", 400)
+            output_tokens = usage.get("output_tokens", 300)
             record = self.cost_tracker.record_llm_call(
-                provider=self.config.provider or 'anthropic',
-                model=self.config.model or 'claude-sonnet-4',
+                provider=self.config.provider or "anthropic",
+                model=self.config.model or "claude-sonnet-4",
                 input_tokens=input_tokens,
                 output_tokens=output_tokens,
                 success=True,
@@ -1662,16 +1800,16 @@ Correct answer:"""
             )
 
             return {
-                'output': response.get('content', self._fallback_aggregate(results, goal)),
-                'llm_calls': 1,
-                'cost': record.cost,
+                "output": response.get("content", self._fallback_aggregate(results, goal)),
+                "llm_calls": 1,
+                "cost": record.cost,
             }
-        except Exception as e:
+        except (LLMError, ExecutionError, ConnectionError) as e:
             logger.warning(f"Output synthesis LLM call failed, using fallback: {e}")
             return {
-                'output': self._fallback_aggregate(results, goal),
-                'llm_calls': 0,
-                'cost': 0.0,
+                "output": self._fallback_aggregate(results, goal),
+                "llm_calls": 0,
+                "cost": 0.0,
             }
 
     async def _retrieve_memory(self, goal: str, config: ExecutionConfig) -> Optional[MemoryContext]:
@@ -1683,11 +1821,11 @@ Correct answer:"""
 
             return MemoryContext(
                 entries=entries,
-                relevance_scores=[e.get('score', 0.0) for e in entries],
+                relevance_scores=[e.get("score", 0.0) for e in entries],
                 total_retrieved=len(entries),
                 retrieval_time_ms=10.0,
             )
-        except Exception as e:
+        except (ConnectionError, TimeoutError, ImportError) as e:
             logger.warning(f"Memory retrieval failed: {e}")
             return None
 
@@ -1703,35 +1841,33 @@ Correct answer:"""
         return enriched
 
     async def _validate_result(
-        self,
-        goal: str,
-        result: ExecutionResult,
-        config: ExecutionConfig
+        self, goal: str, result: ExecutionResult, config: ExecutionConfig
     ) -> TierValidationResult:
         """Validate execution result using ValidatorAgent or fallback."""
         validator = self.validator
 
         # Check if validator is a real MultiRoundValidator (not a mock or fallback)
         from Jotty.core.modes.execution.executor import _FallbackValidator
+
         is_multi_round = (
             not isinstance(validator, _FallbackValidator)
-            and hasattr(validator, '__class__')
-            and validator.__class__.__name__ == 'MultiRoundValidator'
+            and hasattr(validator, "__class__")
+            and validator.__class__.__name__ == "MultiRoundValidator"
         )
 
         if is_multi_round:
             try:
                 output_str = str(result.output)[:2000]
-                trajectory = [{'goal': goal, 'output': output_str}]
+                trajectory = [{"goal": goal, "output": output_str}]
                 results_list, combined_decision = await validator.validate(
                     goal=goal,
-                    inputs={'task': goal},
+                    inputs={"task": goal},
                     trajectory=trajectory,
                     is_architect=False,
                 )
                 if results_list:
                     first = results_list[0]
-                    confidence = getattr(first, 'confidence', 0.8)
+                    confidence = getattr(first, "confidence", 0.8)
 
                     # Override low-confidence rejections when execution produced output
                     # A rejection at confidence < 0.7 is uncertain — trust the execution
@@ -1745,10 +1881,10 @@ Correct answer:"""
                     return TierValidationResult(
                         success=combined_decision,
                         confidence=confidence,
-                        feedback=getattr(first, 'reasoning', ''),
-                        reasoning=getattr(first, 'reasoning', ''),
+                        feedback=getattr(first, "reasoning", ""),
+                        reasoning=getattr(first, "reasoning", ""),
                     )
-            except Exception as e:
+            except (LLMError, ExecutionError, ConfigurationError, ValueError) as e:
                 logger.warning(f"MultiRoundValidator failed, using fallback: {e}")
 
         # Fallback: use the validator directly unless it's a MultiRoundValidator
@@ -1768,13 +1904,19 @@ Is this result correct and complete? Provide:
         response = await fallback.validate(validation_prompt)
 
         return TierValidationResult(
-            success=response.get('success', True),
-            confidence=response.get('confidence', 0.8),
-            feedback=response.get('feedback', ''),
-            reasoning=response.get('reasoning', ''),
+            success=response.get("success", True),
+            confidence=response.get("confidence", 0.8),
+            feedback=response.get("feedback", ""),
+            reasoning=response.get("reasoning", ""),
         )
 
-    async def _store_memory(self, goal: str, result: ExecutionResult, validation: Optional[TierValidationResult], config: ExecutionConfig) -> Any:
+    async def _store_memory(
+        self,
+        goal: str,
+        result: ExecutionResult,
+        validation: Optional[TierValidationResult],
+        config: ExecutionConfig,
+    ) -> Any:
         """Store result in memory."""
         try:
             await self.memory.store(
@@ -1784,7 +1926,7 @@ Is this result correct and complete? Provide:
                 confidence=validation.confidence if validation else 1.0,
                 ttl_hours=config.memory_ttl_hours,
             )
-        except Exception as e:
+        except (ConnectionError, TimeoutError, ImportError, OSError) as e:
             logger.warning(f"Memory storage failed: {e}")
 
     def _create_memory_backend(self) -> Any:
@@ -1793,12 +1935,15 @@ Is this result correct and complete? Provide:
 
         if backend == "json":
             from Jotty.core.modes.execution.memory.json_memory import JSONMemory
+
             return JSONMemory()
         elif backend == "redis":
             from Jotty.core.modes.execution.memory.redis_memory import RedisMemory
+
             return RedisMemory()
         else:
             from Jotty.core.modes.execution.memory.noop_memory import NoOpMemory
+
             return NoOpMemory()
 
 
@@ -1814,8 +1959,8 @@ class _FallbackValidator:
 
         validation_system = (
             "You are a quality validator. Evaluate the result and respond with ONLY "
-            "a JSON object: {\"success\": true/false, \"confidence\": 0.0-1.0, "
-            "\"feedback\": \"brief feedback\", \"reasoning\": \"brief reasoning\"}"
+            'a JSON object: {"success": true/false, "confidence": 0.0-1.0, '
+            '"feedback": "brief feedback", "reasoning": "brief reasoning"}'
         )
         full_prompt = f"{validation_system}\n\n{prompt}"
 
@@ -1825,12 +1970,17 @@ class _FallbackValidator:
                 temperature=0.3,
                 max_tokens=500,
             )
-            content = response.get('content', '{}')
-            start = content.find('{')
-            end = content.rfind('}') + 1
+            content = response.get("content", "{}")
+            start = content.find("{")
+            end = content.rfind("}") + 1
             if start >= 0 and end > start:
                 return _json.loads(content[start:end])
-            return {'success': True, 'confidence': 0.7, 'feedback': content, 'reasoning': ''}
-        except Exception as e:
+            return {"success": True, "confidence": 0.7, "feedback": content, "reasoning": ""}
+        except (LLMError, ConnectionError, ValueError) as e:
             logger.warning(f"Validation LLM call failed: {e}")
-            return {'success': True, 'confidence': 0.5, 'feedback': 'Validation skipped', 'reasoning': str(e)}
+            return {
+                "success": True,
+                "confidence": 0.5,
+                "feedback": "Validation skipped",
+                "reasoning": str(e),
+            }

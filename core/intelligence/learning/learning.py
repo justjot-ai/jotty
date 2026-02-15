@@ -11,18 +11,22 @@ All classes have been extracted into focused modules:
 This file re-exports everything for backward compatibility.
 """
 
-from .td_lambda import TDLambdaLearner, GroupedValueBaseline
-from .adaptive_components import AdaptiveLearningRate, IntermediateRewardCalculator, AdaptiveExploration
+from .adaptive_components import (
+    AdaptiveExploration,
+    AdaptiveLearningRate,
+    IntermediateRewardCalculator,
+)
+from .health_budget import DynamicBudgetManager, LearningHealthMonitor
 from .reasoning_credit import ReasoningCreditAssigner
-from .health_budget import LearningHealthMonitor, DynamicBudgetManager
+from .td_lambda import GroupedValueBaseline, TDLambdaLearner
 
 __all__ = [
-    'TDLambdaLearner',
-    'GroupedValueBaseline',
-    'AdaptiveLearningRate',
-    'IntermediateRewardCalculator',
-    'AdaptiveExploration',
-    'ReasoningCreditAssigner',
-    'LearningHealthMonitor',
-    'DynamicBudgetManager',
+    "TDLambdaLearner",
+    "GroupedValueBaseline",
+    "AdaptiveLearningRate",
+    "IntermediateRewardCalculator",
+    "AdaptiveExploration",
+    "ReasoningCreditAssigner",
+    "LearningHealthMonitor",
+    "DynamicBudgetManager",
 ]

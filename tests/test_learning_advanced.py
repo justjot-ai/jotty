@@ -5,27 +5,34 @@ Tests for advanced learning modules:
 - reasoning_credit.py (ReasoningCreditAssigner)
 """
 
-import pytest
 import time
-from unittest.mock import Mock, patch, MagicMock
 from dataclasses import fields
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
 
 try:
     from Jotty.core.intelligence.learning.transfer_learning import (
-        AbstractPattern, RoleProfile, MetaPattern, SemanticEmbedder,
+        AbstractPattern,
+        MetaPattern,
+        RoleProfile,
+        SemanticEmbedder,
     )
+
     HAS_TRANSFER = True
 except ImportError:
     HAS_TRANSFER = False
 
 try:
     from Jotty.core.intelligence.learning.shaped_rewards import RewardCondition
+
     HAS_REWARDS = True
 except ImportError:
     HAS_REWARDS = False
 
 try:
     from Jotty.core.intelligence.learning.reasoning_credit import ReasoningCreditAssigner
+
     HAS_CREDIT = True
 except ImportError:
     HAS_CREDIT = False
@@ -34,6 +41,7 @@ except ImportError:
 # =============================================================================
 # AbstractPattern Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_TRANSFER, reason="transfer_learning module not available")
@@ -97,6 +105,7 @@ class TestAbstractPattern:
 # RoleProfile Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_TRANSFER, reason="transfer_learning module not available")
 class TestRoleProfile:
@@ -127,6 +136,7 @@ class TestRoleProfile:
 # =============================================================================
 # MetaPattern Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_TRANSFER, reason="transfer_learning module not available")
@@ -159,6 +169,7 @@ class TestMetaPattern:
 # SemanticEmbedder Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_TRANSFER, reason="transfer_learning module not available")
 class TestSemanticEmbedder:
@@ -190,6 +201,7 @@ class TestSemanticEmbedder:
 # RewardCondition Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_REWARDS, reason="shaped_rewards module not available")
 class TestRewardCondition:
@@ -215,7 +227,15 @@ class TestRewardCondition:
             reward_value=0.5,
         )
         result = cond.to_dict()
-        expected_keys = {"name", "description", "reward", "check_after", "one_time", "triggered", "count"}
+        expected_keys = {
+            "name",
+            "description",
+            "reward",
+            "check_after",
+            "one_time",
+            "triggered",
+            "count",
+        }
         assert set(result.keys()) == expected_keys
         assert result["name"] == "goal_achieved"
         assert result["description"] == "Final goal achieved"
@@ -253,6 +273,7 @@ class TestRewardCondition:
 # ReasoningCreditAssigner Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_CREDIT, reason="reasoning_credit module not available")
 class TestReasoningCreditAssigner:
@@ -265,9 +286,15 @@ class TestReasoningCreditAssigner:
         config.evidence_weight = 0.2
         return config
 
-    def _make_mock_validation_result(self, agent_name, confidence=0.8,
-                                      should_proceed=True, is_valid=True,
-                                      reasoning="Valid output", tool_calls=None):
+    def _make_mock_validation_result(
+        self,
+        agent_name,
+        confidence=0.8,
+        should_proceed=True,
+        is_valid=True,
+        reasoning="Valid output",
+        tool_calls=None,
+    ):
         """Create a mock ValidationResult for testing."""
         result = Mock()
         result.agent_name = agent_name

@@ -21,10 +21,10 @@ from Jotty.core.intelligence.orchestration.learning_pipeline import (
     SwarmLearningPipeline,
 )
 
-
 # =========================================================================
 # Helpers
 # =========================================================================
+
 
 def _make_result(output="", success=True, execution_time=30.0, trajectory=None):
     """Create a minimal mock EpisodeResult."""
@@ -39,6 +39,7 @@ def _make_result(output="", success=True, execution_time=30.0, trajectory=None):
 # =========================================================================
 # TestComputeEpisodeReward
 # =========================================================================
+
 
 class TestComputeEpisodeReward:
     """Test the multi-dimensional episode reward computation."""
@@ -75,9 +76,9 @@ class TestComputeEpisodeReward:
         padded_reward = SwarmLearningPipeline._compute_episode_reward(padded_result, goal)
         concise_reward = SwarmLearningPipeline._compute_episode_reward(concise_result, goal)
 
-        assert concise_reward > padded_reward, (
-            f"Concise ({concise_reward:.3f}) should beat padded ({padded_reward:.3f})"
-        )
+        assert (
+            concise_reward > padded_reward
+        ), f"Concise ({concise_reward:.3f}) should beat padded ({padded_reward:.3f})"
 
     def test_reward_always_in_bounds(self):
         """Reward must always be in [0, 1]."""
@@ -90,9 +91,7 @@ class TestComputeEpisodeReward:
         ]
         for i, result in enumerate(test_cases):
             reward = SwarmLearningPipeline._compute_episode_reward(result, "test goal")
-            assert 0.0 <= reward <= 1.0, (
-                f"Case {i}: reward {reward} out of [0, 1] bounds"
-            )
+            assert 0.0 <= reward <= 1.0, f"Case {i}: reward {reward} out of [0, 1] bounds"
 
     def test_failure_caps_at_03(self):
         """Failed results should have reward capped at 0.3."""
@@ -116,9 +115,9 @@ class TestComputeEpisodeReward:
         goal = "Check system status"
         clean_reward = SwarmLearningPipeline._compute_episode_reward(clean, goal)
         error_reward = SwarmLearningPipeline._compute_episode_reward(errors, goal)
-        assert clean_reward > error_reward, (
-            f"Clean ({clean_reward:.3f}) should beat errors ({error_reward:.3f})"
-        )
+        assert (
+            clean_reward > error_reward
+        ), f"Clean ({clean_reward:.3f}) should beat errors ({error_reward:.3f})"
 
     def test_relevance_boosts_score(self):
         """Output that mentions goal keywords should score higher."""
@@ -133,9 +132,9 @@ class TestComputeEpisodeReward:
         )
         rel_reward = SwarmLearningPipeline._compute_episode_reward(relevant, goal)
         irr_reward = SwarmLearningPipeline._compute_episode_reward(irrelevant, goal)
-        assert rel_reward > irr_reward, (
-            f"Relevant ({rel_reward:.3f}) should beat irrelevant ({irr_reward:.3f})"
-        )
+        assert (
+            rel_reward > irr_reward
+        ), f"Relevant ({rel_reward:.3f}) should beat irrelevant ({irr_reward:.3f})"
 
     def test_no_tools_slight_penalty(self):
         """No tool usage should get 0.3 (slight penalty), not 0.5 neutral."""
@@ -150,6 +149,7 @@ class TestComputeEpisodeReward:
 # TestSchemaVersioning
 # =========================================================================
 
+
 class TestSchemaVersioning:
     """Test versioned persistence in SwarmLearningPipeline."""
 
@@ -158,7 +158,7 @@ class TestSchemaVersioning:
         """Create a minimal SwarmLearningPipeline with mocked config."""
         config = MagicMock()
         config.base_path = None
-        with patch.object(SwarmLearningPipeline, '_init_components'):
+        with patch.object(SwarmLearningPipeline, "_init_components"):
             lp = SwarmLearningPipeline.__new__(SwarmLearningPipeline)
             lp.config = config
             lp.episode_count = 0
@@ -184,7 +184,7 @@ class TestSchemaVersioning:
         """Loading data with incompatible major version returns empty dict."""
         path = tmp_path / "old.json"
         envelope = {"schema_version": "1.0", "data": {"old_key": "old_value"}}
-        with open(path, 'w') as f:
+        with open(path, "w") as f:
             json.dump(envelope, f)
 
         loaded = pipeline._load_versioned(path)
@@ -194,7 +194,7 @@ class TestSchemaVersioning:
         """If a migration exists, it should be applied."""
         path = tmp_path / "migrate.json"
         envelope = {"schema_version": "1.0", "data": {"old_format": True}}
-        with open(path, 'w') as f:
+        with open(path, "w") as f:
             json.dump(envelope, f)
 
         # Register a migration on the class (static method accesses class dict)
@@ -210,7 +210,7 @@ class TestSchemaVersioning:
         """Legacy format (no envelope) should still load."""
         path = tmp_path / "legacy.json"
         data = {"legacy_key": "legacy_value"}
-        with open(path, 'w') as f:
+        with open(path, "w") as f:
             json.dump(data, f)
 
         loaded = pipeline._load_versioned(path)
@@ -220,7 +220,7 @@ class TestSchemaVersioning:
         """Same major version but different minor should load fine."""
         path = tmp_path / "minor.json"
         envelope = {"schema_version": "2.5", "data": {"updated": True}}
-        with open(path, 'w') as f:
+        with open(path, "w") as f:
             json.dump(envelope, f)
 
         loaded = pipeline._load_versioned(path)
@@ -230,6 +230,7 @@ class TestSchemaVersioning:
 # =========================================================================
 # TestEffectivenessTracker
 # =========================================================================
+
 
 class TestEffectivenessTracker:
     """Test the EffectivenessTracker."""

@@ -9,18 +9,19 @@ World-class model selection with:
 4. Model diversity tracking for ensemble
 """
 
-import time
-from typing import Dict, List, Any, Optional
-import pandas as pd
-import numpy as np
 import logging
+import time
 import warnings
+from typing import Any, Dict, List, Optional
+
+import numpy as np
+import pandas as pd
 
 # Suppress sklearn feature name warnings
-warnings.filterwarnings('ignore', message='.*feature names.*')
-warnings.filterwarnings('ignore', category=UserWarning, module='sklearn')
+warnings.filterwarnings("ignore", message=".*feature names.*")
+warnings.filterwarnings("ignore", category=UserWarning, module="sklearn")
 
-from .base import MLSkill, SkillResult, SkillCategory
+from .base import MLSkill, SkillCategory, SkillResult
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +45,9 @@ class ModelSelectionSkill(MLSkill):
     def __init__(self, config: Dict[str, Any] = None) -> None:
         super().__init__(config)
 
-    async def execute(self, X: pd.DataFrame, y: Optional[pd.Series] = None, **context: Any) -> SkillResult:
+    async def execute(
+        self, X: pd.DataFrame, y: Optional[pd.Series] = None, **context: Any
+    ) -> SkillResult:
         """
         Execute model selection.
 
@@ -56,16 +59,27 @@ class ModelSelectionSkill(MLSkill):
         Returns:
             SkillResult with best model and scores
         """
-        from sklearn.model_selection import cross_val_score, cross_val_predict, StratifiedKFold, KFold
-        from sklearn.preprocessing import StandardScaler
-        from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-        from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegressor
-        from sklearn.ensemble import ExtraTreesClassifier, ExtraTreesRegressor
-        from sklearn.ensemble import HistGradientBoostingClassifier, HistGradientBoostingRegressor
-        from sklearn.linear_model import LogisticRegression, Ridge
-        from sklearn.svm import SVC, SVR
         import lightgbm as lgb
         import xgboost as xgb
+        from sklearn.ensemble import (
+            ExtraTreesClassifier,
+            ExtraTreesRegressor,
+            GradientBoostingClassifier,
+            GradientBoostingRegressor,
+            HistGradientBoostingClassifier,
+            HistGradientBoostingRegressor,
+            RandomForestClassifier,
+            RandomForestRegressor,
+        )
+        from sklearn.linear_model import LogisticRegression, Ridge
+        from sklearn.model_selection import (
+            KFold,
+            StratifiedKFold,
+            cross_val_predict,
+            cross_val_score,
+        )
+        from sklearn.preprocessing import StandardScaler
+        from sklearn.svm import SVC, SVR
 
         start_time = time.time()
 
@@ -75,7 +89,7 @@ class ModelSelectionSkill(MLSkill):
         if not self.validate_inputs(X, y):
             return self._create_error_result("Invalid inputs")
 
-        problem_type = context.get('problem_type', 'classification')
+        problem_type = context.get("problem_type", "classification")
         n_samples, n_features = X.shape
 
         scaler = StandardScaler()
@@ -86,13 +100,13 @@ class ModelSelectionSkill(MLSkill):
         max_depth_tree = None if n_samples > 1000 else 10
 
         # Build model zoo
-        if problem_type == 'classification':
+        if problem_type == "classification":
             cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-            scoring = 'accuracy'
+            scoring = "accuracy"
             models = self._get_classification_models(n_estimators, max_depth_tree, n_samples)
         else:
             cv = KFold(n_splits=5, shuffle=True, random_state=42)
-            scoring = 'r2'
+            scoring = "r2"
             models = self._get_regression_models(n_estimators, max_depth_tree, n_samples)
 
         # Evaluate all models
@@ -114,8 +128,10 @@ class ModelSelectionSkill(MLSkill):
                 # Collect OOF predictions for top models
                 if mean_score > best_score * 0.95:
                     try:
-                        if problem_type == 'classification':
-                            oof = cross_val_predict(model, X_scaled, y, cv=cv, method='predict_proba')
+                        if problem_type == "classification":
+                            oof = cross_val_predict(
+                                model, X_scaled, y, cv=cv, method="predict_proba"
+                            )
                             oof_predictions[name] = oof[:, 1] if oof.ndim > 1 else oof
                         else:
                             oof_predictions[name] = cross_val_predict(model, X_scaled, y, cv=cv)
@@ -139,123 +155,120 @@ class ModelSelectionSkill(MLSkill):
             success=True,
             data=best_model,
             metrics={
-                'score': best_score,
-                'model': best_name,
-                **{k: all_scores[k] for k in list(all_scores)[:4]}
+                "score": best_score,
+                "model": best_name,
+                **{k: all_scores[k] for k in list(all_scores)[:4]},
             },
             metadata={
-                'best_model': best_name,
-                'all_scores': all_scores,
-                'all_std': all_std,
-                'model_ranking': [m[0] for m in sorted_models],
-                'oof_predictions': oof_predictions,
-                'scaler': scaler,
-                'X_scaled': X_scaled,
+                "best_model": best_name,
+                "all_scores": all_scores,
+                "all_std": all_std,
+                "model_ranking": [m[0] for m in sorted_models],
+                "oof_predictions": oof_predictions,
+                "scaler": scaler,
+                "X_scaled": X_scaled,
             },
             execution_time=execution_time,
         )
 
-    def _get_classification_models(self, n_estimators: int, max_depth: int,
-                                    n_samples: int) -> Dict:
+    def _get_classification_models(self, n_estimators: int, max_depth: int, n_samples: int) -> Dict:
         """Get classification models including CatBoost."""
         import lightgbm as lgb
         import xgboost as xgb
-        from sklearn.ensemble import RandomForestClassifier
-        from sklearn.ensemble import GradientBoostingClassifier
-        from sklearn.ensemble import ExtraTreesClassifier
-        from sklearn.ensemble import HistGradientBoostingClassifier
+        from sklearn.ensemble import (
+            ExtraTreesClassifier,
+            GradientBoostingClassifier,
+            HistGradientBoostingClassifier,
+            RandomForestClassifier,
+        )
         from sklearn.linear_model import LogisticRegression
         from sklearn.svm import SVC
 
         models = {
-            'lightgbm': lgb.LGBMClassifier(
-                n_estimators=n_estimators, random_state=42, verbose=-1,
-                learning_rate=0.1, num_leaves=31
+            "lightgbm": lgb.LGBMClassifier(
+                n_estimators=n_estimators,
+                random_state=42,
+                verbose=-1,
+                learning_rate=0.1,
+                num_leaves=31,
             ),
-            'xgboost': xgb.XGBClassifier(
-                n_estimators=n_estimators, random_state=42,
-                eval_metric='logloss', verbosity=0, learning_rate=0.1
+            "xgboost": xgb.XGBClassifier(
+                n_estimators=n_estimators,
+                random_state=42,
+                eval_metric="logloss",
+                verbosity=0,
+                learning_rate=0.1,
             ),
-            'histgb': HistGradientBoostingClassifier(
+            "histgb": HistGradientBoostingClassifier(
                 max_iter=n_estimators, random_state=42, learning_rate=0.1
             ),
-            'random_forest': RandomForestClassifier(
-                n_estimators=n_estimators, random_state=42,
-                max_depth=max_depth, n_jobs=-1
+            "random_forest": RandomForestClassifier(
+                n_estimators=n_estimators, random_state=42, max_depth=max_depth, n_jobs=-1
             ),
-            'extra_trees': ExtraTreesClassifier(
-                n_estimators=n_estimators, random_state=42,
-                max_depth=max_depth, n_jobs=-1
+            "extra_trees": ExtraTreesClassifier(
+                n_estimators=n_estimators, random_state=42, max_depth=max_depth, n_jobs=-1
             ),
-            'gradient_boosting': GradientBoostingClassifier(
-                n_estimators=min(n_estimators, 100), random_state=42,
-                learning_rate=0.1
+            "gradient_boosting": GradientBoostingClassifier(
+                n_estimators=min(n_estimators, 100), random_state=42, learning_rate=0.1
             ),
-            'logistic': LogisticRegression(
-                max_iter=1000, random_state=42, C=1.0
-            ),
+            "logistic": LogisticRegression(max_iter=1000, random_state=42, C=1.0),
         }
 
         # Add CatBoost (handles categoricals natively - no leakage!)
         try:
             from catboost import CatBoostClassifier
-            models['catboost'] = CatBoostClassifier(
-                iterations=n_estimators, random_state=42,
-                verbose=False, learning_rate=0.1
+
+            models["catboost"] = CatBoostClassifier(
+                iterations=n_estimators, random_state=42, verbose=False, learning_rate=0.1
             )
         except ImportError:
             pass
 
         if n_samples < 5000:
-            models['svm'] = SVC(probability=True, random_state=42, C=1.0)
+            models["svm"] = SVC(probability=True, random_state=42, C=1.0)
 
         return models
 
-    def _get_regression_models(self, n_estimators: int, max_depth: int,
-                                n_samples: int) -> Dict:
+    def _get_regression_models(self, n_estimators: int, max_depth: int, n_samples: int) -> Dict:
         """Get regression models including CatBoost."""
         import lightgbm as lgb
         import xgboost as xgb
-        from sklearn.ensemble import RandomForestRegressor
-        from sklearn.ensemble import GradientBoostingRegressor
-        from sklearn.ensemble import ExtraTreesRegressor
-        from sklearn.ensemble import HistGradientBoostingRegressor
+        from sklearn.ensemble import (
+            ExtraTreesRegressor,
+            GradientBoostingRegressor,
+            HistGradientBoostingRegressor,
+            RandomForestRegressor,
+        )
         from sklearn.linear_model import Ridge
         from sklearn.svm import SVR
 
         models = {
-            'lightgbm': lgb.LGBMRegressor(
-                n_estimators=n_estimators, random_state=42, verbose=-1
-            ),
-            'xgboost': xgb.XGBRegressor(
-                n_estimators=n_estimators, random_state=42, verbosity=0
-            ),
-            'histgb': HistGradientBoostingRegressor(
-                max_iter=n_estimators, random_state=42
-            ),
-            'random_forest': RandomForestRegressor(
+            "lightgbm": lgb.LGBMRegressor(n_estimators=n_estimators, random_state=42, verbose=-1),
+            "xgboost": xgb.XGBRegressor(n_estimators=n_estimators, random_state=42, verbosity=0),
+            "histgb": HistGradientBoostingRegressor(max_iter=n_estimators, random_state=42),
+            "random_forest": RandomForestRegressor(
                 n_estimators=n_estimators, random_state=42, n_jobs=-1
             ),
-            'extra_trees': ExtraTreesRegressor(
+            "extra_trees": ExtraTreesRegressor(
                 n_estimators=n_estimators, random_state=42, n_jobs=-1
             ),
-            'gradient_boosting': GradientBoostingRegressor(
+            "gradient_boosting": GradientBoostingRegressor(
                 n_estimators=min(n_estimators, 100), random_state=42
             ),
-            'ridge': Ridge(alpha=1.0),
+            "ridge": Ridge(alpha=1.0),
         }
 
         # Add CatBoost
         try:
             from catboost import CatBoostRegressor
-            models['catboost'] = CatBoostRegressor(
-                iterations=n_estimators, random_state=42,
-                verbose=False, learning_rate=0.1
+
+            models["catboost"] = CatBoostRegressor(
+                iterations=n_estimators, random_state=42, verbose=False, learning_rate=0.1
             )
         except ImportError:
             pass
 
         if n_samples < 5000:
-            models['svr'] = SVR(C=1.0)
+            models["svr"] = SVR(C=1.0)
 
         return models

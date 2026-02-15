@@ -16,7 +16,6 @@ import re
 from pathlib import Path
 from typing import List, Set
 
-
 # Standard attributes that report generator mixins expect
 REPORT_MIXIN_ATTRS = """
     if TYPE_CHECKING:
@@ -71,43 +70,44 @@ def find_mixin_files() -> List[Path]:
     mixin_files = []
 
     # Find in templates directory
-    templates_dir = Path('core/intelligence/orchestration/templates')
+    templates_dir = Path("core/intelligence/orchestration/templates")
     if templates_dir.exists():
-        mixin_files.extend(templates_dir.glob('_*_mixin.py'))
+        mixin_files.extend(templates_dir.glob("_*_mixin.py"))
 
     # Find in other directories
-    for pattern in ['core/intelligence/swarms/_*_mixin.py',
-                    'core/intelligence/memory/_*_mixin.py',
-                    'core/intelligence/orchestration/_*_mixin.py',
-                    'core/intelligence/orchestration/protocols/*.py']:
-        mixin_files.extend(Path('.').glob(pattern))
+    for pattern in [
+        "core/intelligence/swarms/_*_mixin.py",
+        "core/intelligence/memory/_*_mixin.py",
+        "core/intelligence/orchestration/_*_mixin.py",
+        "core/intelligence/orchestration/protocols/*.py",
+    ]:
+        mixin_files.extend(Path(".").glob(pattern))
 
     return sorted(set(mixin_files))
 
 
 def needs_type_checking_block(content: str) -> bool:
     """Check if file already has TYPE_CHECKING block with attribute declarations."""
-    return 'if TYPE_CHECKING:' not in content or \
-           '# Declare expected attributes' not in content
+    return "if TYPE_CHECKING:" not in content or "# Declare expected attributes" not in content
 
 
 def get_mixin_type(file_path: Path) -> str:
     """Determine what type of mixin this is based on location and name."""
-    if 'templates' in str(file_path) or 'orchestration' in str(file_path):
-        return 'report'
-    elif 'swarm' in str(file_path) and 'learning' in file_path.name:
-        return 'swarm'
-    elif 'memory' in str(file_path) and 'consolidation' in file_path.name:
-        return 'memory'
+    if "templates" in str(file_path) or "orchestration" in str(file_path):
+        return "report"
+    elif "swarm" in str(file_path) and "learning" in file_path.name:
+        return "swarm"
+    elif "memory" in str(file_path) and "consolidation" in file_path.name:
+        return "memory"
     else:
-        return 'report'  # Default
+        return "report"  # Default
 
 
 def get_attrs_for_mixin_type(mixin_type: str) -> str:
     """Get the appropriate TYPE_CHECKING block for this mixin type."""
-    if mixin_type == 'swarm':
+    if mixin_type == "swarm":
         return SWARM_MIXIN_ATTRS
-    elif mixin_type == 'memory':
+    elif mixin_type == "memory":
         return MEMORY_MIXIN_ATTRS
     else:
         return REPORT_MIXIN_ATTRS
@@ -131,14 +131,14 @@ def add_type_checking_block(file_path: Path, dry_run: bool = False) -> bool:
     attrs_block = get_attrs_for_mixin_type(mixin_type)
 
     # Find the class definition
-    class_match = re.search(r'^class \w+Mixin[^:]*:', content, re.MULTILINE)
+    class_match = re.search(r"^class \w+Mixin[^:]*:", content, re.MULTILINE)
     if not class_match:
         print(f"  ⚠️  {file_path} - No Mixin class found")
         return False
 
     # Find the end of the class docstring (if any)
     class_start = class_match.end()
-    lines = content[class_start:].split('\n')
+    lines = content[class_start:].split("\n")
 
     # Find where to insert (after docstring, before first method)
     insert_line = 0
@@ -157,8 +157,9 @@ def add_type_checking_block(file_path: Path, dry_run: bool = False) -> bool:
                 continue
 
         # If not in docstring and we hit a def or attribute, insert before it
-        if not in_docstring and (stripped.startswith('def ') or
-                                  (stripped and not stripped.startswith('#'))):
+        if not in_docstring and (
+            stripped.startswith("def ") or (stripped and not stripped.startswith("#"))
+        ):
             insert_line = i
             break
 
@@ -167,33 +168,39 @@ def add_type_checking_block(file_path: Path, dry_run: bool = False) -> bool:
 
     # Insert the TYPE_CHECKING block
     before_class = content[:class_start]
-    after_class = content[class_start:].split('\n')
+    after_class = content[class_start:].split("\n")
     after_class.insert(insert_line, attrs_block)
-    new_content = before_class + '\n'.join(after_class)
+    new_content = before_class + "\n".join(after_class)
 
     # Make sure imports are present
-    if 'from __future__ import annotations' not in new_content:
-        new_content = 'from __future__ import annotations\n\n' + new_content
+    if "from __future__ import annotations" not in new_content:
+        new_content = "from __future__ import annotations\n\n" + new_content
 
-    if 'from pathlib import Path' not in new_content and mixin_type == 'report':
+    if "from pathlib import Path" not in new_content and mixin_type == "report":
         # Add to existing imports
-        import_line = new_content.find('import ')
+        import_line = new_content.find("import ")
         if import_line != -1:
-            new_content = new_content[:import_line] + 'from pathlib import Path\n' + new_content[import_line:]
+            new_content = (
+                new_content[:import_line] + "from pathlib import Path\n" + new_content[import_line:]
+            )
 
     # Update TYPE_CHECKING import
-    type_import_pattern = r'from typing import ([^(\n]+)'
+    type_import_pattern = r"from typing import ([^(\n]+)"
     match = re.search(type_import_pattern, new_content)
     if match:
         current_imports = match.group(1).strip()
-        if 'TYPE_CHECKING' not in current_imports:
-            new_imports = current_imports + ', TYPE_CHECKING'
+        if "TYPE_CHECKING" not in current_imports:
+            new_imports = current_imports + ", TYPE_CHECKING"
             new_content = new_content.replace(match.group(1), new_imports)
     else:
         # Add typing import
-        import_line = new_content.find('import ')
+        import_line = new_content.find("import ")
         if import_line != -1:
-            new_content = new_content[:import_line] + 'from typing import Any, Dict, List, Optional, TYPE_CHECKING\n' + new_content[import_line:]
+            new_content = (
+                new_content[:import_line]
+                + "from typing import Any, Dict, List, Optional, TYPE_CHECKING\n"
+                + new_content[import_line:]
+            )
 
     if dry_run:
         print(f"  🔍 Would update {file_path}")
@@ -207,8 +214,9 @@ def add_type_checking_block(file_path: Path, dry_run: bool = False) -> bool:
 
 def main():
     parser = argparse.ArgumentParser(description="Fix mixin type checking")
-    parser.add_argument('--dry-run', action='store_true',
-                       help="Show what would be changed without making changes")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Show what would be changed without making changes"
+    )
     args = parser.parse_args()
 
     print("🔍 Finding mixin files...")
@@ -226,7 +234,9 @@ def main():
         if add_type_checking_block(file_path, dry_run=args.dry_run):
             modified_count += 1
 
-    print(f"\n{'🔍 Would modify' if args.dry_run else '✅ Modified'} {modified_count}/{len(mixin_files)} file(s)")
+    print(
+        f"\n{'🔍 Would modify' if args.dry_run else '✅ Modified'} {modified_count}/{len(mixin_files)} file(s)"
+    )
 
     if args.dry_run:
         print("\nRun without --dry-run to apply changes")
@@ -234,6 +244,7 @@ def main():
     return 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import sys
+
     sys.exit(main())

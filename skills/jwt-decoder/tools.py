@@ -1,11 +1,12 @@
 """JWT Decoder Skill — decode and inspect JWT tokens."""
-import json
-import base64
-from datetime import datetime, timezone
-from typing import Dict, Any
 
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+import base64
+import json
+from datetime import datetime, timezone
+from typing import Any, Dict
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("jwt-decoder")
 
@@ -44,9 +45,14 @@ def decode_jwt_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     if "iat" in payload:
         issued_at = datetime.fromtimestamp(payload["iat"], tz=timezone.utc).isoformat()
 
-    return tool_response(header=header, payload=payload, expired=expired,
-                         expires_at=expires_at, issued_at=issued_at,
-                         algorithm=header.get("alg", "unknown"))
+    return tool_response(
+        header=header,
+        payload=payload,
+        expired=expired,
+        expires_at=expires_at,
+        issued_at=issued_at,
+        algorithm=header.get("alg", "unknown"),
+    )
 
 
 __all__ = ["decode_jwt_tool"]

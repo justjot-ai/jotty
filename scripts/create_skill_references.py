@@ -20,7 +20,6 @@ import textwrap
 from pathlib import Path
 from typing import Optional
 
-
 SKILLS_DIR = Path("/var/www/sites/personal/stock_market/Jotty/skills")
 MIN_TOOLS = 5
 
@@ -59,9 +58,7 @@ def parse_docstring(docstring: Optional[str]) -> dict:
             desc_lines.append(stripped)
         elif state == "args":
             # Check if this is a new parameter line (e.g., "- path (str, required): ...")
-            param_match = re.match(
-                r"[-*]\s+(\w+)\s*\(([^)]*)\)\s*:\s*(.*)", stripped
-            )
+            param_match = re.match(r"[-*]\s+(\w+)\s*\(([^)]*)\)\s*:\s*(.*)", stripped)
             if param_match:
                 name, type_info, desc = param_match.groups()
                 current_param = {
@@ -100,9 +97,7 @@ def parse_docstring(docstring: Optional[str]) -> dict:
     # Remove trailing "Args:" or "Parameters:" that might have been included
     desc_text = re.sub(r"\s*(Args|Parameters|Params)\s*:?\s*$", "", desc_text).strip()
     # If the description references "params: Dictionary containing:" skip that part
-    desc_text = re.sub(
-        r"\s*params\s*:\s*Dictionary containing\s*:?\s*$", "", desc_text
-    ).strip()
+    desc_text = re.sub(r"\s*params\s*:\s*Dictionary containing\s*:?\s*$", "", desc_text).strip()
 
     result["description"] = desc_text
     result["params"] = param_lines
@@ -151,16 +146,12 @@ def extract_tool_functions(tools_path: Path) -> list:
             if arg.annotation:
                 annotation = ast.unparse(arg.annotation) if hasattr(ast, "unparse") else ""
 
-            sig_params.append(
-                {"name": arg.arg, "annotation": annotation}
-            )
+            sig_params.append({"name": arg.arg, "annotation": annotation})
 
         # Extract return annotation
         return_annotation = ""
         if node.returns:
-            return_annotation = (
-                ast.unparse(node.returns) if hasattr(ast, "unparse") else ""
-            )
+            return_annotation = ast.unparse(node.returns) if hasattr(ast, "unparse") else ""
 
         # Check for decorators (tool_wrapper, etc.)
         decorators = []
@@ -181,9 +172,11 @@ def extract_tool_functions(tools_path: Path) -> list:
             {
                 "name": node.name,
                 "description": parsed["description"],
-                "first_line": parsed["description"].split(".")[0].strip() + "."
-                if parsed["description"]
-                else "",
+                "first_line": (
+                    parsed["description"].split(".")[0].strip() + "."
+                    if parsed["description"]
+                    else ""
+                ),
                 "params_from_docstring": parsed["params"],
                 "params_from_sig": sig_params,
                 "returns_description": parsed["returns"],
@@ -309,8 +302,7 @@ def update_skill_md(skill_dir: Path) -> bool:
 
     # Insert before ## Triggers
     reference_block = (
-        "## Reference\n\n"
-        "For detailed tool documentation, see [REFERENCE.md](REFERENCE.md).\n\n"
+        "## Reference\n\n" "For detailed tool documentation, see [REFERENCE.md](REFERENCE.md).\n\n"
     )
 
     # Try inserting before ## Triggers

@@ -31,10 +31,10 @@ Usage:
     summary = await lotus_arxiv.aggregate_insights(paper_ids=["1706.03762", "2301.07041"])
 """
 
-import logging
 import asyncio
-from typing import Dict, Any, List, Optional
+import logging
 from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -45,12 +45,13 @@ import pandas as pd
 try:
     import lotus
     from lotus import WebSearchCorpus, web_search
-    from lotus.models import LM, SentenceTransformersRM, CrossEncoderReranker
+    from lotus.models import LM, CrossEncoderReranker, SentenceTransformersRM
     from lotus.vector_store import FaissVS
 
     # web_extract may not be available in all LOTUS versions
     try:
         from lotus import web_extract
+
         WEB_EXTRACT_AVAILABLE = True
     except ImportError:
         WEB_EXTRACT_AVAILABLE = False
@@ -67,6 +68,7 @@ except ImportError:
 @dataclass
 class LotusArxivConfig:
     """Configuration for LOTUS ArXiv operations."""
+
     model: str = "gpt-4o-mini"  # LLM for semantic operations
     embedding_model: str = "intfloat/e5-base-v2"  # Embedding model
     reranker_model: str = "mixedbread-ai/mxbai-rerank-large-v1"  # Reranker
@@ -107,23 +109,14 @@ class LotusArxiv:
         if self.config.use_reranker:
             self.reranker = CrossEncoderReranker(model=self.config.reranker_model)
             self.vs = FaissVS()
-            lotus.settings.configure(
-                lm=self.lm,
-                rm=self.rm,
-                reranker=self.reranker,
-                vs=self.vs
-            )
+            lotus.settings.configure(lm=self.lm, rm=self.rm, reranker=self.reranker, vs=self.vs)
         else:
             lotus.settings.configure(lm=self.lm, rm=self.rm)
 
         self._initialized = True
         logger.info(" LOTUS initialized")
 
-    async def search_papers(
-        self,
-        query: str,
-        limit: int = 10
-    ) -> pd.DataFrame:
+    async def search_papers(self, query: str, limit: int = 10) -> pd.DataFrame:
         """
         Search ArXiv papers using LOTUS.
 
@@ -141,8 +134,7 @@ class LotusArxiv:
         # Run in executor since LOTUS web_search may block
         loop = asyncio.get_running_loop()
         df = await loop.run_in_executor(
-            None,
-            lambda: web_search(WebSearchCorpus.ARXIV, query, limit)
+            None, lambda: web_search(WebSearchCorpus.ARXIV, query, limit)
         )
 
         logger.info(f"  Found {len(df)} papers")
@@ -153,7 +145,7 @@ class LotusArxiv:
         query: str,
         rank_by: str = "Which {abstract} is most exciting and impactful for learning?",
         limit: int = 10,
-        top_k: int = 5
+        top_k: int = 5,
     ) -> pd.DataFrame:
         """
         Search ArXiv and rank papers semantically.
@@ -175,8 +167,7 @@ class LotusArxiv:
 
         # Search
         df = await loop.run_in_executor(
-            None,
-            lambda: web_search(WebSearchCorpus.ARXIV, query, limit)
+            None, lambda: web_search(WebSearchCorpus.ARXIV, query, limit)
         )
 
         if df.empty:
@@ -186,18 +177,13 @@ class LotusArxiv:
         # Rank using sem_topk
         strategy = "cot" if self.config.use_cot else "quick"
         ranked_df = await loop.run_in_executor(
-            None,
-            lambda: df.sem_topk(rank_by, K=top_k, method="heap")[0]
+            None, lambda: df.sem_topk(rank_by, K=top_k, method="heap")[0]
         )
 
         logger.info(f"  Ranked top {len(ranked_df)} papers")
         return ranked_df
 
-    async def filter_papers(
-        self,
-        df: pd.DataFrame,
-        filter_by: str
-    ) -> pd.DataFrame:
+    async def filter_papers(self, df: pd.DataFrame, filter_by: str) -> pd.DataFrame:
         """
         Filter papers using natural language predicate.
 
@@ -216,8 +202,7 @@ class LotusArxiv:
         strategy = "cot" if self.config.use_cot else "quick"
 
         filtered_df = await loop.run_in_executor(
-            None,
-            lambda: df.sem_filter(filter_by, strategy=strategy)
+            None, lambda: df.sem_filter(filter_by, strategy=strategy)
         )
 
         logger.info(f"  {len(filtered_df)} papers match filter")
@@ -245,8 +230,7 @@ class LotusArxiv:
 
         try:
             df = await loop.run_in_executor(
-                None,
-                lambda: web_extract(WebSearchCorpus.ARXIV, doc_id=arxiv_id)
+                None, lambda: web_extract(WebSearchCorpus.ARXIV, doc_id=arxiv_id)
             )
 
             if df is not None and "full_text" in df.columns and len(df) > 0:
@@ -259,9 +243,7 @@ class LotusArxiv:
             return None
 
     async def extract_concepts(
-        self,
-        text: str,
-        output_fields: Optional[Dict[str, str]] = None
+        self, text: str, output_fields: Optional[Dict[str, str]] = None
     ) -> pd.DataFrame:
         """
         Extract structured concepts from text using sem_extract.
@@ -281,7 +263,7 @@ class LotusArxiv:
                 "concept_name": "The name of a key concept or technique",
                 "description": "A brief description of what it does",
                 "difficulty": "Difficulty level: beginner, intermediate, or advanced",
-                "prerequisites": "What you need to know first"
+                "prerequisites": "What you need to know first",
             }
 
         logger.info(" Extracting concepts...")
@@ -293,8 +275,7 @@ class LotusArxiv:
 
         # Extract using sem_extract
         result_df = await loop.run_in_executor(
-            None,
-            lambda: df.sem_extract(["text"], output_fields)
+            None, lambda: df.sem_extract(["text"], output_fields)
         )
 
         logger.info(f"  Extracted {len(result_df)} concepts")
@@ -303,7 +284,7 @@ class LotusArxiv:
     async def aggregate_insights(
         self,
         df: pd.DataFrame,
-        aggregation: str = "Summarize the key innovations and insights from all {abstract}"
+        aggregation: str = "Summarize the key innovations and insights from all {abstract}",
     ) -> str:
         """
         Aggregate insights across multiple papers using sem_agg.
@@ -321,12 +302,9 @@ class LotusArxiv:
 
         loop = asyncio.get_running_loop()
 
-        result_df = await loop.run_in_executor(
-            None,
-            lambda: df.sem_agg(aggregation)
-        )
+        result_df = await loop.run_in_executor(None, lambda: df.sem_agg(aggregation))
 
-        summary = result_df._output[0] if hasattr(result_df, '_output') else str(result_df)
+        summary = result_df._output[0] if hasattr(result_df, "_output") else str(result_df)
         logger.info(f"  Generated {len(summary)} char summary")
         return summary
 
@@ -335,7 +313,7 @@ class LotusArxiv:
         paper_df: pd.DataFrame,
         corpus_df: pd.DataFrame,
         similarity_column: str = "abstract",
-        top_k: int = 5
+        top_k: int = 5,
     ) -> pd.DataFrame:
         """
         Find papers similar to given papers using semantic similarity.
@@ -357,28 +335,21 @@ class LotusArxiv:
 
         # Index the corpus
         indexed_df = await loop.run_in_executor(
-            None,
-            lambda: corpus_df.sem_index(similarity_column, "temp_index")
+            None, lambda: corpus_df.sem_index(similarity_column, "temp_index")
         )
 
         # Search for similar
         similar_df = await loop.run_in_executor(
             None,
             lambda: indexed_df.sem_search(
-                similarity_column,
-                paper_df[similarity_column].iloc[0],
-                K=top_k
-            )
+                similarity_column, paper_df[similarity_column].iloc[0], K=top_k
+            ),
         )
 
         logger.info(f"  Found {len(similar_df)} similar papers")
         return similar_df
 
-    async def map_papers(
-        self,
-        df: pd.DataFrame,
-        instruction: str
-    ) -> pd.DataFrame:
+    async def map_papers(self, df: pd.DataFrame, instruction: str) -> pd.DataFrame:
         """
         Transform each paper using natural language instruction.
 
@@ -395,10 +366,7 @@ class LotusArxiv:
 
         loop = asyncio.get_running_loop()
 
-        result_df = await loop.run_in_executor(
-            None,
-            lambda: df.sem_map(instruction)
-        )
+        result_df = await loop.run_in_executor(None, lambda: df.sem_map(instruction))
 
         return result_df
 
@@ -408,4 +376,4 @@ def is_lotus_available() -> bool:
     return LOTUS_AVAILABLE
 
 
-__all__ = ['LotusArxiv', 'LotusArxivConfig', 'is_lotus_available']
+__all__ = ["LotusArxiv", "LotusArxivConfig", "is_lotus_available"]

@@ -12,12 +12,12 @@ specialization emergence, and cooperation effectiveness.
 Extracted from swarm_intelligence.py for modularity.
 """
 
-import time
-import math
 import logging
-from typing import Dict, List, Any, Tuple
-from dataclasses import dataclass
+import math
+import time
 from collections import defaultdict
+from dataclasses import dataclass
+from typing import Any, Dict, List, Tuple
 
 from .swarm_data_structures import AgentProfile, AgentSpecialization
 
@@ -27,11 +27,12 @@ logger = logging.getLogger(__name__)
 @dataclass
 class SwarmMetrics:
     """Metrics for evaluating swarm performance."""
-    communication_overhead: float = 0.0   # Time spent in inter-agent communication
+
+    communication_overhead: float = 0.0  # Time spent in inter-agent communication
     specialization_diversity: float = 0.0  # How diverse are agent specializations
-    single_vs_multi_ratio: float = 1.0     # Speedup from multi-agent vs single
-    cooperation_index: float = 0.0         # How well agents cooperate
-    task_distribution_entropy: float = 0.0 # How evenly work is distributed
+    single_vs_multi_ratio: float = 1.0  # Speedup from multi-agent vs single
+    cooperation_index: float = 0.0  # How well agents cooperate
+    task_distribution_entropy: float = 0.0  # How evenly work is distributed
 
 
 class SwarmBenchmarks:
@@ -61,42 +62,59 @@ class SwarmBenchmarks:
         # Iteration history for self-improvement tracking
         self.iteration_history: List[Dict] = []
 
-    def record_iteration(self, iteration_id: str, task_type: str, score: float, execution_time: float, success: bool) -> Any:
+    def record_iteration(
+        self, iteration_id: str, task_type: str, score: float, execution_time: float, success: bool
+    ) -> Any:
         """Record a self-improvement iteration."""
-        self.iteration_history.append({
-            'iteration_id': iteration_id, 'task_type': task_type,
-            'score': score, 'execution_time': execution_time,
-            'success': success, 'timestamp': time.time()
-        })
+        self.iteration_history.append(
+            {
+                "iteration_id": iteration_id,
+                "task_type": task_type,
+                "score": score,
+                "execution_time": execution_time,
+                "success": success,
+                "timestamp": time.time(),
+            }
+        )
         if len(self.iteration_history) > 200:
             self.iteration_history = self.iteration_history[-200:]
 
     def get_improvement_trend(self, task_type: str = None, window: int = 10) -> Dict[str, Any]:
         """Split-half comparison with stddev-based noise-aware threshold."""
-        history = getattr(self, 'iteration_history', [])
+        history = getattr(self, "iteration_history", [])
         if task_type:
-            history = [h for h in history if h['task_type'] == task_type]
+            history = [h for h in history if h["task_type"] == task_type]
         if len(history) < 2:
-            return {'trend': 'insufficient_data', 'delta': 0.0, 'iterations': len(history)}
+            return {"trend": "insufficient_data", "delta": 0.0, "iterations": len(history)}
         recent = history[-window:]
         mid = len(recent) // 2
-        avg_first = sum(h['score'] for h in recent[:mid]) / mid
-        avg_second = sum(h['score'] for h in recent[mid:]) / len(recent[mid:])
+        avg_first = sum(h["score"] for h in recent[:mid]) / mid
+        avg_second = sum(h["score"] for h in recent[mid:]) / len(recent[mid:])
         delta = avg_second - avg_first
 
         # Compute stddev of the full recent window for noise-aware threshold
-        scores = [h['score'] for h in recent]
+        scores = [h["score"] for h in recent]
         mean = sum(scores) / len(scores)
         variance = sum((s - mean) ** 2 for s in scores) / len(scores)
         stddev = math.sqrt(variance)
         threshold = max(0.5 * stddev, 0.01)
 
-        trend = 'improving' if delta > threshold else ('declining' if delta < -threshold else 'stable')
-        return {'trend': trend, 'delta': delta, 'avg_recent': avg_second,
-                'avg_earlier': avg_first, 'iterations': len(recent),
-                'stddev': stddev, 'threshold': threshold}
+        trend = (
+            "improving" if delta > threshold else ("declining" if delta < -threshold else "stable")
+        )
+        return {
+            "trend": trend,
+            "delta": delta,
+            "avg_recent": avg_second,
+            "avg_earlier": avg_first,
+            "iterations": len(recent),
+            "stddev": stddev,
+            "threshold": threshold,
+        }
 
-    def record_single_agent_run(self, task_type: str, execution_time: float, success: bool = True) -> None:
+    def record_single_agent_run(
+        self, task_type: str, execution_time: float, success: bool = True
+    ) -> None:
         """Record single-agent baseline run."""
         self.single_agent_runs[task_type].append((execution_time, success))
 
@@ -104,7 +122,9 @@ class SwarmBenchmarks:
         if len(self.single_agent_runs[task_type]) > 100:
             self.single_agent_runs[task_type] = self.single_agent_runs[task_type][-100:]
 
-    def record_multi_agent_run(self, task_type: str, execution_time: float, agents_count: int, success: bool = True) -> Any:
+    def record_multi_agent_run(
+        self, task_type: str, execution_time: float, agents_count: int, success: bool = True
+    ) -> Any:
         """Record multi-agent run."""
         self.multi_agent_runs[task_type].append((execution_time, agents_count, success))
 
@@ -114,12 +134,9 @@ class SwarmBenchmarks:
 
     def record_communication(self, from_agent: str, to_agent: str, message_size: int = 0) -> None:
         """Record inter-agent communication event."""
-        self.communication_events.append({
-            'from': from_agent,
-            'to': to_agent,
-            'size': message_size,
-            'timestamp': time.time()
-        })
+        self.communication_events.append(
+            {"from": from_agent, "to": to_agent, "size": message_size, "timestamp": time.time()}
+        )
 
         # Keep bounded
         if len(self.communication_events) > 1000:
@@ -127,19 +144,21 @@ class SwarmBenchmarks:
 
     def record_cooperation(self, helper: str, helped: str, task_type: str, success: bool) -> None:
         """Record cooperation event between agents."""
-        self.cooperation_events.append({
-            'helper': helper,
-            'helped': helped,
-            'task_type': task_type,
-            'success': success,
-            'timestamp': time.time()
-        })
+        self.cooperation_events.append(
+            {
+                "helper": helper,
+                "helped": helped,
+                "task_type": task_type,
+                "success": success,
+                "timestamp": time.time(),
+            }
+        )
 
         # Keep bounded
         if len(self.cooperation_events) > 500:
             self.cooperation_events = self.cooperation_events[-500:]
 
-    def compute_metrics(self, agent_profiles: Dict[str, 'AgentProfile'] = None) -> SwarmMetrics:
+    def compute_metrics(self, agent_profiles: Dict[str, "AgentProfile"] = None) -> SwarmMetrics:
         """Compute current swarm metrics."""
         metrics = SwarmMetrics()
 
@@ -159,8 +178,7 @@ class SwarmBenchmarks:
             metrics.single_vs_multi_ratio = sum(speedups) / len(speedups)
 
         # 2. Communication overhead (messages per hour)
-        recent_comms = [c for c in self.communication_events
-                       if time.time() - c['timestamp'] < 3600]
+        recent_comms = [c for c in self.communication_events if time.time() - c["timestamp"] < 3600]
         metrics.communication_overhead = len(recent_comms)
 
         # 3. Specialization diversity (entropy of specializations)
@@ -181,15 +199,14 @@ class SwarmBenchmarks:
                 metrics.specialization_diversity = entropy / max_entropy if max_entropy > 0 else 0
 
         # 4. Cooperation index
-        recent_coop = [c for c in self.cooperation_events
-                      if time.time() - c['timestamp'] < 3600]
+        recent_coop = [c for c in self.cooperation_events if time.time() - c["timestamp"] < 3600]
         if recent_coop:
-            successful = sum(1 for c in recent_coop if c['success'])
+            successful = sum(1 for c in recent_coop if c["success"])
             metrics.cooperation_index = successful / len(recent_coop)
 
         return metrics
 
-    def format_benchmark_report(self, agent_profiles: Dict[str, 'AgentProfile'] = None) -> str:
+    def format_benchmark_report(self, agent_profiles: Dict[str, "AgentProfile"] = None) -> str:
         """Generate human-readable benchmark report."""
         metrics = self.compute_metrics(agent_profiles)
 
@@ -217,29 +234,31 @@ class SwarmBenchmarks:
 
                 lines.append(f"  {task_type}:")
                 lines.append(f"    - Multi-agent success: {multi_success:.1%} ({len(multi)} runs)")
-                lines.append(f"    - Single-agent success: {single_success:.1%} ({len(single)} runs)")
+                lines.append(
+                    f"    - Single-agent success: {single_success:.1%} ({len(single)} runs)"
+                )
 
         return "\n".join(lines)
 
     def to_dict(self) -> Dict:
         """Serialize for persistence."""
         return {
-            'single_agent_runs': dict(self.single_agent_runs),
-            'multi_agent_runs': dict(self.multi_agent_runs),
-            'communication_events': self.communication_events[-200:],
-            'cooperation_events': self.cooperation_events[-100:],
-            'iteration_history': getattr(self, 'iteration_history', [])[-200:],
+            "single_agent_runs": dict(self.single_agent_runs),
+            "multi_agent_runs": dict(self.multi_agent_runs),
+            "communication_events": self.communication_events[-200:],
+            "cooperation_events": self.cooperation_events[-100:],
+            "iteration_history": getattr(self, "iteration_history", [])[-200:],
         }
 
     @classmethod
-    def from_dict(cls, data: Dict) -> 'SwarmBenchmarks':
+    def from_dict(cls, data: Dict) -> "SwarmBenchmarks":
         """Deserialize from persistence."""
         instance = cls()
-        instance.single_agent_runs = defaultdict(list, data.get('single_agent_runs', {}))
-        instance.multi_agent_runs = defaultdict(list, data.get('multi_agent_runs', {}))
-        instance.communication_events = data.get('communication_events', [])
-        instance.cooperation_events = data.get('cooperation_events', [])
-        instance.iteration_history = data.get('iteration_history', [])
+        instance.single_agent_runs = defaultdict(list, data.get("single_agent_runs", {}))
+        instance.multi_agent_runs = defaultdict(list, data.get("multi_agent_runs", {}))
+        instance.communication_events = data.get("communication_events", [])
+        instance.cooperation_events = data.get("cooperation_events", [])
+        instance.iteration_history = data.get("iteration_history", [])
         return instance
 
 
@@ -257,27 +276,28 @@ class MASBenchResult:
     Captures all metrics needed for MAS-Bench evaluation:
     success, steps, time, tokens, and action type breakdown.
     """
+
     task_id: str
     task_description: str = ""
     success: bool = False
 
     # Step counts
     total_steps: int = 0
-    optimal_steps: int = 1      # ground truth optimal steps
-    gui_steps: int = 0          # steps using GUI actions
-    shortcut_steps: int = 0     # steps using API/deeplink/RPA
+    optimal_steps: int = 1  # ground truth optimal steps
+    gui_steps: int = 0  # steps using GUI actions
+    shortcut_steps: int = 0  # steps using API/deeplink/RPA
 
     # Shortcut metrics
-    shortcut_calls: int = 0     # total shortcut invocations
-    shortcut_successes: int = 0 # successful shortcut executions
+    shortcut_calls: int = 0  # total shortcut invocations
+    shortcut_successes: int = 0  # successful shortcut executions
 
     # Cost/time
     execution_time_sec: float = 0.0
-    token_cost_k: float = 0.0   # kilo-tokens consumed
+    token_cost_k: float = 0.0  # kilo-tokens consumed
 
     # Metadata
     app_package: str = ""
-    difficulty_level: int = 1   # 1, 2, or 3
+    difficulty_level: int = 1  # 1, 2, or 3
     is_cross_app: bool = False
     error: str = ""
 
@@ -299,22 +319,22 @@ class MASBenchResult:
     def to_dict(self) -> Dict[str, Any]:
         """Serialize to dict."""
         return {
-            'task_id': self.task_id,
-            'success': self.success,
-            'total_steps': self.total_steps,
-            'optimal_steps': self.optimal_steps,
-            'gui_steps': self.gui_steps,
-            'shortcut_steps': self.shortcut_steps,
-            'shortcut_calls': self.shortcut_calls,
-            'shortcut_successes': self.shortcut_successes,
-            'step_ratio': self.step_ratio,
-            'shortcut_success_rate': self.shortcut_success_rate,
-            'gui_shortcut_ratio': self.gui_shortcut_ratio,
-            'execution_time_sec': self.execution_time_sec,
-            'token_cost_k': self.token_cost_k,
-            'difficulty_level': self.difficulty_level,
-            'is_cross_app': self.is_cross_app,
-            'error': self.error,
+            "task_id": self.task_id,
+            "success": self.success,
+            "total_steps": self.total_steps,
+            "optimal_steps": self.optimal_steps,
+            "gui_steps": self.gui_steps,
+            "shortcut_steps": self.shortcut_steps,
+            "shortcut_calls": self.shortcut_calls,
+            "shortcut_successes": self.shortcut_successes,
+            "step_ratio": self.step_ratio,
+            "shortcut_success_rate": self.shortcut_success_rate,
+            "gui_shortcut_ratio": self.gui_shortcut_ratio,
+            "execution_time_sec": self.execution_time_sec,
+            "token_cost_k": self.token_cost_k,
+            "difficulty_level": self.difficulty_level,
+            "is_cross_app": self.is_cross_app,
+            "error": self.error,
         }
 
 
@@ -334,23 +354,48 @@ class MASBenchRunner:
     """
 
     # Skills classified as GUI (slow, fragile)
-    GUI_SKILLS = frozenset({
-        'browser-automation', 'android-automation', 'webapp-testing',
-    })
+    GUI_SKILLS = frozenset(
+        {
+            "browser-automation",
+            "android-automation",
+            "webapp-testing",
+        }
+    )
 
     # Skills classified as API shortcuts (fast, reliable)
-    API_SKILLS = frozenset({
-        'http-client', 'web-search', 'web-scraper', 'oauth-automation',
-        'telegram-sender', 'slack-integration', 'pmi-market-data',
-        'pmi-portfolio', 'pmi-trading', 'pmi-watchlist', 'pmi-alerts',
-        'pmi-strategies', 'pmi-broker', 'shell-exec', 'database-tools',
-    })
+    API_SKILLS = frozenset(
+        {
+            "http-client",
+            "web-search",
+            "web-scraper",
+            "oauth-automation",
+            "telegram-sender",
+            "slack-integration",
+            "pmi-market-data",
+            "pmi-portfolio",
+            "pmi-trading",
+            "pmi-watchlist",
+            "pmi-alerts",
+            "pmi-strategies",
+            "pmi-broker",
+            "shell-exec",
+            "database-tools",
+        }
+    )
 
     def __init__(self) -> None:
         self.tasks: List[Dict[str, Any]] = []
         self.results: List[MASBenchResult] = []
 
-    def add_task(self, task_id: str, description: str, app: str = '', optimal_steps: int = 1, difficulty: int = 1, cross_app: bool = False) -> Any:
+    def add_task(
+        self,
+        task_id: str,
+        description: str,
+        app: str = "",
+        optimal_steps: int = 1,
+        difficulty: int = 1,
+        cross_app: bool = False,
+    ) -> Any:
         """Register a task for evaluation.
 
         Args:
@@ -361,14 +406,16 @@ class MASBenchRunner:
             difficulty: Difficulty level (1-3).
             cross_app: Whether task spans multiple apps.
         """
-        self.tasks.append({
-            'task_id': task_id,
-            'description': description,
-            'app': app,
-            'optimal_steps': optimal_steps,
-            'difficulty': difficulty,
-            'cross_app': cross_app,
-        })
+        self.tasks.append(
+            {
+                "task_id": task_id,
+                "description": description,
+                "app": app,
+                "optimal_steps": optimal_steps,
+                "difficulty": difficulty,
+                "cross_app": cross_app,
+            }
+        )
 
     def classify_step(self, skill_name: str) -> str:
         """Classify a step as 'gui' or 'shortcut' based on skill name.
@@ -380,14 +427,17 @@ class MASBenchRunner:
             'gui' or 'shortcut'
         """
         if skill_name in self.GUI_SKILLS:
-            return 'gui'
-        return 'shortcut'
+            return "gui"
+        return "shortcut"
 
-    def evaluate_execution(self, task: Dict[str, Any],
-                           steps_executed: List[Dict[str, Any]],
-                           success: bool,
-                           execution_time: float,
-                           token_cost: float) -> MASBenchResult:
+    def evaluate_execution(
+        self,
+        task: Dict[str, Any],
+        steps_executed: List[Dict[str, Any]],
+        success: bool,
+        execution_time: float,
+        token_cost: float,
+    ) -> MASBenchResult:
         """Evaluate a single task execution and compute metrics.
 
         Args:
@@ -401,29 +451,29 @@ class MASBenchRunner:
             MASBenchResult with all metrics computed.
         """
         result = MASBenchResult(
-            task_id=task['task_id'],
-            task_description=task['description'],
+            task_id=task["task_id"],
+            task_description=task["description"],
             success=success,
             total_steps=len(steps_executed),
-            optimal_steps=task.get('optimal_steps', 1),
+            optimal_steps=task.get("optimal_steps", 1),
             execution_time_sec=execution_time,
             token_cost_k=token_cost,
-            app_package=task.get('app', ''),
-            difficulty_level=task.get('difficulty', 1),
-            is_cross_app=task.get('cross_app', False),
+            app_package=task.get("app", ""),
+            difficulty_level=task.get("difficulty", 1),
+            is_cross_app=task.get("cross_app", False),
         )
 
         for step in steps_executed:
-            skill = step.get('skill_name', '')
+            skill = step.get("skill_name", "")
             step_type = self.classify_step(skill)
-            step_status = step.get('status', 'completed')
+            step_status = step.get("status", "completed")
 
-            if step_type == 'gui':
+            if step_type == "gui":
                 result.gui_steps += 1
             else:
                 result.shortcut_steps += 1
                 result.shortcut_calls += 1
-                if step_status == 'completed':
+                if step_status == "completed":
                     result.shortcut_successes += 1
 
         return result
@@ -448,7 +498,7 @@ class MASBenchRunner:
             Dict with aggregate metrics and breakdowns.
         """
         if not results:
-            return {'SR': 0, 'SSR': 0, 'MS': 0, 'MSR': 0, 'MET': 0, 'MToC': 0, 'GSAR': 0}
+            return {"SR": 0, "SSR": 0, "MS": 0, "MSR": 0, "MET": 0, "MToC": 0, "GSAR": 0}
 
         n = len(results)
         successes = sum(1 for r in results if r.success)
@@ -456,15 +506,15 @@ class MASBenchRunner:
         total_shortcut_successes = sum(r.shortcut_successes for r in results)
 
         metrics = {
-            'SR': successes / n,
-            'SSR': total_shortcut_successes / max(total_shortcut_calls, 1),
-            'MS': sum(r.total_steps for r in results) / n,
-            'MSR': sum(r.step_ratio for r in results) / n,
-            'MET': sum(r.execution_time_sec for r in results) / n,
-            'MToC': sum(r.token_cost_k for r in results) / n,
-            'GSAR': sum(r.gui_shortcut_ratio for r in results) / n,
-            'total_tasks': n,
-            'total_successes': successes,
+            "SR": successes / n,
+            "SSR": total_shortcut_successes / max(total_shortcut_calls, 1),
+            "MS": sum(r.total_steps for r in results) / n,
+            "MSR": sum(r.step_ratio for r in results) / n,
+            "MET": sum(r.execution_time_sec for r in results) / n,
+            "MToC": sum(r.token_cost_k for r in results) / n,
+            "GSAR": sum(r.gui_shortcut_ratio for r in results) / n,
+            "total_tasks": n,
+            "total_successes": successes,
         }
 
         # Breakdown by difficulty
@@ -472,15 +522,15 @@ class MASBenchRunner:
             level_results = [r for r in results if r.difficulty_level == level]
             if level_results:
                 level_successes = sum(1 for r in level_results if r.success)
-                metrics[f'SR_L{level}'] = level_successes / len(level_results)
+                metrics[f"SR_L{level}"] = level_successes / len(level_results)
 
         # Breakdown by task type (single-app vs cross-app)
         single = [r for r in results if not r.is_cross_app]
         cross = [r for r in results if r.is_cross_app]
         if single:
-            metrics['SR_single_app'] = sum(1 for r in single if r.success) / len(single)
+            metrics["SR_single_app"] = sum(1 for r in single if r.success) / len(single)
         if cross:
-            metrics['SR_cross_app'] = sum(1 for r in cross if r.success) / len(cross)
+            metrics["SR_cross_app"] = sum(1 for r in cross if r.success) / len(cross)
 
         return metrics
 
@@ -510,13 +560,13 @@ class MASBenchRunner:
             f"GUI-to-Shortcut Ratio (GSAR): {metrics['GSAR']:.2f}",
         ]
 
-        if 'SR_single_app' in metrics:
+        if "SR_single_app" in metrics:
             lines.append(f"Single-app SR: {metrics['SR_single_app']:.1%}")
-        if 'SR_cross_app' in metrics:
+        if "SR_cross_app" in metrics:
             lines.append(f"Cross-app SR: {metrics['SR_cross_app']:.1%}")
 
         for level in [1, 2, 3]:
-            key = f'SR_L{level}'
+            key = f"SR_L{level}"
             if key in metrics:
                 lines.append(f"Level {level} SR: {metrics[key]:.1%}")
 
@@ -524,8 +574,8 @@ class MASBenchRunner:
 
 
 __all__ = [
-    'SwarmMetrics',
-    'SwarmBenchmarks',
-    'MASBenchResult',
-    'MASBenchRunner',
+    "SwarmMetrics",
+    "SwarmBenchmarks",
+    "MASBenchResult",
+    "MASBenchRunner",
 ]

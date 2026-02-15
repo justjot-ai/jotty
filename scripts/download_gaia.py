@@ -28,7 +28,6 @@ import shutil
 import sys
 from pathlib import Path
 
-
 GAIA_DATASET = "gaia-benchmark/GAIA"
 GAIA_SUBSET = "2023_all"  # The main config name
 
@@ -130,9 +129,7 @@ def download_gaia(output_dir: str, hf_token: str = None, splits: list = None):
         print(f"  Wrote {count} tasks, {attachments_downloaded} attachments to {split_dir}")
 
     total = sum(
-        len(list((output_path / s).glob("*.json")))
-        for s in splits
-        if (output_path / s).exists()
+        len(list((output_path / s).glob("*.json"))) for s in splits if (output_path / s).exists()
     )
     print(f"\nDone! {total} total task files in {output_path.resolve()}")
     return 0
@@ -143,15 +140,19 @@ def main():
         description="Download GAIA benchmark dataset from HuggingFace",
     )
     parser.add_argument(
-        "--output", default="./data/gaia",
+        "--output",
+        default="./data/gaia",
         help="Output directory (default: ./data/gaia)",
     )
     parser.add_argument(
-        "--hf-token", default=None,
+        "--hf-token",
+        default=None,
         help="HuggingFace API token (or set HF_TOKEN env var)",
     )
     parser.add_argument(
-        "--splits", nargs="+", default=["validation", "test"],
+        "--splits",
+        nargs="+",
+        default=["validation", "test"],
         help="Splits to download (default: validation test)",
     )
     args = parser.parse_args()

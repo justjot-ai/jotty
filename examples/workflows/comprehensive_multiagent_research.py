@@ -15,6 +15,7 @@ Generates FULL detailed content:
 import asyncio
 import os
 from pathlib import Path
+
 from dotenv import load_dotenv
 
 # Load environment
@@ -24,20 +25,20 @@ if env_path.exists():
 
 
 async def main():
+    from Jotty.core.intelligence.orchestration.multi_stage_pipeline import MergeStrategy
+    from Jotty.core.intelligence.orchestration.swarm_adapter import SwarmAdapter
     from Jotty.core.modes.workflow import (
-        ResearchWorkflow,
+        OutputChannelManager,
+        OutputFormatManager,
         ResearchDepth,
         ResearchType,
-        OutputFormatManager,
-        OutputChannelManager,
+        ResearchWorkflow,
     )
-    from Jotty.core.intelligence.orchestration.swarm_adapter import SwarmAdapter
-    from Jotty.core.intelligence.orchestration.multi_stage_pipeline import MergeStrategy
 
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("COMPREHENSIVE MULTI-AGENT SYSTEM RESEARCH")
     print("Publication-Quality Deep Dive (12,000+ words)")
-    print("="*80 + "\n")
+    print("=" * 80 + "\n")
 
     # ═══════════════════════════════════════════════════════════════════════
     # STEP 1: Auto-Generate Comprehensive Research Pipeline
@@ -52,16 +53,16 @@ async def main():
         research_type="academic",
         depth="comprehensive",  # Deep research with 25+ sources
         deliverables=[
-            "overview",           # High-level summary
+            "overview",  # High-level summary
             "literature_review",  # 25+ sources, comprehensive analysis
-            "analysis",          # Deep technical analysis
-            "synthesis",         # Integration of findings
-            "visualization",     # Diagrams and charts
-            "documentation",     # Final comprehensive paper
-            "bibliography",      # Academic citations
+            "analysis",  # Deep technical analysis
+            "synthesis",  # Integration of findings
+            "visualization",  # Diagrams and charts
+            "documentation",  # Final comprehensive paper
+            "bibliography",  # Academic citations
         ],
         max_sources=30,
-        send_telegram=False  # We'll handle delivery manually
+        send_telegram=False,  # We'll handle delivery manually
     )
 
     print("✅ Created base workflow with 7 comprehensive stages\n")
@@ -126,7 +127,7 @@ async def main():
 
         Organize chronologically AND thematically.
         Total length: 2500+ words minimum.
-        """
+        """,
     )
     print("✅ Customized 'literature_review' for comprehensive depth (6000 tokens)")
 
@@ -234,7 +235,7 @@ async def main():
 
         Write as cohesive technical narrative with smooth transitions.
         Total: 2500+ words minimum.
-        """
+        """,
     )
     print("✅ Customized 'analysis' for deep technical content (6000 tokens)")
 
@@ -287,7 +288,7 @@ async def main():
         Write as narrative essay with clear argument flow.
         Use subheadings, bullet points, and emphasis for readability.
         Total: 2000+ words minimum.
-        """
+        """,
     )
     print("✅ Customized 'synthesis' for comprehensive integration (5000 tokens)")
 
@@ -367,7 +368,7 @@ async def main():
 
         CRITICAL: This must be the FINAL complete paper, not a template.
         Total length: 4000+ words minimum.
-        """
+        """,
     )
     print("✅ Customized 'documentation' for publication-ready paper (8000 tokens)")
 
@@ -381,8 +382,11 @@ async def main():
     print("-" * 80 + "\n")
 
     # Custom stage: Real-world applications with metrics
-    applications_swarms = SwarmAdapter.quick_swarms([
-        ("Application Specialist", """
+    applications_swarms = SwarmAdapter.quick_swarms(
+        [
+            (
+                "Application Specialist",
+                """
         Generate COMPLETE 1500+ word section on real-world multi-agent applications.
 
         NO meta-commentary. Write final content directly.
@@ -441,13 +445,16 @@ async def main():
         - Future directions
 
         Total: 1500+ words with specific examples and data.
-        """)
-    ], max_tokens=5000)
+        """,
+            )
+        ],
+        max_tokens=5000,
+    )
 
     workflow.add_custom_stage(
         "real_world_applications",
         swarms=applications_swarms,
-        context_from=["analysis", "synthesis"]
+        context_from=["analysis", "synthesis"],
     )
     print("✅ Added: Real-World Applications (5000 tokens, metrics & case studies)")
 
@@ -494,7 +501,7 @@ async def main():
     output_dir.mkdir(parents=True, exist_ok=True)
 
     markdown_path = output_dir / "multiagent_systems_comprehensive.md"
-    with open(markdown_path, 'w', encoding='utf-8') as f:
+    with open(markdown_path, "w", encoding="utf-8") as f:
         f.write(doc_stage.result.output)
 
     content_size = len(doc_stage.result.output)
@@ -521,7 +528,7 @@ async def main():
         markdown_path=str(markdown_path),
         title="Multi-Agent Systems: Comprehensive Technical Survey",
         author="Jotty Research AI",
-        page_size="a4"
+        page_size="a4",
     )
 
     if pdf_result.success:
@@ -568,9 +575,7 @@ Generated by Jotty AI Research Framework"""
 
     print(f"📤 Sending {file_format} to Telegram...")
     telegram_result = await channel_manager.send_to_telegram(
-        file_path=file_to_send,
-        caption=telegram_caption,
-        parse_mode="HTML"
+        file_path=file_to_send, caption=telegram_caption, parse_mode="HTML"
     )
 
     if telegram_result.success:
@@ -590,7 +595,7 @@ Generated by Jotty AI Research Framework"""
     print("-" * 80 + "\n")
 
     # Get WhatsApp channel from environment (default configured)
-    whatsapp_to = os.environ.get('WHATSAPP_CHANNEL') or os.environ.get('WHATSAPP_TO')
+    whatsapp_to = os.environ.get("WHATSAPP_CHANNEL") or os.environ.get("WHATSAPP_TO")
     whatsapp_result = None
 
     if whatsapp_to:
@@ -619,7 +624,7 @@ Generated by Jotty AI"""
             to=whatsapp_to,
             file_path=file_to_send,
             caption=whatsapp_caption,
-            provider="baileys"  # Explicitly use Bailey
+            provider="baileys",  # Explicitly use Bailey
         )
 
         if whatsapp_result.success:
@@ -640,9 +645,9 @@ Generated by Jotty AI"""
     # FINAL SUMMARY
     # ═══════════════════════════════════════════════════════════════════════
 
-    print("="*80)
+    print("=" * 80)
     print("COMPREHENSIVE MULTI-AGENT RESEARCH COMPLETE")
-    print("="*80 + "\n")
+    print("=" * 80 + "\n")
 
     # Delivery summary
     channels_sent = []
@@ -680,5 +685,5 @@ Generated by Jotty AI"""
     print()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     asyncio.run(main())

@@ -1,7 +1,10 @@
 """Tip calculator — amount, total, per-person split."""
-from typing import Dict, Any
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+
+from typing import Any, Dict
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
+
 status = SkillStatus("tip-calculator")
 
 
@@ -25,11 +28,18 @@ def tip_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     suggestions = {}
     for p in [15, 18, 20, 25]:
         t = round(bill * p / 100, 2)
-        suggestions[f"{p}%"] = {"tip": t, "total": round(bill + t, 2),
-                                "per_person": round((bill + t) / people, 2)}
+        suggestions[f"{p}%"] = {
+            "tip": t,
+            "total": round(bill + t, 2),
+            "per_person": round((bill + t) / people, 2),
+        }
     return tool_response(
-        bill_amount=bill, tip_percent=pct, tip_amount=tip,
-        total=total, num_people=people, per_person=per_person,
+        bill_amount=bill,
+        tip_percent=pct,
+        tip_amount=tip,
+        total=total,
+        num_people=people,
+        per_person=per_person,
         suggestions=suggestions,
     )
 

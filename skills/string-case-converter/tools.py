@@ -1,9 +1,10 @@
 """String Case Converter Skill."""
-import re
-from typing import Dict, Any
 
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+import re
+from typing import Any, Dict
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("string-case-converter")
 
@@ -38,7 +39,9 @@ def convert_case_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     elif target in ("dotcase", "dot"):
         result = ".".join(w.lower() for w in words)
     else:
-        return tool_error(f"Unknown case: {params['to_case']}. Use: camelCase, snake_case, kebab-case, PascalCase, UPPER_CASE, Title Case")
+        return tool_error(
+            f"Unknown case: {params['to_case']}. Use: camelCase, snake_case, kebab-case, PascalCase, UPPER_CASE, Title Case"
+        )
 
     return tool_response(result=result, from_words=words, to_case=params["to_case"])
 

@@ -7,12 +7,13 @@ learning curves, calibration, lift/gain, threshold optimization, etc.
 
 Extracted from ml_report_generator.py to reduce file size.
 """
+
 from __future__ import annotations
 
 import logging
 import warnings
 from pathlib import Path
-from typing import Dict, List, Any, Optional, Tuple, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -54,19 +55,27 @@ class AnalysisSectionsMixin:
         def _add_section(self, title: str, content: str, **kwargs: Any) -> None: ...
         def _record_section_failure(self, section: str, error: Exception) -> None: ...
 
-    def add_executive_summary(self, metrics: Dict[str, float], best_model: str, n_features: int, context: str = '') -> Any:
+    def add_executive_summary(
+        self, metrics: Dict[str, float], best_model: str, n_features: int, context: str = ""
+    ) -> Any:
         """Add executive summary section with risk scoring and traffic-light indicators."""
         try:
             self._add_executive_summary_impl(metrics, best_model, n_features, context)
         except Exception as e:
-            self._record_section_failure('Executive Summary', e)
+            self._record_section_failure("Executive Summary", e)
 
-    def add_data_profile(self, shape: Tuple[int, int], dtypes: Dict[str, int], missing: Dict[str, int], recommendations: List[str]) -> Any:
+    def add_data_profile(
+        self,
+        shape: Tuple[int, int],
+        dtypes: Dict[str, int],
+        missing: Dict[str, int],
+        recommendations: List[str],
+    ) -> Any:
         """Add data profiling section."""
         try:
             self._add_data_profile_impl(shape, dtypes, missing, recommendations)
         except Exception as e:
-            self._record_section_failure('Data Profile', e)
+            self._record_section_failure("Data Profile", e)
 
     def add_pipeline_visualization(self, pipeline_steps: List[Dict]) -> None:
         """
@@ -92,15 +101,19 @@ class AnalysisSectionsMixin:
             table_md += "|------|------|-------------|--------------|------------|\n"
 
             for i, step in enumerate(pipeline_steps, 1):
-                name = step.get('name', f'Step {i}')
-                stype = step.get('type', 'unknown')
-                in_shape = step.get('input_shape', 'N/A')
-                out_shape = step.get('output_shape', 'N/A')
-                params = step.get('params', {})
+                name = step.get("name", f"Step {i}")
+                stype = step.get("type", "unknown")
+                in_shape = step.get("input_shape", "N/A")
+                out_shape = step.get("output_shape", "N/A")
+                params = step.get("params", {})
 
-                in_str = f"{in_shape}" if in_shape != 'N/A' else 'N/A'
-                out_str = f"{out_shape}" if out_shape != 'N/A' else 'N/A'
-                param_str = ", ".join(f"{k}={v}" for k, v in list(params.items())[:3])[:40] if params else '-'
+                in_str = f"{in_shape}" if in_shape != "N/A" else "N/A"
+                out_str = f"{out_shape}" if out_shape != "N/A" else "N/A"
+                param_str = (
+                    ", ".join(f"{k}={v}" for k, v in list(params.items())[:3])[:40]
+                    if params
+                    else "-"
+                )
 
                 table_md += f"| {name[:25]} | {stype} | {in_str} | {out_str} | {param_str} |\n"
 
@@ -121,29 +134,35 @@ Visual representation of the ML pipeline data flow.
 """
             self._content.append(content)
 
-            self._store_section_data('pipeline_dag', 'Pipeline Architecture', {
-                'steps': pipeline_steps,
-            }, [{'type': 'dag', 'path': fig_path}])
+            self._store_section_data(
+                "pipeline_dag",
+                "Pipeline Architecture",
+                {
+                    "steps": pipeline_steps,
+                },
+                [{"type": "dag", "path": fig_path}],
+            )
 
         except Exception as e:
-            self._record_section_failure('Pipeline Visualization', e)
-
+            self._record_section_failure("Pipeline Visualization", e)
 
     def add_feature_importance(self, importance: Dict[str, float], top_n: int = 20) -> None:
         """Add feature importance section with chart."""
         try:
             self._add_feature_importance_impl(importance, top_n)
         except Exception as e:
-            self._record_section_failure('Feature Importance', e)
+            self._record_section_failure("Feature Importance", e)
 
     def add_model_benchmarking(self, model_scores: Dict[str, Dict[str, float]]) -> None:
         """Add model benchmarking comparison."""
         try:
             self._add_model_benchmarking_impl(model_scores)
         except Exception as e:
-            self._record_section_failure('Model Benchmarking', e)
+            self._record_section_failure("Model Benchmarking", e)
 
-    def add_model_comparison(self, models: Dict, X_test: Any, y_true: Any, class_labels: List[str] = None) -> Any:
+    def add_model_comparison(
+        self, models: Dict, X_test: Any, y_true: Any, class_labels: List[str] = None
+    ) -> Any:
         """Add side-by-side comparison of multiple trained models.
 
         Args:
@@ -155,9 +174,15 @@ Visual representation of the ML pipeline data flow.
         try:
             self._add_model_comparison_impl(models, X_test, y_true, class_labels)
         except Exception as e:
-            self._record_section_failure('Model Comparison', e)
+            self._record_section_failure("Model Comparison", e)
 
-    def add_cross_dataset_validation(self, datasets_dict: Dict[str, Tuple], model: Any, metric_fn: Any = None, metric_name: str = 'Score') -> Any:
+    def add_cross_dataset_validation(
+        self,
+        datasets_dict: Dict[str, Tuple],
+        model: Any,
+        metric_fn: Any = None,
+        metric_name: str = "Score",
+    ) -> Any:
         """
         Add cross-dataset validation analysis.
 
@@ -179,31 +204,31 @@ Visual representation of the ML pipeline data flow.
 
             for ds_name, (X_ds, y_ds) in datasets_dict.items():
                 try:
-                    X_arr = X_ds.values if hasattr(X_ds, 'values') else np.asarray(X_ds)
+                    X_arr = X_ds.values if hasattr(X_ds, "values") else np.asarray(X_ds)
                     y_arr = np.asarray(y_ds)
 
                     y_pred = model.predict(X_arr)
                     score = metric_fn(y_arr, y_pred)
                     results[ds_name] = {
-                        'score': float(score),
-                        'n_samples': len(y_arr),
-                        'n_features': X_arr.shape[1],
+                        "score": float(score),
+                        "n_samples": len(y_arr),
+                        "n_features": X_arr.shape[1],
                     }
 
                     # Feature stats for distribution shift detection
                     feature_stats[ds_name] = {
-                        'mean': np.nanmean(X_arr, axis=0),
-                        'std': np.nanstd(X_arr, axis=0),
+                        "mean": np.nanmean(X_arr, axis=0),
+                        "std": np.nanstd(X_arr, axis=0),
                     }
                 except Exception as e:
                     logger.debug(f"Cross-dataset eval failed for {ds_name}: {e}")
-                    results[ds_name] = {'score': 0.0, 'n_samples': 0, 'n_features': 0}
+                    results[ds_name] = {"score": 0.0, "n_samples": 0, "n_features": 0}
 
             if not results:
                 return
 
             # Generalization gap
-            scores = [r['score'] for r in results.values() if r['score'] > 0]
+            scores = [r["score"] for r in results.values() if r["score"] > 0]
             gen_gap = max(scores) - min(scores) if len(scores) > 1 else 0
 
             # Distribution shift detection
@@ -211,8 +236,8 @@ Visual representation of the ML pipeline data flow.
             if len(feature_stats) > 1:
                 ds_names = list(feature_stats.keys())
                 for i in range(1, len(ds_names)):
-                    ref_mean = feature_stats[ds_names[0]]['mean']
-                    cur_mean = feature_stats[ds_names[i]]['mean']
+                    ref_mean = feature_stats[ds_names[0]]["mean"]
+                    cur_mean = feature_stats[ds_names[i]]["mean"]
                     mean_diff = np.mean(np.abs(ref_mean - cur_mean) / (np.abs(ref_mean) + 1e-10))
                     if mean_diff > 0.2:
                         shift_detected = True
@@ -223,13 +248,15 @@ Visual representation of the ML pipeline data flow.
             try:
                 fig_path = self._create_cross_dataset_chart(results, metric_name)
             except Exception as e:
-                self._record_chart_failure('cross_dataset', e)
+                self._record_chart_failure("cross_dataset", e)
 
             # Build table
             table_md = f"| Dataset | {metric_name} | Samples | Features |\n"
             table_md += "|---------|-------|---------|----------|\n"
-            for ds_name, r in sorted(results.items(), key=lambda x: -x[1]['score']):
-                table_md += f"| {ds_name} | {r['score']:.4f} | {r['n_samples']:,} | {r['n_features']} |\n"
+            for ds_name, r in sorted(results.items(), key=lambda x: -x[1]["score"]):
+                table_md += (
+                    f"| {ds_name} | {r['score']:.4f} | {r['n_samples']:,} | {r['n_features']} |\n"
+                )
 
             content = f"""
 # Multi-Dataset Validation
@@ -259,51 +286,59 @@ Evaluating model generalization across {len(results)} different datasets.
 """
             self._content.append(content)
 
-            self._store_section_data('cross_dataset', 'Multi-Dataset Validation', {
-                'results': results,
-                'gen_gap': gen_gap,
-                'shift_detected': shift_detected,
-            }, [{'type': 'bar', 'path': fig_path}])
+            self._store_section_data(
+                "cross_dataset",
+                "Multi-Dataset Validation",
+                {
+                    "results": results,
+                    "gen_gap": gen_gap,
+                    "shift_detected": shift_detected,
+                },
+                [{"type": "bar", "path": fig_path}],
+            )
 
         except Exception as e:
-            self._record_section_failure('Cross-Dataset Validation', e)
-
+            self._record_section_failure("Cross-Dataset Validation", e)
 
     def add_confusion_matrix(self, y_true: Any, y_pred: Any, labels: List[str] = None) -> None:
         """Add confusion matrix section."""
         try:
             self._add_confusion_matrix_impl(y_true, y_pred, labels)
         except Exception as e:
-            self._record_section_failure('Classification Performance', e)
+            self._record_section_failure("Classification Performance", e)
 
     def add_roc_analysis(self, y_true: Any, y_prob: Any, pos_label: Any = 1) -> None:
         """Add ROC curve analysis."""
         try:
             self._add_roc_analysis_impl(y_true, y_prob, pos_label)
         except Exception as e:
-            self._record_section_failure('ROC Analysis', e)
+            self._record_section_failure("ROC Analysis", e)
 
     def add_precision_recall(self, y_true: Any, y_prob: Any, pos_label: Any = 1) -> None:
         """Add precision-recall curve analysis."""
         try:
             self._add_precision_recall_impl(y_true, y_prob, pos_label)
         except Exception as e:
-            self._record_section_failure('Precision-Recall Analysis', e)
+            self._record_section_failure("Precision-Recall Analysis", e)
 
-    def add_baseline_comparison(self, baseline_score: float, final_score: float, baseline_model: str = 'Baseline') -> Any:
+    def add_baseline_comparison(
+        self, baseline_score: float, final_score: float, baseline_model: str = "Baseline"
+    ) -> Any:
         """Add baseline comparison section."""
         try:
             self._add_baseline_comparison_impl(baseline_score, final_score, baseline_model)
         except Exception as e:
-            self._record_section_failure('Baseline Comparison', e)
+            self._record_section_failure("Baseline Comparison", e)
 
-    def add_shap_analysis(self, shap_values: Any, feature_names: List[str], X_sample: Any = None) -> None:
+    def add_shap_analysis(
+        self, shap_values: Any, feature_names: List[str], X_sample: Any = None
+    ) -> None:
         """Add SHAP analysis section."""
         try:
             import shap
 
             # Calculate mean absolute SHAP values
-            if hasattr(shap_values, 'values'):
+            if hasattr(shap_values, "values"):
                 values = shap_values.values
             else:
                 values = shap_values
@@ -312,15 +347,16 @@ Evaluating model generalization across {len(results)} different datasets.
                 values = values[:, :, 1]  # Binary classification
 
             mean_shap = np.abs(values).mean(axis=0)
-            shap_importance = sorted(zip(feature_names, mean_shap),
-                                    key=lambda x: x[1], reverse=True)[:15]
+            shap_importance = sorted(
+                zip(feature_names, mean_shap), key=lambda x: x[1], reverse=True
+            )[:15]
 
             # Create SHAP summary plot (isolated)
             fig_path = ""
             try:
                 fig_path = self._create_shap_chart(shap_values, feature_names, X_sample)
             except Exception as e:
-                self._record_chart_failure('shap_chart', e)
+                self._record_chart_failure("shap_chart", e)
 
             table_md = "| Feature | Mean Abs SHAP |\n|---------|-------------|\n"
             for feat, val in shap_importance:
@@ -343,20 +379,25 @@ showing how each feature contributes to individual predictions.
 ---
 """
             self._content.append(content)
-            self._store_section_data('shap_analysis', 'SHAP Feature Analysis', {
-                'top_features': [f for f, _ in shap_importance[:10]],
-                'mean_shap': dict(shap_importance[:10]),
-            }, [{'type': 'importance_bar'}])
+            self._store_section_data(
+                "shap_analysis",
+                "SHAP Feature Analysis",
+                {
+                    "top_features": [f for f, _ in shap_importance[:10]],
+                    "mean_shap": dict(shap_importance[:10]),
+                },
+                [{"type": "importance_bar"}],
+            )
 
         except Exception as e:
-            self._record_section_failure('SHAP Analysis', e)
+            self._record_section_failure("SHAP Analysis", e)
 
     def add_recommendations(self, recommendations: List[str]) -> None:
         """Add recommendations section."""
         try:
             self._add_recommendations_impl(recommendations)
         except Exception as e:
-            self._record_section_failure('Recommendations', e)
+            self._record_section_failure("Recommendations", e)
 
     def add_data_quality_analysis(self, X: pd.DataFrame, y: pd.Series = None) -> None:
         """
@@ -369,7 +410,7 @@ showing how each feature contributes to individual predictions.
         try:
             self._add_data_quality_analysis_impl(X, y)
         except Exception as e:
-            self._record_section_failure('Data Quality Analysis', e)
+            self._record_section_failure("Data Quality Analysis", e)
 
     def add_correlation_analysis(self, X: pd.DataFrame, threshold: float = 0.7) -> None:
         """
@@ -381,7 +422,7 @@ showing how each feature contributes to individual predictions.
         try:
             self._add_correlation_analysis_impl(X, threshold)
         except Exception as e:
-            self._record_section_failure('Correlation Analysis', e)
+            self._record_section_failure("Correlation Analysis", e)
 
     def add_learning_curves(self, model: Any, X: Any, y: Any, cv: int = 5) -> None:
         """
@@ -396,8 +437,15 @@ showing how each feature contributes to individual predictions.
 
             train_sizes = np.linspace(0.1, 1.0, 10)
             train_sizes_abs, train_scores, val_scores = learning_curve(
-                model, X, y, train_sizes=train_sizes, cv=cv, n_jobs=-1,
-                scoring='accuracy', shuffle=True, random_state=42
+                model,
+                X,
+                y,
+                train_sizes=train_sizes,
+                cv=cv,
+                n_jobs=-1,
+                scoring="accuracy",
+                shuffle=True,
+                random_state=42,
             )
 
             train_mean = train_scores.mean(axis=1)
@@ -424,7 +472,7 @@ showing how each feature contributes to individual predictions.
                     train_sizes_abs, train_mean, train_std, val_mean, val_std
                 )
             except Exception as e:
-                self._record_chart_failure('learning_curve', e)
+                self._record_chart_failure("learning_curve", e)
 
             content = f"""
 # Learning Curve Analysis
@@ -457,10 +505,10 @@ helping diagnose underfitting vs overfitting.
 ---
 """
             self._content.append(content)
-            self._store_section_data('learning_curves', 'Learning Curves', {'diagnosis': diagnosis})
+            self._store_section_data("learning_curves", "Learning Curves", {"diagnosis": diagnosis})
 
         except Exception as e:
-            self._record_section_failure('Learning Curves', e)
+            self._record_section_failure("Learning Curves", e)
 
     # =========================================================================
     # CALIBRATION ANALYSIS
@@ -486,17 +534,24 @@ helping diagnose underfitting vs overfitting.
 
             if is_binary:
                 prob_1d = preds.y_prob if preds.y_prob.ndim == 1 else preds.y_prob[:, 1]
-                fraction_of_positives, mean_predicted = calibration_curve(preds.y_true, prob_1d, n_bins=n_bins)
+                fraction_of_positives, mean_predicted = calibration_curve(
+                    preds.y_true, prob_1d, n_bins=n_bins
+                )
                 brier_score = brier_score_loss(preds.y_true, prob_1d)
 
                 bin_counts = np.histogram(prob_1d, bins=n_bins, range=(0, 1))[0]
-                ece = np.sum(np.abs(fraction_of_positives - mean_predicted) * (bin_counts[:len(fraction_of_positives)] / preds.n_samples))
+                ece = np.sum(
+                    np.abs(fraction_of_positives - mean_predicted)
+                    * (bin_counts[: len(fraction_of_positives)] / preds.n_samples)
+                )
 
                 fig_path = ""
                 try:
-                    fig_path = self._create_calibration_chart(fraction_of_positives, mean_predicted, prob_1d)
+                    fig_path = self._create_calibration_chart(
+                        fraction_of_positives, mean_predicted, prob_1d
+                    )
                 except Exception as e:
-                    self._record_chart_failure('calibration', e)
+                    self._record_chart_failure("calibration", e)
 
                 content = f"""
 # Probability Calibration Analysis
@@ -530,8 +585,12 @@ A perfectly calibrated model's predicted probabilities should match actual outco
                 y_prob_2d = preds.y_prob if preds.y_prob.ndim == 2 else None
 
                 if y_prob_2d is None or y_prob_2d.shape[1] != n_classes:
-                    self._record_section_failure('Calibration Analysis',
-                        ValueError(f"y_prob shape {preds.y_prob.shape} incompatible with {n_classes} classes"))
+                    self._record_section_failure(
+                        "Calibration Analysis",
+                        ValueError(
+                            f"y_prob shape {preds.y_prob.shape} incompatible with {n_classes} classes"
+                        ),
+                    )
                     return
 
                 per_class_brier = {}
@@ -565,16 +624,26 @@ Per-class calibration analysis for {n_classes} classes.
 """
 
             self._content.append(content)
-            self._store_section_data('calibration', 'Calibration Analysis', {'brier_score': brier_score, 'ece': ece})
+            self._store_section_data(
+                "calibration", "Calibration Analysis", {"brier_score": brier_score, "ece": ece}
+            )
 
         except Exception as e:
-            self._record_section_failure('Calibration Analysis', e)
+            self._record_section_failure("Calibration Analysis", e)
 
     # =========================================================================
     # CONFIDENCE-CALIBRATED PREDICTIONS
     # =========================================================================
 
-    def add_prediction_confidence_analysis(self, X_sample: Any, y_true: Any, y_pred: Any, y_prob: Any, feature_names: List[str] = None, top_n: int = 10) -> Any:
+    def add_prediction_confidence_analysis(
+        self,
+        X_sample: Any,
+        y_true: Any,
+        y_pred: Any,
+        y_prob: Any,
+        feature_names: List[str] = None,
+        top_n: int = 10,
+    ) -> Any:
         """
         Add confidence-calibrated prediction analysis.
 
@@ -590,10 +659,10 @@ Per-class calibration analysis for {n_classes} classes.
             preds = self._make_predictions(y_true, y_pred, y_prob)
 
             if feature_names is None:
-                if hasattr(X_sample, 'columns'):
+                if hasattr(X_sample, "columns"):
                     feature_names = list(X_sample.columns)
                 else:
-                    feature_names = [f'Feature_{i}' for i in range(np.asarray(X_sample).shape[1])]
+                    feature_names = [f"Feature_{i}" for i in range(np.asarray(X_sample).shape[1])]
 
             X_arr = np.asarray(X_sample)
 
@@ -611,7 +680,7 @@ Per-class calibration analysis for {n_classes} classes.
             try:
                 fig_path = self._create_confidence_charts(preds.y_true, prob_1d, ece_data)
             except Exception as e:
-                self._record_chart_failure('confidence_charts', e)
+                self._record_chart_failure("confidence_charts", e)
 
             # Find most/least confident predictions
             confidence = np.abs(prob_1d - 0.5) * 2  # 0 = uncertain, 1 = very confident
@@ -620,14 +689,18 @@ Per-class calibration analysis for {n_classes} classes.
             # Most confident correct
             confident_correct_idx = np.where(correct == 1)[0]
             if len(confident_correct_idx) > 0:
-                top_correct = confident_correct_idx[np.argsort(confidence[confident_correct_idx])[::-1][:top_n]]
+                top_correct = confident_correct_idx[
+                    np.argsort(confidence[confident_correct_idx])[::-1][:top_n]
+                ]
             else:
                 top_correct = np.array([])
 
             # Most confident wrong
             confident_wrong_idx = np.where(correct == 0)[0]
             if len(confident_wrong_idx) > 0:
-                top_wrong = confident_wrong_idx[np.argsort(confidence[confident_wrong_idx])[::-1][:top_n]]
+                top_wrong = confident_wrong_idx[
+                    np.argsort(confidence[confident_wrong_idx])[::-1][:top_n]
+                ]
             else:
                 top_wrong = np.array([])
 
@@ -687,14 +760,19 @@ Analyzing model prediction confidence and its relationship to actual correctness
 """
             self._content.append(content)
 
-            self._store_section_data('confidence_analysis', 'Confidence-Calibrated Predictions', {
-                'ece': ece_data['ece'],
-                'avg_conf_correct': avg_conf_correct,
-                'avg_conf_wrong': avg_conf_wrong,
-            }, [{'type': 'multi', 'path': fig_path}])
+            self._store_section_data(
+                "confidence_analysis",
+                "Confidence-Calibrated Predictions",
+                {
+                    "ece": ece_data["ece"],
+                    "avg_conf_correct": avg_conf_correct,
+                    "avg_conf_wrong": avg_conf_wrong,
+                },
+                [{"type": "multi", "path": fig_path}],
+            )
 
         except Exception as e:
-            self._record_section_failure('Prediction Confidence Analysis', e)
+            self._record_section_failure("Prediction Confidence Analysis", e)
 
     def add_lift_gain_analysis(self, y_true: Any, y_prob: Any) -> None:
         """
@@ -710,15 +788,19 @@ Analyzing model prediction confidence and its relationship to actual correctness
 
             n_classes = len(np.unique(preds.y_true))
             if n_classes > 2:
-                self._content.append("""
+                self._content.append(
+                    """
 # Lift & Gain Analysis
 
 > Lift/Gain analysis is only applicable to binary classification.
 > This section is skipped for multiclass problems.
 
 ---
-""")
-                self._store_section_data('lift_gain', 'Lift & Gain Analysis', {'skipped': 'multiclass'})
+"""
+                )
+                self._store_section_data(
+                    "lift_gain", "Lift & Gain Analysis", {"skipped": "multiclass"}
+                )
                 return
 
             # Ensure 1D probabilities for binary
@@ -747,7 +829,7 @@ Analyzing model prediction confidence and its relationship to actual correctness
             try:
                 fig_path = self._create_lift_gain_chart(deciles, cum_gains, lift, ks_stat, ks_idx)
             except Exception as e:
-                self._record_chart_failure('lift_gain', e)
+                self._record_chart_failure("lift_gain", e)
 
             content = f"""
 # Lift & Gain Analysis
@@ -776,10 +858,10 @@ These charts help evaluate model effectiveness for targeted campaigns and priori
 ---
 """
             self._content.append(content)
-            self._store_section_data('lift_gain', 'Lift & Gain Analysis', {'ks_stat': ks_stat})
+            self._store_section_data("lift_gain", "Lift & Gain Analysis", {"ks_stat": ks_stat})
 
         except Exception as e:
-            self._record_section_failure('Lift/Gain Analysis', e)
+            self._record_section_failure("Lift/Gain Analysis", e)
 
     # =========================================================================
     # CROSS-VALIDATION DETAILED ANALYSIS
@@ -796,25 +878,29 @@ These charts help evaluate model effectiveness for targeted campaigns and priori
             from sklearn.model_selection import cross_val_score, cross_validate
 
             # Multiple metrics
-            scoring = ['accuracy', 'precision_macro', 'recall_macro', 'f1_macro']
+            scoring = ["accuracy", "precision_macro", "recall_macro", "f1_macro"]
             with warnings.catch_warnings():
-                warnings.simplefilter('ignore')
-                cv_results = cross_validate(model, X, y, cv=cv, scoring=scoring, return_train_score=True)
+                warnings.simplefilter("ignore")
+                cv_results = cross_validate(
+                    model, X, y, cv=cv, scoring=scoring, return_train_score=True
+                )
 
             # Create fold results table
             fold_data = []
             for i in range(cv):
-                fold_data.append({
-                    'fold': i + 1,
-                    'train_acc': cv_results['train_accuracy'][i],
-                    'test_acc': cv_results['test_accuracy'][i],
-                    'train_f1': cv_results['train_f1_macro'][i],
-                    'test_f1': cv_results['test_f1_macro'][i],
-                })
+                fold_data.append(
+                    {
+                        "fold": i + 1,
+                        "train_acc": cv_results["train_accuracy"][i],
+                        "test_acc": cv_results["test_accuracy"][i],
+                        "train_f1": cv_results["train_f1_macro"][i],
+                        "test_f1": cv_results["test_f1_macro"][i],
+                    }
+                )
 
             # Calculate stability
-            acc_mean = cv_results['test_accuracy'].mean()
-            acc_std = cv_results['test_accuracy'].std()
+            acc_mean = cv_results["test_accuracy"].mean()
+            acc_std = cv_results["test_accuracy"].std()
             cv_coefficient = acc_std / acc_mean * 100
 
             # Create visualization
@@ -822,7 +908,7 @@ These charts help evaluate model effectiveness for targeted campaigns and priori
             try:
                 fig_path = self._create_cv_chart(cv_results)
             except Exception as e:
-                self._record_chart_failure('cv_chart', e)
+                self._record_chart_failure("cv_chart", e)
 
             content = f"""
 # Cross-Validation Detailed Analysis
@@ -856,16 +942,23 @@ These charts help evaluate model effectiveness for targeted campaigns and priori
 ---
 """
             self._content.append(content)
-            self._store_section_data('cv_analysis', 'CV Detailed Analysis', {'acc_mean': acc_mean})
+            self._store_section_data("cv_analysis", "CV Detailed Analysis", {"acc_mean": acc_mean})
 
         except Exception as e:
-            self._record_section_failure('CV Detailed Analysis', e)
+            self._record_section_failure("CV Detailed Analysis", e)
 
     # =========================================================================
     # SHAP DEEP DIVE
     # =========================================================================
 
-    def add_shap_deep_analysis(self, shap_values: Any, feature_names: List[str], X_sample: Any, model: Any = None, top_n: int = 3) -> Any:
+    def add_shap_deep_analysis(
+        self,
+        shap_values: Any,
+        feature_names: List[str],
+        X_sample: Any,
+        model: Any = None,
+        top_n: int = 3,
+    ) -> Any:
         """
         Add comprehensive SHAP analysis:
         - Summary plot
@@ -877,7 +970,7 @@ These charts help evaluate model effectiveness for targeted campaigns and priori
             import shap
 
             # Extract values
-            if hasattr(shap_values, 'values'):
+            if hasattr(shap_values, "values"):
                 values = shap_values.values
             else:
                 values = shap_values
@@ -887,32 +980,36 @@ These charts help evaluate model effectiveness for targeted campaigns and priori
 
             # Calculate mean absolute SHAP
             mean_shap = np.abs(values).mean(axis=0)
-            shap_importance = sorted(zip(feature_names, mean_shap), key=lambda x: x[1], reverse=True)
+            shap_importance = sorted(
+                zip(feature_names, mean_shap), key=lambda x: x[1], reverse=True
+            )
 
             # Create all SHAP visualizations
             fig_summary = ""
             try:
                 fig_summary = self._create_shap_summary(shap_values, feature_names, X_sample)
             except Exception as e:
-                self._record_chart_failure('shap_summary', e)
+                self._record_chart_failure("shap_summary", e)
 
             fig_bar = ""
             try:
                 fig_bar = self._create_shap_bar(shap_importance)
             except Exception as e:
-                self._record_chart_failure('shap_bar', e)
+                self._record_chart_failure("shap_bar", e)
 
             fig_dependence = ""
             try:
-                fig_dependence = self._create_shap_dependence(shap_values, feature_names, X_sample, top_n)
+                fig_dependence = self._create_shap_dependence(
+                    shap_values, feature_names, X_sample, top_n
+                )
             except Exception as e:
-                self._record_chart_failure('shap_dependence', e)
+                self._record_chart_failure("shap_dependence", e)
 
             fig_waterfall = ""
             try:
                 fig_waterfall = self._create_shap_waterfall(shap_values, feature_names, X_sample)
             except Exception as e:
-                self._record_chart_failure('shap_waterfall', e)
+                self._record_chart_failure("shap_waterfall", e)
 
             content = f"""
 # SHAP Deep Analysis
@@ -966,18 +1063,24 @@ Shows how features contribute to a single prediction.
 
             content += "---\n"
             self._content.append(content)
-            self._store_section_data('shap_deep', 'SHAP Deep Analysis', {
-                'top_features': [f for f, _ in shap_importance[:10]],
-            })
+            self._store_section_data(
+                "shap_deep",
+                "SHAP Deep Analysis",
+                {
+                    "top_features": [f for f, _ in shap_importance[:10]],
+                },
+            )
 
         except Exception as e:
-            self._record_section_failure('SHAP Deep Analysis', e)
+            self._record_section_failure("SHAP Deep Analysis", e)
 
     # =========================================================================
     # THRESHOLD OPTIMIZATION
     # =========================================================================
 
-    def add_threshold_optimization(self, y_true: Any, y_prob: Any, cost_fp: float = 1.0, cost_fn: float = 1.0) -> None:
+    def add_threshold_optimization(
+        self, y_true: Any, y_prob: Any, cost_fp: float = 1.0, cost_fn: float = 1.0
+    ) -> None:
         """
         Add threshold optimization analysis:
         - Optimal threshold for different objectives
@@ -991,18 +1094,22 @@ Shows how features contribute to a single prediction.
 
             n_classes = len(np.unique(preds.y_true))
             if n_classes > 2:
-                self._content.append("""
+                self._content.append(
+                    """
 # Threshold Optimization
 
 > Threshold optimization is only applicable to binary classification.
 > This section is skipped for multiclass problems.
 
 ---
-""")
-                self._store_section_data('threshold_optimization', 'Threshold Optimization', {'skipped': 'multiclass'})
+"""
+                )
+                self._store_section_data(
+                    "threshold_optimization", "Threshold Optimization", {"skipped": "multiclass"}
+                )
                 return
 
-            from sklearn.metrics import precision_recall_curve, f1_score, confusion_matrix
+            from sklearn.metrics import confusion_matrix, f1_score, precision_recall_curve
 
             # Ensure 1D probabilities
             prob_1d = preds.y_prob if preds.y_prob.ndim == 1 else preds.y_prob[:, 1]
@@ -1018,31 +1125,40 @@ Shows how features contribute to a single prediction.
                 tn, fp, fn, tp = cm.ravel() if cm.size == 4 else (0, 0, 0, 0)
                 precision = tp / (tp + fp) if (tp + fp) > 0 else 0
                 recall = tp / (tp + fn) if (tp + fn) > 0 else 0
-                f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0
+                f1 = (
+                    2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0
+                )
 
                 # Cost
                 cost = fp * cost_fp + fn * cost_fn
 
-                results.append({
-                    'threshold': thresh,
-                    'precision': precision,
-                    'recall': recall,
-                    'f1': f1,
-                    'tp': tp, 'fp': fp, 'fn': fn, 'tn': tn,
-                    'cost': cost
-                })
+                results.append(
+                    {
+                        "threshold": thresh,
+                        "precision": precision,
+                        "recall": recall,
+                        "f1": f1,
+                        "tp": tp,
+                        "fp": fp,
+                        "fn": fn,
+                        "tn": tn,
+                        "cost": cost,
+                    }
+                )
 
             # Find optimal thresholds
-            best_f1 = max(results, key=lambda x: x['f1'])
-            best_cost = min(results, key=lambda x: x['cost'])
-            balanced = min(results, key=lambda x: abs(x['precision'] - x['recall']))
+            best_f1 = max(results, key=lambda x: x["f1"])
+            best_cost = min(results, key=lambda x: x["cost"])
+            balanced = min(results, key=lambda x: abs(x["precision"] - x["recall"]))
 
             # Create visualization
             fig_path = ""
             try:
-                fig_path = self._create_threshold_chart(results, best_f1['threshold'], best_cost['threshold'])
+                fig_path = self._create_threshold_chart(
+                    results, best_f1["threshold"], best_cost["threshold"]
+                )
             except Exception as e:
-                self._record_chart_failure('threshold_chart', e)
+                self._record_chart_failure("threshold_chart", e)
 
             content = f"""
 # Threshold Optimization
@@ -1078,16 +1194,22 @@ Choosing the right classification threshold depends on business objectives.
 ---
 """
             self._content.append(content)
-            self._store_section_data('threshold_optimization', 'Threshold Optimization', {'best_f1_threshold': best_f1['threshold']})
+            self._store_section_data(
+                "threshold_optimization",
+                "Threshold Optimization",
+                {"best_f1_threshold": best_f1["threshold"]},
+            )
 
         except Exception as e:
-            self._record_section_failure('Threshold Optimization', e)
+            self._record_section_failure("Threshold Optimization", e)
 
     # =========================================================================
     # REPRODUCIBILITY SECTION
     # =========================================================================
 
-    def add_reproducibility_section(self, model: Any, params: Dict = None, random_state: int = None, environment: Dict = None) -> Any:
+    def add_reproducibility_section(
+        self, model: Any, params: Dict = None, random_state: int = None, environment: Dict = None
+    ) -> Any:
         """
         Add reproducibility information:
         - Model hyperparameters
@@ -1098,9 +1220,11 @@ Choosing the right classification threshold depends on business objectives.
         try:
             self._add_reproducibility_section_impl(model, params, random_state, environment)
         except Exception as e:
-            self._record_section_failure('Reproducibility', e)
+            self._record_section_failure("Reproducibility", e)
 
-    def add_hyperparameter_visualization(self, study_or_trials: Any, param_names: List[str] = None, objective_name: str = 'Objective') -> Any:
+    def add_hyperparameter_visualization(
+        self, study_or_trials: Any, param_names: List[str] = None, objective_name: str = "Objective"
+    ) -> Any:
         """
         Add hyperparameter search visualization.
 
@@ -1117,7 +1241,7 @@ Choosing the right classification threshold depends on business objectives.
 
             # Auto-detect param names
             if param_names is None:
-                param_names = list(trials[0]['params'].keys())
+                param_names = list(trials[0]["params"].keys())
 
             # Limit params for readability
             param_names = param_names[:8]
@@ -1127,19 +1251,23 @@ Choosing the right classification threshold depends on business objectives.
             try:
                 fig_path = self._create_hyperparameter_charts(trials, param_names, objective_name)
             except Exception as e:
-                self._record_chart_failure('hyperparameter_charts', e)
+                self._record_chart_failure("hyperparameter_charts", e)
 
             # Build table of best trials
-            sorted_trials = sorted(trials, key=lambda t: t['value'], reverse=True)
+            sorted_trials = sorted(trials, key=lambda t: t["value"], reverse=True)
             top_n = min(10, len(sorted_trials))
 
-            table_md = f"| Rank | {objective_name} | " + " | ".join(p[:15] for p in param_names[:5]) + " |\n"
+            table_md = (
+                f"| Rank | {objective_name} | "
+                + " | ".join(p[:15] for p in param_names[:5])
+                + " |\n"
+            )
             table_md += "|------|" + "|".join(["---"] * (min(5, len(param_names)) + 1)) + "|\n"
 
             for i, trial in enumerate(sorted_trials[:top_n], 1):
                 row = f"| {i} | {trial['value']:.4f} | "
                 for pname in param_names[:5]:
-                    val = trial['params'].get(pname, 'N/A')
+                    val = trial["params"].get(pname, "N/A")
                     if isinstance(val, float):
                         row += f"{val:.4f} | "
                     else:
@@ -1169,16 +1297,23 @@ Analysis of {len(trials)} hyperparameter trials exploring {len(param_names)} par
 """
             self._content.append(content)
 
-            self._store_section_data('hyperparameter_viz', 'Hyperparameter Search', {
-                'n_trials': len(trials),
-                'best_value': sorted_trials[0]['value'] if sorted_trials else None,
-                'best_params': sorted_trials[0]['params'] if sorted_trials else {},
-            }, [{'type': 'multi', 'path': fig_path}])
+            self._store_section_data(
+                "hyperparameter_viz",
+                "Hyperparameter Search",
+                {
+                    "n_trials": len(trials),
+                    "best_value": sorted_trials[0]["value"] if sorted_trials else None,
+                    "best_params": sorted_trials[0]["params"] if sorted_trials else {},
+                },
+                [{"type": "multi", "path": fig_path}],
+            )
 
         except Exception as e:
-            self._record_section_failure('Hyperparameter Visualization', e)
+            self._record_section_failure("Hyperparameter Visualization", e)
 
-    def add_executive_dashboard(self, metrics: Dict[str, float], model_name: str = '', dataset_name: str = '') -> Any:
+    def add_executive_dashboard(
+        self, metrics: Dict[str, float], model_name: str = "", dataset_name: str = ""
+    ) -> Any:
         """
         Add executive dashboard with visual KPI gauge charts.
 
@@ -1191,11 +1326,11 @@ Analysis of {len(trials)} hyperparameter trials exploring {len(param_names)} par
 
             # Standardize metric names
             kpi_map = {
-                'accuracy': ['accuracy', 'acc', 'test_accuracy'],
-                'auc': ['auc', 'roc_auc', 'auc_roc', 'AUC'],
-                'f1': ['f1', 'f1_score', 'f1_macro', 'F1'],
-                'precision': ['precision', 'precision_macro'],
-                'recall': ['recall', 'recall_macro', 'sensitivity'],
+                "accuracy": ["accuracy", "acc", "test_accuracy"],
+                "auc": ["auc", "roc_auc", "auc_roc", "AUC"],
+                "f1": ["f1", "f1_score", "f1_macro", "F1"],
+                "precision": ["precision", "precision_macro"],
+                "recall": ["recall", "recall_macro", "sensitivity"],
             }
 
             kpis = {}
@@ -1214,7 +1349,9 @@ Analysis of {len(trials)} hyperparameter trials exploring {len(param_names)} par
             # Build summary table
             table_md = "| KPI | Value | Status |\n|-----|-------|--------|\n"
             for name, value in kpis.items():
-                status = "Excellent" if value > 0.9 else ("Good" if value > 0.7 else "Needs Improvement")
+                status = (
+                    "Excellent" if value > 0.9 else ("Good" if value > 0.7 else "Needs Improvement")
+                )
                 color_indicator = "" if value > 0.9 else ("" if value > 0.7 else "")
                 table_md += f"| {name.upper()} | {value:.4f} | {status} |\n"
 
@@ -1234,10 +1371,10 @@ Analysis of {len(trials)} hyperparameter trials exploring {len(param_names)} par
 ---
 """
             self._content.append(content)
-            self._store_section_data('executive_dashboard', 'Executive Dashboard', {'kpis': kpis})
+            self._store_section_data("executive_dashboard", "Executive Dashboard", {"kpis": kpis})
 
         except Exception as e:
-            self._record_section_failure('Executive Dashboard', e)
+            self._record_section_failure("Executive Dashboard", e)
 
     def add_insight_prioritization(self) -> None:
         """
@@ -1251,175 +1388,203 @@ Analysis of {len(trials)} hyperparameter trials exploring {len(param_names)} par
         """
         try:
             findings = []
-            section_lookup = {s['type']: s['data'] for s in self._section_data}
+            section_lookup = {s["type"]: s["data"] for s in self._section_data}
 
             # CRITICAL checks
-            drift_data = section_lookup.get('drift_analysis', {})
-            drift_results = drift_data.get('drift_results', [])
+            drift_data = section_lookup.get("drift_analysis", {})
+            drift_results = drift_data.get("drift_results", [])
             for dr in drift_results:
-                if isinstance(dr, dict) and dr.get('psi', 0) > 0.25:
-                    findings.append({
-                        'severity': 'CRITICAL',
-                        'source': 'Drift Analysis',
-                        'description': f"Feature '{dr.get('feature', '?')}' has PSI={dr.get('psi', 0):.3f} (>0.25)",
-                        'action': 'Retrain model with recent data or investigate distribution shift',
-                    })
+                if isinstance(dr, dict) and dr.get("psi", 0) > 0.25:
+                    findings.append(
+                        {
+                            "severity": "CRITICAL",
+                            "source": "Drift Analysis",
+                            "description": f"Feature '{dr.get('feature', '?')}' has PSI={dr.get('psi', 0):.3f} (>0.25)",
+                            "action": "Retrain model with recent data or investigate distribution shift",
+                        }
+                    )
 
-            fairness_data = section_lookup.get('fairness_audit', {})
-            for feat_name, groups in fairness_data.get('metrics', {}).items():
+            fairness_data = section_lookup.get("fairness_audit", {})
+            for feat_name, groups in fairness_data.get("metrics", {}).items():
                 if isinstance(groups, dict):
                     for group_name, m in groups.items():
-                        if isinstance(m, dict) and m.get('disparate_impact', 1.0) < 0.8:
-                            findings.append({
-                                'severity': 'CRITICAL',
-                                'source': 'Fairness Audit',
-                                'description': f"Group '{group_name}' in '{feat_name}' has DI={m['disparate_impact']:.3f} (<0.8)",
-                                'action': 'Apply bias mitigation (reweighting, threshold adjustment)',
-                            })
+                        if isinstance(m, dict) and m.get("disparate_impact", 1.0) < 0.8:
+                            findings.append(
+                                {
+                                    "severity": "CRITICAL",
+                                    "source": "Fairness Audit",
+                                    "description": f"Group '{group_name}' in '{feat_name}' has DI={m['disparate_impact']:.3f} (<0.8)",
+                                    "action": "Apply bias mitigation (reweighting, threshold adjustment)",
+                                }
+                            )
 
             # HIGH checks
-            confidence_data = section_lookup.get('confidence_analysis', {})
-            if confidence_data.get('ece', 0) > 0.1:
-                findings.append({
-                    'severity': 'HIGH',
-                    'source': 'Confidence Analysis',
-                    'description': f"Expected Calibration Error = {confidence_data['ece']:.3f} (>0.1)",
-                    'action': 'Apply calibration (Platt scaling or isotonic regression)',
-                })
+            confidence_data = section_lookup.get("confidence_analysis", {})
+            if confidence_data.get("ece", 0) > 0.1:
+                findings.append(
+                    {
+                        "severity": "HIGH",
+                        "source": "Confidence Analysis",
+                        "description": f"Expected Calibration Error = {confidence_data['ece']:.3f} (>0.1)",
+                        "action": "Apply calibration (Platt scaling or isotonic regression)",
+                    }
+                )
 
-            exec_data = section_lookup.get('executive_summary', {})
-            acc = exec_data.get('accuracy', exec_data.get('acc', None))
+            exec_data = section_lookup.get("executive_summary", {})
+            acc = exec_data.get("accuracy", exec_data.get("acc", None))
             if acc is not None and acc < 0.7:
-                findings.append({
-                    'severity': 'HIGH',
-                    'source': 'Executive Summary',
-                    'description': f"Accuracy = {acc:.3f} (<0.70 threshold)",
-                    'action': 'Consider more powerful models, feature engineering, or more data',
-                })
+                findings.append(
+                    {
+                        "severity": "HIGH",
+                        "source": "Executive Summary",
+                        "description": f"Accuracy = {acc:.3f} (<0.70 threshold)",
+                        "action": "Consider more powerful models, feature engineering, or more data",
+                    }
+                )
 
-            stat_data = section_lookup.get('statistical_tests', {})
-            if stat_data.get('significant') is False:
-                findings.append({
-                    'severity': 'HIGH',
-                    'source': 'Statistical Tests',
-                    'description': 'AUC confidence interval includes 0.5 — not statistically significant',
-                    'action': 'Collect more data or improve feature quality',
-                })
+            stat_data = section_lookup.get("statistical_tests", {})
+            if stat_data.get("significant") is False:
+                findings.append(
+                    {
+                        "severity": "HIGH",
+                        "source": "Statistical Tests",
+                        "description": "AUC confidence interval includes 0.5 — not statistically significant",
+                        "action": "Collect more data or improve feature quality",
+                    }
+                )
 
             # MEDIUM checks
-            importance_data = section_lookup.get('feature_importance', {})
-            importance = importance_data.get('importance', {})
+            importance_data = section_lookup.get("feature_importance", {})
+            importance = importance_data.get("importance", {})
             if importance:
                 sorted_vals = sorted(importance.values(), reverse=True)
                 total = sum(sorted_vals)
                 if total > 0 and sorted_vals[0] / total > 0.5:
-                    findings.append({
-                        'severity': 'MEDIUM',
-                        'source': 'Feature Importance',
-                        'description': f"Top feature accounts for {sorted_vals[0]/total*100:.0f}% of total importance",
-                        'action': 'Investigate feature reliability and add complementary features',
-                    })
+                    findings.append(
+                        {
+                            "severity": "MEDIUM",
+                            "source": "Feature Importance",
+                            "description": f"Top feature accounts for {sorted_vals[0]/total*100:.0f}% of total importance",
+                            "action": "Investigate feature reliability and add complementary features",
+                        }
+                    )
 
-            class_data = section_lookup.get('class_distribution', {})
-            class_counts = class_data.get('counts', {})
+            class_data = section_lookup.get("class_distribution", {})
+            class_counts = class_data.get("counts", {})
             if class_counts and isinstance(class_counts, dict):
                 count_vals = list(class_counts.values())
                 if len(count_vals) >= 2 and min(count_vals) > 0:
                     ratio = max(count_vals) / min(count_vals)
                     if ratio > 3:
-                        findings.append({
-                            'severity': 'MEDIUM',
-                            'source': 'Class Distribution',
-                            'description': f"Class imbalance ratio = {ratio:.1f}:1 (>3:1)",
-                            'action': 'Apply SMOTE, class weights, or threshold tuning',
-                        })
+                        findings.append(
+                            {
+                                "severity": "MEDIUM",
+                                "source": "Class Distribution",
+                                "description": f"Class imbalance ratio = {ratio:.1f}:1 (>3:1)",
+                                "action": "Apply SMOTE, class weights, or threshold tuning",
+                            }
+                        )
 
             # Model benchmarking: CV-test gap (overfitting)
-            bench_data = section_lookup.get('model_benchmarking', {})
-            model_scores = bench_data.get('model_scores', {})
+            bench_data = section_lookup.get("model_benchmarking", {})
+            model_scores = bench_data.get("model_scores", {})
             for model_name, scores in model_scores.items():
                 if isinstance(scores, dict):
-                    cv = scores.get('cv_score', 0)
-                    test = scores.get('test_score', 0)
+                    cv = scores.get("cv_score", 0)
+                    test = scores.get("test_score", 0)
                     if cv > 0 and test > 0 and (cv - test) > 0.1:
-                        findings.append({
-                            'severity': 'HIGH',
-                            'source': 'Model Benchmarking',
-                            'description': f"Model '{model_name}' CV-test gap = {cv - test:.3f} (>0.1, overfitting)",
-                            'action': 'Regularize model, reduce complexity, or gather more training data',
-                        })
+                        findings.append(
+                            {
+                                "severity": "HIGH",
+                                "source": "Model Benchmarking",
+                                "description": f"Model '{model_name}' CV-test gap = {cv - test:.3f} (>0.1, overfitting)",
+                                "action": "Regularize model, reduce complexity, or gather more training data",
+                            }
+                        )
 
             # Deployment readiness: latency check
-            deploy_data = section_lookup.get('deployment_readiness', {})
-            checklist = deploy_data.get('checklist', {})
-            if checklist.get('latency_ok') is False:
-                findings.append({
-                    'severity': 'HIGH',
-                    'source': 'Deployment Readiness',
-                    'description': 'Model inference latency exceeds acceptable threshold',
-                    'action': 'Optimize model (pruning, quantization) or use faster hardware',
-                })
+            deploy_data = section_lookup.get("deployment_readiness", {})
+            checklist = deploy_data.get("checklist", {})
+            if checklist.get("latency_ok") is False:
+                findings.append(
+                    {
+                        "severity": "HIGH",
+                        "source": "Deployment Readiness",
+                        "description": "Model inference latency exceeds acceptable threshold",
+                        "action": "Optimize model (pruning, quantization) or use faster hardware",
+                    }
+                )
 
             # Error analysis: dominant error cluster
-            error_data = section_lookup.get('error_analysis', {})
-            error_clusters = error_data.get('clusters', [])
+            error_data = section_lookup.get("error_analysis", {})
+            error_clusters = error_data.get("clusters", [])
             for cluster in error_clusters:
-                if isinstance(cluster, dict) and cluster.get('percentage', 0) > 30:
-                    findings.append({
-                        'severity': 'HIGH',
-                        'source': 'Error Analysis',
-                        'description': f"Error cluster '{cluster.get('name', '?')}' contains {cluster.get('percentage', 0):.0f}% of all errors",
-                        'action': 'Investigate and address this systematic failure mode',
-                    })
+                if isinstance(cluster, dict) and cluster.get("percentage", 0) > 30:
+                    findings.append(
+                        {
+                            "severity": "HIGH",
+                            "source": "Error Analysis",
+                            "description": f"Error cluster '{cluster.get('name', '?')}' contains {cluster.get('percentage', 0):.0f}% of all errors",
+                            "action": "Investigate and address this systematic failure mode",
+                        }
+                    )
 
             # Deployment readiness: model size check
-            if checklist.get('size_ok') is False:
-                findings.append({
-                    'severity': 'MEDIUM',
-                    'source': 'Deployment Readiness',
-                    'description': 'Model size exceeds deployment size limit',
-                    'action': 'Compress model (distillation, pruning) or increase size budget',
-                })
+            if checklist.get("size_ok") is False:
+                findings.append(
+                    {
+                        "severity": "MEDIUM",
+                        "source": "Deployment Readiness",
+                        "description": "Model size exceeds deployment size limit",
+                        "action": "Compress model (distillation, pruning) or increase size budget",
+                    }
+                )
 
             # Regression: low R²
-            reg_data = section_lookup.get('regression', {})
-            r2_val = reg_data.get('r2')
+            reg_data = section_lookup.get("regression", {})
+            r2_val = reg_data.get("r2")
             if r2_val is not None and r2_val < 0.5:
-                findings.append({
-                    'severity': 'MEDIUM',
-                    'source': 'Regression Analysis',
-                    'description': f"R² = {r2_val:.3f} (<0.5, poor explanatory power)",
-                    'action': 'Add features, try non-linear models, or investigate data quality',
-                })
+                findings.append(
+                    {
+                        "severity": "MEDIUM",
+                        "source": "Regression Analysis",
+                        "description": f"R² = {r2_val:.3f} (<0.5, poor explanatory power)",
+                        "action": "Add features, try non-linear models, or investigate data quality",
+                    }
+                )
 
             # Regression: heteroscedasticity
-            if reg_data.get('is_heteroscedastic') is True:
-                findings.append({
-                    'severity': 'MEDIUM',
-                    'source': 'Regression Analysis',
-                    'description': 'Heteroscedasticity detected in residuals',
-                    'action': 'Use weighted regression or variance-stabilizing transformations',
-                })
+            if reg_data.get("is_heteroscedastic") is True:
+                findings.append(
+                    {
+                        "severity": "MEDIUM",
+                        "source": "Regression Analysis",
+                        "description": "Heteroscedasticity detected in residuals",
+                        "action": "Use weighted regression or variance-stabilizing transformations",
+                    }
+                )
 
             # Correlation: near-perfect collinearity
-            corr_data = section_lookup.get('correlation', {})
-            high_pairs = corr_data.get('high_corr_pairs', [])
+            corr_data = section_lookup.get("correlation", {})
+            high_pairs = corr_data.get("high_corr_pairs", [])
             for pair in high_pairs:
-                if isinstance(pair, dict) and abs(pair.get('corr', 0)) > 0.95:
-                    findings.append({
-                        'severity': 'MEDIUM',
-                        'source': 'Correlation Analysis',
-                        'description': f"Features '{pair.get('f1', '?')}' and '{pair.get('f2', '?')}' have |r|={abs(pair['corr']):.3f} (>0.95)",
-                        'action': 'Remove one feature or use PCA to reduce collinearity',
-                    })
+                if isinstance(pair, dict) and abs(pair.get("corr", 0)) > 0.95:
+                    findings.append(
+                        {
+                            "severity": "MEDIUM",
+                            "source": "Correlation Analysis",
+                            "description": f"Features '{pair.get('f1', '?')}' and '{pair.get('f2', '?')}' have |r|={abs(pair['corr']):.3f} (>0.95)",
+                            "action": "Remove one feature or use PCA to reduce collinearity",
+                        }
+                    )
 
             # Sort by severity
-            severity_order = {'CRITICAL': 0, 'HIGH': 1, 'MEDIUM': 2}
-            findings.sort(key=lambda f: severity_order.get(f['severity'], 3))
+            severity_order = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2}
+            findings.sort(key=lambda f: severity_order.get(f["severity"], 3))
 
-            n_critical = sum(1 for f in findings if f['severity'] == 'CRITICAL')
-            n_high = sum(1 for f in findings if f['severity'] == 'HIGH')
-            n_medium = sum(1 for f in findings if f['severity'] == 'MEDIUM')
+            n_critical = sum(1 for f in findings if f["severity"] == "CRITICAL")
+            n_high = sum(1 for f in findings if f["severity"] == "HIGH")
+            n_medium = sum(1 for f in findings if f["severity"] == "MEDIUM")
 
             # Build content
             content = f"""
@@ -1455,21 +1620,27 @@ Automated scan of all analysis sections for actionable findings.
             else:
                 self._content.append(content)
 
-            self._store_section_data('insight_prioritization', 'Insight Prioritization', {
-                'n_critical': n_critical,
-                'n_high': n_high,
-                'n_medium': n_medium,
-                'findings': findings,
-            })
+            self._store_section_data(
+                "insight_prioritization",
+                "Insight Prioritization",
+                {
+                    "n_critical": n_critical,
+                    "n_high": n_high,
+                    "n_medium": n_medium,
+                    "findings": findings,
+                },
+            )
 
         except Exception as e:
-            self._record_section_failure('Insight Prioritization', e)
+            self._record_section_failure("Insight Prioritization", e)
 
     # =========================================================================
     # CLASS DISTRIBUTION ANALYSIS (Phase 2)
     # =========================================================================
 
-    def add_class_distribution(self, y_true: Any, y_pred: Any = None, labels: List[str] = None) -> None:
+    def add_class_distribution(
+        self, y_true: Any, y_pred: Any = None, labels: List[str] = None
+    ) -> None:
         """
         Add class distribution analysis with:
         - Class balance bar chart
@@ -1477,20 +1648,23 @@ Automated scan of all analysis sections for actionable findings.
         - Resampling suggestions if imbalanced (ratio > 3:1)
         """
         try:
-            from sklearn.metrics import (matthews_corrcoef, balanced_accuracy_score,
-                                         cohen_kappa_score)
+            from sklearn.metrics import (
+                balanced_accuracy_score,
+                cohen_kappa_score,
+                matthews_corrcoef,
+            )
 
             y_true_arr = np.asarray(y_true)
             unique_classes, class_counts = np.unique(y_true_arr, return_counts=True)
             n_classes = len(unique_classes)
 
             if labels is None:
-                labels = [f'Class {c}' for c in unique_classes]
+                labels = [f"Class {c}" for c in unique_classes]
 
             # Calculate class ratios
             max_count = class_counts.max()
             min_count = class_counts.min()
-            imbalance_ratio = max_count / min_count if min_count > 0 else float('inf')
+            imbalance_ratio = max_count / min_count if min_count > 0 else float("inf")
 
             # Calculate metrics if predictions available
             metrics_md = ""
@@ -1516,10 +1690,12 @@ Automated scan of all analysis sections for actionable findings.
             try:
                 fig_path = self._create_class_distribution_chart(labels, class_counts)
             except Exception as e:
-                self._record_chart_failure('class_distribution', e)
+                self._record_chart_failure("class_distribution", e)
 
             # Build class table
-            class_table = "| Class | Count | Percentage | Ratio |\n|-------|-------|------------|-------|\n"
+            class_table = (
+                "| Class | Count | Percentage | Ratio |\n|-------|-------|------------|-------|\n"
+            )
             total = class_counts.sum()
             for label, count in zip(labels, class_counts):
                 pct = count / total * 100
@@ -1564,10 +1740,12 @@ and choosing appropriate evaluation metrics.
 ---
 """
             self._content.append(content)
-            self._store_section_data('class_distribution', 'Class Distribution', {'imbalance_ratio': imbalance_ratio})
+            self._store_section_data(
+                "class_distribution", "Class Distribution", {"imbalance_ratio": imbalance_ratio}
+            )
 
         except Exception as e:
-            self._record_section_failure('Class Distribution', e)
+            self._record_section_failure("Class Distribution", e)
 
     # =========================================================================
     # PERMUTATION FEATURE IMPORTANCE (Phase 3)
@@ -1587,9 +1765,13 @@ and choosing appropriate evaluation metrics.
             result = perm_imp(model, X, y, n_repeats=n_repeats, random_state=42, n_jobs=-1)
 
             # Store for PDP phase
-            self._raw_data['permutation_importance'] = result
+            self._raw_data["permutation_importance"] = result
 
-            feature_names = list(X.columns) if hasattr(X, 'columns') else [f'Feature_{i}' for i in range(X.shape[1])]
+            feature_names = (
+                list(X.columns)
+                if hasattr(X, "columns")
+                else [f"Feature_{i}" for i in range(X.shape[1])]
+            )
 
             # Sort by importance
             sorted_idx = result.importances_mean.argsort()[::-1]
@@ -1599,11 +1781,9 @@ and choosing appropriate evaluation metrics.
             # Create chart
             fig_path = ""
             try:
-                fig_path = self._create_permutation_importance_chart(
-                    result, feature_names, top_idx
-                )
+                fig_path = self._create_permutation_importance_chart(result, feature_names, top_idx)
             except Exception as e:
-                self._record_chart_failure('permutation_importance', e)
+                self._record_chart_failure("permutation_importance", e)
 
             # Build table
             table_md = "| Rank | Feature | Importance (Mean) | Std Dev |\n|------|---------|-------------------|--------|\n"
@@ -1635,19 +1815,28 @@ values are randomly shuffled, breaking the relationship with the target.
 ---
 """
             self._content.append(content)
-            self._store_section_data('permutation_importance', 'Permutation Importance', {
-                'top_features': [feature_names[idx] for idx in top_idx],
-                'importance_values': {feature_names[idx]: float(result.importances_mean[idx]) for idx in top_idx},
-            }, [{'type': 'importance_bar'}])
+            self._store_section_data(
+                "permutation_importance",
+                "Permutation Importance",
+                {
+                    "top_features": [feature_names[idx] for idx in top_idx],
+                    "importance_values": {
+                        feature_names[idx]: float(result.importances_mean[idx]) for idx in top_idx
+                    },
+                },
+                [{"type": "importance_bar"}],
+            )
 
         except Exception as e:
-            self._record_section_failure('Permutation Importance', e)
+            self._record_section_failure("Permutation Importance", e)
 
     # =========================================================================
     # PARTIAL DEPENDENCE PLOTS (Phase 4)
     # =========================================================================
 
-    def add_partial_dependence(self, model: Any, X: Any, feature_names: List[str] = None, top_n: int = 3) -> Any:
+    def add_partial_dependence(
+        self, model: Any, X: Any, feature_names: List[str] = None, top_n: int = 3
+    ) -> Any:
         """
         Add Partial Dependence Plots (PDP) with ICE lines:
         - sklearn.inspection.partial_dependence
@@ -1658,15 +1847,19 @@ values are randomly shuffled, breaking the relationship with the target.
             from sklearn.inspection import partial_dependence
 
             if feature_names is None:
-                feature_names = list(X.columns) if hasattr(X, 'columns') else [f'Feature_{i}' for i in range(X.shape[1])]
+                feature_names = (
+                    list(X.columns)
+                    if hasattr(X, "columns")
+                    else [f"Feature_{i}" for i in range(X.shape[1])]
+                )
 
             # Determine top features
             top_features = []
-            if 'permutation_importance' in self._raw_data:
-                perm_result = self._raw_data['permutation_importance']
+            if "permutation_importance" in self._raw_data:
+                perm_result = self._raw_data["permutation_importance"]
                 sorted_idx = perm_result.importances_mean.argsort()[::-1][:top_n]
                 top_features = [feature_names[i] for i in sorted_idx]
-            elif hasattr(model, 'feature_importances_'):
+            elif hasattr(model, "feature_importances_"):
                 sorted_idx = np.argsort(model.feature_importances_)[::-1][:top_n]
                 top_features = [feature_names[i] for i in sorted_idx]
             else:
@@ -1677,7 +1870,7 @@ values are randomly shuffled, breaking the relationship with the target.
             try:
                 fig_path = self._create_pdp_chart(model, X, top_features, feature_names)
             except Exception as e:
-                self._record_chart_failure('pdp_chart', e)
+                self._record_chart_failure("pdp_chart", e)
 
             features_list = "\n".join([f"- **{f}**" for f in top_features])
 
@@ -1706,10 +1899,12 @@ averaging over the values of all other features.
 ---
 """
             self._content.append(content)
-            self._store_section_data('partial_dependence', 'Partial Dependence', {'top_features': top_features})
+            self._store_section_data(
+                "partial_dependence", "Partial Dependence", {"top_features": top_features}
+            )
 
         except Exception as e:
-            self._record_section_failure('Partial Dependence', e)
+            self._record_section_failure("Partial Dependence", e)
 
     # =========================================================================
     # STATISTICAL SIGNIFICANCE TESTING (Phase 5)
@@ -1722,7 +1917,7 @@ averaging over the values of all other features.
         - Histogram of bootstrap AUC distribution with CI bands
         """
         try:
-            from sklearn.metrics import roc_auc_score, accuracy_score, f1_score
+            from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
 
             preds = self._make_predictions(y_true, y_pred, y_prob)
 
@@ -1747,11 +1942,9 @@ averaging over the values of all other features.
             # Create visualization
             fig_path = ""
             try:
-                fig_path = self._create_bootstrap_auc_chart(
-                    boot_accuracies, auc_data
-                )
+                fig_path = self._create_bootstrap_auc_chart(boot_accuracies, auc_data)
             except Exception as e:
-                self._record_chart_failure('bootstrap_auc', e)
+                self._record_chart_failure("bootstrap_auc", e)
 
             content = f"""
 # Statistical Significance Testing
@@ -1795,17 +1988,21 @@ Bootstrap resampling provides robust confidence intervals for model performance 
 ---
 """
             auc_ci = f"{auc_data['ci_lower']:.4f}-{auc_data['ci_upper']:.4f}" if auc_data else None
-            significant = auc_data['ci_lower'] > 0.5 if auc_data else None
+            significant = auc_data["ci_lower"] > 0.5 if auc_data else None
             self._content.append(content)
-            self._store_section_data('statistical_tests', 'Statistical Significance', {
-                'acc_mean': float(acc_mean),
-                'n_bootstraps': n_boot,
-                'auc_ci': auc_ci,
-                'significant': significant,
-            })
+            self._store_section_data(
+                "statistical_tests",
+                "Statistical Significance",
+                {
+                    "acc_mean": float(acc_mean),
+                    "n_bootstraps": n_boot,
+                    "auc_ci": auc_ci,
+                    "significant": significant,
+                },
+            )
 
         except Exception as e:
-            self._record_section_failure('Statistical Tests', e)
+            self._record_section_failure("Statistical Tests", e)
 
     def add_score_distribution(self, y_true: Any, y_prob: Any, labels: List[str] = None) -> None:
         """
@@ -1824,7 +2021,7 @@ Bootstrap resampling provides robust confidence intervals for model performance 
             n_classes = len(unique_classes)
             is_binary = n_classes <= 2
             if labels is None:
-                labels = [f'Class {c}' for c in unique_classes]
+                labels = [f"Class {c}" for c in unique_classes]
 
             # Get 1D probabilities per class
             if is_binary:
@@ -1862,18 +2059,18 @@ Bootstrap resampling provides robust confidence intervals for model performance 
                 fpr, tpr, thresholds = roc_curve(preds.y_true, prob_1d)
                 j_scores = tpr - fpr
                 optimal_idx = np.argmax(j_scores)
-                optimal_threshold = thresholds[optimal_idx] if optimal_idx < len(thresholds) else 0.5
+                optimal_threshold = (
+                    thresholds[optimal_idx] if optimal_idx < len(thresholds) else 0.5
+                )
             else:
                 optimal_threshold = 0.5
 
             # Create visualization
             fig_path = ""
             try:
-                fig_path = self._create_score_distribution_chart(
-                    class_probs, optimal_threshold
-                )
+                fig_path = self._create_score_distribution_chart(class_probs, optimal_threshold)
             except Exception as e:
-                self._record_chart_failure('score_distribution', e)
+                self._record_chart_failure("score_distribution", e)
 
             content = f"""
 # Score Distribution by Class
@@ -1907,19 +2104,29 @@ reveals model discrimination capability.
 ---
 """
             self._content.append(content)
-            self._store_section_data('score_distribution', 'Score Distribution', {
-                'n_classes': len(unique_classes),
-                'optimal_threshold': float(optimal_threshold),
-            })
+            self._store_section_data(
+                "score_distribution",
+                "Score Distribution",
+                {
+                    "n_classes": len(unique_classes),
+                    "optimal_threshold": float(optimal_threshold),
+                },
+            )
 
         except Exception as e:
-            self._record_section_failure('Score Distribution', e)
+            self._record_section_failure("Score Distribution", e)
 
     # =========================================================================
     # DEEP LEARNING ANALYSIS
     # =========================================================================
 
-    def add_deep_learning_analysis(self, model: Any, X_sample: Any = None, layer_names: List[str] = None, training_history: Dict = None) -> Any:
+    def add_deep_learning_analysis(
+        self,
+        model: Any,
+        X_sample: Any = None,
+        layer_names: List[str] = None,
+        training_history: Dict = None,
+    ) -> Any:
         """
         Add deep learning-specific analysis (conditional — only if model is a neural network).
 
@@ -1948,8 +2155,8 @@ Neural network-specific analysis including training dynamics and model architect
                     fig_paths.append(fig_path)
 
                     # Extract training stats
-                    loss_hist = training_history.get('loss', [])
-                    val_loss_hist = training_history.get('val_loss', [])
+                    loss_hist = training_history.get("loss", [])
+                    val_loss_hist = training_history.get("val_loss", [])
 
                     n_epochs = len(loss_hist)
                     best_epoch = int(np.argmin(val_loss_hist)) + 1 if val_loss_hist else n_epochs
@@ -2009,15 +2216,27 @@ Feature importance via input gradient analysis (gradient × input).
 """
             self._content.append(content)
 
-            self._store_section_data('deep_learning', 'Deep Learning Analysis', {
-                'is_nn': True,
-                'training_history': training_history,
-            }, [{'type': 'line', 'path': p} for p in fig_paths])
+            self._store_section_data(
+                "deep_learning",
+                "Deep Learning Analysis",
+                {
+                    "is_nn": True,
+                    "training_history": training_history,
+                },
+                [{"type": "line", "path": p} for p in fig_paths],
+            )
 
         except Exception as e:
-            self._record_section_failure('Deep Learning Analysis', e)
+            self._record_section_failure("Deep Learning Analysis", e)
 
-    def add_model_card(self, model: Any, results: Dict[str, Any], intended_use: str = '', limitations: str = '', ethical: str = '') -> Any:
+    def add_model_card(
+        self,
+        model: Any,
+        results: Dict[str, Any],
+        intended_use: str = "",
+        limitations: str = "",
+        ethical: str = "",
+    ) -> Any:
         """
         Add Model Card section following Google Model Card standard:
         - Model details (type, version, framework)
@@ -2029,7 +2248,7 @@ Feature importance via input gradient analysis (gradient × input).
         try:
             self._add_model_card_impl(model, results, intended_use, limitations, ethical)
         except Exception as e:
-            self._record_section_failure('Model Card', e)
+            self._record_section_failure("Model Card", e)
 
     def add_regression_analysis(self, y_true: Any, y_pred: Any) -> None:
         """
@@ -2039,8 +2258,12 @@ Feature importance via input gradient analysis (gradient × input).
         - Breusch-Pagan heteroscedasticity test
         """
         try:
-            from sklearn.metrics import (mean_absolute_error, mean_squared_error,
-                                         r2_score, mean_absolute_percentage_error)
+            from sklearn.metrics import (
+                mean_absolute_error,
+                mean_absolute_percentage_error,
+                mean_squared_error,
+                r2_score,
+            )
 
             preds = self._make_predictions(y_true, y_pred)
             y_true_arr = preds.y_true.astype(float)
@@ -2054,8 +2277,10 @@ Feature importance via input gradient analysis (gradient × input).
             try:
                 mape = mean_absolute_percentage_error(y_true_arr, y_pred_arr) * 100
             except Exception as e:
-                if hasattr(self, '_warnings'):
-                    self._record_internal_warning('MAPEComputation', 'sklearn MAPE failed, using manual', e)
+                if hasattr(self, "_warnings"):
+                    self._record_internal_warning(
+                        "MAPEComputation", "sklearn MAPE failed, using manual", e
+                    )
                 mape = np.mean(np.abs((y_true_arr - y_pred_arr) / (y_true_arr + 1e-10))) * 100
 
             # Adjusted R²
@@ -2106,11 +2331,15 @@ Comprehensive evaluation of regression model performance including residual diag
 ---
 """
             self._content.append(content)
-            self._store_section_data('regression', 'Regression Analysis', {
-                'r2': r2, 'rmse': rmse,
-                'is_heteroscedastic': hetero_result.get('is_heteroscedastic', False),
-            })
+            self._store_section_data(
+                "regression",
+                "Regression Analysis",
+                {
+                    "r2": r2,
+                    "rmse": rmse,
+                    "is_heteroscedastic": hetero_result.get("is_heteroscedastic", False),
+                },
+            )
 
         except Exception as e:
-            self._record_section_failure('Regression Analysis', e)
-
+            self._record_section_failure("Regression Analysis", e)

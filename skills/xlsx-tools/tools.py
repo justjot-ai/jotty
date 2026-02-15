@@ -3,12 +3,13 @@ Excel Tools Skill
 
 Provides Excel file manipulation tools using openpyxl and pandas.
 """
-import os
+
 import logging
-from typing import Dict, Any, List, Optional, Union
+import os
+from typing import Any, Dict, List, Optional, Union
 
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("xlsx-tools")
@@ -26,25 +27,26 @@ class ExcelToolkit:
         try:
             import openpyxl
             import pandas
+
             return None
         except ImportError as e:
             missing = str(e).split("'")[1] if "'" in str(e) else str(e)
             return {
-                'success': False,
-                'error': f'{missing} not installed. Install with: pip install openpyxl pandas'
+                "success": False,
+                "error": f"{missing} not installed. Install with: pip install openpyxl pandas",
             }
 
     @staticmethod
     def _validate_file_path(file_path: str, must_exist: bool = True) -> Optional[Dict[str, Any]]:
         """Validate file path."""
         if not file_path:
-            return {'success': False, 'error': 'file_path parameter is required'}
+            return {"success": False, "error": "file_path parameter is required"}
 
         if must_exist and not os.path.exists(file_path):
-            return {'success': False, 'error': f'File not found: {file_path}'}
+            return {"success": False, "error": f"File not found: {file_path}"}
 
-        if must_exist and not file_path.lower().endswith(('.xlsx', '.xls', '.xlsm')):
-            return {'success': False, 'error': 'File must be an Excel file (.xlsx, .xls, .xlsm)'}
+        if must_exist and not file_path.lower().endswith((".xlsx", ".xls", ".xlsm")):
+            return {"success": False, "error": "File must be an Excel file (.xlsx, .xls, .xlsm)"}
 
         return None
 
@@ -71,7 +73,7 @@ def read_excel_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - row_count (int): Number of rows
             - error (str, optional): Error message if failed
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     dep_error = ExcelToolkit._check_dependencies()
     if dep_error:
@@ -79,16 +81,16 @@ def read_excel_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
     import pandas as pd
 
-    file_path = params.get('file_path')
+    file_path = params.get("file_path")
     path_error = ExcelToolkit._validate_file_path(file_path)
     if path_error:
         return path_error
 
-    sheet_name = params.get('sheet_name', 0)  # Default to first sheet
-    header_row = params.get('header_row', 0)
-    as_dataframe = params.get('as_dataframe', False)
-    skip_rows = params.get('skip_rows', None)
-    max_rows = params.get('max_rows', None)
+    sheet_name = params.get("sheet_name", 0)  # Default to first sheet
+    header_row = params.get("header_row", 0)
+    as_dataframe = params.get("as_dataframe", False)
+    skip_rows = params.get("skip_rows", None)
+    max_rows = params.get("max_rows", None)
 
     try:
         df = pd.read_excel(
@@ -96,30 +98,30 @@ def read_excel_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             sheet_name=sheet_name,
             header=header_row,
             skiprows=range(1, skip_rows + 1) if skip_rows else None,
-            nrows=max_rows
+            nrows=max_rows,
         )
 
         columns = df.columns.tolist()
         row_count = len(df)
 
         if as_dataframe:
-            data = df.to_dict(orient='dict')
+            data = df.to_dict(orient="dict")
         else:
-            data = df.to_dict(orient='records')
+            data = df.to_dict(orient="records")
 
         logger.info(f"Read Excel file: {file_path}, sheet: {sheet_name}, rows: {row_count}")
 
         return {
-            'success': True,
-            'data': data,
-            'columns': columns,
-            'row_count': row_count,
-            'sheet_name': sheet_name if isinstance(sheet_name, str) else f'Sheet{sheet_name + 1}'
+            "success": True,
+            "data": data,
+            "columns": columns,
+            "row_count": row_count,
+            "sheet_name": sheet_name if isinstance(sheet_name, str) else f"Sheet{sheet_name + 1}",
         }
 
     except Exception as e:
         logger.error(f"Error reading Excel file: {e}", exc_info=True)
-        return {'success': False, 'error': f'Error reading Excel file: {str(e)}'}
+        return {"success": False, "error": f"Error reading Excel file: {str(e)}"}
 
 
 @tool_wrapper()
@@ -142,7 +144,7 @@ def write_excel_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - row_count (int): Number of rows written
             - error (str, optional): Error message if failed
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     dep_error = ExcelToolkit._check_dependencies()
     if dep_error:
@@ -150,21 +152,21 @@ def write_excel_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
     import pandas as pd
 
-    data = params.get('data')
-    output_path = params.get('output_path')
+    data = params.get("data")
+    output_path = params.get("output_path")
 
     if data is None:
-        return {'success': False, 'error': 'data parameter is required'}
+        return {"success": False, "error": "data parameter is required"}
 
     if not output_path:
-        return {'success': False, 'error': 'output_path parameter is required'}
+        return {"success": False, "error": "output_path parameter is required"}
 
-    sheet_name = params.get('sheet_name', 'Sheet1')
-    index = params.get('index', False)
-    overwrite = params.get('overwrite', True)
+    sheet_name = params.get("sheet_name", "Sheet1")
+    index = params.get("index", False)
+    overwrite = params.get("overwrite", True)
 
     if not overwrite and os.path.exists(output_path):
-        return {'success': False, 'error': f'File already exists: {output_path}'}
+        return {"success": False, "error": f"File already exists: {output_path}"}
 
     try:
         # Convert data to DataFrame
@@ -177,7 +179,7 @@ def write_excel_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             else:
                 df = pd.DataFrame([data])
         else:
-            return {'success': False, 'error': 'data must be a list of dicts or a dict'}
+            return {"success": False, "error": "data must be a list of dicts or a dict"}
 
         # Ensure output directory exists
         output_dir = os.path.dirname(output_path)
@@ -185,23 +187,23 @@ def write_excel_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             os.makedirs(output_dir, exist_ok=True)
 
         # Add .xlsx extension if not present
-        if not output_path.lower().endswith('.xlsx'):
-            output_path += '.xlsx'
+        if not output_path.lower().endswith(".xlsx"):
+            output_path += ".xlsx"
 
         df.to_excel(output_path, sheet_name=sheet_name, index=index)
 
         logger.info(f"Wrote Excel file: {output_path}, rows: {len(df)}")
 
         return {
-            'success': True,
-            'file_path': output_path,
-            'row_count': len(df),
-            'sheet_name': sheet_name
+            "success": True,
+            "file_path": output_path,
+            "row_count": len(df),
+            "sheet_name": sheet_name,
         }
 
     except Exception as e:
         logger.error(f"Error writing Excel file: {e}", exc_info=True)
-        return {'success': False, 'error': f'Error writing Excel file: {str(e)}'}
+        return {"success": False, "error": f"Error writing Excel file: {str(e)}"}
 
 
 @tool_wrapper()
@@ -220,7 +222,7 @@ def get_sheets_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - count (int): Number of sheets
             - error (str, optional): Error message if failed
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     dep_error = ExcelToolkit._check_dependencies()
     if dep_error:
@@ -228,7 +230,7 @@ def get_sheets_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
     from openpyxl import load_workbook
 
-    file_path = params.get('file_path')
+    file_path = params.get("file_path")
     path_error = ExcelToolkit._validate_file_path(file_path)
     if path_error:
         return path_error
@@ -240,15 +242,11 @@ def get_sheets_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
         logger.info(f"Listed sheets for: {file_path}, count: {len(sheets)}")
 
-        return {
-            'success': True,
-            'sheets': sheets,
-            'count': len(sheets)
-        }
+        return {"success": True, "sheets": sheets, "count": len(sheets)}
 
     except Exception as e:
         logger.error(f"Error getting sheets: {e}", exc_info=True)
-        return {'success': False, 'error': f'Error getting sheets: {str(e)}'}
+        return {"success": False, "error": f"Error getting sheets: {str(e)}"}
 
 
 @tool_wrapper()
@@ -270,33 +268,33 @@ def add_sheet_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - file_path (str): Path to modified file
             - error (str, optional): Error message if failed
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     dep_error = ExcelToolkit._check_dependencies()
     if dep_error:
         return dep_error
 
-    from openpyxl import load_workbook
     import pandas as pd
+    from openpyxl import load_workbook
 
-    file_path = params.get('file_path')
-    sheet_name = params.get('sheet_name')
-    data = params.get('data')
-    position = params.get('position')
+    file_path = params.get("file_path")
+    sheet_name = params.get("sheet_name")
+    data = params.get("data")
+    position = params.get("position")
 
     path_error = ExcelToolkit._validate_file_path(file_path)
     if path_error:
         return path_error
 
     if not sheet_name:
-        return {'success': False, 'error': 'sheet_name parameter is required'}
+        return {"success": False, "error": "sheet_name parameter is required"}
 
     try:
         wb = load_workbook(file_path)
 
         if sheet_name in wb.sheetnames:
             wb.close()
-            return {'success': False, 'error': f'Sheet already exists: {sheet_name}'}
+            return {"success": False, "error": f"Sheet already exists: {sheet_name}"}
 
         # Create new sheet
         if position is not None:
@@ -326,15 +324,15 @@ def add_sheet_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         logger.info(f"Added sheet '{sheet_name}' to: {file_path}")
 
         return {
-            'success': True,
-            'sheet_name': sheet_name,
-            'file_path': file_path,
-            'row_count': row_count
+            "success": True,
+            "sheet_name": sheet_name,
+            "file_path": file_path,
+            "row_count": row_count,
         }
 
     except Exception as e:
         logger.error(f"Error adding sheet: {e}", exc_info=True)
-        return {'success': False, 'error': f'Error adding sheet: {str(e)}'}
+        return {"success": False, "error": f"Error adding sheet: {str(e)}"}
 
 
 @tool_wrapper()
@@ -355,7 +353,7 @@ def update_cells_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - file_path (str): Path to modified file
             - error (str, optional): Error message if failed
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     dep_error = ExcelToolkit._check_dependencies()
     if dep_error:
@@ -363,16 +361,16 @@ def update_cells_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
     from openpyxl import load_workbook
 
-    file_path = params.get('file_path')
-    sheet_name = params.get('sheet_name')
-    updates = params.get('updates')
+    file_path = params.get("file_path")
+    sheet_name = params.get("sheet_name")
+    updates = params.get("updates")
 
     path_error = ExcelToolkit._validate_file_path(file_path)
     if path_error:
         return path_error
 
     if not updates or not isinstance(updates, dict):
-        return {'success': False, 'error': 'updates parameter is required (dict of cell:value)'}
+        return {"success": False, "error": "updates parameter is required (dict of cell:value)"}
 
     try:
         wb = load_workbook(file_path)
@@ -380,7 +378,7 @@ def update_cells_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         if sheet_name:
             if sheet_name not in wb.sheetnames:
                 wb.close()
-                return {'success': False, 'error': f'Sheet not found: {sheet_name}'}
+                return {"success": False, "error": f"Sheet not found: {sheet_name}"}
             ws = wb[sheet_name]
         else:
             ws = wb.active
@@ -396,15 +394,15 @@ def update_cells_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         logger.info(f"Updated {updated_count} cells in: {file_path}")
 
         return {
-            'success': True,
-            'updated_cells': updated_count,
-            'file_path': file_path,
-            'sheet_name': sheet_name or ws.title
+            "success": True,
+            "updated_cells": updated_count,
+            "file_path": file_path,
+            "sheet_name": sheet_name or ws.title,
         }
 
     except Exception as e:
         logger.error(f"Error updating cells: {e}", exc_info=True)
-        return {'success': False, 'error': f'Error updating cells: {str(e)}'}
+        return {"success": False, "error": f"Error updating cells: {str(e)}"}
 
 
 @tool_wrapper()
@@ -427,7 +425,7 @@ def add_formula_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - file_path (str): Path to modified file
             - error (str, optional): Error message if failed
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     dep_error = ExcelToolkit._check_dependencies()
     if dep_error:
@@ -435,24 +433,24 @@ def add_formula_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
     from openpyxl import load_workbook
 
-    file_path = params.get('file_path')
-    sheet_name = params.get('sheet_name')
-    cell = params.get('cell')
-    formula = params.get('formula')
+    file_path = params.get("file_path")
+    sheet_name = params.get("sheet_name")
+    cell = params.get("cell")
+    formula = params.get("formula")
 
     path_error = ExcelToolkit._validate_file_path(file_path)
     if path_error:
         return path_error
 
     if not cell:
-        return {'success': False, 'error': 'cell parameter is required'}
+        return {"success": False, "error": "cell parameter is required"}
 
     if not formula:
-        return {'success': False, 'error': 'formula parameter is required'}
+        return {"success": False, "error": "formula parameter is required"}
 
     # Ensure formula starts with '='
-    if not formula.startswith('='):
-        formula = '=' + formula
+    if not formula.startswith("="):
+        formula = "=" + formula
 
     try:
         wb = load_workbook(file_path)
@@ -460,7 +458,7 @@ def add_formula_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         if sheet_name:
             if sheet_name not in wb.sheetnames:
                 wb.close()
-                return {'success': False, 'error': f'Sheet not found: {sheet_name}'}
+                return {"success": False, "error": f"Sheet not found: {sheet_name}"}
             ws = wb[sheet_name]
         else:
             ws = wb.active
@@ -473,16 +471,16 @@ def add_formula_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         logger.info(f"Added formula to {cell} in: {file_path}")
 
         return {
-            'success': True,
-            'cell': cell,
-            'formula': formula,
-            'file_path': file_path,
-            'sheet_name': sheet_name or ws.title
+            "success": True,
+            "cell": cell,
+            "formula": formula,
+            "file_path": file_path,
+            "sheet_name": sheet_name or ws.title,
         }
 
     except Exception as e:
         logger.error(f"Error adding formula: {e}", exc_info=True)
-        return {'success': False, 'error': f'Error adding formula: {str(e)}'}
+        return {"success": False, "error": f"Error adding formula: {str(e)}"}
 
 
 @tool_wrapper()
@@ -510,52 +508,49 @@ def create_chart_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - file_path (str): Path to modified file
             - error (str, optional): Error message if failed
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     dep_error = ExcelToolkit._check_dependencies()
     if dep_error:
         return dep_error
 
     from openpyxl import load_workbook
-    from openpyxl.chart import (
-        BarChart, LineChart, PieChart, AreaChart, ScatterChart,
-        Reference
-    )
+    from openpyxl.chart import AreaChart, BarChart, LineChart, PieChart, Reference, ScatterChart
 
-    file_path = params.get('file_path')
-    sheet_name = params.get('sheet_name')
-    chart_type = params.get('chart_type', '').lower()
-    data_range = params.get('data_range')
-    position = params.get('position', 'E1')
-    title = params.get('title', '')
-    categories_range = params.get('categories_range')
-    width = params.get('width', 15)
-    height = params.get('height', 10)
+    file_path = params.get("file_path")
+    sheet_name = params.get("sheet_name")
+    chart_type = params.get("chart_type", "").lower()
+    data_range = params.get("data_range")
+    position = params.get("position", "E1")
+    title = params.get("title", "")
+    categories_range = params.get("categories_range")
+    width = params.get("width", 15)
+    height = params.get("height", 10)
 
     path_error = ExcelToolkit._validate_file_path(file_path)
     if path_error:
         return path_error
 
     if not chart_type:
-        return {'success': False, 'error': 'chart_type parameter is required'}
+        return {"success": False, "error": "chart_type parameter is required"}
 
     if not data_range:
-        return {'success': False, 'error': 'data_range parameter is required'}
+        return {"success": False, "error": "data_range parameter is required"}
 
     # Chart type mapping
     chart_classes = {
-        'bar': BarChart,
-        'column': BarChart,
-        'line': LineChart,
-        'pie': PieChart,
-        'area': AreaChart,
-        'scatter': ScatterChart
+        "bar": BarChart,
+        "column": BarChart,
+        "line": LineChart,
+        "pie": PieChart,
+        "area": AreaChart,
+        "scatter": ScatterChart,
     }
 
     if chart_type not in chart_classes:
         return {
-            'success': False,
-            'error': f'Invalid chart_type. Supported types: {", ".join(chart_classes.keys())}'
+            "success": False,
+            "error": f'Invalid chart_type. Supported types: {", ".join(chart_classes.keys())}',
         }
 
     try:
@@ -564,13 +559,14 @@ def create_chart_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         if sheet_name:
             if sheet_name not in wb.sheetnames:
                 wb.close()
-                return {'success': False, 'error': f'Sheet not found: {sheet_name}'}
+                return {"success": False, "error": f"Sheet not found: {sheet_name}"}
             ws = wb[sheet_name]
         else:
             ws = wb.active
 
         # Parse data range
         from openpyxl.utils import range_boundaries
+
         min_col, min_row, max_col, max_row = range_boundaries(data_range)
 
         # Create chart
@@ -584,14 +580,14 @@ def create_chart_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         chart.height = height
 
         # For column charts (vertical bars)
-        if chart_type == 'column':
-            chart.type = 'col'
+        if chart_type == "column":
+            chart.type = "col"
 
         # Create data reference
         data = Reference(ws, min_col=min_col, min_row=min_row, max_col=max_col, max_row=max_row)
 
         # Add data to chart
-        if chart_type == 'scatter':
+        if chart_type == "scatter":
             # Scatter charts need x and y values
             chart.add_data(data, titles_from_data=True)
         else:
@@ -600,8 +596,13 @@ def create_chart_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         # Add categories if provided
         if categories_range:
             cat_min_col, cat_min_row, cat_max_col, cat_max_row = range_boundaries(categories_range)
-            categories = Reference(ws, min_col=cat_min_col, min_row=cat_min_row,
-                                   max_col=cat_max_col, max_row=cat_max_row)
+            categories = Reference(
+                ws,
+                min_col=cat_min_col,
+                min_row=cat_min_row,
+                max_col=cat_max_col,
+                max_row=cat_max_row,
+            )
             chart.set_categories(categories)
 
         # Add chart to worksheet
@@ -613,14 +614,14 @@ def create_chart_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         logger.info(f"Created {chart_type} chart at {position} in: {file_path}")
 
         return {
-            'success': True,
-            'chart_type': chart_type,
-            'position': position,
-            'data_range': data_range,
-            'file_path': file_path,
-            'sheet_name': sheet_name or ws.title
+            "success": True,
+            "chart_type": chart_type,
+            "position": position,
+            "data_range": data_range,
+            "file_path": file_path,
+            "sheet_name": sheet_name or ws.title,
         }
 
     except Exception as e:
         logger.error(f"Error creating chart: {e}", exc_info=True)
-        return {'success': False, 'error': f'Error creating chart: {str(e)}'}
+        return {"success": False, "error": f"Error creating chart: {str(e)}"}

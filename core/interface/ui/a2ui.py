@@ -16,8 +16,8 @@ Usage:
     # Returns: {"role": "assistant", "content": [{"type": "list", "items": [...]}]}
 """
 
-from typing import List, Dict, Any, Optional, Union
 import json
+from typing import Any, Dict, List, Optional, Union
 
 
 class A2UIWidget:
@@ -56,7 +56,13 @@ class A2UIText(A2UIWidget):
 class A2UICard(A2UIWidget):
     """Card widget with header, body, and footer."""
 
-    def __init__(self, title: Optional[str] = None, subtitle: Optional[str] = None, body: Optional[Union[A2UIWidget, List[A2UIWidget], str]] = None, footer: Optional[Union[A2UIWidget, List[A2UIWidget]]] = None) -> None:
+    def __init__(
+        self,
+        title: Optional[str] = None,
+        subtitle: Optional[str] = None,
+        body: Optional[Union[A2UIWidget, List[A2UIWidget], str]] = None,
+        footer: Optional[Union[A2UIWidget, List[A2UIWidget]]] = None,
+    ) -> None:
         """
         Create card widget.
 
@@ -84,8 +90,7 @@ class A2UICard(A2UIWidget):
                 widget["body"] = {"type": "text", "text": self.body}
             elif isinstance(self.body, list):
                 widget["body"] = [
-                    item.to_dict() if isinstance(item, A2UIWidget) else item
-                    for item in self.body
+                    item.to_dict() if isinstance(item, A2UIWidget) else item for item in self.body
                 ]
             elif isinstance(self.body, A2UIWidget):
                 widget["body"] = self.body.to_dict()
@@ -93,8 +98,7 @@ class A2UICard(A2UIWidget):
         if self.footer:
             if isinstance(self.footer, list):
                 widget["footer"] = [
-                    item.to_dict() if isinstance(item, A2UIWidget) else item
-                    for item in self.footer
+                    item.to_dict() if isinstance(item, A2UIWidget) else item for item in self.footer
                 ]
             elif isinstance(self.footer, A2UIWidget):
                 widget["footer"] = self.footer.to_dict()
@@ -120,10 +124,7 @@ class A2UIList(A2UIWidget):
         self.items = items
 
     def to_dict(self) -> Dict[str, Any]:
-        return {
-            "type": "list",
-            "items": self.items
-        }
+        return {"type": "list", "items": self.items}
 
 
 class A2UIImage(A2UIWidget):
@@ -154,7 +155,9 @@ class A2UIImage(A2UIWidget):
 class A2UIButton(A2UIWidget):
     """Button widget."""
 
-    def __init__(self, label: str, action: Optional[Dict[str, Any]] = None, variant: str = 'secondary') -> None:
+    def __init__(
+        self, label: str, action: Optional[Dict[str, Any]] = None, variant: str = "secondary"
+    ) -> None:
         """
         Create button widget.
 
@@ -207,7 +210,13 @@ class A2UISection(A2UIWidget):
         # Any of 70+ section types work!
     """
 
-    def __init__(self, section_type: str, content: Union[Dict[str, Any], str], title: Optional[str] = None, props: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(
+        self,
+        section_type: str,
+        content: Union[Dict[str, Any], str],
+        title: Optional[str] = None,
+        props: Optional[Dict[str, Any]] = None,
+    ) -> None:
         """
         Create section widget.
 
@@ -223,11 +232,7 @@ class A2UISection(A2UIWidget):
         self.props = props or {}
 
     def to_dict(self) -> Dict[str, Any]:
-        widget = {
-            "type": "section",
-            "section_type": self.section_type,
-            "content": self.content
-        }
+        widget = {"type": "section", "section_type": self.section_type, "content": self.content}
 
         if self.title:
             widget["title"] = self.title
@@ -245,12 +250,12 @@ class A2UIBuilder:
         """Initialize builder."""
         self.widgets: List[A2UIWidget] = []
 
-    def add_widget(self, widget: A2UIWidget) -> 'A2UIBuilder':
+    def add_widget(self, widget: A2UIWidget) -> "A2UIBuilder":
         """Add a widget to the response."""
         self.widgets.append(widget)
         return self
 
-    def add_text(self, text: str, style: Optional[str] = None) -> 'A2UIBuilder':
+    def add_text(self, text: str, style: Optional[str] = None) -> "A2UIBuilder":
         """Add a text block."""
         self.widgets.append(A2UIText(text, style))
         return self
@@ -260,38 +265,32 @@ class A2UIBuilder:
         title: Optional[str] = None,
         subtitle: Optional[str] = None,
         body: Optional[Union[A2UIWidget, List[A2UIWidget], str]] = None,
-        footer: Optional[Union[A2UIWidget, List[A2UIWidget]]] = None
-    ) -> 'A2UIBuilder':
+        footer: Optional[Union[A2UIWidget, List[A2UIWidget]]] = None,
+    ) -> "A2UIBuilder":
         """Add a card widget."""
         self.widgets.append(A2UICard(title, subtitle, body, footer))
         return self
 
-    def add_list(self, items: List[Dict[str, Any]]) -> 'A2UIBuilder':
+    def add_list(self, items: List[Dict[str, Any]]) -> "A2UIBuilder":
         """Add a list widget."""
         self.widgets.append(A2UIList(items))
         return self
 
     def add_image(
-        self,
-        url: str,
-        alt: Optional[str] = None,
-        caption: Optional[str] = None
-    ) -> 'A2UIBuilder':
+        self, url: str, alt: Optional[str] = None, caption: Optional[str] = None
+    ) -> "A2UIBuilder":
         """Add an image widget."""
         self.widgets.append(A2UIImage(url, alt, caption))
         return self
 
     def add_button(
-        self,
-        label: str,
-        action: Optional[Dict[str, Any]] = None,
-        variant: str = "secondary"
-    ) -> 'A2UIBuilder':
+        self, label: str, action: Optional[Dict[str, Any]] = None, variant: str = "secondary"
+    ) -> "A2UIBuilder":
         """Add a button widget."""
         self.widgets.append(A2UIButton(label, action, variant))
         return self
 
-    def add_separator(self) -> 'A2UIBuilder':
+    def add_separator(self) -> "A2UIBuilder":
         """Add a separator."""
         self.widgets.append(A2UISeparator())
         return self
@@ -301,8 +300,8 @@ class A2UIBuilder:
         section_type: str,
         content: Union[Dict[str, Any], str],
         title: Optional[str] = None,
-        props: Optional[Dict[str, Any]] = None
-    ) -> 'A2UIBuilder':
+        props: Optional[Dict[str, Any]] = None,
+    ) -> "A2UIBuilder":
         """Add a section widget (JustJot.ai native renderer)."""
         self.widgets.append(A2UISection(section_type, content, title, props))
         return self
@@ -314,10 +313,7 @@ class A2UIBuilder:
         Returns:
             A2UI response with role and content blocks
         """
-        return {
-            "role": "assistant",
-            "content": [widget.to_dict() for widget in self.widgets]
-        }
+        return {"role": "assistant", "content": [widget.to_dict() for widget in self.widgets]}
 
     def to_json(self) -> str:
         """Convert to JSON string."""
@@ -345,7 +341,15 @@ def is_a2ui_response(response: Any) -> bool:
                 # Check if first item has A2UI widget type
                 first_item = content[0]
                 if isinstance(first_item, dict) and "type" in first_item:
-                    valid_types = ["card", "list", "text", "image", "button", "separator", "section"]
+                    valid_types = [
+                        "card",
+                        "list",
+                        "text",
+                        "image",
+                        "button",
+                        "separator",
+                        "section",
+                    ]
                     return first_item.get("type") in valid_types
 
     return False
@@ -362,27 +366,19 @@ def convert_to_a2ui_response(response: Any) -> Dict[str, Any]:
         A2UI response dictionary
     """
     if isinstance(response, A2UIWidget):
-        return {
-            "role": "assistant",
-            "content": [response.to_dict()]
-        }
+        return {"role": "assistant", "content": [response.to_dict()]}
 
     if isinstance(response, dict) and is_a2ui_response(response):
         return response
 
     # Convert string or other types to text widget
-    return {
-        "role": "assistant",
-        "content": [{
-            "type": "text",
-            "text": str(response)
-        }]
-    }
+    return {"role": "assistant", "content": [{"type": "text", "text": str(response)}]}
 
 
 # ============================================================================
 # Helper Functions - Simple API for Agents
 # ============================================================================
+
 
 def format_task_list(tasks: List[Dict[str, Any]], title: Optional[str] = None) -> Dict[str, Any]:
     """
@@ -403,11 +399,7 @@ def format_task_list(tasks: List[Dict[str, Any]], title: Optional[str] = None) -
     return builder.build()
 
 
-def format_card(
-    title: str,
-    body: str,
-    subtitle: Optional[str] = None
-) -> Dict[str, Any]:
+def format_card(title: str, body: str, subtitle: Optional[str] = None) -> Dict[str, Any]:
     """
     Format simple card as A2UI response.
 
@@ -444,7 +436,7 @@ def format_section(
     section_type: str,
     content: Union[Dict[str, Any], str],
     title: Optional[str] = None,
-    props: Optional[Dict[str, Any]] = None
+    props: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     Format JustJot section as A2UI response (DRY way).

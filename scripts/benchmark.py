@@ -10,8 +10,8 @@ Usage:
     python scripts/benchmark.py --verbose
 """
 
-import time
 import sys
+import time
 from pathlib import Path
 
 
@@ -19,6 +19,7 @@ def benchmark_import_time():
     """Measure import time."""
     start = time.time()
     import Jotty
+
     end = time.time()
     return (end - start) * 1000  # Convert to ms
 
@@ -51,7 +52,7 @@ def main():
     benchmarks = [
         ("Import Time", benchmark_import_time, 1000),  # Target: <1000ms
         ("Discovery Time", benchmark_discovery, 100),  # Target: <100ms
-        ("Swarm Init", benchmark_swarm_init, 500),    # Target: <500ms
+        ("Swarm Init", benchmark_swarm_init, 500),  # Target: <500ms
     ]
 
     results = []

@@ -7,35 +7,42 @@ and runs the workflow automatically.
 
 Refactored to inherit from AutonomousAgent for unified infrastructure.
 """
-import logging
-import inspect
-from typing import Dict, Any, List, Optional, Callable, Tuple
-from datetime import datetime
 
-from .agentic_planner import TaskPlanner
-from .autonomous_agent import AutonomousAgent, AutonomousAgentConfig
+import inspect
+import logging
+from datetime import datetime
+from typing import Any, Callable, Dict, List, Optional, Tuple
+
 from Jotty.core.infrastructure.foundation.exceptions import (
     AgentExecutionError,
-    ToolExecutionError,
-    LLMError,
     DSPyError,
+    LLMError,
+    ToolExecutionError,
 )
-from Jotty.core.infrastructure.utils.async_utils import safe_status, StatusReporter, AgentEventBroadcaster, AgentEvent
-from ..types.execution_types import TaskType, AgenticExecutionResult, _clean_for_display
+from Jotty.core.infrastructure.utils.async_utils import (
+    AgentEvent,
+    AgentEventBroadcaster,
+    StatusReporter,
+    safe_status,
+)
+
+from ..types.execution_types import AgenticExecutionResult, TaskType, _clean_for_display
+from .agentic_planner import TaskPlanner
+from .autonomous_agent import AutonomousAgent, AutonomousAgentConfig
 
 # Mode-specific system prompts for tools with different backends
 _MODE_PROMPTS = {
-    'browser-automation:playwright': (
+    "browser-automation:playwright": (
         "You have Playwright browser automation. Use async page actions: "
         "goto(), click(), fill(), screenshot(). Pages render JS fully. "
         "Always wait_for_selector() before interacting with dynamic content."
     ),
-    'browser-automation:selenium': (
+    "browser-automation:selenium": (
         "You have Selenium browser automation with CDP support. "
         "Use WebDriverWait for dynamic elements. For Electron apps, "
         "connect via cdp_url parameter. Screenshots are sync."
     ),
-    'terminal-session': (
+    "terminal-session": (
         "You have persistent terminal sessions via pexpect. "
         "Working directory and env vars persist across commands. "
         "Use expect patterns for interactive prompts (sudo, ssh)."
@@ -67,7 +74,17 @@ class AutoAgent(AutonomousAgent):
         result = await agent.execute("RNN vs CNN")
     """
 
-    def __init__(self, default_output_skill: Optional[str] = None, enable_output: bool = False, max_steps: int = 10, timeout: int = 300, planner: Optional[TaskPlanner] = None, skill_filter: Optional[str] = None, system_prompt: Optional[str] = None, name: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        default_output_skill: Optional[str] = None,
+        enable_output: bool = False,
+        max_steps: int = 10,
+        timeout: int = 300,
+        planner: Optional[TaskPlanner] = None,
+        skill_filter: Optional[str] = None,
+        system_prompt: Optional[str] = None,
+        name: Optional[str] = None,
+    ) -> None:
         """
         Initialize AutoAgent.
 
@@ -114,7 +131,7 @@ class AutoAgent(AutonomousAgent):
     async def _execute_ensemble(
         self,
         task: str,
-        strategy: str = 'multi_perspective',
+        strategy: str = "multi_perspective",
         status_fn: Optional[Callable] = None,
         max_perspectives: int = 4,
     ) -> Dict[str, Any]:
@@ -130,23 +147,26 @@ class AutoAgent(AutonomousAgent):
         try:
             # Use the ensemble skill (preferred — parallel + adaptive)
             if self.skills_registry:
-                skill = self.skills_registry.get_skill('claude-cli-llm')
+                skill = self.skills_registry.get_skill("claude-cli-llm")
                 if skill:
-                    ensemble_tool = skill.tools.get('ensemble_prompt_tool')
+                    ensemble_tool = skill.tools.get("ensemble_prompt_tool")
                     if ensemble_tool:
                         _status("Ensemble", f"{strategy} ({max_perspectives} perspectives)")
-                        result = ensemble_tool({
-                            'prompt': task,
-                            'strategy': strategy,
-                            'synthesis_style': 'structured',
-                            'max_perspectives': max_perspectives,
-                        })
+                        result = ensemble_tool(
+                            {
+                                "prompt": task,
+                                "strategy": strategy,
+                                "synthesis_style": "structured",
+                                "max_perspectives": max_perspectives,
+                            }
+                        )
                         return result
 
             # Fallback: Use DSPy directly (parallel via ThreadPoolExecutor)
             import dspy
-            if not hasattr(dspy.settings, 'lm') or dspy.settings.lm is None:
-                return {'success': False, 'error': 'No LLM configured'}
+
+            if not hasattr(dspy.settings, "lm") or dspy.settings.lm is None:
+                return {"success": False, "error": "No LLM configured"}
 
             lm = dspy.settings.lm
 
@@ -160,6 +180,7 @@ class AutoAgent(AutonomousAgent):
 
             # Optima-inspired: parallel perspective generation
             from concurrent.futures import ThreadPoolExecutor, as_completed
+
             responses = {}
 
             def _gen(name: Any, prefix: Any) -> Tuple:
@@ -178,7 +199,7 @@ class AutoAgent(AutonomousAgent):
                         logger.warning(f"Perspective '{futures[future]}' failed: {e}")
 
             if not responses:
-                return {'success': False, 'error': 'All perspectives failed'}
+                return {"success": False, "error": "All perspectives failed"}
 
             _status("Synthesizing", f"{len(responses)} perspectives")
             synthesis_prompt = f"""Synthesize these {len(responses)} expert perspectives:
@@ -196,17 +217,17 @@ Provide:
             final_response = synthesis[0] if isinstance(synthesis, list) else str(synthesis)
 
             return {
-                'success': True,
-                'response': final_response,
-                'perspectives_used': list(responses.keys()),
-                'individual_responses': responses,
-                'strategy': strategy,
-                'confidence': len(responses) / len(perspectives)
+                "success": True,
+                "response": final_response,
+                "perspectives_used": list(responses.keys()),
+                "individual_responses": responses,
+                "strategy": strategy,
+                "confidence": len(responses) / len(perspectives),
             }
 
         except Exception as e:
             logger.error(f"Ensemble execution failed: {e}", exc_info=True)
-            return {'success': False, 'error': str(e)}
+            return {"success": False, "error": str(e)}
 
     def _should_auto_ensemble(self, task: str) -> tuple[bool, int]:
         """
@@ -218,6 +239,7 @@ Provide:
             (bool, int) tuple: (should_ensemble, max_perspectives)
         """
         from Jotty.core.intelligence.orchestration.swarm_ensemble import should_auto_ensemble
+
         return should_auto_ensemble(task)
 
     # =========================================================================
@@ -240,39 +262,50 @@ Provide:
                 """Hooks into DSPy ReAct to broadcast intermediate reasoning."""
 
                 def on_module_start(self, call_id: Any, instance: Any, inputs: Any) -> None:
-                    broadcaster.emit(AgentEvent(
-                        type="step_start",
-                        data={"module": type(instance).__name__, "inputs_keys": list(inputs.keys())},
-                        agent_id=agent_id,
-                    ))
+                    broadcaster.emit(
+                        AgentEvent(
+                            type="step_start",
+                            data={
+                                "module": type(instance).__name__,
+                                "inputs_keys": list(inputs.keys()),
+                            },
+                            agent_id=agent_id,
+                        )
+                    )
 
                 def on_module_end(self, call_id: Any, outputs: Any, exception: Any) -> None:
                     # Extract ReAct internals from DSPy _store
-                    store = getattr(outputs, '_store', {}) if outputs else {}
+                    store = getattr(outputs, "_store", {}) if outputs else {}
                     data = {}
-                    for key in ('next_thought', 'next_tool_name', 'next_tool_args', 'observation'):
+                    for key in ("next_thought", "next_tool_name", "next_tool_args", "observation"):
                         if key in store:
                             val = store[key]
                             data[key] = str(val)[:500] if val else None
-                    broadcaster.emit(AgentEvent(
-                        type="step_end",
-                        data=data,
-                        agent_id=agent_id,
-                    ))
+                    broadcaster.emit(
+                        AgentEvent(
+                            type="step_end",
+                            data=data,
+                            agent_id=agent_id,
+                        )
+                    )
 
                 def on_tool_start(self, call_id: Any, tool_name: Any, tool_input: Any) -> None:
-                    broadcaster.emit(AgentEvent(
-                        type="tool_start",
-                        data={"tool": tool_name, "input_preview": str(tool_input)[:200]},
-                        agent_id=agent_id,
-                    ))
+                    broadcaster.emit(
+                        AgentEvent(
+                            type="tool_start",
+                            data={"tool": tool_name, "input_preview": str(tool_input)[:200]},
+                            agent_id=agent_id,
+                        )
+                    )
 
                 def on_tool_end(self, call_id: Any, tool_output: Any) -> None:
-                    broadcaster.emit(AgentEvent(
-                        type="tool_end",
-                        data={"output_length": len(str(tool_output))},
-                        agent_id=agent_id,
-                    ))
+                    broadcaster.emit(
+                        AgentEvent(
+                            type="tool_end",
+                            data={"output_length": len(str(tool_output))},
+                            agent_id=agent_id,
+                        )
+                    )
 
             return _ReActStreamCallback()
         except (ImportError, AttributeError):
@@ -291,14 +324,15 @@ Provide:
         guidance reduces hallucinated tool calls.
         """
         import os
+
         parts = []
         for skill_key, prompt in _MODE_PROMPTS.items():
-            skill_name = skill_key.split(':')[0]
+            skill_name = skill_key.split(":")[0]
             if skill_name in skill_names:
                 # Check backend variant if applicable
-                if ':' in skill_key:
-                    variant = skill_key.split(':')[1]
-                    backend = os.environ.get('BROWSER_BACKEND', 'playwright')
+                if ":" in skill_key:
+                    variant = skill_key.split(":")[1]
+                    backend = os.environ.get("BROWSER_BACKEND", "playwright")
                     if variant != backend:
                         continue
                 parts.append(prompt)
@@ -317,7 +351,9 @@ Provide:
         if self._planner is not None:
             try:
                 task_type, reasoning, confidence = self._planner.infer_task_type(task)
-                logger.debug(f"Task type inference: {task_type.value} (confidence: {confidence:.2f})")
+                logger.debug(
+                    f"Task type inference: {task_type.value} (confidence: {confidence:.2f})"
+                )
                 return task_type.value
             except Exception as e:
                 logger.warning(f"Task type inference failed: {e}")
@@ -360,16 +396,17 @@ Provide:
             AgenticExecutionResult with outputs and status
         """
         import time as _time
+
         start_time = datetime.now()
         wall_start = _time.time()
 
         # Extract status callback for streaming progress
-        status_callback = kwargs.pop('status_callback', None)
-        streaming_callback = kwargs.pop('streaming_callback', None)
-        ensemble = kwargs.pop('ensemble', None)  # None = auto-detect
-        ensemble_strategy = kwargs.pop('ensemble_strategy', 'multi_perspective')
+        status_callback = kwargs.pop("status_callback", None)
+        streaming_callback = kwargs.pop("streaming_callback", None)
+        ensemble = kwargs.pop("ensemble", None)  # None = auto-detect
+        ensemble_strategy = kwargs.pop("ensemble_strategy", "multi_perspective")
         # Learning context: kept separate from task string to prevent pollution
-        learning_context = kwargs.pop('learning_context', None)
+        learning_context = kwargs.pop("learning_context", None)
 
         _status = StatusReporter(status_callback, logger, emoji=" ")
 
@@ -379,7 +416,15 @@ Provide:
         _dspy_callback = None
         if streaming_callback is not None:
             _streaming_listener = streaming_callback
-            for etype in ("tool_start", "tool_end", "step_start", "step_end", "status", "error", "streaming"):
+            for etype in (
+                "tool_start",
+                "tool_end",
+                "step_start",
+                "step_end",
+                "status",
+                "error",
+                "streaming",
+            ):
                 _broadcaster.subscribe(etype, _streaming_listener)
 
         # Ensure initialized
@@ -391,7 +436,10 @@ Provide:
             if _dspy_callback is not None:
                 try:
                     import dspy
-                    if hasattr(dspy.settings, 'callbacks') and isinstance(dspy.settings.callbacks, list):
+
+                    if hasattr(dspy.settings, "callbacks") and isinstance(
+                        dspy.settings.callbacks, list
+                    ):
                         dspy.settings.callbacks.append(_dspy_callback)
                 except Exception:
                     _dspy_callback = None
@@ -406,11 +454,8 @@ Provide:
         # If caller already enriched the task with ensemble context (e.g. Orchestrator),
         # skip re-ensembling to avoid 2x LLM calls for the same thing.
         # Also skip for direct_llm sub-agents — they're specialized, no need for ensemble.
-        _is_direct_llm = kwargs.get('direct_llm', False)
-        already_ensembled = (
-            kwargs.get('ensemble_context') is not None
-            or _is_direct_llm
-        )
+        _is_direct_llm = kwargs.get("direct_llm", False)
+        already_ensembled = kwargs.get("ensemble_context") is not None or _is_direct_llm
 
         # Auto-detect ensemble for certain task types
         max_perspectives = 4  # default
@@ -426,12 +471,17 @@ Provide:
         enriched_task = task
         if ensemble:
             _status("Ensembling", f"strategy={ensemble_strategy}, perspectives={max_perspectives}")
-            ensemble_result = await self._execute_ensemble(task, ensemble_strategy, _status, max_perspectives=max_perspectives)
-            if ensemble_result.get('success'):
-                _status("Ensemble complete", f"{len(ensemble_result.get('perspectives_used', []))} perspectives")
+            ensemble_result = await self._execute_ensemble(
+                task, ensemble_strategy, _status, max_perspectives=max_perspectives
+            )
+            if ensemble_result.get("success"):
+                _status(
+                    "Ensemble complete",
+                    f"{len(ensemble_result.get('perspectives_used', []))} perspectives",
+                )
 
                 # Enrich the task with ensemble synthesis
-                synthesis = ensemble_result.get('response', '')
+                synthesis = ensemble_result.get("response", "")
                 if synthesis:
                     enriched_task = f"""{task}
 
@@ -439,13 +489,13 @@ Provide:
 {synthesis[:3000]}"""
                     _status("Task enriched", "with multi-perspective synthesis")
 
-                kwargs['ensemble_context'] = ensemble_result
+                kwargs["ensemble_context"] = ensemble_result
 
         _status("AutoAgent", "starting task execution")
 
         # Get task type enum for result
         # OPTIMIZATION: skip LLM-based inference for direct_llm mode (sub-agents)
-        direct_llm = kwargs.get('direct_llm', False)
+        direct_llm = kwargs.get("direct_llm", False)
         if direct_llm:
             task_type_enum = TaskType.UNKNOWN
         else:
@@ -458,39 +508,39 @@ Provide:
                 task=enriched_task,
                 status_callback=status_callback,
                 learning_context=learning_context,
-                **kwargs
+                **kwargs,
             )
         except (AgentExecutionError, ToolExecutionError) as e:
             logger.error(f"AutoAgent execution error: {e}")
             result = {
-                'success': False,
-                'errors': [f"{type(e).__name__}: {e}"],
-                'skills_used': [],
-                'steps_executed': 0,
-                'outputs': {},
-                'final_output': None,
+                "success": False,
+                "errors": [f"{type(e).__name__}: {e}"],
+                "skills_used": [],
+                "steps_executed": 0,
+                "outputs": {},
+                "final_output": None,
             }
         except (LLMError, DSPyError) as e:
             logger.error(f"AutoAgent LLM/DSPy error: {e}")
             result = {
-                'success': False,
-                'errors': [f"{type(e).__name__}: {e}"],
-                'skills_used': [],
-                'steps_executed': 0,
-                'outputs': {},
-                'final_output': None,
+                "success": False,
+                "errors": [f"{type(e).__name__}: {e}"],
+                "skills_used": [],
+                "steps_executed": 0,
+                "outputs": {},
+                "final_output": None,
             }
         except (KeyboardInterrupt, SystemExit):
             raise
         except Exception as e:
             logger.error(f"AutoAgent unexpected error ({type(e).__name__}): {e}", exc_info=True)
             result = {
-                'success': False,
-                'errors': [f"{type(e).__name__}: {e}"],
-                'skills_used': [],
-                'steps_executed': 0,
-                'outputs': {},
-                'final_output': None,
+                "success": False,
+                "errors": [f"{type(e).__name__}: {e}"],
+                "skills_used": [],
+                "steps_executed": 0,
+                "outputs": {},
+                "final_output": None,
             }
 
         # Convert to AgenticExecutionResult
@@ -499,19 +549,19 @@ Provide:
         # Clean task for display
         display_task = _clean_for_display(task)
 
-        is_success = result.get('success', False)
+        is_success = result.get("success", False)
 
         exec_result = AgenticExecutionResult(
             success=is_success,
             task=display_task,
             task_type=task_type_enum,
-            skills_used=result.get('skills_used', []),
-            steps_executed=result.get('steps_executed', 0),
-            outputs=result.get('outputs', {}),
-            final_output=result.get('final_output'),
-            errors=result.get('errors', []),
+            skills_used=result.get("skills_used", []),
+            steps_executed=result.get("steps_executed", 0),
+            outputs=result.get("outputs", {}),
+            final_output=result.get("final_output"),
+            errors=result.get("errors", []),
             execution_time=execution_time,
-            stopped_early=result.get('stopped_early', False),
+            stopped_early=result.get("stopped_early", False),
         )
 
         # Update BaseAgent metrics
@@ -526,6 +576,7 @@ Provide:
         # Run post-execution hooks (from BaseAgent)
         try:
             from .base.base_agent import AgentResult
+
             agent_result = AgentResult(
                 success=is_success,
                 output=result,
@@ -538,13 +589,24 @@ Provide:
         finally:
             # Clean up streaming listener
             if _streaming_listener is not None:
-                for etype in ("tool_start", "tool_end", "step_start", "step_end", "status", "error", "streaming"):
+                for etype in (
+                    "tool_start",
+                    "tool_end",
+                    "step_start",
+                    "step_end",
+                    "status",
+                    "error",
+                    "streaming",
+                ):
                     _broadcaster.unsubscribe(etype, _streaming_listener)
             # Clean up DSPy callback
             if _dspy_callback is not None:
                 try:
                     import dspy
-                    if hasattr(dspy.settings, 'callbacks') and isinstance(dspy.settings.callbacks, list):
+
+                    if hasattr(dspy.settings, "callbacks") and isinstance(
+                        dspy.settings.callbacks, list
+                    ):
                         dspy.settings.callbacks.remove(_dspy_callback)
                 except (ImportError, ValueError):
                     pass
@@ -552,10 +614,7 @@ Provide:
         return exec_result
 
     async def execute_and_send(
-        self,
-        task: str,
-        output_skill: Optional[str] = None,
-        chat_id: Optional[str] = None
+        self, task: str, output_skill: Optional[str] = None, chat_id: Optional[str] = None
     ) -> AgenticExecutionResult:
         """
         Execute task and send result to messaging platform.
@@ -583,7 +642,7 @@ Provide:
         # Find a send/message tool
         send_tool = None
         for tool_name, tool_func in skill.tools.items():
-            if any(kw in tool_name.lower() for kw in ['send', 'message', 'post', 'notify']):
+            if any(kw in tool_name.lower() for kw in ["send", "message", "post", "notify"]):
                 send_tool = tool_func
                 break
 
@@ -594,9 +653,9 @@ Provide:
             else:
                 message = f"Task: {task}\n\nCompleted with {result.steps_executed} steps"
 
-            params = {'text': message, 'message': message}
+            params = {"text": message, "message": message}
             if chat_id:
-                params['chat_id'] = chat_id
+                params["chat_id"] = chat_id
 
             try:
                 if inspect.iscoroutinefunction(send_tool):

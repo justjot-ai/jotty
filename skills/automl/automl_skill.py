@@ -14,18 +14,19 @@ This skill provides the best of all AutoML worlds:
 - Imbalanced-learn for handling class imbalance
 """
 
-import time
-from typing import Dict, List, Any, Optional, Tuple
-import pandas as pd
-import numpy as np
 import logging
-import warnings
-import tempfile
 import os
+import tempfile
+import time
+import warnings
+from typing import Any, Dict, List, Optional, Tuple
 
-warnings.filterwarnings('ignore')
+import numpy as np
+import pandas as pd
 
-from .base import MLSkill, SkillResult, SkillCategory
+warnings.filterwarnings("ignore")
+
+from .base import MLSkill, SkillCategory, SkillResult
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +52,13 @@ class AutoMLSkill(MLSkill):
     category = SkillCategory.MODEL_SELECTION
 
     required_inputs = ["X", "y"]
-    optional_inputs = ["problem_type", "time_budget", "use_autogluon", "use_flaml", "handle_imbalance"]
+    optional_inputs = [
+        "problem_type",
+        "time_budget",
+        "use_autogluon",
+        "use_flaml",
+        "handle_imbalance",
+    ]
     outputs = ["best_model", "all_results", "framework_comparison"]
 
     # Default time budgets (seconds)
@@ -68,27 +75,34 @@ class AutoMLSkill(MLSkill):
         """Check available frameworks."""
         try:
             from autogluon.tabular import TabularPredictor
+
             self._autogluon_available = True
         except ImportError:
             logger.info("AutoGluon not available")
 
         try:
             from flaml import AutoML
+
             self._flaml_available = True
         except ImportError:
             logger.info("FLAML not available")
 
         try:
             from imblearn.over_sampling import SMOTE
+
             self._imblearn_available = True
         except ImportError:
             logger.info("imbalanced-learn not available")
 
         self._initialized = True
-        logger.info(f"AutoML initialized: AutoGluon={self._autogluon_available}, "
-                    f"FLAML={self._flaml_available}, imblearn={self._imblearn_available}")
+        logger.info(
+            f"AutoML initialized: AutoGluon={self._autogluon_available}, "
+            f"FLAML={self._flaml_available}, imblearn={self._imblearn_available}"
+        )
 
-    async def execute(self, X: pd.DataFrame, y: Optional[pd.Series] = None, **context: Any) -> SkillResult:
+    async def execute(
+        self, X: pd.DataFrame, y: Optional[pd.Series] = None, **context: Any
+    ) -> SkillResult:
         """
         Execute AutoML with multiple frameworks.
 
@@ -111,12 +125,12 @@ class AutoMLSkill(MLSkill):
         if y is None:
             return self._create_error_result("Target variable y is required")
 
-        problem_type = context.get('problem_type', 'classification')
-        time_budget = context.get('time_budget', 180)
-        use_autogluon = context.get('use_autogluon', self._autogluon_available)
-        use_flaml = context.get('use_flaml', self._flaml_available)
-        handle_imbalance = context.get('handle_imbalance', 'auto')
-        preset = context.get('preset', 'balanced')
+        problem_type = context.get("problem_type", "classification")
+        time_budget = context.get("time_budget", 180)
+        use_autogluon = context.get("use_autogluon", self._autogluon_available)
+        use_flaml = context.get("use_flaml", self._flaml_available)
+        handle_imbalance = context.get("handle_imbalance", "auto")
+        preset = context.get("preset", "balanced")
 
         # Convert to numpy if needed
         if isinstance(X, pd.DataFrame):
@@ -137,67 +151,73 @@ class AutoMLSkill(MLSkill):
         best_framework = None
 
         # Check for class imbalance
-        if problem_type == 'classification':
+        if problem_type == "classification":
             class_counts = np.bincount(y_arr.astype(int))
-            imbalance_ratio = class_counts.max() / class_counts.min() if class_counts.min() > 0 else 1
+            imbalance_ratio = (
+                class_counts.max() / class_counts.min() if class_counts.min() > 0 else 1
+            )
             is_imbalanced = imbalance_ratio > 3
 
-            if handle_imbalance == 'auto':
+            if handle_imbalance == "auto":
                 handle_imbalance = is_imbalanced and self._imblearn_available
 
-            logger.info(f"Class imbalance ratio: {imbalance_ratio:.2f}, "
-                        f"handling: {handle_imbalance}")
+            logger.info(
+                f"Class imbalance ratio: {imbalance_ratio:.2f}, " f"handling: {handle_imbalance}"
+            )
 
         # ============ AutoGluon ============
         if use_autogluon and self._autogluon_available:
             try:
                 ag_result = await self._run_autogluon(
-                    X_arr, y_arr, feature_names, problem_type,
+                    X_arr,
+                    y_arr,
+                    feature_names,
+                    problem_type,
                     time_budget=time_budget // 2 if use_flaml else time_budget,
-                    preset=preset
+                    preset=preset,
                 )
-                results['autogluon'] = ag_result
+                results["autogluon"] = ag_result
 
-                if ag_result['score'] > best_score:
-                    best_score = ag_result['score']
-                    best_model = ag_result['model']
-                    best_framework = 'autogluon'
+                if ag_result["score"] > best_score:
+                    best_score = ag_result["score"]
+                    best_model = ag_result["model"]
+                    best_framework = "autogluon"
 
             except Exception as e:
                 logger.error(f"AutoGluon failed: {e}")
-                results['autogluon'] = {'error': str(e)}
+                results["autogluon"] = {"error": str(e)}
 
         # ============ FLAML ============
         if use_flaml and self._flaml_available:
             try:
                 flaml_result = await self._run_flaml(
-                    X_arr, y_arr, problem_type,
+                    X_arr,
+                    y_arr,
+                    problem_type,
                     time_budget=time_budget // 2 if use_autogluon else time_budget,
-                    handle_imbalance=handle_imbalance
+                    handle_imbalance=handle_imbalance,
                 )
-                results['flaml'] = flaml_result
+                results["flaml"] = flaml_result
 
-                if flaml_result['score'] > best_score:
-                    best_score = flaml_result['score']
-                    best_model = flaml_result['model']
-                    best_framework = 'flaml'
+                if flaml_result["score"] > best_score:
+                    best_score = flaml_result["score"]
+                    best_model = flaml_result["model"]
+                    best_framework = "flaml"
 
             except Exception as e:
                 logger.error(f"FLAML failed: {e}")
-                results['flaml'] = {'error': str(e)}
+                results["flaml"] = {"error": str(e)}
 
         # ============ SMOTE + Baseline ============
-        if handle_imbalance and self._imblearn_available and problem_type == 'classification':
+        if handle_imbalance and self._imblearn_available and problem_type == "classification":
             try:
-                smote_result = await self._run_smote_pipeline(
-                    X_arr, y_arr, problem_type
-                )
-                results['smote_lgbm'] = smote_result
+                smote_result = await self._run_smote_pipeline(X_arr, y_arr, problem_type)
+                results["smote_lgbm"] = smote_result
 
-                if smote_result['score'] > best_score:
-                    best_score = smote_result['score']
-                    best_model = smote_result['model']
-                    best_framework = 'smote_lgbm'
+                if smote_result["score"] > best_score:
+                    best_score = smote_result["score"]
+                    best_model = smote_result["model"]
+                    best_framework = "smote_lgbm"
 
             except Exception as e:
                 logger.error(f"SMOTE pipeline failed: {e}")
@@ -207,64 +227,68 @@ class AutoMLSkill(MLSkill):
         # Build comparison table
         comparison = []
         for name, res in results.items():
-            if 'error' not in res:
-                comparison.append({
-                    'framework': name,
-                    'score': res.get('score', 0),
-                    'best_model': res.get('best_model_name', 'N/A'),
-                })
+            if "error" not in res:
+                comparison.append(
+                    {
+                        "framework": name,
+                        "score": res.get("score", 0),
+                        "best_model": res.get("best_model_name", "N/A"),
+                    }
+                )
 
-        comparison_df = pd.DataFrame(comparison).sort_values('score', ascending=False)
+        comparison_df = pd.DataFrame(comparison).sort_values("score", ascending=False)
 
         return self._create_result(
             success=best_model is not None,
             data=best_model,
             metrics={
-                'score': best_score,
-                'framework': best_framework,
-                'n_frameworks': len([r for r in results.values() if 'error' not in r]),
+                "score": best_score,
+                "framework": best_framework,
+                "n_frameworks": len([r for r in results.values() if "error" not in r]),
             },
             metadata={
-                'best_framework': best_framework,
-                'all_results': results,
-                'comparison': comparison_df.to_dict('records') if not comparison_df.empty else [],
-                'problem_type': problem_type,
+                "best_framework": best_framework,
+                "all_results": results,
+                "comparison": comparison_df.to_dict("records") if not comparison_df.empty else [],
+                "problem_type": problem_type,
             },
             execution_time=execution_time,
         )
 
-    async def _run_autogluon(self,
-                             X: np.ndarray,
-                             y: np.ndarray,
-                             feature_names: List[str],
-                             problem_type: str,
-                             time_budget: int,
-                             preset: str) -> Dict[str, Any]:
+    async def _run_autogluon(
+        self,
+        X: np.ndarray,
+        y: np.ndarray,
+        feature_names: List[str],
+        problem_type: str,
+        time_budget: int,
+        preset: str,
+    ) -> Dict[str, Any]:
         """Run AutoGluon AutoML."""
         from autogluon.tabular import TabularPredictor
-        from sklearn.model_selection import train_test_split
         from sklearn.metrics import accuracy_score, r2_score, roc_auc_score
+        from sklearn.model_selection import train_test_split
 
         # Create DataFrame
         df = pd.DataFrame(X, columns=feature_names)
-        df['target'] = y
+        df["target"] = y
 
         # Split for evaluation
         train_df, val_df = train_test_split(df, test_size=0.2, random_state=42)
 
         # Map preset
         ag_preset = {
-            'fast': 'medium_quality',
-            'balanced': 'good_quality',
-            'best_quality': 'best_quality',
-        }.get(preset, 'good_quality')
+            "fast": "medium_quality",
+            "balanced": "good_quality",
+            "best_quality": "best_quality",
+        }.get(preset, "good_quality")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             predictor = TabularPredictor(
-                label='target',
+                label="target",
                 path=tmpdir,
-                problem_type='binary' if problem_type == 'classification' else 'regression',
-                verbosity=0
+                problem_type="binary" if problem_type == "classification" else "regression",
+                verbosity=0,
             ).fit(
                 train_df,
                 time_limit=time_budget,
@@ -272,13 +296,13 @@ class AutoMLSkill(MLSkill):
             )
 
             # Evaluate
-            val_X = val_df.drop(columns=['target'])
-            val_y = val_df['target'].values
+            val_X = val_df.drop(columns=["target"])
+            val_y = val_df["target"].values
 
             pred = predictor.predict(val_X)
-            proba = predictor.predict_proba(val_X) if problem_type == 'classification' else None
+            proba = predictor.predict_proba(val_X) if problem_type == "classification" else None
 
-            if problem_type == 'classification':
+            if problem_type == "classification":
                 score = accuracy_score(val_y, pred)
                 try:
                     auc = roc_auc_score(val_y, proba[1])
@@ -290,36 +314,37 @@ class AutoMLSkill(MLSkill):
 
             # Get leaderboard
             lb = predictor.leaderboard(silent=True)
-            best_model_name = lb.iloc[0]['model'] if not lb.empty else 'unknown'
+            best_model_name = lb.iloc[0]["model"] if not lb.empty else "unknown"
 
             return {
-                'model': predictor,
-                'score': score,
-                'auc': auc,
-                'best_model_name': best_model_name,
-                'leaderboard': lb.head(5).to_dict('records') if not lb.empty else [],
+                "model": predictor,
+                "score": score,
+                "auc": auc,
+                "best_model_name": best_model_name,
+                "leaderboard": lb.head(5).to_dict("records") if not lb.empty else [],
             }
 
-    async def _run_flaml(self,
-                         X: np.ndarray,
-                         y: np.ndarray,
-                         problem_type: str,
-                         time_budget: int,
-                         handle_imbalance: bool) -> Dict[str, Any]:
+    async def _run_flaml(
+        self,
+        X: np.ndarray,
+        y: np.ndarray,
+        problem_type: str,
+        time_budget: int,
+        handle_imbalance: bool,
+    ) -> Dict[str, Any]:
         """Run FLAML AutoML."""
         from flaml import AutoML
-        from sklearn.model_selection import train_test_split
         from sklearn.metrics import accuracy_score, r2_score, roc_auc_score
+        from sklearn.model_selection import train_test_split
 
         # Split for evaluation
-        X_train, X_val, y_train, y_val = train_test_split(
-            X, y, test_size=0.2, random_state=42
-        )
+        X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
 
         # Apply SMOTE if needed
-        if handle_imbalance and problem_type == 'classification':
+        if handle_imbalance and problem_type == "classification":
             try:
                 from imblearn.over_sampling import SMOTE
+
                 smote = SMOTE(random_state=42)
                 X_train, y_train = smote.fit_resample(X_train, y_train)
             except Exception:
@@ -327,18 +352,19 @@ class AutoMLSkill(MLSkill):
 
         automl = AutoML()
         automl.fit(
-            X_train, y_train,
-            task='classification' if problem_type == 'classification' else 'regression',
+            X_train,
+            y_train,
+            task="classification" if problem_type == "classification" else "regression",
             time_budget=time_budget,
             verbose=0,
-            metric='accuracy' if problem_type == 'classification' else 'r2',
+            metric="accuracy" if problem_type == "classification" else "r2",
         )
 
         # Evaluate
         pred = automl.predict(X_val)
-        proba = automl.predict_proba(X_val) if problem_type == 'classification' else None
+        proba = automl.predict_proba(X_val) if problem_type == "classification" else None
 
-        if problem_type == 'classification':
+        if problem_type == "classification":
             score = accuracy_score(y_val, pred)
             try:
                 auc = roc_auc_score(y_val, proba[:, 1])
@@ -349,35 +375,38 @@ class AutoMLSkill(MLSkill):
             auc = score
 
         return {
-            'model': automl,
-            'score': score,
-            'auc': auc,
-            'best_model_name': automl.best_estimator,
-            'best_config': automl.best_config,
+            "model": automl,
+            "score": score,
+            "auc": auc,
+            "best_model_name": automl.best_estimator,
+            "best_config": automl.best_config,
         }
 
-    async def _run_smote_pipeline(self,
-                                   X: np.ndarray,
-                                   y: np.ndarray,
-                                   problem_type: str) -> Dict[str, Any]:
+    async def _run_smote_pipeline(
+        self, X: np.ndarray, y: np.ndarray, problem_type: str
+    ) -> Dict[str, Any]:
         """Run SMOTE + LightGBM pipeline."""
-        from imblearn.over_sampling import SMOTE, ADASYN
-        from imblearn.pipeline import Pipeline as ImbPipeline
-        from sklearn.model_selection import cross_val_score, StratifiedKFold
         import lightgbm as lgb
+        from imblearn.over_sampling import ADASYN, SMOTE
+        from imblearn.pipeline import Pipeline as ImbPipeline
+        from sklearn.model_selection import StratifiedKFold, cross_val_score
 
         cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
 
         # Try both SMOTE and ADASYN
         pipelines = {
-            'smote_lgbm': ImbPipeline([
-                ('sampler', SMOTE(random_state=42)),
-                ('clf', lgb.LGBMClassifier(n_estimators=100, verbose=-1, random_state=42))
-            ]),
-            'adasyn_lgbm': ImbPipeline([
-                ('sampler', ADASYN(random_state=42)),
-                ('clf', lgb.LGBMClassifier(n_estimators=100, verbose=-1, random_state=42))
-            ]),
+            "smote_lgbm": ImbPipeline(
+                [
+                    ("sampler", SMOTE(random_state=42)),
+                    ("clf", lgb.LGBMClassifier(n_estimators=100, verbose=-1, random_state=42)),
+                ]
+            ),
+            "adasyn_lgbm": ImbPipeline(
+                [
+                    ("sampler", ADASYN(random_state=42)),
+                    ("clf", lgb.LGBMClassifier(n_estimators=100, verbose=-1, random_state=42)),
+                ]
+            ),
         }
 
         best_pipeline = None
@@ -386,7 +415,7 @@ class AutoMLSkill(MLSkill):
 
         for name, pipeline in pipelines.items():
             try:
-                scores = cross_val_score(pipeline, X, y, cv=cv, scoring='accuracy')
+                scores = cross_val_score(pipeline, X, y, cv=cv, scoring="accuracy")
                 score = scores.mean()
 
                 if score > best_score:
@@ -400,16 +429,18 @@ class AutoMLSkill(MLSkill):
             best_pipeline.fit(X, y)
 
         return {
-            'model': best_pipeline,
-            'score': best_score,
-            'best_model_name': best_name,
+            "model": best_pipeline,
+            "score": best_score,
+            "best_model_name": best_name,
         }
 
-    async def quick_automl(self,
-                           X: pd.DataFrame,
-                           y: pd.Series,
-                           problem_type: str = 'classification',
-                           time_budget: int = 60) -> Tuple[Any, float]:
+    async def quick_automl(
+        self,
+        X: pd.DataFrame,
+        y: pd.Series,
+        problem_type: str = "classification",
+        time_budget: int = 60,
+    ) -> Tuple[Any, float]:
         """
         Quick AutoML for fast results.
 
@@ -419,21 +450,24 @@ class AutoMLSkill(MLSkill):
             Tuple of (model, score)
         """
         result = await self.execute(
-            X, y,
+            X,
+            y,
             problem_type=problem_type,
             time_budget=time_budget,
             use_autogluon=False,
             use_flaml=True,
-            preset='fast'
+            preset="fast",
         )
 
-        return result.data, result.metrics.get('score', 0)
+        return result.data, result.metrics.get("score", 0)
 
-    async def best_automl(self,
-                          X: pd.DataFrame,
-                          y: pd.Series,
-                          problem_type: str = 'classification',
-                          time_budget: int = 300) -> Tuple[Any, float, str]:
+    async def best_automl(
+        self,
+        X: pd.DataFrame,
+        y: pd.Series,
+        problem_type: str = "classification",
+        time_budget: int = 300,
+    ) -> Tuple[Any, float, str]:
         """
         Best AutoML for maximum accuracy.
 
@@ -443,16 +477,17 @@ class AutoMLSkill(MLSkill):
             Tuple of (model, score, framework)
         """
         result = await self.execute(
-            X, y,
+            X,
+            y,
             problem_type=problem_type,
             time_budget=time_budget,
             use_autogluon=True,
             use_flaml=True,
-            preset='best_quality'
+            preset="best_quality",
         )
 
         return (
             result.data,
-            result.metrics.get('score', 0),
-            result.metadata.get('best_framework', 'unknown')
+            result.metrics.get("score", 0),
+            result.metadata.get("best_framework", "unknown"),
         )

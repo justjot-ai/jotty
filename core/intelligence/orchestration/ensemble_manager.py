@@ -7,7 +7,7 @@ Standalone composed class, replaces EnsembleMixin.
 """
 
 import logging
-from typing import Dict, Any, Tuple
+from typing import Any, Dict, Tuple
 
 from Jotty.core.infrastructure.utils.async_utils import StatusReporter
 
@@ -22,7 +22,13 @@ class EnsembleManager:
     Stateless — depends only on DSPy global LM config and skills registry.
     """
 
-    async def execute_ensemble(self, goal: str, strategy: str = 'multi_perspective', status_callback: Any = None, max_perspectives: int = 4) -> Dict[str, Any]:
+    async def execute_ensemble(
+        self,
+        goal: str,
+        strategy: str = "multi_perspective",
+        status_callback: Any = None,
+        max_perspectives: int = 4,
+    ) -> Dict[str, Any]:
         """
         Execute prompt ensembling for multi-perspective analysis.
 
@@ -38,23 +44,26 @@ class EnsembleManager:
             # Try skill-based ensemble first
             try:
                 from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
+
                 registry = get_skills_registry()
                 registry.init()
-                skill = registry.get_skill('claude-cli-llm')
+                skill = registry.get_skill("claude-cli-llm")
 
                 if skill:
-                    ensemble_tool = skill.tools.get('ensemble_prompt_tool')
+                    ensemble_tool = skill.tools.get("ensemble_prompt_tool")
                     if ensemble_tool:
                         _status("Ensemble", f"{strategy} ({max_perspectives} perspectives)")
-                        result = ensemble_tool({
-                            'prompt': goal,
-                            'strategy': strategy,
-                            'synthesis_style': 'structured',
-                            'verbose': True,
-                            'max_perspectives': max_perspectives,
-                        })
-                        if result.get('success') and result.get('quality_scores'):
-                            for name, score in result['quality_scores'].items():
+                        result = ensemble_tool(
+                            {
+                                "prompt": goal,
+                                "strategy": strategy,
+                                "synthesis_style": "structured",
+                                "verbose": True,
+                                "max_perspectives": max_perspectives,
+                            }
+                        )
+                        if result.get("success") and result.get("quality_scores"):
+                            for name, score in result["quality_scores"].items():
                                 _status(f"  {name}", f"quality={score:.0%}")
                         return result
             except ImportError:
@@ -62,8 +71,9 @@ class EnsembleManager:
 
             # Fallback: Use DSPy directly for multi-perspective
             import dspy
-            if not hasattr(dspy.settings, 'lm') or dspy.settings.lm is None:
-                return {'success': False, 'error': 'No LLM configured'}
+
+            if not hasattr(dspy.settings, "lm") or dspy.settings.lm is None:
+                return {"success": False, "error": "No LLM configured"}
 
             lm = dspy.settings.lm
 
@@ -80,15 +90,19 @@ class EnsembleManager:
             def _call_with_retry(prompt: Any, max_retries: Any = 4, base_delay: Any = 8.0) -> Any:
                 """Call LM with exponential backoff on rate-limit errors."""
                 import time
+
                 for attempt in range(max_retries + 1):
                     try:
                         return lm(prompt=prompt)
                     except Exception as e:
                         err_str = str(e)
-                        is_rate_limit = ('429' in err_str or 'RateLimit' in err_str or
-                                         'rate limit' in err_str.lower())
+                        is_rate_limit = (
+                            "429" in err_str
+                            or "RateLimit" in err_str
+                            or "rate limit" in err_str.lower()
+                        )
                         if is_rate_limit and attempt < max_retries:
-                            delay = base_delay * (2 ** attempt)
+                            delay = base_delay * (2**attempt)
                             logger.info(f"Rate limited, retrying in {delay:.0f}s...")
                             time.sleep(delay)
                         else:
@@ -106,7 +120,7 @@ class EnsembleManager:
                     logger.warning(f"Perspective '{name}' failed: {e}")
 
             if not responses:
-                return {'success': False, 'error': 'All perspectives failed'}
+                return {"success": False, "error": "All perspectives failed"}
 
             _status("Synthesizing", f"{len(responses)} perspectives")
             synthesis_prompt = (
@@ -125,17 +139,17 @@ class EnsembleManager:
             final_response = synthesis[0] if isinstance(synthesis, list) else str(synthesis)
 
             return {
-                'success': True,
-                'response': final_response,
-                'perspectives_used': list(responses.keys()),
-                'individual_responses': responses,
-                'strategy': strategy,
-                'confidence': len(responses) / len(perspectives),
+                "success": True,
+                "response": final_response,
+                "perspectives_used": list(responses.keys()),
+                "individual_responses": responses,
+                "strategy": strategy,
+                "confidence": len(responses) / len(perspectives),
             }
 
         except Exception as e:
             logger.error(f"Ensemble execution failed: {e}", exc_info=True)
-            return {'success': False, 'error': str(e)}
+            return {"success": False, "error": str(e)}
 
     def should_auto_ensemble(self, goal: str) -> Tuple[bool, int]:
         """
@@ -145,4 +159,5 @@ class EnsembleManager:
             (should_ensemble, max_perspectives) tuple
         """
         from .swarm_ensemble import should_auto_ensemble
+
         return should_auto_ensemble(goal)

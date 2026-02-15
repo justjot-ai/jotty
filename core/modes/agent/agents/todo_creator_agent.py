@@ -1,23 +1,28 @@
 """TodoCreatorAgent — validates DAGs, assigns actors, manages todos."""
 
 import logging
-from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple
 
 import dspy
 
-from ..orchestration.swarm_roadmap import SwarmTaskBoard
-from ..foundation.data_structures import SwarmConfig, SwarmLearningConfig, MemoryLevel
+from ..foundation.data_structures import MemoryLevel, SwarmConfig, SwarmLearningConfig
 from ..foundation.exceptions import AgentExecutionError
+from ..orchestration.swarm_roadmap import SwarmTaskBoard
 from .base import AgentResult
 
 logger = logging.getLogger(__name__)
 
 from ..types.dag_types import (
-    DAGAgentMixin, SwarmResources, Actor, ExecutableDAG,
+    Actor,
     ActorAssignmentSignature,
-    DAGValidationSignature, OptimizeDAGSignature,
+    DAGAgentMixin,
+    DAGValidationSignature,
+    ExecutableDAG,
+    OptimizeDAGSignature,
+    SwarmResources,
 )
+
 
 class TodoCreatorAgent(DAGAgentMixin):
     """
@@ -35,7 +40,7 @@ class TodoCreatorAgent(DAGAgentMixin):
 
     def __init__(self, config: Optional[SwarmConfig] = None, lm: Optional[dspy.LM] = None) -> None:
         self.jotty_config = config or SwarmConfig()
-        self.lm = lm or getattr(dspy.settings, 'lm', None)
+        self.lm = lm or getattr(dspy.settings, "lm", None)
 
         # Initialize BaseAgent infrastructure via mixin
         self._init_agent_infrastructure("TodoCreatorAgent")
@@ -48,10 +53,10 @@ class TodoCreatorAgent(DAGAgentMixin):
 
         # Get SHARED swarm resources (singleton)
         self.swarm = SwarmResources.get_instance(self.jotty_config)
-        self.memory = self.swarm.memory      # SHARED memory
-        self.context = self.swarm.context    # SHARED taskboard
-        self.bus = self.swarm.bus            # SHARED communication
-        self.learner = self.swarm.learner    # SHARED learner
+        self.memory = self.swarm.memory  # SHARED memory
+        self.context = self.swarm.context  # SHARED taskboard
+        self.bus = self.swarm.bus  # SHARED communication
+        self.learner = self.swarm.learner  # SHARED learner
 
         # DSPy modules
         self.dag_optimizer = dspy.ChainOfThought(OptimizeDAGSignature)
@@ -67,7 +72,9 @@ class TodoCreatorAgent(DAGAgentMixin):
         """Handle incoming messages from other agents."""
         logger.info(f"TodoCreatorAgent received from {message.from_agent}: {message.data}")
 
-    async def execute(self, markovian_todo: SwarmTaskBoard, available_actors: List[Dict[str, Any]], **kwargs: Any) -> AgentResult:
+    async def execute(
+        self, markovian_todo: SwarmTaskBoard, available_actors: List[Dict[str, Any]], **kwargs: Any
+    ) -> AgentResult:
         """
         Execute DAG creation with BaseAgent-compatible interface.
 
@@ -79,12 +86,11 @@ class TodoCreatorAgent(DAGAgentMixin):
             AgentResult with ExecutableDAG as output
         """
         import time
+
         start_time = time.time()
 
         self._run_pre_hooks(
-            markovian_todo=markovian_todo,
-            available_actors=available_actors,
-            **kwargs
+            markovian_todo=markovian_todo, available_actors=available_actors, **kwargs
         )
 
         try:
@@ -104,14 +110,11 @@ class TodoCreatorAgent(DAGAgentMixin):
                     "assignments": len(executable_dag.assignments),
                     "validation_passed": executable_dag.validation_passed,
                     "todo_id": executable_dag.markovian_todo.todo_id,
-                }
+                },
             )
 
             self._run_post_hooks(
-                result,
-                markovian_todo=markovian_todo,
-                available_actors=available_actors,
-                **kwargs
+                result, markovian_todo=markovian_todo, available_actors=available_actors, **kwargs
             )
             return result
 
@@ -125,13 +128,11 @@ class TodoCreatorAgent(DAGAgentMixin):
                 output=None,
                 agent_name="TodoCreatorAgent",
                 execution_time=execution_time,
-                error=str(e)
+                error=str(e),
             )
 
     def create_executable_dag(
-        self,
-        markovian_todo: SwarmTaskBoard,
-        available_actors: List[Dict[str, Any]]
+        self, markovian_todo: SwarmTaskBoard, available_actors: List[Dict[str, Any]]
     ) -> ExecutableDAG:
         """
         Create an executable DAG with actor assignments and validation.
@@ -152,7 +153,7 @@ class TodoCreatorAgent(DAGAgentMixin):
                 name=a["name"],
                 capabilities=a["capabilities"],
                 description=a.get("description"),
-                max_concurrent_tasks=a.get("max_concurrent_tasks", 1)
+                max_concurrent_tasks=a.get("max_concurrent_tasks", 1),
             )
             for a in available_actors
         ]
@@ -161,7 +162,7 @@ class TodoCreatorAgent(DAGAgentMixin):
         relevant_memories = self.memory.retrieve(
             query=f"actor assignment for {markovian_todo.root_task}",
             goal="optimal actor assignment",
-            budget_tokens=1000
+            budget_tokens=1000,
         )
 
         # Step 1: Assign actors to tasks
@@ -179,7 +180,9 @@ class TodoCreatorAgent(DAGAgentMixin):
         original_count = len(markovian_todo.subtasks)
         markovian_todo, assignments = self._collapse_consecutive_tasks(markovian_todo, assignments)
         collapsed = original_count - len(markovian_todo.subtasks)
-        logger.info(f"Collapsed {collapsed} tasks: {original_count} -> {len(markovian_todo.subtasks)}")
+        logger.info(
+            f"Collapsed {collapsed} tasks: {original_count} -> {len(markovian_todo.subtasks)}"
+        )
 
         # Step 3: Validate DAG
         logger.info("Step 3: Validating DAG structure...")
@@ -194,9 +197,9 @@ class TodoCreatorAgent(DAGAgentMixin):
                 "task_count": len(markovian_todo.subtasks),
                 "collapsed_count": collapsed,
                 "valid": is_valid,
-                "agent": "TodoCreatorAgent"
+                "agent": "TodoCreatorAgent",
             },
-            goal="actor assignment pattern learning"
+            goal="actor assignment pattern learning",
         )
 
         if is_valid:
@@ -211,7 +214,7 @@ class TodoCreatorAgent(DAGAgentMixin):
             assignments=assignments,
             validation_passed=is_valid,
             validation_issues=issues,
-            fixes_applied=[]
+            fixes_applied=[],
         )
 
         # Store to SHARED context (taskboard) for other agents
@@ -222,28 +225,30 @@ class TodoCreatorAgent(DAGAgentMixin):
 
         # Notify other agents via bus
         from .axon import Message
-        self.bus.publish(Message(
-            from_agent="TodoCreatorAgent",
-            to_agent="ExecutionAgent",  # Next agent in pipeline
-            data={"dag_id": markovian_todo.todo_id, "valid": is_valid, "task_count": len(markovian_todo.subtasks)},
-            format="dict",
-            size_bytes=150,
-            timestamp=datetime.now().timestamp()
-        ))
+
+        self.bus.publish(
+            Message(
+                from_agent="TodoCreatorAgent",
+                to_agent="ExecutionAgent",  # Next agent in pipeline
+                data={
+                    "dag_id": markovian_todo.todo_id,
+                    "valid": is_valid,
+                    "task_count": len(markovian_todo.subtasks),
+                },
+                format="dict",
+                size_bytes=150,
+                timestamp=datetime.now().timestamp(),
+            )
+        )
 
         return executable_dag
 
     def _assign_actors_to_tasks(
-        self,
-        todo: SwarmTaskBoard,
-        actors: List[Actor]
+        self, todo: SwarmTaskBoard, actors: List[Actor]
     ) -> Dict[str, Actor]:
         """Assign actors to all tasks using LLM-based selection."""
         assignments = {}
-        actor_history = {
-            actor.name: {"task_count": 0, "recent_tasks": []}
-            for actor in actors
-        }
+        actor_history = {actor.name: {"task_count": 0, "recent_tasks": []} for actor in actors}
 
         with dspy.context(lm=self.lm):
             for task_id, task in todo.subtasks.items():
@@ -254,25 +259,23 @@ class TodoCreatorAgent(DAGAgentMixin):
                     task_name=task.description[:100],
                     task_type=task_type,
                     task_description=task.description,
-                    available_actors=str([
-                        {"name": a.name, "capabilities": a.capabilities}
-                        for a in actors
-                    ]),
-                    current_assignments=str(actor_history)
+                    available_actors=str(
+                        [{"name": a.name, "capabilities": a.capabilities} for a in actors]
+                    ),
+                    current_assignments=str(actor_history),
                 )
 
                 # Find assigned actor
                 assigned_actor = next(
                     (a for a in actors if a.name == result.assigned_actor_name),
-                    actors[0]  # Fallback to first actor
+                    actors[0],  # Fallback to first actor
                 )
 
                 assignments[task_id] = assigned_actor
                 actor_history[assigned_actor.name]["task_count"] += 1
-                actor_history[assigned_actor.name]["recent_tasks"].append({
-                    "task_id": task_id,
-                    "task_name": task.description[:50]
-                })
+                actor_history[assigned_actor.name]["recent_tasks"].append(
+                    {"task_id": task_id, "task_name": task.description[:50]}
+                )
 
                 logger.debug(f"Assigned {task_id} to {assigned_actor.name}: {result.reasoning}")
 
@@ -290,9 +293,7 @@ class TodoCreatorAgent(DAGAgentMixin):
         return False
 
     def _collapse_consecutive_tasks(
-        self,
-        todo: SwarmTaskBoard,
-        assignments: Dict[str, Actor]
+        self, todo: SwarmTaskBoard, assignments: Dict[str, Actor]
     ) -> Tuple[SwarmTaskBoard, Dict[str, Actor]]:
         """
         Collapse consecutive tasks assigned to the same actor.
@@ -344,7 +345,10 @@ class TodoCreatorAgent(DAGAgentMixin):
                 continue
 
             # Split large groups into chunks of MAX_TASKS_PER_MERGE
-            chunks = [task_ids[i:i + MAX_TASKS_PER_MERGE] for i in range(0, len(task_ids), MAX_TASKS_PER_MERGE)]
+            chunks = [
+                task_ids[i : i + MAX_TASKS_PER_MERGE]
+                for i in range(0, len(task_ids), MAX_TASKS_PER_MERGE)
+            ]
 
             for chunk in chunks:
                 if len(chunk) == 1:
@@ -372,7 +376,14 @@ class TodoCreatorAgent(DAGAgentMixin):
 
         return todo, new_assignments
 
-    def _merge_task_group(self, todo: SwarmTaskBoard, task_ids: List[str], actor: Actor, new_assignments: Dict[str, Actor], tasks_to_remove: set) -> Any:
+    def _merge_task_group(
+        self,
+        todo: SwarmTaskBoard,
+        task_ids: List[str],
+        actor: Actor,
+        new_assignments: Dict[str, Actor],
+        tasks_to_remove: set,
+    ) -> Any:
         """Merge a group of tasks into a single combined task."""
         combined_id = "_".join(task_ids)
         tasks = [todo.subtasks[tid] for tid in task_ids if tid in todo.subtasks]
@@ -381,10 +392,7 @@ class TodoCreatorAgent(DAGAgentMixin):
             return
 
         # Combine descriptions
-        combined_description = "\n\n".join([
-            f"**{t.task_id}**: {t.description}"
-            for t in tasks
-        ])
+        combined_description = "\n\n".join([f"**{t.task_id}**: {t.description}" for t in tasks])
 
         # Collect external dependencies
         task_id_set = set(task_ids)
@@ -406,7 +414,9 @@ class TodoCreatorAgent(DAGAgentMixin):
         # Copy intermediary values
         combined_task = todo.subtasks[combined_id]
         combined_task.intermediary_values["merged_from"] = task_ids
-        combined_task.intermediary_values["task_type"] = tasks[0].intermediary_values.get("task_type", "implementation")
+        combined_task.intermediary_values["task_type"] = tasks[0].intermediary_values.get(
+            "task_type", "implementation"
+        )
 
         new_assignments[combined_id] = actor
 
@@ -450,10 +460,7 @@ class TodoCreatorAgent(DAGAgentMixin):
         return result
 
     def _validate_dag(
-        self,
-        todo: SwarmTaskBoard,
-        assignments: Dict[str, Actor],
-        actors: List[Actor]
+        self, todo: SwarmTaskBoard, assignments: Dict[str, Actor], actors: List[Actor]
     ) -> Tuple[bool, List[str]]:
         """Validate DAG structure and assignments."""
         issues = []
@@ -481,25 +488,20 @@ class TodoCreatorAgent(DAGAgentMixin):
         stats = {
             "total_tasks": len(todo.subtasks),
             "assigned": len(assignments),
-            "actors": len(actors)
+            "actors": len(actors),
         }
 
         with dspy.context(lm=self.lm):
             result = self.dag_validator(
                 dag_summary=str(stats),
-                tasks_info=str([
-                    {
-                        "id": t.task_id,
-                        "desc": t.description[:50],
-                        "depends_on": t.depends_on
-                    }
-                    for t in todo.subtasks.values()
-                ]),
-                assignments_info=str({
-                    tid: actor.name
-                    for tid, actor in assignments.items()
-                }),
-                cycle_check=cycle_info
+                tasks_info=str(
+                    [
+                        {"id": t.task_id, "desc": t.description[:50], "depends_on": t.depends_on}
+                        for t in todo.subtasks.values()
+                    ]
+                ),
+                assignments_info=str({tid: actor.name for tid, actor in assignments.items()}),
+                cycle_check=cycle_info,
             )
 
         is_valid = result.is_valid.upper() == "YES"
@@ -514,7 +516,9 @@ class TodoCreatorAgent(DAGAgentMixin):
 
         return (len(issues) == 0 and is_valid), issues
 
-    def update_from_execution(self, executable_dag: ExecutableDAG, outcomes: Dict[str, bool]) -> Any:
+    def update_from_execution(
+        self, executable_dag: ExecutableDAG, outcomes: Dict[str, bool]
+    ) -> Any:
         """
         Learn from execution outcomes using TD learning.
 
@@ -529,15 +533,15 @@ class TodoCreatorAgent(DAGAgentMixin):
 
                 if task:
                     # Record in learner
-                    task_type = task.intermediary_values.get('task_type', 'unknown')
+                    task_type = task.intermediary_values.get("task_type", "unknown")
                     reward = 1.0 if success else -0.5
 
                     # Update Q-value for this actor-task_type pair
                     self.learner.update(
-                        state={'goal': task_type, 'actor': actor.name},
-                        action={'output': 'executed', 'success': success},
+                        state={"goal": task_type, "actor": actor.name},
+                        action={"output": "executed", "success": success},
                         reward=reward,
-                        next_state={'goal': task_type, 'completed': True}
+                        next_state={"goal": task_type, "completed": True},
                     )
 
                     # Store in memory
@@ -547,9 +551,9 @@ class TodoCreatorAgent(DAGAgentMixin):
                         context={
                             "actor": actor.name,
                             "task_type": task.intermediary_values.get("task_type"),
-                            "success": success
+                            "success": success,
                         },
-                        goal="execution outcome learning"
+                        goal="execution outcome learning",
                     )
 
     def visualize_assignments(self, executable_dag: ExecutableDAG) -> str:
@@ -570,8 +574,7 @@ class TodoCreatorAgent(DAGAgentMixin):
 
         for actor_name, tasks in actor_tasks.items():
             actor = next(
-                (a for a in executable_dag.assignments.values() if a.name == actor_name),
-                None
+                (a for a in executable_dag.assignments.values() if a.name == actor_name), None
             )
             output.append(f"\n {actor_name}")
             if actor:
@@ -592,4 +595,3 @@ class TodoCreatorAgent(DAGAgentMixin):
 # =============================================================================
 # FACTORY FUNCTIONS
 # =============================================================================
-

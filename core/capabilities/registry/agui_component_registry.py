@@ -12,10 +12,10 @@ This follows DRY principles:
 - Agents automatically get access to client components
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, Any, Optional, Callable, List
-import logging
 import json
+import logging
+from dataclasses import dataclass, field
+from typing import Any, Callable, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +28,7 @@ class AGUIComponentAdapter:
     This represents a section renderer that has been adapted to work
     with AGUI/A2UI protocols.
     """
+
     section_type: str  # e.g., 'data-table', 'kanban-board'
     label: str  # Human-readable label
     category: str  # Category grouping
@@ -45,33 +46,33 @@ class AGUIComponentAdapter:
     from_agui_func: Optional[Callable] = field(default=None, repr=False)
 
     # Metadata
-    description: str = ''
+    description: str = ""
     bidirectional: bool = False  # Supports round-trip conversion
-    content_type: str = 'json'  # 'json', 'text', 'markdown', 'csv'
+    content_type: str = "json"  # 'json', 'text', 'markdown', 'csv'
     example_input: Optional[str] = None
     example_output: Optional[str] = None
 
     # Client identification
-    client_id: str = 'unknown'  # Which client registered this (e.g., 'justjot')
-    version: str = '1.0.0'
+    client_id: str = "unknown"  # Which client registered this (e.g., 'justjot')
+    version: str = "1.0.0"
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for API responses."""
         return {
-            'section_type': self.section_type,
-            'label': self.label,
-            'category': self.category,
-            'description': self.description,
-            'bidirectional': self.bidirectional,
-            'content_type': self.content_type,
-            'example_input': self.example_input,
-            'example_output': self.example_output,
-            'client_id': self.client_id,
-            'version': self.version,
-            'has_to_a2ui': self.to_a2ui is not None or self.to_a2ui_func is not None,
-            'has_to_agui': self.to_agui is not None or self.to_agui_func is not None,
-            'has_from_a2ui': self.from_a2ui is not None or self.from_a2ui_func is not None,
-            'has_from_agui': self.from_agui is not None or self.from_agui_func is not None,
+            "section_type": self.section_type,
+            "label": self.label,
+            "category": self.category,
+            "description": self.description,
+            "bidirectional": self.bidirectional,
+            "content_type": self.content_type,
+            "example_input": self.example_input,
+            "example_output": self.example_output,
+            "client_id": self.client_id,
+            "version": self.version,
+            "has_to_a2ui": self.to_a2ui is not None or self.to_a2ui_func is not None,
+            "has_to_agui": self.to_agui is not None or self.to_agui_func is not None,
+            "has_from_a2ui": self.from_a2ui is not None or self.from_a2ui_func is not None,
+            "has_from_agui": self.from_agui is not None or self.from_agui_func is not None,
         }
 
     def to_json_serializable(self) -> Dict[str, Any]:
@@ -80,20 +81,20 @@ class AGUIComponentAdapter:
         Used for exporting adapters to remote agents.
         """
         return {
-            'section_type': self.section_type,
-            'label': self.label,
-            'category': self.category,
-            'to_a2ui': self.to_a2ui,
-            'to_agui': self.to_agui,
-            'from_a2ui': self.from_a2ui,
-            'from_agui': self.from_agui,
-            'description': self.description,
-            'bidirectional': self.bidirectional,
-            'content_type': self.content_type,
-            'example_input': self.example_input,
-            'example_output': self.example_output,
-            'client_id': self.client_id,
-            'version': self.version,
+            "section_type": self.section_type,
+            "label": self.label,
+            "category": self.category,
+            "to_a2ui": self.to_a2ui,
+            "to_agui": self.to_agui,
+            "from_a2ui": self.from_a2ui,
+            "from_agui": self.from_agui,
+            "description": self.description,
+            "bidirectional": self.bidirectional,
+            "content_type": self.content_type,
+            "example_input": self.example_input,
+            "example_output": self.example_output,
+            "client_id": self.client_id,
+            "version": self.version,
         }
 
 
@@ -125,7 +126,27 @@ class AGUIComponentRegistry:
         self._by_client: Dict[str, List[str]] = {}
         logger.info(" AGUIComponentRegistry initialized")
 
-    def register(self, section_type: str, label: str, category: str, to_a2ui: Optional[str] = None, to_agui: Optional[str] = None, from_a2ui: Optional[str] = None, from_agui: Optional[str] = None, to_a2ui_func: Optional[Callable] = None, to_agui_func: Optional[Callable] = None, from_a2ui_func: Optional[Callable] = None, from_agui_func: Optional[Callable] = None, description: str = '', bidirectional: bool = False, content_type: str = 'json', example_input: Optional[str] = None, example_output: Optional[str] = None, client_id: str = 'unknown', version: str = '1.0.0') -> Any:
+    def register(
+        self,
+        section_type: str,
+        label: str,
+        category: str,
+        to_a2ui: Optional[str] = None,
+        to_agui: Optional[str] = None,
+        from_a2ui: Optional[str] = None,
+        from_agui: Optional[str] = None,
+        to_a2ui_func: Optional[Callable] = None,
+        to_agui_func: Optional[Callable] = None,
+        from_a2ui_func: Optional[Callable] = None,
+        from_agui_func: Optional[Callable] = None,
+        description: str = "",
+        bidirectional: bool = False,
+        content_type: str = "json",
+        example_input: Optional[str] = None,
+        example_output: Optional[str] = None,
+        client_id: str = "unknown",
+        version: str = "1.0.0",
+    ) -> Any:
         """
         Register a client AGUI component adapter.
 
@@ -238,7 +259,9 @@ class AGUIComponentRegistry:
         """List all section types."""
         return list(self._adapters.keys())
 
-    def convert_to_a2ui(self, section_type: str, content: str, **props: Any) -> Optional[List[Dict[str, Any]]]:
+    def convert_to_a2ui(
+        self, section_type: str, content: str, **props: Any
+    ) -> Optional[List[Dict[str, Any]]]:
         """
         Convert section content to A2UI blocks using registered adapter.
 
@@ -257,13 +280,15 @@ class AGUIComponentRegistry:
 
         try:
             # Call adapter function with content and props
-            result = adapter.to_a2ui_func({'content': content, **props})
+            result = adapter.to_a2ui_func({"content": content, **props})
             return result
         except Exception as e:
             logger.error(f"Error converting {section_type} to A2UI: {e}")
             return None
 
-    def convert_to_agui(self, section_type: str, content: str, **props: Any) -> Optional[Dict[str, Any]]:
+    def convert_to_agui(
+        self, section_type: str, content: str, **props: Any
+    ) -> Optional[Dict[str, Any]]:
         """
         Convert section content to AGUI component using registered adapter.
 
@@ -281,7 +306,7 @@ class AGUIComponentRegistry:
             return None
 
         try:
-            result = adapter.to_agui_func({'content': content, **props})
+            result = adapter.to_agui_func({"content": content, **props})
             return result
         except Exception as e:
             logger.error(f"Error converting {section_type} to AGUI: {e}")
@@ -294,10 +319,10 @@ class AGUIComponentRegistry:
         Returns metadata about all registered adapters without the function code.
         """
         return {
-            'available': [adapter.to_dict() for adapter in self.get_all()],
-            'categories': self.get_categories(),
-            'clients': self.get_clients(),
-            'count': len(self._adapters),
+            "available": [adapter.to_dict() for adapter in self.get_all()],
+            "categories": self.get_categories(),
+            "clients": self.get_clients(),
+            "count": len(self._adapters),
         }
 
     def export_for_remote_agent(self, client_id: Optional[str] = None) -> Dict[str, Any]:
@@ -313,10 +338,10 @@ class AGUIComponentRegistry:
         adapters = self.get_by_client(client_id) if client_id else self.get_all()
 
         return {
-            'version': '1.0.0',
-            'client_id': client_id or 'all',
-            'adapters': [adapter.to_json_serializable() for adapter in adapters],
-            'count': len(adapters),
+            "version": "1.0.0",
+            "client_id": client_id or "all",
+            "adapters": [adapter.to_json_serializable() for adapter in adapters],
+            "count": len(adapters),
         }
 
     def clear(self) -> None:

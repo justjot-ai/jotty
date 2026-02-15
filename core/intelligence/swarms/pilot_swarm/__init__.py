@@ -13,16 +13,19 @@ Quick start:
     result = pilot_sync("Find and compare the top 5 Python web frameworks")
 """
 
-from .types import (
-    SubtaskType, SubtaskStatus, Subtask,
-    PilotConfig, PilotResult, AVAILABLE_SWARMS,
-)
 from .swarm import PilotSwarm, pilot, pilot_sync
+from .types import AVAILABLE_SWARMS, PilotConfig, PilotResult, Subtask, SubtaskStatus, SubtaskType
 
 __all__ = [
     # Swarm
-    'PilotSwarm', 'pilot', 'pilot_sync',
+    "PilotSwarm",
+    "pilot",
+    "pilot_sync",
     # Types
-    'SubtaskType', 'SubtaskStatus', 'Subtask',
-    'PilotConfig', 'PilotResult', 'AVAILABLE_SWARMS',
+    "SubtaskType",
+    "SubtaskStatus",
+    "Subtask",
+    "PilotConfig",
+    "PilotResult",
+    "AVAILABLE_SWARMS",
 ]

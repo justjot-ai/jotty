@@ -26,7 +26,7 @@ import logging
 import threading
 import time as _time
 from dataclasses import dataclass, field
-from typing import TypeVar, Callable, Any, Coroutine, Dict, List, Optional
+from typing import Any, Callable, Coroutine, Dict, List, Optional, TypeVar
 
 _logger = logging.getLogger(__name__)
 
@@ -126,7 +126,8 @@ class StatusReporter:
             prefix=prefix,
         )
 
-T = TypeVar('T')
+
+T = TypeVar("T")
 
 
 def run_sync(coro: Coroutine[Any, Any, T]) -> T:
@@ -179,9 +180,11 @@ def sync_wrapper(async_func: Callable[..., Coroutine[Any, Any, T]]) -> Callable[
         # Now callable as sync:
         result = my_async_function(1, 2)
     """
+
     @functools.wraps(async_func)
     def wrapper(*args: Any, **kwargs: Any) -> T:
         return run_sync(async_func(*args, **kwargs))
+
     return wrapper
 
 
@@ -230,16 +233,23 @@ async def gather_with_limit(coros: list, limit: int = 10) -> list:
 # for tool → agent → UI communication.
 # ---------------------------------------------------------------------------
 
-AGENT_EVENT_TYPES = frozenset({
-    "tool_start", "tool_end",
-    "step_start", "step_end",
-    "status", "error", "streaming",
-})
+AGENT_EVENT_TYPES = frozenset(
+    {
+        "tool_start",
+        "tool_end",
+        "step_start",
+        "step_end",
+        "status",
+        "error",
+        "streaming",
+    }
+)
 
 
 @dataclass
 class AgentEvent:
     """Lightweight event envelope used by all agent broadcasting."""
+
     type: str
     data: Dict[str, Any] = field(default_factory=dict)
     timestamp: float = field(default_factory=_time.time)

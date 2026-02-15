@@ -3,6 +3,8 @@
 Basic DSPy Agent Test (No External Dependencies)
 Tests the most basic DSPy agent functionality
 """
+
+
 def test_dspy_imports():
     """Test that all required imports work"""
     print("=" * 80)
@@ -11,6 +13,7 @@ def test_dspy_imports():
 
     try:
         import dspy
+
         print("✅ dspy imported successfully")
     except ImportError as e:
         print(f"❌ dspy import failed: {e}")
@@ -19,6 +22,7 @@ def test_dspy_imports():
 
     try:
         from Jotty.core.infrastructure.integration.mcp_tool_executor import MCPToolExecutor
+
         print("✅ MCPToolExecutor imported successfully")
     except ImportError as e:
         print(f"❌ MCPToolExecutor import failed: {e}")
@@ -26,6 +30,7 @@ def test_dspy_imports():
 
     try:
         from Jotty.core.modes.agent.dspy_mcp_agent import DSPyMCPAgent
+
         print("✅ DSPyMCPAgent imported successfully")
     except ImportError as e:
         print(f"❌ DSPyMCPAgent import failed: {e}")
@@ -46,6 +51,7 @@ def test_dspy_signature():
 
         class SimpleSignature(dspy.Signature):
             """Basic question answering"""
+
             question = dspy.InputField(desc="A question")
             answer = dspy.OutputField(desc="The answer")
 
@@ -58,6 +64,7 @@ def test_dspy_signature():
     except Exception as e:
         print(f"❌ DSPy signature failed: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -80,6 +87,7 @@ def test_mcp_tool_executor_creation():
     except Exception as e:
         print(f"❌ MCPToolExecutor creation failed: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -92,6 +100,7 @@ def test_mcp_tool_discovery():
 
     try:
         import asyncio
+
         from Jotty.core.infrastructure.integration.mcp_tool_executor import MCPToolExecutor
 
         async def discover():
@@ -116,6 +125,7 @@ def test_mcp_tool_discovery():
     except Exception as e:
         print(f"❌ Tool discovery failed: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -128,13 +138,14 @@ def test_dspy_agent_creation():
 
     try:
         import asyncio
+
         from Jotty.core.modes.agent.dspy_mcp_agent import DSPyMCPAgent
 
         async def create_agent():
             agent = DSPyMCPAgent(
                 name="Test Agent",
                 description="A simple test agent",
-                base_url="http://localhost:3000"
+                base_url="http://localhost:3000",
             )
             await agent.initialize()
             return agent
@@ -151,6 +162,7 @@ def test_dspy_agent_creation():
     except Exception as e:
         print(f"❌ Agent creation failed: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -162,8 +174,9 @@ def test_claude_cli_availability():
     print("=" * 80)
 
     try:
-        from Jotty.examples.claude_cli_wrapper import ClaudeCLILM
         import dspy
+
+        from Jotty.examples.claude_cli_wrapper import ClaudeCLILM
 
         lm = ClaudeCLILM(model="sonnet")
         dspy.configure(lm=lm)

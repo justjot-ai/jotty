@@ -1,9 +1,10 @@
 """A/B Test Analyzer Skill — calculate significance using stdlib math."""
-import math
-from typing import Dict, Any
 
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+import math
+from typing import Any, Dict
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("ab-test-analyzer")
 
@@ -29,7 +30,9 @@ def _confidence_to_z(confidence: float) -> float:
     # Approximation for other values
     p = alpha / 2.0
     t = math.sqrt(-2.0 * math.log(p))
-    return t - (2.515517 + 0.802853 * t + 0.010328 * t * t) / (1.0 + 1.432788 * t + 0.189269 * t * t + 0.001308 * t * t * t)
+    return t - (2.515517 + 0.802853 * t + 0.010328 * t * t) / (
+        1.0 + 1.432788 * t + 0.189269 * t * t + 0.001308 * t * t * t
+    )
 
 
 @tool_wrapper(required_params=["visitors_a", "conversions_a", "visitors_b", "conversions_b"])
@@ -54,7 +57,11 @@ def ab_test_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
     # Pooled proportion
     p_pool = (c_a + c_b) / (n_a + n_b)
-    se = math.sqrt(p_pool * (1 - p_pool) * (1/n_a + 1/n_b)) if p_pool > 0 and p_pool < 1 else 0.0001
+    se = (
+        math.sqrt(p_pool * (1 - p_pool) * (1 / n_a + 1 / n_b))
+        if p_pool > 0 and p_pool < 1
+        else 0.0001
+    )
 
     z_score = (rate_b - rate_a) / se if se > 0 else 0
     p_value = _z_to_p(z_score)
@@ -78,7 +85,11 @@ def ab_test_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         lift=round(lift, 2),
         confidence_interval={"lower": round(ci_lower, 6), "upper": round(ci_upper, 6)},
         confidence_level=confidence,
-        recommendation="B is better" if significant and z_score > 0 else "A is better" if significant and z_score < 0 else "No significant difference",
+        recommendation=(
+            "B is better"
+            if significant and z_score > 0
+            else "A is better" if significant and z_score < 0 else "No significant difference"
+        ),
     )
 
 
@@ -102,8 +113,13 @@ def sample_size_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     z_beta = _confidence_to_z(0.5 + power / 2)
 
     p_avg = (p1 + p2) / 2
-    n = ((z_alpha * math.sqrt(2 * p_avg * (1 - p_avg)) +
-          z_beta * math.sqrt(p1 * (1 - p1) + p2 * (1 - p2))) / (p2 - p1)) ** 2
+    n = (
+        (
+            z_alpha * math.sqrt(2 * p_avg * (1 - p_avg))
+            + z_beta * math.sqrt(p1 * (1 - p1) + p2 * (1 - p2))
+        )
+        / (p2 - p1)
+    ) ** 2
     n = math.ceil(n)
 
     return tool_response(

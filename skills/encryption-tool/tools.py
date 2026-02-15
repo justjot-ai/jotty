@@ -1,9 +1,12 @@
 """Encryption tool — educational ciphers (Caesar, Vigenere, ROT13, XOR)."""
-from typing import Dict, Any
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+
+from typing import Any, Dict
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("encryption-tool")
+
 
 def _caesar(text: str, shift: int, decrypt: bool = False) -> str:
     if decrypt:
@@ -16,6 +19,7 @@ def _caesar(text: str, shift: int, decrypt: bool = False) -> str:
         else:
             result.append(ch)
     return "".join(result)
+
 
 def _vigenere(text: str, key: str, decrypt: bool = False) -> str:
     if not key.isalpha():
@@ -34,8 +38,10 @@ def _vigenere(text: str, key: str, decrypt: bool = False) -> str:
             result.append(ch)
     return "".join(result)
 
+
 def _xor(text: str, key: str) -> str:
     return "".join(chr(ord(c) ^ ord(key[i % len(key)])) for i, c in enumerate(text))
+
 
 @tool_wrapper(required_params=["operation", "text"])
 def encryption_tool(params: Dict[str, Any]) -> Dict[str, Any]:
@@ -68,5 +74,6 @@ def encryption_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return tool_error(f"Unknown op: {op}. Use caesar/rot13/vigenere/xor")
     except Exception as e:
         return tool_error(str(e))
+
 
 __all__ = ["encryption_tool"]

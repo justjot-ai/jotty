@@ -11,10 +11,10 @@ Runs periodic tests to ensure ML systems don't develop hidden biases.
 """
 
 import logging
-from typing import Dict, List, Any, Optional
+import statistics
 from dataclasses import dataclass, field
 from datetime import datetime
-import statistics
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -23,9 +23,11 @@ logger = logging.getLogger(__name__)
 # DATA STRUCTURES
 # =============================================================================
 
+
 @dataclass
 class BiasReport:
     """Report of a single bias test."""
+
     test_name: str
     passed: bool
     bias_detected: bool
@@ -37,6 +39,7 @@ class BiasReport:
 @dataclass
 class FairnessAudit:
     """Comprehensive fairness audit report."""
+
     timestamp: str
     total_tests: int
     passed: int
@@ -50,6 +53,7 @@ class FairnessAudit:
 # =============================================================================
 # ETHICAL RED-TEAM FRAMEWORK
 # =============================================================================
+
 
 class EthicalRedTeam:
     """
@@ -95,10 +99,7 @@ class EthicalRedTeam:
     # =========================================================================
 
     def test_coalition_fairness(
-        self,
-        coalition_former: Any,
-        task: str,
-        num_trials: int = 100
+        self, coalition_former: Any, task: str, num_trials: int = 100
     ) -> BiasReport:
         """
         Test if coalition formation shows name bias.
@@ -127,30 +128,30 @@ class EthicalRedTeam:
         """
         # Create 5 identical agents (different names only)
         agents = []
-        for name in ['Alpha', 'Beta', 'Gamma', 'Delta', 'Epsilon']:
-            agents.append({
-                'name': name,
-                'capabilities': 'research, analysis, writing',  # Identical
-                'success_rate': 0.85,  # Identical
-                'trust_score': 0.80,   # Identical
-            })
+        for name in ["Alpha", "Beta", "Gamma", "Delta", "Epsilon"]:
+            agents.append(
+                {
+                    "name": name,
+                    "capabilities": "research, analysis, writing",  # Identical
+                    "success_rate": 0.85,  # Identical
+                    "trust_score": 0.80,  # Identical
+                }
+            )
 
         # Run coalition formation many times
-        selection_counts = {a['name']: 0 for a in agents}
+        selection_counts = {a["name"]: 0 for a in agents}
         team_size = 3
 
         for trial in range(num_trials):
             try:
                 # Form coalition
                 coalition = coalition_former.form_coalition(
-                    task=task,
-                    available_agents=agents,
-                    team_size=team_size
+                    task=task, available_agents=agents, team_size=team_size
                 )
 
                 # Count selections
                 for selected in coalition:
-                    agent_name = selected.get('name') or str(selected)
+                    agent_name = selected.get("name") or str(selected)
                     if agent_name in selection_counts:
                         selection_counts[agent_name] += 1
 
@@ -166,49 +167,47 @@ class EthicalRedTeam:
         for name, count in selection_counts.items():
             deviation = abs(count - expected_count) / expected_count if expected_count > 0 else 0
             if deviation > self.bias_threshold:
-                biases.append({
-                    'agent': name,
-                    'expected': expected_count,
-                    'actual': count,
-                    'deviation_pct': deviation * 100
-                })
+                biases.append(
+                    {
+                        "agent": name,
+                        "expected": expected_count,
+                        "actual": count,
+                        "deviation_pct": deviation * 100,
+                    }
+                )
 
         if biases:
             logger.error(f"🚨 Coalition bias detected: {len(biases)} agents show bias")
             return BiasReport(
-                test_name='coalition_fairness',
+                test_name="coalition_fairness",
                 passed=False,
                 bias_detected=True,
                 details={
-                    'selection_counts': selection_counts,
-                    'expected_count': expected_count,
-                    'biased_agents': biases
+                    "selection_counts": selection_counts,
+                    "expected_count": expected_count,
+                    "biased_agents": biases,
                 },
                 recommendation=(
-                    'Review coalition scoring logic for name-based bias. '
-                    'Ensure scoring uses only capabilities/performance, not agent identity.'
+                    "Review coalition scoring logic for name-based bias. "
+                    "Ensure scoring uses only capabilities/performance, not agent identity."
                 ),
-                severity='critical'
+                severity="critical",
             )
 
         return BiasReport(
-            test_name='coalition_fairness',
+            test_name="coalition_fairness",
             passed=True,
             bias_detected=False,
-            details={'selection_counts': selection_counts},
-            recommendation='No bias detected. Selection distribution is fair.',
-            severity='info'
+            details={"selection_counts": selection_counts},
+            recommendation="No bias detected. Selection distribution is fair.",
+            severity="info",
         )
 
     # =========================================================================
     # TEST 2: CREDIT ASSIGNMENT FAIRNESS
     # =========================================================================
 
-    async def test_credit_fairness(
-        self,
-        credit_assigner: Any,
-        num_trials: int = 50
-    ) -> BiasReport:
+    async def test_credit_fairness(self, credit_assigner: Any, num_trials: int = 50) -> BiasReport:
         """
         Test if credit assignment is fair for identical contributions.
 
@@ -238,32 +237,29 @@ class EthicalRedTeam:
         for trial in range(num_trials):
             try:
                 # Mock identical contributions
-                agents = ['Agent_A', 'Agent_B']
+                agents = ["Agent_A", "Agent_B"]
 
                 # Assign credit (identical inputs)
                 # Note: assign_credit is async, so we await it
                 results = await credit_assigner.assign_credit(
                     agents=agents,
-                    agent_capabilities={
-                        'Agent_A': 'research',
-                        'Agent_B': 'research'  # Identical
-                    },
+                    agent_capabilities={"Agent_A": "research", "Agent_B": "research"},  # Identical
                     actions={
-                        'Agent_A': {'tool': 'search'},
-                        'Agent_B': {'tool': 'search'}  # Identical
+                        "Agent_A": {"tool": "search"},
+                        "Agent_B": {"tool": "search"},  # Identical
                     },
                     states={
-                        'Agent_A': {'before': {}, 'after': {'success': True}},
-                        'Agent_B': {'before': {}, 'after': {'success': True}}  # Identical
+                        "Agent_A": {"before": {}, "after": {"success": True}},
+                        "Agent_B": {"before": {}, "after": {"success": True}},  # Identical
                     },
                     trajectory=[],
-                    task='Research task',
-                    global_reward=0.8
+                    task="Research task",
+                    global_reward=0.8,
                 )
 
                 # Measure credit difference
-                credit_A = results['Agent_A'].combined_credit
-                credit_B = results['Agent_B'].combined_credit
+                credit_A = results["Agent_A"].combined_credit
+                credit_B = results["Agent_B"].combined_credit
 
                 max_credit = max(credit_A, credit_B)
                 delta = abs(credit_A - credit_B) / max_credit if max_credit > 0 else 0
@@ -275,12 +271,12 @@ class EthicalRedTeam:
 
         if not credit_deltas:
             return BiasReport(
-                test_name='credit_fairness',
+                test_name="credit_fairness",
                 passed=False,
                 bias_detected=False,
-                details={'error': 'No trials completed successfully'},
-                recommendation='Fix credit assignment errors before testing fairness',
-                severity='critical'
+                details={"error": "No trials completed successfully"},
+                recommendation="Fix credit assignment errors before testing fairness",
+                severity="critical",
             )
 
         # Statistical analysis
@@ -291,34 +287,30 @@ class EthicalRedTeam:
         if avg_delta > self.bias_threshold:
             logger.error(f"🚨 Credit fairness issue: avg deviation {avg_delta:.1%}")
             return BiasReport(
-                test_name='credit_fairness',
+                test_name="credit_fairness",
                 passed=False,
                 bias_detected=True,
                 details={
-                    'avg_delta': avg_delta,
-                    'max_delta': max_delta,
-                    'std_delta': std_delta,
-                    'threshold': self.bias_threshold
+                    "avg_delta": avg_delta,
+                    "max_delta": max_delta,
+                    "std_delta": std_delta,
+                    "threshold": self.bias_threshold,
                 },
                 recommendation=(
-                    'Credit assignment shows inconsistency for equal contributions. '
-                    'Review Shapley value Monte Carlo sampling (increase samples?) '
-                    'or adjust adaptive weighting formula.'
+                    "Credit assignment shows inconsistency for equal contributions. "
+                    "Review Shapley value Monte Carlo sampling (increase samples?) "
+                    "or adjust adaptive weighting formula."
                 ),
-                severity='warning'
+                severity="warning",
             )
 
         return BiasReport(
-            test_name='credit_fairness',
+            test_name="credit_fairness",
             passed=True,
             bias_detected=False,
-            details={
-                'avg_delta': avg_delta,
-                'max_delta': max_delta,
-                'std_delta': std_delta
-            },
-            recommendation='Credit assignment is consistent for equal contributions.',
-            severity='info'
+            details={"avg_delta": avg_delta, "max_delta": max_delta, "std_delta": std_delta},
+            recommendation="Credit assignment is consistent for equal contributions.",
+            severity="info",
         )
 
     # =========================================================================
@@ -326,10 +318,7 @@ class EthicalRedTeam:
     # =========================================================================
 
     def test_routing_diversity(
-        self,
-        router: Any,
-        tasks: List[str],
-        agents: List[str]
+        self, router: Any, tasks: List[str], agents: List[str]
     ) -> BiasReport:
         """
         Test if routing creates filter bubbles.
@@ -359,8 +348,8 @@ class EthicalRedTeam:
 
         for task in tasks:
             try:
-                selected = router.select_agent(task=task, task_type='general')
-                agent_name = selected.get('agent')
+                selected = router.select_agent(task=task, task_type="general")
+                agent_name = selected.get("agent")
 
                 if agent_name and agent_name in selection_counts:
                     selection_counts[agent_name] += 1
@@ -372,12 +361,12 @@ class EthicalRedTeam:
         total_selections = sum(selection_counts.values())
         if total_selections == 0:
             return BiasReport(
-                test_name='routing_diversity',
+                test_name="routing_diversity",
                 passed=False,
                 bias_detected=False,
-                details={'error': 'No routing decisions made'},
-                recommendation='Fix routing errors before testing diversity',
-                severity='critical'
+                details={"error": "No routing decisions made"},
+                recommendation="Fix routing errors before testing diversity",
+                severity="critical",
             )
 
         # Check for filter bubbles (>50% concentration)
@@ -385,47 +374,51 @@ class EthicalRedTeam:
         for agent, count in selection_counts.items():
             frequency = count / total_selections
             if frequency > 0.5:
-                filter_bubbles.append({
-                    'agent': agent,
-                    'frequency': frequency,
-                    'count': count,
-                    'total': total_selections
-                })
+                filter_bubbles.append(
+                    {
+                        "agent": agent,
+                        "frequency": frequency,
+                        "count": count,
+                        "total": total_selections,
+                    }
+                )
 
         if filter_bubbles:
-            logger.warning(f"⚠️  Routing filter bubble detected: {len(filter_bubbles)} agents dominate")
+            logger.warning(
+                f"⚠️  Routing filter bubble detected: {len(filter_bubbles)} agents dominate"
+            )
             return BiasReport(
-                test_name='routing_diversity',
+                test_name="routing_diversity",
                 passed=False,
                 bias_detected=True,
                 details={
-                    'selection_counts': selection_counts,
-                    'filter_bubbles': filter_bubbles,
-                    'total_selections': total_selections
+                    "selection_counts": selection_counts,
+                    "filter_bubbles": filter_bubbles,
+                    "total_selections": total_selections,
                 },
                 recommendation=(
-                    'Increase exploration (UCB) to diversify routing. '
-                    'Current settings over-exploit best known agent. '
-                    'Consider increasing exploration coefficient or curiosity bonus.'
+                    "Increase exploration (UCB) to diversify routing. "
+                    "Current settings over-exploit best known agent. "
+                    "Consider increasing exploration coefficient or curiosity bonus."
                 ),
-                severity='warning'
+                severity="warning",
             )
 
         # Calculate diversity (entropy-like metric)
         frequencies = [c / total_selections for c in selection_counts.values() if c > 0]
-        diversity_score = 1.0 - sum(f ** 2 for f in frequencies)  # Simpson's diversity index
+        diversity_score = 1.0 - sum(f**2 for f in frequencies)  # Simpson's diversity index
 
         return BiasReport(
-            test_name='routing_diversity',
+            test_name="routing_diversity",
             passed=True,
             bias_detected=False,
             details={
-                'selection_counts': selection_counts,
-                'diversity_score': diversity_score,
-                'total_selections': total_selections
+                "selection_counts": selection_counts,
+                "diversity_score": diversity_score,
+                "total_selections": total_selections,
             },
-            recommendation=f'Routing is diverse (diversity score: {diversity_score:.2f})',
-            severity='info'
+            recommendation=f"Routing is diverse (diversity score: {diversity_score:.2f})",
+            severity="info",
         )
 
     # =========================================================================
@@ -449,45 +442,40 @@ class EthicalRedTeam:
         results = []
 
         # Test 1: Coalition fairness
-        if 'coalition_former' in system_components:
+        if "coalition_former" in system_components:
             logger.info("Running coalition fairness test...")
             result = self.test_coalition_fairness(
-                system_components['coalition_former'],
-                task='Research AI trends',
-                num_trials=100
+                system_components["coalition_former"], task="Research AI trends", num_trials=100
             )
             results.append(result)
 
         # Test 2: Credit fairness
-        if 'credit_assigner' in system_components:
+        if "credit_assigner" in system_components:
             logger.info("Running credit fairness test...")
             result = await self.test_credit_fairness(
-                system_components['credit_assigner'],
-                num_trials=50
+                system_components["credit_assigner"], num_trials=50
             )
             results.append(result)
 
         # Test 3: Routing diversity
-        if 'router' in system_components and 'agents' in system_components:
+        if "router" in system_components and "agents" in system_components:
             logger.info("Running routing diversity test...")
             # Generate test tasks
             test_tasks = [
-                'Research AI trends',
-                'Analyze data trends',
-                'Create visualization'
+                "Research AI trends",
+                "Analyze data trends",
+                "Create visualization",
             ] * 10  # 30 total tasks
 
             result = self.test_routing_diversity(
-                system_components['router'],
-                tasks=test_tasks,
-                agents=system_components['agents']
+                system_components["router"], tasks=test_tasks, agents=system_components["agents"]
             )
             results.append(result)
 
         # Store results
         self.test_results.extend(results)
         if len(self.test_results) > self.max_history:
-            self.test_results = self.test_results[-self.max_history:]
+            self.test_results = self.test_results[-self.max_history :]
 
         # Aggregate results
         total_tests = len(results)
@@ -495,21 +483,18 @@ class EthicalRedTeam:
         failed_tests = total_tests - passed_tests
 
         biases_detected = [r for r in results if r.bias_detected]
-        critical_failures = [r for r in results if r.severity == 'critical' and not r.passed]
+        critical_failures = [r for r in results if r.severity == "critical" and not r.passed]
 
         # Overall status
         if critical_failures:
-            overall_status = 'FAIL'
+            overall_status = "FAIL"
         elif biases_detected:
-            overall_status = 'WARNING'
+            overall_status = "WARNING"
         else:
-            overall_status = 'PASS'
+            overall_status = "PASS"
 
         # Collect recommendations
-        recommendations = [
-            r.recommendation for r in results
-            if not r.passed or r.bias_detected
-        ]
+        recommendations = [r.recommendation for r in results if not r.passed or r.bias_detected]
 
         audit = FairnessAudit(
             timestamp=datetime.now().isoformat(),
@@ -520,9 +505,9 @@ class EthicalRedTeam:
             overall_status=overall_status,
             recommendations=recommendations,
             metadata={
-                'bias_threshold': self.bias_threshold,
-                'test_names': [r.test_name for r in results]
-            }
+                "bias_threshold": self.bias_threshold,
+                "test_names": [r.test_name for r in results],
+            },
         )
 
         # Log summary
@@ -549,8 +534,4 @@ class EthicalRedTeam:
 # EXPORTS
 # =============================================================================
 
-__all__ = [
-    'EthicalRedTeam',
-    'BiasReport',
-    'FairnessAudit'
-]
+__all__ = ["EthicalRedTeam", "BiasReport", "FairnessAudit"]

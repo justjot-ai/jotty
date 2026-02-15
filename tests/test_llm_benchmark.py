@@ -19,31 +19,39 @@ import os
 import sys
 import time
 from pathlib import Path
+
 import pytest
 
 pytestmark = pytest.mark.skipif(
-    not os.getenv('ANTHROPIC_API_KEY'),
-    reason="Requires ANTHROPIC_API_KEY for real LLM calls"
+    not os.getenv("ANTHROPIC_API_KEY"), reason="Requires ANTHROPIC_API_KEY for real LLM calls"
 )
 
 # ── Load API keys ──
-for env_file in [Path(__file__).parents[2] / '.env.anthropic',
-                 Path(__file__).parents[1] / '.env.anthropic',
-                 Path(__file__).parents[1] / '.env']:
+for env_file in [
+    Path(__file__).parents[2] / ".env.anthropic",
+    Path(__file__).parents[1] / ".env.anthropic",
+    Path(__file__).parents[1] / ".env",
+]:
     if env_file.exists():
         with open(env_file) as f:
             for line in f:
                 line = line.strip()
-                if '=' in line and not line.startswith('#'):
-                    k, v = line.split('=', 1)
+                if "=" in line and not line.startswith("#"):
+                    k, v = line.split("=", 1)
                     k, v = k.strip(), v.strip()
                     if v and k not in os.environ:
                         os.environ[k] = v
 
 import logging
+
 logging.basicConfig(level=logging.WARNING)
 
-B = '\033[1m'; G = '\033[92m'; R = '\033[91m'; Y = '\033[93m'; D = '\033[2m'; E = '\033[0m'
+B = "\033[1m"
+G = "\033[92m"
+R = "\033[91m"
+Y = "\033[93m"
+D = "\033[2m"
+E = "\033[0m"
 
 # ── Test prompts ──
 PROMPTS = {
@@ -65,8 +73,10 @@ def measure_call(lm, prompt: str, label: str) -> dict:
             "success": True,
             "time": elapsed,
             "output_len": len(text),
-            "output_preview": text[:150].replace('\n', ' '),
-            "usage": lm.history[-1].get("usage", {}) if hasattr(lm, 'history') and lm.history else {},
+            "output_preview": text[:150].replace("\n", " "),
+            "usage": (
+                lm.history[-1].get("usage", {}) if hasattr(lm, "history") and lm.history else {}
+            ),
         }
     except Exception as e:
         elapsed = time.time() - t0
@@ -94,15 +104,21 @@ def benchmark_provider(name: str, lm, prompts: dict):
             if r.get("usage"):
                 u = r["usage"]
                 usage_str = f" | tokens: {u.get('input_tokens','?')}→{u.get('output_tokens','?')}"
-            print(f"  {G}✓{E} {pname:12s}  {r['time']:5.2f}s  {r['output_len']:5d} chars{usage_str}")
+            print(
+                f"  {G}✓{E} {pname:12s}  {r['time']:5.2f}s  {r['output_len']:5d} chars{usage_str}"
+            )
             print(f"    {D}{r['output_preview'][:100]}...{E}")
         else:
             print(f"  {R}✗{E} {pname:12s}  {r['time']:5.2f}s  ERROR: {r.get('error','')}")
 
-    avg_time = sum(r["time"] for r in results if r["success"]) / max(1, sum(1 for r in results if r["success"]))
+    avg_time = sum(r["time"] for r in results if r["success"]) / max(
+        1, sum(1 for r in results if r["success"])
+    )
     total_chars = sum(r.get("output_len", 0) for r in results if r["success"])
     success_rate = sum(1 for r in results if r["success"]) / len(results)
-    print(f"\n  {Y}Summary:{E} avg={avg_time:.2f}s | total_chars={total_chars} | success={success_rate:.0%}")
+    print(
+        f"\n  {Y}Summary:{E} avg={avg_time:.2f}s | total_chars={total_chars} | success={success_rate:.0%}"
+    )
     return results
 
 
@@ -117,6 +133,7 @@ def main():
     if os.environ.get("ANTHROPIC_API_KEY"):
         try:
             from Jotty.core.infrastructure.foundation.direct_anthropic_lm import DirectAnthropicLM
+
             lm = DirectAnthropicLM(model="haiku", max_tokens=1024)
             all_results["anthropic-haiku"] = benchmark_provider(
                 "DirectAnthropicLM (Haiku)", lm, PROMPTS
@@ -165,9 +182,13 @@ def main():
 
     # ── 4. PersistentClaudeCLI (subprocess baseline) ──
     import shutil
+
     if shutil.which("claude"):
         try:
-            from Jotty.core.infrastructure.foundation.persistent_claude_lm import PersistentClaudeCLI
+            from Jotty.core.infrastructure.foundation.persistent_claude_lm import (
+                PersistentClaudeCLI,
+            )
+
             lm = PersistentClaudeCLI(model="haiku")
             # Only test simple prompt — CLI is slow
             print(f"\n{B}{'─'*60}{E}")

@@ -4,11 +4,12 @@ Skill Discovery Tool
 Provides tools for agents to discover and understand available skills.
 Uses the SkillsManifest for categorization and metadata.
 """
+
 import logging
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("skill-discovery")
@@ -30,7 +31,7 @@ def list_categories_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - success (bool): Whether operation succeeded
             - categories (list): List of category info
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     try:
         from Jotty.core.capabilities.registry.skills_manifest import get_skills_manifest
@@ -39,18 +40,16 @@ def list_categories_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         categories = []
 
         for cat in manifest.get_categories():
-            categories.append({
-                "name": cat.name,
-                "icon": cat.icon,
-                "description": cat.description,
-                "skill_count": len(cat.skills)
-            })
+            categories.append(
+                {
+                    "name": cat.name,
+                    "icon": cat.icon,
+                    "description": cat.description,
+                    "skill_count": len(cat.skills),
+                }
+            )
 
-        return {
-            "success": True,
-            "categories": categories,
-            "total": len(categories)
-        }
+        return {"success": True, "categories": categories, "total": len(categories)}
 
     except Exception as e:
         logger.error(f"Failed to list categories: {e}")
@@ -74,17 +73,17 @@ def list_skills_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - success (bool): Whether operation succeeded
             - skills (list): List of skill info
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     try:
         from Jotty.core.capabilities.registry.skills_manifest import get_skills_manifest
 
         manifest = get_skills_manifest()
 
-        category = params.get('category')
-        tag = params.get('tag')
-        search = params.get('search')
-        include_uncategorized = params.get('include_uncategorized', True)
+        category = params.get("category")
+        tag = params.get("tag")
+        search = params.get("search")
+        include_uncategorized = params.get("include_uncategorized", True)
 
         if category:
             skills = manifest.get_skills_by_category(category)
@@ -100,21 +99,19 @@ def list_skills_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
         result = []
         for skill in skills:
-            result.append({
-                "name": skill.name,
-                "category": skill.category,
-                "icon": skill.icon,
-                "tags": skill.tags,
-                "requires_auth": skill.requires_auth,
-                "env_vars": skill.env_vars,
-                "is_new": skill.is_discovered
-            })
+            result.append(
+                {
+                    "name": skill.name,
+                    "category": skill.category,
+                    "icon": skill.icon,
+                    "tags": skill.tags,
+                    "requires_auth": skill.requires_auth,
+                    "env_vars": skill.env_vars,
+                    "is_new": skill.is_discovered,
+                }
+            )
 
-        return {
-            "success": True,
-            "skills": result,
-            "total": len(result)
-        }
+        return {"success": True, "skills": result, "total": len(result)}
 
     except Exception as e:
         logger.error(f"Failed to list skills: {e}")
@@ -133,16 +130,17 @@ def get_skill_info_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with skill details and available tools
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     try:
         from Jotty.core.capabilities.registry.skills_manifest import get_skills_manifest
+
         try:
             from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
         except ImportError:
             from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
 
-        skill_name = params.get('skill_name')
+        skill_name = params.get("skill_name")
         if not skill_name:
             return {"success": False, "error": "skill_name parameter required"}
 
@@ -162,11 +160,8 @@ def get_skill_info_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             for tool_name, tool_func in skill.tools.items():
                 doc = tool_func.__doc__ or ""
                 # Extract first line of docstring as description
-                desc = doc.strip().split('\n')[0] if doc else ""
-                tools.append({
-                    "name": tool_name,
-                    "description": desc
-                })
+                desc = doc.strip().split("\n")[0] if doc else ""
+                tools.append({"name": tool_name, "description": desc})
 
         return {
             "success": True,
@@ -177,10 +172,10 @@ def get_skill_info_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                 "tags": skill_info.tags,
                 "requires_auth": skill_info.requires_auth,
                 "env_vars": skill_info.env_vars,
-                "requires_cli": skill_info.requires_cli
+                "requires_cli": skill_info.requires_cli,
             },
             "tools": tools,
-            "tool_count": len(tools)
+            "tool_count": len(tools),
         }
 
     except Exception as e:
@@ -200,24 +195,18 @@ def get_discovery_summary_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with skill summary
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     try:
         from Jotty.core.capabilities.registry.skills_manifest import get_skills_manifest
 
         manifest = get_skills_manifest()
-        format_type = params.get('format', 'json')
+        format_type = params.get("format", "json")
 
-        if format_type == 'markdown':
-            return {
-                "success": True,
-                "summary": manifest.get_discovery_prompt()
-            }
+        if format_type == "markdown":
+            return {"success": True, "summary": manifest.get_discovery_prompt()}
         else:
-            return {
-                "success": True,
-                "summary": manifest.get_summary()
-            }
+            return {"success": True, "summary": manifest.get_summary()}
 
     except Exception as e:
         logger.error(f"Failed to get discovery summary: {e}")
@@ -235,7 +224,7 @@ def refresh_manifest_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with refresh status
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     try:
         from Jotty.core.capabilities.registry.skills_manifest import get_skills_manifest
@@ -249,7 +238,7 @@ def refresh_manifest_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             "total_skills": len(manifest.get_all_skills()),
             "total_categories": len(manifest.get_categories()),
             "uncategorized_count": len(uncategorized),
-            "uncategorized_skills": [s.name for s in uncategorized]
+            "uncategorized_skills": [s.name for s in uncategorized],
         }
 
     except Exception as e:
@@ -270,13 +259,13 @@ def categorize_skill_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with operation status
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     try:
         from Jotty.core.capabilities.registry.skills_manifest import get_skills_manifest
 
-        skill_name = params.get('skill_name')
-        category = params.get('category')
+        skill_name = params.get("skill_name")
+        category = params.get("category")
 
         if not skill_name:
             return {"success": False, "error": "skill_name parameter required"}
@@ -290,12 +279,12 @@ def categorize_skill_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                 "success": True,
                 "skill": skill_name,
                 "category": category,
-                "message": f"Skill '{skill_name}' moved to category '{category}'"
+                "message": f"Skill '{skill_name}' moved to category '{category}'",
             }
         else:
             return {
                 "success": False,
-                "error": f"Failed to categorize skill. Check skill and category names."
+                "error": f"Failed to categorize skill. Check skill and category names.",
             }
 
     except Exception as e:
@@ -317,14 +306,14 @@ def find_skills_for_task_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with recommended skills
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     try:
         from Jotty.core.capabilities.registry.skills_manifest import get_skills_manifest
 
-        task = params.get('task', '').lower()
-        max_results = params.get('max_results', 10)
-        use_llm = params.get('use_llm', True)
+        task = params.get("task", "").lower()
+        max_results = params.get("max_results", 10)
+        use_llm = params.get("use_llm", True)
 
         if not task:
             return {"success": False, "error": "task parameter required"}
@@ -334,145 +323,142 @@ def find_skills_for_task_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         # Keyword mapping to categories/skills
         keyword_map = {
             # Documents
-            'pdf': ['pdf-tools', 'document-converter', 'research-to-pdf'],
-            'excel': ['xlsx-tools'],
-            'spreadsheet': ['xlsx-tools'],
-            'word': ['docx-tools'],
-            'document': ['docx-tools', 'pdf-tools', 'document-converter'],
-            'powerpoint': ['pptx-editor', 'slide-generator', 'presenton'],
-            'slides': ['slide-generator', 'pptx-editor', 'presenton'],
-            'presentation': ['slide-generator', 'pptx-editor', 'presenton'],
-
+            "pdf": ["pdf-tools", "document-converter", "research-to-pdf"],
+            "excel": ["xlsx-tools"],
+            "spreadsheet": ["xlsx-tools"],
+            "word": ["docx-tools"],
+            "document": ["docx-tools", "pdf-tools", "document-converter"],
+            "powerpoint": ["pptx-editor", "slide-generator", "presenton"],
+            "slides": ["slide-generator", "pptx-editor", "presenton"],
+            "presentation": ["slide-generator", "pptx-editor", "presenton"],
             # Media
-            'image': ['image-generator', 'openai-image-gen', 'algorithmic-art'],
-            'gif': ['gif-creator'],
-            'video': ['youtube-downloader'],
-            'audio': ['openai-whisper-api'],
-            'transcribe': ['openai-whisper-api'],
-            'art': ['algorithmic-art', 'image-generator'],
-
+            "image": ["image-generator", "openai-image-gen", "algorithmic-art"],
+            "gif": ["gif-creator"],
+            "video": ["youtube-downloader"],
+            "audio": ["openai-whisper-api"],
+            "transcribe": ["openai-whisper-api"],
+            "art": ["algorithmic-art", "image-generator"],
             # Communication
-            'telegram': ['telegram-sender'],
-            'slack': ['slack'],
-            'discord': ['discord'],
-            'message': ['telegram-sender', 'slack', 'discord'],
-            'send': ['telegram-sender', 'slack', 'discord'],
-
+            "telegram": ["telegram-sender"],
+            "slack": ["slack"],
+            "discord": ["discord"],
+            "message": ["telegram-sender", "slack", "discord"],
+            "send": ["telegram-sender", "slack", "discord"],
             # Research
-            'search': ['web-search', 'web-scraper'],
-            'research': ['stock-research-comprehensive', 'web-search', 'summarize', 'research-to-notion'],
-            'leads': ['lead-research-assistant', 'research-to-notion'],
-            'competitor': ['competitive-ads-extractor', 'product-launch-pipeline'],
-            'stock': ['stock-research-comprehensive', 'stock-research-deep', 'screener-financials'],
-            'finance': ['investing-commodities', 'screener-financials'],
-            'summarize': ['summarize', 'claude-cli-llm'],
-            
+            "search": ["web-search", "web-scraper"],
+            "research": [
+                "stock-research-comprehensive",
+                "web-search",
+                "summarize",
+                "research-to-notion",
+            ],
+            "leads": ["lead-research-assistant", "research-to-notion"],
+            "competitor": ["competitive-ads-extractor", "product-launch-pipeline"],
+            "stock": ["stock-research-comprehensive", "stock-research-deep", "screener-financials"],
+            "finance": ["investing-commodities", "screener-financials"],
+            "summarize": ["summarize", "claude-cli-llm"],
             # Composite workflows - Research & Documentation
-            'research and document': ['research-to-notion'],
-            'research to notion': ['research-to-notion'],
-            'research workflow': ['research-to-notion'],
-            
+            "research and document": ["research-to-notion"],
+            "research to notion": ["research-to-notion"],
+            "research workflow": ["research-to-notion"],
             # Composite workflows - Meeting Intelligence
-            'meeting': ['meeting-insights-analyzer', 'meeting-intelligence-pipeline', 'notion-meeting-intelligence'],
-            'meeting analysis': ['meeting-intelligence-pipeline'],
-            'meeting intelligence': ['meeting-intelligence-pipeline'],
-            'prepare meeting': ['meeting-intelligence-pipeline'],
-            'meeting materials': ['meeting-intelligence-pipeline'],
-            
+            "meeting": [
+                "meeting-insights-analyzer",
+                "meeting-intelligence-pipeline",
+                "notion-meeting-intelligence",
+            ],
+            "meeting analysis": ["meeting-intelligence-pipeline"],
+            "meeting intelligence": ["meeting-intelligence-pipeline"],
+            "prepare meeting": ["meeting-intelligence-pipeline"],
+            "meeting materials": ["meeting-intelligence-pipeline"],
             # Composite workflows - Content & Branding
-            'domain': ['domain-name-brainstormer', 'product-launch-pipeline', 'content-branding-pipeline'],
-            'brand': ['brand-guidelines', 'content-branding-pipeline'],
-            'branding': ['brand-guidelines', 'content-branding-pipeline'],
-            'theme': ['theme-factory', 'content-branding-pipeline'],
-            'content creation': ['content-research-writer', 'content-branding-pipeline'],
-            'branded content': ['content-branding-pipeline'],
-            
+            "domain": [
+                "domain-name-brainstormer",
+                "product-launch-pipeline",
+                "content-branding-pipeline",
+            ],
+            "brand": ["brand-guidelines", "content-branding-pipeline"],
+            "branding": ["brand-guidelines", "content-branding-pipeline"],
+            "theme": ["theme-factory", "content-branding-pipeline"],
+            "content creation": ["content-research-writer", "content-branding-pipeline"],
+            "branded content": ["content-branding-pipeline"],
             # Composite workflows - Development
-            'changelog': ['changelog-generator', 'dev-workflow'],
-            'create skill': ['skill-creator', 'dev-workflow'],
-            'test webapp': ['webapp-testing', 'dev-workflow'],
-            'test app': ['webapp-testing', 'dev-workflow'],
-            'development workflow': ['dev-workflow'],
-            'dev workflow': ['dev-workflow'],
-            
+            "changelog": ["changelog-generator", "dev-workflow"],
+            "create skill": ["skill-creator", "dev-workflow"],
+            "test webapp": ["webapp-testing", "dev-workflow"],
+            "test app": ["webapp-testing", "dev-workflow"],
+            "development workflow": ["dev-workflow"],
+            "dev workflow": ["dev-workflow"],
             # Composite workflows - Media Production
-            'enhance image': ['image-enhancer', 'media-production-pipeline'],
-            'create gif': ['slack-gif-creator', 'gif-creator', 'media-production-pipeline'],
-            'media production': ['media-production-pipeline'],
-            'design': ['canvas-design', 'media-production-pipeline'],
-            
+            "enhance image": ["image-enhancer", "media-production-pipeline"],
+            "create gif": ["slack-gif-creator", "gif-creator", "media-production-pipeline"],
+            "media production": ["media-production-pipeline"],
+            "design": ["canvas-design", "media-production-pipeline"],
             # Composite workflows - Notion Knowledge
-            'knowledge': ['notion-knowledge-capture', 'notion-knowledge-pipeline'],
-            'capture knowledge': ['notion-knowledge-pipeline'],
-            'knowledge pipeline': ['notion-knowledge-pipeline'],
-            'implementation plan': ['notion-spec-to-implementation', 'notion-knowledge-pipeline'],
-            
+            "knowledge": ["notion-knowledge-capture", "notion-knowledge-pipeline"],
+            "capture knowledge": ["notion-knowledge-pipeline"],
+            "knowledge pipeline": ["notion-knowledge-pipeline"],
+            "implementation plan": ["notion-spec-to-implementation", "notion-knowledge-pipeline"],
             # Composite workflows - Product Launch
-            'launch': ['product-launch-pipeline'],
-            'product launch': ['product-launch-pipeline'],
-            'launch product': ['product-launch-pipeline'],
-            'product launch workflow': ['product-launch-pipeline'],
-
+            "launch": ["product-launch-pipeline"],
+            "product launch": ["product-launch-pipeline"],
+            "launch product": ["product-launch-pipeline"],
+            "product launch workflow": ["product-launch-pipeline"],
             # Productivity
-            'github': ['github'],
-            'notion': ['notion'],
-            'trello': ['trello'],
-            'notes': ['obsidian', 'notion'],
-            'task': ['trello', 'notion'],
-
+            "github": ["github"],
+            "notion": ["notion"],
+            "trello": ["trello"],
+            "notes": ["obsidian", "notion"],
+            "task": ["trello", "notion"],
             # AI
-            'ai': ['claude-cli-llm', 'gemini', 'openai-image-gen'],
-            'llm': ['claude-cli-llm', 'gemini'],
-            'claude': ['claude-cli-llm'],
-            'gemini': ['gemini'],
-            'openai': ['openai-image-gen', 'openai-whisper-api'],
-            'gpt': ['openai-image-gen'],
-
+            "ai": ["claude-cli-llm", "gemini", "openai-image-gen"],
+            "llm": ["claude-cli-llm", "gemini"],
+            "claude": ["claude-cli-llm"],
+            "gemini": ["gemini"],
+            "openai": ["openai-image-gen", "openai-whisper-api"],
+            "gpt": ["openai-image-gen"],
             # Code Generation & Development
-            'generate code': ['file-operations', 'skill-creator', 'dev-workflow'],
-            'write code': ['file-operations', 'skill-creator'],
-            'create code': ['file-operations', 'skill-creator'],
-            'code generation': ['file-operations', 'skill-creator'],
-            'implement': ['file-operations', 'skill-creator', 'dev-workflow'],
-            'develop': ['file-operations', 'skill-creator', 'dev-workflow'],
-            'programming': ['file-operations', 'skill-creator'],
-            'write file': ['file-operations'],
-            'create file': ['file-operations'],
-            'code': ['file-operations', 'skill-creator'],
-            
+            "generate code": ["file-operations", "skill-creator", "dev-workflow"],
+            "write code": ["file-operations", "skill-creator"],
+            "create code": ["file-operations", "skill-creator"],
+            "code generation": ["file-operations", "skill-creator"],
+            "implement": ["file-operations", "skill-creator", "dev-workflow"],
+            "develop": ["file-operations", "skill-creator", "dev-workflow"],
+            "programming": ["file-operations", "skill-creator"],
+            "write file": ["file-operations"],
+            "create file": ["file-operations"],
+            "code": ["file-operations", "skill-creator"],
             # Other
-            'weather': ['weather-checker'],
-            'music': ['spotify'],
-            'spotify': ['spotify'],
-            'youtube': ['youtube-downloader'],
-            'mindmap': ['mindmap-generator'],
-            'file': ['file-operations'],
-            'text': ['text-utils', 'text-chunker'],
-
+            "weather": ["weather-checker"],
+            "music": ["spotify"],
+            "spotify": ["spotify"],
+            "youtube": ["youtube-downloader"],
+            "mindmap": ["mindmap-generator"],
+            "file": ["file-operations"],
+            "text": ["text-utils", "text-chunker"],
             # Research/comparison patterns
-            'vs': ['web-search', 'summarize', 'claude-cli-llm', 'slide-generator'],
-            'versus': ['web-search', 'summarize', 'claude-cli-llm', 'slide-generator'],
-            'compare': ['web-search', 'summarize', 'claude-cli-llm', 'slide-generator'],
-            'comparison': ['web-search', 'summarize', 'claude-cli-llm', 'slide-generator'],
-            'difference': ['web-search', 'summarize', 'claude-cli-llm'],
-            'explain': ['web-search', 'summarize', 'claude-cli-llm'],
-            'what is': ['web-search', 'summarize', 'claude-cli-llm'],
-            'how does': ['web-search', 'summarize', 'claude-cli-llm'],
-            'learn': ['web-search', 'summarize', 'slide-generator'],
-            'tutorial': ['web-search', 'summarize', 'slide-generator'],
-
+            "vs": ["web-search", "summarize", "claude-cli-llm", "slide-generator"],
+            "versus": ["web-search", "summarize", "claude-cli-llm", "slide-generator"],
+            "compare": ["web-search", "summarize", "claude-cli-llm", "slide-generator"],
+            "comparison": ["web-search", "summarize", "claude-cli-llm", "slide-generator"],
+            "difference": ["web-search", "summarize", "claude-cli-llm"],
+            "explain": ["web-search", "summarize", "claude-cli-llm"],
+            "what is": ["web-search", "summarize", "claude-cli-llm"],
+            "how does": ["web-search", "summarize", "claude-cli-llm"],
+            "learn": ["web-search", "summarize", "slide-generator"],
+            "tutorial": ["web-search", "summarize", "slide-generator"],
             # Technical topics trigger research
-            'neural': ['web-search', 'summarize', 'claude-cli-llm', 'slide-generator'],
-            'network': ['web-search', 'summarize', 'claude-cli-llm'],
-            'machine learning': ['web-search', 'summarize', 'claude-cli-llm', 'slide-generator'],
-            'deep learning': ['web-search', 'summarize', 'claude-cli-llm', 'slide-generator'],
-            'algorithm': ['web-search', 'summarize', 'claude-cli-llm'],
-            'model': ['web-search', 'summarize', 'claude-cli-llm'],
-            'transformer': ['web-search', 'summarize', 'claude-cli-llm', 'slide-generator'],
-            'rnn': ['web-search', 'summarize', 'claude-cli-llm', 'slide-generator'],
-            'cnn': ['web-search', 'summarize', 'claude-cli-llm', 'slide-generator'],
-            'lstm': ['web-search', 'summarize', 'claude-cli-llm'],
-            'bert': ['web-search', 'summarize', 'claude-cli-llm'],
+            "neural": ["web-search", "summarize", "claude-cli-llm", "slide-generator"],
+            "network": ["web-search", "summarize", "claude-cli-llm"],
+            "machine learning": ["web-search", "summarize", "claude-cli-llm", "slide-generator"],
+            "deep learning": ["web-search", "summarize", "claude-cli-llm", "slide-generator"],
+            "algorithm": ["web-search", "summarize", "claude-cli-llm"],
+            "model": ["web-search", "summarize", "claude-cli-llm"],
+            "transformer": ["web-search", "summarize", "claude-cli-llm", "slide-generator"],
+            "rnn": ["web-search", "summarize", "claude-cli-llm", "slide-generator"],
+            "cnn": ["web-search", "summarize", "claude-cli-llm", "slide-generator"],
+            "lstm": ["web-search", "summarize", "claude-cli-llm"],
+            "bert": ["web-search", "summarize", "claude-cli-llm"],
         }
 
         # Find matching skills
@@ -495,19 +481,38 @@ def find_skills_for_task_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         search_results = manifest.search_skills(task)
         for skill in search_results:
             matched_skills.add(skill.name)
-        
+
         # Search for composite/pipeline workflows in task
         # Check if task mentions multiple actions that suggest a composite workflow
         workflow_keywords = {
-            'research-to-notion': ['research', 'leads', 'competitor', 'document', 'notion'],
-            'meeting-intelligence-pipeline': ['meeting', 'analyze', 'prepare', 'materials', 'insights'],
-            'content-branding-pipeline': ['domain', 'brand', 'theme', 'content', 'create'],
-            'dev-workflow': ['changelog', 'skill', 'test', 'webapp', 'development'],
-            'media-production-pipeline': ['enhance', 'image', 'gif', 'design', 'media'],
-            'notion-knowledge-pipeline': ['knowledge', 'capture', 'research', 'implementation', 'plan'],
-            'product-launch-pipeline': ['launch', 'product', 'domain', 'competitor', 'leads', 'content']
+            "research-to-notion": ["research", "leads", "competitor", "document", "notion"],
+            "meeting-intelligence-pipeline": [
+                "meeting",
+                "analyze",
+                "prepare",
+                "materials",
+                "insights",
+            ],
+            "content-branding-pipeline": ["domain", "brand", "theme", "content", "create"],
+            "dev-workflow": ["changelog", "skill", "test", "webapp", "development"],
+            "media-production-pipeline": ["enhance", "image", "gif", "design", "media"],
+            "notion-knowledge-pipeline": [
+                "knowledge",
+                "capture",
+                "research",
+                "implementation",
+                "plan",
+            ],
+            "product-launch-pipeline": [
+                "launch",
+                "product",
+                "domain",
+                "competitor",
+                "leads",
+                "content",
+            ],
         }
-        
+
         # Check if task matches multiple keywords for a composite workflow
         task_lower = task.lower()
         for composite_name, keywords in workflow_keywords.items():
@@ -526,19 +531,16 @@ def find_skills_for_task_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         for skill_name in list(matched_skills)[:max_results]:
             skill = manifest.get_skill(skill_name)
             if skill:
-                results.append({
-                    "name": skill.name,
-                    "category": skill.category,
-                    "icon": skill.icon,
-                    "requires_auth": skill.requires_auth
-                })
+                results.append(
+                    {
+                        "name": skill.name,
+                        "category": skill.category,
+                        "icon": skill.icon,
+                        "requires_auth": skill.requires_auth,
+                    }
+                )
 
-        return {
-            "success": True,
-            "task": task,
-            "recommended_skills": results,
-            "total": len(results)
-        }
+        return {"success": True, "task": task, "recommended_skills": results, "total": len(results)}
 
     except Exception as e:
         logger.error(f"Failed to find skills: {e}")
@@ -554,17 +556,19 @@ def _infer_skills_from_task(task: str, manifest) -> set:
 
     # If task has technical acronyms or jargon, likely needs research
     has_acronym = any(word.isupper() and len(word) >= 2 for word in words)
-    has_comparison = any(w in task for w in ['vs', 'versus', 'or', 'and', 'compare'])
-    has_question = any(task.startswith(w) for w in ['what', 'how', 'why', 'when', 'where', 'which'])
+    has_comparison = any(w in task for w in ["vs", "versus", "or", "and", "compare"])
+    has_question = any(task.startswith(w) for w in ["what", "how", "why", "when", "where", "which"])
 
     if has_acronym or has_question:
-        inferred.update(['web-search', 'summarize', 'claude-cli-llm'])
+        inferred.update(["web-search", "summarize", "claude-cli-llm"])
 
     if has_comparison:
-        inferred.update(['web-search', 'summarize', 'claude-cli-llm', 'slide-generator'])
+        inferred.update(["web-search", "summarize", "claude-cli-llm", "slide-generator"])
 
     # Short tasks (< 5 words) with no clear action likely need research
-    if len(words) <= 5 and not any(w in task for w in ['create', 'make', 'send', 'generate', 'build']):
-        inferred.update(['web-search', 'claude-cli-llm'])
+    if len(words) <= 5 and not any(
+        w in task for w in ["create", "make", "send", "generate", "build"]
+    ):
+        inferred.update(["web-search", "claude-cli-llm"])
 
     return inferred

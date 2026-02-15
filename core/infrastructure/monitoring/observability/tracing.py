@@ -11,17 +11,18 @@ Provides observability for:
 Includes a lightweight Span/Trace/TracingContext layer that works without
 OpenTelemetry, plus optional OpenTelemetry export via JottyTracer.
 """
+
 from __future__ import annotations
 
+import logging
+import threading
+import time
+import uuid
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from enum import Enum
 from functools import wraps
-from typing import Optional, Dict, List, Any, Callable, Generator
-import threading
-import time
-import uuid
-import logging
+from typing import Any, Callable, Dict, Generator, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -30,8 +31,10 @@ logger = logging.getLogger(__name__)
 # SpanStatus enum
 # =============================================================================
 
+
 class SpanStatus(Enum):
     """Status of a tracing span."""
+
     UNSET = "unset"
     OK = "ok"
     ERROR = "error"
@@ -40,6 +43,7 @@ class SpanStatus(Enum):
 # =============================================================================
 # Span dataclass
 # =============================================================================
+
 
 def _new_span_id() -> str:
     return uuid.uuid4().hex[:16]
@@ -155,6 +159,7 @@ class Span:
 # Trace dataclass
 # =============================================================================
 
+
 @dataclass
 class Trace:
     """A collection of root spans forming a logical trace."""
@@ -186,6 +191,7 @@ class Trace:
     def span_count(self) -> int:
         def _count(span: Span) -> int:
             return 1 + sum(_count(c) for c in span.children)
+
         return sum(_count(s) for s in self.root_spans)
 
     def summary(self) -> str:
@@ -230,6 +236,7 @@ class Trace:
 # =============================================================================
 # TracingContext
 # =============================================================================
+
 
 class TracingContext:
     """
@@ -292,7 +299,9 @@ class TracingContext:
         """Add cost info to the currently active span (no-op if none active)."""
         active = self.get_active_span()
         if active is not None:
-            active.add_cost(input_tokens=input_tokens, output_tokens=output_tokens, cost_usd=cost_usd)
+            active.add_cost(
+                input_tokens=input_tokens, output_tokens=output_tokens, cost_usd=cost_usd
+            )
 
     @contextmanager
     def span(self, name: str, **attributes: Any) -> Generator[Span, None, None]:
@@ -338,9 +347,10 @@ class TracingContext:
 
 try:
     from opentelemetry import trace as otel_trace
-    from opentelemetry.sdk.trace import TracerProvider
-    from opentelemetry.sdk.trace.export import ConsoleSpanExporter, BatchSpanProcessor
     from opentelemetry.sdk.resources import Resource
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
+
     OTEL_AVAILABLE = True
 except ImportError:
     OTEL_AVAILABLE = False
@@ -348,6 +358,7 @@ except ImportError:
 
 class SpanWrapper:
     """Wrapper for OpenTelemetry spans to add custom methods."""
+
     def __init__(self, span: Any) -> None:
         self._span = span
 
@@ -359,15 +370,15 @@ class SpanWrapper:
         self._span.__exit__(*args)
 
     def set_attribute(self, key: str, value: Any) -> None:
-        if hasattr(self._span, 'set_attribute'):
+        if hasattr(self._span, "set_attribute"):
             self._span.set_attribute(key, value)
 
     def set_status(self, status: str, description: str = "") -> None:
-        if hasattr(self._span, 'set_status'):
+        if hasattr(self._span, "set_status"):
             self._span.set_status(status)
 
     def add_event(self, name: str, attributes: Optional[Dict] = None) -> None:
-        if hasattr(self._span, 'add_event'):
+        if hasattr(self._span, "add_event"):
             self._span.add_event(name, attributes=attributes)
 
     def add_cost(self, input_tokens: int, output_tokens: int, cost: float) -> None:
@@ -379,18 +390,34 @@ class SpanWrapper:
 
 class NoOpSpan:
     """No-op span when OpenTelemetry not available."""
-    def __enter__(self) -> Any: return self
-    def __exit__(self, *args: Any) -> None: pass
-    def set_attribute(self, key: str, value: Any) -> None: pass
-    def set_status(self, status: str, description: str = "") -> None: pass
-    def add_event(self, name: str, attributes: Optional[Dict] = None) -> None: pass
-    def add_cost(self, input_tokens: int, output_tokens: int, cost: float) -> None: pass
+
+    def __enter__(self) -> Any:
+        return self
+
+    def __exit__(self, *args: Any) -> None:
+        pass
+
+    def set_attribute(self, key: str, value: Any) -> None:
+        pass
+
+    def set_status(self, status: str, description: str = "") -> None:
+        pass
+
+    def add_event(self, name: str, attributes: Optional[Dict] = None) -> None:
+        pass
+
+    def add_cost(self, input_tokens: int, output_tokens: int, cost: float) -> None:
+        pass
 
 
 class NoOpTracer:
     """No-op tracer when OpenTelemetry not available."""
-    def start_span(self, name: str, **kwargs: Any) -> NoOpSpan: return NoOpSpan()
-    def start_as_current_span(self, name: str, **kwargs: Any) -> NoOpSpan: return NoOpSpan()
+
+    def start_span(self, name: str, **kwargs: Any) -> NoOpSpan:
+        return NoOpSpan()
+
+    def start_as_current_span(self, name: str, **kwargs: Any) -> NoOpSpan:
+        return NoOpSpan()
 
 
 class JottyTracer:
@@ -415,6 +442,7 @@ class JottyTracer:
 
     def trace(self, span_name: Optional[str] = None, **attributes: Any) -> Any:
         """Decorator for tracing functions."""
+
         def decorator(func: Callable) -> Callable:
             name = span_name or f"{func.__module__}.{func.__name__}"
 
@@ -422,48 +450,49 @@ class JottyTracer:
             def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
                 with self.tracer.start_as_current_span(name) as span:
                     for key, value in attributes.items():
-                        if hasattr(span, 'set_attribute'):
+                        if hasattr(span, "set_attribute"):
                             span.set_attribute(key, value)
                     start_time = time.time()
                     try:
                         result = func(*args, **kwargs)
-                        if hasattr(span, 'set_attribute'):
+                        if hasattr(span, "set_attribute"):
                             span.set_attribute("success", True)
                         return result
                     except Exception as e:
-                        if hasattr(span, 'set_attribute'):
+                        if hasattr(span, "set_attribute"):
                             span.set_attribute("success", False)
                             span.set_attribute("error.type", type(e).__name__)
                             span.set_attribute("error.message", str(e))
                         raise
                     finally:
                         duration = time.time() - start_time
-                        if hasattr(span, 'set_attribute'):
+                        if hasattr(span, "set_attribute"):
                             span.set_attribute("duration_ms", duration * 1000)
 
             @wraps(func)
             async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
                 with self.tracer.start_as_current_span(name) as span:
                     for key, value in attributes.items():
-                        if hasattr(span, 'set_attribute'):
+                        if hasattr(span, "set_attribute"):
                             span.set_attribute(key, value)
                     start_time = time.time()
                     try:
                         result = await func(*args, **kwargs)
-                        if hasattr(span, 'set_attribute'):
+                        if hasattr(span, "set_attribute"):
                             span.set_attribute("success", True)
                         return result
                     except Exception as e:
-                        if hasattr(span, 'set_attribute'):
+                        if hasattr(span, "set_attribute"):
                             span.set_attribute("success", False)
                             span.set_attribute("error.type", type(e).__name__)
                         raise
                     finally:
                         duration = time.time() - start_time
-                        if hasattr(span, 'set_attribute'):
+                        if hasattr(span, "set_attribute"):
                             span.set_attribute("duration_ms", duration * 1000)
 
             import asyncio
+
             return async_wrapper if asyncio.iscoroutinefunction(func) else sync_wrapper
 
         return decorator
@@ -515,14 +544,20 @@ def _get_jotty_tracer() -> JottyTracer:
 
 def trace_skill(skill_name: str) -> Any:
     """Decorator for tracing skill execution."""
-    return _get_jotty_tracer().trace(f"skill.{skill_name}", skill_name=skill_name, component="skill")
+    return _get_jotty_tracer().trace(
+        f"skill.{skill_name}", skill_name=skill_name, component="skill"
+    )
 
 
 def trace_agent(agent_name: str) -> Any:
     """Decorator for tracing agent execution."""
-    return _get_jotty_tracer().trace(f"agent.{agent_name}", agent_name=agent_name, component="agent")
+    return _get_jotty_tracer().trace(
+        f"agent.{agent_name}", agent_name=agent_name, component="agent"
+    )
 
 
 def trace_swarm(swarm_name: str) -> Any:
     """Decorator for tracing swarm execution."""
-    return _get_jotty_tracer().trace(f"swarm.{swarm_name}", swarm_name=swarm_name, component="swarm")
+    return _get_jotty_tracer().trace(
+        f"swarm.{swarm_name}", swarm_name=swarm_name, component="swarm"
+    )

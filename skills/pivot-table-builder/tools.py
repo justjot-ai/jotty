@@ -1,9 +1,10 @@
 """Pivot Table Builder Skill — create pivot tables (pure Python)."""
-import statistics
-from typing import Dict, Any, List, Callable
 
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+import statistics
+from typing import Any, Callable, Dict, List
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("pivot-table-builder")
 
@@ -78,15 +79,19 @@ def pivot_table_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     lines = [header, sep]
     for row_key in sorted(table.keys()):
         vals = " | ".join(
-            f"{table[row_key].get(c, 0):>{col_width}}" if isinstance(table[row_key].get(c, 0), int)
-            else f"{table[row_key].get(c, 0):>{col_width}.2f}"
+            (
+                f"{table[row_key].get(c, 0):>{col_width}}"
+                if isinstance(table[row_key].get(c, 0), int)
+                else f"{table[row_key].get(c, 0):>{col_width}.2f}"
+            )
             for c in all_cols
         )
         lines.append(f"{row_key:<{row_width}} | {vals}")
 
     formatted = "\n".join(lines)
-    return tool_response(table=table, formatted=formatted,
-                         rows=len(table), columns=len(all_cols), aggfunc=agg_name)
+    return tool_response(
+        table=table, formatted=formatted, rows=len(table), columns=len(all_cols), aggfunc=agg_name
+    )
 
 
 __all__ = ["pivot_table_tool"]

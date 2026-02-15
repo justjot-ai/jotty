@@ -17,6 +17,7 @@ Run: python -m Jotty.mcp.server_http
      JOTTY_MCP_TOKEN=secret python -m Jotty.mcp.server_http
 Env: JOTTY_MCP_TOKEN, JOTTY_GATEWAY_URL, MCP_HTTP_HOST (default 0.0.0.0), MCP_HTTP_PORT (default 8767)
 """
+
 import logging
 import os
 import sys
@@ -45,7 +46,7 @@ def _get_token_from_scope(scope: dict) -> str | None:
     headers = scope.get("headers") or []
     auth = None
     x_token = None
-    for (k, v) in headers:
+    for k, v in headers:
         if k == b"authorization":
             auth = v.decode("latin1").strip()
             break
@@ -58,6 +59,7 @@ def _get_token_from_scope(scope: dict) -> str | None:
 
 def _unauthorized(scope, receive, send, msg: str = "Missing or invalid token"):
     from starlette.responses import Response
+
     response = Response(msg, status_code=401, headers={"WWW-Authenticate": "Bearer"})
     return response(scope, receive, send)
 
@@ -70,7 +72,9 @@ async def _check_token_and_dispatch(scope, receive, send, next_app):
         token = _get_token_from_scope(scope)
         if token != JOTTY_MCP_TOKEN:
             await _unauthorized(
-                scope, receive, send,
+                scope,
+                receive,
+                send,
                 "Missing or invalid token (Authorization: Bearer <token> or X-MCP-Token: <token>)",
             )
             return
@@ -103,6 +107,7 @@ async def handle_sse_asgi(scope, receive, send):
             )
     except ValueError as e:
         from starlette.responses import Response
+
         msg = str(e)
         status = 400 if "validation" in msg.lower() or "request" in msg.lower() else 500
         response = Response(msg, status_code=status)
@@ -133,6 +138,7 @@ async def main_asgi(scope, receive, send):
         return
 
     from starlette.responses import Response
+
     response = Response(
         "Not Found. Use GET /sse and POST /messages/?session_id=...",
         status_code=404,

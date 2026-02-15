@@ -1,8 +1,11 @@
 """Generate open-source license text (MIT, Apache-2.0, GPL-3.0, BSD-2, ISC)."""
-from typing import Dict, Any
+
 from datetime import datetime
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from typing import Any, Dict
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
+
 status = SkillStatus("license-generator")
 
 _MIT = """MIT License

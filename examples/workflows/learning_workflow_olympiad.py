@@ -16,6 +16,7 @@ Total: 12+ stages, mixed auto/custom for complete olympiad preparation
 
 import asyncio
 from pathlib import Path
+
 from dotenv import load_dotenv
 
 # Load API key
@@ -24,14 +25,18 @@ load_dotenv(Path(__file__).parent.parent / "Jotty" / ".env.anthropic")
 
 async def main():
     from Jotty.core.modes.workflow import (
-        LearningWorkflow, LearningLevel, LearningDepth, Subject,
-        SwarmAdapter, MergeStrategy
+        LearningDepth,
+        LearningLevel,
+        LearningWorkflow,
+        MergeStrategy,
+        Subject,
+        SwarmAdapter,
     )
 
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("LEARNING WORKFLOW COMPLEX TEST")
     print("Olympiad-Level Number Theory Course for Competition Preparation")
-    print("="*80 + "\n")
+    print("=" * 80 + "\n")
 
     # ═══════════════════════════════════════════════════════════════════════
     # STEP 1: Start with Auto-Generation (Simple Intent)
@@ -47,22 +52,22 @@ async def main():
         depth="marathon",  # Full day workshop
         level="olympiad",  # Competition level
         deliverables=[
-            "curriculum",         # Auto: learning plan
-            "concepts",          # Auto: fundamental concepts
-            "intuition",         # Auto: intuitive understanding
-            "patterns",          # Will customize this
-            "examples",          # Auto: worked examples
-            "problems",          # Will replace this
-            "solutions",         # Auto: detailed solutions
-            "mistakes",          # Auto: common errors
-            "connections",       # Auto: links to other topics
-            "assessment",        # Auto: quizzes and tests
+            "curriculum",  # Auto: learning plan
+            "concepts",  # Auto: fundamental concepts
+            "intuition",  # Auto: intuitive understanding
+            "patterns",  # Will customize this
+            "examples",  # Auto: worked examples
+            "problems",  # Will replace this
+            "solutions",  # Auto: detailed solutions
+            "mistakes",  # Auto: common errors
+            "connections",  # Auto: links to other topics
+            "assessment",  # Auto: quizzes and tests
             "content_assembly",  # Will customize this
-            "pdf_generation",    # Auto: professional PDF
+            "pdf_generation",  # Auto: professional PDF
         ],
         output_formats=["pdf", "html"],
         send_telegram=True,
-        include_assessment=True
+        include_assessment=True,
     )
 
     print("✅ Created base workflow with 12 auto-generated stages\n")
@@ -134,7 +139,7 @@ async def main():
         - When it fails (limitations)
 
         Organize as "pattern library" for quick reference during competitions.
-        """
+        """,
     )
     print("✅ Customized 'patterns' stage with olympiad-specific techniques")
 
@@ -165,7 +170,7 @@ async def main():
         Ensure both formats are complementary:
         - PDF for offline study
         - HTML for interactive learning
-        """
+        """,
     )
     print("✅ Customized 'content_assembly' for interactive features\n")
 
@@ -177,8 +182,11 @@ async def main():
     print("-" * 80 + "\n")
 
     # Replace problems with specialized olympiad problem crafters
-    custom_problem_swarms = SwarmAdapter.quick_swarms([
-        ("IMO Problem Specialist", """Create 25 olympiad-level number theory problems.
+    custom_problem_swarms = SwarmAdapter.quick_swarms(
+        [
+            (
+                "IMO Problem Specialist",
+                """Create 25 olympiad-level number theory problems.
 
         Problem Distribution:
         - 5 Warm-up (AMC 10/12 level) - build confidence
@@ -210,9 +218,11 @@ async def main():
         Problems should be original or properly credited.
         Ensure variety in techniques required.
 
-        Max 4000 tokens."""),
-
-        ("Problem Difficulty Calibrator", """Verify and calibrate problem difficulty.
+        Max 4000 tokens.""",
+            ),
+            (
+                "Problem Difficulty Calibrator",
+                """Verify and calibrate problem difficulty.
 
         For problems from IMO Problem Specialist:
         1. Verify difficulty ratings are accurate
@@ -226,13 +236,16 @@ async def main():
         - Prerequisite problems (which earlier problems prepare for this)
         - Extension challenges (how to make harder)
 
-        Max 2000 tokens."""),
-    ], max_tokens=4000)
+        Max 2000 tokens.""",
+            ),
+        ],
+        max_tokens=4000,
+    )
 
     workflow.replace_stage(
         "problems",
         swarms=custom_problem_swarms,
-        merge_strategy=MergeStrategy.CONCATENATE  # Get both problem set and calibration
+        merge_strategy=MergeStrategy.CONCATENATE,  # Get both problem set and calibration
     )
     print("✅ Replaced 'problems' with specialized olympiad problem crafters\n")
 
@@ -244,8 +257,11 @@ async def main():
     print("-" * 80 + "\n")
 
     # Add competition strategies stage
-    competition_strategies_swarms = SwarmAdapter.quick_swarms([
-        ("Competition Coach", """Provide competition-specific strategies.
+    competition_strategies_swarms = SwarmAdapter.quick_swarms(
+        [
+            (
+                "Competition Coach",
+                """Provide competition-specific strategies.
 
         TIME MANAGEMENT:
         1. Problem Selection Strategy
@@ -295,20 +311,26 @@ async def main():
 
         Practical, actionable advice based on successful olympiad students.
 
-        Max 2500 tokens."""),
-    ], max_tokens=2500)
+        Max 2500 tokens.""",
+            ),
+        ],
+        max_tokens=2500,
+    )
 
     workflow.add_custom_stage(
         "competition_strategies",
         swarms=competition_strategies_swarms,
         merge_strategy=MergeStrategy.BEST_OF_N,
-        context_from=["patterns", "problems"]
+        context_from=["patterns", "problems"],
     )
     print("✅ Added 'competition_strategies' stage")
 
     # Add mental math tricks stage
-    mental_math_swarms = SwarmAdapter.quick_swarms([
-        ("Mental Math Expert", """Teach mental math tricks for number theory.
+    mental_math_swarms = SwarmAdapter.quick_swarms(
+        [
+            (
+                "Mental Math Expert",
+                """Teach mental math tricks for number theory.
 
         FAST CALCULATION TECHNIQUES:
 
@@ -353,20 +375,26 @@ async def main():
 
         Goal: Reduce calculation time by 50%+
 
-        Max 2000 tokens."""),
-    ], max_tokens=2000)
+        Max 2000 tokens.""",
+            ),
+        ],
+        max_tokens=2000,
+    )
 
     workflow.add_custom_stage(
         "mental_math_tricks",
         swarms=mental_math_swarms,
         merge_strategy=MergeStrategy.BEST_OF_N,
-        context_from=["patterns", "examples"]
+        context_from=["patterns", "examples"],
     )
     print("✅ Added 'mental_math_tricks' stage")
 
     # Add practice schedule stage
-    practice_schedule_swarms = SwarmAdapter.quick_swarms([
-        ("Study Planner", """Create personalized olympiad preparation schedule.
+    practice_schedule_swarms = SwarmAdapter.quick_swarms(
+        [
+            (
+                "Study Planner",
+                """Create personalized olympiad preparation schedule.
 
         TIMELINE: 6-month competition preparation
 
@@ -410,14 +438,17 @@ async def main():
 
         Realistic and sustainable for student life.
 
-        Max 2500 tokens."""),
-    ], max_tokens=2500)
+        Max 2500 tokens.""",
+            ),
+        ],
+        max_tokens=2500,
+    )
 
     workflow.add_custom_stage(
         "practice_schedule",
         swarms=practice_schedule_swarms,
         merge_strategy=MergeStrategy.BEST_OF_N,
-        context_from=["curriculum", "assessment"]
+        context_from=["curriculum", "assessment"],
     )
     print("✅ Added 'practice_schedule' stage\n")
 
@@ -444,9 +475,9 @@ async def main():
     # STEP 8: Analyze Results
     # ═══════════════════════════════════════════════════════════════════════
 
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("FINAL RESULTS - LEARNING WORKFLOW TEST")
-    print("="*80 + "\n")
+    print("=" * 80 + "\n")
 
     print("📊 Pipeline Composition:")
     print(f"   Total Stages: {len(result.stages)}")
@@ -457,7 +488,11 @@ async def main():
     custom_stages = 0
 
     for stage in result.stages:
-        if stage.stage_name in ["competition_strategies", "mental_math_tricks", "practice_schedule"]:
+        if stage.stage_name in [
+            "competition_strategies",
+            "mental_math_tricks",
+            "practice_schedule",
+        ]:
             custom_stages += 1
         elif stage.stage_name == "problems":
             replaced_stages += 1
@@ -523,9 +558,9 @@ async def main():
     print("   • All working together seamlessly")
     print()
 
-    print("="*80)
+    print("=" * 80)
     print("✅ LEARNING WORKFLOW TEST COMPLETE")
-    print("="*80)
+    print("=" * 80)
     print()
     print("🏆 Successfully demonstrated:")
     print("   Intent-based educational content + Full customization when needed")
@@ -540,5 +575,5 @@ async def main():
     print()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     asyncio.run(main())

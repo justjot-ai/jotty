@@ -9,45 +9,41 @@ Tests cover:
 All tests are unit tests with no external dependencies or LLM calls.
 """
 
-import json
 import hashlib
-import pytest
+import json
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
-from typing import Dict, Any
+from typing import Any, Dict
+from unittest.mock import MagicMock, Mock, patch
 
-from Jotty.core.intelligence.swarms.swarm_types import (
-    AgentRole,
-    EvaluationResult,
-    ImprovementType,
-    GoldStandard,
-    Evaluation,
-    ImprovementSuggestion,
-    SwarmAgentConfig,
-    ExecutionTrace,
-    SwarmBaseConfig,
-    SwarmResult,
-    _split_field,
-    _safe_join,
-    _safe_num,
-)
+import pytest
 
 from Jotty.core.intelligence.swarms.evaluation import (
+    EvaluationHistory,
     GoldStandardDB,
     ImprovementHistory,
-    EvaluationHistory,
 )
-
-from Jotty.core.intelligence.swarms.registry import (
-    SwarmRegistry,
-    register_swarm,
+from Jotty.core.intelligence.swarms.registry import SwarmRegistry, register_swarm
+from Jotty.core.intelligence.swarms.swarm_types import (
+    AgentRole,
+    Evaluation,
+    EvaluationResult,
+    ExecutionTrace,
+    GoldStandard,
+    ImprovementSuggestion,
+    ImprovementType,
+    SwarmAgentConfig,
+    SwarmBaseConfig,
+    SwarmResult,
+    _safe_join,
+    _safe_num,
+    _split_field,
 )
-
 
 # =============================================================================
 # Enum Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestAgentRole:
@@ -142,6 +138,7 @@ class TestImprovementType:
 # GoldStandard Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestGoldStandard:
     """Test GoldStandard dataclass."""
@@ -216,6 +213,7 @@ class TestGoldStandard:
 # Evaluation Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestEvaluation:
     """Test Evaluation dataclass."""
@@ -284,6 +282,7 @@ class TestEvaluation:
 # ImprovementSuggestion Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestImprovementSuggestion:
     """Test ImprovementSuggestion dataclass."""
@@ -340,11 +339,12 @@ class TestImprovementSuggestion:
 # SwarmAgentConfig Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestSwarmAgentConfig:
     """Test SwarmAgentConfig dataclass with __post_init__ defaults."""
 
-    @patch('Jotty.core.foundation.config_defaults.DEFAULTS')
+    @patch("Jotty.core.foundation.config_defaults.DEFAULTS")
     def test_creation_with_defaults_resolution(self, mock_defaults):
         """Test __post_init__ resolves sentinel defaults."""
         mock_defaults.DEFAULT_MODEL_ALIAS = "claude-3-5-sonnet-20241022"
@@ -359,7 +359,7 @@ class TestSwarmAgentConfig:
         assert config.temperature == 0.7
         assert config.max_tokens == 4096
 
-    @patch('Jotty.core.foundation.config_defaults.DEFAULTS')
+    @patch("Jotty.core.foundation.config_defaults.DEFAULTS")
     def test_creation_with_explicit_values(self, mock_defaults):
         """Test explicit values are not overridden."""
         mock_defaults.DEFAULT_MODEL_ALIAS = "claude-3-5-sonnet-20241022"
@@ -377,7 +377,7 @@ class TestSwarmAgentConfig:
         assert config.temperature == 0.5
         assert config.max_tokens == 2000
 
-    @patch('Jotty.core.foundation.config_defaults.DEFAULTS')
+    @patch("Jotty.core.foundation.config_defaults.DEFAULTS")
     def test_empty_string_model_resolved(self, mock_defaults):
         """Test empty string model is resolved to default."""
         mock_defaults.DEFAULT_MODEL_ALIAS = "default-model"
@@ -391,7 +391,7 @@ class TestSwarmAgentConfig:
         )
         assert config.model == "default-model"
 
-    @patch('Jotty.core.foundation.config_defaults.DEFAULTS')
+    @patch("Jotty.core.foundation.config_defaults.DEFAULTS")
     def test_zero_temperature_resolved(self, mock_defaults):
         """Test 0.0 temperature is resolved to default."""
         mock_defaults.DEFAULT_MODEL_ALIAS = "model"
@@ -405,7 +405,7 @@ class TestSwarmAgentConfig:
         )
         assert config.temperature == 0.8
 
-    @patch('Jotty.core.foundation.config_defaults.DEFAULTS')
+    @patch("Jotty.core.foundation.config_defaults.DEFAULTS")
     def test_zero_max_tokens_resolved(self, mock_defaults):
         """Test 0 max_tokens is resolved to default."""
         mock_defaults.DEFAULT_MODEL_ALIAS = "model"
@@ -419,7 +419,7 @@ class TestSwarmAgentConfig:
         )
         assert config.max_tokens == 8192
 
-    @patch('Jotty.core.foundation.config_defaults.DEFAULTS')
+    @patch("Jotty.core.foundation.config_defaults.DEFAULTS")
     def test_negative_max_tokens_resolved(self, mock_defaults):
         """Test negative max_tokens is resolved to default."""
         mock_defaults.DEFAULT_MODEL_ALIAS = "model"
@@ -433,7 +433,7 @@ class TestSwarmAgentConfig:
         )
         assert config.max_tokens == 4096
 
-    @patch('Jotty.core.foundation.config_defaults.DEFAULTS')
+    @patch("Jotty.core.foundation.config_defaults.DEFAULTS")
     def test_with_tools_and_parameters(self, mock_defaults):
         """Test config with tools and parameters."""
         mock_defaults.DEFAULT_MODEL_ALIAS = "model"
@@ -450,7 +450,7 @@ class TestSwarmAgentConfig:
         assert config.parameters["param1"] == "value1"
         assert config.parameters["param2"] == 42
 
-    @patch('Jotty.core.foundation.config_defaults.DEFAULTS')
+    @patch("Jotty.core.foundation.config_defaults.DEFAULTS")
     def test_with_system_prompt(self, mock_defaults):
         """Test config with system prompt."""
         mock_defaults.DEFAULT_MODEL_ALIAS = "model"
@@ -464,7 +464,7 @@ class TestSwarmAgentConfig:
         )
         assert config.system_prompt == "You are a helpful assistant"
 
-    @patch('Jotty.core.foundation.config_defaults.DEFAULTS')
+    @patch("Jotty.core.foundation.config_defaults.DEFAULTS")
     def test_version_field(self, mock_defaults):
         """Test version field."""
         mock_defaults.DEFAULT_MODEL_ALIAS = "model"
@@ -482,6 +482,7 @@ class TestSwarmAgentConfig:
 # =============================================================================
 # ExecutionTrace Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestExecutionTrace:
@@ -576,6 +577,7 @@ class TestExecutionTrace:
 # SwarmBaseConfig Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestSwarmBaseConfig:
     """Test SwarmBaseConfig dataclass."""
@@ -646,6 +648,7 @@ class TestSwarmBaseConfig:
 # =============================================================================
 # SwarmResult Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestSwarmResult:
@@ -781,6 +784,7 @@ class TestSwarmResult:
 # Utility Function Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestSplitField:
     """Test _split_field utility function."""
@@ -821,11 +825,13 @@ class TestSplitField:
 
     def test_split_list_of_dicts(self):
         """Test splitting list with dict items."""
-        result = _split_field([
-            {"name": "item1"},
-            {"name": "item2"},
-            {"other": "value"},
-        ])
+        result = _split_field(
+            [
+                {"name": "item1"},
+                {"name": "item2"},
+                {"other": "value"},
+            ]
+        )
         assert "item1" in result
         assert "item2" in result
 
@@ -936,6 +942,7 @@ class TestSafeNum:
 # GoldStandardDB Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestGoldStandardDB:
     """Test GoldStandardDB class."""
@@ -1022,16 +1029,28 @@ class TestGoldStandardDB:
         """Test finding gold standards by domain."""
         db = GoldStandardDB(path=str(tmp_path))
         gs1 = GoldStandard(
-            id="gs1", domain="coding", task_type="task",
-            input_data={}, expected_output={}, evaluation_criteria={}
+            id="gs1",
+            domain="coding",
+            task_type="task",
+            input_data={},
+            expected_output={},
+            evaluation_criteria={},
         )
         gs2 = GoldStandard(
-            id="gs2", domain="research", task_type="task",
-            input_data={}, expected_output={}, evaluation_criteria={}
+            id="gs2",
+            domain="research",
+            task_type="task",
+            input_data={},
+            expected_output={},
+            evaluation_criteria={},
         )
         gs3 = GoldStandard(
-            id="gs3", domain="coding", task_type="task",
-            input_data={}, expected_output={}, evaluation_criteria={}
+            id="gs3",
+            domain="coding",
+            task_type="task",
+            input_data={},
+            expected_output={},
+            evaluation_criteria={},
         )
         db.add(gs1)
         db.add(gs2)
@@ -1049,8 +1068,12 @@ class TestGoldStandardDB:
         """Test finding similar gold standard."""
         db = GoldStandardDB(path=str(tmp_path))
         gs = GoldStandard(
-            id="similar", domain="test", task_type="similar_task",
-            input_data={}, expected_output={}, evaluation_criteria={}
+            id="similar",
+            domain="test",
+            task_type="similar_task",
+            input_data={},
+            expected_output={},
+            evaluation_criteria={},
         )
         db.add(gs)
         result = db.find_similar("similar_task", {})
@@ -1067,8 +1090,12 @@ class TestGoldStandardDB:
         db = GoldStandardDB(path=str(tmp_path))
         for i in range(5):
             gs = GoldStandard(
-                id=f"gs{i}", domain="test", task_type="task",
-                input_data={}, expected_output={}, evaluation_criteria={}
+                id=f"gs{i}",
+                domain="test",
+                task_type="task",
+                input_data={},
+                expected_output={},
+                evaluation_criteria={},
             )
             db.add(gs)
         all_standards = db.list_all()
@@ -1102,6 +1129,7 @@ class TestGoldStandardDB:
 # =============================================================================
 # ImprovementHistory Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestImprovementHistory:
@@ -1331,6 +1359,7 @@ class TestImprovementHistory:
 # EvaluationHistory Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestEvaluationHistory:
     """Test EvaluationHistory class."""
@@ -1492,6 +1521,7 @@ class TestEvaluationHistory:
 # SwarmRegistry Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestSwarmRegistry:
     """Test SwarmRegistry class."""
@@ -1572,6 +1602,7 @@ class TestSwarmRegistry:
 
     def test_decorator_registers_swarm(self):
         """Test register_swarm decorator."""
+
         @register_swarm("decorated_swarm")
         class TestSwarm:
             pass
@@ -1581,6 +1612,7 @@ class TestSwarmRegistry:
 
     def test_decorator_returns_class(self):
         """Test decorator returns the class unchanged."""
+
         @register_swarm("my_swarm")
         class MySwarm:
             def method(self):
@@ -1644,6 +1676,7 @@ class TestSwarmRegistryEdgeCases:
 # =============================================================================
 # Integration Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestSwarmTypesIntegration:

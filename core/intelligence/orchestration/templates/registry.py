@@ -23,10 +23,11 @@ Usage:
     TemplateRegistry.register(MyCustomTemplate)
 """
 
-from typing import Dict, List, Type, Optional, Any
+import logging
+from typing import Any, Dict, List, Optional, Type
+
 import numpy as np
 import pandas as pd
-import logging
 
 from .base import SwarmTemplate
 
@@ -111,7 +112,9 @@ class TemplateRegistry:
         problem_type = cls._detect_problem_type(y)
         has_temporal = cls._detect_temporal(X)
 
-        logger.info(f"Auto-detect: data_type={data_type}, problem_type={problem_type}, temporal={has_temporal}")
+        logger.info(
+            f"Auto-detect: data_type={data_type}, problem_type={problem_type}, temporal={has_temporal}"
+        )
 
         # Decision tree for template selection
         if data_type == "image":
@@ -139,14 +142,16 @@ class TemplateRegistry:
         templates = []
         for name, template_class in cls._templates.items():
             instance = template_class()
-            templates.append({
-                'name': name,
-                'version': instance.version,
-                'description': instance.description,
-                'supported_problems': instance.supported_problem_types,
-                'agent_count': len(instance.agents),
-                'stage_count': len(instance.pipeline),
-            })
+            templates.append(
+                {
+                    "name": name,
+                    "version": instance.version,
+                    "description": instance.description,
+                    "supported_problems": instance.supported_problem_types,
+                    "agent_count": len(instance.agents),
+                    "stage_count": len(instance.pipeline),
+                }
+            )
 
         return templates
 
@@ -159,6 +164,7 @@ class TemplateRegistry:
         # Import and register built-in templates
         try:
             from .swarm_ml import SwarmML
+
             cls.register(SwarmML, "ml")
             cls.register(SwarmML, "swarmml")
         except ImportError as e:
@@ -167,6 +173,7 @@ class TemplateRegistry:
         # SwarmMLComprehensive - Learning-enhanced ML
         try:
             from .swarm_ml_comprehensive import SwarmMLComprehensive
+
             cls.register(SwarmMLComprehensive, "ml_comprehensive")
             cls.register(SwarmMLComprehensive, "ml_learning")
             cls.register(SwarmMLComprehensive, "swarmmlcomprehensive")
@@ -176,6 +183,7 @@ class TemplateRegistry:
         # SwarmLean - Claude Code-like simple execution
         try:
             from .swarm_lean import SwarmLean
+
             cls.register(SwarmLean, "lean")
             cls.register(SwarmLean, "swarmlean")
         except ImportError as e:
@@ -184,6 +192,7 @@ class TemplateRegistry:
         # SwarmScience - World-class science teaching (building blocks to Olympiad)
         try:
             from .swarm_science import SwarmScience
+
             cls.register(SwarmScience, "science")
             cls.register(SwarmScience, "swarmscience")
         except ImportError as e:
@@ -209,14 +218,14 @@ class TemplateRegistry:
 
         # Check if it's a path to images
         if isinstance(X, str):
-            if any(ext in X.lower() for ext in ['.jpg', '.png', '.jpeg', 'image']):
+            if any(ext in X.lower() for ext in [".jpg", ".png", ".jpeg", "image"]):
                 return "image"
             return "tabular"
 
         # Check if DataFrame
         if isinstance(X, pd.DataFrame):
             # Check for text columns
-            text_cols = X.select_dtypes(include=['object']).columns
+            text_cols = X.select_dtypes(include=["object"]).columns
             if len(text_cols) > 0:
                 # Check if text columns have long strings (likely NLP)
                 for col in text_cols:
@@ -266,12 +275,12 @@ class TemplateRegistry:
         """Detect if data has temporal patterns."""
         if isinstance(X, pd.DataFrame):
             # Check for datetime columns
-            datetime_cols = X.select_dtypes(include=['datetime64']).columns
+            datetime_cols = X.select_dtypes(include=["datetime64"]).columns
             if len(datetime_cols) > 0:
                 return True
 
             # Check for common time column names
-            time_keywords = ['date', 'time', 'timestamp', 'datetime', 'day', 'month', 'year']
+            time_keywords = ["date", "time", "timestamp", "datetime", "day", "month", "year"]
             for col in X.columns:
                 if any(kw in col.lower() for kw in time_keywords):
                     return True

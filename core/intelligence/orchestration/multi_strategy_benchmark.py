@@ -7,18 +7,21 @@ High-level utility for comparing multiple merge strategies automatically.
 Reduces boilerplate for common benchmarking scenarios.
 """
 
-from typing import List, Dict, Any, Optional
-from dataclasses import dataclass, field
 import time
-from .multi_swarm_coordinator import MultiSwarmCoordinator, SwarmResult, MergeStrategy
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional
+
 from Jotty.core.infrastructure.monitoring.observability import get_distributed_tracer
-from ..learning import get_cost_aware_td_lambda
+
 from ...infrastructure.monitoring.safety import get_adaptive_threshold_manager
+from ..learning import get_cost_aware_td_lambda
+from .multi_swarm_coordinator import MergeStrategy, MultiSwarmCoordinator, SwarmResult
 
 
 @dataclass
 class StrategyResult:
     """Result from a single strategy execution."""
+
     strategy: MergeStrategy
     strategy_name: str
     result: SwarmResult
@@ -31,6 +34,7 @@ class StrategyResult:
 @dataclass
 class BenchmarkResults:
     """Results from multi-strategy benchmark."""
+
     task: str
     num_swarms: int
     results: List[StrategyResult]
@@ -41,9 +45,9 @@ class BenchmarkResults:
 
     def print_summary(self, verbose: bool = True) -> Any:
         """Print formatted benchmark summary."""
-        print("\n" + "="*80)
+        print("\n" + "=" * 80)
         print("MULTI-STRATEGY BENCHMARK RESULTS")
-        print("="*80 + "\n")
+        print("=" * 80 + "\n")
 
         print(f"📋 Task: {self.task[:80]}...")
         print(f"🧠 Swarms: {self.num_swarms}")
@@ -69,16 +73,20 @@ class BenchmarkResults:
         print(f"{'Strategy':<15} {'Success':<8} {'Confidence':<12} {'Cost':<12} {'Time (s)':<10}")
         print(f"{'-'*60}")
         for r in self.results:
-            print(f"{r.strategy_name:<15} "
-                  f"{'✓' if r.result.success else '✗':<8} "
-                  f"{r.result.confidence:<12.2f} "
-                  f"${r.cost:<11.6f} "
-                  f"{r.execution_time:<10.2f}")
+            print(
+                f"{r.strategy_name:<15} "
+                f"{'✓' if r.result.success else '✗':<8} "
+                f"{r.result.confidence:<12.2f} "
+                f"${r.cost:<11.6f} "
+                f"{r.execution_time:<10.2f}"
+            )
         print()
 
         # Best strategy
         print(f"🎯 Best Strategy: {self.best_strategy.strategy_name}")
-        print(f"   Cost-effectiveness: ${self.best_strategy.cost:.6f} / {self.best_strategy.result.confidence:.2f} confidence")
+        print(
+            f"   Cost-effectiveness: ${self.best_strategy.cost:.6f} / {self.best_strategy.result.confidence:.2f} confidence"
+        )
         print()
 
         if verbose:
@@ -105,7 +113,13 @@ class MultiStrategyBenchmark:
         results.print_summary()
     """
 
-    def __init__(self, swarms: List[Any], task: str, strategies: Optional[List[MergeStrategy]] = None, coordinator: Optional[MultiSwarmCoordinator] = None) -> None:
+    def __init__(
+        self,
+        swarms: List[Any],
+        task: str,
+        strategies: Optional[List[MergeStrategy]] = None,
+        coordinator: Optional[MultiSwarmCoordinator] = None,
+    ) -> None:
         """
         Initialize benchmark.
 
@@ -131,7 +145,7 @@ class MultiStrategyBenchmark:
         auto_trace: bool = True,
         auto_learn: bool = True,
         auto_threshold: bool = True,
-        verbose: bool = True
+        verbose: bool = True,
     ) -> BenchmarkResults:
         """
         Run benchmark across all strategies.
@@ -173,7 +187,9 @@ class MultiStrategyBenchmark:
                     print(f"▶ Testing {strategy_name}...")
 
                 # Nested trace for strategy
-                strategy_trace_ctx = tracer.trace(f"strategy_{strategy_name.lower()}") if tracer else None
+                strategy_trace_ctx = (
+                    tracer.trace(f"strategy_{strategy_name.lower()}") if tracer else None
+                )
                 strategy_trace_id = strategy_trace_ctx.__enter__() if strategy_trace_ctx else None
 
                 try:
@@ -181,13 +197,11 @@ class MultiStrategyBenchmark:
 
                     # Execute
                     result = await self.coordinator.execute_parallel(
-                        swarms=self.swarms,
-                        task=self.task,
-                        merge_strategy=strategy
+                        swarms=self.swarms, task=self.task, merge_strategy=strategy
                     )
 
                     execution_time = time.time() - start_time
-                    cost = result.metadata.get('cost_usd', 0.0)
+                    cost = result.metadata.get("cost_usd", 0.0)
                     total_cost += cost
 
                     # Auto-learning
@@ -197,7 +211,7 @@ class MultiStrategyBenchmark:
                             action={"merge_strategy": strategy_name},
                             reward=1.0 if result.success else 0.0,
                             next_state={"completed": True},
-                            cost_usd=cost
+                            cost_usd=cost,
                         )
 
                     # Auto-threshold tracking
@@ -207,22 +221,26 @@ class MultiStrategyBenchmark:
                             f"swarm_cost_{strategy_name.lower()}",
                             cost_per_swarm,
                             cost_per_swarm > 0.01,
-                            0.01
+                            0.01,
                         )
 
-                    results.append(StrategyResult(
-                        strategy=strategy,
-                        strategy_name=strategy_name,
-                        result=result,
-                        execution_time=execution_time,
-                        cost=cost,
-                        trace_id=strategy_trace_id,
-                        metadata={"auto_trace": auto_trace, "auto_learn": auto_learn}
-                    ))
+                    results.append(
+                        StrategyResult(
+                            strategy=strategy,
+                            strategy_name=strategy_name,
+                            result=result,
+                            execution_time=execution_time,
+                            cost=cost,
+                            trace_id=strategy_trace_id,
+                            metadata={"auto_trace": auto_trace, "auto_learn": auto_learn},
+                        )
+                    )
 
                     if verbose:
-                        print(f"  ✓ {strategy_name}: {result.confidence:.2f} confidence, "
-                              f"${cost:.6f}, {execution_time:.2f}s\n")
+                        print(
+                            f"  ✓ {strategy_name}: {result.confidence:.2f} confidence, "
+                            f"${cost:.6f}, {execution_time:.2f}s\n"
+                        )
 
                 finally:
                     if strategy_trace_ctx:
@@ -247,12 +265,14 @@ class MultiStrategyBenchmark:
             total_cost=total_cost,
             total_time=total_time,
             speedup=speedup,
-            best_strategy=best
+            best_strategy=best,
         )
 
 
 # Facade function
-def benchmark_strategies(swarms: List[Any], task: str, strategies: Optional[List[MergeStrategy]] = None, **kwargs: Any) -> 'MultiStrategyBenchmark':
+def benchmark_strategies(
+    swarms: List[Any], task: str, strategies: Optional[List[MergeStrategy]] = None, **kwargs: Any
+) -> "MultiStrategyBenchmark":
     """
     Quick function to create a benchmark.
 

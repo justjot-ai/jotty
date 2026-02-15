@@ -1,4 +1,5 @@
 from typing import Any
+
 """
 Idea Writer Swarm - World-Class Content Generation with Section Registry
 =========================================================================
@@ -53,21 +54,20 @@ Date: February 2026
 """
 
 import asyncio
-import logging
 import json
-import dspy
-from typing import Dict, Any, Optional, List, Type
+import logging
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from abc import ABC, abstractmethod
+from typing import Any, Dict, List, Optional, Type
 
-from .base_swarm import (
-    SwarmBaseConfig, SwarmResult, AgentRole,
-    register_swarm,
-)
-from .base import DomainSwarm, AgentTeam, _split_field
+import dspy
+
+from Jotty.core.modes.agent.base import BaseSwarmAgent, DomainAgent, DomainAgentConfig
+
+from .base import AgentTeam, DomainSwarm, _split_field
+from .base_swarm import AgentRole, SwarmBaseConfig, SwarmResult, register_swarm
 from .swarm_signatures import IdeaWriterSwarmSignature
-from Jotty.core.modes.agent.base import DomainAgent, DomainAgentConfig, BaseSwarmAgent
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +75,7 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
+
 
 class ContentType(Enum):
     ARTICLE = "article"
@@ -103,6 +104,7 @@ class OutputFormat(Enum):
 @dataclass
 class WriterConfig(SwarmBaseConfig):
     """Configuration for IdeaWriterSwarm."""
+
     content_type: ContentType = ContentType.ARTICLE
     tone: Tone = Tone.PROFESSIONAL
     output_format: OutputFormat = OutputFormat.MARKDOWN
@@ -121,17 +123,19 @@ class WriterConfig(SwarmBaseConfig):
 @dataclass
 class Section:
     """A content section."""
+
     name: str
     title: str
     content: str
     word_count: int = 0
     sources: List[str] = field(default_factory=list)
-    subsections: List['Section'] = field(default_factory=list)
+    subsections: List["Section"] = field(default_factory=list)
 
 
 @dataclass
 class Outline:
     """Content outline."""
+
     title: str
     thesis: str
     sections: List[Dict[str, Any]]
@@ -142,6 +146,7 @@ class Outline:
 @dataclass
 class ContentResult:
     """Content generation result."""
+
     title: str
     content: str
     sections: List[Section]
@@ -154,6 +159,7 @@ class ContentResult:
 @dataclass
 class WriterResult(SwarmResult):
     """Result from IdeaWriterSwarm."""
+
     content: Optional[ContentResult] = None
     title: str = ""
     word_count: int = 0
@@ -165,6 +171,7 @@ class WriterResult(SwarmResult):
 # =============================================================================
 # SECTION REGISTRY
 # =============================================================================
+
 
 class SectionWriter(ABC):
     """Base class for section writers."""
@@ -179,11 +186,7 @@ class SectionWriter(ABC):
 
     @abstractmethod
     async def write(
-        self,
-        topic: str,
-        context: Dict[str, Any],
-        research: Dict[str, Any],
-        config: WriterConfig
+        self, topic: str, context: Dict[str, Any], research: Dict[str, Any], config: WriterConfig
     ) -> Section:
         """Write the section content."""
         pass
@@ -201,10 +204,12 @@ class SectionRegistry:
     @classmethod
     def register(cls, section_type: str) -> Any:
         """Decorator to register a section writer."""
+
         def decorator(writer_class: Type[SectionWriter]) -> Any:
             cls._writers[section_type] = writer_class
             writer_class.section_type = section_type
             return writer_class
+
         return decorator
 
     @classmethod
@@ -218,7 +223,9 @@ class SectionRegistry:
         return list(cls._writers.keys())
 
     @classmethod
-    def create(cls, section_type: str, memory: Any = None, context: Any = None, bus: Any = None) -> Optional[SectionWriter]:
+    def create(
+        cls, section_type: str, memory: Any = None, context: Any = None, bus: Any = None
+    ) -> Optional[SectionWriter]:
         """Create a section writer instance."""
         writer_class = cls.get(section_type)
         if writer_class:
@@ -229,6 +236,7 @@ class SectionRegistry:
 # =============================================================================
 # DSPy SIGNATURES
 # =============================================================================
+
 
 class OutlineGenerationSignature(dspy.Signature):
     """Generate content outline.
@@ -242,6 +250,7 @@ class OutlineGenerationSignature(dspy.Signature):
 
     Make the outline comprehensive but focused.
     """
+
     topic: str = dspy.InputField(desc="Main topic or idea")
     content_type: str = dspy.InputField(desc="Type of content: article, report, etc.")
     audience: str = dspy.InputField(desc="Target audience")
@@ -266,6 +275,7 @@ class ResearchSignature(dspy.Signature):
 
     Provide well-sourced, accurate information.
     """
+
     topic: str = dspy.InputField(desc="Topic to research")
     outline: str = dspy.InputField(desc="Content outline for context")
     depth: str = dspy.InputField(desc="Research depth: surface, moderate, deep")
@@ -288,6 +298,7 @@ class IntroductionSignature(dspy.Signature):
 
     Make it compelling and concise.
     """
+
     topic: str = dspy.InputField(desc="Topic")
     thesis: str = dspy.InputField(desc="Main thesis")
     tone: str = dspy.InputField(desc="Writing tone")
@@ -310,6 +321,7 @@ class BodySectionSignature(dspy.Signature):
 
     Balance depth with readability.
     """
+
     section_title: str = dspy.InputField(desc="Section title")
     key_points: str = dspy.InputField(desc="Key points to cover")
     research: str = dspy.InputField(desc="Relevant research")
@@ -332,6 +344,7 @@ class ConclusionSignature(dspy.Signature):
 
     Leave a lasting impression.
     """
+
     topic: str = dspy.InputField(desc="Topic")
     thesis: str = dspy.InputField(desc="Main thesis")
     key_points: str = dspy.InputField(desc="Key points covered")
@@ -354,6 +367,7 @@ class ContentPolishSignature(dspy.Signature):
 
     Make it publication-ready.
     """
+
     content: str = dspy.InputField(desc="Draft content")
     tone: str = dspy.InputField(desc="Desired tone")
     audience: str = dspy.InputField(desc="Target audience")
@@ -367,6 +381,7 @@ class ContentPolishSignature(dspy.Signature):
 # BUILT-IN SECTION WRITERS
 # =============================================================================
 
+
 @SectionRegistry.register("introduction")
 class IntroductionWriter(SectionWriter):
     """Writes engaging introductions."""
@@ -379,20 +394,16 @@ class IntroductionWriter(SectionWriter):
         self._writer = dspy.ChainOfThought(IntroductionSignature)
 
     async def write(
-        self,
-        topic: str,
-        context: Dict[str, Any],
-        research: Dict[str, Any],
-        config: WriterConfig
+        self, topic: str, context: Dict[str, Any], research: Dict[str, Any], config: WriterConfig
     ) -> Section:
         """Write introduction."""
         try:
             result = self._writer(
                 topic=topic,
-                thesis=context.get('thesis', ''),
+                thesis=context.get("thesis", ""),
                 tone=config.tone.value,
                 audience=config.audience,
-                research=json.dumps(research)
+                research=json.dumps(research),
             )
 
             content = f"## Introduction\n\n{result.introduction}"
@@ -401,7 +412,7 @@ class IntroductionWriter(SectionWriter):
                 name="introduction",
                 title="Introduction",
                 content=content,
-                word_count=len(content.split())
+                word_count=len(content.split()),
             )
 
         except Exception as e:
@@ -421,31 +432,27 @@ class BodySectionWriter(SectionWriter):
         self._writer = dspy.ChainOfThought(BodySectionSignature)
 
     async def write(
-        self,
-        topic: str,
-        context: Dict[str, Any],
-        research: Dict[str, Any],
-        config: WriterConfig
+        self, topic: str, context: Dict[str, Any], research: Dict[str, Any], config: WriterConfig
     ) -> Section:
         """Write body section."""
         try:
-            section_info = context.get('section_info', {})
+            section_info = context.get("section_info", {})
             result = self._writer(
-                section_title=section_info.get('title', topic),
-                key_points=json.dumps(section_info.get('key_points', [])),
+                section_title=section_info.get("title", topic),
+                key_points=json.dumps(section_info.get("key_points", [])),
                 research=json.dumps(research),
                 tone=config.tone.value,
-                context=json.dumps(context.get('previous_sections', []))
+                context=json.dumps(context.get("previous_sections", [])),
             )
 
-            title = section_info.get('title', 'Section')
+            title = section_info.get("title", "Section")
             content = f"## {title}\n\n{result.content}"
 
             return Section(
-                name=section_info.get('name', 'body'),
+                name=section_info.get("name", "body"),
                 title=title,
                 content=content,
-                word_count=len(content.split())
+                word_count=len(content.split()),
             )
 
         except Exception as e:
@@ -465,19 +472,15 @@ class ConclusionWriter(SectionWriter):
         self._writer = dspy.ChainOfThought(ConclusionSignature)
 
     async def write(
-        self,
-        topic: str,
-        context: Dict[str, Any],
-        research: Dict[str, Any],
-        config: WriterConfig
+        self, topic: str, context: Dict[str, Any], research: Dict[str, Any], config: WriterConfig
     ) -> Section:
         """Write conclusion."""
         try:
             result = self._writer(
                 topic=topic,
-                thesis=context.get('thesis', ''),
-                key_points=json.dumps(context.get('key_points', [])),
-                tone=config.tone.value
+                thesis=context.get("thesis", ""),
+                key_points=json.dumps(context.get("key_points", [])),
+                tone=config.tone.value,
             )
 
             content = f"## Conclusion\n\n{result.conclusion}"
@@ -488,7 +491,7 @@ class ConclusionWriter(SectionWriter):
                 name="conclusion",
                 title="Conclusion",
                 content=content,
-                word_count=len(content.split())
+                word_count=len(content.split()),
             )
 
         except Exception as e:
@@ -508,25 +511,23 @@ class MarketAnalysisWriter(SectionWriter):
         self._writer = dspy.ChainOfThought(BodySectionSignature)
 
     async def write(
-        self,
-        topic: str,
-        context: Dict[str, Any],
-        research: Dict[str, Any],
-        config: WriterConfig
+        self, topic: str, context: Dict[str, Any], research: Dict[str, Any], config: WriterConfig
     ) -> Section:
         """Write market analysis."""
         try:
             result = self._writer(
                 section_title=f"Market Analysis: {topic}",
-                key_points=json.dumps([
-                    "Market size and growth",
-                    "Key players",
-                    "Trends and drivers",
-                    "Challenges and opportunities"
-                ]),
+                key_points=json.dumps(
+                    [
+                        "Market size and growth",
+                        "Key players",
+                        "Trends and drivers",
+                        "Challenges and opportunities",
+                    ]
+                ),
                 research=json.dumps(research),
                 tone=config.tone.value,
-                context=""
+                context="",
             )
 
             content = f"## Market Analysis\n\n{result.content}"
@@ -535,7 +536,7 @@ class MarketAnalysisWriter(SectionWriter):
                 name="market_analysis",
                 title="Market Analysis",
                 content=content,
-                word_count=len(content.split())
+                word_count=len(content.split()),
             )
 
         except Exception as e:
@@ -555,25 +556,18 @@ class CaseStudiesWriter(SectionWriter):
         self._writer = dspy.ChainOfThought(BodySectionSignature)
 
     async def write(
-        self,
-        topic: str,
-        context: Dict[str, Any],
-        research: Dict[str, Any],
-        config: WriterConfig
+        self, topic: str, context: Dict[str, Any], research: Dict[str, Any], config: WriterConfig
     ) -> Section:
         """Write case studies."""
         try:
             result = self._writer(
                 section_title=f"Case Studies: {topic}",
-                key_points=json.dumps([
-                    "Real-world examples",
-                    "Success stories",
-                    "Lessons learned",
-                    "Key takeaways"
-                ]),
+                key_points=json.dumps(
+                    ["Real-world examples", "Success stories", "Lessons learned", "Key takeaways"]
+                ),
                 research=json.dumps(research),
                 tone=config.tone.value,
-                context=""
+                context="",
             )
 
             content = f"## Case Studies\n\n{result.content}"
@@ -582,7 +576,7 @@ class CaseStudiesWriter(SectionWriter):
                 name="case_studies",
                 title="Case Studies",
                 content=content,
-                word_count=len(content.split())
+                word_count=len(content.split()),
             )
 
         except Exception as e:
@@ -602,25 +596,23 @@ class TechnicalDeepDiveWriter(SectionWriter):
         self._writer = dspy.ChainOfThought(BodySectionSignature)
 
     async def write(
-        self,
-        topic: str,
-        context: Dict[str, Any],
-        research: Dict[str, Any],
-        config: WriterConfig
+        self, topic: str, context: Dict[str, Any], research: Dict[str, Any], config: WriterConfig
     ) -> Section:
         """Write technical deep dive."""
         try:
             result = self._writer(
                 section_title=f"Technical Deep Dive: {topic}",
-                key_points=json.dumps([
-                    "Technical architecture",
-                    "Implementation details",
-                    "Best practices",
-                    "Common pitfalls"
-                ]),
+                key_points=json.dumps(
+                    [
+                        "Technical architecture",
+                        "Implementation details",
+                        "Best practices",
+                        "Common pitfalls",
+                    ]
+                ),
                 research=json.dumps(research),
                 tone="technical",
-                context=""
+                context="",
             )
 
             content = f"## Technical Deep Dive\n\n{result.content}"
@@ -629,7 +621,7 @@ class TechnicalDeepDiveWriter(SectionWriter):
                 name="technical_deep_dive",
                 title="Technical Deep Dive",
                 content=content,
-                word_count=len(content.split())
+                word_count=len(content.split()),
             )
 
         except Exception as e:
@@ -649,11 +641,7 @@ class ResearchFindingsWriter(SectionWriter):
         self._writer = dspy.ChainOfThought(BodySectionSignature)
 
     async def write(
-        self,
-        topic: str,
-        context: Dict[str, Any],
-        research: Dict[str, Any],
-        config: WriterConfig
+        self, topic: str, context: Dict[str, Any], research: Dict[str, Any], config: WriterConfig
     ) -> Section:
         """Write research findings."""
         # Optionally integrate with ResearchSwarm
@@ -662,15 +650,12 @@ class ResearchFindingsWriter(SectionWriter):
         try:
             result = self._writer(
                 section_title=f"Research Findings: {topic}",
-                key_points=json.dumps([
-                    "Data analysis",
-                    "Key findings",
-                    "Statistical insights",
-                    "Implications"
-                ]),
+                key_points=json.dumps(
+                    ["Data analysis", "Key findings", "Statistical insights", "Implications"]
+                ),
                 research=json.dumps(research_data),
                 tone=config.tone.value,
-                context=""
+                context="",
             )
 
             content = f"## Research Findings\n\n{result.content}"
@@ -680,7 +665,7 @@ class ResearchFindingsWriter(SectionWriter):
                 title="Research Findings",
                 content=content,
                 word_count=len(content.split()),
-                sources=research.get('sources', [])
+                sources=research.get("sources", []),
             )
 
         except Exception as e:
@@ -693,20 +678,17 @@ class ResearchFindingsWriter(SectionWriter):
 # =============================================================================
 
 
-
 class OutlineAgent(BaseSwarmAgent):
     """Generates content outlines."""
 
-    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
+    def __init__(
+        self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = ""
+    ) -> None:
         super().__init__(memory, context, bus, signature=OutlineGenerationSignature)
         self._generator = dspy.ChainOfThought(OutlineGenerationSignature)
         self.learned_context = learned_context
 
-    async def generate(
-        self,
-        topic: str,
-        config: WriterConfig
-    ) -> Outline:
+    async def generate(self, topic: str, config: WriterConfig) -> Outline:
         """Generate content outline."""
         try:
             enriched_topic = f"{topic}\n\n{self.learned_context}" if self.learned_context else topic
@@ -715,66 +697,60 @@ class OutlineAgent(BaseSwarmAgent):
                 content_type=config.content_type.value,
                 audience=config.audience,
                 tone=config.tone.value,
-                word_count=config.word_count_target
+                word_count=config.word_count_target,
             )
 
             # Parse sections
             try:
                 sections = json.loads(result.sections)
             except Exception:
-                sections = [{'title': 'Main Content', 'key_points': []}]
+                sections = [{"title": "Main Content", "key_points": []}]
 
             key_points = _split_field(result.key_points)
 
-            self._broadcast("outline_generated", {
-                'topic': topic,
-                'sections': len(sections)
-            })
+            self._broadcast("outline_generated", {"topic": topic, "sections": len(sections)})
 
             return Outline(
                 title=str(result.title),
                 thesis=str(result.thesis),
                 sections=sections,
                 target_audience=config.audience,
-                key_points=key_points
+                key_points=key_points,
             )
 
         except Exception as e:
             logger.error(f"Outline generation failed: {e}")
             return Outline(
-                title=topic,
-                thesis="",
-                sections=[],
-                target_audience="general",
-                key_points=[]
+                title=topic, thesis="", sections=[], target_audience="general", key_points=[]
             )
 
 
 class ResearchAgent(BaseSwarmAgent):
     """Researches topics."""
 
-    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
+    def __init__(
+        self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = ""
+    ) -> None:
         super().__init__(memory, context, bus, signature=ResearchSignature)
         self._researcher = dspy.ChainOfThought(ResearchSignature)
         self.learned_context = learned_context
 
     async def research(
-        self,
-        topic: str,
-        outline: Outline,
-        depth: str = "moderate"
+        self, topic: str, outline: Outline, depth: str = "moderate"
     ) -> Dict[str, Any]:
         """Research a topic."""
         try:
             enriched_topic = f"{topic}\n\n{self.learned_context}" if self.learned_context else topic
             result = self._researcher(
                 topic=enriched_topic,
-                outline=json.dumps({
-                    'title': outline.title,
-                    'thesis': outline.thesis,
-                    'sections': [s.get('title', '') for s in outline.sections]
-                }),
-                depth=depth
+                outline=json.dumps(
+                    {
+                        "title": outline.title,
+                        "thesis": outline.thesis,
+                        "sections": [s.get("title", "") for s in outline.sections],
+                    }
+                ),
+                depth=depth,
             )
 
             facts = _split_field(result.facts)
@@ -782,69 +758,59 @@ class ResearchAgent(BaseSwarmAgent):
             trends = _split_field(result.trends)
             sources = _split_field(result.sources)
 
-            self._broadcast("research_completed", {
-                'topic': topic,
-                'facts_found': len(facts)
-            })
+            self._broadcast("research_completed", {"topic": topic, "facts_found": len(facts)})
 
             return {
-                'facts': facts,
-                'expert_views': expert_views,
-                'trends': trends,
-                'sources': sources
+                "facts": facts,
+                "expert_views": expert_views,
+                "trends": trends,
+                "sources": sources,
             }
 
         except Exception as e:
             logger.error(f"Research failed: {e}")
-            return {'facts': [], 'expert_views': [], 'trends': [], 'sources': []}
+            return {"facts": [], "expert_views": [], "trends": [], "sources": []}
 
 
 class PolishAgent(BaseSwarmAgent):
     """Polishes and refines content."""
 
-    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
+    def __init__(
+        self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = ""
+    ) -> None:
         super().__init__(memory, context, bus, signature=ContentPolishSignature)
         self.learned_context = learned_context
         self._polisher = dspy.ChainOfThought(ContentPolishSignature)
 
-    async def polish(
-        self,
-        content: str,
-        config: WriterConfig
-    ) -> Dict[str, Any]:
+    async def polish(self, content: str, config: WriterConfig) -> Dict[str, Any]:
         """Polish content."""
         try:
-            enriched_content = f"{content}\n\n{self.learned_context}" if self.learned_context else content
+            enriched_content = (
+                f"{content}\n\n{self.learned_context}" if self.learned_context else content
+            )
             result = self._polisher(
-                content=enriched_content,
-                tone=config.tone.value,
-                audience=config.audience
+                content=enriched_content, tone=config.tone.value, audience=config.audience
             )
 
             improvements = _split_field(result.improvements)
 
-            self._broadcast("content_polished", {
-                'improvements': len(improvements)
-            })
+            self._broadcast("content_polished", {"improvements": len(improvements)})
 
             return {
-                'polished_content': str(result.polished_content),
-                'improvements': improvements,
-                'quality_score': float(result.quality_score) if result.quality_score else 75.0
+                "polished_content": str(result.polished_content),
+                "improvements": improvements,
+                "quality_score": float(result.quality_score) if result.quality_score else 75.0,
             }
 
         except Exception as e:
             logger.error(f"Polish failed: {e}")
-            return {
-                'polished_content': content,
-                'improvements': [],
-                'quality_score': 50.0
-            }
+            return {"polished_content": content, "improvements": [], "quality_score": 50.0}
 
 
 # =============================================================================
 # IDEA WRITER SWARM
 # =============================================================================
+
 
 @register_swarm("idea_writer")
 class IdeaWriterSwarm(DomainSwarm):
@@ -869,10 +835,7 @@ class IdeaWriterSwarm(DomainSwarm):
         super().__init__(config or WriterConfig())
 
     async def write(
-        self,
-        topic: str,
-        sections: List[str] = None,
-        custom_outline: Outline = None
+        self, topic: str, sections: List[str] = None, custom_outline: Outline = None
     ) -> WriterResult:
         """
         Write content on a topic.
@@ -887,7 +850,9 @@ class IdeaWriterSwarm(DomainSwarm):
         """
         return await self.execute(topic, sections=sections, custom_outline=custom_outline)
 
-    async def _execute_domain(self, topic: str, sections: List[str] = None, custom_outline: Outline = None, **kwargs: Any) -> WriterResult:
+    async def _execute_domain(
+        self, topic: str, sections: List[str] = None, custom_outline: Outline = None, **kwargs: Any
+    ) -> WriterResult:
         """
         Domain-specific content writing logic.
 
@@ -907,24 +872,26 @@ class IdeaWriterSwarm(DomainSwarm):
             sections = ["introduction", "body", "body", "conclusion"]
 
         return await self._safe_execute_domain(
-            task_type='content_writing',
-            default_tools=['outline_generate', 'research', 'section_write', 'content_polish'],
+            task_type="content_writing",
+            default_tools=["outline_generate", "research", "section_write", "content_polish"],
             result_class=WriterResult,
             execute_fn=lambda executor: self._execute_phases(
                 executor, topic, sections, custom_outline
             ),
             output_data_fn=lambda result: {
-                'title': result.title,
-                'word_count': result.word_count,
-                'sections': result.sections_generated,
+                "title": result.title,
+                "word_count": result.word_count,
+                "sections": result.sections_generated,
             },
             input_data_fn=lambda: {
-                'topic': topic[:200],
-                'sections': sections,
+                "topic": topic[:200],
+                "sections": sections,
             },
         )
 
-    async def _execute_phases(self, executor: Any, topic: str, sections: List[str], custom_outline: Outline = None) -> WriterResult:
+    async def _execute_phases(
+        self, executor: Any, topic: str, sections: List[str], custom_outline: Outline = None
+    ) -> WriterResult:
         """
         Domain-specific phase logic using PhaseExecutor.
 
@@ -948,16 +915,19 @@ class IdeaWriterSwarm(DomainSwarm):
             outline = custom_outline
         else:
             outline = await executor.run_phase(
-                1, "Outline Generation", "Outline", AgentRole.PLANNER,
+                1,
+                "Outline Generation",
+                "Outline",
+                AgentRole.PLANNER,
                 self._outline_agent.generate(topic, config),
-                input_data={'topic': topic[:100]},
-                tools_used=['outline_generate'],
+                input_data={"topic": topic[:100]},
+                tools_used=["outline_generate"],
             )
 
         if not outline.sections:
             # Create default sections from provided list
             outline.sections = [
-                {'name': s, 'title': s.replace('_', ' ').title(), 'key_points': []}
+                {"name": s, "title": s.replace("_", " ").title(), "key_points": []}
                 for s in sections
             ]
 
@@ -967,10 +937,13 @@ class IdeaWriterSwarm(DomainSwarm):
         research = {}
         if config.include_research:
             research = await executor.run_phase(
-                2, "Research", "Research", AgentRole.EXPERT,
+                2,
+                "Research",
+                "Research",
+                AgentRole.EXPERT,
                 self._research_agent.research(topic, outline, depth="moderate"),
-                input_data={'include_research': config.include_research},
-                tools_used=['research'],
+                input_data={"include_research": config.include_research},
+                tools_used=["research"],
             )
 
         # =================================================================
@@ -979,44 +952,34 @@ class IdeaWriterSwarm(DomainSwarm):
         parallel_tasks = []
 
         for i, section_type in enumerate(sections):
-            writer = SectionRegistry.create(
-                section_type,
-                self._memory,
-                self._context,
-                self._bus
-            )
+            writer = SectionRegistry.create(section_type, self._memory, self._context, self._bus)
 
             if not writer:
                 # Fallback to body writer for unknown types
-                writer = SectionRegistry.create(
-                    "body",
-                    self._memory,
-                    self._context,
-                    self._bus
-                )
+                writer = SectionRegistry.create("body", self._memory, self._context, self._bus)
 
             if writer:
                 section_info = outline.sections[i] if i < len(outline.sections) else {}
                 ctx = {
-                    'thesis': outline.thesis,
-                    'key_points': outline.key_points,
-                    'section_info': section_info,
-                    'previous_sections': []
+                    "thesis": outline.thesis,
+                    "key_points": outline.key_points,
+                    "section_info": section_info,
+                    "previous_sections": [],
                 }
-                parallel_tasks.append((
-                    f"SectionWriter({section_type})",
-                    AgentRole.ACTOR,
-                    writer.write(topic, ctx, research, config),
-                    ['section_write'],
-                ))
+                parallel_tasks.append(
+                    (
+                        f"SectionWriter({section_type})",
+                        AgentRole.ACTOR,
+                        writer.write(topic, ctx, research, config),
+                        ["section_write"],
+                    )
+                )
 
-        section_results = await executor.run_parallel(
-            3, "Section Writing", parallel_tasks
-        )
+        section_results = await executor.run_parallel(3, "Section Writing", parallel_tasks)
 
         written_sections = []
         for result in section_results:
-            if isinstance(result, dict) and 'error' in result:
+            if isinstance(result, dict) and "error" in result:
                 logger.warning(f"Section failed: {result['error']}")
                 continue
             if isinstance(result, Section):
@@ -1036,14 +999,17 @@ class IdeaWriterSwarm(DomainSwarm):
         # PHASE 5: POLISH
         # =================================================================
         polish_result = await executor.run_phase(
-            5, "Polish", "Polish", AgentRole.REVIEWER,
+            5,
+            "Polish",
+            "Polish",
+            AgentRole.REVIEWER,
             self._polish_agent.polish(full_content, config),
-            input_data={'content_length': len(full_content)},
-            tools_used=['content_polish'],
+            input_data={"content_length": len(full_content)},
+            tools_used=["content_polish"],
         )
 
-        final_content = polish_result.get('polished_content', full_content)
-        quality_score = polish_result.get('quality_score', 75.0)
+        final_content = polish_result.get("polished_content", full_content)
+        quality_score = polish_result.get("quality_score", 75.0)
 
         # =================================================================
         # BUILD RESULT
@@ -1053,13 +1019,13 @@ class IdeaWriterSwarm(DomainSwarm):
             content=final_content,
             sections=written_sections,
             word_count=len(final_content.split()),
-            sources=research.get('sources', []),
+            sources=research.get("sources", []),
             outline=outline,
             metadata={
-                'content_type': config.content_type.value,
-                'tone': config.tone.value,
-                'audience': config.audience
-            }
+                "content_type": config.content_type.value,
+                "tone": config.tone.value,
+                "audience": config.audience,
+            },
         )
 
         result = WriterResult(
@@ -1067,10 +1033,10 @@ class IdeaWriterSwarm(DomainSwarm):
             swarm_name=self.config.name,
             domain=self.config.domain,
             output={
-                'content': final_content,
-                'title': title,
-                'word_count': len(final_content.split()),
-                'quality_score': quality_score / 100.0,
+                "content": final_content,
+                "title": title,
+                "word_count": len(final_content.split()),
+                "quality_score": quality_score / 100.0,
             },
             execution_time=executor.elapsed(),
             content=content_result,
@@ -1078,7 +1044,7 @@ class IdeaWriterSwarm(DomainSwarm):
             word_count=len(final_content.split()),
             sections_generated=len(written_sections),
             quality_score=quality_score / 100.0,
-            readability_score=0.8  # Could use readability metrics
+            readability_score=0.8,  # Could use readability metrics
         )
 
         logger.info(f"IdeaWriterSwarm complete: {title}, {result.word_count} words")
@@ -1093,6 +1059,7 @@ class IdeaWriterSwarm(DomainSwarm):
 # =============================================================================
 # CONVENIENCE FUNCTIONS
 # =============================================================================
+
 
 async def write(topic: str, **kwargs: Any) -> WriterResult:
     """
@@ -1116,30 +1083,30 @@ def write_sync(topic: str, **kwargs: Any) -> WriterResult:
 # =============================================================================
 
 __all__ = [
-    'IdeaWriterSwarm',
-    'WriterConfig',
-    'WriterResult',
-    'ContentResult',
-    'Section',
-    'Outline',
-    'ContentType',
-    'Tone',
-    'OutputFormat',
-    'write',
-    'write_sync',
+    "IdeaWriterSwarm",
+    "WriterConfig",
+    "WriterResult",
+    "ContentResult",
+    "Section",
+    "Outline",
+    "ContentType",
+    "Tone",
+    "OutputFormat",
+    "write",
+    "write_sync",
     # Section Registry
-    'SectionRegistry',
-    'SectionWriter',
+    "SectionRegistry",
+    "SectionWriter",
     # Built-in writers
-    'IntroductionWriter',
-    'BodySectionWriter',
-    'ConclusionWriter',
-    'MarketAnalysisWriter',
-    'CaseStudiesWriter',
-    'TechnicalDeepDiveWriter',
-    'ResearchFindingsWriter',
+    "IntroductionWriter",
+    "BodySectionWriter",
+    "ConclusionWriter",
+    "MarketAnalysisWriter",
+    "CaseStudiesWriter",
+    "TechnicalDeepDiveWriter",
+    "ResearchFindingsWriter",
     # Agents
-    'OutlineAgent',
-    'ResearchAgent',
-    'PolishAgent',
+    "OutlineAgent",
+    "ResearchAgent",
+    "PolishAgent",
 ]

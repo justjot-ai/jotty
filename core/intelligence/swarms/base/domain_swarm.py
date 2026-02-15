@@ -1,4 +1,5 @@
 from typing import Any
+
 """
 DomainSwarm - Template Base Class for Domain-Specific Swarms
 =============================================================
@@ -54,8 +55,8 @@ from abc import abstractmethod
 from datetime import datetime
 from typing import Any, Callable, ClassVar, Dict, List, Optional, Tuple, Type
 
-from ..base_swarm import BaseSwarm, SwarmBaseConfig, SwarmResult, AgentRole
-from ..swarm_types import _split_field, _safe_join, _safe_num
+from ..base_swarm import AgentRole, BaseSwarm, SwarmBaseConfig, SwarmResult
+from ..swarm_types import _safe_join, _safe_num, _split_field
 from .agent_team import AgentTeam, CoordinationPattern, TeamResult
 
 logger = logging.getLogger(__name__)
@@ -80,7 +81,7 @@ class PhaseExecutor:
         )
     """
 
-    def __init__(self, swarm: 'DomainSwarm') -> None:
+    def __init__(self, swarm: "DomainSwarm") -> None:
         self.swarm = swarm
         self._start_time = datetime.now()
 
@@ -88,7 +89,16 @@ class PhaseExecutor:
         """Seconds since executor was created."""
         return (datetime.now() - self._start_time).total_seconds()
 
-    async def run_phase(self, phase_num: int, phase_name: str, agent_name: str, agent_role: AgentRole, coro: Any, input_data: Dict[str, Any] = None, tools_used: List[str] = None) -> Any:
+    async def run_phase(
+        self,
+        phase_num: int,
+        phase_name: str,
+        agent_name: str,
+        agent_role: AgentRole,
+        coro: Any,
+        input_data: Dict[str, Any] = None,
+        tools_used: List[str] = None,
+    ) -> Any:
         """Execute a single agent phase with automatic tracing.
 
         Args:
@@ -113,7 +123,7 @@ class PhaseExecutor:
 
         # Determine success heuristic
         success = True
-        if isinstance(result, dict) and 'error' in result:
+        if isinstance(result, dict) and "error" in result:
             success = False
 
         output_data = {}
@@ -121,7 +131,8 @@ class PhaseExecutor:
             output_data = {k: str(v)[:200] for k, v in list(result.items())[:5]}
 
         self.swarm._trace_phase(
-            agent_name, agent_role,
+            agent_name,
+            agent_role,
             input_data or {},
             output_data,
             success=success,
@@ -157,19 +168,21 @@ class PhaseExecutor:
         for i, raw in enumerate(raw_results):
             agent_name, agent_role, _, tools_used = tasks[i]
             if isinstance(raw, Exception):
-                result = {'error': str(raw)}
+                result = {"error": str(raw)}
                 success = False
             else:
                 result = raw
-                success = not (isinstance(result, dict) and 'error' in result)
+                success = not (isinstance(result, dict) and "error" in result)
 
             output_data = {}
             if isinstance(result, dict):
-                output_data = {'has_error': 'error' in result}
+                output_data = {"has_error": "error" in result}
 
             self.swarm._trace_phase(
-                agent_name, agent_role,
-                {}, output_data,
+                agent_name,
+                agent_role,
+                {},
+                output_data,
                 success=success,
                 phase_start=phase_start,
                 tools_used=tools_used or [],
@@ -220,6 +233,11 @@ class DomainSwarm(BaseSwarm):
     # Subclasses set this to a DSPy Signature for typed I/O contracts
     SWARM_SIGNATURE: ClassVar[Optional[Type]] = None
 
+    # Template constants — subclasses override to use run_domain()
+    TASK_TYPE: ClassVar[str] = ""
+    DEFAULT_TOOLS: ClassVar[List[str]] = []
+    RESULT_CLASS: ClassVar[Type[SwarmResult]] = SwarmResult
+
     # Defensive utilities available as static methods on all swarms
     _split_field = staticmethod(_split_field)
     _safe_join = staticmethod(_safe_join)
@@ -268,7 +286,7 @@ class DomainSwarm(BaseSwarm):
         self._agents_initialized = True
         logger.info(f"{self.__class__.__name__} agents initialized")
 
-    def _create_agent(self, spec: 'AgentSpec') -> Any:
+    def _create_agent(self, spec: "AgentSpec") -> Any:
         """
         Create an agent instance with dynamic parameter binding.
 
@@ -281,25 +299,26 @@ class DomainSwarm(BaseSwarm):
 
         # Available parameters to pass
         available_params = {
-            'memory': self._memory,
-            'context': self._context,
-            'bus': self._bus,
-            'learned_context': self._agent_context(spec.display_name),
+            "memory": self._memory,
+            "context": self._context,
+            "bus": self._bus,
+            "learned_context": self._agent_context(spec.display_name),
         }
 
         # Inspect agent's __init__ signature
         try:
             sig = inspect.signature(spec.agent_class.__init__)
-            param_names = set(sig.parameters.keys()) - {'self'}
+            param_names = set(sig.parameters.keys()) - {"self"}
         except (ValueError, TypeError):
             # Fallback: try positional args (memory, context, bus)
-            param_names = {'memory', 'context', 'bus'}
+            param_names = {"memory", "context", "bus"}
 
         # Check if agent accepts **kwargs
-        accepts_kwargs = any(
-            p.kind == inspect.Parameter.VAR_KEYWORD
-            for p in sig.parameters.values()
-        ) if 'sig' in dir() else False
+        accepts_kwargs = (
+            any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values())
+            if "sig" in dir()
+            else False
+        )
 
         # Build kwargs with only accepted parameters
         kwargs = {}
@@ -336,9 +355,10 @@ class DomainSwarm(BaseSwarm):
         Returns AgentIOSchema if SWARM_SIGNATURE is set, else None.
         Result is cached on first call.
         """
-        if hasattr(self, '_io_schema') and self._io_schema is not None:
+        if hasattr(self, "_io_schema") and self._io_schema is not None:
             return self._io_schema
         from Jotty.core.modes.agent._execution_types import AgentIOSchema
+
         if self.SWARM_SIGNATURE is not None:
             self._io_schema = AgentIOSchema.from_dspy_signature(
                 self.config.name, self.SWARM_SIGNATURE
@@ -352,7 +372,7 @@ class DomainSwarm(BaseSwarm):
         schema = self.get_io_schema()
         if schema is None:
             return
-        if not hasattr(result, 'output') or not isinstance(result.output, dict):
+        if not hasattr(result, "output") or not isinstance(result.output, dict):
             return
 
         expected = {p.name: p for p in schema.outputs}
@@ -362,17 +382,20 @@ class DomainSwarm(BaseSwarm):
 
         # Auto-populate missing fields with type-appropriate defaults
         if missing:
-            logger.info("%s: auto-populating %d missing output fields: %s", name, len(missing), missing)
+            logger.info(
+                "%s: auto-populating %d missing output fields: %s", name, len(missing), missing
+            )
             for field_name in missing:
-                result.output[field_name] = ''
+                result.output[field_name] = ""
 
         # Coerce non-string values using TypeCoercer where type_hint != 'str'
         from Jotty.core.modes.agent._execution_types import TypeCoercer
+
         for field_name, value in list(result.output.items()):
             if field_name in expected:
                 param = expected[field_name]
-                hint = (param.type_hint or 'str').lower()
-                if hint not in ('str', 'string', ''):
+                hint = (param.type_hint or "str").lower()
+                if hint not in ("str", "string", ""):
                     coerced, error = TypeCoercer.coerce(value, param.type_hint)
                     if not error and coerced is not value:
                         result.output[field_name] = coerced
@@ -381,7 +404,9 @@ class DomainSwarm(BaseSwarm):
     # TEAM COORDINATION
     # =========================================================================
 
-    async def execute_team(self, task: Any, context: Dict[str, Any] = None, **kwargs: Any) -> TeamResult:
+    async def execute_team(
+        self, task: Any, context: Dict[str, Any] = None, **kwargs: Any
+    ) -> TeamResult:
         """
         Execute the agent team with its configured coordination pattern.
 
@@ -429,8 +454,10 @@ class DomainSwarm(BaseSwarm):
 
             # Coalition formation: for PARALLEL teams with 2+ agents,
             # form a coalition so agents are tracked as a coordinated unit
-            if (self.AGENT_TEAM.pattern == CoordinationPattern.PARALLEL
-                    and len(self.AGENT_TEAM) >= 2):
+            if (
+                self.AGENT_TEAM.pattern == CoordinationPattern.PARALLEL
+                and len(self.AGENT_TEAM) >= 2
+            ):
                 try:
                     agent_names = [
                         getattr(self, attr, None).__class__.__name__
@@ -441,7 +468,7 @@ class DomainSwarm(BaseSwarm):
                         task_type=task_type,
                         required_roles=[],
                         min_agents=2,
-                        max_agents=len(agent_names)
+                        max_agents=len(agent_names),
                     )
                     if coalition:
                         full_context["coalition_id"] = coalition.coalition_id
@@ -458,7 +485,7 @@ class DomainSwarm(BaseSwarm):
                     task_description=task_str,
                     prefer_coalition=False,  # Already handled above
                     use_auction=(self.AGENT_TEAM.pattern == CoordinationPattern.NONE),
-                    use_hierarchy=True
+                    use_hierarchy=True,
                 )
                 if route.get("assigned_agent"):
                     full_context["routed_agent"] = route["assigned_agent"]
@@ -517,7 +544,7 @@ class DomainSwarm(BaseSwarm):
             output_data = output_data_fn(result) if output_data_fn else None
             input_data = input_data_fn() if input_data_fn else None
             await self._post_execute_learning(
-                success=result.success if hasattr(result, 'success') else True,
+                success=result.success if hasattr(result, "success") else True,
                 execution_time=exec_time,
                 tools_used=self._get_active_tools(default_tools),
                 task_type=task_type,
@@ -539,8 +566,55 @@ class DomainSwarm(BaseSwarm):
             )
             self._learning_recorded = True
             return executor.build_error_result(
-                result_class, e, self.config.name, self.config.domain,
+                result_class,
+                e,
+                self.config.name,
+                self.config.domain,
             )
+
+    async def run_domain(
+        self,
+        execute_fn: Callable,
+        output_data_fn: Callable = None,
+        input_data_fn: Callable = None,
+    ) -> SwarmResult:
+        """Template method wrapping _safe_execute_domain with class-level constants.
+
+        Eliminates repeated task_type/default_tools/result_class boilerplate
+        in concrete swarms.  Subclasses set TASK_TYPE, DEFAULT_TOOLS, and
+        RESULT_CLASS as class variables, then call::
+
+            return await self.run_domain(
+                execute_fn=lambda ex: self._execute_phases(ex, ...),
+                output_data_fn=lambda r: {...},  # or override _build_output_data
+                input_data_fn=lambda: {...},      # or override _build_input_data
+            )
+
+        When *output_data_fn* or *input_data_fn* are omitted the corresponding
+        ``_build_output_data`` / ``_build_input_data`` hook is called instead.
+        """
+        return await self._safe_execute_domain(
+            task_type=self.TASK_TYPE,
+            default_tools=list(self.DEFAULT_TOOLS),
+            result_class=self.RESULT_CLASS,
+            execute_fn=execute_fn,
+            output_data_fn=output_data_fn or (lambda r: self._build_output_data(r)),
+            input_data_fn=input_data_fn or (lambda: self._build_input_data()),
+        )
+
+    def _build_output_data(self, result: SwarmResult) -> Optional[Dict[str, Any]]:
+        """Override to extract output metrics for post-execution learning.
+
+        Called by ``run_domain`` when no explicit *output_data_fn* is provided.
+        """
+        return None
+
+    def _build_input_data(self) -> Optional[Dict[str, Any]]:
+        """Override to extract input metrics for post-execution learning.
+
+        Called by ``run_domain`` when no explicit *input_data_fn* is provided.
+        """
+        return None
 
     # =========================================================================
     # EXECUTION TEMPLATE
@@ -573,15 +647,15 @@ class DomainSwarm(BaseSwarm):
         # Auto-remap 'task' kwarg to the swarm's first signature input field.
         # Pipeline passes 'task' generically; swarms expect domain-specific names
         # (e.g. 'requirements', 'code', 'data'). SWARM_SIGNATURE enables auto-wiring.
-        if self.SWARM_SIGNATURE is not None and 'task' in kwargs:
+        if self.SWARM_SIGNATURE is not None and "task" in kwargs:
             schema = self.get_io_schema()
             if schema and schema.inputs:
                 first_input = schema.inputs[0].name
-                if first_input != 'task' and first_input not in kwargs:
-                    kwargs[first_input] = kwargs.pop('task')
+                if first_input != "task" and first_input not in kwargs:
+                    kwargs[first_input] = kwargs.pop("task")
 
         result = None
-        start_time = __import__('time').time()
+        start_time = __import__("time").time()
         try:
             result = await self._execute_domain(*args, **kwargs)
         finally:
@@ -591,18 +665,18 @@ class DomainSwarm(BaseSwarm):
                 if (
                     not self._learning_recorded
                     and result is not None
-                    and hasattr(self, '_post_execute_learning')
+                    and hasattr(self, "_post_execute_learning")
                 ):
-                    execution_time = __import__('time').time() - start_time
-                    success = result.success if hasattr(result, 'success') else True
+                    execution_time = __import__("time").time() - start_time
+                    success = result.success if hasattr(result, "success") else True
                     # Try to call with the expected signature
                     await self._post_execute_learning(
                         success=success,
                         execution_time=execution_time,
                         tools_used=[],
                         task_type=self.__class__.__name__,
-                        output_data={'result': str(result)[:500]} if result else None,
-                        input_data={'args': str(args)[:500], 'kwargs': str(kwargs)[:500]}
+                        output_data={"result": str(result)[:500]} if result else None,
+                        input_data={"args": str(args)[:500], "kwargs": str(kwargs)[:500]},
                     )
             except TypeError:
                 # Signature mismatch - skip silently
@@ -616,7 +690,7 @@ class DomainSwarm(BaseSwarm):
 
         # Attach collected traces to result (swarms record traces via
         # _trace_phase but subclasses rarely copy them into SwarmResult)
-        if result is not None and hasattr(result, 'agent_traces') and hasattr(self, '_traces'):
+        if result is not None and hasattr(result, "agent_traces") and hasattr(self, "_traces"):
             if not result.agent_traces and self._traces:
                 result.agent_traces = list(self._traces)
 
@@ -660,6 +734,7 @@ class DomainSwarm(BaseSwarm):
             CompositeAgent wrapping this swarm
         """
         from Jotty.core.modes.agent.agents.composite_agent import CompositeAgent
+
         return CompositeAgent.from_swarm(self, signature=signature or self.SWARM_SIGNATURE)
 
     def __repr__(self) -> str:
@@ -668,4 +743,4 @@ class DomainSwarm(BaseSwarm):
         return f"{self.__class__.__name__}(agents={agent_count}, pattern={pattern}, initialized={self._agents_initialized})"
 
 
-__all__ = ['DomainSwarm', 'PhaseExecutor', '_split_field', '_safe_join', '_safe_num']
+__all__ = ["DomainSwarm", "PhaseExecutor", "_split_field", "_safe_join", "_safe_num"]

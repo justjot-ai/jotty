@@ -1,12 +1,13 @@
 """Monitoring configuration — logging, profiling, budget enforcement."""
 
 from dataclasses import dataclass
-from typing import Optional, Any
+from typing import Any, Optional
 
 
 @dataclass
 class MonitoringConfig:
     """Logging, profiling, and budget enforcement."""
+
     enable_debug_logs: bool = True
     log_level: str = "INFO"
     enable_profiling: bool = False
@@ -26,15 +27,13 @@ class MonitoringConfig:
         # Log level validation
         valid_levels = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
         if self.log_level not in valid_levels:
-            raise ValueError(
-                f"log_level must be one of {valid_levels}, got '{self.log_level}'"
-            )
+            raise ValueError(f"log_level must be one of {valid_levels}, got '{self.log_level}'")
 
         # Positive integer limits
         _pos_int_fields = {
-            'max_llm_calls_per_episode': self.max_llm_calls_per_episode,
-            'max_llm_calls_per_agent': self.max_llm_calls_per_agent,
-            'max_total_tokens_per_episode': self.max_total_tokens_per_episode,
+            "max_llm_calls_per_episode": self.max_llm_calls_per_episode,
+            "max_llm_calls_per_agent": self.max_llm_calls_per_agent,
+            "max_total_tokens_per_episode": self.max_total_tokens_per_episode,
         }
         for name, val in _pos_int_fields.items():
             if val < 1:

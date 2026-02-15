@@ -5,10 +5,10 @@ Plugin Loader
 Discovers and loads CLI plugins.
 """
 
-import logging
 import importlib.util
+import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Dict, Optional, Any
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from .base import PluginBase, PluginInfo, SkillPlugin
 
@@ -69,9 +69,11 @@ class PluginLoader:
                 # Look for plugin class
                 for attr_name in dir(module):
                     attr = getattr(module, attr_name)
-                    if (isinstance(attr, type) and
-                        issubclass(attr, PluginBase) and
-                        attr is not PluginBase):
+                    if (
+                        isinstance(attr, type)
+                        and issubclass(attr, PluginBase)
+                        and attr is not PluginBase
+                    ):
                         instance = attr()
                         return instance.info
 
@@ -115,9 +117,11 @@ class PluginLoader:
                 # Find and instantiate plugin class
                 for attr_name in dir(module):
                     attr = getattr(module, attr_name)
-                    if (isinstance(attr, type) and
-                        issubclass(attr, PluginBase) and
-                        attr is not PluginBase):
+                    if (
+                        isinstance(attr, type)
+                        and issubclass(attr, PluginBase)
+                        and attr is not PluginBase
+                    ):
                         plugin = attr()
                         plugin.on_load(cli)
 
@@ -133,7 +137,7 @@ class PluginLoader:
 
         return None
 
-    def load_skill_plugins(self, cli: 'JottyCLI') -> Any:
+    def load_skill_plugins(self, cli: "JottyCLI") -> Any:
         """
         Load all skills as plugins.
 
@@ -166,7 +170,7 @@ class PluginLoader:
         except Exception as e:
             logger.warning(f"Failed to load skill plugins: {e}")
 
-    def unload(self, name: str, cli: 'JottyCLI') -> Any:
+    def unload(self, name: str, cli: "JottyCLI") -> Any:
         """
         Unload a plugin.
 

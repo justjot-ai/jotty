@@ -1,4 +1,5 @@
 from typing import Any
+
 """
 Unified Registry - Combined Backend (Skills) + Frontend (UI)
 =============================================================
@@ -41,8 +42,8 @@ Author: Jotty Team
 Date: February 2026
 """
 
-from typing import Dict, Any, Optional, List, Callable
 import logging
+from typing import Any, Callable, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +80,13 @@ class UnifiedRegistry:
         claude_tools = registry.get_claude_tools()
     """
 
-    def __init__(self, skills_registry: Any = None, ui_registry: Any = None, widget_registry: Any = None, tools_registry: Any = None) -> None:
+    def __init__(
+        self,
+        skills_registry: Any = None,
+        ui_registry: Any = None,
+        widget_registry: Any = None,
+        tools_registry: Any = None,
+    ) -> None:
         """
         Initialize unified registry.
 
@@ -211,20 +218,26 @@ class UnifiedRegistry:
             Dict with 'skills' and 'ui' keys
         """
         return {
-            'skills': {
-                'available': [self._skills.get_skill(n).to_dict() for n in self.list_skills()
-                              if self._skills.get_skill(n)],
-                'count': len(self.list_skills()),
+            "skills": {
+                "available": [
+                    self._skills.get_skill(n).to_dict()
+                    for n in self.list_skills()
+                    if self._skills.get_skill(n)
+                ],
+                "count": len(self.list_skills()),
             },
-            'ui': self._ui.to_api_response(),
+            "ui": self._ui.to_api_response(),
         }
 
     def get_tools(self) -> Dict[str, Any]:
         """Get skills registry data (legacy alias)."""
         return {
-            'available': [self._skills.get_skill(n).to_dict() for n in self.list_skills()
-                          if self._skills.get_skill(n)],
-            'count': len(self.list_skills()),
+            "available": [
+                self._skills.get_skill(n).to_dict()
+                for n in self.list_skills()
+                if self._skills.get_skill(n)
+            ],
+            "count": len(self.list_skills()),
         }
 
     def get_widgets(self) -> Dict[str, Any]:
@@ -262,13 +275,13 @@ class UnifiedRegistry:
         Projects can override this to provide their own defaults.
         """
         # Default: enable all skills, common UI components
-        common_ui = ['text', 'mermaid', 'code', 'todos', 'chart', 'kanban-board', 'data-table']
+        common_ui = ["text", "mermaid", "code", "todos", "chart", "kanban-board", "data-table"]
         available_ui = self._ui.list_types()
         default_ui = [u for u in common_ui if u in available_ui]
 
         return {
-            'skills': self.list_skills(),
-            'ui_components': default_ui if default_ui else available_ui[:10],
+            "skills": self.list_skills(),
+            "ui_components": default_ui if default_ui else available_ui[:10],
         }
 
     def discover_for_task(self, task_description: str) -> Dict[str, Any]:
@@ -291,12 +304,12 @@ class UnifiedRegistry:
         task_lower = task_description.lower()
         relevant_ui = []
         ui_keywords = {
-            'chart': ['chart', 'graph', 'visualiz', 'plot'],
-            'data-table': ['table', 'data', 'list', 'records'],
-            'mermaid': ['diagram', 'flowchart', 'architecture'],
-            'code': ['code', 'script', 'program'],
-            'kanban-board': ['kanban', 'board', 'tasks', 'project'],
-            'todos': ['todo', 'task', 'checklist'],
+            "chart": ["chart", "graph", "visualiz", "plot"],
+            "data-table": ["table", "data", "list", "records"],
+            "mermaid": ["diagram", "flowchart", "architecture"],
+            "code": ["code", "script", "program"],
+            "kanban-board": ["kanban", "board", "tasks", "project"],
+            "todos": ["todo", "task", "checklist"],
         }
 
         for component_type, keywords in ui_keywords.items():
@@ -306,9 +319,9 @@ class UnifiedRegistry:
                     relevant_ui.append(component.to_dict())
 
         return {
-            'skills': relevant_skills,
-            'ui': relevant_ui,
-            'task': task_description,
+            "skills": relevant_skills,
+            "ui": relevant_ui,
+            "task": task_description,
         }
 
     # =========================================================================
@@ -319,7 +332,7 @@ class UnifiedRegistry:
         self,
         task_description: str,
         max_tools: int = 10,
-        format: str = 'claude',
+        format: str = "claude",
     ) -> List[Any]:
         """
         Return a focused subset of tools relevant to the task.
@@ -348,17 +361,16 @@ class UnifiedRegistry:
         """
         discovery = self.discover_for_task(task_description)
         relevant_names = [
-            s['name'] if isinstance(s, dict) else s
-            for s in discovery.get('skills', [])
+            s["name"] if isinstance(s, dict) else s for s in discovery.get("skills", [])
         ][:max_tools]
 
         if not relevant_names:
             # Fallback: return first N skills
             relevant_names = self.list_skills()[:max_tools]
 
-        if format == 'names':
+        if format == "names":
             return relevant_names
-        elif format == 'claude':
+        elif format == "claude":
             return self.get_claude_tools(relevant_names)
         else:
             # 'full' — return skill objects
@@ -375,15 +387,15 @@ class UnifiedRegistry:
     def get_summary(self) -> Dict[str, Any]:
         """Get a summary of the registry state."""
         return {
-            'skills': {
-                'count': len(self.list_skills()),
-                'names': self.list_skills()[:10],  # First 10
-                'has_more': len(self.list_skills()) > 10,
+            "skills": {
+                "count": len(self.list_skills()),
+                "names": self.list_skills()[:10],  # First 10
+                "has_more": len(self.list_skills()) > 10,
             },
-            'ui': {
-                'count': len(self._ui.list_types()),
-                'categories': self._ui.get_categories(),
-                'with_adapters': len(self._ui.get_with_adapters()),
+            "ui": {
+                "count": len(self._ui.list_types()),
+                "categories": self._ui.get_categories(),
+                "with_adapters": len(self._ui.get_with_adapters()),
             },
         }
 
@@ -418,6 +430,7 @@ def reset_unified_registry() -> None:
 # =============================================================================
 
 # These functions allow old code to continue working
+
 
 def get_tools_registry() -> Any:
     """Legacy: Returns skills registry as tools registry."""

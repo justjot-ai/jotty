@@ -10,69 +10,105 @@ Comprehensive unit tests for:
 5. core/foundation/types/agent_types.py - AgentContribution, AgentMessage, SharedScratchpad
 """
 
-import pytest
-from unittest.mock import Mock, MagicMock, patch
-from dataclasses import dataclass, asdict, FrozenInstanceError
+from dataclasses import FrozenInstanceError, asdict, dataclass
 from datetime import datetime
-from typing import Dict, Any, Optional, List
+from typing import Any, Dict, List, Optional
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
 
 # ---------------------------------------------------------------------------
 # Safe imports with skip guards
 # ---------------------------------------------------------------------------
 
 try:
+    from core.foundation.config_defaults import DEFAULT_MODEL_ALIAS, DEFAULTS
+    from core.foundation.config_defaults import EPISODIC_CAPACITY as EPISODIC_CAPACITY_EXPORT
     from core.foundation.config_defaults import (
-        JottyDefaults, DEFAULTS, MODEL_ALIASES,
-        MAX_TOKENS, SAFETY_MARGIN as SAFETY_MARGIN_EXPORT,
-        EPISODIC_CAPACITY as EPISODIC_CAPACITY_EXPORT,
-        MAX_ENTRY_TOKENS as MAX_ENTRY_TOKENS_EXPORT,
         LLM_MAX_OUTPUT_TOKENS as LLM_MAX_OUTPUT_TOKENS_EXPORT,
+    )
+    from core.foundation.config_defaults import (
         LLM_PLANNING_MAX_TOKENS as LLM_PLANNING_MAX_TOKENS_EXPORT,
-        MODEL_SONNET, MODEL_OPUS, MODEL_HAIKU, DEFAULT_MODEL_ALIAS,
-        LLM_TEMPERATURE, LLM_TIMEOUT_SECONDS, MAX_RETRIES,
+    )
+    from core.foundation.config_defaults import LLM_TEMPERATURE, LLM_TIMEOUT_SECONDS
+    from core.foundation.config_defaults import MAX_ENTRY_TOKENS as MAX_ENTRY_TOKENS_EXPORT
+    from core.foundation.config_defaults import (
+        MAX_RETRIES,
+        MAX_TOKENS,
+        MODEL_ALIASES,
+        MODEL_HAIKU,
+        MODEL_OPUS,
+        MODEL_SONNET,
         RETRY_BACKOFF_SECONDS,
     )
+    from core.foundation.config_defaults import SAFETY_MARGIN as SAFETY_MARGIN_EXPORT
+    from core.foundation.config_defaults import JottyDefaults
+
     HAS_DEFAULTS = True
 except ImportError:
     HAS_DEFAULTS = False
 
 try:
     from core.foundation.exceptions import (
+        AgentExecutionError,
+        ChunkingError,
+        CircuitBreakerError,
+        CommunicationError,
+        CompressionError,
+        ConfigurationError,
+        ConsolidationError,
+        ContextError,
+        ContextOverflowError,
+        CreditAssignmentError,
+        DSPyError,
+        ExecutionError,
+        ExternalToolError,
+        FeedbackRoutingError,
+        InputValidationError,
+        IntegrationError,
+        InvalidConfigError,
         JottyError,
-        ConfigurationError, InvalidConfigError, MissingConfigError,
-        ExecutionError, AgentExecutionError, ToolExecutionError,
-        TimeoutError as JottyTimeoutError, CircuitBreakerError,
-        ContextError, ContextOverflowError, CompressionError, ChunkingError,
-        MemoryError as JottyMemoryError,
-        MemoryRetrievalError, MemoryStorageError, ConsolidationError,
-        LearningError, RewardCalculationError, CreditAssignmentError, PolicyUpdateError,
-        CommunicationError, MessageDeliveryError, FeedbackRoutingError,
-        ValidationError, InputValidationError, OutputValidationError,
-        PersistenceError, StorageError, RetrievalError,
-        IntegrationError, LLMError, DSPyError, ExternalToolError,
-        wrap_exception,
+        LearningError,
+        LLMError,
     )
+    from core.foundation.exceptions import MemoryError as JottyMemoryError
+    from core.foundation.exceptions import (
+        MemoryRetrievalError,
+        MemoryStorageError,
+        MessageDeliveryError,
+        MissingConfigError,
+        OutputValidationError,
+        PersistenceError,
+        PolicyUpdateError,
+        RetrievalError,
+        RewardCalculationError,
+        StorageError,
+    )
+    from core.foundation.exceptions import TimeoutError as JottyTimeoutError
+    from core.foundation.exceptions import ToolExecutionError, ValidationError, wrap_exception
+
     HAS_EXCEPTIONS = True
 except ImportError:
     HAS_EXCEPTIONS = False
 
 try:
-    from core.foundation.protocols import MetadataProvider, DataProvider, ContextExtractor
+    from core.foundation.protocols import ContextExtractor, DataProvider, MetadataProvider
+
     HAS_PROTOCOLS = True
 except ImportError:
     HAS_PROTOCOLS = False
 
 try:
     from core.foundation.agent_config import AgentConfig
+
     HAS_AGENT_CONFIG = True
 except ImportError:
     HAS_AGENT_CONFIG = False
 
 try:
-    from core.foundation.types.agent_types import (
-        AgentContribution, AgentMessage, SharedScratchpad,
-    )
+    from core.foundation.types.agent_types import AgentContribution, AgentMessage, SharedScratchpad
     from core.foundation.types.enums import CommunicationType
+
     HAS_AGENT_TYPES = True
 except ImportError:
     HAS_AGENT_TYPES = False
@@ -81,6 +117,7 @@ except ImportError:
 # ###########################################################################
 # 1. JottyDefaults & config_defaults module
 # ###########################################################################
+
 
 @pytest.mark.skipif(not HAS_DEFAULTS, reason="config_defaults not importable")
 class TestJottyDefaultsInstance:
@@ -267,11 +304,16 @@ class TestJottyDefaultsTokenBudgets:
     def test_component_budgets_positive(self):
         """All component token budgets should be positive integers."""
         for attr in [
-            "SYSTEM_PROMPT_BUDGET", "CURRENT_INPUT_BUDGET",
-            "TRAJECTORY_BUDGET", "TOOL_OUTPUT_BUDGET",
-            "MIN_MEMORY_BUDGET", "MAX_MEMORY_BUDGET",
-            "PREVIEW_TOKEN_BUDGET", "MAX_DESCRIPTION_TOKENS",
-            "MAX_ENTRY_TOKENS", "CHUNKING_THRESHOLD_TOKENS",
+            "SYSTEM_PROMPT_BUDGET",
+            "CURRENT_INPUT_BUDGET",
+            "TRAJECTORY_BUDGET",
+            "TOOL_OUTPUT_BUDGET",
+            "MIN_MEMORY_BUDGET",
+            "MAX_MEMORY_BUDGET",
+            "PREVIEW_TOKEN_BUDGET",
+            "MAX_DESCRIPTION_TOKENS",
+            "MAX_ENTRY_TOKENS",
+            "CHUNKING_THRESHOLD_TOKENS",
         ]:
             val = getattr(DEFAULTS, attr)
             assert isinstance(val, int), f"{attr} should be int, got {type(val)}"
@@ -446,6 +488,7 @@ class TestJottyDefaultsServiceURLs:
 # ###########################################################################
 # 2. Exception hierarchy
 # ###########################################################################
+
 
 @pytest.mark.skipif(not HAS_EXCEPTIONS, reason="exceptions not importable")
 class TestJottyErrorBase:
@@ -667,7 +710,9 @@ class TestContextOverflowError:
     @pytest.mark.unit
     def test_is_catchable_as_context_error(self):
         with pytest.raises(ContextError):
-            raise ContextOverflowError("too many tokens", detected_tokens=200_000, max_tokens=100_000)
+            raise ContextOverflowError(
+                "too many tokens", detected_tokens=200_000, max_tokens=100_000
+            )
 
 
 @pytest.mark.skipif(not HAS_EXCEPTIONS, reason="exceptions not importable")
@@ -720,8 +765,11 @@ class TestValidationError:
         """ValidationError can accept context and original_error."""
         orig = TypeError("type mismatch")
         err = ValidationError(
-            "invalid", param="x", value=42,
-            context={"step": 1}, original_error=orig,
+            "invalid",
+            param="x",
+            value=42,
+            context={"step": 1},
+            original_error=orig,
         )
         assert err.context == {"step": 1}
         assert err.original_error is orig
@@ -755,8 +803,11 @@ class TestWrapException:
     def test_wrap_passes_kwargs_as_context(self):
         original = KeyError("missing")
         wrapped = wrap_exception(
-            original, MissingConfigError, "config missing",
-            config_key="api_key", component="auth",
+            original,
+            MissingConfigError,
+            "config missing",
+            config_key="api_key",
+            component="auth",
         )
         assert wrapped.context["config_key"] == "api_key"
         assert wrapped.context["component"] == "auth"
@@ -784,15 +835,36 @@ class TestExceptionInstantiation:
     def test_all_exception_classes_instantiate(self):
         """Every leaf exception class should be instantiable with a message string."""
         classes = [
-            JottyError, ConfigurationError, InvalidConfigError, MissingConfigError,
-            ExecutionError, AgentExecutionError, ToolExecutionError,
-            JottyTimeoutError, CircuitBreakerError,
-            ContextError, CompressionError, ChunkingError,
-            JottyMemoryError, MemoryRetrievalError, MemoryStorageError, ConsolidationError,
-            LearningError, RewardCalculationError, CreditAssignmentError, PolicyUpdateError,
-            CommunicationError, MessageDeliveryError, FeedbackRoutingError,
-            PersistenceError, StorageError, RetrievalError,
-            IntegrationError, LLMError, DSPyError, ExternalToolError,
+            JottyError,
+            ConfigurationError,
+            InvalidConfigError,
+            MissingConfigError,
+            ExecutionError,
+            AgentExecutionError,
+            ToolExecutionError,
+            JottyTimeoutError,
+            CircuitBreakerError,
+            ContextError,
+            CompressionError,
+            ChunkingError,
+            JottyMemoryError,
+            MemoryRetrievalError,
+            MemoryStorageError,
+            ConsolidationError,
+            LearningError,
+            RewardCalculationError,
+            CreditAssignmentError,
+            PolicyUpdateError,
+            CommunicationError,
+            MessageDeliveryError,
+            FeedbackRoutingError,
+            PersistenceError,
+            StorageError,
+            RetrievalError,
+            IntegrationError,
+            LLMError,
+            DSPyError,
+            ExternalToolError,
         ]
         for cls in classes:
             err = cls(f"test {cls.__name__}")
@@ -804,6 +876,7 @@ class TestExceptionInstantiation:
 # 3. Protocols
 # ###########################################################################
 
+
 @pytest.mark.skipif(not HAS_PROTOCOLS, reason="protocols not importable")
 class TestMetadataProviderProtocol:
     """Tests for the MetadataProvider runtime_checkable protocol."""
@@ -811,9 +884,11 @@ class TestMetadataProviderProtocol:
     @pytest.mark.unit
     def test_conforming_class_passes_isinstance(self):
         """A class with get_context_for_actor and get_swarm_context is a MetadataProvider."""
+
         class MyProvider:
             def get_context_for_actor(self, actor_name, query, previous_outputs=None, **kwargs):
                 return {}
+
             def get_swarm_context(self, **kwargs):
                 return {}
 
@@ -823,6 +898,7 @@ class TestMetadataProviderProtocol:
     @pytest.mark.unit
     def test_non_conforming_class_fails_isinstance(self):
         """A class missing required methods is NOT a MetadataProvider."""
+
         class NotProvider:
             def some_method(self):
                 pass
@@ -833,6 +909,7 @@ class TestMetadataProviderProtocol:
     @pytest.mark.unit
     def test_partial_conforming_missing_get_swarm_context(self):
         """Missing get_swarm_context should fail isinstance check."""
+
         class PartialProvider:
             def get_context_for_actor(self, actor_name, query, previous_outputs=None, **kwargs):
                 return {}
@@ -843,9 +920,11 @@ class TestMetadataProviderProtocol:
     @pytest.mark.unit
     def test_conforming_provider_returns_context(self):
         """A conforming provider should return dicts from its methods."""
+
         class SQLProvider:
             def get_context_for_actor(self, actor_name, query, previous_outputs=None, **kwargs):
                 return {"tables": ["users", "orders"]}
+
             def get_swarm_context(self, **kwargs):
                 return {"domain": "sql"}
 
@@ -863,9 +942,11 @@ class TestDataProviderProtocol:
     @pytest.mark.unit
     def test_conforming_class_passes_isinstance(self):
         """A class with retrieve() and store() is a DataProvider."""
+
         class FileProvider:
             def retrieve(self, key, format=None, **kwargs):
                 return f"data for {key}"
+
             def store(self, key, value, format=None, **kwargs):
                 pass
 
@@ -875,6 +956,7 @@ class TestDataProviderProtocol:
     @pytest.mark.unit
     def test_non_conforming_class_fails_isinstance(self):
         """A class missing retrieve/store is NOT a DataProvider."""
+
         class BadProvider:
             def fetch(self, key):
                 pass
@@ -885,6 +967,7 @@ class TestDataProviderProtocol:
     @pytest.mark.unit
     def test_missing_store_fails(self):
         """A class with retrieve() but no store() is NOT a DataProvider."""
+
         class ReadOnly:
             def retrieve(self, key, format=None, **kwargs):
                 return None
@@ -900,6 +983,7 @@ class TestContextExtractorProtocol:
     @pytest.mark.unit
     def test_conforming_class_passes_isinstance(self):
         """A class with extract() is a ContextExtractor."""
+
         class KeywordExtractor:
             def extract(self, content, query, max_tokens, **kwargs):
                 return content[:max_tokens]
@@ -910,6 +994,7 @@ class TestContextExtractorProtocol:
     @pytest.mark.unit
     def test_non_conforming_class_fails_isinstance(self):
         """A class without extract() is NOT a ContextExtractor."""
+
         class NoExtract:
             def process(self, content):
                 pass
@@ -920,6 +1005,7 @@ class TestContextExtractorProtocol:
     @pytest.mark.unit
     def test_extract_returns_string(self):
         """A conforming extractor's extract() returns a string."""
+
         class TruncExtractor:
             def extract(self, content, query, max_tokens, **kwargs):
                 return content[:max_tokens]
@@ -933,6 +1019,7 @@ class TestContextExtractorProtocol:
 # ###########################################################################
 # 4. AgentConfig
 # ###########################################################################
+
 
 @pytest.mark.skipif(not HAS_AGENT_CONFIG, reason="agent_config not importable")
 class TestAgentConfigCreation:
@@ -1016,7 +1103,8 @@ class TestAgentConfigCustomValues:
     def test_custom_architect_prompts(self):
         """Custom architect_prompts are preserved."""
         config = AgentConfig(
-            name="A", agent=Mock(),
+            name="A",
+            agent=Mock(),
             architect_prompts=["plan.md", "context.md"],
         )
         assert config.architect_prompts == ["plan.md", "context.md"]
@@ -1025,7 +1113,8 @@ class TestAgentConfigCustomValues:
     def test_custom_capabilities(self):
         """capabilities field stores a list of strings."""
         config = AgentConfig(
-            name="A", agent=Mock(),
+            name="A",
+            agent=Mock(),
             capabilities=["code_review", "testing"],
         )
         assert config.capabilities == ["code_review", "testing"]
@@ -1034,7 +1123,8 @@ class TestAgentConfigCustomValues:
     def test_custom_dependencies(self):
         """dependencies field stores a list of agent names."""
         config = AgentConfig(
-            name="B", agent=Mock(),
+            name="B",
+            agent=Mock(),
             dependencies=["A"],
         )
         assert config.dependencies == ["A"]
@@ -1043,7 +1133,8 @@ class TestAgentConfigCustomValues:
     def test_custom_metadata(self):
         """metadata field stores arbitrary dict."""
         config = AgentConfig(
-            name="A", agent=Mock(),
+            name="A",
+            agent=Mock(),
             metadata={"priority": "high"},
         )
         assert config.metadata["priority"] == "high"
@@ -1052,7 +1143,8 @@ class TestAgentConfigCustomValues:
     def test_parameter_mappings(self):
         """parameter_mappings stores input-to-param mapping."""
         config = AgentConfig(
-            name="A", agent=Mock(),
+            name="A",
+            agent=Mock(),
             parameter_mappings={"input_query": "query"},
         )
         assert config.parameter_mappings["input_query"] == "query"
@@ -1061,7 +1153,8 @@ class TestAgentConfigCustomValues:
     def test_outputs_list(self):
         """outputs stores list of output field names."""
         config = AgentConfig(
-            name="A", agent=Mock(),
+            name="A",
+            agent=Mock(),
             outputs=["sql_query", "explanation"],
         )
         assert "sql_query" in config.outputs
@@ -1070,7 +1163,8 @@ class TestAgentConfigCustomValues:
     def test_provides_list(self):
         """provides stores list of parameter names this agent can provide."""
         config = AgentConfig(
-            name="A", agent=Mock(),
+            name="A",
+            agent=Mock(),
             provides=["table_list", "column_info"],
         )
         assert "table_list" in config.provides
@@ -1087,6 +1181,7 @@ class TestAgentConfigCustomValues:
 # ###########################################################################
 # 5. Agent Types (AgentContribution, AgentMessage, SharedScratchpad)
 # ###########################################################################
+
 
 @pytest.mark.skipif(not HAS_AGENT_TYPES, reason="agent_types not importable")
 class TestAgentContribution:
@@ -1221,7 +1316,8 @@ class TestAgentMessage:
     def test_timestamp_auto_set(self):
         """timestamp should default to current time."""
         msg = AgentMessage(
-            sender="a", receiver="b",
+            sender="a",
+            receiver="b",
             message_type=CommunicationType.INSIGHT,
             content={},
         )
@@ -1231,7 +1327,8 @@ class TestAgentMessage:
     def test_broadcast_receiver(self):
         """receiver='*' means broadcast."""
         msg = AgentMessage(
-            sender="a", receiver="*",
+            sender="a",
+            receiver="*",
             message_type=CommunicationType.WARNING,
             content={"warn": "high latency"},
         )
@@ -1241,7 +1338,8 @@ class TestAgentMessage:
     def test_tool_result_fields(self):
         """Tool result fields are stored correctly."""
         msg = AgentMessage(
-            sender="a", receiver="b",
+            sender="a",
+            receiver="b",
             message_type=CommunicationType.TOOL_RESULT,
             content={},
             tool_name="web_search",
@@ -1256,7 +1354,8 @@ class TestAgentMessage:
     def test_insight_fields(self):
         """Insight and confidence fields are stored."""
         msg = AgentMessage(
-            sender="a", receiver="b",
+            sender="a",
+            receiver="b",
             message_type=CommunicationType.INSIGHT,
             content={},
             insight="Data shows upward trend",
@@ -1269,7 +1368,8 @@ class TestAgentMessage:
     def test_optional_fields_default_none(self):
         """Optional fields default to None."""
         msg = AgentMessage(
-            sender="a", receiver="b",
+            sender="a",
+            receiver="b",
             message_type=CommunicationType.REQUEST,
             content={},
         )
@@ -1284,11 +1384,11 @@ class TestAgentMessage:
 class TestSharedScratchpad:
     """Tests for SharedScratchpad dataclass."""
 
-    def _make_message(self, sender="a", receiver="b",
-                      msg_type=CommunicationType.INSIGHT, **kwargs):
+    def _make_message(self, sender="a", receiver="b", msg_type=CommunicationType.INSIGHT, **kwargs):
         """Helper to create an AgentMessage."""
         return AgentMessage(
-            sender=sender, receiver=receiver,
+            sender=sender,
+            receiver=receiver,
             message_type=msg_type,
             content=kwargs.get("content", {}),
             tool_name=kwargs.get("tool_name"),
@@ -1365,10 +1465,14 @@ class TestSharedScratchpad:
     def test_clear(self):
         """clear() empties messages, tool_cache, and shared_insights."""
         pad = SharedScratchpad()
-        pad.add_message(self._make_message(
-            msg_type=CommunicationType.TOOL_RESULT,
-            tool_name="t", tool_args={}, tool_result="r",
-        ))
+        pad.add_message(
+            self._make_message(
+                msg_type=CommunicationType.TOOL_RESULT,
+                tool_name="t",
+                tool_args={},
+                tool_result="r",
+            )
+        )
         pad.shared_insights.append("insight1")
 
         pad.clear()
@@ -1380,14 +1484,22 @@ class TestSharedScratchpad:
     def test_multiple_tool_caches(self):
         """Multiple tool results are cached independently."""
         pad = SharedScratchpad()
-        pad.add_message(self._make_message(
-            msg_type=CommunicationType.TOOL_RESULT,
-            tool_name="calc", tool_args={"x": 1}, tool_result=10,
-        ))
-        pad.add_message(self._make_message(
-            msg_type=CommunicationType.TOOL_RESULT,
-            tool_name="calc", tool_args={"x": 2}, tool_result=20,
-        ))
+        pad.add_message(
+            self._make_message(
+                msg_type=CommunicationType.TOOL_RESULT,
+                tool_name="calc",
+                tool_args={"x": 1},
+                tool_result=10,
+            )
+        )
+        pad.add_message(
+            self._make_message(
+                msg_type=CommunicationType.TOOL_RESULT,
+                tool_name="calc",
+                tool_args={"x": 2},
+                tool_result=20,
+            )
+        )
         assert pad.get_cached_result("calc", {"x": 1}) == 10
         assert pad.get_cached_result("calc", {"x": 2}) == 20
 
@@ -1395,8 +1507,12 @@ class TestSharedScratchpad:
     def test_non_tool_result_message_not_cached(self):
         """Non-TOOL_RESULT messages should not populate tool_cache."""
         pad = SharedScratchpad()
-        pad.add_message(self._make_message(
-            msg_type=CommunicationType.INSIGHT,
-            tool_name="calc", tool_args={"x": 1}, tool_result=10,
-        ))
+        pad.add_message(
+            self._make_message(
+                msg_type=CommunicationType.INSIGHT,
+                tool_name="calc",
+                tool_args={"x": 1},
+                tool_result=10,
+            )
+        )
         assert pad.tool_cache == {}

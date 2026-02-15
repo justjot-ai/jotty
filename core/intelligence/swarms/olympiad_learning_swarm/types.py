@@ -4,12 +4,12 @@ World-class educational swarm for olympiad-level mastery.
 Supports any subject (Math, Physics, Chemistry, CS, etc.).
 """
 
-import re
 import logging
-from typing import Dict, Any, Optional, List
+import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
 from ..swarm_types import SwarmConfig, SwarmResult
 
@@ -20,8 +20,10 @@ logger = logging.getLogger(__name__)
 # ENUMS
 # =============================================================================
 
+
 class Subject(Enum):
     """Supported subjects for olympiad preparation."""
+
     MATHEMATICS = "mathematics"
     PHYSICS = "physics"
     CHEMISTRY = "chemistry"
@@ -33,34 +35,38 @@ class Subject(Enum):
 
 class DifficultyTier(Enum):
     """Difficulty progression tiers."""
-    FOUNDATION = "foundation"          # Building blocks everyone needs
-    INTERMEDIATE = "intermediate"      # School competition level
-    ADVANCED = "advanced"              # National olympiad level
-    OLYMPIAD = "olympiad"              # International olympiad level (IMO/IPhO/IOI)
-    BEYOND = "beyond"                  # Research-level extensions
+
+    FOUNDATION = "foundation"  # Building blocks everyone needs
+    INTERMEDIATE = "intermediate"  # School competition level
+    ADVANCED = "advanced"  # National olympiad level
+    OLYMPIAD = "olympiad"  # International olympiad level (IMO/IPhO/IOI)
+    BEYOND = "beyond"  # Research-level extensions
 
 
 class LessonDepth(Enum):
     """How deep to go in a single session."""
-    QUICK = "quick"              # 15-min focused sprint
-    STANDARD = "standard"        # 45-min full lesson
-    DEEP = "deep"                # 90-min deep dive with all problems
-    MARATHON = "marathon"        # Multi-hour comprehensive session
+
+    QUICK = "quick"  # 15-min focused sprint
+    STANDARD = "standard"  # 45-min full lesson
+    DEEP = "deep"  # 90-min deep dive with all problems
+    MARATHON = "marathon"  # Multi-hour comprehensive session
 
 
 class TeachingMode(Enum):
     """Teaching approach for the session."""
-    CONCEPT_BUILD = "concept_build"        # Learn a new concept from scratch
-    PROBLEM_DRILL = "problem_drill"        # Practice problems on known concept
-    PATTERN_HUNT = "pattern_hunt"          # Discover patterns across problems
-    STRATEGY_LAB = "strategy_lab"          # Learn problem-solving strategies
-    COMPETITION_SIM = "competition_sim"    # Simulate competition conditions
-    REVIEW = "review"                      # Review and reinforce weak areas
+
+    CONCEPT_BUILD = "concept_build"  # Learn a new concept from scratch
+    PROBLEM_DRILL = "problem_drill"  # Practice problems on known concept
+    PATTERN_HUNT = "pattern_hunt"  # Discover patterns across problems
+    STRATEGY_LAB = "strategy_lab"  # Learn problem-solving strategies
+    COMPETITION_SIM = "competition_sim"  # Simulate competition conditions
+    REVIEW = "review"  # Review and reinforce weak areas
 
 
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
+
 
 @dataclass
 class OlympiadLearningConfig(SwarmConfig):
@@ -115,6 +121,7 @@ class OlympiadLearningConfig(SwarmConfig):
         self.domain = "olympiad_learning"
         if self.llm_timeout <= 0:
             from Jotty.core.infrastructure.foundation.config_defaults import LLM_TIMEOUT_SECONDS
+
             self.llm_timeout = LLM_TIMEOUT_SECONDS
 
 
@@ -122,9 +129,11 @@ class OlympiadLearningConfig(SwarmConfig):
 # DATA CLASSES
 # =============================================================================
 
+
 @dataclass
 class BuildingBlock:
     """A prerequisite building block that must be understood first."""
+
     name: str
     description: str
     why_needed: str
@@ -136,6 +145,7 @@ class BuildingBlock:
 @dataclass
 class ConceptCore:
     """Core concept being taught."""
+
     name: str
     description: str
     why_it_matters: str
@@ -150,6 +160,7 @@ class ConceptCore:
 @dataclass
 class PatternEntry:
     """A problem-solving pattern."""
+
     name: str
     description: str
     when_to_use: str
@@ -160,6 +171,7 @@ class PatternEntry:
 @dataclass
 class Problem:
     """A practice problem with solution."""
+
     statement: str
     tier: DifficultyTier
     hints: List[str]
@@ -176,6 +188,7 @@ class Problem:
 @dataclass
 class StrategyCard:
     """A problem-solving strategy."""
+
     name: str
     description: str
     when_to_use: str
@@ -188,6 +201,7 @@ class StrategyCard:
 @dataclass
 class MistakeEntry:
     """A common mistake and how to avoid it."""
+
     description: str
     why_it_happens: str
     how_to_avoid: str
@@ -198,6 +212,7 @@ class MistakeEntry:
 @dataclass
 class LessonSection:
     """A section of the lesson."""
+
     title: str
     content: str
     level: int  # 1=foundation, 2=core, 3=patterns, 4=problems, 5=olympiad
@@ -212,6 +227,7 @@ class LessonSection:
 @dataclass
 class LessonContent:
     """Complete lesson content."""
+
     subject: Subject
     topic: str
     student_name: str
@@ -235,6 +251,7 @@ class LessonContent:
 @dataclass
 class OlympiadLearningResult(SwarmResult):
     """Result from OlympiadLearningSwarm."""
+
     content: Optional[LessonContent] = None
     student_name: str = ""
     topic: str = ""
@@ -252,14 +269,15 @@ class OlympiadLearningResult(SwarmResult):
 # HELPERS
 # =============================================================================
 
+
 def format_steps_on_newlines(text: str) -> str:
     """Post-process text to ensure steps are on separate lines."""
     if not text:
         return text
 
-    text = re.sub(r'(?<=[.!?:,])\s*(Step\s*\d+)\s*:', r'\n\n\1:', text)
-    text = re.sub(r'(?<=[.!?])\s*(\d+)\.\s+', r'\n\n\1. ', text)
-    text = re.sub(r'\n{3,}', '\n\n', text)
+    text = re.sub(r"(?<=[.!?:,])\s*(Step\s*\d+)\s*:", r"\n\n\1:", text)
+    text = re.sub(r"(?<=[.!?])\s*(\d+)\.\s+", r"\n\n\1. ", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
 
     return text.strip()
 
@@ -277,9 +295,20 @@ def tier_to_level(tier: DifficultyTier) -> int:
 
 
 __all__ = [
-    'Subject', 'DifficultyTier', 'LessonDepth', 'TeachingMode',
-    'OlympiadLearningConfig', 'BuildingBlock', 'ConceptCore',
-    'PatternEntry', 'Problem', 'StrategyCard', 'MistakeEntry',
-    'LessonSection', 'LessonContent', 'OlympiadLearningResult',
-    'format_steps_on_newlines', 'tier_to_level',
+    "Subject",
+    "DifficultyTier",
+    "LessonDepth",
+    "TeachingMode",
+    "OlympiadLearningConfig",
+    "BuildingBlock",
+    "ConceptCore",
+    "PatternEntry",
+    "Problem",
+    "StrategyCard",
+    "MistakeEntry",
+    "LessonSection",
+    "LessonContent",
+    "OlympiadLearningResult",
+    "format_steps_on_newlines",
+    "tier_to_level",
 ]

@@ -17,12 +17,12 @@ configurable retention. Can be serialized to disk alongside
 SwarmIntelligence state.
 """
 
-import time
-import math
 import logging
-from typing import Dict, List, Any, Optional, Tuple
+import math
+import time
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +30,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class MetricPoint:
     """A single metric data point."""
+
     timestamp: float
     value: float
     labels: Dict[str, str] = field(default_factory=dict)
@@ -50,11 +51,7 @@ class TimeWindow:
 
     def add(self, value: float, labels: Dict[str, str] = None) -> None:
         """Add a data point."""
-        self._points.append(MetricPoint(
-            timestamp=time.time(),
-            value=value,
-            labels=labels or {}
-        ))
+        self._points.append(MetricPoint(timestamp=time.time(), value=value, labels=labels or {}))
 
     def _prune(self) -> Any:
         """Remove expired points."""
@@ -114,12 +111,12 @@ class TimeWindow:
 
         return second_mean - first_mean
 
-    def by_label(self, label_key: str) -> Dict[str, 'TimeWindow']:
+    def by_label(self, label_key: str) -> Dict[str, "TimeWindow"]:
         """Split points by a label value into separate windows."""
         self._prune()
         groups: Dict[str, TimeWindow] = {}
         for point in self._points:
-            label_val = point.labels.get(label_key, 'unknown')
+            label_val = point.labels.get(label_key, "unknown")
             if label_val not in groups:
                 groups[label_val] = TimeWindow(self.max_age, self.max_points)
             groups[label_val]._points.append(point)
@@ -129,8 +126,7 @@ class TimeWindow:
         """Serialize recent points."""
         self._prune()
         return [
-            {'t': p.timestamp, 'v': p.value, 'l': p.labels}
-            for p in list(self._points)[-limit:]
+            {"t": p.timestamp, "v": p.value, "l": p.labels} for p in list(self._points)[-limit:]
         ]
 
 
@@ -154,7 +150,7 @@ class MetricsCollector:
     """
 
     # Singleton for process-wide metrics
-    _instance: 'MetricsCollector' = None
+    _instance: "MetricsCollector" = None
 
     def __init__(self, retention_seconds: float = 7200) -> None:
         """
@@ -186,7 +182,7 @@ class MetricsCollector:
         logger.debug("MetricsCollector initialized")
 
     @classmethod
-    def get_global(cls) -> 'MetricsCollector':
+    def get_global(cls) -> "MetricsCollector":
         """Get process-wide metrics collector singleton."""
         if cls._instance is None:
             cls._instance = cls()
@@ -196,14 +192,16 @@ class MetricsCollector:
     # RECORDING METHODS
     # =========================================================================
 
-    def record_task(self, swarm: str, agent: str, task_type: str, success: bool, duration: float = 0.0) -> Any:
+    def record_task(
+        self, swarm: str, agent: str, task_type: str, success: bool, duration: float = 0.0
+    ) -> Any:
         """Record a task execution."""
-        labels = {'swarm': swarm, 'agent': agent, 'task_type': task_type}
+        labels = {"swarm": swarm, "agent": agent, "task_type": task_type}
         self.task_success.add(1.0 if success else 0.0, labels)
         self.task_duration.add(duration, labels)
         self.task_count.add(1.0, labels)
 
-    def record_coordination(self, protocol: str, agent: str = '', success: bool = True) -> Any:
+    def record_coordination(self, protocol: str, agent: str = "", success: bool = True) -> Any:
         """
         Record a coordination protocol event.
 
@@ -214,19 +212,20 @@ class MetricsCollector:
             success: Whether the protocol action succeeded
         """
         self.coordination_events.add(
-            1.0 if success else 0.0,
-            {'protocol': protocol, 'agent': agent}
+            1.0 if success else 0.0, {"protocol": protocol, "agent": agent}
         )
 
-    def record_learning(self, td_error: float = 0.0, value_update: float = 0.0, task_type: str = '') -> Any:
+    def record_learning(
+        self, td_error: float = 0.0, value_update: float = 0.0, task_type: str = ""
+    ) -> Any:
         """Record a learning update from TD-Lambda."""
-        labels = {'task_type': task_type}
+        labels = {"task_type": task_type}
         if td_error != 0.0:
             self.td_errors.add(abs(td_error), labels)
         if value_update != 0.0:
             self.learning_updates.add(value_update, labels)
 
-    def record_error(self, category: str, component: str = '', message: str = '') -> Any:
+    def record_error(self, category: str, component: str = "", message: str = "") -> Any:
         """
         Record an error event.
 
@@ -235,17 +234,20 @@ class MetricsCollector:
             component: Component that produced the error
             message: Error message (truncated)
         """
-        self.errors.add(1.0, {
-            'category': category,
-            'component': component,
-            'message': message[:100],
-        })
+        self.errors.add(
+            1.0,
+            {
+                "category": category,
+                "component": component,
+                "message": message[:100],
+            },
+        )
 
     def record_memory(self, operation: str, count: int = 1) -> None:
         """Record memory operation (retrieve, store, consolidate)."""
-        if operation == 'retrieve':
+        if operation == "retrieve":
             self.memory_retrievals.add(float(count))
-        elif operation == 'store':
+        elif operation == "store":
             self.memory_stores.add(float(count))
 
     # =========================================================================
@@ -261,89 +263,89 @@ class MetricsCollector:
         report = {}
 
         # Overall success rate
-        report['success_rate'] = self.task_success.rate()
-        report['total_tasks'] = self.task_count.count()
-        report['avg_duration'] = self.task_duration.mean()
-        report['p95_duration'] = self.task_duration.percentile(95)
+        report["success_rate"] = self.task_success.rate()
+        report["total_tasks"] = self.task_count.count()
+        report["avg_duration"] = self.task_duration.mean()
+        report["p95_duration"] = self.task_duration.percentile(95)
 
         # Trends
-        report['trends'] = {
-            'success_rate': self.task_success.trend(),
-            'duration': self.task_duration.trend(),
-            'td_error': self.td_errors.trend(),
-            'error_rate': self.errors.trend(),
+        report["trends"] = {
+            "success_rate": self.task_success.trend(),
+            "duration": self.task_duration.trend(),
+            "td_error": self.td_errors.trend(),
+            "error_rate": self.errors.trend(),
         }
 
         # Interpret trends
         trend_summary = []
-        sr_trend = report['trends']['success_rate']
+        sr_trend = report["trends"]["success_rate"]
         if sr_trend > 0.05:
             trend_summary.append("Success rate IMPROVING")
         elif sr_trend < -0.05:
             trend_summary.append("Success rate DECLINING")
 
-        td_trend = report['trends']['td_error']
+        td_trend = report["trends"]["td_error"]
         if td_trend < -0.01:
             trend_summary.append("TD errors CONVERGING (learning working)")
         elif td_trend > 0.05:
             trend_summary.append("TD errors DIVERGING (learning unstable)")
 
-        report['trend_summary'] = trend_summary or ["Stable"]
+        report["trend_summary"] = trend_summary or ["Stable"]
 
         # By swarm
-        report['by_swarm'] = {}
-        swarm_windows = self.task_success.by_label('swarm')
+        report["by_swarm"] = {}
+        swarm_windows = self.task_success.by_label("swarm")
         for swarm_name, window in swarm_windows.items():
-            report['by_swarm'][swarm_name] = {
-                'success_rate': window.rate(),
-                'count': window.count(),
-                'trend': window.trend(),
+            report["by_swarm"][swarm_name] = {
+                "success_rate": window.rate(),
+                "count": window.count(),
+                "trend": window.trend(),
             }
 
         # By agent
-        report['by_agent'] = {}
-        agent_windows = self.task_success.by_label('agent')
+        report["by_agent"] = {}
+        agent_windows = self.task_success.by_label("agent")
         for agent_name, window in agent_windows.items():
-            report['by_agent'][agent_name] = {
-                'success_rate': window.rate(),
-                'count': window.count(),
-                'trend': window.trend(),
+            report["by_agent"][agent_name] = {
+                "success_rate": window.rate(),
+                "count": window.count(),
+                "trend": window.trend(),
             }
 
         # By task type
-        report['by_task_type'] = {}
-        type_windows = self.task_success.by_label('task_type')
+        report["by_task_type"] = {}
+        type_windows = self.task_success.by_label("task_type")
         for task_type, window in type_windows.items():
-            report['by_task_type'][task_type] = {
-                'success_rate': window.rate(),
-                'count': window.count(),
+            report["by_task_type"][task_type] = {
+                "success_rate": window.rate(),
+                "count": window.count(),
             }
 
         # Coordination protocol usage
-        report['coordination'] = {}
-        protocol_windows = self.coordination_events.by_label('protocol')
+        report["coordination"] = {}
+        protocol_windows = self.coordination_events.by_label("protocol")
         for protocol, window in protocol_windows.items():
-            report['coordination'][protocol] = {
-                'count': window.count(),
-                'success_rate': window.rate(),
+            report["coordination"][protocol] = {
+                "count": window.count(),
+                "success_rate": window.rate(),
             }
 
         # Error summary
-        report['errors'] = {
-            'total': self.errors.count(),
-            'rate_per_minute': self.errors.count() / max(1, self.retention / 60),
+        report["errors"] = {
+            "total": self.errors.count(),
+            "rate_per_minute": self.errors.count() / max(1, self.retention / 60),
         }
-        error_categories = self.errors.by_label('category')
-        report['errors']['by_category'] = {
+        error_categories = self.errors.by_label("category")
+        report["errors"]["by_category"] = {
             cat: window.count() for cat, window in error_categories.items()
         }
 
         # Learning progress
-        report['learning'] = {
-            'avg_td_error': self.td_errors.mean(),
-            'td_error_trend': self.td_errors.trend(),
-            'total_updates': self.learning_updates.count(),
-            'converging': self.td_errors.trend() < 0,
+        report["learning"] = {
+            "avg_td_error": self.td_errors.mean(),
+            "td_error_trend": self.td_errors.trend(),
+            "total_updates": self.learning_updates.count(),
+            "converging": self.td_errors.trend() < 0,
         }
 
         return report
@@ -364,26 +366,25 @@ class MetricsCollector:
             f"## Trends: {', '.join(report['trend_summary'])}",
         ]
 
-        if report['by_swarm']:
+        if report["by_swarm"]:
             lines.append("\n## By Swarm")
-            for name, data in report['by_swarm'].items():
-                trend_arrow = "^" if data['trend'] > 0 else "v" if data['trend'] < 0 else "="
+            for name, data in report["by_swarm"].items():
+                trend_arrow = "^" if data["trend"] > 0 else "v" if data["trend"] < 0 else "="
                 lines.append(
                     f"  {name}: {data['success_rate']:.0%} "
                     f"({data['count']} tasks) {trend_arrow}"
                 )
 
-        if report['coordination']:
+        if report["coordination"]:
             lines.append("\n## Coordination Protocols")
-            for protocol, data in report['coordination'].items():
+            for protocol, data in report["coordination"].items():
                 lines.append(
-                    f"  {protocol}: {data['count']} events "
-                    f"({data['success_rate']:.0%} success)"
+                    f"  {protocol}: {data['count']} events " f"({data['success_rate']:.0%} success)"
                 )
 
-        if report['errors']['total'] > 0:
+        if report["errors"]["total"] > 0:
             lines.append(f"\n## Errors: {report['errors']['total']} total")
-            for cat, count in report['errors']['by_category'].items():
+            for cat, count in report["errors"]["by_category"].items():
                 lines.append(f"  {cat}: {count}")
 
         lines.append(f"\n## Learning")
@@ -396,16 +397,16 @@ class MetricsCollector:
     def to_dict(self) -> Dict:
         """Serialize for persistence (recent data only)."""
         return {
-            'task_success': self.task_success.to_list(200),
-            'task_duration': self.task_duration.to_list(200),
-            'coordination': self.coordination_events.to_list(200),
-            'td_errors': self.td_errors.to_list(200),
-            'errors': self.errors.to_list(200),
+            "task_success": self.task_success.to_list(200),
+            "task_duration": self.task_duration.to_list(200),
+            "coordination": self.coordination_events.to_list(200),
+            "td_errors": self.td_errors.to_list(200),
+            "errors": self.errors.to_list(200),
         }
 
 
 __all__ = [
-    'MetricsCollector',
-    'TimeWindow',
-    'MetricPoint',
+    "MetricsCollector",
+    "TimeWindow",
+    "MetricPoint",
 ]

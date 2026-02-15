@@ -11,4 +11,4 @@ Lightweight memory implementations:
 from .json_memory import JSONMemory
 from .noop_memory import NoOpMemory
 
-__all__ = ['JSONMemory', 'NoOpMemory']
+__all__ = ["JSONMemory", "NoOpMemory"]

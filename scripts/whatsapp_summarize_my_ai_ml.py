@@ -27,6 +27,7 @@ _env = repo_root / ".env"
 if _env.exists():
     try:
         from dotenv import load_dotenv
+
         load_dotenv(_env, override=False)
     except ImportError:
         pass
@@ -38,9 +39,11 @@ def _ensure_llm_from_env():
         return
     try:
         import dspy
+
         if dspy.settings.lm is not None:
             return
         from Jotty.core.infrastructure.foundation.direct_anthropic_lm import DirectAnthropicLM
+
         dspy.configure(lm=DirectAnthropicLM(model="sonnet"))
     except Exception:
         pass
@@ -74,6 +77,7 @@ async def main():
             text = file_arg.read_text(encoding="utf-8", errors="replace")
             _ensure_llm_from_env()
             from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
+
             reg = get_skills_registry()
             reg.init()
             sum_skill = reg.get_skill("summarize")
@@ -125,10 +129,13 @@ async def main():
     await asyncio.sleep(90)
 
     stats = await client.get_store_stats()
-    print(f"Store after wait: {stats.get('chat_count', 0)} chats, {len(stats.get('message_jids') or [])} message JIDs")
+    print(
+        f"Store after wait: {stats.get('chat_count', 0)} chats, {len(stats.get('message_jids') or [])} message JIDs"
+    )
 
     _ensure_llm_from_env()
     from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
+
     reg = get_skills_registry()
     reg.init()
     skill = reg.get_skill("whatsapp-reader")
@@ -147,12 +154,14 @@ async def main():
         chat_id_to_use = chat_id_arg if "@" in chat_id_arg else f"{chat_id_arg}@g.us"
         print(f"Using chat_id: {chat_id_to_use}")
     else:
-        result = await summarize_tool({
-            "chat_name": "my-ai-ml",
-            "limit": 500,
-            "length": "medium",
-            "style": "bullet",
-        })
+        result = await summarize_tool(
+            {
+                "chat_name": "my-ai-ml",
+                "limit": 500,
+                "length": "medium",
+                "style": "bullet",
+            }
+        )
         if result.get("success") and (result.get("message_count") or 0) > 0:
             print("Reading messages from #my-ai-ml and summarizing...")
             print(f"\n--- Summary (from {result.get('message_count', 0)} messages) ---\n")
@@ -180,7 +189,9 @@ async def main():
             chat_id_to_use = max(candidates, key=lambda x: x[1])[0]
             print(f"Found group with messages: {chat_id_to_use}")
         if not chat_id_to_use:
-            print("No group with messages found. Open #my-ai-ml in WhatsApp and send a message, then run again.")
+            print(
+                "No group with messages found. Open #my-ai-ml in WhatsApp and send a message, then run again."
+            )
             print("Or run: python scripts/whatsapp_summarize_my_ai_ml.py --chat-id <GROUP_JID>")
             return 1
 
@@ -190,7 +201,9 @@ async def main():
     if fetch_result.get("success"):
         print(f"History fetch: {fetch_result.get('message_count', 0)} messages in store.")
     else:
-        print(f"History fetch note: {fetch_result.get('error', 'unknown')} (continuing with current store)")
+        print(
+            f"History fetch note: {fetch_result.get('error', 'unknown')} (continuing with current store)"
+        )
 
     # Summarize by chat_id
     result = await read_tool({"chat_id": chat_id_to_use, "limit": 500})
@@ -205,6 +218,7 @@ async def main():
     # Build text and summarize via summarize skill (uses ANTHROPIC_API_KEY from .env)
     _ensure_llm_from_env()
     from datetime import datetime
+
     lines = []
     for m in messages:
         body = (m.get("body") or "").strip()

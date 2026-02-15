@@ -7,6 +7,7 @@ from typing import Any
 @dataclass
 class MemoryConfig:
     """Memory capacities and RAG retrieval settings."""
+
     episodic_capacity: int = 1000
     semantic_capacity: int = 500
     procedural_capacity: int = 200
@@ -27,11 +28,11 @@ class MemoryConfig:
     def __post_init__(self) -> None:
         # Capacity fields: allow zero (disabled) or positive
         _capacity_fields = {
-            'episodic_capacity': self.episodic_capacity,
-            'semantic_capacity': self.semantic_capacity,
-            'procedural_capacity': self.procedural_capacity,
-            'meta_capacity': self.meta_capacity,
-            'causal_capacity': self.causal_capacity,
+            "episodic_capacity": self.episodic_capacity,
+            "semantic_capacity": self.semantic_capacity,
+            "procedural_capacity": self.procedural_capacity,
+            "meta_capacity": self.meta_capacity,
+            "causal_capacity": self.causal_capacity,
         }
         for name, val in _capacity_fields.items():
             if val < 0:
@@ -39,12 +40,12 @@ class MemoryConfig:
 
         # Strictly positive fields (non-capacity settings)
         _pos_fields = {
-            'max_entry_tokens': self.max_entry_tokens,
-            'rag_window_size': self.rag_window_size,
-            'rag_max_candidates': self.rag_max_candidates,
-            'synthesis_fetch_size': self.synthesis_fetch_size,
-            'synthesis_max_tokens': self.synthesis_max_tokens,
-            'chunk_size': self.chunk_size,
+            "max_entry_tokens": self.max_entry_tokens,
+            "rag_window_size": self.rag_window_size,
+            "rag_max_candidates": self.rag_max_candidates,
+            "synthesis_fetch_size": self.synthesis_fetch_size,
+            "synthesis_max_tokens": self.synthesis_max_tokens,
+            "chunk_size": self.chunk_size,
         }
         for name, val in _pos_fields.items():
             if val < 1:

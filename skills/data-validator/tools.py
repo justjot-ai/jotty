@@ -7,11 +7,16 @@ Data validation and quality checking for ML pipelines.
 
 import logging
 from typing import Any, Dict, List, Optional, Union
+
 import numpy as np
 import pandas as pd
 
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
+from Jotty.core.infrastructure.utils.tool_helpers import (
+    async_tool_wrapper,
+    tool_error,
+    tool_response,
+)
 
 # Status emitter for progress updates
 status = SkillStatus("data-validator")
@@ -35,13 +40,13 @@ async def validate_schema_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with validation results
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     logger.info("[DataValidator] Validating schema...")
 
-    data = params.get('data')
-    schema = params.get('schema', {})
-    strict = params.get('strict', False)
+    data = params.get("data")
+    schema = params.get("schema", {})
+    strict = params.get("strict", False)
 
     if isinstance(data, str):
         data = pd.read_csv(data)
@@ -57,14 +62,14 @@ async def validate_schema_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             continue
 
         # Check type
-        expected_type = spec.get('type')
+        expected_type = spec.get("type")
         if expected_type:
             type_mapping = {
-                'int': [np.int64, np.int32, int],
-                'float': [np.float64, np.float32, float],
-                'str': [object, str],
-                'bool': [bool, np.bool_],
-                'datetime': ['datetime64[ns]']
+                "int": [np.int64, np.int32, int],
+                "float": [np.float64, np.float32, float],
+                "str": [object, str],
+                "bool": [bool, np.bool_],
+                "datetime": ["datetime64[ns]"],
             }
             actual_type = df[col].dtype
             expected_types = type_mapping.get(expected_type, [expected_type])
@@ -72,20 +77,20 @@ async def validate_schema_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                 errors.append(f"Column '{col}' expected type {expected_type}, got {actual_type}")
 
         # Check nullable
-        nullable = spec.get('nullable', True)
+        nullable = spec.get("nullable", True)
         if not nullable and df[col].isnull().any():
             null_count = df[col].isnull().sum()
             errors.append(f"Column '{col}' has {null_count} null values but is not nullable")
 
         # Check min/max
-        if 'min' in spec and df[col].min() < spec['min']:
+        if "min" in spec and df[col].min() < spec["min"]:
             errors.append(f"Column '{col}' has values below minimum {spec['min']}")
-        if 'max' in spec and df[col].max() > spec['max']:
+        if "max" in spec and df[col].max() > spec["max"]:
             errors.append(f"Column '{col}' has values above maximum {spec['max']}")
 
         # Check allowed values
-        if 'values' in spec:
-            invalid = set(df[col].dropna().unique()) - set(spec['values'])
+        if "values" in spec:
+            invalid = set(df[col].dropna().unique()) - set(spec["values"])
             if invalid:
                 errors.append(f"Column '{col}' has invalid values: {invalid}")
 
@@ -100,11 +105,11 @@ async def validate_schema_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     logger.info(f"[DataValidator] Schema validation: {'PASSED' if is_valid else 'FAILED'}")
 
     return {
-        'success': True,
-        'is_valid': is_valid,
-        'errors': errors,
-        'warnings': warnings,
-        'columns_checked': list(schema.keys()),
+        "success": True,
+        "is_valid": is_valid,
+        "errors": errors,
+        "warnings": warnings,
+        "columns_checked": list(schema.keys()),
     }
 
 
@@ -122,16 +127,19 @@ async def validate_quality_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with quality scores and issues
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     logger.info("[DataValidator] Checking data quality...")
 
-    data = params.get('data')
-    thresholds = params.get('thresholds', {
-        'missing_pct': 5,
-        'duplicate_pct': 1,
-        'cardinality_ratio': 0.95  # Max unique ratio for categoricals
-    })
+    data = params.get("data")
+    thresholds = params.get(
+        "thresholds",
+        {
+            "missing_pct": 5,
+            "duplicate_pct": 1,
+            "cardinality_ratio": 0.95,  # Max unique ratio for categoricals
+        },
+    )
 
     if isinstance(data, str):
         data = pd.read_csv(data)
@@ -141,13 +149,13 @@ async def validate_quality_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     metrics = {}
 
     # Overall stats
-    metrics['n_rows'] = len(df)
-    metrics['n_columns'] = len(df.columns)
+    metrics["n_rows"] = len(df)
+    metrics["n_columns"] = len(df.columns)
 
     # Missing values
     missing_pct = (df.isnull().sum().sum() / df.size) * 100
-    metrics['missing_pct'] = round(missing_pct, 2)
-    if missing_pct > thresholds.get('missing_pct', 5):
+    metrics["missing_pct"] = round(missing_pct, 2)
+    if missing_pct > thresholds.get("missing_pct", 5):
         issues.append(f"High missing data: {missing_pct:.2f}%")
 
     # Column-level missing
@@ -156,29 +164,29 @@ async def validate_quality_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         col_miss_pct = df[col].isnull().mean() * 100
         if col_miss_pct > 0:
             col_missing[col] = round(col_miss_pct, 2)
-    metrics['columns_with_missing'] = col_missing
+    metrics["columns_with_missing"] = col_missing
 
     # Duplicates
     n_duplicates = df.duplicated().sum()
     duplicate_pct = (n_duplicates / len(df)) * 100
-    metrics['duplicate_rows'] = n_duplicates
-    metrics['duplicate_pct'] = round(duplicate_pct, 2)
-    if duplicate_pct > thresholds.get('duplicate_pct', 1):
+    metrics["duplicate_rows"] = n_duplicates
+    metrics["duplicate_pct"] = round(duplicate_pct, 2)
+    if duplicate_pct > thresholds.get("duplicate_pct", 1):
         issues.append(f"High duplicate rate: {duplicate_pct:.2f}%")
 
     # Constant columns
     constant_cols = [col for col in df.columns if df[col].nunique() <= 1]
-    metrics['constant_columns'] = constant_cols
+    metrics["constant_columns"] = constant_cols
     if constant_cols:
         issues.append(f"Constant columns found: {constant_cols}")
 
     # High cardinality categoricals
     high_cardinality = []
-    for col in df.select_dtypes(include=['object', 'category']).columns:
+    for col in df.select_dtypes(include=["object", "category"]).columns:
         cardinality_ratio = df[col].nunique() / len(df)
-        if cardinality_ratio > thresholds.get('cardinality_ratio', 0.95):
+        if cardinality_ratio > thresholds.get("cardinality_ratio", 0.95):
             high_cardinality.append(col)
-    metrics['high_cardinality_cols'] = high_cardinality
+    metrics["high_cardinality_cols"] = high_cardinality
     if high_cardinality:
         issues.append(f"High cardinality columns: {high_cardinality}")
 
@@ -190,16 +198,16 @@ async def validate_quality_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     quality_score -= len(high_cardinality) * 3  # -3 per high cardinality
     quality_score = max(0, quality_score)
 
-    metrics['quality_score'] = round(quality_score, 1)
+    metrics["quality_score"] = round(quality_score, 1)
 
     logger.info(f"[DataValidator] Quality score: {quality_score:.1f}/100")
 
     return {
-        'success': True,
-        'quality_score': round(quality_score, 1),
-        'metrics': metrics,
-        'issues': issues,
-        'is_quality': quality_score >= 70,
+        "success": True,
+        "quality_score": round(quality_score, 1),
+        "metrics": metrics,
+        "issues": issues,
+        "is_quality": quality_score >= 70,
     }
 
 
@@ -218,16 +226,16 @@ async def validate_drift_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with drift detection results
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     from scipy import stats
 
     logger.info("[DataValidator] Detecting distribution drift...")
 
-    reference = params.get('reference')
-    current = params.get('current')
-    columns = params.get('columns')
-    threshold = params.get('threshold', 0.05)
+    reference = params.get("reference")
+    current = params.get("current")
+    columns = params.get("columns")
+    threshold = params.get("threshold", 0.05)
 
     if isinstance(reference, str):
         reference = pd.read_csv(reference)
@@ -253,7 +261,7 @@ async def validate_drift_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         if ref_df[col].dtype in [np.float64, np.int64, float, int]:
             # Numeric: use Kolmogorov-Smirnov test
             statistic, p_value = stats.ks_2samp(ref_values, cur_values)
-            test_name = 'ks_test'
+            test_name = "ks_test"
         else:
             # Categorical: use Chi-square test
             ref_counts = ref_values.value_counts()
@@ -269,17 +277,17 @@ async def validate_drift_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
             try:
                 statistic, p_value = stats.chisquare(cur_freq, ref_freq)
-                test_name = 'chi2_test'
+                test_name = "chi2_test"
             except Exception:
                 statistic, p_value = 0, 1
-                test_name = 'chi2_test_failed'
+                test_name = "chi2_test_failed"
 
         is_drifted = p_value < threshold
         drift_results[col] = {
-            'test': test_name,
-            'statistic': float(statistic),
-            'p_value': float(p_value),
-            'is_drifted': is_drifted
+            "test": test_name,
+            "statistic": float(statistic),
+            "p_value": float(p_value),
+            "is_drifted": is_drifted,
         }
 
         if is_drifted:
@@ -290,12 +298,12 @@ async def validate_drift_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     logger.info(f"[DataValidator] Drift detected in {len(drifted_columns)} columns")
 
     return {
-        'success': True,
-        'drift_detected': drift_detected,
-        'drifted_columns': drifted_columns,
-        'drift_results': drift_results,
-        'threshold': threshold,
-        'columns_checked': columns,
+        "success": True,
+        "drift_detected": drift_detected,
+        "drifted_columns": drifted_columns,
+        "drift_results": drift_results,
+        "threshold": threshold,
+        "columns_checked": columns,
     }
 
 
@@ -318,12 +326,12 @@ async def validate_constraints_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with constraint validation results
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     logger.info("[DataValidator] Validating constraints...")
 
-    data = params.get('data')
-    constraints = params.get('constraints', [])
+    data = params.get("data")
+    constraints = params.get("constraints", [])
 
     if isinstance(data, str):
         data = pd.read_csv(data)
@@ -333,24 +341,24 @@ async def validate_constraints_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     all_passed = True
 
     for constraint in constraints:
-        c_type = constraint.get('type')
-        result = {'constraint': constraint, 'passed': True, 'violations': 0, 'message': ''}
+        c_type = constraint.get("type")
+        result = {"constraint": constraint, "passed": True, "violations": 0, "message": ""}
 
-        if c_type == 'positive':
-            columns = constraint.get('columns', [])
+        if c_type == "positive":
+            columns = constraint.get("columns", [])
             for col in columns:
                 if col in df.columns:
                     violations = (df[col] < 0).sum()
                     if violations > 0:
-                        result['passed'] = False
-                        result['violations'] = int(violations)
-                        result['message'] = f"Column '{col}' has {violations} negative values"
+                        result["passed"] = False
+                        result["violations"] = int(violations)
+                        result["message"] = f"Column '{col}' has {violations} negative values"
                         all_passed = False
 
-        elif c_type == 'range':
-            col = constraint.get('column')
-            min_val = constraint.get('min')
-            max_val = constraint.get('max')
+        elif c_type == "range":
+            col = constraint.get("column")
+            min_val = constraint.get("min")
+            max_val = constraint.get("max")
             if col in df.columns:
                 violations = 0
                 if min_val is not None:
@@ -358,59 +366,61 @@ async def validate_constraints_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                 if max_val is not None:
                     violations += (df[col] > max_val).sum()
                 if violations > 0:
-                    result['passed'] = False
-                    result['violations'] = int(violations)
-                    result['message'] = f"Column '{col}' has {violations} out-of-range values"
+                    result["passed"] = False
+                    result["violations"] = int(violations)
+                    result["message"] = f"Column '{col}' has {violations} out-of-range values"
                     all_passed = False
 
-        elif c_type == 'unique':
-            columns = constraint.get('columns', [])
+        elif c_type == "unique":
+            columns = constraint.get("columns", [])
             existing_cols = [c for c in columns if c in df.columns]
             if existing_cols:
                 duplicates = df.duplicated(subset=existing_cols).sum()
                 if duplicates > 0:
-                    result['passed'] = False
-                    result['violations'] = int(duplicates)
-                    result['message'] = f"Columns {existing_cols} have {duplicates} duplicate combinations"
+                    result["passed"] = False
+                    result["violations"] = int(duplicates)
+                    result["message"] = (
+                        f"Columns {existing_cols} have {duplicates} duplicate combinations"
+                    )
                     all_passed = False
 
-        elif c_type == 'not_null':
-            columns = constraint.get('columns', [])
+        elif c_type == "not_null":
+            columns = constraint.get("columns", [])
             for col in columns:
                 if col in df.columns:
                     nulls = df[col].isnull().sum()
                     if nulls > 0:
-                        result['passed'] = False
-                        result['violations'] = int(nulls)
-                        result['message'] = f"Column '{col}' has {nulls} null values"
+                        result["passed"] = False
+                        result["violations"] = int(nulls)
+                        result["message"] = f"Column '{col}' has {nulls} null values"
                         all_passed = False
 
-        elif c_type == 'relationship':
-            condition = constraint.get('condition')
+        elif c_type == "relationship":
+            condition = constraint.get("condition")
             try:
                 violations = (~df.eval(condition)).sum()
                 if violations > 0:
-                    result['passed'] = False
-                    result['violations'] = int(violations)
-                    result['message'] = f"Condition '{condition}' violated in {violations} rows"
+                    result["passed"] = False
+                    result["violations"] = int(violations)
+                    result["message"] = f"Condition '{condition}' violated in {violations} rows"
                     all_passed = False
             except Exception as e:
-                result['passed'] = False
-                result['message'] = f"Could not evaluate condition: {str(e)}"
+                result["passed"] = False
+                result["message"] = f"Could not evaluate condition: {str(e)}"
                 all_passed = False
 
         results.append(result)
 
-    passed_count = sum(1 for r in results if r['passed'])
+    passed_count = sum(1 for r in results if r["passed"])
 
     logger.info(f"[DataValidator] {passed_count}/{len(results)} constraints passed")
 
     return {
-        'success': True,
-        'all_passed': all_passed,
-        'passed_count': passed_count,
-        'total_constraints': len(results),
-        'results': results,
+        "success": True,
+        "all_passed": all_passed,
+        "passed_count": passed_count,
+        "total_constraints": len(results),
+        "results": results,
     }
 
 
@@ -429,14 +439,14 @@ async def validate_completeness_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with completeness metrics
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     logger.info("[DataValidator] Checking completeness...")
 
-    data = params.get('data')
-    required_columns = params.get('required_columns', [])
-    min_rows = params.get('min_rows', 1)
-    coverage_threshold = params.get('coverage_threshold', 95)
+    data = params.get("data")
+    required_columns = params.get("required_columns", [])
+    min_rows = params.get("min_rows", 1)
+    coverage_threshold = params.get("coverage_threshold", 95)
 
     if isinstance(data, str):
         data = pd.read_csv(data)
@@ -474,12 +484,12 @@ async def validate_completeness_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     logger.info(f"[DataValidator] Completeness: {completeness_score:.1f}%")
 
     return {
-        'success': True,
-        'is_complete': is_complete,
-        'completeness_score': round(completeness_score, 1),
-        'overall_coverage': round(overall_coverage, 2),
-        'column_coverage': coverage,
-        'low_coverage_columns': low_coverage,
-        'issues': issues,
-        'row_count': len(df),
+        "success": True,
+        "is_complete": is_complete,
+        "completeness_score": round(completeness_score, 1),
+        "overall_coverage": round(overall_coverage, 2),
+        "column_coverage": coverage,
+        "low_coverage_columns": low_coverage,
+        "issues": issues,
+        "row_count": len(df),
     }

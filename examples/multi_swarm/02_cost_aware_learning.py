@@ -8,13 +8,18 @@ Shows how to use cost-aware learning to train agents to prefer cheaper strategie
 
 import asyncio
 
+
 async def main():
     from Jotty.core.intelligence.learning import get_cost_aware_td_lambda
-    from Jotty.core.intelligence.orchestration import SwarmAdapter, get_multi_swarm_coordinator, MergeStrategy
+    from Jotty.core.intelligence.orchestration import (
+        MergeStrategy,
+        SwarmAdapter,
+        get_multi_swarm_coordinator,
+    )
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("EXAMPLE: Cost-Aware Learning")
-    print("="*70 + "\n")
+    print("=" * 70 + "\n")
 
     # Create cost-aware learner
     learner = get_cost_aware_td_lambda(cost_sensitivity=0.5)
@@ -26,9 +31,9 @@ async def main():
 
     # Simulate different strategies
     strategies = [
-        ("cheap_fast", 2, 0.05),   # 2 swarms, $0.05 total
+        ("cheap_fast", 2, 0.05),  # 2 swarms, $0.05 total
         ("expensive_slow", 5, 0.25),  # 5 swarms, $0.25 total
-        ("balanced", 3, 0.10),     # 3 swarms, $0.10 total
+        ("balanced", 3, 0.10),  # 3 swarms, $0.10 total
     ]
 
     print("Simulating 3 strategies:\n")
@@ -43,7 +48,7 @@ async def main():
             action={"num_swarms": num_swarms},
             reward=reward,
             next_state={"strategy": "complete"},
-            cost_usd=cost
+            cost_usd=cost,
         )
 
         # Calculate adjusted reward
@@ -59,7 +64,7 @@ async def main():
         print()
 
     # Show learning stats
-    print("="*70)
+    print("=" * 70)
     print("Learning Statistics\n")
 
     stats = learner.get_stats()
@@ -68,9 +73,9 @@ async def main():
     print(f"Avg cost saved/update: ${stats['avg_cost_saved_per_update']:.4f}")
     print()
 
-    print("="*70)
+    print("=" * 70)
     print("✅ Example complete!")
-    print("="*70 + "\n")
+    print("=" * 70 + "\n")
 
     print("Key Insights:")
     print("  1. System learns to prefer cheaper strategies")
@@ -80,5 +85,5 @@ async def main():
     print()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     asyncio.run(main())

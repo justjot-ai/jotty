@@ -16,24 +16,26 @@ All tests use mocks -- no real LLM calls, no external dependencies.
 """
 
 import time
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
 
 try:
     from Jotty.core.intelligence.memory.memory_orchestrator import (
+        MODEL_CONTEXTS,
+        PRESET_CONFIGS,
+        BrainInspiredMemoryManager,
         BrainPreset,
         ConsolidationTrigger,
-        Experience,
-        SimpleBrain,
         EpisodicMemory,
+        Experience,
         SemanticPattern,
-        BrainInspiredMemoryManager,
-        get_model_context,
+        SimpleBrain,
         calculate_chunk_size,
+        get_model_context,
         load_brain_config,
-        PRESET_CONFIGS,
-        MODEL_CONTEXTS,
     )
+
     MEMORY_ORCHESTRATOR_AVAILABLE = True
 except ImportError:
     MEMORY_ORCHESTRATOR_AVAILABLE = False
@@ -47,6 +49,7 @@ pytestmark = pytest.mark.skipif(
 # =============================================================================
 # BrainPreset Enum
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestBrainPreset:
@@ -74,6 +77,7 @@ class TestBrainPreset:
 # ConsolidationTrigger Enum
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestConsolidationTrigger:
     """Tests for ConsolidationTrigger enum."""
@@ -96,6 +100,7 @@ class TestConsolidationTrigger:
 # =============================================================================
 # Experience Dataclass
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestExperience:
@@ -127,6 +132,7 @@ class TestExperience:
 # =============================================================================
 # SimpleBrain
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestSimpleBrain:
@@ -267,9 +273,7 @@ class TestSimpleBrain:
     async def test_session_auto_consolidates_on_exit(self):
         """session() context manager calls consolidate on exit."""
         brain = SimpleBrain(preset=BrainPreset.BALANCED)
-        brain.experience_buffer.append(
-            Experience(content="session_exp", reward=0.8)
-        )
+        brain.experience_buffer.append(Experience(content="session_exp", reward=0.8))
 
         async with brain.session() as session:
             assert session is brain
@@ -291,6 +295,7 @@ class TestSimpleBrain:
 # =============================================================================
 # EpisodicMemory Dataclass
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestEpisodicMemory:
@@ -331,6 +336,7 @@ class TestEpisodicMemory:
 # SemanticPattern Dataclass
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestSemanticPattern:
     """Tests for the SemanticPattern dataclass."""
@@ -365,6 +371,7 @@ class TestSemanticPattern:
 # =============================================================================
 # BrainInspiredMemoryManager
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestBrainInspiredMemoryManager:
@@ -466,6 +473,7 @@ class TestBrainInspiredMemoryManager:
 # Utility Functions
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestUtilityFunctions:
     """Tests for get_model_context, calculate_chunk_size, load_brain_config."""
@@ -519,6 +527,7 @@ class TestUtilityFunctions:
 # SimpleBrain Extended Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestSimpleBrainExtended:
     """Additional tests for SimpleBrain methods and edge cases."""
@@ -538,9 +547,9 @@ class TestSimpleBrainExtended:
         """_should_consolidate triggers on episode_count threshold."""
         brain = SimpleBrain(preset=BrainPreset.BALANCED)
         brain.consolidate_on = ConsolidationTrigger.EPISODE_COUNT
-        brain.episode_count = brain.config['consolidation_interval']
+        brain.episode_count = brain.config["consolidation_interval"]
         # Need auto_consolidate to be True
-        brain.config['auto_consolidate'] = True
+        brain.config["auto_consolidate"] = True
         result = brain._should_consolidate()
         assert result is True
 
@@ -548,9 +557,9 @@ class TestSimpleBrainExtended:
         """_should_consolidate triggers on memory pressure."""
         brain = SimpleBrain(preset=BrainPreset.BALANCED)
         brain.consolidate_on = ConsolidationTrigger.MEMORY_PRESSURE
-        brain.config['auto_consolidate'] = True
+        brain.config["auto_consolidate"] = True
         # Fill buffer to 80%+
-        buf_size = brain.config['memory_buffer_size']
+        buf_size = brain.config["memory_buffer_size"]
         for i in range(int(buf_size * 0.9)):
             brain.experience_buffer.append(Experience(content=f"exp_{i}", reward=0.5))
         assert brain._should_consolidate() is True
@@ -581,9 +590,7 @@ class TestSimpleBrainExtended:
         """_extract_patterns finds FAILURE_PATTERN when 3+ failures."""
         brain = SimpleBrain(preset=BrainPreset.BALANCED)
         for i in range(4):
-            brain.experience_buffer.append(
-                Experience(content=f"fail_{i}", reward=0.1)
-            )
+            brain.experience_buffer.append(Experience(content=f"fail_{i}", reward=0.1))
         patterns = brain._extract_patterns()
         assert any("FAILURE_PATTERN" in p for p in patterns)
 
@@ -609,9 +616,7 @@ class TestSimpleBrainExtended:
         """consolidate with custom trigger works."""
         brain = SimpleBrain(preset=BrainPreset.BALANCED)
         for i in range(3):
-            brain.experience_buffer.append(
-                Experience(content=f"exp_{i}", reward=0.9)
-            )
+            brain.experience_buffer.append(Experience(content=f"exp_{i}", reward=0.9))
         await brain.consolidate(ConsolidationTrigger.PIPELINE_STAGE)
         assert brain.consolidation_count == 1
 
@@ -634,12 +639,13 @@ class TestSimpleBrainExtended:
         """from_preset('off') creates disabled brain."""
         brain = SimpleBrain.from_preset("off")
         assert brain.preset == BrainPreset.OFF
-        assert brain.config['auto_consolidate'] is False
+        assert brain.config["auto_consolidate"] is False
 
 
 # =============================================================================
 # BrainInspiredMemoryManager Extended Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestBrainInspiredMemoryManagerExtended:
@@ -710,8 +716,12 @@ class TestBrainInspiredMemoryManagerExtended:
         mgr = BrainInspiredMemoryManager()
         stats = mgr.get_statistics()
         expected_keys = {
-            "hippocampus_size", "neocortex_size", "total_consolidations",
-            "episodes_since_sleep", "total_replay_count", "avg_hippo_strength",
+            "hippocampus_size",
+            "neocortex_size",
+            "total_consolidations",
+            "episodes_since_sleep",
+            "total_replay_count",
+            "avg_hippo_strength",
         }
         assert expected_keys.issubset(set(stats.keys()))
 
@@ -720,13 +730,15 @@ class TestBrainInspiredMemoryManagerExtended:
         mgr = BrainInspiredMemoryManager()
         # Add many patterns
         for i in range(15):
-            mgr.neocortex.append(SemanticPattern(
-                abstract_lesson=f"Lesson {i}",
-                strength=float(i),
-                source_count=1,
-                created_at=time.time(),
-                last_reinforced=time.time(),
-            ))
+            mgr.neocortex.append(
+                SemanticPattern(
+                    abstract_lesson=f"Lesson {i}",
+                    strength=float(i),
+                    source_count=1,
+                    created_at=time.time(),
+                    last_reinforced=time.time(),
+                )
+            )
         knowledge = mgr.get_consolidated_knowledge(max_items=5)
         # Should not include all 15
         lesson_count = knowledge.count("Lesson")
@@ -750,6 +762,7 @@ class TestBrainInspiredMemoryManagerExtended:
 # =============================================================================
 # Experience Edge Cases
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestExperienceEdgeCases:
@@ -780,6 +793,7 @@ class TestExperienceEdgeCases:
 # =============================================================================
 # load_brain_config Extended Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestLoadBrainConfigExtended:

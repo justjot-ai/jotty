@@ -8,17 +8,19 @@ Generates comprehensive profiling reports with:
 - Optimization recommendations
 - JSON data for further analysis
 """
+
 import json
 import time
-from pathlib import Path
-from typing import Dict, List, Optional, Any
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 
 @dataclass
 class TimingEntry:
     """Single timing entry for an operation."""
+
     operation: str
     component: str  # e.g., "Agent", "ParameterResolution", "LLMCall", "StatePersistence"
     start_time: float
@@ -41,7 +43,9 @@ class ProfilingReport:
         self.start_time: Optional[float] = None
         self.end_time: Optional[float] = None
 
-    def record_timing(self, operation: str, component: str, start_time: float, end_time: float, **metadata: Any) -> Any:
+    def record_timing(
+        self, operation: str, component: str, start_time: float, end_time: float, **metadata: Any
+    ) -> Any:
         """Record a timing entry."""
         entry = TimingEntry(
             operation=operation,
@@ -49,7 +53,7 @@ class ProfilingReport:
             start_time=start_time,
             end_time=end_time,
             duration=end_time - start_time,
-            metadata=metadata
+            metadata=metadata,
         )
         self.entries.append(entry)
 
@@ -72,7 +76,7 @@ class ProfilingReport:
             "    title Agent Execution Timeline",
             "    dateFormat x",  # Unix timestamp in milliseconds
             "    axisFormat %M:%S.%L",  # Minutes:Seconds.Milliseconds
-            ""
+            "",
         ]
 
         # Group by component
@@ -89,7 +93,7 @@ class ProfilingReport:
                 # Convert to milliseconds for Mermaid
                 start_ms = int(entry.start_time * 1000)
                 end_ms = int(entry.end_time * 1000)
-                task_name = entry.metadata.get('name', entry.operation)
+                task_name = entry.metadata.get("name", entry.operation)
                 lines.append(f"    {task_name} :{start_ms}, {end_ms}")
 
         return "\n".join(lines)
@@ -148,7 +152,7 @@ class ProfilingReport:
                 bar += "█" * bar_width
 
                 # Add timing info
-                name = entry.metadata.get('name', entry.operation)[:30]
+                name = entry.metadata.get("name", entry.operation)[:30]
                 timing_info = f" {entry.duration:.2f}s"
                 bar += timing_info
 
@@ -167,14 +171,10 @@ class ProfilingReport:
         component_stats = {}
         for entry in self.entries:
             if entry.component not in component_stats:
-                component_stats[entry.component] = {
-                    'count': 0,
-                    'total': 0.0,
-                    'entries': []
-                }
-            component_stats[entry.component]['count'] += 1
-            component_stats[entry.component]['total'] += entry.duration
-            component_stats[entry.component]['entries'].append(entry)
+                component_stats[entry.component] = {"count": 0, "total": 0.0, "entries": []}
+            component_stats[entry.component]["count"] += 1
+            component_stats[entry.component]["total"] += entry.duration
+            component_stats[entry.component]["entries"].append(entry)
 
         lines = []
         lines.append("=" * 120)
@@ -188,13 +188,11 @@ class ProfilingReport:
 
         # Sort by total time descending
         sorted_components = sorted(
-            component_stats.items(),
-            key=lambda x: x[1]['total'],
-            reverse=True
+            component_stats.items(), key=lambda x: x[1]["total"], reverse=True
         )
 
         for component, stats in sorted_components:
-            avg_time = stats['total'] / stats['count']
+            avg_time = stats["total"] / stats["count"]
             lines.append(f"📦 {component}")
             lines.append(f"   Count:     {stats['count']}")
             lines.append(f"   Total:     {stats['total']:.3f}s")
@@ -203,13 +201,13 @@ class ProfilingReport:
             lines.append(f"   Max:       {max(e.duration for e in stats['entries']):.3f}s")
 
             if self.start_time and self.end_time:
-                percentage = (stats['total'] / total_duration) * 100
+                percentage = (stats["total"] / total_duration) * 100
                 lines.append(f"   % of Total: {percentage:.1f}%")
 
             # Show individual operations
             lines.append("   Operations:")
-            for entry in stats['entries']:
-                name = entry.metadata.get('name', entry.operation)
+            for entry in stats["entries"]:
+                name = entry.metadata.get("name", entry.operation)
                 lines.append(f"      - {name}: {entry.duration:.3f}s ({entry.duration_ms:.0f}ms)")
             lines.append("")
 
@@ -306,22 +304,24 @@ class ProfilingReport:
         # 1. Save JSON data for programmatic analysis
         json_path = profiling_dir / "profiling_data.json"
         data = {
-            'start_time': self.start_time,
-            'end_time': self.end_time,
-            'total_duration': (self.end_time - self.start_time) if (self.start_time and self.end_time) else None,
-            'entries': [asdict(entry) for entry in self.entries]
+            "start_time": self.start_time,
+            "end_time": self.end_time,
+            "total_duration": (
+                (self.end_time - self.start_time) if (self.start_time and self.end_time) else None
+            ),
+            "entries": [asdict(entry) for entry in self.entries],
         }
-        with open(json_path, 'w') as f:
+        with open(json_path, "w") as f:
             json.dump(data, f, indent=2)
 
         # 2. Save Mermaid Gantt chart
         gantt_path = profiling_dir / "gantt_chart.mmd"
-        with open(gantt_path, 'w') as f:
+        with open(gantt_path, "w") as f:
             f.write(self.generate_gantt_chart())
 
         # 3. Save text-based timeline report
         timeline_path = profiling_dir / "execution_timeline.txt"
-        with open(timeline_path, 'w') as f:
+        with open(timeline_path, "w") as f:
             f.write(self.generate_text_gantt())
             f.write("\n\n")
             f.write(self.generate_component_breakdown())
@@ -330,7 +330,7 @@ class ProfilingReport:
 
         # 4. Save markdown report
         md_path = profiling_dir / "profiling_report.md"
-        with open(md_path, 'w') as f:
+        with open(md_path, "w") as f:
             f.write("# Profiling Report\n\n")
             f.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
 
@@ -350,8 +350,8 @@ class ProfilingReport:
             f.write("\n```\n")
 
         return {
-            'json': str(json_path),
-            'gantt': str(gantt_path),
-            'timeline': str(timeline_path),
-            'markdown': str(md_path)
+            "json": str(json_path),
+            "gantt": str(gantt_path),
+            "timeline": str(timeline_path),
+            "markdown": str(md_path),
         }

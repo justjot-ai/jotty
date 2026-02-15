@@ -3,14 +3,26 @@ LookML Generator
 
 Converts database schema to LookML semantic layer.
 """
-from typing import List, Optional, Dict, Any
+
 import logging
 import re
+from typing import Any, Dict, List, Optional
 
-from ..models import Schema, Table, Column, ColumnType, Relationship as SchemaRelationship, MeasureType as SchemaMeasureType
+from ..models import Column, ColumnType
+from ..models import MeasureType as SchemaMeasureType
+from ..models import Relationship as SchemaRelationship
+from ..models import Schema, Table
 from .models import (
-    LookMLModel, View, Explore, Dimension, Measure, Join,
-    DimensionType, MeasureType, JoinType, Relationship
+    Dimension,
+    DimensionType,
+    Explore,
+    Join,
+    JoinType,
+    LookMLModel,
+    Measure,
+    MeasureType,
+    Relationship,
+    View,
 )
 
 logger = logging.getLogger(__name__)
@@ -90,7 +102,7 @@ class LookMLGenerator:
             name=model_name,
             connection=connection,
             views=list(self._views.values()),
-            explores=list(self._explores.values())
+            explores=list(self._explores.values()),
         )
 
     def _generate_view(self, table: Table) -> View:
@@ -109,19 +121,21 @@ class LookMLGenerator:
                 dimensions.append(dimension)
 
         # Add count measure for every view
-        measures.append(Measure(
-            name="count",
-            type=MeasureType.COUNT,
-            description=f"Count of {table.name} records",
-            drill_fields=[d.name for d in dimensions if d.primary_key or not d.hidden][:5]
-        ))
+        measures.append(
+            Measure(
+                name="count",
+                type=MeasureType.COUNT,
+                description=f"Count of {table.name} records",
+                drill_fields=[d.name for d in dimensions if d.primary_key or not d.hidden][:5],
+            )
+        )
 
         return View(
             name=view_name,
             sql_table_name=table.full_name,
             label=self._to_label(table.name),
             dimensions=dimensions,
-            measures=measures
+            measures=measures,
         )
 
     def _generate_dimension(self, column: Column, table: Table) -> Dimension:
@@ -138,7 +152,7 @@ class LookMLGenerator:
             label=column.label or self._to_label(column.name),
             description=column.description,
             primary_key=is_pk,
-            hidden=column.hidden or column.name.lower().endswith('_id') and not is_pk,
+            hidden=column.hidden or column.name.lower().endswith("_id") and not is_pk,
         )
 
         # Group date dimensions
@@ -195,7 +209,7 @@ class LookMLGenerator:
                     view_name=view_name,
                     label=self._to_label(table.name),
                     description=f"Explore {table.name} data",
-                    joins=joins
+                    joins=joins,
                 )
                 self._explores[view_name] = explore
 
@@ -230,12 +244,7 @@ class LookMLGenerator:
         relationship = rel_map.get(rel.relation_type.value, Relationship.MANY_TO_ONE)
         join_type = join_type_map.get(rel.join_type, JoinType.LEFT_OUTER)
 
-        return Join(
-            name=to_view,
-            type=join_type,
-            relationship=relationship,
-            sql_on=sql_on
-        )
+        return Join(name=to_view, type=join_type, relationship=relationship, sql_on=sql_on)
 
     def to_lookml_string(self, model: LookMLModel = None) -> str:
         """
@@ -249,6 +258,7 @@ class LookMLGenerator:
         """
         try:
             import lkml
+
             model = model or self.generate()
             return lkml.dump(model.to_dict())
         except Exception as e:
@@ -263,7 +273,7 @@ class LookMLGenerator:
         for view in model.views:
             lines.append(f"view: {view.name} {{")
             if view.sql_table_name:
-                lines.append(f'  sql_table_name: {view.sql_table_name} ;;')
+                lines.append(f"  sql_table_name: {view.sql_table_name} ;;")
             if view.label:
                 lines.append(f'  label: "{view.label}"')
 
@@ -330,8 +340,11 @@ class LookMLGenerator:
                 lines.append(f"Table: {view.sql_table_name}")
 
             # Dimensions
-            dims = [f"{d.name} ({d.type.value})" + (" [PK]" if d.primary_key else "")
-                   for d in view.dimensions if not d.hidden]
+            dims = [
+                f"{d.name} ({d.type.value})" + (" [PK]" if d.primary_key else "")
+                for d in view.dimensions
+                if not d.hidden
+            ]
             if dims:
                 lines.append(f"Dimensions: {', '.join(dims)}")
 
@@ -355,17 +368,17 @@ class LookMLGenerator:
     def _to_snake_case(name: str) -> str:
         """Convert name to snake_case."""
         # Handle camelCase
-        s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
+        s1 = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", name)
         # Handle consecutive caps
-        s2 = re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1)
+        s2 = re.sub("([a-z0-9])([A-Z])", r"\1_\2", s1)
         # Replace spaces and hyphens
-        s3 = re.sub(r'[\s\-]+', '_', s2)
+        s3 = re.sub(r"[\s\-]+", "_", s2)
         return s3.lower()
 
     @staticmethod
     def _to_label(name: str) -> str:
         """Convert name to human-readable label."""
         # Split on underscores, hyphens, camelCase
-        words = re.sub(r'([a-z])([A-Z])', r'\1 \2', name)
-        words = re.sub(r'[_\-]+', ' ', words)
+        words = re.sub(r"([a-z])([A-Z])", r"\1 \2", name)
+        words = re.sub(r"[_\-]+", " ", words)
         return words.title()

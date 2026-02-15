@@ -5,18 +5,18 @@ AG-UI routes - Agent UI protocol endpoints.
 import asyncio
 import json
 import logging
-from typing import Optional, Dict, Any, List
 from datetime import datetime
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
 
-
 def register_agui_routes(app, api):
     import uuid
-    from fastapi import HTTPException, WebSocket, WebSocketDisconnect, UploadFile, File, Form
-    from fastapi.responses import FileResponse, JSONResponse, StreamingResponse, HTMLResponse
+
+    from fastapi import File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
+    from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
     from pydantic import BaseModel
 
     class AGUIRunRequest(BaseModel):
@@ -36,10 +36,11 @@ def register_agui_routes(app, api):
         - State: StateSnapshot, StateDelta
         - Activity: ActivitySnapshot, ActivityDelta
         """
-        from starlette.responses import StreamingResponse
-        import queue
         import concurrent.futures
         import json
+        import queue
+
+        from starlette.responses import StreamingResponse
 
         thread_id = request.threadId
         run_id = request.runId
@@ -49,12 +50,12 @@ def register_agui_routes(app, api):
             yield f"data: {json.dumps({'type': 'RunStarted', 'threadId': thread_id, 'runId': run_id, 'timestamp': datetime.now().isoformat()})}\n\n"
 
             # Get the latest user message
-            user_messages = [m for m in request.messages if m.get('role') == 'user']
+            user_messages = [m for m in request.messages if m.get("role") == "user"]
             if not user_messages:
                 yield f"data: {json.dumps({'type': 'RunError', 'message': 'No user message found', 'code': 'NO_MESSAGE'})}\n\n"
                 return
 
-            user_message = user_messages[-1].get('content', '')
+            user_message = user_messages[-1].get("content", "")
             message_id = f"msg_{uuid.uuid4().hex[:12]}"
 
             # Thread-safe queue for events
@@ -67,20 +68,24 @@ def register_agui_routes(app, api):
 
             def sync_stream_cb(chunk: str):
                 """Emit TextMessageContent for each chunk."""
-                event_queue.put({
-                    'type': 'TextMessageContent',
-                    'messageId': message_id,
-                    'delta': chunk
-                })
+                event_queue.put(
+                    {"type": "TextMessageContent", "messageId": message_id, "delta": chunk}
+                )
 
             def sync_status_cb(stage: str, detail: str):
                 """Emit ActivitySnapshot for status updates."""
-                event_queue.put({
-                    'type': 'ActivitySnapshot',
-                    'messageId': f"activity_{run_id}",
-                    'activityType': 'PROGRESS',
-                    'content': {'stage': stage, 'detail': detail, 'label': f"{stage}: {detail}"}
-                })
+                event_queue.put(
+                    {
+                        "type": "ActivitySnapshot",
+                        "messageId": f"activity_{run_id}",
+                        "activityType": "PROGRESS",
+                        "content": {
+                            "stage": stage,
+                            "detail": detail,
+                            "label": f"{stage}: {detail}",
+                        },
+                    }
+                )
 
             def process_sync():
                 try:
@@ -92,7 +97,7 @@ def register_agui_routes(app, api):
                                 message=user_message,
                                 session_id=thread_id,
                                 stream_callback=sync_stream_cb,
-                                status_callback=sync_status_cb
+                                status_callback=sync_status_cb,
                             )
                         )
                         result_holder["result"] = result
@@ -148,7 +153,7 @@ def register_agui_routes(app, api):
                 "Connection": "keep-alive",
                 "X-Accel-Buffering": "no",
                 "Access-Control-Allow-Origin": "*",
-            }
+            },
         )
 
     @app.get("/api/agui/info")
@@ -161,9 +166,9 @@ def register_agui_routes(app, api):
                 "text_streaming",
                 "tool_calls",
                 "state_management",
-                "activity_tracking"
+                "activity_tracking",
             ],
-            "documentation": "https://docs.ag-ui.com/"
+            "documentation": "https://docs.ag-ui.com/",
         }
 
     # Export endpoints

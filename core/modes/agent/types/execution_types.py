@@ -9,6 +9,7 @@ Also provides:
 - FileReference: lazy handle for large outputs spilled to disk
 - SwarmArtifactStore: tag-queryable artifact registry (replaces flat outputs dict)
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -31,6 +32,7 @@ logger = logging.getLogger(__name__)
 
 class TaskType(Enum):
     """Inferred task types."""
+
     RESEARCH = "research"
     COMPARISON = "comparison"
     CREATION = "creation"
@@ -48,6 +50,7 @@ class TaskType(Enum):
 @dataclass
 class ExecutionStep:
     """A step in the execution plan."""
+
     skill_name: str
     tool_name: str
     params: Dict[str, Any]
@@ -76,6 +79,7 @@ class ToolParam:
     Built from multiple sources (decorator, docstring, metadata).
     Used by ToolSchema for validation and auto-wiring.
     """
+
     name: str
     type_hint: str = "str"
     required: bool = True
@@ -93,12 +97,18 @@ class TypeCoercer:
     """
 
     _COERCERS: Dict[str, str] = {
-        'int': '_coerce_int', 'integer': '_coerce_int',
-        'float': '_coerce_float', 'number': '_coerce_float',
-        'bool': '_coerce_bool', 'boolean': '_coerce_bool',
-        'list': '_coerce_list', 'array': '_coerce_list',
-        'dict': '_coerce_dict', 'object': '_coerce_dict',
-        'path': '_coerce_path', 'file_path': '_coerce_path',
+        "int": "_coerce_int",
+        "integer": "_coerce_int",
+        "float": "_coerce_float",
+        "number": "_coerce_float",
+        "bool": "_coerce_bool",
+        "boolean": "_coerce_bool",
+        "list": "_coerce_list",
+        "array": "_coerce_list",
+        "dict": "_coerce_dict",
+        "object": "_coerce_dict",
+        "path": "_coerce_path",
+        "file_path": "_coerce_path",
     }
 
     @classmethod
@@ -108,7 +118,7 @@ class TypeCoercer:
         Returns (coerced_value, error_or_None).  For unknown or 'str'
         type hints the value is returned unchanged.
         """
-        if type_hint is None or type_hint.lower() in ('str', 'string', ''):
+        if type_hint is None or type_hint.lower() in ("str", "string", ""):
             return value, None
 
         method_name = cls._COERCERS.get(type_hint.lower())
@@ -131,7 +141,7 @@ class TypeCoercer:
             return int(value), None
         if isinstance(value, str):
             stripped = value.strip()
-            if stripped.isdigit() or (stripped.startswith('-') and stripped[1:].isdigit()):
+            if stripped.isdigit() or (stripped.startswith("-") and stripped[1:].isdigit()):
                 return int(stripped), None
             # Try float-then-int for "42.0"
             try:
@@ -162,9 +172,9 @@ class TypeCoercer:
             return bool(value), None
         if isinstance(value, str):
             lower = value.strip().lower()
-            if lower in ('true', 'yes', '1', 'on'):
+            if lower in ("true", "yes", "1", "on"):
                 return True, None
-            if lower in ('false', 'no', '0', 'off'):
+            if lower in ("false", "no", "0", "off"):
                 return False, None
             return value, f"Cannot coerce {repr(value)[:60]} to bool"
         return value, f"Cannot coerce type {type(value).__name__} to bool"
@@ -176,7 +186,7 @@ class TypeCoercer:
         if isinstance(value, str):
             stripped = value.strip()
             # JSON array
-            if stripped.startswith('['):
+            if stripped.startswith("["):
                 try:
                     parsed = json.loads(stripped)
                     if isinstance(parsed, list):
@@ -184,8 +194,8 @@ class TypeCoercer:
                 except (json.JSONDecodeError, ValueError):
                     pass
             # Comma-separated
-            if ',' in stripped:
-                return [item.strip() for item in stripped.split(',') if item.strip()], None
+            if "," in stripped:
+                return [item.strip() for item in stripped.split(",") if item.strip()], None
             return [stripped] if stripped else [], None
         if isinstance(value, (tuple, set)):
             return list(value), None
@@ -197,7 +207,7 @@ class TypeCoercer:
             return value, None
         if isinstance(value, str):
             stripped = value.strip()
-            if stripped.startswith('{'):
+            if stripped.startswith("{"):
                 try:
                     parsed = json.loads(stripped)
                     if isinstance(parsed, dict):
@@ -220,14 +230,14 @@ class TypeCoercer:
         stripped = value.strip()
         if not stripped:
             return value, "Empty path"
-        if '\n' in stripped:
+        if "\n" in stripped:
             return value, "Path contains newlines — likely content, not a path"
         if len(stripped) > 500:
             return value, f"Path too long ({len(stripped)} chars) — likely content, not a path"
         # Must have a separator or extension to look path-like
-        if '/' not in stripped and '\\' not in stripped and '.' not in stripped:
+        if "/" not in stripped and "\\" not in stripped and "." not in stripped:
             # Single word with no extension — could be a bare name, allow it
-            if ' ' in stripped:
+            if " " in stripped:
                 return value, "Path contains spaces but no separator/extension — likely content"
         return stripped, None
 
@@ -239,6 +249,7 @@ class ToolValidationResult:
     Carries coerced parameter values alongside validation errors,
     so callers can apply fixes in one pass.
     """
+
     valid: bool = True
     errors: List[str] = field(default_factory=list)
     coerced_params: Dict[str, Any] = field(default_factory=dict)
@@ -275,21 +286,27 @@ class ToolSchema:
         DEFAULT_PARAM_ALIASES = {}
 
     _BUILTIN_ALIASES: Dict[str, List[str]] = {
-        'path': ['file_path', 'filepath', 'filename', 'file_name', 'file'],
-        'content': ['text', 'data', 'body', 'file_content'],
-        'command': ['cmd', 'shell_command', 'shell_cmd'],
-        'script': ['script_content', 'script_code', 'code', 'python_code'],
-        'query': ['search_query', 'q', 'search', 'question'],
-        'url': ['link', 'href', 'website', 'page_url'],
-        'message': ['msg', 'text_message'],
-        'timeout': ['time_limit', 'max_time'],
+        "path": ["file_path", "filepath", "filename", "file_name", "file"],
+        "content": ["text", "data", "body", "file_content"],
+        "command": ["cmd", "shell_command", "shell_cmd"],
+        "script": ["script_content", "script_code", "code", "python_code"],
+        "query": ["search_query", "q", "search", "question"],
+        "url": ["link", "href", "website", "page_url"],
+        "message": ["msg", "text_message"],
+        "timeout": ["time_limit", "max_time"],
     }
     _ALIASES: Dict[str, List[str]] = {**DEFAULT_PARAM_ALIASES, **_BUILTIN_ALIASES}
 
     # Content-like fields used by auto_wire to find rich text in outputs
-    _CONTENT_FIELDS = ('response', 'text', 'content', 'output', 'stdout', 'result')
+    _CONTENT_FIELDS = ("response", "text", "content", "output", "stdout", "result")
 
-    def __init__(self, name: str, description: str = '', params: Optional[List[ToolParam]] = None, outputs: Optional[List[ToolParam]] = None) -> None:
+    def __init__(
+        self,
+        name: str,
+        description: str = "",
+        params: Optional[List[ToolParam]] = None,
+        outputs: Optional[List[ToolParam]] = None,
+    ) -> None:
         self.name = name
         self.description = description
         self.params: List[ToolParam] = params or []
@@ -314,7 +331,7 @@ class ToolSchema:
             schema.description = doc.split("\n")[0].strip()
 
         # Source 1: decorator-stashed required_params (most reliable)
-        required_names: List[str] = getattr(func, '_required_params', []) or []
+        required_names: List[str] = getattr(func, "_required_params", []) or []
 
         # Source 2: parse docstring for param details
         doc_params = cls._parse_docstring_params(doc)
@@ -323,35 +340,41 @@ class ToolSchema:
         seen: Set[str] = set()
         for pname in required_names:
             dp = doc_params.get(pname, {})
-            schema.params.append(ToolParam(
-                name=pname,
-                type_hint=dp.get('type', 'str'),
-                required=True,
-                description=dp.get('description', f'The {pname} parameter'),
-                aliases=cls._ALIASES.get(pname, []),
-            ))
+            schema.params.append(
+                ToolParam(
+                    name=pname,
+                    type_hint=dp.get("type", "str"),
+                    required=True,
+                    description=dp.get("description", f"The {pname} parameter"),
+                    aliases=cls._ALIASES.get(pname, []),
+                )
+            )
             seen.add(pname)
 
         # Add optional params from docstring that weren't in required list
         for pname, info in doc_params.items():
             if pname not in seen:
-                schema.params.append(ToolParam(
-                    name=pname,
-                    type_hint=info.get('type', 'str'),
-                    required=info.get('required', False),
-                    description=info.get('description', ''),
-                    aliases=cls._ALIASES.get(pname, []),
-                ))
+                schema.params.append(
+                    ToolParam(
+                        name=pname,
+                        type_hint=info.get("type", "str"),
+                        required=info.get("required", False),
+                        description=info.get("description", ""),
+                        aliases=cls._ALIASES.get(pname, []),
+                    )
+                )
 
         # Source 3: parse docstring Returns section for output fields
         doc_outputs = cls._parse_docstring_returns(doc)
         for oname, info in doc_outputs.items():
-            schema.outputs.append(ToolParam(
-                name=oname,
-                type_hint=info.get('type', 'str'),
-                required=False,
-                description=info.get('description', ''),
-            ))
+            schema.outputs.append(
+                ToolParam(
+                    name=oname,
+                    type_hint=info.get("type", "str"),
+                    required=False,
+                    description=info.get("description", ""),
+                )
+            )
 
         return schema
 
@@ -360,37 +383,45 @@ class ToolSchema:
         """Build from a ToolMetadata.parameters JSON-Schema dict."""
         schema = cls(
             name=tool_name,
-            description=metadata_dict.get('description', ''),
+            description=metadata_dict.get("description", ""),
         )
-        properties = metadata_dict.get('parameters', {}).get('properties', {})
-        required_list = metadata_dict.get('parameters', {}).get('required', [])
+        properties = metadata_dict.get("parameters", {}).get("properties", {})
+        required_list = metadata_dict.get("parameters", {}).get("required", [])
 
         for pname, pdef in properties.items():
-            schema.params.append(ToolParam(
-                name=pname,
-                type_hint=pdef.get('type', 'str'),
-                required=pname in required_list,
-                description=pdef.get('description', ''),
-                aliases=cls._ALIASES.get(pname, []),
-            ))
+            schema.params.append(
+                ToolParam(
+                    name=pname,
+                    type_hint=pdef.get("type", "str"),
+                    required=pname in required_list,
+                    description=pdef.get("description", ""),
+                    aliases=cls._ALIASES.get(pname, []),
+                )
+            )
 
         # Parse returns if provided
-        returns_list = metadata_dict.get('returns', [])
+        returns_list = metadata_dict.get("returns", [])
         for rdef in returns_list:
             if isinstance(rdef, dict):
-                schema.outputs.append(ToolParam(
-                    name=rdef.get('name', ''),
-                    type_hint=rdef.get('type', 'str'),
-                    required=False,
-                    description=rdef.get('description', ''),
-                ))
+                schema.outputs.append(
+                    ToolParam(
+                        name=rdef.get("name", ""),
+                        type_hint=rdef.get("type", "str"),
+                        required=False,
+                        description=rdef.get("description", ""),
+                    )
+                )
 
         return schema
 
     # Reserved params injected by the executor, hidden from LLM prompts
-    _RESERVED_PARAMS: frozenset = frozenset({
-        '_status_callback', '_task_context', '_outputs',
-    })
+    _RESERVED_PARAMS: frozenset = frozenset(
+        {
+            "_status_callback",
+            "_task_context",
+            "_outputs",
+        }
+    )
 
     # -- validation -----------------------------------------------------------
 
@@ -429,7 +460,7 @@ class ToolSchema:
                 continue
 
             # Type coercion when requested
-            if coerce and tp.type_hint and tp.type_hint.lower() not in ('str', 'string', ''):
+            if coerce and tp.type_hint and tp.type_hint.lower() not in ("str", "string", ""):
                 value = params[found_key]
                 coerced, error = TypeCoercer.coerce(value, tp.type_hint)
                 if error:
@@ -491,7 +522,7 @@ class ToolSchema:
             priority_keys = list(reversed(list(outputs.keys())))
             fallback_keys = []
 
-        _HIGH_STAKES_PARAMS = ('content', 'text', 'body', 'message')
+        _HIGH_STAKES_PARAMS = ("content", "text", "body", "message")
 
         for tp in self.params:
             if not tp.required or tp.name in wired:
@@ -536,7 +567,7 @@ class ToolSchema:
 
         # Strategy 3: direct field match for content/text/body params
         # (no longer scans _CONTENT_FIELDS — relies on scoped resolution)
-        if tp.name in ('content', 'text', 'body', 'message'):
+        if tp.name in ("content", "text", "body", "message"):
             for key in reversed_keys:
                 out = outputs[key]
                 if not isinstance(out, dict):
@@ -548,11 +579,11 @@ class ToolSchema:
                         return val
 
         # Strategy 4: path fallback
-        if tp.name in ('path', 'file_path', 'input_path'):
+        if tp.name in ("path", "file_path", "input_path"):
             for key in reversed_keys:
                 out = outputs[key]
-                if isinstance(out, dict) and 'path' in out:
-                    return out['path']
+                if isinstance(out, dict) and "path" in out:
+                    return out["path"]
 
         return None
 
@@ -566,24 +597,24 @@ class ToolSchema:
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dict for LLM planner prompts (excludes reserved params)."""
         result = {
-            'name': self.name,
-            'description': self.description,
-            'parameters': [
+            "name": self.name,
+            "description": self.description,
+            "parameters": [
                 {
-                    'name': p.name,
-                    'type': p.type_hint,
-                    'required': p.required,
-                    'description': p.description,
+                    "name": p.name,
+                    "type": p.type_hint,
+                    "required": p.required,
+                    "description": p.description,
                 }
                 for p in self.get_llm_visible_params()
             ],
         }
         if self.outputs:
-            result['returns'] = [
+            result["returns"] = [
                 {
-                    'name': o.name,
-                    'type': o.type_hint,
-                    'description': o.description,
+                    "name": o.name,
+                    "type": o.type_hint,
+                    "description": o.description,
                 }
                 for o in self.outputs
             ]
@@ -611,15 +642,19 @@ class ToolSchema:
         if not docstring:
             return params
 
-        lines = docstring.split('\n')
+        lines = docstring.split("\n")
         in_args = False
 
         for line in lines:
             stripped = line.strip()
-            if stripped in ('Args:', 'Parameters:'):
+            if stripped in ("Args:", "Parameters:"):
                 in_args = True
                 continue
-            if in_args and stripped and (stripped.startswith('Returns:') or stripped.startswith('Raises:')):
+            if (
+                in_args
+                and stripped
+                and (stripped.startswith("Returns:") or stripped.startswith("Raises:"))
+            ):
                 break
 
             if not in_args:
@@ -629,39 +664,51 @@ class ToolSchema:
             for m in re.finditer(r"containing\s+'(\w+)'", stripped, re.I):
                 pname = m.group(1)
                 if pname not in params:
-                    params[pname] = {'type': 'str', 'required': True, 'description': f'The {pname} parameter'}
+                    params[pname] = {
+                        "type": "str",
+                        "required": True,
+                        "description": f"The {pname} parameter",
+                    }
 
             # Dash-prefixed: - location (str, required): Description
-            if stripped.startswith('-'):
-                parts = stripped[1:].strip().split(':', 1)
+            if stripped.startswith("-"):
+                parts = stripped[1:].strip().split(":", 1)
                 if len(parts) == 2:
                     param_def = parts[0].strip()
                     desc = parts[1].strip()
-                    pname = param_def.split('(')[0].strip()
-                    if pname and pname not in ('params', 'kwargs', 'args', 'self'):
-                        ptype = 'str'
+                    pname = param_def.split("(")[0].strip()
+                    if pname and pname not in ("params", "kwargs", "args", "self"):
+                        ptype = "str"
                         required = True
-                        if '(' in param_def:
-                            type_info = param_def.split('(')[1].split(')')[0]
-                            ptype = type_info.split(',')[0].strip()
-                            required = 'optional' not in type_info.lower()
-                        params[pname] = {'type': ptype, 'required': required, 'description': desc}
+                        if "(" in param_def:
+                            type_info = param_def.split("(")[1].split(")")[0]
+                            ptype = type_info.split(",")[0].strip()
+                            required = "optional" not in type_info.lower()
+                        params[pname] = {"type": ptype, "required": required, "description": desc}
 
             # Indented Google style: location (str): Description
-            elif ':' in stripped and not stripped.startswith('#') and not stripped.startswith('Returns'):
-                parts = stripped.split(':', 1)
+            elif (
+                ":" in stripped
+                and not stripped.startswith("#")
+                and not stripped.startswith("Returns")
+            ):
+                parts = stripped.split(":", 1)
                 if len(parts) == 2:
                     param_def = parts[0].strip()
                     desc = parts[1].strip()
-                    pname = param_def.split('(')[0].strip()
-                    if pname and pname not in ('params', 'kwargs', 'args', 'self') and len(pname) < 30:
-                        ptype = 'str'
+                    pname = param_def.split("(")[0].strip()
+                    if (
+                        pname
+                        and pname not in ("params", "kwargs", "args", "self")
+                        and len(pname) < 30
+                    ):
+                        ptype = "str"
                         required = True
-                        if '(' in param_def:
-                            type_info = param_def.split('(')[1].split(')')[0]
-                            ptype = type_info.split(',')[0].strip()
-                            required = 'optional' not in type_info.lower()
-                        params[pname] = {'type': ptype, 'required': required, 'description': desc}
+                        if "(" in param_def:
+                            type_info = param_def.split("(")[1].split(")")[0]
+                            ptype = type_info.split(",")[0].strip()
+                            required = "optional" not in type_info.lower()
+                        params[pname] = {"type": ptype, "required": required, "description": desc}
 
         return params
 
@@ -680,54 +727,62 @@ class ToolSchema:
         if not docstring:
             return outputs
 
-        lines = docstring.split('\n')
+        lines = docstring.split("\n")
         in_returns = False
 
         for line in lines:
             stripped = line.strip()
 
-            if stripped.startswith('Returns:'):
+            if stripped.startswith("Returns:"):
                 in_returns = True
                 # Check inline: "Returns: Dictionary with field_a, field_b"
-                inline = stripped[len('Returns:'):].strip()
+                inline = stripped[len("Returns:") :].strip()
                 if inline:
                     # Extract field names from "Dictionary with X, Y, Z" pattern
-                    m = re.match(r'(?:Dict(?:ionary)?|dict)\s+(?:with|containing)\s+(.*)', inline, re.I)
+                    m = re.match(
+                        r"(?:Dict(?:ionary)?|dict)\s+(?:with|containing)\s+(.*)", inline, re.I
+                    )
                     if m:
                         fields_text = m.group(1)
-                        for field_name in re.findall(r'([a-z_][a-z0-9_]*)', fields_text):
-                            if field_name not in ('and', 'or', 'the', 'list', 'dict', 'with'):
-                                outputs[field_name] = {'type': 'str', 'description': ''}
+                        for field_name in re.findall(r"([a-z_][a-z0-9_]*)", fields_text):
+                            if field_name not in ("and", "or", "the", "list", "dict", "with"):
+                                outputs[field_name] = {"type": "str", "description": ""}
                 continue
 
-            if in_returns and stripped and stripped.startswith(('Args:', 'Raises:', 'Example', 'Note')):
+            if (
+                in_returns
+                and stripped
+                and stripped.startswith(("Args:", "Raises:", "Example", "Note"))
+            ):
                 break
 
             if not in_returns:
                 continue
 
             # "Dictionary with X, Y, Z" on a continuation line
-            m_dict = re.match(r'(?:Dict(?:ionary)?|dict)\s+(?:with|containing)\s+(.*)', stripped, re.I)
+            m_dict = re.match(
+                r"(?:Dict(?:ionary)?|dict)\s+(?:with|containing)\s+(.*)", stripped, re.I
+            )
             if m_dict:
                 fields_text = m_dict.group(1)
-                for field_name in re.findall(r'([a-z_][a-z0-9_]*)', fields_text):
-                    if field_name not in ('and', 'or', 'the', 'list', 'dict', 'with'):
-                        outputs[field_name] = {'type': 'str', 'description': ''}
+                for field_name in re.findall(r"([a-z_][a-z0-9_]*)", fields_text):
+                    if field_name not in ("and", "or", "the", "list", "dict", "with"):
+                        outputs[field_name] = {"type": "str", "description": ""}
                 continue
 
             # Dash-prefixed structured: "- field_name (type): Description"
-            if stripped.startswith('-'):
-                parts = stripped[1:].strip().split(':', 1)
+            if stripped.startswith("-"):
+                parts = stripped[1:].strip().split(":", 1)
                 if len(parts) == 2:
                     field_def = parts[0].strip()
                     desc = parts[1].strip()
-                    fname = field_def.split('(')[0].strip()
+                    fname = field_def.split("(")[0].strip()
                     if fname and len(fname) < 30:
-                        ftype = 'str'
-                        if '(' in field_def:
-                            type_info = field_def.split('(')[1].split(')')[0]
-                            ftype = type_info.split(',')[0].strip()
-                        outputs[fname] = {'type': ftype, 'description': desc}
+                        ftype = "str"
+                        if "(" in field_def:
+                            type_info = field_def.split("(")[1].split(")")[0]
+                            ftype = type_info.split(",")[0].strip()
+                        outputs[fname] = {"type": ftype, "description": desc}
 
         return outputs
 
@@ -758,7 +813,13 @@ class AgentIOSchema:
         next_kwargs = schema_a.map_outputs(result_a, schema_b)
     """
 
-    def __init__(self, agent_name: str, inputs: Optional[List[ToolParam]] = None, outputs: Optional[List[ToolParam]] = None, description: str = '') -> None:
+    def __init__(
+        self,
+        agent_name: str,
+        inputs: Optional[List[ToolParam]] = None,
+        outputs: Optional[List[ToolParam]] = None,
+        description: str = "",
+    ) -> None:
         self.agent_name = agent_name
         self.inputs: List[ToolParam] = inputs or []
         self.outputs: List[ToolParam] = outputs or []
@@ -784,17 +845,17 @@ class AgentIOSchema:
             description = (signature_cls.__doc__ or "").strip().split("\n")[0]
 
             # Pydantic-style (DSPy 2.x+): model_fields
-            if hasattr(signature_cls, 'model_fields'):
+            if hasattr(signature_cls, "model_fields"):
                 for name, field_info in signature_cls.model_fields.items():
-                    extra = getattr(field_info, 'json_schema_extra', None) or {}
-                    field_type = extra.get('__dspy_field_type', '')
-                    desc = extra.get('desc', '') or field_info.description or ''
-                    type_hint = 'str'  # DSPy fields are strings by default
+                    extra = getattr(field_info, "json_schema_extra", None) or {}
+                    field_type = extra.get("__dspy_field_type", "")
+                    desc = extra.get("desc", "") or field_info.description or ""
+                    type_hint = "str"  # DSPy fields are strings by default
 
                     # Check annotation for type hints
                     annotation = field_info.annotation
                     if annotation is not None:
-                        type_hint = getattr(annotation, '__name__', str(annotation))
+                        type_hint = getattr(annotation, "__name__", str(annotation))
 
                     param = ToolParam(
                         name=name,
@@ -802,18 +863,18 @@ class AgentIOSchema:
                         required=field_info.is_required(),
                         description=desc,
                     )
-                    if field_type == 'input':
+                    if field_type == "input":
                         inputs.append(param)
-                    elif field_type == 'output':
+                    elif field_type == "output":
                         outputs.append(param)
 
             # Fallback: class attribute inspection
             if not inputs and not outputs:
                 for name in dir(signature_cls):
-                    if name.startswith('_'):
+                    if name.startswith("_"):
                         continue
                     attr = getattr(signature_cls, name, None)
-                    desc = getattr(attr, 'desc', '') or ''
+                    desc = getattr(attr, "desc", "") or ""
                     param = ToolParam(name=name, description=desc)
                     if isinstance(attr, dspy.InputField):
                         inputs.append(param)
@@ -821,13 +882,13 @@ class AgentIOSchema:
                         outputs.append(param)
 
             # Last resort: use signature's field dicts
-            if not inputs and hasattr(signature_cls, 'input_fields'):
+            if not inputs and hasattr(signature_cls, "input_fields"):
                 for name, info in signature_cls.input_fields.items():
-                    desc = getattr(info, 'desc', '') or ''
+                    desc = getattr(info, "desc", "") or ""
                     inputs.append(ToolParam(name=name, description=desc))
-            if not outputs and hasattr(signature_cls, 'output_fields'):
+            if not outputs and hasattr(signature_cls, "output_fields"):
                 for name, info in signature_cls.output_fields.items():
-                    desc = getattr(info, 'desc', '') or ''
+                    desc = getattr(info, "desc", "") or ""
                     outputs.append(ToolParam(name=name, description=desc))
 
         except Exception as e:
@@ -843,22 +904,30 @@ class AgentIOSchema:
     # -- wiring ---------------------------------------------------------------
 
     # Generic "content receiver" input names — accept any string output
-    _CONTENT_RECEIVERS = {'input', 'text', 'content', 'body', 'message', 'data'}
+    _CONTENT_RECEIVERS = {"input", "text", "content", "body", "message", "data"}
 
     # Generic "content producer" output names — provide string content
     _CONTENT_PRODUCERS = {
-        'output', 'result', 'response', 'answer', 'analysis',
-        'summary', 'findings', 'report', 'text', 'content',
+        "output",
+        "result",
+        "response",
+        "answer",
+        "analysis",
+        "summary",
+        "findings",
+        "report",
+        "text",
+        "content",
     }
 
     # Semantic equivalences for agent I/O wiring
     _SEMANTIC_GROUPS = [
-        {'text', 'content', 'body', 'input', 'message', 'data'},
-        {'result', 'output', 'response', 'answer'},
-        {'analysis', 'summary', 'findings', 'report'},
-        {'query', 'question', 'task', 'instruction', 'prompt'},
-        {'context', 'background', 'history'},
-        {'sources', 'references', 'citations', 'urls'},
+        {"text", "content", "body", "input", "message", "data"},
+        {"result", "output", "response", "answer"},
+        {"analysis", "summary", "findings", "report"},
+        {"query", "question", "task", "instruction", "prompt"},
+        {"context", "background", "history"},
+        {"sources", "references", "citations", "urls"},
     ]
 
     def wire_to(self, target: AgentIOSchema) -> Dict[str, str]:
@@ -908,7 +977,7 @@ class AgentIOSchema:
                     # If no named match, use the first string output
                 if target_input.name not in mapping:
                     for out in self.outputs:
-                        if out.type_hint == 'str' and out.name not in used_outputs:
+                        if out.type_hint == "str" and out.name not in used_outputs:
                             mapping[target_input.name] = out.name
                             used_outputs.add(out.name)
                             break
@@ -944,10 +1013,16 @@ class AgentIOSchema:
 
     def to_dict(self) -> Dict[str, Any]:
         return {
-            'agent_name': self.agent_name,
-            'description': self.description,
-            'inputs': [{'name': p.name, 'type': p.type_hint, 'description': p.description} for p in self.inputs],
-            'outputs': [{'name': p.name, 'type': p.type_hint, 'description': p.description} for p in self.outputs],
+            "agent_name": self.agent_name,
+            "description": self.description,
+            "inputs": [
+                {"name": p.name, "type": p.type_hint, "description": p.description}
+                for p in self.inputs
+            ],
+            "outputs": [
+                {"name": p.name, "type": p.type_hint, "description": p.description}
+                for p in self.outputs
+            ],
         }
 
     def __repr__(self) -> str:
@@ -990,26 +1065,26 @@ class ToolStats:
             self._records[key] = []
         self._records[key].append((success, latency_ms))
         if len(self._records[key]) > self._max_history:
-            self._records[key] = self._records[key][-self._max_history:]
+            self._records[key] = self._records[key][-self._max_history :]
 
     def get_stats(self, skill: str, tool: str) -> Dict[str, Any]:
         """Get stats for a specific tool."""
         key = self._key(skill, tool)
         records = self._records.get(key, [])
         if not records:
-            return {'call_count': 0, 'success_rate': 0.0, 'avg_latency_ms': 0.0}
+            return {"call_count": 0, "success_rate": 0.0, "avg_latency_ms": 0.0}
         successes = sum(1 for s, _ in records if s)
         avg_lat = sum(lat for _, lat in records) / len(records)
         return {
-            'call_count': len(records),
-            'success_rate': successes / len(records),
-            'avg_latency_ms': avg_lat,
+            "call_count": len(records),
+            "success_rate": successes / len(records),
+            "avg_latency_ms": avg_lat,
         }
 
     def get_summary(self, skill: str, tool: str) -> str:
         """Get human-readable summary for LLM prompt injection."""
         s = self.get_stats(skill, tool)
-        if s['call_count'] == 0:
+        if s["call_count"] == 0:
             return f"{skill}/{tool}: no history"
         return (
             f"{skill}/{tool}: {s['success_rate']:.0%} success, "
@@ -1022,8 +1097,8 @@ class ToolStats:
         for key in self._records:
             skill, tool = key.split(":", 1)
             s = self.get_stats(skill, tool)
-            if s['call_count'] >= min_calls:
-                items.append((s['success_rate'], self.get_summary(skill, tool)))
+            if s["call_count"] >= min_calls:
+                items.append((s["success_rate"], self.get_summary(skill, tool)))
         items.sort(key=lambda x: -x[0])
         return [summary for _, summary in items]
 
@@ -1031,7 +1106,7 @@ class ToolStats:
         return dict(self._records)
 
     @classmethod
-    def from_dict(cls, data: Dict) -> 'ToolStats':
+    def from_dict(cls, data: Dict) -> "ToolStats":
         obj = cls()
         obj._records = {k: [(s, l) for s, l in v] for k, v in data.items()}
         return obj
@@ -1129,8 +1204,8 @@ class CapabilityIndex:
     def get_tools_for_type(self, type_name: str) -> Dict[str, List[str]]:
         """Get tools that produce or consume a given type."""
         return {
-            'producers': self._producers.get(type_name, []),
-            'consumers': self._consumers.get(type_name, []),
+            "producers": self._producers.get(type_name, []),
+            "consumers": self._consumers.get(type_name, []),
         }
 
 
@@ -1147,6 +1222,7 @@ class FileReference:
     to *path* and store a lightweight FileReference in the outputs dict.
     Consumers call :meth:`load` when they actually need the content.
     """
+
     path: str
     content_type: str = "text/plain"
     size_bytes: int = 0
@@ -1209,11 +1285,7 @@ class SwarmArtifactStore:
 
     def query_by_tag(self, tag: str) -> Dict[str, Any]:
         """Return ``{key: data}`` for every artifact carrying *tag*."""
-        return {
-            k: entry.data
-            for k, entry in self._store.items()
-            if tag in entry.tags
-        }
+        return {k: entry.data for k, entry in self._store.items() if tag in entry.tags}
 
     def get(self, key: str, default: Any = None) -> Any:
         """Dict-like get — returns raw data for *key*."""
@@ -1258,68 +1330,79 @@ class SwarmArtifactStore:
 
 try:
     from pydantic import BaseModel, Field, model_validator
+
     PYDANTIC_AVAILABLE = True
 except ImportError:
     PYDANTIC_AVAILABLE = False
 
 
 if PYDANTIC_AVAILABLE:
+
     class ExecutionStepSchema(BaseModel):
         """Schema for execution plan steps - accepts common LLM field name variations."""
+
         skill_name: str = Field(default="", description="Skill name from available_skills")
         tool_name: str = Field(default="", description="Tool name from that skill's tools list")
         params: Dict[str, Any] = Field(default_factory=dict, description="Tool parameters")
         description: str = Field(default="", description="What this step does")
-        depends_on: List[int] = Field(default_factory=list, description="Indices of steps this depends on")
+        depends_on: List[int] = Field(
+            default_factory=list, description="Indices of steps this depends on"
+        )
         output_key: str = Field(default="", description="Key to store output under")
         optional: bool = Field(default=False, description="Whether step is optional")
         verification: str = Field(default="", description="How to confirm this step succeeded")
         fallback_skill: str = Field(default="", description="Alternative skill if this one fails")
-        inputs_needed: Dict[str, str] = Field(default_factory=dict, description="Map param_name to data source (e.g. step_0.field or literal:value)")
-        outputs_produced: List[str] = Field(default_factory=list, description="Output keys this step will produce")
+        inputs_needed: Dict[str, str] = Field(
+            default_factory=dict,
+            description="Map param_name to data source (e.g. step_0.field or literal:value)",
+        )
+        outputs_produced: List[str] = Field(
+            default_factory=list, description="Output keys this step will produce"
+        )
 
         model_config = {"extra": "allow"}
 
-        @model_validator(mode='before')
+        @model_validator(mode="before")
         @classmethod
         def normalize_field_names(cls, data: Dict[str, Any]) -> Dict[str, Any]:
             """Normalize common LLM field name variations to expected names."""
             if not isinstance(data, dict):
                 return data
 
-            if 'skill_name' not in data or not data.get('skill_name'):
-                skill = data.get('skill', '')
+            if "skill_name" not in data or not data.get("skill_name"):
+                skill = data.get("skill", "")
                 if not skill:
-                    skills_used = data.get('skills_used', [])
+                    skills_used = data.get("skills_used", [])
                     if skills_used and isinstance(skills_used, list):
                         skill = skills_used[0]
-                data['skill_name'] = skill
+                data["skill_name"] = skill
 
-            if 'tool_name' not in data or not data.get('tool_name'):
-                tool = data.get('tool', '')
+            if "tool_name" not in data or not data.get("tool_name"):
+                tool = data.get("tool", "")
                 if not tool:
-                    tools_used = data.get('tools_used', [])
+                    tools_used = data.get("tools_used", [])
                     if tools_used and isinstance(tools_used, list):
                         tool = tools_used[0]
                 if not tool:
-                    action = data.get('action', '')
+                    action = data.get("action", "")
                     if action and isinstance(action, str):
-                        tool_match = re.search(r'\b([a-z_]+_tool)\b', action)
+                        tool_match = re.search(r"\b([a-z_]+_tool)\b", action)
                         if tool_match:
                             tool = tool_match.group(1)
-                data['tool_name'] = tool
+                data["tool_name"] = tool
 
-            if 'params' not in data or not data.get('params'):
-                data['params'] = (
-                    data.get('parameters') or
-                    data.get('tool_input') or
-                    data.get('tool_params') or
-                    data.get('inputs') or
-                    data.get('input') or
-                    {}
+            if "params" not in data or not data.get("params"):
+                data["params"] = (
+                    data.get("parameters")
+                    or data.get("tool_input")
+                    or data.get("tool_params")
+                    or data.get("inputs")
+                    or data.get("input")
+                    or {}
                 )
 
             return data
+
 else:
     ExecutionStepSchema = None  # type: ignore[assignment,misc]
 
@@ -1331,6 +1414,7 @@ else:
 try:
     from Jotty.core.infrastructure.utils.context_utils import strip_enrichment_context
 except ImportError:
+
     def strip_enrichment_context(text: str) -> str:
         return text
 
@@ -1343,6 +1427,7 @@ def _clean_for_display(text: str) -> str:
 @dataclass
 class AgenticExecutionResult:
     """Result of task execution."""
+
     success: bool
     task: str
     task_type: TaskType
@@ -1366,26 +1451,33 @@ class AgenticExecutionResult:
             if not isinstance(step_data, dict):
                 continue
             # file-operations returns {path, bytes_written}
-            if 'path' in step_data and step_data.get('success', True):
-                found.append({
-                    'path': step_data['path'],
-                    'type': 'file',
-                    'size_bytes': step_data.get('bytes_written', 0),
-                    'step': step_name,
-                })
+            if "path" in step_data and step_data.get("success", True):
+                found.append(
+                    {
+                        "path": step_data["path"],
+                        "type": "file",
+                        "size_bytes": step_data.get("bytes_written", 0),
+                        "step": step_name,
+                    }
+                )
             # shell-exec may create files (check stdout for file paths)
-            if 'stdout' in step_data:
-                stdout = str(step_data.get('stdout', ''))
+            if "stdout" in step_data:
+                stdout = str(step_data.get("stdout", ""))
                 for m in re.finditer(
                     r'(?:saved?|wrot?e?|created?|output)\s+(?:to\s+)?["\']?([^\s"\']+\.\w{1,5})',
-                    stdout, re.I,
+                    stdout,
+                    re.I,
                 ):
                     fpath = m.group(1)
-                    if len(fpath) > 3 and ('/' in fpath or '.' in fpath):
-                        found.append({
-                            'path': fpath, 'type': 'file',
-                            'size_bytes': 0, 'step': step_name,
-                        })
+                    if len(fpath) > 3 and ("/" in fpath or "." in fpath):
+                        found.append(
+                            {
+                                "path": fpath,
+                                "type": "file",
+                                "size_bytes": 0,
+                                "step": step_name,
+                            }
+                        )
         return found
 
     @property
@@ -1402,7 +1494,7 @@ class AgenticExecutionResult:
         if artifacts:
             parts.append("Files created:")
             for a in artifacts:
-                size = f" ({a['size_bytes']} bytes)" if a.get('size_bytes') else ""
+                size = f" ({a['size_bytes']} bytes)" if a.get("size_bytes") else ""
                 parts.append(f"  → {a['path']}{size}")
 
         if self.errors:
@@ -1413,23 +1505,23 @@ class AgenticExecutionResult:
             if clean:
                 parts.append(f"Output: {clean}")
 
-        return '\n'.join(parts)
+        return "\n".join(parts)
 
 
 __all__ = [
-    'TaskType',
-    'ExecutionStep',
-    'ToolParam',
-    'TypeCoercer',
-    'ToolValidationResult',
-    'ToolSchema',
-    'AgentIOSchema',
-    'ToolStats',
-    'TOOL_STATS',
-    'CapabilityIndex',
-    'FileReference',
-    'SwarmArtifactStore',
-    'ExecutionStepSchema',
-    'AgenticExecutionResult',
-    '_clean_for_display',
+    "TaskType",
+    "ExecutionStep",
+    "ToolParam",
+    "TypeCoercer",
+    "ToolValidationResult",
+    "ToolSchema",
+    "AgentIOSchema",
+    "ToolStats",
+    "TOOL_STATS",
+    "CapabilityIndex",
+    "FileReference",
+    "SwarmArtifactStore",
+    "ExecutionStepSchema",
+    "AgenticExecutionResult",
+    "_clean_for_display",
 ]

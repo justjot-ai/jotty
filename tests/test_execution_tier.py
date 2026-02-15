@@ -10,13 +10,14 @@ Tests covering:
 - core/execution/memory/json_memory.py — JSONMemory
 """
 
-import pytest
 import asyncio
 import json
 import time
-from pathlib import Path
 from datetime import datetime, timedelta
-from unittest.mock import Mock, MagicMock, patch, AsyncMock
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+
+import pytest
 
 # ---------------------------------------------------------------------------
 # Guarded imports with skipif flags
@@ -24,45 +25,49 @@ from unittest.mock import Mock, MagicMock, patch, AsyncMock
 
 try:
     from core.execution.types import (
-        ExecutionTier,
-        StreamEventType,
-        StreamEvent,
-        ExecutionConfig,
-        ExecutionStep,
-        ExecutionPlan,
-        TierValidationResult,
-        ValidationResult,
-        MemoryContext,
-        ExecutionResult,
-        ErrorType,
-        ValidationStatus,
-        ValidationVerdict,
-        CircuitState,
-        CircuitBreaker,
         AdaptiveTimeout,
+        CircuitBreaker,
+        CircuitState,
         DeadLetter,
         DeadLetterQueue,
+        ErrorType,
+        ExecutionConfig,
+        ExecutionPlan,
+        ExecutionResult,
+        ExecutionStep,
+        ExecutionTier,
+        MemoryContext,
+        StreamEvent,
+        StreamEventType,
+        TierValidationResult,
         TimeoutWarning,
+        ValidationResult,
+        ValidationStatus,
+        ValidationVerdict,
     )
+
     HAS_TYPES = True
 except ImportError:
     HAS_TYPES = False
 
 try:
     from core.execution.tier_detector import TierDetector
+
     HAS_DETECTOR = True
 except ImportError:
     HAS_DETECTOR = False
 
 try:
-    from core.execution.memory.noop_memory import NoOpMemory
     from core.execution.memory.json_memory import JSONMemory
+    from core.execution.memory.noop_memory import NoOpMemory
+
     HAS_MEMORY = True
 except ImportError:
     HAS_MEMORY = False
 
 try:
-    from core.execution.executor import TierExecutor, LLMProvider, _FallbackValidator
+    from core.execution.executor import LLMProvider, TierExecutor, _FallbackValidator
+
     HAS_EXECUTOR = True
 except ImportError:
     HAS_EXECUTOR = False
@@ -71,6 +76,7 @@ except ImportError:
 # ===========================================================================
 # 1. ExecutionTier Enum
 # ===========================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_TYPES, reason="core.execution.types not importable")
@@ -124,6 +130,7 @@ class TestExecutionTierEnum:
 # 2. ExecutionConfig & Related Dataclasses
 # ===========================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_TYPES, reason="core.execution.types not importable")
 class TestExecutionConfig:
@@ -140,21 +147,26 @@ class TestExecutionConfig:
         cfg = ExecutionConfig()
         sc = cfg.to_swarm_config()
         expected_keys = {
-            'enable_validation', 'enable_multi_round', 'enable_rl',
-            'enable_causal_learning', 'enable_agent_communication',
-            'llm_timeout_seconds', 'max_eval_retries', 'validation_mode',
+            "enable_validation",
+            "enable_multi_round",
+            "enable_rl",
+            "enable_causal_learning",
+            "enable_agent_communication",
+            "llm_timeout_seconds",
+            "max_eval_retries",
+            "validation_mode",
         }
         assert set(sc.keys()) == expected_keys
 
     def test_to_swarm_config_validation_mode_none(self):
         cfg = ExecutionConfig(enable_multi_round_validation=False)
         sc = cfg.to_swarm_config()
-        assert sc['validation_mode'] == 'none'
+        assert sc["validation_mode"] == "none"
 
     def test_to_swarm_config_validation_mode_full(self):
         cfg = ExecutionConfig(enable_multi_round_validation=True)
         sc = cfg.to_swarm_config()
-        assert sc['validation_mode'] == 'full'
+        assert sc["validation_mode"] == "full"
 
 
 @pytest.mark.unit
@@ -193,18 +205,22 @@ class TestExecutionResult:
     def test_to_dict_keys(self):
         result = ExecutionResult(output="hello", tier=ExecutionTier.DIRECT)
         d = result.to_dict()
-        assert d['tier'] == 'DIRECT'
-        assert d['success'] is True
-        assert d['output'] == 'hello'
+        assert d["tier"] == "DIRECT"
+        assert d["success"] is True
+        assert d["output"] == "hello"
 
     def test_str_success(self):
-        result = ExecutionResult(output="x", tier=ExecutionTier.AGENTIC, llm_calls=3, latency_ms=1234.5, cost_usd=0.03)
+        result = ExecutionResult(
+            output="x", tier=ExecutionTier.AGENTIC, llm_calls=3, latency_ms=1234.5, cost_usd=0.03
+        )
         s = str(result)
         assert "[OK]" in s
         assert "Tier 2" in s
 
     def test_str_failure(self):
-        result = ExecutionResult(output=None, tier=ExecutionTier.DIRECT, success=False, error="boom")
+        result = ExecutionResult(
+            output=None, tier=ExecutionTier.DIRECT, success=False, error="boom"
+        )
         s = str(result)
         assert "[FAIL]" in s
 
@@ -212,6 +228,7 @@ class TestExecutionResult:
 # ===========================================================================
 # 3. ErrorType & ValidationVerdict
 # ===========================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_TYPES, reason="core.execution.types not importable")
@@ -260,6 +277,7 @@ class TestValidationVerdict:
 # 4. CircuitBreaker
 # ===========================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_TYPES, reason="core.execution.types not importable")
 class TestCircuitBreaker:
@@ -307,6 +325,7 @@ class TestCircuitBreaker:
 # 5. AdaptiveTimeout
 # ===========================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_TYPES, reason="core.execution.types not importable")
 class TestAdaptiveTimeout:
@@ -333,6 +352,7 @@ class TestAdaptiveTimeout:
 # ===========================================================================
 # 6. DeadLetterQueue
 # ===========================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_TYPES, reason="core.execution.types not importable")
@@ -383,6 +403,7 @@ class TestDeadLetterQueue:
 # 7. TimeoutWarning
 # ===========================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_TYPES, reason="core.execution.types not importable")
 class TestTimeoutWarning:
@@ -411,6 +432,7 @@ class TestTimeoutWarning:
 # ===========================================================================
 # 8. TierDetector
 # ===========================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_DETECTOR, reason="core.execution.tier_detector not importable")
@@ -443,27 +465,48 @@ class TestTierDetector:
     # -- RESEARCH indicators (Tier 4) --------------------------------------
 
     def test_experiment_detected_as_research(self):
-        assert self.detector.detect("experiment with different approaches for maximum performance") == ExecutionTier.RESEARCH
+        assert (
+            self.detector.detect("experiment with different approaches for maximum performance")
+            == ExecutionTier.RESEARCH
+        )
 
     def test_benchmark_detected_as_research(self):
-        assert self.detector.detect("benchmark these algorithms comprehensively") == ExecutionTier.RESEARCH
+        assert (
+            self.detector.detect("benchmark these algorithms comprehensively")
+            == ExecutionTier.RESEARCH
+        )
 
     def test_research_thoroughly_detected(self):
-        assert self.detector.detect("research thoroughly the impact of AI on healthcare") == ExecutionTier.RESEARCH
+        assert (
+            self.detector.detect("research thoroughly the impact of AI on healthcare")
+            == ExecutionTier.RESEARCH
+        )
 
     # -- LEARNING indicators (Tier 3) --------------------------------------
 
     def test_learn_from_detected_as_learning(self):
-        assert self.detector.detect("learn from the previous executions and improve") == ExecutionTier.LEARNING
+        assert (
+            self.detector.detect("learn from the previous executions and improve")
+            == ExecutionTier.LEARNING
+        )
 
     def test_optimize_detected_as_learning(self):
-        assert self.detector.detect("optimize the prompt for better results consistently") == ExecutionTier.LEARNING
+        assert (
+            self.detector.detect("optimize the prompt for better results consistently")
+            == ExecutionTier.LEARNING
+        )
 
     def test_validate_detected_as_learning(self):
-        assert self.detector.detect("validate the output against the specification") == ExecutionTier.LEARNING
+        assert (
+            self.detector.detect("validate the output against the specification")
+            == ExecutionTier.LEARNING
+        )
 
     def test_remember_detected_as_learning(self):
-        assert self.detector.detect("remember this conversation for later use") == ExecutionTier.LEARNING
+        assert (
+            self.detector.detect("remember this conversation for later use")
+            == ExecutionTier.LEARNING
+        )
 
     # -- DIRECT indicators (Tier 1) ----------------------------------------
 
@@ -482,21 +525,15 @@ class TestTierDetector:
     # -- AGENTIC indicators (Tier 2) — multi-step --------------------------
 
     def test_multi_step_and_then(self):
-        result = self.detector.detect(
-            "read the file and then summarize it and then send via email"
-        )
+        result = self.detector.detect("read the file and then summarize it and then send via email")
         assert result == ExecutionTier.AGENTIC
 
     def test_multi_step_first_second(self):
-        result = self.detector.detect(
-            "first gather data, second analyze it, third create a report"
-        )
+        result = self.detector.detect("first gather data, second analyze it, third create a report")
         assert result == ExecutionTier.AGENTIC
 
     def test_step_indicators(self):
-        result = self.detector.detect(
-            "step 1 fetch the data, step 2 clean it and produce output"
-        )
+        result = self.detector.detect("step 1 fetch the data, step 2 clean it and produce output")
         assert result == ExecutionTier.AGENTIC
 
     # -- Default AGENTIC for ambiguous queries ------------------------------
@@ -594,6 +631,7 @@ class TestTierDetector:
 # 9. TierDetector — Async with LLM fallback (mocked)
 # ===========================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_DETECTOR, reason="core.execution.tier_detector not importable")
 class TestTierDetectorAsync:
@@ -659,6 +697,7 @@ class TestTierDetectorAsync:
 # ===========================================================================
 # 10. _TierClassifierLLM (mocked Anthropic client)
 # ===========================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_DETECTOR, reason="core.execution.tier_detector not importable")
@@ -732,6 +771,7 @@ class TestTierClassifierLLM:
 # 11. NoOpMemory
 # ===========================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_MEMORY, reason="core.execution.memory not importable")
 class TestNoOpMemory:
@@ -771,6 +811,7 @@ class TestNoOpMemory:
 # 12. JSONMemory
 # ===========================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_MEMORY, reason="core.execution.memory not importable")
 class TestJSONMemory:
@@ -782,8 +823,8 @@ class TestJSONMemory:
         await mem.store(goal="test goal", result="test result", success=True, confidence=0.9)
         entries = await mem.retrieve("test goal")
         assert len(entries) == 1
-        assert entries[0]['result'] == "test result"
-        assert entries[0]['success'] is True
+        assert entries[0]["result"] == "test result"
+        assert entries[0]["success"] is True
 
     @pytest.mark.asyncio
     async def test_retrieve_nonexistent_returns_empty(self, tmp_path):
@@ -798,7 +839,7 @@ class TestJSONMemory:
         # Manually set expires_at in the past
         file_path = mem._get_file_path("expiring")
         data = mem._load_file(file_path)
-        data['entries'][0]['expires_at'] = (datetime.now() - timedelta(hours=1)).isoformat()
+        data["entries"][0]["expires_at"] = (datetime.now() - timedelta(hours=1)).isoformat()
         mem._save_file(file_path, data)
         entries = await mem.retrieve("expiring")
         assert entries == []
@@ -810,7 +851,7 @@ class TestJSONMemory:
             await mem.store(goal="same goal", result=f"result_{i}")
         file_path = mem._get_file_path("same goal")
         data = mem._load_file(file_path)
-        assert len(data['entries']) == 10
+        assert len(data["entries"]) == 10
 
     @pytest.mark.asyncio
     async def test_retrieve_limit(self, tmp_path):
@@ -826,8 +867,8 @@ class TestJSONMemory:
         await mem.store(goal="order test", result="first")
         await mem.store(goal="order test", result="second")
         entries = await mem.retrieve("order test")
-        assert entries[0]['result'] == "second"
-        assert entries[1]['result'] == "first"
+        assert entries[0]["result"] == "second"
+        assert entries[1]["result"] == "first"
 
     @pytest.mark.asyncio
     async def test_clear_removes_all_files(self, tmp_path):
@@ -853,12 +894,12 @@ class TestJSONMemory:
     def test_load_file_creates_default(self, tmp_path):
         mem = JSONMemory(base_path=tmp_path)
         data = mem._load_file(tmp_path / "nonexistent.json")
-        assert data == {'entries': []}
+        assert data == {"entries": []}
 
     def test_save_and_load_roundtrip(self, tmp_path):
         mem = JSONMemory(base_path=tmp_path)
         file_path = tmp_path / "test.json"
-        data = {'entries': [{'goal': 'x', 'result': 'y'}]}
+        data = {"entries": [{"goal": "x", "result": "y"}]}
         mem._save_file(file_path, data)
         loaded = mem._load_file(file_path)
         assert loaded == data
@@ -868,7 +909,7 @@ class TestJSONMemory:
         mem = JSONMemory(base_path=tmp_path)
         await mem.store(goal="exact match test", result="res")
         entries = await mem.retrieve("exact match test")
-        assert entries[0]['score'] == 1.0
+        assert entries[0]["score"] == 1.0
 
     @pytest.mark.asyncio
     async def test_base_path_created(self, tmp_path):
@@ -880,6 +921,7 @@ class TestJSONMemory:
 # ===========================================================================
 # 13. TierExecutor (heavily mocked)
 # ===========================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_EXECUTOR, reason="core.execution.executor not importable")
@@ -980,28 +1022,28 @@ class TestTierExecutorParsePlan:
     def test_parse_plan_from_dict(self):
         executor = self._make_executor()
         plan_result = {
-            'steps': [
-                {'description': 'Step A', 'skill': 'web-search'},
-                {'description': 'Step B'},
+            "steps": [
+                {"description": "Step A", "skill": "web-search"},
+                {"description": "Step B"},
             ],
-            'reasoning': 'Because.',
+            "reasoning": "Because.",
         }
         plan = executor._parse_plan("my goal", plan_result)
         assert plan.total_steps == 2
-        assert plan.steps[0].description == 'Step A'
-        assert plan.steps[0].skill == 'web-search'
+        assert plan.steps[0].description == "Step A"
+        assert plan.steps[0].skill == "web-search"
         assert plan.steps[1].skill is None
 
     def test_parse_plan_empty_steps(self):
         executor = self._make_executor()
-        plan_result = {'steps': [], 'reasoning': ''}
+        plan_result = {"steps": [], "reasoning": ""}
         plan = executor._parse_plan("goal", plan_result)
         assert plan.total_steps == 0
 
     def test_parse_plan_step_numbering(self):
         executor = self._make_executor()
         plan_result = {
-            'steps': [{'description': f'S{i}'} for i in range(5)],
+            "steps": [{"description": f"S{i}"} for i in range(5)],
         }
         plan = executor._parse_plan("goal", plan_result)
         for i, step in enumerate(plan.steps):
@@ -1024,12 +1066,12 @@ class TestTierExecutorFallbackAggregate:
 
     def test_single_result(self):
         executor = self._make_executor()
-        out = executor._fallback_aggregate([{'output': 'hello'}], "g")
-        assert out == 'hello'
+        out = executor._fallback_aggregate([{"output": "hello"}], "g")
+        assert out == "hello"
 
     def test_multiple_results(self):
         executor = self._make_executor()
-        results = [{'output': 'a'}, {'output': 'b'}]
+        results = [{"output": "a"}, {"output": "b"}]
         out = executor._fallback_aggregate(results, "my goal")
         assert "Step 1" in out
         assert "Step 2" in out
@@ -1058,7 +1100,7 @@ class TestTierExecutorEnrichWithMemory:
     def test_with_entries(self):
         executor = self._make_executor()
         ctx = MemoryContext(
-            entries=[{'summary': 'past info'}],
+            entries=[{"summary": "past info"}],
             relevance_scores=[0.9],
             total_retrieved=1,
             retrieval_time_ms=5.0,
@@ -1072,6 +1114,7 @@ class TestTierExecutorEnrichWithMemory:
 # 14. LLMProvider (mocked)
 # ===========================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_EXECUTOR, reason="core.execution.executor not importable")
 class TestLLMProvider:
@@ -1079,13 +1122,13 @@ class TestLLMProvider:
 
     def test_default_provider_and_model(self):
         provider = LLMProvider()
-        assert provider._provider_name == 'anthropic'
-        assert 'claude' in provider._model.lower() or 'sonnet' in provider._model.lower()
+        assert provider._provider_name == "anthropic"
+        assert "claude" in provider._model.lower() or "sonnet" in provider._model.lower()
 
     def test_custom_provider(self):
-        provider = LLMProvider(provider='openai', model='gpt-4')
-        assert provider._provider_name == 'openai'
-        assert provider._model == 'gpt-4'
+        provider = LLMProvider(provider="openai", model="gpt-4")
+        assert provider._provider_name == "openai"
+        assert provider._model == "gpt-4"
 
     def test_client_lazy_init(self):
         provider = LLMProvider()
@@ -1096,6 +1139,7 @@ class TestLLMProvider:
 # 15. _FallbackValidator (mocked)
 # ===========================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_EXECUTOR, reason="core.execution.executor not importable")
 class TestFallbackValidator:
@@ -1104,24 +1148,24 @@ class TestFallbackValidator:
     @pytest.mark.asyncio
     async def test_validate_parses_json(self):
         mock_provider = AsyncMock()
-        mock_provider.generate = AsyncMock(return_value={
-            'content': '{"success": true, "confidence": 0.9, "feedback": "good", "reasoning": "ok"}'
-        })
+        mock_provider.generate = AsyncMock(
+            return_value={
+                "content": '{"success": true, "confidence": 0.9, "feedback": "good", "reasoning": "ok"}'
+            }
+        )
         validator = _FallbackValidator(mock_provider)
         result = await validator.validate("Is this correct?")
-        assert result['success'] is True
-        assert result['confidence'] == 0.9
+        assert result["success"] is True
+        assert result["confidence"] == 0.9
 
     @pytest.mark.asyncio
     async def test_validate_handles_non_json(self):
         mock_provider = AsyncMock()
-        mock_provider.generate = AsyncMock(return_value={
-            'content': 'Looks good to me!'
-        })
+        mock_provider.generate = AsyncMock(return_value={"content": "Looks good to me!"})
         validator = _FallbackValidator(mock_provider)
         result = await validator.validate("Is this correct?")
-        assert result['success'] is True
-        assert 'feedback' in result
+        assert result["success"] is True
+        assert "feedback" in result
 
     @pytest.mark.asyncio
     async def test_validate_handles_exception(self):
@@ -1129,13 +1173,14 @@ class TestFallbackValidator:
         mock_provider.generate = AsyncMock(side_effect=RuntimeError("LLM fail"))
         validator = _FallbackValidator(mock_provider)
         result = await validator.validate("Is this correct?")
-        assert result['success'] is True
-        assert result['confidence'] == 0.5
+        assert result["success"] is True
+        assert result["confidence"] == 0.5
 
 
 # ===========================================================================
 # 16. StreamEventType & StreamEvent
 # ===========================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_TYPES, reason="core.execution.types not importable")
@@ -1159,6 +1204,7 @@ class TestStreamEventType:
 # 17. ExecutionPlan properties
 # ===========================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_TYPES, reason="core.execution.types not importable")
 class TestExecutionPlan:
@@ -1167,7 +1213,10 @@ class TestExecutionPlan:
     def test_total_steps(self):
         plan = ExecutionPlan(
             goal="test",
-            steps=[ExecutionStep(step_num=1, description="a"), ExecutionStep(step_num=2, description="b")],
+            steps=[
+                ExecutionStep(step_num=1, description="a"),
+                ExecutionStep(step_num=2, description="b"),
+            ],
         )
         assert plan.total_steps == 2
 
@@ -1191,6 +1240,7 @@ class TestExecutionPlan:
 # ===========================================================================
 # 18. Backward-compat alias
 # ===========================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_TYPES, reason="core.execution.types not importable")

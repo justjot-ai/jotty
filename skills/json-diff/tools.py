@@ -1,9 +1,10 @@
 """JSON Diff Skill — compare two JSON objects with path tracking."""
-import json
-from typing import Dict, Any, List, Tuple
 
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+import json
+from typing import Any, Dict, List, Tuple
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("json-diff")
 
@@ -19,7 +20,9 @@ def _diff(a: Any, b: Any, path: str = "$") -> Tuple[List, List, List]:
                 removed.append({"path": p, "value": a[k]})
             else:
                 a2, r2, m2 = _diff(a[k], b[k], p)
-                added.extend(a2); removed.extend(r2); modified.extend(m2)
+                added.extend(a2)
+                removed.extend(r2)
+                modified.extend(m2)
     elif isinstance(a, list) and isinstance(b, list):
         for i in range(max(len(a), len(b))):
             p = f"{path}[{i}]"
@@ -29,7 +32,9 @@ def _diff(a: Any, b: Any, path: str = "$") -> Tuple[List, List, List]:
                 removed.append({"path": p, "value": a[i]})
             else:
                 a2, r2, m2 = _diff(a[i], b[i], p)
-                added.extend(a2); removed.extend(r2); modified.extend(m2)
+                added.extend(a2)
+                removed.extend(r2)
+                modified.extend(m2)
     elif a != b:
         modified.append({"path": path, "old": a, "new": b})
     return added, removed, modified
@@ -49,7 +54,9 @@ def json_diff_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     b = _parse(params["b"])
     added, removed, modified = _diff(a, b)
     return tool_response(
-        added=added, removed=removed, modified=modified,
+        added=added,
+        removed=removed,
+        modified=modified,
         total_changes=len(added) + len(removed) + len(modified),
     )
 

@@ -37,10 +37,13 @@ class PlannerSignature(dspy.Signature):
       images/screenshots/PDFs/PPTX files. Put the URL or file path in tool_hint.
       Use browse when you need the ACTUAL content of a specific URL or file.
     """
+
     goal: str = dspy.InputField(desc="The goal to accomplish")
     available_swarms: str = dspy.InputField(desc="Available specialized swarms for delegation")
-    context: str = dspy.InputField(desc="Previous results or context (empty if first attempt). "
-                                        "On re-planning after validation failure, includes completed work and remaining gaps.")
+    context: str = dspy.InputField(
+        desc="Previous results or context (empty if first attempt). "
+        "On re-planning after validation failure, includes completed work and remaining gaps."
+    )
 
     subtasks_json: str = dspy.OutputField(
         desc="JSON list of subtasks. Each MUST have: "
@@ -61,6 +64,7 @@ class SearchSignature(dspy.Signature):
     Generate targeted search queries, then synthesize what you know
     into a clear, factual answer. Be specific — include numbers, names, dates.
     """
+
     task: str = dspy.InputField(desc="What information is needed and why")
     context: str = dspy.InputField(desc="Previous results providing context")
 
@@ -92,8 +96,11 @@ class CoderSignature(dspy.Signature):
     4. Handle errors gracefully
     5. Follow the language's conventions (PEP 8 for Python, etc.)
     """
+
     task: str = dspy.InputField(desc="What code to write, what files to create or edit")
-    context: str = dspy.InputField(desc="Relevant context: existing code, requirements, previous results")
+    context: str = dspy.InputField(
+        desc="Relevant context: existing code, requirements, previous results"
+    )
 
     file_operations_json: str = dspy.OutputField(
         desc="JSON list of file operations. Each MUST have: "
@@ -123,6 +130,7 @@ class TerminalSignature(dspy.Signature):
       chmod 777, deleting git branches, force push
     - NEVER generate destructive commands unless explicitly asked
     """
+
     task: str = dspy.InputField(desc="What to accomplish via terminal")
     context: str = dspy.InputField(desc="Relevant context (OS, previous output, working directory)")
 
@@ -155,9 +163,14 @@ class SkillWriterSignature(dspy.Signature):
     - Has a clear docstring explaining params and return value
     - Handles exceptions internally
     """
-    skill_description: str = dspy.InputField(desc="What the skill should do — be specific about inputs and outputs")
+
+    skill_description: str = dspy.InputField(
+        desc="What the skill should do — be specific about inputs and outputs"
+    )
     skill_name: str = dspy.InputField(desc="Skill name in kebab-case (e.g., 'my-cool-skill')")
-    reference_patterns: str = dspy.InputField(desc="Example skill patterns showing the expected format")
+    reference_patterns: str = dspy.InputField(
+        desc="Example skill patterns showing the expected format"
+    )
 
     skill_yaml: str = dspy.OutputField(
         desc="Complete skill.yaml content in YAML format. Must include: "
@@ -184,6 +197,7 @@ class ValidatorSignature(dspy.Signature):
     Be honest and strict. Don't report success if there are clear gaps.
     If partially successful, identify exactly what's missing.
     """
+
     goal: str = dspy.InputField(desc="The original goal to achieve")
     results_summary: str = dspy.InputField(desc="Summary of all subtask results and their outcomes")
 
@@ -202,6 +216,10 @@ class ValidatorSignature(dspy.Signature):
 
 
 __all__ = [
-    'PlannerSignature', 'SearchSignature', 'CoderSignature',
-    'TerminalSignature', 'SkillWriterSignature', 'ValidatorSignature',
+    "PlannerSignature",
+    "SearchSignature",
+    "CoderSignature",
+    "TerminalSignature",
+    "SkillWriterSignature",
+    "ValidatorSignature",
 ]

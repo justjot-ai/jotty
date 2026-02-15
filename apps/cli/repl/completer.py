@@ -7,11 +7,12 @@ Autocomplete for CLI commands.
 
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Optional, Iterable, Any
+from typing import TYPE_CHECKING, Any, Iterable, List, Optional
 
 try:
     from prompt_toolkit.completion import Completer, Completion
     from prompt_toolkit.document import Document
+
     PROMPT_TOOLKIT_AVAILABLE = True
 except ImportError:
     PROMPT_TOOLKIT_AVAILABLE = False
@@ -36,33 +37,53 @@ class CommandCompleter(Completer if PROMPT_TOOLKIT_AVAILABLE else object):
 
     # Command-specific flags and parameters
     COMMAND_FLAGS = {
-        'run': ['--verbose', '--debug', '--timeout'],
-        'ml': ['--target', '--context', '--iterations',
-               # Seaborn datasets
-               'titanic', 'iris', 'tips', 'penguins', 'diamonds', 'mpg',
-               # Sklearn datasets
-               'breast_cancer', 'wine', 'digits', 'california', 'diabetes'],
-        'research': ['--quick', '--deep', '--sources', '--emit'],
-        'skills': ['--category', '--search', 'list', 'info', 'run'],
-        'tools': ['web-search', 'file-read', 'file-write', 'telegram-sender', 'docx-tools', 'document-converter'],
-        'preview': ['--lines', '--raw', 'last', 'tools'],
-        'browse': ['--type', '--preview', '.', '~', '/'],
-        'export': ['last', 'history', 'code', 'c', 'd', 'p', 'm', 'cdpm'],
-        'resume': ['list'],
-        'config': ['show', 'set', 'reset', 'edit'],
-        'learn': ['warmup', 'train', 'status'],
-        'stats': ['--detailed', '--export'],
-        'agents': ['list', 'status', 'add', 'remove'],
-        'swarm': ['status', 'reset', 'config'],
-        'memory': ['show', 'clear', 'export'],
-        'plan': ['--steps', '--output'],
-        'git': ['status', 'commit', 'push', 'pull', 'diff', 'undo', 'auto-commit'],
-        'J': ['--tags', '--status'],
+        "run": ["--verbose", "--debug", "--timeout"],
+        "ml": [
+            "--target",
+            "--context",
+            "--iterations",
+            # Seaborn datasets
+            "titanic",
+            "iris",
+            "tips",
+            "penguins",
+            "diamonds",
+            "mpg",
+            # Sklearn datasets
+            "breast_cancer",
+            "wine",
+            "digits",
+            "california",
+            "diabetes",
+        ],
+        "research": ["--quick", "--deep", "--sources", "--emit"],
+        "skills": ["--category", "--search", "list", "info", "run"],
+        "tools": [
+            "web-search",
+            "file-read",
+            "file-write",
+            "telegram-sender",
+            "docx-tools",
+            "document-converter",
+        ],
+        "preview": ["--lines", "--raw", "last", "tools"],
+        "browse": ["--type", "--preview", ".", "~", "/"],
+        "export": ["last", "history", "code", "c", "d", "p", "m", "cdpm"],
+        "resume": ["list"],
+        "config": ["show", "set", "reset", "edit"],
+        "learn": ["warmup", "train", "status"],
+        "stats": ["--detailed", "--export"],
+        "agents": ["list", "status", "add", "remove"],
+        "swarm": ["status", "reset", "config"],
+        "memory": ["show", "clear", "export"],
+        "plan": ["--steps", "--output"],
+        "git": ["status", "commit", "push", "pull", "diff", "undo", "auto-commit"],
+        "J": ["--tags", "--status"],
     }
 
     MAX_FILE_COMPLETIONS = 30
 
-    def __init__(self, command_registry: 'CommandRegistry') -> None:
+    def __init__(self, command_registry: "CommandRegistry") -> None:
         """
         Initialize completer.
 
@@ -96,7 +117,7 @@ class CommandCompleter(Completer if PROMPT_TOOLKIT_AVAILABLE else object):
                 unique.append(t)
         self._code_tokens = list(reversed(unique[:100]))
 
-    def get_completions(self, document: 'Document', complete_event: Any) -> Iterable['Completion']:
+    def get_completions(self, document: "Document", complete_event: Any) -> Iterable["Completion"]:
         """
         Get completions for current input.
 
@@ -129,11 +150,7 @@ class CommandCompleter(Completer if PROMPT_TOOLKIT_AVAILABLE else object):
             # General text completion (skills, etc.)
             yield from self._complete_general(text, word)
 
-    def _complete_command(
-        self,
-        text: str,
-        word: str
-    ) -> Iterable["Completion"]:
+    def _complete_command(self, text: str, word: str) -> Iterable["Completion"]:
         """Complete slash commands with descriptions and usage hints."""
         # Get the part after /
         cmd_text = text[1:].split()[0] if text[1:] else ""
@@ -159,23 +176,14 @@ class CommandCompleter(Completer if PROMPT_TOOLKIT_AVAILABLE else object):
                         display = f"{match} {usage_hint[:30]}"
 
                 yield Completion(
-                    match,
-                    start_position=start_position,
-                    display=display,
-                    display_meta=meta[:50]
+                    match, start_position=start_position, display=display, display_meta=meta[:50]
                 )
             else:
                 yield Completion(
-                    match,
-                    start_position=start_position,
-                    display_meta=self._get_command_meta(match)
+                    match, start_position=start_position, display_meta=self._get_command_meta(match)
                 )
 
-    def _complete_args(
-        self,
-        text: str,
-        word: str
-    ) -> Iterable["Completion"]:
+    def _complete_args(self, text: str, word: str) -> Iterable["Completion"]:
         """Complete command arguments with flags and parameters."""
         parts = text.split()
         if not parts:
@@ -195,9 +203,7 @@ class CommandCompleter(Completer if PROMPT_TOOLKIT_AVAILABLE else object):
         for comp in cmd_completions:
             if comp.startswith(partial) or not partial:
                 yield Completion(
-                    comp,
-                    start_position=-len(partial) if partial else 0,
-                    display_meta="argument"
+                    comp, start_position=-len(partial) if partial else 0, display_meta="argument"
                 )
 
         # Get predefined flags and params for this command
@@ -209,9 +215,7 @@ class CommandCompleter(Completer if PROMPT_TOOLKIT_AVAILABLE else object):
                     if flag not in parts:
                         meta = "flag" if flag.startswith("-") else "option"
                         yield Completion(
-                            flag,
-                            start_position=-len(partial) if partial else 0,
-                            display_meta=meta
+                            flag, start_position=-len(partial) if partial else 0, display_meta=meta
                         )
 
         # Special case: /tools - show skill names
@@ -221,7 +225,7 @@ class CommandCompleter(Completer if PROMPT_TOOLKIT_AVAILABLE else object):
                     yield Completion(
                         skill,
                         start_position=-len(partial) if partial else 0,
-                        display_meta="skill/tool"
+                        display_meta="skill/tool",
                     )
 
         # Common flags for all commands
@@ -229,9 +233,7 @@ class CommandCompleter(Completer if PROMPT_TOOLKIT_AVAILABLE else object):
         for flag in common_flags:
             if flag.startswith(partial) and flag not in parts:
                 yield Completion(
-                    flag,
-                    start_position=-len(partial) if partial else 0,
-                    display_meta="help"
+                    flag, start_position=-len(partial) if partial else 0, display_meta="help"
                 )
 
     def _complete_file_paths(
@@ -291,11 +293,7 @@ class CommandCompleter(Completer if PROMPT_TOOLKIT_AVAILABLE else object):
         except (PermissionError, OSError):
             pass
 
-    def _complete_general(
-        self,
-        text: str,
-        word: str
-    ) -> Iterable["Completion"]:
+    def _complete_general(self, text: str, word: str) -> Iterable["Completion"]:
         """General completions: skills, file paths, and code tokens."""
         # Skill names
         for skill in self._skill_names:
@@ -330,7 +328,7 @@ class SimpleCompleter:
     Provides basic completion functionality.
     """
 
-    def __init__(self, command_registry: 'CommandRegistry') -> None:
+    def __init__(self, command_registry: "CommandRegistry") -> None:
         self.command_registry = command_registry
         self._skill_names: List[str] = []
 

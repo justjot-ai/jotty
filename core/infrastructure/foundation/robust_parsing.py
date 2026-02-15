@@ -16,7 +16,7 @@ Generic enough for any agentic system.
 import json
 import logging
 from dataclasses import dataclass
-from typing import Optional, Any, Dict, Tuple, Union
+from typing import Any, Dict, Optional, Tuple, Union
 
 logger = logging.getLogger(__name__)
 
@@ -24,92 +24,92 @@ logger = logging.getLogger(__name__)
 def parse_float_robust(value: Any, default: Optional[float] = None) -> Optional[float]:
     """
     Robustly parse a float from any input.
-    
+
     A-Team Approved: No regex, handles all edge cases.
-    
+
     Works with:
     - float/int: 0.7, 1
     - string: "0.7", "0.7%", "70%", "approximately 0.7"
     - dict: {"value": 0.7}
     - None/empty: returns default
-    
+
     Returns None on failure (not magic number).
     """
     if value is None:
         return default
-    
+
     # Already a number
     if isinstance(value, (int, float)):
         return float(value)
-    
+
     # Dict with value key
     if isinstance(value, dict):
-        for key in ['value', 'score', 'q_value', 'confidence', 'result']:
+        for key in ["value", "score", "q_value", "confidence", "result"]:
             if key in value:
                 return parse_float_robust(value[key], default)
         return default
-    
+
     # String parsing
     if isinstance(value, str):
         value = value.strip()
-        
+
         if not value:
             return default
-        
+
         # Try direct float conversion
         try:
             return float(value)
         except ValueError:
             pass
-        
+
         # Handle percentage
-        if value.endswith('%'):
+        if value.endswith("%"):
             try:
                 return float(value[:-1]) / 100.0
             except ValueError:
                 pass
-        
+
         # Try JSON parsing
         try:
             parsed = json.loads(value)
             return parse_float_robust(parsed, default)
         except (json.JSONDecodeError, ValueError):
             pass
-        
+
         # Extract first number-like substring (no regex!)
         # Walk through string finding digits and decimal points
         num_str = ""
         in_number = False
         has_decimal = False
-        
+
         for char in value:
             if char.isdigit():
                 num_str += char
                 in_number = True
-            elif char == '.' and in_number and not has_decimal:
+            elif char == "." and in_number and not has_decimal:
                 num_str += char
                 has_decimal = True
             elif in_number:
                 # End of number
                 break
-        
+
         if num_str:
             try:
                 result = float(num_str)
                 # Normalize if looks like percentage
-                if result > 1.0 and 'percent' in value.lower():
+                if result > 1.0 and "percent" in value.lower():
                     result /= 100.0
                 return result
             except ValueError:
                 pass
-    
+
     return default
 
 
 def parse_bool_robust(value: Any, default: bool = False) -> bool:
     """
     Robustly parse a boolean from any input.
-    
+
     Works with:
     - bool: True, False
     - string: "true", "yes", "1", "proceed", "valid"
@@ -118,31 +118,31 @@ def parse_bool_robust(value: Any, default: bool = False) -> bool:
     """
     if value is None:
         return default
-    
+
     if isinstance(value, bool):
         return value
-    
+
     if isinstance(value, (int, float)):
         return value > 0
-    
+
     if isinstance(value, str):
         value_lower = value.lower().strip()
-        
-        positive = {'true', 'yes', '1', 'proceed', 'valid', 'accept', 'approved', 'pass'}
-        negative = {'false', 'no', '0', 'block', 'invalid', 'reject', 'denied', 'fail'}
-        
+
+        positive = {"true", "yes", "1", "proceed", "valid", "accept", "approved", "pass"}
+        negative = {"false", "no", "0", "block", "invalid", "reject", "denied", "fail"}
+
         if value_lower in positive:
             return True
         if value_lower in negative:
             return False
-    
+
     return default
 
 
 def parse_json_robust(value: Any) -> Optional[Dict]:
     """
     Robustly parse JSON from any input.
-    
+
     Works with:
     - dict: returns as-is
     - string: tries JSON parsing
@@ -150,76 +150,76 @@ def parse_json_robust(value: Any) -> Optional[Dict]:
     """
     if value is None:
         return None
-    
+
     if isinstance(value, dict):
         return value
-    
+
     if isinstance(value, str):
         value = value.strip()
-        
+
         # Try direct parsing
         try:
             return json.loads(value)
         except json.JSONDecodeError:
             pass
-        
+
         # Try extracting from markdown code blocks (no regex!)
-        if '```' in value:
+        if "```" in value:
             # Find content between ``` markers
-            parts = value.split('```')
+            parts = value.split("```")
             for i, part in enumerate(parts):
                 if i % 2 == 1:  # Odd indices are inside code blocks
                     # Remove language tag if present
-                    lines = part.strip().split('\n')
-                    if lines and lines[0] in ['json', 'JSON', '']:
-                        content = '\n'.join(lines[1:])
+                    lines = part.strip().split("\n")
+                    if lines and lines[0] in ["json", "JSON", ""]:
+                        content = "\n".join(lines[1:])
                     else:
                         content = part.strip()
-                    
+
                     try:
                         return json.loads(content)
                     except json.JSONDecodeError:
                         continue
-        
+
         # Try finding JSON object in string (no regex!)
         # Look for {...} pattern
-        start = value.find('{')
+        start = value.find("{")
         if start >= 0:
             # Find matching closing brace
             depth = 0
             end = start
             for i, char in enumerate(value[start:], start):
-                if char == '{':
+                if char == "{":
                     depth += 1
-                elif char == '}':
+                elif char == "}":
                     depth -= 1
                     if depth == 0:
                         end = i + 1
                         break
-            
+
             if end > start:
                 try:
                     return json.loads(value[start:end])
                 except json.JSONDecodeError:
                     pass
-    
+
     return None
 
 
 class AdaptiveThreshold:
     """
     Adaptive threshold that learns from data.
-    
+
     A-Team Approved: No hardcoded thresholds like 0.8 or 0.2.
     Uses running statistics to determine what's "high" or "low".
     """
-    
+
     def __init__(self, initial_mean: float = 0.5, initial_std: float = 0.2) -> None:
         self.mean = initial_mean
         self.std = initial_std
         self.count = 0
         self.m2 = 0  # For Welford's algorithm
-    
+
     def update(self, value: float) -> None:
         """Update running statistics (Welford's algorithm)."""
         self.count += 1
@@ -227,18 +227,18 @@ class AdaptiveThreshold:
         self.mean += delta / self.count
         delta2 = value - self.mean
         self.m2 += delta * delta2
-        
+
         if self.count > 1:
             self.std = (self.m2 / (self.count - 1)) ** 0.5
-    
+
     def is_high(self, value: float, sigma: float = 1.5) -> bool:
         """Check if value is significantly above mean."""
         return value > self.mean + sigma * max(self.std, 0.1)
-    
+
     def is_low(self, value: float, sigma: float = 1.5) -> bool:
         """Check if value is significantly below mean."""
         return value < self.mean - sigma * max(self.std, 0.1)
-    
+
     def is_extreme(self, value: float, sigma: float = 2.0) -> bool:
         """Check if value is extreme (either direction)."""
         deviation = abs(value - self.mean)
@@ -248,35 +248,37 @@ class AdaptiveThreshold:
 class EpsilonGreedy:
     """
     Deterministic epsilon-greedy decision making.
-    
+
     A-Team Approved: No random.random() > 0.5 fallbacks.
     """
-    
-    def __init__(self, initial_epsilon: float = 0.3, decay: float = 0.99, min_epsilon: float = 0.05) -> None:
+
+    def __init__(
+        self, initial_epsilon: float = 0.3, decay: float = 0.99, min_epsilon: float = 0.05
+    ) -> None:
         self.epsilon = initial_epsilon
         self.decay = decay
         self.min_epsilon = min_epsilon
         self.decision_count = 0
-    
+
     def should_explore(self) -> bool:
         """
         Deterministic exploration based on decision count.
-        
+
         Returns True for exploration with frequency epsilon.
         NOT random - uses hash of decision count for determinism.
         """
         self.decision_count += 1
-        
+
         # Use hash for deterministic pseudo-randomness
         hash_val = hash(self.decision_count) % 1000 / 1000.0
-        
+
         should_explore = hash_val < self.epsilon
-        
+
         # Decay epsilon
         self.epsilon = max(self.min_epsilon, self.epsilon * self.decay)
-        
+
         return should_explore
-    
+
     def decide(self, exploit_decision: bool) -> bool:
         """
         Make decision: explore (True) or exploit (use exploit_decision).
@@ -289,48 +291,48 @@ class EpsilonGreedy:
 def safe_hash(content: Any, max_length: Optional[int] = None) -> int:
     """
     Safe hash that handles any input.
-    
+
     A-Team Approved: No hash(content) assumptions.
     """
     if content is None:
         return 0
-    
+
     # Convert to string if needed
     if not isinstance(content, str):
         content = str(content)
-    
+
     # Truncate if needed, but handle edge cases
     if max_length and len(content) > max_length:
         content = content[:max_length]
-    
+
     return hash(content)
 
 
 def content_similarity(content1: Any, content2: Any, threshold: float = 0.8) -> bool:
     """
     Simple content similarity check without external dependencies.
-    
+
     Uses character overlap, not regex.
     """
     if content1 is None or content2 is None:
         return content1 is content2
-    
+
     s1 = str(content1).lower()
     s2 = str(content2).lower()
-    
+
     if not s1 or not s2:
         return s1 == s2
-    
+
     # Simple word overlap
     words1 = set(s1.split())
     words2 = set(s2.split())
-    
+
     if not words1 or not words2:
         return s1 == s2
-    
+
     intersection = len(words1 & words2)
     union = len(words1 | words2)
-    
+
     jaccard = intersection / union if union > 0 else 0
     return jaccard >= threshold
 
@@ -338,6 +340,7 @@ def content_similarity(content1: Any, content2: Any, threshold: float = 0.8) -> 
 # =============================================================================
 # ADAPTIVE WEIGHT CLASSES (Real Learning, Not Text Logging)
 # =============================================================================
+
 
 @dataclass
 class AdaptiveWeight:
@@ -347,6 +350,7 @@ class AdaptiveWeight:
     A-Team v8.0: Real numeric weight updates, not text logging.
     Uses momentum-based gradient descent for stable learning.
     """
+
     name: str
     value: float = 0.3
     momentum: float = 0.0
@@ -374,22 +378,22 @@ class AdaptiveWeight:
     def to_dict(self) -> Dict[str, Any]:
         """Serialize for persistence."""
         return {
-            'name': self.name,
-            'value': self.value,
-            'momentum': self.momentum,
-            'learning_rate': self.learning_rate,
-            'updates': self.updates
+            "name": self.name,
+            "value": self.value,
+            "momentum": self.momentum,
+            "learning_rate": self.learning_rate,
+            "updates": self.updates,
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'AdaptiveWeight':
+    def from_dict(cls, data: Dict[str, Any]) -> "AdaptiveWeight":
         """Deserialize from persistence."""
         return cls(
-            name=data['name'],
-            value=data.get('value', 0.3),
-            momentum=data.get('momentum', 0.0),
-            learning_rate=data.get('learning_rate', 0.01),
-            updates=data.get('updates', 0)
+            name=data["name"],
+            value=data.get("value", 0.3),
+            momentum=data.get("momentum", 0.0),
+            learning_rate=data.get("learning_rate", 0.01),
+            updates=data.get("updates", 0),
         )
 
 
@@ -421,9 +425,7 @@ class AdaptiveWeightGroup:
         for name, value in weights.items():
             normalized = value / total
             self._weights[name] = AdaptiveWeight(
-                name=name,
-                value=normalized,
-                learning_rate=learning_rate
+                name=name, value=normalized, learning_rate=learning_rate
             )
 
     def get(self, name: str) -> float:
@@ -464,25 +466,25 @@ class AdaptiveWeightGroup:
     def to_dict(self) -> Dict[str, Any]:
         """Serialize for persistence."""
         return {
-            'weights': {name: w.to_dict() for name, w in self._weights.items()},
-            'learning_rate': self.learning_rate
+            "weights": {name: w.to_dict() for name, w in self._weights.items()},
+            "learning_rate": self.learning_rate,
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'AdaptiveWeightGroup':
+    def from_dict(cls, data: Dict[str, Any]) -> "AdaptiveWeightGroup":
         """Deserialize from persistence."""
         instance = cls.__new__(cls)
-        instance.learning_rate = data.get('learning_rate', 0.01)
+        instance.learning_rate = data.get("learning_rate", 0.01)
         instance._weights = {}
 
-        for name, w_data in data.get('weights', {}).items():
+        for name, w_data in data.get("weights", {}).items():
             instance._weights[name] = AdaptiveWeight.from_dict(w_data)
 
         return instance
 
     def __repr__(self) -> str:
-        weights_str = ', '.join(f'{n}={w.value:.3f}' for n, w in self._weights.items())
-        return f'AdaptiveWeightGroup({weights_str})'
+        weights_str = ", ".join(f"{n}={w.value:.3f}" for n, w in self._weights.items())
+        return f"AdaptiveWeightGroup({weights_str})"
 
 
 # =============================================================================
@@ -490,14 +492,13 @@ class AdaptiveWeightGroup:
 # =============================================================================
 
 __all__ = [
-    'parse_float_robust',
-    'parse_bool_robust',
-    'parse_json_robust',
-    'AdaptiveThreshold',
-    'EpsilonGreedy',
-    'safe_hash',
-    'content_similarity',
-    'AdaptiveWeight',
-    'AdaptiveWeightGroup'
+    "parse_float_robust",
+    "parse_bool_robust",
+    "parse_json_robust",
+    "AdaptiveThreshold",
+    "EpsilonGreedy",
+    "safe_hash",
+    "content_similarity",
+    "AdaptiveWeight",
+    "AdaptiveWeightGroup",
 ]
-

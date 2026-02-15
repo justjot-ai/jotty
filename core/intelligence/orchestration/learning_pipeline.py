@@ -14,12 +14,16 @@ import asyncio
 import json
 import logging
 import time as _time
-from typing import Dict, Any, Optional, List, Tuple
-from pathlib import Path
 from collections import defaultdict, deque
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
-from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig, SwarmLearningConfig, EpisodeResult
 from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
+from Jotty.core.infrastructure.foundation.data_structures import (
+    EpisodeResult,
+    SwarmConfig,
+    SwarmLearningConfig,
+)
 from Jotty.core.infrastructure.foundation.robust_parsing import AdaptiveWeightGroup
 
 logger = logging.getLogger(__name__)
@@ -28,6 +32,7 @@ logger = logging.getLogger(__name__)
 # =========================================================================
 # EFFECTIVENESS TRACKER - Measures actual improvement over time
 # =========================================================================
+
 
 class EffectivenessTracker:
     """
@@ -64,7 +69,7 @@ class EffectivenessTracker:
         # Global (all task types combined)
         self._global: deque = deque(maxlen=recent_window + historical_window)
 
-    def record(self, task_type: str, success: bool, quality: float = 0.0, agent: str = '') -> Any:
+    def record(self, task_type: str, success: bool, quality: float = 0.0, agent: str = "") -> Any:
         """Record a task outcome. Call after every execution."""
         entry = (_time.time(), success, max(0.0, min(1.0, quality)), agent)
         self._records[task_type].append(entry)
@@ -75,8 +80,8 @@ class EffectivenessTracker:
         items = list(records)
         if len(items) <= self.recent_window:
             return items, []
-        recent = items[-self.recent_window:]
-        historical = items[:-self.recent_window]
+        recent = items[-self.recent_window :]
+        historical = items[: -self.recent_window]
         return recent, historical
 
     def _rate(self, records: List) -> Tuple[float, float]:
@@ -102,14 +107,14 @@ class EffectivenessTracker:
             hist_rate, hist_quality = self._rate(historical)
 
             report[task_type] = {
-                'recent_success_rate': round(recent_rate, 3),
-                'historical_success_rate': round(hist_rate, 3),
-                'trend': round(recent_rate - hist_rate, 3),
-                'recent_quality': round(recent_quality, 3),
-                'historical_quality': round(hist_quality, 3),
-                'quality_trend': round(recent_quality - hist_quality, 3),
-                'total_episodes': len(records),
-                'improving': recent_rate > hist_rate and len(historical) >= 5,
+                "recent_success_rate": round(recent_rate, 3),
+                "historical_success_rate": round(hist_rate, 3),
+                "trend": round(recent_rate - hist_rate, 3),
+                "recent_quality": round(recent_quality, 3),
+                "historical_quality": round(hist_quality, 3),
+                "quality_trend": round(recent_quality - hist_quality, 3),
+                "total_episodes": len(records),
+                "improving": recent_rate > hist_rate and len(historical) >= 5,
             }
 
         # Global stats
@@ -117,13 +122,13 @@ class EffectivenessTracker:
         recent_rate, recent_quality = self._rate(recent)
         hist_rate, hist_quality = self._rate(historical)
 
-        report['_global'] = {
-            'recent_success_rate': round(recent_rate, 3),
-            'historical_success_rate': round(hist_rate, 3),
-            'trend': round(recent_rate - hist_rate, 3),
-            'recent_quality': round(recent_quality, 3),
-            'total_episodes': len(self._global),
-            'improving': recent_rate > hist_rate and len(historical) >= 5,
+        report["_global"] = {
+            "recent_success_rate": round(recent_rate, 3),
+            "historical_success_rate": round(hist_rate, 3),
+            "trend": round(recent_rate - hist_rate, 3),
+            "recent_quality": round(recent_quality, 3),
+            "total_episodes": len(self._global),
+            "improving": recent_rate > hist_rate and len(historical) >= 5,
         }
 
         return report
@@ -131,27 +136,25 @@ class EffectivenessTracker:
     def is_improving(self, task_type: str = None) -> bool:
         """Quick check: is the system improving for a given task type (or globally)?"""
         report = self.improvement_report()
-        key = task_type or '_global'
-        return report.get(key, {}).get('improving', False)
+        key = task_type or "_global"
+        return report.get(key, {}).get("improving", False)
 
     def to_dict(self) -> Dict:
         """Serialize for persistence."""
         return {
-            task_type: [
-                {'t': t, 's': s, 'q': q, 'a': a}
-                for t, s, q, a in records
-            ]
+            task_type: [{"t": t, "s": s, "q": q, "a": a} for t, s, q, a in records]
             for task_type, records in self._records.items()
         }
 
     @classmethod
-    def from_dict(cls, data: Dict, recent_window: int = 20,
-                  historical_window: int = 100) -> 'EffectivenessTracker':
+    def from_dict(
+        cls, data: Dict, recent_window: int = 20, historical_window: int = 100
+    ) -> "EffectivenessTracker":
         """Deserialize from persistence."""
         tracker = cls(recent_window, historical_window)
         for task_type, entries in data.items():
             for e in entries:
-                entry = (e.get('t', 0), e.get('s', False), e.get('q', 0.0), e.get('a', ''))
+                entry = (e.get("t", 0), e.get("s", False), e.get("q", 0.0), e.get("a", ""))
                 tracker._records[task_type].append(entry)
                 tracker._global.append(entry)
         return tracker
@@ -172,17 +175,23 @@ class SwarmLearningPipeline:
 
     def _init_components(self) -> Any:
         """Initialize all learning components."""
-        from Jotty.core.intelligence.learning.learning_coordinator import LearningManager as LearningManager
+        from Jotty.core.intelligence.learning.learning_coordinator import (
+            LearningManager as LearningManager,
+        )
         from Jotty.core.intelligence.learning.predictive_marl import (
-            LLMTrajectoryPredictor, DivergenceMemory,
+            DivergenceMemory,
+            LLMTrajectoryPredictor,
         )
+        from Jotty.core.intelligence.learning.transfer_learning import TransferableLearningStore
         from Jotty.core.intelligence.memory.consolidation_engine import (
-            BrainStateMachine, BrainModeConfig, AgentAbstractor,
+            AgentAbstractor,
+            BrainModeConfig,
+            BrainStateMachine,
         )
+        from Jotty.core.intelligence.orchestration.swarm_learner import SwarmLearner
         from Jotty.core.modes.agent.axon import SmartAgentSlack
         from Jotty.core.modes.agent.feedback_channel import FeedbackChannel
-        from Jotty.core.intelligence.orchestration.swarm_learner import SwarmLearner
-        from Jotty.core.intelligence.learning.transfer_learning import TransferableLearningStore
+
         from .swarm_intelligence import SwarmIntelligence
 
         # Core learning manager (wraps Q-learner)
@@ -219,20 +228,22 @@ class SwarmLearningPipeline:
         self.swarm_intelligence = SwarmIntelligence(self.config)
 
         # Adaptive credit assignment weights
-        self.credit_weights = AdaptiveWeightGroup({
-            'base_reward': 0.3,
-            'cooperation_bonus': 0.4,
-            'predictability_bonus': 0.3,
-        })
+        self.credit_weights = AdaptiveWeightGroup(
+            {
+                "base_reward": 0.3,
+                "cooperation_bonus": 0.4,
+                "predictability_bonus": 0.3,
+            }
+        )
 
         # -----------------------------------------------------------------
         # Previously dormant modules — now wired (DRY: init once, use many)
         # -----------------------------------------------------------------
-        from .stigmergy import StigmergyLayer
+        from .adaptive_learning import AdaptiveLearning
         from .byzantine_verification import ByzantineVerifier
         from .credit_assignment import CreditAssignment
-        from .adaptive_learning import AdaptiveLearning
         from .curriculum_generator import CurriculumGenerator
+        from .stigmergy import StigmergyLayer
 
         # Stigmergy: ant-colony pheromone trails for agent routing
         # UNIFIED: LP owns the canonical StigmergyLayer. SI gets a reference
@@ -264,13 +275,12 @@ class SwarmLearningPipeline:
 
         # Effectiveness tracker: measures whether system actually improves.
         # This is what makes "self-improving" a verifiable claim, not a label.
-        self.effectiveness = EffectivenessTracker(
-            recent_window=20, historical_window=100
-        )
+        self.effectiveness = EffectivenessTracker(recent_window=20, historical_window=100)
 
         # TD(λ) learner with HRPO grouped baselines (was implemented but never wired)
-        from Jotty.core.intelligence.learning.td_lambda import TDLambdaLearner
         from Jotty.core.intelligence.learning.adaptive_components import AdaptiveLearningRate
+        from Jotty.core.intelligence.learning.td_lambda import TDLambdaLearner
+
         self._adaptive_lr = AdaptiveLearningRate(self.config)
         self.td_learner = TDLambdaLearner(self.config, adaptive_lr=self._adaptive_lr)
 
@@ -279,40 +289,40 @@ class SwarmLearningPipeline:
     # =========================================================================
 
     def _get_learning_path(self) -> Path:
-        base = getattr(self.config, 'base_path', None)
+        base = getattr(self.config, "base_path", None)
         if base:
-            return Path(base) / 'swarm_learnings.json'
-        return Path.home() / '.jotty' / 'swarm_learnings.json'
+            return Path(base) / "swarm_learnings.json"
+        return Path.home() / ".jotty" / "swarm_learnings.json"
 
     def _get_transfer_learning_path(self) -> Path:
-        base = getattr(self.config, 'base_path', None)
+        base = getattr(self.config, "base_path", None)
         if base:
-            return Path(base) / 'transfer_learnings.json'
-        return Path.home() / '.jotty' / 'transfer_learnings.json'
+            return Path(base) / "transfer_learnings.json"
+        return Path.home() / ".jotty" / "transfer_learnings.json"
 
     def _get_swarm_intelligence_path(self) -> Path:
-        base = getattr(self.config, 'base_path', None)
+        base = getattr(self.config, "base_path", None)
         if base:
-            return Path(base) / 'swarm_intelligence.json'
-        return Path.home() / '.jotty' / 'swarm_intelligence.json'
+            return Path(base) / "swarm_intelligence.json"
+        return Path.home() / ".jotty" / "swarm_intelligence.json"
 
     def _get_credit_weights_path(self) -> Path:
-        base = getattr(self.config, 'base_path', None)
+        base = getattr(self.config, "base_path", None)
         if base:
-            return Path(base) / 'credit_weights.json'
-        return Path.home() / '.jotty' / 'credit_weights.json'
+            return Path(base) / "credit_weights.json"
+        return Path.home() / ".jotty" / "credit_weights.json"
 
     def _get_stigmergy_path(self) -> Path:
-        base = getattr(self.config, 'base_path', None)
+        base = getattr(self.config, "base_path", None)
         if base:
-            return Path(base) / 'stigmergy.json'
-        return Path.home() / '.jotty' / 'stigmergy.json'
+            return Path(base) / "stigmergy.json"
+        return Path.home() / ".jotty" / "stigmergy.json"
 
     def _get_td_lambda_path(self) -> Path:
-        base = getattr(self.config, 'base_path', None)
+        base = getattr(self.config, "base_path", None)
         if base:
-            return Path(base) / 'td_lambda.json'
-        return Path.home() / '.jotty' / 'td_lambda.json'
+            return Path(base) / "td_lambda.json"
+        return Path.home() / ".jotty" / "td_lambda.json"
 
     # =========================================================================
     # CHECKPOINTS — snapshot/restore learning state (Cline-inspired)
@@ -330,8 +340,8 @@ class SwarmLearningPipeline:
 
         ts = int(_t.time())
         tag = f"_{label}" if label else ""
-        base = Path(getattr(self.config, 'base_path', None) or (Path.home() / '.jotty'))
-        checkpoint_dir = base / 'checkpoints' / f"cp_{ts}{tag}"
+        base = Path(getattr(self.config, "base_path", None) or (Path.home() / ".jotty"))
+        checkpoint_dir = base / "checkpoints" / f"cp_{ts}{tag}"
         checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
         files_to_backup = [
@@ -369,12 +379,12 @@ class SwarmLearningPipeline:
             raise FileNotFoundError(f"Checkpoint not found: {checkpoint_dir}")
 
         targets = {
-            'swarm_learnings.json': self._get_learning_path(),
-            'transfer_learnings.json': self._get_transfer_learning_path(),
-            'swarm_intelligence.json': self._get_swarm_intelligence_path(),
-            'credit_weights.json': self._get_credit_weights_path(),
-            'stigmergy.json': self._get_stigmergy_path(),
-            'td_lambda.json': self._get_td_lambda_path(),
+            "swarm_learnings.json": self._get_learning_path(),
+            "transfer_learnings.json": self._get_transfer_learning_path(),
+            "swarm_intelligence.json": self._get_swarm_intelligence_path(),
+            "credit_weights.json": self._get_credit_weights_path(),
+            "stigmergy.json": self._get_stigmergy_path(),
+            "td_lambda.json": self._get_td_lambda_path(),
         }
 
         restored = 0
@@ -393,8 +403,8 @@ class SwarmLearningPipeline:
 
     def list_checkpoints(self) -> list:
         """List available checkpoints, newest first."""
-        base = Path(getattr(self.config, 'base_path', None) or (Path.home() / '.jotty'))
-        cp_base = base / 'checkpoints'
+        base = Path(getattr(self.config, "base_path", None) or (Path.home() / ".jotty"))
+        cp_base = base / "checkpoints"
         if not cp_base.exists():
             return []
         dirs = sorted(cp_base.iterdir(), reverse=True)
@@ -419,7 +429,7 @@ class SwarmLearningPipeline:
         """Save data as versioned JSON: {"schema_version": "2.0", "data": {...}}."""
         path.parent.mkdir(parents=True, exist_ok=True)
         envelope = {"schema_version": self._SCHEMA_VERSION, "data": data}
-        with open(path, 'w') as f:
+        with open(path, "w") as f:
             json.dump(envelope, f, indent=2)
 
     def _load_versioned(self, path: Path) -> dict:
@@ -428,27 +438,27 @@ class SwarmLearningPipeline:
         Returns the data dict (unwrapped from envelope).
         Logs a warning if the major version differs.
         """
-        with open(path, 'r') as f:
+        with open(path, "r") as f:
             raw = json.load(f)
 
         # New envelope format
-        if isinstance(raw, dict) and 'schema_version' in raw and 'data' in raw:
-            file_ver = str(raw['schema_version'])
-            file_major = file_ver.split('.')[0]
-            expected_major = self._SCHEMA_VERSION.split('.')[0]
+        if isinstance(raw, dict) and "schema_version" in raw and "data" in raw:
+            file_ver = str(raw["schema_version"])
+            file_major = file_ver.split(".")[0]
+            expected_major = self._SCHEMA_VERSION.split(".")[0]
             if file_major != expected_major:
                 logger.warning(
                     f"Schema version mismatch in {path.name}: "
                     f"file={file_ver}, expected={self._SCHEMA_VERSION}"
                 )
                 # Attempt migration
-                migrated = self._migrate(raw['data'], file_major, expected_major)
+                migrated = self._migrate(raw["data"], file_major, expected_major)
                 if migrated is not None:
                     logger.info(f"Migrated {path.name} from v{file_ver} to v{self._SCHEMA_VERSION}")
                     return migrated
                 # No migration path — return empty to avoid loading incompatible data
                 return {}
-            return raw['data']
+            return raw["data"]
 
         # Legacy bare-dict format (pre-versioning)
         return raw
@@ -495,6 +505,7 @@ class SwarmLearningPipeline:
         if td_path.exists():
             try:
                 from Jotty.core.intelligence.learning.td_lambda import GroupedValueBaseline
+
                 td_data = self._load_versioned(td_path)
                 self.td_learner.grouped_baseline = GroupedValueBaseline.from_dict(
                     td_data, config=self.config
@@ -511,28 +522,27 @@ class SwarmLearningPipeline:
         if stig_path.exists():
             try:
                 from .stigmergy import StigmergyLayer
+
                 stig_data = self._load_versioned(stig_path)
                 self.stigmergy = StigmergyLayer.from_dict(stig_data)
                 # Re-unify: SI must point to the same loaded instance
                 self.swarm_intelligence.stigmergy = self.stigmergy
                 # Restore paradigm stats if present (saved alongside stigmergy)
-                if 'paradigm_stats' in stig_data:
-                    loaded = stig_data['paradigm_stats']
+                if "paradigm_stats" in stig_data:
+                    loaded = stig_data["paradigm_stats"]
                     # Backward compat: old format was {paradigm: {runs, successes}}
                     # New format is {task_type: {paradigm: {runs, successes}}}
                     if loaded and isinstance(next(iter(loaded.values()), None), dict):
                         first_val = next(iter(loaded.values()))
-                        if 'runs' in first_val:
-                            loaded = {'_global': loaded}
+                        if "runs" in first_val:
+                            loaded = {"_global": loaded}
                     self._paradigm_stats.update(loaded)
                 # Restore effectiveness tracker
-                if 'effectiveness' in stig_data:
-                    self.effectiveness = EffectivenessTracker.from_dict(
-                        stig_data['effectiveness']
-                    )
+                if "effectiveness" in stig_data:
+                    self.effectiveness = EffectivenessTracker.from_dict(stig_data["effectiveness"])
                 # Restore episode count (cumulative across sessions)
-                if 'episode_count' in stig_data:
-                    self.episode_count = stig_data['episode_count']
+                if "episode_count" in stig_data:
+                    self.episode_count = stig_data["episode_count"]
                 logger.info(
                     f"Auto-loaded stigmergy: {len(self.stigmergy.signals)} signals, "
                     f"effectiveness: {self.effectiveness._global.__len__()} records"
@@ -540,7 +550,9 @@ class SwarmLearningPipeline:
             except Exception as e:
                 logger.warning(f"Could not auto-load stigmergy: {e}")
 
-    def auto_save(self, mas_learning: Any = None, swarm_terminal: Any = None, provider_registry: Any = None) -> None:
+    def auto_save(
+        self, mas_learning: Any = None, swarm_terminal: Any = None, provider_registry: Any = None
+    ) -> None:
         """Save learnings after execution."""
         # Q-learner state
         learning_path = self._get_learning_path()
@@ -582,9 +594,9 @@ class SwarmLearningPipeline:
         stig_path = self._get_stigmergy_path()
         try:
             stig_data = self.stigmergy.to_dict()
-            stig_data['paradigm_stats'] = self._paradigm_stats
-            stig_data['effectiveness'] = self.effectiveness.to_dict()
-            stig_data['episode_count'] = self.episode_count
+            stig_data["paradigm_stats"] = self._paradigm_stats
+            stig_data["effectiveness"] = self.effectiveness.to_dict()
+            stig_data["episode_count"] = self.episode_count
             self._save_versioned(stig_path, stig_data)
         except Exception as e:
             logger.warning(f"Could not auto-save stigmergy: {e}")
@@ -592,11 +604,11 @@ class SwarmLearningPipeline:
         # Provider registry
         if provider_registry:
             try:
-                base = getattr(self.config, 'base_path', None)
+                base = getattr(self.config, "base_path", None)
                 if base:
-                    provider_path = Path(base) / 'provider_learnings.json'
+                    provider_path = Path(base) / "provider_learnings.json"
                 else:
-                    provider_path = Path.home() / '.jotty' / 'provider_learnings.json'
+                    provider_path = Path.home() / ".jotty" / "provider_learnings.json"
                 provider_registry.save_state(str(provider_path))
             except Exception as e:
                 logger.debug(f"Could not auto-save provider learnings: {e}")
@@ -639,13 +651,13 @@ class SwarmLearningPipeline:
 
         # Extract output text
         output_text = ""
-        if hasattr(result, 'output') and result.output:
+        if hasattr(result, "output") and result.output:
             output_text = str(result.output)
         elif isinstance(result, dict):
-            output_text = str(result.get('output', ''))
+            output_text = str(result.get("output", ""))
         output_text = output_text.strip()
 
-        success = bool(getattr(result, 'success', False))
+        success = bool(getattr(result, "success", False))
         lower = output_text.lower()[:3000]
 
         # --- Dimension 1: Substance via information density (0-1) ---
@@ -660,7 +672,7 @@ class SwarmLearningPipeline:
             # Information density: unique 4-grams / total 4-grams
             words = lower.split()
             if len(words) >= 4:
-                ngrams = [' '.join(words[i:i+4]) for i in range(len(words) - 3)]
+                ngrams = [" ".join(words[i : i + 4]) for i in range(len(words) - 3)]
                 density = len(set(ngrams)) / len(ngrams) if ngrams else 0.5
             else:
                 density = 0.5  # Too short to measure
@@ -669,7 +681,7 @@ class SwarmLearningPipeline:
 
         # --- Dimension 2: Efficiency (0-1) ---
         # Faster execution relative to 120s baseline scores higher.
-        exec_time = getattr(result, 'execution_time', 60.0)
+        exec_time = getattr(result, "execution_time", 60.0)
         if exec_time <= 0:
             exec_time = 60.0  # Unknown defaults to neutral
         # Sigmoid-like: 5s → 0.95, 30s → 0.75, 60s → 0.5, 120s → 0.25, 300s → 0.05
@@ -677,15 +689,15 @@ class SwarmLearningPipeline:
 
         # --- Dimension 3: Tool usage effectiveness (0-1) ---
         # If the trajectory shows tool calls, check how many produced output.
-        trajectory = getattr(result, 'trajectory', []) or []
+        trajectory = getattr(result, "trajectory", []) or []
         tool_calls = 0
         tool_successes = 0
         for step in trajectory:
             if isinstance(step, dict):
-                action = step.get('action', '')
-                if 'tool' in str(action).lower() or step.get('tool_name'):
+                action = step.get("action", "")
+                if "tool" in str(action).lower() or step.get("tool_name"):
                     tool_calls += 1
-                    step_output = step.get('output', step.get('result', ''))
+                    step_output = step.get("output", step.get("result", ""))
                     if step_output and len(str(step_output)) > 10:
                         tool_successes += 1
         if tool_calls > 0:
@@ -696,35 +708,61 @@ class SwarmLearningPipeline:
         # --- Dimension 4: Structure (0-1) ---
         # Does the output show organized thinking? Check for structure markers.
         structure_signals = 0
-        if any(m in lower for m in ['\n#', '\n##', '\n###']):
+        if any(m in lower for m in ["\n#", "\n##", "\n###"]):
             structure_signals += 1  # Headings
-        if any(m in lower for m in ['\n- ', '\n* ', '\n1.', '\n2.']):
+        if any(m in lower for m in ["\n- ", "\n* ", "\n1.", "\n2."]):
             structure_signals += 1  # Lists
-        if '```' in output_text:
+        if "```" in output_text:
             structure_signals += 1  # Code blocks
-        if any(m in lower for m in ['in conclusion', 'summary', 'therefore', 'key finding']):
+        if any(m in lower for m in ["in conclusion", "summary", "therefore", "key finding"]):
             structure_signals += 1  # Conclusions
         structure = min(1.0, structure_signals / 3.0)
 
         # --- Dimension 5: Error absence (0-1) ---
         # Penalize outputs containing error indicators.
         error_indicators = [
-            'error:', 'exception:', 'traceback', 'failed to',
-            'could not', 'unable to', 'i cannot', "i can't",
-            'not supported', 'invalid', 'timeout',
+            "error:",
+            "exception:",
+            "traceback",
+            "failed to",
+            "could not",
+            "unable to",
+            "i cannot",
+            "i can't",
+            "not supported",
+            "invalid",
+            "timeout",
         ]
         error_count = sum(1 for ind in error_indicators if ind in lower)
         no_errors = max(0.0, 1.0 - error_count * 0.25)
 
         # --- Dimension 6: Relevance (0-1) ---
         # Check that output mentions key terms from the goal.
-        goal_lower = goal.lower() if goal else ''
+        goal_lower = goal.lower() if goal else ""
         goal_words = set(
-            w for w in goal_lower.split()
-            if len(w) > 3 and w not in {
-                'this', 'that', 'with', 'from', 'about', 'what',
-                'have', 'been', 'will', 'would', 'could', 'should',
-                'their', 'there', 'them', 'then', 'than', 'your',
+            w
+            for w in goal_lower.split()
+            if len(w) > 3
+            and w
+            not in {
+                "this",
+                "that",
+                "with",
+                "from",
+                "about",
+                "what",
+                "have",
+                "been",
+                "will",
+                "would",
+                "could",
+                "should",
+                "their",
+                "there",
+                "them",
+                "then",
+                "than",
+                "your",
             }
         )
         if goal_words and lower:
@@ -735,12 +773,12 @@ class SwarmLearningPipeline:
 
         # --- Weighted combination ---
         reward = (
-            0.25 * substance +
-            0.10 * efficiency +
-            0.15 * tool_use +
-            0.10 * structure +
-            0.20 * no_errors +
-            0.20 * relevance
+            0.25 * substance
+            + 0.10 * efficiency
+            + 0.15 * tool_use
+            + 0.10 * structure
+            + 0.20 * no_errors
+            + 0.20 * relevance
         )
 
         # Success floor/ceiling: failure caps at 0.3, success has no cap
@@ -765,57 +803,77 @@ class SwarmLearningPipeline:
     # =========================================================================
 
     _DEFAULT_LEARNING_STEPS = (
-        'td_lambda', 'swarm_learner', 'brain_consolidation',
-        'neurochunk_tiering', 'agent_abstractor', 'transfer_learning',
-        'swarm_intelligence', 'stigmergy', 'effectiveness', 'mas_learning',
-        'byzantine', 'credit_assignment', 'auditor_fixes',
-        'adaptive_learning', 'effectiveness_intervention',
-        'credit_pruning', 'curriculum',
+        "td_lambda",
+        "swarm_learner",
+        "brain_consolidation",
+        "neurochunk_tiering",
+        "agent_abstractor",
+        "transfer_learning",
+        "swarm_intelligence",
+        "stigmergy",
+        "effectiveness",
+        "mas_learning",
+        "byzantine",
+        "credit_assignment",
+        "auditor_fixes",
+        "adaptive_learning",
+        "effectiveness_intervention",
+        "credit_pruning",
+        "curriculum",
     )
 
-    def _record_stigmergy(self, agent_name: Any, task_type: Any, result: Any, episode_reward: Any, goal: Any) -> Any:
+    def _record_stigmergy(
+        self, agent_name: Any, task_type: Any, result: Any, episode_reward: Any, goal: Any
+    ) -> Any:
         """Consolidated stigmergy: outcome + approach in one call (was 3 blocks)."""
         # 1. Record outcome (already creates route/warning signals internally)
         self.stigmergy.record_outcome(
-            agent=agent_name, task_type=task_type,
-            success=result.success, quality=episode_reward,
+            agent=agent_name,
+            task_type=task_type,
+            success=result.success,
+            quality=episode_reward,
         )
         # 2. Extract tools and record approach
-        trajectory = getattr(result, 'trajectory', []) or []
+        trajectory = getattr(result, "trajectory", []) or []
         tools_used = []
         for step in trajectory:
             if isinstance(step, dict):
-                tool = step.get('skill') or step.get('tool_name') or step.get('tool', '')
+                tool = step.get("skill") or step.get("tool_name") or step.get("tool", "")
                 if tool and tool not in tools_used:
                     tools_used.append(str(tool))
         if not tools_used:
-            _out = getattr(result, 'output', None)
-            if hasattr(_out, 'skills_used') and _out.skills_used:
+            _out = getattr(result, "output", None)
+            if hasattr(_out, "skills_used") and _out.skills_used:
                 tools_used = list(_out.skills_used)
             elif isinstance(_out, dict):
-                tools_used = list(_out.get('skills_used', []))
+                tools_used = list(_out.get("skills_used", []))
         skill_steps = []
         for step in trajectory[:8]:
             if isinstance(step, dict):
-                skill = step.get('skill') or step.get('tool_name', '')
-                desc = step.get('description', step.get('action', ''))
+                skill = step.get("skill") or step.get("tool_name", "")
+                desc = step.get("description", step.get("action", ""))
                 if skill:
                     skill_steps.append(f"{skill}: {str(desc)[:40]}" if desc else skill)
-        approach = ' -> '.join(skill_steps) if skill_steps else (
-            f"Used: {', '.join(tools_used[:5])}" if tools_used else goal[:100]
+        approach = (
+            " -> ".join(skill_steps)
+            if skill_steps
+            else (f"Used: {', '.join(tools_used[:5])}" if tools_used else goal[:100])
         )
         self.stigmergy.record_approach_outcome(
-            task_type=task_type, approach_summary=approach,
-            tools_used=tools_used, success=result.success,
-            quality=episode_reward, agent=agent_name,
+            task_type=task_type,
+            approach_summary=approach,
+            tools_used=tools_used,
+            success=result.success,
+            quality=episode_reward,
+            agent=agent_name,
         )
 
     def _run_learning_steps(self, ctx: dict) -> Any:
         """Run all enabled learning steps with uniform error handling."""
-        enabled = getattr(self.config, 'learning_components', None)
+        enabled = getattr(self.config, "learning_components", None)
         steps = enabled if enabled else self._DEFAULT_LEARNING_STEPS
         for step_name in steps:
-            method = getattr(self, f'_step_{step_name}', None)
+            method = getattr(self, f"_step_{step_name}", None)
             if not method:
                 continue
             try:
@@ -823,21 +881,34 @@ class SwarmLearningPipeline:
             except Exception as e:
                 logger.debug(f"Learning step '{step_name}' failed: {e}")
 
-    def post_episode(self, result: EpisodeResult, goal: str, agents: list, architect_prompts: list, mas_learning: Any = None, swarm_terminal: Any = None) -> Any:
+    def post_episode(
+        self,
+        result: EpisodeResult,
+        goal: str,
+        agents: list,
+        architect_prompts: list,
+        mas_learning: Any = None,
+        swarm_terminal: Any = None,
+    ) -> Any:
         """Post-episode learning: run all enabled learning steps."""
         self.episode_count += 1
         episode_reward = self._compute_episode_reward(result, goal)
         try:
             task_type = self.transfer_learning.extractor.extract_task_type(goal)
         except Exception:
-            task_type = 'general'
-        agent_name = getattr(result, 'agent_name', agents[0].name if agents else 'unknown')
+            task_type = "general"
+        agent_name = getattr(result, "agent_name", agents[0].name if agents else "unknown")
 
         ctx = {
-            'result': result, 'goal': goal, 'agents': agents,
-            'architect_prompts': architect_prompts, 'episode_reward': episode_reward,
-            'task_type': task_type, 'agent_name': agent_name,
-            'mas_learning': mas_learning, 'swarm_terminal': swarm_terminal,
+            "result": result,
+            "goal": goal,
+            "agents": agents,
+            "architect_prompts": architect_prompts,
+            "episode_reward": episode_reward,
+            "task_type": task_type,
+            "agent_name": agent_name,
+            "mas_learning": mas_learning,
+            "swarm_terminal": swarm_terminal,
         }
         self._run_learning_steps(ctx)
         logger.debug(f"Post-episode learning complete (episode #{self.episode_count})")
@@ -846,28 +917,28 @@ class SwarmLearningPipeline:
 
     def _step_td_lambda(self, ctx: Any) -> Any:
         """TD-Lambda: update grouped value baselines via TD(0)."""
-        self.td_learner.start_episode(ctx['goal'], task_type=ctx['task_type'])
+        self.td_learner.start_episode(ctx["goal"], task_type=ctx["task_type"])
         self.td_learner.update(
-            state={'goal': ctx['goal']},
-            action={'type': ctx['task_type'], 'agent': ctx['agent_name']},
-            reward=ctx['episode_reward'],
-            next_state={'completed': True},
+            state={"goal": ctx["goal"]},
+            action={"type": ctx["task_type"], "agent": ctx["agent_name"]},
+            reward=ctx["episode_reward"],
+            next_state={"completed": True},
         )
-        self._adaptive_lr.record_success(ctx['result'].success)
+        self._adaptive_lr.record_success(ctx["result"].success)
 
     def _step_swarm_learner(self, ctx: Any) -> Any:
         """SwarmLearner: record episode, conditionally update prompts."""
-        result = ctx['result']
+        result = ctx["result"]
         trajectory = result.trajectory or []
         insights = []
-        if hasattr(result, 'tagged_outputs') and result.tagged_outputs:
+        if hasattr(result, "tagged_outputs") and result.tagged_outputs:
             insights = [str(t) for t in result.tagged_outputs[:5]]
         self.swarm_learner.record_episode(trajectory, result.success, insights)
 
         if self.swarm_learner.should_update_prompts():
-            for prompt_path in ctx['architect_prompts']:
+            for prompt_path in ctx["architect_prompts"]:
                 try:
-                    with open(prompt_path, 'r') as f:
+                    with open(prompt_path, "r") as f:
                         current = f.read()
                     updated, changes = self.swarm_learner.update_prompt(prompt_path, current)
                     if changes:
@@ -878,10 +949,10 @@ class SwarmLearningPipeline:
     def _step_brain_consolidation(self, ctx: Any) -> Any:
         """Brain consolidation (fire-and-forget in running loop)."""
         experience = {
-            'content': str(ctx['result'].output)[:500] if ctx['result'].output else '',
-            'context': {'goal': ctx['goal'], 'episode': self.episode_count},
-            'reward': ctx['episode_reward'],
-            'agent': 'swarm',
+            "content": str(ctx["result"].output)[:500] if ctx["result"].output else "",
+            "context": {"goal": ctx["goal"], "episode": self.episode_count},
+            "reward": ctx["episode_reward"],
+            "agent": "swarm",
         }
         try:
             asyncio.get_running_loop()
@@ -891,136 +962,142 @@ class SwarmLearningPipeline:
 
     def _step_neurochunk_tiering(self, ctx: Any) -> Any:
         """NeuroChunk tiering: promote/demote/prune memories."""
-        self.learning_manager.promote_demote_memories(ctx['episode_reward'])
+        self.learning_manager.promote_demote_memories(ctx["episode_reward"])
         self.learning_manager.prune_tier3()
 
     def _step_agent_abstractor(self, ctx: Any) -> Any:
         """Agent abstractor: update agent role profiles."""
-        result = ctx['result']
-        if hasattr(result, 'agent_contributions') and result.agent_contributions:
+        result = ctx["result"]
+        if hasattr(result, "agent_contributions") and result.agent_contributions:
             for contrib_agent, contrib in result.agent_contributions.items():
-                success = getattr(contrib, 'decision_correct', result.success)
+                success = getattr(contrib, "decision_correct", result.success)
                 self.agent_abstractor.update_agent(contrib_agent, success)
         else:
-            self.agent_abstractor.update_agent(ctx['agent_name'], result.success)
+            self.agent_abstractor.update_agent(ctx["agent_name"], result.success)
 
     def _step_transfer_learning(self, ctx: Any) -> Any:
         """Transferable learning store: record experience."""
-        query = ctx['goal'][:200] if ctx['goal'] else ''
+        query = ctx["goal"][:200] if ctx["goal"] else ""
         self.transfer_learning.record_experience(
             query=query,
-            agent=ctx['agent_name'],
-            action=ctx['goal'][:100],
-            reward=ctx['episode_reward'],
-            success=ctx['result'].success,
-            error=str(getattr(ctx['result'], 'error', None) or ''),
-            context={'episode': self.episode_count},
+            agent=ctx["agent_name"],
+            action=ctx["goal"][:100],
+            reward=ctx["episode_reward"],
+            success=ctx["result"].success,
+            error=str(getattr(ctx["result"], "error", None) or ""),
+            context={"episode": self.episode_count},
         )
 
     def _step_swarm_intelligence(self, ctx: Any) -> Any:
         """Swarm intelligence: record task result for specialization."""
-        execution_time = getattr(ctx['result'], 'execution_time', 0.0)
+        execution_time = getattr(ctx["result"], "execution_time", 0.0)
         self.swarm_intelligence.record_task_result(
-            agent_name=ctx['agent_name'],
-            task_type=ctx['task_type'],
-            success=ctx['result'].success,
+            agent_name=ctx["agent_name"],
+            task_type=ctx["task_type"],
+            success=ctx["result"].success,
             execution_time=execution_time,
-            context={'goal': ctx['goal'][:100], 'episode': self.episode_count},
+            context={"goal": ctx["goal"][:100], "episode": self.episode_count},
         )
 
     def _step_stigmergy(self, ctx: Any) -> Any:
         """Stigmergy: consolidated outcome + approach recording."""
         self._record_stigmergy(
-            ctx['agent_name'], ctx['task_type'], ctx['result'],
-            ctx['episode_reward'], ctx['goal'],
+            ctx["agent_name"],
+            ctx["task_type"],
+            ctx["result"],
+            ctx["episode_reward"],
+            ctx["goal"],
         )
 
     def _step_effectiveness(self, ctx: Any) -> Any:
         """Effectiveness tracker: measure actual improvement over time."""
         self.effectiveness.record(
-            task_type=ctx['task_type'],
-            success=ctx['result'].success,
-            quality=ctx['episode_reward'],
-            agent=ctx['agent_name'],
+            task_type=ctx["task_type"],
+            success=ctx["result"].success,
+            quality=ctx["episode_reward"],
+            agent=ctx["agent_name"],
         )
 
     def _step_mas_learning(self, ctx: Any) -> Any:
         """MAS Learning: session recording."""
-        mas_learning = ctx['mas_learning']
+        mas_learning = ctx["mas_learning"]
         if not mas_learning:
             return
-        result = ctx['result']
-        execution_time = getattr(result, 'execution_time', 0.0)
-        if hasattr(result, 'agent_contributions') and result.agent_contributions:
+        result = ctx["result"]
+        execution_time = getattr(result, "execution_time", 0.0)
+        if hasattr(result, "agent_contributions") and result.agent_contributions:
             agents_used = list(result.agent_contributions.keys())
         else:
-            agents_used = [ctx['agent_name']]
-        stigmergy_signals = len(self.swarm_intelligence.stigmergy.signals) if hasattr(self.swarm_intelligence, 'stigmergy') else 0
+            agents_used = [ctx["agent_name"]]
+        stigmergy_signals = (
+            len(self.swarm_intelligence.stigmergy.signals)
+            if hasattr(self.swarm_intelligence, "stigmergy")
+            else 0
+        )
         mas_learning.record_session(
-            task_description=ctx['goal'],
+            task_description=ctx["goal"],
             agents_used=agents_used,
             total_time=execution_time,
             success=result.success,
             stigmergy_signals=stigmergy_signals,
-            output_quality=ctx['episode_reward'],
+            output_quality=ctx["episode_reward"],
         )
 
     def _step_byzantine(self, ctx: Any) -> Any:
         """Byzantine verification: quality check + claim verification."""
-        result = ctx['result']
-        if hasattr(result, 'agent_contributions') and result.agent_contributions:
+        result = ctx["result"]
+        if hasattr(result, "agent_contributions") and result.agent_contributions:
             for contrib_agent, contrib in result.agent_contributions.items():
-                claimed = getattr(contrib, 'decision_correct', result.success)
+                claimed = getattr(contrib, "decision_correct", result.success)
                 self.byzantine_verifier.verify_claim(
                     agent=contrib_agent,
                     claimed_success=claimed,
                     actual_result=result,
-                    task_type=ctx['task_type'],
+                    task_type=ctx["task_type"],
                 )
         else:
             quality = self.byzantine_verifier.verify_output_quality(
-                agent=ctx['agent_name'],
+                agent=ctx["agent_name"],
                 claimed_success=result.success,
                 output=result,
-                goal=ctx['goal'],
-                task_type=ctx['task_type'],
+                goal=ctx["goal"],
+                task_type=ctx["task_type"],
             )
-            if not quality['quality_ok']:
+            if not quality["quality_ok"]:
                 logger.warning(
-                    f"Byzantine quality issues for {ctx['agent_name']}: "
-                    f"{quality['issues']}"
+                    f"Byzantine quality issues for {ctx['agent_name']}: " f"{quality['issues']}"
                 )
 
     def _step_credit_assignment(self, ctx: Any) -> Any:
         """Credit assignment: record which agent/approach deserves credit."""
         self.credit_assigner.record_improvement_application(
-            improvement={'learned_pattern': ctx['goal'][:200], 'task': ctx['goal'][:100]},
+            improvement={"learned_pattern": ctx["goal"][:200], "task": ctx["goal"][:100]},
             student_score=0.0,
             teacher_score=0.0,
-            final_score=ctx['episode_reward'],
-            context={'task': ctx['goal'][:100], 'episode': self.episode_count},
+            final_score=ctx["episode_reward"],
+            context={"task": ctx["goal"][:100], "episode": self.episode_count},
         )
 
     def _step_auditor_fixes(self, ctx: Any) -> Any:
         """Auditor fix_instructions -> negative TD signal + procedural memory."""
-        result = ctx['result']
-        goal = ctx['goal']
-        task_type = ctx['task_type']
-        agent_name = ctx['agent_name']
+        result = ctx["result"]
+        goal = ctx["goal"]
+        task_type = ctx["task_type"]
+        agent_name = ctx["agent_name"]
 
         fix_texts = []
-        for attr in ('auditor_results', 'validation_results'):
+        for attr in ("auditor_results", "validation_results"):
             for vr in getattr(result, attr, None) or []:
-                fi = getattr(vr, 'fix_instructions', None)
+                fi = getattr(vr, "fix_instructions", None)
                 if fi and isinstance(fi, str) and fi.strip():
                     fix_texts.append(fi.strip())
 
         if fix_texts and self.td_learner is not None:
             self.td_learner.update(
-                state={'goal': goal},
-                action={'type': task_type, 'agent': agent_name, 'source': 'auditor_fix'},
+                state={"goal": goal},
+                action={"type": task_type, "agent": agent_name, "source": "auditor_fix"},
                 reward=-0.1,
-                next_state={'fix_instructions': True},
+                next_state={"fix_instructions": True},
             )
             logger.debug(f"TD(-0.1) signal from {len(fix_texts)} auditor fix_instructions")
 
@@ -1033,14 +1110,14 @@ class SwarmLearningPipeline:
                 reward=-0.1,
                 success=False,
                 error="auditor_fix_instructions",
-                context={'task_type': task_type, 'episode': self.episode_count},
+                context={"task_type": task_type, "episode": self.episode_count},
             )
             logger.debug(f"Recorded {len(fix_texts)} fix_instructions as procedural memory")
 
     def _step_adaptive_learning(self, ctx: Any) -> Any:
         """Adaptive learning: adjust learning rate based on score trajectory."""
-        lr_state = self.adaptive_learning.update_score(ctx['episode_reward'])
-        if lr_state.get('is_plateau'):
+        lr_state = self.adaptive_learning.update_score(ctx["episode_reward"])
+        if lr_state.get("is_plateau"):
             logger.info(
                 f"Adaptive learning: plateau detected "
                 f"(lr={lr_state['learning_rate']:.2f}, "
@@ -1049,14 +1126,15 @@ class SwarmLearningPipeline:
 
     def _step_effectiveness_intervention(self, ctx: Any) -> Any:
         """Effectiveness-driven intervention: boost exploration on stagnation."""
-        task_type = ctx['task_type']
+        task_type = ctx["task_type"]
         if not self.effectiveness.is_improving(task_type) and self.episode_count >= 10:
             al = self.adaptive_learning
-            old_explore = getattr(al.state, 'exploration_rate', 0.3)
+            old_explore = getattr(al.state, "exploration_rate", 0.3)
             new_explore = min(0.8, old_explore + 0.2)
             al.state.exploration_rate = new_explore
             task = self.curriculum_generator.generate_training_task(
-                profiles={}, focus_task_type=task_type,
+                profiles={},
+                focus_task_type=task_type,
             )
             self._pending_training_tasks.append(task)
             if len(self._pending_training_tasks) > 10:
@@ -1076,20 +1154,22 @@ class SwarmLearningPipeline:
             return
         improvements = [
             {
-                'learned_pattern': exp.get('query', '')[:200],
-                'task': exp.get('action', ''),
-                'timestamp': exp.get('timestamp', ''),
+                "learned_pattern": exp.get("query", "")[:200],
+                "task": exp.get("action", ""),
+                "timestamp": exp.get("timestamp", ""),
             }
             for exp in self.transfer_learning.experiences
         ]
         pruned = self.credit_assigner.prune_low_impact_improvements(
-            improvements, min_credit_threshold=0.1, min_application_count=1,
+            improvements,
+            min_credit_threshold=0.1,
+            min_application_count=1,
         )
-        pruned_patterns = {imp['learned_pattern'] for imp in pruned}
+        pruned_patterns = {imp["learned_pattern"] for imp in pruned}
         self.transfer_learning.experiences = [
-            exp for exp in self.transfer_learning.experiences
-            if exp.get('query', '')[:200] in pruned_patterns
-            or exp.get('query', '') == ''
+            exp
+            for exp in self.transfer_learning.experiences
+            if exp.get("query", "")[:200] in pruned_patterns or exp.get("query", "") == ""
         ]
         after_count = len(self.transfer_learning.experiences)
         if after_count < before_count:
@@ -1101,7 +1181,7 @@ class SwarmLearningPipeline:
     def _step_curriculum(self, ctx: Any) -> Any:
         """Curriculum: queue training tasks when exploration is recommended."""
         recommendation = self.adaptive_learning._get_recommendation()
-        if recommendation == 'increase_exploration':
+        if recommendation == "increase_exploration":
             task = self.curriculum_generator.generate_training_task(profiles={})
             self._pending_training_tasks.append(task)
             logger.info(
@@ -1121,7 +1201,13 @@ class SwarmLearningPipeline:
         """How many training tasks are waiting."""
         return len(self._pending_training_tasks)
 
-    def learn_from_result(self, result: EpisodeResult, agent_config: AgentConfig, workflow_learner: Any = None, goal: str = '') -> None:
+    def learn_from_result(
+        self,
+        result: EpisodeResult,
+        agent_config: AgentConfig,
+        workflow_learner: Any = None,
+        goal: str = "",
+    ) -> None:
         """Learn from a successful execution result."""
         if not result.success:
             return
@@ -1130,16 +1216,21 @@ class SwarmLearningPipeline:
 
         # Extract task_type: prefer goal text (most reliable), then result fields
         from Jotty.core.intelligence.learning.transfer_learning import PatternExtractor
-        task_type = 'unknown'
+
+        task_type = "unknown"
         if goal:
             try:
                 task_type = self.transfer_learning.extractor.extract_task_type(goal)
             except Exception as e:
                 logger.debug(f"Task type extraction from goal failed: {e}")
-        if task_type == 'unknown' and hasattr(result, 'task_type') and result.task_type:
-            raw = result.task_type.value if hasattr(result.task_type, 'value') else str(result.task_type)
+        if task_type == "unknown" and hasattr(result, "task_type") and result.task_type:
+            raw = (
+                result.task_type.value
+                if hasattr(result.task_type, "value")
+                else str(result.task_type)
+            )
             task_type = PatternExtractor.normalize_task_type(raw)
-        if task_type == 'unknown' and hasattr(result, 'task') and result.task:
+        if task_type == "unknown" and hasattr(result, "task") and result.task:
             try:
                 task_type = self.transfer_learning.extractor.extract_task_type(str(result.task))
             except Exception as e:
@@ -1149,33 +1240,38 @@ class SwarmLearningPipeline:
 
         # Extract skills/tools actually used from result or its output
         skills_used = []
-        if hasattr(result, 'skills_used') and result.skills_used:
+        if hasattr(result, "skills_used") and result.skills_used:
             skills_used = list(result.skills_used)
-        if not skills_used and hasattr(result, 'output'):
+        if not skills_used and hasattr(result, "output"):
             _out = result.output
             if isinstance(_out, dict):
-                skills_used = list(_out.get('skills_used', []))
-            elif hasattr(_out, 'skills_used') and _out.skills_used:
+                skills_used = list(_out.get("skills_used", []))
+            elif hasattr(_out, "skills_used") and _out.skills_used:
                 skills_used = list(_out.skills_used)
 
         # Extract operations from trajectory steps
         operations = []
-        trajectory = getattr(result, 'trajectory', []) or []
+        trajectory = getattr(result, "trajectory", []) or []
         for step in trajectory[:10]:
             if isinstance(step, dict):
-                action = step.get('skill') or step.get('action') or step.get('tool_name') or step.get('step', '')
+                action = (
+                    step.get("skill")
+                    or step.get("action")
+                    or step.get("tool_name")
+                    or step.get("step", "")
+                )
                 if action:
                     operations.append(str(action))
             elif step:
                 operations.append(str(step))
         # Also extract from output.steps if available (autonomous agent execution results)
-        if not operations and hasattr(result, 'output'):
+        if not operations and hasattr(result, "output"):
             _out = result.output
-            _steps = getattr(_out, 'steps', None) or (isinstance(_out, dict) and _out.get('steps'))
+            _steps = getattr(_out, "steps", None) or (isinstance(_out, dict) and _out.get("steps"))
             if _steps and isinstance(_steps, (list, tuple)):
                 for s in _steps[:10]:
                     if isinstance(s, dict):
-                        skill = s.get('skill', s.get('action', ''))
+                        skill = s.get("skill", s.get("action", ""))
                         if skill:
                             operations.append(str(skill))
 
@@ -1188,8 +1284,8 @@ class SwarmLearningPipeline:
             operations=operations,
             tools_used=skills_used,
             success=True,
-            execution_time=getattr(result, 'execution_time', 0.0),
-            metadata={'agent': agent_config.name},
+            execution_time=getattr(result, "execution_time", 0.0),
+            metadata={"agent": agent_config.name},
         )
 
     # =========================================================================
@@ -1210,14 +1306,14 @@ class SwarmLearningPipeline:
             task_type = self.transfer_learning.extractor.extract_task_type(query)
             wisdom = self.swarm_intelligence.get_swarm_wisdom(query, task_type=task_type)
             parts = []
-            if wisdom.get('recommended_agent'):
+            if wisdom.get("recommended_agent"):
                 parts.append(f"Best agent for this task: {wisdom['recommended_agent']}")
             specs = self.swarm_intelligence.get_specialization_summary()
             if specs:
                 parts.append(f"Agent specializations: {specs}")
-            for w in wisdom.get('warnings', [])[:3]:
+            for w in wisdom.get("warnings", [])[:3]:
                 parts.append(f"Warning: {w}")
-            if wisdom.get('confidence', 0) > 0:
+            if wisdom.get("confidence", 0) > 0:
                 parts.append(f"Confidence: {wisdom['confidence']:.0%}")
             return "\n".join(parts)
         except Exception as e:
@@ -1244,14 +1340,14 @@ class SwarmLearningPipeline:
     def get_stigmergy_route(self, task_type: str) -> Optional[str]:
         """Use stigmergy pheromone trails to suggest the best agent for a task type."""
         try:
-            signals = self.stigmergy.sense(signal_type='route')
+            signals = self.stigmergy.sense(signal_type="route")
             # Filter for this task type and find strongest
             best_agent, best_strength = None, 0.0
             for sig in signals:
-                content = sig.content if hasattr(sig, 'content') else {}
-                if isinstance(content, dict) and content.get('task_type') == task_type:
+                content = sig.content if hasattr(sig, "content") else {}
+                if isinstance(content, dict) and content.get("task_type") == task_type:
                     if sig.strength > best_strength:
-                        best_agent = content.get('agent')
+                        best_agent = content.get("agent")
                         best_strength = sig.strength
             return best_agent
         except Exception as e:
@@ -1261,12 +1357,13 @@ class SwarmLearningPipeline:
     def get_stigmergy_warnings(self, task_type: str = None) -> list:
         """Get stigmergy warning signals, optionally filtered by task type."""
         try:
-            signals = self.stigmergy.sense(signal_type='warning')
+            signals = self.stigmergy.sense(signal_type="warning")
             if task_type:
                 return [
-                    s for s in signals
-                    if isinstance(getattr(s, 'content', {}), dict)
-                    and s.content.get('task_type') == task_type
+                    s
+                    for s in signals
+                    if isinstance(getattr(s, "content", {}), dict)
+                    and s.content.get("task_type") == task_type
                 ]
             return signals
         except Exception as e:
@@ -1315,34 +1412,45 @@ class SwarmLearningPipeline:
             return ordered
 
         # 1. Filter by Byzantine trust (keep only trusted)
-        trusted = [a for a in ordered if self.is_agent_trusted(getattr(a, 'name', str(a)), threshold=0.2)]
+        trusted = [
+            a for a in ordered if self.is_agent_trusted(getattr(a, "name", str(a)), threshold=0.2)
+        ]
         if trusted:
             ordered = trusted
 
         # 2. Reorder by stigmergy pheromone strength (strongest first)
         routes = self.stigmergy.get_route_signals(task_type)
         if routes:
-            ordered.sort(key=lambda a: routes.get(getattr(a, 'name', str(a)), 0.0), reverse=True)
+            ordered.sort(key=lambda a: routes.get(getattr(a, "name", str(a)), 0.0), reverse=True)
 
         # 3. MorphAgent TRAS + combined score with stigmergy
         si = self.swarm_intelligence
-        if si and len(ordered) >= 2 and getattr(si, 'morph_scorer', None) and getattr(si, 'agent_profiles', None):
+        if (
+            si
+            and len(ordered) >= 2
+            and getattr(si, "morph_scorer", None)
+            and getattr(si, "agent_profiles", None)
+        ):
             profiles = si.agent_profiles
             tras_scores = {}
             for agent_cfg in ordered:
-                name = getattr(agent_cfg, 'name', str(agent_cfg))
+                name = getattr(agent_cfg, "name", str(agent_cfg))
                 if name in profiles:
                     tras, _ = si.morph_scorer.compute_tras(
-                        task=goal, task_type=task_type,
-                        profile=profiles[name], use_llm=False,
+                        task=goal,
+                        task_type=task_type,
+                        profile=profiles[name],
+                        use_llm=False,
                     )
                     tras_scores[name] = tras
             if tras_scores and max(tras_scores.values()) > min(tras_scores.values()):
+
                 def _combined_score(a: Any) -> Any:
-                    name = getattr(a, 'name', str(a))
+                    name = getattr(a, "name", str(a))
                     route_s = routes.get(name, 0.0) if routes else 0.0
                     tras_s = tras_scores.get(name, 0.5)
                     return 0.6 * route_s + 0.4 * tras_s
+
                 ordered.sort(key=_combined_score, reverse=True)
         return ordered
 
@@ -1362,12 +1470,12 @@ class SwarmLearningPipeline:
         """Get adaptive learning state: rate, exploration, convergence info."""
         state = self.adaptive_learning.get_state()
         return {
-            'learning_rate': state.learning_rate,
-            'exploration_rate': state.exploration_rate,
-            'is_plateau': state.is_plateau,
-            'is_converging': state.is_converging,
-            'improvement_velocity': state.improvement_velocity,
-            'should_stop': self.adaptive_learning.should_stop_early(),
+            "learning_rate": state.learning_rate,
+            "exploration_rate": state.exploration_rate,
+            "is_plateau": state.is_plateau,
+            "is_converging": state.is_converging,
+            "improvement_velocity": state.improvement_velocity,
+            "should_stop": self.adaptive_learning.should_stop_early(),
         }
 
     def get_effectiveness_report(self) -> dict:
@@ -1386,35 +1494,37 @@ class SwarmLearningPipeline:
         Returns group baselines, counts, and advantage info per task type.
         """
         stats = self.td_learner.get_grouped_learning_stats()
-        stats['adaptive_lr'] = self._adaptive_lr.get_adapted_alpha()
+        stats["adaptive_lr"] = self._adaptive_lr.get_adapted_alpha()
         return stats
 
     # =========================================================================
     # Paradigm effectiveness tracking (auto paradigm selection)
     # =========================================================================
 
-    _PARADIGMS = ('fanout', 'relay', 'debate', 'refinement')
+    _PARADIGMS = ("fanout", "relay", "debate", "refinement")
 
     def _ensure_paradigm_bucket(self, task_type: str) -> Any:
         """Lazy-create the stats bucket for a task_type."""
         if task_type not in self._paradigm_stats:
             self._paradigm_stats[task_type] = {
-                p: {'runs': 0, 'successes': 0} for p in self._PARADIGMS
+                p: {"runs": 0, "successes": 0} for p in self._PARADIGMS
             }
 
-    def record_paradigm_result(self, paradigm: str, success: bool, task_type: str = '_global') -> Any:
+    def record_paradigm_result(
+        self, paradigm: str, success: bool, task_type: str = "_global"
+    ) -> Any:
         """Record the outcome of a discussion paradigm run for a task type."""
         self._ensure_paradigm_bucket(task_type)
         bucket = self._paradigm_stats[task_type]
         if paradigm not in bucket:
-            bucket[paradigm] = {'runs': 0, 'successes': 0}
-        bucket[paradigm]['runs'] += 1
+            bucket[paradigm] = {"runs": 0, "successes": 0}
+        bucket[paradigm]["runs"] += 1
         if success:
-            bucket[paradigm]['successes'] += 1
+            bucket[paradigm]["successes"] += 1
 
         # Also update _global so there's always a fallback
-        if task_type != '_global':
-            self.record_paradigm_result(paradigm, success, '_global')
+        if task_type != "_global":
+            self.record_paradigm_result(paradigm, success, "_global")
 
     def recommend_paradigm(self, task_type: str = None) -> str:
         """
@@ -1434,28 +1544,26 @@ class SwarmLearningPipeline:
 
         # Pick the best bucket: task-specific if enough data, else global
         bucket = None
-        key = task_type or '_global'
+        key = task_type or "_global"
         if key in self._paradigm_stats:
-            total_runs = sum(
-                s['runs'] for s in self._paradigm_stats[key].values()
-            )
+            total_runs = sum(s["runs"] for s in self._paradigm_stats[key].values())
             if total_runs >= 5:
                 bucket = self._paradigm_stats[key]
 
-        if bucket is None and '_global' in self._paradigm_stats:
-            bucket = self._paradigm_stats['_global']
+        if bucket is None and "_global" in self._paradigm_stats:
+            bucket = self._paradigm_stats["_global"]
 
         if not bucket:
             # No data at all — return random paradigm
             return random.choice(list(self._PARADIGMS))
 
-        best_paradigm = 'fanout'
+        best_paradigm = "fanout"
         best_score = -1.0
 
         for paradigm in self._PARADIGMS:
-            stats = bucket.get(paradigm, {'runs': 0, 'successes': 0})
-            runs = stats['runs']
-            successes = stats['successes']
+            stats = bucket.get(paradigm, {"runs": 0, "successes": 0})
+            runs = stats["runs"]
+            successes = stats["successes"]
             if runs == 0:
                 score = random.random()
             else:
@@ -1476,14 +1584,15 @@ class SwarmLearningPipeline:
             task_type: If provided, return stats for that task type.
                        If None, return _global stats with per-type breakdown.
         """
+
         def _format_bucket(bucket: Any) -> Any:
             out = {}
             for paradigm, data in bucket.items():
-                runs = data['runs']
-                successes = data['successes']
+                runs = data["runs"]
+                successes = data["successes"]
                 out[paradigm] = {
                     **data,
-                    'success_rate': successes / runs if runs > 0 else None,
+                    "success_rate": successes / runs if runs > 0 else None,
                 }
             return out
 

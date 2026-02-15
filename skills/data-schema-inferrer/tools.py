@@ -1,9 +1,10 @@
 """Data Schema Inferrer Skill — infer JSON Schema from data (pure Python)."""
-import json
-from typing import Dict, Any, List, Optional
 
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+import json
+from typing import Any, Dict, List, Optional
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("data-schema-inferrer")
 
@@ -23,6 +24,7 @@ def _infer_type(value: Any) -> Dict[str, Any]:
         if len(value) > 0:
             # Detect common formats
             import re
+
             if re.match(r"^\d{4}-\d{2}-\d{2}$", value):
                 schema["format"] = "date"
             elif re.match(r"^\d{4}-\d{2}-\d{2}T", value):
@@ -31,7 +33,9 @@ def _infer_type(value: Any) -> Dict[str, Any]:
                 schema["format"] = "email"
             elif re.match(r"^https?://", value):
                 schema["format"] = "uri"
-            elif re.match(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", value, re.I):
+            elif re.match(
+                r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", value, re.I
+            ):
                 schema["format"] = "uuid"
         return schema
     elif isinstance(value, list):
@@ -120,8 +124,15 @@ def validate_against_schema_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
     def _validate(value, sch, path="$"):
         expected_type = sch.get("type")
-        type_map = {"string": str, "integer": int, "number": (int, float),
-                    "boolean": bool, "array": list, "object": dict, "null": type(None)}
+        type_map = {
+            "string": str,
+            "integer": int,
+            "number": (int, float),
+            "boolean": bool,
+            "array": list,
+            "object": dict,
+            "null": type(None),
+        }
         if expected_type and expected_type in type_map:
             if not isinstance(value, type_map[expected_type]):
                 errors.append(f"{path}: expected {expected_type}, got {type(value).__name__}")

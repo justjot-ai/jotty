@@ -5,43 +5,42 @@ Make HTTP requests with any method.
 Refactored to use Jotty core utilities.
 """
 
-import requests
-from typing import Dict, Any
+from typing import Any, Dict
 
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+import requests
 
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("http-client")
 
 
-
 def _parse_response_body(response: requests.Response) -> tuple:
     """Parse response body, returning (body, body_type) tuple."""
     try:
-        return response.json(), 'json'
+        return response.json(), "json"
     except Exception:
-        return response.text, 'text'
+        return response.text, "text"
 
 
 def _make_http_request(method: str, url: str, params: Dict[str, Any]) -> Dict[str, Any]:
     """Common HTTP request handler."""
-    headers = params.get('headers', {})
-    timeout = params.get('timeout', 30)
-    json_data = params.get('json')
-    data = params.get('data')
-    query_params = params.get('params', {})
+    headers = params.get("headers", {})
+    timeout = params.get("timeout", 30)
+    json_data = params.get("json")
+    data = params.get("data")
+    query_params = params.get("params", {})
 
     try:
-        kwargs = {'headers': headers, 'timeout': timeout}
+        kwargs = {"headers": headers, "timeout": timeout}
 
-        if method == 'GET':
-            kwargs['params'] = query_params or json_data
+        if method == "GET":
+            kwargs["params"] = query_params or json_data
         elif json_data is not None:
-            kwargs['json'] = json_data
+            kwargs["json"] = json_data
         elif data is not None:
-            kwargs['data'] = data
+            kwargs["data"] = data
 
         response = requests.request(method, url, **kwargs)
         body, body_type = _parse_response_body(response)
@@ -52,16 +51,16 @@ def _make_http_request(method: str, url: str, params: Dict[str, Any]) -> Dict[st
             headers=dict(response.headers),
             body=body,
             body_type=body_type,
-            url=str(response.url)
+            url=str(response.url),
         )
 
     except requests.Timeout:
-        return tool_error(f'Request timed out after {timeout} seconds')
+        return tool_error(f"Request timed out after {timeout} seconds")
     except requests.RequestException as e:
-        return tool_error(f'Request failed: {str(e)}')
+        return tool_error(f"Request failed: {str(e)}")
 
 
-@tool_wrapper(required_params=['url'])
+@tool_wrapper(required_params=["url"])
 def http_get_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Perform HTTP GET request.
@@ -76,12 +75,12 @@ def http_get_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, status_code, headers, body, body_type, url
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
-    return _make_http_request('GET', params['url'], params)
+    return _make_http_request("GET", params["url"], params)
 
 
-@tool_wrapper(required_params=['url'])
+@tool_wrapper(required_params=["url"])
 def http_post_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Perform HTTP POST request.
@@ -97,12 +96,12 @@ def http_post_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, status_code, headers, body, body_type, url
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
-    return _make_http_request('POST', params['url'], params)
+    return _make_http_request("POST", params["url"], params)
 
 
-@tool_wrapper(required_params=['method', 'url'])
+@tool_wrapper(required_params=["method", "url"])
 def http_request_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Perform HTTP request with any method.
@@ -119,14 +118,14 @@ def http_request_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, method, status_code, headers, body, body_type, url
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
-    method = params['method'].upper()
+    method = params["method"].upper()
 
-    if method not in ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS']:
-        return tool_error(f'Unsupported HTTP method: {method}')
+    if method not in ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"]:
+        return tool_error(f"Unsupported HTTP method: {method}")
 
-    return _make_http_request(method, params['url'], params)
+    return _make_http_request(method, params["url"], params)
 
 
-__all__ = ['http_get_tool', 'http_post_tool', 'http_request_tool']
+__all__ = ["http_get_tool", "http_post_tool", "http_request_tool"]

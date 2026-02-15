@@ -25,8 +25,8 @@ Usage:
     result = await swarm.run(goal="Research AI startups")
 """
 
-from typing import Any
 import importlib as _importlib
+from typing import Any
 
 # ── Direct module imports (module_path, attribute_name) ─────────────────
 # Maps public name → (relative module, attribute in that module)
@@ -102,12 +102,18 @@ def __getattr__(name: str) -> Any:
 
     # Facade accessors
     _facade_names = {
-        'get_swarm_intelligence', 'get_paradigm_executor', 'get_training_daemon',
-        'get_ensemble_manager', 'get_provider_manager', 'get_model_tier_router',
-        'get_swarm_router', 'list_components',
+        "get_swarm_intelligence",
+        "get_paradigm_executor",
+        "get_training_daemon",
+        "get_ensemble_manager",
+        "get_provider_manager",
+        "get_model_tier_router",
+        "get_swarm_router",
+        "list_components",
     }
     if name in _facade_names:
         from . import facade
+
         value = getattr(facade, name)
         globals()[name] = value
         return value
@@ -115,10 +121,12 @@ def __getattr__(name: str) -> Any:
     # Pipeline utility functions (defined inline)
     if name == "sequential_pipeline":
         from ._pipeline_utils import sequential_pipeline
+
         globals()[name] = sequential_pipeline
         return sequential_pipeline
     if name == "fanout_pipeline":
         from ._pipeline_utils import fanout_pipeline
+
         globals()[name] = fanout_pipeline
         return fanout_pipeline
 
@@ -126,36 +134,36 @@ def __getattr__(name: str) -> Any:
 
 
 __all__ = list(_LAZY_MAP.keys()) + [
-    'sequential_pipeline',
-    'fanout_pipeline',
+    "sequential_pipeline",
+    "fanout_pipeline",
     # facade
-    'get_swarm_intelligence',
-    'get_paradigm_executor',
-    'get_training_daemon',
-    'get_ensemble_manager',
-    'get_provider_manager',
-    'get_model_tier_router',
-    'get_swarm_router',
+    "get_swarm_intelligence",
+    "get_paradigm_executor",
+    "get_training_daemon",
+    "get_ensemble_manager",
+    "get_provider_manager",
+    "get_model_tier_router",
+    "get_swarm_router",
 ]
 
+from .multi_stage_pipeline import (
+    MultiStagePipeline,
+    PipelineResult,
+    StageConfig,
+    StageResult,
+    create_pipeline,
+    extract_code_from_markdown,
+)
+from .multi_strategy_benchmark import (
+    BenchmarkResults,
+    MultiStrategyBenchmark,
+    StrategyResult,
+    benchmark_strategies,
+)
 from .multi_swarm_coordinator import (
-    MultiSwarmCoordinator,
     MergeStrategy,
+    MultiSwarmCoordinator,
     SwarmResult,
     get_multi_swarm_coordinator,
 )
 from .swarm_adapter import SwarmAdapter
-from .multi_strategy_benchmark import (
-    MultiStrategyBenchmark,
-    BenchmarkResults,
-    StrategyResult,
-    benchmark_strategies,
-)
-from .multi_stage_pipeline import (
-    MultiStagePipeline,
-    PipelineResult,
-    StageResult,
-    StageConfig,
-    create_pipeline,
-    extract_code_from_markdown,
-)

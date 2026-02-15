@@ -29,44 +29,40 @@ Multiple professional templates for different use cases:
    - White Paper (technical, detailed)
 """
 
+from .backtest_templates import (
+    AQRTemplate,
+    CitadelTemplate,
+    ManGroupTemplate,
+    QuantitativeTemplate,
+    RenTechTemplate,
+    TwoSigmaTemplate,
+)
 from .base_template import BaseTemplate, TemplateRegistry
+from .kids_templates import ActivityBookTemplate, EducationalTemplate, StorybookTemplate
 from .research_templates import (
+    CLSATemplate,
     GoldmanSachsTemplate,
     MorganStanleyTemplate,
-    CLSATemplate,
     MotilalOswalTemplate,
-)
-from .kids_templates import (
-    StorybookTemplate,
-    EducationalTemplate,
-    ActivityBookTemplate,
-)
-from .backtest_templates import (
-    TwoSigmaTemplate,
-    RenTechTemplate,
-    AQRTemplate,
-    ManGroupTemplate,
-    CitadelTemplate,
-    QuantitativeTemplate,
 )
 
 __all__ = [
-    'BaseTemplate',
-    'TemplateRegistry',
+    "BaseTemplate",
+    "TemplateRegistry",
     # Research templates
-    'GoldmanSachsTemplate',
-    'MorganStanleyTemplate',
-    'CLSATemplate',
-    'MotilalOswalTemplate',
+    "GoldmanSachsTemplate",
+    "MorganStanleyTemplate",
+    "CLSATemplate",
+    "MotilalOswalTemplate",
     # Kids templates
-    'StorybookTemplate',
-    'EducationalTemplate',
-    'ActivityBookTemplate',
+    "StorybookTemplate",
+    "EducationalTemplate",
+    "ActivityBookTemplate",
     # Backtest templates
-    'TwoSigmaTemplate',
-    'RenTechTemplate',
-    'AQRTemplate',
-    'ManGroupTemplate',
-    'CitadelTemplate',
-    'QuantitativeTemplate',
+    "TwoSigmaTemplate",
+    "RenTechTemplate",
+    "AQRTemplate",
+    "ManGroupTemplate",
+    "CitadelTemplate",
+    "QuantitativeTemplate",
 ]

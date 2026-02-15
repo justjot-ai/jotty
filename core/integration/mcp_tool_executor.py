@@ -2,11 +2,12 @@
 MCP Tool Executor for DSPy
 Enables DSPy signatures to call MCP tools from JustJot
 """
+
 import logging
 import os
-from typing import List, Dict, Any
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any, Dict, List
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +15,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class MCPTool:
     """MCP tool definition"""
+
     name: str
     description: str
     input_schema: Dict[str, Any]
@@ -38,11 +40,11 @@ class MCPToolExecutor:
         else:
             # Check environment variables in priority order
             url = (
-                os.getenv("JUSTJOT_API_URL") or 
-                os.getenv("NEXT_PUBLIC_API_URL") or 
-                os.getenv("JUSTJOT_BASE_URL")
+                os.getenv("JUSTJOT_API_URL")
+                or os.getenv("NEXT_PUBLIC_API_URL")
+                or os.getenv("JUSTJOT_BASE_URL")
             )
-            
+
             if url:
                 self.base_url = url
             else:
@@ -89,9 +91,9 @@ class MCPToolExecutor:
                     "properties": {
                         "id": {"type": "string", "description": "The MongoDB ObjectId of the idea"}
                     },
-                    "required": ["id"]
+                    "required": ["id"],
                 },
-                server="justjot"
+                server="justjot",
             ),
             MCPTool(
                 name="mcp__justjot__list_ideas",
@@ -102,13 +104,16 @@ class MCPToolExecutor:
                         "status": {
                             "type": "string",
                             "enum": ["Draft", "Published", "Archived"],
-                            "description": "Filter by status"
+                            "description": "Filter by status",
                         },
                         "tag": {"type": "string", "description": "Filter by tag"},
-                        "limit": {"type": "number", "description": "Maximum number of ideas to return (default: 20)"}
-                    }
+                        "limit": {
+                            "type": "number",
+                            "description": "Maximum number of ideas to return (default: 20)",
+                        },
+                    },
                 },
-                server="justjot"
+                server="justjot",
             ),
             MCPTool(
                 name="mcp__justjot__search_ideas",
@@ -117,11 +122,11 @@ class MCPToolExecutor:
                     "type": "object",
                     "properties": {
                         "query": {"type": "string", "description": "Search query"},
-                        "limit": {"type": "number", "description": "Maximum results (default: 10)"}
+                        "limit": {"type": "number", "description": "Maximum results (default: 10)"},
                     },
-                    "required": ["query"]
+                    "required": ["query"],
                 },
-                server="justjot"
+                server="justjot",
             ),
             MCPTool(
                 name="mcp__justjot__create_idea",
@@ -130,7 +135,10 @@ class MCPToolExecutor:
                     "type": "object",
                     "properties": {
                         "title": {"type": "string", "description": "Title of the idea"},
-                        "description": {"type": "string", "description": "Brief description of the idea"},
+                        "description": {
+                            "type": "string",
+                            "description": "Brief description of the idea",
+                        },
                         "sections": {
                             "type": "array",
                             "description": "Initial sections for the idea",
@@ -139,19 +147,19 @@ class MCPToolExecutor:
                                 "properties": {
                                     "title": {"type": "string"},
                                     "content": {"type": "string"},
-                                    "type": {"type": "string", "default": "text"}
-                                }
-                            }
+                                    "type": {"type": "string", "default": "text"},
+                                },
+                            },
                         },
                         "tags": {
                             "type": "array",
                             "items": {"type": "string"},
-                            "description": "Tags for the idea"
-                        }
+                            "description": "Tags for the idea",
+                        },
                     },
-                    "required": ["title"]
+                    "required": ["title"],
                 },
-                server="justjot"
+                server="justjot",
             ),
             # Section operations
             MCPTool(
@@ -160,14 +168,25 @@ class MCPToolExecutor:
                 input_schema={
                     "type": "object",
                     "properties": {
-                        "ideaId": {"type": "string", "description": "The MongoDB ObjectId of the idea"},
+                        "ideaId": {
+                            "type": "string",
+                            "description": "The MongoDB ObjectId of the idea",
+                        },
                         "title": {"type": "string", "description": "Section title"},
-                        "content": {"type": "string", "description": "Section content", "default": ""},
-                        "type": {"type": "string", "description": "Section type (text, code, etc.)", "default": "text"}
+                        "content": {
+                            "type": "string",
+                            "description": "Section content",
+                            "default": "",
+                        },
+                        "type": {
+                            "type": "string",
+                            "description": "Section type (text, code, etc.)",
+                            "default": "text",
+                        },
                     },
-                    "required": ["ideaId", "title"]
+                    "required": ["ideaId", "title"],
                 },
-                server="justjot"
+                server="justjot",
             ),
         ]
 
@@ -175,11 +194,7 @@ class MCPToolExecutor:
 
         return self.available_tools
 
-    async def execute_tool(
-        self,
-        tool_name: str,
-        arguments: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def execute_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """
         Execute an MCP tool
 
@@ -192,9 +207,7 @@ class MCPToolExecutor:
         """
         tool = self.tool_map.get(tool_name)
         if not tool:
-            raise ValueError(
-                f"Tool {tool_name} not found. Available: {list(self.tool_map.keys())}"
-            )
+            raise ValueError(f"Tool {tool_name} not found. Available: {list(self.tool_map.keys())}")
 
         # Validate arguments against schema (basic validation)
         required = tool.input_schema.get("required", [])
@@ -208,10 +221,7 @@ class MCPToolExecutor:
         return result
 
     async def _call_mcp_server(
-        self,
-        server_name: str,
-        tool_name: str,
-        arguments: Dict[str, Any]
+        self, server_name: str, tool_name: str, arguments: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Call MCP server via HTTP API"""
         if server_name == "justjot":
@@ -219,16 +229,14 @@ class MCPToolExecutor:
 
         raise NotImplementedError(f"MCP server {server_name} not implemented")
 
-    async def _call_justjot_mcp(
-        self,
-        tool_name: str,
-        arguments: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def _call_justjot_mcp(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """Call JustJot MCP tools via HTTP API"""
         try:
             import aiohttp
         except ImportError:
-            raise ImportError("aiohttp required for MCP tool execution. Install: pip install aiohttp")
+            raise ImportError(
+                "aiohttp required for MCP tool execution. Install: pip install aiohttp"
+            )
 
         # Map MCP tool to API endpoint
         # Use /api/internal/* endpoints for service-to-service calls (no auth required)
@@ -255,21 +263,28 @@ class MCPToolExecutor:
             arguments = {k: v for k, v in arguments.items() if k != "ideaId"}
 
         url = f"{self.base_url}{endpoint}"
-        
+
         # Add internal service header for service-to-service calls
-        headers = {
-            "x-internal-service": "true",
-            "Content-Type": "application/json"
-        }
+        headers = {"x-internal-service": "true", "Content-Type": "application/json"}
 
         async with aiohttp.ClientSession() as session:
             try:
                 if method == "GET":
-                    async with session.get(url, params=arguments, headers=headers, timeout=aiohttp.ClientTimeout(total=30)) as resp:
+                    async with session.get(
+                        url,
+                        params=arguments,
+                        headers=headers,
+                        timeout=aiohttp.ClientTimeout(total=30),
+                    ) as resp:
                         resp.raise_for_status()
                         return await resp.json()
                 else:  # POST
-                    async with session.post(url, json=arguments, headers=headers, timeout=aiohttp.ClientTimeout(total=30)) as resp:
+                    async with session.post(
+                        url,
+                        json=arguments,
+                        headers=headers,
+                        timeout=aiohttp.ClientTimeout(total=30),
+                    ) as resp:
                         resp.raise_for_status()
                         return await resp.json()
             except aiohttp.ClientError as e:
@@ -278,15 +293,26 @@ class MCPToolExecutor:
                     fallback_url = url.replace("justjot-ai-blue", "justjot-ai-green")
                     try:
                         if method == "GET":
-                            async with session.get(fallback_url, params=arguments, headers=headers, timeout=aiohttp.ClientTimeout(total=30)) as resp:
+                            async with session.get(
+                                fallback_url,
+                                params=arguments,
+                                headers=headers,
+                                timeout=aiohttp.ClientTimeout(total=30),
+                            ) as resp:
                                 resp.raise_for_status()
                                 return await resp.json()
                         else:  # POST
-                            async with session.post(fallback_url, json=arguments, headers=headers, timeout=aiohttp.ClientTimeout(total=30)) as resp:
+                            async with session.post(
+                                fallback_url,
+                                json=arguments,
+                                headers=headers,
+                                timeout=aiohttp.ClientTimeout(total=30),
+                            ) as resp:
                                 resp.raise_for_status()
                                 return await resp.json()
                     except Exception as fallback_err:
                         import logging
+
                         logging.getLogger(__name__).warning(
                             f"Blue-green fallback also failed: {fallback_err}"
                         )

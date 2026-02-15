@@ -15,16 +15,18 @@ Comprehensive unit tests for all classes in core/orchestration/swarm_roadmap.py:
 All tests use mocks -- no real LLM calls, no API keys, runs offline and fast (<1s each).
 """
 
-import json
-import pytest
 import hashlib
-from datetime import datetime, timedelta
+import json
 from dataclasses import fields
-from unittest.mock import Mock, MagicMock, AsyncMock, patch
+from datetime import datetime, timedelta
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+
+import pytest
 
 # Try importing DSPy -- tests skip if unavailable
 try:
     import dspy
+
     DSPY_AVAILABLE = True
 except ImportError:
     DSPY_AVAILABLE = False
@@ -32,15 +34,16 @@ except ImportError:
 # Try importing the modules under test
 try:
     from Jotty.core.intelligence.orchestration.swarm_roadmap import (
-        TaskStatus,
-        TrajectoryStep,
-        SubtaskState,
-        SwarmTaskBoard,
         AgenticState,
         DecomposedQFunction,
+        SubtaskState,
+        SwarmTaskBoard,
+        TaskStatus,
         ThoughtLevelCredit,
         TodoItem,
+        TrajectoryStep,
     )
+
     MODULE_AVAILABLE = True
 except ImportError:
     MODULE_AVAILABLE = False
@@ -52,9 +55,16 @@ pytestmark = pytest.mark.skipif(not MODULE_AVAILABLE, reason="swarm_roadmap modu
 # HELPERS
 # =============================================================================
 
-def _make_trajectory_step(step_idx=0, action_type="thought", action_content="test",
-                          observation="ok", reward=0.5, context_summary="ctx",
-                          activated_memories=None):
+
+def _make_trajectory_step(
+    step_idx=0,
+    action_type="thought",
+    action_content="test",
+    observation="ok",
+    reward=0.5,
+    context_summary="ctx",
+    activated_memories=None,
+):
     """Helper to create a TrajectoryStep with sensible defaults."""
     return TrajectoryStep(
         step_idx=step_idx,
@@ -92,6 +102,7 @@ def _make_board_with_tasks():
 # =============================================================================
 # TestTaskStatus
 # =============================================================================
+
 
 class TestTaskStatus:
     """Tests for the TaskStatus enum."""
@@ -131,6 +142,7 @@ class TestTaskStatus:
 # TestTrajectoryStep
 # =============================================================================
 
+
 class TestTrajectoryStep:
     """Tests for the TrajectoryStep dataclass."""
 
@@ -138,9 +150,14 @@ class TestTrajectoryStep:
     def test_creation_with_all_fields(self):
         ts = datetime.now()
         step = TrajectoryStep(
-            step_idx=0, timestamp=ts, action_type="thought",
-            action_content="reason about X", context_summary="ctx",
-            activated_memories=["m1"], observation="done", reward=0.8,
+            step_idx=0,
+            timestamp=ts,
+            action_type="thought",
+            action_content="reason about X",
+            context_summary="ctx",
+            activated_memories=["m1"],
+            observation="done",
+            reward=0.8,
         )
         assert step.step_idx == 0
         assert step.action_type == "thought"
@@ -188,6 +205,7 @@ class TestTrajectoryStep:
 # =============================================================================
 # TestSubtaskState
 # =============================================================================
+
 
 class TestSubtaskState:
     """Tests for the SubtaskState dataclass."""
@@ -382,6 +400,7 @@ class TestSubtaskState:
 # TestSwarmTaskBoard
 # =============================================================================
 
+
 class TestSwarmTaskBoard:
     """Tests for SwarmTaskBoard (long-horizon task management)."""
 
@@ -499,11 +518,13 @@ class TestSwarmTaskBoard:
         board.add_task("t2", "High Q", actor="high_agent")
 
         mock_predictor = Mock()
+
         # Returns (q_value, extra1, extra2)
         def predict_side_effect(state, action, goal):
             if action["actor"] == "high_agent":
                 return (0.9, None, None)
             return (0.1, None, None)
+
         mock_predictor.predict_q_value = Mock(side_effect=predict_side_effect)
 
         mock_state = Mock()
@@ -953,7 +974,8 @@ class TestSwarmTaskBoard:
         board.add_task("t3", "C")
         # All three should be available since no dependencies
         available = [
-            tid for tid, t in board.subtasks.items()
+            tid
+            for tid, t in board.subtasks.items()
             if t.status == TaskStatus.PENDING and t.can_start(board.completed_tasks)
         ]
         assert len(available) == 3
@@ -974,7 +996,8 @@ class TestSwarmTaskBoard:
         board.start_task("t1")
         board.complete_task("t1")
         available = [
-            tid for tid, t in board.subtasks.items()
+            tid
+            for tid, t in board.subtasks.items()
             if t.status == TaskStatus.PENDING and t.can_start(board.completed_tasks)
         ]
         assert set(available) == {"t2a", "t2b"}
@@ -1103,6 +1126,7 @@ class TestSwarmTaskBoard:
 # TestAgenticState
 # =============================================================================
 
+
 class TestAgenticState:
     """Tests for the AgenticState dataclass."""
 
@@ -1181,6 +1205,7 @@ class TestAgenticState:
         state = _make_agentic_state()
         before = state.last_updated
         import time
+
         time.sleep(0.01)
         state.add_trajectory_step("thought", "x", "y", 0.0)
         assert state.last_updated >= before
@@ -1354,6 +1379,7 @@ class TestAgenticState:
 # TestDecomposedQFunction
 # =============================================================================
 
+
 class TestDecomposedQFunction:
     """Tests for the DecomposedQFunction multi-objective Q-learning."""
 
@@ -1402,13 +1428,15 @@ class TestDecomposedQFunction:
 
     @pytest.mark.unit
     def test_get_combined_value_uses_weights(self):
-        qf = DecomposedQFunction(config={
-            "task_weight": 1.0,
-            "explore_weight": 0.0,
-            "causal_weight": 0.0,
-            "safety_weight": 0.0,
-            "default_value": 0.0,
-        })
+        qf = DecomposedQFunction(
+            config={
+                "task_weight": 1.0,
+                "explore_weight": 0.0,
+                "causal_weight": 0.0,
+                "safety_weight": 0.0,
+                "default_value": 0.0,
+            }
+        )
         state = _make_agentic_state()
         key = (state.to_key(), "act")
         qf.q_task[key] = 0.8
@@ -1561,6 +1589,7 @@ class TestDecomposedQFunction:
 # TestThoughtLevelCredit
 # =============================================================================
 
+
 class TestThoughtLevelCredit:
     """Tests for the ThoughtLevelCredit reasoning step credit assignment."""
 
@@ -1573,11 +1602,13 @@ class TestThoughtLevelCredit:
 
     @pytest.mark.unit
     def test_initialization_with_custom_config(self):
-        tlc = ThoughtLevelCredit(config={
-            "temporal_weight": 0.5,
-            "tool_weight": 0.3,
-            "decision_weight": 0.2,
-        })
+        tlc = ThoughtLevelCredit(
+            config={
+                "temporal_weight": 0.5,
+                "tool_weight": 0.3,
+                "decision_weight": 0.2,
+            }
+        )
         assert tlc.temporal_weight == 0.5
         assert tlc.tool_weight == 0.3
 
@@ -1613,11 +1644,13 @@ class TestThoughtLevelCredit:
 
     @pytest.mark.unit
     def test_assign_credit_temporal_weighting(self):
-        tlc = ThoughtLevelCredit(config={
-            "temporal_weight": 1.0,
-            "tool_weight": 0.0,
-            "decision_weight": 0.0,
-        })
+        tlc = ThoughtLevelCredit(
+            config={
+                "temporal_weight": 1.0,
+                "tool_weight": 0.0,
+                "decision_weight": 0.0,
+            }
+        )
         trace = ["step 0 " * 100, "step 1 " * 100, "step 2 " * 100]
         credits = tlc.assign_credit(trace, [], 1.0)
         # Later steps should get more credit (temporal weighting)
@@ -1720,14 +1753,19 @@ class TestThoughtLevelCredit:
 # TestTodoItem
 # =============================================================================
 
+
 class TestTodoItem:
     """Tests for the TodoItem dataclass."""
 
     @pytest.mark.unit
     def test_creation(self):
         item = TodoItem(
-            id="item1", description="Do thing", actor="agent",
-            status="pending", priority=0.8, estimated_reward=0.5,
+            id="item1",
+            description="Do thing",
+            actor="agent",
+            status="pending",
+            priority=0.8,
+            estimated_reward=0.5,
         )
         assert item.id == "item1"
         assert item.description == "Do thing"
@@ -1736,8 +1774,12 @@ class TestTodoItem:
     @pytest.mark.unit
     def test_defaults(self):
         item = TodoItem(
-            id="item1", description="Do thing", actor="agent",
-            status="pending", priority=0.8, estimated_reward=0.5,
+            id="item1",
+            description="Do thing",
+            actor="agent",
+            status="pending",
+            priority=0.8,
+            estimated_reward=0.5,
         )
         assert item.dependencies == []
         assert item.attempts == 0
@@ -1748,8 +1790,12 @@ class TestTodoItem:
     @pytest.mark.unit
     def test_with_dependencies(self):
         item = TodoItem(
-            id="item2", description="After item1", actor="agent",
-            status="pending", priority=0.5, estimated_reward=0.3,
+            id="item2",
+            description="After item1",
+            actor="agent",
+            status="pending",
+            priority=0.5,
+            estimated_reward=0.3,
             dependencies=["item1"],
         )
         assert item.dependencies == ["item1"]

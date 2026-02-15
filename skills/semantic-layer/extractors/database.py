@@ -4,12 +4,13 @@ Database Schema Extractor
 Extracts schema from live database connections using SQLAlchemy.
 Supports PostgreSQL, MySQL, SQLite, SQL Server, Oracle, and more.
 """
-from typing import List, Optional, Dict, Any
-from urllib.parse import quote_plus
-import logging
 
-from .base import BaseExtractor
+import logging
+from typing import Any, Dict, List, Optional
+from urllib.parse import quote_plus
+
 from ..models import Column, ForeignKey, Index
+from .base import BaseExtractor
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +45,17 @@ class DatabaseExtractor(BaseExtractor):
         "oracle": "oracle+oracledb",
     }
 
-    def __init__(self, db_type: str = None, host: str = 'localhost', port: int = None, database: str = '', user: str = '', password: str = '', connection_string: str = None, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        db_type: str = None,
+        host: str = "localhost",
+        port: int = None,
+        database: str = "",
+        user: str = "",
+        password: str = "",
+        connection_string: str = None,
+        **kwargs: Any,
+    ) -> None:
         """
         Initialize database extractor.
 
@@ -81,7 +92,16 @@ class DatabaseExtractor(BaseExtractor):
                 return db_type
         return "unknown"
 
-    def _build_connection_string(self, db_type: str, host: str, port: int, database: str, user: str, password: str, **kwargs: Any) -> str:
+    def _build_connection_string(
+        self,
+        db_type: str,
+        host: str,
+        port: int,
+        database: str,
+        user: str,
+        password: str,
+        **kwargs: Any,
+    ) -> str:
         """Build SQLAlchemy connection string."""
         driver = self.DRIVERS.get(db_type)
         if not driver:
@@ -118,7 +138,7 @@ class DatabaseExtractor(BaseExtractor):
                 pool_size=5,
                 max_overflow=10,
                 pool_pre_ping=True,
-                echo=False
+                echo=False,
             )
         return self._engine
 
@@ -127,6 +147,7 @@ class DatabaseExtractor(BaseExtractor):
         """Get or create SQLAlchemy inspector."""
         if self._inspector is None:
             from sqlalchemy import inspect
+
             self._inspector = inspect(self.engine)
         return self._inspector
 
@@ -144,10 +165,10 @@ class DatabaseExtractor(BaseExtractor):
         try:
             for col in self.inspector.get_columns(table_name):
                 column = Column(
-                    name=col['name'],
-                    data_type=str(col.get('type', 'unknown')),
-                    nullable=col.get('nullable', True),
-                    default=str(col.get('default', '')) if col.get('default') else None,
+                    name=col["name"],
+                    data_type=str(col.get("type", "unknown")),
+                    nullable=col.get("nullable", True),
+                    default=str(col.get("default", "")) if col.get("default") else None,
                 )
                 columns.append(column)
         except Exception as e:
@@ -159,7 +180,7 @@ class DatabaseExtractor(BaseExtractor):
         """Extract primary key column names."""
         try:
             pk = self.inspector.get_pk_constraint(table_name)
-            return pk.get('constrained_columns', []) if pk else []
+            return pk.get("constrained_columns", []) if pk else []
         except Exception as e:
             logger.error(f"Failed to get primary keys for {table_name}: {e}")
             return []
@@ -169,12 +190,14 @@ class DatabaseExtractor(BaseExtractor):
         foreign_keys = []
         try:
             for fk in self.inspector.get_foreign_keys(table_name):
-                foreign_keys.append(ForeignKey(
-                    columns=fk.get('constrained_columns', []),
-                    referenced_table=fk.get('referred_table', ''),
-                    referenced_columns=fk.get('referred_columns', []),
-                    constraint_name=fk.get('name')
-                ))
+                foreign_keys.append(
+                    ForeignKey(
+                        columns=fk.get("constrained_columns", []),
+                        referenced_table=fk.get("referred_table", ""),
+                        referenced_columns=fk.get("referred_columns", []),
+                        constraint_name=fk.get("name"),
+                    )
+                )
         except Exception as e:
             logger.error(f"Failed to get foreign keys for {table_name}: {e}")
 
@@ -185,11 +208,13 @@ class DatabaseExtractor(BaseExtractor):
         indexes = []
         try:
             for idx in self.inspector.get_indexes(table_name):
-                indexes.append(Index(
-                    name=idx.get('name', ''),
-                    columns=idx.get('column_names', []),
-                    unique=idx.get('unique', False)
-                ))
+                indexes.append(
+                    Index(
+                        name=idx.get("name", ""),
+                        columns=idx.get("column_names", []),
+                        unique=idx.get("unique", False),
+                    )
+                )
         except Exception as e:
             logger.error(f"Failed to get indexes for {table_name}: {e}")
 

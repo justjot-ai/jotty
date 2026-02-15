@@ -5,22 +5,22 @@ Scrape websites and extract content.
 Refactored to use Jotty core utilities.
 """
 
-import requests
-from bs4 import BeautifulSoup
-from typing import Dict, Any, Optional, List
-import html2text
+from typing import Any, Dict, List, Optional
 from urllib.parse import urljoin, urlparse
 
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+import html2text
+import requests
+from bs4 import BeautifulSoup
 
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 # Browser-like headers
 
 # Status emitter for progress updates
 status = SkillStatus("web-scraper")
 
-HEADERS = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
 
 
 def _scrape_single_page(
@@ -29,7 +29,7 @@ def _scrape_single_page(
     selectors: Dict[str, str],
     headers: Dict[str, str],
     proxies: Optional[Dict[str, str]],
-    timeout: int
+    timeout: int,
 ) -> Dict[str, Any]:
     """
     Scrape a single page with intelligent 403 handling.
@@ -47,50 +47,51 @@ def _scrape_single_page(
         else:
             # Smart fetch: handles 403 → proxy retry automatically
             from Jotty.core.infrastructure.utils.smart_fetcher import smart_fetch
+
             result = smart_fetch(url, timeout=timeout, headers=headers)
 
             if result.skipped:
-                return tool_error(f'Skipped: {result.error}')
+                return tool_error(f"Skipped: {result.error}")
             if not result.success:
-                return tool_error(f'Failed: {result.error}')
+                return tool_error(f"Failed: {result.error}")
 
             html_content = result.content
             used_proxy = result.used_proxy
 
-        soup = BeautifulSoup(html_content, 'html.parser')
+        soup = BeautifulSoup(html_content, "html.parser")
 
         # Extract title
-        title = ''
-        if selectors.get('title'):
-            title_elem = soup.select_one(selectors['title'])
+        title = ""
+        if selectors.get("title"):
+            title_elem = soup.select_one(selectors["title"])
             if title_elem:
                 title = title_elem.get_text(strip=True)
         else:
-            title_tag = soup.find('title')
+            title_tag = soup.find("title")
             if title_tag:
                 title = title_tag.get_text(strip=True)
 
         # Extract content
-        content = ''
-        if selectors.get('content'):
-            content_elem = soup.select_one(selectors['content'])
+        content = ""
+        if selectors.get("content"):
+            content_elem = soup.select_one(selectors["content"])
             if content_elem:
-                content = content_elem.get_text(separator='\n', strip=True)
+                content = content_elem.get_text(separator="\n", strip=True)
         else:
-            main = soup.find('main') or soup.find('article') or soup.find('body')
+            main = soup.find("main") or soup.find("article") or soup.find("body")
             if main:
-                for tag in main(['script', 'style', 'nav', 'footer', 'header']):
+                for tag in main(["script", "style", "nav", "footer", "header"]):
                     tag.decompose()
-                content = main.get_text(separator='\n', strip=True)
+                content = main.get_text(separator="\n", strip=True)
 
         # Convert to requested format
-        if output_format == 'markdown':
+        if output_format == "markdown":
             h2t = html2text.HTML2Text()
             h2t.ignore_links = False
             h2t.ignore_images = False
             h2t.body_width = 0
             content = h2t.handle(str(soup))
-        elif output_format == 'html':
+        elif output_format == "html":
             content = str(soup)
 
         return tool_response(
@@ -99,11 +100,11 @@ def _scrape_single_page(
             content=content[:100000],
             content_length=len(content),
             pages_scraped=1,
-            fetched_via='proxy' if used_proxy else 'direct',
+            fetched_via="proxy" if used_proxy else "direct",
         )
 
     except requests.RequestException as e:
-        return tool_error(f'Network error: {str(e)}')
+        return tool_error(f"Network error: {str(e)}")
 
 
 def _scrape_spider_mode(
@@ -114,7 +115,7 @@ def _scrape_spider_mode(
     exclude_patterns: List[str],
     headers: Dict[str, str],
     proxies: Optional[Dict[str, str]],
-    timeout: int
+    timeout: int,
 ) -> Dict[str, Any]:
     """Scrape multiple pages following links."""
     visited = set()
@@ -133,42 +134,39 @@ def _scrape_spider_mode(
 
         visited.add(url)
 
-        page_result = _scrape_single_page(
-            url, output_format, selectors, headers, proxies, timeout
-        )
+        page_result = _scrape_single_page(url, output_format, selectors, headers, proxies, timeout)
 
-        if page_result.get('success'):
+        if page_result.get("success"):
             pages_data.append(page_result)
 
             if len(pages_data) < max_pages:
                 try:
                     response = requests.get(url, headers=headers, proxies=proxies, timeout=timeout)
-                    soup = BeautifulSoup(response.content, 'html.parser')
+                    soup = BeautifulSoup(response.content, "html.parser")
 
-                    for link in soup.find_all('a', href=True):
-                        full_url = urljoin(url, link['href'])
+                    for link in soup.find_all("a", href=True):
+                        full_url = urljoin(url, link["href"])
                         if urlparse(full_url).netloc == domain:
                             if full_url not in visited and full_url not in to_visit:
                                 to_visit.append(full_url)
                 except Exception:
                     pass
 
-    combined_content = '\n\n---\n\n'.join([
-        f"# {p.get('title', 'Untitled')}\n\n{p.get('content', '')}"
-        for p in pages_data
-    ])
+    combined_content = "\n\n---\n\n".join(
+        [f"# {p.get('title', 'Untitled')}\n\n{p.get('content', '')}" for p in pages_data]
+    )
 
     return tool_response(
         url=start_url,
-        title=f'Scraped {len(pages_data)} pages',
+        title=f"Scraped {len(pages_data)} pages",
         content=combined_content[:200000],
         content_length=len(combined_content),
         pages_scraped=len(pages_data),
-        pages=[{'url': p['url'], 'title': p['title']} for p in pages_data]
+        pages=[{"url": p["url"], "title": p["title"]} for p in pages_data],
     )
 
 
-@tool_wrapper(required_params=['url'])
+@tool_wrapper(required_params=["url"])
 def scrape_website_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Scrape a website and extract content.
@@ -187,29 +185,26 @@ def scrape_website_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, url, title, content, pages_scraped
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
-    url = params['url']
-    follow_links = params.get('follow_links', False)
-    max_pages = params.get('max_pages', 10)
-    output_format = params.get('output_format', 'markdown')
-    selectors = params.get('selectors', {})
-    exclude_patterns = params.get('exclude_patterns', [])
-    proxy = params.get('proxy')
-    timeout = params.get('timeout', 30)
+    url = params["url"]
+    follow_links = params.get("follow_links", False)
+    max_pages = params.get("max_pages", 10)
+    output_format = params.get("output_format", "markdown")
+    selectors = params.get("selectors", {})
+    exclude_patterns = params.get("exclude_patterns", [])
+    proxy = params.get("proxy")
+    timeout = params.get("timeout", 30)
 
     headers = HEADERS.copy()
-    proxies = {'http': proxy, 'https': proxy} if proxy else None
+    proxies = {"http": proxy, "https": proxy} if proxy else None
 
     if follow_links:
         return _scrape_spider_mode(
-            url, max_pages, output_format, selectors,
-            exclude_patterns, headers, proxies, timeout
+            url, max_pages, output_format, selectors, exclude_patterns, headers, proxies, timeout
         )
     else:
-        return _scrape_single_page(
-            url, output_format, selectors, headers, proxies, timeout
-        )
+        return _scrape_single_page(url, output_format, selectors, headers, proxies, timeout)
 
 
-__all__ = ['scrape_website_tool']
+__all__ = ["scrape_website_tool"]

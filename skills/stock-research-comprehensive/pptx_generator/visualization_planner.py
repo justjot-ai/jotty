@@ -23,14 +23,15 @@ Inspired by:
 import json
 import logging
 from dataclasses import dataclass, field
-from typing import Dict, Any, List, Optional
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
 # Try to import DSPy for LLM-based planning
 try:
     import dspy
+
     DSPY_AVAILABLE = True
 except ImportError:
     DSPY_AVAILABLE = False
@@ -38,10 +39,12 @@ except ImportError:
 # Try to import DirectClaudeCLI
 try:
     from Jotty.core.infrastructure.integration.direct_claude_cli_lm import DirectClaudeCLI
+
     CLAUDE_CLI_AVAILABLE = True
 except ImportError:
     try:
         from Jotty.core.infrastructure.integration.direct_claude_cli_lm import DirectClaudeCLI
+
         CLAUDE_CLI_AVAILABLE = True
     except ImportError:
         CLAUDE_CLI_AVAILABLE = False
@@ -50,6 +53,7 @@ except ImportError:
 
 class VisualizationType(Enum):
     """Types of visualizations that can be generated."""
+
     ARCHITECTURE = "architecture"
     FLOW = "flow"
     CONCEPT_MAP = "concept_map"
@@ -68,6 +72,7 @@ class VisualizationSpec:
     This is the contract between LLM (planner) and PptxGenJS (renderer).
     Every field must be concrete and actionable.
     """
+
     viz_type: VisualizationType
     title: str
     subtitle: Optional[str] = None
@@ -109,6 +114,7 @@ class VisualizationSpec:
 @dataclass
 class SlideSpec:
     """Complete specification for a single slide."""
+
     slide_type: str  # "title", "content", "diagram", "code", "quote", "metrics"
     title: str
     content: Optional[str] = None
@@ -121,6 +127,7 @@ class SlideSpec:
 @dataclass
 class DeckPlan:
     """Complete plan for the entire presentation."""
+
     slides: List[SlideSpec] = field(default_factory=list)
     total_slides: int = 0
     estimated_duration: str = ""
@@ -141,11 +148,13 @@ if DSPY_AVAILABLE:
         Output a JSON object with exact nodes, positions, and connections
         that can be directly rendered by a diagramming library.
         """
+
         paper_title: str = dspy.InputField(desc="Title of the paper")
         paper_content: str = dspy.InputField(desc="Key content describing the architecture")
         concepts: str = dspy.InputField(desc="JSON list of key concepts")
 
-        architecture_spec: str = dspy.OutputField(desc="""Generate a detailed JSON spec:
+        architecture_spec: str = dspy.OutputField(
+            desc="""Generate a detailed JSON spec:
 {
     "title": "Architecture Overview",
     "nodes": [
@@ -160,15 +169,17 @@ if DSPY_AVAILABLE:
     "layout": "vertical",
     "reasoning": "Why this architecture visualization helps understanding"
 }
-Be SPECIFIC - extract actual component names from the paper, not generic placeholders.""")
-
+Be SPECIFIC - extract actual component names from the paper, not generic placeholders."""
+        )
 
     class FlowSpecSignature(dspy.Signature):
         """Generate a detailed flow/process diagram specification."""
+
         paper_title: str = dspy.InputField()
         sections: str = dspy.InputField(desc="JSON list of paper sections")
 
-        flow_spec: str = dspy.OutputField(desc="""Generate a detailed JSON spec:
+        flow_spec: str = dspy.OutputField(
+            desc="""Generate a detailed JSON spec:
 {
     "title": "How It Works",
     "nodes": [
@@ -181,16 +192,18 @@ Be SPECIFIC - extract actual component names from the paper, not generic placeho
     "layout": "horizontal",
     "reasoning": "Why this flow helps understanding"
 }
-Extract actual process steps from the paper content.""")
-
+Extract actual process steps from the paper content."""
+        )
 
     class ComparisonSpecSignature(dspy.Signature):
         """Generate a detailed comparison diagram specification."""
+
         paper_title: str = dspy.InputField()
         paper_hook: str = dspy.InputField(desc="The hook explaining what's new/different")
         paper_summary: str = dspy.InputField()
 
-        comparison_spec: str = dspy.OutputField(desc="""Generate a detailed JSON spec:
+        comparison_spec: str = dspy.OutputField(
+            desc="""Generate a detailed JSON spec:
 {
     "title": "Innovation Comparison",
     "left_title": "Traditional Approach",
@@ -205,15 +218,17 @@ Extract actual process steps from the paper content.""")
     ],
     "reasoning": "What makes this comparison meaningful"
 }
-Extract ACTUAL comparisons from the paper, not generic pros/cons.""")
-
+Extract ACTUAL comparisons from the paper, not generic pros/cons."""
+        )
 
     class ConceptMapSpecSignature(dspy.Signature):
         """Generate a detailed concept relationship map specification."""
+
         paper_title: str = dspy.InputField()
         concepts: str = dspy.InputField(desc="JSON list of concepts with descriptions")
 
-        concept_map_spec: str = dspy.OutputField(desc="""Generate a detailed JSON spec:
+        concept_map_spec: str = dspy.OutputField(
+            desc="""Generate a detailed JSON spec:
 {
     "title": "Concept Relationships",
     "central_concept": {"id": "main", "label": "Core Concept Name"},
@@ -227,15 +242,17 @@ Extract ACTUAL comparisons from the paper, not generic pros/cons.""")
     "layout": "radial",
     "reasoning": "How these concepts interconnect"
 }
-Map ACTUAL relationships between the paper's concepts.""")
-
+Map ACTUAL relationships between the paper's concepts."""
+        )
 
     class MetricsSpecSignature(dspy.Signature):
         """Generate a detailed metrics/statistics visualization specification."""
+
         paper_title: str = dspy.InputField()
         paper_content: str = dspy.InputField(desc="Content containing quantitative claims")
 
-        metrics_spec: str = dspy.OutputField(desc="""Generate a detailed JSON spec:
+        metrics_spec: str = dspy.OutputField(
+            desc="""Generate a detailed JSON spec:
 {
     "title": "Key Results",
     "metrics": [
@@ -245,8 +262,8 @@ Map ACTUAL relationships between the paper's concepts.""")
     "summary": "Brief summary of what these metrics mean",
     "reasoning": "Why these metrics matter"
 }
-Extract ACTUAL numbers and results from the paper.""")
-
+Extract ACTUAL numbers and results from the paper."""
+        )
 
     class FullDeckPlanSignature(dspy.Signature):
         """
@@ -255,6 +272,7 @@ Extract ACTUAL numbers and results from the paper.""")
         This is the master planner that decides the overall deck structure
         and which visualizations to include.
         """
+
         paper_title: str = dspy.InputField()
         paper_hook: str = dspy.InputField()
         paper_summary: str = dspy.InputField()
@@ -262,7 +280,8 @@ Extract ACTUAL numbers and results from the paper.""")
         sections: str = dspy.InputField()
         key_insights: str = dspy.InputField()
 
-        deck_plan: str = dspy.OutputField(desc="""Generate a complete deck plan as JSON:
+        deck_plan: str = dspy.OutputField(
+            desc="""Generate a complete deck plan as JSON:
 {
     "title_slide": {"title": "Paper Title", "subtitle": "Key hook"},
     "visualizations_needed": [
@@ -293,7 +312,8 @@ Extract ACTUAL numbers and results from the paper.""")
     "estimated_slides": 18,
     "planning_reasoning": "Overall strategy for this presentation"
 }
-Be strategic - only include visualizations that genuinely enhance understanding.""")
+Be strategic - only include visualizations that genuinely enhance understanding."""
+        )
 
 
 class LIDAStylePlanner:
@@ -306,7 +326,9 @@ class LIDAStylePlanner:
         """Initialize with optional language model."""
         self.lm = lm
         if self.lm is None and CLAUDE_CLI_AVAILABLE and DirectClaudeCLI:
-            self.lm = DirectClaudeCLI(model="sonnet", max_retries=2)  # Use sonnet for better reasoning
+            self.lm = DirectClaudeCLI(
+                model="sonnet", max_retries=2
+            )  # Use sonnet for better reasoning
             if DSPY_AVAILABLE:
                 dspy.configure(lm=self.lm)
 
@@ -321,13 +343,14 @@ class LIDAStylePlanner:
     def _extract_json(self, text: str) -> Optional[dict]:
         """Extract JSON from LLM response."""
         import re
+
         try:
             return json.loads(text)
         except json.JSONDecodeError:
             pass
 
         # Try to find JSON in text
-        patterns = [r'\{[\s\S]*\}', r'```json\s*([\s\S]*?)\s*```', r'```\s*([\s\S]*?)\s*```']
+        patterns = [r"\{[\s\S]*\}", r"```json\s*([\s\S]*?)\s*```", r"```\s*([\s\S]*?)\s*```"]
         for pattern in patterns:
             matches = re.findall(pattern, text)
             for match in matches:
@@ -350,12 +373,16 @@ class LIDAStylePlanner:
         try:
             # Generate overall deck plan
             result = self.deck_planner(
-                paper_title=paper_data.get('paper_title', ''),
-                paper_hook=paper_data.get('hook', '')[:500],
-                paper_summary=paper_data.get('summary', '')[:500],
-                concepts=json.dumps([c.get('name', '') for c in paper_data.get('concepts', [])[:6]]),
-                sections=json.dumps([s.get('title', '') for s in paper_data.get('sections', [])[:5]]),
-                key_insights=json.dumps(paper_data.get('key_insights', [])[:5])
+                paper_title=paper_data.get("paper_title", ""),
+                paper_hook=paper_data.get("hook", "")[:500],
+                paper_summary=paper_data.get("summary", "")[:500],
+                concepts=json.dumps(
+                    [c.get("name", "") for c in paper_data.get("concepts", [])[:6]]
+                ),
+                sections=json.dumps(
+                    [s.get("title", "") for s in paper_data.get("sections", [])[:5]]
+                ),
+                key_insights=json.dumps(paper_data.get("key_insights", [])[:5]),
             )
 
             plan_data = self._extract_json(result.deck_plan)
@@ -367,9 +394,9 @@ class LIDAStylePlanner:
 
             # Build DeckPlan object
             deck_plan = DeckPlan(
-                total_slides=plan_data.get('estimated_slides', 15),
-                planning_reasoning=plan_data.get('planning_reasoning', ''),
-                key_visualizations=[v['type'] for v in plan_data.get('visualizations_needed', [])]
+                total_slides=plan_data.get("estimated_slides", 15),
+                planning_reasoning=plan_data.get("planning_reasoning", ""),
+                key_visualizations=[v["type"] for v in plan_data.get("visualizations_needed", [])],
             )
 
             return deck_plan, plan_data
@@ -385,12 +412,14 @@ class LIDAStylePlanner:
 
         try:
             result = self.arch_planner(
-                paper_title=paper_data.get('paper_title', ''),
-                paper_content=paper_data.get('hook', '') + '\n' + paper_data.get('summary', ''),
-                concepts=json.dumps([
-                    {"name": c.get('name', ''), "description": c.get('description', '')[:100]}
-                    for c in paper_data.get('concepts', [])[:6]
-                ])
+                paper_title=paper_data.get("paper_title", ""),
+                paper_content=paper_data.get("hook", "") + "\n" + paper_data.get("summary", ""),
+                concepts=json.dumps(
+                    [
+                        {"name": c.get("name", ""), "description": c.get("description", "")[:100]}
+                        for c in paper_data.get("concepts", [])[:6]
+                    ]
+                ),
             )
 
             spec_data = self._extract_json(result.architecture_spec)
@@ -399,12 +428,12 @@ class LIDAStylePlanner:
 
             return VisualizationSpec(
                 viz_type=VisualizationType.ARCHITECTURE,
-                title=spec_data.get('title', 'Architecture Overview'),
-                nodes=spec_data.get('nodes', []),
-                connections=spec_data.get('connections', []),
-                layout=spec_data.get('layout', 'vertical'),
-                reasoning=spec_data.get('reasoning', ''),
-                confidence=0.9
+                title=spec_data.get("title", "Architecture Overview"),
+                nodes=spec_data.get("nodes", []),
+                connections=spec_data.get("connections", []),
+                layout=spec_data.get("layout", "vertical"),
+                reasoning=spec_data.get("reasoning", ""),
+                confidence=0.9,
             )
 
         except Exception as e:
@@ -418,11 +447,13 @@ class LIDAStylePlanner:
 
         try:
             result = self.flow_planner(
-                paper_title=paper_data.get('paper_title', ''),
-                sections=json.dumps([
-                    {"title": s.get('title', ''), "content": s.get('content', '')[:200]}
-                    for s in paper_data.get('sections', [])[:5]
-                ])
+                paper_title=paper_data.get("paper_title", ""),
+                sections=json.dumps(
+                    [
+                        {"title": s.get("title", ""), "content": s.get("content", "")[:200]}
+                        for s in paper_data.get("sections", [])[:5]
+                    ]
+                ),
             )
 
             spec_data = self._extract_json(result.flow_spec)
@@ -431,12 +462,12 @@ class LIDAStylePlanner:
 
             return VisualizationSpec(
                 viz_type=VisualizationType.FLOW,
-                title=spec_data.get('title', 'How It Works'),
-                nodes=spec_data.get('nodes', []),
-                connections=spec_data.get('connections', []),
-                layout=spec_data.get('layout', 'horizontal'),
-                reasoning=spec_data.get('reasoning', ''),
-                confidence=0.85
+                title=spec_data.get("title", "How It Works"),
+                nodes=spec_data.get("nodes", []),
+                connections=spec_data.get("connections", []),
+                layout=spec_data.get("layout", "horizontal"),
+                reasoning=spec_data.get("reasoning", ""),
+                confidence=0.85,
             )
 
         except Exception as e:
@@ -450,9 +481,9 @@ class LIDAStylePlanner:
 
         try:
             result = self.comparison_planner(
-                paper_title=paper_data.get('paper_title', ''),
-                paper_hook=paper_data.get('hook', '')[:500],
-                paper_summary=paper_data.get('summary', '')[:500]
+                paper_title=paper_data.get("paper_title", ""),
+                paper_hook=paper_data.get("hook", "")[:500],
+                paper_summary=paper_data.get("summary", "")[:500],
             )
 
             spec_data = self._extract_json(result.comparison_spec)
@@ -461,13 +492,13 @@ class LIDAStylePlanner:
 
             return VisualizationSpec(
                 viz_type=VisualizationType.COMPARISON,
-                title=spec_data.get('title', 'Innovation Comparison'),
-                left_title=spec_data.get('left_title', 'Traditional'),
-                right_title=spec_data.get('right_title', 'New Approach'),
-                left_items=spec_data.get('left_items', []),
-                right_items=spec_data.get('right_items', []),
-                reasoning=spec_data.get('reasoning', ''),
-                confidence=0.85
+                title=spec_data.get("title", "Innovation Comparison"),
+                left_title=spec_data.get("left_title", "Traditional"),
+                right_title=spec_data.get("right_title", "New Approach"),
+                left_items=spec_data.get("left_items", []),
+                right_items=spec_data.get("right_items", []),
+                reasoning=spec_data.get("reasoning", ""),
+                confidence=0.85,
             )
 
         except Exception as e:
@@ -481,11 +512,13 @@ class LIDAStylePlanner:
 
         try:
             result = self.concept_map_planner(
-                paper_title=paper_data.get('paper_title', ''),
-                concepts=json.dumps([
-                    {"name": c.get('name', ''), "description": c.get('description', '')[:150]}
-                    for c in paper_data.get('concepts', [])[:6]
-                ])
+                paper_title=paper_data.get("paper_title", ""),
+                concepts=json.dumps(
+                    [
+                        {"name": c.get("name", ""), "description": c.get("description", "")[:150]}
+                        for c in paper_data.get("concepts", [])[:6]
+                    ]
+                ),
             )
 
             spec_data = self._extract_json(result.concept_map_spec)
@@ -494,13 +527,13 @@ class LIDAStylePlanner:
 
             return VisualizationSpec(
                 viz_type=VisualizationType.CONCEPT_MAP,
-                title=spec_data.get('title', 'Concept Relationships'),
-                central_concept=spec_data.get('central_concept', {}).get('label'),
-                related_concepts=spec_data.get('related_concepts', []),
-                connections=spec_data.get('connections', []),
-                layout=spec_data.get('layout', 'radial'),
-                reasoning=spec_data.get('reasoning', ''),
-                confidence=0.8
+                title=spec_data.get("title", "Concept Relationships"),
+                central_concept=spec_data.get("central_concept", {}).get("label"),
+                related_concepts=spec_data.get("related_concepts", []),
+                connections=spec_data.get("connections", []),
+                layout=spec_data.get("layout", "radial"),
+                reasoning=spec_data.get("reasoning", ""),
+                confidence=0.8,
             )
 
         except Exception as e:
@@ -514,8 +547,8 @@ class LIDAStylePlanner:
 
         try:
             result = self.metrics_planner(
-                paper_title=paper_data.get('paper_title', ''),
-                paper_content=paper_data.get('hook', '') + '\n' + paper_data.get('summary', '')
+                paper_title=paper_data.get("paper_title", ""),
+                paper_content=paper_data.get("hook", "") + "\n" + paper_data.get("summary", ""),
             )
 
             spec_data = self._extract_json(result.metrics_spec)
@@ -524,10 +557,10 @@ class LIDAStylePlanner:
 
             return VisualizationSpec(
                 viz_type=VisualizationType.METRICS,
-                title=spec_data.get('title', 'Key Results'),
-                metrics=spec_data.get('metrics', []),
-                reasoning=spec_data.get('reasoning', ''),
-                confidence=0.85
+                title=spec_data.get("title", "Key Results"),
+                metrics=spec_data.get("metrics", []),
+                reasoning=spec_data.get("reasoning", ""),
+                confidence=0.85,
             )
 
         except Exception as e:
@@ -547,27 +580,29 @@ class LIDAStylePlanner:
         # Generate each spec type
         arch_spec = self.generate_architecture_spec(paper_data)
         if arch_spec:
-            specs['architecture'] = arch_spec
+            specs["architecture"] = arch_spec
             logger.info(f" Architecture: {len(arch_spec.nodes)} nodes")
 
         flow_spec = self.generate_flow_spec(paper_data)
         if flow_spec:
-            specs['flow'] = flow_spec
+            specs["flow"] = flow_spec
             logger.info(f" Flow: {len(flow_spec.nodes)} steps")
 
         comparison_spec = self.generate_comparison_spec(paper_data)
         if comparison_spec:
-            specs['comparison'] = comparison_spec
-            logger.info(f" Comparison: {len(comparison_spec.left_items)} vs {len(comparison_spec.right_items)} points")
+            specs["comparison"] = comparison_spec
+            logger.info(
+                f" Comparison: {len(comparison_spec.left_items)} vs {len(comparison_spec.right_items)} points"
+            )
 
         concept_map_spec = self.generate_concept_map_spec(paper_data)
         if concept_map_spec:
-            specs['concept_map'] = concept_map_spec
+            specs["concept_map"] = concept_map_spec
             logger.info(f" Concept Map: {len(concept_map_spec.related_concepts)} concepts")
 
         metrics_spec = self.generate_metrics_spec(paper_data)
         if metrics_spec:
-            specs['metrics'] = metrics_spec
+            specs["metrics"] = metrics_spec
             logger.info(f" Metrics: {len(metrics_spec.metrics)} stats")
 
         logger.info(f" Generated {len(specs)} visualization specs")
@@ -581,39 +616,37 @@ def convert_specs_to_pptx_data(specs: Dict[str, VisualizationSpec]) -> Dict[str,
 
     This is the bridge between LLM planning and PPTX rendering.
     """
-    pptx_data = {
-        'visualization_specs': {}
-    }
+    pptx_data = {"visualization_specs": {}}
 
     for viz_type, spec in specs.items():
-        pptx_data['visualization_specs'][viz_type] = {
-            'title': spec.title,
-            'subtitle': spec.subtitle,
-            'nodes': spec.nodes,
-            'connections': spec.connections,
-            'left_items': spec.left_items,
-            'right_items': spec.right_items,
-            'left_title': spec.left_title,
-            'right_title': spec.right_title,
-            'metrics': spec.metrics,
-            'central_concept': spec.central_concept,
-            'related_concepts': spec.related_concepts,
-            'layout': spec.layout,
-            'color_scheme': spec.color_scheme,
-            'reasoning': spec.reasoning,
-            'confidence': spec.confidence
+        pptx_data["visualization_specs"][viz_type] = {
+            "title": spec.title,
+            "subtitle": spec.subtitle,
+            "nodes": spec.nodes,
+            "connections": spec.connections,
+            "left_items": spec.left_items,
+            "right_items": spec.right_items,
+            "left_title": spec.left_title,
+            "right_title": spec.right_title,
+            "metrics": spec.metrics,
+            "central_concept": spec.central_concept,
+            "related_concepts": spec.related_concepts,
+            "layout": spec.layout,
+            "color_scheme": spec.color_scheme,
+            "reasoning": spec.reasoning,
+            "confidence": spec.confidence,
         }
 
     return pptx_data
 
 
 __all__ = [
-    'VisualizationType',
-    'VisualizationSpec',
-    'SlideSpec',
-    'DeckPlan',
-    'LIDAStylePlanner',
-    'convert_specs_to_pptx_data',
-    'DSPY_AVAILABLE',
-    'CLAUDE_CLI_AVAILABLE',
+    "VisualizationType",
+    "VisualizationSpec",
+    "SlideSpec",
+    "DeckPlan",
+    "LIDAStylePlanner",
+    "convert_specs_to_pptx_data",
+    "DSPY_AVAILABLE",
+    "CLAUDE_CLI_AVAILABLE",
 ]

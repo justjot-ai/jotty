@@ -12,17 +12,17 @@ Background monitors for proactive features:
 """
 
 import asyncio
-import logging
-import json
 import hashlib
+import json
+import logging
 import re
 import subprocess
 import threading
 import time
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, Any, Optional, List, Callable, Tuple
-from dataclasses import dataclass, field
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +30,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class MonitorResult:
     """Result from a monitor check."""
+
     has_update: bool = False
     title: str = ""
     message: str = ""
@@ -87,6 +88,7 @@ class CalendarMonitor:
 @dataclass
 class AIMarker:
     """An AI directive marker found in a file."""
+
     path: str
     line_number: int
     marker_type: str  # "execute" or "query"
@@ -105,9 +107,7 @@ class FileMonitor:
     """
 
     # Regex for AI markers: # AI! (execute) and # AI? (query)
-    AI_MARKER_PATTERN = re.compile(
-        r'#\s*AI([!?])\s*(.*)', re.IGNORECASE
-    )
+    AI_MARKER_PATTERN = re.compile(r"#\s*AI([!?])\s*(.*)", re.IGNORECASE)
 
     def __init__(self, cli: Any = None) -> None:
         self._cli = cli
@@ -153,19 +153,21 @@ class FileMonitor:
             if not path_obj.exists() or not path_obj.is_file():
                 return markers
 
-            with open(path_obj, 'r', errors='replace') as f:
+            with open(path_obj, "r", errors="replace") as f:
                 for line_num, line in enumerate(f, start=1):
                     match = self.AI_MARKER_PATTERN.search(line)
                     if match:
                         marker_char = match.group(1)
                         content = match.group(2).strip()
                         marker_type = "execute" if marker_char == "!" else "query"
-                        markers.append(AIMarker(
-                            path=str(path_obj),
-                            line_number=line_num,
-                            marker_type=marker_type,
-                            content=content,
-                        ))
+                        markers.append(
+                            AIMarker(
+                                path=str(path_obj),
+                                line_number=line_num,
+                                marker_type=marker_type,
+                                content=content,
+                            )
+                        )
         except Exception as e:
             logger.debug(f"AI marker scan failed for {path}: {e}")
         return markers
@@ -199,7 +201,7 @@ class FileMonitor:
                 title="File Changes Detected",
                 message="\n".join(changes[:5]),
                 priority="normal",
-                data={"changes": changes}
+                data={"changes": changes},
             )
 
         return MonitorResult(has_update=False)
@@ -271,7 +273,7 @@ class InboxMonitor:
                 title="New Messages",
                 message=f"You have {len(new_messages)} new messages",
                 priority="normal",
-                data={"messages": new_messages}
+                data={"messages": new_messages},
             )
 
         return MonitorResult(has_update=False)
@@ -291,13 +293,13 @@ class WebMonitor:
         self._cli = cli
         self._watched_urls: Dict[str, Dict] = {}  # url -> {selector, last_value}
 
-    def watch_url(self, url: str, selector: str = None, description: str = '') -> Any:
+    def watch_url(self, url: str, selector: str = None, description: str = "") -> Any:
         """Add URL to watch."""
         self._watched_urls[url] = {
             "selector": selector,
             "description": description,
             "last_value": None,
-            "last_check": None
+            "last_check": None,
         }
 
     async def check(self) -> MonitorResult:
@@ -308,9 +310,7 @@ class WebMonitor:
             try:
                 # Use web scraper skill
                 if self._cli:
-                    result = await self._cli.run_once(
-                        f'/tools scrape_website {{"url": "{url}"}}'
-                    )
+                    result = await self._cli.run_once(f'/tools scrape_website {{"url": "{url}"}}')
 
                     # Compare with last value
                     if config["last_value"] and result != config["last_value"]:
@@ -328,7 +328,7 @@ class WebMonitor:
                 title="Web Page Changes",
                 message="\n".join(changes[:3]),
                 priority="normal",
-                data={"changes": changes}
+                data={"changes": changes},
             )
 
         return MonitorResult(has_update=False)
@@ -357,6 +357,7 @@ class ClipboardWatcher:
         # Try pyperclip
         try:
             import pyperclip
+
             pyperclip.paste()  # Test access
             self._read_fn = pyperclip.paste
             return
@@ -367,7 +368,9 @@ class ClipboardWatcher:
         try:
             result = subprocess.run(
                 ["xclip", "-selection", "clipboard", "-o"],
-                capture_output=True, text=True, timeout=2,
+                capture_output=True,
+                text=True,
+                timeout=2,
             )
             if result.returncode == 0:
                 self._read_fn = self._read_xclip
@@ -379,7 +382,9 @@ class ClipboardWatcher:
         try:
             result = subprocess.run(
                 ["xsel", "--clipboard", "--output"],
-                capture_output=True, text=True, timeout=2,
+                capture_output=True,
+                text=True,
+                timeout=2,
             )
             if result.returncode == 0:
                 self._read_fn = self._read_xsel
@@ -391,7 +396,9 @@ class ClipboardWatcher:
         try:
             result = subprocess.run(
                 ["pbpaste"],
-                capture_output=True, text=True, timeout=2,
+                capture_output=True,
+                text=True,
+                timeout=2,
             )
             if result.returncode == 0:
                 self._read_fn = self._read_pbpaste
@@ -404,21 +411,27 @@ class ClipboardWatcher:
     def _read_xclip(self) -> str:
         result = subprocess.run(
             ["xclip", "-selection", "clipboard", "-o"],
-            capture_output=True, text=True, timeout=2,
+            capture_output=True,
+            text=True,
+            timeout=2,
         )
         return result.stdout if result.returncode == 0 else ""
 
     def _read_xsel(self) -> str:
         result = subprocess.run(
             ["xsel", "--clipboard", "--output"],
-            capture_output=True, text=True, timeout=2,
+            capture_output=True,
+            text=True,
+            timeout=2,
         )
         return result.stdout if result.returncode == 0 else ""
 
     def _read_pbpaste(self) -> str:
         result = subprocess.run(
             ["pbpaste"],
-            capture_output=True, text=True, timeout=2,
+            capture_output=True,
+            text=True,
+            timeout=2,
         )
         return result.stdout if result.returncode == 0 else ""
 

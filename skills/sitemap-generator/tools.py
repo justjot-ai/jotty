@@ -1,9 +1,12 @@
 """Generate XML sitemaps from URL lists."""
-from typing import Dict, Any, List
+
 from datetime import datetime
+from typing import Any, Dict, List
 from xml.sax.saxutils import escape
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
+
 status = SkillStatus("sitemap-generator")
 
 
@@ -25,11 +28,11 @@ def generate_sitemap(params: Dict[str, Any]) -> Dict[str, Any]:
     default_cf = params.get("default_changefreq", "weekly")
     default_pri = float(params.get("default_priority", 0.5))
 
-    valid_freqs = {"always","hourly","daily","weekly","monthly","yearly","never"}
+    valid_freqs = {"always", "hourly", "daily", "weekly", "monthly", "yearly", "never"}
 
     lines = [
-        '''<?xml version="1.0" encoding="UTF-8"?>''',
-        '''<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">''',
+        """<?xml version="1.0" encoding="UTF-8"?>""",
+        """<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">""",
     ]
 
     count = 0

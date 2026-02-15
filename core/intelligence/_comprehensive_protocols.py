@@ -13,14 +13,15 @@ Usage:
             # Then cast self or declare attributes using the protocol
             self: ReportGeneratorProtocol
 """
+
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Protocol, Dict, List, Any, Optional, Set, Tuple, TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Protocol, Set, Tuple
 
 if TYPE_CHECKING:
-    import pandas as pd
     import numpy as np
+    import pandas as pd
 
 
 class ReportGeneratorProtocol(Protocol):
@@ -269,17 +270,19 @@ class CodingSwarmProtocol(Protocol):
 
 # === ALL-IN-ONE PROTOCOLS ===
 
+
 class ComprehensiveMixinProtocol(
     ReportGeneratorProtocol,
     OrchestrationProtocol,
     LearningProtocol,
     MemoryProtocol,
     CodingSwarmProtocol,
-    Protocol
+    Protocol,
 ):
     """
     Comprehensive protocol that includes ALL mixin attributes.
 
     Use this when a class uses multiple types of mixins.
     """
+
     pass

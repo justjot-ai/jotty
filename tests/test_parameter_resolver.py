@@ -6,16 +6,19 @@ Tests the extracted ParameterResolver component independently
 before integrating it into Conductor.
 """
 
-import pytest
 import sys
 from pathlib import Path
-from unittest.mock import Mock, MagicMock
+from unittest.mock import MagicMock, Mock
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
 @pytest.mark.unit
-@pytest.mark.skip(reason="core.orchestration.parameter_resolver was removed; replaced by AgenticParameterResolver in core.data")
+@pytest.mark.skip(
+    reason="core.orchestration.parameter_resolver was removed; replaced by AgenticParameterResolver in core.data"
+)
 class TestParameterResolverIsolation:
     """Test ParameterResolver works in isolation.
 
@@ -44,7 +47,9 @@ class TestParameterResolverIsolation:
 
 
 @pytest.mark.unit
-@pytest.mark.skip(reason="core.orchestration.parameter_resolver was removed; replaced by AgenticParameterResolver in core.data")
+@pytest.mark.skip(
+    reason="core.orchestration.parameter_resolver was removed; replaced by AgenticParameterResolver in core.data"
+)
 class TestParameterResolverMethods:
     """Test individual ParameterResolver methods.
 
@@ -57,15 +62,11 @@ class TestParameterResolverMethods:
 
 def run_parameter_resolver_tests():
     """Run all ParameterResolver tests."""
-    print("="*70)
+    print("=" * 70)
     print("PARAMETER RESOLVER ISOLATION TESTS")
-    print("="*70)
+    print("=" * 70)
 
-    exit_code = pytest.main([
-        __file__,
-        "-v",
-        "--tb=short"
-    ])
+    exit_code = pytest.main([__file__, "-v", "--tb=short"])
 
     return exit_code
 

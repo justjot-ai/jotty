@@ -1,9 +1,12 @@
 """Parse requirements.txt/package.json and check for issues."""
-import re
+
 import json
-from typing import Dict, Any, List, Optional, Tuple
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+import re
+from typing import Any, Dict, List, Optional, Tuple
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
+
 status = SkillStatus("dependency-checker")
 
 # Known packages with security advisories or deprecations
@@ -36,8 +39,15 @@ def _parse_requirements(content: str) -> List[Dict[str, Any]]:
             op = match.group(2) or ""
             ver = match.group(3) or ""
             issue = _KNOWN_ISSUES.get(name)
-            deps.append({"name": name, "operator": op, "version": ver,
-                         "pinned": op == "==", "advisory": issue})
+            deps.append(
+                {
+                    "name": name,
+                    "operator": op,
+                    "version": ver,
+                    "pinned": op == "==",
+                    "advisory": issue,
+                }
+            )
     return deps
 
 
@@ -51,9 +61,16 @@ def _parse_package_json(content: str) -> List[Dict[str, Any]]:
         for name, ver in pkg.get(section, {}).items():
             clean = re.sub(r"[^\d.]", "", ver)
             issue = _KNOWN_ISSUES.get(name)
-            deps.append({"name": name, "version": ver, "clean_version": clean,
-                         "pinned": not ver.startswith("^") and not ver.startswith("~"),
-                         "dev": section == "devDependencies", "advisory": issue})
+            deps.append(
+                {
+                    "name": name,
+                    "version": ver,
+                    "clean_version": clean,
+                    "pinned": not ver.startswith("^") and not ver.startswith("~"),
+                    "dev": section == "devDependencies",
+                    "advisory": issue,
+                }
+            )
     return deps
 
 

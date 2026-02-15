@@ -8,12 +8,13 @@ Properly forwards DSPy adapter-formatted messages (system, demos, input)
 to Cursor CLI and returns raw LLM text for DSPy's adapter to parse.
 """
 
-import subprocess
 import json
 import os
+import subprocess
+from typing import Any, Dict, List, Optional
+
 import dspy
 from dspy import BaseLM
-from typing import Dict, Any, Optional, List
 
 from Jotty.core.infrastructure.foundation.config_defaults import LLM_TIMEOUT_SECONDS
 from Jotty.core.infrastructure.foundation.exceptions import InputValidationError
@@ -28,7 +29,7 @@ class CursorCLILM(BaseLM):
     - Returning raw LLM text for DSPy's adapter to parse with [[ ## ]] markers
     """
 
-    def __init__(self, model: Any = 'sonnet-4', **kwargs: Any) -> None:
+    def __init__(self, model: Any = "sonnet-4", **kwargs: Any) -> None:
         super().__init__(model=f"cursor-cli/{model}", **kwargs)
         self.cli_model = model
         self.history = []
@@ -56,17 +57,17 @@ class CursorCLILM(BaseLM):
             if not isinstance(msg, dict):
                 continue
 
-            role = msg.get('role', '')
-            content = msg.get('content', '')
+            role = msg.get("role", "")
+            content = msg.get("content", "")
 
             if not content:
                 continue
 
-            if role == 'system':
+            if role == "system":
                 system_parts.append(content)
-            elif role == 'assistant':
+            elif role == "assistant":
                 conversation_parts.append(f"[Example Response]\n{content}")
-            elif role == 'user':
+            elif role == "user":
                 conversation_parts.append(content)
 
         system_prompt = "\n\n".join(system_parts) if system_parts else None
@@ -87,7 +88,7 @@ class CursorCLILM(BaseLM):
             response_data = json.loads(raw_output)
             if isinstance(response_data, dict):
                 # Try common envelope fields
-                for key in ('result', 'response', 'message', 'content'):
+                for key in ("result", "response", "message", "content"):
                     if key in response_data and response_data[key]:
                         return response_data[key]
         except (json.JSONDecodeError, TypeError):
@@ -119,9 +120,11 @@ class CursorCLILM(BaseLM):
 
         cmd = [
             "cursor-agent",
-            "--model", self.cli_model,
+            "--model",
+            self.cli_model,
             "--print",
-            "--output-format", "json",  # CLI envelope for reliable result extraction
+            "--output-format",
+            "json",  # CLI envelope for reliable result extraction
         ]
 
         if system_prompt:
@@ -130,10 +133,7 @@ class CursorCLILM(BaseLM):
         cmd.append(user_prompt)
 
         result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=kwargs.get('timeout', LLM_TIMEOUT_SECONDS)
+            cmd, capture_output=True, text=True, timeout=kwargs.get("timeout", LLM_TIMEOUT_SECONDS)
         )
 
         if result.returncode != 0:
@@ -143,12 +143,14 @@ class CursorCLILM(BaseLM):
         # Extract raw LLM response from CLI envelope
         response_text = self._extract_response(result.stdout)
 
-        self.history.append({
-            "prompt": user_prompt,
-            "system": system_prompt,
-            "response": response_text,
-            "kwargs": kwargs
-        })
+        self.history.append(
+            {
+                "prompt": user_prompt,
+                "system": system_prompt,
+                "response": response_text,
+                "kwargs": kwargs,
+            }
+        )
 
         return [response_text]
 

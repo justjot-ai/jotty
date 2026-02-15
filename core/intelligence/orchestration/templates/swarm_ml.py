@@ -30,13 +30,12 @@ Performance:
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, List, Optional
+
 import numpy as np
 import pandas as pd
 
-from .base import (
-    SwarmTemplate, AgentConfig, StageConfig, FeedbackConfig, ModelTier
-)
+from .base import AgentConfig, FeedbackConfig, ModelTier, StageConfig, SwarmTemplate
 
 
 class SwarmML(SwarmTemplate):
@@ -82,7 +81,6 @@ class SwarmML(SwarmTemplate):
             max_concurrent=1,
             timeout=120,
         ),
-
         "feature_engineer": AgentConfig(
             name="feature_engineer",
             skills=[
@@ -95,7 +93,6 @@ class SwarmML(SwarmTemplate):
             max_concurrent=5,  # Parallel LLM calls for different perspectives
             timeout=180,
         ),
-
         "feature_selector": AgentConfig(
             name="feature_selector",
             skills=[
@@ -108,7 +105,6 @@ class SwarmML(SwarmTemplate):
             max_concurrent=1,
             timeout=120,
         ),
-
         "model_architect": AgentConfig(
             name="model_architect",
             skills=[
@@ -120,7 +116,6 @@ class SwarmML(SwarmTemplate):
             max_concurrent=3,  # Parallel model training
             timeout=300,
         ),
-
         "ensemble_expert": AgentConfig(
             name="ensemble_expert",
             skills=[
@@ -133,7 +128,6 @@ class SwarmML(SwarmTemplate):
             max_concurrent=1,
             timeout=300,
         ),
-
         "explainer": AgentConfig(
             name="explainer",
             skills=[
@@ -161,7 +155,6 @@ class SwarmML(SwarmTemplate):
             weight=5,
             description="Analyze data distributions, correlations, missing patterns",
         ),
-
         # Stage 2: Feature Engineering (Multiple LLM perspectives in parallel)
         StageConfig(
             name="FEATURE_ENGINEERING",
@@ -172,7 +165,6 @@ class SwarmML(SwarmTemplate):
             weight=15,
             description="LLM-powered feature generation from multiple perspectives",
         ),
-
         # Stage 3: Feature Selection
         StageConfig(
             name="FEATURE_SELECTION",
@@ -183,7 +175,6 @@ class SwarmML(SwarmTemplate):
             weight=10,
             description="SHAP + multi-model importance + Boruta selection",
         ),
-
         # Stage 4: Model Selection (Parallel model evaluation)
         StageConfig(
             name="MODEL_SELECTION",
@@ -194,7 +185,6 @@ class SwarmML(SwarmTemplate):
             weight=25,
             description="Evaluate 7+ models with cross-validation",
         ),
-
         # Stage 5: Hyperparameter Optimization
         StageConfig(
             name="HYPERPARAMETER_OPTIMIZATION",
@@ -205,7 +195,6 @@ class SwarmML(SwarmTemplate):
             weight=30,
             description="Multi-model Optuna tuning with pruning",
         ),
-
         # Stage 6: Ensemble
         StageConfig(
             name="ENSEMBLE",
@@ -216,7 +205,6 @@ class SwarmML(SwarmTemplate):
             weight=20,
             description="Multi-level stacking with weighted voting",
         ),
-
         # Stage 7: Evaluation & Explanation
         StageConfig(
             name="EVALUATION",
@@ -227,7 +215,6 @@ class SwarmML(SwarmTemplate):
             weight=5,
             description="Final metrics and SHAP explanations",
         ),
-
         # Stage 8: LLM Feedback Loop (Conditional)
         StageConfig(
             name="FEEDBACK_LOOP",
@@ -291,7 +278,6 @@ X['prefix'] = X['column'].str[0]
 X['group_size'] = X.groupby('column')['column'].transform('count')
 
 Code only:""",
-
         # Domain Expert
         "domain": """You are a **Principal Data Scientist** with domain expertise.
 
@@ -325,7 +311,6 @@ X['is_alone'] = (X['family_size'] == 1).astype(int)
 X['fare_per_person'] = X['Fare'] / (X['family_size'] + 0.001)
 
 Code only:""",
-
         # Data Science Head
         "ds": """You are a **Kaggle Grandmaster** with expertise in statistical feature engineering.
 
@@ -361,7 +346,6 @@ X['Fare_squared'] = X['Fare'] ** 2
 X['Age_bin'] = pd.cut(X['Age'], bins=[0,12,18,35,60,100], labels=[0,1,2,3,4])
 
 Code only:""",
-
         # Feedback Loop Prompt (KEY for 10/10)
         "feedback": """You are a **Kaggle Grandmaster** analyzing feature importance from a trained model.
 
@@ -403,7 +387,6 @@ Return ONLY executable Python code:
 X['new_feature'] = ...
 
 Code only:""",
-
         # Group/Aggregation Analyst
         "group_analyst": """You are a Group/Aggregation Feature Engineer for {problem_type} to predict {target}.
 
@@ -420,7 +403,6 @@ X['column_group_size'] = X.groupby('column')['column'].transform('count')
 X['column_numeric_mean'] = X.groupby('column')['numeric_col'].transform('mean')
 
 Code only:""",
-
         # Interaction Analyst
         "interaction_analyst": """You are a Feature Interaction Analyst for {problem_type} to predict {target}.
 
@@ -437,7 +419,6 @@ X['feat1_x_feat2'] = X['feat1'] * X['feat2']
 X['feat1_div_feat2'] = X['feat1'] / (X['feat2'] + 0.001)
 
 Code only:""",
-
         # Binning Analyst
         "binning_analyst": """You are a Binning/Discretization Expert for {problem_type} to predict {target}.
 
@@ -482,7 +463,7 @@ Code only:""",
         n_unique = y_values.nunique()
 
         # Check dtype
-        if y_values.dtype == 'object' or y_values.dtype == 'bool':
+        if y_values.dtype == "object" or y_values.dtype == "bool":
             return "classification"
 
         # Check if categorical (few unique values)
@@ -502,7 +483,7 @@ Code only:""",
 
     def validate_inputs(self, **kwargs: Any) -> bool:
         """Validate that required inputs are provided."""
-        X = kwargs.get('X')
+        X = kwargs.get("X")
 
         if X is None:
             return False
@@ -527,7 +508,9 @@ Code only:""",
             "binning_analyst",
         ]
 
-    def format_feedback_prompt(self, feature_importance: Dict[str, float], iteration: int, **kwargs: Any) -> str:
+    def format_feedback_prompt(
+        self, feature_importance: Dict[str, float], iteration: int, **kwargs: Any
+    ) -> str:
         """
         Format the feedback loop prompt with actual feature importance.
 
@@ -540,29 +523,23 @@ Code only:""",
             Formatted prompt string
         """
         # Sort by importance
-        sorted_features = sorted(
-            feature_importance.items(),
-            key=lambda x: x[1],
-            reverse=True
+        sorted_features = sorted(feature_importance.items(), key=lambda x: x[1], reverse=True)
+
+        top_features = "\n".join(
+            [f"  - {f}: importance={imp:.4f}" for f, imp in sorted_features[:10]]
         )
 
-        top_features = "\n".join([
-            f"  - {f}: importance={imp:.4f}"
-            for f, imp in sorted_features[:10]
-        ])
-
-        bottom_features = "\n".join([
-            f"  - {f}: importance={imp:.4f}"
-            for f, imp in sorted_features[-10:]
-        ])
+        bottom_features = "\n".join(
+            [f"  - {f}: importance={imp:.4f}" for f, imp in sorted_features[-10:]]
+        )
 
         return self.llm_prompts["feedback"].format(
             iteration=iteration,
             top_features=top_features,
             bottom_features=bottom_features,
-            problem_type=kwargs.get('problem_type', 'classification'),
-            context=kwargs.get('context', 'ML prediction task'),
-            columns=kwargs.get('columns', []),
+            problem_type=kwargs.get("problem_type", "classification"),
+            context=kwargs.get("context", "ML prediction task"),
+            columns=kwargs.get("columns", []),
         )
 
 

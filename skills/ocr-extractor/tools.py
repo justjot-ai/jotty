@@ -4,10 +4,12 @@ NOTE: Requires external dependencies:
   System: tesseract-ocr (apt install tesseract-ocr / brew install tesseract)
   Python: pytesseract, Pillow (pip install pytesseract Pillow)
 """
+
 from pathlib import Path
-from typing import Dict, Any
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from typing import Any, Dict
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("ocr-extractor")
 
@@ -44,8 +46,9 @@ def ocr_extract_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
         # Get confidence data
         try:
-            data = pytesseract.image_to_data(img, lang=language, output_type=pytesseract.Output.DICT,
-                                              config=custom_config)
+            data = pytesseract.image_to_data(
+                img, lang=language, output_type=pytesseract.Output.DICT, config=custom_config
+            )
             confidences = [int(c) for c in data.get("conf", []) if str(c).isdigit() and int(c) > 0]
             avg_confidence = round(sum(confidences) / len(confidences), 1) if confidences else 0.0
         except Exception:
@@ -55,8 +58,10 @@ def ocr_extract_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         word_count = len(cleaned.split()) if cleaned else 0
 
         return tool_response(
-            text=cleaned, confidence=avg_confidence,
-            word_count=word_count, language=language,
+            text=cleaned,
+            confidence=avg_confidence,
+            word_count=word_count,
+            language=language,
             image_path=str(image_path),
         )
     except Exception as e:

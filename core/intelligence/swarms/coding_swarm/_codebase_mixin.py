@@ -6,7 +6,7 @@ import logging
 import os
 import re
 import subprocess
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, List, Optional
 
 from .types import CodeLanguage
 from .utils import _progress
@@ -25,25 +25,36 @@ class CodebaseMixin:
         Returns:
             Dict of {filepath: content} for discovered files
         """
-        import os
         import fnmatch
+        import os
 
         if extensions is None:
             # Determine extensions based on configured language
             lang_extensions = {
-                CodeLanguage.PYTHON: ['.py'],
-                CodeLanguage.JAVASCRIPT: ['.js', '.jsx', '.ts', '.tsx'],
-                CodeLanguage.TYPESCRIPT: ['.ts', '.tsx', '.js', '.jsx'],
-                CodeLanguage.JAVA: ['.java'],
-                CodeLanguage.GO: ['.go'],
-                CodeLanguage.RUST: ['.rs'],
-                CodeLanguage.CPP: ['.cpp', '.hpp', '.h', '.cc'],
+                CodeLanguage.PYTHON: [".py"],
+                CodeLanguage.JAVASCRIPT: [".js", ".jsx", ".ts", ".tsx"],
+                CodeLanguage.TYPESCRIPT: [".ts", ".tsx", ".js", ".jsx"],
+                CodeLanguage.JAVA: [".java"],
+                CodeLanguage.GO: [".go"],
+                CodeLanguage.RUST: [".rs"],
+                CodeLanguage.CPP: [".cpp", ".hpp", ".h", ".cc"],
             }
-            extensions = lang_extensions.get(self.config.language, ['.py'])
+            extensions = lang_extensions.get(self.config.language, [".py"])
 
         # Directories to skip
-        skip_dirs = {'.git', '__pycache__', 'node_modules', '.venv', 'venv',
-                     'env', '.env', 'dist', 'build', '.pytest_cache', '.mypy_cache'}
+        skip_dirs = {
+            ".git",
+            "__pycache__",
+            "node_modules",
+            ".venv",
+            "venv",
+            "env",
+            ".env",
+            "dist",
+            "build",
+            ".pytest_cache",
+            ".mypy_cache",
+        }
 
         discovered = {}
         codebase_path = os.path.abspath(codebase_path)
@@ -57,7 +68,7 @@ class CodebaseMixin:
                     filepath = os.path.join(root, filename)
                     rel_path = os.path.relpath(filepath, codebase_path)
                     try:
-                        with open(filepath, 'r', encoding='utf-8') as f:
+                        with open(filepath, "r", encoding="utf-8") as f:
                             discovered[rel_path] = f.read()
                     except (IOError, UnicodeDecodeError):
                         continue
@@ -85,9 +96,9 @@ class CodebaseMixin:
             modified_lines,
             fromfile=f"a/{filepath}",
             tofile=f"b/{filepath}",
-            lineterm=''
+            lineterm="",
         )
-        return ''.join(diff)
+        return "".join(diff)
 
     def _analyze_import_graph(self, files: Dict[str, str]) -> Dict[str, List[str]]:
         """Analyze import dependencies between files.
@@ -98,8 +109,8 @@ class CodebaseMixin:
         Returns:
             Dict of {filepath: [list of files it imports]}
         """
-        import re
         import os
+        import re
 
         graph = {}
         file_modules = {}
@@ -107,19 +118,18 @@ class CodebaseMixin:
         # Build module name mapping
         for filepath in files.keys():
             # Convert filepath to module name (e.g., "src/utils/helpers.py" -> "src.utils.helpers")
-            module = filepath.replace('/', '.').replace('\\', '.')
-            if module.endswith('.py'):
+            module = filepath.replace("/", ".").replace("\\", ".")
+            if module.endswith(".py"):
                 module = module[:-3]
             file_modules[module] = filepath
             # Also map just the filename
             basename = os.path.basename(filepath)
-            if basename.endswith('.py'):
+            if basename.endswith(".py"):
                 file_modules[basename[:-3]] = filepath
 
         # Python import patterns
         import_pattern = re.compile(
-            r'^(?:from\s+([\w.]+)\s+import|import\s+([\w.]+))',
-            re.MULTILINE
+            r"^(?:from\s+([\w.]+)\s+import|import\s+([\w.]+))", re.MULTILINE
         )
 
         for filepath, content in files.items():
@@ -128,9 +138,9 @@ class CodebaseMixin:
                 module = match.group(1) or match.group(2)
                 if module:
                     # Check if this module maps to a local file
-                    parts = module.split('.')
+                    parts = module.split(".")
                     for i in range(len(parts), 0, -1):
-                        partial = '.'.join(parts[:i])
+                        partial = ".".join(parts[:i])
                         if partial in file_modules:
                             target = file_modules[partial]
                             if target != filepath:
@@ -194,21 +204,22 @@ class CodebaseMixin:
             True if it appears to be a test file
         """
         import os
+
         # Normalize path separators
-        normalized = filepath.replace('\\', '/')
+        normalized = filepath.replace("\\", "/")
         filename = os.path.basename(filepath)
 
         # Common test file patterns
         return (
-            filename.startswith('test_') or
-            filename.endswith('_test.py') or
-            filename.endswith('.test.py') or
-            filename.endswith('.spec.py') or
-            (filename.startswith('test') and filename.endswith('.py')) or
-            '/tests/' in normalized or
-            normalized.startswith('tests/') or
-            '/test/' in normalized or
-            normalized.startswith('test/')
+            filename.startswith("test_")
+            or filename.endswith("_test.py")
+            or filename.endswith(".test.py")
+            or filename.endswith(".spec.py")
+            or (filename.startswith("test") and filename.endswith(".py"))
+            or "/tests/" in normalized
+            or normalized.startswith("tests/")
+            or "/test/" in normalized
+            or normalized.startswith("test/")
         )
 
     def _filter_test_files(self, files: Dict[str, str], preserve: bool = True) -> tuple:
@@ -245,26 +256,26 @@ class CodebaseMixin:
         Returns:
             Branch name if created, None if git not available
         """
-        import subprocess
-        import re
         import os
+        import re
+        import subprocess
         from datetime import datetime
 
-        if not os.path.isdir(os.path.join(codebase_path, '.git')):
+        if not os.path.isdir(os.path.join(codebase_path, ".git")):
             return None
 
         try:
             # Generate branch name from requirements
-            slug = re.sub(r'[^a-z0-9]+', '-', requirements.lower()[:40]).strip('-')
-            timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
+            slug = re.sub(r"[^a-z0-9]+", "-", requirements.lower()[:40]).strip("-")
+            timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
             branch_name = f"{self.config.git_branch_prefix}/{slug}-{timestamp}"
 
             # Create and checkout branch
             subprocess.run(
-                ['git', 'checkout', '-b', branch_name],
+                ["git", "checkout", "-b", branch_name],
                 cwd=codebase_path,
                 capture_output=True,
-                check=True
+                check=True,
             )
 
             _progress("Git", "Integration", f"Created branch: {branch_name}")
@@ -275,8 +286,9 @@ class CodebaseMixin:
         except FileNotFoundError:
             return None
 
-    async def _git_commit_changes(self, codebase_path: str, files: Dict[str, str],
-                                   requirements: str) -> bool:
+    async def _git_commit_changes(
+        self, codebase_path: str, files: Dict[str, str], requirements: str
+    ) -> bool:
         """Commit edited files to git.
 
         Args:
@@ -287,10 +299,10 @@ class CodebaseMixin:
         Returns:
             True if commit successful
         """
-        import subprocess
         import os
+        import subprocess
 
-        if not os.path.isdir(os.path.join(codebase_path, '.git')):
+        if not os.path.isdir(os.path.join(codebase_path, ".git")):
             return False
 
         try:
@@ -298,10 +310,7 @@ class CodebaseMixin:
             for filepath in files.keys():
                 full_path = os.path.join(codebase_path, filepath)
                 subprocess.run(
-                    ['git', 'add', full_path],
-                    cwd=codebase_path,
-                    capture_output=True,
-                    check=True
+                    ["git", "add", full_path], cwd=codebase_path, capture_output=True, check=True
                 )
 
             # Create commit message
@@ -311,10 +320,10 @@ class CodebaseMixin:
 
             # Commit
             subprocess.run(
-                ['git', 'commit', '-m', commit_msg],
+                ["git", "commit", "-m", commit_msg],
                 cwd=codebase_path,
                 capture_output=True,
-                check=True
+                check=True,
             )
 
             _progress("Git", "Integration", f"Committed {len(files)} file(s)")
@@ -338,14 +347,14 @@ class CodebaseMixin:
 
         # Check for common test configuration files (use python3 -m for reliability)
         checks = [
-            ('pytest.ini', 'python3 -m pytest'),
-            ('setup.cfg', 'python3 -m pytest'),
-            ('pyproject.toml', 'python3 -m pytest'),
-            ('tox.ini', 'tox'),
-            ('Makefile', 'make test'),
-            ('package.json', 'npm test'),
-            ('Cargo.toml', 'cargo test'),
-            ('go.mod', 'go test ./...'),
+            ("pytest.ini", "python3 -m pytest"),
+            ("setup.cfg", "python3 -m pytest"),
+            ("pyproject.toml", "python3 -m pytest"),
+            ("tox.ini", "tox"),
+            ("Makefile", "make test"),
+            ("package.json", "npm test"),
+            ("Cargo.toml", "cargo test"),
+            ("go.mod", "go test ./..."),
         ]
 
         for config_file, cmd in checks:
@@ -353,19 +362,19 @@ class CodebaseMixin:
                 return cmd
 
         # Check for test directories
-        if os.path.isdir(os.path.join(codebase_path, 'tests')):
-            return 'python3 -m pytest tests/ -x'
-        if os.path.isdir(os.path.join(codebase_path, 'test')):
-            return 'python3 -m pytest test/ -x'
+        if os.path.isdir(os.path.join(codebase_path, "tests")):
+            return "python3 -m pytest tests/ -x"
+        if os.path.isdir(os.path.join(codebase_path, "test")):
+            return "python3 -m pytest test/ -x"
 
         # Look for test files
         for f in os.listdir(codebase_path):
-            if f.startswith('test_') and f.endswith('.py'):
-                return 'python3 -m pytest -x'
+            if f.startswith("test_") and f.endswith(".py"):
+                return "python3 -m pytest -x"
 
         # Default to pytest for Python
         if self.config.language == CodeLanguage.PYTHON:
-            return 'python3 -m pytest -x'
+            return "python3 -m pytest -x"
 
         return None
 
@@ -383,7 +392,13 @@ class CodebaseMixin:
 
         cmd = test_command or self.config.test_command or self._detect_test_command(codebase_path)
         if not cmd:
-            return {'success': False, 'output': 'No test command detected', 'passed': 0, 'failed': 0, 'errors': []}
+            return {
+                "success": False,
+                "output": "No test command detected",
+                "passed": 0,
+                "failed": 0,
+                "errors": [],
+            }
 
         _progress("Test", "Runner", f"Running: {cmd}")
 
@@ -394,7 +409,7 @@ class CodebaseMixin:
                 cwd=codebase_path,
                 capture_output=True,
                 text=True,
-                timeout=self.config.test_timeout
+                timeout=self.config.test_timeout,
             )
 
             output = result.stdout + "\n" + result.stderr
@@ -402,48 +417,60 @@ class CodebaseMixin:
 
             # Parse test output for metrics
             import re
-            passed = output.lower().count(' passed')
-            failed = output.lower().count(' failed')
+
+            passed = output.lower().count(" passed")
+            failed = output.lower().count(" failed")
             errors = []
 
             # Also count collection/import errors (pytest shows these differently)
-            collection_errors = len(re.findall(r'ImportError|ModuleNotFoundError|CollectionError', output))
+            collection_errors = len(
+                re.findall(r"ImportError|ModuleNotFoundError|CollectionError", output)
+            )
             if collection_errors > 0:
                 failed += collection_errors
 
             # Extract error messages for feedback - focus on assertion details
             if not success:
-                lines = output.split('\n')
+                lines = output.split("\n")
                 in_error = False
                 current_error = []
 
                 # First pass: find the key assertion error
                 assertion_context = []
                 for i, line in enumerate(lines):
-                    if 'AssertionError' in line or 'assertEqual' in line or 'assertIs' in line:
+                    if "AssertionError" in line or "assertEqual" in line or "assertIs" in line:
                         # Get context around assertion
                         start = max(0, i - 3)
                         end = min(len(lines), i + 5)
                         assertion_context.extend(lines[start:end])
 
                 if assertion_context:
-                    errors.append("=== KEY ASSERTION ===\n" + '\n'.join(assertion_context))
+                    errors.append("=== KEY ASSERTION ===\n" + "\n".join(assertion_context))
 
                 # Second pass: collect other errors
                 for line in lines:
                     # Handle import errors and collection failures
-                    if any(x in line for x in ['FAILED', 'ERROR', 'AssertionError',
-                                                'ImportError', 'ModuleNotFoundError',
-                                                'CollectionError', 'no tests ran']):
+                    if any(
+                        x in line
+                        for x in [
+                            "FAILED",
+                            "ERROR",
+                            "AssertionError",
+                            "ImportError",
+                            "ModuleNotFoundError",
+                            "CollectionError",
+                            "no tests ran",
+                        ]
+                    ):
                         in_error = True
                     if in_error:
                         current_error.append(line)
                         if len(current_error) > 20:  # Limit error context
-                            errors.append('\n'.join(current_error))
+                            errors.append("\n".join(current_error))
                             current_error = []
                             in_error = False
                 if current_error:
-                    errors.append('\n'.join(current_error))
+                    errors.append("\n".join(current_error))
 
                 # If no specific failures found but tests didn't pass
                 if failed == 0 and not success:
@@ -455,18 +482,29 @@ class CodebaseMixin:
             _progress("Test", "Runner", status)
 
             return {
-                'success': success,
-                'output': output[-5000:],  # Limit output size
-                'passed': passed,
-                'failed': failed,
-                'errors': errors[:5],  # Limit to 5 errors
-                'return_code': result.returncode
+                "success": success,
+                "output": output[-5000:],  # Limit output size
+                "passed": passed,
+                "failed": failed,
+                "errors": errors[:5],  # Limit to 5 errors
+                "return_code": result.returncode,
             }
 
         except subprocess.TimeoutExpired:
             _progress("Test", "Runner", "TIMEOUT")
-            return {'success': False, 'output': 'Test timeout exceeded', 'passed': 0, 'failed': 0, 'errors': ['Timeout']}
+            return {
+                "success": False,
+                "output": "Test timeout exceeded",
+                "passed": 0,
+                "failed": 0,
+                "errors": ["Timeout"],
+            }
         except Exception as e:
             _progress("Test", "Runner", f"ERROR: {e}")
-            return {'success': False, 'output': str(e), 'passed': 0, 'failed': 0, 'errors': [str(e)]}
-
+            return {
+                "success": False,
+                "output": str(e),
+                "passed": 0,
+                "failed": 0,
+                "errors": [str(e)],
+            }

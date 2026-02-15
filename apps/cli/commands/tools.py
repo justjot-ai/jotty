@@ -5,7 +5,8 @@ Tools Command
 Execute skills directly as tools.
 """
 
-from typing import TYPE_CHECKING, Dict, Any
+from typing import TYPE_CHECKING, Any, Dict
+
 from .base import BaseCommand, CommandResult, ParsedArgs
 
 if TYPE_CHECKING:
@@ -78,11 +79,7 @@ class ToolsCommand(BaseCommand):
             return CommandResult.fail(str(e))
 
     async def _execute_tool(
-        self,
-        tool_name: str,
-        tool_args: str,
-        flags: Dict[str, Any],
-        cli: "JottyCLI"
+        self, tool_name: str, tool_args: str, flags: Dict[str, Any], cli: "JottyCLI"
     ) -> CommandResult:
         """Execute a specific tool."""
         try:
@@ -111,16 +108,11 @@ class ToolsCommand(BaseCommand):
             cli.renderer.info(f"Executing: {tool_name}")
 
             # Build params from args and flags
-            params = {
-                "query": tool_args,
-                "input": tool_args,
-                **flags
-            }
+            params = {"query": tool_args, "input": tool_args, **flags}
 
             # Execute tool
             async with await cli.renderer.progress.spinner_async(
-                f"Running {tool_name}...",
-                style="cyan"
+                f"Running {tool_name}...", style="cyan"
             ):
                 if callable(tool):
                     result = await tool(params)
@@ -137,7 +129,11 @@ class ToolsCommand(BaseCommand):
                     cli.renderer.result(result, title=f"Tool: {tool_name}")
                 else:
                     cli.renderer.error(f"Tool failed: {result.get('error', 'Unknown error')}")
-                return CommandResult.ok(data=result) if success else CommandResult.fail(result.get("error", "Failed"))
+                return (
+                    CommandResult.ok(data=result)
+                    if success
+                    else CommandResult.fail(result.get("error", "Failed"))
+                )
             else:
                 cli.renderer.success(f"Tool {tool_name} completed")
                 cli.renderer.panel(str(result)[:500], title=f"Output: {tool_name}")
@@ -147,6 +143,7 @@ class ToolsCommand(BaseCommand):
             cli.renderer.error(f"Tool execution failed: {e}")
             if cli.config.debug:
                 import traceback
+
                 traceback.print_exc()
             return CommandResult.fail(str(e))
 

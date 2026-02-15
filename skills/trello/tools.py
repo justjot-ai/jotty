@@ -3,13 +3,15 @@ Trello Skill
 
 Integrates with Trello API to manage boards, lists, and cards.
 """
-import os
+
 import logging
+import os
+from typing import Any, Dict, Optional
+
 import requests
-from typing import Dict, Any, Optional
 
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("trello")
@@ -33,8 +35,8 @@ class TrelloClient:
             return self._api_key, self._token
 
         # Check environment variables first
-        api_key = os.environ.get('TRELLO_API_KEY')
-        token = os.environ.get('TRELLO_TOKEN')
+        api_key = os.environ.get("TRELLO_API_KEY")
+        token = os.environ.get("TRELLO_TOKEN")
 
         if api_key and token:
             self._api_key = api_key
@@ -42,14 +44,14 @@ class TrelloClient:
             return api_key, token
 
         # Check config files
-        config_dir = os.path.expanduser('~/.config/trello')
-        api_key_path = os.path.join(config_dir, 'api_key')
-        token_path = os.path.join(config_dir, 'token')
+        config_dir = os.path.expanduser("~/.config/trello")
+        api_key_path = os.path.join(config_dir, "api_key")
+        token_path = os.path.join(config_dir, "token")
 
         if os.path.exists(api_key_path) and os.path.exists(token_path):
-            with open(api_key_path, 'r') as f:
+            with open(api_key_path, "r") as f:
                 api_key = f.read().strip()
-            with open(token_path, 'r') as f:
+            with open(token_path, "r") as f:
                 token = f.read().strip()
             if api_key and token:
                 self._api_key = api_key
@@ -64,10 +66,7 @@ class TrelloClient:
     def _get_auth_params(self) -> Dict[str, str]:
         """Build authentication query parameters."""
         api_key, token = self._get_credentials()
-        return {
-            "key": api_key,
-            "token": token
-        }
+        return {"key": api_key, "token": token}
 
     def _make_request(
         self,
@@ -75,7 +74,7 @@ class TrelloClient:
         endpoint: str,
         params: Optional[Dict] = None,
         data: Optional[Dict] = None,
-        timeout: int = 30
+        timeout: int = 30,
     ) -> Dict[str, Any]:
         """Make an authenticated request to Trello API."""
         url = f"{self.BASE_URL}{endpoint}"
@@ -90,52 +89,35 @@ class TrelloClient:
                 method=method,
                 url=url,
                 params=request_params,
-                json=data if method in ['POST', 'PUT', 'PATCH'] else None,
-                timeout=timeout
+                json=data if method in ["POST", "PUT", "PATCH"] else None,
+                timeout=timeout,
             )
 
             # Handle empty responses (like DELETE)
             if response.status_code == 200 and not response.text:
-                return {
-                    'success': True,
-                    'data': None,
-                    'status_code': response.status_code
-                }
+                return {"success": True, "data": None, "status_code": response.status_code}
 
             try:
                 result = response.json()
             except Exception:
-                result = {'message': response.text}
+                result = {"message": response.text}
 
             if response.status_code >= 400:
-                error_msg = result.get('message', result.get('error', 'Unknown error'))
+                error_msg = result.get("message", result.get("error", "Unknown error"))
                 return {
-                    'success': False,
-                    'error': f"Trello API error ({response.status_code}): {error_msg}",
-                    'status_code': response.status_code
+                    "success": False,
+                    "error": f"Trello API error ({response.status_code}): {error_msg}",
+                    "status_code": response.status_code,
                 }
 
-            return {
-                'success': True,
-                'data': result,
-                'status_code': response.status_code
-            }
+            return {"success": True, "data": result, "status_code": response.status_code}
 
         except requests.Timeout:
-            return {
-                'success': False,
-                'error': f'Request timed out after {timeout} seconds'
-            }
+            return {"success": False, "error": f"Request timed out after {timeout} seconds"}
         except requests.RequestException as e:
-            return {
-                'success': False,
-                'error': f'Request failed: {str(e)}'
-            }
+            return {"success": False, "error": f"Request failed: {str(e)}"}
         except Exception as e:
-            return {
-                'success': False,
-                'error': f'Error making Trello API request: {str(e)}'
-            }
+            return {"success": False, "error": f"Error making Trello API request: {str(e)}"}
 
 
 # Global client instance
@@ -160,29 +142,22 @@ def list_boards_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - board_count (int): Number of boards returned
             - error (str, optional): Error message if failed
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     request_params = {
-        'filter': params.get('filter', 'all'),
-        'fields': params.get('fields', 'name,desc,url,closed,starred,idOrganization')
+        "filter": params.get("filter", "all"),
+        "fields": params.get("fields", "name,desc,url,closed,starred,idOrganization"),
     }
 
     result = _client._make_request(
-        'GET',
-        '/members/me/boards',
-        params=request_params,
-        timeout=params.get('timeout', 30)
+        "GET", "/members/me/boards", params=request_params, timeout=params.get("timeout", 30)
     )
 
-    if not result['success']:
+    if not result["success"]:
         return result
 
-    boards = result['data']
-    return {
-        'success': True,
-        'boards': boards,
-        'board_count': len(boards)
-    }
+    boards = result["data"]
+    return {"success": True, "boards": boards, "board_count": len(boards)}
 
 
 @tool_wrapper()
@@ -208,71 +183,64 @@ def get_board_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - labels (list, optional): List of board labels
             - error (str, optional): Error message if failed
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
-    board_id = params.get('board_id')
+    board_id = params.get("board_id")
     if not board_id:
-        return {'success': False, 'error': 'board_id parameter is required'}
+        return {"success": False, "error": "board_id parameter is required"}
 
-    timeout = params.get('timeout', 30)
-    include_lists = params.get('include_lists', True)
-    include_members = params.get('include_members', False)
-    include_labels = params.get('include_labels', False)
+    timeout = params.get("timeout", 30)
+    include_lists = params.get("include_lists", True)
+    include_members = params.get("include_members", False)
+    include_labels = params.get("include_labels", False)
 
     # Get board details
     board_result = _client._make_request(
-        'GET',
-        f'/boards/{board_id}',
-        params={'fields': 'name,desc,url,closed,starred,idOrganization,prefs'},
-        timeout=timeout
+        "GET",
+        f"/boards/{board_id}",
+        params={"fields": "name,desc,url,closed,starred,idOrganization,prefs"},
+        timeout=timeout,
     )
 
-    if not board_result['success']:
+    if not board_result["success"]:
         return board_result
 
-    response = {
-        'success': True,
-        'board': board_result['data']
-    }
+    response = {"success": True, "board": board_result["data"]}
 
     # Optionally get lists
     if include_lists:
-        list_filter = params.get('list_filter', 'open')
+        list_filter = params.get("list_filter", "open")
         lists_result = _client._make_request(
-            'GET',
-            f'/boards/{board_id}/lists',
-            params={'filter': list_filter, 'fields': 'name,closed,pos'},
-            timeout=timeout
+            "GET",
+            f"/boards/{board_id}/lists",
+            params={"filter": list_filter, "fields": "name,closed,pos"},
+            timeout=timeout,
         )
-        if lists_result['success']:
-            response['lists'] = lists_result['data']
+        if lists_result["success"]:
+            response["lists"] = lists_result["data"]
         else:
-            response['lists_error'] = lists_result.get('error')
+            response["lists_error"] = lists_result.get("error")
 
     # Optionally get members
     if include_members:
         members_result = _client._make_request(
-            'GET',
-            f'/boards/{board_id}/members',
-            params={'fields': 'fullName,username'},
-            timeout=timeout
+            "GET",
+            f"/boards/{board_id}/members",
+            params={"fields": "fullName,username"},
+            timeout=timeout,
         )
-        if members_result['success']:
-            response['members'] = members_result['data']
+        if members_result["success"]:
+            response["members"] = members_result["data"]
         else:
-            response['members_error'] = members_result.get('error')
+            response["members_error"] = members_result.get("error")
 
     # Optionally get labels
     if include_labels:
-        labels_result = _client._make_request(
-            'GET',
-            f'/boards/{board_id}/labels',
-            timeout=timeout
-        )
-        if labels_result['success']:
-            response['labels'] = labels_result['data']
+        labels_result = _client._make_request("GET", f"/boards/{board_id}/labels", timeout=timeout)
+        if labels_result["success"]:
+            response["labels"] = labels_result["data"]
         else:
-            response['labels_error'] = labels_result.get('error')
+            response["labels_error"] = labels_result.get("error")
 
     return response
 
@@ -298,41 +266,36 @@ def list_cards_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - card_count (int): Number of cards returned
             - error (str, optional): Error message if failed
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
-    list_id = params.get('list_id')
-    board_id = params.get('board_id')
+    list_id = params.get("list_id")
+    board_id = params.get("board_id")
 
     if not list_id and not board_id:
-        return {'success': False, 'error': 'Either list_id or board_id parameter is required'}
+        return {"success": False, "error": "Either list_id or board_id parameter is required"}
 
     request_params = {
-        'filter': params.get('filter', 'open'),
-        'fields': params.get('fields', 'name,desc,url,closed,pos,due,dueComplete,idList,idLabels,idMembers,labels'),
-        'limit': min(params.get('limit', 100), 1000)
+        "filter": params.get("filter", "open"),
+        "fields": params.get(
+            "fields", "name,desc,url,closed,pos,due,dueComplete,idList,idLabels,idMembers,labels"
+        ),
+        "limit": min(params.get("limit", 100), 1000),
     }
 
     if list_id:
-        endpoint = f'/lists/{list_id}/cards'
+        endpoint = f"/lists/{list_id}/cards"
     else:
-        endpoint = f'/boards/{board_id}/cards'
+        endpoint = f"/boards/{board_id}/cards"
 
     result = _client._make_request(
-        'GET',
-        endpoint,
-        params=request_params,
-        timeout=params.get('timeout', 30)
+        "GET", endpoint, params=request_params, timeout=params.get("timeout", 30)
     )
 
-    if not result['success']:
+    if not result["success"]:
         return result
 
-    cards = result['data']
-    return {
-        'success': True,
-        'cards': cards,
-        'card_count': len(cards)
-    }
+    cards = result["data"]
+    return {"success": True, "cards": cards, "card_count": len(cards)}
 
 
 @tool_wrapper()
@@ -361,56 +324,49 @@ def create_card_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - url (str): URL of the created card
             - error (str, optional): Error message if failed
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
-    list_id = params.get('list_id')
-    name = params.get('name')
+    list_id = params.get("list_id")
+    name = params.get("name")
 
     if not list_id:
-        return {'success': False, 'error': 'list_id parameter is required'}
+        return {"success": False, "error": "list_id parameter is required"}
     if not name:
-        return {'success': False, 'error': 'name parameter is required'}
+        return {"success": False, "error": "name parameter is required"}
 
-    request_params = {
-        'idList': list_id,
-        'name': name,
-        'pos': params.get('pos', 'bottom')
-    }
+    request_params = {"idList": list_id, "name": name, "pos": params.get("pos", "bottom")}
 
-    if params.get('desc'):
-        request_params['desc'] = params['desc']
+    if params.get("desc"):
+        request_params["desc"] = params["desc"]
 
-    if params.get('due'):
-        request_params['due'] = params['due']
+    if params.get("due"):
+        request_params["due"] = params["due"]
 
-    if params.get('due_complete') is not None:
-        request_params['dueComplete'] = params['due_complete']
+    if params.get("due_complete") is not None:
+        request_params["dueComplete"] = params["due_complete"]
 
-    if params.get('id_labels'):
-        request_params['idLabels'] = ','.join(params['id_labels'])
+    if params.get("id_labels"):
+        request_params["idLabels"] = ",".join(params["id_labels"])
 
-    if params.get('id_members'):
-        request_params['idMembers'] = ','.join(params['id_members'])
+    if params.get("id_members"):
+        request_params["idMembers"] = ",".join(params["id_members"])
 
-    if params.get('url_source'):
-        request_params['urlSource'] = params['url_source']
+    if params.get("url_source"):
+        request_params["urlSource"] = params["url_source"]
 
     result = _client._make_request(
-        'POST',
-        '/cards',
-        params=request_params,
-        timeout=params.get('timeout', 30)
+        "POST", "/cards", params=request_params, timeout=params.get("timeout", 30)
     )
 
-    if not result['success']:
+    if not result["success"]:
         return result
 
-    card_data = result['data']
+    card_data = result["data"]
     return {
-        'success': True,
-        'card_id': card_data.get('id'),
-        'card': card_data,
-        'url': card_data.get('url')
+        "success": True,
+        "card_id": card_data.get("id"),
+        "card": card_data,
+        "url": card_data.get("url"),
     }
 
 
@@ -440,61 +396,55 @@ def update_card_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - card (dict): Updated card object
             - error (str, optional): Error message if failed
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
-    card_id = params.get('card_id')
+    card_id = params.get("card_id")
     if not card_id:
-        return {'success': False, 'error': 'card_id parameter is required'}
+        return {"success": False, "error": "card_id parameter is required"}
 
     request_params = {}
 
-    if params.get('name') is not None:
-        request_params['name'] = params['name']
+    if params.get("name") is not None:
+        request_params["name"] = params["name"]
 
-    if params.get('desc') is not None:
-        request_params['desc'] = params['desc']
+    if params.get("desc") is not None:
+        request_params["desc"] = params["desc"]
 
-    if params.get('closed') is not None:
-        request_params['closed'] = params['closed']
+    if params.get("closed") is not None:
+        request_params["closed"] = params["closed"]
 
-    if params.get('id_list'):
-        request_params['idList'] = params['id_list']
+    if params.get("id_list"):
+        request_params["idList"] = params["id_list"]
 
-    if params.get('id_board'):
-        request_params['idBoard'] = params['id_board']
+    if params.get("id_board"):
+        request_params["idBoard"] = params["id_board"]
 
-    if params.get('pos') is not None:
-        request_params['pos'] = params['pos']
+    if params.get("pos") is not None:
+        request_params["pos"] = params["pos"]
 
-    if 'due' in params:
-        request_params['due'] = params['due']
+    if "due" in params:
+        request_params["due"] = params["due"]
 
-    if params.get('due_complete') is not None:
-        request_params['dueComplete'] = params['due_complete']
+    if params.get("due_complete") is not None:
+        request_params["dueComplete"] = params["due_complete"]
 
-    if params.get('id_labels') is not None:
-        request_params['idLabels'] = ','.join(params['id_labels']) if params['id_labels'] else ''
+    if params.get("id_labels") is not None:
+        request_params["idLabels"] = ",".join(params["id_labels"]) if params["id_labels"] else ""
 
-    if params.get('id_members') is not None:
-        request_params['idMembers'] = ','.join(params['id_members']) if params['id_members'] else ''
+    if params.get("id_members") is not None:
+        request_params["idMembers"] = ",".join(params["id_members"]) if params["id_members"] else ""
 
     if not request_params:
-        return {'success': False, 'error': 'No update parameters provided'}
+        return {"success": False, "error": "No update parameters provided"}
 
     result = _client._make_request(
-        'PUT',
-        f'/cards/{card_id}',
-        params=request_params,
-        timeout=params.get('timeout', 30)
+        "PUT", f"/cards/{card_id}", params=request_params, timeout=params.get("timeout", 30)
     )
 
-    if not result['success']:
+    if not result["success"]:
         return result
 
-    return {
-        'success': True,
-        'card': result['data']
-    }
+    return {"success": True, "card": result["data"]}
 
 
 @tool_wrapper()
@@ -515,29 +465,25 @@ def add_comment_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - comment (dict): Full comment object
             - error (str, optional): Error message if failed
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
-    card_id = params.get('card_id')
-    text = params.get('text')
+    card_id = params.get("card_id")
+    text = params.get("text")
 
     if not card_id:
-        return {'success': False, 'error': 'card_id parameter is required'}
+        return {"success": False, "error": "card_id parameter is required"}
     if not text:
-        return {'success': False, 'error': 'text parameter is required'}
+        return {"success": False, "error": "text parameter is required"}
 
     result = _client._make_request(
-        'POST',
-        f'/cards/{card_id}/actions/comments',
-        params={'text': text},
-        timeout=params.get('timeout', 30)
+        "POST",
+        f"/cards/{card_id}/actions/comments",
+        params={"text": text},
+        timeout=params.get("timeout", 30),
     )
 
-    if not result['success']:
+    if not result["success"]:
         return result
 
-    comment_data = result['data']
-    return {
-        'success': True,
-        'comment_id': comment_data.get('id'),
-        'comment': comment_data
-    }
+    comment_data = result["data"]
+    return {"success": True, "comment_id": comment_data.get("id"), "comment": comment_data}

@@ -6,14 +6,13 @@ Supports PRs, issues, repo info, and GitHub Actions workflows.
 Refactored to use Jotty core utilities.
 """
 
-import subprocess
 import json
 import logging
-from typing import Dict, Any, List
-
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+import subprocess
+from typing import Any, Dict, List
 
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("github")
@@ -29,7 +28,7 @@ class GitHubCLI:
     def run_command(args: List[str], timeout: int = 60) -> Dict[str, Any]:
         """Execute a gh CLI command and return the result."""
         try:
-            cmd = ['gh'] + args
+            cmd = ["gh"] + args
             logger.debug(f"Executing: {' '.join(cmd)}")
 
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
@@ -38,49 +37,48 @@ class GitHubCLI:
                 return tool_response(output=result.stdout.strip(), exit_code=0)
             else:
                 return tool_error(
-                    result.stderr.strip() or result.stdout.strip(),
-                    exit_code=result.returncode
+                    result.stderr.strip() or result.stdout.strip(), exit_code=result.returncode
                 )
 
         except subprocess.TimeoutExpired:
-            return tool_error(f'Command timed out after {timeout} seconds')
+            return tool_error(f"Command timed out after {timeout} seconds")
         except FileNotFoundError:
-            return tool_error('gh CLI not found. Install from: https://cli.github.com/')
+            return tool_error("gh CLI not found. Install from: https://cli.github.com/")
         except Exception as e:
             logger.error(f"GitHub CLI error: {e}", exc_info=True)
-            return tool_error(f'Command execution failed: {str(e)}')
+            return tool_error(f"Command execution failed: {str(e)}")
 
     @staticmethod
     def run_json_command(args: List[str], timeout: int = 60) -> Dict[str, Any]:
         """Execute a gh CLI command that returns JSON."""
         result = GitHubCLI.run_command(args, timeout)
 
-        if not result.get('success'):
+        if not result.get("success"):
             return result
 
         try:
-            output = result.get('output', '')
+            output = result.get("output", "")
             if output:
                 data = json.loads(output)
                 return tool_response(data=data)
             return tool_response(data=None)
         except json.JSONDecodeError as e:
             return tool_error(
-                f'Failed to parse JSON response: {str(e)}',
-                raw_output=result.get('output', '')[:500]
+                f"Failed to parse JSON response: {str(e)}",
+                raw_output=result.get("output", "")[:500],
             )
 
 
 def _add_repo_arg(args: List[str], repo: str) -> None:
     """Add --repo argument if provided."""
     if repo:
-        args.extend(['--repo', repo])
+        args.extend(["--repo", repo])
 
 
 def _add_limit_arg(args: List[str], limit: int) -> None:
     """Add --limit argument if provided."""
     if limit:
-        args.extend(['--limit', str(limit)])
+        args.extend(["--limit", str(limit)])
 
 
 @tool_wrapper()
@@ -98,33 +96,37 @@ def list_prs_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, prs list, count
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
-    args = ['pr', 'list', '--json',
-            'number,title,state,author,createdAt,updatedAt,url,headRefName,baseRefName,labels,isDraft']
+    args = [
+        "pr",
+        "list",
+        "--json",
+        "number,title,state,author,createdAt,updatedAt,url,headRefName,baseRefName,labels,isDraft",
+    ]
 
-    _add_repo_arg(args, params.get('repo'))
+    _add_repo_arg(args, params.get("repo"))
 
-    state = params.get('state', 'open')
-    if state and state != 'all':
-        args.extend(['--state', state])
+    state = params.get("state", "open")
+    if state and state != "all":
+        args.extend(["--state", state])
 
-    _add_limit_arg(args, params.get('limit', 30))
+    _add_limit_arg(args, params.get("limit", 30))
 
-    for key in ('author', 'base', 'head', 'label'):
+    for key in ("author", "base", "head", "label"):
         if params.get(key):
-            args.extend([f'--{key}', params[key]])
+            args.extend([f"--{key}", params[key]])
 
     result = GitHubCLI.run_json_command(args)
 
-    if result.get('success'):
-        prs = result.get('data', [])
+    if result.get("success"):
+        prs = result.get("data", [])
         return tool_response(prs=prs, count=len(prs))
 
     return result
 
 
-@tool_wrapper(required_params=['number'])
+@tool_wrapper(required_params=["number"])
 def get_pr_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Get details of a specific pull request.
@@ -139,38 +141,56 @@ def get_pr_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, pr object
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
-    fields = ['number', 'title', 'body', 'state', 'author', 'createdAt', 'updatedAt',
-              'closedAt', 'mergedAt', 'url', 'headRefName', 'baseRefName', 'labels',
-              'isDraft', 'mergeable', 'reviewDecision', 'additions', 'deletions',
-              'changedFiles', 'commits']
+    fields = [
+        "number",
+        "title",
+        "body",
+        "state",
+        "author",
+        "createdAt",
+        "updatedAt",
+        "closedAt",
+        "mergedAt",
+        "url",
+        "headRefName",
+        "baseRefName",
+        "labels",
+        "isDraft",
+        "mergeable",
+        "reviewDecision",
+        "additions",
+        "deletions",
+        "changedFiles",
+        "commits",
+    ]
 
-    if params.get('include_comments'):
-        fields.append('comments')
+    if params.get("include_comments"):
+        fields.append("comments")
 
-    args = ['pr', 'view', str(params['number']), '--json', ','.join(fields)]
-    _add_repo_arg(args, params.get('repo'))
+    args = ["pr", "view", str(params["number"]), "--json", ",".join(fields)]
+    _add_repo_arg(args, params.get("repo"))
 
     result = GitHubCLI.run_json_command(args)
 
-    if not result.get('success'):
+    if not result.get("success"):
         return result
 
-    pr_data = result.get('data', {})
+    pr_data = result.get("data", {})
 
     # Optionally get diff stats
-    if params.get('include_diff'):
-        diff_args = ['pr', 'diff', str(params['number']), '--stat']
-        _add_repo_arg(diff_args, params.get('repo'))
+    if params.get("include_diff"):
+        diff_args = ["pr", "diff", str(params["number"]), "--stat"]
+        _add_repo_arg(diff_args, params.get("repo"))
         diff_result = GitHubCLI.run_command(diff_args)
-        if diff_result.get('success'):
-            pr_data['diff_stat'] = diff_result.get('output')
+        if diff_result.get("success"):
+            pr_data["diff_stat"] = diff_result.get("output")
 
     return tool_response(pr=pr_data)
 
 
-@tool_wrapper(required_params=['title'])
+@tool_wrapper(required_params=["title"])
 def create_pr_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Create a new pull request.
@@ -187,41 +207,41 @@ def create_pr_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, pr object, message
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
-    args = ['pr', 'create', '--title', params['title']]
+    args = ["pr", "create", "--title", params["title"]]
 
-    if params.get('body'):
-        args.extend(['--body', params['body']])
+    if params.get("body"):
+        args.extend(["--body", params["body"]])
 
-    for key in ('base', 'head'):
+    for key in ("base", "head"):
         if params.get(key):
-            args.extend([f'--{key}', params[key]])
+            args.extend([f"--{key}", params[key]])
 
-    _add_repo_arg(args, params.get('repo'))
+    _add_repo_arg(args, params.get("repo"))
 
-    if params.get('draft'):
-        args.append('--draft')
+    if params.get("draft"):
+        args.append("--draft")
 
-    for key in ('labels', 'assignees', 'reviewers'):
+    for key in ("labels", "assignees", "reviewers"):
         for item in params.get(key, []):
-            args.extend([f'--{key[:-1]}', item])  # Remove 's' for flag name
+            args.extend([f"--{key[:-1]}", item])  # Remove 's' for flag name
 
     result = GitHubCLI.run_command(args)
 
-    if not result.get('success'):
+    if not result.get("success"):
         return result
 
-    output = result.get('output', '')
-    pr_info = {'url': output}
+    output = result.get("output", "")
+    pr_info = {"url": output}
 
-    if '/pull/' in output:
+    if "/pull/" in output:
         try:
-            pr_info['number'] = int(output.split('/pull/')[-1].strip())
+            pr_info["number"] = int(output.split("/pull/")[-1].strip())
         except (ValueError, IndexError):
             pass
 
-    return tool_response(pr=pr_info, message=f'Pull request created: {output}')
+    return tool_response(pr=pr_info, message=f"Pull request created: {output}")
 
 
 @tool_wrapper()
@@ -239,33 +259,37 @@ def list_issues_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, issues list, count
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
-    args = ['issue', 'list', '--json',
-            'number,title,state,author,createdAt,updatedAt,url,labels,assignees,milestone,body']
+    args = [
+        "issue",
+        "list",
+        "--json",
+        "number,title,state,author,createdAt,updatedAt,url,labels,assignees,milestone,body",
+    ]
 
-    _add_repo_arg(args, params.get('repo'))
+    _add_repo_arg(args, params.get("repo"))
 
-    state = params.get('state', 'open')
-    if state and state != 'all':
-        args.extend(['--state', state])
+    state = params.get("state", "open")
+    if state and state != "all":
+        args.extend(["--state", state])
 
-    _add_limit_arg(args, params.get('limit', 30))
+    _add_limit_arg(args, params.get("limit", 30))
 
-    for key in ('author', 'assignee', 'label', 'milestone'):
+    for key in ("author", "assignee", "label", "milestone"):
         if params.get(key):
-            args.extend([f'--{key}', params[key]])
+            args.extend([f"--{key}", params[key]])
 
     result = GitHubCLI.run_json_command(args)
 
-    if result.get('success'):
-        issues = result.get('data', [])
+    if result.get("success"):
+        issues = result.get("data", [])
         return tool_response(issues=issues, count=len(issues))
 
     return result
 
 
-@tool_wrapper(required_params=['title'])
+@tool_wrapper(required_params=["title"])
 def create_issue_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Create a new issue.
@@ -281,37 +305,37 @@ def create_issue_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, issue object, message
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
-    args = ['issue', 'create', '--title', params['title']]
+    args = ["issue", "create", "--title", params["title"]]
 
-    if params.get('body'):
-        args.extend(['--body', params['body']])
+    if params.get("body"):
+        args.extend(["--body", params["body"]])
 
-    _add_repo_arg(args, params.get('repo'))
+    _add_repo_arg(args, params.get("repo"))
 
-    for key in ('labels', 'assignees'):
+    for key in ("labels", "assignees"):
         for item in params.get(key, []):
-            args.extend([f'--{key[:-1]}', item])
+            args.extend([f"--{key[:-1]}", item])
 
-    if params.get('milestone'):
-        args.extend(['--milestone', str(params['milestone'])])
+    if params.get("milestone"):
+        args.extend(["--milestone", str(params["milestone"])])
 
     result = GitHubCLI.run_command(args)
 
-    if not result.get('success'):
+    if not result.get("success"):
         return result
 
-    output = result.get('output', '')
-    issue_info = {'url': output}
+    output = result.get("output", "")
+    issue_info = {"url": output}
 
-    if '/issues/' in output:
+    if "/issues/" in output:
         try:
-            issue_info['number'] = int(output.split('/issues/')[-1].strip())
+            issue_info["number"] = int(output.split("/issues/")[-1].strip())
         except (ValueError, IndexError):
             pass
 
-    return tool_response(issue=issue_info, message=f'Issue created: {output}')
+    return tool_response(issue=issue_info, message=f"Issue created: {output}")
 
 
 @tool_wrapper()
@@ -326,20 +350,24 @@ def get_repo_info_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, repo object
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
-    args = ['repo', 'view', '--json',
-            'name,owner,description,url,homepageUrl,defaultBranchRef,isPrivate,isFork,'
-            'stargazerCount,forkCount,watchers,issues,pullRequests,createdAt,updatedAt,'
-            'languages,licenseInfo,primaryLanguage']
+    args = [
+        "repo",
+        "view",
+        "--json",
+        "name,owner,description,url,homepageUrl,defaultBranchRef,isPrivate,isFork,"
+        "stargazerCount,forkCount,watchers,issues,pullRequests,createdAt,updatedAt,"
+        "languages,licenseInfo,primaryLanguage",
+    ]
 
-    if params.get('repo'):
-        args.append(params['repo'])
+    if params.get("repo"):
+        args.append(params["repo"])
 
     result = GitHubCLI.run_json_command(args)
 
-    if result.get('success'):
-        return tool_response(repo=result.get('data', {}))
+    if result.get("success"):
+        return tool_response(repo=result.get("data", {}))
 
     return result
 
@@ -357,23 +385,23 @@ def list_workflows_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, workflows list, count
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
-    args = ['workflow', 'list', '--json', 'id,name,state,path']
+    args = ["workflow", "list", "--json", "id,name,state,path"]
 
-    _add_repo_arg(args, params.get('repo'))
-    _add_limit_arg(args, params.get('limit', 30))
+    _add_repo_arg(args, params.get("repo"))
+    _add_limit_arg(args, params.get("limit", 30))
 
     result = GitHubCLI.run_json_command(args)
 
-    if result.get('success'):
-        workflows = result.get('data', [])
+    if result.get("success"):
+        workflows = result.get("data", [])
         return tool_response(workflows=workflows, count=len(workflows))
 
     return result
 
 
-@tool_wrapper(required_params=['workflow'])
+@tool_wrapper(required_params=["workflow"])
 def run_workflow_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """
     Trigger a GitHub Actions workflow.
@@ -388,38 +416,38 @@ def run_workflow_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dictionary with success, message, output
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
-    args = ['workflow', 'run', str(params['workflow'])]
+    args = ["workflow", "run", str(params["workflow"])]
 
-    _add_repo_arg(args, params.get('repo'))
+    _add_repo_arg(args, params.get("repo"))
 
-    if params.get('ref'):
-        args.extend(['--ref', params['ref']])
+    if params.get("ref"):
+        args.extend(["--ref", params["ref"]])
 
-    inputs = params.get('inputs', {})
+    inputs = params.get("inputs", {})
     if inputs and isinstance(inputs, dict):
         for key, value in inputs.items():
-            args.extend(['--field', f'{key}={value}'])
+            args.extend(["--field", f"{key}={value}"])
 
     result = GitHubCLI.run_command(args)
 
-    if result.get('success'):
+    if result.get("success"):
         return tool_response(
             message=f'Workflow "{params["workflow"]}" triggered successfully',
-            output=result.get('output', '')
+            output=result.get("output", ""),
         )
 
     return result
 
 
 __all__ = [
-    'list_prs_tool',
-    'get_pr_tool',
-    'create_pr_tool',
-    'list_issues_tool',
-    'create_issue_tool',
-    'get_repo_info_tool',
-    'list_workflows_tool',
-    'run_workflow_tool'
+    "list_prs_tool",
+    "get_pr_tool",
+    "create_pr_tool",
+    "list_issues_tool",
+    "create_issue_tool",
+    "get_repo_info_tool",
+    "list_workflows_tool",
+    "run_workflow_tool",
 ]

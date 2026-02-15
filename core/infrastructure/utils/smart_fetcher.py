@@ -20,10 +20,11 @@ Used by: web-search, web-scraper, screener-financials, etc.
 import logging
 import random
 import re
-import requests
 import time
-from typing import Dict, Any, Optional, List, Set
-from urllib.parse import urlparse, quote
+from typing import Any, Dict, List, Optional, Set
+from urllib.parse import quote, urlparse
+
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -33,30 +34,36 @@ logger = logging.getLogger(__name__)
 # =========================================================================
 
 USER_AGENTS = [
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:123.0) Gecko/20100101 Firefox/123.0',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3 Safari/605.1.15',
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:123.0) Gecko/20100101 Firefox/123.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3 Safari/605.1.15",
 ]
 
 # Domains known to block direct HTTP (skip to escalation)
 ALWAYS_BLOCKED_DOMAINS = {
-    'linkedin.com', 'www.linkedin.com',
+    "linkedin.com",
+    "www.linkedin.com",
 }
 
 # Domains that block everything including proxies (archive.org only hope).
 # Skip direct + proxy entirely — they waste 10+ seconds and never work.
 # Medium: JS-gated, proxies can't render JS. Reddit: aggressive bot detection.
 AGGRESSIVELY_BLOCKED_DOMAINS = {
-    'reddit.com', 'www.reddit.com', 'old.reddit.com',
-    'medium.com', 'www.medium.com',  # covers subdomains via 'in' check
+    "reddit.com",
+    "www.reddit.com",
+    "old.reddit.com",
+    "medium.com",
+    "www.medium.com",  # covers subdomains via 'in' check
 }
 
 # Domains where NO method works (require real login / private content)
 UNFETCHABLE_DOMAINS = {
-    'facebook.com', 'www.facebook.com',
-    'instagram.com', 'www.instagram.com',
+    "facebook.com",
+    "www.facebook.com",
+    "instagram.com",
+    "www.instagram.com",
 }
 
 # Runtime cache: domains that failed ALL escalation levels this session.
@@ -66,19 +73,20 @@ _blocked_cache: set = set()
 def _random_headers() -> Dict[str, str]:
     """Get randomized browser-like headers."""
     return {
-        'User-Agent': random.choice(USER_AGENTS),
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Accept-Encoding': 'gzip, deflate, br',
-        'DNT': '1',
-        'Connection': 'keep-alive',
-        'Upgrade-Insecure-Requests': '1',
+        "User-Agent": random.choice(USER_AGENTS),
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Accept-Encoding": "gzip, deflate, br",
+        "DNT": "1",
+        "Connection": "keep-alive",
+        "Upgrade-Insecure-Requests": "1",
     }
 
 
 # =========================================================================
 # ESCALATION LEVEL 2: archive.org Wayback Machine API
 # =========================================================================
+
 
 def _try_archive_org(url: str, timeout: int = 15) -> Optional[str]:
     """
@@ -99,25 +107,31 @@ def _try_archive_org(url: str, timeout: int = 15) -> Optional[str]:
     try:
         # Step 1: Check if snapshot exists (fast API call)
         api_url = f"https://archive.org/wayback/available?url={quote(url, safe='')}"
-        api_resp = requests.get(api_url, timeout=8,
-                                headers={'User-Agent': random.choice(USER_AGENTS)})
+        api_resp = requests.get(
+            api_url, timeout=8, headers={"User-Agent": random.choice(USER_AGENTS)}
+        )
         if api_resp.status_code != 200:
             return None
 
         data = api_resp.json()
-        snapshot = data.get('archived_snapshots', {}).get('closest', {})
-        snapshot_url = snapshot.get('url')
+        snapshot = data.get("archived_snapshots", {}).get("closest", {})
+        snapshot_url = snapshot.get("url")
 
-        if not snapshot_url or snapshot.get('status') != '200':
+        if not snapshot_url or snapshot.get("status") != "200":
             logger.debug(f"SmartFetch: no archive.org snapshot for {domain}")
             return None
 
         # Step 2: Fetch the actual snapshot
-        resp = requests.get(snapshot_url,
-                            headers={'User-Agent': random.choice(USER_AGENTS)},
-                            timeout=timeout, allow_redirects=True)
+        resp = requests.get(
+            snapshot_url,
+            headers={"User-Agent": random.choice(USER_AGENTS)},
+            timeout=timeout,
+            allow_redirects=True,
+        )
         if resp.status_code == 200 and len(resp.text) > 500:
-            logger.info(f"SmartFetch: archive.org snapshot for {domain} ({snapshot.get('timestamp', '?')})")
+            logger.info(
+                f"SmartFetch: archive.org snapshot for {domain} ({snapshot.get('timestamp', '?')})"
+            )
             return resp.text
 
     except Exception as e:
@@ -130,6 +144,7 @@ def _try_archive_org(url: str, timeout: int = 15) -> Optional[str]:
 # PROXY ROTATOR (shared singleton, escalation level 4)
 # =========================================================================
 
+
 class ProxyRotator:
     """
     Manages free proxy rotation for HTTP requests.
@@ -139,8 +154,14 @@ class ProxyRotator:
     """
 
     PROXY_SOURCES = [
-        ("https://proxylist.geonode.com/api/proxy-list?limit=20&page=1&sort_by=lastChecked&sort_type=desc&protocols=http", "geonode"),
-        ("https://api.proxyscrape.com/v2/?request=get&protocol=http&timeout=10000&country=all&ssl=all&anonymity=all", "proxyscrape"),
+        (
+            "https://proxylist.geonode.com/api/proxy-list?limit=20&page=1&sort_by=lastChecked&sort_type=desc&protocols=http",
+            "geonode",
+        ),
+        (
+            "https://api.proxyscrape.com/v2/?request=get&protocol=http&timeout=10000&country=all&ssl=all&anonymity=all",
+            "proxyscrape",
+        ),
         ("https://www.proxy-list.download/api/v1/get?type=http", "proxy-list"),
     ]
 
@@ -157,7 +178,9 @@ class ProxyRotator:
 
         for url, source in self.PROXY_SOURCES:
             try:
-                resp = requests.get(url, timeout=8, headers={'User-Agent': random.choice(USER_AGENTS)})
+                resp = requests.get(
+                    url, timeout=8, headers={"User-Agent": random.choice(USER_AGENTS)}
+                )
                 if resp.status_code != 200:
                     continue
 
@@ -166,20 +189,20 @@ class ProxyRotator:
                 if source == "geonode":
                     try:
                         data = resp.json()
-                        for p in data.get('data', [])[:15]:
-                            ip, port = p.get('ip'), p.get('port')
+                        for p in data.get("data", [])[:15]:
+                            ip, port = p.get("ip"), p.get("port")
                             if ip and port:
                                 proxies.append(f"http://{ip}:{port}")
                     except Exception:
                         pass
                 else:
-                    for line in content.split('\n')[:15]:
+                    for line in content.split("\n")[:15]:
                         line = line.strip()
-                        if not line or 'invalid' in line.lower() or 'error' in line.lower():
+                        if not line or "invalid" in line.lower() or "error" in line.lower():
                             continue
-                        if ':' in line and not line.startswith('http'):
+                        if ":" in line and not line.startswith("http"):
                             proxies.append(f"http://{line}")
-                        elif line.startswith('http'):
+                        elif line.startswith("http"):
                             proxies.append(line)
 
                 if proxies:
@@ -206,11 +229,11 @@ class ProxyRotator:
             proxy = self._proxies[self._index % len(self._proxies)]
             self._index += 1
             if proxy not in self._failed:
-                return {'http': proxy, 'https': proxy}
+                return {"http": proxy, "https": proxy}
 
         self._failed.clear()
         proxy = self._proxies[0]
-        return {'http': proxy, 'https': proxy}
+        return {"http": proxy, "https": proxy}
 
     def mark_failed(self, proxy_url: str) -> None:
         """Mark a proxy as failed."""
@@ -234,12 +257,32 @@ def get_proxy_rotator() -> ProxyRotator:
 # SMART FETCH — The main entry point
 # =========================================================================
 
+
 class FetchResult:
     """Result of a smart_fetch call."""
-    __slots__ = ('success', 'response', 'content', 'status_code',
-                 'used_proxy', 'error', 'skipped', 'source')
 
-    def __init__(self, success: Any = False, response: Any = None, content: Any = '', status_code: Any = 0, used_proxy: Any = False, error: Any = '', skipped: Any = False, source: Any = 'direct') -> None:
+    __slots__ = (
+        "success",
+        "response",
+        "content",
+        "status_code",
+        "used_proxy",
+        "error",
+        "skipped",
+        "source",
+    )
+
+    def __init__(
+        self,
+        success: Any = False,
+        response: Any = None,
+        content: Any = "",
+        status_code: Any = 0,
+        used_proxy: Any = False,
+        error: Any = "",
+        skipped: Any = False,
+        source: Any = "direct",
+    ) -> None:
         self.success = success
         self.response = response
         self.content = content
@@ -255,7 +298,7 @@ def smart_fetch(
     timeout: int = 8,
     max_proxy_attempts: int = 1,
     headers: Optional[Dict[str, str]] = None,
-    method: str = 'GET',
+    method: str = "GET",
     total_budget: float = 20.0,
 ) -> FetchResult:
     """
@@ -315,17 +358,22 @@ def smart_fetch(
     if not is_blocked_domain and not is_aggressively_blocked:
         try:
             _t = min(timeout, _budget_remaining())
-            resp = requests.request(method, url, headers=req_headers,
-                                    timeout=_t, allow_redirects=True)
+            resp = requests.request(
+                method, url, headers=req_headers, timeout=_t, allow_redirects=True
+            )
             if resp.status_code < 400:
                 return FetchResult(
-                    success=True, response=resp, content=resp.text,
-                    status_code=resp.status_code, source='direct',
+                    success=True,
+                    response=resp,
+                    content=resp.text,
+                    status_code=resp.status_code,
+                    source="direct",
                 )
             elif resp.status_code not in (403, 429, 451):
                 # 404, 500, etc. — don't escalate
                 return FetchResult(
-                    success=False, response=resp,
+                    success=False,
+                    response=resp,
                     status_code=resp.status_code,
                     error=f"HTTP {resp.status_code}",
                 )
@@ -351,8 +399,10 @@ def smart_fetch(
     archive_html = _try_archive_org(url, timeout=min(timeout, _budget_remaining()))
     if archive_html:
         return FetchResult(
-            success=True, content=archive_html,
-            status_code=200, source='archive_org',
+            success=True,
+            content=archive_html,
+            status_code=200,
+            source="archive_org",
         )
 
     # ── Level 3: Free proxy (last resort, unreliable) ──
@@ -361,7 +411,8 @@ def smart_fetch(
         _blocked_cache.add(domain)
         logger.info(f"SmartFetch: {domain} blocks all methods, skipping proxy (use API instead)")
         return FetchResult(
-            success=False, status_code=403,
+            success=False,
+            status_code=403,
             error=f"{domain} blocks scrapers — archive.org had no snapshot. Content unavailable.",
         )
 
@@ -382,30 +433,38 @@ def smart_fetch(
         if not proxy_dict:
             break
 
-        proxy_url = proxy_dict.get('http', '')
+        proxy_url = proxy_dict.get("http", "")
         try:
-            req_headers['User-Agent'] = random.choice(USER_AGENTS)
+            req_headers["User-Agent"] = random.choice(USER_AGENTS)
             _t = min(timeout, _budget_remaining())
             resp = requests.request(
-                method, url,
-                headers=req_headers, proxies=proxy_dict,
-                timeout=_t, allow_redirects=True,
+                method,
+                url,
+                headers=req_headers,
+                proxies=proxy_dict,
+                timeout=_t,
+                allow_redirects=True,
             )
             if resp.status_code < 400:
                 logger.info(f"SmartFetch: {domain} via proxy (attempt {attempt + 1})")
                 return FetchResult(
-                    success=True, response=resp, content=resp.text,
-                    status_code=resp.status_code, used_proxy=True,
-                    source='proxy',
+                    success=True,
+                    response=resp,
+                    content=resp.text,
+                    status_code=resp.status_code,
+                    used_proxy=True,
+                    source="proxy",
                 )
             elif resp.status_code in (403, 429):
                 rotator.mark_failed(proxy_url)
             else:
                 return FetchResult(
-                    success=False, response=resp,
+                    success=False,
+                    response=resp,
                     status_code=resp.status_code,
                     error=f"HTTP {resp.status_code} via proxy",
-                    used_proxy=True, source='proxy',
+                    used_proxy=True,
+                    source="proxy",
                 )
         except Exception as e:
             rotator.mark_failed(proxy_url)

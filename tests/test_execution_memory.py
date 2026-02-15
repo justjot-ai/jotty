@@ -6,16 +6,17 @@ Unit tests for JSONMemory and NoOpMemory backends.
 All tests use tmp_path to avoid filesystem side effects.
 """
 
-import pytest
 from datetime import datetime, timedelta
 from unittest.mock import patch
 
-from Jotty.core.modes.execution.memory import JSONMemory, NoOpMemory
+import pytest
 
+from Jotty.core.modes.execution.memory import JSONMemory, NoOpMemory
 
 # =============================================================================
 # JSONMemory Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.asyncio
@@ -24,7 +25,9 @@ class TestJSONMemoryStoreRetrieve:
 
     async def test_store_then_retrieve_returns_entry(self, tmp_path):
         mem = JSONMemory(base_path=tmp_path)
-        await mem.store(goal="summarize report", result="Report summary here", success=True, confidence=0.95)
+        await mem.store(
+            goal="summarize report", result="Report summary here", success=True, confidence=0.95
+        )
 
         entries = await mem.retrieve(goal="summarize report")
 
@@ -75,7 +78,9 @@ class TestJSONMemoryExpiry:
         mem = JSONMemory(base_path=tmp_path)
 
         # Store an entry with a very short TTL
-        await mem.store(goal="expiring task", result="old result", success=True, confidence=0.7, ttl_hours=1)
+        await mem.store(
+            goal="expiring task", result="old result", success=True, confidence=0.7, ttl_hours=1
+        )
 
         # Patch datetime.now to simulate time passing beyond TTL
         future_time = datetime.now() + timedelta(hours=2)
@@ -120,6 +125,7 @@ class TestJSONMemoryCapacity:
 # =============================================================================
 # NoOpMemory Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.asyncio

@@ -4,10 +4,10 @@ Uses WeasyPrint (HTML->PDF) for professional, styled output.
 Generates both interactive HTML and print-ready PDF.
 """
 
-import logging
 import asyncio
-from typing import Dict, Any, Optional, List
+import logging
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -333,23 +333,30 @@ li {{ margin-bottom: 4px; }}
 # MARKDOWN TO HTML CONVERTER
 # =============================================================================
 
+
 class LessonHTMLRenderer:
     """Renders LessonContent into styled HTML."""
 
-    def __init__(self, celebration_word: str = 'Brilliant!') -> None:
+    def __init__(self, celebration_word: str = "Brilliant!") -> None:
         self.celebration = celebration_word
 
     # Titles of sections rendered by dedicated structured blocks
-    _DEDICATED_SECTION_TITLES = frozenset({
-        "foundation check", "pattern library", "common traps",
-        "strategy toolkit", "trap alert", "where this leads",
-    })
+    _DEDICATED_SECTION_TITLES = frozenset(
+        {
+            "foundation check",
+            "pattern library",
+            "common traps",
+            "strategy toolkit",
+            "trap alert",
+            "where this leads",
+        }
+    )
 
     def _is_dedicated_section(self, title: str) -> bool:
         """Check if a section title is rendered by a dedicated structured block."""
         return title.lower().strip() in self._DEDICATED_SECTION_TITLES
 
-    def render(self, content: 'LessonContent', learning_time: str = "") -> str:
+    def render(self, content: "LessonContent", learning_time: str = "") -> str:
         """Render full lesson to HTML string."""
         import markdown
 
@@ -357,7 +364,9 @@ class LessonHTMLRenderer:
 
         # Hook
         if content.sections and content.sections[0].content:
-            body_parts.append(f'<div class="hook-box">{self._md(content.sections[0].content)}</div>')
+            body_parts.append(
+                f'<div class="hook-box">{self._md(content.sections[0].content)}</div>'
+            )
 
         # Building blocks (structured rendering with headings + quick checks)
         if content.building_blocks:
@@ -366,7 +375,9 @@ class LessonHTMLRenderer:
                 body_parts.append(f"<h3>{block.name}</h3>")
                 body_parts.append(f"<p>{self._md_inline(block.quick_review)}</p>")
                 if block.check_question:
-                    body_parts.append(f'<div class="hint-box"><strong>Quick check:</strong> {block.check_question}</div>')
+                    body_parts.append(
+                        f'<div class="hint-box"><strong>Quick check:</strong> {block.check_question}</div>'
+                    )
 
         # Core sections (skip hook and sections that have dedicated renderers)
         for section in content.sections[1:]:
@@ -377,12 +388,16 @@ class LessonHTMLRenderer:
             if section.problems:
                 # Problem section - render structured problems only (skip raw content)
                 if section.transition_text:
-                    body_parts.append(f'<p class="transition-text">{self._md_inline(section.transition_text)}</p>')
+                    body_parts.append(
+                        f'<p class="transition-text">{self._md_inline(section.transition_text)}</p>'
+                    )
                 body_parts.append(f"<h2>{section.title}</h2>")
                 for i, prob in enumerate(section.problems, 1):
-                    tier_class = prob.tier.value if hasattr(prob.tier, 'value') else 'intermediate'
+                    tier_class = prob.tier.value if hasattr(prob.tier, "value") else "intermediate"
                     body_parts.append(f'<div class="problem-box {tier_class}">')
-                    body_parts.append(f'<div class="problem-header {tier_class}">Problem {i} ({prob.time_estimate_minutes} min)</div>')
+                    body_parts.append(
+                        f'<div class="problem-header {tier_class}">Problem {i} ({prob.time_estimate_minutes} min)</div>'
+                    )
                     body_parts.append(f"<p>{self._md_inline(prob.statement)}</p>")
                     if prob.hints:
                         body_parts.append('<div class="hint-box"><strong>Hints:</strong><ol>')
@@ -390,20 +405,30 @@ class LessonHTMLRenderer:
                             body_parts.append(f"<li>{hint}</li>")
                         body_parts.append("</ol></div>")
                     if prob.solution:
-                        body_parts.append(f'<div class="solution-box"><strong>Solution:</strong><br>{self._md(prob.solution)}</div>')
+                        body_parts.append(
+                            f'<div class="solution-box"><strong>Solution:</strong><br>{self._md(prob.solution)}</div>'
+                        )
                     if prob.relates_to_pattern:
-                        body_parts.append(f'<p><em>Pattern:</em> {prob.relates_to_pattern}</p>')
+                        body_parts.append(f"<p><em>Pattern:</em> {prob.relates_to_pattern}</p>")
                     if prob.key_insight:
                         body_parts.append(f'<div class="breakthrough">{prob.key_insight}</div>')
                     body_parts.append("</div>")
             else:
                 if section.transition_text:
-                    body_parts.append(f'<p class="transition-text">{self._md_inline(section.transition_text)}</p>')
+                    body_parts.append(
+                        f'<p class="transition-text">{self._md_inline(section.transition_text)}</p>'
+                    )
                 body_parts.append(f"<h2>{section.title}</h2>")
                 body_parts.append(self._md(section.content))
                 if section.has_breakthrough_moment:
-                    breakthrough_text = section.breakthrough_content if section.breakthrough_content else "Key insight from this section!"
-                    body_parts.append(f'<div class="breakthrough">{self._md_inline(breakthrough_text)}</div>')
+                    breakthrough_text = (
+                        section.breakthrough_content
+                        if section.breakthrough_content
+                        else "Key insight from this section!"
+                    )
+                    body_parts.append(
+                        f'<div class="breakthrough">{self._md_inline(breakthrough_text)}</div>'
+                    )
 
         # Patterns (structured card rendering)
         if content.patterns:
@@ -458,19 +483,28 @@ class LessonHTMLRenderer:
             body_parts.append("<ol>")
             for ins in content.key_insights:
                 if ins:
-                    body_parts.append(f'<li class="breakthrough" style="list-style: decimal;">{self._md_inline(ins)}</li>')
+                    body_parts.append(
+                        f'<li class="breakthrough" style="list-style: decimal;">{self._md_inline(ins)}</li>'
+                    )
             body_parts.append("</ol>")
 
         # Rank tips (20-30 tips to secure #1)
         if content.rank_tips:
             body_parts.append('<div class="rank-tips-section">')
             body_parts.append(f"<h2>Tips to Secure #1 Rank in {content.topic}</h2>")
-            body_parts.append(f"<p><em>{content.student_name}, here are the specific tips that separate the #1 scorer from everyone else:</em></p>")
+            body_parts.append(
+                f"<p><em>{content.student_name}, here are the specific tips that separate the #1 scorer from everyone else:</em></p>"
+            )
             for i, tip in enumerate(content.rank_tips, 1):
                 import re as _re
-                clean_tip = _re.sub(r'^\d+[\.\)]\s*', '', tip)
-                body_parts.append(f'<div class="rank-tip"><strong>{i}.</strong> {self._md_inline(clean_tip)}</div>')
-            body_parts.append(f"<p><em>Master these {len(content.rank_tips)} tips and you won't just pass — you'll dominate, {content.student_name}!</em></p>")
+
+                clean_tip = _re.sub(r"^\d+[\.\)]\s*", "", tip)
+                body_parts.append(
+                    f'<div class="rank-tip"><strong>{i}.</strong> {self._md_inline(clean_tip)}</div>'
+                )
+            body_parts.append(
+                f"<p><em>Master these {len(content.rank_tips)} tips and you won't just pass — you'll dominate, {content.student_name}!</em></p>"
+            )
             body_parts.append("</div>")
 
         # Next topics
@@ -502,11 +536,12 @@ class LessonHTMLRenderer:
             return ""
         try:
             import markdown
-            return markdown.markdown(text, extensions=['tables', 'fenced_code'])
+
+            return markdown.markdown(text, extensions=["tables", "fenced_code"])
         except Exception:
             # Fallback: basic conversion
-            text = text.replace('\n\n', '</p><p>')
-            text = text.replace('\n', '<br>')
+            text = text.replace("\n\n", "</p><p>")
+            text = text.replace("\n", "<br>")
             return f"<p>{text}</p>"
 
     def _md_inline(self, text: str) -> str:
@@ -530,8 +565,9 @@ class LessonHTMLRenderer:
 # PDF GENERATOR
 # =============================================================================
 
+
 async def generate_lesson_pdf(
-    content: 'LessonContent',
+    content: "LessonContent",
     output_path: str,
     celebration_word: str = "Brilliant!",
     learning_time: str = "~45 min",
@@ -554,10 +590,7 @@ async def generate_lesson_pdf(
         html_str = renderer.render(content, learning_time=learning_time)
 
         loop = asyncio.get_running_loop()
-        await loop.run_in_executor(
-            None,
-            lambda: HTML(string=html_str).write_pdf(output_path)
-        )
+        await loop.run_in_executor(None, lambda: HTML(string=html_str).write_pdf(output_path))
 
         if Path(output_path).exists():
             size_kb = Path(output_path).stat().st_size / 1024
@@ -574,7 +607,7 @@ async def generate_lesson_pdf(
 
 
 async def generate_lesson_html(
-    content: 'LessonContent',
+    content: "LessonContent",
     output_path: str,
     celebration_word: str = "Brilliant!",
     learning_time: str = "~45 min",
@@ -594,7 +627,7 @@ async def generate_lesson_html(
         renderer = LessonHTMLRenderer(celebration_word=celebration_word)
         html_str = renderer.render(content, learning_time=learning_time)
 
-        Path(output_path).write_text(html_str, encoding='utf-8')
+        Path(output_path).write_text(html_str, encoding="utf-8")
 
         if Path(output_path).exists():
             logger.info(f"Generated HTML: {output_path}")
@@ -607,38 +640,44 @@ async def generate_lesson_html(
 
 
 async def _generate_pdf_reportlab(
-    content: 'LessonContent',
+    content: "LessonContent",
     output_path: str,
     celebration_word: str,
 ) -> Optional[str]:
     """Fallback PDF generator using reportlab."""
     try:
-        from reportlab.lib.pagesizes import A4
-        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
         from reportlab.lib.colors import HexColor
-        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+        from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 
         loop = asyncio.get_running_loop()
 
         def _build() -> None:
-            doc = SimpleDocTemplate(output_path, pagesize=A4,
-                                    leftMargin=60, rightMargin=60,
-                                    topMargin=50, bottomMargin=50)
+            doc = SimpleDocTemplate(
+                output_path,
+                pagesize=A4,
+                leftMargin=60,
+                rightMargin=60,
+                topMargin=50,
+                bottomMargin=50,
+            )
             styles = getSampleStyleSheet()
 
-            title_style = ParagraphStyle('LessonTitle', parent=styles['Title'],
-                                         fontSize=22, textColor=HexColor('#1a237e'))
-            h2_style = ParagraphStyle('H2', parent=styles['Heading2'],
-                                       fontSize=16, textColor=HexColor('#283593'))
-            body_style = ParagraphStyle('Body', parent=styles['Normal'],
-                                         fontSize=11, leading=16)
-            highlight_style = ParagraphStyle('Highlight', parent=body_style,
-                                              backColor=HexColor('#fff8e1'),
-                                              borderPadding=8)
+            title_style = ParagraphStyle(
+                "LessonTitle", parent=styles["Title"], fontSize=22, textColor=HexColor("#1a237e")
+            )
+            h2_style = ParagraphStyle(
+                "H2", parent=styles["Heading2"], fontSize=16, textColor=HexColor("#283593")
+            )
+            body_style = ParagraphStyle("Body", parent=styles["Normal"], fontSize=11, leading=16)
+            highlight_style = ParagraphStyle(
+                "Highlight", parent=body_style, backColor=HexColor("#fff8e1"), borderPadding=8
+            )
 
             story = []
             story.append(Paragraph(f"{content.topic}", title_style))
-            story.append(Paragraph(f"Personalized for {content.student_name}", styles['Normal']))
+            story.append(Paragraph(f"Personalized for {content.student_name}", styles["Normal"]))
             story.append(Spacer(1, 20))
 
             for section in content.sections:
@@ -646,8 +685,8 @@ async def _generate_pdf_reportlab(
                 story.append(Spacer(1, 6))
 
                 # Clean text for reportlab (no markdown)
-                text = section.content.replace('\n\n', '<br/><br/>').replace('\n', '<br/>')
-                text = text.replace('**', '<b>').replace('*', '<i>')
+                text = section.content.replace("\n\n", "<br/><br/>").replace("\n", "<br/>")
+                text = text.replace("**", "<b>").replace("*", "<i>")
                 try:
                     story.append(Paragraph(text, body_style))
                 except Exception:
@@ -679,7 +718,7 @@ async def _generate_pdf_reportlab(
 
 
 __all__ = [
-    'generate_lesson_pdf',
-    'generate_lesson_html',
-    'LessonHTMLRenderer',
+    "generate_lesson_pdf",
+    "generate_lesson_html",
+    "LessonHTMLRenderer",
 ]

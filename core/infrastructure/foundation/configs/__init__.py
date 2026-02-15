@@ -19,22 +19,22 @@ Usage:
     def init_memory(config: MemoryConfig): ...
 """
 
-from .persistence import PersistenceConfig
-from .execution import ExecutionConfig
-from .memory import MemoryConfig
 from .context_budget import ContextBudgetConfig
-from .learning import LearningConfig
-from .validation import ValidationConfig
-from .monitoring import MonitoringConfig
+from .execution import ExecutionConfig
 from .intelligence import IntelligenceConfig
+from .learning import LearningConfig
+from .memory import MemoryConfig
+from .monitoring import MonitoringConfig
+from .persistence import PersistenceConfig
+from .validation import ValidationConfig
 
 __all__ = [
-    'PersistenceConfig',
-    'ExecutionConfig',
-    'MemoryConfig',
-    'ContextBudgetConfig',
-    'LearningConfig',
-    'ValidationConfig',
-    'MonitoringConfig',
-    'IntelligenceConfig',
+    "PersistenceConfig",
+    "ExecutionConfig",
+    "MemoryConfig",
+    "ContextBudgetConfig",
+    "LearningConfig",
+    "ValidationConfig",
+    "MonitoringConfig",
+    "IntelligenceConfig",
 ]

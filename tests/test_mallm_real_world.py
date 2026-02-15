@@ -10,16 +10,16 @@ Run:  pytest tests/test_mallm_real_world.py -v -s --timeout=180
 """
 
 import asyncio
-import os
-import pytest
 import logging
+import os
+
+import pytest
 
 pytestmark = pytest.mark.skipif(
-    not os.getenv('ANTHROPIC_API_KEY'),
-    reason="Requires ANTHROPIC_API_KEY for real LLM calls"
+    not os.getenv("ANTHROPIC_API_KEY"), reason="Requires ANTHROPIC_API_KEY for real LLM calls"
 )
 
-logging.basicConfig(level=logging.INFO, format='%(name)s %(levelname)s: %(message)s')
+logging.basicConfig(level=logging.INFO, format="%(name)s %(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 
@@ -29,19 +29,21 @@ def _make_lightweight_swarm(agent_specs):
 
     agent_specs: list of (name, sub_goal) tuples
     """
-    from core.orchestration.swarm_manager import Orchestrator
-    from core.foundation.agent_config import AgentConfig
     from core.agents.auto_agent import AutoAgent
+    from core.foundation.agent_config import AgentConfig
     from core.foundation.data_structures import SwarmConfig
+    from core.orchestration.swarm_manager import Orchestrator
 
     agents = []
     for name, sub_goal in agent_specs:
         agent = AutoAgent()
-        agents.append(AgentConfig(
-            name=name,
-            agent=agent,
-            capabilities=[sub_goal],
-        ))
+        agents.append(
+            AgentConfig(
+                name=name,
+                agent=agent,
+                capabilities=[sub_goal],
+            )
+        )
 
     config = SwarmConfig()
     sm = Orchestrator(
@@ -57,6 +59,7 @@ def _make_lightweight_swarm(agent_specs):
 # 1. DISCUSSION PARADIGMS — real LLM (skip_validation for speed)
 # =========================================================================
 
+
 class TestRealParadigms:
 
     @pytest.mark.asyncio
@@ -69,14 +72,16 @@ class TestRealParadigms:
             status_log.append(stage)
             logger.info(f"  📍 {stage}: {detail}")
 
-        sm = _make_lightweight_swarm([
-            ("researcher", "List 3 benefits of exercise"),
-            ("summarizer", "Summarize the key points in one sentence"),
-        ])
+        sm = _make_lightweight_swarm(
+            [
+                ("researcher", "List 3 benefits of exercise"),
+                ("summarizer", "Summarize the key points in one sentence"),
+            ]
+        )
 
         result = await sm.run(
             goal="What are the benefits of exercise?",
-            discussion_paradigm='relay',
+            discussion_paradigm="relay",
             skip_autonomous_setup=True,
             status_callback=cb,
             skip_validation=True,  # Skip architect/auditor = 1 LLM call per agent
@@ -91,21 +96,29 @@ class TestRealParadigms:
         output_str = str(result.output)
         assert len(output_str) > 10, f"Output too short: {output_str}"
         # Verify relay status messages appeared
-        relay_steps = [s for s in status_log if 'Relay' in s]
+        relay_steps = [s for s in status_log if "Relay" in s]
         assert len(relay_steps) >= 1, f"No relay status: {status_log}"
 
     @pytest.mark.asyncio
     @pytest.mark.timeout(300)
     async def test_debate_real(self):
         """Debate: two agents argue, then critique each other."""
-        sm = _make_lightweight_swarm([
-            ("supporter", "Without using any tools, give 3 reasons why morning exercise is better"),
-            ("opposer", "Without using any tools, give 3 reasons why evening exercise is better"),
-        ])
+        sm = _make_lightweight_swarm(
+            [
+                (
+                    "supporter",
+                    "Without using any tools, give 3 reasons why morning exercise is better",
+                ),
+                (
+                    "opposer",
+                    "Without using any tools, give 3 reasons why evening exercise is better",
+                ),
+            ]
+        )
 
         result = await sm.run(
             goal="Do not search the web. Just answer from your own knowledge: is morning or evening exercise better? Give reasons for both sides in 2-3 sentences each.",
-            discussion_paradigm='debate',
+            discussion_paradigm="debate",
             debate_rounds=2,
             skip_autonomous_setup=True,
             skip_validation=True,
@@ -123,14 +136,16 @@ class TestRealParadigms:
     @pytest.mark.timeout(300)
     async def test_refinement_real(self):
         """Refinement: drafter writes, editor improves."""
-        sm = _make_lightweight_swarm([
-            ("drafter", "Without using any tools, write a 4-line poem about the moon"),
-            ("editor", "Without using any tools, improve the poem's word choice"),
-        ])
+        sm = _make_lightweight_swarm(
+            [
+                ("drafter", "Without using any tools, write a 4-line poem about the moon"),
+                ("editor", "Without using any tools, improve the poem's word choice"),
+            ]
+        )
 
         result = await sm.run(
             goal="Do not search the web. Write a short 4-line poem about the moon. Use only your creativity.",
-            discussion_paradigm='refinement',
+            discussion_paradigm="refinement",
             refinement_iterations=2,
             skip_autonomous_setup=True,
             skip_validation=True,
@@ -149,6 +164,7 @@ class TestRealParadigms:
 # 2. DECISION PROTOCOLS — real vote data (no LLM needed)
 # =========================================================================
 
+
 class TestRealDecisionProtocols:
 
     @pytest.mark.asyncio
@@ -162,8 +178,8 @@ class TestRealDecisionProtocols:
             prefs = {
                 "senior_dev": ("microservices", 0.9, "Scalability and team independence"),
                 "junior_dev": ("microservices", 0.6, "Everyone uses microservices now"),
-                "ops_lead":   ("monolith", 0.85, "Simpler to deploy and monitor"),
-                "cto":        ("microservices", 0.75, "Long-term flexibility"),
+                "ops_lead": ("monolith", 0.85, "Simpler to deploy and monitor"),
+                "cto": ("microservices", 0.75, "Long-term flexibility"),
             }
             return prefs[agent]
 
@@ -172,7 +188,7 @@ class TestRealDecisionProtocols:
             options=["microservices", "monolith"],
             agents=["senior_dev", "junior_dev", "ops_lead", "cto"],
             vote_func=vote_func,
-            protocol='majority',
+            protocol="majority",
         )
 
         print(f"\n--- MAJORITY ---")
@@ -195,8 +211,8 @@ class TestRealDecisionProtocols:
             prefs = {
                 "dev_1": ("deploy", 0.9, "Tests pass, ready to ship"),
                 "dev_2": ("deploy", 0.7, "Looks good to me"),
-                "qa":    ("wait", 0.8, "Edge case not covered"),
-                "ops":   ("wait", 0.9, "No rollback plan yet"),
+                "qa": ("wait", 0.8, "Edge case not covered"),
+                "ops": ("wait", 0.9, "No rollback plan yet"),
             }
             return prefs[agent]
 
@@ -205,15 +221,16 @@ class TestRealDecisionProtocols:
             options=["deploy", "wait"],
             agents=["dev_1", "dev_2", "qa", "ops"],
             vote_func=vote_func,
-            protocol='supermajority',
+            protocol="supermajority",
         )
 
         print(f"\n--- SUPERMAJORITY ---")
         print(f"Decision: {decision.final_decision} (strength: {decision.consensus_strength:.2f})")
 
         # 2/4 = 50% < 66% → penalized strength
-        assert decision.consensus_strength < 0.66, \
-            f"Supermajority should NOT be reached at 50%: {decision.consensus_strength}"
+        assert (
+            decision.consensus_strength < 0.66
+        ), f"Supermajority should NOT be reached at 50%: {decision.consensus_strength}"
 
     @pytest.mark.asyncio
     async def test_unanimity_with_full_agreement(self):
@@ -230,7 +247,7 @@ class TestRealDecisionProtocols:
             options=["patch_now", "schedule_next_sprint", "ignore"],
             agents=["sec_lead", "dev_lead", "cto"],
             vote_func=vote_func,
-            protocol='unanimity',
+            protocol="unanimity",
         )
 
         print(f"\n--- UNANIMITY ---")
@@ -249,11 +266,11 @@ class TestRealDecisionProtocols:
 
         def vote_func(agent, question, options):
             prefs = {
-                "alice":  ("react", 0.9, "Ecosystem and community"),
-                "bob":    ("vue", 0.8, "Simpler learning curve"),
-                "carol":  ("react", 0.7, "More jobs available"),
-                "dave":   ("svelte", 0.6, "Modern and fast"),
-                "eve":    ("react", 0.85, "TypeScript support"),
+                "alice": ("react", 0.9, "Ecosystem and community"),
+                "bob": ("vue", 0.8, "Simpler learning curve"),
+                "carol": ("react", 0.7, "More jobs available"),
+                "dave": ("svelte", 0.6, "Modern and fast"),
+                "eve": ("react", 0.85, "TypeScript support"),
             }
             return prefs[agent]
 
@@ -262,7 +279,7 @@ class TestRealDecisionProtocols:
             options=["react", "vue", "svelte"],
             agents=["alice", "bob", "carol", "dave", "eve"],
             vote_func=vote_func,
-            protocol='ranked',
+            protocol="ranked",
         )
 
         print(f"\n--- RANKED ---")
@@ -279,10 +296,10 @@ class TestRealDecisionProtocols:
 
         def vote_func(agent, question, options):
             prefs = {
-                "hiring_mgr":  ("hire", 0.95, "Strong culture fit"),
-                "tech_lead":   ("hire", 0.8, "Good technical skills"),
+                "hiring_mgr": ("hire", 0.95, "Strong culture fit"),
+                "tech_lead": ("hire", 0.8, "Good technical skills"),
                 "team_member": ("hire", 0.3, "Not sure, seemed ok"),  # Low confidence
-                "hr":          ("pass", 0.4, "Salary expectations high"),  # Low confidence
+                "hr": ("pass", 0.4, "Salary expectations high"),  # Low confidence
             }
             return prefs[agent]
 
@@ -291,7 +308,7 @@ class TestRealDecisionProtocols:
             options=["hire", "pass"],
             agents=["hiring_mgr", "tech_lead", "team_member", "hr"],
             vote_func=vote_func,
-            protocol='approval',
+            protocol="approval",
         )
 
         print(f"\n--- APPROVAL ---")
@@ -306,6 +323,7 @@ class TestRealDecisionProtocols:
 # 3. STRUCTURED COMPRESSION — real content
 # =========================================================================
 
+
 class TestRealCompression:
 
     def test_compress_agent_execution_log(self):
@@ -314,25 +332,28 @@ class TestRealCompression:
 
         mgr = LLMContextManager()
 
-        log = "\n".join([
-            "Agent researcher started execution",
-            "Searching web for: machine learning deployment best practices",
-            "Found 12 results from Google",
-            'Result 1: "ML Model Deployment Patterns" - score 0.95',
-            'Result 2: "MLOps Best Practices 2025" - score 0.91',
-            'Result 3: "Scaling ML in Production" - score 0.87',
-            "Processing search results...",
-            "Error: Rate limit hit on result 7 (retrying)",
-            "Successfully extracted key information",
-            "Summary: ML deployment best practices include:",
-            "  1. Use model versioning (MLflow, DVC)",
-            "  2. Implement A/B testing for model rollouts",
-            "  3. Monitor model drift with statistical tests",
-            "  4. Use feature stores for consistency",
-            "  5. Containerize models (Docker + K8s)",
-            "Agent researcher completed in 8.2s",
-            "Tokens: 2,400 input, 600 output",
-        ] * 8)  # Repeat to make it long
+        log = "\n".join(
+            [
+                "Agent researcher started execution",
+                "Searching web for: machine learning deployment best practices",
+                "Found 12 results from Google",
+                'Result 1: "ML Model Deployment Patterns" - score 0.95',
+                'Result 2: "MLOps Best Practices 2025" - score 0.91',
+                'Result 3: "Scaling ML in Production" - score 0.87',
+                "Processing search results...",
+                "Error: Rate limit hit on result 7 (retrying)",
+                "Successfully extracted key information",
+                "Summary: ML deployment best practices include:",
+                "  1. Use model versioning (MLflow, DVC)",
+                "  2. Implement A/B testing for model rollouts",
+                "  3. Monitor model drift with statistical tests",
+                "  4. Use feature stores for consistency",
+                "  5. Containerize models (Docker + K8s)",
+                "Agent researcher completed in 8.2s",
+                "Tokens: 2,400 input, 600 output",
+            ]
+            * 8
+        )  # Repeat to make it long
 
         compressed = mgr.compress_structured(
             log,
@@ -345,9 +366,13 @@ class TestRealCompression:
         print(f"Ratio: {len(compressed)/len(log):.1%}")
         print(f"\n{compressed}")
 
-        assert '[Compressed' in compressed
-        assert 'Key findings:' in compressed
-        assert 'machine learning' in compressed.lower() or 'deployment' in compressed.lower() or 'ml' in compressed.lower()
+        assert "[Compressed" in compressed
+        assert "Key findings:" in compressed
+        assert (
+            "machine learning" in compressed.lower()
+            or "deployment" in compressed.lower()
+            or "ml" in compressed.lower()
+        )
         assert len(compressed) < len(log)
 
     def test_smart_compress_in_context_guard_flow(self):
@@ -361,21 +386,20 @@ class TestRealCompression:
         mgr.register("Logs", "x " * 5000, priority=LLMContextManager.HIGH)
 
         # build_context will trigger compression
-        context, meta = asyncio.run(
-            mgr.build_context()
-        )
+        context, meta = asyncio.run(mgr.build_context())
 
         print(f"\n--- CONTEXT GUARD FLOW ---")
         print(f"Context length: {len(context)} chars")
         print(f"Utilization: {meta['utilization']:.1%}")
 
         assert len(context) > 0
-        assert meta['utilization'] <= 1.1  # Should be within budget
+        assert meta["utilization"] <= 1.1  # Should be within budget
 
 
 # =========================================================================
 # 4. SCOPED TOOLS — real registry
 # =========================================================================
+
 
 class TestRealScopedTools:
 
@@ -388,7 +412,7 @@ class TestRealScopedTools:
         tools = registry.get_scoped_tools(
             "search the web for AI news and create a PDF report",
             max_tools=8,
-            format='names',
+            format="names",
         )
 
         print(f"\n--- SCOPED TOOLS (web) ---")
@@ -406,20 +430,21 @@ class TestRealScopedTools:
         tools = registry.get_scoped_tools(
             "send a message on telegram",
             max_tools=5,
-            format='names',
+            format="names",
         )
 
         print(f"\n--- SCOPED TOOLS (telegram) ---")
         print(f"Tools: {tools}")
 
         assert len(tools) <= 5
-        telegram_related = [t for t in tools if 'telegram' in t.lower()]
+        telegram_related = [t for t in tools if "telegram" in t.lower()]
         assert len(telegram_related) > 0, f"No telegram tool found in {tools}"
 
 
 # =========================================================================
 # 5. LIFECYCLE HOOKS — real agent run
 # =========================================================================
+
 
 class TestRealHooks:
 
@@ -429,19 +454,22 @@ class TestRealHooks:
         """Verify hooks fire during a real agent execution."""
         hook_log = []
 
-        sm = _make_lightweight_swarm([
-            ("math", "Solve math problems"),
-        ])
+        sm = _make_lightweight_swarm(
+            [
+                ("math", "Solve math problems"),
+            ]
+        )
         sm._ensure_runners()
 
         # Register hooks
         runner = sm.runners["math"]
-        runner.add_hook('pre_run', lambda **ctx: hook_log.append(
-            f"pre_run: {ctx.get('goal', '?')[:30]}"
-        ))
-        runner.add_hook('post_run', lambda **ctx: hook_log.append(
-            f"post_run: success={ctx.get('success', '?')}"
-        ))
+        runner.add_hook(
+            "pre_run", lambda **ctx: hook_log.append(f"pre_run: {ctx.get('goal', '?')[:30]}")
+        )
+        runner.add_hook(
+            "post_run",
+            lambda **ctx: hook_log.append(f"post_run: success={ctx.get('success', '?')}"),
+        )
 
         result = await sm.run(
             goal="What is 15 * 7? Reply with just the number.",
@@ -453,9 +481,9 @@ class TestRealHooks:
         print(f"Hook log: {hook_log}")
         print(f"Output: {str(result.output)[:200]}")
 
-        assert any('pre_run' in h for h in hook_log), f"pre_run didn't fire: {hook_log}"
-        assert any('post_run' in h for h in hook_log), f"post_run didn't fire: {hook_log}"
+        assert any("pre_run" in h for h in hook_log), f"pre_run didn't fire: {hook_log}"
+        assert any("post_run" in h for h in hook_log), f"post_run didn't fire: {hook_log}"
 
 
-if __name__ == '__main__':
-    pytest.main([__file__, '-v', '-s', '--timeout=180'])
+if __name__ == "__main__":
+    pytest.main([__file__, "-v", "-s", "--timeout=180"])

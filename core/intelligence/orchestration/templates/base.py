@@ -19,20 +19,21 @@ Design Philosophy:
 - Parallelism is explicit (template defines what can parallelize)
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Any, Optional, Callable, Union
-from enum import Enum
 import asyncio
 import logging
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, Callable, Dict, List, Optional, Union
 
 logger = logging.getLogger(__name__)
 
 
 class ModelTier(Enum):
     """LLM model tiers for different tasks."""
-    FAST = "haiku"       # Fast, cheap - for simple tasks
+
+    FAST = "haiku"  # Fast, cheap - for simple tasks
     BALANCED = "sonnet"  # Balanced - for most tasks
-    POWERFUL = "opus"    # Most capable - for complex reasoning
+    POWERFUL = "opus"  # Most capable - for complex reasoning
 
 
 @dataclass
@@ -51,6 +52,7 @@ class TemplateTemplateAgentConfig:
             max_concurrent=3,
         )
     """
+
     name: str
     skills: List[str]
     model: ModelTier = ModelTier.BALANCED
@@ -83,6 +85,7 @@ class StageConfig:
             outputs=["engineered_features"],
         )
     """
+
     name: str
     agents: List[str]
 
@@ -122,6 +125,7 @@ class FeedbackConfig:
             feedback_agents=["feature_engineer"],
         )
     """
+
     enabled: bool = True
     max_iterations: int = 2
     improvement_threshold: float = 0.005  # Min improvement to continue (0.5%)
@@ -269,32 +273,32 @@ class SwarmTemplate:
     def to_dict(self) -> Dict[str, Any]:
         """Serialize template to dictionary."""
         return {
-            'name': self.name,
-            'version': self.version,
-            'description': self.description,
-            'agents': {k: vars(v) for k, v in self.agents.items()},
-            'pipeline': [vars(s) for s in self.pipeline],
-            'feedback_config': vars(self.feedback_config) if self.feedback_config else None,
+            "name": self.name,
+            "version": self.version,
+            "description": self.description,
+            "agents": {k: vars(v) for k, v in self.agents.items()},
+            "pipeline": [vars(s) for s in self.pipeline],
+            "feedback_config": vars(self.feedback_config) if self.feedback_config else None,
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'SwarmTemplate':
+    def from_dict(cls, data: Dict[str, Any]) -> "SwarmTemplate":
         """Deserialize template from dictionary."""
         template = cls()
-        template.name = data.get('name', template.name)
-        template.version = data.get('version', template.version)
-        template.description = data.get('description', template.description)
+        template.name = data.get("name", template.name)
+        template.version = data.get("version", template.version)
+        template.description = data.get("description", template.description)
 
         # Reconstruct agents
-        for name, config in data.get('agents', {}).items():
+        for name, config in data.get("agents", {}).items():
             template.agents[name] = TemplateAgentConfig(**config)
 
         # Reconstruct pipeline
-        template.pipeline = [StageConfig(**s) for s in data.get('pipeline', [])]
+        template.pipeline = [StageConfig(**s) for s in data.get("pipeline", [])]
 
         # Reconstruct feedback config
-        if data.get('feedback_config'):
-            template.feedback_config = FeedbackConfig(**data['feedback_config'])
+        if data.get("feedback_config"):
+            template.feedback_config = FeedbackConfig(**data["feedback_config"])
 
         return template
 
@@ -311,10 +315,10 @@ class SwarmTemplate:
         Pre-execution learning phase. Loads relevant past sessions.
         Override in subclass for template-specific learning.
         """
-        if not getattr(self, '_learning', None):
+        if not getattr(self, "_learning", None):
             return {}
         try:
-            task_desc = kwargs.get('business_context', '') or kwargs.get('context', '')
+            task_desc = kwargs.get("business_context", "") or kwargs.get("context", "")
             learnings = self._learning.load_relevant_learnings(
                 task_description=task_desc,
                 agent_types=[],
@@ -330,14 +334,14 @@ class SwarmTemplate:
         Post-execution learning phase. Records session outcome.
         Override in subclass for template-specific pattern extraction.
         """
-        if not getattr(self, '_learning', None):
+        if not getattr(self, "_learning", None):
             return
         try:
             self._learning.record_session(
-                task_description=kwargs.get('business_context', ''),
-                agents_used=['skill_orchestrator'],
+                task_description=kwargs.get("business_context", ""),
+                agents_used=["skill_orchestrator"],
                 total_time=0.0,
-                success=results.get('final_score', 0) > 0,
+                success=results.get("final_score", 0) > 0,
             )
             self._learning.save_all()
         except Exception as e:
@@ -348,19 +352,19 @@ class SwarmTemplate:
         Called after each pipeline stage. Records experience for Q-learning.
         Override in subclass for custom reward shaping.
         """
-        if not getattr(self, '_learning', None):
+        if not getattr(self, "_learning", None):
             return
         try:
-            reward = 0.5 if results.get('success', True) else -0.5
+            reward = 0.5 if results.get("success", True) else -0.5
             # MASLearning delegates to LearningManager which IS the LearningManager
-            lm = getattr(self._learning, 'learning_manager', None)
-            if lm and hasattr(lm, 'record_experience'):
+            lm = getattr(self._learning, "learning_manager", None)
+            if lm and hasattr(lm, "record_experience"):
                 lm.record_experience(
-                    agent_name='pipeline',
-                    state={'stage': stage_name, 'template': self.name},
-                    action={'type': 'execute_stage', 'stage': stage_name},
+                    agent_name="pipeline",
+                    state={"stage": stage_name, "template": self.name},
+                    action={"type": "execute_stage", "stage": stage_name},
                     reward=reward,
-                    domain='ml_pipeline',
+                    domain="ml_pipeline",
                 )
         except Exception as e:
             logger.debug(f"Stage learning failed: {e}")
@@ -397,8 +401,8 @@ class TemplateExecutor:
         """
         # Initialize context with inputs
         self._context = dict(kwargs)
-        self._context['_iteration'] = 0
-        self._context['_best_score'] = 0.0
+        self._context["_iteration"] = 0
+        self._context["_best_score"] = 0.0
 
         # Validate inputs
         if not self.template.validate_inputs(**kwargs):
@@ -417,8 +421,8 @@ class TemplateExecutor:
         for name, config in self.template.agents.items():
             # Create agent instance (integration with Orchestrator)
             self._agents[name] = {
-                'config': config,
-                'status': 'ready',
+                "config": config,
+                "status": "ready",
             }
 
     async def _execute_pipeline(self) -> Dict[str, Any]:
@@ -444,7 +448,7 @@ class TemplateExecutor:
                 # Loop back to specified stage
                 loop_stage = self.template.get_stage_config(stage.loop_back_to)
                 if loop_stage:
-                    self._context['_iteration'] += 1
+                    self._context["_iteration"] += 1
                     # Re-execute from loop point (recursive)
                     # This is handled by the main loop
 
@@ -453,7 +457,7 @@ class TemplateExecutor:
     async def _execute_stage(self, stage: StageConfig) -> Dict[str, Any]:
         """Execute a single stage."""
         if self._progress_callback:
-            self._progress_callback(stage.name, 'start')
+            self._progress_callback(stage.name, "start")
 
         # Gather inputs
         inputs = {name: self._context.get(name) for name in stage.inputs}
@@ -461,10 +465,7 @@ class TemplateExecutor:
         # Execute agents
         if stage.parallel and len(stage.agents) > 1:
             # Parallel execution
-            tasks = [
-                self._execute_agent(agent_name, inputs)
-                for agent_name in stage.agents
-            ]
+            tasks = [self._execute_agent(agent_name, inputs) for agent_name in stage.agents]
             agent_results = await asyncio.gather(*tasks, return_exceptions=True)
 
             # Merge results
@@ -480,7 +481,7 @@ class TemplateExecutor:
                 result.update(agent_result)
 
         if self._progress_callback:
-            self._progress_callback(stage.name, 'complete', result)
+            self._progress_callback(stage.name, "complete", result)
 
         return result
 
@@ -490,7 +491,7 @@ class TemplateExecutor:
         if not agent_info:
             return {}
 
-        config = agent_info['config']
+        config = agent_info["config"]
         result = {}
 
         # Execute each skill
@@ -500,7 +501,9 @@ class TemplateExecutor:
 
         return result
 
-    async def _execute_skill(self, skill_name: str, inputs: Dict, agent_config: TemplateAgentConfig) -> Dict[str, Any]:
+    async def _execute_skill(
+        self, skill_name: str, inputs: Dict, agent_config: TemplateAgentConfig
+    ) -> Dict[str, Any]:
         """
         Execute a skill.
 
@@ -517,12 +520,17 @@ class TemplateExecutor:
             await skill.init()
 
             # Extract X, y from inputs
-            X = inputs.get('X') or inputs.get('cleaned_X') or inputs.get('engineered_X') or inputs.get('selected_X')
-            y = inputs.get('y')
+            X = (
+                inputs.get("X")
+                or inputs.get("cleaned_X")
+                or inputs.get("engineered_X")
+                or inputs.get("selected_X")
+            )
+            y = inputs.get("y")
 
             # Build context from inputs
-            context = {k: v for k, v in inputs.items() if k not in ['X', 'y']}
-            context['problem_type'] = inputs.get('problem_type', 'classification')
+            context = {k: v for k, v in inputs.items() if k not in ["X", "y"]}
+            context["problem_type"] = inputs.get("problem_type", "classification")
 
             # Execute skill
             result = await skill.execute(X, y, **context)
@@ -530,53 +538,54 @@ class TemplateExecutor:
             # Convert SkillResult to dict
             if result.success:
                 output = {
-                    'success': True,
-                    'data': result.data,
+                    "success": True,
+                    "data": result.data,
                     **result.metrics,
                     **result.metadata,
                 }
                 # Map skill output to stage outputs
                 if result.data is not None:
-                    output['X_enhanced'] = result.data
-                    output['engineered_X'] = result.data
-                    output['selected_X'] = result.data
+                    output["X_enhanced"] = result.data
+                    output["engineered_X"] = result.data
+                    output["selected_X"] = result.data
                 return output
             else:
-                return {'success': False, 'error': result.error}
+                return {"success": False, "error": result.error}
 
         except Exception as e:
             import logging
+
             logging.getLogger(__name__).debug(f"Skill {skill_name} failed: {e}")
-            return {'success': False, 'error': str(e)}
+            return {"success": False, "error": str(e)}
 
     def _get_skill_class(self, skill_name: str) -> None:
         """Get skill class by name from registry."""
         # Skill name to class mapping
         SKILL_MAP = {
             # EDA
-            'eda_analysis': 'EDASkill',
-            'data_profiling': 'EDASkill',
+            "eda_analysis": "EDASkill",
+            "data_profiling": "EDASkill",
             # Feature Engineering
-            'feature_engineering': 'FeatureEngineeringSkill',
-            'target_encoding': 'FeatureEngineeringSkill',
-            'interaction_features': 'FeatureEngineeringSkill',
+            "feature_engineering": "FeatureEngineeringSkill",
+            "target_encoding": "FeatureEngineeringSkill",
+            "interaction_features": "FeatureEngineeringSkill",
             # LLM Feature Reasoning
-            'llm_feature_reasoning': 'LLMFeatureReasonerSkill',
+            "llm_feature_reasoning": "LLMFeatureReasonerSkill",
             # Feature Selection
-            'shap_selection': 'FeatureSelectionSkill',
-            'permutation_importance': 'FeatureSelectionSkill',
-            'boruta_selection': 'FeatureSelectionSkill',
-            'correlation_filter': 'FeatureSelectionSkill',
+            "shap_selection": "FeatureSelectionSkill",
+            "permutation_importance": "FeatureSelectionSkill",
+            "boruta_selection": "FeatureSelectionSkill",
+            "correlation_filter": "FeatureSelectionSkill",
             # Model Selection
-            'model_selection': 'ModelSelectionSkill',
-            'cross_validation': 'ModelSelectionSkill',
+            "model_selection": "ModelSelectionSkill",
+            "cross_validation": "ModelSelectionSkill",
             # Hyperopt
-            'hyperparameter_optimization': 'HyperoptSkill',
+            "hyperparameter_optimization": "HyperoptSkill",
             # Ensemble
-            'weighted_voting': 'EnsembleSkill',
-            'stacking': 'EnsembleSkill',
-            'multi_level_stacking': 'EnsembleSkill',
-            'greedy_selection': 'EnsembleSkill',
+            "weighted_voting": "EnsembleSkill",
+            "stacking": "EnsembleSkill",
+            "multi_level_stacking": "EnsembleSkill",
+            "greedy_selection": "EnsembleSkill",
         }
 
         class_name = SKILL_MAP.get(skill_name)
@@ -587,25 +596,33 @@ class TemplateExecutor:
             # Import skill classes
             try:
                 from Jotty.core.capabilities.skills.ml import (
-                    EDASkill, LLMFeatureReasonerSkill, FeatureEngineeringSkill,
-                    FeatureSelectionSkill, ModelSelectionSkill, HyperoptSkill,
-                    EnsembleSkill
+                    EDASkill,
+                    EnsembleSkill,
+                    FeatureEngineeringSkill,
+                    FeatureSelectionSkill,
+                    HyperoptSkill,
+                    LLMFeatureReasonerSkill,
+                    ModelSelectionSkill,
                 )
             except ImportError:
                 from core.skills.ml import (
-                    EDASkill, LLMFeatureReasonerSkill, FeatureEngineeringSkill,
-                    FeatureSelectionSkill, ModelSelectionSkill, HyperoptSkill,
-                    EnsembleSkill
+                    EDASkill,
+                    EnsembleSkill,
+                    FeatureEngineeringSkill,
+                    FeatureSelectionSkill,
+                    HyperoptSkill,
+                    LLMFeatureReasonerSkill,
+                    ModelSelectionSkill,
                 )
 
             CLASS_MAP = {
-                'EDASkill': EDASkill,
-                'LLMFeatureReasonerSkill': LLMFeatureReasonerSkill,
-                'FeatureEngineeringSkill': FeatureEngineeringSkill,
-                'FeatureSelectionSkill': FeatureSelectionSkill,
-                'ModelSelectionSkill': ModelSelectionSkill,
-                'HyperoptSkill': HyperoptSkill,
-                'EnsembleSkill': EnsembleSkill,
+                "EDASkill": EDASkill,
+                "LLMFeatureReasonerSkill": LLMFeatureReasonerSkill,
+                "FeatureEngineeringSkill": FeatureEngineeringSkill,
+                "FeatureSelectionSkill": FeatureSelectionSkill,
+                "ModelSelectionSkill": ModelSelectionSkill,
+                "HyperoptSkill": HyperoptSkill,
+                "EnsembleSkill": EnsembleSkill,
             }
 
             return CLASS_MAP.get(class_name)
@@ -618,14 +635,14 @@ class TemplateExecutor:
             # Safer evaluation: restrict to basic comparisons and boolean operations
             # Allow only safe built-ins for template conditions
             safe_builtins = {
-                'True': True,
-                'False': False,
-                'None': None,
-                'len': len,
-                'str': str,
-                'int': int,
-                'float': float,
-                'bool': bool,
+                "True": True,
+                "False": False,
+                "None": None,
+                "len": len,
+                "str": str,
+                "int": int,
+                "float": float,
+                "bool": bool,
             }
             return eval(condition, {"__builtins__": safe_builtins}, self._context)
         except Exception:
@@ -636,7 +653,7 @@ class TemplateExecutor:
         if not stage.loop_back_to:
             return False
 
-        iteration = self._context.get('_iteration', 0)
+        iteration = self._context.get("_iteration", 0)
         if iteration >= stage.max_iterations:
             return False
 

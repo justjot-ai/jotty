@@ -10,29 +10,30 @@ Fixtures come from conftest.py:
     v3_observability_helpers — assertion helpers for metrics/traces/cost
 """
 
+import asyncio
 import json
 import os
-import pytest
-import asyncio
 from pathlib import Path
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
+import pytest
+
+from Jotty.core.modes.execution.tier_detector import TierDetector
 from Jotty.core.modes.execution.types import (
     ExecutionConfig,
-    ExecutionTier,
-    ExecutionResult,
     ExecutionPlan,
+    ExecutionResult,
     ExecutionStep,
-    ValidationResult,
+    ExecutionTier,
     StreamEvent,
     StreamEventType,
+    ValidationResult,
 )
-from Jotty.core.modes.execution.tier_detector import TierDetector
-
 
 # =============================================================================
 # Execution Types (sync, no executor needed)
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestExecutionTypes:
@@ -66,15 +67,15 @@ class TestExecutionTypes:
             trace=mock_trace,
         )
         d = result.to_dict()
-        assert d['trace_id'] == "abc123"
-        assert d['tier'] == "DIRECT"
-        assert d['success'] is True
+        assert d["trace_id"] == "abc123"
+        assert d["tier"] == "DIRECT"
+        assert d["success"] is True
 
     def test_execution_result_to_dict_without_trace(self):
         """to_dict() has trace_id=None when no trace."""
         result = ExecutionResult(output="out", tier=ExecutionTier.AGENTIC)
         d = result.to_dict()
-        assert d['trace_id'] is None
+        assert d["trace_id"] is None
 
     def test_execution_result_str(self):
         """__str__() format is stable."""
@@ -124,6 +125,7 @@ class TestExecutionTypes:
 # Tier 1: DIRECT
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestTier1Direct:
     """Test Tier 1 (DIRECT) — single LLM call."""
@@ -138,7 +140,7 @@ class TestTier1Direct:
         assert result.success is True
         assert result.tier == ExecutionTier.DIRECT
         assert result.llm_calls == 1
-        assert result.output == 'Mock LLM response'
+        assert result.output == "Mock LLM response"
 
     @pytest.mark.asyncio
     async def test_tier1_uses_cost_tracker(self, v3_executor):
@@ -157,7 +159,7 @@ class TestTier1Direct:
             "What is 2+2?",
             config=ExecutionConfig(tier=ExecutionTier.DIRECT),
         )
-        v3_observability_helpers['assert_metrics_recorded']('tier_1')
+        v3_observability_helpers["assert_metrics_recorded"]("tier_1")
 
     @pytest.mark.asyncio
     async def test_tier1_creates_trace(self, v3_executor, v3_observability_helpers):
@@ -166,7 +168,7 @@ class TestTier1Direct:
             "What is 2+2?",
             config=ExecutionConfig(tier=ExecutionTier.DIRECT),
         )
-        v3_observability_helpers['assert_trace_exists']()
+        v3_observability_helpers["assert_trace_exists"]()
         assert result.trace is not None
 
     @pytest.mark.asyncio
@@ -202,12 +204,13 @@ class TestTier1Direct:
         )
         assert len(called) >= 2  # At least "Discovering skills" and "Calling LLM"
         stages = [c[0] for c in called]
-        assert 'direct' in stages
+        assert "direct" in stages
 
 
 # =============================================================================
 # Tier 2: AGENTIC
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestTier2Agentic:
@@ -253,13 +256,15 @@ class TestTier2Agentic:
         assert result.llm_calls == 4
 
     @pytest.mark.asyncio
-    async def test_tier2_creates_trace_with_child_spans(self, v3_executor, v3_observability_helpers):
+    async def test_tier2_creates_trace_with_child_spans(
+        self, v3_executor, v3_observability_helpers
+    ):
         """Tier 2 trace has tier2_plan and tier2_step spans."""
         result = await v3_executor.execute(
             "Research AI and create summary",
             config=ExecutionConfig(tier=ExecutionTier.AGENTIC),
         )
-        v3_observability_helpers['assert_trace_exists']()
+        v3_observability_helpers["assert_trace_exists"]()
         assert result.trace is not None
 
     @pytest.mark.asyncio
@@ -299,6 +304,7 @@ class TestTier2Agentic:
 # =============================================================================
 # Tier 3: LEARNING
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestTier3Learning:
@@ -357,13 +363,15 @@ class TestTier3Learning:
         mock_v3_memory.store.assert_awaited()
 
     @pytest.mark.asyncio
-    async def test_tier3_creates_trace_with_memory_spans(self, v3_executor, v3_observability_helpers):
+    async def test_tier3_creates_trace_with_memory_spans(
+        self, v3_executor, v3_observability_helpers
+    ):
         """Tier 3 trace has memory, execute, and validate spans."""
         result = await v3_executor.execute(
             "Analyze sales data",
             config=ExecutionConfig(tier=ExecutionTier.LEARNING, enable_validation=True),
         )
-        v3_observability_helpers['assert_trace_exists']()
+        v3_observability_helpers["assert_trace_exists"]()
         assert result.trace is not None
 
     @pytest.mark.asyncio
@@ -390,6 +398,7 @@ class TestTier3Learning:
 # Tier 4: RESEARCH (domain swarm execution)
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestTier4Research:
     """Test Tier 4 (RESEARCH) — domain swarm execution."""
@@ -398,29 +407,35 @@ class TestTier4Research:
     async def test_tier4_selects_swarm(self, v3_executor):
         """Tier 4 selects correct swarm by keyword."""
         mock_swarm = AsyncMock()
-        mock_swarm.execute = AsyncMock(return_value=Mock(
-            output={'result': 'code'}, success=True,
-        ))
-        mock_swarm.__class__.__name__ = 'CodingSwarm'
+        mock_swarm.execute = AsyncMock(
+            return_value=Mock(
+                output={"result": "code"},
+                success=True,
+            )
+        )
+        mock_swarm.__class__.__name__ = "CodingSwarm"
 
-        with patch.object(v3_executor, '_select_swarm', return_value=mock_swarm):
+        with patch.object(v3_executor, "_select_swarm", return_value=mock_swarm):
             result = await v3_executor.execute(
                 "Code a function",
                 config=ExecutionConfig(tier=ExecutionTier.RESEARCH),
             )
             assert result.success is True
-            assert result.swarm_name == 'CodingSwarm'
+            assert result.swarm_name == "CodingSwarm"
 
     @pytest.mark.asyncio
     async def test_tier4_executes_swarm(self, v3_executor):
         """Tier 4 calls swarm.execute with the goal."""
         mock_swarm = AsyncMock()
-        mock_swarm.execute = AsyncMock(return_value=Mock(
-            output={'result': 'done'}, success=True,
-        ))
-        mock_swarm.__class__.__name__ = 'ResearchSwarm'
+        mock_swarm.execute = AsyncMock(
+            return_value=Mock(
+                output={"result": "done"},
+                success=True,
+            )
+        )
+        mock_swarm.__class__.__name__ = "ResearchSwarm"
 
-        with patch.object(v3_executor, '_select_swarm', return_value=mock_swarm):
+        with patch.object(v3_executor, "_select_swarm", return_value=mock_swarm):
             await v3_executor.execute(
                 "Research AI",
                 config=ExecutionConfig(tier=ExecutionTier.RESEARCH),
@@ -431,24 +446,29 @@ class TestTier4Research:
     async def test_tier4_creates_trace(self, v3_executor, v3_observability_helpers):
         """Tier 4 creates a trace with tier4_swarm span."""
         mock_swarm = AsyncMock()
-        mock_swarm.execute = AsyncMock(return_value=Mock(
-            output={'result': 'done'}, success=True,
-        ))
-        mock_swarm.__class__.__name__ = 'TestSwarm'
+        mock_swarm.execute = AsyncMock(
+            return_value=Mock(
+                output={"result": "done"},
+                success=True,
+            )
+        )
+        mock_swarm.__class__.__name__ = "TestSwarm"
 
-        with patch.object(v3_executor, '_select_swarm', return_value=mock_swarm):
+        with patch.object(v3_executor, "_select_swarm", return_value=mock_swarm):
             result = await v3_executor.execute(
                 "Test something",
                 config=ExecutionConfig(tier=ExecutionTier.RESEARCH),
             )
-            v3_observability_helpers['assert_trace_exists']()
+            v3_observability_helpers["assert_trace_exists"]()
             assert result.trace is not None
 
     @pytest.mark.asyncio
     async def test_tier4_falls_back_to_v2(self, v3_executor):
         """Tier 4 falls back to Orchestrator when no swarm matches."""
-        with patch.object(v3_executor, '_select_swarm', return_value=None):
-            with patch.object(v3_executor, '_execute_with_swarm_manager', new_callable=AsyncMock) as mock_fallback:
+        with patch.object(v3_executor, "_select_swarm", return_value=None):
+            with patch.object(
+                v3_executor, "_execute_with_swarm_manager", new_callable=AsyncMock
+            ) as mock_fallback:
                 mock_fallback.return_value = ExecutionResult(
                     output="Orchestrator result",
                     tier=ExecutionTier.RESEARCH,
@@ -466,6 +486,7 @@ class TestTier4Research:
 # Tier 5: AUTONOMOUS
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestTier5Autonomous:
     """Test Tier 5 (AUTONOMOUS) — sandbox + coalition."""
@@ -474,12 +495,15 @@ class TestTier5Autonomous:
     async def test_tier5_executes_with_swarm(self, v3_executor):
         """Tier 5 basic execution works."""
         mock_swarm = AsyncMock()
-        mock_swarm.execute = AsyncMock(return_value=Mock(
-            output={'result': 'autonomous'}, success=True,
-        ))
-        mock_swarm.__class__.__name__ = 'CodingSwarm'
+        mock_swarm.execute = AsyncMock(
+            return_value=Mock(
+                output={"result": "autonomous"},
+                success=True,
+            )
+        )
+        mock_swarm.__class__.__name__ = "CodingSwarm"
 
-        with patch.object(v3_executor, '_select_swarm', return_value=mock_swarm):
+        with patch.object(v3_executor, "_select_swarm", return_value=mock_swarm):
             result = await v3_executor.execute(
                 "Execute code in sandbox",
                 config=ExecutionConfig(tier=ExecutionTier.AUTONOMOUS),
@@ -491,17 +515,20 @@ class TestTier5Autonomous:
     async def test_tier5_creates_trace(self, v3_executor, v3_observability_helpers):
         """Tier 5 creates a trace with tier5_autonomous span."""
         mock_swarm = AsyncMock()
-        mock_swarm.execute = AsyncMock(return_value=Mock(
-            output={'result': 'done'}, success=True,
-        ))
-        mock_swarm.__class__.__name__ = 'TestSwarm'
+        mock_swarm.execute = AsyncMock(
+            return_value=Mock(
+                output={"result": "done"},
+                success=True,
+            )
+        )
+        mock_swarm.__class__.__name__ = "TestSwarm"
 
-        with patch.object(v3_executor, '_select_swarm', return_value=mock_swarm):
+        with patch.object(v3_executor, "_select_swarm", return_value=mock_swarm):
             result = await v3_executor.execute(
                 "Autonomous task",
                 config=ExecutionConfig(tier=ExecutionTier.AUTONOMOUS),
             )
-            v3_observability_helpers['assert_trace_exists']()
+            v3_observability_helpers["assert_trace_exists"]()
             assert result.trace is not None
 
 
@@ -509,38 +536,50 @@ class TestTier5Autonomous:
 # Observability (parametrized across tiers)
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestObservability:
     """Test observability integration across all tiers."""
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("tier,goal", [
-        (ExecutionTier.DIRECT, "What is 2+2?"),
-        (ExecutionTier.AGENTIC, "Research and summarize AI"),
-        (ExecutionTier.LEARNING, "Analyze and improve sales"),
-    ])
-    async def test_metrics_recorded_per_tier(self, v3_executor, v3_observability_helpers, tier, goal):
+    @pytest.mark.parametrize(
+        "tier,goal",
+        [
+            (ExecutionTier.DIRECT, "What is 2+2?"),
+            (ExecutionTier.AGENTIC, "Research and summarize AI"),
+            (ExecutionTier.LEARNING, "Analyze and improve sales"),
+        ],
+    )
+    async def test_metrics_recorded_per_tier(
+        self, v3_executor, v3_observability_helpers, tier, goal
+    ):
         """Metrics are recorded for tiers 1-3."""
         await v3_executor.execute(goal, config=ExecutionConfig(tier=tier))
-        v3_observability_helpers['assert_metrics_recorded'](f'tier_{tier.value}')
+        v3_observability_helpers["assert_metrics_recorded"](f"tier_{tier.value}")
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("tier,goal", [
-        (ExecutionTier.DIRECT, "What is 2+2?"),
-        (ExecutionTier.AGENTIC, "Research and summarize AI"),
-        (ExecutionTier.LEARNING, "Analyze and improve sales"),
-    ])
+    @pytest.mark.parametrize(
+        "tier,goal",
+        [
+            (ExecutionTier.DIRECT, "What is 2+2?"),
+            (ExecutionTier.AGENTIC, "Research and summarize AI"),
+            (ExecutionTier.LEARNING, "Analyze and improve sales"),
+        ],
+    )
     async def test_trace_attached_to_result(self, v3_executor, tier, goal):
         """Result.trace is not None for all tiers."""
         result = await v3_executor.execute(goal, config=ExecutionConfig(tier=tier))
         assert result.trace is not None
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("tier,goal", [
-        (ExecutionTier.DIRECT, "What is 2+2?"),
-        (ExecutionTier.AGENTIC, "Research and summarize AI"),
-        (ExecutionTier.LEARNING, "Analyze and improve sales"),
-    ])
+    @pytest.mark.parametrize(
+        "tier,goal",
+        [
+            (ExecutionTier.DIRECT, "What is 2+2?"),
+            (ExecutionTier.AGENTIC, "Research and summarize AI"),
+            (ExecutionTier.LEARNING, "Analyze and improve sales"),
+        ],
+    )
     async def test_cost_nonzero(self, v3_executor, tier, goal):
         """Cost is > 0 for tiers 1-3."""
         result = await v3_executor.execute(goal, config=ExecutionConfig(tier=tier))
@@ -559,14 +598,16 @@ class TestObservability:
         assert "LLM down" in result.error
 
         from Jotty.core.infrastructure.monitoring.observability.metrics import get_metrics
+
         errors = get_metrics().recent_errors(limit=5)
         assert len(errors) >= 1
-        assert "LLM down" in errors[0]['error']
+        assert "LLM down" in errors[0]["error"]
 
 
 # =============================================================================
 # Streaming
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestStreaming:
@@ -584,8 +625,8 @@ class TestStreaming:
 
         token_events = [e for e in events if e.type == StreamEventType.TOKEN]
         assert len(token_events) >= 1
-        tokens = ''.join(e.data for e in token_events)
-        assert 'Mock' in tokens
+        tokens = "".join(e.data for e in token_events)
+        assert "Mock" in tokens
 
     @pytest.mark.asyncio
     async def test_stream_tier1_yields_result(self, v3_executor):
@@ -637,7 +678,7 @@ class TestStreaming:
         """Streaming propagates or wraps exception on tier 1 failure."""
         mock_provider.generate = AsyncMock(side_effect=RuntimeError("LLM crashed"))
         # Also remove stream so it falls back to generate
-        if hasattr(mock_provider, 'stream'):
+        if hasattr(mock_provider, "stream"):
             del mock_provider.stream
 
         # Tier 1 streaming propagates exceptions from _stream_tier1 directly.
@@ -672,6 +713,7 @@ class TestStreaming:
 # Jotty Facade
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestJottyFacade:
     """Test the Jotty facade class."""
@@ -679,6 +721,7 @@ class TestJottyFacade:
     def _make_jotty(self, mock_executor=None):
         """Create Jotty instance with mocked executor."""
         from Jotty.jotty import Jotty
+
         jotty = Jotty(log_level="ERROR")
         if mock_executor:
             jotty.executor = mock_executor
@@ -688,22 +731,22 @@ class TestJottyFacade:
         """stats['config'] has default_tier and memory_backend."""
         jotty = self._make_jotty()
         stats = jotty.get_stats()
-        assert 'config' in stats
-        assert 'default_tier' in stats['config']
-        assert 'memory_backend' in stats['config']
+        assert "config" in stats
+        assert "default_tier" in stats["config"]
+        assert "memory_backend" in stats["config"]
 
     def test_get_stats_includes_metrics(self):
         """stats['global']['total_executions'] works."""
         jotty = self._make_jotty()
         stats = jotty.get_stats()
-        assert 'global' in stats
-        assert 'total_executions' in stats['global']
+        assert "global" in stats
+        assert "total_executions" in stats["global"]
 
     def test_get_cost_breakdown(self):
         """get_cost_breakdown returns dict with total_cost_usd."""
         jotty = self._make_jotty()
         costs = jotty.get_cost_breakdown()
-        assert 'total_cost_usd' in costs
+        assert "total_cost_usd" in costs
 
     def test_get_recent_errors_empty(self):
         """get_recent_errors returns [] when no errors."""
@@ -715,6 +758,7 @@ class TestJottyFacade:
         """get_recent_errors returns errors after recording failure."""
         jotty = self._make_jotty()
         from Jotty.core.infrastructure.monitoring.observability.metrics import get_metrics
+
         get_metrics().record_execution(
             agent_name="test_agent",
             task_type="test",
@@ -724,7 +768,7 @@ class TestJottyFacade:
         )
         errors = jotty.get_recent_errors()
         assert len(errors) >= 1
-        assert "Something broke" in errors[0]['error']
+        assert "Something broke" in errors[0]["error"]
 
     def test_save_metrics_writes_file(self, tmp_path):
         """save_metrics writes a valid JSON file."""
@@ -733,7 +777,7 @@ class TestJottyFacade:
         saved = jotty.save_metrics(path=path)
         assert Path(saved).exists()
         data = json.loads(Path(saved).read_text())
-        assert 'global' in data
+        assert "global" in data
 
     @pytest.mark.asyncio
     async def test_stream_delegates_to_executor(self):
@@ -783,6 +827,7 @@ class TestJottyFacade:
 # Auto-Detection (sync, no mocks needed)
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestAutoDetection:
     """Test tier auto-detection logic."""
@@ -797,7 +842,10 @@ class TestAutoDetection:
     def test_detect_multi_step(self):
         """Multi-step tasks auto-detect to AGENTIC."""
         detector = TierDetector()
-        assert detector.detect("Research X and then summarize the results in a detailed report") == ExecutionTier.AGENTIC
+        assert (
+            detector.detect("Research X and then summarize the results in a detailed report")
+            == ExecutionTier.AGENTIC
+        )
 
     def test_detect_learning(self):
         """Learning keywords auto-detect to LEARNING."""
@@ -843,6 +891,7 @@ class TestAutoDetection:
 # Error Handling
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestErrorHandling:
     """Test error handling across tiers."""
@@ -860,7 +909,9 @@ class TestErrorHandling:
         assert "Connection refused" in result.error
 
     @pytest.mark.asyncio
-    async def test_execute_records_error_metrics(self, v3_executor, mock_provider, v3_observability_helpers):
+    async def test_execute_records_error_metrics(
+        self, v3_executor, mock_provider, v3_observability_helpers
+    ):
         """Failure is recorded in MetricsCollector."""
         mock_provider.generate = AsyncMock(side_effect=RuntimeError("Timeout"))
 
@@ -870,12 +921,15 @@ class TestErrorHandling:
         )
 
         from Jotty.core.infrastructure.monitoring.observability.metrics import get_metrics
-        agent_metrics = get_metrics().get_agent_metrics('tier_1')
+
+        agent_metrics = get_metrics().get_agent_metrics("tier_1")
         assert agent_metrics is not None
         assert agent_metrics.failed >= 1
 
     @pytest.mark.asyncio
-    async def test_execute_ends_trace_on_error(self, v3_executor, mock_provider, v3_observability_helpers):
+    async def test_execute_ends_trace_on_error(
+        self, v3_executor, mock_provider, v3_observability_helpers
+    ):
         """Trace is still ended cleanly on error."""
         mock_provider.generate = AsyncMock(side_effect=RuntimeError("Boom"))
 
@@ -886,6 +940,7 @@ class TestErrorHandling:
 
         # Trace should exist in history (end_trace called in except block)
         from Jotty.core.infrastructure.monitoring.observability.tracing import get_tracer
+
         traces = get_tracer().get_trace_history()
         assert len(traces) >= 1
 
@@ -918,12 +973,15 @@ class TestErrorHandling:
 # ComplexityGate
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestComplexityGate:
     """Test ComplexityGate — LLM-based planning bypass for Tier 2."""
 
     @pytest.mark.asyncio
-    async def test_skip_planning_returns_direct(self, v3_executor, mock_complexity_gate, mock_provider):
+    async def test_skip_planning_returns_direct(
+        self, v3_executor, mock_complexity_gate, mock_provider
+    ):
         """When gate says DIRECT, Tier 2 returns a single-call result without planning."""
         mock_complexity_gate.should_skip_planning = AsyncMock(return_value=True)
 
@@ -933,7 +991,7 @@ class TestComplexityGate:
         )
         assert result.success is True
         assert result.llm_calls == 1
-        assert result.metadata.get('complexity_gate') == 'direct'
+        assert result.metadata.get("complexity_gate") == "direct"
 
     @pytest.mark.asyncio
     async def test_proceed_with_planning(self, v3_executor, mock_complexity_gate, mock_planner):
@@ -948,11 +1006,11 @@ class TestComplexityGate:
         mock_planner.plan.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_gate_failure_defaults_to_planning(self, v3_executor, mock_complexity_gate, mock_planner):
+    async def test_gate_failure_defaults_to_planning(
+        self, v3_executor, mock_complexity_gate, mock_planner
+    ):
         """If gate raises an exception, execution proceeds with planning."""
-        mock_complexity_gate.should_skip_planning = AsyncMock(
-            side_effect=RuntimeError("API error")
-        )
+        mock_complexity_gate.should_skip_planning = AsyncMock(side_effect=RuntimeError("API error"))
 
         result = await v3_executor.execute(
             "Research something",
@@ -977,6 +1035,7 @@ class TestComplexityGate:
 # Output Synthesis
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestOutputSynthesis:
     """Test _synthesize_results — LLM-based multi-step output merging."""
@@ -984,21 +1043,21 @@ class TestOutputSynthesis:
     @pytest.mark.asyncio
     async def test_single_result_no_llm_call(self, v3_executor, mock_provider):
         """Single step result is returned as-is without LLM synthesis."""
-        results = [{'output': 'Only one result'}]
+        results = [{"output": "Only one result"}]
         synthesis = await v3_executor._synthesize_results(results, "test goal")
-        assert synthesis['output'] == 'Only one result'
-        assert synthesis['llm_calls'] == 0
+        assert synthesis["output"] == "Only one result"
+        assert synthesis["llm_calls"] == 0
 
     @pytest.mark.asyncio
     async def test_multi_result_uses_llm(self, v3_executor, mock_provider):
         """Multiple step results trigger an LLM synthesis call."""
         results = [
-            {'output': 'Step 1 result'},
-            {'output': 'Step 2 result'},
+            {"output": "Step 1 result"},
+            {"output": "Step 2 result"},
         ]
         synthesis = await v3_executor._synthesize_results(results, "combine these")
-        assert synthesis['llm_calls'] == 1
-        assert synthesis['cost'] > 0
+        assert synthesis["llm_calls"] == 1
+        assert synthesis["cost"] > 0
         # Provider was called for synthesis
         assert mock_provider.generate.await_count >= 1
 
@@ -1008,18 +1067,19 @@ class TestOutputSynthesis:
         mock_provider.generate = AsyncMock(side_effect=RuntimeError("LLM down"))
 
         results = [
-            {'output': 'Step 1 result'},
-            {'output': 'Step 2 result'},
+            {"output": "Step 1 result"},
+            {"output": "Step 2 result"},
         ]
         synthesis = await v3_executor._synthesize_results(results, "test goal")
-        assert synthesis['llm_calls'] == 0
-        assert 'Step 1' in synthesis['output']
-        assert 'Step 2' in synthesis['output']
+        assert synthesis["llm_calls"] == 0
+        assert "Step 1" in synthesis["output"]
+        assert "Step 2" in synthesis["output"]
 
 
 # =============================================================================
 # LLM-Enhanced Tier Detection
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestLLMTierDetector:
@@ -1083,6 +1143,7 @@ class TestLLMTierDetector:
 # Error Classification Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestErrorClassification:
     """Test ErrorType, ValidationStatus, ValidationVerdict from types.py."""
@@ -1090,6 +1151,7 @@ class TestErrorClassification:
     def test_error_type_values(self):
         """ErrorType enum has all expected members."""
         from Jotty.core.modes.execution.types import ErrorType
+
         assert ErrorType.NONE.value == "none"
         assert ErrorType.INFRASTRUCTURE.value == "infrastructure"
         assert ErrorType.LOGIC.value == "logic"
@@ -1099,6 +1161,7 @@ class TestErrorClassification:
     def test_error_type_classify_infrastructure(self):
         """Infrastructure errors are classified correctly."""
         from Jotty.core.modes.execution.types import ErrorType
+
         assert ErrorType.classify("Connection timeout after 30s") == ErrorType.INFRASTRUCTURE
         assert ErrorType.classify("Rate limit exceeded (429)") == ErrorType.INFRASTRUCTURE
         assert ErrorType.classify("503 Service Unavailable") == ErrorType.INFRASTRUCTURE
@@ -1106,6 +1169,7 @@ class TestErrorClassification:
     def test_error_type_classify_environment(self):
         """Environment/proxy errors are classified correctly."""
         from Jotty.core.modes.execution.types import ErrorType
+
         assert ErrorType.classify("SSL certificate verify failed") == ErrorType.ENVIRONMENT
         assert ErrorType.classify("Zscaler proxy blocked request") == ErrorType.ENVIRONMENT
         assert ErrorType.classify("TLS handshake error") == ErrorType.ENVIRONMENT
@@ -1113,6 +1177,7 @@ class TestErrorClassification:
     def test_error_type_classify_data(self):
         """Data errors are classified correctly."""
         from Jotty.core.modes.execution.types import ErrorType
+
         assert ErrorType.classify("Empty result set") == ErrorType.DATA
         assert ErrorType.classify("No results found for query") == ErrorType.DATA
         assert ErrorType.classify("Invalid JSON: parse error") == ErrorType.DATA
@@ -1120,6 +1185,7 @@ class TestErrorClassification:
     def test_error_type_classify_logic(self):
         """Logic errors are classified correctly."""
         from Jotty.core.modes.execution.types import ErrorType
+
         assert ErrorType.classify("Element not found: #submit-btn") == ErrorType.LOGIC
         assert ErrorType.classify("Syntax error in expression") == ErrorType.LOGIC
         assert ErrorType.classify("Missing required parameter 'query'") == ErrorType.LOGIC
@@ -1127,11 +1193,13 @@ class TestErrorClassification:
     def test_error_type_classify_fallback(self):
         """Unknown errors default to INFRASTRUCTURE (retryable)."""
         from Jotty.core.modes.execution.types import ErrorType
+
         assert ErrorType.classify("Something weird happened") == ErrorType.INFRASTRUCTURE
 
     def test_validation_status_values(self):
         """ValidationStatus enum has all expected members."""
         from Jotty.core.modes.execution.types import ValidationStatus
+
         assert ValidationStatus.PASS.value == "pass"
         assert ValidationStatus.FAIL.value == "fail"
         assert ValidationStatus.EXTERNAL_ERROR.value == "external_error"
@@ -1139,7 +1207,8 @@ class TestErrorClassification:
 
     def test_validation_verdict_ok(self):
         """ValidationVerdict.ok() creates a passing verdict."""
-        from Jotty.core.modes.execution.types import ValidationVerdict, ValidationStatus, ErrorType
+        from Jotty.core.modes.execution.types import ErrorType, ValidationStatus, ValidationVerdict
+
         v = ValidationVerdict.ok("All good", confidence=0.95)
         assert v.is_pass is True
         assert v.status == ValidationStatus.PASS
@@ -1148,7 +1217,8 @@ class TestErrorClassification:
 
     def test_validation_verdict_from_error(self):
         """ValidationVerdict.from_error() auto-classifies and sets retryable."""
-        from Jotty.core.modes.execution.types import ValidationVerdict, ValidationStatus, ErrorType
+        from Jotty.core.modes.execution.types import ErrorType, ValidationStatus, ValidationVerdict
+
         v = ValidationVerdict.from_error("Connection timeout after 30s")
         assert v.is_pass is False
         assert v.error_type == ErrorType.INFRASTRUCTURE
@@ -1157,14 +1227,16 @@ class TestErrorClassification:
 
     def test_validation_verdict_from_logic_error_not_retryable(self):
         """Logic errors are not marked retryable."""
-        from Jotty.core.modes.execution.types import ValidationVerdict, ErrorType
+        from Jotty.core.modes.execution.types import ErrorType, ValidationVerdict
+
         v = ValidationVerdict.from_error("Element not found: #missing selector")
         assert v.error_type == ErrorType.LOGIC
         assert v.retryable is False
 
     def test_validation_verdict_fields(self):
         """ValidationVerdict fields default correctly."""
-        from Jotty.core.modes.execution.types import ValidationVerdict, ValidationStatus, ErrorType
+        from Jotty.core.modes.execution.types import ErrorType, ValidationStatus, ValidationVerdict
+
         v = ValidationVerdict(
             status=ValidationStatus.FAIL,
             error_type=ErrorType.DATA,
@@ -1184,6 +1256,7 @@ class TestErrorClassification:
 # ToolResultProcessor Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestToolResultProcessor:
     """Test ToolResultProcessor from skill_plan_executor.py."""
@@ -1191,66 +1264,78 @@ class TestToolResultProcessor:
     def test_process_strips_binary(self):
         """Binary/base64 data is replaced with size placeholder."""
         from Jotty.core.modes.agent.executors.skill_plan_executor import ToolResultProcessor
+
         processor = ToolResultProcessor()
-        result = processor.process({
-            'success': True,
-            'screenshot_base64': 'A' * 50000,
-            'data': 'short value',
-        })
-        assert 'binary data' in result.get('screenshot_base64', '')
-        assert result['data'] == 'short value'
-        assert result['success'] is True
+        result = processor.process(
+            {
+                "success": True,
+                "screenshot_base64": "A" * 50000,
+                "data": "short value",
+            }
+        )
+        assert "binary data" in result.get("screenshot_base64", "")
+        assert result["data"] == "short value"
+        assert result["success"] is True
 
     def test_process_converts_sets(self):
         """Sets are converted to sorted lists."""
         from Jotty.core.modes.agent.executors.skill_plan_executor import ToolResultProcessor
+
         processor = ToolResultProcessor()
-        result = processor.process({'tags': {'b', 'a', 'c'}})
-        assert isinstance(result['tags'], list)
-        assert result['tags'] == ['a', 'b', 'c']
+        result = processor.process({"tags": {"b", "a", "c"}})
+        assert isinstance(result["tags"], list)
+        assert result["tags"] == ["a", "b", "c"]
 
     def test_process_truncates_large_values(self):
         """Large string values are truncated while preserving keys."""
         from Jotty.core.modes.agent.executors.skill_plan_executor import ToolResultProcessor
+
         processor = ToolResultProcessor()
-        result = processor.process({
-            'status': 'ok',
-            'large_content': 'x' * 100_000,
-        }, max_size=5000)
-        assert 'status' in result
-        assert result['status'] == 'ok'
+        result = processor.process(
+            {
+                "status": "ok",
+                "large_content": "x" * 100_000,
+            },
+            max_size=5000,
+        )
+        assert "status" in result
+        assert result["status"] == "ok"
         # large_content should be truncated
-        assert len(str(result.get('large_content', ''))) < 100_000
+        assert len(str(result.get("large_content", ""))) < 100_000
 
     def test_process_adds_execution_time(self):
         """Elapsed time is added to result."""
         from Jotty.core.modes.agent.executors.skill_plan_executor import ToolResultProcessor
+
         processor = ToolResultProcessor()
-        result = processor.process({'success': True}, elapsed=1.5)
-        assert result['_execution_time_ms'] == 1500.0
+        result = processor.process({"success": True}, elapsed=1.5)
+        assert result["_execution_time_ms"] == 1500.0
 
     def test_process_non_dict_input(self):
         """Non-dict input is wrapped in output key."""
         from Jotty.core.modes.agent.executors.skill_plan_executor import ToolResultProcessor
+
         processor = ToolResultProcessor()
         result = processor.process("plain string")
-        assert 'output' in result
-        assert result['output'] == 'plain string'
+        assert "output" in result
+        assert result["output"] == "plain string"
 
     def test_process_preserves_small_results(self):
         """Small results pass through unchanged (except set conversion)."""
         from Jotty.core.modes.agent.executors.skill_plan_executor import ToolResultProcessor
+
         processor = ToolResultProcessor()
-        original = {'success': True, 'path': '/tmp/file.txt', 'bytes': 42}
+        original = {"success": True, "path": "/tmp/file.txt", "bytes": 42}
         result = processor.process(original)
-        assert result['success'] is True
-        assert result['path'] == '/tmp/file.txt'
-        assert result['bytes'] == 42
+        assert result["success"] is True
+        assert result["path"] == "/tmp/file.txt"
+        assert result["bytes"] == 42
 
 
 # =============================================================================
 # SearchCache Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestSearchCache:
@@ -1258,13 +1343,15 @@ class TestSearchCache:
 
     def test_cache_miss_returns_none(self):
         """Cache miss returns None."""
-        import threading, time
+        import threading
+        import time
 
         class _TestSearchCache:
             def __init__(self, ttl_seconds=300):
                 self._cache = {}
                 self._lock = threading.Lock()
                 self._ttl = ttl_seconds
+
             def get(self, key):
                 with self._lock:
                     now = time.time()
@@ -1273,9 +1360,11 @@ class TestSearchCache:
                         del self._cache[k]
                     entry = self._cache.get(key)
                     return entry[0] if entry else None
+
             def set(self, key, value):
                 with self._lock:
                     self._cache[key] = (value, time.time())
+
             def clear(self):
                 with self._lock:
                     self._cache.clear()
@@ -1285,17 +1374,20 @@ class TestSearchCache:
 
     def test_cache_set_and_get(self):
         """Set/get roundtrip works."""
-        import threading, time
+        import threading
+        import time
 
         class _TestSearchCache:
             def __init__(self, ttl_seconds=300):
                 self._cache = {}
                 self._lock = threading.Lock()
                 self._ttl = ttl_seconds
+
             def get(self, key):
                 with self._lock:
                     entry = self._cache.get(key)
                     return entry[0] if entry else None
+
             def set(self, key, value):
                 with self._lock:
                     self._cache[key] = (value, time.time())
@@ -1307,13 +1399,15 @@ class TestSearchCache:
 
     def test_cache_ttl_expiry(self):
         """Expired entries are evicted."""
-        import threading, time
+        import threading
+        import time
 
         class _TestSearchCache:
             def __init__(self, ttl_seconds=300):
                 self._cache = {}
                 self._lock = threading.Lock()
                 self._ttl = ttl_seconds
+
             def get(self, key):
                 with self._lock:
                     now = time.time()
@@ -1322,6 +1416,7 @@ class TestSearchCache:
                         del self._cache[k]
                     entry = self._cache.get(key)
                     return entry[0] if entry else None
+
             def set(self, key, value):
                 with self._lock:
                     self._cache[key] = (value, time.time())
@@ -1333,20 +1428,24 @@ class TestSearchCache:
 
     def test_cache_clear(self):
         """Clear removes all entries."""
-        import threading, time
+        import threading
+        import time
 
         class _TestSearchCache:
             def __init__(self, ttl_seconds=300):
                 self._cache = {}
                 self._lock = threading.Lock()
                 self._ttl = ttl_seconds
+
             def get(self, key):
                 with self._lock:
                     entry = self._cache.get(key)
                     return entry[0] if entry else None
+
             def set(self, key, value):
                 with self._lock:
                     self._cache[key] = (value, time.time())
+
             def clear(self):
                 with self._lock:
                     self._cache.clear()
@@ -1363,6 +1462,7 @@ class TestSearchCache:
 # SearXNG Search Provider Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestSearXNGSearch:
     """Test SearXNG integration in web-search skill."""
@@ -1371,9 +1471,10 @@ class TestSearXNGSearch:
     def _load_module():
         """Dynamically load the web-search tools module."""
         import importlib.util
+
         spec = importlib.util.spec_from_file_location(
-            'web_search_tools',
-            os.path.join(os.path.dirname(__file__), '..', 'skills', 'web-search', 'tools.py'),
+            "web_search_tools",
+            os.path.join(os.path.dirname(__file__), "..", "skills", "web-search", "tools.py"),
         )
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
@@ -1384,62 +1485,66 @@ class TestSearXNGSearch:
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
-            'results': [
-                {'title': 'Python Docs', 'url': 'https://python.org', 'content': 'Official docs'},
-                {'title': 'Real Python', 'url': 'https://realpython.com', 'content': 'Tutorials'},
+            "results": [
+                {"title": "Python Docs", "url": "https://python.org", "content": "Official docs"},
+                {"title": "Real Python", "url": "https://realpython.com", "content": "Tutorials"},
             ]
         }
         mock_response.raise_for_status = Mock()
 
         mod = self._load_module()
-        mod.SEARXNG_URL = 'http://localhost:8080'
-        with patch.object(mod.requests, 'get', return_value=mock_response) as mock_get:
-            results = mod._searxng_search('python tutorials', num_results=5)
+        mod.SEARXNG_URL = "http://localhost:8080"
+        with patch.object(mod.requests, "get", return_value=mock_response) as mock_get:
+            results = mod._searxng_search("python tutorials", num_results=5)
 
         assert len(results) == 2
-        assert results[0]['title'] == 'Python Docs'
-        assert results[0]['url'] == 'https://python.org'
-        assert results[0]['snippet'] == 'Official docs'
+        assert results[0]["title"] == "Python Docs"
+        assert results[0]["url"] == "https://python.org"
+        assert results[0]["snippet"] == "Official docs"
         mock_get.assert_called_once()
         call_args = mock_get.call_args
-        assert call_args[1]['params']['q'] == 'python tutorials'
-        assert call_args[1]['params']['format'] == 'json'
+        assert call_args[1]["params"]["q"] == "python tutorials"
+        assert call_args[1]["params"]["format"] == "json"
 
     def test_searxng_search_raises_without_url(self):
         """SearXNG raises ValueError when SEARXNG_URL not set."""
         mod = self._load_module()
         mod.SEARXNG_URL = None
         with pytest.raises(ValueError, match="SEARXNG_URL not set"):
-            mod._searxng_search('test query')
+            mod._searxng_search("test query")
 
     def test_searxng_search_respects_num_results(self):
         """SearXNG truncates results to num_results."""
         mock_response = Mock()
         mock_response.json.return_value = {
-            'results': [
-                {'title': f'Result {i}', 'url': f'https://example.com/{i}', 'content': f'Snippet {i}'}
+            "results": [
+                {
+                    "title": f"Result {i}",
+                    "url": f"https://example.com/{i}",
+                    "content": f"Snippet {i}",
+                }
                 for i in range(10)
             ]
         }
         mock_response.raise_for_status = Mock()
 
         mod = self._load_module()
-        mod.SEARXNG_URL = 'http://localhost:8080'
-        with patch.object(mod.requests, 'get', return_value=mock_response):
-            results = mod._searxng_search('test', num_results=3)
+        mod.SEARXNG_URL = "http://localhost:8080"
+        with patch.object(mod.requests, "get", return_value=mock_response):
+            results = mod._searxng_search("test", num_results=3)
 
         assert len(results) == 3
 
     def test_searxng_search_handles_empty_results(self):
         """SearXNG returns empty list when no results."""
         mock_response = Mock()
-        mock_response.json.return_value = {'results': []}
+        mock_response.json.return_value = {"results": []}
         mock_response.raise_for_status = Mock()
 
         mod = self._load_module()
-        mod.SEARXNG_URL = 'http://localhost:8080'
-        with patch.object(mod.requests, 'get', return_value=mock_response):
-            results = mod._searxng_search('obscure query', num_results=5)
+        mod.SEARXNG_URL = "http://localhost:8080"
+        with patch.object(mod.requests, "get", return_value=mock_response):
+            results = mod._searxng_search("obscure query", num_results=5)
 
         assert results == []
 
@@ -1447,41 +1552,42 @@ class TestSearXNGSearch:
         """SearXNG uses defaults for missing title/url/content fields."""
         mock_response = Mock()
         mock_response.json.return_value = {
-            'results': [
-                {'url': 'https://example.com'},  # no title, no content
-                {'title': 'Has Title'},  # no url, no content
+            "results": [
+                {"url": "https://example.com"},  # no title, no content
+                {"title": "Has Title"},  # no url, no content
             ]
         }
         mock_response.raise_for_status = Mock()
 
         mod = self._load_module()
-        mod.SEARXNG_URL = 'http://localhost:8080'
-        with patch.object(mod.requests, 'get', return_value=mock_response):
-            results = mod._searxng_search('test', num_results=5)
+        mod.SEARXNG_URL = "http://localhost:8080"
+        with patch.object(mod.requests, "get", return_value=mock_response):
+            results = mod._searxng_search("test", num_results=5)
 
-        assert results[0]['title'] == 'Untitled'
-        assert results[0]['snippet'] == ''
-        assert results[1]['url'] == ''
+        assert results[0]["title"] == "Untitled"
+        assert results[0]["snippet"] == ""
+        assert results[1]["url"] == ""
 
     def test_searxng_strips_trailing_slash_from_url(self):
         """SearXNG strips trailing slash from SEARXNG_URL."""
         mock_response = Mock()
-        mock_response.json.return_value = {'results': []}
+        mock_response.json.return_value = {"results": []}
         mock_response.raise_for_status = Mock()
 
         mod = self._load_module()
-        mod.SEARXNG_URL = 'http://localhost:8080/'
-        with patch.object(mod.requests, 'get', return_value=mock_response) as mock_get:
-            mod._searxng_search('test')
+        mod.SEARXNG_URL = "http://localhost:8080/"
+        with patch.object(mod.requests, "get", return_value=mock_response) as mock_get:
+            mod._searxng_search("test")
 
         called_url = mock_get.call_args[0][0]
-        assert called_url == 'http://localhost:8080/search'
-        assert '//' not in called_url.split(':', 1)[1].replace('//', '', 1)
+        assert called_url == "http://localhost:8080/search"
+        assert "//" not in called_url.split(":", 1)[1].replace("//", "", 1)
 
 
 # =============================================================================
 # CompletionReviewer Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestCompletionReviewer:
@@ -1490,6 +1596,7 @@ class TestCompletionReviewer:
     def test_reviewer_fallback_on_success(self):
         """Fallback heuristic returns 'complete' when result has success=True."""
         from Jotty.core.modes.agent.inspector import CompletionReviewer
+
         reviewer = CompletionReviewer()
 
         # Mock the predictor to raise, forcing fallback
@@ -1497,6 +1604,7 @@ class TestCompletionReviewer:
         reviewer._ensure_predictor = Mock()
 
         import asyncio
+
         result = asyncio.get_event_loop().run_until_complete(
             reviewer.review_completion(
                 instruction="Test task",
@@ -1510,12 +1618,14 @@ class TestCompletionReviewer:
     def test_reviewer_fallback_on_failure(self):
         """Fallback heuristic returns 'partial' when result has success=False."""
         from Jotty.core.modes.agent.inspector import CompletionReviewer
+
         reviewer = CompletionReviewer()
 
         reviewer._predictor = Mock(side_effect=Exception("No LLM"))
         reviewer._ensure_predictor = Mock()
 
         import asyncio
+
         result = asyncio.get_event_loop().run_until_complete(
             reviewer.review_completion(
                 instruction="Test task",
@@ -1531,6 +1641,7 @@ class TestCompletionReviewer:
 # Context Compression Retry Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestContextCompressionRetry:
     """Test _call_with_compression_retry from InferenceMixin."""
@@ -1538,6 +1649,7 @@ class TestContextCompressionRetry:
     def test_compress_context_preserves_header_and_tail(self):
         """_compress_context keeps first 20% and last portion."""
         from Jotty.core.modes.agent._inference_mixin import InferenceMixin
+
         text = "HEADER " * 100 + "MIDDLE " * 500 + "TAIL " * 100
         compressed = InferenceMixin._compress_context(text, 1000)
         assert len(compressed) <= 1100  # Allow some slack for marker
@@ -1548,6 +1660,7 @@ class TestContextCompressionRetry:
     def test_compress_context_noop_for_small(self):
         """Small texts pass through unchanged."""
         from Jotty.core.modes.agent._inference_mixin import InferenceMixin
+
         text = "short text"
         assert InferenceMixin._compress_context(text, 1000) == text
 
@@ -1561,9 +1674,7 @@ class TestContextCompressionRetry:
         async def mock_fn(conv, instr):
             return "success"
 
-        result = await mixin._call_with_compression_retry(
-            mock_fn, "conversation", "instruction"
-        )
+        result = await mixin._call_with_compression_retry(mock_fn, "conversation", "instruction")
         assert result == "success"
 
     @pytest.mark.asyncio
@@ -1598,14 +1709,13 @@ class TestContextCompressionRetry:
             raise ValueError("something else entirely")
 
         with pytest.raises(ValueError, match="something else"):
-            await mixin._call_with_compression_retry(
-                mock_fn, "conversation", "instruction"
-            )
+            await mixin._call_with_compression_retry(mock_fn, "conversation", "instruction")
 
 
 # =============================================================================
 # Terminal Proxy Detection Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestTerminalProxyDetection:
@@ -1615,11 +1725,11 @@ class TestTerminalProxyDetection:
         """No proxy detected in clean environment."""
         # Test the detection logic directly (same as AutoTerminalSession)
         indicators = (
-            '/Library/Application Support/Zscaler',
-            '/opt/zscaler',
-            '/usr/local/zscaler',
+            "/Library/Application Support/Zscaler",
+            "/opt/zscaler",
+            "/usr/local/zscaler",
         )
-        proxy_keywords = ('zscaler', 'bluecoat', 'forcepoint', 'mcafee')
+        proxy_keywords = ("zscaler", "bluecoat", "forcepoint", "mcafee")
 
         found = False
         for path in indicators:
@@ -1628,8 +1738,8 @@ class TestTerminalProxyDetection:
                 break
 
         if not found:
-            for var in ('HTTP_PROXY', 'HTTPS_PROXY'):
-                val = os.environ.get(var, '').lower()
+            for var in ("HTTP_PROXY", "HTTPS_PROXY"):
+                val = os.environ.get(var, "").lower()
                 if any(kw in val for kw in proxy_keywords):
                     found = True
                     break
@@ -1645,10 +1755,10 @@ class TestTerminalProxyDetection:
             overrides = {}
         else:
             overrides = {
-                'CURL_CA_BUNDLE': '',
-                'PYTHONHTTPSVERIFY': '0',
-                'REQUESTS_CA_BUNDLE': '',
-                'NODE_TLS_REJECT_UNAUTHORIZED': '0',
+                "CURL_CA_BUNDLE": "",
+                "PYTHONHTTPSVERIFY": "0",
+                "REQUESTS_CA_BUNDLE": "",
+                "NODE_TLS_REJECT_UNAUTHORIZED": "0",
             }
         assert overrides == {}
 
@@ -1659,18 +1769,19 @@ class TestTerminalProxyDetection:
             overrides = {}
         else:
             overrides = {
-                'CURL_CA_BUNDLE': '',
-                'PYTHONHTTPSVERIFY': '0',
-                'REQUESTS_CA_BUNDLE': '',
-                'NODE_TLS_REJECT_UNAUTHORIZED': '0',
+                "CURL_CA_BUNDLE": "",
+                "PYTHONHTTPSVERIFY": "0",
+                "REQUESTS_CA_BUNDLE": "",
+                "NODE_TLS_REJECT_UNAUTHORIZED": "0",
             }
-        assert 'CURL_CA_BUNDLE' in overrides
-        assert overrides['NODE_TLS_REJECT_UNAUTHORIZED'] == '0'
+        assert "CURL_CA_BUNDLE" in overrides
+        assert overrides["NODE_TLS_REJECT_UNAUTHORIZED"] == "0"
 
 
 # =============================================================================
 # Browser CDP/Accessibility Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestBrowserCDP:
@@ -1681,36 +1792,36 @@ class TestBrowserCDP:
         # Test the guard logic: when SELENIUM_AVAILABLE is False
         SELENIUM_AVAILABLE = False
         if not SELENIUM_AVAILABLE:
-            result = {'success': False, 'error': 'Selenium not installed'}
+            result = {"success": False, "error": "Selenium not installed"}
         else:
-            result = {'success': True}
-        assert result['success'] is False
-        assert 'Selenium' in result['error']
+            result = {"success": True}
+        assert result["success"] is False
+        assert "Selenium" in result["error"]
 
     def test_dom_structure_tool_params(self):
         """DOM structure tool accepts selector and max_depth params."""
         # Test the JS evaluation logic would be called correctly
-        params = {'selector': '#main', 'max_depth': 2}
-        assert params['selector'] == '#main'
-        assert params['max_depth'] == 2
+        params = {"selector": "#main", "max_depth": 2}
+        assert params["selector"] == "#main"
+        assert params["max_depth"] == 2
 
     def test_cdp_click_requires_coordinates(self):
         """CDP click tool requires x and y parameters."""
         # Test the validation logic directly
-        params = {'x': None, 'y': None}
-        x = params.get('x')
-        y = params.get('y')
+        params = {"x": None, "y": None}
+        x = params.get("x")
+        y = params.get("y")
         if x is None or y is None:
-            result = {'success': False, 'error': 'x and y coordinates are required'}
+            result = {"success": False, "error": "x and y coordinates are required"}
         else:
-            result = {'success': True}
-        assert result['success'] is False
+            result = {"success": True}
+        assert result["success"] is False
 
     def test_cdp_click_with_coordinates(self):
         """CDP click tool accepts valid coordinates."""
-        params = {'x': 100, 'y': 200}
-        x = params.get('x')
-        y = params.get('y')
+        params = {"x": 100, "y": 200}
+        x = params.get("x")
+        y = params.get("y")
         assert x == 100
         assert y == 200
         assert x is not None and y is not None
@@ -1720,6 +1831,7 @@ class TestBrowserCDP:
 # Visual Verification Protocol Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestVisualVerificationProtocol:
     """Test Visual Verification Protocol constants and helpers."""
@@ -1727,47 +1839,51 @@ class TestVisualVerificationProtocol:
     def test_protocol_constant_exists(self):
         """VISUAL_VERIFICATION_PROTOCOL constant is defined."""
         import os
+
         tools_path = os.path.join(
-            os.path.dirname(os.path.dirname(__file__)),
-            'skills', 'visual-inspector', 'tools.py')
+            os.path.dirname(os.path.dirname(__file__)), "skills", "visual-inspector", "tools.py"
+        )
 
         # Read the file and check for the constant
-        with open(tools_path, 'r') as f:
+        with open(tools_path, "r") as f:
             content = f.read()
-        assert 'VISUAL_VERIFICATION_PROTOCOL' in content
-        assert 'WHEN TO VISUALLY VERIFY' in content
-        assert 'PRINCIPLE:' in content
+        assert "VISUAL_VERIFICATION_PROTOCOL" in content
+        assert "WHEN TO VISUALLY VERIFY" in content
+        assert "PRINCIPLE:" in content
 
     def test_protocol_has_key_sections(self):
         """Protocol contains all expected guidance sections."""
         import os
+
         tools_path = os.path.join(
-            os.path.dirname(os.path.dirname(__file__)),
-            'skills', 'visual-inspector', 'tools.py')
-        with open(tools_path, 'r') as f:
+            os.path.dirname(os.path.dirname(__file__)), "skills", "visual-inspector", "tools.py"
+        )
+        with open(tools_path, "r") as f:
             content = f.read()
 
-        assert 'state-changing actions' in content
-        assert 'irreversible' in content
-        assert 'Observe before acting' in content
-        assert 'HOW TO VERIFY' in content
+        assert "state-changing actions" in content
+        assert "irreversible" in content
+        assert "Observe before acting" in content
+        assert "HOW TO VERIFY" in content
 
     def test_guidance_helper_function_exists(self):
         """get_visual_verification_guidance function is exported."""
         import os
+
         tools_path = os.path.join(
-            os.path.dirname(os.path.dirname(__file__)),
-            'skills', 'visual-inspector', 'tools.py')
-        with open(tools_path, 'r') as f:
+            os.path.dirname(os.path.dirname(__file__)), "skills", "visual-inspector", "tools.py"
+        )
+        with open(tools_path, "r") as f:
             content = f.read()
 
-        assert 'def get_visual_verification_guidance' in content
+        assert "def get_visual_verification_guidance" in content
         assert "'get_visual_verification_guidance'" in content  # in __all__
 
 
 # =============================================================================
 # ParameterResolver Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestParameterResolver:
@@ -1776,110 +1892,130 @@ class TestParameterResolver:
     def test_resolve_simple_passthrough(self):
         """Params with no templates pass through unchanged."""
         from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
+
         resolver = ParameterResolver({})
-        result = resolver.resolve({'query': 'test', 'max': 5})
-        assert result == {'query': 'test', 'max': 5}
+        result = resolver.resolve({"query": "test", "max": 5})
+        assert result == {"query": "test", "max": 5}
 
     def test_resolve_template_substitution(self):
         """${ref} templates are resolved from outputs."""
         from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
-        outputs = {'step_0': {'path': '/tmp/report.pdf', 'success': True}}
+
+        outputs = {"step_0": {"path": "/tmp/report.pdf", "success": True}}
         resolver = ParameterResolver(outputs)
-        result = resolver.resolve({'file': '${step_0.path}'})
-        assert result['file'] == '/tmp/report.pdf'
+        result = resolver.resolve({"file": "${step_0.path}"})
+        assert result["file"] == "/tmp/report.pdf"
 
     def test_resolve_bare_key_to_path(self):
         """Bare output keys (e.g. 'step_0') resolve to matching field."""
         from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
-        outputs = {'step_0': {'path': '/tmp/result.txt', 'success': True}}
+
+        outputs = {"step_0": {"path": "/tmp/result.txt", "success": True}}
         resolver = ParameterResolver(outputs)
-        result = resolver.resolve({'path': 'step_0'})
-        assert result['path'] == '/tmp/result.txt'
+        result = resolver.resolve({"path": "step_0"})
+        assert result["path"] == "/tmp/result.txt"
 
     def test_resolve_nested_dict(self):
         """Nested dict params are resolved recursively."""
         from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
-        outputs = {'step_0': {'url': 'https://example.com'}}
+
+        outputs = {"step_0": {"url": "https://example.com"}}
         resolver = ParameterResolver(outputs)
-        result = resolver.resolve({'config': {'target': '${step_0.url}'}})
-        assert result['config']['target'] == 'https://example.com'
+        result = resolver.resolve({"config": {"target": "${step_0.url}"}})
+        assert result["config"]["target"] == "https://example.com"
 
     def test_resolve_max_depth_protection(self):
         """Deeply nested params hit max depth and return as-is."""
         from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
+
         resolver = ParameterResolver({})
-        result = resolver.resolve({'key': 'val'}, _depth=11)
-        assert result == {'key': 'val'}
+        result = resolver.resolve({"key": "val"}, _depth=11)
+        assert result == {"key": "val"}
 
     def test_is_bad_content_short(self):
         """Short strings are detected as bad content."""
         from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
+
         resolver = ParameterResolver({})
         assert resolver._is_bad_content("too short") is True
 
     def test_is_bad_content_success_json(self):
         """Success JSON responses are detected as bad content."""
         from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
+
         resolver = ParameterResolver({})
         assert resolver._is_bad_content('{"success": true, "bytes_written": 42}') is True
 
     def test_is_bad_content_good(self):
         """Real content passes the check."""
         from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
+
         resolver = ParameterResolver({})
         # Must be >300 chars or >80 chars without instruction prefixes
-        good_content = "Python is a versatile language used in web development, data science, and AI. " * 5
+        good_content = (
+            "Python is a versatile language used in web development, data science, and AI. " * 5
+        )
         assert resolver._is_bad_content(good_content) is False
 
     def test_resolve_path_dotted(self):
         """Dotted paths like 'step_0.output' are resolved."""
         from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
-        outputs = {'step_0': {'output': 'hello world'}}
+
+        outputs = {"step_0": {"output": "hello world"}}
         resolver = ParameterResolver(outputs)
-        assert resolver.resolve_path('step_0.output') == 'hello world'
+        assert resolver.resolve_path("step_0.output") == "hello world"
 
     def test_resolve_path_array_index(self):
         """Array index paths like 'step_0.items[0]' are resolved."""
         from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
-        outputs = {'step_0': {'items': ['first', 'second']}}
+
+        outputs = {"step_0": {"items": ["first", "second"]}}
         resolver = ParameterResolver(outputs)
-        assert resolver.resolve_path('step_0.items[0]') == 'first'
+        assert resolver.resolve_path("step_0.items[0]") == "first"
 
     def test_resolve_path_missing_returns_unresolved(self):
         """Missing path keys return unresolved path (no broadcast scan)."""
         from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
-        outputs = {'step_0': {'content': 'actual content that is long enough to be valid for fallback resolution purposes'}}
+
+        outputs = {
+            "step_0": {
+                "content": "actual content that is long enough to be valid for fallback resolution purposes"
+            }
+        }
         resolver = ParameterResolver(outputs)
-        result = resolver.resolve_path('step_99.content')
+        result = resolver.resolve_path("step_99.content")
         # Scoped resolution: step_99 doesn't exist, return unresolved path
-        assert result == 'step_99.content'
+        assert result == "step_99.content"
 
     def test_sanitize_command_long_text(self):
         """Long non-command text in 'command' param gets auto-fixed."""
         from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
-        outputs = {'step_0': {'path': '/tmp/script.py', 'success': True}}
+
+        outputs = {"step_0": {"path": "/tmp/script.py", "success": True}}
         resolver = ParameterResolver(outputs)
         long_text = "This is a very long text " * 20  # > 150 chars, > 15 spaces
-        result = resolver._sanitize_command_param('command', long_text, None)
-        assert result == 'python /tmp/script.py'
+        result = resolver._sanitize_command_param("command", long_text, None)
+        assert result == "python /tmp/script.py"
 
     def test_sanitize_path_long_content(self):
         """Long content in 'path' param gets auto-fixed to real path."""
         from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
-        outputs = {'step_0': {'path': '/tmp/output.txt', 'success': True}}
+
+        outputs = {"step_0": {"path": "/tmp/output.txt", "success": True}}
         resolver = ParameterResolver(outputs)
         long_content = "x" * 300  # > 200 chars
-        result = resolver._sanitize_path_param('path', long_content, None)
-        assert result == '/tmp/output.txt'
+        result = resolver._sanitize_path_param("path", long_content, None)
+        assert result == "/tmp/output.txt"
 
     def test_find_best_content(self):
         """_find_best_content returns longest valid content from outputs."""
         from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
+
         short_content = "short"
         good_content = "A" * 200
         outputs = {
-            'step_0': {'text': short_content},
-            'step_1': {'content': good_content},
+            "step_0": {"text": short_content},
+            "step_1": {"content": good_content},
         }
         resolver = ParameterResolver(outputs)
         assert resolver._find_best_content() == good_content
@@ -1887,30 +2023,33 @@ class TestParameterResolver:
     def test_aggregate_research_outputs(self):
         """Research outputs are aggregated into formatted markdown."""
         from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
+
         outputs = {
-            'research_0': {
-                'query': 'AI trends',
-                'results': [
-                    {'title': 'Result 1', 'snippet': 'Snippet 1', 'url': 'http://example.com/1'}
-                ]
+            "research_0": {
+                "query": "AI trends",
+                "results": [
+                    {"title": "Result 1", "snippet": "Snippet 1", "url": "http://example.com/1"}
+                ],
             }
         }
         resolver = ParameterResolver(outputs)
         result = resolver._aggregate_research_outputs()
-        assert '## Research: AI trends' in result
-        assert 'Result 1' in result
+        assert "## Research: AI trends" in result
+        assert "Result 1" in result
 
     def test_backward_compat_import(self):
         """ParameterResolver can still be imported from skill_plan_executor."""
         from Jotty.core.modes.agent.executors.skill_plan_executor import ParameterResolver
+
         assert ParameterResolver is not None
         resolver = ParameterResolver({})
-        assert resolver.resolve({'key': 'val'}) == {'key': 'val'}
+        assert resolver.resolve({"key": "val"}) == {"key": "val"}
 
 
 # =============================================================================
 # ParadigmExecutor and TrainingDaemon Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestParadigmExecutorUnit:
@@ -1918,8 +2057,10 @@ class TestParadigmExecutorUnit:
 
     def test_aggregate_empty_results(self):
         """Empty results produce failed EpisodeResult."""
-        from Jotty.core.intelligence.orchestration.paradigm_executor import ParadigmExecutor
         from unittest.mock import Mock
+
+        from Jotty.core.intelligence.orchestration.paradigm_executor import ParadigmExecutor
+
         manager = Mock()
         manager.episode_count = 0
         executor = ParadigmExecutor(manager)
@@ -1929,45 +2070,65 @@ class TestParadigmExecutorUnit:
 
     def test_aggregate_single_result(self):
         """Single result is returned as-is."""
-        from Jotty.core.intelligence.orchestration.paradigm_executor import ParadigmExecutor
-        from Jotty.core.infrastructure.foundation.data_structures import EpisodeResult
         from unittest.mock import Mock
+
+        from Jotty.core.infrastructure.foundation.data_structures import EpisodeResult
+        from Jotty.core.intelligence.orchestration.paradigm_executor import ParadigmExecutor
+
         manager = Mock()
         executor = ParadigmExecutor(manager)
         ep = EpisodeResult(
-            output="test output", success=True, trajectory=[],
-            tagged_outputs=[], episode=0, execution_time=1.0,
-            architect_results=[], auditor_results=[], agent_contributions={},
+            output="test output",
+            success=True,
+            trajectory=[],
+            tagged_outputs=[],
+            episode=0,
+            execution_time=1.0,
+            architect_results=[],
+            auditor_results=[],
+            agent_contributions={},
         )
-        result = executor.aggregate_results({'agent1': ep}, "goal")
+        result = executor.aggregate_results({"agent1": ep}, "goal")
         assert result is ep
 
     def test_aggregate_multiple_results(self):
         """Multiple results are combined with merged contributions."""
-        from Jotty.core.intelligence.orchestration.paradigm_executor import ParadigmExecutor
-        from Jotty.core.infrastructure.foundation.data_structures import EpisodeResult
         from unittest.mock import Mock
+
+        from Jotty.core.infrastructure.foundation.data_structures import EpisodeResult
+        from Jotty.core.intelligence.orchestration.paradigm_executor import ParadigmExecutor
+
         manager = Mock()
         manager.episode_count = 1
         manager._mas_zero_verify = Mock(return_value=None)
         executor = ParadigmExecutor(manager)
         ep1 = EpisodeResult(
-            output="output1", success=True, trajectory=[{'step': 1}],
-            tagged_outputs=[], episode=0, execution_time=1.0,
-            architect_results=[], auditor_results=[],
-            agent_contributions={'agent1': 'contrib1'},
+            output="output1",
+            success=True,
+            trajectory=[{"step": 1}],
+            tagged_outputs=[],
+            episode=0,
+            execution_time=1.0,
+            architect_results=[],
+            auditor_results=[],
+            agent_contributions={"agent1": "contrib1"},
         )
         ep2 = EpisodeResult(
-            output="output2", success=True, trajectory=[{'step': 2}],
-            tagged_outputs=[], episode=0, execution_time=2.0,
-            architect_results=[], auditor_results=[],
-            agent_contributions={'agent2': 'contrib2'},
+            output="output2",
+            success=True,
+            trajectory=[{"step": 2}],
+            tagged_outputs=[],
+            episode=0,
+            execution_time=2.0,
+            architect_results=[],
+            auditor_results=[],
+            agent_contributions={"agent2": "contrib2"},
         )
-        result = executor.aggregate_results({'a1': ep1, 'a2': ep2}, "goal")
+        result = executor.aggregate_results({"a1": ep1, "a2": ep2}, "goal")
         assert result.success is True
         assert result.execution_time == 3.0
-        assert 'agent1' in result.agent_contributions
-        assert 'agent2' in result.agent_contributions
+        assert "agent1" in result.agent_contributions
+        assert "agent2" in result.agent_contributions
 
 
 @pytest.mark.unit
@@ -1976,20 +2137,24 @@ class TestTrainingDaemonUnit:
 
     def test_status_not_running(self):
         """Status shows not running when no daemon task exists."""
-        from Jotty.core.intelligence.orchestration.training_daemon import TrainingDaemon
         from unittest.mock import Mock
+
+        from Jotty.core.intelligence.orchestration.training_daemon import TrainingDaemon
+
         manager = Mock()
         daemon = TrainingDaemon(manager)
         status = daemon.status()
-        assert status['running'] is False
-        assert status['completed'] == 0
-        assert status['succeeded'] == 0
-        assert status['success_rate'] == 0.0
+        assert status["running"] is False
+        assert status["completed"] == 0
+        assert status["succeeded"] == 0
+        assert status["success_rate"] == 0.0
 
     def test_pending_count_no_learning(self):
         """Pending count returns 0 when learning unavailable."""
-        from Jotty.core.intelligence.orchestration.training_daemon import TrainingDaemon
         from unittest.mock import Mock
+
+        from Jotty.core.intelligence.orchestration.training_daemon import TrainingDaemon
+
         manager = Mock()
         manager.learning.pending_training_count.side_effect = Exception("no learning")
         daemon = TrainingDaemon(manager)
@@ -1997,8 +2162,10 @@ class TestTrainingDaemonUnit:
 
     def test_stop_not_running(self):
         """Stop returns False when daemon is not running."""
-        from Jotty.core.intelligence.orchestration.training_daemon import TrainingDaemon
         from unittest.mock import Mock
+
+        from Jotty.core.intelligence.orchestration.training_daemon import TrainingDaemon
+
         manager = Mock()
         daemon = TrainingDaemon(manager)
         assert daemon.stop() is False
@@ -2008,6 +2175,7 @@ class TestTrainingDaemonUnit:
 # PlanUtilsMixin moved methods Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestPlanParsing:
     """Test plan normalization and parsing methods moved to PlanUtilsMixin."""
@@ -2015,26 +2183,31 @@ class TestPlanParsing:
     def test_normalize_raw_plan_list_passthrough(self):
         """Lists pass through normalization unchanged."""
         from Jotty.core.modes.agent._plan_utils_mixin import PlanUtilsMixin
+
         mixin = PlanUtilsMixin()
-        result = mixin._normalize_raw_plan([{'step': 1}])
-        assert result == [{'step': 1}]
+        result = mixin._normalize_raw_plan([{"step": 1}])
+        assert result == [{"step": 1}]
 
     def test_normalize_raw_plan_json_string(self):
         """JSON string is parsed to list."""
-        from Jotty.core.modes.agent._plan_utils_mixin import PlanUtilsMixin
         import json
+
+        from Jotty.core.modes.agent._plan_utils_mixin import PlanUtilsMixin
+
         mixin = PlanUtilsMixin()
-        plan_data = [{'skill_name': 'web-search', 'tool_name': 'search'}]
+        plan_data = [{"skill_name": "web-search", "tool_name": "search"}]
         result = mixin._normalize_raw_plan(json.dumps(plan_data))
         assert len(result) == 1
-        assert result[0]['skill_name'] == 'web-search'
+        assert result[0]["skill_name"] == "web-search"
 
     def test_normalize_raw_plan_code_block(self):
         """JSON in markdown code block is extracted."""
-        from Jotty.core.modes.agent._plan_utils_mixin import PlanUtilsMixin
         import json
+
+        from Jotty.core.modes.agent._plan_utils_mixin import PlanUtilsMixin
+
         mixin = PlanUtilsMixin()
-        plan_data = [{'skill_name': 'test'}]
+        plan_data = [{"skill_name": "test"}]
         raw = f"Here's the plan:\n```json\n{json.dumps(plan_data)}\n```"
         result = mixin._normalize_raw_plan(raw)
         assert len(result) == 1
@@ -2042,29 +2215,35 @@ class TestPlanParsing:
     def test_normalize_raw_plan_empty(self):
         """None/empty input returns empty list."""
         from Jotty.core.modes.agent._plan_utils_mixin import PlanUtilsMixin
+
         mixin = PlanUtilsMixin()
         assert mixin._normalize_raw_plan(None) == []
-        assert mixin._normalize_raw_plan('') == []
+        assert mixin._normalize_raw_plan("") == []
 
     def test_extract_comparison_entities_vs(self):
         """'vs' pattern extracts entities."""
         from Jotty.core.modes.agent._plan_utils_mixin import PlanUtilsMixin
+
         mixin = PlanUtilsMixin()
         result = mixin._extract_comparison_entities("Compare Python vs JavaScript")
         assert len(result) == 2
-        assert 'Python' in result[0]
-        assert 'JavaScript' in result[1]
+        assert "Python" in result[0]
+        assert "JavaScript" in result[1]
 
     def test_extract_comparison_entities_between(self):
         """'difference between X and Y' pattern works."""
         from Jotty.core.modes.agent._plan_utils_mixin import PlanUtilsMixin
+
         mixin = PlanUtilsMixin()
-        result = mixin._extract_comparison_entities("difference between React and Vue, create report")
+        result = mixin._extract_comparison_entities(
+            "difference between React and Vue, create report"
+        )
         assert len(result) == 2
 
     def test_extract_comparison_entities_none(self):
         """Non-comparison tasks return empty list."""
         from Jotty.core.modes.agent._plan_utils_mixin import PlanUtilsMixin
+
         mixin = PlanUtilsMixin()
         result = mixin._extract_comparison_entities("Research AI trends")
         assert result == []
@@ -2072,6 +2251,7 @@ class TestPlanParsing:
     def test_extract_comparison_entities_triple(self):
         """Three-way comparison extracts all entities."""
         from Jotty.core.modes.agent._plan_utils_mixin import PlanUtilsMixin
+
         mixin = PlanUtilsMixin()
         result = mixin._extract_comparison_entities("Compare Python vs JavaScript vs Ruby")
         assert len(result) == 3
@@ -2080,6 +2260,7 @@ class TestPlanParsing:
 # =============================================================================
 # TierDetector Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestTierDetector:
@@ -2104,23 +2285,34 @@ class TestTierDetector:
     def test_detect_agentic_multi_step(self):
         """Multi-step indicators → AGENTIC."""
         detector = TierDetector()
-        result = detector.detect("Research the topic and then create a summary report for distribution")
+        result = detector.detect(
+            "Research the topic and then create a summary report for distribution"
+        )
         assert result == ExecutionTier.AGENTIC
 
     def test_detect_learning(self):
         """Learning indicators → LEARNING."""
         detector = TierDetector()
-        assert detector.detect("learn from past mistakes and improve accuracy") == ExecutionTier.LEARNING
+        assert (
+            detector.detect("learn from past mistakes and improve accuracy")
+            == ExecutionTier.LEARNING
+        )
 
     def test_detect_research(self):
         """Research indicators → RESEARCH."""
         detector = TierDetector()
-        assert detector.detect("experiment with different approaches and benchmark results") == ExecutionTier.RESEARCH
+        assert (
+            detector.detect("experiment with different approaches and benchmark results")
+            == ExecutionTier.RESEARCH
+        )
 
     def test_detect_autonomous(self):
         """Autonomous indicators → AUTONOMOUS."""
         detector = TierDetector()
-        assert detector.detect("run in sandbox isolated environment with trust verification") == ExecutionTier.AUTONOMOUS
+        assert (
+            detector.detect("run in sandbox isolated environment with trust verification")
+            == ExecutionTier.AUTONOMOUS
+        )
 
     def test_detect_agentic_ambiguous(self):
         """Ambiguous longer tasks without specific keywords → AGENTIC (default)."""
@@ -2300,6 +2492,7 @@ class TestTierDetector:
 # EffectivenessTracker Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestEffectivenessTracker:
     """Tests for learning_pipeline.py EffectivenessTracker."""
@@ -2307,6 +2500,7 @@ class TestEffectivenessTracker:
     def test_record_and_report(self):
         """Basic record + improvement_report."""
         from Jotty.core.intelligence.orchestration.learning_pipeline import EffectivenessTracker
+
         tracker = EffectivenessTracker(recent_window=3, historical_window=10)
         tracker.record("analysis", success=True, quality=0.8)
         tracker.record("analysis", success=False, quality=0.2)
@@ -2318,6 +2512,7 @@ class TestEffectivenessTracker:
     def test_split_windows(self):
         """Records split into recent and historical correctly."""
         from Jotty.core.intelligence.orchestration.learning_pipeline import EffectivenessTracker
+
         tracker = EffectivenessTracker(recent_window=2, historical_window=10)
         # Add 5 records
         for i in range(5):
@@ -2329,6 +2524,7 @@ class TestEffectivenessTracker:
     def test_split_windows_few_records(self):
         """With fewer records than recent_window, all go to recent."""
         from Jotty.core.intelligence.orchestration.learning_pipeline import EffectivenessTracker
+
         tracker = EffectivenessTracker(recent_window=10, historical_window=50)
         tracker.record("task", success=True, quality=0.5)
         recent, historical = tracker._split_windows(tracker._records["task"])
@@ -2338,6 +2534,7 @@ class TestEffectivenessTracker:
     def test_rate_empty(self):
         """_rate of empty list returns (0.0, 0.0)."""
         from Jotty.core.intelligence.orchestration.learning_pipeline import EffectivenessTracker
+
         tracker = EffectivenessTracker()
         rate, quality = tracker._rate([])
         assert rate == 0.0
@@ -2345,8 +2542,10 @@ class TestEffectivenessTracker:
 
     def test_rate_calculation(self):
         """_rate computes success rate and avg quality correctly."""
-        from Jotty.core.intelligence.orchestration.learning_pipeline import EffectivenessTracker
         import time
+
+        from Jotty.core.intelligence.orchestration.learning_pipeline import EffectivenessTracker
+
         tracker = EffectivenessTracker()
         records = [
             (time.time(), True, 0.8, "agent1"),
@@ -2360,6 +2559,7 @@ class TestEffectivenessTracker:
     def test_is_improving_insufficient_history(self):
         """is_improving returns False without enough historical data."""
         from Jotty.core.intelligence.orchestration.learning_pipeline import EffectivenessTracker
+
         tracker = EffectivenessTracker(recent_window=2, historical_window=10)
         tracker.record("task", success=True, quality=0.9)
         tracker.record("task", success=True, quality=0.9)
@@ -2369,6 +2569,7 @@ class TestEffectivenessTracker:
     def test_is_improving_with_trend(self):
         """is_improving returns True when recent > historical and enough data."""
         from Jotty.core.intelligence.orchestration.learning_pipeline import EffectivenessTracker
+
         tracker = EffectivenessTracker(recent_window=3, historical_window=10)
         # Historical: all failures (5 records)
         for _ in range(5):
@@ -2381,6 +2582,7 @@ class TestEffectivenessTracker:
     def test_is_improving_global(self):
         """is_improving() without task_type checks global."""
         from Jotty.core.intelligence.orchestration.learning_pipeline import EffectivenessTracker
+
         tracker = EffectivenessTracker(recent_window=3, historical_window=10)
         # Historical: failures
         for _ in range(5):
@@ -2393,6 +2595,7 @@ class TestEffectivenessTracker:
     def test_to_dict_roundtrip(self):
         """to_dict / from_dict roundtrip preserves data."""
         from Jotty.core.intelligence.orchestration.learning_pipeline import EffectivenessTracker
+
         tracker = EffectivenessTracker(recent_window=5, historical_window=20)
         tracker.record("analysis", success=True, quality=0.8, agent="planner")
         tracker.record("analysis", success=False, quality=0.3, agent="executor")
@@ -2410,6 +2613,7 @@ class TestEffectivenessTracker:
     def test_quality_clamped(self):
         """Quality values are clamped to [0.0, 1.0]."""
         from Jotty.core.intelligence.orchestration.learning_pipeline import EffectivenessTracker
+
         tracker = EffectivenessTracker()
         tracker.record("task", success=True, quality=-0.5)
         tracker.record("task", success=True, quality=2.0)
@@ -2420,6 +2624,7 @@ class TestEffectivenessTracker:
     def test_report_trend_positive(self):
         """Report shows positive trend when recent beats historical."""
         from Jotty.core.intelligence.orchestration.learning_pipeline import EffectivenessTracker
+
         tracker = EffectivenessTracker(recent_window=2, historical_window=10)
         # All historical failures
         for _ in range(5):
@@ -2435,6 +2640,7 @@ class TestEffectivenessTracker:
     def test_report_trend_negative(self):
         """Report shows negative trend when recent is worse."""
         from Jotty.core.intelligence.orchestration.learning_pipeline import EffectivenessTracker
+
         tracker = EffectivenessTracker(recent_window=2, historical_window=10)
         # Historical successes
         for _ in range(5):
@@ -2449,6 +2655,7 @@ class TestEffectivenessTracker:
     def test_multiple_task_types(self):
         """Different task types tracked independently."""
         from Jotty.core.intelligence.orchestration.learning_pipeline import EffectivenessTracker
+
         tracker = EffectivenessTracker()
         tracker.record("analysis", success=True, quality=0.9)
         tracker.record("coding", success=False, quality=0.2)
@@ -2463,6 +2670,7 @@ class TestEffectivenessTracker:
 # AsyncUtils Tests — safe_status, StatusReporter, AgentEventBroadcaster
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestAsyncUtils:
     """Tests for core/utils/async_utils.py utilities."""
@@ -2470,11 +2678,13 @@ class TestAsyncUtils:
     def test_safe_status_none_callback(self):
         """safe_status with None callback is a no-op."""
         from Jotty.core.infrastructure.utils.async_utils import safe_status
+
         safe_status(None, "Planning", "step 1")  # Should not raise
 
     def test_safe_status_calls_callback(self):
         """safe_status invokes the callback with stage and detail."""
         from Jotty.core.infrastructure.utils.async_utils import safe_status
+
         cb = Mock()
         safe_status(cb, "Planning", "step 1")
         cb.assert_called_once_with("Planning", "step 1")
@@ -2482,12 +2692,14 @@ class TestAsyncUtils:
     def test_safe_status_suppresses_exception(self):
         """safe_status swallows callback exceptions."""
         from Jotty.core.infrastructure.utils.async_utils import safe_status
+
         cb = Mock(side_effect=RuntimeError("callback broken"))
         safe_status(cb, "Planning", "step 1")  # Should not raise
 
     def test_status_reporter_calls_callback_and_logs(self):
         """StatusReporter invokes callback and logs."""
         from Jotty.core.infrastructure.utils.async_utils import StatusReporter
+
         cb = Mock()
         mock_logger = Mock()
         reporter = StatusReporter(cb, mock_logger, emoji="")
@@ -2498,6 +2710,7 @@ class TestAsyncUtils:
     def test_status_reporter_with_prefix(self):
         """StatusReporter.with_prefix() prepends prefix to stage."""
         from Jotty.core.infrastructure.utils.async_utils import StatusReporter
+
         cb = Mock()
         reporter = StatusReporter(cb)
         sub = reporter.with_prefix("[agent1]")
@@ -2507,6 +2720,7 @@ class TestAsyncUtils:
     def test_status_reporter_no_callback(self):
         """StatusReporter with None callback only logs."""
         from Jotty.core.infrastructure.utils.async_utils import StatusReporter
+
         mock_logger = Mock()
         reporter = StatusReporter(None, mock_logger)
         reporter("Planning", "detail")
@@ -2515,16 +2729,20 @@ class TestAsyncUtils:
     def test_ensure_async_wraps_sync(self):
         """ensure_async wraps a sync function to be awaitable."""
         from Jotty.core.infrastructure.utils.async_utils import ensure_async
+
         def sync_fn(x):
             return x * 2
+
         async_fn = ensure_async(sync_fn)
         assert asyncio.iscoroutinefunction(async_fn)
 
     def test_ensure_async_passthrough_async(self):
         """ensure_async returns async functions unchanged."""
         from Jotty.core.infrastructure.utils.async_utils import ensure_async
+
         async def async_fn(x):
             return x * 2
+
         result = ensure_async(async_fn)
         assert result is async_fn
 
@@ -2532,8 +2750,10 @@ class TestAsyncUtils:
     async def test_ensure_async_result(self):
         """ensure_async wrapped function returns correct result."""
         from Jotty.core.infrastructure.utils.async_utils import ensure_async
+
         def sync_fn(x):
             return x * 2
+
         async_fn = ensure_async(sync_fn)
         result = await async_fn(5)
         assert result == 10
@@ -2542,10 +2762,13 @@ class TestAsyncUtils:
     async def test_gather_with_limit(self):
         """gather_with_limit runs coroutines with concurrency limiting."""
         from Jotty.core.infrastructure.utils.async_utils import gather_with_limit
+
         results = []
+
         async def task(n):
             results.append(n)
             return n * 2
+
         out = await gather_with_limit([task(1), task(2), task(3)], limit=2)
         assert sorted(out) == [2, 4, 6]
         assert sorted(results) == [1, 2, 3]
@@ -2553,6 +2776,7 @@ class TestAsyncUtils:
     def test_agent_event_creation(self):
         """AgentEvent initializes with correct fields."""
         from Jotty.core.infrastructure.utils.async_utils import AgentEvent
+
         event = AgentEvent(type="tool_start", data={"skill": "web-search"}, agent_id="agent1")
         assert event.type == "tool_start"
         assert event.data == {"skill": "web-search"}
@@ -2562,12 +2786,14 @@ class TestAsyncUtils:
     def test_agent_event_unknown_type_no_error(self):
         """AgentEvent with unknown type doesn't raise (just logs debug)."""
         from Jotty.core.infrastructure.utils.async_utils import AgentEvent
+
         event = AgentEvent(type="unknown_type")  # Should not raise
         assert event.type == "unknown_type"
 
     def test_broadcaster_singleton(self):
         """AgentEventBroadcaster.get_instance() returns singleton."""
         from Jotty.core.infrastructure.utils.async_utils import AgentEventBroadcaster
+
         AgentEventBroadcaster.reset_instance()
         try:
             b1 = AgentEventBroadcaster.get_instance()
@@ -2579,6 +2805,7 @@ class TestAsyncUtils:
     def test_broadcaster_reset(self):
         """reset_instance() creates fresh singleton on next call."""
         from Jotty.core.infrastructure.utils.async_utils import AgentEventBroadcaster
+
         AgentEventBroadcaster.reset_instance()
         try:
             b1 = AgentEventBroadcaster.get_instance()
@@ -2590,7 +2817,8 @@ class TestAsyncUtils:
 
     def test_broadcaster_subscribe_and_emit(self):
         """subscribe + emit delivers events to listeners."""
-        from Jotty.core.infrastructure.utils.async_utils import AgentEventBroadcaster, AgentEvent
+        from Jotty.core.infrastructure.utils.async_utils import AgentEvent, AgentEventBroadcaster
+
         AgentEventBroadcaster.reset_instance()
         try:
             bus = AgentEventBroadcaster.get_instance()
@@ -2605,7 +2833,8 @@ class TestAsyncUtils:
 
     def test_broadcaster_unsubscribe(self):
         """unsubscribe removes listener."""
-        from Jotty.core.infrastructure.utils.async_utils import AgentEventBroadcaster, AgentEvent
+        from Jotty.core.infrastructure.utils.async_utils import AgentEvent, AgentEventBroadcaster
+
         AgentEventBroadcaster.reset_instance()
         try:
             bus = AgentEventBroadcaster.get_instance()
@@ -2620,7 +2849,8 @@ class TestAsyncUtils:
 
     def test_broadcaster_emit_suppresses_listener_error(self):
         """emit swallows exceptions from listeners."""
-        from Jotty.core.infrastructure.utils.async_utils import AgentEventBroadcaster, AgentEvent
+        from Jotty.core.infrastructure.utils.async_utils import AgentEvent, AgentEventBroadcaster
+
         AgentEventBroadcaster.reset_instance()
         try:
             bus = AgentEventBroadcaster.get_instance()
@@ -2636,6 +2866,7 @@ class TestAsyncUtils:
     def test_broadcaster_unsubscribe_nonexistent(self):
         """unsubscribe with non-subscribed callback is a no-op."""
         from Jotty.core.infrastructure.utils.async_utils import AgentEventBroadcaster
+
         AgentEventBroadcaster.reset_instance()
         try:
             bus = AgentEventBroadcaster.get_instance()
@@ -2648,18 +2879,21 @@ class TestAsyncUtils:
 # INFRASTRUCTURE PATTERNS (Circuit Breaker, Adaptive Timeout, DLQ, TimeoutWarning)
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestCircuitBreaker:
     """Test CircuitBreaker state machine."""
 
     def test_initial_state_closed(self):
         from Jotty.core.modes.execution.types import CircuitBreaker, CircuitState
+
         cb = CircuitBreaker("test", failure_threshold=3, cooldown_seconds=10)
         assert cb.state == CircuitState.CLOSED
         assert cb.allow_request()
 
     def test_trips_after_threshold(self):
         from Jotty.core.modes.execution.types import CircuitBreaker, CircuitState
+
         cb = CircuitBreaker("test", failure_threshold=3, cooldown_seconds=60)
         for _ in range(3):
             cb.record_failure()
@@ -2668,6 +2902,7 @@ class TestCircuitBreaker:
 
     def test_resets_on_success(self):
         from Jotty.core.modes.execution.types import CircuitBreaker, CircuitState
+
         cb = CircuitBreaker("test", failure_threshold=3, cooldown_seconds=60)
         cb.record_failure()
         cb.record_failure()
@@ -2677,17 +2912,20 @@ class TestCircuitBreaker:
 
     def test_half_open_after_cooldown(self):
         from Jotty.core.modes.execution.types import CircuitBreaker, CircuitState
+
         cb = CircuitBreaker("test", failure_threshold=2, cooldown_seconds=0.01)
         cb.record_failure()
         cb.record_failure()
         assert cb.state == CircuitState.OPEN
         import time
+
         time.sleep(0.02)
         assert cb.state == CircuitState.HALF_OPEN
         assert cb.allow_request()
 
     def test_manual_reset(self):
         from Jotty.core.modes.execution.types import CircuitBreaker, CircuitState
+
         cb = CircuitBreaker("test", failure_threshold=1, cooldown_seconds=999)
         cb.record_failure()
         assert cb.state == CircuitState.OPEN
@@ -2701,11 +2939,13 @@ class TestAdaptiveTimeout:
 
     def test_default_when_no_observations(self):
         from Jotty.core.modes.execution.types import AdaptiveTimeout
+
         at = AdaptiveTimeout(default_seconds=30)
         assert at.get("unknown_op") == 30.0
 
     def test_adaptive_after_observations(self):
         from Jotty.core.modes.execution.types import AdaptiveTimeout
+
         at = AdaptiveTimeout(default_seconds=30, min_seconds=1, max_seconds=100)
         for _ in range(10):
             at.record("llm_call", 2.0)
@@ -2715,6 +2955,7 @@ class TestAdaptiveTimeout:
 
     def test_respects_min_max(self):
         from Jotty.core.modes.execution.types import AdaptiveTimeout
+
         at = AdaptiveTimeout(min_seconds=5, max_seconds=10)
         for _ in range(10):
             at.record("fast_op", 0.1)
@@ -2731,12 +2972,14 @@ class TestDeadLetterQueue:
 
     def test_enqueue_and_size(self):
         from Jotty.core.modes.execution.types import DeadLetterQueue, ErrorType
+
         dlq = DeadLetterQueue(max_size=10)
         dlq.enqueue("search", {"query": "test"}, "timeout", ErrorType.INFRASTRUCTURE)
         assert dlq.size == 1
 
     def test_get_retryable(self):
         from Jotty.core.modes.execution.types import DeadLetterQueue, ErrorType
+
         dlq = DeadLetterQueue()
         dlq.enqueue("op1", {}, "error1", ErrorType.INFRASTRUCTURE)
         retryable = dlq.get_retryable()
@@ -2744,6 +2987,7 @@ class TestDeadLetterQueue:
 
     def test_mark_resolved(self):
         from Jotty.core.modes.execution.types import DeadLetterQueue, ErrorType
+
         dlq = DeadLetterQueue()
         letter = dlq.enqueue("op1", {}, "error1")
         dlq.mark_resolved(letter)
@@ -2751,6 +2995,7 @@ class TestDeadLetterQueue:
 
     def test_retry_all(self):
         from Jotty.core.modes.execution.types import DeadLetterQueue, ErrorType
+
         dlq = DeadLetterQueue()
         dlq.enqueue("op1", {}, "error1")
         dlq.enqueue("op2", {}, "error2")
@@ -2760,6 +3005,7 @@ class TestDeadLetterQueue:
 
     def test_max_size_eviction(self):
         from Jotty.core.modes.execution.types import DeadLetterQueue
+
         dlq = DeadLetterQueue(max_size=2)
         dlq.enqueue("op1", {}, "e1")
         dlq.enqueue("op2", {}, "e2")
@@ -2773,15 +3019,18 @@ class TestTimeoutWarning:
 
     def test_no_warning_before_threshold(self):
         from Jotty.core.modes.execution.types import TimeoutWarning
+
         tw = TimeoutWarning(timeout_seconds=100)
         tw.start()
         assert tw.check() is None  # Just started
 
     def test_warning_at_threshold(self):
         from Jotty.core.modes.execution.types import TimeoutWarning
+
         tw = TimeoutWarning(timeout_seconds=0.01)
         tw.start()
         import time
+
         time.sleep(0.02)
         warning = tw.check()
         assert warning is not None
@@ -2789,14 +3038,17 @@ class TestTimeoutWarning:
 
     def test_is_expired(self):
         from Jotty.core.modes.execution.types import TimeoutWarning
+
         tw = TimeoutWarning(timeout_seconds=0.01)
         tw.start()
         import time
+
         time.sleep(0.02)
         assert tw.is_expired
 
     def test_fraction_used(self):
         from Jotty.core.modes.execution.types import TimeoutWarning
+
         tw = TimeoutWarning(timeout_seconds=100)
         tw.start()
         assert tw.fraction_used < 0.01
@@ -2806,12 +3058,14 @@ class TestTimeoutWarning:
 # CONTEXT GUARD
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestProactiveContextGuard:
     """Test proactive context guard assembly."""
 
     def test_fits_in_budget(self):
-        from Jotty.core.modes.agent._inference_mixin import InferenceMixin, ContextPriority
+        from Jotty.core.modes.agent._inference_mixin import ContextPriority, InferenceMixin
+
         mixin = InferenceMixin()
         sections = [
             (ContextPriority.CRITICAL, "instruction", "Do X"),
@@ -2823,7 +3077,8 @@ class TestProactiveContextGuard:
         assert "tool1" in result
 
     def test_compresses_low_priority(self):
-        from Jotty.core.modes.agent._inference_mixin import InferenceMixin, ContextPriority
+        from Jotty.core.modes.agent._inference_mixin import ContextPriority, InferenceMixin
+
         mixin = InferenceMixin()
         # Create sections where LOW is very large
         sections = [
@@ -2836,6 +3091,7 @@ class TestProactiveContextGuard:
 
     def test_estimate_tokens(self):
         from Jotty.core.modes.agent._inference_mixin import InferenceMixin
+
         tokens = InferenceMixin._estimate_tokens("Hello world test")
         assert tokens > 0
         assert tokens < 100
@@ -2845,18 +3101,21 @@ class TestProactiveContextGuard:
 # REACT EXECUTION MODE
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestReActMode:
     """Test ReAct execution mode configuration."""
 
     def test_react_config_defaults(self):
         from Jotty.core.modes.agent.agents.domain_agent import DomainAgentConfig
+
         config = DomainAgentConfig(use_react=True)
         assert config.use_react is True
         assert config.max_react_iters == 5
 
     def test_react_mode_disabled_by_default(self):
         from Jotty.core.modes.agent.agents.domain_agent import DomainAgentConfig
+
         config = DomainAgentConfig()
         assert config.use_react is False
 
@@ -2865,15 +3124,18 @@ class TestReActMode:
 # LLM-ANALYZED RETRY + TRAJECTORY
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestAnalyzedRetry:
     """Test LLM-analyzed retry and trajectory preservation."""
 
     def _make_agent(self):
-        from Jotty.core.modes.agent.base.base_agent import BaseAgent, AgentRuntimeConfig
+        from Jotty.core.modes.agent.base.base_agent import AgentRuntimeConfig, BaseAgent
+
         class _Dummy(BaseAgent):
             async def _execute_impl(self, **kw):
                 return {}
+
         a = _Dummy(AgentRuntimeConfig(name="test"))
         a._initialized = True
         return a
@@ -2895,9 +3157,10 @@ class TestAnalyzedRetry:
 
     @pytest.mark.asyncio
     async def test_trajectory_preserved_across_retries(self):
-        from Jotty.core.modes.agent.base.base_agent import BaseAgent, AgentRuntimeConfig
+        from Jotty.core.modes.agent.base.base_agent import AgentRuntimeConfig, BaseAgent
 
         call_count = 0
+
         class FailThenSucceed(BaseAgent):
             async def _execute_impl(self, **kwargs):
                 nonlocal call_count
@@ -2905,12 +3168,12 @@ class TestAnalyzedRetry:
                 if call_count < 2:
                     raise ValueError("test error")
                 # On retry, trajectory should be injected
-                assert '_retry_trajectory' in kwargs
+                assert "_retry_trajectory" in kwargs
                 return {"ok": True}
 
-        agent = FailThenSucceed(AgentRuntimeConfig(
-            name="test", max_retries=3, retry_delay=0.01, timeout=10
-        ))
+        agent = FailThenSucceed(
+            AgentRuntimeConfig(name="test", max_retries=3, retry_delay=0.01, timeout=10)
+        )
         agent._initialized = True
         result = await agent.execute()
         assert result.success
@@ -2921,12 +3184,14 @@ class TestAnalyzedRetry:
 # DAG PARALLEL EXECUTION + TOOL CALL CACHING
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestToolCallCache:
     """Test ToolCallCache TTL and LRU."""
 
     def test_cache_set_and_get(self):
         from Jotty.core.modes.agent.executors.skill_plan_executor import ToolCallCache
+
         cache = ToolCallCache(ttl_seconds=60)
         key = cache.make_key("web-search", "search_tool", {"query": "test"})
         cache.set(key, {"result": "data"})
@@ -2934,20 +3199,24 @@ class TestToolCallCache:
 
     def test_cache_miss(self):
         from Jotty.core.modes.agent.executors.skill_plan_executor import ToolCallCache
+
         cache = ToolCallCache()
         assert cache.get("nonexistent") is None
 
     def test_cache_ttl_expiry(self):
         from Jotty.core.modes.agent.executors.skill_plan_executor import ToolCallCache
+
         cache = ToolCallCache(ttl_seconds=0.01)
         key = "test"
         cache.set(key, "value")
         import time
+
         time.sleep(0.02)
         assert cache.get(key) is None
 
     def test_cache_max_size_eviction(self):
         from Jotty.core.modes.agent.executors.skill_plan_executor import ToolCallCache
+
         cache = ToolCallCache(max_size=2)
         cache.set("k1", "v1")
         cache.set("k2", "v2")
@@ -2956,6 +3225,7 @@ class TestToolCallCache:
 
     def test_deterministic_key(self):
         from Jotty.core.modes.agent.executors.skill_plan_executor import ToolCallCache
+
         k1 = ToolCallCache.make_key("s", "t", {"a": 1, "b": 2})
         k2 = ToolCallCache.make_key("s", "t", {"b": 2, "a": 1})
         assert k1 == k2  # Same regardless of dict order
@@ -2967,6 +3237,7 @@ class TestDAGExecution:
 
     def test_build_dependency_graph(self):
         from Jotty.core.modes.agent.executors.skill_plan_executor import SkillPlanExecutor
+
         executor = SkillPlanExecutor(skills_registry=None)
         steps = [Mock(depends_on=[]), Mock(depends_on=[0]), Mock(depends_on=[0])]
         graph = executor._build_dependency_graph(steps)
@@ -2976,15 +3247,17 @@ class TestDAGExecution:
 
     def test_find_parallel_groups(self):
         from Jotty.core.modes.agent.executors.skill_plan_executor import SkillPlanExecutor
+
         executor = SkillPlanExecutor(skills_registry=None)
         # Step 0: no deps, Step 1: depends on 0, Step 2: depends on 0
         steps = [Mock(depends_on=[]), Mock(depends_on=[0]), Mock(depends_on=[0])]
         layers = executor._find_parallel_groups(steps)
-        assert layers[0] == [0]       # Step 0 first
+        assert layers[0] == [0]  # Step 0 first
         assert set(layers[1]) == {1, 2}  # Steps 1,2 in parallel
 
     def test_sequential_chain(self):
         from Jotty.core.modes.agent.executors.skill_plan_executor import SkillPlanExecutor
+
         executor = SkillPlanExecutor(skills_registry=None)
         steps = [Mock(depends_on=[]), Mock(depends_on=[0]), Mock(depends_on=[1])]
         layers = executor._find_parallel_groups(steps)
@@ -2995,23 +3268,27 @@ class TestDAGExecution:
 # Q-LEARNING, COMA, LEARNED CONTEXT
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestSkillQTable:
     """Test Q-learning for skill selection."""
 
     def test_initial_q_value(self):
         from Jotty.core.intelligence.learning.td_lambda import SkillQTable
+
         q = SkillQTable()
         assert q.get_q("research", "web-search") == 0.5  # Optimistic default
 
     def test_update_q_value(self):
         from Jotty.core.intelligence.learning.td_lambda import SkillQTable
+
         q = SkillQTable(alpha=0.5)
         q.update("research", "web-search", reward=1.0)
         assert q.get_q("research", "web-search") > 0.5
 
     def test_select_ranks_by_q(self):
         from Jotty.core.intelligence.learning.td_lambda import SkillQTable
+
         q = SkillQTable(epsilon=0.0)  # No exploration
         q.update("research", "good-skill", reward=0.9)
         q.update("research", "bad-skill", reward=0.1)
@@ -3020,6 +3297,7 @@ class TestSkillQTable:
 
     def test_serialization(self):
         from Jotty.core.intelligence.learning.td_lambda import SkillQTable
+
         q = SkillQTable()
         q.update("test", "s1", 0.8)
         data = q.to_dict()
@@ -3033,11 +3311,13 @@ class TestCOMACredit:
 
     def test_initial_credit_zero(self):
         from Jotty.core.intelligence.learning.td_lambda import COMACredit
+
         coma = COMACredit()
         assert coma.get_credit("unknown") == 0.0
 
     def test_credit_after_episodes(self):
         from Jotty.core.intelligence.learning.td_lambda import COMACredit
+
         coma = COMACredit()
         # Agent A present in good episodes
         coma.record_episode(0.9, {"A": 0.5, "B": 0.4})
@@ -3049,6 +3329,7 @@ class TestCOMACredit:
 
     def test_get_all_credits(self):
         from Jotty.core.intelligence.learning.td_lambda import COMACredit
+
         coma = COMACredit()
         coma.record_episode(0.9, {"A": 0.5, "B": 0.4})
         credits = coma.get_all_credits()
@@ -3061,16 +3342,22 @@ class TestGetLearnedContext:
     """Test learned context generation for LLM prompts."""
 
     def test_empty_when_no_data(self):
-        from Jotty.core.intelligence.learning.td_lambda import TDLambdaLearner, get_learned_context
         from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
+        from Jotty.core.intelligence.learning.td_lambda import TDLambdaLearner, get_learned_context
+
         learner = TDLambdaLearner(SwarmConfig())
         ctx = get_learned_context(learner, task_type="unknown_type")
         # May be empty if no data for this type
         assert isinstance(ctx, str)
 
     def test_includes_baseline_info(self):
-        from Jotty.core.intelligence.learning.td_lambda import TDLambdaLearner, SkillQTable, get_learned_context
         from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
+        from Jotty.core.intelligence.learning.td_lambda import (
+            SkillQTable,
+            TDLambdaLearner,
+            get_learned_context,
+        )
+
         learner = TDLambdaLearner(SwarmConfig())
         # Populate some data
         learner.grouped_baseline.update_group("research", 0.8)
@@ -3087,12 +3374,14 @@ class TestGetLearnedContext:
 # POLICY EXPLORER + DATA-FLOW DEPENDENCIES
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestDataFlowDependencies:
     """Test data-flow dependency inference."""
 
     def test_infer_no_deps(self):
         from Jotty.core.modes.agent.agentic_planner import TaskPlanner
+
         steps = [
             Mock(output_key="out_0", params={"query": "test"}, depends_on=[]),
             Mock(output_key="out_1", params={"query": "other"}, depends_on=[]),
@@ -3103,6 +3392,7 @@ class TestDataFlowDependencies:
 
     def test_infer_template_dependency(self):
         from Jotty.core.modes.agent.agentic_planner import TaskPlanner
+
         steps = [
             Mock(output_key="research_out", params={"query": "AI"}, depends_on=[]),
             Mock(output_key="summary_out", params={"text": "{{research_out}}"}, depends_on=[]),
@@ -3115,22 +3405,25 @@ class TestDataFlowDependencies:
 # TOOL I/O CHAINING + PER-TOOL STATS
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestToolStats:
     """Test per-tool performance statistics."""
 
     def test_record_and_get(self):
         from Jotty.core.modes.agent._execution_types import ToolStats
+
         ts = ToolStats()
         ts.record("web-search", "search_tool", success=True, latency_ms=1200)
         ts.record("web-search", "search_tool", success=True, latency_ms=800)
         ts.record("web-search", "search_tool", success=False, latency_ms=5000)
         stats = ts.get_stats("web-search", "search_tool")
-        assert stats['call_count'] == 3
-        assert abs(stats['success_rate'] - 2/3) < 0.01
+        assert stats["call_count"] == 3
+        assert abs(stats["success_rate"] - 2 / 3) < 0.01
 
     def test_summary_string(self):
         from Jotty.core.modes.agent._execution_types import ToolStats
+
         ts = ToolStats()
         ts.record("s", "t", True, 1000)
         summary = ts.get_summary("s", "t")
@@ -3139,8 +3432,9 @@ class TestToolStats:
 
     def test_no_history(self):
         from Jotty.core.modes.agent._execution_types import ToolStats
+
         ts = ToolStats()
-        assert ts.get_stats("x", "y")['call_count'] == 0
+        assert ts.get_stats("x", "y")["call_count"] == 0
 
 
 @pytest.mark.unit
@@ -3149,6 +3443,7 @@ class TestCapabilityIndex:
 
     def test_register_and_find_chain(self):
         from Jotty.core.modes.agent._execution_types import CapabilityIndex
+
         idx = CapabilityIndex()
         idx.register("search", inputs=["query"], outputs=["search_results"])
         idx.register("summarize", inputs=["search_results"], outputs=["summary"])
@@ -3157,6 +3452,7 @@ class TestCapabilityIndex:
 
     def test_no_chain_exists(self):
         from Jotty.core.modes.agent._execution_types import CapabilityIndex
+
         idx = CapabilityIndex()
         idx.register("search", inputs=["query"], outputs=["search_results"])
         chain = idx.find_chain("query", "nonexistent_type")
@@ -3164,6 +3460,7 @@ class TestCapabilityIndex:
 
     def test_direct_chain(self):
         from Jotty.core.modes.agent._execution_types import CapabilityIndex
+
         idx = CapabilityIndex()
         idx.register("tool1", inputs=["a"], outputs=["b"])
         chain = idx.find_chain("a", "b")
@@ -3171,6 +3468,7 @@ class TestCapabilityIndex:
 
     def test_three_hop_chain(self):
         from Jotty.core.modes.agent._execution_types import CapabilityIndex
+
         idx = CapabilityIndex()
         idx.register("t1", inputs=["a"], outputs=["b"])
         idx.register("t2", inputs=["b"], outputs=["c"])
@@ -3183,21 +3481,24 @@ class TestCapabilityIndex:
 # SELF-RAG + SURPRISE MEMORY
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestSelfRAG:
     """Test self-RAG retrieval gating."""
 
     def test_skip_for_greeting(self):
-        from Jotty.core.intelligence.memory.cortex import SwarmMemory
         from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+
         mem = SwarmMemory(agent_name="test", config=SwarmConfig())
         should, results, reason = mem.self_rag_retrieve("hello")
         assert should is False
         assert "greeting" in reason.lower() or "simple" in reason.lower()
 
     def test_skip_when_empty(self):
-        from Jotty.core.intelligence.memory.cortex import SwarmMemory
         from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+
         mem = SwarmMemory(agent_name="test", config=SwarmConfig())
         should, results, reason = mem.self_rag_retrieve("complex research task about AI")
         assert should is False
@@ -3209,15 +3510,17 @@ class TestSurpriseMemory:
     """Test surprise-based memory storage."""
 
     def test_routine_skipped(self):
-        from Jotty.core.intelligence.memory.cortex import SwarmMemory
         from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
+        from Jotty.core.intelligence.memory.cortex import SwarmMemory
+
         mem = SwarmMemory(agent_name="test", config=SwarmConfig())
         result = mem.store_with_surprise("routine event", surprise_score=0.1, context={})
         assert result is None  # Skipped
 
     def test_surprising_stored_causal(self):
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel, SwarmConfig
         from Jotty.core.intelligence.memory.cortex import SwarmMemory
-        from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig, MemoryLevel
+
         mem = SwarmMemory(agent_name="test", config=SwarmConfig())
         result = mem.store_with_surprise(
             "unexpected API failure pattern",
@@ -3230,8 +3533,9 @@ class TestSurpriseMemory:
         assert len(mem.memories[MemoryLevel.CAUSAL]) > 0
 
     def test_notable_stored_episodic(self):
+        from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel, SwarmConfig
         from Jotty.core.intelligence.memory.cortex import SwarmMemory
-        from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig, MemoryLevel
+
         mem = SwarmMemory(agent_name="test", config=SwarmConfig())
         result = mem.store_with_surprise(
             "notable event",
@@ -3246,44 +3550,51 @@ class TestSurpriseMemory:
 # FAILURE ROUTER
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestFailureRouter:
     """Test failure routing decisions."""
 
     def test_timeout_routes_to_retry(self):
         from Jotty.core.modes.agent.inspector import FailureRouter
+
         router = FailureRouter()
         action = router.route("Connection timeout after 30s", "web-search")
-        assert action['action'] == 'retry_with_backoff'
+        assert action["action"] == "retry_with_backoff"
 
     def test_rate_limit_routes_to_wait(self):
         from Jotty.core.modes.agent.inspector import FailureRouter
+
         router = FailureRouter()
         action = router.route("rate_limit exceeded, retry in 60 seconds", "llm")
-        assert action['action'] == 'wait_and_retry'
+        assert action["action"] == "wait_and_retry"
 
     def test_not_found_routes_to_alternative(self):
         from Jotty.core.modes.agent.inspector import FailureRouter
+
         router = FailureRouter()
         action = router.route("resource not_found: 404", "web-search")
-        assert action['action'] == 'try_alternative'
+        assert action["action"] == "try_alternative"
 
     def test_logic_error_with_alternative(self):
         from Jotty.core.modes.agent.inspector import FailureRouter
+
         router = FailureRouter()
         action = router.route("invalid selector syntax", "browser-automation")
-        assert action['action'] in ('try_alternative', 'replan')
+        assert action["action"] in ("try_alternative", "replan")
 
     def test_ssl_routes_to_bypass(self):
         from Jotty.core.modes.agent.inspector import FailureRouter
+
         router = FailureRouter()
         action = router.route("SSL certificate verification failed", "http-client")
-        assert action['action'] == 'use_env_bypass'
+        assert action["action"] == "use_env_bypass"
 
 
 # =============================================================================
 # ERROR CLASSIFICATION (extended tests)
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestErrorClassificationExtended:
@@ -3291,21 +3602,25 @@ class TestErrorClassificationExtended:
 
     def test_environment_detection(self):
         from Jotty.core.modes.execution.types import ErrorType
+
         assert ErrorType.classify("SSL handshake failed") == ErrorType.ENVIRONMENT
         assert ErrorType.classify("Zscaler proxy block") == ErrorType.ENVIRONMENT
 
     def test_logic_before_data(self):
         from Jotty.core.modes.execution.types import ErrorType
+
         # "element not found" should be LOGIC, not DATA
         assert ErrorType.classify("element not found in DOM") == ErrorType.LOGIC
 
     def test_data_detection(self):
         from Jotty.core.modes.execution.types import ErrorType
+
         assert ErrorType.classify("empty result set") == ErrorType.DATA
         assert ErrorType.classify("invalid json response") == ErrorType.DATA
 
     def test_infrastructure_default(self):
         from Jotty.core.modes.execution.types import ErrorType
+
         assert ErrorType.classify("something unknown happened") == ErrorType.INFRASTRUCTURE
 
 
@@ -3313,25 +3628,29 @@ class TestErrorClassificationExtended:
 # VALIDATION VERDICT (extended tests)
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestValidationVerdictExtended:
     """Extended tests for ValidationVerdict."""
 
     def test_ok_verdict(self):
-        from Jotty.core.modes.execution.types import ValidationVerdict, ValidationStatus
+        from Jotty.core.modes.execution.types import ValidationStatus, ValidationVerdict
+
         v = ValidationVerdict.ok("all good", confidence=0.95)
         assert v.is_pass
         assert v.confidence == 0.95
 
     def test_from_error_retryable(self):
-        from Jotty.core.modes.execution.types import ValidationVerdict, ErrorType
+        from Jotty.core.modes.execution.types import ErrorType, ValidationVerdict
+
         v = ValidationVerdict.from_error("connection timeout")
         assert not v.is_pass
         assert v.retryable
         assert v.error_type == ErrorType.INFRASTRUCTURE
 
     def test_from_error_not_retryable(self):
-        from Jotty.core.modes.execution.types import ValidationVerdict, ErrorType
+        from Jotty.core.modes.execution.types import ErrorType, ValidationVerdict
+
         v = ValidationVerdict.from_error("syntax error in selector")
         assert not v.is_pass
         assert not v.retryable  # Logic errors aren't retryable
@@ -3342,6 +3661,7 @@ class TestValidationVerdictExtended:
 # ComplexityGate Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestComplexityGate:
     """Tests for executor.py ComplexityGate."""
@@ -3350,6 +3670,7 @@ class TestComplexityGate:
     async def test_should_skip_planning_direct(self):
         """ComplexityGate returns True for DIRECT classification."""
         from Jotty.core.modes.execution.executor import ComplexityGate
+
         gate = ComplexityGate()
         mock_response = Mock()
         mock_response.content = [Mock(text="DIRECT")]
@@ -3363,6 +3684,7 @@ class TestComplexityGate:
     async def test_should_skip_planning_tools(self):
         """ComplexityGate returns False for TOOLS classification."""
         from Jotty.core.modes.execution.executor import ComplexityGate
+
         gate = ComplexityGate()
         mock_response = Mock()
         mock_response.content = [Mock(text="TOOLS")]
@@ -3376,6 +3698,7 @@ class TestComplexityGate:
     async def test_should_skip_planning_error_defaults_false(self):
         """ComplexityGate defaults to False (proceed with planning) on error."""
         from Jotty.core.modes.execution.executor import ComplexityGate
+
         gate = ComplexityGate()
         mock_client = AsyncMock()
         mock_client.messages.create = AsyncMock(side_effect=RuntimeError("API down"))
@@ -3387,6 +3710,7 @@ class TestComplexityGate:
     async def test_should_skip_planning_empty_response(self):
         """ComplexityGate returns False for empty LLM response."""
         from Jotty.core.modes.execution.executor import ComplexityGate
+
         gate = ComplexityGate()
         mock_response = Mock()
         mock_response.content = []
@@ -3400,6 +3724,7 @@ class TestComplexityGate:
     async def test_truncates_long_goal(self):
         """ComplexityGate truncates goal to 500 chars."""
         from Jotty.core.modes.execution.executor import ComplexityGate
+
         gate = ComplexityGate()
         mock_response = Mock()
         mock_response.content = [Mock(text="TOOLS")]
@@ -3409,7 +3734,7 @@ class TestComplexityGate:
         long_goal = "x" * 1000
         await gate.should_skip_planning(long_goal)
         call_args = mock_client.messages.create.call_args
-        prompt = call_args[1]['messages'][0]['content']
+        prompt = call_args[1]["messages"][0]["content"]
         # Goal in prompt should be truncated to 500 chars
         assert "x" * 501 not in prompt
 
@@ -3417,6 +3742,7 @@ class TestComplexityGate:
 # =============================================================================
 # FallbackValidator Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestFallbackValidator:
@@ -3426,57 +3752,66 @@ class TestFallbackValidator:
     async def test_validate_parses_json(self):
         """_FallbackValidator parses JSON from LLM response."""
         from Jotty.core.modes.execution.executor import _FallbackValidator
+
         mock_provider = AsyncMock()
-        mock_provider.generate = AsyncMock(return_value={
-            'content': '{"success": true, "confidence": 0.9, "feedback": "good", "reasoning": "looks fine"}'
-        })
+        mock_provider.generate = AsyncMock(
+            return_value={
+                "content": '{"success": true, "confidence": 0.9, "feedback": "good", "reasoning": "looks fine"}'
+            }
+        )
         validator = _FallbackValidator(mock_provider)
         result = await validator.validate("Check this result: Hello world")
-        assert result['success'] is True
-        assert result['confidence'] == 0.9
+        assert result["success"] is True
+        assert result["confidence"] == 0.9
 
     @pytest.mark.asyncio
     async def test_validate_extracts_json_from_text(self):
         """_FallbackValidator extracts JSON embedded in text."""
         from Jotty.core.modes.execution.executor import _FallbackValidator
+
         mock_provider = AsyncMock()
-        mock_provider.generate = AsyncMock(return_value={
-            'content': 'Here is my evaluation: {"success": false, "confidence": 0.4, "feedback": "incomplete", "reasoning": "missing data"}'
-        })
+        mock_provider.generate = AsyncMock(
+            return_value={
+                "content": 'Here is my evaluation: {"success": false, "confidence": 0.4, "feedback": "incomplete", "reasoning": "missing data"}'
+            }
+        )
         validator = _FallbackValidator(mock_provider)
         result = await validator.validate("Check this")
-        assert result['success'] is False
-        assert result['confidence'] == 0.4
+        assert result["success"] is False
+        assert result["confidence"] == 0.4
 
     @pytest.mark.asyncio
     async def test_validate_no_json_returns_default(self):
         """_FallbackValidator returns default when no JSON in response."""
         from Jotty.core.modes.execution.executor import _FallbackValidator
+
         mock_provider = AsyncMock()
-        mock_provider.generate = AsyncMock(return_value={
-            'content': 'The result looks good and complete.'
-        })
+        mock_provider.generate = AsyncMock(
+            return_value={"content": "The result looks good and complete."}
+        )
         validator = _FallbackValidator(mock_provider)
         result = await validator.validate("Check this")
-        assert result['success'] is True
-        assert result['confidence'] == 0.7
+        assert result["success"] is True
+        assert result["confidence"] == 0.7
 
     @pytest.mark.asyncio
     async def test_validate_error_returns_safe_default(self):
         """_FallbackValidator returns safe default on LLM error."""
         from Jotty.core.modes.execution.executor import _FallbackValidator
+
         mock_provider = AsyncMock()
         mock_provider.generate = AsyncMock(side_effect=RuntimeError("API error"))
         validator = _FallbackValidator(mock_provider)
         result = await validator.validate("Check this")
-        assert result['success'] is True
-        assert result['confidence'] == 0.5
-        assert 'skipped' in result['feedback'].lower()
+        assert result["success"] is True
+        assert result["confidence"] == 0.5
+        assert "skipped" in result["feedback"].lower()
 
 
 # =============================================================================
 # Output Synthesis Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestOutputSynthesis:
@@ -3489,15 +3824,15 @@ class TestOutputSynthesis:
 
     def test_fallback_aggregate_single(self, v3_executor):
         """Single result returns output directly."""
-        results = [{'output': 'Hello world'}]
+        results = [{"output": "Hello world"}]
         result = v3_executor._fallback_aggregate(results, "test goal")
         assert result == "Hello world"
 
     def test_fallback_aggregate_multiple(self, v3_executor):
         """Multiple results concatenated with step numbers."""
         results = [
-            {'output': 'Result A'},
-            {'output': 'Result B'},
+            {"output": "Result A"},
+            {"output": "Result B"},
         ]
         result = v3_executor._fallback_aggregate(results, "test goal")
         assert "Step 1" in result
@@ -3509,35 +3844,37 @@ class TestOutputSynthesis:
     async def test_synthesize_results_empty(self, v3_executor):
         """Empty input returns no-result message."""
         result = await v3_executor._synthesize_results([], "goal")
-        assert result['output'] == "No results generated."
-        assert result['llm_calls'] == 0
+        assert result["output"] == "No results generated."
+        assert result["llm_calls"] == 0
 
     @pytest.mark.asyncio
     async def test_synthesize_results_single(self, v3_executor):
         """Single result returned as-is without LLM call."""
-        result = await v3_executor._synthesize_results([{'output': 'Hello'}], "goal")
-        assert result['output'] == "Hello"
-        assert result['llm_calls'] == 0
-        assert result['cost'] == 0.0
+        result = await v3_executor._synthesize_results([{"output": "Hello"}], "goal")
+        assert result["output"] == "Hello"
+        assert result["llm_calls"] == 0
+        assert result["cost"] == 0.0
 
     @pytest.mark.asyncio
     async def test_synthesize_results_multi_calls_llm(self, v3_executor):
         """Multiple results trigger LLM synthesis call."""
         v3_executor._provider = AsyncMock()
-        v3_executor._provider.generate = AsyncMock(return_value={
-            'content': 'Synthesized answer combining both results.',
-            'usage': {'input_tokens': 100, 'output_tokens': 50},
-        })
+        v3_executor._provider.generate = AsyncMock(
+            return_value={
+                "content": "Synthesized answer combining both results.",
+                "usage": {"input_tokens": 100, "output_tokens": 50},
+            }
+        )
         mock_cost = Mock()
         mock_cost.cost = 0.001
         v3_executor._cost_tracker = Mock()
         v3_executor._cost_tracker.record_llm_call = Mock(return_value=mock_cost)
 
-        results = [{'output': 'Part A'}, {'output': 'Part B'}]
+        results = [{"output": "Part A"}, {"output": "Part B"}]
         result = await v3_executor._synthesize_results(results, "test goal")
-        assert result['output'] == 'Synthesized answer combining both results.'
-        assert result['llm_calls'] == 1
-        assert result['cost'] == 0.001
+        assert result["output"] == "Synthesized answer combining both results."
+        assert result["llm_calls"] == 1
+        assert result["cost"] == 0.001
 
     @pytest.mark.asyncio
     async def test_synthesize_results_llm_error_falls_back(self, v3_executor):
@@ -3545,16 +3882,17 @@ class TestOutputSynthesis:
         v3_executor._provider = AsyncMock()
         v3_executor._provider.generate = AsyncMock(side_effect=RuntimeError("LLM down"))
 
-        results = [{'output': 'Part A'}, {'output': 'Part B'}]
+        results = [{"output": "Part A"}, {"output": "Part B"}]
         result = await v3_executor._synthesize_results(results, "test goal")
         # Should fall back to _fallback_aggregate
-        assert "Part A" in result['output']
-        assert "Part B" in result['output']
+        assert "Part A" in result["output"]
+        assert "Part B" in result["output"]
 
 
 # =============================================================================
 # Inspector Utility Tests (smart_truncate, CachingToolWrapper, FailureRouter)
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestSmartTruncate:
@@ -3562,18 +3900,24 @@ class TestSmartTruncate:
 
     def _make_validator_agent(self):
         """Create a minimal ValidatorAgent for testing utility methods."""
-        from Jotty.core.modes.agent.inspector import ValidatorAgent
-        from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig, SharedScratchpad
         from pathlib import Path
         from unittest.mock import patch
 
+        from Jotty.core.infrastructure.foundation.data_structures import (
+            SharedScratchpad,
+            SwarmConfig,
+        )
+        from Jotty.core.modes.agent.inspector import ValidatorAgent
+
         config = SwarmConfig()
         # Patch DSPy import to avoid needing a configured LM
-        with patch('Jotty.core.agents.inspector._get_dspy') as mock_dspy:
+        with patch("Jotty.core.agents.inspector._get_dspy") as mock_dspy:
             mock_dspy_mod = MagicMock()
             mock_dspy_mod.ChainOfThought = MagicMock(return_value=MagicMock())
             mock_dspy.return_value = mock_dspy_mod
-            with patch('Jotty.core.agents.inspector._get_reviewer_signature', return_value=MagicMock()):
+            with patch(
+                "Jotty.core.agents.inspector._get_reviewer_signature", return_value=MagicMock()
+            ):
                 agent = ValidatorAgent(
                     md_path=Path("/nonexistent/test.md"),
                     is_architect=False,
@@ -3621,8 +3965,9 @@ class TestCachingToolWrapper:
 
     def test_calls_tool_and_caches(self):
         """CachingToolWrapper calls tool and stores result in scratchpad."""
-        from Jotty.core.modes.agent.inspector import CachingToolWrapper
         from Jotty.core.infrastructure.foundation.data_structures import SharedScratchpad
+        from Jotty.core.modes.agent.inspector import CachingToolWrapper
+
         tool = Mock(name="test_tool", description="test desc")
         tool.return_value = {"result": "success"}
         scratchpad = SharedScratchpad()
@@ -3634,8 +3979,9 @@ class TestCachingToolWrapper:
 
     def test_returns_cached_result(self):
         """CachingToolWrapper returns cached result on cache hit."""
-        from Jotty.core.modes.agent.inspector import CachingToolWrapper
         from Jotty.core.infrastructure.foundation.data_structures import SharedScratchpad
+        from Jotty.core.modes.agent.inspector import CachingToolWrapper
+
         tool = Mock(name="test_tool", description="test desc")
         tool.return_value = {"result": "success"}
         scratchpad = SharedScratchpad()
@@ -3648,8 +3994,9 @@ class TestCachingToolWrapper:
 
     def test_handles_tool_exception(self):
         """CachingToolWrapper returns error dict when tool raises."""
-        from Jotty.core.modes.agent.inspector import CachingToolWrapper
         from Jotty.core.infrastructure.foundation.data_structures import SharedScratchpad
+        from Jotty.core.modes.agent.inspector import CachingToolWrapper
+
         tool = Mock(name="error_tool", description="")
         tool.side_effect = RuntimeError("tool failed")
         scratchpad = SharedScratchpad()
@@ -3665,8 +4012,9 @@ class TestMultiRoundValidatorUnit:
 
     def _make_validator(self):
         """Create MultiRoundValidator with mock agents."""
-        from Jotty.core.modes.agent.inspector import MultiRoundValidator
         from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
+        from Jotty.core.modes.agent.inspector import MultiRoundValidator
+
         config = SwarmConfig()
         config.refinement_on_low_confidence = 0.6
         config.refinement_on_disagreement = True
@@ -3703,8 +4051,15 @@ class TestMultiRoundValidatorUnit:
         """_build_feedback includes agent names and reasoning."""
         validator = self._make_validator()
         results = [
-            Mock(agent_name="auditor1", should_proceed=True, confidence=0.8, reasoning="Looks good"),
-            Mock(agent_name="auditor2", should_proceed=False, confidence=0.6, reasoning="Missing data"),
+            Mock(
+                agent_name="auditor1", should_proceed=True, confidence=0.8, reasoning="Looks good"
+            ),
+            Mock(
+                agent_name="auditor2",
+                should_proceed=False,
+                confidence=0.6,
+                reasoning="Missing data",
+            ),
         ]
         feedback = validator._build_feedback(results)
         assert "auditor1" in feedback
@@ -3720,6 +4075,7 @@ class TestCompletionReviewer:
     def test_init_lazy_predictor(self):
         """CompletionReviewer initializes without creating predictor."""
         from Jotty.core.modes.agent.inspector import CompletionReviewer
+
         reviewer = CompletionReviewer()
         assert reviewer._predictor is None
 
@@ -3727,6 +4083,7 @@ class TestCompletionReviewer:
     async def test_review_completion_fallback_on_success(self):
         """CompletionReviewer falls back to heuristic when predictor errors, success=True."""
         from Jotty.core.modes.agent.inspector import CompletionReviewer
+
         reviewer = CompletionReviewer()
         # Mock predictor — will fail in the async-in-thread path
         reviewer._predictor = MagicMock()
@@ -3737,13 +4094,14 @@ class TestCompletionReviewer:
             tool_calls=[{"tool": "web_search"}],
         )
         # Fallback: success=True → complete, confidence=0.4
-        assert result['completion_state'] == "complete"
-        assert result['confidence'] == 0.4
+        assert result["completion_state"] == "complete"
+        assert result["confidence"] == 0.4
 
     @pytest.mark.asyncio
     async def test_review_completion_fallback_on_failure(self):
         """CompletionReviewer falls back to heuristic when predictor errors, success=False."""
         from Jotty.core.modes.agent.inspector import CompletionReviewer
+
         reviewer = CompletionReviewer()
         reviewer._predictor = MagicMock()
 
@@ -3753,13 +4111,14 @@ class TestCompletionReviewer:
             tool_calls=[],
         )
         # Fallback: success=False → partial
-        assert result['completion_state'] == "partial"
-        assert len(result['unresolved_items']) > 0
+        assert result["completion_state"] == "partial"
+        assert len(result["unresolved_items"]) > 0
 
 
 # =============================================================================
 # LLMProvider Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestLLMProvider:
@@ -3768,19 +4127,22 @@ class TestLLMProvider:
     def test_default_provider_anthropic(self):
         """LLMProvider defaults to anthropic provider."""
         from Jotty.core.modes.execution.executor import LLMProvider
+
         provider = LLMProvider()
-        assert provider._provider_name == 'anthropic'
-        assert 'claude' in provider._model
+        assert provider._provider_name == "anthropic"
+        assert "claude" in provider._model
 
     def test_custom_model(self):
         """LLMProvider accepts custom model."""
         from Jotty.core.modes.execution.executor import LLMProvider
-        provider = LLMProvider(model='claude-haiku-4-5-20251001')
-        assert provider._model == 'claude-haiku-4-5-20251001'
+
+        provider = LLMProvider(model="claude-haiku-4-5-20251001")
+        assert provider._model == "claude-haiku-4-5-20251001"
 
     def test_lazy_client_init(self):
         """Client is not created until first use."""
         from Jotty.core.modes.execution.executor import LLMProvider
+
         provider = LLMProvider()
         assert provider._client is None
 
@@ -3788,6 +4150,7 @@ class TestLLMProvider:
     async def test_generate_anthropic(self):
         """LLMProvider.generate calls anthropic API correctly."""
         from Jotty.core.modes.execution.executor import LLMProvider
+
         provider = LLMProvider()
         mock_block = Mock()
         mock_block.text = "Hello response"
@@ -3798,9 +4161,9 @@ class TestLLMProvider:
         mock_client.messages.create = AsyncMock(return_value=mock_response)
         provider._client = mock_client
         result = await provider.generate("Hello")
-        assert result['content'] == "Hello response"
-        assert result['usage']['input_tokens'] == 10
-        assert result['usage']['output_tokens'] == 5
+        assert result["content"] == "Hello response"
+        assert result["usage"]["input_tokens"] == 10
+        assert result["usage"]["output_tokens"] == 5
 
 
 # =============================================================================
@@ -3842,6 +4205,7 @@ class RealOrchestratorIntegrationTest:
 
     def log(self, msg: str):
         import time
+
         elapsed = time.time() - self.start_time if self.start_time else 0.0
         print(f"[{elapsed:6.1f}s] {msg}", flush=True)
 
@@ -3863,6 +4227,7 @@ class RealOrchestratorIntegrationTest:
     def _check_file(self, path: str, label: str) -> dict:
         """Check if a file was created and report its content stats."""
         import os
+
         info = {"label": label, "path": path, "exists": False}
         if os.path.exists(path):
             if os.path.isdir(path):
@@ -3878,10 +4243,7 @@ class RealOrchestratorIntegrationTest:
             info["chars"] = len(content)
             info["preview"] = content[:600]
             # Quality heuristic: not just a stub
-            info["is_stub"] = (
-                info["size"] < 200
-                or content.strip().startswith("# TODO")
-            )
+            info["is_stub"] = info["size"] < 200 or content.strip().startswith("# TODO")
         return info
 
     def _log_result(self, name: str, result: dict, elapsed: float):
@@ -3910,6 +4272,7 @@ class RealOrchestratorIntegrationTest:
     async def _run_task(self, executor, discovered, task: str, name: str, status_cb):
         """Execute a single task and capture results + timing."""
         import time
+
         self.section(f"TASK: {name}")
         self.log(f"Goal: {task[:200]}")
 
@@ -3931,9 +4294,9 @@ class RealOrchestratorIntegrationTest:
         return result
 
     async def run(self):
-        import time
         import os
         import shutil
+        import time
 
         self.start_time = time.time()
 
@@ -3958,9 +4321,7 @@ class RealOrchestratorIntegrationTest:
         sr.init()
         self.log(f"Skills loaded: {len(sr.loaded_skills)}")
 
-        executor = SkillPlanExecutor(
-            sr, max_steps=15, enable_replanning=True, max_replans=3
-        )
+        executor = SkillPlanExecutor(sr, max_steps=15, enable_replanning=True, max_replans=3)
         discovered = self._build_discovered_skills(sr)
         self.log(f"Discovered {len(discovered)} skills for planning")
 
@@ -4156,7 +4517,9 @@ class RealOrchestratorIntegrationTest:
                 self.log(f"  [{status}] {label}: {info['size']} bytes, {info['lines']} lines")
             elif info["exists"]:
                 status = "STUB"
-                self.log(f"  [{status}] {label}: {info['size']} bytes (looks like stub/generated code)")
+                self.log(
+                    f"  [{status}] {label}: {info['size']} bytes (looks like stub/generated code)"
+                )
             else:
                 status = "MISS"
                 self.log(f"  [{status}] {label}: FILE NOT FOUND at {path}")
@@ -4214,6 +4577,7 @@ class RealOrchestratorIntegrationTest:
 # ToolCallCache Tests
 # =============================================================================
 
+
 class TestToolCallCache:
     """Tests for ToolCallCache TTL + LRU caching."""
 
@@ -4221,6 +4585,7 @@ class TestToolCallCache:
     def test_make_key_deterministic(self):
         """make_key produces same key for same inputs."""
         from Jotty.core.modes.agent.executors.skill_plan_executor import ToolCallCache
+
         k1 = ToolCallCache.make_key("web-search", "search", {"query": "AI"})
         k2 = ToolCallCache.make_key("web-search", "search", {"query": "AI"})
         assert k1 == k2
@@ -4229,6 +4594,7 @@ class TestToolCallCache:
     def test_make_key_different_params(self):
         """make_key produces different keys for different params."""
         from Jotty.core.modes.agent.executors.skill_plan_executor import ToolCallCache
+
         k1 = ToolCallCache.make_key("web-search", "search", {"query": "AI"})
         k2 = ToolCallCache.make_key("web-search", "search", {"query": "ML"})
         assert k1 != k2
@@ -4237,6 +4603,7 @@ class TestToolCallCache:
     def test_make_key_sorts_params(self):
         """make_key is order-independent for params."""
         from Jotty.core.modes.agent.executors.skill_plan_executor import ToolCallCache
+
         k1 = ToolCallCache.make_key("s", "t", {"a": 1, "b": 2})
         k2 = ToolCallCache.make_key("s", "t", {"b": 2, "a": 1})
         assert k1 == k2
@@ -4245,6 +4612,7 @@ class TestToolCallCache:
     def test_get_set(self):
         """set() stores value, get() retrieves it."""
         from Jotty.core.modes.agent.executors.skill_plan_executor import ToolCallCache
+
         cache = ToolCallCache(ttl_seconds=60)
         key = cache.make_key("s", "t", {"x": 1})
         cache.set(key, {"result": "data"})
@@ -4254,6 +4622,7 @@ class TestToolCallCache:
     def test_get_miss(self):
         """get() returns None for missing key."""
         from Jotty.core.modes.agent.executors.skill_plan_executor import ToolCallCache
+
         cache = ToolCallCache()
         assert cache.get("nonexistent") is None
 
@@ -4261,7 +4630,9 @@ class TestToolCallCache:
     def test_ttl_expiry(self):
         """get() returns None for expired entries."""
         import time as _time
+
         from Jotty.core.modes.agent.executors.skill_plan_executor import ToolCallCache
+
         cache = ToolCallCache(ttl_seconds=0)  # Immediate expiry
         key = "test_key"
         cache.set(key, "value")
@@ -4272,6 +4643,7 @@ class TestToolCallCache:
     def test_lru_eviction(self):
         """Oldest entry is evicted when max_size is reached."""
         from Jotty.core.modes.agent.executors.skill_plan_executor import ToolCallCache
+
         cache = ToolCallCache(max_size=2)
         cache.set("a", 1)
         cache.set("b", 2)
@@ -4284,6 +4656,7 @@ class TestToolCallCache:
     def test_clear(self):
         """clear() empties the cache."""
         from Jotty.core.modes.agent.executors.skill_plan_executor import ToolCallCache
+
         cache = ToolCallCache()
         cache.set("a", 1)
         cache.set("b", 2)
@@ -4296,6 +4669,7 @@ class TestToolCallCache:
     def test_size_property(self):
         """size property returns number of cached entries."""
         from Jotty.core.modes.agent.executors.skill_plan_executor import ToolCallCache
+
         cache = ToolCallCache()
         assert cache.size == 0
         cache.set("a", 1)
@@ -4305,6 +4679,7 @@ class TestToolCallCache:
     def test_overwrite_existing_key(self):
         """Setting existing key updates value without eviction."""
         from Jotty.core.modes.agent.executors.skill_plan_executor import ToolCallCache
+
         cache = ToolCallCache(max_size=2)
         cache.set("a", 1)
         cache.set("b", 2)
@@ -4317,11 +4692,13 @@ class TestToolCallCache:
 # SkillPlanExecutor DAG + Exclusion Tests
 # =============================================================================
 
+
 class TestSkillPlanExecutorDAG:
     """Tests for dependency graph and parallel group detection."""
 
     def _make_executor(self):
         from Jotty.core.modes.agent.executors.skill_plan_executor import SkillPlanExecutor
+
         mock_registry = MagicMock()
         return SkillPlanExecutor(skills_registry=mock_registry)
 
@@ -4382,10 +4759,10 @@ class TestSkillPlanExecutorDAG:
         """Diamond dependency pattern: 0 → {1,2} → 3."""
         executor = self._make_executor()
         steps = [
-            MagicMock(depends_on=None),      # 0: root
-            MagicMock(depends_on=[0]),        # 1: depends on 0
-            MagicMock(depends_on=[0]),        # 2: depends on 0
-            MagicMock(depends_on=[1, 2]),     # 3: depends on 1 and 2
+            MagicMock(depends_on=None),  # 0: root
+            MagicMock(depends_on=[0]),  # 1: depends on 0
+            MagicMock(depends_on=[0]),  # 2: depends on 0
+            MagicMock(depends_on=[1, 2]),  # 3: depends on 1 and 2
         ]
         groups = executor._find_parallel_groups(steps)
         assert len(groups) == 3
@@ -4398,11 +4775,13 @@ class TestSkillPlanExecutorDAG:
 # SkillPlanExecutor Exclusion Management Tests
 # =============================================================================
 
+
 class TestSkillExclusions:
     """Tests for skill exclusion management."""
 
     def _make_executor(self):
         from Jotty.core.modes.agent.executors.skill_plan_executor import SkillPlanExecutor
+
         return SkillPlanExecutor(skills_registry=MagicMock())
 
     @pytest.mark.unit
@@ -4434,6 +4813,7 @@ class TestSkillExclusions:
 # FailureRouter Tests
 # =============================================================================
 
+
 class TestFailureRouter:
     """Tests for FailureRouter error classification and routing."""
 
@@ -4441,64 +4821,72 @@ class TestFailureRouter:
     def test_timeout_pattern(self):
         """Timeout errors route to retry_with_backoff."""
         from Jotty.core.modes.agent.inspector import FailureRouter
+
         router = FailureRouter()
         result = router.route("Connection timeout after 30s", "web-search")
-        assert result['action'] == 'retry_with_backoff'
-        assert result['failed_skill'] == 'web-search'
+        assert result["action"] == "retry_with_backoff"
+        assert result["failed_skill"] == "web-search"
 
     @pytest.mark.unit
     def test_rate_limit_pattern(self):
         """Rate limit errors route to wait_and_retry."""
         from Jotty.core.modes.agent.inspector import FailureRouter
+
         router = FailureRouter()
         result = router.route("Rate_limit exceeded, retry after 60s", "claude-cli-llm")
-        assert result['action'] == 'wait_and_retry'
-        assert result.get('delay') == 60
+        assert result["action"] == "wait_and_retry"
+        assert result.get("delay") == 60
 
     @pytest.mark.unit
     def test_not_found_pattern(self):
         """Not found errors route to try_alternative."""
         from Jotty.core.modes.agent.inspector import FailureRouter
+
         router = FailureRouter()
         result = router.route("Resource not_found at endpoint", "http-client")
-        assert result['action'] == 'try_alternative'
+        assert result["action"] == "try_alternative"
 
     @pytest.mark.unit
     def test_permission_pattern(self):
         """Permission errors route to escalate."""
         from Jotty.core.modes.agent.inspector import FailureRouter
+
         router = FailureRouter()
         result = router.route("Permission denied: insufficient access", "file-manager")
-        assert result['action'] == 'escalate'
+        assert result["action"] == "escalate"
 
     @pytest.mark.unit
     def test_parse_error_pattern(self):
         """Parse errors route to retry_with_fix."""
         from Jotty.core.modes.agent.inspector import FailureRouter
+
         router = FailureRouter()
         result = router.route("parse_error: unexpected token", "json-parser")
-        assert result['action'] == 'retry_with_fix'
+        assert result["action"] == "retry_with_fix"
 
     @pytest.mark.unit
     def test_infrastructure_fallback(self):
         """Unknown infrastructure errors fall back to retry_with_backoff."""
         from Jotty.core.modes.agent.inspector import FailureRouter
+
         result = FailureRouter().route("Connection reset by peer", "web-search")
-        assert result['action'] == 'retry_with_backoff'
-        assert result['error_type'] == 'infrastructure'
+        assert result["action"] == "retry_with_backoff"
+        assert result["error_type"] == "infrastructure"
 
     @pytest.mark.unit
     def test_data_error_fallback(self):
         """Data errors route to validate_inputs."""
         from Jotty.core.modes.agent.inspector import FailureRouter
+
         result = FailureRouter().route("invalid JSON format in response body", "api-client")
-        assert result['action'] == 'validate_inputs'
-        assert result['error_type'] == 'data'
+        assert result["action"] == "validate_inputs"
+        assert result["error_type"] == "data"
 
     @pytest.mark.unit
     def test_find_alternatives(self):
         """_find_alternatives returns known alternatives."""
         from Jotty.core.modes.agent.inspector import FailureRouter
+
         router = FailureRouter()
         alts = router._find_alternatives("web-search")
         assert "http-client" in alts
@@ -4507,6 +4895,7 @@ class TestFailureRouter:
     def test_find_alternatives_unknown(self):
         """_find_alternatives returns empty for unknown skills."""
         from Jotty.core.modes.agent.inspector import FailureRouter
+
         router = FailureRouter()
         assert router._find_alternatives("nonexistent-skill") == []
 
@@ -4514,24 +4903,27 @@ class TestFailureRouter:
     def test_logic_error_with_alternative(self):
         """Logic error with available alternative suggests it."""
         from Jotty.core.modes.agent.inspector import FailureRouter
+
         router = FailureRouter()
         # "SyntaxError" classified as LOGIC, web-search has alternatives
         result = router.route("SyntaxError: invalid syntax in template", "web-search")
-        assert result['action'] == 'try_alternative'
-        assert 'suggested_agent' in result
+        assert result["action"] == "try_alternative"
+        assert "suggested_agent" in result
 
     @pytest.mark.unit
     def test_logic_error_no_alternative(self):
         """Logic error without alternative routes to replan."""
         from Jotty.core.modes.agent.inspector import FailureRouter
+
         router = FailureRouter()
         result = router.route("SyntaxError: invalid syntax in template", "custom-tool")
-        assert result['action'] == 'replan'
+        assert result["action"] == "replan"
 
 
 # =============================================================================
 # ValidatorAgent _check_required_fields Tests
 # =============================================================================
+
 
 class TestCheckRequiredFields:
     """Tests for ValidatorAgent._check_required_fields.
@@ -4543,6 +4935,7 @@ class TestCheckRequiredFields:
     def _make_validator(self, is_architect=True):
         """Create a ValidatorAgent shell bypassing __init__."""
         from Jotty.core.modes.agent.inspector import ValidatorAgent
+
         v = object.__new__(ValidatorAgent)
         v.is_architect = is_architect
         return v
@@ -4564,9 +4957,9 @@ class TestCheckRequiredFields:
         validator = self._make_validator(is_architect=True)
         result = MagicMock(spec=[])  # No attributes
         missing = validator._check_required_fields(result)
-        assert 'reasoning' in missing
-        assert 'confidence' in missing
-        assert 'should_proceed' in missing
+        assert "reasoning" in missing
+        assert "confidence" in missing
+        assert "should_proceed" in missing
 
     @pytest.mark.unit
     def test_auditor_all_fields_present(self):
@@ -4586,9 +4979,9 @@ class TestCheckRequiredFields:
         validator = self._make_validator(is_architect=False)
         result = MagicMock(spec=[])
         missing = validator._check_required_fields(result)
-        assert 'reasoning' in missing
-        assert 'is_valid' in missing
-        assert 'output_tag' in missing
+        assert "reasoning" in missing
+        assert "is_valid" in missing
+        assert "output_tag" in missing
 
     @pytest.mark.unit
     def test_empty_reasoning_counts_as_missing(self):
@@ -4599,12 +4992,13 @@ class TestCheckRequiredFields:
         result.confidence = 0.5
         result.should_proceed = True
         missing = validator._check_required_fields(result)
-        assert 'reasoning' in missing
+        assert "reasoning" in missing
 
 
 # =============================================================================
 # ValidatorAgent _smart_truncate Tests (expanded)
 # =============================================================================
+
 
 class TestSmartTruncateExpanded:
     """Expanded tests for ValidatorAgent._smart_truncate."""
@@ -4612,6 +5006,7 @@ class TestSmartTruncateExpanded:
     def _make_validator(self):
         """Create ValidatorAgent shell bypassing __init__."""
         from Jotty.core.modes.agent.inspector import ValidatorAgent
+
         v = object.__new__(ValidatorAgent)
         return v
 
@@ -4625,7 +5020,9 @@ class TestSmartTruncateExpanded:
     def test_truncate_at_sentence(self):
         """Truncation prefers sentence boundaries."""
         v = self._make_validator()
-        text = "First sentence. Second sentence. Third very long sentence that goes beyond the limit."
+        text = (
+            "First sentence. Second sentence. Third very long sentence that goes beyond the limit."
+        )
         result = v._smart_truncate(text, 40)
         assert result.endswith("...")
         assert "First sentence." in result
@@ -4661,6 +5058,7 @@ class TestSmartTruncateExpanded:
 # ValidatorAgent get_statistics Tests
 # =============================================================================
 
+
 class TestValidatorStatistics:
     """Tests for ValidatorAgent.get_statistics."""
 
@@ -4668,6 +5066,7 @@ class TestValidatorStatistics:
     def test_statistics_initial(self):
         """Initial statistics have zero counts."""
         from Jotty.core.modes.agent.inspector import ValidatorAgent
+
         v = object.__new__(ValidatorAgent)
         v.agent_name = "test_auditor"
         v.is_architect = False
@@ -4677,15 +5076,16 @@ class TestValidatorStatistics:
         mock_memory.get_statistics.return_value = {"entries": 0}
         v.memory = mock_memory
         stats = v.get_statistics()
-        assert stats['agent_name'] == 'test_auditor'
-        assert stats['is_architect'] is False
-        assert stats['total_calls'] == 0
-        assert stats['approval_rate'] == 0.0
+        assert stats["agent_name"] == "test_auditor"
+        assert stats["is_architect"] is False
+        assert stats["total_calls"] == 0
+        assert stats["approval_rate"] == 0.0
 
     @pytest.mark.unit
     def test_statistics_with_calls(self):
         """Statistics reflect call and approval counts."""
         from Jotty.core.modes.agent.inspector import ValidatorAgent
+
         v = object.__new__(ValidatorAgent)
         v.agent_name = "test_arch"
         v.is_architect = True
@@ -4695,14 +5095,15 @@ class TestValidatorStatistics:
         mock_memory.get_statistics.return_value = {"entries": 5}
         v.memory = mock_memory
         stats = v.get_statistics()
-        assert stats['total_calls'] == 10
-        assert stats['total_approvals'] == 7
-        assert stats['approval_rate'] == 0.7
+        assert stats["total_calls"] == 10
+        assert stats["total_approvals"] == 7
+        assert stats["approval_rate"] == 0.7
 
 
 # =============================================================================
 # InternalReasoningTool Tests
 # =============================================================================
+
 
 class TestInternalReasoningTool:
     """Tests for InternalReasoningTool reasoning capability."""
@@ -4711,6 +5112,7 @@ class TestInternalReasoningTool:
     def test_call_with_memory_scope(self):
         """InternalReasoningTool retrieves memories for memory scope."""
         from Jotty.core.modes.agent.inspector import InternalReasoningTool
+
         mock_memory = MagicMock()
         mock_entry = MagicMock()
         mock_entry.content = "past experience"
@@ -4728,6 +5130,7 @@ class TestInternalReasoningTool:
     def test_call_with_causal_scope(self):
         """InternalReasoningTool retrieves causal knowledge for causal scope."""
         from Jotty.core.modes.agent.inspector import InternalReasoningTool
+
         mock_memory = MagicMock()
         mock_causal = MagicMock()
         mock_causal.cause = "type annotation"
@@ -4746,6 +5149,7 @@ class TestInternalReasoningTool:
     def test_call_with_all_scope(self):
         """InternalReasoningTool retrieves both memories and causal for 'all' scope."""
         from Jotty.core.modes.agent.inspector import InternalReasoningTool
+
         mock_memory = MagicMock()
         mock_entry = MagicMock(content="mem", default_value=0.5)
         mock_causal = MagicMock(cause="C", effect="E", confidence=0.7)
@@ -4761,6 +5165,7 @@ class TestInternalReasoningTool:
     def test_tool_name_and_description(self):
         """InternalReasoningTool has name 'reason_about'."""
         from Jotty.core.modes.agent.inspector import InternalReasoningTool
+
         tool = InternalReasoningTool(memory=MagicMock(), config=MagicMock())
         assert tool.name == "reason_about"
         assert "reasoning" in tool.description.lower()
@@ -4770,6 +5175,7 @@ class TestInternalReasoningTool:
 # ExecutionResult Tests
 # =============================================================================
 
+
 class TestExecutionResult:
     """Tests for ExecutionResult serialization and display."""
 
@@ -4777,6 +5183,7 @@ class TestExecutionResult:
     def test_to_dict_basic(self):
         """to_dict produces JSON-serializable dict."""
         from Jotty.core.modes.execution.types import ExecutionResult, ExecutionTier
+
         result = ExecutionResult(
             output="Hello world",
             tier=ExecutionTier.DIRECT,
@@ -4786,30 +5193,39 @@ class TestExecutionResult:
             cost_usd=0.001,
         )
         d = result.to_dict()
-        assert d['output'] == "Hello world"
-        assert d['tier'] == "DIRECT"
-        assert d['success'] is True
-        assert d['llm_calls'] == 1
-        assert d['latency_ms'] == 150.0
-        assert d['cost_usd'] == 0.001
-        assert d['trace_id'] is None
+        assert d["output"] == "Hello world"
+        assert d["tier"] == "DIRECT"
+        assert d["success"] is True
+        assert d["llm_calls"] == 1
+        assert d["latency_ms"] == 150.0
+        assert d["cost_usd"] == 0.001
+        assert d["trace_id"] is None
 
     @pytest.mark.unit
     def test_to_dict_with_steps(self):
         """to_dict counts steps."""
-        from Jotty.core.modes.execution.types import ExecutionResult, ExecutionTier, ExecutionStep
-        steps = [ExecutionStep(step_num=1, description="s1"), ExecutionStep(step_num=2, description="s2")]
+        from Jotty.core.modes.execution.types import ExecutionResult, ExecutionStep, ExecutionTier
+
+        steps = [
+            ExecutionStep(step_num=1, description="s1"),
+            ExecutionStep(step_num=2, description="s2"),
+        ]
         result = ExecutionResult(output="out", tier=ExecutionTier.AGENTIC, steps=steps)
         d = result.to_dict()
-        assert d['steps'] == 2
+        assert d["steps"] == 2
 
     @pytest.mark.unit
     def test_str_success(self):
         """__str__ shows OK for successful result."""
         from Jotty.core.modes.execution.types import ExecutionResult, ExecutionTier
+
         result = ExecutionResult(
-            output="x", tier=ExecutionTier.DIRECT, success=True,
-            llm_calls=2, latency_ms=100.0, cost_usd=0.005,
+            output="x",
+            tier=ExecutionTier.DIRECT,
+            success=True,
+            llm_calls=2,
+            latency_ms=100.0,
+            cost_usd=0.005,
         )
         s = str(result)
         assert "[OK]" in s
@@ -4820,8 +5236,12 @@ class TestExecutionResult:
     def test_str_failure(self):
         """__str__ shows FAIL for failed result."""
         from Jotty.core.modes.execution.types import ExecutionResult, ExecutionTier
+
         result = ExecutionResult(
-            output=None, tier=ExecutionTier.AGENTIC, success=False, error="timeout",
+            output=None,
+            tier=ExecutionTier.AGENTIC,
+            success=False,
+            error="timeout",
         )
         s = str(result)
         assert "[FAIL]" in s
@@ -4831,6 +5251,7 @@ class TestExecutionResult:
     def test_defaults(self):
         """ExecutionResult defaults are sensible."""
         from Jotty.core.modes.execution.types import ExecutionResult, ExecutionTier
+
         result = ExecutionResult(output="x", tier=ExecutionTier.DIRECT)
         assert result.success is True
         assert result.error is None
@@ -4844,14 +5265,17 @@ class TestExecutionResult:
 # ExecutionStep Property Tests
 # =============================================================================
 
+
 class TestExecutionStepProperties:
     """Tests for ExecutionStep computed properties."""
 
     @pytest.mark.unit
     def test_duration_ms_complete(self):
         """duration_ms computes from started_at and completed_at."""
-        from Jotty.core.modes.execution.types import ExecutionStep
         from datetime import datetime, timedelta
+
+        from Jotty.core.modes.execution.types import ExecutionStep
+
         start = datetime(2026, 1, 1, 12, 0, 0)
         end = start + timedelta(seconds=2.5)
         step = ExecutionStep(step_num=1, description="test", started_at=start, completed_at=end)
@@ -4861,6 +5285,7 @@ class TestExecutionStepProperties:
     def test_duration_ms_incomplete(self):
         """duration_ms returns None when not started or not completed."""
         from Jotty.core.modes.execution.types import ExecutionStep
+
         step = ExecutionStep(step_num=1, description="test")
         assert step.duration_ms is None
 
@@ -4868,6 +5293,7 @@ class TestExecutionStepProperties:
     def test_is_complete_with_result(self):
         """is_complete is True when result is set."""
         from Jotty.core.modes.execution.types import ExecutionStep
+
         step = ExecutionStep(step_num=1, description="test", result="done")
         assert step.is_complete is True
 
@@ -4875,6 +5301,7 @@ class TestExecutionStepProperties:
     def test_is_complete_with_error(self):
         """is_complete is True when error is set."""
         from Jotty.core.modes.execution.types import ExecutionStep
+
         step = ExecutionStep(step_num=1, description="test", error="failed")
         assert step.is_complete is True
 
@@ -4882,6 +5309,7 @@ class TestExecutionStepProperties:
     def test_is_complete_pending(self):
         """is_complete is False when neither result nor error is set."""
         from Jotty.core.modes.execution.types import ExecutionStep
+
         step = ExecutionStep(step_num=1, description="test")
         assert step.is_complete is False
 
@@ -4890,6 +5318,7 @@ class TestExecutionStepProperties:
 # ExecutionPlan Property Tests
 # =============================================================================
 
+
 class TestExecutionPlanProperties:
     """Tests for ExecutionPlan computed properties."""
 
@@ -4897,28 +5326,37 @@ class TestExecutionPlanProperties:
     def test_total_steps(self):
         """total_steps counts all steps."""
         from Jotty.core.modes.execution.types import ExecutionPlan, ExecutionStep
-        plan = ExecutionPlan(goal="test", steps=[
-            ExecutionStep(step_num=1, description="s1"),
-            ExecutionStep(step_num=2, description="s2"),
-            ExecutionStep(step_num=3, description="s3"),
-        ])
+
+        plan = ExecutionPlan(
+            goal="test",
+            steps=[
+                ExecutionStep(step_num=1, description="s1"),
+                ExecutionStep(step_num=2, description="s2"),
+                ExecutionStep(step_num=3, description="s3"),
+            ],
+        )
         assert plan.total_steps == 3
 
     @pytest.mark.unit
     def test_parallelizable_steps(self):
         """parallelizable_steps counts steps that can run in parallel."""
         from Jotty.core.modes.execution.types import ExecutionPlan, ExecutionStep
-        plan = ExecutionPlan(goal="test", steps=[
-            ExecutionStep(step_num=1, description="s1", can_parallelize=True),
-            ExecutionStep(step_num=2, description="s2", can_parallelize=False),
-            ExecutionStep(step_num=3, description="s3", can_parallelize=True),
-        ])
+
+        plan = ExecutionPlan(
+            goal="test",
+            steps=[
+                ExecutionStep(step_num=1, description="s1", can_parallelize=True),
+                ExecutionStep(step_num=2, description="s2", can_parallelize=False),
+                ExecutionStep(step_num=3, description="s3", can_parallelize=True),
+            ],
+        )
         assert plan.parallelizable_steps == 2
 
     @pytest.mark.unit
     def test_empty_plan(self):
         """Empty plan has 0 steps."""
         from Jotty.core.modes.execution.types import ExecutionPlan
+
         plan = ExecutionPlan(goal="nothing", steps=[])
         assert plan.total_steps == 0
         assert plan.parallelizable_steps == 0
@@ -4928,27 +5366,31 @@ class TestExecutionPlanProperties:
 # ValidationVerdict Tests
 # =============================================================================
 
+
 class TestValidationVerdict:
     """Tests for ValidationVerdict structured validation results."""
 
     @pytest.mark.unit
     def test_is_pass_true(self):
         """is_pass is True for PASS status."""
-        from Jotty.core.modes.execution.types import ValidationVerdict, ValidationStatus
+        from Jotty.core.modes.execution.types import ValidationStatus, ValidationVerdict
+
         v = ValidationVerdict(status=ValidationStatus.PASS)
         assert v.is_pass is True
 
     @pytest.mark.unit
     def test_is_pass_false(self):
         """is_pass is False for non-PASS status."""
-        from Jotty.core.modes.execution.types import ValidationVerdict, ValidationStatus
+        from Jotty.core.modes.execution.types import ValidationStatus, ValidationVerdict
+
         v = ValidationVerdict(status=ValidationStatus.FAIL)
         assert v.is_pass is False
 
     @pytest.mark.unit
     def test_ok_factory(self):
         """ok() creates a passing verdict."""
-        from Jotty.core.modes.execution.types import ValidationVerdict, ValidationStatus, ErrorType
+        from Jotty.core.modes.execution.types import ErrorType, ValidationStatus, ValidationVerdict
+
         v = ValidationVerdict.ok(reason="all good", confidence=0.95)
         assert v.status == ValidationStatus.PASS
         assert v.reason == "all good"
@@ -4958,7 +5400,8 @@ class TestValidationVerdict:
     @pytest.mark.unit
     def test_from_error_infrastructure(self):
         """from_error classifies timeout as INFRASTRUCTURE and retryable."""
-        from Jotty.core.modes.execution.types import ValidationVerdict, ValidationStatus, ErrorType
+        from Jotty.core.modes.execution.types import ErrorType, ValidationStatus, ValidationVerdict
+
         v = ValidationVerdict.from_error("Connection timeout after 30s")
         assert v.status == ValidationStatus.FAIL
         assert v.error_type == ErrorType.INFRASTRUCTURE
@@ -4968,7 +5411,8 @@ class TestValidationVerdict:
     @pytest.mark.unit
     def test_from_error_logic(self):
         """from_error classifies syntax errors as LOGIC and not retryable."""
-        from Jotty.core.modes.execution.types import ValidationVerdict, ErrorType
+        from Jotty.core.modes.execution.types import ErrorType, ValidationVerdict
+
         v = ValidationVerdict.from_error("SyntaxError: invalid selector")
         assert v.error_type == ErrorType.LOGIC
         assert v.retryable is False
@@ -4976,7 +5420,8 @@ class TestValidationVerdict:
     @pytest.mark.unit
     def test_from_error_environment(self):
         """from_error classifies SSL errors as ENVIRONMENT and retryable."""
-        from Jotty.core.modes.execution.types import ValidationVerdict, ErrorType
+        from Jotty.core.modes.execution.types import ErrorType, ValidationVerdict
+
         v = ValidationVerdict.from_error("SSL certificate verification failed")
         assert v.error_type == ErrorType.ENVIRONMENT
         assert v.retryable is True
@@ -4984,7 +5429,8 @@ class TestValidationVerdict:
     @pytest.mark.unit
     def test_from_error_data(self):
         """from_error classifies parse errors as DATA and not retryable."""
-        from Jotty.core.modes.execution.types import ValidationVerdict, ErrorType
+        from Jotty.core.modes.execution.types import ErrorType, ValidationVerdict
+
         v = ValidationVerdict.from_error("Empty result set returned")
         assert v.error_type == ErrorType.DATA
         assert v.retryable is False
@@ -4993,6 +5439,7 @@ class TestValidationVerdict:
     def test_from_error_populates_issues(self):
         """from_error adds error message to issues list."""
         from Jotty.core.modes.execution.types import ValidationVerdict
+
         v = ValidationVerdict.from_error("something broke")
         assert len(v.issues) == 1
         assert v.issues[0] == "something broke"
@@ -5002,6 +5449,7 @@ class TestValidationVerdict:
 # DeadLetterQueue Tests
 # =============================================================================
 
+
 class TestDeadLetterQueue:
     """Tests for DeadLetterQueue thread-safe failed operation queue."""
 
@@ -5009,6 +5457,7 @@ class TestDeadLetterQueue:
     def test_enqueue_and_size(self):
         """enqueue adds items and size reports correctly."""
         from Jotty.core.modes.execution.types import DeadLetterQueue, ErrorType
+
         dlq = DeadLetterQueue()
         dlq.enqueue("web_search", {"query": "test"}, "timeout", ErrorType.INFRASTRUCTURE)
         assert dlq.size == 1
@@ -5017,6 +5466,7 @@ class TestDeadLetterQueue:
     def test_get_retryable(self):
         """get_retryable returns items under max_retries."""
         from Jotty.core.modes.execution.types import DeadLetterQueue, ErrorType
+
         dlq = DeadLetterQueue()
         letter = dlq.enqueue("op", {}, "error", ErrorType.INFRASTRUCTURE)
         retryable = dlq.get_retryable()
@@ -5027,6 +5477,7 @@ class TestDeadLetterQueue:
     def test_get_retryable_excludes_exhausted(self):
         """get_retryable excludes items at max_retries."""
         from Jotty.core.modes.execution.types import DeadLetterQueue, ErrorType
+
         dlq = DeadLetterQueue()
         letter = dlq.enqueue("op", {}, "error", ErrorType.INFRASTRUCTURE)
         letter.retry_count = letter.max_retries  # Exhaust retries
@@ -5037,6 +5488,7 @@ class TestDeadLetterQueue:
     def test_mark_resolved(self):
         """mark_resolved removes item from queue."""
         from Jotty.core.modes.execution.types import DeadLetterQueue, ErrorType
+
         dlq = DeadLetterQueue()
         letter = dlq.enqueue("op", {}, "error", ErrorType.INFRASTRUCTURE)
         assert dlq.size == 1
@@ -5047,6 +5499,7 @@ class TestDeadLetterQueue:
     def test_retry_all_success(self):
         """retry_all calls executor and removes successful items."""
         from Jotty.core.modes.execution.types import DeadLetterQueue, ErrorType
+
         dlq = DeadLetterQueue()
         dlq.enqueue("op1", {}, "error1", ErrorType.INFRASTRUCTURE)
         dlq.enqueue("op2", {}, "error2", ErrorType.INFRASTRUCTURE)
@@ -5058,6 +5511,7 @@ class TestDeadLetterQueue:
     def test_retry_all_partial_failure(self):
         """retry_all handles mixed success/failure."""
         from Jotty.core.modes.execution.types import DeadLetterQueue, ErrorType
+
         dlq = DeadLetterQueue()
         dlq.enqueue("good", {}, "err", ErrorType.INFRASTRUCTURE)
         dlq.enqueue("bad", {}, "err", ErrorType.INFRASTRUCTURE)
@@ -5069,6 +5523,7 @@ class TestDeadLetterQueue:
     def test_retry_all_increments_retry_count(self):
         """retry_all increments retry_count even on failure."""
         from Jotty.core.modes.execution.types import DeadLetterQueue, ErrorType
+
         dlq = DeadLetterQueue()
         letter = dlq.enqueue("op", {}, "error", ErrorType.INFRASTRUCTURE)
         dlq.retry_all(lambda l: False)  # All fail
@@ -5078,6 +5533,7 @@ class TestDeadLetterQueue:
     def test_max_size_eviction(self):
         """Exceeding max_size evicts oldest entry."""
         from Jotty.core.modes.execution.types import DeadLetterQueue, ErrorType
+
         dlq = DeadLetterQueue(max_size=2)
         dlq.enqueue("first", {}, "err", ErrorType.INFRASTRUCTURE)
         dlq.enqueue("second", {}, "err", ErrorType.INFRASTRUCTURE)
@@ -5094,6 +5550,7 @@ class TestDeadLetterQueue:
     def test_clear(self):
         """clear empties the queue."""
         from Jotty.core.modes.execution.types import DeadLetterQueue, ErrorType
+
         dlq = DeadLetterQueue()
         dlq.enqueue("op1", {}, "err", ErrorType.INFRASTRUCTURE)
         dlq.enqueue("op2", {}, "err", ErrorType.INFRASTRUCTURE)
@@ -5105,6 +5562,7 @@ class TestDeadLetterQueue:
 # TimeoutWarning Tests
 # =============================================================================
 
+
 class TestTimeoutWarning:
     """Tests for TimeoutWarning threshold-based timeout alerts."""
 
@@ -5112,6 +5570,7 @@ class TestTimeoutWarning:
     def test_initial_state(self):
         """TimeoutWarning starts with zero elapsed."""
         from Jotty.core.modes.execution.types import TimeoutWarning
+
         tw = TimeoutWarning(timeout_seconds=120)
         assert tw.elapsed == 0.0
         assert tw.is_expired is False
@@ -5120,6 +5579,7 @@ class TestTimeoutWarning:
     def test_check_before_start(self):
         """check returns None before start() is called."""
         from Jotty.core.modes.execution.types import TimeoutWarning
+
         tw = TimeoutWarning(timeout_seconds=120)
         assert tw.check() is None
 
@@ -5127,6 +5587,7 @@ class TestTimeoutWarning:
     def test_fraction_used_zero_timeout(self):
         """fraction_used returns 1.0 for zero timeout."""
         from Jotty.core.modes.execution.types import TimeoutWarning
+
         tw = TimeoutWarning(timeout_seconds=0)
         assert tw.fraction_used == 1.0
 
@@ -5134,6 +5595,7 @@ class TestTimeoutWarning:
     def test_remaining_before_start(self):
         """remaining returns full timeout before start."""
         from Jotty.core.modes.execution.types import TimeoutWarning
+
         tw = TimeoutWarning(timeout_seconds=120)
         assert tw.remaining == 120.0
 
@@ -5141,6 +5603,7 @@ class TestTimeoutWarning:
     def test_start_resets_triggered(self):
         """start() clears previously triggered thresholds."""
         from Jotty.core.modes.execution.types import TimeoutWarning
+
         tw = TimeoutWarning(timeout_seconds=120)
         tw._triggered.add(0.80)
         tw.start()
@@ -5150,9 +5613,11 @@ class TestTimeoutWarning:
     def test_check_triggers_80_percent(self):
         """check triggers 80% warning."""
         from Jotty.core.modes.execution.types import TimeoutWarning
+
         tw = TimeoutWarning(timeout_seconds=100)
         tw._start_time = 1.0  # Manually set
         import time
+
         # Simulate 85% elapsed by setting start_time in the past
         tw._start_time = time.time() - 85
         warning = tw.check()
@@ -5162,8 +5627,10 @@ class TestTimeoutWarning:
     @pytest.mark.unit
     def test_one_shot_triggering(self):
         """Each threshold only triggers once."""
-        from Jotty.core.modes.execution.types import TimeoutWarning
         import time as time_mod
+
+        from Jotty.core.modes.execution.types import TimeoutWarning
+
         tw = TimeoutWarning(timeout_seconds=100)
         tw._start_time = time_mod.time() - 85  # 85% elapsed
         first = tw.check()
@@ -5176,8 +5643,10 @@ class TestTimeoutWarning:
     @pytest.mark.unit
     def test_is_expired(self):
         """is_expired True when elapsed >= timeout."""
-        from Jotty.core.modes.execution.types import TimeoutWarning
         import time as time_mod
+
+        from Jotty.core.modes.execution.types import TimeoutWarning
+
         tw = TimeoutWarning(timeout_seconds=10)
         tw._start_time = time_mod.time() - 20  # Well past expiry
         assert tw.is_expired is True
@@ -5187,6 +5656,7 @@ class TestTimeoutWarning:
 # AdaptiveTimeout Tests
 # =============================================================================
 
+
 class TestAdaptiveTimeoutExpanded:
     """Tests for AdaptiveTimeout P95-based adaptive timeouts."""
 
@@ -5194,6 +5664,7 @@ class TestAdaptiveTimeoutExpanded:
     def test_default_with_no_observations(self):
         """Returns default_seconds when no observations exist."""
         from Jotty.core.modes.execution.types import AdaptiveTimeout
+
         at = AdaptiveTimeout(default_seconds=30.0)
         assert at.get("llm_call") == 30.0
 
@@ -5201,6 +5672,7 @@ class TestAdaptiveTimeoutExpanded:
     def test_default_with_insufficient_observations(self):
         """Returns default when fewer than 3 observations."""
         from Jotty.core.modes.execution.types import AdaptiveTimeout
+
         at = AdaptiveTimeout(default_seconds=30.0)
         at.record("llm_call", 2.0)
         at.record("llm_call", 3.0)
@@ -5210,6 +5682,7 @@ class TestAdaptiveTimeoutExpanded:
     def test_adaptive_with_observations(self):
         """With 3+ observations, returns P95 * multiplier."""
         from Jotty.core.modes.execution.types import AdaptiveTimeout
+
         at = AdaptiveTimeout(default_seconds=30.0, min_seconds=1.0, max_seconds=300.0)
         for t in [1.0, 2.0, 3.0, 4.0, 5.0]:
             at.record("op", t)
@@ -5223,6 +5696,7 @@ class TestAdaptiveTimeoutExpanded:
     def test_min_bound(self):
         """Timeout never goes below min_seconds."""
         from Jotty.core.modes.execution.types import AdaptiveTimeout
+
         at = AdaptiveTimeout(default_seconds=30.0, min_seconds=10.0)
         for t in [0.01, 0.02, 0.03, 0.04]:
             at.record("fast_op", t)
@@ -5233,6 +5707,7 @@ class TestAdaptiveTimeoutExpanded:
     def test_max_bound(self):
         """Timeout never exceeds max_seconds."""
         from Jotty.core.modes.execution.types import AdaptiveTimeout
+
         at = AdaptiveTimeout(default_seconds=30.0, max_seconds=50.0)
         for t in [100.0, 200.0, 300.0, 400.0]:
             at.record("slow_op", t)
@@ -5243,6 +5718,7 @@ class TestAdaptiveTimeoutExpanded:
     def test_separate_operations(self):
         """Different operations have independent observations."""
         from Jotty.core.modes.execution.types import AdaptiveTimeout
+
         at = AdaptiveTimeout(default_seconds=30.0, min_seconds=1.0)
         for t in [1.0, 2.0, 3.0, 4.0]:
             at.record("fast", t)
@@ -5257,6 +5733,7 @@ class TestAdaptiveTimeoutExpanded:
 # CircuitBreaker Tests
 # =============================================================================
 
+
 class TestCircuitBreakerExpanded:
     """Tests for CircuitBreaker state machine."""
 
@@ -5264,6 +5741,7 @@ class TestCircuitBreakerExpanded:
     def test_initial_state_closed(self):
         """CircuitBreaker starts CLOSED."""
         from Jotty.core.modes.execution.types import CircuitBreaker, CircuitState
+
         cb = CircuitBreaker("test", failure_threshold=3)
         assert cb.state == CircuitState.CLOSED
         assert cb.allow_request() is True
@@ -5272,6 +5750,7 @@ class TestCircuitBreakerExpanded:
     def test_failures_below_threshold(self):
         """Stays CLOSED with failures below threshold."""
         from Jotty.core.modes.execution.types import CircuitBreaker, CircuitState
+
         cb = CircuitBreaker("test", failure_threshold=3)
         cb.record_failure()
         cb.record_failure()
@@ -5282,6 +5761,7 @@ class TestCircuitBreakerExpanded:
     def test_trips_to_open(self):
         """Trips to OPEN when failures reach threshold."""
         from Jotty.core.modes.execution.types import CircuitBreaker, CircuitState
+
         cb = CircuitBreaker("test", failure_threshold=3)
         cb.record_failure()
         cb.record_failure()
@@ -5293,10 +5773,12 @@ class TestCircuitBreakerExpanded:
     def test_cooldown_to_half_open(self):
         """Transitions to HALF_OPEN after cooldown."""
         from Jotty.core.modes.execution.types import CircuitBreaker, CircuitState
+
         cb = CircuitBreaker("test", failure_threshold=1, cooldown_seconds=0.01)
         cb.record_failure()
         assert cb.state == CircuitState.OPEN
         import time
+
         time.sleep(0.02)
         assert cb.state == CircuitState.HALF_OPEN
         assert cb.allow_request() is True  # Probe allowed
@@ -5305,10 +5787,12 @@ class TestCircuitBreakerExpanded:
     def test_success_resets_to_closed(self):
         """record_success resets to CLOSED from any state."""
         from Jotty.core.modes.execution.types import CircuitBreaker, CircuitState
+
         cb = CircuitBreaker("test", failure_threshold=1, cooldown_seconds=0.01)
         cb.record_failure()
         assert cb.state == CircuitState.OPEN
         import time
+
         time.sleep(0.02)
         assert cb.state == CircuitState.HALF_OPEN
         cb.record_success()
@@ -5319,9 +5803,11 @@ class TestCircuitBreakerExpanded:
     def test_half_open_failure_reopens(self):
         """Failure in HALF_OPEN trips back to OPEN."""
         from Jotty.core.modes.execution.types import CircuitBreaker, CircuitState
+
         cb = CircuitBreaker("test", failure_threshold=1, cooldown_seconds=0.01)
         cb.record_failure()
         import time
+
         time.sleep(0.02)
         assert cb.state == CircuitState.HALF_OPEN
         cb.record_failure()
@@ -5331,6 +5817,7 @@ class TestCircuitBreakerExpanded:
     def test_manual_reset(self):
         """reset() manually returns to CLOSED."""
         from Jotty.core.modes.execution.types import CircuitBreaker, CircuitState
+
         cb = CircuitBreaker("test", failure_threshold=1)
         cb.record_failure()
         assert cb.state == CircuitState.OPEN
@@ -5351,46 +5838,55 @@ class TestIOContractFields:
     def test_execution_step_defaults(self):
         """ExecutionStep has empty I/O contracts by default."""
         from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
-        step = AgenticStep('skill', 'tool', {}, 'desc')
+
+        step = AgenticStep("skill", "tool", {}, "desc")
         assert step.inputs_needed == {}
         assert step.outputs_produced == []
 
     def test_execution_step_with_io_contracts(self):
         """ExecutionStep accepts I/O contract fields."""
         from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
+
         step = AgenticStep(
-            'file-operations', 'write_file_tool', {'path': 'out.py'},
-            'Write generated code',
+            "file-operations",
+            "write_file_tool",
+            {"path": "out.py"},
+            "Write generated code",
             depends_on=[0],
-            inputs_needed={'content': 'step_0.generated_code', 'path': 'literal:stats.py'},
-            outputs_produced=['file_path', 'bytes_written'],
+            inputs_needed={"content": "step_0.generated_code", "path": "literal:stats.py"},
+            outputs_produced=["file_path", "bytes_written"],
         )
-        assert step.inputs_needed == {'content': 'step_0.generated_code', 'path': 'literal:stats.py'}
-        assert step.outputs_produced == ['file_path', 'bytes_written']
+        assert step.inputs_needed == {
+            "content": "step_0.generated_code",
+            "path": "literal:stats.py",
+        }
+        assert step.outputs_produced == ["file_path", "bytes_written"]
         assert step.depends_on == [0]
 
     def test_execution_step_schema_with_io_contracts(self):
         """ExecutionStepSchema Pydantic model accepts I/O contract fields."""
         from Jotty.core.modes.agent._execution_types import ExecutionStepSchema
+
         if ExecutionStepSchema is None:
             pytest.skip("Pydantic not available")
         schema = ExecutionStepSchema(
-            skill_name='web-search',
-            tool_name='search_web_tool',
-            params={'query': 'AI trends'},
-            description='Search for AI trends',
-            inputs_needed={'query': 'literal:AI trends'},
-            outputs_produced=['results', 'query'],
+            skill_name="web-search",
+            tool_name="search_web_tool",
+            params={"query": "AI trends"},
+            description="Search for AI trends",
+            inputs_needed={"query": "literal:AI trends"},
+            outputs_produced=["results", "query"],
         )
-        assert schema.inputs_needed == {'query': 'literal:AI trends'}
-        assert schema.outputs_produced == ['results', 'query']
+        assert schema.inputs_needed == {"query": "literal:AI trends"}
+        assert schema.outputs_produced == ["results", "query"]
 
     def test_execution_step_schema_defaults(self):
         """ExecutionStepSchema has empty I/O contracts by default."""
         from Jotty.core.modes.agent._execution_types import ExecutionStepSchema
+
         if ExecutionStepSchema is None:
             pytest.skip("Pydantic not available")
-        schema = ExecutionStepSchema(skill_name='test', tool_name='test_tool')
+        schema = ExecutionStepSchema(skill_name="test", tool_name="test_tool")
         assert schema.inputs_needed == {}
         assert schema.outputs_produced == []
 
@@ -5400,59 +5896,61 @@ class TestScopedAutoWire:
     """Test ToolSchema.auto_wire with scoped_keys parameter."""
 
     def _make_schema(self, params):
-        from Jotty.core.modes.agent._execution_types import ToolSchema, ToolParam
-        return ToolSchema('test', params=[ToolParam(name=p, required=True) for p in params])
+        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
+
+        return ToolSchema("test", params=[ToolParam(name=p, required=True) for p in params])
 
     def test_scoped_content_only_from_dependencies(self):
         """Content param should only be wired from scoped (dependency) outputs."""
-        schema = self._make_schema(['content'])
+        schema = self._make_schema(["content"])
         outputs = {
-            'step_0': {'content': 'wrong content from unrelated step'},
-            'step_1': {'content': 'correct content from dependency'},
+            "step_0": {"content": "wrong content from unrelated step"},
+            "step_1": {"content": "correct content from dependency"},
         }
         # Scoped to step_1 only
-        result = schema.auto_wire({}, outputs, scoped_keys=['step_1'])
-        assert result['content'] == 'correct content from dependency'
+        result = schema.auto_wire({}, outputs, scoped_keys=["step_1"])
+        assert result["content"] == "correct content from dependency"
 
     def test_scoped_content_not_from_unscoped(self):
         """Content param should NOT be wired from non-dependency outputs."""
-        schema = self._make_schema(['content'])
+        schema = self._make_schema(["content"])
         outputs = {
-            'step_0': {'content': 'unrelated step content that should not be picked up'},
+            "step_0": {"content": "unrelated step content that should not be picked up"},
         }
         # Scoped to step_1 (which doesn't exist in outputs)
-        result = schema.auto_wire({}, outputs, scoped_keys=['step_1'])
-        assert 'content' not in result
+        result = schema.auto_wire({}, outputs, scoped_keys=["step_1"])
+        assert "content" not in result
 
     def test_non_content_params_use_fallback(self):
         """Non-content params (path, command) can use broader output search."""
-        schema = self._make_schema(['path'])
+        schema = self._make_schema(["path"])
         outputs = {
-            'step_0': {'path': '/tmp/data.txt'},
-            'step_1': {'result': 'some text'},
+            "step_0": {"path": "/tmp/data.txt"},
+            "step_1": {"result": "some text"},
         }
-        result = schema.auto_wire({}, outputs, scoped_keys=['step_1'])
-        assert result['path'] == '/tmp/data.txt'
+        result = schema.auto_wire({}, outputs, scoped_keys=["step_1"])
+        assert result["path"] == "/tmp/data.txt"
 
     def test_no_scoped_keys_uses_all_outputs(self):
         """Without scoped_keys, all outputs are searched (backward compat)."""
-        schema = self._make_schema(['content'])
+        schema = self._make_schema(["content"])
         outputs = {
-            'step_0': {'content': 'a' * 100},
+            "step_0": {"content": "a" * 100},
         }
         result = schema.auto_wire({}, outputs, scoped_keys=None)
-        assert 'content' in result
+        assert "content" in result
 
     def test_scoped_keys_priority_ordering(self):
         """Scoped keys are checked before fallback keys."""
-        from Jotty.core.modes.agent._execution_types import ToolSchema, ToolParam
-        schema = ToolSchema('test', params=[ToolParam(name='query', required=True)])
+        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
+
+        schema = ToolSchema("test", params=[ToolParam(name="query", required=True)])
         outputs = {
-            'step_0': {'query': 'fallback query'},
-            'step_1': {'query': 'priority query'},
+            "step_0": {"query": "fallback query"},
+            "step_1": {"query": "priority query"},
         }
-        result = schema.auto_wire({}, outputs, scoped_keys=['step_1'])
-        assert result['query'] == 'priority query'
+        result = schema.auto_wire({}, outputs, scoped_keys=["step_1"])
+        assert result["query"] == "priority query"
 
 
 @pytest.mark.unit
@@ -5461,58 +5959,64 @@ class TestScopedResolution:
 
     def test_io_contract_literal_resolution(self):
         """Literal sources in inputs_needed are resolved directly."""
-        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
 
         step = AgenticStep(
-            'file-operations', 'write_file_tool', {},
-            'Write stats file',
-            inputs_needed={'path': 'literal:/tmp/stats.py'},
+            "file-operations",
+            "write_file_tool",
+            {},
+            "Write stats file",
+            inputs_needed={"path": "literal:/tmp/stats.py"},
         )
         resolver = ParameterResolver({})
         result = resolver.resolve({}, step)
-        assert result.get('path') == '/tmp/stats.py'
+        assert result.get("path") == "/tmp/stats.py"
 
     def test_io_contract_step_reference_resolution(self):
         """Step references in inputs_needed resolve from outputs."""
-        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
 
         outputs = {
-            'step_0': {'generated_code': 'print("hello")', 'path': '/tmp/test.py'},
+            "step_0": {"generated_code": 'print("hello")', "path": "/tmp/test.py"},
         }
         step = AgenticStep(
-            'file-operations', 'write_file_tool', {},
-            'Write generated code',
-            inputs_needed={'content': 'step_0.generated_code'},
+            "file-operations",
+            "write_file_tool",
+            {},
+            "Write generated code",
+            inputs_needed={"content": "step_0.generated_code"},
         )
         resolver = ParameterResolver(outputs)
         result = resolver.resolve({}, step)
-        assert result.get('content') == 'print("hello")'
+        assert result.get("content") == 'print("hello")'
 
     def test_io_contract_does_not_override_templates(self):
         """If param already has a template, inputs_needed should not override it."""
-        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
 
-        outputs = {'step_0': {'text': 'resolved text'}}
+        outputs = {"step_0": {"text": "resolved text"}}
         step = AgenticStep(
-            'test', 'test_tool',
-            {'content': '${step_0.text}'},
-            'Test step',
-            inputs_needed={'content': 'step_0.text'},
+            "test",
+            "test_tool",
+            {"content": "${step_0.text}"},
+            "Test step",
+            inputs_needed={"content": "step_0.text"},
         )
         resolver = ParameterResolver(outputs)
-        result = resolver.resolve({'content': '${step_0.text}'}, step)
+        result = resolver.resolve({"content": "${step_0.text}"}, step)
         # Template resolution should take precedence
-        assert result['content'] == 'resolved text'
+        assert result["content"] == "resolved text"
 
     def test_is_template_detection(self):
         """_is_template correctly identifies template references."""
         from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
-        assert ParameterResolver._is_template('${step_0.content}')
-        assert ParameterResolver._is_template('{step_0}')
-        assert not ParameterResolver._is_template('plain text')
+
+        assert ParameterResolver._is_template("${step_0.content}")
+        assert ParameterResolver._is_template("{step_0}")
+        assert not ParameterResolver._is_template("plain text")
         assert not ParameterResolver._is_template(42)
 
     def test_resolve_missing_path_scoped(self):
@@ -5520,56 +6024,60 @@ class TestScopedResolution:
         from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
 
         outputs = {
-            'step_0': {'content': 'wrong content from step 0', 'path': '/init.py'},
-            'step_1': {'content': 'correct content from step 1', 'path': '/stats.py'},
+            "step_0": {"content": "wrong content from step 0", "path": "/init.py"},
+            "step_1": {"content": "correct content from step 1", "path": "/stats.py"},
         }
         resolver = ParameterResolver(outputs)
 
         # Should resolve step_1.content from exact match
-        result = resolver._resolve_missing_path('step_1.content')
-        assert result == 'correct content from step 1'
+        result = resolver._resolve_missing_path("step_1.content")
+        assert result == "correct content from step 1"
 
         # Missing step_5 should return unresolved (not random content)
-        result = resolver._resolve_missing_path('step_5.content')
-        assert result == 'step_5.content'
+        result = resolver._resolve_missing_path("step_5.content")
+        assert result == "step_5.content"
 
     def test_resolve_missing_path_adjacent_step(self):
         """Adjacent step (N-1) is checked as fallback."""
         from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
 
         outputs = {
-            'step_0': {'generated_code': 'code content here', 'path': '/test.py'},
+            "step_0": {"generated_code": "code content here", "path": "/test.py"},
         }
         resolver = ParameterResolver(outputs)
 
         # step_1.generated_code should find it from adjacent step_0
-        result = resolver._resolve_missing_path('step_1.generated_code')
-        assert result == 'code content here'
+        result = resolver._resolve_missing_path("step_1.generated_code")
+        assert result == "code content here"
 
     def test_scoped_auto_wire_with_depends_on(self):
         """auto_wire scoping via depends_on narrows the search to dependency outputs."""
+        from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
+        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
         from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
-        from Jotty.core.modes.agent._execution_types import (
-            ExecutionStep as AgenticStep, ToolSchema, ToolParam,
-        )
 
         outputs = {
-            'step_0': {'content': '__init__.py content that should NOT be used'},
-            'step_1': {'content': 'stats.py real content from dependency'},
+            "step_0": {"content": "__init__.py content that should NOT be used"},
+            "step_1": {"content": "stats.py real content from dependency"},
         }
         step = AgenticStep(
-            'file-operations', 'write_file_tool', {},
-            'Write stats.py',
+            "file-operations",
+            "write_file_tool",
+            {},
+            "Write stats.py",
             depends_on=[1],
         )
-        schema = ToolSchema('write_file_tool', params=[
-            ToolParam(name='content', required=True),
-            ToolParam(name='path', required=True),
-        ])
+        schema = ToolSchema(
+            "write_file_tool",
+            params=[
+                ToolParam(name="content", required=True),
+                ToolParam(name="path", required=True),
+            ],
+        )
         resolver = ParameterResolver(outputs)
         result = resolver.resolve({}, step, tool_schema=schema)
         # Content should come from step_1 (dependency), not step_0
-        assert 'stats.py real content' in result.get('content', '')
+        assert "stats.py real content" in result.get("content", "")
 
 
 @pytest.mark.unit
@@ -5579,22 +6087,25 @@ class TestSemanticParamResolver:
     def test_init_creates_resolver(self):
         """SemanticParamResolver initializes without error."""
         from Jotty.core.modes.agent.executors.step_processors import SemanticParamResolver
+
         resolver = SemanticParamResolver()
         assert resolver._matcher is None  # Lazy init
 
     def test_non_high_stakes_returns_none(self):
         """Non-high-stakes params (e.g. 'query') return None immediately."""
         from Jotty.core.modes.agent.executors.step_processors import SemanticParamResolver
+
         resolver = SemanticParamResolver()
-        result = resolver.resolve('query', 'Search for data', {'step_0': {'text': 'hello'}})
+        result = resolver.resolve("query", "Search for data", {"step_0": {"text": "hello"}})
         assert result is None
 
-    @patch('Jotty.core.agents.base.step_processors._DSPY_AVAILABLE', False)
+    @patch("Jotty.core.agents.base.step_processors._DSPY_AVAILABLE", False)
     def test_no_dspy_returns_none(self):
         """Without DSPy, resolver returns None gracefully."""
         from Jotty.core.modes.agent.executors.step_processors import SemanticParamResolver
+
         resolver = SemanticParamResolver()
-        result = resolver.resolve('content', 'Write file', {'step_0': {'text': 'hello'}})
+        result = resolver.resolve("content", "Write file", {"step_0": {"text": "hello"}})
         assert result is None
 
     def test_high_stakes_with_mock_dspy(self):
@@ -5604,14 +6115,14 @@ class TestSemanticParamResolver:
         resolver = SemanticParamResolver()
         mock_matcher = Mock()
         mock_matcher.return_value = Mock(
-            best_source='step_0.text',
+            best_source="step_0.text",
             confidence=0.9,
         )
         resolver._matcher = mock_matcher
 
-        outputs = {'step_0': {'text': 'Generated code content'}}
-        result = resolver.resolve('content', 'Write the generated code to disk', outputs)
-        assert result == 'Generated code content'
+        outputs = {"step_0": {"text": "Generated code content"}}
+        result = resolver.resolve("content", "Write the generated code to disk", outputs)
+        assert result == "Generated code content"
 
     def test_low_confidence_returns_none(self):
         """Low confidence match returns None."""
@@ -5620,13 +6131,13 @@ class TestSemanticParamResolver:
         resolver = SemanticParamResolver()
         mock_matcher = Mock()
         mock_matcher.return_value = Mock(
-            best_source='step_0.text',
+            best_source="step_0.text",
             confidence=0.3,
         )
         resolver._matcher = mock_matcher
 
-        outputs = {'step_0': {'text': 'Some text'}}
-        result = resolver.resolve('content', 'Write the generated code', outputs)
+        outputs = {"step_0": {"text": "Some text"}}
+        result = resolver.resolve("content", "Write the generated code", outputs)
         assert result is None
 
     def test_no_match_returns_none(self):
@@ -5636,21 +6147,22 @@ class TestSemanticParamResolver:
         resolver = SemanticParamResolver()
         mock_matcher = Mock()
         mock_matcher.return_value = Mock(
-            best_source='NO_MATCH',
+            best_source="NO_MATCH",
             confidence=0.9,
         )
         resolver._matcher = mock_matcher
 
-        outputs = {'step_0': {'text': 'Some text'}}
-        result = resolver.resolve('content', 'Write the generated code', outputs)
+        outputs = {"step_0": {"text": "Some text"}}
+        result = resolver.resolve("content", "Write the generated code", outputs)
         assert result is None
 
     def test_empty_outputs_returns_none(self):
         """Empty outputs dict returns None."""
         from Jotty.core.modes.agent.executors.step_processors import SemanticParamResolver
+
         resolver = SemanticParamResolver()
         resolver._matcher = Mock()  # Won't be called
-        result = resolver.resolve('content', 'Write file', {})
+        result = resolver.resolve("content", "Write file", {})
         assert result is None
 
 
@@ -5661,30 +6173,32 @@ class TestDependencyResultsInjection:
     def test_dependency_results_format(self):
         """Verify dependency results are serialized as JSON into resolved params."""
         outputs = {
-            'step_0': {'content': 'step 0 data', 'path': '/tmp/a.py'},
-            'step_1': {'results': [{'title': 'Result 1'}]},
+            "step_0": {"content": "step 0 data", "path": "/tmp/a.py"},
+            "step_1": {"results": [{"title": "Result 1"}]},
         }
         from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
+
         step = AgenticStep(
-            'claude-cli-llm', 'generate_text_tool',
-            {'prompt': 'Summarize the data'},
-            'Synthesize results',
+            "claude-cli-llm",
+            "generate_text_tool",
+            {"prompt": "Summarize the data"},
+            "Synthesize results",
             depends_on=[0, 1],
         )
 
         # Simulate DEPENDENCY_RESULTS logic
         dep_results = {}
         for dep_idx in step.depends_on:
-            dep_key = f'step_{dep_idx}'
+            dep_key = f"step_{dep_idx}"
             for k, v in outputs.items():
-                if k == dep_key or k.startswith(f'step_{dep_idx}'):
+                if k == dep_key or k.startswith(f"step_{dep_idx}"):
                     dep_results[k] = str(v)[:500] if isinstance(v, dict) else str(v)[:500]
 
-        assert 'step_0' in dep_results
-        assert 'step_1' in dep_results
+        assert "step_0" in dep_results
+        assert "step_1" in dep_results
         serialized = json.dumps(dep_results, default=str)
-        assert 'step 0 data' in serialized
-        assert 'Result 1' in serialized
+        assert "step 0 data" in serialized
+        assert "Result 1" in serialized
 
 
 @pytest.mark.unit
@@ -5696,38 +6210,41 @@ class TestPlanParsingIOContracts:
         from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
 
         # Simulate what _parse_plan_to_steps does
-        raw_inputs = {'content': 'step_0.generated_code', 'path': 'literal:stats.py'}
-        raw_outputs = ['generated_code', 'file_path']
+        raw_inputs = {"content": "step_0.generated_code", "path": "literal:stats.py"}
+        raw_outputs = ["generated_code", "file_path"]
 
         inputs_needed = raw_inputs if isinstance(raw_inputs, dict) else {}
         outputs_produced = raw_outputs if isinstance(raw_outputs, list) else []
 
         step = AgenticStep(
-            skill_name='file-operations',
-            tool_name='write_file_tool',
-            params={'content': '${step_0.generated_code}'},
-            description='Write stats file',
+            skill_name="file-operations",
+            tool_name="write_file_tool",
+            params={"content": "${step_0.generated_code}"},
+            description="Write stats file",
             inputs_needed=inputs_needed,
             outputs_produced=outputs_produced,
         )
-        assert step.inputs_needed == {'content': 'step_0.generated_code', 'path': 'literal:stats.py'}
-        assert step.outputs_produced == ['generated_code', 'file_path']
+        assert step.inputs_needed == {
+            "content": "step_0.generated_code",
+            "path": "literal:stats.py",
+        }
+        assert step.outputs_produced == ["generated_code", "file_path"]
 
     def test_plan_step_without_io_contracts(self):
         """Steps without I/O contracts get empty defaults."""
         from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
 
         raw_inputs = None
-        raw_outputs = 'not_a_list'
+        raw_outputs = "not_a_list"
 
         inputs_needed = raw_inputs if isinstance(raw_inputs, dict) else {}
         outputs_produced = raw_outputs if isinstance(raw_outputs, list) else []
 
         step = AgenticStep(
-            skill_name='web-search',
-            tool_name='search_web_tool',
-            params={'query': 'test'},
-            description='Search',
+            skill_name="web-search",
+            tool_name="search_web_tool",
+            params={"query": "test"},
+            description="Search",
             inputs_needed=inputs_needed,
             outputs_produced=outputs_produced,
         )
@@ -5741,58 +6258,74 @@ class TestContentFieldScopingRegression:
 
     def test_scoped_auto_wire_prevents_wrong_content(self):
         """auto_wire with scoped_keys prevents step_0 content leaking to step_2."""
-        from Jotty.core.modes.agent._execution_types import ToolSchema, ToolParam
+        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
 
-        schema = ToolSchema('write_file_tool', params=[
-            ToolParam(name='content', required=True),
-            ToolParam(name='path', required=True),
-        ])
+        schema = ToolSchema(
+            "write_file_tool",
+            params=[
+                ToolParam(name="content", required=True),
+                ToolParam(name="path", required=True),
+            ],
+        )
         outputs = {
-            'step_0': {'content': '# __init__.py content\nfrom . import main', 'path': '__init__.py'},
-            'step_1': {'content': '# stats.py\nimport statistics\ndef mean(data): ...', 'path': 'stats.py'},
+            "step_0": {
+                "content": "# __init__.py content\nfrom . import main",
+                "path": "__init__.py",
+            },
+            "step_1": {
+                "content": "# stats.py\nimport statistics\ndef mean(data): ...",
+                "path": "stats.py",
+            },
         }
 
         # Step 2 depends on step_1 only — should NOT get step_0's content
         result = schema.auto_wire(
-            {'path': 'stats.py'}, outputs,
-            scoped_keys=['step_1'],
+            {"path": "stats.py"},
+            outputs,
+            scoped_keys=["step_1"],
         )
-        assert 'statistics' in result.get('content', '')
-        assert '__init__' not in result.get('content', '')
+        assert "statistics" in result.get("content", "")
+        assert "__init__" not in result.get("content", "")
 
     def test_unscoped_auto_wire_gets_most_recent(self):
         """Without scoped_keys, auto_wire uses most recent (backward compat)."""
-        from Jotty.core.modes.agent._execution_types import ToolSchema, ToolParam
+        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
 
-        schema = ToolSchema('write_file_tool', params=[
-            ToolParam(name='content', required=True),
-        ])
+        schema = ToolSchema(
+            "write_file_tool",
+            params=[
+                ToolParam(name="content", required=True),
+            ],
+        )
         outputs = {
-            'step_0': {'content': 'first content' + 'x' * 100},
-            'step_1': {'content': 'second content' + 'x' * 100},
+            "step_0": {"content": "first content" + "x" * 100},
+            "step_1": {"content": "second content" + "x" * 100},
         }
 
         # No scoped_keys — should get most recent (step_1)
         result = schema.auto_wire({}, outputs, scoped_keys=None)
-        assert 'second content' in result.get('content', '')
+        assert "second content" in result.get("content", "")
 
     def test_find_in_outputs_no_longer_scans_content_fields(self):
         """Strategy 3 in _find_in_outputs no longer uses _CONTENT_FIELDS broadcast."""
-        from Jotty.core.modes.agent._execution_types import ToolSchema, ToolParam
+        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
 
-        schema = ToolSchema('test', params=[
-            ToolParam(name='content', required=True),
-        ])
+        schema = ToolSchema(
+            "test",
+            params=[
+                ToolParam(name="content", required=True),
+            ],
+        )
         outputs = {
-            'step_0': {
-                'response': 'This is a response field that used to be picked up by _CONTENT_FIELDS',
+            "step_0": {
+                "response": "This is a response field that used to be picked up by _CONTENT_FIELDS",
             },
         }
         # With the new code, 'content' param looks for 'content' key directly,
         # NOT for 'response' via _CONTENT_FIELDS scan
         result = schema.auto_wire({}, outputs, scoped_keys=None)
         # Should NOT find content via 'response' field anymore
-        assert 'content' not in result
+        assert "content" not in result
 
 
 # =============================================================================
@@ -5810,114 +6343,123 @@ class TestRealWorldCodeGenPipeline:
 
     def test_code_gen_write_execute_full_pipeline(self):
         """Full 3-step code gen pipeline resolves content correctly."""
+        from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
+        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
         from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
-        from Jotty.core.modes.agent._execution_types import (
-            ExecutionStep as AgenticStep, ToolSchema, ToolParam,
-        )
 
         # Step 0 output: LLM generates Python code
         outputs = {
-            'step_0': {
-                'response': 'import statistics\n\ndef mean(data):\n    return statistics.mean(data)\n\nif __name__ == "__main__":\n    print(mean([1,2,3,4,5]))',
-                'content': 'import statistics\n\ndef mean(data):\n    return statistics.mean(data)\n\nif __name__ == "__main__":\n    print(mean([1,2,3,4,5]))',
-                'success': True,
+            "step_0": {
+                "response": 'import statistics\n\ndef mean(data):\n    return statistics.mean(data)\n\nif __name__ == "__main__":\n    print(mean([1,2,3,4,5]))',
+                "content": 'import statistics\n\ndef mean(data):\n    return statistics.mean(data)\n\nif __name__ == "__main__":\n    print(mean([1,2,3,4,5]))',
+                "success": True,
             },
         }
 
         # Step 1: Write file — with I/O contract pointing at step_0
         step1 = AgenticStep(
-            'file-operations', 'write_file_tool',
-            {'content': '${step_0.content}', 'path': 'stats.py'},
-            'Save generated stats module to stats.py',
+            "file-operations",
+            "write_file_tool",
+            {"content": "${step_0.content}", "path": "stats.py"},
+            "Save generated stats module to stats.py",
             depends_on=[0],
-            inputs_needed={'content': 'step_0.content', 'path': 'literal:stats.py'},
-            outputs_produced=['path', 'bytes_written'],
+            inputs_needed={"content": "step_0.content", "path": "literal:stats.py"},
+            outputs_produced=["path", "bytes_written"],
         )
 
-        schema1 = ToolSchema('write_file_tool', params=[
-            ToolParam(name='path', required=True, type_hint='path'),
-            ToolParam(name='content', required=True),
-        ])
+        schema1 = ToolSchema(
+            "write_file_tool",
+            params=[
+                ToolParam(name="path", required=True, type_hint="path"),
+                ToolParam(name="content", required=True),
+            ],
+        )
 
         resolver1 = ParameterResolver(outputs)
         resolved1 = resolver1.resolve(step1.params, step1, tool_schema=schema1)
 
-        assert resolved1['path'] == 'stats.py'
-        assert 'import statistics' in resolved1['content']
-        assert 'def mean' in resolved1['content']
+        assert resolved1["path"] == "stats.py"
+        assert "import statistics" in resolved1["content"]
+        assert "def mean" in resolved1["content"]
 
     def test_code_gen_wrong_step_content_blocked(self):
         """Step 2 (write stats.py) must NOT get __init__.py from step 0."""
+        from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
+        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
         from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
-        from Jotty.core.modes.agent._execution_types import (
-            ExecutionStep as AgenticStep, ToolSchema, ToolParam,
-        )
 
         # Step 0: wrote __init__.py
         # Step 1: generated stats.py code
         outputs = {
-            'step_0': {
-                'content': '# __init__.py\nfrom .stats import mean\nfrom .utils import helper\n__all__ = ["mean", "helper"]',
-                'path': '__init__.py',
-                'success': True,
-                'bytes_written': 85,
+            "step_0": {
+                "content": '# __init__.py\nfrom .stats import mean\nfrom .utils import helper\n__all__ = ["mean", "helper"]',
+                "path": "__init__.py",
+                "success": True,
+                "bytes_written": 85,
             },
-            'step_1': {
-                'content': 'import statistics\n\ndef mean(data):\n    return statistics.mean(data)\n\ndef stdev(data):\n    return statistics.stdev(data)',
-                'response': 'Here is the stats module code...',
-                'success': True,
+            "step_1": {
+                "content": "import statistics\n\ndef mean(data):\n    return statistics.mean(data)\n\ndef stdev(data):\n    return statistics.stdev(data)",
+                "response": "Here is the stats module code...",
+                "success": True,
             },
         }
 
         # Step 2: Write stats.py — depends on step 1 ONLY
         step2 = AgenticStep(
-            'file-operations', 'write_file_tool',
-            {'path': 'stats.py'},
-            'Save stats module code to stats.py',
+            "file-operations",
+            "write_file_tool",
+            {"path": "stats.py"},
+            "Save stats module code to stats.py",
             depends_on=[1],
-            inputs_needed={'content': 'step_1.content', 'path': 'literal:stats.py'},
+            inputs_needed={"content": "step_1.content", "path": "literal:stats.py"},
         )
 
-        schema = ToolSchema('write_file_tool', params=[
-            ToolParam(name='path', required=True, type_hint='path'),
-            ToolParam(name='content', required=True),
-        ])
+        schema = ToolSchema(
+            "write_file_tool",
+            params=[
+                ToolParam(name="path", required=True, type_hint="path"),
+                ToolParam(name="content", required=True),
+            ],
+        )
 
         resolver = ParameterResolver(outputs)
         resolved = resolver.resolve(step2.params, step2, tool_schema=schema)
 
         # CRITICAL: content must be from step_1, NOT step_0
-        assert 'import statistics' in resolved['content']
-        assert '__init__' not in resolved['content']
-        assert '__all__' not in resolved['content']
+        assert "import statistics" in resolved["content"]
+        assert "__init__" not in resolved["content"]
+        assert "__all__" not in resolved["content"]
 
     def test_shell_exec_after_file_write(self):
         """Step 3 (shell exec) gets correct file path from step 2."""
+        from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
+        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
         from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
-        from Jotty.core.modes.agent._execution_types import (
-            ExecutionStep as AgenticStep, ToolSchema, ToolParam,
-        )
 
         outputs = {
-            'step_0': {'content': 'generated code...', 'success': True},
-            'step_1': {'path': '/tmp/project/stats.py', 'bytes_written': 200, 'success': True},
+            "step_0": {"content": "generated code...", "success": True},
+            "step_1": {"path": "/tmp/project/stats.py", "bytes_written": 200, "success": True},
         }
 
         step3 = AgenticStep(
-            'shell-exec', 'execute_command_tool',
-            {'command': 'python /tmp/project/stats.py'},
-            'Run the stats module',
+            "shell-exec",
+            "execute_command_tool",
+            {"command": "python /tmp/project/stats.py"},
+            "Run the stats module",
             depends_on=[1],
-            inputs_needed={'command': 'literal:python /tmp/project/stats.py'},
+            inputs_needed={"command": "literal:python /tmp/project/stats.py"},
         )
 
-        schema = ToolSchema('execute_command_tool', params=[
-            ToolParam(name='command', required=True),
-        ])
+        schema = ToolSchema(
+            "execute_command_tool",
+            params=[
+                ToolParam(name="command", required=True),
+            ],
+        )
 
         resolver = ParameterResolver(outputs)
         resolved = resolver.resolve(step3.params, step3, tool_schema=schema)
-        assert resolved['command'] == 'python /tmp/project/stats.py'
+        assert resolved["command"] == "python /tmp/project/stats.py"
 
 
 @pytest.mark.unit
@@ -5930,96 +6472,113 @@ class TestRealWorldResearchSynthesis:
 
     def test_comparison_synthesis_uses_correct_research(self):
         """Synthesis step (step 2) gets both search results from steps 0 and 1."""
+        from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
+        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
         from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
-        from Jotty.core.modes.agent._execution_types import (
-            ExecutionStep as AgenticStep, ToolSchema, ToolParam,
-        )
 
         outputs = {
-            'search_react': {
-                'query': 'React framework features 2026',
-                'results': [
-                    {'title': 'React 20 Features', 'snippet': 'Server components, Suspense...', 'url': 'https://react.dev'},
-                    {'title': 'React Performance', 'snippet': 'Concurrent mode, automatic batching...'},
+            "search_react": {
+                "query": "React framework features 2026",
+                "results": [
+                    {
+                        "title": "React 20 Features",
+                        "snippet": "Server components, Suspense...",
+                        "url": "https://react.dev",
+                    },
+                    {
+                        "title": "React Performance",
+                        "snippet": "Concurrent mode, automatic batching...",
+                    },
                 ],
-                'success': True,
+                "success": True,
             },
-            'search_vue': {
-                'query': 'Vue framework features 2026',
-                'results': [
-                    {'title': 'Vue 4 Features', 'snippet': 'Vapor mode, Composition API...', 'url': 'https://vuejs.org'},
-                    {'title': 'Vue Performance', 'snippet': 'Reactivity system, tree-shaking...'},
+            "search_vue": {
+                "query": "Vue framework features 2026",
+                "results": [
+                    {
+                        "title": "Vue 4 Features",
+                        "snippet": "Vapor mode, Composition API...",
+                        "url": "https://vuejs.org",
+                    },
+                    {"title": "Vue Performance", "snippet": "Reactivity system, tree-shaking..."},
                 ],
-                'success': True,
+                "success": True,
             },
         }
 
         # Step 2: Synthesize — references both search outputs
         step2 = AgenticStep(
-            'claude-cli-llm', 'generate_text_tool',
-            {'prompt': 'Using research:\n${search_react}\n${search_vue}\n\nCreate comparison.'},
-            'Create structured React vs Vue comparison',
+            "claude-cli-llm",
+            "generate_text_tool",
+            {"prompt": "Using research:\n${search_react}\n${search_vue}\n\nCreate comparison."},
+            "Create structured React vs Vue comparison",
             depends_on=[0, 1],
             inputs_needed={
-                'prompt': 'literal:Using research from both searches, create a comparison.',
+                "prompt": "literal:Using research from both searches, create a comparison.",
             },
-            outputs_produced=['response', 'content'],
+            outputs_produced=["response", "content"],
         )
 
-        schema = ToolSchema('generate_text_tool', params=[
-            ToolParam(name='prompt', required=True),
-        ])
+        schema = ToolSchema(
+            "generate_text_tool",
+            params=[
+                ToolParam(name="prompt", required=True),
+            ],
+        )
 
         resolver = ParameterResolver(outputs)
         resolved = resolver.resolve(step2.params, step2, tool_schema=schema)
 
         # Template substitution should inject both search results
-        assert 'React' in resolved['prompt'] or 'search_react' in resolved['prompt']
+        assert "React" in resolved["prompt"] or "search_react" in resolved["prompt"]
 
     def test_pdf_step_gets_synthesis_not_raw_search(self):
         """PDF creation step gets the synthesis output, not raw search JSON."""
+        from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
+        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
         from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
-        from Jotty.core.modes.agent._execution_types import (
-            ExecutionStep as AgenticStep, ToolSchema, ToolParam,
-        )
 
         outputs = {
-            'search_react': {
-                'results': [{'title': 'React Features'}],
-                'success': True,
+            "search_react": {
+                "results": [{"title": "React Features"}],
+                "success": True,
             },
-            'search_vue': {
-                'results': [{'title': 'Vue Features'}],
-                'success': True,
+            "search_vue": {
+                "results": [{"title": "Vue Features"}],
+                "success": True,
             },
-            'synthesis': {
-                'content': '# React vs Vue Comparison\n\n## Performance\nReact uses virtual DOM...\n\n## Learning Curve\nVue has gentler learning curve...\n\n## Ecosystem\nReact has larger ecosystem...',
-                'response': 'Here is the comparison report...',
-                'success': True,
+            "synthesis": {
+                "content": "# React vs Vue Comparison\n\n## Performance\nReact uses virtual DOM...\n\n## Learning Curve\nVue has gentler learning curve...\n\n## Ecosystem\nReact has larger ecosystem...",
+                "response": "Here is the comparison report...",
+                "success": True,
             },
         }
 
         # Step 3: Create PDF — depends on synthesis (step 2) only
         step3 = AgenticStep(
-            'file-operations', 'write_file_tool',
-            {'content': '${synthesis.content}', 'path': 'react_vs_vue.md'},
-            'Save comparison report as markdown',
+            "file-operations",
+            "write_file_tool",
+            {"content": "${synthesis.content}", "path": "react_vs_vue.md"},
+            "Save comparison report as markdown",
             depends_on=[2],
-            inputs_needed={'content': 'synthesis.content', 'path': 'literal:react_vs_vue.md'},
+            inputs_needed={"content": "synthesis.content", "path": "literal:react_vs_vue.md"},
         )
 
-        schema = ToolSchema('write_file_tool', params=[
-            ToolParam(name='path', required=True, type_hint='path'),
-            ToolParam(name='content', required=True),
-        ])
+        schema = ToolSchema(
+            "write_file_tool",
+            params=[
+                ToolParam(name="path", required=True, type_hint="path"),
+                ToolParam(name="content", required=True),
+            ],
+        )
 
         resolver = ParameterResolver(outputs)
         resolved = resolver.resolve(step3.params, step3, tool_schema=schema)
 
         # Content MUST be the synthesis, not raw search results
-        assert '# React vs Vue Comparison' in resolved['content']
-        assert 'Performance' in resolved['content']
-        assert resolved['path'] == 'react_vs_vue.md'
+        assert "# React vs Vue Comparison" in resolved["content"]
+        assert "Performance" in resolved["content"]
+        assert resolved["path"] == "react_vs_vue.md"
 
 
 @pytest.mark.unit
@@ -6033,148 +6592,164 @@ class TestRealWorldMultiFileProject:
     def _build_outputs_after_codegen(self):
         """Simulate step_0 through step_2: LLM generated 3 files."""
         return {
-            'gen_init': {
-                'content': '"""MyProject package."""\nfrom .main import run\nfrom .utils import helper\n__version__ = "1.0.0"',
-                'success': True,
+            "gen_init": {
+                "content": '"""MyProject package."""\nfrom .main import run\nfrom .utils import helper\n__version__ = "1.0.0"',
+                "success": True,
             },
-            'gen_main': {
-                'content': '"""Main entry point."""\nimport sys\nfrom .utils import helper\n\ndef run():\n    data = helper(sys.argv[1:])\n    print(f"Result: {data}")\n\nif __name__ == "__main__":\n    run()',
-                'success': True,
+            "gen_main": {
+                "content": '"""Main entry point."""\nimport sys\nfrom .utils import helper\n\ndef run():\n    data = helper(sys.argv[1:])\n    print(f"Result: {data}")\n\nif __name__ == "__main__":\n    run()',
+                "success": True,
             },
-            'gen_utils': {
-                'content': '"""Utility functions."""\nimport json\nimport os\n\ndef helper(args):\n    return {"args": args, "cwd": os.getcwd()}\n\ndef load_config(path):\n    with open(path) as f:\n        return json.load(f)',
-                'success': True,
+            "gen_utils": {
+                "content": '"""Utility functions."""\nimport json\nimport os\n\ndef helper(args):\n    return {"args": args, "cwd": os.getcwd()}\n\ndef load_config(path):\n    with open(path) as f:\n        return json.load(f)',
+                "success": True,
             },
         }
 
     def test_init_file_gets_init_content(self):
         """__init__.py write step gets __init__ content, not main.py or utils.py."""
+        from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
+        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
         from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
-        from Jotty.core.modes.agent._execution_types import (
-            ExecutionStep as AgenticStep, ToolSchema, ToolParam,
-        )
 
         outputs = self._build_outputs_after_codegen()
 
         step = AgenticStep(
-            'file-operations', 'write_file_tool', {},
-            'Write __init__.py',
+            "file-operations",
+            "write_file_tool",
+            {},
+            "Write __init__.py",
             depends_on=[0],
-            inputs_needed={'content': 'gen_init.content', 'path': 'literal:myproject/__init__.py'},
+            inputs_needed={"content": "gen_init.content", "path": "literal:myproject/__init__.py"},
         )
 
-        schema = ToolSchema('write_file_tool', params=[
-            ToolParam(name='path', required=True, type_hint='path'),
-            ToolParam(name='content', required=True),
-        ])
+        schema = ToolSchema(
+            "write_file_tool",
+            params=[
+                ToolParam(name="path", required=True, type_hint="path"),
+                ToolParam(name="content", required=True),
+            ],
+        )
 
         resolver = ParameterResolver(outputs)
         resolved = resolver.resolve({}, step, tool_schema=schema)
 
-        assert '__version__' in resolved['content']
-        assert 'from .main import run' in resolved['content']
-        assert 'def run()' not in resolved['content']  # NOT main.py content
-        assert 'def helper' not in resolved['content']  # NOT utils.py content
-        assert resolved['path'] == 'myproject/__init__.py'
+        assert "__version__" in resolved["content"]
+        assert "from .main import run" in resolved["content"]
+        assert "def run()" not in resolved["content"]  # NOT main.py content
+        assert "def helper" not in resolved["content"]  # NOT utils.py content
+        assert resolved["path"] == "myproject/__init__.py"
 
     def test_main_file_gets_main_content(self):
         """main.py write step gets main content, not __init__.py or utils.py."""
+        from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
+        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
         from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
-        from Jotty.core.modes.agent._execution_types import (
-            ExecutionStep as AgenticStep, ToolSchema, ToolParam,
-        )
 
         outputs = self._build_outputs_after_codegen()
 
         step = AgenticStep(
-            'file-operations', 'write_file_tool', {},
-            'Write main.py',
+            "file-operations",
+            "write_file_tool",
+            {},
+            "Write main.py",
             depends_on=[1],
-            inputs_needed={'content': 'gen_main.content', 'path': 'literal:myproject/main.py'},
+            inputs_needed={"content": "gen_main.content", "path": "literal:myproject/main.py"},
         )
 
-        schema = ToolSchema('write_file_tool', params=[
-            ToolParam(name='path', required=True, type_hint='path'),
-            ToolParam(name='content', required=True),
-        ])
+        schema = ToolSchema(
+            "write_file_tool",
+            params=[
+                ToolParam(name="path", required=True, type_hint="path"),
+                ToolParam(name="content", required=True),
+            ],
+        )
 
         resolver = ParameterResolver(outputs)
         resolved = resolver.resolve({}, step, tool_schema=schema)
 
-        assert 'def run()' in resolved['content']
-        assert 'if __name__' in resolved['content']
-        assert '__version__' not in resolved['content']  # NOT __init__.py
-        assert 'def helper' not in resolved['content']  # NOT utils.py (only import)
-        assert resolved['path'] == 'myproject/main.py'
+        assert "def run()" in resolved["content"]
+        assert "if __name__" in resolved["content"]
+        assert "__version__" not in resolved["content"]  # NOT __init__.py
+        assert "def helper" not in resolved["content"]  # NOT utils.py (only import)
+        assert resolved["path"] == "myproject/main.py"
 
     def test_utils_file_gets_utils_content(self):
         """utils.py write step gets utils content, not __init__.py or main.py."""
+        from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
+        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
         from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
-        from Jotty.core.modes.agent._execution_types import (
-            ExecutionStep as AgenticStep, ToolSchema, ToolParam,
-        )
 
         outputs = self._build_outputs_after_codegen()
 
         step = AgenticStep(
-            'file-operations', 'write_file_tool', {},
-            'Write utils.py',
+            "file-operations",
+            "write_file_tool",
+            {},
+            "Write utils.py",
             depends_on=[2],
-            inputs_needed={'content': 'gen_utils.content', 'path': 'literal:myproject/utils.py'},
+            inputs_needed={"content": "gen_utils.content", "path": "literal:myproject/utils.py"},
         )
 
-        schema = ToolSchema('write_file_tool', params=[
-            ToolParam(name='path', required=True, type_hint='path'),
-            ToolParam(name='content', required=True),
-        ])
+        schema = ToolSchema(
+            "write_file_tool",
+            params=[
+                ToolParam(name="path", required=True, type_hint="path"),
+                ToolParam(name="content", required=True),
+            ],
+        )
 
         resolver = ParameterResolver(outputs)
         resolved = resolver.resolve({}, step, tool_schema=schema)
 
-        assert 'def helper' in resolved['content']
-        assert 'def load_config' in resolved['content']
-        assert '__version__' not in resolved['content']  # NOT __init__.py
-        assert 'def run()' not in resolved['content']  # NOT main.py
-        assert resolved['path'] == 'myproject/utils.py'
+        assert "def helper" in resolved["content"]
+        assert "def load_config" in resolved["content"]
+        assert "__version__" not in resolved["content"]  # NOT __init__.py
+        assert "def run()" not in resolved["content"]  # NOT main.py
+        assert resolved["path"] == "myproject/utils.py"
 
     def test_all_three_files_get_unique_content(self):
         """All 3 write steps produce different content — no cross-contamination."""
+        from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
+        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
         from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
-        from Jotty.core.modes.agent._execution_types import (
-            ExecutionStep as AgenticStep, ToolSchema, ToolParam,
-        )
 
         outputs = self._build_outputs_after_codegen()
 
-        schema = ToolSchema('write_file_tool', params=[
-            ToolParam(name='path', required=True, type_hint='path'),
-            ToolParam(name='content', required=True),
-        ])
+        schema = ToolSchema(
+            "write_file_tool",
+            params=[
+                ToolParam(name="path", required=True, type_hint="path"),
+                ToolParam(name="content", required=True),
+            ],
+        )
 
         files = [
-            ('gen_init', 'myproject/__init__.py', 0),
-            ('gen_main', 'myproject/main.py', 1),
-            ('gen_utils', 'myproject/utils.py', 2),
+            ("gen_init", "myproject/__init__.py", 0),
+            ("gen_main", "myproject/main.py", 1),
+            ("gen_utils", "myproject/utils.py", 2),
         ]
 
         resolved_contents = []
         for source_key, path, dep_idx in files:
             step = AgenticStep(
-                'file-operations', 'write_file_tool', {},
-                f'Write {path}',
+                "file-operations",
+                "write_file_tool",
+                {},
+                f"Write {path}",
                 depends_on=[dep_idx],
-                inputs_needed={'content': f'{source_key}.content', 'path': f'literal:{path}'},
+                inputs_needed={"content": f"{source_key}.content", "path": f"literal:{path}"},
             )
             resolver = ParameterResolver(outputs)
             resolved = resolver.resolve({}, step, tool_schema=schema)
-            resolved_contents.append(resolved['content'])
+            resolved_contents.append(resolved["content"])
 
         # All 3 contents must be different
         assert len(set(resolved_contents)) == 3
         # Each content should be the correct one
-        assert '__version__' in resolved_contents[0]
-        assert 'def run()' in resolved_contents[1]
-        assert 'def helper' in resolved_contents[2]
+        assert "__version__" in resolved_contents[0]
+        assert "def run()" in resolved_contents[1]
+        assert "def helper" in resolved_contents[2]
 
 
 @pytest.mark.unit
@@ -6187,76 +6762,82 @@ class TestRealWorldWebScrapeAnalyze:
 
     def test_analysis_step_receives_scraped_data(self):
         """Analysis step (step 1) should get scraped data from step 0."""
+        from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
+        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
         from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
-        from Jotty.core.modes.agent._execution_types import (
-            ExecutionStep as AgenticStep, ToolSchema, ToolParam,
-        )
 
         outputs = {
-            'scrape_hn': {
-                'content': '1. Show HN: AI Code Review Tool (120 points)\n2. Ask HN: Best practices for LLM caching (89 points)\n3. PostgreSQL 17 Released (450 points)',
-                'url': 'https://news.ycombinator.com',
-                'success': True,
+            "scrape_hn": {
+                "content": "1. Show HN: AI Code Review Tool (120 points)\n2. Ask HN: Best practices for LLM caching (89 points)\n3. PostgreSQL 17 Released (450 points)",
+                "url": "https://news.ycombinator.com",
+                "success": True,
             },
         }
 
         step1 = AgenticStep(
-            'claude-cli-llm', 'generate_text_tool',
-            {'prompt': 'Analyze these HN headlines for trends:\n${scrape_hn.content}'},
-            'Analyze HN trends',
+            "claude-cli-llm",
+            "generate_text_tool",
+            {"prompt": "Analyze these HN headlines for trends:\n${scrape_hn.content}"},
+            "Analyze HN trends",
             depends_on=[0],
-            inputs_needed={'prompt': 'literal:Analyze HN headlines for trends'},
+            inputs_needed={"prompt": "literal:Analyze HN headlines for trends"},
         )
 
-        schema = ToolSchema('generate_text_tool', params=[
-            ToolParam(name='prompt', required=True),
-        ])
+        schema = ToolSchema(
+            "generate_text_tool",
+            params=[
+                ToolParam(name="prompt", required=True),
+            ],
+        )
 
         resolver = ParameterResolver(outputs)
         resolved = resolver.resolve(step1.params, step1, tool_schema=schema)
 
         # Template ${scrape_hn.content} should resolve to the scraped content
-        assert 'Show HN' in resolved['prompt']
-        assert 'PostgreSQL 17' in resolved['prompt']
+        assert "Show HN" in resolved["prompt"]
+        assert "PostgreSQL 17" in resolved["prompt"]
 
     def test_report_step_gets_analysis_not_scrape(self):
         """Report write step (step 2) gets analysis output, not raw scrape."""
+        from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
+        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
         from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
-        from Jotty.core.modes.agent._execution_types import (
-            ExecutionStep as AgenticStep, ToolSchema, ToolParam,
-        )
 
         outputs = {
-            'scrape_hn': {
-                'content': '1. Show HN: AI Tool (120pts)\n2. PostgreSQL 17 (450pts)',
-                'success': True,
+            "scrape_hn": {
+                "content": "1. Show HN: AI Tool (120pts)\n2. PostgreSQL 17 (450pts)",
+                "success": True,
             },
-            'analysis': {
-                'content': '# HN Trends Analysis\n\n## Key Themes\n1. AI/ML tools dominate\n2. Database releases generate buzz\n\n## Recommendations\n- Focus on AI tooling\n- Monitor DB ecosystem',
-                'success': True,
+            "analysis": {
+                "content": "# HN Trends Analysis\n\n## Key Themes\n1. AI/ML tools dominate\n2. Database releases generate buzz\n\n## Recommendations\n- Focus on AI tooling\n- Monitor DB ecosystem",
+                "success": True,
             },
         }
 
         step2 = AgenticStep(
-            'file-operations', 'write_file_tool',
-            {'content': '${analysis.content}', 'path': 'hn_trends.md'},
-            'Save trends analysis report',
+            "file-operations",
+            "write_file_tool",
+            {"content": "${analysis.content}", "path": "hn_trends.md"},
+            "Save trends analysis report",
             depends_on=[1],
-            inputs_needed={'content': 'analysis.content', 'path': 'literal:hn_trends.md'},
+            inputs_needed={"content": "analysis.content", "path": "literal:hn_trends.md"},
         )
 
-        schema = ToolSchema('write_file_tool', params=[
-            ToolParam(name='path', required=True, type_hint='path'),
-            ToolParam(name='content', required=True),
-        ])
+        schema = ToolSchema(
+            "write_file_tool",
+            params=[
+                ToolParam(name="path", required=True, type_hint="path"),
+                ToolParam(name="content", required=True),
+            ],
+        )
 
         resolver = ParameterResolver(outputs)
         resolved = resolver.resolve(step2.params, step2, tool_schema=schema)
 
         # Must be analysis content, not raw scrape
-        assert '# HN Trends Analysis' in resolved['content']
-        assert 'Key Themes' in resolved['content']
-        assert resolved['path'] == 'hn_trends.md'
+        assert "# HN Trends Analysis" in resolved["content"]
+        assert "Key Themes" in resolved["content"]
+        assert resolved["path"] == "hn_trends.md"
 
 
 @pytest.mark.unit
@@ -6266,15 +6847,15 @@ class TestRealWorldDependencyResults:
     def _simulate_dep_injection(self, step, outputs):
         """Simulate the dependency results injection logic from execute_step."""
         resolved_params = dict(step.params)
-        if hasattr(step, 'depends_on') and step.depends_on and 'context' not in resolved_params:
+        if hasattr(step, "depends_on") and step.depends_on and "context" not in resolved_params:
             dep_results = {}
             for dep_idx in step.depends_on:
-                dep_key = f'step_{dep_idx}'
+                dep_key = f"step_{dep_idx}"
                 for k, v in outputs.items():
-                    if k == dep_key or k.startswith(f'step_{dep_idx}'):
+                    if k == dep_key or k.startswith(f"step_{dep_idx}"):
                         dep_results[k] = str(v)[:500] if isinstance(v, dict) else str(v)[:500]
             if dep_results:
-                resolved_params['_dependency_results'] = json.dumps(dep_results, default=str)
+                resolved_params["_dependency_results"] = json.dumps(dep_results, default=str)
         return resolved_params
 
     def test_synthesis_step_gets_all_dependency_outputs(self):
@@ -6282,57 +6863,68 @@ class TestRealWorldDependencyResults:
         from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
 
         outputs = {
-            'step_0': {'query': 'React features', 'results': [{'title': 'React 20'}], 'success': True},
-            'step_1': {'query': 'Vue features', 'results': [{'title': 'Vue 4'}], 'success': True},
-            'step_2': {'query': 'Angular features', 'results': [{'title': 'Angular 18'}], 'success': True},
+            "step_0": {
+                "query": "React features",
+                "results": [{"title": "React 20"}],
+                "success": True,
+            },
+            "step_1": {"query": "Vue features", "results": [{"title": "Vue 4"}], "success": True},
+            "step_2": {
+                "query": "Angular features",
+                "results": [{"title": "Angular 18"}],
+                "success": True,
+            },
         }
 
         step = AgenticStep(
-            'claude-cli-llm', 'generate_text_tool',
-            {'prompt': 'Compare all three frameworks'},
-            'Create framework comparison',
+            "claude-cli-llm",
+            "generate_text_tool",
+            {"prompt": "Compare all three frameworks"},
+            "Create framework comparison",
             depends_on=[0, 1, 2],
         )
 
         resolved = self._simulate_dep_injection(step, outputs)
-        dep_json = json.loads(resolved['_dependency_results'])
+        dep_json = json.loads(resolved["_dependency_results"])
 
-        assert 'step_0' in dep_json
-        assert 'step_1' in dep_json
-        assert 'step_2' in dep_json
-        assert 'React' in dep_json['step_0']
-        assert 'Vue' in dep_json['step_1']
-        assert 'Angular' in dep_json['step_2']
+        assert "step_0" in dep_json
+        assert "step_1" in dep_json
+        assert "step_2" in dep_json
+        assert "React" in dep_json["step_0"]
+        assert "Vue" in dep_json["step_1"]
+        assert "Angular" in dep_json["step_2"]
 
     def test_no_injection_when_context_already_present(self):
         """If 'context' param already exists, don't inject _dependency_results."""
         from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
 
-        outputs = {'step_0': {'content': 'data', 'success': True}}
+        outputs = {"step_0": {"content": "data", "success": True}}
         step = AgenticStep(
-            'claude-cli-llm', 'generate_text_tool',
-            {'prompt': 'test', 'context': 'existing context'},
-            'Test',
+            "claude-cli-llm",
+            "generate_text_tool",
+            {"prompt": "test", "context": "existing context"},
+            "Test",
             depends_on=[0],
         )
 
         resolved = self._simulate_dep_injection(step, outputs)
-        assert '_dependency_results' not in resolved
-        assert resolved['context'] == 'existing context'
+        assert "_dependency_results" not in resolved
+        assert resolved["context"] == "existing context"
 
     def test_no_injection_without_depends_on(self):
         """Steps without depends_on get no injection."""
         from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
 
-        outputs = {'step_0': {'content': 'data'}}
+        outputs = {"step_0": {"content": "data"}}
         step = AgenticStep(
-            'web-search', 'search_web_tool',
-            {'query': 'test'},
-            'Search',
+            "web-search",
+            "search_web_tool",
+            {"query": "test"},
+            "Search",
         )
 
         resolved = self._simulate_dep_injection(step, outputs)
-        assert '_dependency_results' not in resolved
+        assert "_dependency_results" not in resolved
 
 
 @pytest.mark.unit
@@ -6345,80 +6937,86 @@ class TestRealWorldReplanRecovery:
 
     def test_replan_step_resolves_from_surviving_outputs(self):
         """After replan, new step correctly resolves from pre-replan outputs."""
+        from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
+        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
         from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
-        from Jotty.core.modes.agent._execution_types import (
-            ExecutionStep as AgenticStep, ToolSchema, ToolParam,
-        )
 
         # Steps 0-1 succeeded before replan
         outputs = {
-            'research_data': {
-                'content': '## Market Analysis\nTech stocks up 15%...\nAI sector leading...',
-                'query': 'stock market trends 2026',
-                'results': [{'title': 'Market Report', 'snippet': 'Tech up 15%'}],
-                'success': True,
+            "research_data": {
+                "content": "## Market Analysis\nTech stocks up 15%...\nAI sector leading...",
+                "query": "stock market trends 2026",
+                "results": [{"title": "Market Report", "snippet": "Tech up 15%"}],
+                "success": True,
             },
-            'step_1': {
-                'content': '# Investment Report\n\nBased on analysis...\n\n## Recommendations\n1. Increase AI exposure\n2. Diversify into emerging markets',
-                'success': True,
+            "step_1": {
+                "content": "# Investment Report\n\nBased on analysis...\n\n## Recommendations\n1. Increase AI exposure\n2. Diversify into emerging markets",
+                "success": True,
             },
         }
 
         # Replan produced this new step — depends on step_1's synthesis
         replan_step = AgenticStep(
-            'file-operations', 'write_file_tool',
-            {'content': '${step_1.content}', 'path': 'investment_report.md'},
-            'Save investment report (replan: PDF failed, falling back to markdown)',
+            "file-operations",
+            "write_file_tool",
+            {"content": "${step_1.content}", "path": "investment_report.md"},
+            "Save investment report (replan: PDF failed, falling back to markdown)",
             depends_on=[1],
-            inputs_needed={'content': 'step_1.content', 'path': 'literal:investment_report.md'},
+            inputs_needed={"content": "step_1.content", "path": "literal:investment_report.md"},
         )
 
-        schema = ToolSchema('write_file_tool', params=[
-            ToolParam(name='path', required=True, type_hint='path'),
-            ToolParam(name='content', required=True),
-        ])
+        schema = ToolSchema(
+            "write_file_tool",
+            params=[
+                ToolParam(name="path", required=True, type_hint="path"),
+                ToolParam(name="content", required=True),
+            ],
+        )
 
         resolver = ParameterResolver(outputs)
         resolved = resolver.resolve(replan_step.params, replan_step, tool_schema=schema)
 
-        assert '# Investment Report' in resolved['content']
-        assert 'Recommendations' in resolved['content']
-        assert resolved['path'] == 'investment_report.md'
+        assert "# Investment Report" in resolved["content"]
+        assert "Recommendations" in resolved["content"]
+        assert resolved["path"] == "investment_report.md"
         # Should NOT contain raw research data
-        assert 'Tech stocks up 15%' not in resolved['content']
+        assert "Tech stocks up 15%" not in resolved["content"]
 
     def test_replan_with_custom_output_keys(self):
         """Replan steps referencing custom output_keys resolve correctly."""
-        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
 
         outputs = {
-            'weather_data': {
-                'temperature': '32C',
-                'humidity': '65%',
-                'city': 'Delhi',
-                'content': 'Current weather in Delhi: 32C, 65% humidity, sunny',
-                'success': True,
+            "weather_data": {
+                "temperature": "32C",
+                "humidity": "65%",
+                "city": "Delhi",
+                "content": "Current weather in Delhi: 32C, 65% humidity, sunny",
+                "success": True,
             },
-            'forecast': {
-                'content': 'Delhi forecast: 33C tomorrow, 30C day after, rain expected Thursday',
-                'success': True,
+            "forecast": {
+                "content": "Delhi forecast: 33C tomorrow, 30C day after, rain expected Thursday",
+                "success": True,
             },
         }
 
         # Template referencing custom output_key
         step = AgenticStep(
-            'claude-cli-llm', 'generate_text_tool',
-            {'prompt': 'Current: ${weather_data.content}\nForecast: ${forecast.content}\n\nSummarize weather outlook.'},
-            'Summarize Delhi weather',
+            "claude-cli-llm",
+            "generate_text_tool",
+            {
+                "prompt": "Current: ${weather_data.content}\nForecast: ${forecast.content}\n\nSummarize weather outlook."
+            },
+            "Summarize Delhi weather",
             depends_on=[0, 1],
         )
 
         resolver = ParameterResolver(outputs)
         resolved = resolver.resolve(step.params, step)
 
-        assert '32C' in resolved['prompt']
-        assert 'rain expected Thursday' in resolved['prompt']
+        assert "32C" in resolved["prompt"]
+        assert "rain expected Thursday" in resolved["prompt"]
 
 
 @pytest.mark.unit
@@ -6427,171 +7025,189 @@ class TestRealWorldEdgeCases:
 
     def test_empty_io_contracts_backward_compat(self):
         """Steps without I/O contracts still resolve via templates (backward compat)."""
-        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
 
         outputs = {
-            'step_0': {'content': 'Generated report content with enough length to pass threshold checks easily', 'success': True},
+            "step_0": {
+                "content": "Generated report content with enough length to pass threshold checks easily",
+                "success": True,
+            },
         }
 
         # Old-style step — no inputs_needed, no outputs_produced
         step = AgenticStep(
-            'file-operations', 'write_file_tool',
-            {'content': '${step_0.content}', 'path': 'report.md'},
-            'Save report',
+            "file-operations",
+            "write_file_tool",
+            {"content": "${step_0.content}", "path": "report.md"},
+            "Save report",
             depends_on=[0],
         )
 
         resolver = ParameterResolver(outputs)
         resolved = resolver.resolve(step.params, step)
 
-        assert 'Generated report content' in resolved['content']
-        assert resolved['path'] == 'report.md'
+        assert "Generated report content" in resolved["content"]
+        assert resolved["path"] == "report.md"
 
     def test_literal_prefix_with_special_chars(self):
         """Literal sources with special characters resolve correctly."""
-        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
 
         step = AgenticStep(
-            'file-operations', 'write_file_tool', {},
-            'Write file',
+            "file-operations",
+            "write_file_tool",
+            {},
+            "Write file",
             inputs_needed={
-                'path': 'literal:/tmp/my project/output (2).txt',
-                'content': 'literal:Hello, World!\nSecond line.',
+                "path": "literal:/tmp/my project/output (2).txt",
+                "content": "literal:Hello, World!\nSecond line.",
             },
         )
 
         resolver = ParameterResolver({})
         resolved = resolver.resolve({}, step)
 
-        assert resolved['path'] == '/tmp/my project/output (2).txt'
-        assert resolved['content'] == 'Hello, World!\nSecond line.'
+        assert resolved["path"] == "/tmp/my project/output (2).txt"
+        assert resolved["content"] == "Hello, World!\nSecond line."
 
     def test_mixed_literal_and_step_references(self):
         """Mix of literal and step references in same inputs_needed."""
-        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
 
         outputs = {
-            'codegen': {
-                'content': 'def fibonacci(n):\n    if n <= 1: return n\n    return fibonacci(n-1) + fibonacci(n-2)',
-                'success': True,
+            "codegen": {
+                "content": "def fibonacci(n):\n    if n <= 1: return n\n    return fibonacci(n-1) + fibonacci(n-2)",
+                "success": True,
             },
         }
 
         step = AgenticStep(
-            'file-operations', 'write_file_tool', {},
-            'Save fibonacci module',
+            "file-operations",
+            "write_file_tool",
+            {},
+            "Save fibonacci module",
             depends_on=[0],
             inputs_needed={
-                'content': 'codegen.content',
-                'path': 'literal:math_utils/fibonacci.py',
+                "content": "codegen.content",
+                "path": "literal:math_utils/fibonacci.py",
             },
         )
 
         resolver = ParameterResolver(outputs)
         resolved = resolver.resolve({}, step)
 
-        assert 'def fibonacci' in resolved['content']
-        assert resolved['path'] == 'math_utils/fibonacci.py'
+        assert "def fibonacci" in resolved["content"]
+        assert resolved["path"] == "math_utils/fibonacci.py"
 
     def test_io_contract_unresolved_source_falls_through(self):
         """When inputs_needed source doesn't resolve, template/auto-wire take over."""
+        from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
+        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
         from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
-        from Jotty.core.modes.agent._execution_types import (
-            ExecutionStep as AgenticStep, ToolSchema, ToolParam,
-        )
 
         outputs = {
-            'step_0': {'content': 'fallback content with sufficient length for auto-wire matching', 'success': True},
+            "step_0": {
+                "content": "fallback content with sufficient length for auto-wire matching",
+                "success": True,
+            },
         }
 
         # inputs_needed references a nonexistent output key
         step = AgenticStep(
-            'file-operations', 'write_file_tool',
-            {'content': '${step_0.content}', 'path': 'output.txt'},
-            'Write output',
+            "file-operations",
+            "write_file_tool",
+            {"content": "${step_0.content}", "path": "output.txt"},
+            "Write output",
             depends_on=[0],
-            inputs_needed={'content': 'nonexistent_step.content'},
+            inputs_needed={"content": "nonexistent_step.content"},
         )
 
-        schema = ToolSchema('write_file_tool', params=[
-            ToolParam(name='path', required=True, type_hint='path'),
-            ToolParam(name='content', required=True),
-        ])
+        schema = ToolSchema(
+            "write_file_tool",
+            params=[
+                ToolParam(name="path", required=True, type_hint="path"),
+                ToolParam(name="content", required=True),
+            ],
+        )
 
         resolver = ParameterResolver(outputs)
         resolved = resolver.resolve(step.params, step, tool_schema=schema)
 
         # Template ${step_0.content} should still resolve even though inputs_needed failed
-        assert 'fallback content' in resolved['content']
+        assert "fallback content" in resolved["content"]
 
     def test_step_with_no_outputs_yet(self):
         """First step in a plan (no previous outputs) resolves correctly."""
+        from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
+        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
         from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
-        from Jotty.core.modes.agent._execution_types import (
-            ExecutionStep as AgenticStep, ToolSchema, ToolParam,
-        )
 
         step = AgenticStep(
-            'web-search', 'search_web_tool',
-            {'query': 'Python best practices 2026'},
-            'Search for Python best practices',
-            inputs_needed={'query': 'literal:Python best practices 2026'},
-            outputs_produced=['results', 'query'],
+            "web-search",
+            "search_web_tool",
+            {"query": "Python best practices 2026"},
+            "Search for Python best practices",
+            inputs_needed={"query": "literal:Python best practices 2026"},
+            outputs_produced=["results", "query"],
         )
 
-        schema = ToolSchema('search_web_tool', params=[
-            ToolParam(name='query', required=True),
-        ])
+        schema = ToolSchema(
+            "search_web_tool",
+            params=[
+                ToolParam(name="query", required=True),
+            ],
+        )
 
         resolver = ParameterResolver({})  # Empty outputs — first step
         resolved = resolver.resolve(step.params, step, tool_schema=schema)
 
-        assert resolved['query'] == 'Python best practices 2026'
+        assert resolved["query"] == "Python best practices 2026"
 
     def test_deeply_nested_step_reference(self):
         """Dotted path with nested field access (step_0.results[0].title)."""
         from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
 
         outputs = {
-            'step_0': {
-                'results': [
-                    {'title': 'First Result', 'url': 'https://example.com'},
-                    {'title': 'Second Result', 'url': 'https://example2.com'},
+            "step_0": {
+                "results": [
+                    {"title": "First Result", "url": "https://example.com"},
+                    {"title": "Second Result", "url": "https://example2.com"},
                 ],
-                'success': True,
+                "success": True,
             },
         }
 
         resolver = ParameterResolver(outputs)
-        result = resolver.resolve_path('step_0.results[0].title')
-        assert result == 'First Result'
+        result = resolver.resolve_path("step_0.results[0].title")
+        assert result == "First Result"
 
-        result2 = resolver.resolve_path('step_0.results[1].url')
-        assert result2 == 'https://example2.com'
+        result2 = resolver.resolve_path("step_0.results[1].url")
+        assert result2 == "https://example2.com"
 
     def test_large_output_truncation_in_dependency_results(self):
         """Large outputs are truncated to 500 chars in dependency injection."""
         from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
 
-        large_content = 'x' * 2000
+        large_content = "x" * 2000
         outputs = {
-            'step_0': {'content': large_content, 'success': True},
+            "step_0": {"content": large_content, "success": True},
         }
 
         step = AgenticStep(
-            'claude-cli-llm', 'generate_text_tool',
-            {'prompt': 'Summarize'},
-            'Summarize',
+            "claude-cli-llm",
+            "generate_text_tool",
+            {"prompt": "Summarize"},
+            "Summarize",
             depends_on=[0],
         )
 
         # Simulate injection
         dep_results = {}
         for dep_idx in step.depends_on:
-            dep_key = f'step_{dep_idx}'
+            dep_key = f"step_{dep_idx}"
             for k, v in outputs.items():
                 if k == dep_key:
                     dep_results[k] = str(v)[:500] if isinstance(v, dict) else str(v)[:500]
@@ -6612,6 +7228,7 @@ class TestCodeFenceExtraction:
 
     def _extract(self, value: str) -> str:
         from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
+
         return ParameterResolver._extract_code_from_fences(value)
 
     def test_no_fences_returns_original(self):
@@ -6699,12 +7316,7 @@ class TestCodeFenceExtraction:
 
     def test_non_preamble_text_not_stripped(self):
         """Text before fences that doesn't match preamble indicators is kept."""
-        value = (
-            "## Configuration Reference\n\n"
-            "```yaml\n"
-            "key: value\n"
-            "```"
-        )
+        value = "## Configuration Reference\n\n" "```yaml\n" "key: value\n" "```"
         # "## Configuration Reference" doesn't match any preamble indicator
         assert self._extract(value) == value
 
@@ -6717,22 +7329,21 @@ class TestCodeFenceExtraction:
     def test_sanitize_content_calls_extraction(self):
         """_sanitize_content_param integrates code fence extraction."""
         from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
+
         resolver = ParameterResolver({})
         value = (
-            "I'll create a calculator:\n\n"
-            "```python\n"
-            "result = 2 + 2\nprint(result)\n"
-            "```"
+            "I'll create a calculator:\n\n" "```python\n" "result = 2 + 2\nprint(result)\n" "```"
         )
-        result = resolver._sanitize_content_param('content', value)
+        result = resolver._sanitize_content_param("content", value)
         assert result == "result = 2 + 2\nprint(result)"
 
     def test_non_content_key_skips_extraction(self):
         """_sanitize_content_param only applies to 'content' key."""
         from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
+
         resolver = ParameterResolver({})
         value = "I'll create: ```python\ncode\n```"
-        result = resolver._sanitize_content_param('query', value)
+        result = resolver._sanitize_content_param("query", value)
         assert result == value  # Unchanged for non-content keys
 
 
@@ -6743,23 +7354,23 @@ class TestCodeFenceExtractionInExecuteStep:
     @pytest.mark.asyncio
     async def test_file_write_strips_fences(self):
         """file-operations/write_file_tool strips LLM preamble from content."""
-        from Jotty.core.modes.agent.executors.skill_plan_executor import SkillPlanExecutor
         from Jotty.core.modes.agent._execution_types import ExecutionStep as AgentStep
+        from Jotty.core.modes.agent.executors.skill_plan_executor import SkillPlanExecutor
 
         mock_registry = MagicMock()
         mock_skill = MagicMock()
-        mock_tool = MagicMock(return_value={'success': True, 'path': '/tmp/test.py'})
-        mock_skill.tools = {'write_file_tool': mock_tool}
+        mock_tool = MagicMock(return_value={"success": True, "path": "/tmp/test.py"})
+        mock_skill.tools = {"write_file_tool": mock_tool}
         mock_skill.get_tool_schema.return_value = None
         mock_registry.get_skill.return_value = mock_skill
 
         executor = SkillPlanExecutor(mock_registry)
         step = AgentStep(
-            skill_name='file-operations',
-            tool_name='write_file_tool',
+            skill_name="file-operations",
+            tool_name="write_file_tool",
             params={
-                'path': '/tmp/test.py',
-                'content': (
+                "path": "/tmp/test.py",
+                "content": (
                     "I'll create a test script:\n\n"
                     "```python\n"
                     "print('hello world')\n"
@@ -6767,16 +7378,16 @@ class TestCodeFenceExtractionInExecuteStep:
                     "This prints hello world."
                 ),
             },
-            description='Write test.py',
+            description="Write test.py",
         )
 
         await executor.execute_step(step, {})
 
         # Verify the tool was called with extracted code, not full LLM response
         call_args = mock_tool.call_args[0][0]
-        assert "I'll create" not in call_args.get('content', '')
-        assert "```" not in call_args.get('content', '')
-        assert "print('hello world')" in call_args.get('content', '')
+        assert "I'll create" not in call_args.get("content", "")
+        assert "```" not in call_args.get("content", "")
+        assert "print('hello world')" in call_args.get("content", "")
 
 
 @pytest.mark.unit
@@ -6786,7 +7397,8 @@ class TestShellExecCwdFix:
     def test_cwd_not_referenced_before_assignment(self):
         """Verify the shell-exec tool doesn't reference cwd before assignment."""
         import ast
-        tools_path = Path(__file__).parent.parent / 'skills' / 'shell-exec' / 'tools.py'
+
+        tools_path = Path(__file__).parent.parent / "skills" / "shell-exec" / "tools.py"
         if not tools_path.exists():
             pytest.skip("shell-exec tools.py not found")
 
@@ -6794,14 +7406,14 @@ class TestShellExecCwdFix:
         # Parse the AST and check that `cwd` is not used before its assignment
         # in execute_command_tool. We verify by checking the source doesn't
         # contain `= cwd or` before the `cwd = None` line.
-        lines = source.split('\n')
+        lines = source.split("\n")
         cwd_assignment_line = None
         cwd_usage_line = None
         for i, line in enumerate(lines, 1):
             stripped = line.strip()
-            if stripped == 'cwd = None':
+            if stripped == "cwd = None":
                 cwd_assignment_line = i
-            if 'working_directory or os.getcwd()' in stripped and cwd_usage_line is None:
+            if "working_directory or os.getcwd()" in stripped and cwd_usage_line is None:
                 cwd_usage_line = i
 
         # The usage should reference working_directory, not cwd
@@ -6810,8 +7422,10 @@ class TestShellExecCwdFix:
             # Usage should come before assignment (it's in the NL guard block)
             # and should NOT reference `cwd` variable
             for i, line in enumerate(lines, 1):
-                if i < (cwd_assignment_line or 999) and '= cwd or' in line:
-                    pytest.fail(f"Line {i} references 'cwd' before assignment on line {cwd_assignment_line}")
+                if i < (cwd_assignment_line or 999) and "= cwd or" in line:
+                    pytest.fail(
+                        f"Line {i} references 'cwd' before assignment on line {cwd_assignment_line}"
+                    )
 
 
 # =============================================================================
@@ -6822,6 +7436,7 @@ class TestShellExecCwdFix:
 def _load_claude_api_module():
     """Load claude-api-llm tools module via sys.path (dashed dir name)."""
     import sys
+
     skill_path = str(Path(__file__).parent.parent / "skills" / "claude-api-llm")
     if skill_path not in sys.path:
         sys.path.insert(0, skill_path)
@@ -6829,6 +7444,7 @@ def _load_claude_api_module():
     if "tools" in sys.modules and hasattr(sys.modules["tools"], "ClaudeAPIClient"):
         return sys.modules["tools"]
     import importlib
+
     mod = importlib.import_module("tools")
     return mod
 
@@ -7020,7 +7636,11 @@ class TestGenerateCodeTool:
 
         good_block = Mock()
         good_block.type = "tool_use"
-        good_block.input = {"code": "def foo():\n    pass\n", "language": "python", "filename": "foo.py"}
+        good_block.input = {
+            "code": "def foo():\n    pass\n",
+            "language": "python",
+            "filename": "foo.py",
+        }
         good_block.id = "id2"
         good_block.name = "create_file"
 
@@ -7158,10 +7778,12 @@ class TestAgenticGenerateTool:
         client._client.messages.create.side_effect = [round1_response, round2_response]
         client._model = "test-model"
 
-        result = mod.agentic_generate_tool({
-            "prompt": "Create hello.py",
-            "working_directory": "/tmp",
-        })
+        result = mod.agentic_generate_tool(
+            {
+                "prompt": "Create hello.py",
+                "working_directory": "/tmp",
+            }
+        )
 
         assert result["success"] is True
         assert result["response"] == "Done! Created hello.py."
@@ -7193,10 +7815,12 @@ class TestAgenticGenerateTool:
         client._client.messages.create.return_value = loop_response
         client._model = "test-model"
 
-        result = mod.agentic_generate_tool({
-            "prompt": "Loop forever",
-            "max_tool_rounds": 2,
-        })
+        result = mod.agentic_generate_tool(
+            {
+                "prompt": "Loop forever",
+                "max_tool_rounds": 2,
+            }
+        )
 
         assert result["success"] is True
         assert result["rounds"] == 2
@@ -7245,11 +7869,16 @@ class TestAgenticToolExecutor:
         Executor = self._get_executor_class()
         (tmp_path / "file.txt").write_text("hello world")
         ex = Executor(working_directory=str(tmp_path))
-        result = json.loads(ex.execute_tool("edit_file", {
-            "path": "file.txt",
-            "old_text": "hello",
-            "new_text": "goodbye",
-        }))
+        result = json.loads(
+            ex.execute_tool(
+                "edit_file",
+                {
+                    "path": "file.txt",
+                    "old_text": "hello",
+                    "new_text": "goodbye",
+                },
+            )
+        )
         assert result["success"] is True
         assert (tmp_path / "file.txt").read_text() == "goodbye world"
 
@@ -7312,17 +7941,19 @@ class TestStructuredOutputTool:
         client._client.messages.create.return_value = mock_response
         client._model = "test-model"
 
-        result = mod.structured_output_tool({
-            "prompt": "Extract name and age from: Alice is 30",
-            "schema": {
-                "type": "object",
-                "properties": {
-                    "name": {"type": "string"},
-                    "age": {"type": "integer"},
+        result = mod.structured_output_tool(
+            {
+                "prompt": "Extract name and age from: Alice is 30",
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string"},
+                        "age": {"type": "integer"},
+                    },
+                    "required": ["name", "age"],
                 },
-                "required": ["name", "age"],
-            },
-        })
+            }
+        )
 
         assert result["success"] is True
         assert result["data"] == {"name": "Alice", "age": 30}
@@ -7411,7 +8042,9 @@ class TestSkillSubstitution:
 
         mock_registry = Mock()
         mock_cli_skill = Mock()
-        mock_cli_skill.tools = {"generate_text_tool": Mock(return_value={"success": True, "text": "hi"})}
+        mock_cli_skill.tools = {
+            "generate_text_tool": Mock(return_value={"success": True, "text": "hi"})
+        }
         mock_cli_skill.get_tool_schema = Mock(return_value=None)
         mock_registry.get_skill = Mock(return_value=mock_cli_skill)
 
@@ -7450,6 +8083,7 @@ class TestSkillSubstitution:
 # Bug Fix Regression Tests (Context Poison, Param Leakage, Tool Upgrade)
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestExtractOutputText:
     """Regression tests for _extract_output_text (Bug 1: context accumulation poison)."""
@@ -7457,16 +8091,19 @@ class TestExtractOutputText:
     def test_string_passthrough(self):
         """Plain strings are returned as-is."""
         from Jotty.core.intelligence.orchestration.paradigm_executor import _extract_output_text
+
         assert _extract_output_text("hello world") == "hello world"
 
     def test_none_returns_empty(self):
         """None returns empty string."""
         from Jotty.core.intelligence.orchestration.paradigm_executor import _extract_output_text
+
         assert _extract_output_text(None) == ""
 
     def test_agentic_execution_result_extracts_final_output(self):
         """AgenticExecutionResult-like objects extract .final_output cleanly."""
         from Jotty.core.intelligence.orchestration.paradigm_executor import _extract_output_text
+
         mock_result = Mock()
         mock_result.final_output = "This is the clean analysis text."
         mock_result.outputs = {}
@@ -7475,6 +8112,7 @@ class TestExtractOutputText:
     def test_agentic_execution_result_extracts_from_outputs_dict(self):
         """When final_output is None, extracts from .outputs dict values."""
         from Jotty.core.intelligence.orchestration.paradigm_executor import _extract_output_text
+
         mock_result = Mock()
         mock_result.final_output = None
         mock_result.outputs = {"step_0": {"content": "The real content here"}}
@@ -7485,6 +8123,7 @@ class TestExtractOutputText:
     def test_episode_result_unwraps_nested(self):
         """EpisodeResult wrapping an AgenticExecutionResult is unwrapped."""
         from Jotty.core.intelligence.orchestration.paradigm_executor import _extract_output_text
+
         inner = Mock()
         inner.final_output = "Deep clean text"
         inner.outputs = {}
@@ -7495,11 +8134,13 @@ class TestExtractOutputText:
     def test_dict_extracts_content_field(self):
         """Dict output extracts 'content' field."""
         from Jotty.core.intelligence.orchestration.paradigm_executor import _extract_output_text
+
         assert _extract_output_text({"content": "abc", "meta": "x"}) == "abc"
 
     def test_does_not_produce_repr_string(self):
         """Verify output never contains AgenticExecutionResult repr markers."""
         from Jotty.core.intelligence.orchestration.paradigm_executor import _extract_output_text
+
         mock_result = Mock()
         mock_result.final_output = "Clean output"
         mock_result.outputs = {}
@@ -7510,7 +8151,8 @@ class TestExtractOutputText:
     def test_summary_fallback(self):
         """Falls back to .summary when no other fields match."""
         from Jotty.core.intelligence.orchestration.paradigm_executor import _extract_output_text
-        obj = Mock(spec=['summary'])
+
+        obj = Mock(spec=["summary"])
         obj.summary = "Summary text"
         assert _extract_output_text(obj) == "Summary text"
 
@@ -7522,32 +8164,41 @@ class TestSmartExtractFilenameResolution:
     def test_filename_key_extracted(self):
         """_smart_extract resolves 'filename' key from tool response."""
         from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
+
         resolver = ParameterResolver({})
-        json_str = json.dumps({
-            "filename": "/tmp/output.py",
-            "content": "print('hello')",
-            "success": True,
-        })
+        json_str = json.dumps(
+            {
+                "filename": "/tmp/output.py",
+                "content": "print('hello')",
+                "success": True,
+            }
+        )
         result = resolver._smart_extract(json_str, "path")
         assert result == "/tmp/output.py"
 
     def test_filepath_key_extracted(self):
         """_smart_extract resolves 'filepath' key."""
         from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
+
         resolver = ParameterResolver({})
-        json_str = json.dumps({
-            "filepath": "/tmp/result.txt",
-            "data": "some data",
-        })
+        json_str = json.dumps(
+            {
+                "filepath": "/tmp/result.txt",
+                "data": "some data",
+            }
+        )
         result = resolver._smart_extract(json_str, "path")
         assert result == "/tmp/result.txt"
 
     def test_file_path_param_scans_outputs(self):
         """file_path param name scans outputs for path-like keys."""
         from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
-        resolver = ParameterResolver({
-            "step_0": {"filename": "/tmp/code.py", "success": True},
-        })
+
+        resolver = ParameterResolver(
+            {
+                "step_0": {"filename": "/tmp/code.py", "success": True},
+            }
+        )
         json_str = json.dumps({"filename": "/tmp/code.py", "success": True})
         result = resolver._smart_extract(json_str, "file_path")
         assert result == "/tmp/code.py"
@@ -7555,14 +8206,17 @@ class TestSmartExtractFilenameResolution:
     def test_resolve_path_large_dict_extracts_field(self):
         """resolve_path with a large dict extracts relevant field instead of full JSON."""
         from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
+
         large_content = "x" * 600
-        resolver = ParameterResolver({
-            "step_0": {
-                "filename": "/tmp/output.py",
-                "content": large_content,
-                "success": True,
-            },
-        })
+        resolver = ParameterResolver(
+            {
+                "step_0": {
+                    "filename": "/tmp/output.py",
+                    "content": large_content,
+                    "success": True,
+                },
+            }
+        )
         result = resolver.resolve_path("step_0")
         # Should extract 'filename' (a relevant short field), not dump the whole thing
         # The dict is >500 chars, so the guard should fire
@@ -7571,9 +8225,12 @@ class TestSmartExtractFilenameResolution:
     def test_resolve_path_small_dict_returns_json(self):
         """resolve_path with a small dict returns full JSON (no extraction needed)."""
         from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
-        resolver = ParameterResolver({
-            "step_0": {"path": "/tmp/f.py", "ok": True},
-        })
+
+        resolver = ParameterResolver(
+            {
+                "step_0": {"path": "/tmp/f.py", "ok": True},
+            }
+        )
         result = resolver.resolve_path("step_0")
         parsed = json.loads(result)
         assert parsed["path"] == "/tmp/f.py"
@@ -7606,13 +8263,15 @@ class TestClaudeCliUpgradeToolValidation:
         api_skill.tools = {"generate_text_tool": Mock(), "generate_code_tool": Mock()}
         api_skill.get_tool_schema = Mock(return_value=None)
         cli_skill = Mock()
-        cli_skill.tools = {"summarize_text_tool": Mock(return_value={"success": True, "output": "summary"})}
+        cli_skill.tools = {
+            "summarize_text_tool": Mock(return_value={"success": True, "output": "summary"})
+        }
         cli_skill.get_tool_schema = Mock(return_value=None)
 
         def get_skill(name):
-            if name == 'claude-api-llm':
+            if name == "claude-api-llm":
                 return api_skill
-            if name == 'claude-cli-llm':
+            if name == "claude-cli-llm":
                 return cli_skill
             return None
 
@@ -7675,8 +8334,10 @@ class TestClaudeCliUpgradeToolValidation:
 
 if __name__ == "__main__":
     import sys
+
     if "--integration" in sys.argv:
         import asyncio
+
         asyncio.run(RealOrchestratorIntegrationTest().run())
     else:
         pytest.main([__file__, "-v"])

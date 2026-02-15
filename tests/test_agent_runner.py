@@ -13,24 +13,26 @@ All tests use mocks -- no real LLM calls, no API keys, runs offline.
 Each test completes in < 1 second.
 """
 
-import time
 import asyncio
-import pytest
+import time
 from dataclasses import fields as dataclass_fields
-from unittest.mock import Mock, MagicMock, AsyncMock, patch, PropertyMock
+from unittest.mock import AsyncMock, MagicMock, Mock, PropertyMock, patch
+
+import pytest
 
 # ---------------------------------------------------------------------------
 # Import with try/except for optional-dep safety
 # ---------------------------------------------------------------------------
 try:
+    from Jotty.core.infrastructure.foundation.data_structures import EpisodeResult, SwarmConfig
     from Jotty.core.intelligence.orchestration.agent_runner import (
         HOOK_TYPES,
+        AgentRunner,
         AgentRunnerConfig,
         ExecutionContext,
         TaskProgress,
-        AgentRunner,
     )
-    from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig, EpisodeResult
+
     RUNNER_AVAILABLE = True
 except ImportError as exc:
     RUNNER_AVAILABLE = False
@@ -55,6 +57,7 @@ _PATCH_SWARM_MEMORY = "Jotty.core.orchestration.agent_runner.SwarmMemory"
 # =========================================================================
 # Helpers
 # =========================================================================
+
 
 def _make_swarm_config(**overrides):
     """Create a minimal SwarmConfig for tests."""
@@ -99,17 +102,32 @@ def _create_runner(**kwargs):
     Patches ValidatorAgent, MultiRoundValidator, ToolGuard, and HostProvider
     so __init__ succeeds without real dependencies.
     """
-    with patch(_PATCH_VALIDATOR_AGENT), \
-         patch(_PATCH_MULTI_ROUND) as mock_mrv, \
-         patch(_PATCH_TOOL_GUARD), \
-         patch(_PATCH_HOST_PROVIDER) as mock_hp:
+    with (
+        patch(_PATCH_VALIDATOR_AGENT),
+        patch(_PATCH_MULTI_ROUND) as mock_mrv,
+        patch(_PATCH_TOOL_GUARD),
+        patch(_PATCH_HOST_PROVIDER) as mock_hp,
+    ):
         mock_hp.get.return_value = Mock()
-        agent = kwargs.pop('agent', _make_mock_agent())
-        config = kwargs.pop('config', _make_runner_config(**{
-            k: kwargs.pop(k) for k in list(kwargs)
-            if k in ('agent_name', 'enable_learning', 'enable_memory', 'enable_terminal',
-                      'architect_prompts', 'auditor_prompts')
-        }))
+        agent = kwargs.pop("agent", _make_mock_agent())
+        config = kwargs.pop(
+            "config",
+            _make_runner_config(
+                **{
+                    k: kwargs.pop(k)
+                    for k in list(kwargs)
+                    if k
+                    in (
+                        "agent_name",
+                        "enable_learning",
+                        "enable_memory",
+                        "enable_terminal",
+                        "architect_prompts",
+                        "auditor_prompts",
+                    )
+                }
+            ),
+        )
         runner = AgentRunner(agent=agent, config=config, **kwargs)
         return runner
 
@@ -117,6 +135,7 @@ def _create_runner(**kwargs):
 # =========================================================================
 # TestHookTypes
 # =========================================================================
+
 
 @pytest.mark.unit
 class TestHookTypes:
@@ -126,8 +145,14 @@ class TestHookTypes:
         assert isinstance(HOOK_TYPES, tuple)
 
     def test_hook_types_expected_values(self):
-        expected = ('pre_run', 'post_run', 'pre_architect', 'post_architect',
-                     'pre_execute', 'post_execute')
+        expected = (
+            "pre_run",
+            "post_run",
+            "pre_architect",
+            "post_architect",
+            "pre_execute",
+            "post_execute",
+        )
         assert HOOK_TYPES == expected
 
     def test_hook_types_length(self):
@@ -140,6 +165,7 @@ class TestHookTypes:
 # =========================================================================
 # TestAgentRunnerConfig
 # =========================================================================
+
 
 @pytest.mark.unit
 class TestAgentRunnerConfig:
@@ -187,9 +213,7 @@ class TestAgentRunnerConfig:
         assert arc.enable_terminal is True
 
     def test_custom_enable_flags(self):
-        arc = _make_runner_config(
-            enable_learning=False, enable_memory=False, enable_terminal=False
-        )
+        arc = _make_runner_config(enable_learning=False, enable_memory=False, enable_terminal=False)
         assert arc.enable_learning is False
         assert arc.enable_memory is False
         assert arc.enable_terminal is False
@@ -197,15 +221,14 @@ class TestAgentRunnerConfig:
     def test_swarm_config_integration(self):
         """SwarmConfig values are accessible through the config field."""
         cfg = _make_swarm_config(log_level="DEBUG")
-        arc = AgentRunnerConfig(
-            architect_prompts=[], auditor_prompts=[], config=cfg
-        )
+        arc = AgentRunnerConfig(architect_prompts=[], auditor_prompts=[], config=cfg)
         assert arc.config.log_level == "DEBUG"
 
 
 # =========================================================================
 # TestExecutionContext
 # =========================================================================
+
 
 @pytest.mark.unit
 class TestExecutionContext:
@@ -302,6 +325,7 @@ class TestExecutionContext:
 # TestTaskProgressInit
 # =========================================================================
 
+
 @pytest.mark.unit
 class TestTaskProgressInit:
     """Tests for TaskProgress.__init__."""
@@ -329,6 +353,7 @@ class TestTaskProgressInit:
 # TestTaskProgressAddStep
 # =========================================================================
 
+
 @pytest.mark.unit
 class TestTaskProgressAddStep:
     """Tests for TaskProgress.add_step."""
@@ -348,10 +373,10 @@ class TestTaskProgressAddStep:
         tp = TaskProgress()
         tp.add_step("Check")
         step = tp.steps[0]
-        assert step['name'] == "Check"
-        assert step['status'] == 'pending'
-        assert step['started_at'] is None
-        assert step['finished_at'] is None
+        assert step["name"] == "Check"
+        assert step["status"] == "pending"
+        assert step["started_at"] is None
+        assert step["finished_at"] is None
 
     def test_multiple_steps_stored(self):
         tp = TaskProgress()
@@ -363,20 +388,21 @@ class TestTaskProgressAddStep:
         tp = TaskProgress()
         tp.add_step("Alpha")
         tp.add_step("Beta")
-        assert tp.steps[0]['name'] == "Alpha"
-        assert tp.steps[1]['name'] == "Beta"
+        assert tp.steps[0]["name"] == "Alpha"
+        assert tp.steps[1]["name"] == "Beta"
 
     def test_all_steps_pending(self):
         tp = TaskProgress()
         for name in ["X", "Y", "Z"]:
             tp.add_step(name)
         for step in tp.steps:
-            assert step['status'] == 'pending'
+            assert step["status"] == "pending"
 
 
 # =========================================================================
 # TestTaskProgressStartStep
 # =========================================================================
+
 
 @pytest.mark.unit
 class TestTaskProgressStartStep:
@@ -386,7 +412,7 @@ class TestTaskProgressStartStep:
         tp = TaskProgress()
         tp.add_step("Go")
         tp.start_step(0)
-        assert tp.steps[0]['status'] == 'in_progress'
+        assert tp.steps[0]["status"] == "in_progress"
 
     def test_sets_started_at(self):
         tp = TaskProgress()
@@ -394,13 +420,13 @@ class TestTaskProgressStartStep:
         before = time.time()
         tp.start_step(0)
         after = time.time()
-        assert before <= tp.steps[0]['started_at'] <= after
+        assert before <= tp.steps[0]["started_at"] <= after
 
     def test_out_of_bounds_positive_noop(self):
         tp = TaskProgress()
         tp.add_step("X")
         tp.start_step(99)  # should not raise
-        assert tp.steps[0]['status'] == 'pending'
+        assert tp.steps[0]["status"] == "pending"
 
     def test_out_of_bounds_negative_noop(self):
         """Negative indices are out of the 0 <= idx < len range; no-op."""
@@ -409,20 +435,21 @@ class TestTaskProgressStartStep:
         tp.start_step(-1)
         # Negative index IS valid in Python list access, but the guard is
         # 0 <= idx < len(self.steps).  -1 < 0 so it's a no-op.
-        assert tp.steps[0]['status'] == 'pending'
+        assert tp.steps[0]["status"] == "pending"
 
     def test_start_second_step(self):
         tp = TaskProgress()
         tp.add_step("A")
         tp.add_step("B")
         tp.start_step(1)
-        assert tp.steps[0]['status'] == 'pending'
-        assert tp.steps[1]['status'] == 'in_progress'
+        assert tp.steps[0]["status"] == "pending"
+        assert tp.steps[1]["status"] == "in_progress"
 
 
 # =========================================================================
 # TestTaskProgressCompleteStep
 # =========================================================================
+
 
 @pytest.mark.unit
 class TestTaskProgressCompleteStep:
@@ -433,7 +460,7 @@ class TestTaskProgressCompleteStep:
         tp.add_step("Task")
         tp.start_step(0)
         tp.complete_step(0)
-        assert tp.steps[0]['status'] == 'done'
+        assert tp.steps[0]["status"] == "done"
 
     def test_sets_finished_at(self):
         tp = TaskProgress()
@@ -442,22 +469,22 @@ class TestTaskProgressCompleteStep:
         before = time.time()
         tp.complete_step(0)
         after = time.time()
-        assert before <= tp.steps[0]['finished_at'] <= after
+        assert before <= tp.steps[0]["finished_at"] <= after
 
     def test_out_of_bounds_noop(self):
         tp = TaskProgress()
         tp.add_step("X")
         tp.complete_step(5)  # should not raise
-        assert tp.steps[0]['status'] == 'pending'
+        assert tp.steps[0]["status"] == "pending"
 
     def test_complete_without_start(self):
         """Completing without starting still sets done."""
         tp = TaskProgress()
         tp.add_step("Task")
         tp.complete_step(0)
-        assert tp.steps[0]['status'] == 'done'
-        assert tp.steps[0]['started_at'] is None
-        assert tp.steps[0]['finished_at'] is not None
+        assert tp.steps[0]["status"] == "done"
+        assert tp.steps[0]["started_at"] is None
+        assert tp.steps[0]["finished_at"] is not None
 
     def test_complete_multiple_steps(self):
         tp = TaskProgress()
@@ -465,13 +492,14 @@ class TestTaskProgressCompleteStep:
         tp.add_step("B")
         tp.complete_step(0)
         tp.complete_step(1)
-        assert tp.steps[0]['status'] == 'done'
-        assert tp.steps[1]['status'] == 'done'
+        assert tp.steps[0]["status"] == "done"
+        assert tp.steps[1]["status"] == "done"
 
 
 # =========================================================================
 # TestTaskProgressFailStep
 # =========================================================================
+
 
 @pytest.mark.unit
 class TestTaskProgressFailStep:
@@ -482,7 +510,7 @@ class TestTaskProgressFailStep:
         tp.add_step("Risky")
         tp.start_step(0)
         tp.fail_step(0)
-        assert tp.steps[0]['status'] == 'failed'
+        assert tp.steps[0]["status"] == "failed"
 
     def test_sets_finished_at(self):
         tp = TaskProgress()
@@ -491,7 +519,7 @@ class TestTaskProgressFailStep:
         before = time.time()
         tp.fail_step(0)
         after = time.time()
-        assert before <= tp.steps[0]['finished_at'] <= after
+        assert before <= tp.steps[0]["finished_at"] <= after
 
     def test_out_of_bounds_noop(self):
         tp = TaskProgress()
@@ -501,13 +529,14 @@ class TestTaskProgressFailStep:
         tp = TaskProgress()
         tp.add_step("X")
         tp.fail_step(0)
-        assert tp.steps[0]['status'] == 'failed'
-        assert tp.steps[0]['finished_at'] is not None
+        assert tp.steps[0]["status"] == "failed"
+        assert tp.steps[0]["finished_at"] is not None
 
 
 # =========================================================================
 # TestTaskProgressRender
 # =========================================================================
+
 
 @pytest.mark.unit
 class TestTaskProgressRender:
@@ -556,9 +585,9 @@ class TestTaskProgressRender:
         """Done steps with both started_at and finished_at show elapsed time."""
         tp = TaskProgress()
         tp.add_step("Timed")
-        tp.steps[0]['status'] = 'done'
-        tp.steps[0]['started_at'] = 100.0
-        tp.steps[0]['finished_at'] = 102.5
+        tp.steps[0]["status"] = "done"
+        tp.steps[0]["started_at"] = 100.0
+        tp.steps[0]["finished_at"] = 102.5
         rendered = tp.render()
         assert "(2.5s)" in rendered
 
@@ -603,6 +632,7 @@ class TestTaskProgressRender:
 # TestTaskProgressSummary
 # =========================================================================
 
+
 @pytest.mark.unit
 class TestTaskProgressSummary:
     """Tests for TaskProgress.summary."""
@@ -610,21 +640,21 @@ class TestTaskProgressSummary:
     def test_empty_summary(self):
         tp = TaskProgress()
         s = tp.summary()
-        assert s['total'] == 0
-        assert s['done'] == 0
-        assert s['failed'] == 0
-        assert s['completion_pct'] == 0
-        assert s['steps'] == []
+        assert s["total"] == 0
+        assert s["done"] == 0
+        assert s["failed"] == 0
+        assert s["completion_pct"] == 0
+        assert s["steps"] == []
 
     def test_all_pending(self):
         tp = TaskProgress()
         tp.add_step("A")
         tp.add_step("B")
         s = tp.summary()
-        assert s['total'] == 2
-        assert s['done'] == 0
-        assert s['failed'] == 0
-        assert s['completion_pct'] == 0
+        assert s["total"] == 2
+        assert s["done"] == 0
+        assert s["failed"] == 0
+        assert s["completion_pct"] == 0
 
     def test_some_done(self):
         tp = TaskProgress()
@@ -632,8 +662,8 @@ class TestTaskProgressSummary:
         tp.add_step("B")
         tp.complete_step(0)
         s = tp.summary()
-        assert s['done'] == 1
-        assert s['completion_pct'] == 0.5
+        assert s["done"] == 1
+        assert s["completion_pct"] == 0.5
 
     def test_all_done(self):
         tp = TaskProgress()
@@ -642,8 +672,8 @@ class TestTaskProgressSummary:
         tp.complete_step(0)
         tp.complete_step(1)
         s = tp.summary()
-        assert s['done'] == 2
-        assert s['completion_pct'] == 1.0
+        assert s["done"] == 2
+        assert s["completion_pct"] == 1.0
 
     def test_failed_count(self):
         tp = TaskProgress()
@@ -651,8 +681,8 @@ class TestTaskProgressSummary:
         tp.add_step("B")
         tp.fail_step(0)
         s = tp.summary()
-        assert s['failed'] == 1
-        assert s['done'] == 0
+        assert s["failed"] == 1
+        assert s["done"] == 0
 
     def test_mixed_statuses(self):
         tp = TaskProgress()
@@ -662,18 +692,18 @@ class TestTaskProgressSummary:
         tp.complete_step(0)
         tp.fail_step(1)
         s = tp.summary()
-        assert s['total'] == 3
-        assert s['done'] == 1
-        assert s['failed'] == 1
-        assert abs(s['completion_pct'] - 1 / 3) < 0.01
+        assert s["total"] == 3
+        assert s["done"] == 1
+        assert s["failed"] == 1
+        assert abs(s["completion_pct"] - 1 / 3) < 0.01
 
     def test_steps_list_structure(self):
         tp = TaskProgress()
         tp.add_step("Alpha")
         tp.complete_step(0)
         s = tp.summary()
-        assert len(s['steps']) == 1
-        assert s['steps'][0] == {'name': 'Alpha', 'status': 'done'}
+        assert len(s["steps"]) == 1
+        assert s["steps"][0] == {"name": "Alpha", "status": "done"}
 
     def test_steps_only_name_and_status(self):
         """summary().steps entries should only have name and status keys."""
@@ -681,12 +711,13 @@ class TestTaskProgressSummary:
         tp.add_step("X")
         tp.start_step(0)
         s = tp.summary()
-        assert set(s['steps'][0].keys()) == {'name', 'status'}
+        assert set(s["steps"][0].keys()) == {"name", "status"}
 
 
 # =========================================================================
 # TestAgentRunnerInit
 # =========================================================================
+
 
 @pytest.mark.unit
 class TestAgentRunnerInit:
@@ -743,73 +774,74 @@ class TestAgentRunnerInit:
 # TestAgentRunnerHooks
 # =========================================================================
 
+
 @pytest.mark.unit
 class TestAgentRunnerHooks:
     """Tests for AgentRunner hook system (add_hook, remove_hook, _run_hooks)."""
 
     def test_add_hook_returns_name(self):
         runner = _create_runner()
-        name = runner.add_hook('pre_run', lambda **ctx: None, name="my_hook")
+        name = runner.add_hook("pre_run", lambda **ctx: None, name="my_hook")
         assert name == "my_hook"
 
     def test_add_hook_auto_name(self):
         runner = _create_runner()
-        name = runner.add_hook('pre_run', lambda **ctx: None)
+        name = runner.add_hook("pre_run", lambda **ctx: None)
         assert name.startswith("pre_run_")
 
     def test_add_hook_invalid_type_raises(self):
         runner = _create_runner()
         with pytest.raises(ValueError, match="Unknown hook type"):
-            runner.add_hook('bad_type', lambda **ctx: None)
+            runner.add_hook("bad_type", lambda **ctx: None)
 
     def test_add_hook_stores_callable(self):
         runner = _create_runner()
         fn = lambda **ctx: None
-        runner.add_hook('post_run', fn, name="test")
-        assert fn in runner._hooks['post_run']
+        runner.add_hook("post_run", fn, name="test")
+        assert fn in runner._hooks["post_run"]
 
     def test_remove_hook_success(self):
         runner = _create_runner()
-        runner.add_hook('pre_run', lambda **ctx: None, name="to_remove")
-        result = runner.remove_hook('pre_run', "to_remove")
+        runner.add_hook("pre_run", lambda **ctx: None, name="to_remove")
+        result = runner.remove_hook("pre_run", "to_remove")
         assert result is True
-        assert len(runner._hooks['pre_run']) == 0
+        assert len(runner._hooks["pre_run"]) == 0
 
     def test_remove_hook_not_found(self):
         runner = _create_runner()
-        result = runner.remove_hook('pre_run', "nonexistent")
+        result = runner.remove_hook("pre_run", "nonexistent")
         assert result is False
 
     def test_remove_hook_wrong_type(self):
         runner = _create_runner()
-        runner.add_hook('pre_run', lambda **ctx: None, name="hook1")
-        result = runner.remove_hook('post_run', "hook1")
+        runner.add_hook("pre_run", lambda **ctx: None, name="hook1")
+        result = runner.remove_hook("post_run", "hook1")
         assert result is False
 
     def test_run_hooks_returns_context(self):
         runner = _create_runner()
-        ctx = runner._run_hooks('pre_run', goal="test")
-        assert ctx['goal'] == "test"
+        ctx = runner._run_hooks("pre_run", goal="test")
+        assert ctx["goal"] == "test"
 
     def test_run_hooks_calls_function(self):
         runner = _create_runner()
         called = []
-        runner.add_hook('pre_run', lambda **ctx: called.append(True))
-        runner._run_hooks('pre_run', goal="test")
+        runner.add_hook("pre_run", lambda **ctx: called.append(True))
+        runner._run_hooks("pre_run", goal="test")
         assert len(called) == 1
 
     def test_run_hooks_updates_context(self):
         runner = _create_runner()
-        runner.add_hook('pre_run', lambda **ctx: {'goal': 'modified'})
-        result = runner._run_hooks('pre_run', goal="original")
-        assert result['goal'] == 'modified'
+        runner.add_hook("pre_run", lambda **ctx: {"goal": "modified"})
+        result = runner._run_hooks("pre_run", goal="original")
+        assert result["goal"] == "modified"
 
     def test_run_hooks_multiple_hooks(self):
         runner = _create_runner()
         order = []
-        runner.add_hook('pre_run', lambda **ctx: order.append(1), name="h1")
-        runner.add_hook('pre_run', lambda **ctx: order.append(2), name="h2")
-        runner._run_hooks('pre_run', goal="test")
+        runner.add_hook("pre_run", lambda **ctx: order.append(1), name="h1")
+        runner.add_hook("pre_run", lambda **ctx: order.append(2), name="h2")
+        runner._run_hooks("pre_run", goal="test")
         assert order == [1, 2]
 
     def test_run_hooks_exception_handled(self):
@@ -819,21 +851,22 @@ class TestAgentRunnerHooks:
         def bad_hook(**ctx):
             raise RuntimeError("boom")
 
-        runner.add_hook('pre_run', bad_hook, name="bad")
+        runner.add_hook("pre_run", bad_hook, name="bad")
         # Should not raise
-        result = runner._run_hooks('pre_run', goal="test")
-        assert result['goal'] == "test"
+        result = runner._run_hooks("pre_run", goal="test")
+        assert result["goal"] == "test"
 
     def test_hook_name_tagged_on_function(self):
         runner = _create_runner()
         fn = lambda **ctx: None
-        runner.add_hook('post_execute', fn, name="tagged")
+        runner.add_hook("post_execute", fn, name="tagged")
         assert fn._hook_name == "tagged"
 
 
 # =========================================================================
 # TestAgentRunnerPipeline
 # =========================================================================
+
 
 @pytest.mark.unit
 class TestAgentRunnerPipeline:
@@ -862,11 +895,19 @@ class TestAgentRunnerPipeline:
         runner._validate_architect = AsyncMock(return_value=mock_ctx)
         runner._execute_agent = AsyncMock(return_value=mock_ctx)
         runner._validate_auditor_with_retry = AsyncMock(return_value=mock_ctx)
-        runner._record_and_build_result = AsyncMock(return_value=EpisodeResult(
-            output="output", success=True, trajectory=[], tagged_outputs=[],
-            episode=0, execution_time=0.1, architect_results=[], auditor_results=[],
-            agent_contributions={},
-        ))
+        runner._record_and_build_result = AsyncMock(
+            return_value=EpisodeResult(
+                output="output",
+                success=True,
+                trajectory=[],
+                tagged_outputs=[],
+                episode=0,
+                execution_time=0.1,
+                architect_results=[],
+                auditor_results=[],
+                agent_contributions={},
+            )
+        )
 
         result = await runner.run("test goal")
         assert isinstance(result, EpisodeResult)
@@ -878,33 +919,39 @@ class TestAgentRunnerPipeline:
         call_order = []
 
         async def mock_setup(goal, **kw):
-            call_order.append('setup')
+            call_order.append("setup")
             ctx = ExecutionContext(goal=goal, kwargs=kw)
             ctx.task_progress = TaskProgress()
             ctx.task_progress.add_step("s1")
             return ctx
 
         async def mock_gather(ctx):
-            call_order.append('gather')
+            call_order.append("gather")
             return ctx
 
         async def mock_arch(ctx):
-            call_order.append('architect')
+            call_order.append("architect")
             return ctx
 
         async def mock_exec(ctx):
-            call_order.append('execute')
+            call_order.append("execute")
             return ctx
 
         async def mock_audit(ctx):
-            call_order.append('auditor')
+            call_order.append("auditor")
             return ctx
 
         async def mock_record(ctx):
-            call_order.append('record')
+            call_order.append("record")
             return EpisodeResult(
-                output=None, success=True, trajectory=[], tagged_outputs=[],
-                episode=0, execution_time=0.0, architect_results=[], auditor_results=[],
+                output=None,
+                success=True,
+                trajectory=[],
+                tagged_outputs=[],
+                episode=0,
+                execution_time=0.0,
+                architect_results=[],
+                auditor_results=[],
                 agent_contributions={},
             )
 
@@ -916,17 +963,25 @@ class TestAgentRunnerPipeline:
         runner._record_and_build_result = mock_record
 
         await runner.run("test")
-        assert call_order == ['setup', 'gather', 'architect', 'execute', 'auditor', 'record']
+        assert call_order == ["setup", "gather", "architect", "execute", "auditor", "record"]
 
     @pytest.mark.asyncio
     async def test_run_handles_exception(self):
         runner = _create_runner()
         runner._setup_context = AsyncMock(side_effect=RuntimeError("boom"))
-        runner._handle_execution_error = AsyncMock(return_value=EpisodeResult(
-            output=None, success=False, trajectory=[], tagged_outputs=[],
-            episode=0, execution_time=0.0, architect_results=[], auditor_results=[],
-            agent_contributions={},
-        ))
+        runner._handle_execution_error = AsyncMock(
+            return_value=EpisodeResult(
+                output=None,
+                success=False,
+                trajectory=[],
+                tagged_outputs=[],
+                episode=0,
+                execution_time=0.0,
+                architect_results=[],
+                auditor_results=[],
+                agent_contributions={},
+            )
+        )
 
         result = await runner.run("test")
         assert result.success is False
@@ -950,7 +1005,7 @@ class TestAgentRunnerPipeline:
     async def test_run_hooks_pre_run_called(self):
         runner = _create_runner()
         called = []
-        runner.add_hook('pre_run', lambda **ctx: called.append(ctx.get('goal')))
+        runner.add_hook("pre_run", lambda **ctx: called.append(ctx.get("goal")))
 
         # Mock all pipeline stages
         mock_ctx = ExecutionContext(goal="hooked_goal", kwargs={})
@@ -965,11 +1020,19 @@ class TestAgentRunnerPipeline:
         runner._validate_architect = AsyncMock(return_value=mock_ctx)
         runner._execute_agent = AsyncMock(return_value=mock_ctx)
         runner._validate_auditor_with_retry = AsyncMock(return_value=mock_ctx)
-        runner._record_and_build_result = AsyncMock(return_value=EpisodeResult(
-            output=None, success=True, trajectory=[], tagged_outputs=[],
-            episode=0, execution_time=0.0, architect_results=[], auditor_results=[],
-            agent_contributions={},
-        ))
+        runner._record_and_build_result = AsyncMock(
+            return_value=EpisodeResult(
+                output=None,
+                success=True,
+                trajectory=[],
+                tagged_outputs=[],
+                episode=0,
+                execution_time=0.0,
+                architect_results=[],
+                auditor_results=[],
+                agent_contributions={},
+            )
+        )
 
         await runner.run("hooked_goal")
         # pre_run is called inside _setup_context, which is mocked.
@@ -987,11 +1050,11 @@ class TestAgentRunnerPipeline:
     async def test_run_hooks_chain_context_update(self):
         """Multiple hooks that return dicts should chain updates."""
         runner = _create_runner()
-        runner.add_hook('pre_run', lambda **ctx: {'extra': 'value1'}, name="h1")
-        runner.add_hook('pre_run', lambda **ctx: {'extra2': ctx.get('extra', 'none')}, name="h2")
-        ctx = runner._run_hooks('pre_run', goal="test")
-        assert ctx['extra'] == 'value1'
-        assert ctx['extra2'] == 'value1'
+        runner.add_hook("pre_run", lambda **ctx: {"extra": "value1"}, name="h1")
+        runner.add_hook("pre_run", lambda **ctx: {"extra2": ctx.get("extra", "none")}, name="h2")
+        ctx = runner._run_hooks("pre_run", goal="test")
+        assert ctx["extra"] == "value1"
+        assert ctx["extra2"] == "value1"
 
     @pytest.mark.asyncio
     async def test_run_with_error_creates_context_if_none(self):
@@ -1006,8 +1069,14 @@ class TestAgentRunnerPipeline:
         async def spy_handler(ctx, e):
             assert ctx.goal == "my_goal"
             return EpisodeResult(
-                output=None, success=False, trajectory=[], tagged_outputs=[],
-                episode=0, execution_time=0.0, architect_results=[], auditor_results=[],
+                output=None,
+                success=False,
+                trajectory=[],
+                tagged_outputs=[],
+                episode=0,
+                execution_time=0.0,
+                architect_results=[],
+                auditor_results=[],
                 agent_contributions={},
             )
 
@@ -1034,6 +1103,7 @@ class TestAgentRunnerPipeline:
 # TestAgentRunnerBridgeHooks
 # =========================================================================
 
+
 @pytest.mark.unit
 class TestAgentRunnerBridgeHooks:
     """Tests for _bridge_agent_hooks (bridging BaseAgent hooks)."""
@@ -1042,8 +1112,8 @@ class TestAgentRunnerBridgeHooks:
         agent = Mock(spec=[])  # no _pre_hooks or _post_hooks
         runner = _create_runner(agent=agent)
         # Should not raise and should not add any hooks
-        assert len(runner._hooks['pre_execute']) == 0
-        assert len(runner._hooks['post_execute']) == 0
+        assert len(runner._hooks["pre_execute"]) == 0
+        assert len(runner._hooks["post_execute"]) == 0
 
     def test_bridge_pre_hooks_added(self):
         pre_hook = Mock()
@@ -1051,7 +1121,7 @@ class TestAgentRunnerBridgeHooks:
         agent._pre_hooks = [pre_hook]
         agent._post_hooks = []
         runner = _create_runner(agent=agent)
-        assert len(runner._hooks['pre_execute']) == 1
+        assert len(runner._hooks["pre_execute"]) == 1
 
     def test_bridge_post_hooks_added(self):
         post_hook = Mock()
@@ -1059,12 +1129,13 @@ class TestAgentRunnerBridgeHooks:
         agent._pre_hooks = []
         agent._post_hooks = [post_hook]
         runner = _create_runner(agent=agent)
-        assert len(runner._hooks['post_execute']) == 1
+        assert len(runner._hooks["post_execute"]) == 1
 
 
 # =========================================================================
 # TestTaskProgressEdgeCases
 # =========================================================================
+
 
 @pytest.mark.unit
 class TestTaskProgressEdgeCases:
@@ -1086,12 +1157,12 @@ class TestTaskProgressEdgeCases:
         tp.start_step(2)
 
         s = tp.summary()
-        assert s['total'] == 3
-        assert s['done'] == 1
-        assert s['failed'] == 1
-        assert s['steps'][0]['status'] == 'done'
-        assert s['steps'][1]['status'] == 'failed'
-        assert s['steps'][2]['status'] == 'in_progress'
+        assert s["total"] == 3
+        assert s["done"] == 1
+        assert s["failed"] == 1
+        assert s["steps"][0]["status"] == "done"
+        assert s["steps"][1]["status"] == "failed"
+        assert s["steps"][2]["status"] == "in_progress"
 
     def test_render_with_all_status_types(self):
         tp = TaskProgress(goal="Mix")
@@ -1101,10 +1172,10 @@ class TestTaskProgressEdgeCases:
         tp.add_step("Failed")
 
         tp.start_step(1)
-        tp.steps[2]['status'] = 'done'
-        tp.steps[2]['started_at'] = 1.0
-        tp.steps[2]['finished_at'] = 2.0
-        tp.steps[3]['status'] = 'failed'
+        tp.steps[2]["status"] = "done"
+        tp.steps[2]["started_at"] = 1.0
+        tp.steps[2]["finished_at"] = 2.0
+        tp.steps[3]["status"] = "failed"
 
         rendered = tp.render()
         assert "[ ] Pending" in rendered
@@ -1119,7 +1190,7 @@ class TestTaskProgressEdgeCases:
         tp.add_step("C")
         tp.complete_step(0)
         s = tp.summary()
-        assert abs(s['completion_pct'] - 1.0 / 3.0) < 1e-9
+        assert abs(s["completion_pct"] - 1.0 / 3.0) < 1e-9
 
     def test_add_step_after_operations(self):
         """Adding steps after some are started/completed works fine."""
@@ -1129,7 +1200,7 @@ class TestTaskProgressEdgeCases:
         tp.complete_step(0)
         idx = tp.add_step("Second")
         assert idx == 1
-        assert tp.steps[1]['status'] == 'pending'
+        assert tp.steps[1]["status"] == "pending"
 
     def test_render_no_progress_line_when_empty(self):
         """No progress line printed when there are no steps."""

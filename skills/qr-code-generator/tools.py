@@ -1,8 +1,9 @@
 """QR Code Generator Skill — generate QR codes as SVG or ASCII (pure Python)."""
-from typing import Dict, Any, List
 
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from typing import Any, Dict, List
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("qr-code-generator")
 
@@ -13,6 +14,7 @@ status = SkillStatus("qr-code-generator")
 GF_EXP = [0] * 512
 GF_LOG = [0] * 256
 
+
 def _init_gf():
     x = 1
     for i in range(255):
@@ -20,9 +22,10 @@ def _init_gf():
         GF_LOG[x] = i
         x <<= 1
         if x & 0x100:
-            x ^= 0x11d
+            x ^= 0x11D
     for i in range(255, 512):
         GF_EXP[i] = GF_EXP[i - 255]
+
 
 _init_gf()
 
@@ -43,13 +46,13 @@ def _rs_encode(data: List[int], nsym: int) -> List[int]:
         gen = ng
 
     remainder = [0] * (len(data) + nsym)
-    remainder[:len(data)] = data
+    remainder[: len(data)] = data
     for i in range(len(data)):
         coef = remainder[i]
         if coef != 0:
             for j in range(1, len(gen)):
                 remainder[i + j] ^= _gf_mul(gen[j], coef)
-    return remainder[len(data):]
+    return remainder[len(data) :]
 
 
 def _encode_data_bits(text: str) -> tuple:
@@ -59,8 +62,12 @@ def _encode_data_bits(text: str) -> tuple:
 
     # Version capacity (byte mode, L error correction): (version, data_cap, ec_codewords, total_codewords)
     versions = [
-        (1, 17, 7, 26), (2, 32, 10, 44), (3, 53, 15, 70), (4, 78, 20, 100),
-        (5, 106, 26, 134), (6, 134, 36, 172),
+        (1, 17, 7, 26),
+        (2, 32, 10, 44),
+        (3, 53, 15, 70),
+        (4, 78, 20, 100),
+        (5, 106, 26, 134),
+        (6, 134, 36, 172),
     ]
     version = ec_cw = total_cw = None
     for v, cap, ec, tot in versions:
@@ -93,8 +100,8 @@ def _encode_data_bits(text: str) -> tuple:
         bits += pads[idx % 2]
         idx += 1
 
-    bits = bits[:data_cw * 8]
-    codewords = [int(bits[i:i+8], 2) for i in range(0, len(bits), 8)]
+    bits = bits[: data_cw * 8]
+    codewords = [int(bits[i : i + 8], 2) for i in range(0, len(bits), 8)]
 
     # Reed-Solomon error correction
     ec_bytes = _rs_encode(codewords, ec_cw)
@@ -115,18 +122,24 @@ def _place_modules(codewords: List[int], version: int) -> List[List[int]]:
             reserved[r][c] = True
 
     # Finder patterns
-    for (cr, cc) in [(0, 0), (0, size - 7), (size - 7, 0)]:
+    for cr, cc in [(0, 0), (0, size - 7), (size - 7, 0)]:
         for r in range(7):
             for c in range(7):
-                if (r in (0, 6) or c in (0, 6) or (2 <= r <= 4 and 2 <= c <= 4)):
+                if r in (0, 6) or c in (0, 6) or (2 <= r <= 4 and 2 <= c <= 4):
                     set_mod(cr + r, cc + c, 1)
                 else:
                     set_mod(cr + r, cc + c, 0)
 
     # Separators
     for i in range(8):
-        for (cr, cc) in [(7, i), (i, 7), (7, size - 8 + i), (i, size - 8),
-                          (size - 8, i), (size - 8 + i, 7)]:
+        for cr, cc in [
+            (7, i),
+            (i, 7),
+            (7, size - 8 + i),
+            (i, size - 8),
+            (size - 8, i),
+            (size - 8 + i, 7),
+        ]:
             if 0 <= cr < size and 0 <= cc < size:
                 set_mod(cr, cc, 0)
 
@@ -167,7 +180,9 @@ def _place_modules(codewords: List[int], version: int) -> List[List[int]]:
                         continue
                     for dr in range(-2, 3):
                         for dc in range(-2, 3):
-                            val = 1 if (abs(dr) == 2 or abs(dc) == 2 or (dr == 0 and dc == 0)) else 0
+                            val = (
+                                1 if (abs(dr) == 2 or abs(dc) == 2 or (dr == 0 and dc == 0)) else 0
+                            )
                             set_mod(ar + dr, ac + dc, val)
 
     # Place data bits
@@ -204,11 +219,40 @@ def _place_modules(codewords: List[int], version: int) -> List[List[int]]:
 
     # Write format info for mask 0, EC level L
     fmt_bits = "111011111000100"
-    positions_h = [(8, 0), (8, 1), (8, 2), (8, 3), (8, 4), (8, 5), (8, 7), (8, 8),
-                   (7, 8), (5, 8), (4, 8), (3, 8), (2, 8), (1, 8), (0, 8)]
-    positions_v = [(size-1, 8), (size-2, 8), (size-3, 8), (size-4, 8), (size-5, 8),
-                   (size-6, 8), (size-7, 8), (8, size-8), (8, size-7), (8, size-6),
-                   (8, size-5), (8, size-4), (8, size-3), (8, size-2), (8, size-1)]
+    positions_h = [
+        (8, 0),
+        (8, 1),
+        (8, 2),
+        (8, 3),
+        (8, 4),
+        (8, 5),
+        (8, 7),
+        (8, 8),
+        (7, 8),
+        (5, 8),
+        (4, 8),
+        (3, 8),
+        (2, 8),
+        (1, 8),
+        (0, 8),
+    ]
+    positions_v = [
+        (size - 1, 8),
+        (size - 2, 8),
+        (size - 3, 8),
+        (size - 4, 8),
+        (size - 5, 8),
+        (size - 6, 8),
+        (size - 7, 8),
+        (8, size - 8),
+        (8, size - 7),
+        (8, size - 6),
+        (8, size - 5),
+        (8, size - 4),
+        (8, size - 3),
+        (8, size - 2),
+        (8, size - 1),
+    ]
     for i, bit in enumerate(fmt_bits):
         val = int(bit)
         r, c = positions_h[i]
@@ -223,14 +267,18 @@ def _grid_to_svg(grid: list, module_size: int = 10) -> str:
     size = len(grid)
     total = size * module_size + module_size * 8
     margin = module_size * 4
-    parts = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {total} {total}" width="{total}" height="{total}">']
+    parts = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {total} {total}" width="{total}" height="{total}">'
+    ]
     parts.append(f'<rect width="{total}" height="{total}" fill="white"/>')
     for r in range(size):
         for c in range(size):
             if grid[r][c] == 1:
                 x = margin + c * module_size
                 y = margin + r * module_size
-                parts.append(f'<rect x="{x}" y="{y}" width="{module_size}" height="{module_size}" fill="black"/>')
+                parts.append(
+                    f'<rect x="{x}" y="{y}" width="{module_size}" height="{module_size}" fill="black"/>'
+                )
     parts.append("</svg>")
     return "\n".join(parts)
 
@@ -267,8 +315,9 @@ def generate_qr_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     else:
         qr_out = _grid_to_svg(grid, module_size)
 
-    return tool_response(qr_code=qr_out, format=fmt, version=version,
-                         size=len(grid), data_length=len(data))
+    return tool_response(
+        qr_code=qr_out, format=fmt, version=version, size=len(grid), data_length=len(data)
+    )
 
 
 __all__ = ["generate_qr_tool"]

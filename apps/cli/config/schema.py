@@ -6,14 +6,15 @@ Pydantic-based configuration for Jotty CLI.
 """
 
 import os
-from enum import Enum
-from typing import Optional, List, Dict, Any
 from dataclasses import dataclass, field
+from enum import Enum
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 
 class ColorDepth(Enum):
     """Terminal color depth levels."""
+
     DUMB = "dumb"
     BASIC_16 = "16"
     EXTENDED_256 = "256"
@@ -79,6 +80,7 @@ class TerminalDetector:
             return False
         # macOS always has a display server
         import sys
+
         if sys.platform == "darwin":
             return False
         # Windows always has a display
@@ -90,17 +92,24 @@ class TerminalDetector:
 @dataclass
 class ProviderConfig:
     """Provider configuration."""
+
     use_unified: bool = True
-    fallback_order: List[str] = field(default_factory=lambda: [
-        "claude-cli",  # Free, uses local Claude CLI credentials
-        "anthropic", "openrouter", "openai", "groq"
-    ])
+    fallback_order: List[str] = field(
+        default_factory=lambda: [
+            "claude-cli",  # Free, uses local Claude CLI credentials
+            "anthropic",
+            "openrouter",
+            "openai",
+            "groq",
+        ]
+    )
     default_model: Optional[str] = None
 
 
 @dataclass
 class SwarmConfig:
     """Swarm configuration."""
+
     enable_zero_config: bool = True
     max_agents: int = 10
     enable_learning: bool = True
@@ -110,6 +119,7 @@ class SwarmConfig:
 @dataclass
 class LearningConfig:
     """Learning configuration."""
+
     enable_warmup: bool = True
     warmup_episodes: int = 10
     auto_save: bool = True
@@ -119,6 +129,7 @@ class LearningConfig:
 @dataclass
 class UIConfig:
     """UI configuration."""
+
     library: str = "rich"
     theme: str = "default"
     enable_progress: bool = True
@@ -133,6 +144,7 @@ class UIConfig:
 @dataclass
 class FeaturesConfig:
     """Features configuration."""
+
     git_integration: bool = True
     plugin_system: bool = True
     web_search: bool = True
@@ -143,6 +155,7 @@ class FeaturesConfig:
 @dataclass
 class SessionConfig:
     """Session configuration."""
+
     auto_save: bool = True
     auto_resume: bool = False  # Auto-load last session on startup
     context_window: int = 20
@@ -153,6 +166,7 @@ class SessionConfig:
 @dataclass
 class TelegramConfig:
     """Telegram bot configuration."""
+
     enabled: bool = False
     token: Optional[str] = None  # From TELEGRAM_TOKEN env
     allowed_chat_ids: List[str] = field(default_factory=list)  # From TELEGRAM_CHAT_ID
@@ -162,6 +176,7 @@ class TelegramConfig:
 @dataclass
 class WebConfig:
     """Web server configuration."""
+
     enabled: bool = False
     host: str = "0.0.0.0"
     port: int = 8080
@@ -176,6 +191,7 @@ class CLIConfig:
 
     Loaded from ~/.jotty/config.yaml or custom path.
     """
+
     provider: ProviderConfig = field(default_factory=ProviderConfig)
     swarm: SwarmConfig = field(default_factory=SwarmConfig)
     learning: LearningConfig = field(default_factory=LearningConfig)
@@ -267,7 +283,9 @@ class CLIConfig:
             p = data["provider"]
             config.provider = ProviderConfig(
                 use_unified=p.get("use_unified", True),
-                fallback_order=p.get("fallback_order", ["claude-cli", "anthropic", "openrouter", "openai", "groq"]),
+                fallback_order=p.get(
+                    "fallback_order", ["claude-cli", "anthropic", "openrouter", "openai", "groq"]
+                ),
                 default_model=p.get("default_model"),
             )
 

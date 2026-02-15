@@ -1,8 +1,10 @@
 """Press Release Generator Skill - AP style press releases."""
+
 from datetime import datetime
-from typing import Dict, Any, List
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from typing import Any, Dict, List
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("press-release-generator")
 
@@ -23,8 +25,10 @@ def generate_press_release_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     today = datetime.now().strftime("%B %d, %Y")
 
     # Build lead paragraph
-    lead = (f"{city}, {today} -- {company} today announced {body_points[0].lower() if body_points else 'a major development'}. "
-            f"{'This ' + body_points[1].lower() + '.' if len(body_points) > 1 else ''}")
+    lead = (
+        f"{city}, {today} -- {company} today announced {body_points[0].lower() if body_points else 'a major development'}. "
+        f"{'This ' + body_points[1].lower() + '.' if len(body_points) > 1 else ''}"
+    )
 
     # Build body paragraphs
     body_paras = []
@@ -32,17 +36,21 @@ def generate_press_release_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         body_paras.append(point if point.endswith(".") else point + ".")
 
     # Build quote
-    quote = (f'"We are thrilled to share this news with our customers and partners," '
-             f'said {quote_attr}, {quote_title} of {company}. '
-             f'"This represents a significant milestone for our organization."')
+    quote = (
+        f'"We are thrilled to share this news with our customers and partners," '
+        f"said {quote_attr}, {quote_title} of {company}. "
+        f'"This represents a significant milestone for our organization."'
+    )
 
     # About section
-    about = (f"About {company}\n"
-             f"{company} is a leading organization committed to innovation and excellence. "
-             f"For more information, visit www.{company.lower().replace(' ', '')}.com.")
+    about = (
+        f"About {company}\n"
+        f"{company} is a leading organization committed to innovation and excellence. "
+        f"For more information, visit www.{company.lower().replace(' ', '')}.com."
+    )
 
     # Contact
-    contact = (f"Media Contact:\n{contact_name}\n{company}\n{contact_email}")
+    contact = f"Media Contact:\n{contact_name}\n{company}\n{contact_email}"
 
     # Assemble
     sections = [
@@ -60,8 +68,10 @@ def generate_press_release_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     pr_text = "\n".join(sections)
 
     return tool_response(
-        press_release=pr_text, word_count=len(pr_text.split()),
-        headline=headline, company=company,
+        press_release=pr_text,
+        word_count=len(pr_text.split()),
+        headline=headline,
+        company=company,
     )
 
 

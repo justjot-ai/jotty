@@ -1,7 +1,9 @@
 """Blog Post Writer Skill - generate blog outlines with SEO."""
-from typing import Dict, Any, List
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+
+from typing import Any, Dict, List
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("blog-post-writer")
 
@@ -43,17 +45,19 @@ def generate_blog_outline_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         parts = template.split(" - ", 1)
         heading = parts[0]
         guidance = parts[1] if len(parts) > 1 else ""
-        sections.append({
-            "order": i + 1,
-            "heading": f"## {heading}" if i > 0 else f"## Introduction",
-            "guidance": guidance,
-            "word_target": words_per_section,
-            "key_points": [
-                f"Point related to {keywords[0]}" if keywords else "Main argument",
-                "Supporting evidence or example",
-                "Transition to next section",
-            ],
-        })
+        sections.append(
+            {
+                "order": i + 1,
+                "heading": f"## {heading}" if i > 0 else f"## Introduction",
+                "guidance": guidance,
+                "word_target": words_per_section,
+                "key_points": [
+                    f"Point related to {keywords[0]}" if keywords else "Main argument",
+                    "Supporting evidence or example",
+                    "Transition to next section",
+                ],
+            }
+        )
 
     # SEO metadata
     meta_desc = f"Learn about {title.lower()}. "

@@ -40,14 +40,16 @@ if not os.environ.get("ANTHROPIC_API_KEY"):
     _env_file = Path(__file__).resolve().parent.parent.parent / ".env.anthropic"
     if _env_file.exists():
         for _line in _env_file.read_text().splitlines():
-            if _line.strip() and not _line.startswith('#') and '=' in _line:
-                _k, _, _v = _line.partition('=')
+            if _line.strip() and not _line.startswith("#") and "=" in _line:
+                _k, _, _v = _line.partition("=")
                 if _k.strip() == "ANTHROPIC_API_KEY" and _v.strip():
                     os.environ["ANTHROPIC_API_KEY"] = _v.strip()
 
-from Jotty.core.infrastructure.monitoring.evaluation import GAIABenchmark, EvalStore
-from Jotty.core.infrastructure.monitoring.evaluation.gaia_adapter import _looks_like_refusal
-from Jotty.core.infrastructure.monitoring.evaluation.gaia_adapter import JottyGAIAAdapter
+from Jotty.core.infrastructure.monitoring.evaluation import EvalStore, GAIABenchmark
+from Jotty.core.infrastructure.monitoring.evaluation.gaia_adapter import (
+    JottyGAIAAdapter,
+    _looks_like_refusal,
+)
 
 
 def parse_args(argv=None):
@@ -56,75 +58,100 @@ def parse_args(argv=None):
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
-        "--data-dir", default="./data/gaia",
+        "--data-dir",
+        default="./data/gaia",
         help="Path to GAIA dataset (default: ./data/gaia)",
     )
     parser.add_argument(
-        "--split", choices=["validation", "test"], default=None,
+        "--split",
+        choices=["validation", "test"],
+        default=None,
         help="Which split to evaluate (default: both)",
     )
     parser.add_argument(
-        "--level", type=int, choices=[1, 2, 3], default=None,
+        "--level",
+        type=int,
+        choices=[1, 2, 3],
+        default=None,
         help="GAIA difficulty level to filter (default: all)",
     )
     parser.add_argument(
-        "--tier", default=None,
+        "--tier",
+        default=None,
         help="Jotty execution tier: DIRECT, AGENTIC, LEARNING, RESEARCH, AUTONOMOUS (default: auto-detect from task)",
     )
     parser.add_argument(
-        "--model", default=None,
+        "--model",
+        default=None,
         help="Override model (e.g. claude-sonnet-4-20250514)",
     )
     parser.add_argument(
-        "--max-tasks", type=int, default=None,
+        "--max-tasks",
+        type=int,
+        default=None,
         help="Limit number of tasks to run",
     )
     parser.add_argument(
-        "--smoke", type=int, metavar="N", default=None,
+        "--smoke",
+        type=int,
+        metavar="N",
+        default=None,
         help="Smoke test: run first N tasks (deterministic order). Example: --smoke 10 to get 10/10 before bulk run.",
     )
     parser.add_argument(
-        "--task-id", default=None,
+        "--task-id",
+        default=None,
         help="Run a single task by ID",
     )
     parser.add_argument(
-        "--dry-run", action="store_true",
+        "--dry-run",
+        action="store_true",
         help="Dry run: skip LLM calls, test pipeline only",
     )
     parser.add_argument(
-        "--resume", action="store_true",
+        "--resume",
+        action="store_true",
         help="Resume: skip tasks already completed in this run",
     )
     parser.add_argument(
-        "--db-path", default=None,
+        "--db-path",
+        default=None,
         help="EvalStore DB path (default: ~/.jotty/evals.db)",
     )
     parser.add_argument(
-        "--output", default=None,
+        "--output",
+        default=None,
         help="Save results JSON to this path",
     )
     parser.add_argument(
-        "--verbose", action="store_true",
+        "--verbose",
+        action="store_true",
         help="Verbose output per task",
     )
     parser.add_argument(
-        "--use-llm-doc-sources", action="store_true",
+        "--use-llm-doc-sources",
+        action="store_true",
         help="Add open-source LLM doc references (Microsoft, Hugging Face, etc.) to context",
     )
     parser.add_argument(
-        "--retry-empty", action="store_true",
+        "--retry-empty",
+        action="store_true",
         help="Retry once when the model returns an empty answer but expected is non-empty",
     )
     parser.add_argument(
-        "--retry-refusal", action="store_true",
+        "--retry-refusal",
+        action="store_true",
         help="Retry once with tier=AGENTIC when the model output looks like a refusal (use tools)",
     )
     parser.add_argument(
-        "--optimize-dspy", action="store_true",
+        "--optimize-dspy",
+        action="store_true",
         help="Compile DSPy module from successful results after run",
     )
     parser.add_argument(
-        "--attempts", type=int, default=1,
+        "--attempts",
+        type=int,
+        default=1,
         help="Number of attempts per question (Pass@N). Use 3 for ensemble approach (default: 1)",
     )
     return parser.parse_args(argv)
@@ -132,10 +159,8 @@ def parse_args(argv=None):
 
 def get_completed_task_ids(store, run_id):
     """Get set of task_ids already completed in a run."""
-    rows = store._conn.execute(
-        "SELECT task_id FROM results WHERE run_id=?", (run_id,)
-    ).fetchall()
-    return {row['task_id'] for row in rows}
+    rows = store._conn.execute("SELECT task_id FROM results WHERE run_id=?", (run_id,)).fetchall()
+    return {row["task_id"] for row in rows}
 
 
 def get_latest_run_id(store, benchmark="GAIA"):
@@ -144,14 +169,16 @@ def get_latest_run_id(store, benchmark="GAIA"):
         "SELECT id FROM runs WHERE benchmark=? AND status='running' ORDER BY started_at DESC LIMIT 1",
         (benchmark,),
     ).fetchone()
-    return row['id'] if row else None
+    return row["id"] if row else None
 
 
 def make_live_progress_callback(idx, total, task_id, verbose):
     """Return a (stage, detail) callback for real-time progress during a single task."""
+
     def callback(stage, detail):
         line = f"    [{idx}/{total}] {task_id[:18]:18s} | {stage:12s} | {detail}"
         print(line, flush=True)
+
     return callback
 
 
@@ -168,10 +195,10 @@ def print_progress(idx, total, task_id, success, answer, expected, elapsed):
 def print_summary(results, total_time, run_id):
     """Print final summary."""
     total = len(results)
-    passed = sum(1 for r in results if r['success'])
+    passed = sum(1 for r in results if r["success"])
     failed = total - passed
-    total_cost = sum(r.get('cost', 0) for r in results)
-    avg_time = sum(r.get('time', 0) for r in results) / total if total else 0
+    total_cost = sum(r.get("cost", 0) for r in results)
+    avg_time = sum(r.get("time", 0) for r in results) / total if total else 0
 
     print("\n" + "=" * 70)
     print(f"GAIA Benchmark Results — Run {run_id}")
@@ -195,12 +222,11 @@ def _smart_retry(benchmark, task, adapter, bench_result, expected, idx, total, a
     if bench_result.success or not expected:
         return bench_result
 
-    raw = str(getattr(adapter, 'last_raw_answer', '') or '')
-    question = task.get('Question', '')
-    attachment_path = task.get('attachment_local_path', '')
+    raw = str(getattr(adapter, "last_raw_answer", "") or "")
+    question = task.get("Question", "")
+    attachment_path = task.get("attachment_local_path", "")
     has_audio = bool(
-        attachment_path and
-        attachment_path.lower().rsplit('.', 1)[-1] in ('mp3', 'wav', 'm4a')
+        attachment_path and attachment_path.lower().rsplit(".", 1)[-1] in ("mp3", "wav", "m4a")
     )
 
     max_retries = 3
@@ -214,7 +240,7 @@ def _smart_retry(benchmark, task, adapter, bench_result, expected, idx, total, a
             strategy = "refusal->full_pipeline"
         elif attempt == 0 and has_audio and not bench_result.success:
             strategy = "audio_hint"
-            modified_task['Question'] = (
+            modified_task["Question"] = (
                 f"{question}\n\n"
                 f"IMPORTANT: You MUST use voice_to_text_tool with "
                 f"audio_path='{attachment_path}' "
@@ -222,7 +248,7 @@ def _smart_retry(benchmark, task, adapter, bench_result, expected, idx, total, a
             )
         elif bench_result.answer and bench_result.answer.strip():
             strategy = f"feedback#{attempt}"
-            modified_task['Question'] = (
+            modified_task["Question"] = (
                 f"{question}\n\n"
                 f"NOTE: A previous attempt returned '{bench_result.answer}' which was incorrect. "
                 f"Please search more carefully and verify your answer before responding."
@@ -234,9 +260,11 @@ def _smart_retry(benchmark, task, adapter, bench_result, expected, idx, total, a
         # Force full agent pipeline on retries (skip_validation=False bypasses
         # Orchestrator's Haiku fast path, using Sonnet + web search instead)
         bench_result = benchmark.evaluate_task(
-            modified_task, adapter, skip_validation=False,
+            modified_task,
+            adapter,
+            skip_validation=False,
         )
-        raw = str(getattr(adapter, 'last_raw_answer', '') or '')
+        raw = str(getattr(adapter, "last_raw_answer", "") or "")
 
     return bench_result
 
@@ -264,7 +292,7 @@ def run_benchmark(args):
 
     # Filter single task
     if args.task_id:
-        tasks = [t for t in tasks if t.get('task_id') == args.task_id]
+        tasks = [t for t in tasks if t.get("task_id") == args.task_id]
         if not tasks:
             print(f"Task {args.task_id} not found.")
             return 1
@@ -303,23 +331,18 @@ def run_benchmark(args):
 
     if not run_id:
         metadata = {
-            'tier': args.tier or "auto",
-            'level': args.level,
-            'split': args.split,
-            'dry_run': args.dry_run,
+            "tier": args.tier or "auto",
+            "level": args.level,
+            "split": args.split,
+            "dry_run": args.dry_run,
         }
-        run_id = store.start_run(
-            model=model_name, benchmark="GAIA", metadata=metadata
-        )
+        run_id = store.start_run(model=model_name, benchmark="GAIA", metadata=metadata)
 
     level_str = f" Level {args.level}" if args.level else ""
     split_str = f" [{args.split}]" if args.split else ""
     mode_str = " (DRY RUN)" if args.dry_run else ""
     tier_str = args.tier or "auto"
-    print(
-        f"Running {len(tasks)} tasks{level_str}{split_str} "
-        f"with tier={tier_str}{mode_str}"
-    )
+    print(f"Running {len(tasks)} tasks{level_str}{split_str} " f"with tier={tier_str}{mode_str}")
     print(f"Run ID: {run_id}\n")
 
     # Run tasks
@@ -327,7 +350,7 @@ def run_benchmark(args):
     start_time = time.time()
 
     for idx, task in enumerate(tasks, 1):
-        task_id = task.get('task_id', task.get('file_name', 'unknown'))
+        task_id = task.get("task_id", task.get("file_name", "unknown"))
 
         # Skip already completed (resume)
         if task_id in completed_ids:
@@ -341,7 +364,7 @@ def run_benchmark(args):
         )
         print(f"  [{idx}/{len(tasks)}] Running {task_id[:50]} ...", flush=True)
 
-        expected = task.get('Final answer', '')
+        expected = task.get("Final answer", "")
 
         # Evaluate
         bench_result = benchmark.evaluate_task(task, adapter)
@@ -349,16 +372,22 @@ def run_benchmark(args):
         # Unified smart retry with escalating strategies
         if args.retry_refusal or args.retry_empty:
             bench_result = _smart_retry(
-                benchmark, task, adapter, bench_result, expected,
-                idx, len(tasks), args,
+                benchmark,
+                task,
+                adapter,
+                bench_result,
+                expected,
+                idx,
+                len(tasks),
+                args,
             )
 
         # Extract cost/tokens from adapter's last_result
         cost = 0.0
         tokens = 0
         if adapter.last_result:
-            cost = getattr(adapter.last_result, 'cost_usd', 0.0) or 0.0
-            tokens = getattr(adapter.last_result, 'llm_calls', 0) or 0
+            cost = getattr(adapter.last_result, "cost_usd", 0.0) or 0.0
+            tokens = getattr(adapter.last_result, "llm_calls", 0) or 0
 
         # Record in EvalStore
         store.record_result(
@@ -375,33 +404,40 @@ def run_benchmark(args):
         # META-LEARNING: Record which strategies worked for this question type
         if adapter.num_attempts > 1 and adapter.last_attempts and expected:
             try:
-                question = task.get('Question', '')
+                question = task.get("Question", "")
                 adapter.record_strategy_outcome(question, adapter.last_attempts, expected)
             except Exception as e:
                 print(f"         [Meta-Learning] Failed to record: {e}")
 
         result_dict = {
-            'task_id': task_id,
-            'success': bench_result.success,
-            'answer': bench_result.answer,
-            'expected': expected,
-            'time': bench_result.execution_time,
-            'cost': cost,
-            'error': bench_result.error,
+            "task_id": task_id,
+            "success": bench_result.success,
+            "answer": bench_result.answer,
+            "expected": expected,
+            "time": bench_result.execution_time,
+            "cost": cost,
+            "error": bench_result.error,
         }
         results.append(result_dict)
 
         adapter.progress_callback = None  # clear so next task gets fresh callback
 
         print_progress(
-            idx, len(tasks), task_id, bench_result.success,
-            bench_result.answer, expected, bench_result.execution_time,
+            idx,
+            len(tasks),
+            task_id,
+            bench_result.success,
+            bench_result.answer,
+            expected,
+            bench_result.execution_time,
         )
 
         if not bench_result.success:
             raw = getattr(adapter, "last_raw_answer", None)
             if raw is not None and str(raw).strip():
-                snippet = (str(raw).strip()[:120] + "..." if len(str(raw)) > 120 else str(raw).strip())
+                snippet = (
+                    str(raw).strip()[:120] + "..." if len(str(raw)) > 120 else str(raw).strip()
+                )
                 print(f"         raw: {snippet}")
         if args.verbose and bench_result.error:
             print(f"         ERROR: {bench_result.error}")
@@ -413,19 +449,25 @@ def run_benchmark(args):
     print_summary(results, total_time, run_id)
 
     # Optional DSPy compilation from successful results
-    if getattr(args, 'optimize_dspy', False):
+    if getattr(args, "optimize_dspy", False):
         try:
-            from Jotty.core.infrastructure.monitoring.evaluation.gaia_dspy_optimizer import compile_gaia_module
+            from Jotty.core.infrastructure.monitoring.evaluation.gaia_dspy_optimizer import (
+                compile_gaia_module,
+            )
+
             successful = [
-                {'question': r['expected'], 'expected': r['expected'], 'success': r['success']}
-                for r in results if r.get('success')
+                {"question": r["expected"], "expected": r["expected"], "success": r["success"]}
+                for r in results
+                if r.get("success")
             ]
-            save_path = str(Path.home() / '.jotty' / 'gaia_compiled.json')
+            save_path = str(Path.home() / ".jotty" / "gaia_compiled.json")
             compiled = compile_gaia_module(successful, save_path)
             if compiled:
                 print(f"\nDSPy module compiled from {len(successful)} examples -> {save_path}")
             else:
-                print(f"\nDSPy compilation skipped (need >= 3 successful examples, got {len(successful)})")
+                print(
+                    f"\nDSPy compilation skipped (need >= 3 successful examples, got {len(successful)})"
+                )
         except Exception as e:
             print(f"\nDSPy compilation failed: {e}")
 
@@ -441,9 +483,9 @@ def run_benchmark(args):
         output_path.parent.mkdir(parents=True, exist_ok=True)
         summary = store.get_run_summary(run_id)
         output_data = {
-            'run_id': run_id,
-            'summary': summary,
-            'results': results,
+            "run_id": run_id,
+            "summary": summary,
+            "results": results,
         }
         output_path.write_text(json.dumps(output_data, indent=2, default=str))
         print(f"\nResults saved to {args.output}")

@@ -19,8 +19,10 @@ import logging
 import shutil
 from datetime import datetime
 from typing import Any, Dict, List, Optional
+
 import dspy
-from Jotty.core.infrastructure.foundation.exceptions import LLMError, InputValidationError
+
+from Jotty.core.infrastructure.foundation.exceptions import InputValidationError, LLMError
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +43,7 @@ class AsyncClaudeCLILM(dspy.BaseLM):
     Optimized for async contexts with non-blocking subprocess calls.
     """
 
-    def __init__(self, model: str = '', timeout: int = 0, **kwargs: Any) -> None:
+    def __init__(self, model: str = "", timeout: int = 0, **kwargs: Any) -> None:
         """
         Initialize Async Claude CLI LM.
 
@@ -50,7 +52,11 @@ class AsyncClaudeCLILM(dspy.BaseLM):
             timeout: Timeout in seconds (default 120)
             **kwargs: Additional arguments
         """
-        from Jotty.core.infrastructure.foundation.config_defaults import DEFAULT_MODEL_ALIAS, LLM_TIMEOUT_SECONDS
+        from Jotty.core.infrastructure.foundation.config_defaults import (
+            DEFAULT_MODEL_ALIAS,
+            LLM_TIMEOUT_SECONDS,
+        )
+
         model = model or DEFAULT_MODEL_ALIAS
         timeout = timeout or LLM_TIMEOUT_SECONDS
 
@@ -61,9 +67,11 @@ class AsyncClaudeCLILM(dspy.BaseLM):
         self.history: List[Dict[str, Any]] = []
 
         # Find claude binary
-        self.claude_path = shutil.which('claude')
+        self.claude_path = shutil.which("claude")
         if not self.claude_path:
-            raise LLMError("Claude CLI not found. Install with: npm install -g @anthropic-ai/claude-code")
+            raise LLMError(
+                "Claude CLI not found. Install with: npm install -g @anthropic-ai/claude-code"
+            )
 
     def __call__(self, prompt: str = None, messages: List[Dict] = None, **kwargs: Any) -> List[str]:
         """
@@ -76,17 +84,17 @@ class AsyncClaudeCLILM(dspy.BaseLM):
             loop = asyncio.get_running_loop()
             # In async context - create a task
             import concurrent.futures
+
             with concurrent.futures.ThreadPoolExecutor() as executor:
-                future = executor.submit(
-                    asyncio.run,
-                    self._async_call(prompt, messages, **kwargs)
-                )
+                future = executor.submit(asyncio.run, self._async_call(prompt, messages, **kwargs))
                 return future.result(timeout=self.timeout + 10)
         except RuntimeError:
             # Not in async context - safe to use asyncio.run
             return asyncio.run(self._async_call(prompt, messages, **kwargs))
 
-    async def _async_call(self, prompt: str = None, messages: List[Dict] = None, **kwargs: Any) -> List[str]:
+    async def _async_call(
+        self, prompt: str = None, messages: List[Dict] = None, **kwargs: Any
+    ) -> List[str]:
         """
         Async implementation of the LLM call.
         """
@@ -98,7 +106,7 @@ class AsyncClaudeCLILM(dspy.BaseLM):
             parts = []
             for msg in messages:
                 if isinstance(msg, dict):
-                    content = msg.get('content', '')
+                    content = msg.get("content", "")
                     if content:
                         parts.append(content)
                 elif isinstance(msg, str):
@@ -117,9 +125,12 @@ class AsyncClaudeCLILM(dspy.BaseLM):
         # Note: --output-format stream-json requires --verbose when using -p
         cmd = [
             self.claude_path,
-            "-p", input_text,  # -p flag for prompt
-            "--model", self.cli_model,
-            "--output-format", "stream-json",  # JSON streaming format
+            "-p",
+            input_text,  # -p flag for prompt
+            "--model",
+            self.cli_model,
+            "--output-format",
+            "stream-json",  # JSON streaming format
             "--verbose",  # Required for stream-json with -p flag
         ]
 
@@ -133,10 +144,7 @@ class AsyncClaudeCLILM(dspy.BaseLM):
 
             # Wait for completion with timeout
             try:
-                stdout, stderr = await asyncio.wait_for(
-                    process.communicate(),
-                    timeout=self.timeout
-                )
+                stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=self.timeout)
             except asyncio.TimeoutError as e:
                 process.kill()
                 await process.wait()
@@ -156,11 +164,13 @@ class AsyncClaudeCLILM(dspy.BaseLM):
             logger.debug(f"AsyncClaudeCLI: Response length: {len(response_text)} chars")
 
             # Store in history
-            self.history.append({
-                'prompt': input_text[:500],
-                'response': response_text[:500],
-                'model': self.cli_model
-            })
+            self.history.append(
+                {
+                    "prompt": input_text[:500],
+                    "response": response_text[:500],
+                    "model": self.cli_model,
+                }
+            )
 
             return [response_text]
 
@@ -178,7 +188,7 @@ class AsyncClaudeCLILM(dspy.BaseLM):
         """
         result_parts = []
 
-        for line in output.strip().split('\n'):
+        for line in output.strip().split("\n"):
             if not line.strip():
                 continue
 
@@ -186,35 +196,35 @@ class AsyncClaudeCLILM(dspy.BaseLM):
                 obj = json.loads(line)
 
                 # Handle different message types
-                msg_type = obj.get('type', '')
+                msg_type = obj.get("type", "")
 
-                if msg_type == 'assistant':
+                if msg_type == "assistant":
                     # Main response content
-                    content = obj.get('message', {}).get('content', [])
+                    content = obj.get("message", {}).get("content", [])
                     for block in content:
-                        if block.get('type') == 'text':
-                            result_parts.append(block.get('text', ''))
+                        if block.get("type") == "text":
+                            result_parts.append(block.get("text", ""))
 
-                elif msg_type == 'content_block_delta':
+                elif msg_type == "content_block_delta":
                     # Streaming delta
-                    delta = obj.get('delta', {})
-                    if delta.get('type') == 'text_delta':
-                        result_parts.append(delta.get('text', ''))
+                    delta = obj.get("delta", {})
+                    if delta.get("type") == "text_delta":
+                        result_parts.append(delta.get("text", ""))
 
-                elif msg_type == 'result':
+                elif msg_type == "result":
                     # Final result (from --output-format json)
-                    if 'result' in obj:
-                        result_parts.append(obj['result'])
+                    if "result" in obj:
+                        result_parts.append(obj["result"])
 
-                elif msg_type == 'text':
+                elif msg_type == "text":
                     # Simple text output
-                    result_parts.append(obj.get('text', ''))
+                    result_parts.append(obj.get("text", ""))
 
             except json.JSONDecodeError:
                 # Not JSON, use as-is
                 result_parts.append(line)
 
-        return ''.join(result_parts) if result_parts else output.strip()
+        return "".join(result_parts) if result_parts else output.strip()
 
     def inspect_history(self, n: int = 1) -> List[Dict[str, Any]]:
         """DSPy-compatible history inspection."""
@@ -222,7 +232,7 @@ class AsyncClaudeCLILM(dspy.BaseLM):
 
 
 # Convenience function for DSPy configuration
-def configure_async_claude_cli(model: str = '', **kwargs: Any) -> AsyncClaudeCLILM:
+def configure_async_claude_cli(model: str = "", **kwargs: Any) -> AsyncClaudeCLILM:
     """
     Configure DSPy with AsyncClaudeCLILM.
 

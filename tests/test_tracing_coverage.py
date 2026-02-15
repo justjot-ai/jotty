@@ -8,19 +8,24 @@ Tests for core/observability/tracing.py:
 - Nested span trees, cost aggregation, serialization
 """
 
-import time
 import threading
+import time
+
 import pytest
 
 from Jotty.core.infrastructure.monitoring.observability.tracing import (
-    Span, Trace, TracingContext, SpanStatus,
-    get_tracer, reset_tracer,
+    Span,
+    SpanStatus,
+    Trace,
+    TracingContext,
+    get_tracer,
+    reset_tracer,
 )
-
 
 # =============================================================================
 # Span Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestSpan:
@@ -139,21 +144,21 @@ class TestSpan:
         span = Span(name="test", span_id="abc123", trace_id="trace1")
         span.end()
         d = span.to_dict()
-        assert d['name'] == "test"
-        assert d['span_id'] == "abc123"
-        assert d['trace_id'] == "trace1"
-        assert d['status'] == "ok"
-        assert 'duration_ms' in d
-        assert 'children' not in d  # No children
+        assert d["name"] == "test"
+        assert d["span_id"] == "abc123"
+        assert d["trace_id"] == "trace1"
+        assert d["status"] == "ok"
+        assert "duration_ms" in d
+        assert "children" not in d  # No children
 
     def test_to_dict_with_cost(self):
         span = Span(name="test")
         span.add_cost(input_tokens=100, output_tokens=50, cost_usd=0.001)
         span.end()
         d = span.to_dict()
-        assert 'cost' in d
-        assert d['cost']['input_tokens'] == 100
-        assert d['cost']['output_tokens'] == 50
+        assert "cost" in d
+        assert d["cost"]["input_tokens"] == 100
+        assert d["cost"]["output_tokens"] == 50
 
     def test_to_dict_with_children(self):
         parent = Span(name="parent")
@@ -162,21 +167,22 @@ class TestSpan:
         parent.children.append(child)
         parent.end()
         d = parent.to_dict()
-        assert 'children' in d
-        assert len(d['children']) == 1
-        assert d['children'][0]['name'] == "child"
+        assert "children" in d
+        assert len(d["children"]) == 1
+        assert d["children"][0]["name"] == "child"
 
     def test_to_dict_with_status_message(self):
         span = Span(name="test")
         span.set_status(SpanStatus.ERROR, "timeout")
         span.end()
         d = span.to_dict()
-        assert d['status_message'] == "timeout"
+        assert d["status_message"] == "timeout"
 
 
 # =============================================================================
 # SpanStatus Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestSpanStatus:
@@ -194,6 +200,7 @@ class TestSpanStatus:
 # =============================================================================
 # Trace Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestTrace:
@@ -286,16 +293,17 @@ class TestTrace:
         trace.root_spans = [s]
         trace.end_time = time.time()
         d = trace.to_dict()
-        assert d['trace_id'] == trace.trace_id
-        assert d['metadata'] == {"goal": "test"}
-        assert 'summary' in d
-        assert d['summary']['span_count'] == 1
-        assert len(d['spans']) == 1
+        assert d["trace_id"] == trace.trace_id
+        assert d["metadata"] == {"goal": "test"}
+        assert "summary" in d
+        assert d["summary"]["span_count"] == 1
+        assert len(d["spans"]) == 1
 
 
 # =============================================================================
 # TracingContext Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestTracingContext:
@@ -437,6 +445,7 @@ class TestTracingContext:
 # =============================================================================
 # Singleton Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestTracingSingleton:

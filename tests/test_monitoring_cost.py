@@ -9,20 +9,23 @@ Tests cover:
 - MonitoringFramework class
 - EfficiencyMetrics class
 """
+
 import json
 import time
+from typing import Any, Dict
+
 import pytest
-from typing import Dict, Any
 
 # --- cost_tracker imports ---
 try:
     from Jotty.core.infrastructure.monitoring.monitoring.cost_tracker import (
-        PRICING_TABLE,
         DEFAULT_PRICING,
-        LLMCallRecord,
+        PRICING_TABLE,
         CostMetrics,
         CostTracker,
+        LLMCallRecord,
     )
+
     _HAS_COST_TRACKER = True
 except ImportError:
     _HAS_COST_TRACKER = False
@@ -30,11 +33,12 @@ except ImportError:
 # --- monitoring_framework imports ---
 try:
     from Jotty.core.infrastructure.monitoring.monitoring.monitoring_framework import (
-        MonitoringFramework,
-        ExecutionStatus,
         ExecutionMetrics,
+        ExecutionStatus,
+        MonitoringFramework,
         PerformanceMetrics,
     )
+
     _HAS_MONITORING_FRAMEWORK = True
 except ImportError:
     _HAS_MONITORING_FRAMEWORK = False
@@ -45,6 +49,7 @@ try:
         EfficiencyMetrics,
         EfficiencyReport,
     )
+
     _HAS_EFFICIENCY_METRICS = True
 except ImportError:
     _HAS_EFFICIENCY_METRICS = False
@@ -54,6 +59,7 @@ except ImportError:
 # 1. PRICING_TABLE and DEFAULT_PRICING
 # ============================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(not _HAS_COST_TRACKER, reason="cost_tracker not importable")
 class TestPricingTable:
@@ -62,35 +68,35 @@ class TestPricingTable:
     def test_pricing_table_has_claude_models(self):
         """PRICING_TABLE contains Anthropic Claude models."""
         claude_models = [k for k in PRICING_TABLE if "claude" in k.lower()]
-        assert len(claude_models) >= 3, (
-            f"Expected at least 3 Claude models, found {len(claude_models)}"
-        )
+        assert (
+            len(claude_models) >= 3
+        ), f"Expected at least 3 Claude models, found {len(claude_models)}"
 
     def test_pricing_table_has_openai_models(self):
         """PRICING_TABLE contains OpenAI models."""
         openai_models = [k for k in PRICING_TABLE if k.startswith(("gpt-", "o1", "o3"))]
-        assert len(openai_models) >= 2, (
-            f"Expected at least 2 OpenAI models, found {len(openai_models)}"
-        )
+        assert (
+            len(openai_models) >= 2
+        ), f"Expected at least 2 OpenAI models, found {len(openai_models)}"
 
     def test_pricing_table_has_gemini_models(self):
         """PRICING_TABLE contains Gemini models."""
         gemini_models = [k for k in PRICING_TABLE if "gemini" in k.lower()]
-        assert len(gemini_models) >= 1, (
-            f"Expected at least 1 Gemini model, found {len(gemini_models)}"
-        )
+        assert (
+            len(gemini_models) >= 1
+        ), f"Expected at least 1 Gemini model, found {len(gemini_models)}"
 
     def test_pricing_entries_have_input_output_floats(self):
         """Every entry in PRICING_TABLE has 'input' and 'output' float keys."""
         for model, pricing in PRICING_TABLE.items():
             assert "input" in pricing, f"Model '{model}' missing 'input' key"
             assert "output" in pricing, f"Model '{model}' missing 'output' key"
-            assert isinstance(pricing["input"], (int, float)), (
-                f"Model '{model}' input is not numeric: {type(pricing['input'])}"
-            )
-            assert isinstance(pricing["output"], (int, float)), (
-                f"Model '{model}' output is not numeric: {type(pricing['output'])}"
-            )
+            assert isinstance(
+                pricing["input"], (int, float)
+            ), f"Model '{model}' input is not numeric: {type(pricing['input'])}"
+            assert isinstance(
+                pricing["output"], (int, float)
+            ), f"Model '{model}' output is not numeric: {type(pricing['output'])}"
 
     def test_pricing_values_are_positive(self):
         """All pricing values are positive (non-negative)."""
@@ -114,6 +120,7 @@ class TestPricingTable:
 # ============================================================================
 # 2. LLMCallRecord dataclass
 # ============================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not _HAS_COST_TRACKER, reason="cost_tracker not importable")
@@ -174,8 +181,15 @@ class TestLLMCallRecord:
         record = self._make_record()
         d = record.to_dict()
         expected_keys = {
-            "timestamp", "provider", "model", "input_tokens",
-            "output_tokens", "cost", "success", "error", "duration",
+            "timestamp",
+            "provider",
+            "model",
+            "input_tokens",
+            "output_tokens",
+            "cost",
+            "success",
+            "error",
+            "duration",
         }
         assert set(d.keys()) == expected_keys
 
@@ -207,6 +221,7 @@ class TestLLMCallRecord:
 # ============================================================================
 # 3. CostMetrics dataclass
 # ============================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not _HAS_COST_TRACKER, reason="cost_tracker not importable")
@@ -254,11 +269,20 @@ class TestCostMetrics:
         m = self._make_metrics()
         d = m.to_dict()
         expected_keys = {
-            "total_cost", "total_input_tokens", "total_output_tokens",
-            "total_tokens", "total_calls", "successful_calls", "failed_calls",
-            "avg_cost_per_call", "avg_tokens_per_call", "cost_per_1k_tokens",
-            "cost_by_provider", "cost_by_model",
-            "calls_by_provider", "calls_by_model",
+            "total_cost",
+            "total_input_tokens",
+            "total_output_tokens",
+            "total_tokens",
+            "total_calls",
+            "successful_calls",
+            "failed_calls",
+            "avg_cost_per_call",
+            "avg_tokens_per_call",
+            "cost_per_1k_tokens",
+            "cost_by_provider",
+            "cost_by_model",
+            "calls_by_provider",
+            "calls_by_model",
         }
         assert set(d.keys()) == expected_keys
 
@@ -275,6 +299,7 @@ class TestCostMetrics:
 # ============================================================================
 # 4. CostTracker class
 # ============================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not _HAS_COST_TRACKER, reason="cost_tracker not importable")
@@ -333,9 +358,9 @@ class TestCostTracker:
         tracker = CostTracker()
         # gpt-4o: input=2.5/1M, output=10.0/1M
         cost = tracker._calculate_cost("gpt-4o", 1000, 500)
-        expected_input = (1000 / 1_000_000) * 2.5   # 0.0025
-        expected_output = (500 / 1_000_000) * 10.0   # 0.005
-        expected = expected_input + expected_output    # 0.0075
+        expected_input = (1000 / 1_000_000) * 2.5  # 0.0025
+        expected_output = (500 / 1_000_000) * 10.0  # 0.005
+        expected = expected_input + expected_output  # 0.0075
         assert cost == pytest.approx(expected)
 
     def test_calculate_cost_unknown_model_uses_default(self):
@@ -356,8 +381,8 @@ class TestCostTracker:
         tracker = CostTracker()
         # claude-opus-4: input=15.0/1M, output=75.0/1M
         cost = tracker._calculate_cost("claude-opus-4", 10_000_000, 5_000_000)
-        expected_input = 10.0 * 15.0   # 150.0
-        expected_output = 5.0 * 75.0   # 375.0
+        expected_input = 10.0 * 15.0  # 150.0
+        expected_output = 5.0 * 75.0  # 375.0
         expected = expected_input + expected_output  # 525.0
         assert cost == pytest.approx(expected)
 
@@ -468,18 +493,28 @@ class TestCostTracker:
 
         # Call 1: anthropic / claude-sonnet-4 (input=3.0/1M, output=15.0/1M)
         tracker.record_llm_call(
-            provider="anthropic", model="claude-sonnet-4",
-            input_tokens=1000, output_tokens=500, success=True,
+            provider="anthropic",
+            model="claude-sonnet-4",
+            input_tokens=1000,
+            output_tokens=500,
+            success=True,
         )
         # Call 2: openai / gpt-4o (input=2.5/1M, output=10.0/1M)
         tracker.record_llm_call(
-            provider="openai", model="gpt-4o",
-            input_tokens=2000, output_tokens=1000, success=True,
+            provider="openai",
+            model="gpt-4o",
+            input_tokens=2000,
+            output_tokens=1000,
+            success=True,
         )
         # Call 3: anthropic / claude-sonnet-4, failed
         tracker.record_llm_call(
-            provider="anthropic", model="claude-sonnet-4",
-            input_tokens=500, output_tokens=0, success=False, error="API error",
+            provider="anthropic",
+            model="claude-sonnet-4",
+            input_tokens=500,
+            output_tokens=0,
+            success=False,
+            error="API error",
         )
 
         m = tracker.get_metrics()
@@ -501,9 +536,7 @@ class TestCostTracker:
         assert m.total_cost == pytest.approx(expected_total)
         assert m.avg_cost_per_call == pytest.approx(expected_total / 3)
         assert m.avg_tokens_per_call == pytest.approx(m.total_tokens / 3)
-        assert m.cost_per_1k_tokens == pytest.approx(
-            expected_total / m.total_tokens * 1000
-        )
+        assert m.cost_per_1k_tokens == pytest.approx(expected_total / m.total_tokens * 1000)
 
         # by_provider
         assert m.cost_by_provider["anthropic"] == pytest.approx(cost_1 + cost_3)
@@ -523,8 +556,11 @@ class TestCostTracker:
         """get_efficiency_metrics returns correct cost_per_success and success_rate."""
         tracker = CostTracker(enable_tracking=True)
         tracker.record_llm_call(
-            provider="anthropic", model="claude-sonnet-4",
-            input_tokens=1_000_000, output_tokens=1_000_000, success=True,
+            provider="anthropic",
+            model="claude-sonnet-4",
+            input_tokens=1_000_000,
+            output_tokens=1_000_000,
+            success=True,
         )
         # total_cost = 3.0 + 15.0 = 18.0
 
@@ -538,8 +574,11 @@ class TestCostTracker:
         """get_efficiency_metrics returns positive efficiency_score."""
         tracker = CostTracker(enable_tracking=True)
         tracker.record_llm_call(
-            provider="anthropic", model="claude-sonnet-4",
-            input_tokens=1000, output_tokens=500, success=True,
+            provider="anthropic",
+            model="claude-sonnet-4",
+            input_tokens=1000,
+            output_tokens=500,
+            success=True,
         )
         eff = tracker.get_efficiency_metrics(success_count=5)
         assert eff["efficiency_score"] > 0
@@ -548,8 +587,11 @@ class TestCostTracker:
         """get_efficiency_metrics with zero successes does not raise."""
         tracker = CostTracker(enable_tracking=True)
         tracker.record_llm_call(
-            provider="anthropic", model="claude-sonnet-4",
-            input_tokens=1000, output_tokens=500, success=False,
+            provider="anthropic",
+            model="claude-sonnet-4",
+            input_tokens=1000,
+            output_tokens=500,
+            success=False,
         )
         eff = tracker.get_efficiency_metrics(success_count=0)
         # cost_per_success uses max(success_count, 1)
@@ -562,8 +604,11 @@ class TestCostTracker:
         """reset clears calls and resets start_time."""
         tracker = CostTracker(enable_tracking=True)
         tracker.record_llm_call(
-            provider="anthropic", model="claude-sonnet-4",
-            input_tokens=1000, output_tokens=500, success=True,
+            provider="anthropic",
+            model="claude-sonnet-4",
+            input_tokens=1000,
+            output_tokens=500,
+            success=True,
         )
         assert len(tracker.calls) == 1
 
@@ -578,8 +623,11 @@ class TestCostTracker:
         """After reset, get_metrics returns all zeros."""
         tracker = CostTracker(enable_tracking=True)
         tracker.record_llm_call(
-            provider="anthropic", model="claude-sonnet-4",
-            input_tokens=1000, output_tokens=500, success=True,
+            provider="anthropic",
+            model="claude-sonnet-4",
+            input_tokens=1000,
+            output_tokens=500,
+            success=True,
         )
         tracker.reset()
         m = tracker.get_metrics()
@@ -594,13 +642,20 @@ class TestCostTracker:
 
         tracker = CostTracker(enable_tracking=True)
         tracker.record_llm_call(
-            provider="anthropic", model="claude-sonnet-4",
-            input_tokens=1000, output_tokens=500, success=True,
+            provider="anthropic",
+            model="claude-sonnet-4",
+            input_tokens=1000,
+            output_tokens=500,
+            success=True,
         )
         tracker.record_llm_call(
-            provider="openai", model="gpt-4o",
-            input_tokens=2000, output_tokens=800, success=False,
-            error="timeout", duration=3.2,
+            provider="openai",
+            model="gpt-4o",
+            input_tokens=2000,
+            output_tokens=800,
+            success=False,
+            error="timeout",
+            duration=3.2,
         )
         original_metrics = tracker.get_metrics()
 
@@ -622,8 +677,11 @@ class TestCostTracker:
         filepath = str(tmp_path / "nested" / "dir" / "cost.json")
         tracker = CostTracker(enable_tracking=True)
         tracker.record_llm_call(
-            provider="anthropic", model="claude-sonnet-4",
-            input_tokens=100, output_tokens=50, success=True,
+            provider="anthropic",
+            model="claude-sonnet-4",
+            input_tokens=100,
+            output_tokens=50,
+            success=True,
         )
         tracker.save_to_file(filepath)
         assert (tmp_path / "nested" / "dir" / "cost.json").exists()
@@ -633,8 +691,11 @@ class TestCostTracker:
         filepath = str(tmp_path / "cost.json")
         tracker = CostTracker(enable_tracking=True)
         tracker.record_llm_call(
-            provider="anthropic", model="claude-sonnet-4",
-            input_tokens=100, output_tokens=50, success=True,
+            provider="anthropic",
+            model="claude-sonnet-4",
+            input_tokens=100,
+            output_tokens=50,
+            success=True,
         )
         tracker.save_to_file(filepath)
 
@@ -656,9 +717,13 @@ class TestCostTracker:
         filepath = str(tmp_path / "cost.json")
         tracker = CostTracker(enable_tracking=True)
         tracker.record_llm_call(
-            provider="openai", model="gpt-4o-mini",
-            input_tokens=300, output_tokens=150, success=False,
-            error="rate_limit", duration=1.2,
+            provider="openai",
+            model="gpt-4o-mini",
+            input_tokens=300,
+            output_tokens=150,
+            success=False,
+            error="rate_limit",
+            duration=1.2,
         )
         tracker.save_to_file(filepath)
 
@@ -678,6 +743,7 @@ class TestCostTracker:
 # ============================================================================
 # 5. MonitoringFramework
 # ============================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not _HAS_MONITORING_FRAMEWORK, reason="monitoring_framework not importable")
@@ -768,7 +834,10 @@ class TestMonitoringFramework:
 
         em2 = monitor.start_execution("agent-b", task_id="t2")
         monitor.finish_execution(
-            em2, status=ExecutionStatus.FAILURE, error="Err:detail", cost=0.02,
+            em2,
+            status=ExecutionStatus.FAILURE,
+            error="Err:detail",
+            cost=0.02,
         )
 
         em3 = monitor.start_execution("agent-a", task_id="t3")
@@ -802,6 +871,7 @@ class TestMonitoringFramework:
 # ============================================================================
 # 6. EfficiencyMetrics
 # ============================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not _HAS_EFFICIENCY_METRICS, reason="efficiency_metrics not importable")
@@ -870,7 +940,9 @@ class TestEfficiencyMetrics:
         """calculate_efficiency respects explicit total_attempts override."""
         cm = self._make_cost_metrics(total_cost=0.10, total_calls=10)
         report = EfficiencyMetrics.calculate_efficiency(
-            cm, success_count=5, total_attempts=20,
+            cm,
+            success_count=5,
+            total_attempts=20,
         )
         assert report.total_attempts == 20
         assert report.success_rate == pytest.approx(5 / 20)
@@ -889,9 +961,14 @@ class TestEfficiencyMetrics:
         report = EfficiencyMetrics.calculate_efficiency(cm, success_count=5)
         d = report.to_dict()
         expected_keys = {
-            "cost_per_success", "efficiency_score", "success_rate",
-            "total_cost", "success_count", "total_attempts",
-            "cost_reduction_potential", "performance_retention",
+            "cost_per_success",
+            "efficiency_score",
+            "success_rate",
+            "total_cost",
+            "success_count",
+            "total_attempts",
+            "cost_reduction_potential",
+            "performance_retention",
         }
         assert set(d.keys()) == expected_keys
 
@@ -917,9 +994,7 @@ class TestEfficiencyMetrics:
             baseline_performance=0.90,
         )
         # performance_retention = (0.85 / 0.90) * 100
-        assert result["performance_retention_percent"] == pytest.approx(
-            (0.85 / 0.90) * 100
-        )
+        assert result["performance_retention_percent"] == pytest.approx((0.85 / 0.90) * 100)
 
     def test_compare_efficiency_improvement(self):
         """compare_efficiency calculates efficiency_improvement_percent."""

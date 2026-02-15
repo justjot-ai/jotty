@@ -5,23 +5,24 @@ Tests for ExecutionRecord, AgentMetrics, MetricsCollector, and singleton functio
 All tests are mocked and offline — no LLM calls or API keys required.
 """
 
-import time
 import math
+import time
+from unittest.mock import MagicMock, Mock, patch
+
 import pytest
-from unittest.mock import Mock, MagicMock, patch
 
 from Jotty.core.infrastructure.monitoring.observability.metrics import (
-    ExecutionRecord,
     AgentMetrics,
+    ExecutionRecord,
     MetricsCollector,
     get_metrics,
     reset_metrics,
 )
 
-
 # =============================================================================
 # ExecutionRecord Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestExecutionRecord:
@@ -142,6 +143,7 @@ class TestExecutionRecord:
 # =============================================================================
 # AgentMetrics Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestAgentMetrics:
@@ -332,6 +334,7 @@ class TestAgentMetrics:
 # MetricsCollector Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestMetricsCollectorRecording:
     """Tests for MetricsCollector.record_execution and basic retrieval."""
@@ -359,9 +362,36 @@ class TestMetricsCollectorRecording:
     def test_record_multiple_executions_same_agent(self):
         """Multiple recordings for the same agent accumulate correctly."""
         mc = MetricsCollector()
-        mc.record_execution("auto", "research", 5.0, True, input_tokens=100, output_tokens=200, cost_usd=0.01, llm_calls=2)
-        mc.record_execution("auto", "analysis", 3.0, True, input_tokens=50, output_tokens=100, cost_usd=0.005, llm_calls=1)
-        mc.record_execution("auto", "research", 7.0, False, input_tokens=80, output_tokens=0, cost_usd=0.008, llm_calls=1)
+        mc.record_execution(
+            "auto",
+            "research",
+            5.0,
+            True,
+            input_tokens=100,
+            output_tokens=200,
+            cost_usd=0.01,
+            llm_calls=2,
+        )
+        mc.record_execution(
+            "auto",
+            "analysis",
+            3.0,
+            True,
+            input_tokens=50,
+            output_tokens=100,
+            cost_usd=0.005,
+            llm_calls=1,
+        )
+        mc.record_execution(
+            "auto",
+            "research",
+            7.0,
+            False,
+            input_tokens=80,
+            output_tokens=0,
+            cost_usd=0.008,
+            llm_calls=1,
+        )
 
         am = mc.get_agent_metrics("auto")
         assert am.total_executions == 3
@@ -393,7 +423,9 @@ class TestMetricsCollectorRecording:
     def test_record_execution_with_metadata(self):
         """record_execution stores metadata correctly."""
         mc = MetricsCollector()
-        mc.record_execution("auto", "research", 5.0, True, metadata={"model": "claude-opus-4-20250514"})
+        mc.record_execution(
+            "auto", "research", 5.0, True, metadata={"model": "claude-opus-4-20250514"}
+        )
         # Verify by checking internal records directly
         assert len(mc._records) == 1
         assert mc._records[0].metadata == {"model": "claude-opus-4-20250514"}
@@ -462,7 +494,16 @@ class TestMetricsCollectorSummary:
     def test_summary_global_counts(self):
         """get_summary global section has correct counts."""
         mc = MetricsCollector()
-        mc.record_execution("auto", "research", 5.0, True, input_tokens=100, output_tokens=200, cost_usd=0.01, llm_calls=2)
+        mc.record_execution(
+            "auto",
+            "research",
+            5.0,
+            True,
+            input_tokens=100,
+            output_tokens=200,
+            cost_usd=0.01,
+            llm_calls=2,
+        )
         mc.record_execution("auto", "research", 3.0, False, error="fail")
 
         summary = mc.get_summary()
@@ -540,9 +581,36 @@ class TestMetricsCollectorCostBreakdown:
     def test_cost_breakdown_by_agent(self):
         """get_cost_breakdown correctly groups costs by agent."""
         mc = MetricsCollector()
-        mc.record_execution("auto", "research", 1.0, True, input_tokens=100, output_tokens=200, cost_usd=0.01, llm_calls=1)
-        mc.record_execution("analyst", "analysis", 2.0, True, input_tokens=50, output_tokens=50, cost_usd=0.005, llm_calls=1)
-        mc.record_execution("auto", "creation", 3.0, True, input_tokens=200, output_tokens=300, cost_usd=0.02, llm_calls=2)
+        mc.record_execution(
+            "auto",
+            "research",
+            1.0,
+            True,
+            input_tokens=100,
+            output_tokens=200,
+            cost_usd=0.01,
+            llm_calls=1,
+        )
+        mc.record_execution(
+            "analyst",
+            "analysis",
+            2.0,
+            True,
+            input_tokens=50,
+            output_tokens=50,
+            cost_usd=0.005,
+            llm_calls=1,
+        )
+        mc.record_execution(
+            "auto",
+            "creation",
+            3.0,
+            True,
+            input_tokens=200,
+            output_tokens=300,
+            cost_usd=0.02,
+            llm_calls=2,
+        )
 
         cb = mc.get_cost_breakdown()
         assert cb["total_cost_usd"] == pytest.approx(0.035, abs=1e-6)
@@ -556,9 +624,15 @@ class TestMetricsCollectorCostBreakdown:
     def test_cost_breakdown_by_model(self):
         """get_cost_breakdown groups costs by model from metadata."""
         mc = MetricsCollector()
-        mc.record_execution("auto", "research", 1.0, True, cost_usd=0.01, metadata={"model": "claude"})
-        mc.record_execution("auto", "research", 1.0, True, cost_usd=0.02, metadata={"model": "gpt-4"})
-        mc.record_execution("auto", "research", 1.0, True, cost_usd=0.005, metadata={"model": "claude"})
+        mc.record_execution(
+            "auto", "research", 1.0, True, cost_usd=0.01, metadata={"model": "claude"}
+        )
+        mc.record_execution(
+            "auto", "research", 1.0, True, cost_usd=0.02, metadata={"model": "gpt-4"}
+        )
+        mc.record_execution(
+            "auto", "research", 1.0, True, cost_usd=0.005, metadata={"model": "claude"}
+        )
 
         cb = mc.get_cost_breakdown()
         assert cb["by_model"]["claude"] == pytest.approx(0.015, abs=1e-6)
@@ -653,7 +727,16 @@ class TestMetricsCollectorReset:
     def test_reset_clears_records(self):
         """reset clears all stored records."""
         mc = MetricsCollector()
-        mc.record_execution("auto", "research", 1.0, True, input_tokens=100, output_tokens=200, cost_usd=0.01, llm_calls=1)
+        mc.record_execution(
+            "auto",
+            "research",
+            1.0,
+            True,
+            input_tokens=100,
+            output_tokens=200,
+            cost_usd=0.01,
+            llm_calls=1,
+        )
         mc.record_execution("analyst", "analysis", 2.0, False, error="fail")
 
         mc.reset()
@@ -666,7 +749,16 @@ class TestMetricsCollectorReset:
     def test_reset_clears_global_counters(self):
         """reset zeroes out global cost, tokens, and LLM call counters."""
         mc = MetricsCollector()
-        mc.record_execution("auto", "research", 1.0, True, input_tokens=100, output_tokens=200, cost_usd=0.01, llm_calls=2)
+        mc.record_execution(
+            "auto",
+            "research",
+            1.0,
+            True,
+            input_tokens=100,
+            output_tokens=200,
+            cost_usd=0.01,
+            llm_calls=2,
+        )
         mc.reset()
 
         assert mc._total_cost_usd == 0.0
@@ -760,7 +852,7 @@ class TestMetricsCollectorThreadSafety:
         """MetricsCollector has a threading lock."""
         mc = MetricsCollector()
         assert hasattr(mc, "_lock")
-        assert isinstance(mc._lock, type(MagicMock()) ) or hasattr(mc._lock, "acquire")
+        assert isinstance(mc._lock, type(MagicMock())) or hasattr(mc._lock, "acquire")
 
     def test_concurrent_recording(self):
         """Multiple threads can record without data corruption."""
@@ -775,8 +867,7 @@ class TestMetricsCollectorThreadSafety:
                 mc.record_execution(agent_name, "task", 1.0, True, input_tokens=1, output_tokens=1)
 
         threads = [
-            threading.Thread(target=record_work, args=(f"agent_{i}",))
-            for i in range(num_threads)
+            threading.Thread(target=record_work, args=(f"agent_{i}",)) for i in range(num_threads)
         ]
         for t in threads:
             t.start()
@@ -792,6 +883,7 @@ class TestMetricsCollectorThreadSafety:
 # =============================================================================
 # Singleton Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestSingleton:
@@ -845,6 +937,7 @@ class TestSingleton:
 # Edge Case Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestEdgeCases:
     """Edge case tests for metrics module."""
@@ -886,7 +979,16 @@ class TestEdgeCases:
     def test_summary_single_execution(self):
         """Summary works correctly for exactly one execution."""
         mc = MetricsCollector()
-        mc.record_execution("auto", "research", 3.0, True, input_tokens=100, output_tokens=200, cost_usd=0.01, llm_calls=1)
+        mc.record_execution(
+            "auto",
+            "research",
+            3.0,
+            True,
+            input_tokens=100,
+            output_tokens=200,
+            cost_usd=0.01,
+            llm_calls=1,
+        )
 
         summary = mc.get_summary()
         g = summary["global"]
@@ -911,8 +1013,19 @@ class TestEdgeCases:
     def test_global_counters_accumulate_across_agents(self):
         """Global session counters (cost, tokens, llm_calls) accumulate across all agents."""
         mc = MetricsCollector()
-        mc.record_execution("auto", "r", 1.0, True, input_tokens=100, output_tokens=100, cost_usd=0.01, llm_calls=2)
-        mc.record_execution("analyst", "a", 1.0, True, input_tokens=50, output_tokens=50, cost_usd=0.005, llm_calls=1)
+        mc.record_execution(
+            "auto", "r", 1.0, True, input_tokens=100, output_tokens=100, cost_usd=0.01, llm_calls=2
+        )
+        mc.record_execution(
+            "analyst",
+            "a",
+            1.0,
+            True,
+            input_tokens=50,
+            output_tokens=50,
+            cost_usd=0.005,
+            llm_calls=1,
+        )
 
         assert mc._total_tokens == 300
         assert mc._total_cost_usd == pytest.approx(0.015)

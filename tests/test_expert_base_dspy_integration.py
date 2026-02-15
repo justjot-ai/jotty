@@ -13,14 +13,15 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 try:
     import dspy
+
     DSPY_AVAILABLE = True
 except ImportError:
     DSPY_AVAILABLE = False
     print("⚠️  DSPy not available. Install with: pip install dspy-ai")
     sys.exit(1)
 
-from core.experts.base_expert import BaseExpert
 from core.experts import ExpertAgentConfig
+from core.experts.base_expert import BaseExpert
 
 
 class TestExpertAgent(BaseExpert):
@@ -36,8 +37,10 @@ class TestExpertAgent(BaseExpert):
 
     def _create_domain_agent(self, improvements=None):
         """Create a simple DSPy agent for testing."""
+
         class TestSignature(dspy.Signature):
             """Test signature."""
+
             task: str = dspy.InputField(desc="Task description")
             description: str = dspy.InputField(desc="Description")
 
@@ -47,24 +50,42 @@ class TestExpertAgent(BaseExpert):
 
     def _create_domain_teacher(self):
         """Create teacher agent."""
+
         class TeacherSignature(dspy.Signature):
             """Teacher signature."""
+
             task: str = dspy.InputField(desc="Task description")
             gold_standard: str = dspy.InputField(desc="Correct output")
             student_output: str = dspy.InputField(desc="Student output")
             output: str = dspy.OutputField(desc="Correct output")
+
         return dspy.Predict(TeacherSignature)
 
     @staticmethod
     def _get_default_training_cases():
-        return [{"task": "Test task", "context": {"description": "Test description"}, "gold_standard": "Test output"}]
+        return [
+            {
+                "task": "Test task",
+                "context": {"description": "Test description"},
+                "gold_standard": "Test output",
+            }
+        ]
 
     @staticmethod
     def _get_default_validation_cases():
-        return [{"task": "Validation task", "context": {"description": "Test"}, "gold_standard": "Test output"}]
+        return [
+            {
+                "task": "Validation task",
+                "context": {"description": "Test"},
+                "gold_standard": "Test output",
+            }
+        ]
 
     async def _evaluate_domain(self, output, gold_standard, task, context):
-        return {"score": 1.0 if str(output).strip() == str(gold_standard).strip() else 0.0, "status": "CORRECT"}
+        return {
+            "score": 1.0 if str(output).strip() == str(gold_standard).strip() else 0.0,
+            "status": "CORRECT",
+        }
 
 
 async def test_base_class_dspy_support():
@@ -122,8 +143,8 @@ async def test_base_class_dspy_support():
     print("-" * 80)
     stats = expert.get_stats()
     print(f"   Stats: {stats}")
-    assert stats['domain'] == 'test'
-    assert stats['expert_type'] == 'TestExpertAgent'
+    assert stats["domain"] == "test"
+    assert stats["expert_type"] == "TestExpertAgent"
     print("   get_stats works!")
     print()
 

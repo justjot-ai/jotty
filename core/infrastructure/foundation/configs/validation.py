@@ -7,10 +7,11 @@ from typing import Any
 @dataclass
 class ValidationConfig:
     """Validation and multi-round settings."""
+
     max_validation_rounds: int = 3
     refinement_timeout: float = 30.0
     enable_validation: bool = True
-    validation_mode: str = 'full'
+    validation_mode: str = "full"
     require_all_architect: bool = True
     require_all_auditor: bool = False
     enable_per_actor_swarm_auditor: bool = False
@@ -29,13 +30,13 @@ class ValidationConfig:
     def __post_init__(self) -> None:
         # Confidence/threshold fields: [0, 1]
         _unit_fields = {
-            'swarm_validation_confidence_threshold': self.swarm_validation_confidence_threshold,
-            'min_confidence': self.min_confidence,
-            'default_confidence_on_error': self.default_confidence_on_error,
-            'default_confidence_no_validation': self.default_confidence_no_validation,
-            'default_confidence_insight_share': self.default_confidence_insight_share,
-            'default_estimated_reward': self.default_estimated_reward,
-            'refinement_on_low_confidence': self.refinement_on_low_confidence,
+            "swarm_validation_confidence_threshold": self.swarm_validation_confidence_threshold,
+            "min_confidence": self.min_confidence,
+            "default_confidence_on_error": self.default_confidence_on_error,
+            "default_confidence_no_validation": self.default_confidence_no_validation,
+            "default_confidence_insight_share": self.default_confidence_insight_share,
+            "default_estimated_reward": self.default_estimated_reward,
+            "refinement_on_low_confidence": self.refinement_on_low_confidence,
         }
         for name, val in _unit_fields.items():
             if not (0.0 <= val <= 1.0):
@@ -43,8 +44,8 @@ class ValidationConfig:
 
         # Positive integers
         _pos_int_fields = {
-            'max_validation_rounds': self.max_validation_rounds,
-            'max_refinement_rounds': self.max_refinement_rounds,
+            "max_validation_rounds": self.max_validation_rounds,
+            "max_refinement_rounds": self.max_refinement_rounds,
         }
         for name, val in _pos_int_fields.items():
             if val < 1:

@@ -8,7 +8,7 @@ properly categorized by type (Report, Orchestration, Learning, Memory, Coding).
 
 import re
 from pathlib import Path
-from typing import Set, Dict, List
+from typing import Dict, List, Set
 
 # Comprehensive attribute lists by category
 REPORT_ATTRS = """
@@ -105,6 +105,7 @@ MEMORY_ATTRS = """
     def _cluster_episodic_memories(self, memories: List[Any]) -> List[Any]: ...
 """
 
+
 def determine_mixin_category(file_path: Path, content: str) -> List[str]:
     """Determine what categories of attributes this mixin needs."""
     categories = []
@@ -112,54 +113,73 @@ def determine_mixin_category(file_path: Path, content: str) -> List[str]:
     # Check file path
     path_str = str(file_path)
 
-    if 'templates' in path_str or '_visualization_' in path_str or '_analysis_' in path_str or \
-       '_rendering_' in path_str or '_report_' in path_str or '_interpretability_' in path_str or \
-       '_drift_' in path_str or '_fairness_' in path_str or '_deployment_' in path_str or \
-       '_mlflow_' in path_str or '_telegram_' in path_str or '_error_analysis_' in path_str or \
-       '_world_class_' in path_str:
-        categories.append('report')
+    if (
+        "templates" in path_str
+        or "_visualization_" in path_str
+        or "_analysis_" in path_str
+        or "_rendering_" in path_str
+        or "_report_" in path_str
+        or "_interpretability_" in path_str
+        or "_drift_" in path_str
+        or "_fairness_" in path_str
+        or "_deployment_" in path_str
+        or "_mlflow_" in path_str
+        or "_telegram_" in path_str
+        or "_error_analysis_" in path_str
+        or "_world_class_" in path_str
+    ):
+        categories.append("report")
 
-    if 'protocols' in path_str or 'coordination' in path_str or 'lifecycle' in path_str or \
-       'resilience' in path_str or 'routing' in path_str or '_morph_' in path_str or \
-       '_session_' in path_str or '_consensus_' in path_str or '_ensemble_' in path_str:
-        categories.append('orchestration')
+    if (
+        "protocols" in path_str
+        or "coordination" in path_str
+        or "lifecycle" in path_str
+        or "resilience" in path_str
+        or "routing" in path_str
+        or "_morph_" in path_str
+        or "_session_" in path_str
+        or "_consensus_" in path_str
+        or "_ensemble_" in path_str
+    ):
+        categories.append("orchestration")
 
-    if '_learning_mixin' in path_str:
-        categories.append('learning')
+    if "_learning_mixin" in path_str:
+        categories.append("learning")
 
-    if 'memory' in path_str and ('_consolidation_' in path_str or '_retrieval_' in path_str):
-        categories.append('memory')
+    if "memory" in path_str and ("_consolidation_" in path_str or "_retrieval_" in path_str):
+        categories.append("memory")
 
-    if 'coding_swarm' in path_str or '_edit_' in path_str or '_review_' in path_str:
-        categories.append('coding')
+    if "coding_swarm" in path_str or "_edit_" in path_str or "_review_" in path_str:
+        categories.append("coding")
 
     # If no category detected, check content
     if not categories:
-        if 'self.figures' in content or 'self.theme' in content or 'self.output_dir' in content:
-            categories.append('report')
-        if 'self.agents' in content or 'self.handoff' in content:
-            categories.append('orchestration')
+        if "self.figures" in content or "self.theme" in content or "self.output_dir" in content:
+            categories.append("report")
+        if "self.agents" in content or "self.handoff" in content:
+            categories.append("orchestration")
 
     # Default to report if nothing else matched
     if not categories:
-        categories.append('report')
+        categories.append("report")
 
     return categories
+
 
 def build_type_checking_block(categories: List[str]) -> str:
     """Build TYPE_CHECKING block with appropriate attributes."""
     blocks = []
 
-    if 'report' in categories:
+    if "report" in categories:
         blocks.append(REPORT_ATTRS)
-    if 'orchestration' in categories:
+    if "orchestration" in categories:
         blocks.append(ORCHESTRATION_ATTRS)
-    if 'learning' in categories:
+    if "learning" in categories:
         blocks.append(LEARNING_ATTRS)
-    if 'memory' in categories:
+    if "memory" in categories:
         blocks.append(MEMORY_ATTRS)
 
-    combined = '\n'.join(blocks)
+    combined = "\n".join(blocks)
 
     return f"""
     if TYPE_CHECKING:
@@ -168,12 +188,13 @@ def build_type_checking_block(categories: List[str]) -> str:
 {combined}
 """
 
+
 def fix_mixin_file(file_path: Path, dry_run: bool = False) -> bool:
     """Add comprehensive TYPE_CHECKING block to mixin file."""
     content = file_path.read_text()
 
     # Skip if already has comprehensive block
-    if '# Comprehensive attribute declarations' in content:
+    if "# Comprehensive attribute declarations" in content:
         print(f"  ⏭️  {file_path.name} - Already has comprehensive block")
         return False
 
@@ -184,7 +205,7 @@ def fix_mixin_file(file_path: Path, dry_run: bool = False) -> bool:
     type_block = build_type_checking_block(categories)
 
     # Find class definition
-    class_match = re.search(r'^(class \w+.*?:)\s*\n', content, re.MULTILINE)
+    class_match = re.search(r"^(class \w+.*?:)\s*\n", content, re.MULTILINE)
     if not class_match:
         print(f"  ⚠️  {file_path.name} - No class found")
         return False
@@ -194,7 +215,7 @@ def fix_mixin_file(file_path: Path, dry_run: bool = False) -> bool:
 
     # Skip docstring if present
     after_class = content[class_line_end:]
-    lines = after_class.split('\n')
+    lines = after_class.split("\n")
 
     insert_idx = 0
     in_docstring = False
@@ -210,52 +231,55 @@ def fix_mixin_file(file_path: Path, dry_run: bool = False) -> bool:
                 in_docstring = True
                 continue
 
-        if not in_docstring and (stripped.startswith('def ') or stripped.startswith('if TYPE_CHECKING:') or
-                                  (stripped and not stripped.startswith('#'))):
+        if not in_docstring and (
+            stripped.startswith("def ")
+            or stripped.startswith("if TYPE_CHECKING:")
+            or (stripped and not stripped.startswith("#"))
+        ):
             insert_idx = i
             break
 
     # Remove old TYPE_CHECKING block if present
     old_type_checking = re.search(
-        r'\n    if TYPE_CHECKING:.*?(?=\n    [a-z@]|\n[a-z]|$)',
-        after_class,
-        re.DOTALL
+        r"\n    if TYPE_CHECKING:.*?(?=\n    [a-z@]|\n[a-z]|$)", after_class, re.DOTALL
     )
     if old_type_checking:
-        after_class = after_class[:old_type_checking.start()] + after_class[old_type_checking.end():]
-        lines = after_class.split('\n')
+        after_class = (
+            after_class[: old_type_checking.start()] + after_class[old_type_checking.end() :]
+        )
+        lines = after_class.split("\n")
 
     # Insert new block
     lines.insert(insert_idx, type_block)
-    new_content = content[:class_line_end] + '\n'.join(lines)
+    new_content = content[:class_line_end] + "\n".join(lines)
 
     # Ensure imports
-    if 'from __future__ import annotations' not in new_content:
-        new_content = 'from __future__ import annotations\n\n' + new_content
+    if "from __future__ import annotations" not in new_content:
+        new_content = "from __future__ import annotations\n\n" + new_content
 
-    if 'from pathlib import Path' not in new_content:
+    if "from pathlib import Path" not in new_content:
         # Add after __future__
         new_content = new_content.replace(
-            'from __future__ import annotations\n',
-            'from __future__ import annotations\n\nfrom pathlib import Path\n'
+            "from __future__ import annotations\n",
+            "from __future__ import annotations\n\nfrom pathlib import Path\n",
         )
 
     # Update typing imports
-    if 'from typing import' in new_content:
+    if "from typing import" in new_content:
         # Add TYPE_CHECKING, Optional, Any, Dict, List, Set if not present
-        needed = ['TYPE_CHECKING', 'Optional', 'Any', 'Dict', 'List', 'Set']
-        typing_line = re.search(r'from typing import ([^\n]+)', new_content)
+        needed = ["TYPE_CHECKING", "Optional", "Any", "Dict", "List", "Set"]
+        typing_line = re.search(r"from typing import ([^\n]+)", new_content)
         if typing_line:
             current = typing_line.group(1)
             for imp in needed:
                 if imp not in current:
-                    current = current.rstrip() + f', {imp}'
-            new_content = new_content.replace(typing_line.group(0), f'from typing import {current}')
+                    current = current.rstrip() + f", {imp}"
+            new_content = new_content.replace(typing_line.group(0), f"from typing import {current}")
     else:
         # Add typing import
         new_content = new_content.replace(
-            'from pathlib import Path\n',
-            'from pathlib import Path\nfrom typing import TYPE_CHECKING, Optional, Any, Dict, List, Set\n'
+            "from pathlib import Path\n",
+            "from pathlib import Path\nfrom typing import TYPE_CHECKING, Optional, Any, Dict, List, Set\n",
         )
 
     if dry_run:
@@ -267,25 +291,27 @@ def fix_mixin_file(file_path: Path, dry_run: bool = False) -> bool:
     print(f"  ✅ Updated {file_path.name} (categories: {', '.join(categories)})")
     return True
 
+
 def main():
     import argparse
+
     parser = argparse.ArgumentParser(description="Add comprehensive TYPE_CHECKING to mixins")
-    parser.add_argument('--dry-run', action='store_true')
+    parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
     # Find all mixin files
     mixin_patterns = [
-        'core/intelligence/orchestration/templates/*_mixin.py',
-        'core/intelligence/orchestration/*_mixin.py',
-        'core/intelligence/orchestration/protocols/*.py',
-        'core/intelligence/swarms/*_mixin.py',
-        'core/intelligence/memory/*_mixin.py',
-        'core/intelligence/swarms/coding_swarm/*_mixin.py',
+        "core/intelligence/orchestration/templates/*_mixin.py",
+        "core/intelligence/orchestration/*_mixin.py",
+        "core/intelligence/orchestration/protocols/*.py",
+        "core/intelligence/swarms/*_mixin.py",
+        "core/intelligence/memory/*_mixin.py",
+        "core/intelligence/swarms/coding_swarm/*_mixin.py",
     ]
 
     mixin_files = []
     for pattern in mixin_patterns:
-        mixin_files.extend(Path('.').glob(pattern))
+        mixin_files.extend(Path(".").glob(pattern))
 
     mixin_files = sorted(set(mixin_files))
 
@@ -298,10 +324,13 @@ def main():
             modified += 1
 
     print()
-    print(f"{'🔍 Would modify' if args.dry_run else '✅ Modified'} {modified}/{len(mixin_files)} files")
+    print(
+        f"{'🔍 Would modify' if args.dry_run else '✅ Modified'} {modified}/{len(mixin_files)} files"
+    )
 
     if args.dry_run:
         print("\nRun without --dry-run to apply changes")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

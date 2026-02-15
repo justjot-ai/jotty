@@ -14,9 +14,14 @@ NO configuration needed - just works!
 """
 
 import logging
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
+from Jotty.core.infrastructure.utils.tool_helpers import (
+    async_tool_wrapper,
+    tool_error,
+    tool_response,
+)
 
 logger = logging.getLogger(__name__)
 status = SkillStatus("data-extractor")
@@ -73,13 +78,12 @@ async def extract_data(params: Dict[str, Any]) -> Dict[str, Any]:
                 metadata={
                     "source_type": type(data_source).__name__,
                     "strategies_tried": [s["strategy"] for s in extractor.extraction_stats],
-                }
+                },
             )
 
         # Get successful strategy
         successful_strategy = next(
-            (s["strategy"] for s in extractor.extraction_stats if s["success"]),
-            "unknown"
+            (s["strategy"] for s in extractor.extraction_stats if s["success"]), "unknown"
         )
 
         status.complete(f"Extracted using strategy: {successful_strategy}")
@@ -88,7 +92,7 @@ async def extract_data(params: Dict[str, Any]) -> Dict[str, Any]:
             extracted_data=result,
             strategy_used=successful_strategy,
             source_type=type(data_source).__name__,
-            strategies_tried=len(extractor.extraction_stats)
+            strategies_tried=len(extractor.extraction_stats),
         )
 
     except Exception as e:
@@ -140,6 +144,7 @@ async def extract_from_file(params: Dict[str, Any]) -> Dict[str, Any]:
         elif format_hint == "csv" or file_path.endswith(".csv"):
             import csv
             import io
+
             reader = csv.DictReader(io.StringIO(content))
             data = list(reader)
             detected_format = "csv"
@@ -150,9 +155,7 @@ async def extract_from_file(params: Dict[str, Any]) -> Dict[str, Any]:
         status.complete(f"File read successfully as {detected_format}")
 
         return tool_response(
-            extracted_data=data,
-            format_detected=detected_format,
-            file_size=len(content)
+            extracted_data=data, format_detected=detected_format, file_size=len(content)
         )
 
     except json.JSONDecodeError as e:
@@ -203,16 +206,12 @@ async def extract_from_object(params: Dict[str, Any]) -> Dict[str, Any]:
             return tool_error(f"Could not extract '{key}' from object")
 
         successful_strategy = next(
-            (s["strategy"] for s in extractor.extraction_stats if s["success"]),
-            "unknown"
+            (s["strategy"] for s in extractor.extraction_stats if s["success"]), "unknown"
         )
 
         status.complete(f"Extracted using: {successful_strategy}")
 
-        return tool_response(
-            extracted_data=result,
-            extraction_method=successful_strategy
-        )
+        return tool_response(extracted_data=result, extraction_method=successful_strategy)
 
     except Exception as e:
         logger.error(f"Object extraction failed: {e}")

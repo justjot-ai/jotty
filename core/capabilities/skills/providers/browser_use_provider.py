@@ -13,12 +13,12 @@ Capabilities:
 - Multi-tab support
 """
 
-import time
-import logging
 import asyncio
+import logging
+import time
 from typing import Any, Dict, List, Optional
 
-from .base import SkillProvider, SkillCategory, ProviderCapability, ProviderResult
+from .base import ProviderCapability, ProviderResult, SkillCategory, SkillProvider
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 try:
     from browser_use import Agent as BrowserAgent
     from browser_use import Browser, BrowserConfig
+
     BROWSER_USE_AVAILABLE = True
 except ImportError:
     BROWSER_USE_AVAILABLE = False
@@ -83,8 +84,8 @@ class BrowserUseProvider(SkillProvider):
         self._llm = None
 
         # Configuration
-        self.headless = config.get('headless', True) if config else True
-        self.timeout = config.get('timeout', 60) if config else 60
+        self.headless = config.get("headless", True) if config else True
+        self.timeout = config.get("timeout", 60) if config else 60
 
     async def initialize(self) -> bool:
         """Initialize browser-use."""
@@ -118,8 +119,10 @@ class BrowserUseProvider(SkillProvider):
         """Set up LLM for browser-use agent."""
         try:
             # Try to use Claude CLI via our adapter
-            from Jotty.core.infrastructure.integration.direct_claude_cli_lm import DirectClaudeCLI
             import dspy
+
+            from Jotty.core.infrastructure.integration.direct_claude_cli_lm import DirectClaudeCLI
+
             self._llm = DirectClaudeCLI(model="sonnet")
             dspy.configure(lm=self._llm)
             logger.info("Using Claude CLI for browser-use")
@@ -158,18 +161,15 @@ class BrowserUseProvider(SkillProvider):
 
             # Run the agent
             logger.info(f" browser-use executing: {task[:50]}...")
-            result = await asyncio.wait_for(
-                agent.run(),
-                timeout=self.timeout
-            )
+            result = await asyncio.wait_for(agent.run(), timeout=self.timeout)
 
             execution_time = time.time() - start_time
 
             # Extract output
             output = {
-                'task': task,
-                'result': result,
-                'execution_time': execution_time,
+                "task": task,
+                "result": result,
+                "execution_time": execution_time,
             }
 
             provider_result = ProviderResult(
@@ -290,6 +290,7 @@ class BrowserUseCompositeProvider(SkillProvider):
         browser_ok = await self.browser_provider.initialize()
 
         from .base import JottyDefaultProvider
+
         self.jotty_provider = JottyDefaultProvider()
         await self.jotty_provider.initialize()
 
@@ -320,8 +321,8 @@ class BrowserUseCompositeProvider(SkillProvider):
             return ProviderResult(
                 success=True,
                 output={
-                    'browser_output': browser_result.output,
-                    'processed': True,
+                    "browser_output": browser_result.output,
+                    "processed": True,
                 },
                 execution_time=execution_time,
                 provider_name=self.name,

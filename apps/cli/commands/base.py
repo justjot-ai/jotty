@@ -5,10 +5,10 @@ Base Command Class
 Abstract base for CLI commands.
 """
 
+import shlex
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional, TYPE_CHECKING
-import shlex
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 if TYPE_CHECKING:
     from ..app import JottyCLI
@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 @dataclass
 class CommandResult:
     """Result from command execution."""
+
     success: bool = True
     output: Optional[str] = None
     data: Optional[Any] = None
@@ -42,6 +43,7 @@ class CommandResult:
 @dataclass
 class ParsedArgs:
     """Parsed command arguments."""
+
     positional: List[str] = field(default_factory=list)
     flags: Dict[str, Any] = field(default_factory=dict)
     raw: str = ""
@@ -61,11 +63,7 @@ class BaseCommand(ABC):
     category: str = "general"
 
     @abstractmethod
-    async def execute(
-        self,
-        args: ParsedArgs,
-        cli: "JottyCLI"
-    ) -> CommandResult:
+    async def execute(self, args: ParsedArgs, cli: "JottyCLI") -> CommandResult:
         """
         Execute the command.
 
@@ -206,13 +204,15 @@ class CommandRegistry:
         """
         commands = []
         for cmd in self._commands.values():
-            commands.append({
-                "name": cmd.name,
-                "aliases": cmd.aliases,
-                "description": cmd.description,
-                "usage": cmd.usage,
-                "category": cmd.category,
-            })
+            commands.append(
+                {
+                    "name": cmd.name,
+                    "aliases": cmd.aliases,
+                    "description": cmd.description,
+                    "usage": cmd.usage,
+                    "category": cmd.category,
+                }
+            )
         return sorted(commands, key=lambda x: x["name"])
 
     def get_completions(self, partial: str) -> List[str]:

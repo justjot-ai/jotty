@@ -3,19 +3,18 @@ MongoDB Query Engine
 
 Generates and executes MongoDB aggregation pipelines from natural language.
 """
-from typing import Dict, Any, Optional, List, Tuple
-from datetime import datetime, timedelta
-import logging
-import json
-import re
 
-from ..models import Schema
+import json
+import logging
+import re
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional, Tuple
+
 from ..lookml import LookMLGenerator, LookMLModel
+from ..models import Schema
 from .date_preprocessor import DatePreprocessor, DatePreprocessorFactory
 
 logger = logging.getLogger(__name__)
-
-
 
 
 class PipelineValidator:
@@ -25,22 +24,51 @@ class PipelineValidator:
 
     # Invalid aggregation stages (db-level commands)
     INVALID_STAGES = {
-        '$listCollections', '$listDatabases', '$currentOp',
-        '$collStats', '$indexStats', '$planCacheStats'
+        "$listCollections",
+        "$listDatabases",
+        "$currentOp",
+        "$collStats",
+        "$indexStats",
+        "$planCacheStats",
     }
 
     # Valid aggregation stages
     VALID_STAGES = {
-        '$match', '$group', '$sort', '$limit', '$skip', '$project',
-        '$lookup', '$unwind', '$count', '$facet', '$bucket', '$bucketAuto',
-        '$sample', '$addFields', '$set', '$unset', '$replaceRoot',
-        '$replaceWith', '$merge', '$out', '$unionWith', '$graphLookup',
-        '$redact', '$geoNear', '$sortByCount', '$fill', '$densify',
-        '$documents', '$setWindowFields'
+        "$match",
+        "$group",
+        "$sort",
+        "$limit",
+        "$skip",
+        "$project",
+        "$lookup",
+        "$unwind",
+        "$count",
+        "$facet",
+        "$bucket",
+        "$bucketAuto",
+        "$sample",
+        "$addFields",
+        "$set",
+        "$unset",
+        "$replaceRoot",
+        "$replaceWith",
+        "$merge",
+        "$out",
+        "$unionWith",
+        "$graphLookup",
+        "$redact",
+        "$geoNear",
+        "$sortByCount",
+        "$fill",
+        "$densify",
+        "$documents",
+        "$setWindowFields",
     }
 
     @classmethod
-    def validate_and_fix(cls, pipeline: List[Dict], schema: 'Schema' = None) -> Tuple[List[Dict], List[str]]:
+    def validate_and_fix(
+        cls, pipeline: List[Dict], schema: "Schema" = None
+    ) -> Tuple[List[Dict], List[str]]:
         """
         Validate and fix common pipeline issues.
 
@@ -76,7 +104,7 @@ class PipelineValidator:
                 continue
 
             # Check for valid stage
-            if operator not in cls.VALID_STAGES and not operator.startswith('$'):
+            if operator not in cls.VALID_STAGES and not operator.startswith("$"):
                 warnings.append(f"Unknown stage operator: {operator}")
 
             # Fix common issues in the stage
@@ -91,14 +119,14 @@ class PipelineValidator:
         """Fix common issues in a single stage."""
         stage = stage.copy()
 
-        if operator == '$match':
-            stage['$match'] = cls._fix_match(stage['$match'], warnings)
-        elif operator == '$group':
-            stage['$group'] = cls._fix_group(stage['$group'], warnings)
-        elif operator == '$facet':
-            stage['$facet'] = cls._fix_facet(stage['$facet'], warnings)
-        elif operator == '$lookup':
-            stage['$lookup'] = cls._fix_lookup(stage['$lookup'], warnings)
+        if operator == "$match":
+            stage["$match"] = cls._fix_match(stage["$match"], warnings)
+        elif operator == "$group":
+            stage["$group"] = cls._fix_group(stage["$group"], warnings)
+        elif operator == "$facet":
+            stage["$facet"] = cls._fix_facet(stage["$facet"], warnings)
+        elif operator == "$lookup":
+            stage["$lookup"] = cls._fix_lookup(stage["$lookup"], warnings)
 
         return stage
 
@@ -111,14 +139,14 @@ class PipelineValidator:
         match = match.copy()
 
         # Fix empty $or/$and/$nor arrays
-        for op in ['$or', '$and', '$nor']:
+        for op in ["$or", "$and", "$nor"]:
             if op in match:
                 if not match[op] or (isinstance(match[op], list) and len(match[op]) == 0):
                     warnings.append(f"Removed empty {op} array")
                     del match[op]
                 elif isinstance(match[op], list) and len(match[op]) == 1:
                     # Single element $or/$and is redundant
-                    if op in ['$or', '$and']:
+                    if op in ["$or", "$and"]:
                         single_condition = match[op][0]
                         del match[op]
                         match.update(single_condition)
@@ -133,8 +161,8 @@ class PipelineValidator:
             return group
 
         # Ensure _id field exists
-        if '_id' not in group:
-            group['_id'] = None
+        if "_id" not in group:
+            group["_id"] = None
             warnings.append("Added missing _id to $group")
 
         return group
@@ -163,14 +191,14 @@ class PipelineValidator:
             return lookup
 
         # Check for variable reference in 'from' field
-        if 'from' in lookup and lookup['from'].startswith('$'):
+        if "from" in lookup and lookup["from"].startswith("$"):
             warnings.append(f"$lookup 'from' cannot be a variable: {lookup['from']}")
             # Can't fix this automatically
 
         return lookup
 
     @classmethod
-    def get_date_fields(cls, schema: 'Schema') -> List[str]:
+    def get_date_fields(cls, schema: "Schema") -> List[str]:
         """Extract date field names from schema."""
         date_fields = []
         if not schema:
@@ -178,7 +206,7 @@ class PipelineValidator:
 
         for table in schema.tables:
             for col in table.columns:
-                if col.normalized_type.value in ['datetime', 'date', 'timestamp']:
+                if col.normalized_type.value in ["datetime", "date", "timestamp"]:
                     date_fields.append(col.name)
 
         return list(set(date_fields))
@@ -192,7 +220,13 @@ class MongoDBQueryEngine:
     using LLM with LookML semantic context.
     """
 
-    def __init__(self, schema: Schema = None, lookml_model: LookMLModel = None, uri: str = None, database: str = None) -> None:
+    def __init__(
+        self,
+        schema: Schema = None,
+        lookml_model: LookMLModel = None,
+        uri: str = None,
+        database: str = None,
+    ) -> None:
         """
         Initialize MongoDB query engine.
 
@@ -224,6 +258,7 @@ class MongoDBQueryEngine:
         """Get MongoDB client."""
         if self._client is None and self.uri:
             from pymongo import MongoClient
+
             self._client = MongoClient(self.uri)
         return self._client
 
@@ -271,10 +306,7 @@ class MongoDBQueryEngine:
         return self._context_cache
 
     def generate_pipeline(
-        self,
-        question: str,
-        execute: bool = False,
-        max_retries: int = 2
+        self, question: str, execute: bool = False, max_retries: int = 2
     ) -> Dict[str, Any]:
         """
         Generate MongoDB aggregation pipeline from natural language.
@@ -312,12 +344,16 @@ class MongoDBQueryEngine:
         prompt = self._build_prompt(processed_question, context)
 
         # Generate pipeline using LLM
-        from Jotty.core.infrastructure.foundation.config_defaults import DEFAULT_MODEL_ALIAS, LLM_TIMEOUT_SECONDS
+        from Jotty.core.infrastructure.foundation.config_defaults import (
+            DEFAULT_MODEL_ALIAS,
+            LLM_TIMEOUT_SECONDS,
+        )
+
         response = llm_generate(
             prompt=prompt,
             model=DEFAULT_MODEL_ALIAS,
             provider="claude-cli",
-            timeout=LLM_TIMEOUT_SECONDS
+            timeout=LLM_TIMEOUT_SECONDS,
         )
 
         if not response.success:
@@ -348,10 +384,7 @@ class MongoDBQueryEngine:
 
         # Execute if requested
         if execute and pipeline and self.db is not None:
-            execution_result = self._execute_pipeline(
-                pipeline_data["collection"],
-                pipeline
-            )
+            execution_result = self._execute_pipeline(pipeline_data["collection"], pipeline)
             result["executed"] = True
             result["query_result"] = execution_result
 
@@ -364,14 +397,23 @@ class MongoDBQueryEngine:
                     context=context,
                     llm_generate=llm_generate,
                     execute=execute,
-                    retries_left=max_retries
+                    retries_left=max_retries,
                 )
                 if retry_result:
                     return retry_result
 
         return result
 
-    def _retry_with_error(self, question: str, original_pipeline: List[Dict], error: str, context: str, llm_generate: Any, execute: bool, retries_left: int) -> Optional[Dict[str, Any]]:
+    def _retry_with_error(
+        self,
+        question: str,
+        original_pipeline: List[Dict],
+        error: str,
+        context: str,
+        llm_generate: Any,
+        execute: bool,
+        retries_left: int,
+    ) -> Optional[Dict[str, Any]]:
         """Retry pipeline generation with error feedback."""
         if retries_left <= 0:
             return None
@@ -407,7 +449,7 @@ JSON:"""
             prompt=retry_prompt,
             model=DEFAULT_MODEL_ALIAS,
             provider="claude-cli",
-            timeout=LLM_TIMEOUT_SECONDS
+            timeout=LLM_TIMEOUT_SECONDS,
         )
 
         if not response.success:
@@ -432,10 +474,7 @@ JSON:"""
 
         # Execute the retry pipeline
         if execute and pipeline and self.db is not None:
-            execution_result = self._execute_pipeline(
-                pipeline_data["collection"],
-                pipeline
-            )
+            execution_result = self._execute_pipeline(pipeline_data["collection"], pipeline)
             result["executed"] = True
             result["query_result"] = execution_result
 
@@ -448,7 +487,7 @@ JSON:"""
                     context=context,
                     llm_generate=llm_generate,
                     execute=execute,
-                    retries_left=retries_left - 1
+                    retries_left=retries_left - 1,
                 )
 
         return result
@@ -493,11 +532,11 @@ JSON:"""
 
         # Remove markdown code blocks
         if "```json" in response:
-            match = re.search(r'```json\s*(.*?)\s*```', response, re.DOTALL)
+            match = re.search(r"```json\s*(.*?)\s*```", response, re.DOTALL)
             if match:
                 response = match.group(1)
         elif "```" in response:
-            match = re.search(r'```\s*(.*?)\s*```', response, re.DOTALL)
+            match = re.search(r"```\s*(.*?)\s*```", response, re.DOTALL)
             if match:
                 response = match.group(1)
 
@@ -507,14 +546,14 @@ JSON:"""
         # Try to parse JSON
         try:
             # Find JSON object
-            start = response.find('{')
-            end = response.rfind('}') + 1
+            start = response.find("{")
+            end = response.rfind("}") + 1
             if start != -1 and end > start:
                 json_str = response[start:end]
                 data = json.loads(json_str)
                 return {
                     "collection": data.get("collection", ""),
-                    "pipeline": data.get("pipeline", [])
+                    "pipeline": data.get("pipeline", []),
                 }
         except json.JSONDecodeError as e:
             logger.warning(f"Failed to parse pipeline JSON: {e}")
@@ -532,39 +571,19 @@ JSON:"""
         - new Date("...") -> {"$date": "..."}
         """
         # Convert ISODate("...") to {"$date": "..."}
-        text = re.sub(
-            r'ISODate\s*\(\s*["\']([^"\']+)["\']\s*\)',
-            r'{"$date": "\1"}',
-            text
-        )
+        text = re.sub(r'ISODate\s*\(\s*["\']([^"\']+)["\']\s*\)', r'{"$date": "\1"}', text)
 
         # Convert new Date("...") to {"$date": "..."}
-        text = re.sub(
-            r'new\s+Date\s*\(\s*["\']([^"\']+)["\']\s*\)',
-            r'{"$date": "\1"}',
-            text
-        )
+        text = re.sub(r'new\s+Date\s*\(\s*["\']([^"\']+)["\']\s*\)', r'{"$date": "\1"}', text)
 
         # Convert ObjectId("...") to {"$oid": "..."}
-        text = re.sub(
-            r'ObjectId\s*\(\s*["\']([^"\']+)["\']\s*\)',
-            r'{"$oid": "\1"}',
-            text
-        )
+        text = re.sub(r'ObjectId\s*\(\s*["\']([^"\']+)["\']\s*\)', r'{"$oid": "\1"}', text)
 
         # Convert NumberLong(...) to just the number
-        text = re.sub(
-            r'NumberLong\s*\(\s*(\d+)\s*\)',
-            r'\1',
-            text
-        )
+        text = re.sub(r"NumberLong\s*\(\s*(\d+)\s*\)", r"\1", text)
 
         # Convert NumberInt(...) to just the number
-        text = re.sub(
-            r'NumberInt\s*\(\s*(\d+)\s*\)',
-            r'\1',
-            text
-        )
+        text = re.sub(r"NumberInt\s*\(\s*(\d+)\s*\)", r"\1", text)
 
         return text
 
@@ -614,8 +633,8 @@ JSON:"""
 
         # ISO date patterns
         iso_patterns = [
-            r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}',  # 2024-01-01T00:00:00
-            r'^\d{4}-\d{2}-\d{2}$',  # 2024-01-01
+            r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}",  # 2024-01-01T00:00:00
+            r"^\d{4}-\d{2}-\d{2}$",  # 2024-01-01
         ]
 
         for pattern in iso_patterns:
@@ -626,13 +645,13 @@ JSON:"""
     def _parse_date_string(self, date_str: str) -> datetime:
         """Parse various date string formats to datetime."""
         # Remove trailing Z and handle timezone
-        date_str = date_str.rstrip('Z')
+        date_str = date_str.rstrip("Z")
 
         formats = [
-            '%Y-%m-%dT%H:%M:%S.%f',
-            '%Y-%m-%dT%H:%M:%S',
-            '%Y-%m-%d %H:%M:%S',
-            '%Y-%m-%d',
+            "%Y-%m-%dT%H:%M:%S.%f",
+            "%Y-%m-%dT%H:%M:%S",
+            "%Y-%m-%d %H:%M:%S",
+            "%Y-%m-%d",
         ]
 
         for fmt in formats:
@@ -644,16 +663,13 @@ JSON:"""
         # If all else fails, try dateutil
         try:
             from dateutil.parser import parse
+
             return parse(date_str)
         except Exception:
             logger.warning(f"Could not parse date string: {date_str}")
             return date_str  # Return original if can't parse
 
-    def _execute_pipeline(
-        self,
-        collection_name: str,
-        pipeline: List[Dict]
-    ) -> Dict[str, Any]:
+    def _execute_pipeline(self, collection_name: str, pipeline: List[Dict]) -> Dict[str, Any]:
         """Execute MongoDB aggregation pipeline."""
         try:
             if self.db is None:
@@ -671,7 +687,7 @@ JSON:"""
                 "success": True,
                 "rows": serialized,
                 "row_count": len(serialized),
-                "truncated": len(results) > 100
+                "truncated": len(results) > 100,
             }
 
         except Exception as e:
@@ -680,8 +696,9 @@ JSON:"""
 
     def _serialize_doc(self, doc: Dict) -> Dict:
         """Serialize MongoDB document for JSON output."""
-        from bson import ObjectId
         from datetime import datetime
+
+        from bson import ObjectId
 
         result = {}
         for key, value in doc.items():
@@ -693,9 +710,11 @@ JSON:"""
                 result[key] = self._serialize_doc(value)
             elif isinstance(value, list):
                 result[key] = [
-                    self._serialize_doc(v) if isinstance(v, dict)
-                    else str(v) if isinstance(v, ObjectId)
-                    else v
+                    (
+                        self._serialize_doc(v)
+                        if isinstance(v, dict)
+                        else str(v) if isinstance(v, ObjectId) else v
+                    )
                     for v in value
                 ]
             else:

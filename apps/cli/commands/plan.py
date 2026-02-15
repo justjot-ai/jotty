@@ -6,6 +6,7 @@ Task planning and decomposition.
 """
 
 from typing import TYPE_CHECKING
+
 from .base import BaseCommand, CommandResult, ParsedArgs
 
 if TYPE_CHECKING:
@@ -48,11 +49,7 @@ class PlanCommand(BaseCommand):
         return await self._create_plan(task, execute, verbose, cli)
 
     async def _create_plan(
-        self,
-        task: str,
-        execute: bool,
-        verbose: bool,
-        cli: "JottyCLI"
+        self, task: str, execute: bool, verbose: bool, cli: "JottyCLI"
     ) -> CommandResult:
         """Create task plan."""
         try:
@@ -61,15 +58,16 @@ class PlanCommand(BaseCommand):
             cli.renderer.info(f"Planning: {task}")
 
             # Use intent parser to analyze task
-            async with await cli.renderer.progress.spinner_async(
-                "Analyzing task...",
-                style="cyan"
-            ):
+            async with await cli.renderer.progress.spinner_async("Analyzing task...", style="cyan"):
                 task_graph = swarm.swarm_intent_parser.parse(task)
 
             # Build plan info
             plan = {
-                "Task Type": task_graph.task_type.value if hasattr(task_graph.task_type, "value") else str(task_graph.task_type),
+                "Task Type": (
+                    task_graph.task_type.value
+                    if hasattr(task_graph.task_type, "value")
+                    else str(task_graph.task_type)
+                ),
                 "Workflow": task_graph.workflow,
                 "Operations": task_graph.operations,
                 "Requirements": task_graph.requirements,
@@ -108,6 +106,7 @@ class PlanCommand(BaseCommand):
             cli.renderer.error(f"Planning failed: {e}")
             if cli.config.debug:
                 import traceback
+
                 traceback.print_exc()
             return CommandResult.fail(str(e))
 

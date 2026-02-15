@@ -10,13 +10,12 @@ import importlib.util
 import json
 import sys
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any, Dict
+from unittest.mock import MagicMock, patch
 
 import pytest
-from unittest.mock import patch, MagicMock
 
 from Jotty.core.infrastructure.utils.api_client import BaseAPIClient
-
 
 # =============================================================================
 # Module Loading Helpers (hyphenated dirs can't be imported normally)
@@ -57,6 +56,7 @@ _mock_env = patch.dict("os.environ", {"PMI_API_TOKEN": "t", "PMI_API_URL": "http
 # TestPlanMyInvestingClient
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestPlanMyInvestingClient:
     """Test PlanMyInvestingClient configuration and headers."""
@@ -68,7 +68,9 @@ class TestPlanMyInvestingClient:
         assert headers["Authorization"] == "Bearer test-token"
         assert headers["Content-Type"] == "application/json"
 
-    @patch.dict("os.environ", {"PMI_API_URL": "https://pmi.example.com", "PMI_API_TOKEN": "env-tok"})
+    @patch.dict(
+        "os.environ", {"PMI_API_URL": "https://pmi.example.com", "PMI_API_TOKEN": "env-tok"}
+    )
     def test_base_url_from_env(self):
         """BASE_URL loaded from PMI_API_URL env var."""
         client = PlanMyInvestingClient()
@@ -116,12 +118,15 @@ class TestPlanMyInvestingClient:
         client = PlanMyInvestingClient(token="t", base_url="http://test")
         with patch.object(client, "_make_request", return_value={"success": True}) as mock:
             client.post("/v2/test", data={"b": 2})
-            mock.assert_called_once_with("/v2/test", method="POST", json_data={"b": 2}, timeout=None)
+            mock.assert_called_once_with(
+                "/v2/test", method="POST", json_data={"b": 2}, timeout=None
+            )
 
 
 # =============================================================================
 # TestPMIMarketData
 # =============================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.asyncio
@@ -132,8 +137,11 @@ class TestPMIMarketData:
     @_mock_env
     async def test_get_quote_success(self, mock_req):
         mock_req.return_value = {
-            "success": True, "ltp": 2450.50, "change": 12.5,
-            "change_percent": 0.51, "volume": 1000000,
+            "success": True,
+            "ltp": 2450.50,
+            "change": 12.5,
+            "change_percent": 0.51,
+            "volume": 1000000,
         }
         result = await _market_data.get_quote_tool({"symbol": "RELIANCE"})
         assert result["success"] is True
@@ -162,7 +170,8 @@ class TestPMIMarketData:
     @_mock_env
     async def test_search_symbols(self, mock_req):
         mock_req.return_value = {
-            "success": True, "symbols": [{"symbol": "RELIANCE", "name": "Reliance Industries"}],
+            "success": True,
+            "symbols": [{"symbol": "RELIANCE", "name": "Reliance Industries"}],
         }
         result = await _market_data.search_symbols_tool({"query": "reliance"})
         assert result["success"] is True
@@ -172,7 +181,8 @@ class TestPMIMarketData:
     @_mock_env
     async def test_get_indices(self, mock_req):
         mock_req.return_value = {
-            "success": True, "indices": [{"name": "NIFTY 50", "value": 22500}],
+            "success": True,
+            "indices": [{"name": "NIFTY 50", "value": 22500}],
         }
         result = await _market_data.get_indices_tool({})
         assert result["success"] is True
@@ -193,7 +203,10 @@ class TestPMIMarketData:
     @_mock_env
     async def test_get_market_breadth(self, mock_req):
         mock_req.return_value = {
-            "success": True, "advances": 800, "declines": 500, "unchanged": 50,
+            "success": True,
+            "advances": 800,
+            "declines": 500,
+            "unchanged": 50,
         }
         result = await _market_data.get_market_breadth_tool({})
         assert result["success"] is True
@@ -203,7 +216,8 @@ class TestPMIMarketData:
     @_mock_env
     async def test_get_sector_analysis(self, mock_req):
         mock_req.return_value = {
-            "success": True, "sectors": [{"name": "IT", "change": 1.5}],
+            "success": True,
+            "sectors": [{"name": "IT", "change": 1.5}],
         }
         result = await _market_data.get_sector_analysis_tool({"period": "1d"})
         assert result["success"] is True
@@ -219,6 +233,7 @@ class TestPMIMarketData:
 # =============================================================================
 # TestPMIPortfolio
 # =============================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.asyncio
@@ -243,18 +258,21 @@ class TestPMIPortfolio:
     @_mock_env
     async def test_get_pnl_summary(self, mock_req):
         mock_req.return_value = {
-            "success": True, "realized_pnl": 1000, "unrealized_pnl": 500,
-            "total_pnl": 1500, "day_pnl": 200,
+            "success": True,
+            "realized_pnl": 1000,
+            "unrealized_pnl": 500,
+            "total_pnl": 1500,
+            "day_pnl": 200,
         }
         result = await _portfolio.get_pnl_summary_tool({})
         assert result["success"] is True
         assert result["total_pnl"] == 1500
 
 
-
 # =============================================================================
 # TestPMIWatchlist
 # =============================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.asyncio
@@ -265,7 +283,8 @@ class TestPMIWatchlist:
     @_mock_env
     async def test_list_watchlists(self, mock_req):
         mock_req.return_value = {
-            "success": True, "watchlists": [{"id": "w1", "name": "Tech"}],
+            "success": True,
+            "watchlists": [{"id": "w1", "name": "Tech"}],
         }
         result = await _watchlist.list_watchlists_tool({})
         assert result["success"] is True
@@ -283,9 +302,12 @@ class TestPMIWatchlist:
     @_mock_env
     async def test_add_to_watchlist(self, mock_req):
         mock_req.return_value = {"success": True}
-        result = await _watchlist.add_to_watchlist_tool({
-            "watchlist_id": "w1", "symbol": "HDFC",
-        })
+        result = await _watchlist.add_to_watchlist_tool(
+            {
+                "watchlist_id": "w1",
+                "symbol": "HDFC",
+            }
+        )
         assert result["success"] is True
         assert result["symbol"] == "HDFC"
 
@@ -293,9 +315,12 @@ class TestPMIWatchlist:
     @_mock_env
     async def test_remove_from_watchlist(self, mock_req):
         mock_req.return_value = {"success": True}
-        result = await _watchlist.remove_from_watchlist_tool({
-            "watchlist_id": "w1", "symbol": "HDFC",
-        })
+        result = await _watchlist.remove_from_watchlist_tool(
+            {
+                "watchlist_id": "w1",
+                "symbol": "HDFC",
+            }
+        )
         assert result["success"] is True
         assert result["removed"] is True
 
@@ -303,7 +328,8 @@ class TestPMIWatchlist:
     @_mock_env
     async def test_refresh_watchlist(self, mock_req):
         mock_req.return_value = {
-            "success": True, "symbols": [{"symbol": "TCS", "ltp": 3500}],
+            "success": True,
+            "symbols": [{"symbol": "TCS", "ltp": 3500}],
         }
         result = await _watchlist.refresh_watchlist_tool({"watchlist_id": "w1"})
         assert result["success"] is True
@@ -314,6 +340,7 @@ class TestPMIWatchlist:
 # TestPMITrading
 # =============================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.asyncio
 class TestPMITrading:
@@ -323,10 +350,14 @@ class TestPMITrading:
     @_mock_env
     async def test_place_order(self, mock_req):
         mock_req.return_value = {"success": True, "order_id": "ORD001", "status": "placed"}
-        result = await _trading.place_order_tool({
-            "symbol": "RELIANCE", "quantity": 10,
-            "order_type": "MARKET", "transaction_type": "BUY",
-        })
+        result = await _trading.place_order_tool(
+            {
+                "symbol": "RELIANCE",
+                "quantity": 10,
+                "order_type": "MARKET",
+                "transaction_type": "BUY",
+            }
+        )
         assert result["success"] is True
         assert result["order_id"] == "ORD001"
 
@@ -334,12 +365,18 @@ class TestPMITrading:
     @_mock_env
     async def test_place_smart_order(self, mock_req):
         mock_req.return_value = {
-            "success": True, "order_id": "ORD002",
-            "entry_price": 2450, "target": 2499, "stoploss": 2425.5,
+            "success": True,
+            "order_id": "ORD002",
+            "entry_price": 2450,
+            "target": 2499,
+            "stoploss": 2425.5,
         }
-        result = await _trading.place_smart_order_tool({
-            "symbol": "RELIANCE", "quantity": 5,
-        })
+        result = await _trading.place_smart_order_tool(
+            {
+                "symbol": "RELIANCE",
+                "quantity": 5,
+            }
+        )
         assert result["success"] is True
         assert result["entry_price"] == 2450
 
@@ -347,8 +384,10 @@ class TestPMITrading:
     @_mock_env
     async def test_exit_position(self, mock_req):
         mock_req.return_value = {
-            "success": True, "order_id": "ORD003",
-            "quantity_exited": 10, "exit_price": 2500,
+            "success": True,
+            "order_id": "ORD003",
+            "quantity_exited": 10,
+            "exit_price": 2500,
         }
         result = await _trading.exit_position_tool({"symbol": "RELIANCE"})
         assert result["success"] is True
@@ -366,7 +405,8 @@ class TestPMITrading:
     @_mock_env
     async def test_get_orders(self, mock_req):
         mock_req.return_value = {
-            "success": True, "orders": [{"order_id": "ORD001", "status": "completed"}],
+            "success": True,
+            "orders": [{"order_id": "ORD001", "status": "completed"}],
         }
         result = await _trading.get_orders_tool({})
         assert result["success"] is True
@@ -376,6 +416,7 @@ class TestPMITrading:
 # =============================================================================
 # TestPMIStrategies
 # =============================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.asyncio
@@ -397,13 +438,17 @@ class TestPMIStrategies:
     @_mock_env
     async def test_run_strategy(self, mock_req):
         mock_req.return_value = {
-            "success": True, "execution_id": "ex1",
+            "success": True,
+            "execution_id": "ex1",
             "signals": [{"symbol": "TCS", "action": "BUY"}],
             "orders_placed": 0,
         }
-        result = await _strategies.run_strategy_tool({
-            "strategy_id": "s1", "dry_run": True,
-        })
+        result = await _strategies.run_strategy_tool(
+            {
+                "strategy_id": "s1",
+                "dry_run": True,
+            }
+        )
         assert result["success"] is True
         assert result["dry_run"] is True
 
@@ -411,8 +456,11 @@ class TestPMIStrategies:
     @_mock_env
     async def test_get_strategy_status(self, mock_req):
         mock_req.return_value = {
-            "success": True, "name": "Momentum", "active": True,
-            "win_rate": 0.65, "total_trades": 42,
+            "success": True,
+            "name": "Momentum",
+            "active": True,
+            "win_rate": 0.65,
+            "total_trades": 42,
         }
         result = await _strategies.get_strategy_status_tool({"strategy_id": "s1"})
         assert result["success"] is True
@@ -422,7 +470,8 @@ class TestPMIStrategies:
     @_mock_env
     async def test_generate_signals(self, mock_req):
         mock_req.return_value = {
-            "success": True, "signals": [{"symbol": "INFY", "action": "SELL"}],
+            "success": True,
+            "signals": [{"symbol": "INFY", "action": "SELL"}],
         }
         result = await _strategies.generate_signals_tool({})
         assert result["success"] is True
@@ -433,6 +482,7 @@ class TestPMIStrategies:
 # TestPMIAlerts
 # =============================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.asyncio
 class TestPMIAlerts:
@@ -442,7 +492,8 @@ class TestPMIAlerts:
     @_mock_env
     async def test_list_alerts(self, mock_req):
         mock_req.return_value = {
-            "success": True, "alerts": [{"id": "a1", "symbol": "TCS"}],
+            "success": True,
+            "alerts": [{"id": "a1", "symbol": "TCS"}],
         }
         result = await _alerts.list_alerts_tool({})
         assert result["success"] is True
@@ -452,9 +503,13 @@ class TestPMIAlerts:
     @_mock_env
     async def test_create_alert(self, mock_req):
         mock_req.return_value = {"success": True, "alert_id": "a2"}
-        result = await _alerts.create_alert_tool({
-            "symbol": "RELIANCE", "condition": "above", "value": 2500,
-        })
+        result = await _alerts.create_alert_tool(
+            {
+                "symbol": "RELIANCE",
+                "condition": "above",
+                "value": 2500,
+            }
+        )
         assert result["success"] is True
         assert result["alert_id"] == "a2"
 
@@ -470,7 +525,10 @@ class TestPMIAlerts:
     @_mock_env
     async def test_get_alert_stats(self, mock_req):
         mock_req.return_value = {
-            "success": True, "total": 10, "active": 7, "triggered": 3,
+            "success": True,
+            "total": 10,
+            "active": 7,
+            "triggered": 3,
         }
         result = await _alerts.get_alert_stats_tool({})
         assert result["success"] is True
@@ -481,6 +539,7 @@ class TestPMIAlerts:
 # TestPMIBroker
 # =============================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.asyncio
 class TestPMIBroker:
@@ -490,7 +549,8 @@ class TestPMIBroker:
     @_mock_env
     async def test_list_brokers(self, mock_req):
         mock_req.return_value = {
-            "success": True, "brokers": [{"name": "zerodha", "connected": True}],
+            "success": True,
+            "brokers": [{"name": "zerodha", "connected": True}],
         }
         result = await _broker.list_brokers_tool({})
         assert result["success"] is True
@@ -500,7 +560,9 @@ class TestPMIBroker:
     @_mock_env
     async def test_get_broker_status(self, mock_req):
         mock_req.return_value = {
-            "success": True, "connected": True, "token_valid": True,
+            "success": True,
+            "connected": True,
+            "token_valid": True,
             "last_login": "2026-02-14T09:00:00Z",
         }
         result = await _broker.get_broker_status_tool({"broker": "zerodha"})
@@ -520,6 +582,7 @@ class TestPMIBroker:
 # TestFinancialAnalysis
 # =============================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.asyncio
 class TestFinancialAnalysis:
@@ -532,11 +595,18 @@ class TestFinancialAnalysis:
             {"success": True, "ltp": 2450, "change": 12, "change_percent": 0.5, "volume": 1000000},
             {"success": True, "candles": [{"o": 2440, "h": 2460, "l": 2430, "c": 2450}]},
         ]
-        with patch.object(_financial, "_call_lm", return_value=json.dumps({
-            "sentiment": "BULLISH", "confidence": "MEDIUM",
-            "signals": ["Price above SMA", "Volume increasing"],
-            "narrative": "Stock shows bullish momentum.",
-        })):
+        with patch.object(
+            _financial,
+            "_call_lm",
+            return_value=json.dumps(
+                {
+                    "sentiment": "BULLISH",
+                    "confidence": "MEDIUM",
+                    "signals": ["Price above SMA", "Volume increasing"],
+                    "narrative": "Stock shows bullish momentum.",
+                }
+            ),
+        ):
             result = await _financial.sentiment_analysis_tool({"symbol": "RELIANCE"})
         assert result["success"] is True
         assert result["sentiment"] == "BULLISH"
@@ -550,12 +620,19 @@ class TestFinancialAnalysis:
             {"success": True, "data": {"revenue": [100, 110, 120], "profit": [10, 12, 15]}},
             {"success": True, "ltp": 3500, "change_percent": 1.2},
         ]
-        with patch.object(_financial, "_call_lm", return_value=json.dumps({
-            "revenue_trend": "GROWING", "profit_trend": "GROWING",
-            "highlights": ["Consistent revenue growth"],
-            "quality": "High quality earnings",
-            "outlook": "Strong forward outlook.",
-        })):
+        with patch.object(
+            _financial,
+            "_call_lm",
+            return_value=json.dumps(
+                {
+                    "revenue_trend": "GROWING",
+                    "profit_trend": "GROWING",
+                    "highlights": ["Consistent revenue growth"],
+                    "quality": "High quality earnings",
+                    "outlook": "Strong forward outlook.",
+                }
+            ),
+        ):
             result = await _financial.earnings_analysis_tool({"symbol": "TCS"})
         assert result["success"] is True
         assert result["revenue_trend"] == "GROWING"
@@ -567,18 +644,26 @@ class TestFinancialAnalysis:
             {"success": True, "ltp": 3500, "change": 50},
             {"success": True, "ltp": 1600, "change": -10},
         ]
-        with patch.object(_financial, "_call_lm", return_value=json.dumps({
-            "ranking": [
-                {"symbol": "TCS", "rank": 1, "reason": "Better growth"},
-                {"symbol": "INFY", "rank": 2, "reason": "Lower valuation"},
-            ],
-            "differentiators": ["TCS has higher revenue growth"],
-            "narrative": "TCS leads in growth metrics.",
-            "risk_comparison": "Both have moderate risk profiles.",
-        })):
-            result = await _financial.stock_comparison_tool({
-                "symbols": ["TCS", "INFY"],
-            })
+        with patch.object(
+            _financial,
+            "_call_lm",
+            return_value=json.dumps(
+                {
+                    "ranking": [
+                        {"symbol": "TCS", "rank": 1, "reason": "Better growth"},
+                        {"symbol": "INFY", "rank": 2, "reason": "Lower valuation"},
+                    ],
+                    "differentiators": ["TCS has higher revenue growth"],
+                    "narrative": "TCS leads in growth metrics.",
+                    "risk_comparison": "Both have moderate risk profiles.",
+                }
+            ),
+        ):
+            result = await _financial.stock_comparison_tool(
+                {
+                    "symbols": ["TCS", "INFY"],
+                }
+            )
         assert result["success"] is True
         assert len(result["ranking"]) == 2
         assert result["symbols"] == ["TCS", "INFY"]
@@ -595,7 +680,7 @@ class TestFinancialAnalysis:
 # TestToolSchemaOutputs — verify output field parsing from docstrings
 # =============================================================================
 
-from Jotty.core.modes.agent._execution_types import ToolSchema, ToolParam
+from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
 
 
 @pytest.mark.unit
@@ -658,7 +743,9 @@ class TestToolSchemaOutputs:
 
     def test_pnl_summary_outputs(self):
         """PnL summary tool should declare realized_pnl, unrealized_pnl, total_pnl, day_pnl outputs."""
-        schema = ToolSchema.from_tool_function(_portfolio.get_pnl_summary_tool, "get_pnl_summary_tool")
+        schema = ToolSchema.from_tool_function(
+            _portfolio.get_pnl_summary_tool, "get_pnl_summary_tool"
+        )
         output_names = [o.name for o in schema.outputs]
         assert "realized_pnl" in output_names
         assert "unrealized_pnl" in output_names
@@ -746,10 +833,18 @@ class TestToolSchemaOutputs:
 class TestIOContractEnrichment:
     """Tests for _enrich_io_contracts post-processing in PlanUtilsMixin."""
 
-    def _make_step(self, skill_name="web-search", tool_name="search_web_tool",
-                   params=None, output_key="step_0", depends_on=None,
-                   inputs_needed=None, outputs_produced=None):
+    def _make_step(
+        self,
+        skill_name="web-search",
+        tool_name="search_web_tool",
+        params=None,
+        output_key="step_0",
+        depends_on=None,
+        inputs_needed=None,
+        outputs_produced=None,
+    ):
         from Jotty.core.modes.agent._execution_types import ExecutionStep
+
         return ExecutionStep(
             skill_name=skill_name,
             tool_name=tool_name,
@@ -763,6 +858,7 @@ class TestIOContractEnrichment:
 
     def _make_mixin(self):
         from Jotty.core.modes.agent._plan_utils_mixin import PlanUtilsMixin
+
         return PlanUtilsMixin()
 
     # -- _match_output_field tests --
@@ -843,7 +939,7 @@ class TestIOContractEnrichment:
 
         This test mocks the registry to provide a tool with declared outputs.
         """
-        from Jotty.core.modes.agent._execution_types import ToolSchema, ToolParam
+        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
 
         mixin = self._make_mixin()
 
@@ -880,7 +976,9 @@ class TestIOContractEnrichment:
         mock_registry = MagicMock()
         mock_registry.get_skill.return_value = mock_skill
 
-        with patch("Jotty.core.registry.skills_registry.get_skills_registry", return_value=mock_registry):
+        with patch(
+            "Jotty.core.registry.skills_registry.get_skills_registry", return_value=mock_registry
+        ):
             result = mixin._enrich_io_contracts([step0, step1])
 
         # Step 0 should have outputs_produced auto-populated
@@ -893,7 +991,7 @@ class TestIOContractEnrichment:
     @pytest.mark.unit
     def test_upgrade_data_param_to_data_field(self):
         """data param should match data output field via exact match."""
-        from Jotty.core.modes.agent._execution_types import ToolSchema, ToolParam
+        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
 
         mixin = self._make_mixin()
         step0 = self._make_step(output_key="fetch")
@@ -911,7 +1009,9 @@ class TestIOContractEnrichment:
         mock_registry = MagicMock()
         mock_registry.get_skill.return_value = mock_skill
 
-        with patch("Jotty.core.registry.skills_registry.get_skills_registry", return_value=mock_registry):
+        with patch(
+            "Jotty.core.registry.skills_registry.get_skills_registry", return_value=mock_registry
+        ):
             result = mixin._enrich_io_contracts([step0, step1])
 
         assert result[1].params["data"] == "${fetch.data}"
@@ -919,7 +1019,7 @@ class TestIOContractEnrichment:
     @pytest.mark.unit
     def test_no_upgrade_when_no_match(self):
         """Bare ref with no matching field should stay as-is."""
-        from Jotty.core.modes.agent._execution_types import ToolSchema, ToolParam
+        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
 
         mixin = self._make_mixin()
         step0 = self._make_step(output_key="src")
@@ -938,7 +1038,9 @@ class TestIOContractEnrichment:
         mock_registry = MagicMock()
         mock_registry.get_skill.return_value = mock_skill
 
-        with patch("Jotty.core.registry.skills_registry.get_skills_registry", return_value=mock_registry):
+        with patch(
+            "Jotty.core.registry.skills_registry.get_skills_registry", return_value=mock_registry
+        ):
             result = mixin._enrich_io_contracts([step0, step1])
 
         # Should NOT be upgraded (ambiguous)
@@ -947,7 +1049,7 @@ class TestIOContractEnrichment:
     @pytest.mark.unit
     def test_infers_inputs_needed_from_template(self):
         """inputs_needed should be auto-populated from ${key.field} refs in params."""
-        from Jotty.core.modes.agent._execution_types import ToolSchema, ToolParam
+        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
 
         mixin = self._make_mixin()
         step0 = self._make_step(output_key="search")
@@ -965,7 +1067,7 @@ class TestIOContractEnrichment:
     @pytest.mark.unit
     def test_multiple_refs_in_single_param(self):
         """Multiple template refs in one param value should all be processed."""
-        from Jotty.core.modes.agent._execution_types import ToolSchema, ToolParam
+        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
 
         mixin = self._make_mixin()
         step0 = self._make_step(output_key="a")
@@ -991,7 +1093,9 @@ class TestIOContractEnrichment:
         mock_registry = MagicMock()
         mock_registry.get_skill.return_value = mock_skill
 
-        with patch("Jotty.core.registry.skills_registry.get_skills_registry", return_value=mock_registry):
+        with patch(
+            "Jotty.core.registry.skills_registry.get_skills_registry", return_value=mock_registry
+        ):
             result = mixin._enrich_io_contracts([step0, step1, step2])
 
         # prompt param: 'prompt' is a content-like param, so ${a} -> ${a.results}

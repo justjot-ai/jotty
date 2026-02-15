@@ -1,16 +1,16 @@
 """CLI UI Components."""
 
+from .progress import ProgressManager, SwarmDashboard, SwarmState
 from .renderer import (
+    DesktopNotifier,
+    FooterHints,
+    MarkdownStreamRenderer,
+    REPLState,
     RichRenderer,
     ShimmerEffect,
-    MarkdownStreamRenderer,
-    FooterHints,
-    REPLState,
-    DesktopNotifier,
 )
-from .progress import ProgressManager, SwarmState, SwarmDashboard
 from .tables import TableRenderer
-from .themes import Theme, get_theme, ColorDistance, validate_palette_contrast
+from .themes import ColorDistance, Theme, get_theme, validate_palette_contrast
 
 __all__ = [
     "RichRenderer",

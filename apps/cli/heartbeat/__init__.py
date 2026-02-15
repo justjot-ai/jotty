@@ -15,7 +15,7 @@ This is what makes Jotty feel "alive" like a real assistant.
 """
 
 from .engine import HeartbeatEngine, HeartbeatTask, TaskFrequency, create_default_tasks
-from .monitors import EmailMonitor, CalendarMonitor, FileMonitor
+from .monitors import CalendarMonitor, EmailMonitor, FileMonitor
 
 __all__ = [
     "HeartbeatEngine",
@@ -24,5 +24,5 @@ __all__ = [
     "create_default_tasks",
     "EmailMonitor",
     "CalendarMonitor",
-    "FileMonitor"
+    "FileMonitor",
 ]

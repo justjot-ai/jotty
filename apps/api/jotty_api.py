@@ -11,18 +11,17 @@ import asyncio
 import json
 import logging
 import uuid
-from pathlib import Path
-from typing import Optional, Dict, Any, List
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
 # Absolute imports - single source of truth
-from Jotty.core.interface.api.mode_router import ModeRouter, get_mode_router, RouteResult
+from Jotty.core.interface.api.mode_router import ModeRouter, RouteResult, get_mode_router
+
 # Import SDK types from public package
-from Jotty.sdk import (
-    ExecutionContext, ExecutionMode, ChannelType, ResponseFormat,
-)
+from Jotty.sdk import ChannelType, ExecutionContext, ExecutionMode, ResponseFormat
 
 
 class JottyAPI:
@@ -50,6 +49,7 @@ class JottyAPI:
         """Get shared JottyCLI instance for command execution."""
         if self._cli is None:
             from Jotty.cli.app import JottyCLI
+
             self._cli = JottyCLI(no_color=True)  # No color for web output
         return self._cli
 
@@ -57,21 +57,26 @@ class JottyAPI:
         """Get session registry."""
         if self._registry is None:
             from Jotty.cli.repl.session import get_session_registry
+
             self._registry = get_session_registry()
         return self._registry
+
+    # Image validation constants
+    MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024  # 10MB
+    MAX_IMAGES_PER_REQUEST = 10
+    ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
 
     async def _execute_with_images(self, task: str, images: List[str], status_cb=None):
         """
         Execute task with image attachments using multimodal LLM.
 
         Args:
-            executor: The executor instance
             task: The task/prompt text
             images: List of base64 image data URLs
             status_cb: Status callback function
 
         Returns:
-            ExecutorResult with LLM response
+            ImageResult with LLM response
         """
         import os
 
@@ -80,6 +85,7 @@ class JottyAPI:
 
         # Create result dataclass
         from dataclasses import dataclass
+
         @dataclass
         class ImageResult:
             success: bool = True
@@ -89,6 +95,13 @@ class JottyAPI:
             steps_taken: int = 1
             error: str = None
 
+        # Validate image count
+        if len(images) > self.MAX_IMAGES_PER_REQUEST:
+            return ImageResult(
+                success=False,
+                error=f"Too many images: {len(images)} exceeds limit of {self.MAX_IMAGES_PER_REQUEST}",
+            )
+
         try:
             # Build multimodal message content
             message_content = []
@@ -96,55 +109,76 @@ class JottyAPI:
             # Add images first
             for i, img_data in enumerate(images):
                 # Extract base64 data from data URL (data:image/png;base64,...)
-                if img_data.startswith('data:'):
-                    # Split off the header and get base64 data
-                    header, b64_data = img_data.split(',', 1)
-                    media_type = header.split(':')[1].split(';')[0]
+                if img_data.startswith("data:"):
+                    try:
+                        header, b64_data = img_data.split(",", 1)
+                        media_type = header.split(":")[1].split(";")[0]
+                    except (ValueError, IndexError):
+                        return ImageResult(
+                            success=False,
+                            error=f"Image {i+1}: malformed data URL",
+                        )
                 else:
                     b64_data = img_data
                     media_type = "image/jpeg"
 
-                message_content.append({
-                    "type": "image",
-                    "source": {
-                        "type": "base64",
-                        "media_type": media_type,
-                        "data": b64_data
+                # Validate MIME type
+                if media_type not in self.ALLOWED_IMAGE_TYPES:
+                    return ImageResult(
+                        success=False,
+                        error=f"Image {i+1}: unsupported type '{media_type}'. Allowed: {', '.join(sorted(self.ALLOWED_IMAGE_TYPES))}",
+                    )
+
+                # Validate size (base64 is ~4/3 of raw size)
+                if len(b64_data) > self.MAX_IMAGE_SIZE_BYTES:
+                    size_mb = len(b64_data) / (1024 * 1024)
+                    return ImageResult(
+                        success=False,
+                        error=f"Image {i+1}: size {size_mb:.1f}MB exceeds limit of {self.MAX_IMAGE_SIZE_BYTES // (1024*1024)}MB",
+                    )
+
+                message_content.append(
+                    {
+                        "type": "image",
+                        "source": {"type": "base64", "media_type": media_type, "data": b64_data},
                     }
-                })
+                )
 
             # Add text content
-            message_content.append({
-                "type": "text",
-                "text": task
-            })
+            message_content.append({"type": "text", "text": task})
 
             if status_cb:
                 status_cb("processing", "Analyzing with vision model...")
 
             logger.info(f"_execute_with_images: processing {len(images)} images")
-            logger.info(f"  First image data starts with: {images[0][:60] if images else 'none'}...")
+            logger.info(
+                f"  First image data starts with: {images[0][:60] if images else 'none'}..."
+            )
 
             # Try Anthropic SDK directly (best for vision); respects ANTHROPIC_BASE_URL (CCR)
-            from Jotty.core.infrastructure.foundation.anthropic_client_kwargs import get_anthropic_client_kwargs
+            from Jotty.core.infrastructure.foundation.anthropic_client_kwargs import (
+                get_anthropic_client_kwargs,
+            )
+
             client_kwargs = get_anthropic_client_kwargs()
             api_key = client_kwargs.get("api_key")
             logger.info(f"  ANTHROPIC_API_KEY present: {bool(api_key)}")
             if api_key:
                 try:
                     import anthropic
+
                     client = anthropic.Anthropic(**client_kwargs)
 
                     response = client.messages.create(
                         model="claude-sonnet-4-20250514",
                         max_tokens=4096,
-                        messages=[{"role": "user", "content": message_content}]
+                        messages=[{"role": "user", "content": message_content}],
                     )
 
                     # Extract text from response
                     content = ""
                     for block in response.content:
-                        if hasattr(block, 'text'):
+                        if hasattr(block, "text"):
                             content += block.text
 
                     if status_cb:
@@ -160,6 +194,7 @@ class JottyAPI:
             if openai_key:
                 try:
                     import openai
+
                     client = openai.OpenAI(api_key=openai_key)
 
                     # Convert to OpenAI format
@@ -169,17 +204,19 @@ class JottyAPI:
                             # OpenAI uses URL format for base64
                             b64 = item["source"]["data"]
                             media = item["source"]["media_type"]
-                            openai_content.append({
-                                "type": "image_url",
-                                "image_url": {"url": f"data:{media};base64,{b64}"}
-                            })
+                            openai_content.append(
+                                {
+                                    "type": "image_url",
+                                    "image_url": {"url": f"data:{media};base64,{b64}"},
+                                }
+                            )
                         else:
                             openai_content.append(item)
 
                     response = client.chat.completions.create(
                         model="gpt-4o",
                         max_tokens=4096,
-                        messages=[{"role": "user", "content": openai_content}]
+                        messages=[{"role": "user", "content": openai_content}],
                     )
 
                     content = response.choices[0].message.content
@@ -198,9 +235,9 @@ class JottyAPI:
             if openrouter_key:
                 try:
                     import openai
+
                     client = openai.OpenAI(
-                        api_key=openrouter_key,
-                        base_url="https://openrouter.ai/api/v1"
+                        api_key=openrouter_key, base_url="https://openrouter.ai/api/v1"
                     )
 
                     # Convert to OpenAI format (OpenRouter uses same format)
@@ -209,10 +246,12 @@ class JottyAPI:
                         if item["type"] == "image":
                             b64 = item["source"]["data"]
                             media = item["source"]["media_type"]
-                            openrouter_content.append({
-                                "type": "image_url",
-                                "image_url": {"url": f"data:{media};base64,{b64}"}
-                            })
+                            openrouter_content.append(
+                                {
+                                    "type": "image_url",
+                                    "image_url": {"url": f"data:{media};base64,{b64}"},
+                                }
+                            )
                         else:
                             openrouter_content.append(item)
 
@@ -220,7 +259,7 @@ class JottyAPI:
                     response = client.chat.completions.create(
                         model="anthropic/claude-sonnet-4",  # Vision-capable model
                         max_tokens=4096,
-                        messages=[{"role": "user", "content": openrouter_content}]
+                        messages=[{"role": "user", "content": openrouter_content}],
                     )
 
                     content = response.choices[0].message.content
@@ -238,14 +277,18 @@ class JottyAPI:
             enhanced_task = f"[Note: User attached {len(images)} image(s) but no vision API is configured. Please respond to: {task}]"
             fallback_ctx = ExecutionContext(mode=ExecutionMode.CHAT, channel=ChannelType.WEB)
             result = await self.router.chat(enhanced_task, fallback_ctx)
-            return ImageResult(success=result.success, content=result.content or "", error=result.error)
+            return ImageResult(
+                success=result.success, content=result.content or "", error=result.error
+            )
 
         except Exception as e:
             logger.error(f"Image processing error: {e}", exc_info=True)
             # Fallback to text-only execution via ModeRouter
             fallback_ctx = ExecutionContext(mode=ExecutionMode.CHAT, channel=ChannelType.WEB)
             result = await self.router.chat(task, fallback_ctx)
-            return ImageResult(success=result.success, content=result.content or "", error=result.error)
+            return ImageResult(
+                success=result.success, content=result.content or "", error=result.error
+            )
 
     async def process_message(
         self,
@@ -254,7 +297,7 @@ class JottyAPI:
         user_id: str = "web_user",
         stream_callback=None,
         status_callback=None,
-        attachments: List[Dict] = None
+        attachments: List[Dict] = None,
     ) -> Dict[str, Any]:
         """
         Process a chat message with optional image attachments.
@@ -276,11 +319,7 @@ class JottyAPI:
 
         # Get session
         registry = self._get_session_registry()
-        session = registry.get_session(
-            session_id,
-            create=True,
-            interface=InterfaceType.WEB
-        )
+        session = registry.get_session(session_id, create=True, interface=InterfaceType.WEB)
 
         # Process attachments: images (for vision) and documents (for text extraction)
         image_descriptions = []
@@ -295,13 +334,19 @@ class JottyAPI:
                 elif att.get("type") == "document" and att.get("docId"):
                     try:
                         from Jotty.web.documents import get_document_processor
+
                         processor = get_document_processor()
                         doc_text = processor.get_document_text(att["docId"])
                         if doc_text:
                             max_len = 8000
                             if len(doc_text) > max_len:
-                                doc_text = doc_text[:max_len] + f"\n\n[... truncated, {len(doc_text) - max_len} more chars ...]"
-                            document_contexts.append(f"=== Content from {att.get('name', 'document')} ===\n{doc_text}")
+                                doc_text = (
+                                    doc_text[:max_len]
+                                    + f"\n\n[... truncated, {len(doc_text) - max_len} more chars ...]"
+                                )
+                            document_contexts.append(
+                                f"=== Content from {att.get('name', 'document')} ===\n{doc_text}"
+                            )
                     except Exception as e:
                         logger.error(f"Failed to extract document text: {e}")
 
@@ -313,10 +358,14 @@ class JottyAPI:
             context_parts.append("ATTACHED DOCUMENTS:\n\n" + "\n\n".join(document_contexts))
 
         if image_descriptions:
-            context_parts.append(' '.join(image_descriptions))
+            context_parts.append(" ".join(image_descriptions))
 
         if context_parts:
-            full_message = "\n\n".join(context_parts) + f"\n\nUSER REQUEST: {message}" if message else "\n\n".join(context_parts)
+            full_message = (
+                "\n\n".join(context_parts) + f"\n\nUSER REQUEST: {message}"
+                if message
+                else "\n\n".join(context_parts)
+            )
 
         # Add user message to session
         message_id = str(uuid.uuid4())[:12]
@@ -325,7 +374,7 @@ class JottyAPI:
             content=full_message,
             interface=InterfaceType.WEB,
             user_id=user_id,
-            metadata={"message_id": message_id, "has_images": len(image_data_list) > 0}
+            metadata={"message_id": message_id, "has_images": len(image_data_list) > 0},
         )
 
         # Wrap status callback to log + forward
@@ -342,11 +391,15 @@ class JottyAPI:
         if len(history) > 1:
             context_messages = history[-10:-1]
             if context_messages:
-                context_str = "\n".join([
-                    f"{'User' if m.get('role') == 'user' else 'Assistant'}: {m.get('content', '')[:500]}"
-                    for m in context_messages
-                ])
-                task_with_context = f"Previous conversation:\n{context_str}\n\nCurrent request: {full_message}"
+                context_str = "\n".join(
+                    [
+                        f"{'User' if m.get('role') == 'user' else 'Assistant'}: {m.get('content', '')[:500]}"
+                        for m in context_messages
+                    ]
+                )
+                task_with_context = (
+                    f"Previous conversation:\n{context_str}\n\nCurrent request: {full_message}"
+                )
             else:
                 task_with_context = full_message
         else:
@@ -355,7 +408,9 @@ class JottyAPI:
         try:
             # Handle images separately (multimodal - needs direct API call)
             if image_data_list:
-                result = await self._execute_with_images(task_with_context, image_data_list, status_cb)
+                result = await self._execute_with_images(
+                    task_with_context, image_data_list, status_cb
+                )
                 response_id = str(uuid.uuid4())[:12]
 
                 if result.success:
@@ -363,18 +418,18 @@ class JottyAPI:
                         role="assistant",
                         content=result.content,
                         interface=InterfaceType.WEB,
-                        metadata={"message_id": response_id}
+                        metadata={"message_id": response_id},
                     )
                     return {
                         "success": True,
                         "message_id": response_id,
                         "content": result.content,
-                        "output_format": getattr(result, 'output_format', 'markdown'),
-                        "output_path": getattr(result, 'output_path', None),
-                        "steps": getattr(result, 'steps_taken', 1),
+                        "output_format": getattr(result, "output_format", "markdown"),
+                        "output_path": getattr(result, "output_path", None),
+                        "steps": getattr(result, "steps_taken", 1),
                     }
                 else:
-                    return {"success": False, "error": getattr(result, 'error', 'Unknown error')}
+                    return {"success": False, "error": getattr(result, "error", "Unknown error")}
 
             # Route through ModeRouter (canonical path)
             context = ExecutionContext(
@@ -400,7 +455,7 @@ class JottyAPI:
                         "output_format": route_result.metadata.get("output_format", "markdown"),
                         "output_path": route_result.metadata.get("output_path"),
                         "steps": route_result.steps_executed,
-                    }
+                    },
                 )
 
                 return {
@@ -424,27 +479,25 @@ class JottyAPI:
 
     def get_commands(self) -> List[Dict[str, Any]]:
         """Get available CLI commands."""
-        from Jotty.cli.commands import CommandRegistry
-        from Jotty.cli.commands import register_all_commands
+        from Jotty.cli.commands import CommandRegistry, register_all_commands
 
         registry = CommandRegistry()
         register_all_commands(registry)
 
         commands = []
         for name, cmd in registry._commands.items():
-            commands.append({
-                "name": name,
-                "description": getattr(cmd, "description", ""),
-                "usage": getattr(cmd, "usage", f"/{name}"),
-                "aliases": getattr(cmd, "aliases", []),
-            })
+            commands.append(
+                {
+                    "name": name,
+                    "description": getattr(cmd, "description", ""),
+                    "usage": getattr(cmd, "usage", f"/{name}"),
+                    "aliases": getattr(cmd, "aliases", []),
+                }
+            )
         return commands
 
     async def execute_command(
-        self,
-        command: str,
-        args: str = "",
-        session_id: str = None
+        self, command: str, args: str = "", session_id: str = None
     ) -> Dict[str, Any]:
         """
         Execute a CLI command using the shared JottyCLI instance.
@@ -454,7 +507,7 @@ class JottyAPI:
         """
         import io
         import sys
-        from contextlib import redirect_stdout, redirect_stderr
+        from contextlib import redirect_stderr, redirect_stdout
 
         try:
             # Get shared CLI instance
@@ -473,7 +526,8 @@ class JottyAPI:
             def capture_print(text, *args, **kwargs):
                 # Strip rich markup for web
                 import re
-                clean_text = re.sub(r'\[/?[^\]]+\]', '', str(text))
+
+                clean_text = re.sub(r"\[/?[^\]]+\]", "", str(text))
                 captured_output.append(clean_text)
 
             # Monkey-patch renderer methods to capture output
@@ -484,13 +538,16 @@ class JottyAPI:
             cli.renderer.error = lambda t: captured_output.append(f"❌ {t}")
 
             # Capture panel output
-            original_panel = getattr(cli.renderer, 'panel', None)
-            cli.renderer.panel = lambda content, **kwargs: captured_output.append(f"📋 {kwargs.get('title', 'Panel')}:\n{content}")
+            original_panel = getattr(cli.renderer, "panel", None)
+            cli.renderer.panel = lambda content, **kwargs: captured_output.append(
+                f"📋 {kwargs.get('title', 'Panel')}:\n{content}"
+            )
 
             # Capture tree output
-            original_tree = getattr(cli.renderer, 'tree', None)
+            original_tree = getattr(cli.renderer, "tree", None)
+
             def capture_tree(data, **kwargs):
-                title = kwargs.get('title', 'Data')
+                title = kwargs.get("title", "Data")
                 if isinstance(data, dict):
                     lines = [f"🌳 {title}:"]
                     for k, v in data.items():
@@ -498,15 +555,19 @@ class JottyAPI:
                     captured_output.append("\n".join(lines))
                 else:
                     captured_output.append(f"🌳 {title}: {data}")
+
             cli.renderer.tree = capture_tree
 
             # Capture table output - patch the tables component
             original_print_table = cli.renderer.tables.print_table
+
             def capture_table(table):
                 # Use Rich Console to render to string, then strip ANSI
                 try:
-                    from rich.console import Console
                     from io import StringIO
+
+                    from rich.console import Console
+
                     string_io = StringIO()
                     console = Console(file=string_io, force_terminal=False, no_color=True)
                     console.print(table)
@@ -515,6 +576,7 @@ class JottyAPI:
                 except Exception:
                     # Fallback: just convert to string
                     captured_output.append(str(table))
+
             cli.renderer.tables.print_table = capture_table
 
             try:
@@ -541,8 +603,9 @@ class JottyAPI:
 
     def get_sessions(self) -> List[Dict[str, Any]]:
         """Get all sessions with metadata."""
-        from Jotty.cli.repl.session import SessionManager
         import json
+
+        from Jotty.cli.repl.session import SessionManager
 
         manager = SessionManager()
         sessions = manager.list_sessions()
@@ -552,10 +615,10 @@ class JottyAPI:
             session_file = manager.session_dir / f"{session.get('session_id')}.json"
             if session_file.exists():
                 try:
-                    with open(session_file, 'r') as f:
+                    with open(session_file, "r") as f:
                         data = json.load(f)
                     # Add metadata fields if they exist
-                    for key in ['title', 'isPinned', 'isArchived', 'folderId']:
+                    for key in ["title", "isPinned", "isArchived", "folderId"]:
                         if key in data:
                             session[key] = data[key]
                 except Exception:
@@ -567,11 +630,7 @@ class JottyAPI:
         from Jotty.cli.repl.session import InterfaceType
 
         registry = self._get_session_registry()
-        session = registry.get_session(
-            session_id,
-            create=False,
-            interface=InterfaceType.WEB
-        )
+        session = registry.get_session(session_id, create=False, interface=InterfaceType.WEB)
 
         if session:
             return {
@@ -585,11 +644,7 @@ class JottyAPI:
         from Jotty.cli.repl.session import InterfaceType
 
         registry = self._get_session_registry()
-        session = registry.get_session(
-            session_id,
-            create=False,
-            interface=InterfaceType.WEB
-        )
+        session = registry.get_session(session_id, create=False, interface=InterfaceType.WEB)
 
         if session:
             session.clear_history()
@@ -610,7 +665,7 @@ class JottyAPI:
 
     def update_session(self, session_id: str, updates: Dict[str, Any]) -> bool:
         """Update session metadata (title, isPinned, isArchived, folderId)."""
-        from Jotty.cli.repl.session import SessionManager, InterfaceType
+        from Jotty.cli.repl.session import InterfaceType, SessionManager
 
         manager = SessionManager()
         session_file = manager.session_dir / f"{session_id}.json"
@@ -620,15 +675,16 @@ class JottyAPI:
 
         try:
             import json
-            with open(session_file, 'r') as f:
+
+            with open(session_file, "r") as f:
                 data = json.load(f)
 
             # Update allowed fields
-            for key in ['title', 'isPinned', 'isArchived', 'folderId']:
+            for key in ["title", "isPinned", "isArchived", "folderId"]:
                 if key in updates:
                     data[key] = updates[key]
 
-            with open(session_file, 'w') as f:
+            with open(session_file, "w") as f:
                 json.dump(data, f, indent=2, default=str)
             return True
         except Exception as e:
@@ -641,7 +697,8 @@ class JottyAPI:
         if folder_file.exists():
             try:
                 import json
-                with open(folder_file, 'r') as f:
+
+                with open(folder_file, "r") as f:
                     return json.load(f)
             except Exception:
                 pass
@@ -650,35 +707,37 @@ class JottyAPI:
     def create_folder(self, folder: Dict[str, Any]) -> bool:
         """Create a new folder."""
         import json
+
         folder_file = Path.home() / ".jotty" / "folders.json"
         folder_file.parent.mkdir(parents=True, exist_ok=True)
 
         folders = self.get_folders()
         folders.append(folder)
 
-        with open(folder_file, 'w') as f:
+        with open(folder_file, "w") as f:
             json.dump(folders, f, indent=2)
         return True
 
     def delete_folder(self, folder_id: str) -> bool:
         """Delete a folder."""
         import json
+
         folder_file = Path.home() / ".jotty" / "folders.json"
 
         folders = self.get_folders()
-        folders = [f for f in folders if f.get('id') != folder_id]
+        folders = [f for f in folders if f.get("id") != folder_id]
 
-        with open(folder_file, 'w') as f:
+        with open(folder_file, "w") as f:
             json.dump(folders, f, indent=2)
         return True
 
     def save_folders(self, folders: List[Dict[str, Any]]) -> bool:
         """Save all folders (bulk update for reordering, renaming, color changes)."""
         import json
+
         folder_file = Path.home() / ".jotty" / "folders.json"
         folder_file.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(folder_file, 'w') as f:
+        with open(folder_file, "w") as f:
             json.dump(folders, f, indent=2)
         return True
-

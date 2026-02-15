@@ -7,11 +7,16 @@ Automated deep feature synthesis using Featuretools.
 
 import logging
 from typing import Any, Dict, List, Optional
+
 import numpy as np
 import pandas as pd
 
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
+from Jotty.core.infrastructure.utils.tool_helpers import (
+    async_tool_wrapper,
+    tool_error,
+    tool_response,
+)
 
 # Status emitter for progress updates
 status = SkillStatus("feature-tools")
@@ -38,25 +43,25 @@ async def featuretools_dfs_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with engineered features DataFrame
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     import featuretools as ft
 
     logger.info("[FeatureTools] Starting Deep Feature Synthesis...")
 
-    data = params.get('data')
-    target_entity = params.get('target_entity', 'data')
-    index_col = params.get('index_col')
-    time_index = params.get('time_index')
-    max_depth = params.get('max_depth', 2)
-    agg_primitives = params.get('agg_primitives', ['mean', 'sum', 'std', 'max', 'min', 'count'])
-    trans_primitives = params.get('trans_primitives', ['day', 'month', 'year', 'weekday'])
+    data = params.get("data")
+    target_entity = params.get("target_entity", "data")
+    index_col = params.get("index_col")
+    time_index = params.get("time_index")
+    max_depth = params.get("max_depth", 2)
+    agg_primitives = params.get("agg_primitives", ["mean", "sum", "std", "max", "min", "count"])
+    trans_primitives = params.get("trans_primitives", ["day", "month", "year", "weekday"])
 
     if isinstance(data, str):
         data = pd.read_csv(data)
 
     # Create EntitySet
-    es = ft.EntitySet(id='main')
+    es = ft.EntitySet(id="main")
 
     if isinstance(data, dict):
         # Multiple dataframes (relational)
@@ -67,15 +72,15 @@ async def featuretools_dfs_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                     dataframe_name=name,
                     dataframe=df,
                     index=index_col,
-                    time_index=time_index if time_index and time_index in df.columns else None
+                    time_index=time_index if time_index and time_index in df.columns else None,
                 )
             else:
-                df['_auto_index'] = range(len(df))
+                df["_auto_index"] = range(len(df))
                 es = es.add_dataframe(
                     dataframe_name=name,
                     dataframe=df,
-                    index='_auto_index',
-                    time_index=time_index if time_index and time_index in df.columns else None
+                    index="_auto_index",
+                    time_index=time_index if time_index and time_index in df.columns else None,
                 )
     else:
         # Single dataframe
@@ -85,15 +90,15 @@ async def featuretools_dfs_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                 dataframe_name=target_entity,
                 dataframe=df,
                 index=index_col,
-                time_index=time_index if time_index and time_index in df.columns else None
+                time_index=time_index if time_index and time_index in df.columns else None,
             )
         else:
-            df['_auto_index'] = range(len(df))
+            df["_auto_index"] = range(len(df))
             es = es.add_dataframe(
                 dataframe_name=target_entity,
                 dataframe=df,
-                index='_auto_index',
-                time_index=time_index if time_index and time_index in df.columns else None
+                index="_auto_index",
+                time_index=time_index if time_index and time_index in df.columns else None,
             )
 
     # Run DFS
@@ -103,7 +108,7 @@ async def featuretools_dfs_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         max_depth=max_depth,
         agg_primitives=agg_primitives,
         trans_primitives=trans_primitives,
-        verbose=False
+        verbose=False,
     )
 
     # Get feature names
@@ -114,11 +119,11 @@ async def featuretools_dfs_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     logger.info(f"[FeatureTools] Generated {len(generated_features)} new features")
 
     return {
-        'success': True,
-        'feature_matrix': feature_matrix.reset_index(),
-        'feature_names': new_features,
-        'generated_features': generated_features,
-        'num_features': len(new_features),
+        "success": True,
+        "feature_matrix": feature_matrix.reset_index(),
+        "feature_names": new_features,
+        "generated_features": generated_features,
+        "num_features": len(new_features),
     }
 
 
@@ -136,16 +141,16 @@ async def featuretools_primitives_tool(params: Dict[str, Any]) -> Dict[str, Any]
     Returns:
         Dict with transformed DataFrame
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     import featuretools as ft
-    from featuretools.primitives import get_transform_primitives, get_aggregation_primitives
+    from featuretools.primitives import get_aggregation_primitives, get_transform_primitives
 
     logger.info("[FeatureTools] Applying primitives...")
 
-    data = params.get('data')
-    primitives = params.get('primitives', ['mean', 'std'])
-    columns = params.get('columns')
+    data = params.get("data")
+    primitives = params.get("primitives", ["mean", "std"])
+    columns = params.get("columns")
 
     if isinstance(data, str):
         data = pd.read_csv(data)
@@ -159,13 +164,9 @@ async def featuretools_primitives_tool(params: Dict[str, Any]) -> Dict[str, Any]
     agg_prims = get_aggregation_primitives()
 
     # Create EntitySet
-    df['_idx'] = range(len(df))
-    es = ft.EntitySet(id='main')
-    es = es.add_dataframe(
-        dataframe_name='data',
-        dataframe=df,
-        index='_idx'
-    )
+    df["_idx"] = range(len(df))
+    es = ft.EntitySet(id="main")
+    es = es.add_dataframe(dataframe_name="data", dataframe=df, index="_idx")
 
     # Filter primitives
     trans_to_use = [p for p in primitives if p in trans_prims]
@@ -173,20 +174,20 @@ async def featuretools_primitives_tool(params: Dict[str, Any]) -> Dict[str, Any]
 
     feature_matrix, feature_defs = ft.dfs(
         entityset=es,
-        target_dataframe_name='data',
+        target_dataframe_name="data",
         max_depth=1,
         agg_primitives=agg_to_use,
         trans_primitives=trans_to_use,
-        verbose=False
+        verbose=False,
     )
 
     logger.info(f"[FeatureTools] Applied {len(primitives)} primitives")
 
     return {
-        'success': True,
-        'feature_matrix': feature_matrix.reset_index(drop=True),
-        'applied_primitives': primitives,
-        'new_features': [f.get_name() for f in feature_defs],
+        "success": True,
+        "feature_matrix": feature_matrix.reset_index(drop=True),
+        "applied_primitives": primitives,
+        "new_features": [f.get_name() for f in feature_defs],
     }
 
 
@@ -204,40 +205,36 @@ async def featuretools_normalize_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with EntitySet and normalized dataframes
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     import featuretools as ft
 
     logger.info("[FeatureTools] Normalizing data...")
 
-    data = params.get('data')
-    base_entity = params.get('base_entity', 'main')
-    normalize_config = params.get('normalize_config', {})
+    data = params.get("data")
+    base_entity = params.get("base_entity", "main")
+    normalize_config = params.get("normalize_config", {})
 
     if isinstance(data, str):
         data = pd.read_csv(data)
 
     df = data.copy()
-    df['_idx'] = range(len(df))
+    df["_idx"] = range(len(df))
 
-    es = ft.EntitySet(id='normalized')
-    es = es.add_dataframe(
-        dataframe_name=base_entity,
-        dataframe=df,
-        index='_idx'
-    )
+    es = ft.EntitySet(id="normalized")
+    es = es.add_dataframe(dataframe_name=base_entity, dataframe=df, index="_idx")
 
     # Normalize based on config
     for new_entity, config in normalize_config.items():
-        index_col = config.get('index')
-        additional_cols = config.get('columns', [])
+        index_col = config.get("index")
+        additional_cols = config.get("columns", [])
 
         if index_col and index_col in df.columns:
             es = es.normalize_dataframe(
                 base_dataframe_name=base_entity,
                 new_dataframe_name=new_entity,
                 index=index_col,
-                additional_columns=additional_cols
+                additional_columns=additional_cols,
             )
 
     # Get all dataframes
@@ -248,10 +245,10 @@ async def featuretools_normalize_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     logger.info(f"[FeatureTools] Created {len(dataframes)} normalized entities")
 
     return {
-        'success': True,
-        'entity_set': es,
-        'dataframes': dataframes,
-        'entity_names': list(dataframes.keys()),
+        "success": True,
+        "entity_set": es,
+        "dataframes": dataframes,
+        "entity_names": list(dataframes.keys()),
     }
 
 
@@ -269,13 +266,13 @@ async def featuretools_interesting_tool(params: Dict[str, Any]) -> Dict[str, Any
     Returns:
         Dict with interesting features ranked by correlation
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     logger.info("[FeatureTools] Finding interesting features...")
 
-    feature_matrix = params.get('feature_matrix')
-    target = params.get('target')
-    threshold = params.get('threshold', 0.1)
+    feature_matrix = params.get("feature_matrix")
+    target = params.get("target")
+    threshold = params.get("threshold", 0.1)
 
     if isinstance(feature_matrix, str):
         feature_matrix = pd.read_csv(feature_matrix)
@@ -289,7 +286,7 @@ async def featuretools_interesting_tool(params: Dict[str, Any]) -> Dict[str, Any
     elif isinstance(target, (pd.Series, np.ndarray, list)):
         y = pd.Series(target)
     else:
-        return {'success': False, 'error': 'Invalid target specification'}
+        return {"success": False, "error": "Invalid target specification"}
 
     # Calculate correlations
     numeric_cols = fm.select_dtypes(include=[np.number]).columns
@@ -301,9 +298,9 @@ async def featuretools_interesting_tool(params: Dict[str, Any]) -> Dict[str, Any
     logger.info(f"[FeatureTools] Found {len(interesting)} interesting features")
 
     return {
-        'success': True,
-        'interesting_features': interesting.to_dict(),
-        'feature_names': interesting.index.tolist(),
-        'correlations': interesting.values.tolist(),
-        'num_interesting': len(interesting),
+        "success": True,
+        "interesting_features": interesting.to_dict(),
+        "feature_names": interesting.index.tolist(),
+        "correlations": interesting.values.tolist(),
+        "num_interesting": len(interesting),
     }

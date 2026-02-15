@@ -12,15 +12,15 @@ Optimized for fast demonstration (<5 minutes).
 """
 
 import asyncio
-import dspy
 import logging
 import os
 from pathlib import Path
+
+import dspy
 import pytest
 
 pytestmark = pytest.mark.skipif(
-    not os.getenv('ANTHROPIC_API_KEY'),
-    reason="Requires ANTHROPIC_API_KEY for real LLM calls"
+    not os.getenv("ANTHROPIC_API_KEY"), reason="Requires ANTHROPIC_API_KEY for real LLM calls"
 )
 
 # Setup logging
@@ -41,7 +41,7 @@ async def test_minimal_orchestration():
 
     from core.integration.direct_claude_cli_lm import DirectClaudeCLI
 
-    lm = DirectClaudeCLI(model='sonnet')
+    lm = DirectClaudeCLI(model="sonnet")
     dspy.configure(lm=lm)
 
     print("✅ Claude 3.5 Sonnet configured (direct binary)")
@@ -52,14 +52,14 @@ async def test_minimal_orchestration():
 
     from core.experts.math_latex_expert import MathLaTeXExpertAgent
     from core.experts.mermaid_expert import MermaidExpertAgent
-    from core.experts.plantuml_expert import PlantUMLExpertAgent
     from core.experts.pipeline_expert import PipelineExpertAgent
+    from core.experts.plantuml_expert import PlantUMLExpertAgent
 
     experts = {
-        'math': MathLaTeXExpertAgent(),
-        'mermaid': MermaidExpertAgent(),
-        'plantuml': PlantUMLExpertAgent(),
-        'pipeline': PipelineExpertAgent(output_format='mermaid')
+        "math": MathLaTeXExpertAgent(),
+        "mermaid": MermaidExpertAgent(),
+        "plantuml": PlantUMLExpertAgent(),
+        "pipeline": PipelineExpertAgent(output_format="mermaid"),
     }
 
     print(f"✅ {len(experts)} expert agents initialized:")
@@ -72,25 +72,25 @@ async def test_minimal_orchestration():
 
     tasks = [
         {
-            'expert': 'math',
-            'name': 'Latency Formula',
-            'prompt': 'Write LaTeX formula for average API latency: avg_latency = sum(request_times) / count(requests)',
+            "expert": "math",
+            "name": "Latency Formula",
+            "prompt": "Write LaTeX formula for average API latency: avg_latency = sum(request_times) / count(requests)",
         },
         {
-            'expert': 'mermaid',
-            'name': 'Service Architecture',
-            'prompt': 'Create Mermaid diagram: API Gateway -> [User Service, Product Service] -> Database',
+            "expert": "mermaid",
+            "name": "Service Architecture",
+            "prompt": "Create Mermaid diagram: API Gateway -> [User Service, Product Service] -> Database",
         },
         {
-            'expert': 'plantuml',
-            'name': 'User Model',
-            'prompt': 'Create PlantUML class diagram: User class with id, email, created_at properties',
+            "expert": "plantuml",
+            "name": "User Model",
+            "prompt": "Create PlantUML class diagram: User class with id, email, created_at properties",
         },
         {
-            'expert': 'pipeline',
-            'name': 'Deploy Pipeline',
-            'prompt': 'Create Mermaid flowchart: Build -> Test -> Deploy (simple 3-step pipeline)',
-        }
+            "expert": "pipeline",
+            "name": "Deploy Pipeline",
+            "prompt": "Create Mermaid flowchart: Build -> Test -> Deploy (simple 3-step pipeline)",
+        },
     ]
 
     print(f"✅ {len(tasks)} tasks defined:")
@@ -104,7 +104,7 @@ async def test_minimal_orchestration():
     results = {}
 
     for task in tasks:
-        expert_name = task['expert']
+        expert_name = task["expert"]
         expert = experts[expert_name]
 
         print(f"\n📋 {expert_name.upper()}: {task['name']}")
@@ -113,6 +113,7 @@ async def test_minimal_orchestration():
             # Create simple signature
             class SimpleTask(dspy.Signature):
                 """Generate technical output based on prompt."""
+
                 prompt: str = dspy.InputField()
                 output: str = dspy.OutputField()
 
@@ -121,18 +122,14 @@ async def test_minimal_orchestration():
 
             # Generate output
             print(f"   🤖 Calling Claude CLI...")
-            result = generator(prompt=task['prompt'])
+            result = generator(prompt=task["prompt"])
             output = result.output
 
             # Evaluate (simple length + syntax check)
             score = 1.0 if len(output) > 50 else 0.5
             status = "PASS" if score >= 0.9 else "PARTIAL"
 
-            results[expert_name] = {
-                'output': output,
-                'score': score,
-                'status': status
-            }
+            results[expert_name] = {"output": output, "score": score, "status": status}
 
             print(f"   ✅ Score: {score:.2f} | Status: {status}")
             print(f"   📏 Output: {len(output)} characters")
@@ -140,11 +137,7 @@ async def test_minimal_orchestration():
         except Exception as e:
             logger.error(f"Task failed: {e}")
             print(f"   ❌ Error: {str(e)[:100]}")
-            results[expert_name] = {
-                'output': None,
-                'score': 0.0,
-                'status': 'ERROR'
-            }
+            results[expert_name] = {"output": None, "score": 0.0, "status": "ERROR"}
 
     # Generate summary document
     print("\n[5/5] Generating Architecture Document")
@@ -217,9 +210,9 @@ async def test_minimal_orchestration():
     print("ORCHESTRATION TEST SUMMARY")
     print("=" * 80)
 
-    success_count = sum(1 for r in results.values() if r['score'] >= 0.9)
+    success_count = sum(1 for r in results.values() if r["score"] >= 0.9)
     total_count = len(results)
-    avg_score = sum(r['score'] for r in results.values()) / len(results)
+    avg_score = sum(r["score"] for r in results.values()) / len(results)
 
     print(f"\nResults:")
     print(f"  Tasks Completed: {success_count}/{total_count}")

@@ -1,8 +1,9 @@
 """Chart Generator Skill — ASCII bar and line charts (pure Python)."""
-from typing import Dict, Any, List
 
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from typing import Any, Dict, List
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("chart-generator")
 
@@ -78,7 +79,7 @@ def line_chart_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         grid[row][i] = "●"
         # Draw line to next point
         if i < len(values) - 1:
-            next_row = height - 1 - int((values[i+1] - min_val) / val_range * (height - 1))
+            next_row = height - 1 - int((values[i + 1] - min_val) / val_range * (height - 1))
             next_row = max(0, min(height - 1, next_row))
             if next_row != row:
                 step = 1 if next_row > row else -1
@@ -95,8 +96,7 @@ def line_chart_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     lines.append(" " * 10 + "└" + "─" * len(values))
 
     chart = "\n".join(lines)
-    return tool_response(chart=chart, points=len(values),
-                         min_value=min_val, max_value=max_val)
+    return tool_response(chart=chart, points=len(values), min_value=min_val, max_value=max_val)
 
 
 __all__ = ["bar_chart_tool", "line_chart_tool"]

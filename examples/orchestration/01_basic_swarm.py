@@ -7,15 +7,19 @@ Demonstrates:
 - Task execution with coordination
 - Understanding swarm results
 """
+
 import asyncio
 import os
+
 from dotenv import load_dotenv
 
 # Load API key
 load_dotenv()
 
+
 async def main():
     import dspy
+
     from Jotty.core.infrastructure.foundation.direct_anthropic_lm import DirectAnthropicLM
     from Jotty.core.intelligence.orchestration import Orchestrator
 
@@ -26,9 +30,7 @@ async def main():
     print("=== Creating Your First Swarm ===\n")
 
     # Zero-config swarm: Just describe what you need
-    swarm = Orchestrator(
-        agents="Researcher + Analyst + Writer"
-    )
+    swarm = Orchestrator(agents="Researcher + Analyst + Writer")
 
     print("✅ Created swarm with 3 agents:")
     print("  1. Researcher: Gathers information")
@@ -42,9 +44,7 @@ async def main():
     print("Status: Running...")
     print()
 
-    result = await swarm.run(
-        goal="Research the top 3 AI trends in 2026 and create a brief summary"
-    )
+    result = await swarm.run(goal="Research the top 3 AI trends in 2026 and create a brief summary")
 
     print("=== Result ===\n")
     print(f"Success: {result.success}")

@@ -33,12 +33,16 @@ def run(cmd: list[str], label: str) -> tuple[int, str]:
     except subprocess.TimeoutExpired:
         return 1, f"{label}: timed out after 300s"
     except FileNotFoundError:
-        return 1, f"{label}: command not found (install with: pip install -e \".[dev]\")"
+        return 1, f'{label}: command not found (install with: pip install -e ".[dev]")'
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Run import-linter, mypy, and optional code analyzer")
-    parser.add_argument("--no-analyzer", action="store_true", help="Skip python-code-analyzer (self-test)")
+    parser = argparse.ArgumentParser(
+        description="Run import-linter, mypy, and optional code analyzer"
+    )
+    parser.add_argument(
+        "--no-analyzer", action="store_true", help="Skip python-code-analyzer (self-test)"
+    )
     parser.add_argument("--no-mypy", action="store_true", help="Skip mypy")
     parser.add_argument("--no-imports", action="store_true", help="Skip import-linter")
     args = parser.parse_args()
@@ -61,12 +65,20 @@ def main() -> int:
         # Need to run from parent directory (stock_market/) so Jotty.* imports work
         parent_dir = repo.parent
         code_out = subprocess.run(
-            [sys.executable, "-m", "mypy", "Jotty/core", "Jotty/apps", "Jotty/sdk",
-             "--config-file", "Jotty/mypy.ini"],
+            [
+                sys.executable,
+                "-m",
+                "mypy",
+                "Jotty/core",
+                "Jotty/apps",
+                "Jotty/sdk",
+                "--config-file",
+                "Jotty/mypy.ini",
+            ],
             capture_output=True,
             text=True,
             timeout=300,
-            cwd=parent_dir
+            cwd=parent_dir,
         )
         code, out = code_out.returncode, (code_out.stdout or "") + (code_out.stderr or "")
         print("=== mypy ===")

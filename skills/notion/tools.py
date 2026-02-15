@@ -3,13 +3,15 @@ Notion Skill
 
 Integrates with Notion API to search, read, create, and update pages and databases.
 """
-import os
+
 import logging
+import os
+from typing import Any, Dict, List, Optional
+
 import requests
-from typing import Dict, Any, Optional, List
 
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 # Status emitter for progress updates
 status = SkillStatus("notion")
@@ -33,15 +35,15 @@ class NotionClient:
             return self._api_key
 
         # Check environment variable first
-        api_key = os.environ.get('NOTION_API_KEY')
+        api_key = os.environ.get("NOTION_API_KEY")
         if api_key:
             self._api_key = api_key
             return api_key
 
         # Check config file
-        config_path = os.path.expanduser('~/.config/notion/api_key')
+        config_path = os.path.expanduser("~/.config/notion/api_key")
         if os.path.exists(config_path):
-            with open(config_path, 'r') as f:
+            with open(config_path, "r") as f:
                 api_key = f.read().strip()
                 if api_key:
                     self._api_key = api_key
@@ -57,15 +59,11 @@ class NotionClient:
         return {
             "Authorization": f"Bearer {self._get_api_key()}",
             "Notion-Version": self.NOTION_VERSION,
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         }
 
     def _make_request(
-        self,
-        method: str,
-        endpoint: str,
-        data: Optional[Dict] = None,
-        timeout: int = 30
+        self, method: str, endpoint: str, data: Optional[Dict] = None, timeout: int = 30
     ) -> Dict[str, Any]:
         """Make an authenticated request to Notion API."""
         url = f"{self.BASE_URL}{endpoint}"
@@ -73,44 +71,27 @@ class NotionClient:
 
         try:
             response = requests.request(
-                method=method,
-                url=url,
-                headers=headers,
-                json=data,
-                timeout=timeout
+                method=method, url=url, headers=headers, json=data, timeout=timeout
             )
 
             result = response.json()
 
             if response.status_code >= 400:
-                error_msg = result.get('message', 'Unknown error')
+                error_msg = result.get("message", "Unknown error")
                 return {
-                    'success': False,
-                    'error': f"Notion API error ({response.status_code}): {error_msg}",
-                    'status_code': response.status_code
+                    "success": False,
+                    "error": f"Notion API error ({response.status_code}): {error_msg}",
+                    "status_code": response.status_code,
                 }
 
-            return {
-                'success': True,
-                'data': result,
-                'status_code': response.status_code
-            }
+            return {"success": True, "data": result, "status_code": response.status_code}
 
         except requests.Timeout:
-            return {
-                'success': False,
-                'error': f'Request timed out after {timeout} seconds'
-            }
+            return {"success": False, "error": f"Request timed out after {timeout} seconds"}
         except requests.RequestException as e:
-            return {
-                'success': False,
-                'error': f'Request failed: {str(e)}'
-            }
+            return {"success": False, "error": f"Request failed: {str(e)}"}
         except Exception as e:
-            return {
-                'success': False,
-                'error': f'Error making Notion API request: {str(e)}'
-            }
+            return {"success": False, "error": f"Error making Notion API request: {str(e)}"}
 
 
 # Global client instance
@@ -139,42 +120,36 @@ def search_pages_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - next_cursor (str): Cursor for next page
             - error (str, optional): Error message if failed
     """
-    status.set_callback(params.pop('_status_callback', None))
-    query = params.get('query')
+    status.set_callback(params.pop("_status_callback", None))
+    query = params.get("query")
     if not query:
-        return {'success': False, 'error': 'query parameter is required'}
+        return {"success": False, "error": "query parameter is required"}
 
-    request_body = {
-        'query': query,
-        'page_size': min(params.get('page_size', 10), 100)
-    }
+    request_body = {"query": query, "page_size": min(params.get("page_size", 10), 100)}
 
-    if params.get('filter'):
-        request_body['filter'] = params['filter']
+    if params.get("filter"):
+        request_body["filter"] = params["filter"]
 
-    if params.get('sort'):
-        request_body['sort'] = params['sort']
+    if params.get("sort"):
+        request_body["sort"] = params["sort"]
 
-    if params.get('start_cursor'):
-        request_body['start_cursor'] = params['start_cursor']
+    if params.get("start_cursor"):
+        request_body["start_cursor"] = params["start_cursor"]
 
     result = _client._make_request(
-        'POST',
-        '/search',
-        request_body,
-        timeout=params.get('timeout', 30)
+        "POST", "/search", request_body, timeout=params.get("timeout", 30)
     )
 
-    if not result['success']:
+    if not result["success"]:
         return result
 
-    data = result['data']
+    data = result["data"]
     return {
-        'success': True,
-        'results': data.get('results', []),
-        'has_more': data.get('has_more', False),
-        'next_cursor': data.get('next_cursor'),
-        'result_count': len(data.get('results', []))
+        "success": True,
+        "results": data.get("results", []),
+        "has_more": data.get("has_more", False),
+        "next_cursor": data.get("next_cursor"),
+        "result_count": len(data.get("results", [])),
     }
 
 
@@ -196,43 +171,38 @@ def get_page_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - content (list, optional): List of content blocks
             - error (str, optional): Error message if failed
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
-    page_id = params.get('page_id')
+    page_id = params.get("page_id")
     if not page_id:
-        return {'success': False, 'error': 'page_id parameter is required'}
+        return {"success": False, "error": "page_id parameter is required"}
 
     # Clean page ID (remove dashes if present, or extract from URL)
-    page_id = page_id.replace('-', '')
-    if '/' in page_id:
-        page_id = page_id.split('/')[-1].split('?')[0]
+    page_id = page_id.replace("-", "")
+    if "/" in page_id:
+        page_id = page_id.split("/")[-1].split("?")[0]
 
-    timeout = params.get('timeout', 30)
-    include_content = params.get('include_content', True)
+    timeout = params.get("timeout", 30)
+    include_content = params.get("include_content", True)
 
     # Get page properties
-    page_result = _client._make_request('GET', f'/pages/{page_id}', timeout=timeout)
+    page_result = _client._make_request("GET", f"/pages/{page_id}", timeout=timeout)
 
-    if not page_result['success']:
+    if not page_result["success"]:
         return page_result
 
-    response = {
-        'success': True,
-        'page': page_result['data']
-    }
+    response = {"success": True, "page": page_result["data"]}
 
     # Optionally get page content (blocks)
     if include_content:
         blocks_result = _client._make_request(
-            'GET',
-            f'/blocks/{page_id}/children?page_size=100',
-            timeout=timeout
+            "GET", f"/blocks/{page_id}/children?page_size=100", timeout=timeout
         )
 
-        if blocks_result['success']:
-            response['content'] = blocks_result['data'].get('results', [])
+        if blocks_result["success"]:
+            response["content"] = blocks_result["data"].get("results", [])
         else:
-            response['content_error'] = blocks_result.get('error')
+            response["content_error"] = blocks_result.get("error")
 
     return response
 
@@ -261,69 +231,58 @@ def create_page_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - page (dict): Full page object
             - error (str, optional): Error message if failed
     """
-    status.set_callback(params.pop('_status_callback', None))
-    parent_id = params.get('parent_id')
-    title = params.get('title')
+    status.set_callback(params.pop("_status_callback", None))
+    parent_id = params.get("parent_id")
+    title = params.get("title")
 
     if not parent_id:
-        return {'success': False, 'error': 'parent_id parameter is required'}
+        return {"success": False, "error": "parent_id parameter is required"}
     if not title:
-        return {'success': False, 'error': 'title parameter is required'}
+        return {"success": False, "error": "title parameter is required"}
 
     # Clean parent ID
-    parent_id = parent_id.replace('-', '')
+    parent_id = parent_id.replace("-", "")
 
-    parent_type = params.get('parent_type', 'page_id')
+    parent_type = params.get("parent_type", "page_id")
 
     # Build request body
-    request_body = {
-        'parent': {parent_type: parent_id}
-    }
+    request_body = {"parent": {parent_type: parent_id}}
 
     # Handle properties based on parent type
-    if parent_type == 'database_id':
+    if parent_type == "database_id":
         # For database pages, title goes in properties
-        properties = params.get('properties', {})
-        properties['title'] = {
-            'title': [{'text': {'content': title}}]
-        }
-        request_body['properties'] = properties
+        properties = params.get("properties", {})
+        properties["title"] = {"title": [{"text": {"content": title}}]}
+        request_body["properties"] = properties
     else:
         # For regular pages, title is in properties.title
-        request_body['properties'] = {
-            'title': {
-                'title': [{'text': {'content': title}}]
-            }
-        }
+        request_body["properties"] = {"title": {"title": [{"text": {"content": title}}]}}
 
     # Add optional icon
-    if params.get('icon'):
-        request_body['icon'] = params['icon']
+    if params.get("icon"):
+        request_body["icon"] = params["icon"]
 
     # Add optional cover
-    if params.get('cover'):
-        request_body['cover'] = params['cover']
+    if params.get("cover"):
+        request_body["cover"] = params["cover"]
 
     # Add content blocks
-    if params.get('content'):
-        request_body['children'] = params['content']
+    if params.get("content"):
+        request_body["children"] = params["content"]
 
     result = _client._make_request(
-        'POST',
-        '/pages',
-        request_body,
-        timeout=params.get('timeout', 30)
+        "POST", "/pages", request_body, timeout=params.get("timeout", 30)
     )
 
-    if not result['success']:
+    if not result["success"]:
         return result
 
-    page_data = result['data']
+    page_data = result["data"]
     return {
-        'success': True,
-        'page_id': page_data.get('id'),
-        'url': page_data.get('url'),
-        'page': page_data
+        "success": True,
+        "page_id": page_data.get("id"),
+        "url": page_data.get("url"),
+        "page": page_data,
     }
 
 
@@ -347,46 +306,40 @@ def update_page_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - page (dict): Updated page object
             - error (str, optional): Error message if failed
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
-    page_id = params.get('page_id')
+    page_id = params.get("page_id")
     if not page_id:
-        return {'success': False, 'error': 'page_id parameter is required'}
+        return {"success": False, "error": "page_id parameter is required"}
 
     # Clean page ID
-    page_id = page_id.replace('-', '')
+    page_id = page_id.replace("-", "")
 
     request_body = {}
 
-    if params.get('properties'):
-        request_body['properties'] = params['properties']
+    if params.get("properties"):
+        request_body["properties"] = params["properties"]
 
-    if params.get('archived') is not None:
-        request_body['archived'] = params['archived']
+    if params.get("archived") is not None:
+        request_body["archived"] = params["archived"]
 
-    if params.get('icon'):
-        request_body['icon'] = params['icon']
+    if params.get("icon"):
+        request_body["icon"] = params["icon"]
 
-    if params.get('cover'):
-        request_body['cover'] = params['cover']
+    if params.get("cover"):
+        request_body["cover"] = params["cover"]
 
     if not request_body:
-        return {'success': False, 'error': 'No update parameters provided'}
+        return {"success": False, "error": "No update parameters provided"}
 
     result = _client._make_request(
-        'PATCH',
-        f'/pages/{page_id}',
-        request_body,
-        timeout=params.get('timeout', 30)
+        "PATCH", f"/pages/{page_id}", request_body, timeout=params.get("timeout", 30)
     )
 
-    if not result['success']:
+    if not result["success"]:
         return result
 
-    return {
-        'success': True,
-        'page': result['data']
-    }
+    return {"success": True, "page": result["data"]}
 
 
 @tool_wrapper()
@@ -421,43 +374,38 @@ def query_database_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - next_cursor (str): Cursor for next page
             - error (str, optional): Error message if failed
     """
-    database_id = params.get('database_id')
+    database_id = params.get("database_id")
     if not database_id:
-        return {'success': False, 'error': 'database_id parameter is required'}
+        return {"success": False, "error": "database_id parameter is required"}
 
     # Clean database ID
-    database_id = database_id.replace('-', '')
+    database_id = database_id.replace("-", "")
 
-    request_body = {
-        'page_size': min(params.get('page_size', 100), 100)
-    }
+    request_body = {"page_size": min(params.get("page_size", 100), 100)}
 
-    if params.get('filter'):
-        request_body['filter'] = params['filter']
+    if params.get("filter"):
+        request_body["filter"] = params["filter"]
 
-    if params.get('sorts'):
-        request_body['sorts'] = params['sorts']
+    if params.get("sorts"):
+        request_body["sorts"] = params["sorts"]
 
-    if params.get('start_cursor'):
-        request_body['start_cursor'] = params['start_cursor']
+    if params.get("start_cursor"):
+        request_body["start_cursor"] = params["start_cursor"]
 
     result = _client._make_request(
-        'POST',
-        f'/databases/{database_id}/query',
-        request_body,
-        timeout=params.get('timeout', 30)
+        "POST", f"/databases/{database_id}/query", request_body, timeout=params.get("timeout", 30)
     )
 
-    if not result['success']:
+    if not result["success"]:
         return result
 
-    data = result['data']
+    data = result["data"]
     return {
-        'success': True,
-        'results': data.get('results', []),
-        'has_more': data.get('has_more', False),
-        'next_cursor': data.get('next_cursor'),
-        'result_count': len(data.get('results', []))
+        "success": True,
+        "results": data.get("results", []),
+        "has_more": data.get("has_more", False),
+        "next_cursor": data.get("next_cursor"),
+        "result_count": len(data.get("results", [])),
     }
 
 
@@ -495,45 +443,39 @@ def create_database_item_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - item (dict): Full item object
             - error (str, optional): Error message if failed
     """
-    database_id = params.get('database_id')
-    properties = params.get('properties')
+    database_id = params.get("database_id")
+    properties = params.get("properties")
 
     if not database_id:
-        return {'success': False, 'error': 'database_id parameter is required'}
+        return {"success": False, "error": "database_id parameter is required"}
     if not properties:
-        return {'success': False, 'error': 'properties parameter is required'}
+        return {"success": False, "error": "properties parameter is required"}
 
     # Clean database ID
-    database_id = database_id.replace('-', '')
+    database_id = database_id.replace("-", "")
 
-    request_body = {
-        'parent': {'database_id': database_id},
-        'properties': properties
-    }
+    request_body = {"parent": {"database_id": database_id}, "properties": properties}
 
-    if params.get('content'):
-        request_body['children'] = params['content']
+    if params.get("content"):
+        request_body["children"] = params["content"]
 
-    if params.get('icon'):
-        request_body['icon'] = params['icon']
+    if params.get("icon"):
+        request_body["icon"] = params["icon"]
 
-    if params.get('cover'):
-        request_body['cover'] = params['cover']
+    if params.get("cover"):
+        request_body["cover"] = params["cover"]
 
     result = _client._make_request(
-        'POST',
-        '/pages',
-        request_body,
-        timeout=params.get('timeout', 30)
+        "POST", "/pages", request_body, timeout=params.get("timeout", 30)
     )
 
-    if not result['success']:
+    if not result["success"]:
         return result
 
-    item_data = result['data']
+    item_data = result["data"]
     return {
-        'success': True,
-        'item_id': item_data.get('id'),
-        'url': item_data.get('url'),
-        'item': item_data
+        "success": True,
+        "item_id": item_data.get("id"),
+        "url": item_data.get("url"),
+        "item": item_data,
     }

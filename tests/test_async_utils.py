@@ -18,29 +18,30 @@ All tests are fast (< 1s), offline, no real LLM calls.
 
 import asyncio
 import logging
-import time
 import threading
+import time
+from unittest.mock import AsyncMock, MagicMock, Mock, call, patch
+
 import pytest
-from unittest.mock import Mock, MagicMock, patch, AsyncMock, call
 
 from Jotty.core.infrastructure.utils.async_utils import (
-    safe_status,
-    StatusCallback,
-    StreamingCallback,
-    StatusReporter,
-    run_sync,
-    sync_wrapper,
-    ensure_async,
-    gather_with_limit,
     AGENT_EVENT_TYPES,
     AgentEvent,
     AgentEventBroadcaster,
+    StatusCallback,
+    StatusReporter,
+    StreamingCallback,
+    ensure_async,
+    gather_with_limit,
+    run_sync,
+    safe_status,
+    sync_wrapper,
 )
-
 
 # =============================================================================
 # Tests for safe_status
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestSafeStatus:
@@ -94,6 +95,7 @@ class TestSafeStatus:
 # =============================================================================
 # Tests for StatusReporter
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestStatusReporter:
@@ -210,12 +212,14 @@ class TestStatusReporter:
 # Tests for run_sync
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestRunSync:
     """Tests for the run_sync function."""
 
     def test_runs_simple_coroutine(self):
         """run_sync should execute a coroutine and return its result."""
+
         async def coro():
             return 42
 
@@ -224,6 +228,7 @@ class TestRunSync:
 
     def test_runs_coroutine_with_await(self):
         """run_sync should handle coroutines that await other coroutines."""
+
         async def inner():
             return "hello"
 
@@ -235,6 +240,7 @@ class TestRunSync:
 
     def test_propagates_exception(self):
         """run_sync should propagate exceptions from the coroutine."""
+
         async def failing():
             raise ValueError("async error")
 
@@ -243,6 +249,7 @@ class TestRunSync:
 
     def test_returns_none(self):
         """run_sync should handle coroutines that return None."""
+
         async def noop():
             pass
 
@@ -254,12 +261,14 @@ class TestRunSync:
 # Tests for sync_wrapper
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestSyncWrapper:
     """Tests for the sync_wrapper decorator."""
 
     def test_wraps_async_function(self):
         """sync_wrapper should make an async function callable synchronously."""
+
         @sync_wrapper
         async def add(a, b):
             return a + b
@@ -269,6 +278,7 @@ class TestSyncWrapper:
 
     def test_preserves_function_name(self):
         """sync_wrapper should preserve the wrapped function's __name__."""
+
         @sync_wrapper
         async def my_func():
             pass
@@ -277,6 +287,7 @@ class TestSyncWrapper:
 
     def test_passes_kwargs(self):
         """sync_wrapper should forward keyword arguments correctly."""
+
         @sync_wrapper
         async def greet(name="world"):
             return f"hello {name}"
@@ -285,6 +296,7 @@ class TestSyncWrapper:
 
     def test_propagates_exception(self):
         """sync_wrapper should let exceptions propagate."""
+
         @sync_wrapper
         async def boom():
             raise RuntimeError("sync boom")
@@ -297,6 +309,7 @@ class TestSyncWrapper:
 # Tests for ensure_async
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestEnsureAsync:
     """Tests for the ensure_async function."""
@@ -304,6 +317,7 @@ class TestEnsureAsync:
     @pytest.mark.asyncio
     async def test_wraps_sync_function(self):
         """ensure_async should make a sync function awaitable."""
+
         def add(a, b):
             return a + b
 
@@ -314,6 +328,7 @@ class TestEnsureAsync:
     @pytest.mark.asyncio
     async def test_returns_async_function_unchanged(self):
         """ensure_async should return an already-async function as-is."""
+
         async def original():
             return "async"
 
@@ -323,6 +338,7 @@ class TestEnsureAsync:
     @pytest.mark.asyncio
     async def test_preserves_function_name(self):
         """ensure_async should preserve the wrapped function's __name__."""
+
         def my_sync_func():
             pass
 
@@ -332,6 +348,7 @@ class TestEnsureAsync:
     @pytest.mark.asyncio
     async def test_wrapped_sync_is_coroutine_function(self):
         """ensure_async result should be detected as a coroutine function."""
+
         def sync_fn():
             return 1
 
@@ -341,6 +358,7 @@ class TestEnsureAsync:
     @pytest.mark.asyncio
     async def test_passes_kwargs(self):
         """ensure_async should forward keyword arguments."""
+
         def greet(name="world"):
             return f"hi {name}"
 
@@ -351,6 +369,7 @@ class TestEnsureAsync:
     @pytest.mark.asyncio
     async def test_propagates_exception(self):
         """ensure_async should propagate exceptions from sync function."""
+
         def failing():
             raise ValueError("sync fail")
 
@@ -363,6 +382,7 @@ class TestEnsureAsync:
 # Tests for gather_with_limit
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestGatherWithLimit:
     """Tests for the gather_with_limit async function."""
@@ -370,6 +390,7 @@ class TestGatherWithLimit:
     @pytest.mark.asyncio
     async def test_runs_all_coroutines(self):
         """gather_with_limit should run all coroutines and return results."""
+
         async def make(val):
             return val
 
@@ -431,6 +452,7 @@ class TestGatherWithLimit:
     @pytest.mark.asyncio
     async def test_preserves_order(self):
         """gather_with_limit should return results in the same order as input coros."""
+
         async def make(val):
             await asyncio.sleep(0.01 * (5 - val))  # reverse delay
             return val
@@ -466,6 +488,7 @@ class TestGatherWithLimit:
 # Tests for AGENT_EVENT_TYPES
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestAgentEventTypes:
     """Tests for the AGENT_EVENT_TYPES frozenset."""
@@ -476,8 +499,15 @@ class TestAgentEventTypes:
 
     def test_contains_expected_types(self):
         """AGENT_EVENT_TYPES should contain all documented event types."""
-        expected = {"tool_start", "tool_end", "step_start", "step_end",
-                    "status", "error", "streaming"}
+        expected = {
+            "tool_start",
+            "tool_end",
+            "step_start",
+            "step_end",
+            "status",
+            "error",
+            "streaming",
+        }
         assert expected == AGENT_EVENT_TYPES
 
     def test_immutable(self):
@@ -489,6 +519,7 @@ class TestAgentEventTypes:
 # =============================================================================
 # Tests for AgentEvent
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestAgentEvent:
@@ -550,6 +581,7 @@ class TestAgentEvent:
 # =============================================================================
 # Tests for AgentEventBroadcaster
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestAgentEventBroadcaster:
@@ -706,6 +738,7 @@ class TestAgentEventBroadcaster:
 # =============================================================================
 # Tests for type aliases
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestTypeAliases:

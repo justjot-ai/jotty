@@ -16,22 +16,22 @@ Includes:
 - Transaction Cost Analysis
 """
 
-from dataclasses import dataclass
-from typing import Dict, Any, Optional, List, Tuple
-from pathlib import Path
-from datetime import datetime
 import logging
+from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
 from .backtest_engine import (
     ComprehensiveBacktestResult,
-    TransactionCosts,
-    RiskMetrics,
-    StatisticalTests,
-    RegimeAnalysis,
     FactorExposure,
     MonteCarloResult,
-    WalkForwardResult,
     PositionSizing,
+    RegimeAnalysis,
+    RiskMetrics,
+    StatisticalTests,
+    TransactionCosts,
+    WalkForwardResult,
 )
 
 logger = logging.getLogger(__name__)
@@ -45,9 +45,7 @@ class ComprehensiveBacktestChartGenerator:
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
     def generate_monte_carlo_distribution(
-        self,
-        result: ComprehensiveBacktestResult,
-        filename: str = "monte_carlo_dist.png"
+        self, result: ComprehensiveBacktestResult, filename: str = "monte_carlo_dist.png"
     ) -> Optional[Path]:
         """Generate Monte Carlo return distribution chart."""
         try:
@@ -65,53 +63,91 @@ class ComprehensiveBacktestChartGenerator:
             x = np.linspace(mc.return_5th - 10, mc.return_95th + 10, 100)
             # Approximate normal distribution
             from scipy import stats
+
             pdf = stats.norm.pdf(x, mc.mean_return, mc.std_return)
-            ax1.fill_between(x, pdf, alpha=0.3, color='#2196F3')
-            ax1.axvline(mc.mean_return, color='#1565C0', linestyle='-', linewidth=2, label=f'Mean: {mc.mean_return:.1f}%')
-            ax1.axvline(mc.return_5th, color='#E53935', linestyle='--', linewidth=1.5, label=f'5th: {mc.return_5th:.1f}%')
-            ax1.axvline(mc.return_95th, color='#4CAF50', linestyle='--', linewidth=1.5, label=f'95th: {mc.return_95th:.1f}%')
-            ax1.axvline(0, color='black', linestyle='-', linewidth=0.5, alpha=0.5)
-            ax1.set_xlabel('Total Return (%)', fontweight='bold')
-            ax1.set_ylabel('Probability Density')
-            ax1.set_title('Return Distribution (Monte Carlo)', fontweight='bold')
-            ax1.legend(loc='upper right', fontsize=8)
+            ax1.fill_between(x, pdf, alpha=0.3, color="#2196F3")
+            ax1.axvline(
+                mc.mean_return,
+                color="#1565C0",
+                linestyle="-",
+                linewidth=2,
+                label=f"Mean: {mc.mean_return:.1f}%",
+            )
+            ax1.axvline(
+                mc.return_5th,
+                color="#E53935",
+                linestyle="--",
+                linewidth=1.5,
+                label=f"5th: {mc.return_5th:.1f}%",
+            )
+            ax1.axvline(
+                mc.return_95th,
+                color="#4CAF50",
+                linestyle="--",
+                linewidth=1.5,
+                label=f"95th: {mc.return_95th:.1f}%",
+            )
+            ax1.axvline(0, color="black", linestyle="-", linewidth=0.5, alpha=0.5)
+            ax1.set_xlabel("Total Return (%)", fontweight="bold")
+            ax1.set_ylabel("Probability Density")
+            ax1.set_title("Return Distribution (Monte Carlo)", fontweight="bold")
+            ax1.legend(loc="upper right", fontsize=8)
             ax1.grid(True, alpha=0.3)
 
             # 2. Sharpe Distribution
             ax2 = axes[1]
             x = np.linspace(mc.sharpe_5th - 0.5, mc.sharpe_95th + 0.5, 100)
             pdf = stats.norm.pdf(x, mc.mean_sharpe, mc.std_sharpe)
-            ax2.fill_between(x, pdf, alpha=0.3, color='#9C27B0')
-            ax2.axvline(mc.mean_sharpe, color='#7B1FA2', linestyle='-', linewidth=2, label=f'Mean: {mc.mean_sharpe:.2f}')
-            ax2.axvline(1.0, color='#4CAF50', linestyle='--', linewidth=1.5, label='Sharpe = 1')
-            ax2.axvline(0, color='#E53935', linestyle='--', linewidth=1.5, label='Sharpe = 0')
-            ax2.set_xlabel('Sharpe Ratio', fontweight='bold')
-            ax2.set_ylabel('Probability Density')
-            ax2.set_title('Sharpe Ratio Distribution', fontweight='bold')
-            ax2.legend(loc='upper right', fontsize=8)
+            ax2.fill_between(x, pdf, alpha=0.3, color="#9C27B0")
+            ax2.axvline(
+                mc.mean_sharpe,
+                color="#7B1FA2",
+                linestyle="-",
+                linewidth=2,
+                label=f"Mean: {mc.mean_sharpe:.2f}",
+            )
+            ax2.axvline(1.0, color="#4CAF50", linestyle="--", linewidth=1.5, label="Sharpe = 1")
+            ax2.axvline(0, color="#E53935", linestyle="--", linewidth=1.5, label="Sharpe = 0")
+            ax2.set_xlabel("Sharpe Ratio", fontweight="bold")
+            ax2.set_ylabel("Probability Density")
+            ax2.set_title("Sharpe Ratio Distribution", fontweight="bold")
+            ax2.legend(loc="upper right", fontsize=8)
             ax2.grid(True, alpha=0.3)
 
             # 3. Probability Metrics
             ax3 = axes[2]
             probs = [mc.prob_positive, mc.prob_beat_benchmark, mc.prob_sharpe_above_1]
-            labels = ['P(Return > 0)', 'P(Beat Benchmark)', 'P(Sharpe > 1)']
-            colors = ['#4CAF50' if p > 0.5 else '#E53935' for p in probs]
+            labels = ["P(Return > 0)", "P(Beat Benchmark)", "P(Sharpe > 1)"]
+            colors = ["#4CAF50" if p > 0.5 else "#E53935" for p in probs]
 
-            bars = ax3.bar(labels, [p * 100 for p in probs], color=colors, alpha=0.7, edgecolor='white', linewidth=2)
-            ax3.axhline(50, color='gray', linestyle='--', linewidth=1, alpha=0.7)
-            ax3.set_ylabel('Probability (%)', fontweight='bold')
-            ax3.set_title('Success Probabilities', fontweight='bold')
+            bars = ax3.bar(
+                labels,
+                [p * 100 for p in probs],
+                color=colors,
+                alpha=0.7,
+                edgecolor="white",
+                linewidth=2,
+            )
+            ax3.axhline(50, color="gray", linestyle="--", linewidth=1, alpha=0.7)
+            ax3.set_ylabel("Probability (%)", fontweight="bold")
+            ax3.set_title("Success Probabilities", fontweight="bold")
             ax3.set_ylim(0, 100)
 
             for bar, p in zip(bars, probs):
-                ax3.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 2,
-                        f'{p*100:.1f}%', ha='center', va='bottom', fontweight='bold')
+                ax3.text(
+                    bar.get_x() + bar.get_width() / 2,
+                    bar.get_height() + 2,
+                    f"{p*100:.1f}%",
+                    ha="center",
+                    va="bottom",
+                    fontweight="bold",
+                )
 
-            ax3.grid(True, alpha=0.3, axis='y')
+            ax3.grid(True, alpha=0.3, axis="y")
 
             plt.tight_layout()
             filepath = self.output_dir / filename
-            plt.savefig(filepath, dpi=150, bbox_inches='tight', facecolor='white')
+            plt.savefig(filepath, dpi=150, bbox_inches="tight", facecolor="white")
             plt.close()
 
             return filepath
@@ -121,9 +157,7 @@ class ComprehensiveBacktestChartGenerator:
             return None
 
     def generate_walk_forward_chart(
-        self,
-        result: ComprehensiveBacktestResult,
-        filename: str = "walk_forward.png"
+        self, result: ComprehensiveBacktestResult, filename: str = "walk_forward.png"
     ) -> Optional[Path]:
         """Generate walk-forward analysis chart."""
         try:
@@ -145,49 +179,53 @@ class ComprehensiveBacktestChartGenerator:
 
             x = np.arange(len(windows))
             width = 0.35
-            ax1.bar(x - width/2, is_returns, width, label='In-Sample', color='#2196F3', alpha=0.8)
-            ax1.bar(x + width/2, oos_returns, width, label='Out-of-Sample', color='#FF9800', alpha=0.8)
-            ax1.axhline(0, color='black', linestyle='-', linewidth=0.5)
-            ax1.set_xlabel('Window', fontweight='bold')
-            ax1.set_ylabel('Return (%)', fontweight='bold')
-            ax1.set_title('In-Sample vs Out-of-Sample Returns', fontweight='bold')
+            ax1.bar(x - width / 2, is_returns, width, label="In-Sample", color="#2196F3", alpha=0.8)
+            ax1.bar(
+                x + width / 2, oos_returns, width, label="Out-of-Sample", color="#FF9800", alpha=0.8
+            )
+            ax1.axhline(0, color="black", linestyle="-", linewidth=0.5)
+            ax1.set_xlabel("Window", fontweight="bold")
+            ax1.set_ylabel("Return (%)", fontweight="bold")
+            ax1.set_title("In-Sample vs Out-of-Sample Returns", fontweight="bold")
             ax1.set_xticks(x)
-            ax1.set_xticklabels([f'W{i}' for i in windows])
+            ax1.set_xticklabels([f"W{i}" for i in windows])
             ax1.legend()
-            ax1.grid(True, alpha=0.3, axis='y')
+            ax1.grid(True, alpha=0.3, axis="y")
 
             # 2. IS vs OOS Sharpe
             ax2 = axes[0, 1]
             is_sharpes = [wf.is_sharpe for wf in wf_results]
             oos_sharpes = [wf.oos_sharpe for wf in wf_results]
 
-            ax2.bar(x - width/2, is_sharpes, width, label='In-Sample', color='#9C27B0', alpha=0.8)
-            ax2.bar(x + width/2, oos_sharpes, width, label='Out-of-Sample', color='#E91E63', alpha=0.8)
-            ax2.axhline(0, color='black', linestyle='-', linewidth=0.5)
-            ax2.axhline(1, color='#4CAF50', linestyle='--', linewidth=1, alpha=0.7)
-            ax2.set_xlabel('Window', fontweight='bold')
-            ax2.set_ylabel('Sharpe Ratio', fontweight='bold')
-            ax2.set_title('In-Sample vs Out-of-Sample Sharpe', fontweight='bold')
+            ax2.bar(x - width / 2, is_sharpes, width, label="In-Sample", color="#9C27B0", alpha=0.8)
+            ax2.bar(
+                x + width / 2, oos_sharpes, width, label="Out-of-Sample", color="#E91E63", alpha=0.8
+            )
+            ax2.axhline(0, color="black", linestyle="-", linewidth=0.5)
+            ax2.axhline(1, color="#4CAF50", linestyle="--", linewidth=1, alpha=0.7)
+            ax2.set_xlabel("Window", fontweight="bold")
+            ax2.set_ylabel("Sharpe Ratio", fontweight="bold")
+            ax2.set_title("In-Sample vs Out-of-Sample Sharpe", fontweight="bold")
             ax2.set_xticks(x)
-            ax2.set_xticklabels([f'W{i}' for i in windows])
+            ax2.set_xticklabels([f"W{i}" for i in windows])
             ax2.legend()
-            ax2.grid(True, alpha=0.3, axis='y')
+            ax2.grid(True, alpha=0.3, axis="y")
 
             # 3. Degradation
             ax3 = axes[1, 0]
             degradation = [wf.sharpe_degradation for wf in wf_results]
-            colors = ['#E53935' if d > 0 else '#4CAF50' for d in degradation]
+            colors = ["#E53935" if d > 0 else "#4CAF50" for d in degradation]
 
             ax3.bar(windows, degradation, color=colors, alpha=0.8)
-            ax3.axhline(0, color='black', linestyle='-', linewidth=0.5)
-            ax3.set_xlabel('Window', fontweight='bold')
-            ax3.set_ylabel('Degradation (%)', fontweight='bold')
-            ax3.set_title('Sharpe Degradation (IS - OOS)', fontweight='bold')
-            ax3.grid(True, alpha=0.3, axis='y')
+            ax3.axhline(0, color="black", linestyle="-", linewidth=0.5)
+            ax3.set_xlabel("Window", fontweight="bold")
+            ax3.set_ylabel("Degradation (%)", fontweight="bold")
+            ax3.set_title("Sharpe Degradation (IS - OOS)", fontweight="bold")
+            ax3.grid(True, alpha=0.3, axis="y")
 
             # 4. Summary Stats
             ax4 = axes[1, 1]
-            ax4.axis('off')
+            ax4.axis("off")
 
             summary_text = f"""
 WALK-FORWARD SUMMARY
@@ -202,12 +240,19 @@ Average Degradation: {result.wf_degradation:.1f}%
 Consistency Score: {sum(1 for wf in wf_results if wf.oos_return > 0) / len(wf_results) * 100:.0f}%
 (% of windows with positive OOS return)
 """
-            ax4.text(0.1, 0.5, summary_text, fontsize=12, fontfamily='monospace',
-                    verticalalignment='center', bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+            ax4.text(
+                0.1,
+                0.5,
+                summary_text,
+                fontsize=12,
+                fontfamily="monospace",
+                verticalalignment="center",
+                bbox=dict(boxstyle="round", facecolor="wheat", alpha=0.5),
+            )
 
             plt.tight_layout()
             filepath = self.output_dir / filename
-            plt.savefig(filepath, dpi=150, bbox_inches='tight', facecolor='white')
+            plt.savefig(filepath, dpi=150, bbox_inches="tight", facecolor="white")
             plt.close()
 
             return filepath
@@ -217,9 +262,7 @@ Consistency Score: {sum(1 for wf in wf_results if wf.oos_return > 0) / len(wf_re
             return None
 
     def generate_risk_metrics_chart(
-        self,
-        result: ComprehensiveBacktestResult,
-        filename: str = "risk_metrics.png"
+        self, result: ComprehensiveBacktestResult, filename: str = "risk_metrics.png"
     ) -> Optional[Path]:
         """Generate comprehensive risk metrics chart."""
         try:
@@ -231,58 +274,87 @@ Consistency Score: {sum(1 for wf in wf_results if wf.oos_return > 0) / len(wf_re
 
             # 1. VaR and CVaR
             ax1 = axes[0, 0]
-            metrics = ['VaR 95%', 'VaR 99%', 'CVaR 95%', 'CVaR 99%']
+            metrics = ["VaR 95%", "VaR 99%", "CVaR 95%", "CVaR 99%"]
             values = [rm.var_95, rm.var_99, rm.cvar_95, rm.cvar_99]
-            colors = ['#FF9800', '#E53935', '#FF5722', '#B71C1C']
+            colors = ["#FF9800", "#E53935", "#FF5722", "#B71C1C"]
 
             bars = ax1.barh(metrics, values, color=colors, alpha=0.8)
-            ax1.axvline(0, color='black', linestyle='-', linewidth=0.5)
-            ax1.set_xlabel('Daily Loss (%)', fontweight='bold')
-            ax1.set_title('Value at Risk Analysis', fontweight='bold')
-            ax1.grid(True, alpha=0.3, axis='x')
+            ax1.axvline(0, color="black", linestyle="-", linewidth=0.5)
+            ax1.set_xlabel("Daily Loss (%)", fontweight="bold")
+            ax1.set_title("Value at Risk Analysis", fontweight="bold")
+            ax1.grid(True, alpha=0.3, axis="x")
 
             for bar, val in zip(bars, values):
-                ax1.text(val - 0.2, bar.get_y() + bar.get_height()/2,
-                        f'{val:.2f}%', ha='right', va='center', fontweight='bold', color='white')
+                ax1.text(
+                    val - 0.2,
+                    bar.get_y() + bar.get_height() / 2,
+                    f"{val:.2f}%",
+                    ha="right",
+                    va="center",
+                    fontweight="bold",
+                    color="white",
+                )
 
             # 2. Distribution Moments
             ax2 = axes[0, 1]
-            moments = ['Volatility\n(Ann.)', 'Skewness', 'Excess\nKurtosis', 'Tail\nRatio']
+            moments = ["Volatility\n(Ann.)", "Skewness", "Excess\nKurtosis", "Tail\nRatio"]
             moment_values = [rm.volatility, rm.skewness, rm.kurtosis, rm.tail_ratio]
 
             # Normalize for visualization
-            normalized = [rm.volatility/30, rm.skewness/2 + 0.5, rm.kurtosis/5 + 0.5, rm.tail_ratio/3]
-            colors = ['#2196F3', '#4CAF50' if rm.skewness > 0 else '#E53935',
-                     '#FF9800' if rm.kurtosis > 0 else '#9C27B0', '#607D8B']
+            normalized = [
+                rm.volatility / 30,
+                rm.skewness / 2 + 0.5,
+                rm.kurtosis / 5 + 0.5,
+                rm.tail_ratio / 3,
+            ]
+            colors = [
+                "#2196F3",
+                "#4CAF50" if rm.skewness > 0 else "#E53935",
+                "#FF9800" if rm.kurtosis > 0 else "#9C27B0",
+                "#607D8B",
+            ]
 
             bars = ax2.bar(moments, normalized, color=colors, alpha=0.8)
-            ax2.axhline(0.5, color='gray', linestyle='--', linewidth=1, alpha=0.7)
-            ax2.set_ylabel('Normalized Value', fontweight='bold')
-            ax2.set_title('Distribution Characteristics', fontweight='bold')
+            ax2.axhline(0.5, color="gray", linestyle="--", linewidth=1, alpha=0.7)
+            ax2.set_ylabel("Normalized Value", fontweight="bold")
+            ax2.set_title("Distribution Characteristics", fontweight="bold")
             ax2.set_ylim(0, 1.5)
 
             # Add actual values as text
             for bar, val in zip(bars, moment_values):
-                ax2.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.05,
-                        f'{val:.2f}', ha='center', va='bottom', fontsize=10, fontweight='bold')
+                ax2.text(
+                    bar.get_x() + bar.get_width() / 2,
+                    bar.get_height() + 0.05,
+                    f"{val:.2f}",
+                    ha="center",
+                    va="bottom",
+                    fontsize=10,
+                    fontweight="bold",
+                )
 
             # 3. Drawdown Analysis
             ax3 = axes[1, 0]
-            dd_metrics = ['Max\nDrawdown', 'Avg\nDrawdown', 'Ulcer\nIndex', 'Pain\nIndex']
+            dd_metrics = ["Max\nDrawdown", "Avg\nDrawdown", "Ulcer\nIndex", "Pain\nIndex"]
             dd_values = [abs(rm.max_drawdown), abs(rm.avg_drawdown), rm.ulcer_index, rm.pain_index]
 
             colors = plt.cm.Reds([0.3, 0.5, 0.7, 0.9])
             bars = ax3.bar(dd_metrics, dd_values, color=colors)
-            ax3.set_ylabel('Percentage (%)', fontweight='bold')
-            ax3.set_title('Drawdown Metrics', fontweight='bold')
+            ax3.set_ylabel("Percentage (%)", fontweight="bold")
+            ax3.set_title("Drawdown Metrics", fontweight="bold")
 
             for bar, val in zip(bars, dd_values):
-                ax3.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.3,
-                        f'{val:.1f}%', ha='center', va='bottom', fontweight='bold')
+                ax3.text(
+                    bar.get_x() + bar.get_width() / 2,
+                    bar.get_height() + 0.3,
+                    f"{val:.1f}%",
+                    ha="center",
+                    va="bottom",
+                    fontweight="bold",
+                )
 
             # 4. Risk Summary Dashboard
             ax4 = axes[1, 1]
-            ax4.axis('off')
+            ax4.axis("off")
 
             # Risk score (simplified)
             risk_score = min(10, abs(rm.max_drawdown) / 5 + abs(rm.cvar_99) + abs(rm.kurtosis) / 2)
@@ -305,12 +377,19 @@ Downside Deviation: {rm.downside_deviation:.1f}%
 RISK SCORE: {risk_score:.1f}/10
 {'🔴 HIGH RISK' if risk_score > 7 else '🟡 MEDIUM RISK' if risk_score > 4 else '🟢 LOW RISK'}
 """
-            ax4.text(0.1, 0.5, summary_text, fontsize=11, fontfamily='monospace',
-                    verticalalignment='center', bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+            ax4.text(
+                0.1,
+                0.5,
+                summary_text,
+                fontsize=11,
+                fontfamily="monospace",
+                verticalalignment="center",
+                bbox=dict(boxstyle="round", facecolor="wheat", alpha=0.5),
+            )
 
             plt.tight_layout()
             filepath = self.output_dir / filename
-            plt.savefig(filepath, dpi=150, bbox_inches='tight', facecolor='white')
+            plt.savefig(filepath, dpi=150, bbox_inches="tight", facecolor="white")
             plt.close()
 
             return filepath
@@ -320,9 +399,7 @@ RISK SCORE: {risk_score:.1f}/10
             return None
 
     def generate_regime_analysis_chart(
-        self,
-        result: ComprehensiveBacktestResult,
-        filename: str = "regime_analysis.png"
+        self, result: ComprehensiveBacktestResult, filename: str = "regime_analysis.png"
     ) -> Optional[Path]:
         """Generate regime analysis chart."""
         try:
@@ -334,14 +411,19 @@ RISK SCORE: {risk_score:.1f}/10
 
             # 1. Time in Regimes
             ax1 = axes[0]
-            regimes = ['Bull', 'Bear', 'Crisis']
+            regimes = ["Bull", "Bear", "Crisis"]
             times = [ra.time_in_bull, ra.time_in_bear, ra.time_in_crisis]
-            colors = ['#4CAF50', '#E53935', '#9C27B0']
+            colors = ["#4CAF50", "#E53935", "#9C27B0"]
 
-            wedges, texts, autotexts = ax1.pie(times, labels=regimes, autopct='%1.1f%%',
-                                               colors=colors, startangle=90,
-                                               explode=(0.02, 0.02, 0.05))
-            ax1.set_title('Time in Market Regimes', fontweight='bold')
+            wedges, texts, autotexts = ax1.pie(
+                times,
+                labels=regimes,
+                autopct="%1.1f%%",
+                colors=colors,
+                startangle=90,
+                explode=(0.02, 0.02, 0.05),
+            )
+            ax1.set_title("Time in Market Regimes", fontweight="bold")
 
             # 2. Performance by Regime
             ax2 = axes[1]
@@ -351,19 +433,26 @@ RISK SCORE: {risk_score:.1f}/10
             returns = [ra.return_bull, ra.return_bear, ra.return_crisis]
             sharpes = [ra.sharpe_bull, ra.sharpe_bear, ra.sharpe_crisis]
 
-            ax2.bar(x - width/2, returns, width, label='Return (%)', color='#2196F3', alpha=0.8)
-            ax2.bar(x + width/2, [s * 10 for s in sharpes], width, label='Sharpe (x10)', color='#FF9800', alpha=0.8)
-            ax2.axhline(0, color='black', linestyle='-', linewidth=0.5)
+            ax2.bar(x - width / 2, returns, width, label="Return (%)", color="#2196F3", alpha=0.8)
+            ax2.bar(
+                x + width / 2,
+                [s * 10 for s in sharpes],
+                width,
+                label="Sharpe (x10)",
+                color="#FF9800",
+                alpha=0.8,
+            )
+            ax2.axhline(0, color="black", linestyle="-", linewidth=0.5)
             ax2.set_xticks(x)
             ax2.set_xticklabels(regimes)
-            ax2.set_ylabel('Value', fontweight='bold')
-            ax2.set_title('Performance by Regime', fontweight='bold')
+            ax2.set_ylabel("Value", fontweight="bold")
+            ax2.set_title("Performance by Regime", fontweight="bold")
             ax2.legend()
-            ax2.grid(True, alpha=0.3, axis='y')
+            ax2.grid(True, alpha=0.3, axis="y")
 
             # 3. Regime Summary
             ax3 = axes[2]
-            ax3.axis('off')
+            ax3.axis("off")
 
             summary_text = f"""
 REGIME ANALYSIS
@@ -386,12 +475,19 @@ CRISIS:
   Return: {ra.return_crisis:+.1f}%
   Sharpe: {ra.sharpe_crisis:.2f}
 """
-            ax3.text(0.1, 0.5, summary_text, fontsize=11, fontfamily='monospace',
-                    verticalalignment='center', bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+            ax3.text(
+                0.1,
+                0.5,
+                summary_text,
+                fontsize=11,
+                fontfamily="monospace",
+                verticalalignment="center",
+                bbox=dict(boxstyle="round", facecolor="wheat", alpha=0.5),
+            )
 
             plt.tight_layout()
             filepath = self.output_dir / filename
-            plt.savefig(filepath, dpi=150, bbox_inches='tight', facecolor='white')
+            plt.savefig(filepath, dpi=150, bbox_inches="tight", facecolor="white")
             plt.close()
 
             return filepath
@@ -401,9 +497,7 @@ CRISIS:
             return None
 
     def generate_statistical_significance_chart(
-        self,
-        result: ComprehensiveBacktestResult,
-        filename: str = "statistical_significance.png"
+        self, result: ComprehensiveBacktestResult, filename: str = "statistical_significance.png"
     ) -> Optional[Path]:
         """Generate statistical significance chart."""
         try:
@@ -419,46 +513,67 @@ CRISIS:
 
             # Sharpe CI
             sharpe_point = result.sharpe_ratio
-            ax1.errorbar(1, sharpe_point, yerr=[[sharpe_point - st.sharpe_ci_lower], [st.sharpe_ci_upper - sharpe_point]],
-                        fmt='o', color='#2196F3', markersize=12, capsize=10, capthick=2, elinewidth=2)
-            ax1.axhline(0, color='#E53935', linestyle='--', linewidth=1.5, alpha=0.7)
-            ax1.axhline(1, color='#4CAF50', linestyle='--', linewidth=1.5, alpha=0.7)
+            ax1.errorbar(
+                1,
+                sharpe_point,
+                yerr=[[sharpe_point - st.sharpe_ci_lower], [st.sharpe_ci_upper - sharpe_point]],
+                fmt="o",
+                color="#2196F3",
+                markersize=12,
+                capsize=10,
+                capthick=2,
+                elinewidth=2,
+            )
+            ax1.axhline(0, color="#E53935", linestyle="--", linewidth=1.5, alpha=0.7)
+            ax1.axhline(1, color="#4CAF50", linestyle="--", linewidth=1.5, alpha=0.7)
 
             ax1.set_xlim(0.5, 1.5)
             ax1.set_xticks([1])
-            ax1.set_xticklabels(['Sharpe Ratio'])
-            ax1.set_ylabel('Value', fontweight='bold')
-            ax1.set_title('95% Confidence Interval', fontweight='bold')
-            ax1.grid(True, alpha=0.3, axis='y')
+            ax1.set_xticklabels(["Sharpe Ratio"])
+            ax1.set_ylabel("Value", fontweight="bold")
+            ax1.set_title("95% Confidence Interval", fontweight="bold")
+            ax1.grid(True, alpha=0.3, axis="y")
 
-            ax1.text(1.1, sharpe_point, f'{sharpe_point:.2f}', fontweight='bold')
-            ax1.text(1.1, st.sharpe_ci_lower, f'{st.sharpe_ci_lower:.2f}', fontsize=9, color='gray')
-            ax1.text(1.1, st.sharpe_ci_upper, f'{st.sharpe_ci_upper:.2f}', fontsize=9, color='gray')
+            ax1.text(1.1, sharpe_point, f"{sharpe_point:.2f}", fontweight="bold")
+            ax1.text(1.1, st.sharpe_ci_lower, f"{st.sharpe_ci_lower:.2f}", fontsize=9, color="gray")
+            ax1.text(1.1, st.sharpe_ci_upper, f"{st.sharpe_ci_upper:.2f}", fontsize=9, color="gray")
 
             # 2. P-value and Significance
             ax2 = axes[1]
 
             significance_levels = [0.01, 0.05, 0.10]
-            sig_labels = ['p < 0.01\n(Very Significant)', 'p < 0.05\n(Significant)', 'p < 0.10\n(Marginally Sig.)']
+            sig_labels = [
+                "p < 0.01\n(Very Significant)",
+                "p < 0.05\n(Significant)",
+                "p < 0.10\n(Marginally Sig.)",
+            ]
 
             for i, (level, label) in enumerate(zip(significance_levels, sig_labels)):
-                color = '#4CAF50' if st.p_value < level else '#E0E0E0'
-                ax2.bar(i, 1, color=color, alpha=0.8, edgecolor='white', linewidth=2)
-                ax2.text(i, 0.5, label, ha='center', va='center', fontsize=10, fontweight='bold' if st.p_value < level else 'normal')
+                color = "#4CAF50" if st.p_value < level else "#E0E0E0"
+                ax2.bar(i, 1, color=color, alpha=0.8, edgecolor="white", linewidth=2)
+                ax2.text(
+                    i,
+                    0.5,
+                    label,
+                    ha="center",
+                    va="center",
+                    fontsize=10,
+                    fontweight="bold" if st.p_value < level else "normal",
+                )
 
-            ax2.axhline(0, color='black')
+            ax2.axhline(0, color="black")
             ax2.set_xlim(-0.5, 2.5)
             ax2.set_ylim(0, 1.2)
             ax2.set_xticks([])
             ax2.set_yticks([])
-            ax2.set_title(f'Statistical Significance (p = {st.p_value:.4f})', fontweight='bold')
+            ax2.set_title(f"Statistical Significance (p = {st.p_value:.4f})", fontweight="bold")
 
             # 3. Summary Dashboard
             ax3 = axes[2]
-            ax3.axis('off')
+            ax3.axis("off")
 
-            significance = 'SIGNIFICANT' if st.p_value < 0.05 else 'NOT SIGNIFICANT'
-            sig_color = '🟢' if st.p_value < 0.05 else '🔴'
+            significance = "SIGNIFICANT" if st.p_value < 0.05 else "NOT SIGNIFICANT"
+            sig_color = "🟢" if st.p_value < 0.05 else "🔴"
 
             summary_text = f"""
 STATISTICAL ANALYSIS
@@ -478,12 +593,19 @@ Deflated Sharpe: {st.deflated_sharpe:.2f}
 Min Track Record: {st.min_track_record} days
 (for statistical significance)
 """
-            ax3.text(0.1, 0.5, summary_text, fontsize=11, fontfamily='monospace',
-                    verticalalignment='center', bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+            ax3.text(
+                0.1,
+                0.5,
+                summary_text,
+                fontsize=11,
+                fontfamily="monospace",
+                verticalalignment="center",
+                bbox=dict(boxstyle="round", facecolor="wheat", alpha=0.5),
+            )
 
             plt.tight_layout()
             filepath = self.output_dir / filename
-            plt.savefig(filepath, dpi=150, bbox_inches='tight', facecolor='white')
+            plt.savefig(filepath, dpi=150, bbox_inches="tight", facecolor="white")
             plt.close()
 
             return filepath
@@ -501,9 +623,7 @@ class ComprehensiveBacktestReportGenerator:
         self.report_dir.mkdir(parents=True, exist_ok=True)
 
     async def generate_report(
-        self,
-        result: ComprehensiveBacktestResult,
-        template_name: str = "quantitative"
+        self, result: ComprehensiveBacktestResult, template_name: str = "quantitative"
     ) -> Tuple[Path, Path]:
         """Generate comprehensive markdown and PDF report."""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -539,7 +659,7 @@ class ComprehensiveBacktestReportGenerator:
         markdown = self._generate_markdown(result)
 
         md_path = self.report_dir / f"{base_name}.md"
-        with open(md_path, 'w') as f:
+        with open(md_path, "w") as f:
             f.write(markdown)
 
         # Generate PDF
@@ -851,37 +971,37 @@ Walk-forward analysis provides more realistic OOS estimates but cannot guarantee
         return md
 
     async def _generate_pdf(
-        self,
-        markdown: str,
-        base_name: str,
-        chart_files: List[Path],
-        template_name: str
+        self, markdown: str, base_name: str, chart_files: List[Path], template_name: str
     ) -> Path:
         """Convert markdown to PDF with charts."""
         try:
-            from ..research.templates import TemplateRegistry
             import base64
 
+            from ..research.templates import TemplateRegistry
+
             # Get template
-            template = TemplateRegistry.get(template_name) or TemplateRegistry.get('quantitative')
+            template = TemplateRegistry.get(template_name) or TemplateRegistry.get("quantitative")
             if template is None:
                 from ..research.templates.backtest_templates import QuantitativeTemplate
+
                 template = QuantitativeTemplate()
 
             # Convert markdown to HTML
             try:
                 import markdown as md_lib
-                md_converter = md_lib.Markdown(extensions=[
-                    'tables', 'fenced_code', 'nl2br', 'sane_lists'
-                ])
+
+                md_converter = md_lib.Markdown(
+                    extensions=["tables", "fenced_code", "nl2br", "sane_lists"]
+                )
                 html_content = md_converter.convert(markdown)
             except ImportError:
                 html_content = f"<pre>{markdown}</pre>"
 
             # Enhance HTML
             import re
-            html_content = re.sub(r'<h2>', '<div class="page-break"></div>\n<h2>', html_content)
-            html_content = html_content.replace('<div class="page-break"></div>\n<h2>', '<h2>', 1)
+
+            html_content = re.sub(r"<h2>", '<div class="page-break"></div>\n<h2>', html_content)
+            html_content = html_content.replace('<div class="page-break"></div>\n<h2>', "<h2>", 1)
 
             # Embed charts
             if chart_files:
@@ -889,22 +1009,22 @@ Walk-forward analysis provides more realistic OOS estimates but cannot guarantee
                 for chart_path in chart_files:
                     if chart_path and chart_path.exists():
                         try:
-                            with open(chart_path, 'rb') as f:
-                                data = base64.b64encode(f.read()).decode('utf-8')
-                            chart_name = chart_path.stem.replace('_', ' ').title()
-                            charts_html += f'''
+                            with open(chart_path, "rb") as f:
+                                data = base64.b64encode(f.read()).decode("utf-8")
+                            chart_name = chart_path.stem.replace("_", " ").title()
+                            charts_html += f"""
 <div class="chart-container">
     <h3>{chart_name}</h3>
     <img src="data:image/png;base64,{data}" style="width:100%;max-width:100%;height:auto;"/>
 </div>
-'''
+"""
                         except Exception as e:
                             logger.warning(f"Failed to embed chart: {e}")
 
-                if '## Disclaimer' in html_content:
+                if "## Disclaimer" in html_content:
                     html_content = html_content.replace(
-                        '<h2>Disclaimer</h2>',
-                        charts_html + '<div class="page-break"></div>\n<h2>Disclaimer</h2>'
+                        "<h2>Disclaimer</h2>",
+                        charts_html + '<div class="page-break"></div>\n<h2>Disclaimer</h2>',
                     )
                 else:
                     html_content += charts_html
@@ -917,6 +1037,7 @@ Walk-forward analysis provides more realistic OOS estimates but cannot guarantee
 
             try:
                 from weasyprint import HTML
+
                 HTML(string=html).write_pdf(str(pdf_path))
             except ImportError:
                 logger.warning("WeasyPrint not installed")
@@ -927,27 +1048,33 @@ Walk-forward analysis provides more realistic OOS estimates but cannot guarantee
         except Exception as e:
             logger.error(f"PDF generation failed: {e}")
             import traceback
+
             traceback.print_exc()
             return None
 
-    async def send_to_telegram(self, pdf_path: Path, result: 'ComprehensiveBacktestResult') -> bool:
+    async def send_to_telegram(self, pdf_path: Path, result: "ComprehensiveBacktestResult") -> bool:
         """Send comprehensive report to Telegram."""
         try:
             import os
+
             from telegram import Bot
 
             # Telegram config from environment variables
-            BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+            BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
             if not BOT_TOKEN:
                 logger.error("TELEGRAM_BOT_TOKEN environment variable not set")
                 return
 
-            REPORTS_CHANNEL = os.getenv('TELEGRAM_REPORTS_CHANNEL', '-1001723570817')
+            REPORTS_CHANNEL = os.getenv("TELEGRAM_REPORTS_CHANNEL", "-1001723570817")
 
             bot = Bot(token=BOT_TOKEN)
 
             # Build caption
-            verdict = "BUY" if result.sharpe_ratio > 1 and result.statistical_tests.p_value < 0.05 else "HOLD" if result.total_return > 0 else "AVOID"
+            verdict = (
+                "BUY"
+                if result.sharpe_ratio > 1 and result.statistical_tests.p_value < 0.05
+                else "HOLD" if result.total_return > 0 else "AVOID"
+            )
             caption = f"""📊 **Comprehensive ML Backtest: {result.symbol}**
 
 📈 Return: {result.total_return:+.1f}% (Net: {result.total_return_net:+.1f}%)
@@ -961,12 +1088,9 @@ Walk-forward analysis provides more realistic OOS estimates but cannot guarantee
 
 🤖 Generated by Jotty AI"""
 
-            with open(pdf_path, 'rb') as f:
+            with open(pdf_path, "rb") as f:
                 await bot.send_document(
-                    chat_id=REPORTS_CHANNEL,
-                    document=f,
-                    caption=caption,
-                    parse_mode='Markdown'
+                    chat_id=REPORTS_CHANNEL, document=f, caption=caption, parse_mode="Markdown"
                 )
 
             logger.info(f"Sent {result.symbol} report to Telegram")

@@ -9,29 +9,20 @@ Integrates with Jotty's multi-agent workflow to automatically generate:
 - Presentation slides (PNG slides + PDF deck)
 """
 
-import sys
-import os
 import asyncio
 import logging
+import os
+import sys
 from pathlib import Path
-from typing import Optional, Dict, List, Any
+from typing import Any, Dict, List, Optional
 
 # Add Paper2Slides to Python path
 JOTTY_ROOT = Path(__file__).parent.parent.parent.parent
 PAPER2SLIDES_PATH = JOTTY_ROOT / "Paper2Slides"
 sys.path.insert(0, str(PAPER2SLIDES_PATH))
 
-from paper2slides.core import (
-    get_base_dir,
-    get_config_dir,
-    detect_start_stage,
-    run_pipeline,
-)
-from paper2slides.utils.path_utils import (
-    normalize_input_path,
-    get_project_name,
-    parse_style,
-)
+from paper2slides.core import detect_start_stage, get_base_dir, get_config_dir, run_pipeline
+from paper2slides.utils.path_utils import get_project_name, normalize_input_path, parse_style
 
 logger = logging.getLogger(__name__)
 
@@ -66,12 +57,12 @@ class SlidesGenerator:
         # Default configuration
         self.default_config = {
             "content_type": "general",  # "paper" or "general"
-            "output_type": "slides",    # "slides" or "poster"
-            "style": "academic",        # "academic", "doraemon", or custom
+            "output_type": "slides",  # "slides" or "poster"
+            "style": "academic",  # "academic", "doraemon", or custom
             "slides_length": "medium",  # "short", "medium", "long"
-            "poster_density": "medium", # "sparse", "medium", "dense"
+            "poster_density": "medium",  # "sparse", "medium", "dense"
             "fast_mode": fast_mode,
-            "max_workers": 1,           # Parallel processing workers
+            "max_workers": 1,  # Parallel processing workers
         }
 
     async def generate_slides(
@@ -81,7 +72,7 @@ class SlidesGenerator:
         length: str = "medium",
         output_type: str = "slides",
         parallel_workers: int = 1,
-        from_stage: Optional[str] = None
+        from_stage: Optional[str] = None,
     ) -> Dict[str, Path]:
         """
         Generate presentation slides from research PDF
@@ -127,11 +118,7 @@ class SlidesGenerator:
 
         # Determine output paths
         project_name = get_project_name(str(input_pdf))
-        base_dir = get_base_dir(
-            str(self.output_base_dir),
-            project_name,
-            config["content_type"]
-        )
+        base_dir = get_base_dir(str(self.output_base_dir), project_name, config["content_type"])
         config_dir = get_config_dir(base_dir, config)
 
         logger.info(f" Output directory: {base_dir}")
@@ -183,11 +170,11 @@ class SlidesGenerator:
         logger.info("")
 
         return {
-            'slides_dir': slides_dir,
-            'pdf': pdf_path,
-            'png_files': png_files,
-            'checkpoint_dir': config_dir,
-            'num_slides': len(png_files)
+            "slides_dir": slides_dir,
+            "pdf": pdf_path,
+            "png_files": png_files,
+            "checkpoint_dir": config_dir,
+            "num_slides": len(png_files),
         }
 
     def generate_slides_sync(self, *args: Any, **kwargs: Any) -> Dict[str, Path]:
@@ -200,7 +187,7 @@ def generate_slides_from_pdf(
     style: str = "academic",
     length: str = "medium",
     output_dir: Optional[Path] = None,
-    fast_mode: bool = False
+    fast_mode: bool = False,
 ) -> Dict[str, Path]:
     """
     Convenience function to generate slides from a PDF
@@ -225,16 +212,9 @@ def generate_slides_from_pdf(
         >>> print(f"Slides PDF: {result['pdf']}")
         >>> print(f"Total slides: {result['num_slides']}")
     """
-    generator = SlidesGenerator(
-        output_base_dir=output_dir,
-        fast_mode=fast_mode
-    )
+    generator = SlidesGenerator(output_base_dir=output_dir, fast_mode=fast_mode)
 
-    return generator.generate_slides_sync(
-        input_pdf=pdf_path,
-        style=style,
-        length=length
-    )
+    return generator.generate_slides_sync(input_pdf=pdf_path, style=style, length=length)
 
 
 if __name__ == "__main__":
@@ -251,10 +231,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Setup logging
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(levelname)s - %(message)s'
-    )
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
     # Generate slides
     result = generate_slides_from_pdf(
@@ -262,7 +239,7 @@ if __name__ == "__main__":
         style=args.style,
         length=args.length,
         output_dir=Path(args.output_dir) if args.output_dir else None,
-        fast_mode=args.fast
+        fast_mode=args.fast,
     )
 
     logger.info("Slides generation succeeded!")

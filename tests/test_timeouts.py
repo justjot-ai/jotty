@@ -17,33 +17,35 @@ Covers:
 - AdaptiveTimeout record_latency, get_timeout, measure context manager, get_stats
 - Global instances (LLM_CIRCUIT_BREAKER, TOOL_CIRCUIT_BREAKER, GLOBAL_DLQ, ADAPTIVE_TIMEOUT)
 """
+
 import asyncio
 import time
-import pytest
-from unittest.mock import MagicMock, AsyncMock, patch, PropertyMock
 from datetime import datetime, timedelta
+from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
+import pytest
+
+from Jotty.core.infrastructure.foundation.exceptions import TimeoutError
 from Jotty.core.infrastructure.utils.timeouts import (
-    CircuitState,
-    CircuitBreakerConfig,
-    CircuitBreaker,
-    CircuitOpenError,
-    FailedOperation,
-    DeadLetterQueue,
-    AdaptiveTimeout,
-    timeout,
-    async_timeout,
+    ADAPTIVE_TIMEOUT,
+    GLOBAL_DLQ,
     LLM_CIRCUIT_BREAKER,
     TOOL_CIRCUIT_BREAKER,
-    GLOBAL_DLQ,
-    ADAPTIVE_TIMEOUT,
+    AdaptiveTimeout,
+    CircuitBreaker,
+    CircuitBreakerConfig,
+    CircuitOpenError,
+    CircuitState,
+    DeadLetterQueue,
+    FailedOperation,
+    async_timeout,
+    timeout,
 )
-from Jotty.core.infrastructure.foundation.exceptions import TimeoutError
-
 
 # =============================================================================
 # CircuitState Enum Tests
 # =============================================================================
+
 
 class TestCircuitState:
     """Tests for CircuitState enum."""
@@ -79,6 +81,7 @@ class TestCircuitState:
 # =============================================================================
 # CircuitBreakerConfig Tests
 # =============================================================================
+
 
 class TestCircuitBreakerConfig:
     """Tests for CircuitBreakerConfig dataclass."""
@@ -120,6 +123,7 @@ class TestCircuitBreakerConfig:
 # CircuitOpenError Tests
 # =============================================================================
 
+
 class TestCircuitOpenError:
     """Tests for CircuitOpenError exception."""
 
@@ -144,6 +148,7 @@ class TestCircuitOpenError:
 # =============================================================================
 # CircuitBreaker Tests
 # =============================================================================
+
 
 class TestCircuitBreakerInit:
     """Tests for CircuitBreaker initialization."""
@@ -269,9 +274,9 @@ class TestCircuitBreakerRecordSuccess:
     @pytest.mark.unit
     def test_success_in_half_open_increments_success_count(self):
         """Success in HALF_OPEN increments success_count."""
-        cb = CircuitBreaker(CircuitBreakerConfig(
-            failure_threshold=1, success_threshold=3, timeout=0.0
-        ))
+        cb = CircuitBreaker(
+            CircuitBreakerConfig(failure_threshold=1, success_threshold=3, timeout=0.0)
+        )
         cb.record_failure(RuntimeError("fail"))
         cb.can_request()  # transition to HALF_OPEN
         assert cb.state == CircuitState.HALF_OPEN
@@ -283,9 +288,9 @@ class TestCircuitBreakerRecordSuccess:
     @pytest.mark.unit
     def test_success_in_half_open_closes_circuit_at_threshold(self):
         """Enough successes in HALF_OPEN closes the circuit."""
-        cb = CircuitBreaker(CircuitBreakerConfig(
-            failure_threshold=1, success_threshold=2, timeout=0.0
-        ))
+        cb = CircuitBreaker(
+            CircuitBreakerConfig(failure_threshold=1, success_threshold=2, timeout=0.0)
+        )
         cb.record_failure(RuntimeError("fail"))
         cb.can_request()  # transition to HALF_OPEN
         assert cb.state == CircuitState.HALF_OPEN
@@ -338,9 +343,7 @@ class TestCircuitBreakerRecordFailure:
     @pytest.mark.unit
     def test_failure_in_half_open_reopens_circuit(self):
         """Failure in HALF_OPEN goes back to OPEN."""
-        cb = CircuitBreaker(CircuitBreakerConfig(
-            failure_threshold=1, timeout=0.0
-        ))
+        cb = CircuitBreaker(CircuitBreakerConfig(failure_threshold=1, timeout=0.0))
         cb.record_failure(RuntimeError("initial"))
         cb.can_request()  # -> HALF_OPEN
         assert cb.state == CircuitState.HALF_OPEN
@@ -355,9 +358,9 @@ class TestCircuitBreakerStateTransitions:
     @pytest.mark.unit
     def test_full_cycle_closed_open_half_open_closed(self):
         """Full state cycle: CLOSED -> OPEN -> HALF_OPEN -> CLOSED."""
-        cb = CircuitBreaker(CircuitBreakerConfig(
-            failure_threshold=2, success_threshold=2, timeout=0.0
-        ))
+        cb = CircuitBreaker(
+            CircuitBreakerConfig(failure_threshold=2, success_threshold=2, timeout=0.0)
+        )
 
         # Start CLOSED
         assert cb.state == CircuitState.CLOSED
@@ -380,9 +383,9 @@ class TestCircuitBreakerStateTransitions:
     @pytest.mark.unit
     def test_half_open_failure_goes_back_to_open_then_recovers(self):
         """HALF_OPEN failure -> OPEN -> HALF_OPEN -> CLOSED cycle."""
-        cb = CircuitBreaker(CircuitBreakerConfig(
-            failure_threshold=1, success_threshold=1, timeout=0.0
-        ))
+        cb = CircuitBreaker(
+            CircuitBreakerConfig(failure_threshold=1, success_threshold=1, timeout=0.0)
+        )
 
         # CLOSED -> OPEN
         cb.record_failure(RuntimeError("trip"))
@@ -407,9 +410,9 @@ class TestCircuitBreakerStateTransitions:
     @pytest.mark.unit
     def test_success_resets_failure_count_on_close(self):
         """When circuit transitions from HALF_OPEN to CLOSED, failure_count resets."""
-        cb = CircuitBreaker(CircuitBreakerConfig(
-            failure_threshold=2, success_threshold=1, timeout=0.0
-        ))
+        cb = CircuitBreaker(
+            CircuitBreakerConfig(failure_threshold=2, success_threshold=1, timeout=0.0)
+        )
         cb.record_failure(RuntimeError("1"))
         cb.record_failure(RuntimeError("2"))
         assert cb.state == CircuitState.OPEN
@@ -428,14 +431,14 @@ class TestCircuitBreakerGetStats:
         """Stats after initialization are clean."""
         cb = CircuitBreaker(CircuitBreakerConfig(name="test_stats"))
         stats = cb.get_stats()
-        assert stats['name'] == "test_stats"
-        assert stats['state'] == "closed"
-        assert stats['failure_count'] == 0
-        assert stats['success_count'] == 0
-        assert stats['total_calls'] == 0
-        assert stats['total_failures'] == 0
-        assert stats['failure_rate'] == 0.0
-        assert stats['last_failure_time'] is None
+        assert stats["name"] == "test_stats"
+        assert stats["state"] == "closed"
+        assert stats["failure_count"] == 0
+        assert stats["success_count"] == 0
+        assert stats["total_calls"] == 0
+        assert stats["total_failures"] == 0
+        assert stats["failure_rate"] == 0.0
+        assert stats["last_failure_time"] is None
 
     @pytest.mark.unit
     def test_stats_after_usage(self):
@@ -447,17 +450,17 @@ class TestCircuitBreakerGetStats:
         cb.record_success()
 
         stats = cb.get_stats()
-        assert stats['total_calls'] == 2
-        assert stats['total_failures'] == 1
-        assert stats['failure_rate'] == 0.5
-        assert stats['last_failure_time'] is not None
+        assert stats["total_calls"] == 2
+        assert stats["total_failures"] == 1
+        assert stats["failure_rate"] == 0.5
+        assert stats["last_failure_time"] is not None
 
     @pytest.mark.unit
     def test_stats_failure_rate_zero_when_no_calls(self):
         """Failure rate is 0.0 when total_calls is 0."""
         cb = CircuitBreaker(CircuitBreakerConfig())
         stats = cb.get_stats()
-        assert stats['failure_rate'] == 0.0
+        assert stats["failure_rate"] == 0.0
 
 
 class TestCircuitBreakerProtectSync:
@@ -591,9 +594,9 @@ class TestCircuitBreakerProtectAsync:
     @pytest.mark.asyncio
     async def test_protect_async_records_success(self):
         """Protected async function records success properly."""
-        cb = CircuitBreaker(CircuitBreakerConfig(
-            failure_threshold=1, success_threshold=1, timeout=0.0
-        ))
+        cb = CircuitBreaker(
+            CircuitBreakerConfig(failure_threshold=1, success_threshold=1, timeout=0.0)
+        )
         # Trip the breaker and then recover
         cb.record_failure(RuntimeError("trip"))
         cb.can_request()  # -> HALF_OPEN
@@ -610,6 +613,7 @@ class TestCircuitBreakerProtectAsync:
 # =============================================================================
 # FailedOperation Tests
 # =============================================================================
+
 
 class TestFailedOperation:
     """Tests for FailedOperation dataclass."""
@@ -664,6 +668,7 @@ class TestFailedOperation:
 # =============================================================================
 # DeadLetterQueue Tests
 # =============================================================================
+
 
 class TestDeadLetterQueueInit:
     """Tests for DeadLetterQueue initialization."""
@@ -754,9 +759,9 @@ class TestDeadLetterQueueRetryAll:
         mock_func = MagicMock()
         stats = dlq.retry_all(mock_func)
 
-        assert stats['success'] == 2
-        assert stats['failed'] == 0
-        assert stats['total'] == 2
+        assert stats["success"] == 2
+        assert stats["failed"] == 0
+        assert stats["total"] == 2
         assert len(dlq.queue) == 0
         assert dlq.total_retried == 2
         assert dlq.total_successful_retries == 2
@@ -773,8 +778,8 @@ class TestDeadLetterQueueRetryAll:
         # First attempt fails, requeued (retry_count=1)
         # Second attempt fails, requeued (retry_count=2)
         # Third attempt fails, given up (retry_count=3)
-        assert stats['failed'] == 3
-        assert stats['success'] == 0
+        assert stats["failed"] == 3
+        assert stats["success"] == 0
         assert len(dlq.queue) == 0  # given up after 3
 
     @pytest.mark.unit
@@ -790,14 +795,14 @@ class TestDeadLetterQueueRetryAll:
             return "ok"
 
         stats = dlq.retry_all(operation_func)
-        assert stats['success'] >= 1
+        assert stats["success"] >= 1
 
     @pytest.mark.unit
     def test_retry_all_empty_queue(self):
         """Retrying empty queue returns zero stats."""
         dlq = DeadLetterQueue()
         stats = dlq.retry_all(MagicMock())
-        assert stats == {'success': 0, 'failed': 0, 'total': 0}
+        assert stats == {"success": 0, "failed": 0, "total": 0}
 
     @pytest.mark.unit
     def test_retry_all_increments_retry_count(self):
@@ -815,8 +820,8 @@ class TestDeadLetterQueueRetryAll:
             # succeed on second call
 
         stats = dlq.retry_all(failing_once)
-        assert stats['success'] == 1
-        assert stats['failed'] == 1
+        assert stats["success"] == 1
+        assert stats["failed"] == 1
 
     @pytest.mark.unit
     def test_retry_all_passes_correct_args(self):
@@ -873,13 +878,13 @@ class TestDeadLetterQueueGetStats:
         """Initial DLQ stats are clean."""
         dlq = DeadLetterQueue(max_size=500)
         stats = dlq.get_stats()
-        assert stats['current_size'] == 0
-        assert stats['max_size'] == 500
-        assert stats['total_added'] == 0
-        assert stats['total_retried'] == 0
-        assert stats['total_successful_retries'] == 0
-        assert stats['success_rate'] == 0.0
-        assert stats['failures_by_operation'] == {}
+        assert stats["current_size"] == 0
+        assert stats["max_size"] == 500
+        assert stats["total_added"] == 0
+        assert stats["total_retried"] == 0
+        assert stats["total_successful_retries"] == 0
+        assert stats["success_rate"] == 0.0
+        assert stats["failures_by_operation"] == {}
 
     @pytest.mark.unit
     def test_stats_after_operations(self):
@@ -892,11 +897,11 @@ class TestDeadLetterQueueGetStats:
         dlq.retry_all(mock_func)
 
         stats = dlq.get_stats()
-        assert stats['total_added'] == 2
-        assert stats['total_retried'] == 2
-        assert stats['total_successful_retries'] == 2
-        assert stats['success_rate'] == 1.0
-        assert stats['current_size'] == 0
+        assert stats["total_added"] == 2
+        assert stats["total_retried"] == 2
+        assert stats["total_successful_retries"] == 2
+        assert stats["success_rate"] == 1.0
+        assert stats["current_size"] == 0
 
     @pytest.mark.unit
     def test_stats_success_rate_zero_when_no_retries(self):
@@ -904,12 +909,13 @@ class TestDeadLetterQueueGetStats:
         dlq = DeadLetterQueue()
         dlq.add("op", error=RuntimeError("fail"))
         stats = dlq.get_stats()
-        assert stats['success_rate'] == 0.0
+        assert stats["success_rate"] == 0.0
 
 
 # =============================================================================
 # AdaptiveTimeout Tests
 # =============================================================================
+
 
 class TestAdaptiveTimeoutInit:
     """Tests for AdaptiveTimeout initialization."""
@@ -928,9 +934,7 @@ class TestAdaptiveTimeoutInit:
     @pytest.mark.unit
     def test_custom_values(self):
         """AdaptiveTimeout accepts custom values."""
-        at = AdaptiveTimeout(
-            initial=10.0, percentile=99.0, min_timeout=1.0, max_timeout=60.0
-        )
+        at = AdaptiveTimeout(initial=10.0, percentile=99.0, min_timeout=1.0, max_timeout=60.0)
         assert at.initial == 10.0
         assert at.percentile == 99.0
         assert at.min_timeout == 1.0
@@ -1094,7 +1098,7 @@ class TestAdaptiveTimeoutMeasure:
         at = AdaptiveTimeout()
         with at.measure("op") as ctx:
             assert ctx is not None
-            assert hasattr(ctx, 'start_time')
+            assert hasattr(ctx, "start_time")
             assert ctx.start_time is not None
 
 
@@ -1117,13 +1121,13 @@ class TestAdaptiveTimeoutGetStats:
         stats = at.get_stats()
         assert "op" in stats
         op_stats = stats["op"]
-        assert op_stats['count'] == 5
-        assert op_stats['avg'] == 3.0
-        assert op_stats['median'] == 3.0
-        assert op_stats['min'] == 1.0
-        assert op_stats['max'] == 5.0
+        assert op_stats["count"] == 5
+        assert op_stats["avg"] == 3.0
+        assert op_stats["median"] == 3.0
+        assert op_stats["min"] == 1.0
+        assert op_stats["max"] == 5.0
         # Fewer than 10 samples -> current_timeout == initial
-        assert op_stats['current_timeout'] == 25.0
+        assert op_stats["current_timeout"] == 25.0
 
     @pytest.mark.unit
     def test_stats_multiple_operations(self):
@@ -1144,12 +1148,13 @@ class TestAdaptiveTimeoutGetStats:
 
         stats = at.get_stats()
         # 20 samples sorted [1..20], index = int(20 * 0.95) = 19, sorted[19] = 20.0
-        assert stats["op"]['current_timeout'] == 20.0
+        assert stats["op"]["current_timeout"] == 20.0
 
 
 # =============================================================================
 # timeout Decorator Tests (sync)
 # =============================================================================
+
 
 class TestTimeoutDecorator:
     """Tests for the sync timeout() decorator."""
@@ -1157,6 +1162,7 @@ class TestTimeoutDecorator:
     @pytest.mark.unit
     def test_fast_function_completes(self):
         """Function completing before timeout returns normally."""
+
         @timeout(5, "should not timeout")
         def fast_func():
             return 42
@@ -1166,6 +1172,7 @@ class TestTimeoutDecorator:
     @pytest.mark.unit
     def test_preserves_function_name(self):
         """Timeout decorator preserves __name__."""
+
         @timeout(5)
         def my_named_func():
             pass
@@ -1175,6 +1182,7 @@ class TestTimeoutDecorator:
     @pytest.mark.unit
     def test_raises_value_error_for_async_function(self):
         """timeout() raises ValueError when wrapping an async function."""
+
         @timeout(5)
         async def async_func():
             pass
@@ -1187,6 +1195,7 @@ class TestTimeoutDecorator:
     @pytest.mark.unit
     def test_function_with_args_and_kwargs(self):
         """Timeout decorator passes args and kwargs through."""
+
         @timeout(5)
         def adder(a, b, extra=0):
             return a + b + extra
@@ -1196,6 +1205,7 @@ class TestTimeoutDecorator:
     @pytest.mark.unit
     def test_slow_function_times_out(self):
         """Function exceeding timeout raises TimeoutError."""
+
         @timeout(1, "slow operation")
         def slow_func():
             time.sleep(5)
@@ -1208,6 +1218,7 @@ class TestTimeoutDecorator:
     def test_timeout_restores_signal_handler(self):
         """After timeout, the original signal handler is restored."""
         import signal as sig
+
         original_handler = sig.getsignal(sig.SIGALRM)
 
         @timeout(5)
@@ -1224,6 +1235,7 @@ class TestTimeoutDecorator:
 # async_timeout Decorator Tests
 # =============================================================================
 
+
 class TestAsyncTimeoutDecorator:
     """Tests for the async_timeout() decorator."""
 
@@ -1231,6 +1243,7 @@ class TestAsyncTimeoutDecorator:
     @pytest.mark.asyncio
     async def test_fast_async_completes(self):
         """Async function completing before timeout returns normally."""
+
         @async_timeout(5, "should not timeout")
         async def fast_async():
             return "fast result"
@@ -1242,6 +1255,7 @@ class TestAsyncTimeoutDecorator:
     @pytest.mark.asyncio
     async def test_preserves_async_function_name(self):
         """async_timeout preserves __name__."""
+
         @async_timeout(5)
         async def my_async_named():
             pass
@@ -1252,6 +1266,7 @@ class TestAsyncTimeoutDecorator:
     @pytest.mark.asyncio
     async def test_slow_async_times_out(self):
         """Async function exceeding timeout raises TimeoutError."""
+
         @async_timeout(0.1, "async slow")
         async def slow_async():
             await asyncio.sleep(10)
@@ -1264,6 +1279,7 @@ class TestAsyncTimeoutDecorator:
     @pytest.mark.asyncio
     async def test_async_with_args_and_kwargs(self):
         """async_timeout passes args and kwargs through."""
+
         @async_timeout(5)
         async def multiplier(x, y, factor=1):
             return x * y * factor
@@ -1275,6 +1291,7 @@ class TestAsyncTimeoutDecorator:
     @pytest.mark.asyncio
     async def test_async_timeout_propagates_exceptions(self):
         """Non-timeout exceptions propagate through async_timeout."""
+
         @async_timeout(5)
         async def failing_async():
             raise ValueError("inner error")
@@ -1286,6 +1303,7 @@ class TestAsyncTimeoutDecorator:
 # =============================================================================
 # Global Instances Tests
 # =============================================================================
+
 
 class TestGlobalInstances:
     """Tests for global singleton instances."""
@@ -1340,14 +1358,16 @@ class TestGlobalInstances:
 # TimeoutError Import Tests
 # =============================================================================
 
+
 class TestTimeoutErrorImport:
     """Tests for TimeoutError from foundation.exceptions."""
 
     @pytest.mark.unit
     def test_timeout_error_is_jotty_exception(self):
         """TimeoutError is from Jotty exceptions, not builtins."""
-        from Jotty.core.infrastructure.foundation.exceptions import TimeoutError as JottyTimeout
         from Jotty.core.infrastructure.foundation.exceptions import ExecutionError
+        from Jotty.core.infrastructure.foundation.exceptions import TimeoutError as JottyTimeout
+
         assert issubclass(JottyTimeout, ExecutionError)
 
     @pytest.mark.unit
@@ -1360,6 +1380,7 @@ class TestTimeoutErrorImport:
 # =============================================================================
 # Edge Case and Integration-Style Tests
 # =============================================================================
+
 
 class TestCircuitBreakerEdgeCases:
     """Edge cases for CircuitBreaker."""
@@ -1394,9 +1415,9 @@ class TestCircuitBreakerEdgeCases:
     @pytest.mark.unit
     def test_half_open_success_count_reset_on_transition(self):
         """success_count resets to 0 when transitioning to HALF_OPEN."""
-        cb = CircuitBreaker(CircuitBreakerConfig(
-            failure_threshold=1, success_threshold=3, timeout=0.0
-        ))
+        cb = CircuitBreaker(
+            CircuitBreakerConfig(failure_threshold=1, success_threshold=3, timeout=0.0)
+        )
         cb.success_count = 99  # artificial
         cb.record_failure(RuntimeError("trip"))
         # Transition to HALF_OPEN resets success_count
@@ -1417,8 +1438,8 @@ class TestCircuitBreakerEdgeCases:
             ok_func()
 
         stats = cb.get_stats()
-        assert stats['total_calls'] == 5
-        assert stats['total_failures'] == 0
+        assert stats["total_calls"] == 5
+        assert stats["total_failures"] == 0
 
 
 class TestDeadLetterQueueEdgeCases:
@@ -1481,9 +1502,9 @@ class TestAdaptiveTimeoutEdgeCases:
         at = AdaptiveTimeout(initial=25.0)
         at.record_latency("op", 3.5)
         stats = at.get_stats()
-        assert stats["op"]['count'] == 1
-        assert stats["op"]['avg'] == 3.5
-        assert stats["op"]['median'] == 3.5
-        assert stats["op"]['min'] == 3.5
-        assert stats["op"]['max'] == 3.5
-        assert stats["op"]['current_timeout'] == 25.0  # < 10 samples
+        assert stats["op"]["count"] == 1
+        assert stats["op"]["avg"] == 3.5
+        assert stats["op"]["median"] == 3.5
+        assert stats["op"]["min"] == 3.5
+        assert stats["op"]["max"] == 3.5
+        assert stats["op"]["current_timeout"] == 25.0  # < 10 samples

@@ -25,20 +25,19 @@ import inspect
 import json
 import logging
 import os
-import time
 import threading
+import time
 from pathlib import Path
-
-from Jotty.core.infrastructure.utils.async_utils import StatusReporter
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from Jotty.core.infrastructure.foundation.exceptions import (
     ConfigurationError,
-    LLMError,
     DSPyError,
-    ToolExecutionError,
     ExecutionError,
+    LLMError,
+    ToolExecutionError,
 )
+from Jotty.core.infrastructure.utils.async_utils import StatusReporter
 
 from .step_processors import ParameterResolver, ToolResultProcessor
 
@@ -48,6 +47,7 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 # TOOL CALL CACHE
 # =============================================================================
+
 
 class ToolCallCache:
     """Thread-safe TTL + LRU cache for tool call results.
@@ -127,7 +127,14 @@ class SkillPlanExecutor:
         max_replans: Maximum number of replanning attempts
     """
 
-    def __init__(self, skills_registry: Any, max_steps: int = 10, enable_replanning: bool = True, max_replans: int = 3, planner: Any = None) -> None:
+    def __init__(
+        self,
+        skills_registry: Any,
+        max_steps: int = 10,
+        enable_replanning: bool = True,
+        max_replans: int = 3,
+        planner: Any = None,
+    ) -> None:
         self._skills_registry = skills_registry
         self._max_steps = max_steps
         self._enable_replanning = enable_replanning
@@ -154,12 +161,16 @@ class SkillPlanExecutor:
         if self._planner is None:
             try:
                 from ..agentic_planner import TaskPlanner
+
                 self._planner = TaskPlanner()
                 logger.debug("SkillPlanExecutor: Initialized TaskPlanner")
             except (ImportError, ConfigurationError, DSPyError) as e:
                 logger.warning(f"SkillPlanExecutor: Could not initialize TaskPlanner (known): {e}")
             except Exception as e:
-                logger.warning(f"SkillPlanExecutor: Could not initialize TaskPlanner (unexpected): {e}", exc_info=True)
+                logger.warning(
+                    f"SkillPlanExecutor: Could not initialize TaskPlanner (unexpected): {e}",
+                    exc_info=True,
+                )
         return self._planner
 
     def _ensure_lm(self) -> None:
@@ -171,24 +182,27 @@ class SkillPlanExecutor:
         """
         try:
             import dspy
-            if hasattr(dspy.settings, 'lm') and dspy.settings.lm is not None:
+
+            if hasattr(dspy.settings, "lm") and dspy.settings.lm is not None:
                 return  # Already configured
         except ImportError:
             return
 
         import os
+
         # Load API keys from .env.anthropic if not in environment
         from pathlib import Path as _Path
-        env_file = _Path(__file__).parents[4] / '.env.anthropic'
+
+        env_file = _Path(__file__).parents[4] / ".env.anthropic"
         if env_file.exists():
             try:
                 with open(env_file) as f:
                     for line in f:
                         line = line.strip()
-                        if not line or line.startswith('#'):
+                        if not line or line.startswith("#"):
                             continue
-                        if '=' in line:
-                            k, v = line.split('=', 1)
+                        if "=" in line:
+                            k, v = line.split("=", 1)
                             k, v = k.strip(), v.strip()
                             if v and k not in os.environ:
                                 os.environ[k] = v
@@ -196,7 +210,11 @@ class SkillPlanExecutor:
                 pass
 
         try:
-            from Jotty.core.infrastructure.foundation.direct_anthropic_lm import DirectAnthropicLM, is_api_key_available
+            from Jotty.core.infrastructure.foundation.direct_anthropic_lm import (
+                DirectAnthropicLM,
+                is_api_key_available,
+            )
+
             if is_api_key_available():
                 lm = DirectAnthropicLM()
                 dspy.configure(lm=lm)
@@ -208,14 +226,19 @@ class SkillPlanExecutor:
             logger.debug(f"DirectAnthropicLM not available (unexpected): {e}", exc_info=True)
 
         try:
-            from Jotty.core.infrastructure.foundation.persistent_claude_lm import PersistentClaudeCLI
+            from Jotty.core.infrastructure.foundation.persistent_claude_lm import (
+                PersistentClaudeCLI,
+            )
+
             lm = PersistentClaudeCLI()
             dspy.configure(lm=lm)
             logger.info("SkillPlanExecutor: Auto-configured DSPy LM with PersistentClaudeCLI")
         except (ImportError, LLMError, ConfigurationError) as e:
             logger.warning(f"SkillPlanExecutor: Could not configure DSPy LM (known): {e}")
         except Exception as e:
-            logger.warning(f"SkillPlanExecutor: Could not configure DSPy LM (unexpected): {e}", exc_info=True)
+            logger.warning(
+                f"SkillPlanExecutor: Could not configure DSPy LM (unexpected): {e}", exc_info=True
+            )
 
     # =========================================================================
     # SKILL SELECTION
@@ -240,7 +263,7 @@ class SkillPlanExecutor:
             return available_skills[:max_skills]
 
         # Cache lookup: same task_type + same available skills → reuse
-        avail_names = frozenset(s.get('name', '') for s in available_skills)
+        avail_names = frozenset(s.get("name", "") for s in available_skills)
         cache_key = (task_type, avail_names)
         if cache_key in self._skill_cache:
             cached = self._skill_cache[cache_key]
@@ -251,7 +274,7 @@ class SkillPlanExecutor:
 
         try:
             # Prefer native async (no thread pool overhead)
-            if hasattr(self.planner, 'aselect_skills'):
+            if hasattr(self.planner, "aselect_skills"):
                 selected, reasoning = await asyncio.wait_for(
                     self.planner.aselect_skills(
                         task=task,
@@ -285,7 +308,9 @@ class SkillPlanExecutor:
 
             return selected
         except asyncio.TimeoutError:
-            logger.warning(f"Skill selection timed out after {SKILL_SELECT_TIMEOUT}s — using top skills")
+            logger.warning(
+                f"Skill selection timed out after {SKILL_SELECT_TIMEOUT}s — using top skills"
+            )
             return available_skills[:max_skills]
         except (LLMError, DSPyError) as e:
             logger.warning(f"Skill selection failed (LLM/DSPy): {e}")
@@ -302,22 +327,48 @@ class SkillPlanExecutor:
     # the set, the corresponding skill is guaranteed to be in the selected
     # skills list — even if the LLM selector missed it.
     _ESSENTIAL_SKILL_KEYWORDS = {
-        'shell-exec': {
-            'execute', 'run the', 'run it', 'run this', 'execute the',
-            'run a script', 'run script', 'shell', 'bash', 'command line',
-            'terminal', 'subprocess', 'invoke', 'launch',
+        "shell-exec": {
+            "execute",
+            "run the",
+            "run it",
+            "run this",
+            "execute the",
+            "run a script",
+            "run script",
+            "shell",
+            "bash",
+            "command line",
+            "terminal",
+            "subprocess",
+            "invoke",
+            "launch",
         },
-        'calculator': {
-            'calculate', 'compute', 'math', 'arithmetic', 'formula',
-            'percentage', 'convert units', 'conversion rate',
+        "calculator": {
+            "calculate",
+            "compute",
+            "math",
+            "arithmetic",
+            "formula",
+            "percentage",
+            "convert units",
+            "conversion rate",
         },
-        'web-scraper': {
-            'scrape', 'scraping', 'crawl', 'extract from url',
-            'extract from website', 'full content from',
+        "web-scraper": {
+            "scrape",
+            "scraping",
+            "crawl",
+            "extract from url",
+            "extract from website",
+            "full content from",
         },
-        'web-search': {
-            'search the web', 'search for', 'web search', 'look up',
-            'find online', 'google', 'search online',
+        "web-search": {
+            "search the web",
+            "search for",
+            "web search",
+            "look up",
+            "find online",
+            "google",
+            "search online",
         },
     }
 
@@ -334,8 +385,8 @@ class SkillPlanExecutor:
         This method checks the task text for keywords and injects missing
         essential skills.
         """
-        selected_names = {s.get('name', '') for s in selected}
-        available_map = {s.get('name', ''): s for s in available}
+        selected_names = {s.get("name", "") for s in selected}
+        available_map = {s.get("name", ""): s for s in available}
         task_lower = task.lower()
 
         injected = []
@@ -346,8 +397,9 @@ class SkillPlanExecutor:
                 continue
             if any(kw in task_lower for kw in keywords):
                 injected.append(available_map[skill_name])
-                logger.info(f"Injected essential skill '{skill_name}' "
-                           f"(matched keyword in task)")
+                logger.info(
+                    f"Injected essential skill '{skill_name}' " f"(matched keyword in task)"
+                )
 
         if injected:
             selected = list(selected) + injected
@@ -378,7 +430,7 @@ class SkillPlanExecutor:
 
         try:
             # Prefer native async (no thread pool overhead)
-            if hasattr(self.planner, 'aplan_execution'):
+            if hasattr(self.planner, "aplan_execution"):
                 steps, reasoning = await asyncio.wait_for(
                     self.planner.aplan_execution(
                         task=task,
@@ -452,7 +504,7 @@ class SkillPlanExecutor:
         REPLAN_TIMEOUT = 30.0  # Replanning should be fast; if it takes >30s, skip it
 
         # Prefer native async reflective replanning
-        if hasattr(self.planner, 'areplan_with_reflection'):
+        if hasattr(self.planner, "areplan_with_reflection"):
             try:
                 excluded = list(self._excluded_skills)
                 steps, reflection, reasoning = await asyncio.wait_for(
@@ -470,15 +522,20 @@ class SkillPlanExecutor:
                 logger.info(f"Reflective replan: {len(steps)} steps, reflection: {reflection[:80]}")
                 return steps, reflection, reasoning
             except asyncio.TimeoutError:
-                logger.warning(f"Reflective replanning timed out after {REPLAN_TIMEOUT}s — skipping")
+                logger.warning(
+                    f"Reflective replanning timed out after {REPLAN_TIMEOUT}s — skipping"
+                )
                 return [], "Replan timed out", ""
             except (LLMError, DSPyError) as e:
                 logger.warning(f"Async reflective replanning failed (LLM/DSPy): {e}, falling back")
             except Exception as e:
-                logger.warning(f"Async reflective replanning failed (unexpected): {e}, falling back", exc_info=True)
+                logger.warning(
+                    f"Async reflective replanning failed (unexpected): {e}, falling back",
+                    exc_info=True,
+                )
 
         # Fallback: sync reflective replanning via thread pool
-        elif hasattr(self.planner, 'replan_with_reflection'):
+        elif hasattr(self.planner, "replan_with_reflection"):
             try:
                 excluded = list(self._excluded_skills)
                 loop = asyncio.get_running_loop()
@@ -500,16 +557,20 @@ class SkillPlanExecutor:
                 logger.info(f"Reflective replan: {len(steps)} steps, reflection: {reflection[:80]}")
                 return steps, reflection, reasoning
             except asyncio.TimeoutError:
-                logger.warning(f"Reflective replanning timed out after {REPLAN_TIMEOUT}s — skipping")
+                logger.warning(
+                    f"Reflective replanning timed out after {REPLAN_TIMEOUT}s — skipping"
+                )
                 return [], "Replan timed out", ""
             except (LLMError, DSPyError) as e:
                 logger.warning(f"Reflective replanning failed (LLM/DSPy): {e}, falling back")
             except Exception as e:
-                logger.warning(f"Reflective replanning failed (unexpected): {e}, falling back", exc_info=True)
+                logger.warning(
+                    f"Reflective replanning failed (unexpected): {e}, falling back", exc_info=True
+                )
 
         # Final fallback: regular plan_execution (prefer async)
         try:
-            if hasattr(self.planner, 'aplan_execution'):
+            if hasattr(self.planner, "aplan_execution"):
                 steps, reasoning = await asyncio.wait_for(
                     self.planner.aplan_execution(
                         task=task,
@@ -550,7 +611,9 @@ class SkillPlanExecutor:
     # STEP EXECUTION
     # =========================================================================
 
-    async def execute_step(self, step: Any, outputs: Dict[str, Any], status_callback: Optional[Callable] = None) -> Dict[str, Any]:
+    async def execute_step(
+        self, step: Any, outputs: Dict[str, Any], status_callback: Optional[Callable] = None
+    ) -> Dict[str, Any]:
         """
         Execute a single ExecutionStep.
 
@@ -565,20 +628,25 @@ class SkillPlanExecutor:
         _status = StatusReporter(status_callback)
 
         if self._skills_registry is None:
-            return {'success': False, 'error': 'Skills registry not available'}
+            return {"success": False, "error": "Skills registry not available"}
 
         # Prefer claude-api-llm over claude-cli-llm when API key is available
-        if step.skill_name == 'claude-cli-llm':
+        if step.skill_name == "claude-cli-llm":
             try:
-                from Jotty.core.infrastructure.foundation.direct_anthropic_lm import is_api_key_available
+                from Jotty.core.infrastructure.foundation.direct_anthropic_lm import (
+                    is_api_key_available,
+                )
+
                 if is_api_key_available():
-                    api_skill = self._skills_registry.get_skill('claude-api-llm')
+                    api_skill = self._skills_registry.get_skill("claude-api-llm")
                     if api_skill:
                         # Only upgrade if the specific tool exists in claude-api-llm
                         api_tool_names = set(api_skill.tools.keys()) if api_skill.tools else set()
                         if not step.tool_name or step.tool_name in api_tool_names:
-                            step.skill_name = 'claude-api-llm'
-                            logger.info("Upgraded claude-cli-llm -> claude-api-llm (API key available)")
+                            step.skill_name = "claude-api-llm"
+                            logger.info(
+                                "Upgraded claude-cli-llm -> claude-api-llm (API key available)"
+                            )
                         else:
                             logger.info(f"Skipped upgrade: {step.tool_name} not in claude-api-llm")
             except Exception:
@@ -588,36 +656,39 @@ class SkillPlanExecutor:
         skill = self._skills_registry.get_skill(step.skill_name)
         if not skill:
             return {
-                'success': False,
-                'error': f'Skill not found: {step.skill_name}',
+                "success": False,
+                "error": f"Skill not found: {step.skill_name}",
             }
 
         # If skill is a BaseSkill instance (class-based skill), set the status callback
         # Note: get_skill() returns SkillDefinition; check the underlying object if present
         try:
             from Jotty.core.capabilities.registry.skills_registry import BaseSkill
-            underlying = getattr(skill, '_skill_instance', None)
+
+            underlying = getattr(skill, "_skill_instance", None)
             if isinstance(underlying, BaseSkill):
                 underlying.set_status_callback(status_callback)
         except ImportError:
             pass
 
-        tool = skill.tools.get(step.tool_name) if hasattr(skill, 'tools') else None
+        tool = skill.tools.get(step.tool_name) if hasattr(skill, "tools") else None
 
         # Strict fallback: case-insensitive exact match, then single-tool-skill fallback
-        if not tool and hasattr(skill, 'tools') and skill.tools:
+        if not tool and hasattr(skill, "tools") and skill.tools:
             tool = self._strict_tool_lookup(skill, step.tool_name)
 
             # Single-tool-skill fallback (unambiguous — only one tool available)
             if not tool and len(skill.tools) == 1:
                 first_tool_name = list(skill.tools.keys())[0]
                 tool = skill.tools[first_tool_name]
-                logger.info(f"Tool '{step.tool_name}' not found, using only tool: '{first_tool_name}'")
+                logger.info(
+                    f"Tool '{step.tool_name}' not found, using only tool: '{first_tool_name}'"
+                )
 
         if not tool:
             return {
-                'success': False,
-                'error': f'Tool not found: {step.tool_name}',
+                "success": False,
+                "error": f"Tool not found: {step.tool_name}",
             }
 
         # Build ToolSchema for type-aware resolution + auto-wiring
@@ -627,7 +698,9 @@ class SkillPlanExecutor:
         except Exception:
             pass  # Schema is optional — degrade gracefully
 
-        resolved_params = self.resolve_params(step.params, outputs, step=step, tool_schema=tool_schema)
+        resolved_params = self.resolve_params(
+            step.params, outputs, step=step, tool_schema=tool_schema
+        )
 
         # Error-feedback-retry: validate after resolution and attempt fixes
         if tool_schema is not None:
@@ -644,131 +717,170 @@ class SkillPlanExecutor:
         # path as a previous step, try to infer the correct filename from the
         # step description. LLM planners sometimes reuse the same path for
         # multiple file-operations/write_file_tool steps.
-        if (step.skill_name == 'file-operations' and 'path' in resolved_params
-                and 'content' in resolved_params):
-            _write_path = resolved_params['path']
+        if (
+            step.skill_name == "file-operations"
+            and "path" in resolved_params
+            and "content" in resolved_params
+        ):
+            _write_path = resolved_params["path"]
             # Check if this path was already written in a previous output
             for _prev_key, _prev_out in outputs.items():
-                if isinstance(_prev_out, dict) and _prev_out.get('path') == _write_path:
+                if isinstance(_prev_out, dict) and _prev_out.get("path") == _write_path:
                     # Duplicate! Try to extract correct filename from step description
                     import re as _re
-                    _desc = step.description or ''
+
+                    _desc = step.description or ""
                     _file_match = _re.search(
                         r'(?:save|write|named?|called?|to)\s+["\']?'
                         r'([a-zA-Z0-9_]+\.\w{1,5})["\']?',
-                        _desc, _re.IGNORECASE
+                        _desc,
+                        _re.IGNORECASE,
                     )
                     if _file_match:
                         _correct_name = _file_match.group(1)
                         # Preserve directory from original path, only replace filename
-                        _correct_path = os.path.join(
-                            os.path.dirname(_write_path), _correct_name
-                        )
+                        _correct_path = os.path.join(os.path.dirname(_write_path), _correct_name)
                         if _correct_path != _write_path:
-                            logger.info(f" Duplicate write to '{_write_path}' detected — "
-                                       f"corrected to '{_correct_path}' from step description")
-                            resolved_params['path'] = _correct_path
+                            logger.info(
+                                f" Duplicate write to '{_write_path}' detected — "
+                                f"corrected to '{_correct_path}' from step description"
+                            )
+                            resolved_params["path"] = _correct_path
                     break
 
         # Guard: strip LLM preamble and code fences from file content.
         # LLM tools return "I'll create a script...\n```python\ncode\n```"
         # which must be stripped before writing to a file.
-        if (step.skill_name == 'file-operations'
-                and step.tool_name in ('write_file_tool',)
-                and 'content' in resolved_params):
-            _content = resolved_params['content']
-            if isinstance(_content, str) and '```' in _content:
+        if (
+            step.skill_name == "file-operations"
+            and step.tool_name in ("write_file_tool",)
+            and "content" in resolved_params
+        ):
+            _content = resolved_params["content"]
+            if isinstance(_content, str) and "```" in _content:
                 _extracted = ParameterResolver._extract_code_from_fences(_content)
                 if _extracted != _content:
-                    resolved_params['content'] = _extracted
-                    logger.info(f"Stripped LLM preamble/fences from file content "
-                               f"({len(_content)} → {len(_extracted)} chars)")
+                    resolved_params["content"] = _extracted
+                    logger.info(
+                        f"Stripped LLM preamble/fences from file content "
+                        f"({len(_content)} → {len(_extracted)} chars)"
+                    )
 
         # Guard: if resolved path is a directory, the planner likely passed
         # ${prev_step.path} (a dir) instead of a full file path.  Extract the
         # correct file path from the step description.
-        if (step.skill_name == 'file-operations'
-                and step.tool_name in ('write_file_tool',)
-                and 'path' in resolved_params):
+        if (
+            step.skill_name == "file-operations"
+            and step.tool_name in ("write_file_tool",)
+            and "path" in resolved_params
+        ):
             import re as _re
-            _rp = resolved_params['path']
+
+            _rp = resolved_params["path"]
             if _rp and os.path.isdir(_rp):
-                _desc = step.description or ''
+                _desc = step.description or ""
                 # Match absolute paths like /tmp/foo/bar/file.py
-                _abs_match = _re.search(r'(/[\w/.+-]+\.\w{1,5})', _desc)
+                _abs_match = _re.search(r"(/[\w/.+-]+\.\w{1,5})", _desc)
                 if _abs_match:
-                    resolved_params['path'] = _abs_match.group(1)
-                    logger.info(f"Path was directory '{_rp}' — corrected to "
-                               f"'{resolved_params['path']}' from step description")
+                    resolved_params["path"] = _abs_match.group(1)
+                    logger.info(
+                        f"Path was directory '{_rp}' — corrected to "
+                        f"'{resolved_params['path']}' from step description"
+                    )
                 else:
                     # Try relative filename at least
-                    _rel_match = _re.search(
-                        r'[\s/]([a-zA-Z0-9_-]+\.\w{1,5})\b', _desc
-                    )
+                    _rel_match = _re.search(r"[\s/]([a-zA-Z0-9_-]+\.\w{1,5})\b", _desc)
                     if _rel_match:
-                        resolved_params['path'] = os.path.join(
-                            _rp, _rel_match.group(1)
+                        resolved_params["path"] = os.path.join(_rp, _rel_match.group(1))
+                        logger.info(
+                            f"Path was directory '{_rp}' — appended "
+                            f"'{_rel_match.group(1)}' from step description"
                         )
-                        logger.info(f"Path was directory '{_rp}' — appended "
-                                   f"'{_rel_match.group(1)}' from step description")
 
         # Guard: calculator expression resolved to non-math text.
         # The ParameterResolver often auto-wires search query/results text
         # into the 'expression' param because it's the only string param.
         # Detect this and replace with the step description which contains
         # the actual math intent.
-        if (step.skill_name == 'calculator'
-                and step.tool_name in ('calculate_tool',)
-                and 'expression' in resolved_params):
+        if (
+            step.skill_name == "calculator"
+            and step.tool_name in ("calculate_tool",)
+            and "expression" in resolved_params
+        ):
             import re as _re
-            _expr = str(resolved_params['expression']).strip()
-            _desc = step.description or ''
+
+            _expr = str(resolved_params["expression"]).strip()
+            _desc = step.description or ""
 
             # Detect non-math expression: check if it contains words that
             # aren't math functions, OR if it's just numbers without operators
-            _math_funcs = {'sqrt', 'sin', 'cos', 'tan', 'log', 'exp', 'abs',
-                           'round', 'floor', 'ceil', 'pi', 'e', 'pow', 'min', 'max'}
-            _words = set(_re.findall(r'[a-zA-Z]+', _expr))
+            _math_funcs = {
+                "sqrt",
+                "sin",
+                "cos",
+                "tan",
+                "log",
+                "exp",
+                "abs",
+                "round",
+                "floor",
+                "ceil",
+                "pi",
+                "e",
+                "pow",
+                "min",
+                "max",
+            }
+            _words = set(_re.findall(r"[a-zA-Z]+", _expr))
             _non_math_words = _words - _math_funcs
-            _has_operators = bool(_re.search(r'[+\-*/()%]', _expr))
+            _has_operators = bool(_re.search(r"[+\-*/()%]", _expr))
             _is_bad_expr = (
                 # Contains non-math words (search query text)
                 (len(_non_math_words) > 1)
                 # OR it's just space-separated numbers without operators (e.g. "2025 2026")
-                or (not _has_operators and not _non_math_words
-                    and _re.match(r'^[\d\s.]+$', _expr) and ' ' in _expr)
+                or (
+                    not _has_operators
+                    and not _non_math_words
+                    and _re.match(r"^[\d\s.]+$", _expr)
+                    and " " in _expr
+                )
                 # OR it's a JSON blob
-                or _expr.startswith('{') or _expr.startswith('[')
+                or _expr.startswith("{")
+                or _expr.startswith("[")
             )
             if _is_bad_expr and _desc:
-                resolved_params['expression'] = _desc
-                logger.info(f"Calculator expression was non-math '{_expr[:60]}' "
-                           f"— replaced with step description")
+                resolved_params["expression"] = _desc
+                logger.info(
+                    f"Calculator expression was non-math '{_expr[:60]}' "
+                    f"— replaced with step description"
+                )
 
         # Guard: shell-exec command should include output redirection when
         # the step description mentions saving output to a file.
-        if (step.skill_name == 'shell-exec'
-                and 'command' in resolved_params):
+        if step.skill_name == "shell-exec" and "command" in resolved_params:
             import re as _re
-            _desc = (step.description or '').lower()
-            _cmd = resolved_params['command']
+
+            _desc = (step.description or "").lower()
+            _cmd = resolved_params["command"]
             # If desc mentions redirecting/saving output to a file, and command
             # doesn't already have redirection, add it
-            if ('>' not in _cmd and '|' not in _cmd):
+            if ">" not in _cmd and "|" not in _cmd:
                 _redir_match = _re.search(
-                    r'(?:redirect|save|write|output\s+to|pipe\s+to)\s+(?:the\s+)?'
-                    r'(?:output\s+to\s+)?(/[\w/.+-]+\.\w{1,5})',
-                    _desc, _re.IGNORECASE
+                    r"(?:redirect|save|write|output\s+to|pipe\s+to)\s+(?:the\s+)?"
+                    r"(?:output\s+to\s+)?(/[\w/.+-]+\.\w{1,5})",
+                    _desc,
+                    _re.IGNORECASE,
                 )
                 if not _redir_match:
                     # Also try matching from the original task via step description
                     _redir_match = _re.search(
-                        r'(?:save|output)\s+(?:to|in)\s+(/[\w/.+-]+\.\w{1,5})',
-                        _desc, _re.IGNORECASE
+                        r"(?:save|output)\s+(?:to|in)\s+(/[\w/.+-]+\.\w{1,5})",
+                        _desc,
+                        _re.IGNORECASE,
                     )
                 if _redir_match:
                     _outfile = _redir_match.group(1)
-                    resolved_params['command'] = f'{_cmd} > {_outfile}'
+                    resolved_params["command"] = f"{_cmd} > {_outfile}"
                     logger.info(f"Added output redirection to shell command: > {_outfile}")
 
         # Guard: write_file_tool with path missing subdirectory.
@@ -777,41 +889,44 @@ class SkillPlanExecutor:
         # myproject/src/main.py). We extract the filename from the resolved
         # path, then search the original task text for a full path containing
         # that filename in a subdirectory.
-        if (step.skill_name == 'file-operations'
-                and step.tool_name in ('write_file_tool',)
-                and 'path' in resolved_params):
+        if (
+            step.skill_name == "file-operations"
+            and step.tool_name in ("write_file_tool",)
+            and "path" in resolved_params
+        ):
             import re as _re
-            _wp = resolved_params['path']
+
+            _wp = resolved_params["path"]
             _fname = os.path.basename(_wp)
-            _task_text = getattr(self, '_current_task', '') or ''
-            _desc = step.description or ''
+            _task_text = getattr(self, "_current_task", "") or ""
+            _desc = step.description or ""
 
             # Strategy 1: Check original task text for a full path with this
             # filename in a subdirectory (e.g. /tmp/.../myproject/src/main.py)
             if _fname and _task_text:
                 # Find all absolute paths in the task that end with this filename
-                _task_paths = _re.findall(
-                    r'(/[\w/.+-]+/' + _re.escape(_fname) + r')\b',
-                    _task_text
-                )
+                _task_paths = _re.findall(r"(/[\w/.+-]+/" + _re.escape(_fname) + r")\b", _task_text)
                 for _tp in _task_paths:
                     # If the task path has more directory levels than the resolved path
                     if _tp != _wp and _fname in _tp:
-                        resolved_params['path'] = _tp
+                        resolved_params["path"] = _tp
                         # Ensure parent directory exists
                         os.makedirs(os.path.dirname(_tp), exist_ok=True)
-                        logger.info(f"Path corrected from '{_wp}' to '{_tp}' "
-                                   f"(matched full path in original task)")
+                        logger.info(
+                            f"Path corrected from '{_wp}' to '{_tp}' "
+                            f"(matched full path in original task)"
+                        )
                         break
 
             # Strategy 2: Check step description for subdirectory hints
             # Use (?<![a-zA-Z0-9_]) to avoid false positives like
             # "stress_test/" matching "tests?/"
-            if resolved_params['path'] == _wp:  # Strategy 1 didn't fire
+            if resolved_params["path"] == _wp:  # Strategy 1 didn't fire
                 _subdir_match = _re.search(
-                    r'(?:to|at|in)\s+(?:[\w/.-]*?)?(?<![a-zA-Z0-9_])'
-                    r'((?:src|tests?|docs?|lib|app|config)/[\w/.-]+\.\w{1,5})',
-                    _desc, _re.IGNORECASE
+                    r"(?:to|at|in)\s+(?:[\w/.-]*?)?(?<![a-zA-Z0-9_])"
+                    r"((?:src|tests?|docs?|lib|app|config)/[\w/.-]+\.\w{1,5})",
+                    _desc,
+                    _re.IGNORECASE,
                 )
                 if _subdir_match:
                     _subpath = _subdir_match.group(1)
@@ -823,38 +938,41 @@ class SkillPlanExecutor:
                             _base = os.path.dirname(_base)
                         _new_path = os.path.join(_base, _subpath)
                         os.makedirs(os.path.dirname(_new_path), exist_ok=True)
-                        resolved_params['path'] = _new_path
+                        resolved_params["path"] = _new_path
                         logger.info(f"Path corrected to include subdirectory: {_new_path}")
 
         # Inject dependency outputs as DEPENDENCY_RESULTS context
-        if hasattr(step, 'depends_on') and step.depends_on and 'context' not in resolved_params:
+        if hasattr(step, "depends_on") and step.depends_on and "context" not in resolved_params:
             dep_results = {}
             for dep_idx in step.depends_on:
-                dep_key = f'step_{dep_idx}'
+                dep_key = f"step_{dep_idx}"
                 for k, v in outputs.items():
-                    if k == dep_key or k.startswith(f'step_{dep_idx}'):
+                    if k == dep_key or k.startswith(f"step_{dep_idx}"):
                         dep_results[k] = str(v)[:500] if isinstance(v, dict) else str(v)[:500]
             if dep_results:
-                resolved_params['_dependency_results'] = json.dumps(dep_results, default=str)
+                resolved_params["_dependency_results"] = json.dumps(dep_results, default=str)
 
         # Log resolved params for debugging (especially file paths)
-        if resolved_params and step.skill_name in ('file-operations', 'shell-exec', 'calculator'):
-            _param_preview = {k: (str(v)[:80] + '...' if len(str(v)) > 80 else str(v))
-                             for k, v in resolved_params.items() if k != 'content'}
+        if resolved_params and step.skill_name in ("file-operations", "shell-exec", "calculator"):
+            _param_preview = {
+                k: (str(v)[:80] + "..." if len(str(v)) > 80 else str(v))
+                for k, v in resolved_params.items()
+                if k != "content"
+            }
             logger.info(f" Resolved params: {_param_preview}")
 
         # Emit status based on skill type
         skill_status_map = {
-            'research': ' Researching...',
-            'search': ' Searching...',
-            'web': ' Fetching web data...',
-            'pdf': ' Creating PDF...',
-            'chart': ' Generating charts...',
-            'telegram': ' Sending message...',
-            'slack': ' Posting to Slack...',
-            'file': ' Processing files...',
-            'data': ' Analyzing data...',
-            'stock': ' Fetching stock data...',
+            "research": " Researching...",
+            "search": " Searching...",
+            "web": " Fetching web data...",
+            "pdf": " Creating PDF...",
+            "chart": " Generating charts...",
+            "telegram": " Sending message...",
+            "slack": " Posting to Slack...",
+            "file": " Processing files...",
+            "data": " Analyzing data...",
+            "stock": " Fetching stock data...",
         }
 
         for key, msg in skill_status_map.items():
@@ -869,12 +987,14 @@ class SkillPlanExecutor:
             import time as _time
 
             # Check tool call cache first (skip for side-effect tools)
-            _side_effect_skills = {'telegram', 'slack', 'email', 'file-operations', 'shell-exec'}
+            _side_effect_skills = {"telegram", "slack", "email", "file-operations", "shell-exec"}
             _skip_cache = any(s in step.skill_name.lower() for s in _side_effect_skills)
             cache_key = None
 
             if not _skip_cache:
-                cache_key = self._tool_cache.make_key(step.skill_name, step.tool_name, resolved_params)
+                cache_key = self._tool_cache.make_key(
+                    step.skill_name, step.tool_name, resolved_params
+                )
                 cached_result = self._tool_cache.get(cache_key)
                 if cached_result is not None:
                     logger.info(f"Tool cache HIT: {step.skill_name}/{step.tool_name}")
@@ -886,9 +1006,9 @@ class SkillPlanExecutor:
             # - Default: 90s for everything else
             step_timeout = 90.0
             _skill_lower = step.skill_name.lower()
-            if any(kw in _skill_lower for kw in ['claude-cli', 'llm', 'openai', 'groq']):
+            if any(kw in _skill_lower for kw in ["claude-cli", "llm", "openai", "groq"]):
                 step_timeout = 180.0
-            elif any(kw in _skill_lower for kw in ['web', 'search', 'http', 'scrape']):
+            elif any(kw in _skill_lower for kw in ["web", "search", "http", "scrape"]):
                 step_timeout = 30.0
 
             _step_start = _time.time()
@@ -906,31 +1026,38 @@ class SkillPlanExecutor:
             _step_elapsed = _time.time() - _step_start
 
             if result is None:
-                result = {'success': False, 'error': 'Tool returned None'}
+                result = {"success": False, "error": "Tool returned None"}
             elif not isinstance(result, dict):
-                result = {'success': True, 'output': result}
+                result = {"success": True, "output": result}
 
             # Post-execution: save shell-exec stdout to file when step
             # description mentions output redirection and we have stdout
-            if (step.skill_name == 'shell-exec'
-                    and isinstance(result, dict) and result.get('success')
-                    and result.get('stdout')):
+            if (
+                step.skill_name == "shell-exec"
+                and isinstance(result, dict)
+                and result.get("success")
+                and result.get("stdout")
+            ):
                 import re as _re
-                _desc = (step.description or '').lower()
+
+                _desc = (step.description or "").lower()
                 _out_match = _re.search(
-                    r'(?:redirect|save|write|output)\s+(?:the\s+)?(?:output\s+)?'
-                    r'(?:to|in)\s+(/[\w/.+-]+\.\w{1,5})',
-                    _desc, _re.IGNORECASE
+                    r"(?:redirect|save|write|output)\s+(?:the\s+)?(?:output\s+)?"
+                    r"(?:to|in)\s+(/[\w/.+-]+\.\w{1,5})",
+                    _desc,
+                    _re.IGNORECASE,
                 )
                 if _out_match:
                     _outpath = _out_match.group(1)
                     try:
                         _p = Path(_outpath)
                         _p.parent.mkdir(parents=True, exist_ok=True)
-                        _p.write_text(result['stdout'])
-                        result['output_saved_to'] = _outpath
-                        logger.info(f"Saved shell-exec stdout to {_outpath} "
-                                   f"({len(result['stdout'])} chars)")
+                        _p.write_text(result["stdout"])
+                        result["output_saved_to"] = _outpath
+                        logger.info(
+                            f"Saved shell-exec stdout to {_outpath} "
+                            f"({len(result['stdout'])} chars)"
+                        )
                     except Exception as _e:
                         logger.warning(f"Failed to save stdout to {_outpath}: {_e}")
 
@@ -938,7 +1065,7 @@ class SkillPlanExecutor:
             result = ToolResultProcessor().process(result, elapsed=_step_elapsed)
 
             # Cache successful results for reuse
-            if cache_key and result.get('success', True):
+            if cache_key and result.get("success", True):
                 self._tool_cache.set(cache_key, result)
 
             _status("Done", f" {step.skill_name}")
@@ -947,27 +1074,29 @@ class SkillPlanExecutor:
         except _asyncio.TimeoutError:
             logger.error(f"Tool execution timed out after {step_timeout}s: {step.skill_name}")
             _status("Timeout", f" {step.skill_name} ({step_timeout}s)")
-            return {'success': False, 'error': f'Tool timed out after {step_timeout}s'}
+            return {"success": False, "error": f"Tool timed out after {step_timeout}s"}
 
         except ToolExecutionError as e:
             logger.warning(f"Tool execution failed (recoverable): {step.skill_name}: {e}")
             _status("Error", f" {step.skill_name}")
-            return {'success': False, 'error': str(e)}
+            return {"success": False, "error": str(e)}
 
         except LLMError as e:
             logger.warning(f"LLM call failed during tool execution: {step.skill_name}: {e}")
             _status("Error", f" {step.skill_name} (LLM)")
-            return {'success': False, 'error': str(e)}
+            return {"success": False, "error": str(e)}
 
         except (ExecutionError, DSPyError) as e:
             logger.warning(f"Execution/DSPy error in tool: {step.skill_name}: {e}")
             _status("Error", f" {step.skill_name}")
-            return {'success': False, 'error': str(e)}
+            return {"success": False, "error": str(e)}
 
         except Exception as e:
-            logger.error(f"Tool execution failed (unexpected): {step.skill_name}: {e}", exc_info=True)
+            logger.error(
+                f"Tool execution failed (unexpected): {step.skill_name}: {e}", exc_info=True
+            )
             _status("Error", f" {step.skill_name}")
-            return {'success': False, 'error': str(e)}
+            return {"success": False, "error": str(e)}
 
     # =========================================================================
     # PLAN-TIME VALIDATION
@@ -992,21 +1121,20 @@ class SkillPlanExecutor:
             step_errors: List[str] = []
 
             # Check skill exists
-            skill_name = getattr(step, 'skill_name', '') or ''
+            skill_name = getattr(step, "skill_name", "") or ""
             skill = self._skills_registry.get_skill(skill_name) if self._skills_registry else None
             if not skill:
                 step_errors.append(f"Skill not found: {skill_name}")
             else:
                 # Check tool exists (strict lookup)
-                tool_name = getattr(step, 'tool_name', '') or ''
+                tool_name = getattr(step, "tool_name", "") or ""
                 tool = skill.tools.get(tool_name)
                 if not tool:
                     tool = self._strict_tool_lookup(skill, tool_name)
                 if not tool and len(skill.tools) != 1:
                     available = list(skill.tools.keys())
                     step_errors.append(
-                        f"Tool '{tool_name}' not found in {skill_name}. "
-                        f"Available: {available}"
+                        f"Tool '{tool_name}' not found in {skill_name}. " f"Available: {available}"
                     )
 
                 # Validate params against schema
@@ -1014,14 +1142,14 @@ class SkillPlanExecutor:
                     try:
                         schema = skill.get_tool_schema(tool_name)
                         if schema:
-                            params = getattr(step, 'params', {}) or {}
+                            params = getattr(step, "params", {}) or {}
                             result = schema.validate(params)
                             step_errors.extend(result.errors)
                     except Exception:
                         pass  # Schema building may fail — not fatal
 
             # Check depends_on validity
-            depends = getattr(step, 'depends_on', []) or []
+            depends = getattr(step, "depends_on", []) or []
             for dep_idx in depends:
                 if not isinstance(dep_idx, int) or dep_idx < 0 or dep_idx >= num_steps:
                     step_errors.append(f"Invalid depends_on index: {dep_idx}")
@@ -1029,11 +1157,13 @@ class SkillPlanExecutor:
                     step_errors.append(f"Forward dependency: step {i} depends on step {dep_idx}")
 
             if step_errors:
-                issues.append({
-                    'step_index': i,
-                    'step_description': getattr(step, 'description', '')[:100],
-                    'errors': step_errors,
-                })
+                issues.append(
+                    {
+                        "step_index": i,
+                        "step_description": getattr(step, "description", "")[:100],
+                        "errors": step_errors,
+                    }
+                )
 
         return issues
 
@@ -1051,19 +1181,19 @@ class SkillPlanExecutor:
         # Build a tool→skill reverse map from all selected skills
         tool_to_skill: Dict[str, str] = {}
         for skill_info in selected_skills:
-            sname = skill_info.get('name', '')
+            sname = skill_info.get("name", "")
             skill = self._skills_registry.get_skill(sname)
-            if skill and hasattr(skill, 'tools'):
+            if skill and hasattr(skill, "tools"):
                 for tname in skill.tools:
                     tool_to_skill[tname] = sname
                     tool_to_skill[tname.lower()] = sname
 
         # Fix 1: Wrong skill→tool mapping
         for step in steps:
-            skill_name = getattr(step, 'skill_name', '') or ''
-            tool_name = getattr(step, 'tool_name', '') or ''
+            skill_name = getattr(step, "skill_name", "") or ""
+            tool_name = getattr(step, "tool_name", "") or ""
             skill = self._skills_registry.get_skill(skill_name)
-            if skill and hasattr(skill, 'tools'):
+            if skill and hasattr(skill, "tools"):
                 # Check if tool exists in this skill
                 has_tool = (
                     tool_name in skill.tools
@@ -1074,8 +1204,10 @@ class SkillPlanExecutor:
                     # Look up correct skill
                     correct = tool_to_skill.get(tool_name) or tool_to_skill.get(tool_name.lower())
                     if correct:
-                        logger.info(f"Plan auto-correct: '{tool_name}' reassigned "
-                                   f"from '{skill_name}' to '{correct}'")
+                        logger.info(
+                            f"Plan auto-correct: '{tool_name}' reassigned "
+                            f"from '{skill_name}' to '{correct}'"
+                        )
                         step.skill_name = correct
 
         return steps
@@ -1091,7 +1223,7 @@ class SkillPlanExecutor:
         Returns the tool callable if found, None otherwise.
         Avoids dangerous substring matches that could invoke the wrong tool.
         """
-        if not tool_name or not hasattr(skill, 'tools'):
+        if not tool_name or not hasattr(skill, "tools"):
             return None
         tool_name_lower = tool_name.lower()
         for name, func in skill.tools.items():
@@ -1104,7 +1236,14 @@ class SkillPlanExecutor:
     # ERROR-FEEDBACK-RETRY
     # =========================================================================
 
-    def _attempt_param_fix(self, params: Dict[str, Any], validation: Any, tool_schema: Any, outputs: Dict[str, Any], step: Any) -> Optional[Dict[str, Any]]:
+    def _attempt_param_fix(
+        self,
+        params: Dict[str, Any],
+        validation: Any,
+        tool_schema: Any,
+        outputs: Dict[str, Any],
+        step: Any,
+    ) -> Optional[Dict[str, Any]]:
         """Attempt to fix validation errors before tool execution.
 
         Strategies:
@@ -1144,20 +1283,24 @@ class SkillPlanExecutor:
                         if not err:
                             fixed[param_name] = coerced
                             any_fixed = True
-                            logger.info(f"Param fix: re-coerced '{param_name}' via str() intermediate")
+                            logger.info(
+                                f"Param fix: re-coerced '{param_name}' via str() intermediate"
+                            )
                             continue
 
             # Strategy 3: Path-like params that failed → find from outputs
-            if 'path' in error.lower():
+            if "path" in error.lower():
                 resolver = ParameterResolver(outputs)
                 found = resolver._find_path_from_outputs(step)
                 if found:
                     # Find which param is the path
                     for tp in tool_schema.params:
-                        if tp.type_hint in ('path', 'file_path') and tp.name in fixed:
+                        if tp.type_hint in ("path", "file_path") and tp.name in fixed:
                             fixed[tp.name] = found
                             any_fixed = True
-                            logger.info(f"Param fix: replaced bad path for '{tp.name}' with '{found}'")
+                            logger.info(
+                                f"Param fix: replaced bad path for '{tp.name}' with '{found}'"
+                            )
                             break
 
         if any_fixed:
@@ -1168,7 +1311,9 @@ class SkillPlanExecutor:
                 logger.info("Param fix: all errors resolved")
                 return fixed
             else:
-                logger.warning(f"Param fix: {len(recheck.errors)} error(s) remain after fix attempt")
+                logger.warning(
+                    f"Param fix: {len(recheck.errors)} error(s) remain after fix attempt"
+                )
                 return fixed  # Return partially fixed params anyway
 
         return None
@@ -1219,16 +1364,16 @@ class SkillPlanExecutor:
 
         # Keyword fallback
         task_lower = task.lower()
-        if any(kw in task_lower for kw in ['vs', 'compare', 'versus']):
-            return 'comparison'
-        elif any(kw in task_lower for kw in ['create', 'build', 'write', 'generate']):
-            return 'creation'
-        elif any(kw in task_lower for kw in ['research', 'find', 'search']):
-            return 'research'
-        elif any(kw in task_lower for kw in ['analyze', 'calculate', 'evaluate']):
-            return 'analysis'
+        if any(kw in task_lower for kw in ["vs", "compare", "versus"]):
+            return "comparison"
+        elif any(kw in task_lower for kw in ["create", "build", "write", "generate"]):
+            return "creation"
+        elif any(kw in task_lower for kw in ["research", "find", "search"]):
+            return "research"
+        elif any(kw in task_lower for kw in ["analyze", "calculate", "evaluate"]):
+            return "analysis"
         else:
-            return 'unknown'
+            return "unknown"
 
     # =========================================================================
     # ARTIFACT TAGGING & LARGE OUTPUT SPILL
@@ -1242,25 +1387,25 @@ class SkillPlanExecutor:
         consumers can query by meaning (e.g. ``store.query_by_tag('analysis')``).
         """
         tags: List[str] = []
-        skill = getattr(step, 'skill_name', '') or ''
+        skill = getattr(step, "skill_name", "") or ""
         skill_lower = skill.lower()
 
         tag_keywords = {
-            'research': ['research', 'search', 'web-search'],
-            'analysis': ['analy', 'data', 'chart', 'stock', 'csv'],
-            'generation': ['generate', 'create', 'write', 'pdf', 'doc'],
-            'communication': ['telegram', 'slack', 'email', 'discord', 'messaging'],
-            'code': ['code', 'python', 'shell', 'exec'],
-            'file': ['file', 'read', 'write'],
+            "research": ["research", "search", "web-search"],
+            "analysis": ["analy", "data", "chart", "stock", "csv"],
+            "generation": ["generate", "create", "write", "pdf", "doc"],
+            "communication": ["telegram", "slack", "email", "discord", "messaging"],
+            "code": ["code", "python", "shell", "exec"],
+            "file": ["file", "read", "write"],
         }
         for tag, keywords in tag_keywords.items():
             if any(kw in skill_lower for kw in keywords):
                 tags.append(tag)
 
-        if result.get('path'):
-            tags.append('file_output')
+        if result.get("path"):
+            tags.append("file_output")
         if not tags:
-            tags.append('general')
+            tags.append("general")
         return tags
 
     @staticmethod
@@ -1274,8 +1419,9 @@ class SkillPlanExecutor:
         Writes the large value to disk under *run_dir* (or ``/tmp``) and
         substitutes a lightweight ``FileReference`` in the result dict.
         """
-        from Jotty.core.modes.agent._execution_types import FileReference
         import hashlib as _hl
+
+        from Jotty.core.modes.agent._execution_types import FileReference
 
         spill_dir = run_dir or "/tmp/jotty_spill"
         spilled = dict(result)
@@ -1326,7 +1472,7 @@ class SkillPlanExecutor:
         """
         graph: Dict[int, List[int]] = {}
         for i, step in enumerate(steps):
-            deps = getattr(step, 'depends_on', None) or []
+            deps = getattr(step, "depends_on", None) or []
             graph[i] = [d for d in deps if isinstance(d, int) and 0 <= d < len(steps)]
         return graph
 
@@ -1391,16 +1537,17 @@ class SkillPlanExecutor:
                 step = steps[i]
                 _status(f"Step {i + 1}/{len(steps)}", f"{step.skill_name}: {step.description[:80]}")
                 result = await self.execute_step(step, outputs, status_callback)
-                if result.get('success'):
+                if result.get("success"):
                     result = self._spill_large_values(result)
-                    result['_tags'] = self._infer_artifact_tags(step, result)
-                    outputs[step.output_key or f'step_{i}'] = result
+                    result["_tags"] = self._infer_artifact_tags(step, result)
+                    outputs[step.output_key or f"step_{i}"] = result
                     skills_used.append(step.skill_name)
                 else:
                     errors.append(f"Step {i + 1}: {result.get('error', 'Unknown')}")
             else:
                 # Multiple independent steps — run in parallel
                 _status(f"Parallel", f"executing {len(layer)} steps concurrently")
+
                 async def _run_step(idx: Any) -> Any:
                     s = steps[idx]
                     return idx, await self.execute_step(s, outputs, status_callback)
@@ -1415,10 +1562,10 @@ class SkillPlanExecutor:
                         continue
                     idx, result = item
                     step = steps[idx]
-                    if result.get('success'):
+                    if result.get("success"):
                         result = self._spill_large_values(result)
-                        result['_tags'] = self._infer_artifact_tags(step, result)
-                        outputs[step.output_key or f'step_{idx}'] = result
+                        result["_tags"] = self._infer_artifact_tags(step, result)
+                        outputs[step.output_key or f"step_{idx}"] = result
                         skills_used.append(step.skill_name)
                     else:
                         errors.append(f"Step {idx + 1}: {result.get('error', 'Unknown')}")
@@ -1473,7 +1620,7 @@ class SkillPlanExecutor:
         # The LLM skill selector can't always anticipate which tools are
         # needed (e.g. "execute the script" requires shell-exec).
         skills = self._inject_essential_skills(task, skills, discovered_skills)
-        _status("Skills selected", ", ".join(s['name'] for s in skills[:5]))
+        _status("Skills selected", ", ".join(s["name"] for s in skills[:5]))
 
         # Step 3: Create plan
         _status("Planning", "creating execution plan")
@@ -1490,8 +1637,10 @@ class SkillPlanExecutor:
             plan_issues = self.validate_plan(steps)
             if plan_issues:
                 for issue in plan_issues:
-                    _status("Plan warning",
-                            f"Step {issue['step_index']}: {'; '.join(issue['errors'][:2])}")
+                    _status(
+                        "Plan warning",
+                        f"Step {issue['step_index']}: {'; '.join(issue['errors'][:2])}",
+                    )
                 logger.info(f"Plan validation: {len(plan_issues)} step(s) with issues")
 
         if not steps:
@@ -1524,7 +1673,10 @@ class SkillPlanExecutor:
             elapsed = time.time() - start_time
             remaining_budget = TOTAL_EXECUTION_BUDGET - elapsed
             if remaining_budget < 5.0:
-                _status("Budget", f"execution budget exhausted ({elapsed:.0f}s) — returning partial results")
+                _status(
+                    "Budget",
+                    f"execution budget exhausted ({elapsed:.0f}s) — returning partial results",
+                )
                 errors.append(f"Budget exhausted after step {i}/{len(steps)} ({elapsed:.0f}s)")
                 budget_exhausted = True
                 break
@@ -1536,43 +1688,57 @@ class SkillPlanExecutor:
 
             result = await self.execute_step(step, outputs, status_callback)
 
-            if result.get('success'):
+            if result.get("success"):
                 result = self._spill_large_values(result)
-                result['_tags'] = self._infer_artifact_tags(step, result)
-                outputs[step.output_key or f'step_{i}'] = result
+                result["_tags"] = self._infer_artifact_tags(step, result)
+                outputs[step.output_key or f"step_{i}"] = result
                 skills_used.append(step.skill_name)
                 _status(f"Step {i + 1}", "completed")
             else:
-                error_msg = result.get('error', 'Unknown error')
+                error_msg = result.get("error", "Unknown error")
                 errors.append(f"Step {i + 1}: {error_msg}")
                 _status(f"Step {i + 1}", f"failed: {error_msg}")
 
                 # Replan on failure with intelligent skill exclusion
-                if (self._enable_replanning and
-                        replan_count < self._max_replans and
-                        not step.optional):
+                if (
+                    self._enable_replanning
+                    and replan_count < self._max_replans
+                    and not step.optional
+                ):
 
                     # Exclude skill for permanent/structural errors
                     exclusion_keywords = [
-                        'not found', '404', 'invalid', 'delisted',
-                        'not implemented', 'unsupported', 'deprecated',
-                        'permission denied', 'unauthorized', 'forbidden',
-                        'module not found', 'import error', 'no module',
+                        "not found",
+                        "404",
+                        "invalid",
+                        "delisted",
+                        "not implemented",
+                        "unsupported",
+                        "deprecated",
+                        "permission denied",
+                        "unauthorized",
+                        "forbidden",
+                        "module not found",
+                        "import error",
+                        "no module",
                     ]
                     if any(kw in error_msg.lower() for kw in exclusion_keywords):
                         self._excluded_skills.add(step.skill_name)
                         logger.info(f"Excluded skill '{step.skill_name}' due to: {error_msg[:50]}")
 
                     # For transient errors, retry once before replanning
-                    transient_keywords = ['timeout', 'connection', 'rate limit', 'retry']
-                    if any(kw in error_msg.lower() for kw in transient_keywords) and replan_count == 0:
+                    transient_keywords = ["timeout", "connection", "rate limit", "retry"]
+                    if (
+                        any(kw in error_msg.lower() for kw in transient_keywords)
+                        and replan_count == 0
+                    ):
                         _status(f"Step {i + 1}", "retrying after transient error")
                         await asyncio.sleep(2)  # Brief backoff
                         retry_result = await self.execute_step(step, outputs, status_callback)
-                        if retry_result.get('success'):
+                        if retry_result.get("success"):
                             retry_result = self._spill_large_values(retry_result)
-                            retry_result['_tags'] = self._infer_artifact_tags(step, retry_result)
-                            outputs[step.output_key or f'step_{i}'] = retry_result
+                            retry_result["_tags"] = self._infer_artifact_tags(step, retry_result)
+                            outputs[step.output_key or f"step_{i}"] = retry_result
                             skills_used.append(step.skill_name)
                             _status(f"Step {i + 1}", "retry succeeded")
                             continue
@@ -1584,20 +1750,26 @@ class SkillPlanExecutor:
 
                     _status("Replanning", "adapting to failure with reflection")
                     failed_step_info = {
-                        'skill_name': step.skill_name,
-                        'tool_name': step.tool_name,
-                        'error': error_msg,
-                        'params': step.params,
+                        "skill_name": step.skill_name,
+                        "tool_name": step.tool_name,
+                        "error": error_msg,
+                        "params": step.params,
                     }
                     new_steps, reflection, _ = await self.create_reflective_plan(
-                        task, task_type, skills,
-                        [failed_step_info], outputs,
+                        task,
+                        task_type,
+                        skills,
+                        [failed_step_info],
+                        outputs,
                         max_steps=self._max_steps - (i + 1),
                     )
                     if new_steps:
-                        steps = steps[:i + 1] + new_steps
+                        steps = steps[: i + 1] + new_steps
                         replan_count += 1
-                        _status("Replanned", f"{len(new_steps)} new steps (reflection: {reflection[:60]})")
+                        _status(
+                            "Replanned",
+                            f"{len(new_steps)} new steps (reflection: {reflection[:60]})",
+                        )
 
         final_output = list(outputs.values())[-1] if outputs else None
 
@@ -1629,27 +1801,27 @@ class SkillPlanExecutor:
             Formatted markdown string, or '' if no outputs.
         """
         if not outputs:
-            return ''
+            return ""
 
         sections = []
         for key in sorted(outputs):
             entry = outputs[key]
-            query = entry.get('query', key)
-            results = entry.get('results', [])
+            query = entry.get("query", key)
+            results = entry.get("results", [])
             lines = [f"## Research: {query}"]
             for r in results:
-                title = r.get('title', '')
-                snippet = r.get('snippet', '')
-                url = r.get('url', '')
+                title = r.get("title", "")
+                snippet = r.get("snippet", "")
+                url = r.get("url", "")
                 lines.append(f"- **{title}**: {snippet} ({url})")
-            sections.append('\n'.join(lines))
+            sections.append("\n".join(lines))
 
-        return '\n\n'.join(sections)
+        return "\n\n".join(sections)
 
 
 __all__ = [
-    'ParameterResolver',
-    'ToolResultProcessor',
-    'ToolCallCache',
-    'SkillPlanExecutor',
+    "ParameterResolver",
+    "ToolResultProcessor",
+    "ToolCallCache",
+    "SkillPlanExecutor",
 ]

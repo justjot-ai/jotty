@@ -5,7 +5,8 @@ Stats Command
 Learning statistics and metrics.
 """
 
-from typing import TYPE_CHECKING, Dict, Any
+from typing import TYPE_CHECKING, Any, Dict
+
 from .base import BaseCommand, CommandResult, ParsedArgs
 
 if TYPE_CHECKING:
@@ -49,15 +50,19 @@ class StatsCommand(BaseCommand):
             # Q-learning stats
             if hasattr(swarm, "learning_manager"):
                 q_summary = swarm.learning_manager.get_q_table_summary()
-                stats.update({
-                    "Q-Table Size": q_summary.get("size", 0),
-                    "Avg Q-Value": q_summary.get("avg_value", 0),
-                    "Max Q-Value": q_summary.get("max_value", 0),
-                    "Min Q-Value": q_summary.get("min_value", 0),
-                })
+                stats.update(
+                    {
+                        "Q-Table Size": q_summary.get("size", 0),
+                        "Avg Q-Value": q_summary.get("avg_value", 0),
+                        "Max Q-Value": q_summary.get("max_value", 0),
+                        "Min Q-Value": q_summary.get("min_value", 0),
+                    }
+                )
 
             # Adaptive learning rate
-            if hasattr(swarm, "learning_manager") and hasattr(swarm.learning_manager, "adaptive_lr"):
+            if hasattr(swarm, "learning_manager") and hasattr(
+                swarm.learning_manager, "adaptive_lr"
+            ):
                 alr = swarm.learning_manager.adaptive_lr
                 if alr:
                     stats["Adaptive Alpha"] = getattr(alr, "current_alpha", 0.1)
@@ -70,15 +75,16 @@ class StatsCommand(BaseCommand):
                 total_tasks = sum(p.total_tasks for p in profiles.values())
                 # Calculate successes from task_success dict: sum of success counts
                 total_success = sum(
-                    sum(s for s, t in p.task_success.values())
-                    for p in profiles.values()
+                    sum(s for s, t in p.task_success.values()) for p in profiles.values()
                 )
 
-                stats.update({
-                    "Total Tasks": total_tasks,
-                    "Total Successes": total_success,
-                    "Overall Success Rate": total_success / max(1, total_tasks),
-                })
+                stats.update(
+                    {
+                        "Total Tasks": total_tasks,
+                        "Total Successes": total_success,
+                        "Overall Success Rate": total_success / max(1, total_tasks),
+                    }
+                )
 
             # Credit weights
             if hasattr(swarm, "credit_weights"):
@@ -111,15 +117,17 @@ class StatsCommand(BaseCommand):
             # Get top entries
             entries = []
             for key, value in list(q_learner.q_table.items())[:20]:
-                entries.append({
-                    "state_action": str(key)[:60],
-                    "q_value": f"{value:.4f}",
-                })
+                entries.append(
+                    {
+                        "state_action": str(key)[:60],
+                        "q_value": f"{value:.4f}",
+                    }
+                )
 
             cli.renderer.panel(
                 "\n".join([f"{e['state_action']}: {e['q_value']}" for e in entries]),
                 title=f"Q-Table ({len(q_learner.q_table)} entries)",
-                style="cyan"
+                style="cyan",
             )
 
             return CommandResult.ok(data=entries)
@@ -146,12 +154,14 @@ class StatsCommand(BaseCommand):
             episodes = lm.episode_history[-limit:]
 
             cli.renderer.panel(
-                "\n".join([
-                    f"Episode {i+1}: reward={ep.get('reward', 0):.2f}, success={ep.get('success', False)}"
-                    for i, ep in enumerate(episodes)
-                ]),
+                "\n".join(
+                    [
+                        f"Episode {i+1}: reward={ep.get('reward', 0):.2f}, success={ep.get('success', False)}"
+                        for i, ep in enumerate(episodes)
+                    ]
+                ),
                 title=f"Recent Episodes (last {len(episodes)})",
-                style="blue"
+                style="blue",
             )
 
             return CommandResult.ok(data=episodes)
@@ -185,7 +195,11 @@ class StatsCommand(BaseCommand):
                     "Successes": successes,
                     "Success Rate": f"{success_rate:.1%}",
                     "Trust Score": f"{profile.trust_score:.2f}",
-                    "Specialization": str(profile.specialization.value) if hasattr(profile.specialization, 'value') else str(profile.specialization),
+                    "Specialization": (
+                        str(profile.specialization.value)
+                        if hasattr(profile.specialization, "value")
+                        else str(profile.specialization)
+                    ),
                     "Avg Execution Time": f"{profile.avg_execution_time:.2f}s",
                 }
 

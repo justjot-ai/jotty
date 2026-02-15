@@ -12,15 +12,15 @@ Usage:
 """
 
 import logging
-from typing import AsyncGenerator, Optional, Callable, Any, Dict, List
 from pathlib import Path
+from typing import Any, AsyncGenerator, Callable, Dict, List, Optional
 
 from .core.modes.execution import (
-    TierExecutor,
     ExecutionConfig,
-    ExecutionTier,
     ExecutionResult,
+    ExecutionTier,
     TierDetector,
+    TierExecutor,
 )
 from .core.modes.execution.types import StreamEvent, StreamEventType
 
@@ -73,7 +73,7 @@ class Jotty:
         # Setup logging
         logging.basicConfig(
             level=getattr(logging, log_level.upper()),
-            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         )
 
         # Create executor
@@ -89,7 +89,7 @@ class Jotty:
         tier: Optional[ExecutionTier] = None,
         config: Optional[ExecutionConfig] = None,
         status_callback: Optional[Callable] = None,
-        **kwargs
+        **kwargs,
     ) -> ExecutionResult:
         """
         Execute a task.
@@ -121,17 +121,16 @@ class Jotty:
         exec_config = config or self.config
         if tier is not None:
             resolved_tier = ExecutionTier(tier) if isinstance(tier, int) else tier
-            exec_config = ExecutionConfig(**{
-                **exec_config.__dict__,
-                'tier': resolved_tier,
-            })
+            exec_config = ExecutionConfig(
+                **{
+                    **exec_config.__dict__,
+                    "tier": resolved_tier,
+                }
+            )
 
         # Execute
         result = await self.executor.execute(
-            goal=goal,
-            config=exec_config,
-            status_callback=status_callback,
-            **kwargs
+            goal=goal, config=exec_config, status_callback=status_callback, **kwargs
         )
 
         return result
@@ -141,7 +140,7 @@ class Jotty:
         goal: str,
         tier: Optional[ExecutionTier] = None,
         config: Optional[ExecutionConfig] = None,
-        **kwargs
+        **kwargs,
     ) -> AsyncGenerator[StreamEvent, None]:
         """
         Stream execution events as an async generator.
@@ -177,10 +176,12 @@ class Jotty:
         """
         exec_config = config or self.config
         if tier:
-            exec_config = ExecutionConfig(**{
-                **exec_config.__dict__,
-                'tier': tier,
-            })
+            exec_config = ExecutionConfig(
+                **{
+                    **exec_config.__dict__,
+                    "tier": tier,
+                }
+            )
 
         async for event in self.executor.stream(goal, config=exec_config, **kwargs):
             yield event
@@ -204,12 +205,7 @@ class Jotty:
         """
         return self.detector.explain_detection(goal)
 
-    async def chat(
-        self,
-        message: str,
-        tier: ExecutionTier = ExecutionTier.DIRECT,
-        **kwargs
-    ) -> str:
+    async def chat(self, message: str, tier: ExecutionTier = ExecutionTier.DIRECT, **kwargs) -> str:
         """
         Chat mode - simple question/answer.
 
@@ -251,11 +247,7 @@ class Jotty:
         return await self.run(goal, tier=ExecutionTier.AGENTIC)
 
     async def learn(
-        self,
-        goal: str,
-        memory_backend: str = "json",
-        enable_validation: bool = True,
-        **kwargs
+        self, goal: str, memory_backend: str = "json", enable_validation: bool = True, **kwargs
     ) -> ExecutionResult:
         """
         Execute with learning (memory + validation).
@@ -280,7 +272,7 @@ class Jotty:
             tier=ExecutionTier.LEARNING,
             memory_backend=memory_backend,
             enable_validation=enable_validation,
-            **kwargs
+            **kwargs,
         )
         return await self.run(goal, config=config)
 
@@ -289,7 +281,7 @@ class Jotty:
         goal: str,
         enable_td_lambda: bool = True,
         enable_hierarchical_memory: bool = True,
-        **kwargs
+        **kwargs,
     ) -> ExecutionResult:
         """
         Execute with full research features (V2).
@@ -313,7 +305,7 @@ class Jotty:
             tier=ExecutionTier.RESEARCH,
             enable_td_lambda=enable_td_lambda,
             enable_hierarchical_memory=enable_hierarchical_memory,
-            **kwargs
+            **kwargs,
         )
         return await self.run(goal, config=config)
 
@@ -370,6 +362,7 @@ class Jotty:
             print(caps['subsystems'].keys())
         """
         from Jotty.core.capabilities import capabilities
+
         return capabilities()
 
     @property
@@ -383,8 +376,9 @@ class Jotty:
         Example:
             result = await jotty.router.chat(message, context)
         """
-        if not hasattr(self, '_router'):
+        if not hasattr(self, "_router"):
             from Jotty.core.interface.api.mode_router import ModeRouter
+
             self._router = ModeRouter()
         return self._router
 
@@ -399,8 +393,9 @@ class Jotty:
         Example:
             result = await jotty.chat_executor.execute(prompt, tools)
         """
-        if not hasattr(self, '_chat_executor'):
+        if not hasattr(self, "_chat_executor"):
             from Jotty.core.intelligence.orchestration.unified_executor import ChatExecutor
+
             self._chat_executor = ChatExecutor()
         return self._chat_executor
 
@@ -416,8 +411,9 @@ class Jotty:
             skills = jotty.registry.list_skills()
             tools = jotty.registry.get_claude_tools(['web-search'])
         """
-        if not hasattr(self, '_registry'):
+        if not hasattr(self, "_registry"):
             from Jotty.core.capabilities.registry import get_unified_registry
+
             self._registry = get_unified_registry()
         return self._registry
 
@@ -433,6 +429,7 @@ class Jotty:
             print(swarms)  # ['coding', 'research', 'testing', ...]
         """
         from Jotty.core.intelligence.swarms.registry import SwarmRegistry
+
         return SwarmRegistry.list_all()
 
     @staticmethod
@@ -481,12 +478,13 @@ class Jotty:
             print(stats['global']['total_executions'])
         """
         from Jotty.core.infrastructure.monitoring.observability import get_metrics
+
         summary = get_metrics().get_summary()
         return {
-            'config': {
-                'default_tier': self.config.tier.name if self.config.tier else 'AUTO',
-                'memory_backend': self.config.memory_backend,
-                'validation_enabled': self.config.enable_validation,
+            "config": {
+                "default_tier": self.config.tier.name if self.config.tier else "AUTO",
+                "memory_backend": self.config.memory_backend,
+                "validation_enabled": self.config.enable_validation,
             },
             **summary,
         }
@@ -503,6 +501,7 @@ class Jotty:
             print(f"Total: ${costs['total_cost_usd']:.4f}")
         """
         from Jotty.core.infrastructure.monitoring.observability import get_metrics
+
         return get_metrics().get_cost_breakdown()
 
     def get_recent_errors(self, limit: int = 10) -> list:
@@ -521,6 +520,7 @@ class Jotty:
                 print(f"{e['agent']}: {e['error']}")
         """
         from Jotty.core.infrastructure.monitoring.observability import get_metrics
+
         return get_metrics().recent_errors(limit)
 
     def save_metrics(self, path: str = None) -> str:
@@ -538,13 +538,14 @@ class Jotty:
             print(f"Saved to {saved}")
         """
         import json
+
         from Jotty.core.infrastructure.monitoring.observability import get_metrics
 
         path = path or str(Path.home() / "jotty" / "v3_metrics" / "session.json")
         Path(path).parent.mkdir(parents=True, exist_ok=True)
 
         data = get_metrics().get_summary()
-        with open(path, 'w') as f:
+        with open(path, "w") as f:
             json.dump(data, f, indent=2, default=str)
         return path
 

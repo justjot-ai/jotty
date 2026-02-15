@@ -32,16 +32,11 @@ repos:
       - id: debug-statements
       - id: mixed-line-ending
 
-  # Python syntax
+  # Python lint (config in .flake8 only — args get split by pre-commit)
   - repo: https://github.com/PyCQA/flake8
     rev: 7.0.0
     hooks:
       - id: flake8
-        args: [
-          --max-line-length=100,
-          --extend-ignore=E203,E501,W503,
-          --exclude=.git,__pycache__,build,dist,venv
-        ]
 
   # Security checks
   - repo: https://github.com/PyCQA/bandit
@@ -66,28 +61,28 @@ repos:
     hooks:
       - id: python-syntax-check
         name: Python AST Syntax Validation
-        entry: python -c "import sys, ast; [ast.parse(open(f).read()) for f in sys.argv[1:]]"
+        entry: python3 -c "import sys, ast; [ast.parse(open(f).read()) for f in sys.argv[1:]]"
         language: system
         types: [python]
         pass_filenames: true
 
       - id: import-linter
         name: Import Linter - Architecture Enforcement
-        entry: lint-imports
+        entry: python3 -m importlinter.cli
         language: system
         pass_filenames: false
         always_run: true
 
       - id: jotty-doctor-imports
         name: Jotty Doctor - Import Check
-        entry: python scripts/jotty_doctor.py --imports
+        entry: python3 scripts/jotty_doctor.py --imports
         language: system
         pass_filenames: false
         always_run: true
 
       - id: jotty-doctor-secrets
         name: Jotty Doctor - Security Scan
-        entry: python scripts/jotty_doctor.py --secrets
+        entry: python3 scripts/jotty_doctor.py --secrets
         language: system
         pass_filenames: false
         always_run: true

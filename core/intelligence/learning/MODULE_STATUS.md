@@ -45,5 +45,5 @@ Last audited: 2026-02-08
 
 ### Total: 9,534 lines across 18 files
 ### Active: ~5,571 lines (8 files) — 58% of total
-### Unused: ~2,105 lines (5 files) — 22% of total  
+### Unused: ~2,105 lines (5 files) — 22% of total
 ### Support: ~1,378 lines (4 files) — 14% of total

@@ -7,8 +7,8 @@ Provides template methods and common patterns for all expert agents.
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +36,12 @@ class BaseExpert(ABC):
     - domain property - Return domain name (e.g., "mermaid", "latex")
     """
 
-    def __init__(self, config: Any = None, memory: Any = None, improvements: Optional[List[Dict[str, Any]]] = None) -> None:
+    def __init__(
+        self,
+        config: Any = None,
+        memory: Any = None,
+        improvements: Optional[List[Dict[str, Any]]] = None,
+    ) -> None:
         """
         Initialize base expert with domain-specific configuration.
 
@@ -60,7 +65,7 @@ class BaseExpert(ABC):
                 validation_cases=self._get_default_validation_cases(),
                 evaluation_function=self._evaluate_domain,
                 agent_module=self._create_agent_wrapper,
-                teacher_module=self._create_teacher_wrapper
+                teacher_module=self._create_teacher_wrapper,
             )
 
         # Store config and memory
@@ -142,11 +147,7 @@ class BaseExpert(ABC):
 
     @abstractmethod
     async def _evaluate_domain(
-        self,
-        output: Any,
-        gold_standard: str,
-        task: str,
-        context: Dict[str, Any]
+        self, output: Any, gold_standard: str, task: str, context: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
         Evaluate agent output against expected result (domain-specific).
@@ -221,6 +222,7 @@ class BaseExpert(ABC):
         """Check if DSPy is available."""
         try:
             import dspy
+
             return True
         except ImportError:
             return False
@@ -241,6 +243,7 @@ class BaseExpert(ABC):
 
         try:
             from .dspy_improvements import inject_improvements_into_signature
+
             return inject_improvements_into_signature(base_signature, improvements)
         except ImportError:
             logger.warning("Could not inject improvements into signature")
@@ -258,7 +261,7 @@ class BaseExpert(ABC):
             "domain": self.domain,
             "improvements_count": len(self.improvements),
             "training_cases": len(self.get_training_data()),
-            "validation_cases": len(self.get_validation_data())
+            "validation_cases": len(self.get_validation_data()),
         }
 
     def __repr__(self) -> str:
@@ -292,11 +295,7 @@ class SimpleDomainExpert(BaseExpert):
         return []
 
     async def _evaluate_domain(
-        self,
-        output: Any,
-        gold_standard: str,
-        task: str,
-        context: Dict[str, Any]
+        self, output: Any, gold_standard: str, task: str, context: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Simple string comparison for non-DSPy experts."""
         output_str = str(output).strip()
@@ -308,5 +307,5 @@ class SimpleDomainExpert(BaseExpert):
             "status": "CORRECT" if passed else "FAIL",
             "is_valid": passed,
             "error": "" if passed else "Output does not match expected",
-            "metadata": {}
+            "metadata": {},
         }

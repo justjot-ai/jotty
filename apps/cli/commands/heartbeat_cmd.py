@@ -63,10 +63,11 @@ class HeartbeatCommand(BaseCommand):
         else:
             return await self._show_status(cli)
 
-    async def _get_engine(self, cli: 'JottyCLI') -> Any:
+    async def _get_engine(self, cli: "JottyCLI") -> Any:
         """Get or create heartbeat engine."""
         if HeartbeatCommand._engine is None:
             from ..heartbeat import HeartbeatEngine, create_default_tasks
+
             HeartbeatCommand._engine = HeartbeatEngine(cli)
 
             # Add default tasks
@@ -88,9 +89,8 @@ class HeartbeatCommand(BaseCommand):
                 # Also send to Telegram if configured
                 try:
                     from skills.telegram_sender.tools import send_telegram_message_tool
-                    await send_telegram_message_tool({
-                        "message": f"{icon} {title}\n\n{message}"
-                    })
+
+                    await send_telegram_message_tool({"message": f"{icon} {title}\n\n{message}"})
                 except Exception:
                     pass  # Telegram not configured
 
@@ -235,7 +235,7 @@ class RemindCommand(BaseCommand):
             "time": remind_at.isoformat(),
             "created": datetime.now().isoformat(),
             "sent": False,
-            "priority": args.flags.get("priority", "normal")
+            "priority": args.flags.get("priority", "normal"),
         }
 
         reminders_file = Path.home() / ".jotty" / "reminders.json"

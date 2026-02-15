@@ -10,8 +10,8 @@ DRY PRINCIPLE: Reuses core/observability infrastructure.
 
 import logging
 import time
-from typing import Optional, Dict, Any
 from contextlib import contextmanager
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ class DistributedTracer:
     DRY: Delegates to existing JottyTracer for local spans
     """
 
-    def __init__(self, service_name: str = 'jotty') -> None:
+    def __init__(self, service_name: str = "jotty") -> None:
         self.service_name = service_name
         self.trace_contexts: Dict[str, Dict[str, Any]] = {}
 
@@ -43,6 +43,7 @@ class DistributedTracer:
         if self._local_tracer is None:
             try:
                 from Jotty.core.infrastructure.monitoring.observability import get_tracer
+
                 self._local_tracer = get_tracer()
             except ImportError:
                 logger.warning("Local tracer unavailable, using noop")
@@ -67,10 +68,10 @@ class DistributedTracer:
 
         # Store context for propagation
         self.trace_contexts[trace_id] = {
-            'service': self.service_name,
-            'operation': operation,
-            'parent': parent_context,
-            'start_time': time.time(),
+            "service": self.service_name,
+            "operation": operation,
+            "parent": parent_context,
+            "start_time": time.time(),
         }
 
         # Delegate to local tracer (DRY)
@@ -84,11 +85,12 @@ class DistributedTracer:
             # Record duration
             if trace_id in self.trace_contexts:
                 ctx = self.trace_contexts[trace_id]
-                ctx['duration_ms'] = (time.time() - ctx['start_time']) * 1000
+                ctx["duration_ms"] = (time.time() - ctx["start_time"]) * 1000
 
     def _generate_trace_id(self, parent: Optional[str]) -> str:
         """Generate trace ID (KISS - simple UUID)."""
         import uuid
+
         if parent:
             return f"{parent}:{uuid.uuid4().hex[:8]}"
         return uuid.uuid4().hex[:16]
@@ -107,9 +109,9 @@ class DistributedTracer:
         """
         ctx = self.get_context(trace_id)
         return {
-            'traceparent': f"00-{trace_id}-{trace_id[:16]}-01",
-            'x-jotty-service': self.service_name,
-            'x-jotty-operation': ctx.get('operation', 'unknown'),
+            "traceparent": f"00-{trace_id}-{trace_id[:16]}-01",
+            "x-jotty-service": self.service_name,
+            "x-jotty-operation": ctx.get("operation", "unknown"),
         }
 
     def extract_context(self, headers: Dict[str, str]) -> Optional[str]:
@@ -121,9 +123,9 @@ class DistributedTracer:
         >>> with tracer.trace("handle_request", parent_context=parent_trace):
         ...     process()
         """
-        traceparent = headers.get('traceparent', '')
+        traceparent = headers.get("traceparent", "")
         if traceparent:
-            parts = traceparent.split('-')
+            parts = traceparent.split("-")
             if len(parts) >= 2:
                 return parts[1]  # trace-id
         return None
@@ -156,7 +158,7 @@ def reset_distributed_tracer() -> None:
 
 
 __all__ = [
-    'DistributedTracer',
-    'get_distributed_tracer',
-    'reset_distributed_tracer',
+    "DistributedTracer",
+    "get_distributed_tracer",
+    "reset_distributed_tracer",
 ]

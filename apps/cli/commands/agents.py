@@ -5,7 +5,8 @@ Agents Command
 List and manage agents.
 """
 
-from typing import TYPE_CHECKING, List, Dict, Any
+from typing import TYPE_CHECKING, Any, Dict, List
+
 from .base import BaseCommand, CommandResult, ParsedArgs
 
 if TYPE_CHECKING:
@@ -54,16 +55,18 @@ class AgentsCommand(BaseCommand):
                 if hasattr(swarm, "swarm_intelligence"):
                     profile = swarm.swarm_intelligence.agent_profiles.get(agent_config.name)
                     if profile:
-                        spec = getattr(profile, 'specialization', None)
-                        agent_info["specialization"] = spec.value if hasattr(spec, 'value') else (spec or "general")
+                        spec = getattr(profile, "specialization", None)
+                        agent_info["specialization"] = (
+                            spec.value if hasattr(spec, "value") else (spec or "general")
+                        )
                         # Calculate success rate from task_success dict
-                        if hasattr(profile, 'task_success') and profile.task_success:
+                        if hasattr(profile, "task_success") and profile.task_success:
                             total_success = sum(s for s, t in profile.task_success.values())
                             total_tasks = sum(t for s, t in profile.task_success.values())
                             if total_tasks > 0:
                                 agent_info["success_rate"] = total_success / total_tasks
-                        elif hasattr(profile, 'total_tasks') and profile.total_tasks > 0:
-                            agent_info["success_rate"] = getattr(profile, 'trust_score', 0.5)
+                        elif hasattr(profile, "total_tasks") and profile.total_tasks > 0:
+                            agent_info["success_rate"] = getattr(profile, "trust_score", 0.5)
 
                 agents_data.append(agent_info)
 
@@ -108,14 +111,18 @@ class AgentsCommand(BaseCommand):
             if hasattr(swarm, "swarm_intelligence"):
                 profile = swarm.swarm_intelligence.agent_profiles.get(name)
                 if profile:
-                    info["Total Tasks"] = getattr(profile, 'total_tasks', 0)
+                    info["Total Tasks"] = getattr(profile, "total_tasks", 0)
                     # Calculate successful tasks from task_success dict
-                    if hasattr(profile, 'task_success') and profile.task_success:
+                    if hasattr(profile, "task_success") and profile.task_success:
                         info["Successful Tasks"] = sum(s for s, t in profile.task_success.values())
                     info["Trust Score"] = f"{getattr(profile, 'trust_score', 0.5):.2f}"
-                    spec = getattr(profile, 'specialization', None)
-                    info["Specialization"] = spec.value if hasattr(spec, 'value') else (spec or "general")
-                    info["Avg Execution Time"] = f"{getattr(profile, 'avg_execution_time', 0.0):.2f}s"
+                    spec = getattr(profile, "specialization", None)
+                    info["Specialization"] = (
+                        spec.value if hasattr(spec, "value") else (spec or "general")
+                    )
+                    info["Avg Execution Time"] = (
+                        f"{getattr(profile, 'avg_execution_time', 0.0):.2f}s"
+                    )
 
             # Get capabilities
             if agent_config.capabilities:
@@ -147,7 +154,7 @@ class AgentsCommand(BaseCommand):
             cli.renderer.panel(
                 "\n".join([f"• {agent}: {spec}" for agent, spec in specs.items()]),
                 title="Agent Specializations",
-                style="magenta"
+                style="magenta",
             )
 
             return CommandResult.ok(data=specs)

@@ -7,8 +7,8 @@ DrZero-inspired zero-data bootstrapping for cold-start mitigation.
 
 import logging
 import time as time_module
-from typing import Dict, Any, Optional, List, Tuple, TYPE_CHECKING
 from collections import defaultdict
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 if TYPE_CHECKING:
     from .swarm_manager import Orchestrator
@@ -22,7 +22,7 @@ class SwarmWarmup:
     to bootstrap agent learning before real user tasks.
     """
 
-    def __init__(self, swarm: 'Orchestrator') -> None:
+    def __init__(self, swarm: "Orchestrator") -> None:
         self.swarm = swarm
 
     async def warmup(
@@ -48,12 +48,14 @@ class SwarmWarmup:
             logger.info(f" Starting DrZero warmup: {num_episodes} synthetic episodes")
 
         stats = {
-            'episodes_run': 0,
-            'successes': 0,
-            'failures': 0,
-            'agent_results': defaultdict(lambda: {'success': 0, 'total': 0}),
-            'task_type_results': defaultdict(lambda: {'success': 0, 'total': 0}),
-            'initial_baselines': dict(self.swarm.swarm_intelligence.curriculum_generator.difficulty_by_type),
+            "episodes_run": 0,
+            "successes": 0,
+            "failures": 0,
+            "agent_results": defaultdict(lambda: {"success": 0, "total": 0}),
+            "task_type_results": defaultdict(lambda: {"success": 0, "total": 0}),
+            "initial_baselines": dict(
+                self.swarm.swarm_intelligence.curriculum_generator.difficulty_by_type
+            ),
         }
 
         curriculum = self.swarm.swarm_intelligence.curriculum_generator
@@ -77,8 +79,8 @@ class SwarmWarmup:
 
             try:
                 result = await self._run_synthetic_episode(task, target_agent)
-                success = result.get('success', False)
-                execution_time = result.get('execution_time', 0.0)
+                success = result.get("success", False)
+                execution_time = result.get("execution_time", 0.0)
             except Exception as e:
                 logger.warning(f"  Warmup episode {episode + 1} failed: {e}")
                 success = False
@@ -86,38 +88,38 @@ class SwarmWarmup:
 
             curriculum.update_from_result(task, success, execution_time)
 
-            stats['episodes_run'] += 1
+            stats["episodes_run"] += 1
             if success:
-                stats['successes'] += 1
+                stats["successes"] += 1
             else:
-                stats['failures'] += 1
+                stats["failures"] += 1
 
-            agent_name = task.target_agent or 'swarm'
-            stats['agent_results'][agent_name]['total'] += 1
+            agent_name = task.target_agent or "swarm"
+            stats["agent_results"][agent_name]["total"] += 1
             if success:
-                stats['agent_results'][agent_name]['success'] += 1
+                stats["agent_results"][agent_name]["success"] += 1
 
-            stats['task_type_results'][task.task_type]['total'] += 1
+            stats["task_type_results"][task.task_type]["total"] += 1
             if success:
-                stats['task_type_results'][task.task_type]['success'] += 1
+                stats["task_type_results"][task.task_type]["success"] += 1
 
-        stats['success_rate'] = stats['successes'] / max(1, stats['episodes_run'])
-        stats['final_baselines'] = dict(curriculum.difficulty_by_type)
-        stats['curriculum_stats'] = curriculum.get_curriculum_stats()
+        stats["success_rate"] = stats["successes"] / max(1, stats["episodes_run"])
+        stats["final_baselines"] = dict(curriculum.difficulty_by_type)
+        stats["curriculum_stats"] = curriculum.get_curriculum_stats()
 
-        stats['agent_improvements'] = {}
-        for agent_name, results in stats['agent_results'].items():
-            rate = results['success'] / max(1, results['total'])
-            stats['agent_improvements'][agent_name] = rate
+        stats["agent_improvements"] = {}
+        for agent_name, results in stats["agent_results"].items():
+            rate = results["success"] / max(1, results["total"])
+            stats["agent_improvements"][agent_name] = rate
 
-        stats['agent_results'] = dict(stats['agent_results'])
-        stats['task_type_results'] = dict(stats['task_type_results'])
+        stats["agent_results"] = dict(stats["agent_results"])
+        stats["task_type_results"] = dict(stats["task_type_results"])
 
         if verbose:
             logger.info(f" Warmup complete: {stats['success_rate']:.1%} success rate")
             logger.info(f"   Episodes: {stats['episodes_run']}, Successes: {stats['successes']}")
-            for task_type, results in stats['task_type_results'].items():
-                rate = results['success'] / max(1, results['total'])
+            for task_type, results in stats["task_type_results"].items():
+                rate = results["success"] / max(1, results["total"])
                 logger.info(f"   {task_type}: {rate:.1%} ({results['total']} episodes)")
 
         self.swarm._auto_save_learnings()
@@ -144,11 +146,11 @@ class SwarmWarmup:
 
         runner = self.swarm.runners.get(agent_name)
         if not runner:
-            return {'success': False, 'error': 'No runner', 'execution_time': 0.0}
+            return {"success": False, "error": "No runner", "execution_time": 0.0}
 
         try:
             result = await runner.run(goal=task.description)
-            success = getattr(result, 'success', False)
+            success = getattr(result, "success", False)
             execution_time = time_module.time() - start_time
 
             self.swarm.swarm_intelligence.record_task_result(
@@ -156,24 +158,33 @@ class SwarmWarmup:
                 task_type=task.task_type,
                 success=success,
                 execution_time=execution_time,
-                context={'synthetic': True, 'warmup': True, 'difficulty': task.difficulty,
-                         'curriculum_round': task.metadata.get('curriculum_round', 0)},
+                context={
+                    "synthetic": True,
+                    "warmup": True,
+                    "difficulty": task.difficulty,
+                    "curriculum_round": task.metadata.get("curriculum_round", 0),
+                },
             )
 
             try:
                 self.swarm.transfer_learning.record_experience(
-                    query=task.description[:200], agent=agent_name,
-                    action=task.task_type, reward=1.0 if success else 0.0,
-                    success=success, error='',
-                    context={'synthetic': True, 'warmup': True},
+                    query=task.description[:200],
+                    agent=agent_name,
+                    action=task.task_type,
+                    reward=1.0 if success else 0.0,
+                    success=success,
+                    error="",
+                    context={"synthetic": True, "warmup": True},
                 )
             except Exception:
                 pass
 
             return {
-                'success': success, 'agent': agent_name,
-                'task_type': task.task_type, 'difficulty': task.difficulty,
-                'execution_time': execution_time,
+                "success": success,
+                "agent": agent_name,
+                "task_type": task.task_type,
+                "difficulty": task.difficulty,
+                "execution_time": execution_time,
             }
 
         except Exception as e:
@@ -181,15 +192,20 @@ class SwarmWarmup:
             logger.debug(f"Synthetic episode failed: {e}")
 
             self.swarm.swarm_intelligence.record_task_result(
-                agent_name=agent_name, task_type=task.task_type,
-                success=False, execution_time=execution_time,
-                context={'synthetic': True, 'warmup': True, 'error': str(e)},
+                agent_name=agent_name,
+                task_type=task.task_type,
+                success=False,
+                execution_time=execution_time,
+                context={"synthetic": True, "warmup": True, "error": str(e)},
             )
 
             return {
-                'success': False, 'agent': agent_name,
-                'task_type': task.task_type, 'difficulty': task.difficulty,
-                'execution_time': execution_time, 'error': str(e),
+                "success": False,
+                "agent": agent_name,
+                "task_type": task.task_type,
+                "difficulty": task.difficulty,
+                "execution_time": execution_time,
+                "error": str(e),
             }
 
     def get_recommendation(self) -> Dict[str, Any]:
@@ -201,10 +217,10 @@ class SwarmWarmup:
 
         if total_tasks < 5:
             return {
-                'should_warmup': True,
-                'reason': 'Cold start - no learning history',
-                'recommended_episodes': 15,
-                'weak_areas': list(curriculum.task_templates.keys()),
+                "should_warmup": True,
+                "reason": "Cold start - no learning history",
+                "recommended_episodes": 15,
+                "weak_areas": list(curriculum.task_templates.keys()),
             }
 
         weak_areas = []
@@ -217,10 +233,10 @@ class SwarmWarmup:
 
         if weak_areas:
             return {
-                'should_warmup': True,
-                'reason': f'Weak performance in: {", ".join(weak_areas)}',
-                'recommended_episodes': len(weak_areas) * 5,
-                'weak_areas': weak_areas,
+                "should_warmup": True,
+                "reason": f'Weak performance in: {", ".join(weak_areas)}',
+                "recommended_episodes": len(weak_areas) * 5,
+                "weak_areas": weak_areas,
             }
 
         total_success = sum(sum(s for s, t in p.task_success.values()) for p in profiles.values())
@@ -228,15 +244,15 @@ class SwarmWarmup:
 
         if total_attempts > 0 and total_success / total_attempts < 0.7:
             return {
-                'should_warmup': True,
-                'reason': f'Overall success rate low: {total_success / total_attempts:.1%}',
-                'recommended_episodes': 10,
-                'weak_areas': weak_areas,
+                "should_warmup": True,
+                "reason": f"Overall success rate low: {total_success / total_attempts:.1%}",
+                "recommended_episodes": 10,
+                "weak_areas": weak_areas,
             }
 
         return {
-            'should_warmup': False,
-            'reason': 'Learning state is healthy',
-            'recommended_episodes': 0,
-            'weak_areas': [],
+            "should_warmup": False,
+            "reason": "Learning state is healthy",
+            "recommended_episodes": 0,
+            "weak_areas": [],
         }

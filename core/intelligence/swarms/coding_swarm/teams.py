@@ -8,14 +8,15 @@ Archetypal engineer personas, team presets, and review protocol.
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
-
 # =============================================================================
 # PERSONA & TEAM CONFIG
 # =============================================================================
 
+
 @dataclass
 class TeamPersona:
     """An archetypal engineer persona for team-flavored code generation and review."""
+
     name: str
     archetype: str
     expertise: List[str]
@@ -37,6 +38,7 @@ class TeamPersona:
 @dataclass
 class TeamConfig:
     """Configuration for a team of archetypal engineer personas."""
+
     name: str
     personas: List[TeamPersona]
     role_persona_map: Dict[str, str]
@@ -160,8 +162,13 @@ PERSONA_SIMPLICITY = TeamPersona(
 )
 
 ALL_PERSONAS = [
-    PERSONA_ARCHITECT, PERSONA_PERFORMANCE, PERSONA_QUALITY,
-    PERSONA_ALGORITHM, PERSONA_BACKEND, PERSONA_FRONTEND, PERSONA_SIMPLICITY,
+    PERSONA_ARCHITECT,
+    PERSONA_PERFORMANCE,
+    PERSONA_QUALITY,
+    PERSONA_ALGORITHM,
+    PERSONA_BACKEND,
+    PERSONA_FRONTEND,
+    PERSONA_SIMPLICITY,
 ]
 
 # =============================================================================
@@ -186,11 +193,22 @@ TEAM_PRESETS: Dict[str, TeamConfig] = {
             "Integration": "The Backend Engineer",
         },
         functional_reviewers=["The Architect", "The Backend Engineer", "The Algorithm Specialist"],
-        quality_reviewers=["The Quality Champion", "The Performance Engineer", "The Frontend Specialist", "The Simplicity Champion"],
+        quality_reviewers=[
+            "The Quality Champion",
+            "The Performance Engineer",
+            "The Frontend Specialist",
+            "The Simplicity Champion",
+        ],
     ),
     "datascience": TeamConfig(
         name="datascience",
-        personas=[PERSONA_ARCHITECT, PERSONA_ALGORITHM, PERSONA_QUALITY, PERSONA_PERFORMANCE, PERSONA_SIMPLICITY],
+        personas=[
+            PERSONA_ARCHITECT,
+            PERSONA_ALGORITHM,
+            PERSONA_QUALITY,
+            PERSONA_PERFORMANCE,
+            PERSONA_SIMPLICITY,
+        ],
         role_persona_map={
             "Architect": "The Architect",
             "Developer": "The Algorithm Specialist",
@@ -201,11 +219,21 @@ TEAM_PRESETS: Dict[str, TeamConfig] = {
             "SimplicityJudge": "The Simplicity Champion",
         },
         functional_reviewers=["The Algorithm Specialist", "The Architect"],
-        quality_reviewers=["The Quality Champion", "The Performance Engineer", "The Simplicity Champion"],
+        quality_reviewers=[
+            "The Quality Champion",
+            "The Performance Engineer",
+            "The Simplicity Champion",
+        ],
     ),
     "frontend": TeamConfig(
         name="frontend",
-        personas=[PERSONA_ARCHITECT, PERSONA_FRONTEND, PERSONA_QUALITY, PERSONA_PERFORMANCE, PERSONA_SIMPLICITY],
+        personas=[
+            PERSONA_ARCHITECT,
+            PERSONA_FRONTEND,
+            PERSONA_QUALITY,
+            PERSONA_PERFORMANCE,
+            PERSONA_SIMPLICITY,
+        ],
         role_persona_map={
             "Architect": "The Architect",
             "Developer": "The Frontend Specialist",
@@ -216,6 +244,10 @@ TEAM_PRESETS: Dict[str, TeamConfig] = {
             "SimplicityJudge": "The Simplicity Champion",
         },
         functional_reviewers=["The Frontend Specialist", "The Architect"],
-        quality_reviewers=["The Quality Champion", "The Performance Engineer", "The Simplicity Champion"],
+        quality_reviewers=[
+            "The Quality Champion",
+            "The Performance Engineer",
+            "The Simplicity Champion",
+        ],
     ),
 }

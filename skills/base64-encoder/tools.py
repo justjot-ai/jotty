@@ -1,10 +1,11 @@
 """Base64 Encoder Skill — encode/decode Base64 and hex."""
+
 import base64
 import binascii
-from typing import Dict, Any
+from typing import Any, Dict
 
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("base64-encoder")
 

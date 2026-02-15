@@ -7,39 +7,40 @@ inter-agent communication, and shared scratchpads.
 Extracted from data_structures.py for better organization.
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Any, Optional
-from datetime import datetime
 import json
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 from .enums import CommunicationType
-
 
 # =============================================================================
 # AGENT CONTRIBUTION (Enhanced Credit Assignment)
 # =============================================================================
+
 
 @dataclass
 class AgentContribution:
     """
     Enhanced contribution tracking with reasoning analysis.
     """
+
     agent_name: str
     contribution_score: float  # -1 to 1
 
     # Decision analysis
-    decision: str              # "approve", "reject", "abstain"
+    decision: str  # "approve", "reject", "abstain"
     decision_correct: bool
     counterfactual_impact: float  # Would outcome change without this agent?
 
     # NEW: Reasoning-based credit (Dr. Chen)
-    reasoning_quality: float   # How good was the reasoning
-    evidence_used: List[str]   # What evidence was cited
-    tools_used: List[str]      # What tools were called
+    reasoning_quality: float  # How good was the reasoning
+    evidence_used: List[str]  # What evidence was cited
+    tools_used: List[str]  # What tools were called
 
     # NEW: Temporal credit
-    decision_timing: float     # When in episode (0-1)
-    temporal_weight: float     # Weight based on timing
+    decision_timing: float  # When in episode (0-1)
+    temporal_weight: float  # Weight based on timing
 
     def compute_final_contribution(self) -> float:
         """Compute final contribution with all factors."""
@@ -61,11 +62,13 @@ class AgentContribution:
 # INTER-AGENT COMMUNICATION (Dr. Chen Enhancement)
 # =============================================================================
 
+
 @dataclass
 class AgentMessage:
     """
     NEW: Message for inter-agent communication.
     """
+
     sender: str
     receiver: str  # "*" for broadcast
     message_type: CommunicationType
@@ -87,6 +90,7 @@ class SharedScratchpad:
     """
     NEW: Shared memory space for agent communication.
     """
+
     messages: List[AgentMessage] = field(default_factory=list)
     tool_cache: Dict[str, Any] = field(default_factory=dict)  # Cache tool results
     shared_insights: List[str] = field(default_factory=list)

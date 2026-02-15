@@ -14,11 +14,11 @@ Features:
 """
 
 import logging
-import time
 import random
-from dataclasses import dataclass, field
-from typing import Dict, Any, Optional, Tuple, List
+import time
 from collections import defaultdict
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional, Tuple
 
 from .config import LotusConfig
 
@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ValidationHistory:
     """Validation history for an (agent, operation) pair."""
+
     total_validations: int = 0
     successful_validations: int = 0
     failed_validations: int = 0
@@ -86,6 +87,7 @@ class ValidationHistory:
 @dataclass
 class ValidationDecision:
     """Decision about whether to validate."""
+
     should_validate: bool
     reason: str
     confidence: float
@@ -116,7 +118,13 @@ class AdaptiveValidator:
             validator.record_skip("my_agent", "filter")
     """
 
-    def __init__(self, config: Optional[LotusConfig] = None, skip_threshold: float = 0.95, sample_rate: float = 0.1, min_samples: int = 10) -> None:
+    def __init__(
+        self,
+        config: Optional[LotusConfig] = None,
+        skip_threshold: float = 0.95,
+        sample_rate: float = 0.1,
+        min_samples: int = 10,
+    ) -> None:
         """
         Initialize adaptive validator.
 
@@ -266,8 +274,7 @@ class AdaptiveValidator:
             "agents_tracked": len(set(k[0] for k in self._history)),
             "operations_tracked": len(set(k[1] for k in self._history)),
             "history_by_agent": {
-                k[0]: self._history[k].to_dict()
-                for k in sorted(self._history.keys())
+                k[0]: self._history[k].to_dict() for k in sorted(self._history.keys())
             },
         }
 

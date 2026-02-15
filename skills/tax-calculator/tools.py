@@ -1,33 +1,57 @@
 """Tax Calculator Skill - US federal income tax brackets."""
-from typing import Dict, Any, List
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+
+from typing import Any, Dict, List
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("tax-calculator")
 
 # 2024 US Federal Tax Brackets
 BRACKETS_2024 = {
     "single": [
-        (11600, 0.10), (47150, 0.12), (100525, 0.22), (191950, 0.24),
-        (243725, 0.32), (609350, 0.35), (float("inf"), 0.37),
+        (11600, 0.10),
+        (47150, 0.12),
+        (100525, 0.22),
+        (191950, 0.24),
+        (243725, 0.32),
+        (609350, 0.35),
+        (float("inf"), 0.37),
     ],
     "married_joint": [
-        (23200, 0.10), (94300, 0.12), (201050, 0.22), (383900, 0.24),
-        (487450, 0.32), (731200, 0.35), (float("inf"), 0.37),
+        (23200, 0.10),
+        (94300, 0.12),
+        (201050, 0.22),
+        (383900, 0.24),
+        (487450, 0.32),
+        (731200, 0.35),
+        (float("inf"), 0.37),
     ],
     "married_separate": [
-        (11600, 0.10), (47150, 0.12), (100525, 0.22), (191950, 0.24),
-        (243725, 0.32), (365600, 0.35), (float("inf"), 0.37),
+        (11600, 0.10),
+        (47150, 0.12),
+        (100525, 0.22),
+        (191950, 0.24),
+        (243725, 0.32),
+        (365600, 0.35),
+        (float("inf"), 0.37),
     ],
     "head_of_household": [
-        (16550, 0.10), (63100, 0.12), (100500, 0.22), (191950, 0.24),
-        (243700, 0.32), (609350, 0.35), (float("inf"), 0.37),
+        (16550, 0.10),
+        (63100, 0.12),
+        (100500, 0.22),
+        (191950, 0.24),
+        (243700, 0.32),
+        (609350, 0.35),
+        (float("inf"), 0.37),
     ],
 }
 
 STANDARD_DEDUCTIONS_2024 = {
-    "single": 14600, "married_joint": 29200,
-    "married_separate": 14600, "head_of_household": 21900,
+    "single": 14600,
+    "married_joint": 29200,
+    "married_separate": 14600,
+    "head_of_household": 21900,
 }
 
 
@@ -47,12 +71,18 @@ def _calc_tax(taxable_income: float, brackets: list) -> tuple:
         bracket_tax = round(bracket_income * rate, 2)
         tax += bracket_tax
         marginal_rate = rate
-        breakdown.append({
-            "bracket": f"{int(rate * 100)}%",
-            "income_in_bracket": round(bracket_income, 2),
-            "tax": bracket_tax,
-            "range": f"${prev_limit:,.0f} - ${limit:,.0f}" if limit != float("inf") else f"${prev_limit:,.0f}+",
-        })
+        breakdown.append(
+            {
+                "bracket": f"{int(rate * 100)}%",
+                "income_in_bracket": round(bracket_income, 2),
+                "tax": bracket_tax,
+                "range": (
+                    f"${prev_limit:,.0f} - ${limit:,.0f}"
+                    if limit != float("inf")
+                    else f"${prev_limit:,.0f}+"
+                ),
+            }
+        )
         prev_limit = limit
         if taxable_income <= limit:
             break

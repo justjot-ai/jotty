@@ -40,7 +40,7 @@ get_docker_compose_cmd() {
 # Environment setup
 setup_environment() {
     print_status "Setting up environment..."
-    
+
     if ! file_exists ".env"; then
         print_warning ".env file not found, creating from template..."
         cp .env.example .env
@@ -61,7 +61,7 @@ create_directories() {
 # Database initialization
 initialize_database() {
     print_status "Initializing database..."
-    
+
     if ! file_exists "data/stock_market.db"; then
         sqlite3 data/stock_market.db < schema.sql
         print_success "Database initialized"
@@ -73,7 +73,7 @@ initialize_database() {
 # Python dependencies installation
 install_python_dependencies() {
     print_status "Installing Python dependencies..."
-    
+
     if command_exists poetry; then
         poetry install
     elif file_exists requirements.txt; then
@@ -87,13 +87,13 @@ install_python_dependencies() {
 # Frontend dependencies installation
 install_frontend_dependencies() {
     print_status "Installing frontend dependencies..."
-    
+
     if ! directory_exists frontend; then
         return 0
     fi
-    
+
     cd frontend || return 1
-    
+
     if file_exists package.json; then
         if command_exists yarn; then
             yarn install
@@ -104,7 +104,7 @@ install_frontend_dependencies() {
     else
         print_warning "No package.json found in frontend directory"
     fi
-    
+
     cd .. || return 1
 }
 
@@ -113,7 +113,7 @@ create_nginx_config() {
     if file_exists nginx.conf; then
         return 0
     fi
-    
+
     print_status "Creating nginx configuration..."
     cat > nginx.conf << 'EOF'
 events {
@@ -124,29 +124,29 @@ http {
     upstream backend {
         server backend:8000;
     }
-    
+
     upstream frontend {
         server frontend:3000;
     }
-    
+
     server {
         listen 80;
-        
+
         location /api/ {
             proxy_pass http://backend/;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         }
-        
+
         location /docs {
             proxy_pass http://backend/docs;
         }
-        
+
         location /openapi.json {
             proxy_pass http://backend/openapi.json;
         }
-        
+
         location / {
             proxy_pass http://frontend/;
             proxy_set_header Host $host;
@@ -169,7 +169,7 @@ create_backend_dockerfile() {
     if file_exists Dockerfile.backend; then
         return 0
     fi
-    
+
     print_status "Creating backend Dockerfile..."
     cat > Dockerfile.backend << 'EOF'
 FROM python:3.11-slim
@@ -201,7 +201,7 @@ create_frontend_dockerfile() {
     if file_exists frontend/Dockerfile; then
         return 0
     fi
-    
+
     print_status "Creating frontend Dockerfile..."
     cat > frontend/Dockerfile << 'EOF'
 FROM node:18-alpine
@@ -227,30 +227,30 @@ EOF
 # Service management functions
 start_docker_services() {
     print_status "Starting services with Docker Compose..."
-    
+
     if ! command_exists docker; then
         print_error "Docker not found. Please install Docker and Docker Compose."
         exit 1
     fi
-    
+
     local docker_compose_cmd
     docker_compose_cmd=$(get_docker_compose_cmd)
-    
+
     $docker_compose_cmd down
     $docker_compose_cmd up --build -d
-    
+
     print_success "Services started with Docker Compose"
     print_service_urls
 }
 
 start_local_services() {
     print_status "Starting services locally..."
-    
+
     start_redis_if_needed
     start_celery_services
     start_backend_service
     start_frontend_service
-    
+
     print_success "Services started locally"
 }
 
@@ -258,9 +258,9 @@ start_production_services() {
     print_status "Starting services in production mode..."
     export API_ENV=production
     export API_RELOAD=false
-    
+
     build_frontend_for_production
-    
+
     local docker_compose_cmd
     docker_compose_cmd=$(get_docker_compose_cmd)
     $docker_compose_cmd -f docker-compose.yml -f docker-compose.prod.yml up -d
@@ -277,7 +277,7 @@ start_redis_if_needed() {
 start_celery_services() {
     print_status "Starting Celery worker..."
     celery -A app.celery worker --loglevel=info &
-    
+
     print_status "Starting Celery beat..."
     celery -A app.celery beat --loglevel=info &
 }
@@ -291,16 +291,16 @@ start_frontend_service() {
     if ! directory_exists frontend; then
         return 0
     fi
-    
+
     print_status "Starting React frontend..."
     cd frontend || return 1
-    
+
     if command_exists yarn && file_exists yarn.lock; then
         yarn start &
     else
         npm start &
     fi
-    
+
     cd .. || return 1
 }
 
@@ -308,15 +308,15 @@ build_frontend_for_production() {
     if ! directory_exists frontend; then
         return 0
     fi
-    
+
     cd frontend || return 1
-    
+
     if command_exists yarn && file_exists yarn.lock; then
         yarn build
     else
         npm run build
     fi
-    
+
     cd .. || return 1
 }
 
@@ -329,7 +329,7 @@ print_service_urls() {
 # Main service control functions
 start_services() {
     local mode=${1:-docker}
-    
+
     case $mode in
         docker)
             start_docker_services
@@ -349,14 +349,14 @@ start_services() {
 
 stop_services() {
     print_status "Stopping services..."
-    
+
     local docker_compose_cmd
     docker_compose_cmd=$(get_docker_compose_cmd)
     $docker_compose_cmd down
-    
+
     pkill -f celery 2>/dev/null || true
     pkill -f uvicorn 2>/dev/null || true
-    
+
     print_success "Services stopped"
 }
 
@@ -368,12 +368,12 @@ show_logs() {
 
 clean_environment() {
     print_status "Cleaning up..."
-    
+
     local docker_compose_cmd
     docker_compose_cmd=$(get_docker_compose_cmd)
     $docker_compose_cmd down -v
     docker system prune -f
-    
+
     rm -rf data/*.db logs/*
     print_success "Cleanup completed"
 }
@@ -382,13 +382,13 @@ clean_environment() {
 health_check() {
     print_status "Performing health check..."
     sleep 5
-    
+
     if curl -f http://localhost:8000/health > /dev/null 2>&1; then
         print_success "Backend is healthy"
     else
         print_warning "Backend health check failed"
     fi
-    
+
     if curl -f http://localhost:3000 > /dev/null 2>&1; then
         print_success "Frontend is healthy"
     else
@@ -409,7 +409,7 @@ show_usage() {
 # Main initialization
 main() {
     local mode=${1:-docker}
-    
+
     # Setup phase
     setup_environment
     create_directories
@@ -418,7 +418,7 @@ main() {
     install_frontend_dependencies
     create_nginx_config
     create_docker_configs
-    
+
     # Execution phase
     case $mode in
         docker|local|production)

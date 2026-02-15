@@ -4,15 +4,18 @@ Tests for Q-Learning Module
 Covers LLMQPredictor: init, Q-value estimation, state/action handling,
 experience management, tiered memory, and persistence.
 """
-import time
+
 import json
-import tempfile
 import os
+import tempfile
+import time
+from unittest.mock import MagicMock, PropertyMock, patch
+
 import pytest
-from unittest.mock import MagicMock, patch, PropertyMock
 
 try:
     import dspy
+
     DSPY_AVAILABLE = True
 except ImportError:
     DSPY_AVAILABLE = False
@@ -21,24 +24,25 @@ except ImportError:
 def _make_config(**overrides):
     """Create a minimal mock config for LLMQPredictor."""
     config = MagicMock()
-    config.tier1_max_size = overrides.get('tier1_max_size', 50)
-    config.tier2_max_clusters = overrides.get('tier2_max_clusters', 10)
-    config.tier3_max_size = overrides.get('tier3_max_size', 500)
-    config.max_experience_buffer = overrides.get('max_experience_buffer', 1000)
-    config.alpha = overrides.get('alpha', 0.1)
-    config.gamma = overrides.get('gamma', 0.99)
-    config.epsilon = overrides.get('epsilon', 0.1)
-    config.max_q_table_size = overrides.get('max_q_table_size', 10000)
-    config.q_prune_percentage = overrides.get('q_prune_percentage', 0.2)
-    config.q_value_mode = overrides.get('q_value_mode', 'simple')
+    config.tier1_max_size = overrides.get("tier1_max_size", 50)
+    config.tier2_max_clusters = overrides.get("tier2_max_clusters", 10)
+    config.tier3_max_size = overrides.get("tier3_max_size", 500)
+    config.max_experience_buffer = overrides.get("max_experience_buffer", 1000)
+    config.alpha = overrides.get("alpha", 0.1)
+    config.gamma = overrides.get("gamma", 0.99)
+    config.epsilon = overrides.get("epsilon", 0.1)
+    config.max_q_table_size = overrides.get("max_q_table_size", 10000)
+    config.q_prune_percentage = overrides.get("q_prune_percentage", 0.2)
+    config.q_value_mode = overrides.get("q_value_mode", "simple")
     return config
 
 
 def _make_predictor(**config_overrides):
     """Create an LLMQPredictor with mocked dspy internals."""
-    with patch('dspy.ChainOfThought') as mock_cot:
+    with patch("dspy.ChainOfThought") as mock_cot:
         mock_cot.return_value = MagicMock()
         from Jotty.core.intelligence.learning.q_learning import LLMQPredictor
+
         config = _make_config(**config_overrides)
         predictor = LLMQPredictor(config)
     return predictor
@@ -88,24 +92,24 @@ class TestStateToNaturalLanguage:
     def test_state_with_query_extracts_intent(self):
         """State with query field extracts QUERY and INTENT."""
         predictor = _make_predictor()
-        state = {'query': 'count total transactions yesterday'}
+        state = {"query": "count total transactions yesterday"}
         result = predictor._state_to_natural_language(state)
-        assert 'QUERY:' in result
-        assert 'COUNT' in result
+        assert "QUERY:" in result
+        assert "COUNT" in result
 
     def test_state_with_tables_and_errors(self):
         """State with tables and error info is captured in description."""
         predictor = _make_predictor()
         state = {
-            'tables': ['schema.fact_transactions'],
-            'errors': [{'type': 'COLUMN_NOT_FOUND', 'column': 'txn_date'}],
-            'working_column': 'dl_last_updated'
+            "tables": ["schema.fact_transactions"],
+            "errors": [{"type": "COLUMN_NOT_FOUND", "column": "txn_date"}],
+            "working_column": "dl_last_updated",
         }
         result = predictor._state_to_natural_language(state)
-        assert 'TABLES:' in result
-        assert 'fact_transactions' in result
-        assert 'ERRORS:' in result
-        assert 'WORKING_COL:' in result
+        assert "TABLES:" in result
+        assert "fact_transactions" in result
+        assert "ERRORS:" in result
+        assert "WORKING_COL:" in result
 
     def test_state_fallback_shows_keys(self):
         """State with only skip_keys falls back to STATE_KEYS."""
@@ -114,7 +118,7 @@ class TestStateToNaturalLanguage:
         # but 'todo' as a dict will go through the todo section (section 10)
         # Use a key that IS in skip_keys but with a value that wont produce
         # output in the dedicated sections (e.g., empty list)
-        state = {'todo': {}, 'attempts': None, 'success': None}
+        state = {"todo": {}, "attempts": None, "success": None}
         result = predictor._state_to_natural_language(state)
         # At minimum it should produce some output, not crash
         assert isinstance(result, str)
@@ -135,11 +139,11 @@ class TestActionToNaturalLanguage:
     def test_action_with_actor_and_task(self):
         """Action with actor and task fields produces rich description."""
         predictor = _make_predictor()
-        action = {'actor': 'SQLGenerator', 'task': 'Generate SQL', 'tool': 'execute_query'}
+        action = {"actor": "SQLGenerator", "task": "Generate SQL", "tool": "execute_query"}
         result = predictor._action_to_natural_language(action)
-        assert 'ACTOR: SQLGenerator' in result
-        assert 'TASK: Generate SQL' in result
-        assert 'TOOL: execute_query' in result
+        assert "ACTOR: SQLGenerator" in result
+        assert "TASK: Generate SQL" in result
+        assert "TOOL: execute_query" in result
 
 
 @pytest.mark.skipif(not DSPY_AVAILABLE, reason="dspy not installed")
@@ -150,22 +154,22 @@ class TestQValueUpdates:
     def test_add_experience_creates_q_entry(self):
         """Adding experience creates entry in Q-table."""
         predictor = _make_predictor()
-        state = {'query': 'count users'}
-        action = {'actor': 'SQL', 'task': 'generate'}
+        state = {"query": "count users"}
+        action = {"actor": "SQL", "task": "generate"}
         predictor.add_experience(state, action, 0.8)
 
         assert len(predictor.Q) == 1
         assert len(predictor.experience_buffer) == 1
         entry = list(predictor.Q.values())[0]
-        assert entry['visit_count'] == 1
-        assert 0.0 <= entry['value'] <= 1.0
+        assert entry["visit_count"] == 1
+        assert 0.0 <= entry["value"] <= 1.0
 
     def test_q_value_clamped_to_unit_interval(self):
         """Q-values are always clamped to [0, 1]."""
         predictor = _make_predictor()
         # Add a very high reward to try pushing Q above 1.0
-        state = {'query': 'test clamping'}
-        action = {'actor': 'tester'}
+        state = {"query": "test clamping"}
+        action = {"actor": "tester"}
         for _ in range(20):
             predictor.add_experience(state, action, 1.0)
 
@@ -177,8 +181,8 @@ class TestQValueUpdates:
     def test_experience_buffer_bounded(self):
         """Experience buffer respects max size by evicting low-priority items."""
         predictor = _make_predictor(max_experience_buffer=5)
-        state = {'query': 'buffer test'}
-        action = {'actor': 'bot'}
+        state = {"query": "buffer test"}
+        action = {"actor": "bot"}
 
         for i in range(10):
             predictor.add_experience(state, action, float(i) / 10)
@@ -188,23 +192,23 @@ class TestQValueUpdates:
     def test_record_outcome_wraps_non_dict_action(self):
         """record_outcome converts non-dict action to dict."""
         predictor = _make_predictor()
-        predictor.record_outcome({'query': 'test'}, 'some_actor', 0.5)
+        predictor.record_outcome({"query": "test"}, "some_actor", 0.5)
         assert len(predictor.experience_buffer) == 1
         exp = predictor.experience_buffer[0]
-        assert exp['action'] == {'actor': 'some_actor'}
+        assert exp["action"] == {"actor": "some_actor"}
 
     def test_visit_count_increments(self):
         """Repeated experiences for same state-action increment visit count."""
         predictor = _make_predictor()
-        state = {'query': 'repeated'}
-        action = {'actor': 'bot'}
+        state = {"query": "repeated"}
+        action = {"actor": "bot"}
 
         predictor.add_experience(state, action, 0.5)
         predictor.add_experience(state, action, 0.7)
         predictor.add_experience(state, action, 0.9)
 
         entry = list(predictor.Q.values())[0]
-        assert entry['visit_count'] == 3
+        assert entry["visit_count"] == 3
 
 
 @pytest.mark.skipif(not DSPY_AVAILABLE, reason="dspy not installed")
@@ -216,9 +220,14 @@ class TestQTableLookup:
         """Exact key match returns stored Q-value."""
         predictor = _make_predictor()
         predictor.Q[("state_a", "action_a")] = {
-            'value': 0.75, 'visit_count': 3, 'context': [],
-            'learned_lessons': [], 'td_errors': [], 'avg_reward': 0.7,
-            'created_at': time.time(), 'last_updated': time.time()
+            "value": 0.75,
+            "visit_count": 3,
+            "context": [],
+            "learned_lessons": [],
+            "td_errors": [],
+            "avg_reward": 0.7,
+            "created_at": time.time(),
+            "last_updated": time.time(),
         }
         result = predictor._get_q_value_from_table("state_a", "action_a")
         assert result == 0.75
@@ -234,14 +243,18 @@ class TestQTableLookup:
         predictor = _make_predictor()
         # Use structured descriptions that will match via _are_similar
         predictor.Q[("QUERY: count all transactions | TABLES: fact_txn", "ACTOR: SQLGen")] = {
-            'value': 0.8, 'visit_count': 5, 'context': [],
-            'learned_lessons': [], 'td_errors': [], 'avg_reward': 0.7,
-            'created_at': time.time(), 'last_updated': time.time()
+            "value": 0.8,
+            "visit_count": 5,
+            "context": [],
+            "learned_lessons": [],
+            "td_errors": [],
+            "avg_reward": 0.7,
+            "created_at": time.time(),
+            "last_updated": time.time(),
         }
         # Similar structured description with shared fields
         result = predictor._get_q_value_from_table(
-            "QUERY: count all transactions | TABLES: fact_txn | FILTERS: date",
-            "ACTOR: SQLGen"
+            "QUERY: count all transactions | TABLES: fact_txn | FILTERS: date", "ACTOR: SQLGen"
         )
         # Should be 0.8 * 0.9 = 0.72 (from similar match discount)
         assert abs(result - 0.72) < 0.01
@@ -260,20 +273,21 @@ class TestSimilarityAndParsing:
     def test_structured_field_parsing(self):
         """Structured KEY: value descriptions are parsed correctly."""
         predictor = _make_predictor()
-        fields = predictor._parse_structured_fields("QUERY: count users | TABLES: users_table | ACTOR: SQL")
-        assert fields == {
-            'QUERY': 'count users',
-            'TABLES': 'users_table',
-            'ACTOR': 'SQL'
-        }
+        fields = predictor._parse_structured_fields(
+            "QUERY: count users | TABLES: users_table | ACTOR: SQL"
+        )
+        assert fields == {"QUERY": "count users", "TABLES": "users_table", "ACTOR": "SQL"}
 
     def test_dissimilar_strings(self):
         """Completely different strings are not similar."""
         predictor = _make_predictor()
-        assert predictor._are_similar(
-            "QUERY: count stock prices | TABLES: stocks",
-            "ACTOR: email_sender | TOOL: smtp_client"
-        ) is False
+        assert (
+            predictor._are_similar(
+                "QUERY: count stock prices | TABLES: stocks",
+                "ACTOR: email_sender | TOOL: smtp_client",
+            )
+            is False
+        )
 
 
 @pytest.mark.skipif(not DSPY_AVAILABLE, reason="dspy not installed")
@@ -291,23 +305,19 @@ class TestExtractLesson:
         """High reward (> 0.7) with significant TD error produces SUCCESS lesson."""
         predictor = _make_predictor()
         result = predictor._extract_lesson(
-            "QUERY: count txn | TABLES: fact_txn",
-            "ACTOR: SQLGen | TOOL: execute",
-            0.9, 0.3
+            "QUERY: count txn | TABLES: fact_txn", "ACTOR: SQLGen | TOOL: execute", 0.9, 0.3
         )
         assert result is not None
-        assert 'SUCCESS' in result
+        assert "SUCCESS" in result
 
     def test_low_reward_produces_failure_lesson(self):
         """Low reward (< 0.3) with significant TD error produces FAILED lesson."""
         predictor = _make_predictor()
         result = predictor._extract_lesson(
-            "QUERY: bad query | COLS_TRIED: date,dt",
-            "ACTOR: SQLGen",
-            0.1, -0.4
+            "QUERY: bad query | COLS_TRIED: date,dt", "ACTOR: SQLGen", 0.1, -0.4
         )
         assert result is not None
-        assert 'AVOID' in result or 'FAILED' in result
+        assert "AVOID" in result or "FAILED" in result
 
 
 @pytest.mark.skipif(not DSPY_AVAILABLE, reason="dspy not installed")
@@ -317,26 +327,24 @@ class TestPredictQValue:
 
     def test_simple_mode_returns_average_reward(self):
         """Simple mode returns average reward for actor from experience buffer."""
-        predictor = _make_predictor(q_value_mode='simple')
+        predictor = _make_predictor(q_value_mode="simple")
         # Populate experience buffer with known actor rewards
         predictor.experience_buffer = [
-            {'action': {'actor': 'SQL'}, 'reward': 0.6, 'state_desc': '', 'action_desc': ''},
-            {'action': {'actor': 'SQL'}, 'reward': 0.8, 'state_desc': '', 'action_desc': ''},
+            {"action": {"actor": "SQL"}, "reward": 0.6, "state_desc": "", "action_desc": ""},
+            {"action": {"actor": "SQL"}, "reward": 0.8, "state_desc": "", "action_desc": ""},
         ]
-        q_val, conf, alt = predictor.predict_q_value(
-            {'query': 'test'}, {'actor': 'SQL'}
-        )
+        q_val, conf, alt = predictor.predict_q_value({"query": "test"}, {"actor": "SQL"})
         assert abs(q_val - 0.7) < 0.01
         assert conf == 0.9
         assert alt is None
 
     def test_simple_mode_no_experience_falls_through(self):
         """Simple mode with no matching experiences falls back to LLM/table."""
-        predictor = _make_predictor(q_value_mode='simple')
+        predictor = _make_predictor(q_value_mode="simple")
         # Mock the predictor to raise so we hit the fallback path
         predictor.predictor = MagicMock(side_effect=Exception("no LLM"))
         q_val, conf, alt = predictor.predict_q_value(
-            {'query': 'unknown'}, {'actor': 'unknown_actor'}
+            {"query": "unknown"}, {"actor": "unknown_actor"}
         )
         # Should return a value (from fallback), not raise
         assert isinstance(q_val, float)
@@ -351,7 +359,7 @@ class TestBestAction:
     def test_no_actions_returns_none(self):
         """No available actions returns None with neutral Q-value."""
         predictor = _make_predictor()
-        action, q_val, reasoning = predictor.get_best_action({'query': 'x'}, [])
+        action, q_val, reasoning = predictor.get_best_action({"query": "x"}, [])
         assert action is None
         assert q_val == 0.5
 
@@ -361,27 +369,37 @@ class TestBestAction:
         predictor.epsilon = 0.0  # Ensure no exploration
 
         # Pre-populate Q-table so one action has higher value
-        s_desc = predictor._state_to_natural_language({'query': 'test'})
-        a1_desc = predictor._action_to_natural_language({'actor': 'A'})
-        a2_desc = predictor._action_to_natural_language({'actor': 'B'})
+        s_desc = predictor._state_to_natural_language({"query": "test"})
+        a1_desc = predictor._action_to_natural_language({"actor": "A"})
+        a2_desc = predictor._action_to_natural_language({"actor": "B"})
 
         predictor.Q[(s_desc, a1_desc)] = {
-            'value': 0.9, 'visit_count': 5, 'context': [],
-            'learned_lessons': [], 'td_errors': [], 'avg_reward': 0.9,
-            'created_at': time.time(), 'last_updated': time.time()
+            "value": 0.9,
+            "visit_count": 5,
+            "context": [],
+            "learned_lessons": [],
+            "td_errors": [],
+            "avg_reward": 0.9,
+            "created_at": time.time(),
+            "last_updated": time.time(),
         }
         predictor.Q[(s_desc, a2_desc)] = {
-            'value': 0.3, 'visit_count': 2, 'context': [],
-            'learned_lessons': [], 'td_errors': [], 'avg_reward': 0.3,
-            'created_at': time.time(), 'last_updated': time.time()
+            "value": 0.3,
+            "visit_count": 2,
+            "context": [],
+            "learned_lessons": [],
+            "td_errors": [],
+            "avg_reward": 0.3,
+            "created_at": time.time(),
+            "last_updated": time.time(),
         }
 
         action, q_val, reasoning = predictor.get_best_action(
-            {'query': 'test'}, [{'actor': 'A'}, {'actor': 'B'}]
+            {"query": "test"}, [{"actor": "A"}, {"actor": "B"}]
         )
-        assert action == {'actor': 'A'}
+        assert action == {"actor": "A"}
         assert q_val == 0.9
-        assert 'Exploiting' in reasoning
+        assert "Exploiting" in reasoning
 
 
 @pytest.mark.skipif(not DSPY_AVAILABLE, reason="dspy not installed")
@@ -393,8 +411,7 @@ class TestExperienceReplay:
         """Replay returns 0 when buffer is smaller than batch size."""
         predictor = _make_predictor()
         predictor.experience_buffer = [
-            {'state_desc': 's', 'action_desc': 'a', 'reward': 0.5,
-             'done': False, 'priority': 1.0}
+            {"state_desc": "s", "action_desc": "a", "reward": 0.5, "done": False, "priority": 1.0}
         ]
         result = predictor.experience_replay(batch_size=32)
         assert result == 0
@@ -404,15 +421,17 @@ class TestExperienceReplay:
         predictor = _make_predictor()
         # Fill buffer with enough experiences
         for i in range(50):
-            predictor.experience_buffer.append({
-                'state_desc': f'state_{i}',
-                'action_desc': f'action_{i}',
-                'reward': 0.5,
-                'next_state_desc': None,
-                'done': False,
-                'priority': 1.0,
-                'timestamp': time.time()
-            })
+            predictor.experience_buffer.append(
+                {
+                    "state_desc": f"state_{i}",
+                    "action_desc": f"action_{i}",
+                    "reward": 0.5,
+                    "next_state_desc": None,
+                    "done": False,
+                    "priority": 1.0,
+                    "timestamp": time.time(),
+                }
+            )
 
         updates = predictor.experience_replay(batch_size=10)
         assert updates == 10
@@ -429,44 +448,56 @@ class TestQTableStats:
         """Empty Q-table returns zero stats."""
         predictor = _make_predictor()
         stats = predictor.get_q_table_summary()
-        assert stats['size'] == 0
-        assert stats['total_visits'] == 0
+        assert stats["size"] == 0
+        assert stats["total_visits"] == 0
 
     def test_populated_q_table_stats(self):
         """Populated Q-table returns correct aggregate stats."""
         predictor = _make_predictor()
         predictor.Q[("s1", "a1")] = {
-            'value': 0.8, 'visit_count': 3, 'context': [],
-            'learned_lessons': ['lesson1'], 'td_errors': [0.1],
-            'avg_reward': 0.7, 'created_at': time.time(),
-            'last_updated': time.time()
+            "value": 0.8,
+            "visit_count": 3,
+            "context": [],
+            "learned_lessons": ["lesson1"],
+            "td_errors": [0.1],
+            "avg_reward": 0.7,
+            "created_at": time.time(),
+            "last_updated": time.time(),
         }
         predictor.Q[("s2", "a2")] = {
-            'value': 0.4, 'visit_count': 1, 'context': [],
-            'learned_lessons': [], 'td_errors': [0.2],
-            'avg_reward': 0.4, 'created_at': time.time(),
-            'last_updated': time.time()
+            "value": 0.4,
+            "visit_count": 1,
+            "context": [],
+            "learned_lessons": [],
+            "td_errors": [0.2],
+            "avg_reward": 0.4,
+            "created_at": time.time(),
+            "last_updated": time.time(),
         }
         stats = predictor.get_q_table_summary()
-        assert stats['size'] == 2
-        assert stats['total_visits'] == 4
-        assert stats['max_value'] == 0.8
-        assert stats['min_value'] == 0.4
-        assert stats['total_lessons'] == 1
+        assert stats["size"] == 2
+        assert stats["total_visits"] == 4
+        assert stats["max_value"] == 0.8
+        assert stats["min_value"] == 0.4
+        assert stats["total_lessons"] == 1
 
     def test_get_q_table_stats_utilization(self):
         """get_q_table_stats returns utilization ratio."""
         predictor = _make_predictor(max_q_table_size=100)
         predictor.Q[("s1", "a1")] = {
-            'value': 0.5, 'visit_count': 1, 'context': [],
-            'learned_lessons': [], 'td_errors': [],
-            'avg_reward': 0.5, 'created_at': time.time(),
-            'last_updated': time.time()
+            "value": 0.5,
+            "visit_count": 1,
+            "context": [],
+            "learned_lessons": [],
+            "td_errors": [],
+            "avg_reward": 0.5,
+            "created_at": time.time(),
+            "last_updated": time.time(),
         }
         stats = predictor.get_q_table_stats()
-        assert stats['size'] == 1
-        assert stats['max_size'] == 100
-        assert abs(stats['utilization'] - 0.01) < 0.001
+        assert stats["size"] == 1
+        assert stats["max_size"] == 100
+        assert abs(stats["utilization"] - 0.01) < 0.001
 
 
 @pytest.mark.skipif(not DSPY_AVAILABLE, reason="dspy not installed")
@@ -478,10 +509,14 @@ class TestQTablePruning:
         """No entries pruned when table is below max size."""
         predictor = _make_predictor(max_q_table_size=100)
         predictor.Q[("s1", "a1")] = {
-            'value': 0.5, 'visit_count': 1, 'context': [],
-            'learned_lessons': [], 'td_errors': [],
-            'avg_reward': 0.5, 'created_at': time.time(),
-            'last_updated': time.time()
+            "value": 0.5,
+            "visit_count": 1,
+            "context": [],
+            "learned_lessons": [],
+            "td_errors": [],
+            "avg_reward": 0.5,
+            "created_at": time.time(),
+            "last_updated": time.time(),
         }
         pruned = predictor._enforce_q_table_limits()
         assert pruned == 0
@@ -494,14 +529,14 @@ class TestQTablePruning:
         # Add 10 entries, some high-value and some low-value
         for i in range(10):
             predictor.Q[(f"state_{i}", f"action_{i}")] = {
-                'value': 0.1 if i < 5 else 0.9,
-                'visit_count': 1 if i < 5 else 10,
-                'context': [],
-                'learned_lessons': [] if i < 5 else ['important'],
-                'td_errors': [0.01] if i < 5 else [0.5],
-                'avg_reward': 0.1 if i < 5 else 0.9,
-                'created_at': now - 7200 if i < 5 else now,
-                'last_updated': now - 7200 if i < 5 else now
+                "value": 0.1 if i < 5 else 0.9,
+                "visit_count": 1 if i < 5 else 10,
+                "context": [],
+                "learned_lessons": [] if i < 5 else ["important"],
+                "td_errors": [0.01] if i < 5 else [0.5],
+                "avg_reward": 0.1 if i < 5 else 0.9,
+                "created_at": now - 7200 if i < 5 else now,
+                "last_updated": now - 7200 if i < 5 else now,
             }
 
         pruned = predictor._enforce_q_table_limits()
@@ -517,12 +552,12 @@ class TestPersistence:
     def test_save_and_load_roundtrip(self):
         """Q-table and experience buffer survive save/load roundtrip."""
         predictor = _make_predictor()
-        state = {'query': 'count users'}
-        action = {'actor': 'SQL'}
+        state = {"query": "count users"}
+        action = {"actor": "SQL"}
         predictor.add_experience(state, action, 0.8)
         predictor.add_experience(state, action, 0.6)
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             path = f.name
 
         try:
@@ -540,7 +575,7 @@ class TestPersistence:
             # Verify Q-values match
             for key in predictor.Q:
                 assert key in predictor2.Q
-                assert abs(predictor2.Q[key]['value'] - predictor.Q[key]['value']) < 0.001
+                assert abs(predictor2.Q[key]["value"] - predictor.Q[key]["value"]) < 0.001
         finally:
             os.unlink(path)
 
@@ -559,26 +594,30 @@ class TestLearnedContext:
     def test_no_lessons_returns_empty_string(self):
         """With empty Q-table, learned context is empty string."""
         predictor = _make_predictor()
-        result = predictor.get_learned_context({'query': 'test'})
+        result = predictor.get_learned_context({"query": "test"})
         assert result == ""
 
     def test_lessons_included_in_context(self):
         """Stored lessons appear in learned context output."""
         predictor = _make_predictor()
-        state = {'query': 'count transactions'}
-        action = {'actor': 'SQL'}
+        state = {"query": "count transactions"}
+        action = {"actor": "SQL"}
 
         state_desc = predictor._state_to_natural_language(state)
         action_desc = predictor._action_to_natural_language(action)
 
         predictor.Q[(state_desc, action_desc)] = {
-            'value': 0.8, 'visit_count': 3, 'context': [],
-            'learned_lessons': ['Use partition column for date filters'],
-            'td_errors': [0.2], 'avg_reward': 0.8,
-            'created_at': time.time(), 'last_updated': time.time()
+            "value": 0.8,
+            "visit_count": 3,
+            "context": [],
+            "learned_lessons": ["Use partition column for date filters"],
+            "td_errors": [0.2],
+            "avg_reward": 0.8,
+            "created_at": time.time(),
+            "last_updated": time.time(),
         }
 
         result = predictor.get_learned_context(state, action)
-        assert 'Q-Learning Lessons' in result
-        assert 'Use partition column' in result
-        assert 'Expected Value' in result
+        assert "Q-Learning Lessons" in result
+        assert "Use partition column" in result
+        assert "Expected Value" in result

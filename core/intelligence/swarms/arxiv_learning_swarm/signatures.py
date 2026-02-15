@@ -2,6 +2,7 @@
 
 import dspy
 
+
 class ConceptExtractionSignature(dspy.Signature):
     """Extract key concepts from a paper.
 
@@ -13,12 +14,17 @@ class ConceptExtractionSignature(dspy.Signature):
 
     Think like a teacher planning a lesson.
     """
+
     paper_title: str = dspy.InputField(desc="Paper title")
     abstract: str = dspy.InputField(desc="Paper abstract")
     full_text_summary: str = dspy.InputField(desc="Summary of full paper if available")
 
-    concepts: str = dspy.OutputField(desc="JSON list of concepts with name, description, why_it_matters, prerequisites, difficulty(1-5)")
-    learning_order: str = dspy.OutputField(desc="Recommended order to learn concepts, separated by |")
+    concepts: str = dspy.OutputField(
+        desc="JSON list of concepts with name, description, why_it_matters, prerequisites, difficulty(1-5)"
+    )
+    learning_order: str = dspy.OutputField(
+        desc="Recommended order to learn concepts, separated by |"
+    )
     key_innovation: str = dspy.OutputField(desc="The ONE key innovation in simple terms")
 
 
@@ -36,6 +42,7 @@ class IntuitionBuilderSignature(dspy.Signature):
 
     NO jargon until intuition is solid.
     """
+
     concept: str = dspy.InputField(desc="Concept to explain")
     why_it_matters: str = dspy.InputField(desc="Why this concept matters")
     audience_level: str = dspy.InputField(desc="Starting knowledge level")
@@ -43,7 +50,9 @@ class IntuitionBuilderSignature(dspy.Signature):
 
     hook: str = dspy.OutputField(desc="Opening hook that grabs attention - why should they care?")
     analogy: str = dspy.OutputField(desc="Real-world analogy that captures the essence")
-    intuition_build: str = dspy.OutputField(desc="Step-by-step intuition building, each step on new line")
+    intuition_build: str = dspy.OutputField(
+        desc="Step-by-step intuition building, each step on new line"
+    )
     aha_moment: str = dspy.OutputField(desc="The 'Bingo!' moment where it all clicks")
     check_understanding: str = dspy.OutputField(desc="Question to verify they got it")
 
@@ -62,16 +71,25 @@ class MathSimplifierSignature(dspy.Signature):
 
     Math should feel like a natural next step, not a wall.
     """
+
     concept: str = dspy.InputField(desc="Concept with its math")
     intuition: str = dspy.InputField(desc="The intuition already built")
     equations: str = dspy.InputField(desc="Key equations to explain")
     audience_level: str = dspy.InputField(desc="Math background")
 
     math_motivation: str = dspy.OutputField(desc="Why we need math here (the problem it solves)")
-    building_blocks: str = dspy.OutputField(desc="Basic math building blocks needed, each on new line")
-    step_by_step: str = dspy.OutputField(desc="Step-by-step derivation. Format: 'Step 1: [explanation]\\nStep 2: [explanation]\\n...' - EACH STEP MUST START ON A NEW LINE")
-    concrete_example: str = dspy.OutputField(desc="Worked example with actual numbers, each calculation step on new line")
-    connection_to_intuition: str = dspy.OutputField(desc="How this math connects to earlier intuition")
+    building_blocks: str = dspy.OutputField(
+        desc="Basic math building blocks needed, each on new line"
+    )
+    step_by_step: str = dspy.OutputField(
+        desc="Step-by-step derivation. Format: 'Step 1: [explanation]\\nStep 2: [explanation]\\n...' - EACH STEP MUST START ON A NEW LINE"
+    )
+    concrete_example: str = dspy.OutputField(
+        desc="Worked example with actual numbers, each calculation step on new line"
+    )
+    connection_to_intuition: str = dspy.OutputField(
+        desc="How this math connects to earlier intuition"
+    )
 
 
 class ExampleGeneratorSignature(dspy.Signature):
@@ -85,6 +103,7 @@ class ExampleGeneratorSignature(dspy.Signature):
 
     Make examples that teach, not just test.
     """
+
     concept: str = dspy.InputField(desc="Concept to exemplify")
     intuition: str = dspy.InputField(desc="Intuition built")
     math_explanation: str = dspy.InputField(desc="Math explanation")
@@ -109,6 +128,7 @@ class ProgressiveBuilderSignature(dspy.Signature):
 
     Each section builds on the previous. No skipping!
     """
+
     paper_info: str = dspy.InputField(desc="Paper information")
     concepts: str = dspy.InputField(desc="Concepts to cover")
     intuitions: str = dspy.InputField(desc="Intuitions built")
@@ -134,6 +154,7 @@ class ContentPolisherSignature(dspy.Signature):
 
     The reader should WANT to keep reading.
     """
+
     draft_content: str = dspy.InputField(desc="Draft learning content")
     style: str = dspy.InputField(desc="Desired style")
     audience: str = dspy.InputField(desc="Target audience")
@@ -148,6 +169,7 @@ class ContentPolisherSignature(dspy.Signature):
 # =============================================================================
 # This single signature replaces 8+ separate LLM calls with ONE comprehensive call.
 # Benefits: 80% faster, better coherence, full context awareness, no huge prompts.
+
 
 class UnifiedConceptLearningSignature(dspy.Signature):
     """Generate complete learning content for ALL concepts in ONE pass.
@@ -182,13 +204,18 @@ class UnifiedConceptLearningSignature(dspy.Signature):
         "next_steps": ["What to learn next 1", "What to learn next 2"]
     }
     """
+
     paper_title: str = dspy.InputField(desc="Paper title")
     paper_abstract: str = dspy.InputField(desc="Paper abstract (key content)")
-    concepts_json: str = dspy.InputField(desc="JSON list of concepts with name, description, why_it_matters, difficulty")
+    concepts_json: str = dspy.InputField(
+        desc="JSON list of concepts with name, description, why_it_matters, difficulty"
+    )
     audience_level: str = dspy.InputField(desc="Target audience: beginner, intermediate, advanced")
     celebration_word: str = dspy.InputField(desc="Word to celebrate insights (e.g., Bingo!)")
 
-    learning_content_json: str = dspy.OutputField(desc="Complete learning content as JSON (see format above)")
+    learning_content_json: str = dspy.OutputField(
+        desc="Complete learning content as JSON (see format above)"
+    )
 
 
 class SingleConceptDeepSignature(dspy.Signature):
@@ -203,6 +230,7 @@ class SingleConceptDeepSignature(dspy.Signature):
 
     Be thorough - this will become multiple pages of content.
     """
+
     concept_name: str = dspy.InputField(desc="Concept name")
     concept_description: str = dspy.InputField(desc="What this concept is")
     why_it_matters: str = dspy.InputField(desc="Why this concept is important")
@@ -210,10 +238,14 @@ class SingleConceptDeepSignature(dspy.Signature):
     audience_level: str = dspy.InputField(desc="beginner/intermediate/advanced")
 
     analogy: str = dspy.OutputField(desc="Rich real-world analogy (2-3 sentences)")
-    intuition: str = dspy.OutputField(desc="Detailed intuition building (3-5 paragraphs, use newlines)")
+    intuition: str = dspy.OutputField(
+        desc="Detailed intuition building (3-5 paragraphs, use newlines)"
+    )
     aha_moment: str = dspy.OutputField(desc="The key insight that makes it click")
     math_motivation: str = dspy.OutputField(desc="Why math is needed here")
-    math_steps: str = dspy.OutputField(desc="Step-by-step math with explanations (use newlines between steps)")
+    math_steps: str = dspy.OutputField(
+        desc="Step-by-step math with explanations (use newlines between steps)"
+    )
     simple_example: str = dspy.OutputField(desc="Simple worked example with explanation")
     advanced_example: str = dspy.OutputField(desc="More challenging example")
     code_example: str = dspy.OutputField(desc="Python code with detailed comments (10-20 lines)")
@@ -222,4 +254,3 @@ class SingleConceptDeepSignature(dspy.Signature):
 # =============================================================================
 # AGENTS
 # =============================================================================
-

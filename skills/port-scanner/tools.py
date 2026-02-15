@@ -1,17 +1,35 @@
 """Check if ports are open on a host using socket connections."""
+
 import socket
-from typing import Dict, Any, List
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from typing import Any, Dict, List
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("port-scanner")
 
 _SERVICES: Dict[int, str] = {
-    21: "FTP", 22: "SSH", 23: "Telnet", 25: "SMTP", 53: "DNS",
-    80: "HTTP", 110: "POP3", 143: "IMAP", 443: "HTTPS", 465: "SMTPS",
-    587: "SMTP-TLS", 993: "IMAPS", 995: "POP3S", 3306: "MySQL",
-    3389: "RDP", 5432: "PostgreSQL", 5672: "RabbitMQ", 6379: "Redis",
-    8080: "HTTP-Alt", 8443: "HTTPS-Alt", 9200: "Elasticsearch",
+    21: "FTP",
+    22: "SSH",
+    23: "Telnet",
+    25: "SMTP",
+    53: "DNS",
+    80: "HTTP",
+    110: "POP3",
+    143: "IMAP",
+    443: "HTTPS",
+    465: "SMTPS",
+    587: "SMTP-TLS",
+    993: "IMAPS",
+    995: "POP3S",
+    3306: "MySQL",
+    3389: "RDP",
+    5432: "PostgreSQL",
+    5672: "RabbitMQ",
+    6379: "Redis",
+    8080: "HTTP-Alt",
+    8443: "HTTPS-Alt",
+    9200: "Elasticsearch",
     27017: "MongoDB",
 }
 
@@ -41,16 +59,21 @@ def scan_ports(params: Dict[str, Any]) -> Dict[str, Any]:
         return tool_error("Maximum 100 ports per scan")
     results = [_check_port(host, int(p), timeout) for p in ports]
     open_ports = [r for r in results if r["open"]]
-    return tool_response(host=host, results=results, open_count=len(open_ports),
-                         closed_count=len(results) - len(open_ports))
+    return tool_response(
+        host=host,
+        results=results,
+        open_count=len(open_ports),
+        closed_count=len(results) - len(open_ports),
+    )
 
 
 @tool_wrapper()
 def list_common_ports(params: Dict[str, Any]) -> Dict[str, Any]:
     """List common ports and their associated services."""
     status.set_callback(params.pop("_status_callback", None))
-    return tool_response(ports={str(k): v for k, v in sorted(_SERVICES.items())},
-                         count=len(_SERVICES))
+    return tool_response(
+        ports={str(k): v for k, v in sorted(_SERVICES.items())}, count=len(_SERVICES)
+    )
 
 
 __all__ = ["scan_ports", "list_common_ports"]

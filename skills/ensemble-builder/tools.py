@@ -7,13 +7,18 @@ Advanced model ensembling techniques.
 
 import logging
 from typing import Any, Dict, List, Optional, Union
+
 import numpy as np
 import pandas as pd
-from sklearn.model_selection import cross_val_predict, KFold, StratifiedKFold
-from sklearn.metrics import accuracy_score, f1_score, roc_auc_score, mean_squared_error, r2_score
+from sklearn.metrics import accuracy_score, f1_score, mean_squared_error, r2_score, roc_auc_score
+from sklearn.model_selection import KFold, StratifiedKFold, cross_val_predict
 
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
+from Jotty.core.infrastructure.utils.tool_helpers import (
+    async_tool_wrapper,
+    tool_error,
+    tool_response,
+)
 
 # Status emitter for progress updates
 status = SkillStatus("ensemble-builder")
@@ -39,19 +44,19 @@ async def ensemble_stack_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with stacking ensemble and performance
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
-    from sklearn.linear_model import LogisticRegression, Ridge
     from sklearn.ensemble import StackingClassifier, StackingRegressor
+    from sklearn.linear_model import LogisticRegression, Ridge
 
     logger.info("[Ensemble] Creating stacking ensemble...")
 
-    models = params.get('models', {})
-    data = params.get('data')
-    target = params.get('target')
-    meta_learner = params.get('meta_learner')
-    task = params.get('task', 'classification')
-    cv_folds = params.get('cv_folds', 5)
+    models = params.get("models", {})
+    data = params.get("data")
+    target = params.get("target")
+    meta_learner = params.get("meta_learner")
+    task = params.get("task", "classification")
+    cv_folds = params.get("cv_folds", 5)
 
     if isinstance(data, str):
         data = pd.read_csv(data)
@@ -61,7 +66,7 @@ async def ensemble_stack_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     y = df[target]
 
     # Encode categoricals
-    for col in X.select_dtypes(include=['object', 'category']).columns:
+    for col in X.select_dtypes(include=["object", "category"]).columns:
         X[col] = pd.factorize(X[col])[0]
     X = X.fillna(X.median())
 
@@ -72,27 +77,21 @@ async def ensemble_stack_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         estimators = models
 
     if not estimators:
-        return {'success': False, 'error': 'No models provided'}
+        return {"success": False, "error": "No models provided"}
 
     # Set default meta-learner
     if meta_learner is None:
-        meta_learner = LogisticRegression() if task == 'classification' else Ridge()
+        meta_learner = LogisticRegression() if task == "classification" else Ridge()
 
     # Create stacking ensemble
-    if task == 'classification':
+    if task == "classification":
         ensemble = StackingClassifier(
-            estimators=estimators,
-            final_estimator=meta_learner,
-            cv=cv_folds,
-            passthrough=False
+            estimators=estimators, final_estimator=meta_learner, cv=cv_folds, passthrough=False
         )
         cv = StratifiedKFold(n_splits=cv_folds, shuffle=True, random_state=42)
     else:
         ensemble = StackingRegressor(
-            estimators=estimators,
-            final_estimator=meta_learner,
-            cv=cv_folds,
-            passthrough=False
+            estimators=estimators, final_estimator=meta_learner, cv=cv_folds, passthrough=False
         )
         cv = KFold(n_splits=cv_folds, shuffle=True, random_state=42)
 
@@ -102,24 +101,24 @@ async def ensemble_stack_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     # Cross-validation score
     cv_preds = cross_val_predict(ensemble, X, y, cv=cv)
 
-    if task == 'classification':
+    if task == "classification":
         score = accuracy_score(y, cv_preds)
-        f1 = f1_score(y, cv_preds, average='weighted')
-        metrics = {'accuracy': score, 'f1': f1}
+        f1 = f1_score(y, cv_preds, average="weighted")
+        metrics = {"accuracy": score, "f1": f1}
     else:
         score = r2_score(y, cv_preds)
         rmse = np.sqrt(mean_squared_error(y, cv_preds))
-        metrics = {'r2': score, 'rmse': rmse}
+        metrics = {"r2": score, "rmse": rmse}
 
     logger.info(f"[Ensemble] Stacking score: {score:.4f}")
 
     return {
-        'success': True,
-        'ensemble': ensemble,
-        'score': score,
-        'metrics': metrics,
-        'meta_learner': type(meta_learner).__name__,
-        'base_models': [name for name, _ in estimators],
+        "success": True,
+        "ensemble": ensemble,
+        "score": score,
+        "metrics": metrics,
+        "meta_learner": type(meta_learner).__name__,
+        "base_models": [name for name, _ in estimators],
     }
 
 
@@ -140,19 +139,19 @@ async def ensemble_blend_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with blending ensemble and performance
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     from sklearn.linear_model import LogisticRegression, Ridge
     from sklearn.model_selection import train_test_split
 
     logger.info("[Ensemble] Creating blending ensemble...")
 
-    models = params.get('models', {})
-    data = params.get('data')
-    target = params.get('target')
-    meta_learner = params.get('meta_learner')
-    task = params.get('task', 'classification')
-    holdout_ratio = params.get('holdout_ratio', 0.2)
+    models = params.get("models", {})
+    data = params.get("data")
+    target = params.get("target")
+    meta_learner = params.get("meta_learner")
+    task = params.get("task", "classification")
+    holdout_ratio = params.get("holdout_ratio", 0.2)
 
     if isinstance(data, str):
         data = pd.read_csv(data)
@@ -162,7 +161,7 @@ async def ensemble_blend_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     y = df[target]
 
     # Encode categoricals
-    for col in X.select_dtypes(include=['object', 'category']).columns:
+    for col in X.select_dtypes(include=["object", "category"]).columns:
         X[col] = pd.factorize(X[col])[0]
     X = X.fillna(X.median())
 
@@ -172,15 +171,18 @@ async def ensemble_blend_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         estimators = models
 
     if not estimators:
-        return {'success': False, 'error': 'No models provided'}
+        return {"success": False, "error": "No models provided"}
 
     if meta_learner is None:
-        meta_learner = LogisticRegression() if task == 'classification' else Ridge()
+        meta_learner = LogisticRegression() if task == "classification" else Ridge()
 
     # Split for blending
     X_train, X_hold, y_train, y_hold = train_test_split(
-        X, y, test_size=holdout_ratio, random_state=42,
-        stratify=y if task == 'classification' else None
+        X,
+        y,
+        test_size=holdout_ratio,
+        random_state=42,
+        stratify=y if task == "classification" else None,
     )
 
     # Train base models and get holdout predictions
@@ -192,7 +194,7 @@ async def ensemble_blend_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         model.fit(X_train, y_train)
         trained_models[name] = model
 
-        if task == 'classification' and hasattr(model, 'predict_proba'):
+        if task == "classification" and hasattr(model, "predict_proba"):
             blend_train[:, i] = model.predict_proba(X_hold)[:, 1]
             blend_test[:, i] = model.predict_proba(X)[:, 1]
         else:
@@ -205,24 +207,24 @@ async def ensemble_blend_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     # Final predictions
     final_preds = meta_learner.predict(blend_test)
 
-    if task == 'classification':
+    if task == "classification":
         score = accuracy_score(y, final_preds)
-        f1 = f1_score(y, final_preds, average='weighted')
-        metrics = {'accuracy': score, 'f1': f1}
+        f1 = f1_score(y, final_preds, average="weighted")
+        metrics = {"accuracy": score, "f1": f1}
     else:
         score = r2_score(y, final_preds)
         rmse = np.sqrt(mean_squared_error(y, final_preds))
-        metrics = {'r2': score, 'rmse': rmse}
+        metrics = {"r2": score, "rmse": rmse}
 
     logger.info(f"[Ensemble] Blending score: {score:.4f}")
 
     return {
-        'success': True,
-        'base_models': trained_models,
-        'meta_learner': meta_learner,
-        'score': score,
-        'metrics': metrics,
-        'model_names': [name for name, _ in estimators],
+        "success": True,
+        "base_models": trained_models,
+        "meta_learner": meta_learner,
+        "score": score,
+        "metrics": metrics,
+        "model_names": [name for name, _ in estimators],
     }
 
 
@@ -242,18 +244,18 @@ async def ensemble_vote_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with voting ensemble and performance
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     from sklearn.ensemble import VotingClassifier, VotingRegressor
 
     logger.info("[Ensemble] Creating voting ensemble...")
 
-    models = params.get('models', {})
-    data = params.get('data')
-    target = params.get('target')
-    voting = params.get('voting', 'soft')
-    weights = params.get('weights')
-    task = params.get('task', 'classification')
+    models = params.get("models", {})
+    data = params.get("data")
+    target = params.get("target")
+    voting = params.get("voting", "soft")
+    weights = params.get("weights")
+    task = params.get("task", "classification")
 
     if isinstance(data, str):
         data = pd.read_csv(data)
@@ -262,7 +264,7 @@ async def ensemble_vote_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     X = df.drop(columns=[target])
     y = df[target]
 
-    for col in X.select_dtypes(include=['object', 'category']).columns:
+    for col in X.select_dtypes(include=["object", "category"]).columns:
         X[col] = pd.factorize(X[col])[0]
     X = X.fillna(X.median())
 
@@ -272,45 +274,38 @@ async def ensemble_vote_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         estimators = models
 
     if not estimators:
-        return {'success': False, 'error': 'No models provided'}
+        return {"success": False, "error": "No models provided"}
 
     # Create voting ensemble
-    if task == 'classification':
-        ensemble = VotingClassifier(
-            estimators=estimators,
-            voting=voting,
-            weights=weights
-        )
+    if task == "classification":
+        ensemble = VotingClassifier(estimators=estimators, voting=voting, weights=weights)
         cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
     else:
-        ensemble = VotingRegressor(
-            estimators=estimators,
-            weights=weights
-        )
+        ensemble = VotingRegressor(estimators=estimators, weights=weights)
         cv = KFold(n_splits=5, shuffle=True, random_state=42)
 
     ensemble.fit(X, y)
 
     cv_preds = cross_val_predict(ensemble, X, y, cv=cv)
 
-    if task == 'classification':
+    if task == "classification":
         score = accuracy_score(y, cv_preds)
-        f1 = f1_score(y, cv_preds, average='weighted')
-        metrics = {'accuracy': score, 'f1': f1}
+        f1 = f1_score(y, cv_preds, average="weighted")
+        metrics = {"accuracy": score, "f1": f1}
     else:
         score = r2_score(y, cv_preds)
         rmse = np.sqrt(mean_squared_error(y, cv_preds))
-        metrics = {'r2': score, 'rmse': rmse}
+        metrics = {"r2": score, "rmse": rmse}
 
     logger.info(f"[Ensemble] Voting score: {score:.4f}")
 
     return {
-        'success': True,
-        'ensemble': ensemble,
-        'score': score,
-        'metrics': metrics,
-        'voting': voting,
-        'model_names': [name for name, _ in estimators],
+        "success": True,
+        "ensemble": ensemble,
+        "score": score,
+        "metrics": metrics,
+        "voting": voting,
+        "model_names": [name for name, _ in estimators],
     }
 
 
@@ -329,19 +324,19 @@ async def ensemble_weighted_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with optimal weights and ensemble predictions
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     from scipy.optimize import minimize
 
     logger.info("[Ensemble] Creating weighted ensemble...")
 
-    predictions = params.get('predictions', {})
-    y_true = params.get('y_true')
-    task = params.get('task', 'classification')
-    optimize_weights = params.get('optimize_weights', True)
+    predictions = params.get("predictions", {})
+    y_true = params.get("y_true")
+    task = params.get("task", "classification")
+    optimize_weights = params.get("optimize_weights", True)
 
     if not predictions:
-        return {'success': False, 'error': 'No predictions provided'}
+        return {"success": False, "error": "No predictions provided"}
 
     model_names = list(predictions.keys())
     pred_matrix = np.array([predictions[name] for name in model_names]).T  # (n_samples, n_models)
@@ -350,48 +345,50 @@ async def ensemble_weighted_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     n_models = len(model_names)
 
     if optimize_weights:
+
         def objective(weights):
             weighted_pred = np.average(pred_matrix, axis=1, weights=weights)
-            if task == 'classification':
+            if task == "classification":
                 weighted_pred = (weighted_pred > 0.5).astype(int)
                 return -accuracy_score(y, weighted_pred)
             else:
                 return mean_squared_error(y, weighted_pred)
 
         # Constraints: weights sum to 1, all positive
-        constraints = {'type': 'eq', 'fun': lambda w: np.sum(w) - 1}
+        constraints = {"type": "eq", "fun": lambda w: np.sum(w) - 1}
         bounds = [(0, 1) for _ in range(n_models)]
         initial = np.ones(n_models) / n_models
 
-        result = minimize(objective, initial, method='SLSQP',
-                         bounds=bounds, constraints=constraints)
+        result = minimize(
+            objective, initial, method="SLSQP", bounds=bounds, constraints=constraints
+        )
         weights = result.x
     else:
         weights = np.ones(n_models) / n_models
 
     # Final predictions
     ensemble_pred = np.average(pred_matrix, axis=1, weights=weights)
-    if task == 'classification':
+    if task == "classification":
         final_pred = (ensemble_pred > 0.5).astype(int)
         score = accuracy_score(y, final_pred)
-        f1 = f1_score(y, final_pred, average='weighted')
-        metrics = {'accuracy': score, 'f1': f1}
+        f1 = f1_score(y, final_pred, average="weighted")
+        metrics = {"accuracy": score, "f1": f1}
     else:
         final_pred = ensemble_pred
         score = r2_score(y, final_pred)
         rmse = np.sqrt(mean_squared_error(y, final_pred))
-        metrics = {'r2': score, 'rmse': rmse}
+        metrics = {"r2": score, "rmse": rmse}
 
     weight_dict = dict(zip(model_names, weights.tolist()))
 
     logger.info(f"[Ensemble] Weighted ensemble score: {score:.4f}")
 
     return {
-        'success': True,
-        'weights': weight_dict,
-        'predictions': final_pred.tolist(),
-        'score': score,
-        'metrics': metrics,
+        "success": True,
+        "weights": weight_dict,
+        "predictions": final_pred.tolist(),
+        "score": score,
+        "metrics": metrics,
     }
 
 
@@ -408,15 +405,15 @@ async def ensemble_diversity_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with diversity metrics
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     logger.info("[Ensemble] Analyzing model diversity...")
 
-    predictions = params.get('predictions', {})
-    y_true = params.get('y_true')
+    predictions = params.get("predictions", {})
+    y_true = params.get("y_true")
 
     if not predictions:
-        return {'success': False, 'error': 'No predictions provided'}
+        return {"success": False, "error": "No predictions provided"}
 
     model_names = list(predictions.keys())
     pred_matrix = np.array([predictions[name] for name in model_names])
@@ -444,11 +441,11 @@ async def ensemble_diversity_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     logger.info(f"[Ensemble] Average disagreement: {avg_disagreement:.4f}")
 
     return {
-        'success': True,
-        'disagreement_matrix': disagreement.tolist(),
-        'avg_disagreement': float(avg_disagreement),
-        'correlation_matrix': correlation.tolist(),
-        'model_accuracies': accuracies,
-        'model_names': model_names,
-        'diversity_score': float(avg_disagreement),  # Higher = more diverse
+        "success": True,
+        "disagreement_matrix": disagreement.tolist(),
+        "avg_disagreement": float(avg_disagreement),
+        "correlation_matrix": correlation.tolist(),
+        "model_accuracies": accuracies,
+        "model_names": model_names,
+        "diversity_score": float(avg_disagreement),  # Higher = more diverse
     }

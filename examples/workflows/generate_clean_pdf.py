@@ -14,13 +14,13 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 async def main():
     from Jotty.core.intelligence.swarms.olympiad_learning_swarm import learn_topic
     from Jotty.core.intelligence.swarms.olympiad_learning_swarm.pdf_generator import (
+        generate_lesson_html,
         generate_lesson_pdf,
-        generate_lesson_html
     )
 
-    print("="*80)
+    print("=" * 80)
     print("GENERATING CLEAN, FORMATTED PDF")
-    print("="*80 + "\n")
+    print("=" * 80 + "\n")
 
     print("🚀 Generating comprehensive course content...")
     print("   Using olympiad_learning_swarm.learn_topic()\n")
@@ -32,7 +32,7 @@ async def main():
         student_name="Advanced Researcher",
         depth="deep",
         target="advanced",
-        send_telegram=False
+        send_telegram=False,
     )
 
     if not result.success:
@@ -55,7 +55,7 @@ async def main():
         content=lesson_content,
         output_path=pdf_path,
         celebration_word="Brilliant!",
-        learning_time="~90 min"
+        learning_time="~90 min",
     )
 
     if pdf_result:
@@ -72,18 +72,18 @@ async def main():
         content=lesson_content,
         output_path=html_path,
         celebration_word="Brilliant!",
-        learning_time="~90 min"
+        learning_time="~90 min",
     )
 
     if html_result:
         print(f"✅ HTML generated: {html_result}\n")
 
-    print("="*80)
+    print("=" * 80)
     print("COMPLETE!")
     print(f"PDF: {pdf_path}")
     print(f"HTML: {html_path}")
-    print("="*80)
+    print("=" * 80)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     asyncio.run(main())

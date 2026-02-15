@@ -13,24 +13,25 @@ Extracted from swarm_intelligence.py for modularity.
 """
 
 import time
-from typing import Dict, List, Any, Tuple
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Any, Dict, List, Tuple
 
 
 class AgentSpecialization(Enum):
     """Emergent agent specializations."""
+
     GENERALIST = "generalist"
     AGGREGATOR = "aggregator"  # Good at count/sum/avg
-    ANALYZER = "analyzer"      # Good at analysis tasks
-    TRANSFORMER = "transformer" # Good at data transformation
-    VALIDATOR = "validator"    # Good at validation/checking
-    PLANNER = "planner"        # Good at planning/decomposition
-    EXECUTOR = "executor"      # Good at execution/action
+    ANALYZER = "analyzer"  # Good at analysis tasks
+    TRANSFORMER = "transformer"  # Good at data transformation
+    VALIDATOR = "validator"  # Good at validation/checking
+    PLANNER = "planner"  # Good at planning/decomposition
+    EXECUTOR = "executor"  # Good at execution/action
     # Match real AgentRole task types from _record_trace()
-    ACTOR = "actor"            # Action/execution specialist
-    EXPERT = "expert"          # Domain knowledge specialist
-    REVIEWER = "reviewer"      # Quality/review specialist
+    ACTOR = "actor"  # Action/execution specialist
+    EXPERT = "expert"  # Domain knowledge specialist
+    REVIEWER = "reviewer"  # Quality/review specialist
     ORCHESTRATOR = "orchestrator"  # Coordination specialist
     RESEARCHER = "researcher"  # Research/learning specialist
 
@@ -38,11 +39,14 @@ class AgentSpecialization(Enum):
 @dataclass
 class AgentProfile:
     """Dynamic profile that evolves based on performance."""
+
     agent_name: str
     specialization: AgentSpecialization = AgentSpecialization.GENERALIST
 
     # Performance tracking by task type
-    task_success: Dict[str, Tuple[int, int]] = field(default_factory=dict)  # task_type -> (success, total)
+    task_success: Dict[str, Tuple[int, int]] = field(
+        default_factory=dict
+    )  # task_type -> (success, total)
 
     # Collaboration stats
     helped_others: int = 0
@@ -68,8 +72,8 @@ class AgentProfile:
         # Update timing
         self.total_tasks += 1
         self.avg_execution_time = (
-            (self.avg_execution_time * (self.total_tasks - 1) + execution_time) / self.total_tasks
-        )
+            self.avg_execution_time * (self.total_tasks - 1) + execution_time
+        ) / self.total_tasks
 
         # Update trust score
         overall_success = sum(s for s, t in self.task_success.values())
@@ -103,28 +107,28 @@ class AgentProfile:
         if best_type and best_rate > 0.7:
             # Map task type to specialization
             specialization_map = {
-                'aggregation': AgentSpecialization.AGGREGATOR,
-                'analysis': AgentSpecialization.ANALYZER,
-                'transformation': AgentSpecialization.TRANSFORMER,
-                'validation': AgentSpecialization.VALIDATOR,
-                'planning': AgentSpecialization.PLANNER,
-                'filtering': AgentSpecialization.EXECUTOR,
+                "aggregation": AgentSpecialization.AGGREGATOR,
+                "analysis": AgentSpecialization.ANALYZER,
+                "transformation": AgentSpecialization.TRANSFORMER,
+                "validation": AgentSpecialization.VALIDATOR,
+                "planning": AgentSpecialization.PLANNER,
+                "filtering": AgentSpecialization.EXECUTOR,
                 # Real task types from _record_trace() AgentRole values
-                'actor': AgentSpecialization.ACTOR,
-                'expert': AgentSpecialization.EXPERT,
-                'planner': AgentSpecialization.PLANNER,
-                'reviewer': AgentSpecialization.REVIEWER,
-                'orchestrator': AgentSpecialization.ORCHESTRATOR,
+                "actor": AgentSpecialization.ACTOR,
+                "expert": AgentSpecialization.EXPERT,
+                "planner": AgentSpecialization.PLANNER,
+                "reviewer": AgentSpecialization.REVIEWER,
+                "orchestrator": AgentSpecialization.ORCHESTRATOR,
                 # Domain-specific task types from swarms
-                'paper_learning': AgentSpecialization.RESEARCHER,
-                'code_generation': AgentSpecialization.EXECUTOR,
-                'test_generation': AgentSpecialization.VALIDATOR,
-                'fundamental_analysis': AgentSpecialization.ANALYZER,
-                'data_analysis': AgentSpecialization.ANALYZER,
-                'devops': AgentSpecialization.EXECUTOR,
-                'code_review': AgentSpecialization.REVIEWER,
-                'idea_writing': AgentSpecialization.EXPERT,
-                'swarm_learning': AgentSpecialization.RESEARCHER,
+                "paper_learning": AgentSpecialization.RESEARCHER,
+                "code_generation": AgentSpecialization.EXECUTOR,
+                "test_generation": AgentSpecialization.VALIDATOR,
+                "fundamental_analysis": AgentSpecialization.ANALYZER,
+                "data_analysis": AgentSpecialization.ANALYZER,
+                "devops": AgentSpecialization.EXECUTOR,
+                "code_review": AgentSpecialization.REVIEWER,
+                "idea_writing": AgentSpecialization.EXPERT,
+                "swarm_learning": AgentSpecialization.RESEARCHER,
             }
             self.specialization = specialization_map.get(best_type, AgentSpecialization.GENERALIST)
 
@@ -139,6 +143,7 @@ class AgentProfile:
 @dataclass
 class ConsensusVote:
     """A vote in a consensus decision."""
+
     agent_name: str
     decision: str
     confidence: float
@@ -149,6 +154,7 @@ class ConsensusVote:
 @dataclass
 class SwarmDecision:
     """Result of swarm consensus."""
+
     question: str
     votes: List[ConsensusVote]
     final_decision: str
@@ -159,6 +165,7 @@ class SwarmDecision:
 @dataclass
 class AgentSession:
     """Isolated session for an agent (moltbot pattern)."""
+
     session_id: str
     agent_name: str
     context: str  # "main", "group", "task_{id}"
@@ -168,12 +175,14 @@ class AgentSession:
 
     def add_message(self, from_agent: str, content: str, metadata: Dict = None) -> None:
         """Add message to session."""
-        self.messages.append({
-            'from': from_agent,
-            'content': content,
-            'metadata': metadata or {},
-            'timestamp': time.time()
-        })
+        self.messages.append(
+            {
+                "from": from_agent,
+                "content": content,
+                "metadata": metadata or {},
+                "timestamp": time.time(),
+            }
+        )
         self.last_active = time.time()
 
         # Keep bounded
@@ -185,6 +194,7 @@ class AgentSession:
 # ARXIV SWARM ENHANCEMENTS (SwarmSys, SwarmAgentic patterns)
 # =============================================================================
 
+
 @dataclass
 class HandoffContext:
     """
@@ -192,6 +202,7 @@ class HandoffContext:
 
     Enables seamless task transfer between agents with full context.
     """
+
     task_id: str
     from_agent: str
     to_agent: str
@@ -217,6 +228,7 @@ class Coalition:
 
     Groups agents for complex tasks requiring collaboration.
     """
+
     coalition_id: str
     task_type: str
     leader: str  # Coordinator agent
@@ -246,6 +258,7 @@ class AuctionBid:
 
     Agents bid on tasks based on capability and availability.
     """
+
     agent_name: str
     task_id: str
     bid_value: float  # 0-1, higher = more capable/available
@@ -260,10 +273,10 @@ class AuctionBid:
     def score(self) -> float:
         """Combined bid score for ranking."""
         return (
-            self.bid_value * 0.3 +
-            self.confidence * 0.25 +
-            self.specialization_match * 0.25 +
-            (1 - self.current_load) * 0.2
+            self.bid_value * 0.3
+            + self.confidence * 0.25
+            + self.specialization_match * 0.25
+            + (1 - self.current_load) * 0.2
         )
 
 
@@ -274,6 +287,7 @@ class GossipMessage:
 
     Enables O(log n) information spread across swarm.
     """
+
     message_id: str
     content: Dict[str, Any]
     origin_agent: str
@@ -298,6 +312,7 @@ class SupervisorNode:
 
     Enables efficient coordination without flat O(n) communication.
     """
+
     node_id: str
     agent_name: str
     level: int  # 0 = leaf, higher = supervisor
@@ -314,15 +329,15 @@ class SupervisorNode:
 
 
 __all__ = [
-    'AgentSpecialization',
-    'AgentProfile',
-    'ConsensusVote',
-    'SwarmDecision',
-    'AgentSession',
+    "AgentSpecialization",
+    "AgentProfile",
+    "ConsensusVote",
+    "SwarmDecision",
+    "AgentSession",
     # arXiv swarm enhancements
-    'HandoffContext',
-    'Coalition',
-    'AuctionBid',
-    'GossipMessage',
-    'SupervisorNode',
+    "HandoffContext",
+    "Coalition",
+    "AuctionBid",
+    "GossipMessage",
+    "SupervisorNode",
 ]

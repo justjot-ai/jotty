@@ -16,15 +16,16 @@ import argparse
 import re
 import subprocess
 import sys
-from collections import defaultdict, Counter
+from collections import Counter, defaultdict
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Dict, Set, Tuple
+from typing import Dict, List, Set, Tuple
 
 
 @dataclass
 class MypyError:
     """Represents a single mypy error."""
+
     file: str
     line: int
     column: int
@@ -68,15 +69,24 @@ class MypyDiagnostics:
         try:
             # Run from parent directory so Jotty.* imports work
             import os
-            parent_dir = Path.cwd().parent if Path.cwd().name == 'Jotty' else Path.cwd()
+
+            parent_dir = Path.cwd().parent if Path.cwd().name == "Jotty" else Path.cwd()
 
             result = subprocess.run(
-                [sys.executable, '-m', 'mypy', 'Jotty/core', 'Jotty/apps', 'Jotty/sdk',
-                 '--config-file', 'Jotty/mypy.ini'],
+                [
+                    sys.executable,
+                    "-m",
+                    "mypy",
+                    "Jotty/core",
+                    "Jotty/apps",
+                    "Jotty/sdk",
+                    "--config-file",
+                    "Jotty/mypy.ini",
+                ],
                 capture_output=True,
                 text=True,
                 timeout=60,
-                cwd=parent_dir
+                cwd=parent_dir,
             )
             return result.returncode, result.stdout + result.stderr
         except Exception as e:
@@ -88,18 +98,18 @@ class MypyDiagnostics:
 
         # Pattern: file.py:line:column: error: message [code]
         pattern = re.compile(
-            r'^(?P<file>[\w/._-]+\.py):(?P<line>\d+):(?P<column>\d+):\s+'
-            r'error:\s+(?P<message>.+?)\s+\[(?P<code>[\w-]+)\]',
-            re.MULTILINE
+            r"^(?P<file>[\w/._-]+\.py):(?P<line>\d+):(?P<column>\d+):\s+"
+            r"error:\s+(?P<message>.+?)\s+\[(?P<code>[\w-]+)\]",
+            re.MULTILINE,
         )
 
         for match in pattern.finditer(output):
             error = MypyError(
-                file=match.group('file'),
-                line=int(match.group('line')),
-                column=int(match.group('column')),
-                message=match.group('message'),
-                code=match.group('code')
+                file=match.group("file"),
+                line=int(match.group("line")),
+                column=int(match.group("column")),
+                message=match.group("message"),
+                code=match.group("code"),
             )
             errors.append(error)
             self.errors_by_code[error.code].append(error)
@@ -108,7 +118,7 @@ class MypyDiagnostics:
 
     def analyze_attr_defined_errors(self) -> Dict[str, any]:
         """Deep analysis of attr-defined errors to find patterns."""
-        attr_errors = self.errors_by_code.get('attr-defined', [])
+        attr_errors = self.errors_by_code.get("attr-defined", [])
 
         if not attr_errors:
             return {}
@@ -134,26 +144,25 @@ class MypyDiagnostics:
                     missing_attrs[module][attr] += 1
 
                 # Analyze import pattern
-                if module.startswith('Jotty.'):
-                    import_patterns['Jotty.* imports'] += 1
-                elif '.' in module:
-                    import_patterns['Relative imports'] += 1
+                if module.startswith("Jotty."):
+                    import_patterns["Jotty.* imports"] += 1
+                elif "." in module:
+                    import_patterns["Relative imports"] += 1
                 else:
-                    import_patterns['Simple imports'] += 1
+                    import_patterns["Simple imports"] += 1
 
         return {
-            'total': len(attr_errors),
-            'missing_modules': missing_modules.most_common(20),
-            'missing_attrs': dict(missing_attrs),
-            'top_files': files_with_errors.most_common(10),
-            'import_patterns': import_patterns.most_common(),
+            "total": len(attr_errors),
+            "missing_modules": missing_modules.most_common(20),
+            "missing_attrs": dict(missing_attrs),
+            "top_files": files_with_errors.most_common(10),
+            "import_patterns": import_patterns.most_common(),
         }
 
     def analyze_import_errors(self) -> Dict[str, any]:
         """Analyze import-not-found and import errors."""
-        import_errors = (
-            self.errors_by_code.get('import-not-found', []) +
-            self.errors_by_code.get('import', [])
+        import_errors = self.errors_by_code.get("import-not-found", []) + self.errors_by_code.get(
+            "import", []
         )
 
         if not import_errors:
@@ -168,30 +177,30 @@ class MypyDiagnostics:
             module = error.module_path
             if module:
                 missing_modules[module] += 1
-                if module.startswith('Jotty.'):
+                if module.startswith("Jotty."):
                     jotty_imports.append(module)
                 else:
                     external_imports.append(module)
 
         return {
-            'total': len(import_errors),
-            'missing_modules': missing_modules.most_common(20),
-            'jotty_imports': list(set(jotty_imports)),
-            'external_imports': list(set(external_imports)),
+            "total": len(import_errors),
+            "missing_modules": missing_modules.most_common(20),
+            "jotty_imports": list(set(jotty_imports)),
+            "external_imports": list(set(external_imports)),
         }
 
     def check_module_exists(self, module_path: str) -> bool:
         """Check if a module actually exists in the codebase."""
         # Convert Jotty.core.xyz to Jotty/core/xyz.py
-        parts = module_path.split('.')
+        parts = module_path.split(".")
 
         # Try as .py file
-        file_path = Path('/'.join(parts) + '.py')
+        file_path = Path("/".join(parts) + ".py")
         if file_path.exists():
             return True
 
         # Try as package (__init__.py)
-        package_path = Path('/'.join(parts) + '/__init__.py')
+        package_path = Path("/".join(parts) + "/__init__.py")
         if package_path.exists():
             return True
 
@@ -202,9 +211,9 @@ class MypyDiagnostics:
         suggestions = []
 
         # Analyze attr-defined errors
-        if 'attr-defined' in self.errors_by_code:
-            attr_analysis = analysis.get('attr_defined', {})
-            missing_mods = attr_analysis.get('missing_modules', [])
+        if "attr-defined" in self.errors_by_code:
+            attr_analysis = analysis.get("attr_defined", {})
+            missing_mods = attr_analysis.get("missing_modules", [])
 
             if missing_mods:
                 top_module, count = missing_mods[0]
@@ -224,9 +233,9 @@ class MypyDiagnostics:
                     )
 
         # Analyze import errors
-        if 'import-not-found' in self.errors_by_code or 'import' in self.errors_by_code:
-            import_analysis = analysis.get('import', {})
-            jotty_imports = import_analysis.get('jotty_imports', [])
+        if "import-not-found" in self.errors_by_code or "import" in self.errors_by_code:
+            import_analysis = analysis.get("import", {})
+            jotty_imports = import_analysis.get("jotty_imports", [])
 
             if jotty_imports:
                 suggestions.append(
@@ -238,7 +247,7 @@ class MypyDiagnostics:
 
         # Check for systematic issues
         total_errors = len(self.errors)
-        attr_errors = len(self.errors_by_code.get('attr-defined', []))
+        attr_errors = len(self.errors_by_code.get("attr-defined", []))
 
         if attr_errors > total_errors * 0.8:
             suggestions.append(
@@ -252,9 +261,9 @@ class MypyDiagnostics:
 
     def print_report(self, top_n: int = 20, category: str = None):
         """Print diagnostic report."""
-        print("="*80)
+        print("=" * 80)
         print("MYPY ERROR DIAGNOSTICS")
-        print("="*80)
+        print("=" * 80)
 
         print(f"\n📊 SUMMARY")
         print(f"   Total errors: {len(self.errors)}")
@@ -271,62 +280,62 @@ class MypyDiagnostics:
         print()
 
         # Detailed analysis for attr-defined
-        if not category or category == 'attr-defined':
-            print("="*80)
+        if not category or category == "attr-defined":
+            print("=" * 80)
             print("🔍 DETAILED ANALYSIS: attr-defined errors")
-            print("="*80)
+            print("=" * 80)
 
             analysis = self.analyze_attr_defined_errors()
             if analysis:
                 print(f"\n📊 Total attr-defined errors: {analysis['total']}")
 
                 print(f"\n🔝 TOP {top_n} MISSING MODULES:")
-                for module, count in analysis['missing_modules'][:top_n]:
+                for module, count in analysis["missing_modules"][:top_n]:
                     exists = "✅ EXISTS" if self.check_module_exists(module) else "❌ MISSING"
                     print(f"   • {module:60s}: {count:3d} errors  {exists}")
 
                 print(f"\n📁 TOP 10 FILES WITH MOST ERRORS:")
-                for file, count in analysis['top_files']:
+                for file, count in analysis["top_files"]:
                     print(f"   • {file:60s}: {count:3d} errors")
 
                 print(f"\n📦 IMPORT PATTERNS:")
-                for pattern, count in analysis['import_patterns']:
-                    pct = count * 100 // analysis['total']
+                for pattern, count in analysis["import_patterns"]:
+                    pct = count * 100 // analysis["total"]
                     print(f"   • {pattern:30s}: {count:3d} ({pct:2d}%)")
 
         # Detailed analysis for import errors
-        if not category or category in ['import-not-found', 'import']:
-            print("\n" + "="*80)
+        if not category or category in ["import-not-found", "import"]:
+            print("\n" + "=" * 80)
             print("🔍 DETAILED ANALYSIS: import errors")
-            print("="*80)
+            print("=" * 80)
 
             analysis = self.analyze_import_errors()
             if analysis:
                 print(f"\n📊 Total import errors: {analysis['total']}")
 
                 print(f"\n🔝 TOP {top_n} MISSING MODULES:")
-                for module, count in analysis['missing_modules'][:top_n]:
+                for module, count in analysis["missing_modules"][:top_n]:
                     exists = "✅ EXISTS" if self.check_module_exists(module) else "❌ MISSING"
                     print(f"   • {module:60s}: {count:3d} errors  {exists}")
 
-                if analysis['jotty_imports']:
+                if analysis["jotty_imports"]:
                     print(f"\n📦 JOTTY.* IMPORTS ({len(analysis['jotty_imports'])}):")
-                    for module in analysis['jotty_imports'][:10]:
+                    for module in analysis["jotty_imports"][:10]:
                         print(f"   • {module}")
 
-                if analysis['external_imports']:
+                if analysis["external_imports"]:
                     print(f"\n📦 EXTERNAL IMPORTS ({len(analysis['external_imports'])}):")
-                    for module in analysis['external_imports'][:10]:
+                    for module in analysis["external_imports"][:10]:
                         print(f"   • {module}")
 
         # Suggestions
-        print("\n" + "="*80)
+        print("\n" + "=" * 80)
         print("💡 SUGGESTED FIXES")
-        print("="*80)
+        print("=" * 80)
 
         all_analysis = {
-            'attr_defined': self.analyze_attr_defined_errors(),
-            'import': self.analyze_import_errors(),
+            "attr_defined": self.analyze_attr_defined_errors(),
+            "import": self.analyze_import_errors(),
         }
         suggestions = self.suggest_fixes(all_analysis)
 
@@ -337,13 +346,13 @@ class MypyDiagnostics:
             print("\n   No automated suggestions available.")
             print("   Manual review of errors needed.")
 
-        print("\n" + "="*80)
+        print("\n" + "=" * 80)
 
 
 def main():
     parser = argparse.ArgumentParser(description="Diagnose mypy errors")
-    parser.add_argument('--category', help="Focus on specific category")
-    parser.add_argument('--top', type=int, default=20, help="Show top N results")
+    parser.add_argument("--category", help="Focus on specific category")
+    parser.add_argument("--top", type=int, default=20, help="Show top N results")
     args = parser.parse_args()
 
     print("🔍 Running mypy to collect errors...")
@@ -370,5 +379,5 @@ def main():
     return 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

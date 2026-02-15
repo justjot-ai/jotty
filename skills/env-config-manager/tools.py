@@ -1,10 +1,11 @@
 """Env Config Manager Skill — parse, diff, validate .env files."""
+
 import re
 from pathlib import Path
-from typing import Dict, Any, Set
+from typing import Any, Dict, Set
 
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("env-config-manager")
 
@@ -59,8 +60,9 @@ def diff_env_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     only_b = sorted(set(b.keys()) - set(a.keys()))
     changed = sorted(k for k in set(a.keys()) & set(b.keys()) if a[k] != b[k])
 
-    return tool_response(only_in_a=only_a, only_in_b=only_b, changed=changed,
-                         total_a=len(a), total_b=len(b))
+    return tool_response(
+        only_in_a=only_a, only_in_b=only_b, changed=changed, total_a=len(a), total_b=len(b)
+    )
 
 
 __all__ = ["parse_env_tool", "diff_env_tool"]

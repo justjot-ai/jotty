@@ -1,4 +1,5 @@
 from typing import Any
+
 """
 DevOps Swarm - World-Class Infrastructure & Operations
 =======================================================
@@ -49,20 +50,19 @@ Date: February 2026
 """
 
 import asyncio
-import logging
 import json
-import dspy
-from typing import Dict, Any, Optional, List
+import logging
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
-from .base_swarm import (
-    SwarmBaseConfig, SwarmResult, AgentRole,
-    register_swarm,
-)
-from .base import DomainSwarm, AgentTeam, _split_field
+import dspy
+
+from Jotty.core.modes.agent.base import BaseSwarmAgent, DomainAgent, DomainAgentConfig
+
+from .base import AgentTeam, DomainSwarm, _split_field
+from .base_swarm import AgentRole, SwarmBaseConfig, SwarmResult, register_swarm
 from .swarm_signatures import DevOpsSwarmSignature
-from Jotty.core.modes.agent.base import DomainAgent, DomainAgentConfig, BaseSwarmAgent
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +70,7 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
+
 
 class CloudProvider(Enum):
     AWS = "aws"
@@ -106,6 +107,7 @@ class ContainerPlatform(Enum):
 @dataclass
 class DevOpsConfig(SwarmBaseConfig):
     """Configuration for DevOpsSwarm."""
+
     cloud_provider: CloudProvider = CloudProvider.AWS
     iac_tool: IaCTool = IaCTool.TERRAFORM
     ci_provider: CIProvider = CIProvider.GITHUB_ACTIONS
@@ -124,6 +126,7 @@ class DevOpsConfig(SwarmBaseConfig):
 @dataclass
 class InfrastructureSpec:
     """Infrastructure specification."""
+
     compute: Dict[str, Any]
     networking: Dict[str, Any]
     storage: Dict[str, Any]
@@ -135,6 +138,7 @@ class InfrastructureSpec:
 @dataclass
 class PipelineSpec:
     """CI/CD pipeline specification."""
+
     stages: List[Dict[str, Any]]
     triggers: List[str]
     environments: List[str]
@@ -145,6 +149,7 @@ class PipelineSpec:
 @dataclass
 class ContainerSpec:
     """Container configuration."""
+
     dockerfile: str
     compose_file: str
     kubernetes_manifests: Dict[str, str]
@@ -155,6 +160,7 @@ class ContainerSpec:
 @dataclass
 class SecurityConfig:
     """Security configuration."""
+
     iam_policies: List[Dict[str, Any]]
     secrets_management: str
     network_policies: List[Dict[str, Any]]
@@ -165,6 +171,7 @@ class SecurityConfig:
 @dataclass
 class MonitoringConfig:
     """Monitoring configuration."""
+
     metrics: List[str]
     alerts: List[Dict[str, Any]]
     dashboards: List[Dict[str, Any]]
@@ -175,6 +182,7 @@ class MonitoringConfig:
 @dataclass
 class DevOpsResult(SwarmResult):
     """Result from DevOpsSwarm."""
+
     infrastructure: Optional[InfrastructureSpec] = None
     pipeline: Optional[PipelineSpec] = None
     container: Optional[ContainerSpec] = None
@@ -189,6 +197,7 @@ class DevOpsResult(SwarmResult):
 # DSPy SIGNATURES
 # =============================================================================
 
+
 class InfrastructureDesignSignature(dspy.Signature):
     """Design cloud infrastructure.
 
@@ -201,6 +210,7 @@ class InfrastructureDesignSignature(dspy.Signature):
 
     Follow cloud-native best practices.
     """
+
     app_type: str = dspy.InputField(desc="Type of application: web, api, microservices, etc.")
     cloud: str = dspy.InputField(desc="Cloud provider")
     requirements: str = dspy.InputField(desc="Application requirements")
@@ -225,6 +235,7 @@ class CICDDesignSignature(dspy.Signature):
 
     Include all stages from commit to production.
     """
+
     app_type: str = dspy.InputField(desc="Type of application")
     ci_provider: str = dspy.InputField(desc="CI/CD platform")
     deployment_target: str = dspy.InputField(desc="Deployment target: kubernetes, ecs, etc.")
@@ -248,6 +259,7 @@ class ContainerizationSignature(dspy.Signature):
 
     Follow Docker/Kubernetes best practices.
     """
+
     app_type: str = dspy.InputField(desc="Application type")
     language: str = dspy.InputField(desc="Programming language/runtime")
     platform: str = dspy.InputField(desc="Container platform")
@@ -271,6 +283,7 @@ class SecurityHardeningSignature(dspy.Signature):
 
     Defense in depth approach.
     """
+
     infrastructure: str = dspy.InputField(desc="Infrastructure specification")
     cloud: str = dspy.InputField(desc="Cloud provider")
     compliance: str = dspy.InputField(desc="Compliance requirements: SOC2, HIPAA, PCI, etc.")
@@ -279,7 +292,9 @@ class SecurityHardeningSignature(dspy.Signature):
     network_policies: str = dspy.OutputField(desc="JSON network security policies")
     encryption_config: str = dspy.OutputField(desc="Encryption configuration")
     secrets_management: str = dspy.OutputField(desc="Secrets management approach")
-    security_recommendations: str = dspy.OutputField(desc="Security recommendations, separated by |")
+    security_recommendations: str = dspy.OutputField(
+        desc="Security recommendations, separated by |"
+    )
 
 
 class MonitoringSetupSignature(dspy.Signature):
@@ -294,6 +309,7 @@ class MonitoringSetupSignature(dspy.Signature):
 
     Full observability stack.
     """
+
     infrastructure: str = dspy.InputField(desc="Infrastructure specification")
     app_type: str = dspy.InputField(desc="Application type")
     sla_requirements: str = dspy.InputField(desc="SLA requirements")
@@ -317,6 +333,7 @@ class IaCGenerationSignature(dspy.Signature):
 
     Generate production-ready code.
     """
+
     infrastructure: str = dspy.InputField(desc="Infrastructure specification")
     iac_tool: str = dspy.InputField(desc="IaC tool: terraform, pulumi, etc.")
     cloud: str = dspy.InputField(desc="Cloud provider")
@@ -332,29 +349,27 @@ class IaCGenerationSignature(dspy.Signature):
 # =============================================================================
 
 
-
 class InfrastructureArchitect(BaseSwarmAgent):
     """Designs cloud infrastructure."""
 
-    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
+    def __init__(
+        self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = ""
+    ) -> None:
         super().__init__(memory, context, bus, signature=InfrastructureDesignSignature)
         self._designer = dspy.ChainOfThought(InfrastructureDesignSignature)
         self.learned_context = learned_context
 
     async def design(
-        self,
-        app_type: str,
-        cloud: str,
-        requirements: str,
-        scale: str = "medium"
+        self, app_type: str, cloud: str, requirements: str, scale: str = "medium"
     ) -> Dict[str, Any]:
         """Design infrastructure."""
         try:
             result = self._designer(
                 app_type=app_type,
                 cloud=cloud,
-                requirements=requirements + (f"\n\nLearned Context:\n{self.learned_context}" if self.learned_context else ""),
-                scale=scale
+                requirements=requirements
+                + (f"\n\nLearned Context:\n{self.learned_context}" if self.learned_context else ""),
+                scale=scale,
             )
 
             try:
@@ -367,38 +382,33 @@ class InfrastructureArchitect(BaseSwarmAgent):
             except Exception:
                 networking = {}
 
-            self._broadcast("infrastructure_designed", {
-                'cloud': cloud,
-                'scale': scale
-            })
+            self._broadcast("infrastructure_designed", {"cloud": cloud, "scale": scale})
 
             return {
-                'compute': compute,
-                'networking': networking,
-                'storage': result.storage_spec,
-                'database': result.database_spec,
-                'architecture_notes': str(result.architecture_notes)
+                "compute": compute,
+                "networking": networking,
+                "storage": result.storage_spec,
+                "database": result.database_spec,
+                "architecture_notes": str(result.architecture_notes),
             }
 
         except Exception as e:
             logger.error(f"Infrastructure design failed: {e}")
-            return {'error': str(e)}
+            return {"error": str(e)}
 
 
 class CICDDesigner(BaseSwarmAgent):
     """Designs CI/CD pipelines."""
 
-    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
+    def __init__(
+        self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = ""
+    ) -> None:
         super().__init__(memory, context, bus, signature=CICDDesignSignature)
         self._designer = dspy.ChainOfThought(CICDDesignSignature)
         self.learned_context = learned_context
 
     async def design(
-        self,
-        app_type: str,
-        ci_provider: str,
-        deployment_target: str,
-        environments: List[str]
+        self, app_type: str, ci_provider: str, deployment_target: str, environments: List[str]
     ) -> PipelineSpec:
         """Design CI/CD pipeline."""
         try:
@@ -406,7 +416,8 @@ class CICDDesigner(BaseSwarmAgent):
                 app_type=app_type,
                 ci_provider=ci_provider,
                 deployment_target=deployment_target,
-                environments=",".join(environments) + (f"\n\nLearned Context:\n{self.learned_context}" if self.learned_context else "")
+                environments=",".join(environments)
+                + (f"\n\nLearned Context:\n{self.learned_context}" if self.learned_context else ""),
             )
 
             try:
@@ -416,44 +427,35 @@ class CICDDesigner(BaseSwarmAgent):
 
             triggers = _split_field(result.triggers)
 
-            self._broadcast("pipeline_designed", {
-                'provider': ci_provider,
-                'stages': len(stages)
-            })
+            self._broadcast("pipeline_designed", {"provider": ci_provider, "stages": len(stages)})
 
             return PipelineSpec(
                 stages=stages,
                 triggers=triggers,
                 environments=environments,
                 secrets=[],
-                yaml_config=str(result.yaml_config)
+                yaml_config=str(result.yaml_config),
             )
 
         except Exception as e:
             logger.error(f"CI/CD design failed: {e}")
             return PipelineSpec(
-                stages=[],
-                triggers=[],
-                environments=environments,
-                secrets=[],
-                yaml_config=""
+                stages=[], triggers=[], environments=environments, secrets=[], yaml_config=""
             )
 
 
 class ContainerSpecialist(BaseSwarmAgent):
     """Handles containerization."""
 
-    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
+    def __init__(
+        self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = ""
+    ) -> None:
         super().__init__(memory, context, bus, signature=ContainerizationSignature)
         self._specialist = dspy.ChainOfThought(ContainerizationSignature)
         self.learned_context = learned_context
 
     async def containerize(
-        self,
-        app_type: str,
-        language: str,
-        platform: str,
-        requirements: str = ""
+        self, app_type: str, language: str, platform: str, requirements: str = ""
     ) -> ContainerSpec:
         """Create container configuration."""
         try:
@@ -461,56 +463,50 @@ class ContainerSpecialist(BaseSwarmAgent):
                 app_type=app_type,
                 language=language,
                 platform=platform,
-                requirements=(requirements or "Standard requirements") + (f"\n\nLearned Context:\n{self.learned_context}" if self.learned_context else "")
+                requirements=(requirements or "Standard requirements")
+                + (f"\n\nLearned Context:\n{self.learned_context}" if self.learned_context else ""),
             )
 
-            self._broadcast("containerized", {
-                'platform': platform,
-                'language': language
-            })
+            self._broadcast("containerized", {"platform": platform, "language": language})
 
             return ContainerSpec(
                 dockerfile=str(result.dockerfile),
                 compose_file=str(result.compose_file),
                 kubernetes_manifests={
-                    'deployment.yaml': str(result.k8s_deployment),
-                    'service.yaml': str(result.k8s_service)
+                    "deployment.yaml": str(result.k8s_deployment),
+                    "service.yaml": str(result.k8s_service),
                 },
                 registry="",
-                image_name=f"{app_type.lower()}-app"
+                image_name=f"{app_type.lower()}-app",
             )
 
         except Exception as e:
             logger.error(f"Containerization failed: {e}")
             return ContainerSpec(
-                dockerfile="",
-                compose_file="",
-                kubernetes_manifests={},
-                registry="",
-                image_name=""
+                dockerfile="", compose_file="", kubernetes_manifests={}, registry="", image_name=""
             )
 
 
 class SecurityHardener(BaseSwarmAgent):
     """Handles security hardening."""
 
-    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
+    def __init__(
+        self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = ""
+    ) -> None:
         super().__init__(memory, context, bus, signature=SecurityHardeningSignature)
         self._hardener = dspy.ChainOfThought(SecurityHardeningSignature)
         self.learned_context = learned_context
 
     async def harden(
-        self,
-        infrastructure: str,
-        cloud: str,
-        compliance: List[str]
+        self, infrastructure: str, cloud: str, compliance: List[str]
     ) -> SecurityConfig:
         """Design security configuration."""
         try:
             result = self._hardener(
-                infrastructure=infrastructure + (f"\n\nLearned Context:\n{self.learned_context}" if self.learned_context else ""),
+                infrastructure=infrastructure
+                + (f"\n\nLearned Context:\n{self.learned_context}" if self.learned_context else ""),
                 cloud=cloud,
-                compliance=",".join(compliance) if compliance else "general"
+                compliance=",".join(compliance) if compliance else "general",
             )
 
             try:
@@ -523,17 +519,14 @@ class SecurityHardener(BaseSwarmAgent):
             except Exception:
                 network_policies = []
 
-            self._broadcast("security_configured", {
-                'cloud': cloud,
-                'compliance': compliance
-            })
+            self._broadcast("security_configured", {"cloud": cloud, "compliance": compliance})
 
             return SecurityConfig(
                 iam_policies=iam_policies,
                 secrets_management=str(result.secrets_management),
                 network_policies=network_policies,
-                encryption={'config': str(result.encryption_config)},
-                compliance=compliance
+                encryption={"config": str(result.encryption_config)},
+                compliance=compliance,
             )
 
         except Exception as e:
@@ -543,30 +536,30 @@ class SecurityHardener(BaseSwarmAgent):
                 secrets_management="",
                 network_policies=[],
                 encryption={},
-                compliance=compliance
+                compliance=compliance,
             )
 
 
 class MonitoringSpecialist(BaseSwarmAgent):
     """Sets up monitoring and observability."""
 
-    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
+    def __init__(
+        self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = ""
+    ) -> None:
         super().__init__(memory, context, bus, signature=MonitoringSetupSignature)
         self._specialist = dspy.ChainOfThought(MonitoringSetupSignature)
         self.learned_context = learned_context
 
     async def setup(
-        self,
-        infrastructure: str,
-        app_type: str,
-        sla_requirements: str = ""
+        self, infrastructure: str, app_type: str, sla_requirements: str = ""
     ) -> MonitoringConfig:
         """Set up monitoring."""
         try:
             result = self._specialist(
-                infrastructure=infrastructure + (f"\n\nLearned Context:\n{self.learned_context}" if self.learned_context else ""),
+                infrastructure=infrastructure
+                + (f"\n\nLearned Context:\n{self.learned_context}" if self.learned_context else ""),
                 app_type=app_type,
-                sla_requirements=sla_requirements or "99.9% uptime"
+                sla_requirements=sla_requirements or "99.9% uptime",
             )
 
             metrics = _split_field(result.metrics)
@@ -576,62 +569,50 @@ class MonitoringSpecialist(BaseSwarmAgent):
             except Exception:
                 alerts = []
 
-            self._broadcast("monitoring_configured", {
-                'metrics': len(metrics),
-                'alerts': len(alerts)
-            })
+            self._broadcast(
+                "monitoring_configured", {"metrics": len(metrics), "alerts": len(alerts)}
+            )
 
             return MonitoringConfig(
                 metrics=metrics,
                 alerts=alerts,
-                dashboards=[{'config': str(result.dashboard_config)}],
-                logging={'config': str(result.logging_config)},
-                tracing={'config': str(result.tracing_config)}
+                dashboards=[{"config": str(result.dashboard_config)}],
+                logging={"config": str(result.logging_config)},
+                tracing={"config": str(result.tracing_config)},
             )
 
         except Exception as e:
             logger.error(f"Monitoring setup failed: {e}")
-            return MonitoringConfig(
-                metrics=[],
-                alerts=[],
-                dashboards=[],
-                logging={},
-                tracing={}
-            )
+            return MonitoringConfig(metrics=[], alerts=[], dashboards=[], logging={}, tracing={})
 
 
 class IaCGenerator(BaseSwarmAgent):
     """Generates Infrastructure as Code."""
 
-    def __init__(self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = '') -> None:
+    def __init__(
+        self, memory: Any = None, context: Any = None, bus: Any = None, learned_context: str = ""
+    ) -> None:
         super().__init__(memory, context, bus, signature=IaCGenerationSignature)
         self._generator = dspy.ChainOfThought(IaCGenerationSignature)
         self.learned_context = learned_context
 
-    async def generate(
-        self,
-        infrastructure: str,
-        iac_tool: str,
-        cloud: str
-    ) -> Dict[str, str]:
+    async def generate(self, infrastructure: str, iac_tool: str, cloud: str) -> Dict[str, str]:
         """Generate IaC code."""
         try:
             result = self._generator(
-                infrastructure=infrastructure + (f"\n\nLearned Context:\n{self.learned_context}" if self.learned_context else ""),
+                infrastructure=infrastructure
+                + (f"\n\nLearned Context:\n{self.learned_context}" if self.learned_context else ""),
                 iac_tool=iac_tool,
-                cloud=cloud
+                cloud=cloud,
             )
 
-            self._broadcast("iac_generated", {
-                'tool': iac_tool,
-                'cloud': cloud
-            })
+            self._broadcast("iac_generated", {"tool": iac_tool, "cloud": cloud})
 
             return {
-                'main.tf': str(result.main_config),
-                'variables.tf': str(result.variables),
-                'outputs.tf': str(result.outputs),
-                'modules': str(result.modules)
+                "main.tf": str(result.main_config),
+                "variables.tf": str(result.variables),
+                "outputs.tf": str(result.outputs),
+                "modules": str(result.modules),
             }
 
         except Exception as e:
@@ -642,6 +623,7 @@ class IaCGenerator(BaseSwarmAgent):
 # =============================================================================
 # DEVOPS SWARM
 # =============================================================================
+
 
 @register_swarm("devops")
 class DevOpsSwarm(DomainSwarm):
@@ -666,6 +648,9 @@ class DevOpsSwarm(DomainSwarm):
         (IaCGenerator, "IaCGenerator", "_iac_generator"),
     )
     SWARM_SIGNATURE = DevOpsSwarmSignature
+    TASK_TYPE = "devops_setup"
+    DEFAULT_TOOLS = ["infra_design", "cicd_design", "container_setup"]
+    RESULT_CLASS = DevOpsResult
 
     def __init__(self, config: DevOpsConfig = None) -> None:
         super().__init__(config or DevOpsConfig())
@@ -681,7 +666,7 @@ class DevOpsSwarm(DomainSwarm):
         language: str = "python",
         requirements: str = "",
         scale: str = "medium",
-        compliance: List[str] = None
+        compliance: List[str] = None,
     ) -> DevOpsResult:
         """
         Design complete infrastructure.
@@ -702,40 +687,54 @@ class DevOpsSwarm(DomainSwarm):
 
         logger.info(f"DevOpsSwarm starting: {app_name} on {config.cloud_provider.value}")
 
-        return await self._safe_execute_domain(
-            task_type='devops_setup',
-            default_tools=['infra_design', 'cicd_design', 'container_setup'],
-            result_class=DevOpsResult,
+        self._run_input = {
+            "app_name": app_name,
+            "app_type": app_type,
+            "language": language,
+            "requirements": requirements,
+            "scale": scale,
+            "compliance": compliance,
+            "cloud_provider": config.cloud_provider.value,
+            "iac_tool": config.iac_tool.value,
+            "ci_provider": config.ci_provider.value,
+            "container_platform": config.container_platform.value,
+        }
+
+        return await self.run_domain(
             execute_fn=lambda executor: self._execute_phases(
                 executor, app_name, app_type, language, requirements, scale, compliance, config
             ),
-            output_data_fn=lambda result: {
-                'app_name': app_name,
-                'cloud': config.cloud_provider.value,
-                'has_infrastructure': result.infrastructure is not None,
-                'has_pipeline': result.pipeline is not None and bool(getattr(result.pipeline, 'stages', [])),
-                'has_container': result.container is not None and bool(getattr(result.container, 'dockerfile', '')),
-                'has_security': result.security is not None,
-                'has_monitoring': result.monitoring is not None,
-                'iac_files_count': len(result.iac_code) if result.iac_code else 0,
-                'deployment_steps_count': len(result.deployment_steps) if result.deployment_steps else 0,
-                'execution_time': getattr(result, 'execution_time', 0),
-            },
-            input_data_fn=lambda: {
-                'app_name': app_name,
-                'app_type': app_type,
-                'language': language,
-                'requirements': requirements,
-                'scale': scale,
-                'compliance': compliance,
-                'cloud_provider': config.cloud_provider.value,
-                'iac_tool': config.iac_tool.value,
-                'ci_provider': config.ci_provider.value,
-                'container_platform': config.container_platform.value,
-            },
         )
 
-    async def _execute_phases(self, executor: Any, app_name: str, app_type: str, language: str, requirements: str, scale: str, compliance: List[str], config: DevOpsConfig) -> DevOpsResult:
+    def _build_output_data(self, result: DevOpsResult) -> Dict[str, Any]:
+        return {
+            "has_infrastructure": result.infrastructure is not None,
+            "has_pipeline": result.pipeline is not None
+            and bool(getattr(result.pipeline, "stages", [])),
+            "has_container": result.container is not None
+            and bool(getattr(result.container, "dockerfile", "")),
+            "has_security": result.security is not None,
+            "has_monitoring": result.monitoring is not None,
+            "iac_files_count": len(result.iac_code) if result.iac_code else 0,
+            "deployment_steps_count": (
+                len(result.deployment_steps) if result.deployment_steps else 0
+            ),
+        }
+
+    def _build_input_data(self) -> Dict[str, Any]:
+        return getattr(self, "_run_input", {})
+
+    async def _execute_phases(
+        self,
+        executor: Any,
+        app_name: str,
+        app_type: str,
+        language: str,
+        requirements: str,
+        scale: str,
+        compliance: List[str],
+        config: DevOpsConfig,
+    ) -> DevOpsResult:
         """Execute all DevOps phases using PhaseExecutor.
 
         Args:
@@ -755,78 +754,102 @@ class DevOpsSwarm(DomainSwarm):
         # PHASE 1: INFRASTRUCTURE DESIGN
         # =================================================================
         infra_result = await executor.run_phase(
-            1, "Infrastructure Design", "InfrastructureArchitect", AgentRole.PLANNER,
+            1,
+            "Infrastructure Design",
+            "InfrastructureArchitect",
+            AgentRole.PLANNER,
             self._infra_architect.design(
                 app_type=app_type,
                 cloud=config.cloud_provider.value,
                 requirements=requirements or f"Standard {app_type} application",
-                scale=scale
+                scale=scale,
             ),
-            input_data={'app_type': app_type, 'cloud': config.cloud_provider.value},
-            tools_used=['infra_design'],
+            input_data={"app_type": app_type, "cloud": config.cloud_provider.value},
+            tools_used=["infra_design"],
         )
 
-        if isinstance(infra_result, dict) and 'error' in infra_result:
+        if isinstance(infra_result, dict) and "error" in infra_result:
             return DevOpsResult(
                 success=False,
                 swarm_name=self.config.name,
                 domain=self.config.domain,
                 output={},
                 execution_time=executor.elapsed(),
-                error=infra_result['error']
+                error=infra_result["error"],
             )
 
         infrastructure = InfrastructureSpec(
-            compute=infra_result.get('compute', {}),
-            networking=infra_result.get('networking', {}),
+            compute=infra_result.get("compute", {}),
+            networking=infra_result.get("networking", {}),
             storage={},
             database={},
             security_groups=[],
-            load_balancers=[]
+            load_balancers=[],
         )
 
         # =================================================================
         # PHASE 2: PARALLEL - CI/CD + Containers + Security
         # =================================================================
         parallel_tasks = [
-            ("CICDDesigner", AgentRole.ACTOR, self._cicd_designer.design(
-                app_type=app_type,
-                ci_provider=config.ci_provider.value,
-                deployment_target=config.container_platform.value,
-                environments=["dev", "staging", "production"]
-            ), ['cicd_design']),
-            ("ContainerSpecialist", AgentRole.ACTOR, self._container_specialist.containerize(
-                app_type=app_type,
-                language=language,
-                platform=config.container_platform.value,
-                requirements=requirements
-            ), ['container_setup']),
+            (
+                "CICDDesigner",
+                AgentRole.ACTOR,
+                self._cicd_designer.design(
+                    app_type=app_type,
+                    ci_provider=config.ci_provider.value,
+                    deployment_target=config.container_platform.value,
+                    environments=["dev", "staging", "production"],
+                ),
+                ["cicd_design"],
+            ),
+            (
+                "ContainerSpecialist",
+                AgentRole.ACTOR,
+                self._container_specialist.containerize(
+                    app_type=app_type,
+                    language=language,
+                    platform=config.container_platform.value,
+                    requirements=requirements,
+                ),
+                ["container_setup"],
+            ),
         ]
 
         if config.include_security:
             parallel_tasks.append(
-                ("SecurityHardener", AgentRole.EXPERT, self._security_hardener.harden(
-                    infrastructure=json.dumps(infra_result),
-                    cloud=config.cloud_provider.value,
-                    compliance=compliance
-                ), ['security_harden'])
+                (
+                    "SecurityHardener",
+                    AgentRole.EXPERT,
+                    self._security_hardener.harden(
+                        infrastructure=json.dumps(infra_result),
+                        cloud=config.cloud_provider.value,
+                        compliance=compliance,
+                    ),
+                    ["security_harden"],
+                )
             )
 
-        parallel_results = await executor.run_parallel(2, "CI/CD, Containers, Security", parallel_tasks)
+        parallel_results = await executor.run_parallel(
+            2, "CI/CD, Containers, Security", parallel_tasks
+        )
 
         # Unpack parallel results with safe defaults for errors
         pipeline = parallel_results[0]
-        if isinstance(pipeline, dict) and 'error' in pipeline:
-            pipeline = PipelineSpec(stages=[], triggers=[], environments=[], secrets=[], yaml_config="")
+        if isinstance(pipeline, dict) and "error" in pipeline:
+            pipeline = PipelineSpec(
+                stages=[], triggers=[], environments=[], secrets=[], yaml_config=""
+            )
 
         container = parallel_results[1]
-        if isinstance(container, dict) and 'error' in container:
-            container = ContainerSpec(dockerfile="", compose_file="", kubernetes_manifests={}, registry="", image_name="")
+        if isinstance(container, dict) and "error" in container:
+            container = ContainerSpec(
+                dockerfile="", compose_file="", kubernetes_manifests={}, registry="", image_name=""
+            )
 
         security = None
         if config.include_security and len(parallel_results) > 2:
             security = parallel_results[2]
-            if isinstance(security, dict) and 'error' in security:
+            if isinstance(security, dict) and "error" in security:
                 security = None
 
         # =================================================================
@@ -835,31 +858,37 @@ class DevOpsSwarm(DomainSwarm):
         monitoring = None
         if config.include_monitoring:
             monitoring = await executor.run_phase(
-                3, "Monitoring Setup", "MonitoringSpecialist", AgentRole.ACTOR,
+                3,
+                "Monitoring Setup",
+                "MonitoringSpecialist",
+                AgentRole.ACTOR,
                 self._monitoring_specialist.setup(
                     infrastructure=json.dumps(infra_result),
                     app_type=app_type,
-                    sla_requirements="99.9% uptime"
+                    sla_requirements="99.9% uptime",
                 ),
-                input_data={'include_monitoring': config.include_monitoring},
-                tools_used=['monitoring_setup'],
+                input_data={"include_monitoring": config.include_monitoring},
+                tools_used=["monitoring_setup"],
             )
 
         # =================================================================
         # PHASE 4: IAC GENERATION
         # =================================================================
         iac_code = await executor.run_phase(
-            4, "Infrastructure as Code Generation", "IaCGenerator", AgentRole.ACTOR,
+            4,
+            "Infrastructure as Code Generation",
+            "IaCGenerator",
+            AgentRole.ACTOR,
             self._iac_generator.generate(
                 infrastructure=json.dumps(infra_result),
                 iac_tool=config.iac_tool.value,
-                cloud=config.cloud_provider.value
+                cloud=config.cloud_provider.value,
             ),
-            input_data={'iac_tool': config.iac_tool.value},
-            tools_used=['iac_generate'],
+            input_data={"iac_tool": config.iac_tool.value},
+            tools_used=["iac_generate"],
         )
 
-        if isinstance(iac_code, dict) and 'error' in iac_code:
+        if isinstance(iac_code, dict) and "error" in iac_code:
             iac_code = {}
 
         # =================================================================
@@ -874,7 +903,7 @@ class DevOpsSwarm(DomainSwarm):
             f"6. Push to registry",
             f"7. Deploy via {config.ci_provider.value} pipeline",
             "8. Verify monitoring dashboards",
-            "9. Run smoke tests"
+            "9. Run smoke tests",
         ]
 
         logger.info(f"DevOpsSwarm complete: {app_name} infrastructure ready")
@@ -884,11 +913,11 @@ class DevOpsSwarm(DomainSwarm):
             swarm_name=self.config.name,
             domain=self.config.domain,
             output={
-                'iac_code': iac_code,
-                'deployment_steps': deployment_steps,
-                'app_name': app_name,
-                'cloud': config.cloud_provider.value,
-                'estimated_cost': "Varies based on scale and usage",
+                "iac_code": iac_code,
+                "deployment_steps": deployment_steps,
+                "app_name": app_name,
+                "cloud": config.cloud_provider.value,
+                "estimated_cost": "Varies based on scale and usage",
             },
             execution_time=executor.elapsed(),
             infrastructure=infrastructure,
@@ -898,13 +927,14 @@ class DevOpsSwarm(DomainSwarm):
             monitoring=monitoring,
             iac_code=iac_code,
             estimated_cost="Varies based on scale and usage",
-            deployment_steps=deployment_steps
+            deployment_steps=deployment_steps,
         )
 
 
 # =============================================================================
 # CONVENIENCE FUNCTIONS
 # =============================================================================
+
 
 async def deploy(app_name: str, **kwargs: Any) -> DevOpsResult:
     """
@@ -928,25 +958,25 @@ def deploy_sync(app_name: str, **kwargs: Any) -> DevOpsResult:
 # =============================================================================
 
 __all__ = [
-    'DevOpsSwarm',
-    'DevOpsConfig',
-    'DevOpsResult',
-    'InfrastructureSpec',
-    'PipelineSpec',
-    'ContainerSpec',
-    'SecurityConfig',
-    'MonitoringConfig',
-    'CloudProvider',
-    'IaCTool',
-    'CIProvider',
-    'ContainerPlatform',
-    'deploy',
-    'deploy_sync',
+    "DevOpsSwarm",
+    "DevOpsConfig",
+    "DevOpsResult",
+    "InfrastructureSpec",
+    "PipelineSpec",
+    "ContainerSpec",
+    "SecurityConfig",
+    "MonitoringConfig",
+    "CloudProvider",
+    "IaCTool",
+    "CIProvider",
+    "ContainerPlatform",
+    "deploy",
+    "deploy_sync",
     # Agents
-    'InfrastructureArchitect',
-    'CICDDesigner',
-    'ContainerSpecialist',
-    'SecurityHardener',
-    'MonitoringSpecialist',
-    'IaCGenerator',
+    "InfrastructureArchitect",
+    "CICDDesigner",
+    "ContainerSpecialist",
+    "SecurityHardener",
+    "MonitoringSpecialist",
+    "IaCGenerator",
 ]

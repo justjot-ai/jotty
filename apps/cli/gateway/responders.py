@@ -14,9 +14,9 @@ This module:
 """
 
 import logging
-from typing import Dict, Any, Optional, Callable, Awaitable
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any, Awaitable, Callable, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +28,7 @@ from Jotty.sdk import ChannelType, ExecutionContext
 @dataclass
 class ResponseEvent:
     """Outgoing response to a channel."""
+
     channel: ChannelType
     channel_id: str
     content: str
@@ -74,14 +75,15 @@ class ChannelResponderRegistry:
             # Try to import from skills dynamically
             # This avoids hardcoded imports
             from Jotty.core.capabilities.registry.unified_registry import get_unified_registry
+
             registry = get_unified_registry()
 
             # Get the skill
             skill = registry.get_skill(skill_name)
-            if skill and hasattr(skill, 'tools'):
+            if skill and hasattr(skill, "tools"):
                 # Get the primary send tool
                 for tool in skill.tools:
-                    if 'send' in tool.name.lower() or 'message' in tool.name.lower():
+                    if "send" in tool.name.lower() or "message" in tool.name.lower():
                         self._skill_cache[skill_name] = tool.function
                         return tool.function
 
@@ -105,6 +107,7 @@ class ChannelResponderRegistry:
             module_path, func_name = import_map[skill_name]
             try:
                 import importlib
+
                 module = importlib.import_module(module_path)
                 func = getattr(module, func_name, None)
                 if func:
@@ -124,12 +127,9 @@ class ChannelResponderRegistry:
         async def telegram_responder(response: ResponseEvent) -> Any:
             tool = self._discover_skill("telegram-sender")
             if tool:
-                result = tool({
-                    "chat_id": response.channel_id,
-                    "message": response.content
-                })
+                result = tool({"chat_id": response.channel_id, "message": response.content})
                 # Handle both sync and async tools
-                if hasattr(result, '__await__'):
+                if hasattr(result, "__await__"):
                     await result
             else:
                 logger.warning("Telegram sender skill not available")
@@ -146,7 +146,7 @@ class ChannelResponderRegistry:
                     params["thread_ts"] = response.reply_to
 
                 result = tool(params)
-                if hasattr(result, '__await__'):
+                if hasattr(result, "__await__"):
                     await result
             else:
                 logger.warning("Slack sender skill not available")
@@ -155,11 +155,8 @@ class ChannelResponderRegistry:
         async def discord_responder(response: ResponseEvent) -> Any:
             tool = self._discover_skill("discord")
             if tool:
-                result = tool({
-                    "channel_id": response.channel_id,
-                    "content": response.content
-                })
-                if hasattr(result, '__await__'):
+                result = tool({"channel_id": response.channel_id, "content": response.content})
+                if hasattr(result, "__await__"):
                     await result
             else:
                 logger.warning("Discord sender skill not available")
@@ -168,11 +165,8 @@ class ChannelResponderRegistry:
         async def whatsapp_responder(response: ResponseEvent) -> Any:
             tool = self._discover_skill("whatsapp")
             if tool:
-                result = tool({
-                    "to": response.channel_id,
-                    "message": response.content
-                })
-                if hasattr(result, '__await__'):
+                result = tool({"to": response.channel_id, "message": response.content})
+                if hasattr(result, "__await__"):
                     await result
             else:
                 logger.warning("WhatsApp sender skill not available")

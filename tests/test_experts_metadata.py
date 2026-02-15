@@ -10,11 +10,12 @@ Tests cover:
 6. WidgetParamSchema - schema definition, validation, defaults, docstring generation
 """
 
-import pytest
 import asyncio
-from unittest.mock import MagicMock, patch, AsyncMock
-from typing import Any, Dict, List, Optional
 from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 # ============================================================================
 # Safe imports with skip-if-unavailable
@@ -25,18 +26,21 @@ try:
         ExpertRegistry,
         get_expert_registry,
     )
+
     HAS_EXPERT_REGISTRY = True
 except ImportError:
     HAS_EXPERT_REGISTRY = False
 
 try:
     from Jotty.core.intelligence.reasoning.experts.base_expert import BaseExpert, SimpleDomainExpert
+
     HAS_BASE_EXPERT = True
 except ImportError:
     HAS_BASE_EXPERT = False
 
 try:
     from Jotty.core.intelligence.reasoning.experts.expert_agent import ExpertAgentConfig
+
     HAS_EXPERT_AGENT_CONFIG = True
 except ImportError:
     HAS_EXPERT_AGENT_CONFIG = False
@@ -44,29 +48,32 @@ except ImportError:
 try:
     from Jotty.core.infrastructure.metadata.tool_interceptor import (
         ToolCall,
-        ToolInterceptor,
         ToolCallRegistry,
+        ToolInterceptor,
     )
+
     HAS_TOOL_INTERCEPTOR = True
 except ImportError:
     HAS_TOOL_INTERCEPTOR = False
 
 try:
     from Jotty.core.infrastructure.metadata.metadata_tool_registry import MetadataToolRegistry
+
     HAS_METADATA_TOOL_REGISTRY = True
 except ImportError:
     HAS_METADATA_TOOL_REGISTRY = False
 
 try:
     from Jotty.core.infrastructure.metadata.widget_params_schema import (
+        LIMIT_PARAM_SCHEMA,
+        SORT_PARAM_SCHEMA,
+        STATUS_PARAM_SCHEMA,
+        TIME_RANGE_PARAM_SCHEMA,
         WidgetParamSchema,
         generate_param_docstring,
         generate_tool_examples,
-        STATUS_PARAM_SCHEMA,
-        LIMIT_PARAM_SCHEMA,
-        TIME_RANGE_PARAM_SCHEMA,
-        SORT_PARAM_SCHEMA,
     )
+
     HAS_WIDGET_PARAMS = True
 except ImportError:
     HAS_WIDGET_PARAMS = False
@@ -75,6 +82,7 @@ except ImportError:
 # ============================================================================
 # Helpers: concrete BaseExpert subclass for testing
 # ============================================================================
+
 
 def _make_concrete_expert_class():
     """Create a concrete BaseExpert subclass for testing purposes."""
@@ -185,6 +193,7 @@ def _make_metadata_instance_with_jotty_methods():
 # ============================================================================
 # 1. ExpertRegistry Tests
 # ============================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_EXPERT_REGISTRY, reason="ExpertRegistry not available")
@@ -317,6 +326,7 @@ class TestExpertRegistry:
 # ============================================================================
 # 2. BaseExpert Tests
 # ============================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_BASE_EXPERT, reason="BaseExpert not available")
@@ -484,6 +494,7 @@ class TestSimpleDomainExpert:
 # 3. Expert Templates Tests
 # ============================================================================
 
+
 @pytest.mark.unit
 class TestExpertTemplates:
     """Tests for expert template factory functions."""
@@ -497,9 +508,7 @@ class TestExpertTemplates:
         mock_instance = MagicMock()
 
         # Patch local import within create_mermaid_expert
-        with patch.object(
-            expert_templates, "__builtins__", expert_templates.__builtins__
-        ):
+        with patch.object(expert_templates, "__builtins__", expert_templates.__builtins__):
             # Direct approach: mock the import target
             with patch.dict(
                 "sys.modules",
@@ -524,9 +533,7 @@ class TestExpertTemplates:
         with patch.dict(
             "sys.modules",
             {
-                "Jotty.core.experts.mermaid_expert": MagicMock(
-                    MermaidExpertAgent=mock_cls
-                ),
+                "Jotty.core.experts.mermaid_expert": MagicMock(MermaidExpertAgent=mock_cls),
             },
         ):
             result = expert_templates.create_mermaid_expert(memory=mock_memory)
@@ -545,9 +552,7 @@ class TestExpertTemplates:
         with patch.dict(
             "sys.modules",
             {
-                "Jotty.core.experts.mermaid_expert": MagicMock(
-                    MermaidExpertAgent=mock_cls
-                ),
+                "Jotty.core.experts.mermaid_expert": MagicMock(MermaidExpertAgent=mock_cls),
             },
         ):
             result = expert_templates.create_mermaid_expert(improvements=improvements)
@@ -564,9 +569,7 @@ class TestExpertTemplates:
         with patch.dict(
             "sys.modules",
             {
-                "Jotty.core.experts.mermaid_expert": MagicMock(
-                    MermaidExpertAgent=mock_cls
-                ),
+                "Jotty.core.experts.mermaid_expert": MagicMock(MermaidExpertAgent=mock_cls),
             },
         ):
             expert_templates.create_mermaid_expert()
@@ -587,9 +590,7 @@ class TestExpertTemplates:
         with patch.dict(
             "sys.modules",
             {
-                "Jotty.core.experts.plantuml_expert": MagicMock(
-                    PlantUMLExpertAgent=mock_cls
-                ),
+                "Jotty.core.experts.plantuml_expert": MagicMock(PlantUMLExpertAgent=mock_cls),
             },
         ):
             result = expert_templates.create_plantuml_expert()
@@ -605,9 +606,7 @@ class TestExpertTemplates:
         with patch.dict(
             "sys.modules",
             {
-                "Jotty.core.experts.plantuml_expert": MagicMock(
-                    PlantUMLExpertAgent=mock_cls
-                ),
+                "Jotty.core.experts.plantuml_expert": MagicMock(PlantUMLExpertAgent=mock_cls),
             },
         ):
             expert_templates.create_plantuml_expert()
@@ -666,6 +665,7 @@ class TestExpertTemplates:
 # ============================================================================
 # 4. ToolInterceptor Tests
 # ============================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_TOOL_INTERCEPTOR, reason="ToolInterceptor not available")
@@ -913,6 +913,7 @@ class TestToolCallRegistry:
 # 5. MetadataToolRegistry Tests
 # ============================================================================
 
+
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_METADATA_TOOL_REGISTRY, reason="MetadataToolRegistry not available")
 class TestMetadataToolRegistry:
@@ -1027,6 +1028,7 @@ class TestMetadataToolRegistry:
         class MetaWithPrivate:
             def _private_method(self):
                 return "hidden"
+
             _private_method._jotty_meta = {
                 "desc": "Private",
                 "when": "never",
@@ -1035,6 +1037,7 @@ class TestMetadataToolRegistry:
 
             def public_method(self):
                 return "visible"
+
             public_method._jotty_meta = {
                 "desc": "Public",
                 "when": "always",
@@ -1058,6 +1061,7 @@ class TestMetadataToolRegistry:
 # ============================================================================
 # 6. WidgetParamSchema Tests
 # ============================================================================
+
 
 @pytest.mark.unit
 @pytest.mark.skipif(not HAS_WIDGET_PARAMS, reason="WidgetParamSchema not available")
@@ -1406,10 +1410,12 @@ class TestStandardParamSchemas:
             properties=combined_props,
             required=["status"],
         )
-        is_valid, err = schema.validate({
-            "status": "completed",
-            "limit": 25,
-            "time_range": "month",
-        })
+        is_valid, err = schema.validate(
+            {
+                "status": "completed",
+                "limit": 25,
+                "time_range": "month",
+            }
+        )
         assert is_valid is True
         assert err is None

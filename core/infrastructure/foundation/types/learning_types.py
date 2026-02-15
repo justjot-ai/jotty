@@ -8,32 +8,34 @@ Extracted from data_structures.py for better organization.
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Any, Optional, Set
 from datetime import datetime
+
+# ValidationResult and AgentContribution are defined in validation_types.py and agent_types.py
+# We use TYPE_CHECKING to avoid circular imports
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set
 
 from .enums import OutputTag
 from .memory_types import CausalLink
-
 
 # =============================================================================
 # Forward declarations (to avoid circular imports)
 # =============================================================================
 
-# ValidationResult and AgentContribution are defined in validation_types.py and agent_types.py
-# We use TYPE_CHECKING to avoid circular imports
-from typing import TYPE_CHECKING
+
 if TYPE_CHECKING:
-    from .validation_types import ValidationResult
     from .agent_types import AgentContribution
+    from .validation_types import ValidationResult
 
 
 # =============================================================================
 # EPISODE RESULT
 # =============================================================================
 
+
 @dataclass
 class TaggedOutput:
     """Output tagged by Auditor."""
+
     name: str
     tag: OutputTag
     why_useful: str
@@ -45,6 +47,7 @@ class EpisodeResult:
     """
     Complete episode result with all metadata.
     """
+
     output: Any
     success: bool
     trajectory: List[Dict[str, Any]]
@@ -58,7 +61,7 @@ class EpisodeResult:
 
     # Validation results
     architect_results: List[Any]  # List['ValidationResult']
-    auditor_results: List[Any]     # List['ValidationResult']
+    auditor_results: List[Any]  # List['ValidationResult']
 
     # Learning info
     agent_contributions: Dict[str, Any]  # Dict[str, 'AgentContribution']
@@ -82,11 +85,13 @@ class EpisodeResult:
 # EPISODE STORAGE (Enhanced for Offline Learning)
 # =============================================================================
 
+
 @dataclass
 class StoredEpisode:
     """
     Complete episode storage for offline learning.
     """
+
     episode_id: int
     goal: str
     goal_id: str
@@ -103,12 +108,14 @@ class StoredEpisode:
 
     # Agent decisions
     architect_results: List[Any]  # List['ValidationResult']
-    auditor_results: List[Any]     # List['ValidationResult']
+    auditor_results: List[Any]  # List['ValidationResult']
     actor_output: Optional[str] = None
     actor_error: Optional[str] = None
 
     # Contributions
-    agent_contributions: Dict[str, Any] = field(default_factory=dict)  # Dict[str, 'AgentContribution']
+    agent_contributions: Dict[str, Any] = field(
+        default_factory=dict
+    )  # Dict[str, 'AgentContribution']
 
     # Memory state
     memories_accessed: Dict[str, List[str]] = field(default_factory=dict)  # agent -> [memory_keys]
@@ -130,11 +137,13 @@ class StoredEpisode:
 # LEARNING METRICS (Enhanced Health Monitoring)
 # =============================================================================
 
+
 @dataclass
 class LearningMetrics:
     """
     Enhanced metrics for learning health monitoring.
     """
+
     # Basic stats
     episode_count: int = 0
     success_count: int = 0

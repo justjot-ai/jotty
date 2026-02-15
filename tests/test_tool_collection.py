@@ -19,17 +19,19 @@ Covers:
 """
 
 import json
-import pytest
 from pathlib import Path
-from unittest.mock import Mock, MagicMock, patch, mock_open
+from unittest.mock import MagicMock, Mock, mock_open, patch
+
+import pytest
 
 # Try importing the module under test
 try:
     from Jotty.core.capabilities.registry.tool_collection import (
-        ToolCollection,
         HUGGINGFACE_HUB_AVAILABLE,
         MCP_AVAILABLE,
+        ToolCollection,
     )
+
     TOOL_COLLECTION_AVAILABLE = True
 except ImportError:
     TOOL_COLLECTION_AVAILABLE = False
@@ -42,6 +44,7 @@ skip_no_module = pytest.mark.skipif(
 # =============================================================================
 # Helpers
 # =============================================================================
+
 
 def _make_tool_dict(name="test_tool", description="A test tool", source="test"):
     """Create a minimal tool dict for testing."""
@@ -82,6 +85,7 @@ def _make_tool_object(name="obj_tool", description="Object tool"):
 # =============================================================================
 # TestToolCollectionInit
 # =============================================================================
+
 
 @pytest.mark.unit
 @skip_no_module
@@ -127,6 +131,7 @@ class TestToolCollectionInit:
 # =============================================================================
 # TestToolCollectionDunders
 # =============================================================================
+
 
 @pytest.mark.unit
 @skip_no_module
@@ -176,6 +181,7 @@ class TestToolCollectionDunders:
 # =============================================================================
 # TestToolCollectionListTools
 # =============================================================================
+
 
 @pytest.mark.unit
 @skip_no_module
@@ -234,6 +240,7 @@ class TestToolCollectionListTools:
 # =============================================================================
 # TestToolCollectionFromLocal
 # =============================================================================
+
 
 @pytest.mark.unit
 @skip_no_module
@@ -316,6 +323,7 @@ class TestToolCollectionFromLocal:
 # TestToolCollectionFromHub
 # =============================================================================
 
+
 @pytest.mark.unit
 @skip_no_module
 class TestToolCollectionFromHub:
@@ -323,17 +331,13 @@ class TestToolCollectionFromHub:
 
     def test_from_hub_without_huggingface_raises(self):
         """Raises ImportError when huggingface_hub is not available."""
-        with patch(
-            "Jotty.core.registry.tool_collection.HUGGINGFACE_HUB_AVAILABLE", False
-        ):
+        with patch("Jotty.core.registry.tool_collection.HUGGINGFACE_HUB_AVAILABLE", False):
             with pytest.raises(ImportError, match="huggingface_hub not available"):
                 ToolCollection.from_hub("some-slug", trust_remote_code=True)
 
     def test_from_hub_without_trust_remote_code_raises(self):
         """Raises ValueError when trust_remote_code=False."""
-        with patch(
-            "Jotty.core.registry.tool_collection.HUGGINGFACE_HUB_AVAILABLE", True
-        ):
+        with patch("Jotty.core.registry.tool_collection.HUGGINGFACE_HUB_AVAILABLE", True):
             with pytest.raises(ValueError, match="trust_remote_code=True"):
                 ToolCollection.from_hub("some-slug", trust_remote_code=False)
 
@@ -355,17 +359,15 @@ class TestToolCollectionFromHub:
             "repo_id": "user/tool-space",
         }
 
-        with patch(
-            "Jotty.core.registry.tool_collection.HUGGINGFACE_HUB_AVAILABLE", True
-        ), patch(
-            "Jotty.core.registry.tool_collection.get_collection",
-            return_value=mock_collection,
-        ), patch.object(
-            ToolCollection, "_load_tool_from_hub_space", return_value=mock_tool_dict
+        with (
+            patch("Jotty.core.registry.tool_collection.HUGGINGFACE_HUB_AVAILABLE", True),
+            patch(
+                "Jotty.core.registry.tool_collection.get_collection",
+                return_value=mock_collection,
+            ),
+            patch.object(ToolCollection, "_load_tool_from_hub_space", return_value=mock_tool_dict),
         ):
-            collection = ToolCollection.from_hub(
-                "user/my-collection", trust_remote_code=True
-            )
+            collection = ToolCollection.from_hub("user/my-collection", trust_remote_code=True)
             assert collection.source == "hub"
             assert len(collection) == 1
             assert collection.metadata["collection_slug"] == "user/my-collection"
@@ -383,19 +385,19 @@ class TestToolCollectionFromHub:
         mock_collection = Mock()
         mock_collection.items = [model_item, space_item]
 
-        with patch(
-            "Jotty.core.registry.tool_collection.HUGGINGFACE_HUB_AVAILABLE", True
-        ), patch(
-            "Jotty.core.registry.tool_collection.get_collection",
-            return_value=mock_collection,
-        ), patch.object(
-            ToolCollection,
-            "_load_tool_from_hub_space",
-            return_value={"name": "tool", "description": "d"},
-        ) as mock_load:
-            collection = ToolCollection.from_hub(
-                "user/collection", trust_remote_code=True
-            )
+        with (
+            patch("Jotty.core.registry.tool_collection.HUGGINGFACE_HUB_AVAILABLE", True),
+            patch(
+                "Jotty.core.registry.tool_collection.get_collection",
+                return_value=mock_collection,
+            ),
+            patch.object(
+                ToolCollection,
+                "_load_tool_from_hub_space",
+                return_value={"name": "tool", "description": "d"},
+            ) as mock_load,
+        ):
+            collection = ToolCollection.from_hub("user/collection", trust_remote_code=True)
             # Only the space item should trigger a load
             mock_load.assert_called_once_with("user/my-space", None, True)
 
@@ -408,19 +410,19 @@ class TestToolCollectionFromHub:
         mock_collection = Mock()
         mock_collection.items = [space_item]
 
-        with patch(
-            "Jotty.core.registry.tool_collection.HUGGINGFACE_HUB_AVAILABLE", True
-        ), patch(
-            "Jotty.core.registry.tool_collection.get_collection",
-            return_value=mock_collection,
-        ), patch.object(
-            ToolCollection,
-            "_load_tool_from_hub_space",
-            side_effect=RuntimeError("load failed"),
+        with (
+            patch("Jotty.core.registry.tool_collection.HUGGINGFACE_HUB_AVAILABLE", True),
+            patch(
+                "Jotty.core.registry.tool_collection.get_collection",
+                return_value=mock_collection,
+            ),
+            patch.object(
+                ToolCollection,
+                "_load_tool_from_hub_space",
+                side_effect=RuntimeError("load failed"),
+            ),
         ):
-            collection = ToolCollection.from_hub(
-                "user/collection", trust_remote_code=True
-            )
+            collection = ToolCollection.from_hub("user/collection", trust_remote_code=True)
             assert len(collection) == 0
 
     def test_from_hub_with_token(self):
@@ -428,21 +430,21 @@ class TestToolCollectionFromHub:
         mock_collection = Mock()
         mock_collection.items = []
 
-        with patch(
-            "Jotty.core.registry.tool_collection.HUGGINGFACE_HUB_AVAILABLE", True
-        ), patch(
-            "Jotty.core.registry.tool_collection.get_collection",
-            return_value=mock_collection,
-        ) as mock_get:
-            ToolCollection.from_hub(
-                "slug", token="hf_test_token", trust_remote_code=True
-            )
+        with (
+            patch("Jotty.core.registry.tool_collection.HUGGINGFACE_HUB_AVAILABLE", True),
+            patch(
+                "Jotty.core.registry.tool_collection.get_collection",
+                return_value=mock_collection,
+            ) as mock_get,
+        ):
+            ToolCollection.from_hub("slug", token="hf_test_token", trust_remote_code=True)
             mock_get.assert_called_once_with("slug", token="hf_test_token")
 
 
 # =============================================================================
 # TestToolCollectionFromMCP
 # =============================================================================
+
 
 @pytest.mark.unit
 @skip_no_module
@@ -477,13 +479,18 @@ class TestToolCollectionFromMCP:
         mock_mcpadapt = Mock(return_value=mock_adapt_cm)
         mock_adapter = Mock()
 
-        with patch("Jotty.core.registry.tool_collection.MCP_AVAILABLE", True), patch.dict(
-            "sys.modules",
-            {
-                "mcpadapt": Mock(),
-                "mcpadapt.core": Mock(MCPAdapt=mock_mcpadapt),
-                "mcpadapt.oagents_adapter": Mock(oagentsAdapter=Mock(return_value=mock_adapter)),
-            },
+        with (
+            patch("Jotty.core.registry.tool_collection.MCP_AVAILABLE", True),
+            patch.dict(
+                "sys.modules",
+                {
+                    "mcpadapt": Mock(),
+                    "mcpadapt.core": Mock(MCPAdapt=mock_mcpadapt),
+                    "mcpadapt.oagents_adapter": Mock(
+                        oagentsAdapter=Mock(return_value=mock_adapter)
+                    ),
+                },
+            ),
         ):
             with ToolCollection.from_mcp(Mock(), trust_remote_code=True) as collection:
                 assert collection.source == "mcp"
@@ -494,6 +501,7 @@ class TestToolCollectionFromMCP:
 # =============================================================================
 # TestToolCollectionSaveToLocal
 # =============================================================================
+
 
 @pytest.mark.unit
 @skip_no_module
@@ -576,6 +584,7 @@ class TestToolCollectionSaveToLocal:
 # TestToolCollectionToSkillDefinitions
 # =============================================================================
 
+
 @pytest.mark.unit
 @skip_no_module
 class TestToolCollectionToSkillDefinitions:
@@ -586,9 +595,7 @@ class TestToolCollectionToSkillDefinitions:
         tool = _make_tool_dict_with_forward("dict_tool", "A dict tool")
         collection = ToolCollection(tools=[tool], source="test")
 
-        with patch(
-            "Jotty.core.registry.skills_registry.SkillDefinition"
-        ) as MockSkillDef:
+        with patch("Jotty.core.registry.skills_registry.SkillDefinition") as MockSkillDef:
             mock_instance = MagicMock()
             MockSkillDef.return_value = mock_instance
 
@@ -603,9 +610,7 @@ class TestToolCollectionToSkillDefinitions:
         tool_obj = _make_tool_object("obj_tool", "Object tool")
         collection = ToolCollection(tools=[tool_obj], source="hub")
 
-        with patch(
-            "Jotty.core.registry.skills_registry.SkillDefinition"
-        ) as MockSkillDef:
+        with patch("Jotty.core.registry.skills_registry.SkillDefinition") as MockSkillDef:
             mock_instance = MagicMock()
             MockSkillDef.return_value = mock_instance
 
@@ -634,9 +639,7 @@ class TestToolCollectionToSkillDefinitions:
         tool = _make_tool_dict_with_forward("fwd_tool", "Forward tool")
         collection = ToolCollection(tools=[tool], source="test")
 
-        with patch(
-            "Jotty.core.registry.skills_registry.SkillDefinition"
-        ) as MockSkillDef:
+        with patch("Jotty.core.registry.skills_registry.SkillDefinition") as MockSkillDef:
             MockSkillDef.return_value = MagicMock()
             collection._dict_to_skill_definition(tool)
             MockSkillDef.assert_called_once()
@@ -649,9 +652,7 @@ class TestToolCollectionToSkillDefinitions:
         tool = _make_tool_dict_with_execute("exec_tool", "Execute tool")
         collection = ToolCollection(tools=[tool], source="test")
 
-        with patch(
-            "Jotty.core.registry.skills_registry.SkillDefinition"
-        ) as MockSkillDef:
+        with patch("Jotty.core.registry.skills_registry.SkillDefinition") as MockSkillDef:
             MockSkillDef.return_value = MagicMock()
             result = collection._dict_to_skill_definition(tool)
             assert result is not None
@@ -661,9 +662,7 @@ class TestToolCollectionToSkillDefinitions:
         tool_obj = _make_tool_object("obj", "desc")
         collection = ToolCollection(tools=[tool_obj], source="hub")
 
-        with patch(
-            "Jotty.core.registry.skills_registry.SkillDefinition"
-        ) as MockSkillDef:
+        with patch("Jotty.core.registry.skills_registry.SkillDefinition") as MockSkillDef:
             MockSkillDef.return_value = MagicMock()
             result = collection._tool_object_to_skill_definition(tool_obj)
             assert result is not None
@@ -700,6 +699,7 @@ class TestToolCollectionToSkillDefinitions:
 # TestToolCollectionEdgeCases
 # =============================================================================
 
+
 @pytest.mark.unit
 @skip_no_module
 class TestToolCollectionEdgeCases:
@@ -727,9 +727,7 @@ class TestToolCollectionEdgeCases:
 
     def test_from_local_with_path_object(self, tmp_path):
         """from_local works with a Path object directly."""
-        (tmp_path / "collection.json").write_text(
-            json.dumps({"tools": [{"name": "path_tool"}]})
-        )
+        (tmp_path / "collection.json").write_text(json.dumps({"tools": [{"name": "path_tool"}]}))
         collection = ToolCollection.from_local(tmp_path)
         assert len(collection) == 1
 

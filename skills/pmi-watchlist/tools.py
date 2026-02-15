@@ -6,11 +6,15 @@ Create, manage, and monitor watchlists via PlanMyInvesting API.
 """
 
 import logging
-from typing import Dict, Any
+from typing import Any, Dict
 
 from Jotty.core.infrastructure.utils.env_loader import load_jotty_env
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import (
+    async_tool_wrapper,
+    tool_error,
+    tool_response,
+)
 
 load_jotty_env()
 logger = logging.getLogger(__name__)
@@ -21,6 +25,7 @@ def _get_pmi_client():
     """Lazy import to avoid circular deps with hyphenated directory."""
     import importlib.util
     from pathlib import Path
+
     spec = importlib.util.spec_from_file_location(
         "pmi_client",
         Path(__file__).resolve().parent.parent / "pmi-market-data" / "pmi_client.py",
@@ -90,10 +95,13 @@ async def create_watchlist_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     symbols = params.get("symbols", [])
     status.emit("Creating", f"Creating watchlist: {name}...")
 
-    result = client.post("/v2/watchlists", data={
-        "name": name,
-        "symbols": symbols,
-    })
+    result = client.post(
+        "/v2/watchlists",
+        data={
+            "name": name,
+            "symbols": symbols,
+        },
+    )
     if not result.get("success"):
         return tool_error(result.get("error", f"Failed to create watchlist '{name}'"))
 
@@ -129,9 +137,12 @@ async def add_to_watchlist_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     symbol = params["symbol"]
     status.emit("Adding", f"Adding {symbol} to watchlist...")
 
-    result = client.post(f"/v2/watchlists/{watchlist_id}/symbols", data={
-        "symbol": symbol,
-    })
+    result = client.post(
+        f"/v2/watchlists/{watchlist_id}/symbols",
+        data={
+            "symbol": symbol,
+        },
+    )
     if not result.get("success"):
         return tool_error(result.get("error", f"Failed to add {symbol} to watchlist"))
 

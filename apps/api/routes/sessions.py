@@ -5,17 +5,16 @@ Session routes - CRUD, folders, branching, temporary sessions.
 import asyncio
 import json
 import logging
-from typing import Optional, Dict, Any, List
 from datetime import datetime
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
 
-
 def register_sessions_routes(app, api):
-    from fastapi import HTTPException, WebSocket, WebSocketDisconnect, UploadFile, File, Form
-    from fastapi.responses import FileResponse, JSONResponse, StreamingResponse, HTMLResponse
+    from fastapi import File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
+    from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
     from pydantic import BaseModel
 
     @app.get("/api/sessions")
@@ -107,8 +106,8 @@ def register_sessions_routes(app, api):
 
         return {
             "branches": session.get_branches(),
-            "active_branch": getattr(session, 'active_branch', 'main'),
-            "tree": session.get_branch_tree()
+            "active_branch": getattr(session, "active_branch", "main"),
+            "tree": session.get_branch_tree(),
         }
 
     class CreateBranchRequest(BaseModel):
@@ -128,14 +127,9 @@ def register_sessions_routes(app, api):
 
         try:
             branch_id = session.create_branch(
-                from_message_id=request.from_message_id,
-                branch_name=request.branch_name
+                from_message_id=request.from_message_id, branch_name=request.branch_name
             )
-            return {
-                "success": True,
-                "branch_id": branch_id,
-                "branches": session.get_branches()
-            }
+            return {"success": True, "branch_id": branch_id, "branches": session.get_branches()}
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
 
@@ -158,13 +152,9 @@ def register_sessions_routes(app, api):
             branch_id = session.edit_message(
                 message_id=message_id,
                 new_content=request.new_content,
-                create_branch=request.create_branch
+                create_branch=request.create_branch,
             )
-            return {
-                "success": True,
-                "branch_id": branch_id,
-                "branches": session.get_branches()
-            }
+            return {"success": True, "branch_id": branch_id, "branches": session.get_branches()}
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
 
@@ -187,7 +177,7 @@ def register_sessions_routes(app, api):
             return {
                 "success": True,
                 "active_branch": request.branch_id,
-                "history": session.get_history()
+                "history": session.get_history(),
             }
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
@@ -205,10 +195,7 @@ def register_sessions_routes(app, api):
 
         try:
             session.delete_branch(branch_id)
-            return {
-                "success": True,
-                "branches": session.get_branches()
-            }
+            return {"success": True, "branches": session.get_branches()}
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
 
@@ -234,23 +221,22 @@ def register_sessions_routes(app, api):
     @app.post("/api/sessions/temporary")
     async def create_temporary_session(request: CreateTempSessionRequest = None):
         """Create a temporary (ephemeral) chat session."""
-        from Jotty.apps.cli.repl.session import SessionManager, InterfaceType
+        from Jotty.apps.cli.repl.session import InterfaceType, SessionManager
 
         expiry_days = (request.expiry_days if request else None) or 30
-        session = SessionManager(
-            interface=InterfaceType.WEB,
-            is_temporary=True
-        )
+        session = SessionManager(interface=InterfaceType.WEB, is_temporary=True)
         session.set_temporary(True, expiry_days)
 
         return {
             "session_id": session.session_id,
             "is_temporary": True,
-            "expires_at": session.expires_at.isoformat() if session.expires_at else None
+            "expires_at": session.expires_at.isoformat() if session.expires_at else None,
         }
 
     @app.post("/api/sessions/{session_id}/temporary")
-    async def toggle_session_temporary(session_id: str, is_temporary: bool, expiry_days: Optional[int] = 30):
+    async def toggle_session_temporary(
+        session_id: str, is_temporary: bool, expiry_days: Optional[int] = 30
+    ):
         """Toggle temporary mode for a session."""
         from Jotty.apps.cli.repl.session import get_session_registry
 
@@ -270,7 +256,7 @@ def register_sessions_routes(app, api):
         return {
             "session_id": session_id,
             "is_temporary": session.is_temporary,
-            "expires_at": session.expires_at.isoformat() if session.expires_at else None
+            "expires_at": session.expires_at.isoformat() if session.expires_at else None,
         }
 
     @app.post("/api/sessions/cleanup")
@@ -280,11 +266,7 @@ def register_sessions_routes(app, api):
 
         deleted = SessionManager.cleanup_expired_sessions()
 
-        return {
-            "success": True,
-            "deleted_count": len(deleted),
-            "deleted_sessions": deleted
-        }
+        return {"success": True, "deleted_count": len(deleted), "deleted_sessions": deleted}
 
     @app.get("/api/sessions")
     async def list_all_sessions(include_temporary: bool = False, include_expired: bool = False):
@@ -293,12 +275,10 @@ def register_sessions_routes(app, api):
 
         session_manager = SessionManager()
         sessions = session_manager.list_sessions(
-            include_temporary=include_temporary,
-            include_expired=include_expired
+            include_temporary=include_temporary, include_expired=include_expired
         )
 
         return {"sessions": sessions}
 
     # ===== UPDATED CAPABILITIES ENDPOINT =====
     # Override the earlier one to add feature flags
-

@@ -5,43 +5,46 @@ Execution Types
 Core types for the tiered execution system.
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, Any, Optional, List, Callable
-from enum import IntEnum, Enum
-from datetime import datetime
-from collections import deque
+import logging
 import threading
 import time
-import logging
+from collections import deque
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum, IntEnum
+from typing import Any, Callable, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
 
 class ExecutionTier(IntEnum):
     """Execution tiers - progressive complexity."""
-    DIRECT = 1      # Single LLM call with tools
-    AGENTIC = 2     # Planning + multi-step orchestration
-    LEARNING = 3    # Memory + validation
-    RESEARCH = 4    # Domain swarm execution
+
+    DIRECT = 1  # Single LLM call with tools
+    AGENTIC = 2  # Planning + multi-step orchestration
+    LEARNING = 3  # Memory + validation
+    RESEARCH = 4  # Domain swarm execution
     AUTONOMOUS = 5  # Sandbox, coalition, curriculum, full features
 
 
 class StreamEventType(Enum):
     """Types of events emitted during streaming execution."""
-    STATUS = "status"            # Phase change (planning, executing, validating...)
+
+    STATUS = "status"  # Phase change (planning, executing, validating...)
     STEP_COMPLETE = "step_complete"  # An execution step finished
     PARTIAL_OUTPUT = "partial_output"  # Partial result from a step
-    TOKEN = "token"              # Individual token from LLM (Tier 1 streaming)
-    RESULT = "result"            # Final ExecutionResult
-    ERROR = "error"              # Execution error
+    TOKEN = "token"  # Individual token from LLM (Tier 1 streaming)
+    RESULT = "result"  # Final ExecutionResult
+    ERROR = "error"  # Execution error
 
 
 @dataclass
 class StreamEvent:
     """A single event emitted during streaming execution."""
+
     type: StreamEventType
     data: Any
-    tier: Optional['ExecutionTier'] = None
+    tier: Optional["ExecutionTier"] = None
     timestamp: datetime = field(default_factory=datetime.now)
 
 
@@ -53,6 +56,7 @@ class ExecutionConfig:
     Each tier has its own config section. Only relevant fields
     are used based on the selected tier.
     """
+
     # Core
     tier: Optional[ExecutionTier] = None  # None = auto-detect
 
@@ -78,11 +82,11 @@ class ExecutionConfig:
     enable_swarm_intelligence: bool = False
 
     # Tier 4/5 options
-    swarm_name: Optional[str] = None        # e.g. "coding", "research", "testing"
-    paradigm: Optional[str] = None          # "relay", "debate", "refinement"
-    enable_sandbox: bool = False            # Tier 5: sandbox execution
-    enable_coalition: bool = False          # Tier 5: coalition formation
-    trust_level: str = "standard"           # Tier 5: "standard", "elevated", "restricted"
+    swarm_name: Optional[str] = None  # e.g. "coding", "research", "testing"
+    paradigm: Optional[str] = None  # "relay", "debate", "refinement"
+    enable_sandbox: bool = False  # Tier 5: sandbox execution
+    enable_coalition: bool = False  # Tier 5: coalition formation
+    trust_level: str = "standard"  # Tier 5: "standard", "elevated", "restricted"
 
     # Shared across all tiers
     timeout_seconds: int = 300
@@ -100,20 +104,21 @@ class ExecutionConfig:
         set via DSPy LM configuration or passed directly to LLMProvider.
         """
         return {
-            'enable_validation': self.enable_validation,
-            'enable_multi_round': self.enable_multi_round_validation,
-            'enable_rl': self.enable_td_lambda,
-            'enable_causal_learning': self.enable_td_lambda,
-            'enable_agent_communication': True,
-            'llm_timeout_seconds': self.timeout_seconds,
-            'max_eval_retries': self.validation_retries,
-            'validation_mode': 'full' if self.enable_multi_round_validation else 'none',
+            "enable_validation": self.enable_validation,
+            "enable_multi_round": self.enable_multi_round_validation,
+            "enable_rl": self.enable_td_lambda,
+            "enable_causal_learning": self.enable_td_lambda,
+            "enable_agent_communication": True,
+            "llm_timeout_seconds": self.timeout_seconds,
+            "max_eval_retries": self.validation_retries,
+            "validation_mode": "full" if self.enable_multi_round_validation else "none",
         }
 
 
 @dataclass
 class ExecutionStep:
     """A single step in multi-step execution."""
+
     step_num: int
     description: str
     skill: Optional[str] = None
@@ -139,6 +144,7 @@ class ExecutionStep:
 @dataclass
 class ExecutionPlan:
     """Multi-step execution plan."""
+
     goal: str
     steps: List[ExecutionStep]
     estimated_cost: float = 0.0
@@ -157,11 +163,13 @@ class ExecutionPlan:
 @dataclass
 class TierValidationResult:
     """Result of output validation."""
+
     success: bool
     confidence: float  # 0-1
     feedback: str
     reasoning: str
     timestamp: datetime = field(default_factory=datetime.now)
+
 
 # Backward-compat alias
 ValidationResult = TierValidationResult
@@ -170,6 +178,7 @@ ValidationResult = TierValidationResult
 @dataclass
 class MemoryContext:
     """Retrieved memory context for task."""
+
     entries: List[Dict[str, Any]]
     relevance_scores: List[float]
     total_retrieved: int
@@ -183,6 +192,7 @@ class ExecutionResult:
 
     Contains tier-specific metadata but common interface.
     """
+
     # Core fields (all tiers)
     output: Any
     tier: ExecutionTier
@@ -220,17 +230,17 @@ class ExecutionResult:
     def to_dict(self) -> Dict[str, Any]:
         """Convert to JSON-serializable dict."""
         return {
-            'output': str(self.output),
-            'tier': self.tier.name,
-            'success': self.success,
-            'error': self.error,
-            'llm_calls': self.llm_calls,
-            'latency_ms': self.latency_ms,
-            'cost_usd': self.cost_usd,
-            'used_memory': self.used_memory,
-            'steps': len(self.steps),
-            'trace_id': self.trace.trace_id if self.trace else None,
-            'timestamp': self.started_at.isoformat(),
+            "output": str(self.output),
+            "tier": self.tier.name,
+            "success": self.success,
+            "error": self.error,
+            "llm_calls": self.llm_calls,
+            "latency_ms": self.latency_ms,
+            "cost_usd": self.cost_usd,
+            "used_memory": self.used_memory,
+            "steps": len(self.steps),
+            "trace_id": self.trace.trace_id if self.trace else None,
+            "timestamp": self.started_at.isoformat(),
         }
 
     def __str__(self) -> str:
@@ -242,6 +252,7 @@ class ExecutionResult:
 # ERROR CLASSIFICATION
 # =============================================================================
 
+
 class ErrorType(Enum):
     """Classifies the source/nature of an error for recovery decisions.
 
@@ -251,6 +262,7 @@ class ErrorType(Enum):
     - DATA → investigate data source (empty results, malformed)
     - ENVIRONMENT → detect and adapt (proxy, SSL, firewall)
     """
+
     NONE = "none"
     INFRASTRUCTURE = "infrastructure"
     LOGIC = "logic"
@@ -267,27 +279,58 @@ class ErrorType(Enum):
         lower = error_msg.lower()
 
         # ENVIRONMENT: very specific indicators — check first
-        env_keywords = ['ssl', 'certificate', 'proxy', 'firewall', 'zscaler',
-                        'bluecoat', 'tls', 'handshake']
+        env_keywords = [
+            "ssl",
+            "certificate",
+            "proxy",
+            "firewall",
+            "zscaler",
+            "bluecoat",
+            "tls",
+            "handshake",
+        ]
         if any(kw in lower for kw in env_keywords):
             return cls.ENVIRONMENT
 
         # LOGIC: check before DATA since 'element not found' is logic
-        logic_keywords = ['selector', 'element not found', 'syntax', 'type error',
-                          'attribute error', 'missing required', 'invalid argument',
-                          'missing parameter']
+        logic_keywords = [
+            "selector",
+            "element not found",
+            "syntax",
+            "type error",
+            "attribute error",
+            "missing required",
+            "invalid argument",
+            "missing parameter",
+        ]
         if any(kw in lower for kw in logic_keywords):
             return cls.LOGIC
 
         # INFRASTRUCTURE: network/service issues
-        infra_keywords = ['timeout', 'connection', 'rate limit', 'server error',
-                          '503', '502', '504', '429', 'unavailable', 'network']
+        infra_keywords = [
+            "timeout",
+            "connection",
+            "rate limit",
+            "server error",
+            "503",
+            "502",
+            "504",
+            "429",
+            "unavailable",
+            "network",
+        ]
         if any(kw in lower for kw in infra_keywords):
             return cls.INFRASTRUCTURE
 
         # DATA: content/result issues
-        data_keywords = ['empty result', 'no results', 'malformed',
-                         'parse error', 'invalid json', 'decode']
+        data_keywords = [
+            "empty result",
+            "no results",
+            "malformed",
+            "parse error",
+            "invalid json",
+            "decode",
+        ]
         if any(kw in lower for kw in data_keywords):
             return cls.DATA
 
@@ -296,6 +339,7 @@ class ErrorType(Enum):
 
 class ValidationStatus(Enum):
     """Outcome of a validation or completion check."""
+
     PASS = "pass"
     FAIL = "fail"
     EXTERNAL_ERROR = "external_error"
@@ -309,6 +353,7 @@ class ValidationVerdict:
     Used by Inspector completion review and step-level validation to provide
     actionable information for retry/recovery decisions.
     """
+
     status: ValidationStatus
     error_type: ErrorType = ErrorType.NONE
     reason: str = ""
@@ -324,8 +369,12 @@ class ValidationVerdict:
     @classmethod
     def ok(cls, reason: str = "", confidence: float = 1.0) -> "ValidationVerdict":
         """Convenience constructor for a passing verdict."""
-        return cls(status=ValidationStatus.PASS, reason=reason,
-                   confidence=confidence, error_type=ErrorType.NONE)
+        return cls(
+            status=ValidationStatus.PASS,
+            reason=reason,
+            confidence=confidence,
+            error_type=ErrorType.NONE,
+        )
 
     @classmethod
     def from_error(cls, error_msg: str) -> "ValidationVerdict":
@@ -345,10 +394,12 @@ class ValidationVerdict:
 # CIRCUIT BREAKER
 # =============================================================================
 
+
 class CircuitState(Enum):
     """Circuit breaker states."""
-    CLOSED = "closed"        # Normal operation — calls pass through
-    OPEN = "open"            # Failing — calls rejected immediately
+
+    CLOSED = "closed"  # Normal operation — calls pass through
+    OPEN = "open"  # Failing — calls rejected immediately
     HALF_OPEN = "half_open"  # Testing — one probe call allowed
 
 
@@ -369,7 +420,9 @@ class CircuitBreaker:
                 raise
     """
 
-    def __init__(self, name: str, failure_threshold: int = 5, cooldown_seconds: float = 60.0) -> None:
+    def __init__(
+        self, name: str, failure_threshold: int = 5, cooldown_seconds: float = 60.0
+    ) -> None:
         self.name = name
         self.failure_threshold = failure_threshold
         self.cooldown_seconds = cooldown_seconds
@@ -409,8 +462,7 @@ class CircuitBreaker:
             if self._failure_count >= self.failure_threshold:
                 self._state = CircuitState.OPEN
                 logger.warning(
-                    f"Circuit breaker '{self.name}' OPEN after "
-                    f"{self._failure_count} failures"
+                    f"Circuit breaker '{self.name}' OPEN after " f"{self._failure_count} failures"
                 )
 
     def reset(self) -> None:
@@ -429,6 +481,7 @@ TOOL_CIRCUIT_BREAKER = CircuitBreaker("tool", failure_threshold=3, cooldown_seco
 # ADAPTIVE TIMEOUT
 # =============================================================================
 
+
 class AdaptiveTimeout:
     """Track observed latencies and compute adaptive timeouts per operation.
 
@@ -441,7 +494,13 @@ class AdaptiveTimeout:
         timeout.record("llm_call", 2.3)   # Record observed latency
     """
 
-    def __init__(self, default_seconds: float = 30.0, min_seconds: float = 5.0, max_seconds: float = 300.0, window_size: int = 50) -> None:
+    def __init__(
+        self,
+        default_seconds: float = 30.0,
+        min_seconds: float = 5.0,
+        max_seconds: float = 300.0,
+        window_size: int = 50,
+    ) -> None:
         self.default_seconds = default_seconds
         self.min_seconds = min_seconds
         self.max_seconds = max_seconds
@@ -482,9 +541,11 @@ ADAPTIVE_TIMEOUT = AdaptiveTimeout()
 # DEAD LETTER QUEUE
 # =============================================================================
 
+
 @dataclass
 class DeadLetter:
     """A failed operation stored for later retry."""
+
     operation: str
     args: Dict[str, Any]
     error: str
@@ -509,12 +570,15 @@ class DeadLetterQueue:
         self._lock = threading.Lock()
         self._max_size = max_size
 
-    def enqueue(self, operation: str, args: Dict[str, Any], error: str,
-                error_type: ErrorType = ErrorType.INFRASTRUCTURE) -> DeadLetter:
+    def enqueue(
+        self,
+        operation: str,
+        args: Dict[str, Any],
+        error: str,
+        error_type: ErrorType = ErrorType.INFRASTRUCTURE,
+    ) -> DeadLetter:
         """Add a failed operation to the queue."""
-        letter = DeadLetter(
-            operation=operation, args=args, error=error, error_type=error_type
-        )
+        letter = DeadLetter(operation=operation, args=args, error=error, error_type=error_type)
         with self._lock:
             if len(self._queue) >= self._max_size:
                 self._queue.pop(0)  # Drop oldest
@@ -564,6 +628,7 @@ DEAD_LETTER_QUEUE = DeadLetterQueue()
 # =============================================================================
 # TIMEOUT WARNING
 # =============================================================================
+
 
 class TimeoutWarning:
     """Track elapsed time and generate warnings at threshold percentages.

@@ -1,4 +1,5 @@
 from typing import Any
+
 """
 Backtest Report Templates
 =========================
@@ -11,7 +12,13 @@ World-class templates for ML backtesting reports inspired by:
 - Citadel (professional excellence)
 """
 
-from .base_template import BaseTemplate, TemplateColors, TemplateTypography, TemplateLayout, TemplateRegistry
+from .base_template import (
+    BaseTemplate,
+    TemplateColors,
+    TemplateLayout,
+    TemplateRegistry,
+    TemplateTypography,
+)
 
 
 class TwoSigmaTemplate(BaseTemplate):
@@ -24,11 +31,11 @@ class TwoSigmaTemplate(BaseTemplate):
         self.category = "backtest"
 
         self.colors = TemplateColors(
-            primary="#0066CC",          # Two Sigma blue
+            primary="#0066CC",  # Two Sigma blue
             primary_dark="#004C99",
             primary_light="#3399FF",
             secondary="#4A5568",
-            accent="#00B894",           # Teal for positive
+            accent="#00B894",  # Teal for positive
             success="#00B894",
             warning="#FDCB6E",
             danger="#E17055",
@@ -51,7 +58,9 @@ class TwoSigmaTemplate(BaseTemplate):
         )
 
     def get_css(self) -> str:
-        return self.get_base_css() + f"""
+        return (
+            self.get_base_css()
+            + f"""
 /* Two Sigma Template Styles */
 
 body {{
@@ -216,6 +225,7 @@ tr:hover {{
     color: {self.colors.text_light};
 }}
 """
+        )
 
     def get_html_wrapper(self, content: str, title: str) -> str:
         return f"""<!DOCTYPE html>
@@ -241,10 +251,10 @@ class RenTechTemplate(BaseTemplate):
         self.category = "backtest"
 
         self.colors = TemplateColors(
-            primary="#6C5CE7",          # Purple
+            primary="#6C5CE7",  # Purple
             primary_dark="#5849C4",
             primary_light="#A29BFE",
-            secondary="#00CEC9",        # Cyan
+            secondary="#00CEC9",  # Cyan
             accent="#00B894",
             success="#00B894",
             warning="#FDCB6E",
@@ -263,7 +273,9 @@ class RenTechTemplate(BaseTemplate):
         )
 
     def get_css(self) -> str:
-        return self.get_base_css() + f"""
+        return (
+            self.get_base_css()
+            + f"""
 /* Renaissance Template Styles */
 
 h1 {{
@@ -396,6 +408,7 @@ tr.highlight {{
     font-weight: 600;
 }}
 """
+        )
 
     def get_html_wrapper(self, content: str, title: str) -> str:
         return f"""<!DOCTYPE html>
@@ -421,10 +434,10 @@ class AQRTemplate(BaseTemplate):
         self.category = "backtest"
 
         self.colors = TemplateColors(
-            primary="#1E3A5F",          # Navy blue
+            primary="#1E3A5F",  # Navy blue
             primary_dark="#0D2137",
             primary_light="#2C5282",
-            secondary="#C9302C",        # AQR red accent
+            secondary="#C9302C",  # AQR red accent
             accent="#38A169",
             success="#38A169",
             warning="#D69E2E",
@@ -448,7 +461,9 @@ class AQRTemplate(BaseTemplate):
         )
 
     def get_css(self) -> str:
-        return self.get_base_css() + f"""
+        return (
+            self.get_base_css()
+            + f"""
 /* AQR Academic Template Styles */
 
 body {{
@@ -575,6 +590,7 @@ tr:last-child td {{
     margin-top: 8pt;
 }}
 """
+        )
 
     def get_html_wrapper(self, content: str, title: str) -> str:
         return f"""<!DOCTYPE html>
@@ -600,10 +616,10 @@ class ManGroupTemplate(BaseTemplate):
         self.category = "backtest"
 
         self.colors = TemplateColors(
-            primary="#003366",          # Man Group navy
+            primary="#003366",  # Man Group navy
             primary_dark="#002244",
             primary_light="#004C99",
-            secondary="#CC9900",        # Gold accent
+            secondary="#CC9900",  # Gold accent
             accent="#009973",
             success="#009973",
             warning="#CC9900",
@@ -622,7 +638,9 @@ class ManGroupTemplate(BaseTemplate):
         )
 
     def get_css(self) -> str:
-        return self.get_base_css() + f"""
+        return (
+            self.get_base_css()
+            + f"""
 /* Man Group Institutional Template Styles */
 
 h1 {{
@@ -773,6 +791,7 @@ tr:nth-child(even) {{
     }}
 }}
 """
+        )
 
     def get_html_wrapper(self, content: str, title: str) -> str:
         return f"""<!DOCTYPE html>
@@ -798,10 +817,10 @@ class CitadelTemplate(BaseTemplate):
         self.category = "backtest"
 
         self.colors = TemplateColors(
-            primary="#1A1A2E",          # Dark navy/black
+            primary="#1A1A2E",  # Dark navy/black
             primary_dark="#0F0F1A",
             primary_light="#2D2D44",
-            secondary="#E94560",        # Citadel red
+            secondary="#E94560",  # Citadel red
             accent="#16C79A",
             success="#16C79A",
             warning="#F5A623",
@@ -824,7 +843,9 @@ class CitadelTemplate(BaseTemplate):
         )
 
     def get_css(self) -> str:
-        return self.get_base_css() + f"""
+        return (
+            self.get_base_css()
+            + f"""
 /* Citadel Executive Template Styles */
 
 body {{
@@ -1040,6 +1061,7 @@ tr:hover {{
     border-left: 3px solid {self.colors.secondary};
 }}
 """
+        )
 
     def get_html_wrapper(self, content: str, title: str) -> str:
         return f"""<!DOCTYPE html>
@@ -1065,10 +1087,10 @@ class QuantitativeTemplate(BaseTemplate):
         self.category = "backtest"
 
         self.colors = TemplateColors(
-            primary="#2563EB",          # Modern blue
+            primary="#2563EB",  # Modern blue
             primary_dark="#1D4ED8",
             primary_light="#3B82F6",
-            secondary="#8B5CF6",        # Purple accent
+            secondary="#8B5CF6",  # Purple accent
             accent="#10B981",
             success="#10B981",
             warning="#F59E0B",
@@ -1081,7 +1103,9 @@ class QuantitativeTemplate(BaseTemplate):
         )
 
     def get_css(self) -> str:
-        return self.get_base_css() + f"""
+        return (
+            self.get_base_css()
+            + f"""
 /* Quantitative Default Template */
 
 h1 {{
@@ -1153,6 +1177,7 @@ th {{
 .positive {{ color: {self.colors.success}; font-weight: 600; }}
 .negative {{ color: {self.colors.danger}; font-weight: 600; }}
 """
+        )
 
     def get_html_wrapper(self, content: str, title: str) -> str:
         return f"""<!DOCTYPE html>

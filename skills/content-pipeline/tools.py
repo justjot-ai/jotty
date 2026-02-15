@@ -4,14 +4,15 @@ Content Pipeline Skill Tools
 Wraps JustJot.ai's ContentPipeline as Jotty skill tools.
 Provides document processing pipeline: Source -> Processors -> Sinks.
 """
+
+import logging
 import os
 import sys
-import logging
-from typing import Dict, Any, List, Optional
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 logger = logging.getLogger(__name__)
 
@@ -23,31 +24,31 @@ except ImportError:
 
 # Validation schemas for tools
 RUN_PIPELINE_SCHEMA = {
-    'source_type': {'required': True, 'type': str},
-    'source_params': {'required': True, 'type': dict},
-    'processors': {'type': list, 'default': []},
-    'sinks': {'type': list, 'default': []},
-    'output_dir': {'type': str, 'dir_exists': True, 'create': True},
+    "source_type": {"required": True, "type": str},
+    "source_params": {"required": True, "type": dict},
+    "processors": {"type": list, "default": []},
+    "sinks": {"type": list, "default": []},
+    "output_dir": {"type": str, "dir_exists": True, "create": True},
 }
 
 RUN_SOURCE_SCHEMA = {
-    'source_type': {
-        'required': True,
-        'type': str,
-        'choices': ['markdown', 'arxiv', 'youtube', 'html', 'pdf']
+    "source_type": {
+        "required": True,
+        "type": str,
+        "choices": ["markdown", "arxiv", "youtube", "html", "pdf"],
     },
-    'source_params': {'required': True, 'type': dict},
+    "source_params": {"required": True, "type": dict},
 }
 
 PROCESS_DOCUMENT_SCHEMA = {
-    'document': {'required': True, 'type': dict},
-    'processors': {'required': True, 'type': list},
+    "document": {"required": True, "type": dict},
+    "processors": {"required": True, "type": list},
 }
 
 SINK_DOCUMENT_SCHEMA = {
-    'document': {'required': True, 'type': dict},
-    'sinks': {'required': True, 'type': list},
-    'output_dir': {'type': str, 'dir_exists': True, 'create': True},
+    "document": {"required": True, "type": dict},
+    "sinks": {"required": True, "type": list},
+    "output_dir": {"type": str, "dir_exists": True, "create": True},
 }
 
 # Lazy import JustJot components
@@ -71,9 +72,9 @@ def _import_justjot():
 
     # Try to find JustJot.ai in common locations
     justjot_paths = [
-        Path('/var/www/sites/personal/stock_market/JustJot.ai'),
-        Path.home() / 'JustJot.ai',
-        Path.cwd().parent / 'JustJot.ai',
+        Path("/var/www/sites/personal/stock_market/JustJot.ai"),
+        Path.home() / "JustJot.ai",
+        Path.cwd().parent / "JustJot.ai",
     ]
 
     for justjot_path in justjot_paths:
@@ -83,8 +84,9 @@ def _import_justjot():
             break
 
     try:
-        from Jotty.core.pipeline import ContentPipeline
         from Jotty.core.document import Document
+        from Jotty.core.pipeline import ContentPipeline
+
         _ContentPipeline = ContentPipeline
         _Document = Document
         logger.info("JustJot.ai ContentPipeline imported successfully")
@@ -101,14 +103,14 @@ def _create_source_adapter(source_type: str, source_params: Dict[str, Any]):
 
     source_type = source_type.lower()
 
-    if source_type == 'markdown':
+    if source_type == "markdown":
         # Create markdown source
-        content = source_params.get('content')
-        file_path = source_params.get('file_path')
-        title = source_params.get('title', 'Untitled')
+        content = source_params.get("content")
+        file_path = source_params.get("file_path")
+        title = source_params.get("title", "Untitled")
 
         if file_path:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
 
         if not content:
@@ -127,16 +129,12 @@ def _create_source_adapter(source_type: str, source_params: Dict[str, Any]):
                 return True
 
             def generate(self, **kwargs):
-                return _Document(
-                    title=self.title,
-                    content=self.content,
-                    source_type='markdown'
-                )
+                return _Document(title=self.title, content=self.content, source_type="markdown")
 
         return MarkdownSource(content, title)
 
-    elif source_type == 'arxiv':
-        arxiv_id = source_params.get('arxiv_id')
+    elif source_type == "arxiv":
+        arxiv_id = source_params.get("arxiv_id")
         if not arxiv_id:
             raise ValueError("'arxiv_id' required for arxiv source")
 
@@ -163,17 +161,17 @@ def _create_source_adapter(source_type: str, source_params: Dict[str, Any]):
                     return _Document(
                         title=f"arXiv:{self.arxiv_id}",
                         content=f"ArXiv paper: {self.arxiv_id}\n\nFull content available via sink conversion.",
-                        source_type='arxiv',
+                        source_type="arxiv",
                         source_url=f"https://arxiv.org/abs/{self.arxiv_id}",
-                        source_metadata={'arxiv_id': self.arxiv_id}
+                        source_metadata={"arxiv_id": self.arxiv_id},
                     )
 
             return ArxivSource(clean_id)
         except ImportError:
             raise ImportError("ArXiv converter not available")
 
-    elif source_type == 'youtube':
-        url = source_params.get('url')
+    elif source_type == "youtube":
+        url = source_params.get("url")
         if not url:
             raise ValueError("'url' required for youtube source")
 
@@ -198,28 +196,29 @@ def _create_source_adapter(source_type: str, source_params: Dict[str, Any]):
                     try:
                         transcript = self.converter.get_transcript(video_id)
                         markdown = self.converter.transcript_to_markdown(
-                            transcript, video_info,
-                            include_timestamps=kwargs.get('include_timestamps', True)
+                            transcript,
+                            video_info,
+                            include_timestamps=kwargs.get("include_timestamps", True),
                         )
                     except Exception as e:
                         markdown = f"# {video_info.get('title', 'YouTube Video')}\n\nTranscript unavailable: {e}"
 
                     return _Document(
-                        title=video_info.get('title', 'YouTube Video'),
+                        title=video_info.get("title", "YouTube Video"),
                         content=markdown,
-                        author=video_info.get('author'),
-                        source_type='youtube',
+                        author=video_info.get("author"),
+                        source_type="youtube",
                         source_url=self.url,
-                        source_metadata=video_info
+                        source_metadata=video_info,
                     )
 
             return YouTubeSource(url)
         except ImportError:
             raise ImportError("YouTube converter not available")
 
-    elif source_type == 'html':
-        url = source_params.get('url')
-        content = source_params.get('content')
+    elif source_type == "html":
+        url = source_params.get("url")
+        content = source_params.get("content")
 
         if not url and not content:
             raise ValueError("Either 'url' or 'content' required for html source")
@@ -241,6 +240,7 @@ def _create_source_adapter(source_type: str, source_params: Dict[str, Any]):
                 def generate(self, **kwargs):
                     if self.url:
                         import requests
+
                         resp = requests.get(self.url, timeout=30)
                         html = resp.text
                     else:
@@ -249,19 +249,21 @@ def _create_source_adapter(source_type: str, source_params: Dict[str, Any]):
                     # Convert HTML to markdown
                     try:
                         import html2text
+
                         h = html2text.HTML2Text()
                         h.ignore_links = False
                         markdown = h.handle(html)
                     except ImportError:
                         # Fallback: strip HTML tags
                         import re
-                        markdown = re.sub(r'<[^>]+>', '', html)
+
+                        markdown = re.sub(r"<[^>]+>", "", html)
 
                     return _Document(
-                        title=kwargs.get('title', 'HTML Document'),
+                        title=kwargs.get("title", "HTML Document"),
                         content=markdown,
-                        source_type='html',
-                        source_url=self.url
+                        source_type="html",
+                        source_url=self.url,
                     )
 
             return HTMLSource(url=url, content=content)
@@ -280,9 +282,10 @@ def _create_processors(processor_configs: List[Dict[str, Any]]) -> List:
     processors = []
 
     for config in processor_configs:
-        proc_type = config.get('type', '').lower()
+        proc_type = config.get("type", "").lower()
 
-        if proc_type == 'diagram_renderer':
+        if proc_type == "diagram_renderer":
+
             class DiagramRenderer:
                 def __str__(self):
                     return "DiagramRenderer"
@@ -290,8 +293,10 @@ def _create_processors(processor_configs: List[Dict[str, Any]]) -> List:
                 def can_process(self, doc):
                     # Check if document has diagram code blocks
                     content = doc.content or doc.full_content
-                    return any(diagram_type in content for diagram_type in
-                              ['```mermaid', '```plantuml', '```graphviz', '```ditaa'])
+                    return any(
+                        diagram_type in content
+                        for diagram_type in ["```mermaid", "```plantuml", "```graphviz", "```ditaa"]
+                    )
 
                 def process(self, doc):
                     # Mark as processed (actual rendering would happen here)
@@ -300,14 +305,15 @@ def _create_processors(processor_configs: List[Dict[str, Any]]) -> List:
 
             processors.append(DiagramRenderer())
 
-        elif proc_type == 'latex_handler':
+        elif proc_type == "latex_handler":
+
             class LatexHandler:
                 def __str__(self):
                     return "LatexHandler"
 
                 def can_process(self, doc):
                     content = doc.content or doc.full_content
-                    return '$$' in content or '$' in content or '\\begin{' in content
+                    return "$$" in content or "$" in content or "\\begin{" in content
 
                 def process(self, doc):
                     doc.processed_latex = True
@@ -315,14 +321,15 @@ def _create_processors(processor_configs: List[Dict[str, Any]]) -> List:
 
             processors.append(LatexHandler())
 
-        elif proc_type == 'image_downloader':
+        elif proc_type == "image_downloader":
+
             class ImageDownloader:
                 def __str__(self):
                     return "ImageDownloader"
 
                 def can_process(self, doc):
                     content = doc.content or doc.full_content
-                    return '![' in content and 'http' in content
+                    return "![" in content and "http" in content
 
                 def process(self, doc):
                     # Would download images here
@@ -330,7 +337,8 @@ def _create_processors(processor_configs: List[Dict[str, Any]]) -> List:
 
             processors.append(ImageDownloader())
 
-        elif proc_type == 'syntax_fixer':
+        elif proc_type == "syntax_fixer":
+
             class SyntaxFixer:
                 def __str__(self):
                     return "SyntaxFixer"
@@ -358,10 +366,11 @@ def _create_sinks(sink_configs: List[Dict[str, Any]]) -> List:
     sinks = []
 
     for config in sink_configs:
-        sink_type = config.get('type', '').lower()
-        format_type = config.get('format', 'a4').lower()
+        sink_type = config.get("type", "").lower()
+        format_type = config.get("format", "a4").lower()
 
-        if sink_type == 'pdf':
+        if sink_type == "pdf":
+
             class PDFSink:
                 def __init__(self, format_type):
                     self.format_type = format_type
@@ -375,29 +384,31 @@ def _create_sinks(sink_configs: List[Dict[str, Any]]) -> List:
                 def write(self, doc, output_path=None, **kwargs):
                     try:
                         from utils.markdown_converter import MarkdownConverter
+
                         from Jotty.core.config import PageSize
 
                         size_map = {
-                            'remarkable': PageSize.REMARKABLE,
-                            'a4': PageSize.A4,
-                            'letter': PageSize.LETTER,
-                            'kindle': PageSize.KINDLE,
+                            "remarkable": PageSize.REMARKABLE,
+                            "a4": PageSize.A4,
+                            "letter": PageSize.LETTER,
+                            "kindle": PageSize.KINDLE,
                         }
 
                         page_size = size_map.get(self.format_type, PageSize.A4)
 
                         # Write markdown to temp file
                         import tempfile
-                        with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False) as f:
+
+                        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
                             f.write(doc.content or doc.full_content)
                             temp_md = Path(f.name)
 
                         try:
-                            converter = MarkdownConverter(input_file=temp_md, output_dir=output_path)
+                            converter = MarkdownConverter(
+                                input_file=temp_md, output_dir=output_path
+                            )
                             converter.convert_to_pdf(
-                                page_size=page_size,
-                                title=doc.title,
-                                author=doc.author or 'Unknown'
+                                page_size=page_size, title=doc.title, author=doc.author or "Unknown"
                             )
                             return Path(converter.output_file)
                         finally:
@@ -412,7 +423,8 @@ def _create_sinks(sink_configs: List[Dict[str, Any]]) -> List:
 
             sinks.append(PDFSink(format_type))
 
-        elif sink_type == 'epub':
+        elif sink_type == "epub":
+
             class EPUBSink:
                 def __str__(self):
                     return "EPUBSink"
@@ -422,20 +434,24 @@ def _create_sinks(sink_configs: List[Dict[str, Any]]) -> List:
 
                 def write(self, doc, output_path=None, **kwargs):
                     try:
+                        import tempfile
+
                         from utils.markdown_converter import MarkdownConverter
+
                         from Jotty.core.config import PageSize
 
-                        import tempfile
-                        with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False) as f:
+                        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
                             f.write(doc.content or doc.full_content)
                             temp_md = Path(f.name)
 
                         try:
-                            converter = MarkdownConverter(input_file=temp_md, output_dir=output_path)
+                            converter = MarkdownConverter(
+                                input_file=temp_md, output_dir=output_path
+                            )
                             converter.convert_to_pdf(
                                 page_size=PageSize.EPUB,
                                 title=doc.title,
-                                author=doc.author or 'Unknown'
+                                author=doc.author or "Unknown",
                             )
                             return Path(converter.output_file)
                         finally:
@@ -449,7 +465,8 @@ def _create_sinks(sink_configs: List[Dict[str, Any]]) -> List:
 
             sinks.append(EPUBSink())
 
-        elif sink_type == 'markdown':
+        elif sink_type == "markdown":
+
             class MarkdownSink:
                 def __str__(self):
                     return "MarkdownSink"
@@ -459,15 +476,17 @@ def _create_sinks(sink_configs: List[Dict[str, Any]]) -> List:
 
                 def write(self, doc, output_path=None, **kwargs):
                     import re
+
                     output_dir = Path(output_path) if output_path else Path.cwd()
-                    safe_title = re.sub(r'[^\w\s-]', '', doc.title)[:50]
+                    safe_title = re.sub(r"[^\w\s-]", "", doc.title)[:50]
                     output_file = output_dir / f"{safe_title}.md"
-                    output_file.write_text(doc.content or doc.full_content, encoding='utf-8')
+                    output_file.write_text(doc.content or doc.full_content, encoding="utf-8")
                     return output_file
 
             sinks.append(MarkdownSink())
 
-        elif sink_type == 'remarkable':
+        elif sink_type == "remarkable":
+
             class RemarkableSink:
                 def __str__(self):
                     return "RemarkableSink"
@@ -477,22 +496,26 @@ def _create_sinks(sink_configs: List[Dict[str, Any]]) -> List:
 
                 def write(self, doc, output_path=None, **kwargs):
                     try:
-                        from utils.remarkable_sync import RemarkableSync
-                        from utils.markdown_converter import MarkdownConverter
-                        from Jotty.core.config import PageSize
-
                         # First generate remarkable-optimized PDF
                         import tempfile
-                        with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False) as f:
+
+                        from utils.markdown_converter import MarkdownConverter
+                        from utils.remarkable_sync import RemarkableSync
+
+                        from Jotty.core.config import PageSize
+
+                        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
                             f.write(doc.content or doc.full_content)
                             temp_md = Path(f.name)
 
                         try:
-                            converter = MarkdownConverter(input_file=temp_md, output_dir=output_path)
+                            converter = MarkdownConverter(
+                                input_file=temp_md, output_dir=output_path
+                            )
                             converter.convert_to_pdf(
                                 page_size=PageSize.REMARKABLE,
                                 title=doc.title,
-                                author=doc.author or 'Unknown'
+                                author=doc.author or "Unknown",
                             )
                             pdf_path = Path(converter.output_file)
 
@@ -537,7 +560,7 @@ def run_pipeline_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - history (list): Pipeline execution history
             - error (str, optional): Error message if failed
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     try:
         # Validate parameters
@@ -547,16 +570,13 @@ def run_pipeline_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             return e.to_dict()
 
         if not _import_justjot():
-            return {
-                'success': False,
-                'error': 'JustJot.ai not available. Ensure it is installed.'
-            }
+            return {"success": False, "error": "JustJot.ai not available. Ensure it is installed."}
 
-        source_type = validated.get('source_type')
-        source_params = validated.get('source_params', {})
-        processor_configs = validated.get('processors', [])
-        sink_configs = validated.get('sinks', [])
-        output_dir = validated.get('output_dir')
+        source_type = validated.get("source_type")
+        source_params = validated.get("source_params", {})
+        processor_configs = validated.get("processors", [])
+        sink_configs = validated.get("sinks", [])
+        output_dir = validated.get("output_dir")
 
         # Create pipeline
         pipeline = _ContentPipeline()
@@ -571,19 +591,19 @@ def run_pipeline_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             source=source,
             processors=processors if processors else None,
             sinks=sinks if sinks else None,
-            output_dir=Path(output_dir) if output_dir else None
+            output_dir=Path(output_dir) if output_dir else None,
         )
 
         return {
-            'success': True,
-            'document': result['document'].to_dict(),
-            'output_paths': [str(p) for p in result.get('output_paths', [])],
-            'history': result.get('history', [])
+            "success": True,
+            "document": result["document"].to_dict(),
+            "output_paths": [str(p) for p in result.get("output_paths", [])],
+            "history": result.get("history", []),
         }
 
     except Exception as e:
         logger.error(f"Pipeline execution failed: {e}", exc_info=True)
-        return {'success': False, 'error': str(e)}
+        return {"success": False, "error": str(e)}
 
 
 @tool_wrapper()
@@ -602,7 +622,7 @@ def run_source_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - document (dict): Generated document (serialized)
             - error (str, optional): Error message if failed
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     try:
         # Validate parameters
@@ -612,26 +632,20 @@ def run_source_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             return e.to_dict()
 
         if not _import_justjot():
-            return {
-                'success': False,
-                'error': 'JustJot.ai not available'
-            }
+            return {"success": False, "error": "JustJot.ai not available"}
 
-        source_type = validated.get('source_type')
-        source_params = validated.get('source_params', {})
+        source_type = validated.get("source_type")
+        source_params = validated.get("source_params", {})
 
         # Create and run source
         source = _create_source_adapter(source_type, source_params)
         document = source.generate()
 
-        return {
-            'success': True,
-            'document': document.to_dict()
-        }
+        return {"success": True, "document": document.to_dict()}
 
     except Exception as e:
         logger.error(f"Source execution failed: {e}", exc_info=True)
-        return {'success': False, 'error': str(e)}
+        return {"success": False, "error": str(e)}
 
 
 @tool_wrapper()
@@ -650,7 +664,7 @@ def process_document_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - document (dict): Processed document (serialized)
             - error (str, optional): Error message if failed
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     try:
         # Validate parameters
@@ -660,13 +674,10 @@ def process_document_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             return e.to_dict()
 
         if not _import_justjot():
-            return {
-                'success': False,
-                'error': 'JustJot.ai not available'
-            }
+            return {"success": False, "error": "JustJot.ai not available"}
 
-        doc_dict = validated.get('document')
-        processor_configs = validated.get('processors', [])
+        doc_dict = validated.get("document")
+        processor_configs = validated.get("processors", [])
 
         # Reconstruct document
         document = _Document.from_dict(doc_dict)
@@ -676,14 +687,11 @@ def process_document_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         pipeline = _ContentPipeline()
         processed_doc = pipeline.process(document, processors)
 
-        return {
-            'success': True,
-            'document': processed_doc.to_dict()
-        }
+        return {"success": True, "document": processed_doc.to_dict()}
 
     except Exception as e:
         logger.error(f"Processing failed: {e}", exc_info=True)
-        return {'success': False, 'error': str(e)}
+        return {"success": False, "error": str(e)}
 
 
 @tool_wrapper()
@@ -703,7 +711,7 @@ def sink_document_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             - output_paths (list): Generated file paths
             - error (str, optional): Error message if failed
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     try:
         # Validate parameters
@@ -713,14 +721,11 @@ def sink_document_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             return e.to_dict()
 
         if not _import_justjot():
-            return {
-                'success': False,
-                'error': 'JustJot.ai not available'
-            }
+            return {"success": False, "error": "JustJot.ai not available"}
 
-        doc_dict = validated.get('document')
-        sink_configs = validated.get('sinks', [])
-        output_dir = validated.get('output_dir')
+        doc_dict = validated.get("document")
+        sink_configs = validated.get("sinks", [])
+        output_dir = validated.get("output_dir")
 
         # Reconstruct document
         document = _Document.from_dict(doc_dict)
@@ -729,16 +734,11 @@ def sink_document_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         sinks = _create_sinks(sink_configs)
         pipeline = _ContentPipeline()
         output_paths = pipeline.sink(
-            document,
-            sinks,
-            output_dir=Path(output_dir) if output_dir else None
+            document, sinks, output_dir=Path(output_dir) if output_dir else None
         )
 
-        return {
-            'success': True,
-            'output_paths': [str(p) for p in output_paths]
-        }
+        return {"success": True, "output_paths": [str(p) for p in output_paths]}
 
     except Exception as e:
         logger.error(f"Sink writing failed: {e}", exc_info=True)
-        return {'success': False, 'error': str(e)}
+        return {"success": False, "error": str(e)}

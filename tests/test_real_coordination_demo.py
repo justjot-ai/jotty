@@ -12,15 +12,15 @@ Saves final document showing the complete coordinated workflow.
 """
 
 import asyncio
-import dspy
 import logging
 import os
 from pathlib import Path
+
+import dspy
 import pytest
 
 pytestmark = pytest.mark.skipif(
-    not os.getenv('ANTHROPIC_API_KEY'),
-    reason="Requires ANTHROPIC_API_KEY for real LLM calls"
+    not os.getenv("ANTHROPIC_API_KEY"), reason="Requires ANTHROPIC_API_KEY for real LLM calls"
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -40,7 +40,7 @@ async def test_real_coordination():
 
     from core.integration.direct_claude_cli_lm import DirectClaudeCLI
 
-    lm = DirectClaudeCLI(model='sonnet')
+    lm = DirectClaudeCLI(model="sonnet")
     dspy.configure(lm=lm)
 
     print("✅ Claude 3.5 Sonnet ready")
@@ -51,14 +51,14 @@ async def test_real_coordination():
 
     from core.experts.math_latex_expert import MathLaTeXExpertAgent
     from core.experts.mermaid_expert import MermaidExpertAgent
-    from core.experts.plantuml_expert import PlantUMLExpertAgent
     from core.experts.pipeline_expert import PipelineExpertAgent
+    from core.experts.plantuml_expert import PlantUMLExpertAgent
 
     experts = {
-        'math': MathLaTeXExpertAgent(),
-        'mermaid': MermaidExpertAgent(),
-        'plantuml': PlantUMLExpertAgent(),
-        'pipeline': PipelineExpertAgent(output_format='mermaid')
+        "math": MathLaTeXExpertAgent(),
+        "mermaid": MermaidExpertAgent(),
+        "plantuml": PlantUMLExpertAgent(),
+        "pipeline": PipelineExpertAgent(output_format="mermaid"),
     }
 
     print(f"✅ 4 expert agents initialized")
@@ -80,6 +80,7 @@ async def test_real_coordination():
 
     class MathTask(dspy.Signature):
         """Generate performance formulas."""
+
         prompt: str = dspy.InputField()
         output: str = dspy.OutputField()
 
@@ -87,11 +88,11 @@ async def test_real_coordination():
 
     result = generator(
         prompt="Write LaTeX formulas for payment processing performance metrics: "
-               "transaction throughput (TPS), average latency (ms), success rate (%). "
-               "Use proper mathematical notation."
+        "transaction throughput (TPS), average latency (ms), success rate (%). "
+        "Use proper mathematical notation."
     )
 
-    context['math'] = result.output
+    context["math"] = result.output
     print(f"   ✅ Generated {len(context['math'])} characters")
     print(f"   Preview: {context['math'][:150]}...\n")
 
@@ -104,6 +105,7 @@ async def test_real_coordination():
 
     class MermaidTask(dspy.Signature):
         """Generate architecture diagram based on requirements."""
+
         requirements: str = dspy.InputField()
         output: str = dspy.OutputField()
 
@@ -127,7 +129,7 @@ Create a Mermaid diagram showing:
 Make sure the architecture can meet the performance requirements above."""
     )
 
-    context['mermaid'] = result.output
+    context["mermaid"] = result.output
     print(f"   ✅ Generated {len(context['mermaid'])} characters")
     print(f"   Preview: {context['mermaid'][:150]}...\n")
 
@@ -140,6 +142,7 @@ Make sure the architecture can meet the performance requirements above."""
 
     class PlantUMLTask(dspy.Signature):
         """Generate data models based on architecture."""
+
         architecture: str = dspy.InputField()
         output: str = dspy.OutputField()
 
@@ -159,7 +162,7 @@ Generate class diagrams for:
 Use proper PlantUML syntax with @startuml/@enduml tags."""
     )
 
-    context['plantuml'] = result.output
+    context["plantuml"] = result.output
     print(f"   ✅ Generated {len(context['plantuml'])} characters")
     print(f"   Preview: {context['plantuml'][:150]}...\n")
 
@@ -172,6 +175,7 @@ Use proper PlantUML syntax with @startuml/@enduml tags."""
 
     class PipelineTask(dspy.Signature):
         """Generate deployment pipeline based on models."""
+
         models: str = dspy.InputField()
         output: str = dspy.OutputField()
 
@@ -194,7 +198,7 @@ The pipeline should include:
 Use Mermaid flowchart syntax."""
     )
 
-    context['pipeline'] = result.output
+    context["pipeline"] = result.output
     print(f"   ✅ Generated {len(context['pipeline'])} characters")
     print(f"   Preview: {context['pipeline'][:150]}...\n")
 

@@ -6,8 +6,8 @@ Research Command
 Uses TierExecutor for smart analysis and output formatting.
 """
 
-import logging
 import asyncio
+import logging
 from typing import TYPE_CHECKING, Any
 
 from .base import BaseCommand, CommandResult, ParsedArgs
@@ -30,7 +30,9 @@ class ResearchCommand(BaseCommand):
 
     name = "research"
     aliases = ["r", "search"]
-    description = "Research topic with LLM synthesis (supports --pdf, --docx, --slides, --telegram output)"
+    description = (
+        "Research topic with LLM synthesis (supports --pdf, --docx, --slides, --telegram output)"
+    )
     usage = "/research <topic> [--pdf|--docx|--slides|--telegram|--deep]"
     category = "research"
 
@@ -104,12 +106,12 @@ class ResearchCommand(BaseCommand):
             sdk_client = cli._get_sdk_client()
 
             # Check if renderer supports async status (Telegram)
-            has_async_status = hasattr(cli.renderer, 'send_status_async')
+            has_async_status = hasattr(cli.renderer, "send_status_async")
 
             # Register event listeners for status updates
             async def on_skill_start(event):
                 """Handle skill start events."""
-                skill_name = event.data.get('skill', 'unknown') if event.data else 'unknown'
+                skill_name = event.data.get("skill", "unknown") if event.data else "unknown"
                 msg = f"Using skill: {skill_name}"
                 if has_async_status:
                     await cli.renderer.send_status_async(msg)
@@ -134,7 +136,7 @@ class ResearchCommand(BaseCommand):
             result = await sdk_client.chat(task)
 
             # Clear status message after completion (Telegram)
-            if has_async_status and hasattr(cli.renderer, 'clear_status_message'):
+            if has_async_status and hasattr(cli.renderer, "clear_status_message"):
                 await cli.renderer.clear_status_message()
 
             if result.success:
@@ -145,7 +147,7 @@ class ResearchCommand(BaseCommand):
                     cli.renderer.markdown(result.content)
 
                 # Store in history for export
-                if not hasattr(cli, '_output_history'):
+                if not hasattr(cli, "_output_history"):
                     cli._output_history = []
                 cli._output_history.append(result.content or "")
 
@@ -162,7 +164,7 @@ class ResearchCommand(BaseCommand):
                         "topic": topic,
                         "output_format": output_format,
                         "output_path": output_path,
-                    }
+                    },
                 )
             else:
                 cli.renderer.error(f"Research failed: {result.error}")

@@ -28,7 +28,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Type, Union
 
-from .base_agent import BaseAgent, AgentRuntimeConfig
+from .base_agent import AgentRuntimeConfig, BaseAgent
 
 logger = logging.getLogger(__name__)
 
@@ -37,12 +37,14 @@ logger = logging.getLogger(__name__)
 # DOMAIN AGENT CONFIG
 # =============================================================================
 
+
 @dataclass
 class DomainAgentConfig(AgentRuntimeConfig):
     """Configuration specific to DomainAgent."""
+
     use_chain_of_thought: bool = True
-    use_react: bool = False          # ReAct loop with tools (multi-step)
-    max_react_iters: int = 5         # Max ReAct iterations before stopping
+    use_react: bool = False  # ReAct loop with tools (multi-step)
+    max_react_iters: int = 5  # Max ReAct iterations before stopping
     streaming: bool = False
     progress_callback: Optional[Callable[[str, float], None]] = None
 
@@ -50,6 +52,7 @@ class DomainAgentConfig(AgentRuntimeConfig):
 # =============================================================================
 # DOMAIN AGENT
 # =============================================================================
+
 
 class DomainAgent(BaseAgent):
     """
@@ -82,9 +85,7 @@ class DomainAgent(BaseAgent):
             config: Optional configuration
         """
         sig_name = signature.__name__ if signature is not None else "NoSignature"
-        config = config or DomainAgentConfig(
-            name=f"DomainAgent[{sig_name}]"
-        )
+        config = config or DomainAgentConfig(name=f"DomainAgent[{sig_name}]")
         super().__init__(config)
 
         self.signature = signature
@@ -103,15 +104,15 @@ class DomainAgent(BaseAgent):
             import dspy
 
             # Get fields from signature
-            if hasattr(self.signature, 'model_fields'):
+            if hasattr(self.signature, "model_fields"):
                 # Pydantic-style signature
                 for name, field_info in self.signature.model_fields.items():
                     # Check if it's an input or output field
-                    if hasattr(field_info, 'json_schema_extra'):
+                    if hasattr(field_info, "json_schema_extra"):
                         extra = field_info.json_schema_extra or {}
-                        if extra.get('__dspy_field_type') == 'input':
+                        if extra.get("__dspy_field_type") == "input":
                             self._input_fields.append(name)
-                        elif extra.get('__dspy_field_type') == 'output':
+                        elif extra.get("__dspy_field_type") == "output":
                             self._output_fields.append(name)
                     else:
                         # Fallback: check the field type
@@ -123,7 +124,7 @@ class DomainAgent(BaseAgent):
             # Fallback: scan class attributes
             if not self._input_fields and not self._output_fields:
                 for name in dir(self.signature):
-                    if name.startswith('_'):
+                    if name.startswith("_"):
                         continue
                     attr = getattr(self.signature, name, None)
                     if isinstance(attr, dspy.InputField):
@@ -133,10 +134,10 @@ class DomainAgent(BaseAgent):
 
             # Last resort: use signature's input_fields and output_fields
             if not self._input_fields:
-                if hasattr(self.signature, 'input_fields'):
+                if hasattr(self.signature, "input_fields"):
                     self._input_fields = list(self.signature.input_fields.keys())
             if not self._output_fields:
-                if hasattr(self.signature, 'output_fields'):
+                if hasattr(self.signature, "output_fields"):
                     self._output_fields = list(self.signature.output_fields.keys())
 
             logger.debug(
@@ -161,7 +162,7 @@ class DomainAgent(BaseAgent):
                 if config.use_react:
                     # ReAct mode: multi-step tool-using agent loop
                     tools = self._get_react_tools()
-                    if hasattr(dspy, 'ReAct'):
+                    if hasattr(dspy, "ReAct"):
                         self._module = dspy.ReAct(
                             self.signature,
                             tools=tools,
@@ -176,17 +177,19 @@ class DomainAgent(BaseAgent):
                 else:
                     self._module = dspy.Predict(self.signature)
 
-                mode = "ReAct" if config.use_react else (
-                    "ChainOfThought" if config.use_chain_of_thought else "Predict"
+                mode = (
+                    "ReAct"
+                    if config.use_react
+                    else ("ChainOfThought" if config.use_chain_of_thought else "Predict")
                 )
-                logger.debug(
-                    f"Initialized {mode} module for {self.signature.__name__}"
-                )
+                logger.debug(f"Initialized {mode} module for {self.signature.__name__}")
             except Exception as e:
                 logger.error(f"Failed to initialize DSPy module: {e}")
                 raise
 
-    def _enrich_module_for_call(self, learning_context: Optional[str] = None, workspace_dir: Optional[str] = None) -> Any:
+    def _enrich_module_for_call(
+        self, learning_context: Optional[str] = None, workspace_dir: Optional[str] = None
+    ) -> Any:
         """
         Enrich the DSPy module's signature instructions using PromptComposer.
 
@@ -203,20 +206,21 @@ class DomainAgent(BaseAgent):
 
         try:
             import dspy
+
             from Jotty.core.capabilities.prompts import PromptComposer
 
             # Get existing signature instructions (docstring)
-            base_instructions = getattr(self.signature, 'instructions', '') or ''
+            base_instructions = getattr(self.signature, "instructions", "") or ""
 
             # Detect model for family-aware formatting
-            model = getattr(self.config, 'model', '') or ''
+            model = getattr(self.config, "model", "") or ""
 
             composer = PromptComposer(model=model)
 
             # Build enriched instructions: identity=base_instructions + learning + rules
             enriched = composer.compose(
                 identity=base_instructions,
-                learning_context=learning_context.split('\n\n') if learning_context else None,
+                learning_context=learning_context.split("\n\n") if learning_context else None,
                 workspace_dir=workspace_dir,
             )
 
@@ -243,9 +247,9 @@ class DomainAgent(BaseAgent):
         try:
             tools = []
             for skill_dict in self.skills_registry.list_skills():
-                skill_name = skill_dict.get('name', '')
+                skill_name = skill_dict.get("name", "")
                 skill_def = self.skills_registry.get_skill(skill_name)
-                if skill_def and hasattr(skill_def, 'tool_function') and skill_def.tool_function:
+                if skill_def and hasattr(skill_def, "tool_function") and skill_def.tool_function:
                     tools.append(skill_def.tool_function)
             return tools[:10]  # Cap at 10 tools to avoid context bloat
         except Exception as e:
@@ -271,23 +275,22 @@ class DomainAgent(BaseAgent):
 
         # Fast path: no module means immediate fallback
         if self._module is None:
-            task = kwargs.get('task', '') or self._build_task_from_kwargs(kwargs)
+            task = kwargs.get("task", "") or self._build_task_from_kwargs(kwargs)
             if task:
-                logger.info(f"No DSPy module available, falling back to skill execution for: {task[:80]}")
+                logger.info(
+                    f"No DSPy module available, falling back to skill execution for: {task[:80]}"
+                )
                 return await self._execute_with_skills(task, **kwargs)
             # No module and no task — nothing we can do
             return {"error": "No DSPy module and no task provided", "success": False}
 
         # Filter inputs to only include signature input fields
-        inputs = {
-            k: v for k, v in kwargs.items()
-            if k in self._input_fields
-        }
+        inputs = {k: v for k, v in kwargs.items() if k in self._input_fields}
 
         # Check if required inputs are present — fallback if not
         missing = [f for f in self._input_fields if f not in inputs]
         if missing and not inputs:
-            task = kwargs.get('task', '') or self._build_task_from_kwargs(kwargs)
+            task = kwargs.get("task", "") or self._build_task_from_kwargs(kwargs)
             if task:
                 logger.info(
                     f"Missing all input fields {missing}, "
@@ -302,15 +305,14 @@ class DomainAgent(BaseAgent):
         # This is the bridge: PromptComposer → DSPy → LLM call.
         # learning_context and workspace_dir flow from AgentRunner kwargs.
         _module = self._enrich_module_for_call(
-            kwargs.get('learning_context'),
-            kwargs.get('workspace_dir'),
+            kwargs.get("learning_context"),
+            kwargs.get("workspace_dir"),
         )
 
         # Primary path: execute DSPy signature
         try:
             result = await asyncio.wait_for(
-                asyncio.to_thread(_module, **inputs),
-                timeout=config.timeout
+                asyncio.to_thread(_module, **inputs), timeout=config.timeout
             )
 
             # Report progress if callback provided
@@ -325,18 +327,16 @@ class DomainAgent(BaseAgent):
                     output[field_name] = value
 
             # Include reasoning if ChainOfThought
-            if hasattr(result, 'reasoning') and result.reasoning:
-                output['_reasoning'] = result.reasoning
+            if hasattr(result, "reasoning") and result.reasoning:
+                output["_reasoning"] = result.reasoning
 
             return output
 
         except asyncio.TimeoutError:
-            raise TimeoutError(
-                f"DSPy execution timed out after {config.timeout}s"
-            )
+            raise TimeoutError(f"DSPy execution timed out after {config.timeout}s")
         except Exception as e:
             # DSPy execution failed — attempt skill fallback
-            task = kwargs.get('task', '') or self._build_task_from_kwargs(kwargs)
+            task = kwargs.get("task", "") or self._build_task_from_kwargs(kwargs)
             if task:
                 logger.warning(
                     f"DSPy execution failed ({e}), "
@@ -370,6 +370,7 @@ class DomainAgent(BaseAgent):
                     "error": "Skills registry not available for fallback execution",
                 }
             from .skill_plan_executor import SkillPlanExecutor
+
             self._skill_executor = SkillPlanExecutor(
                 skills_registry=self.skills_registry,
             )
@@ -383,7 +384,7 @@ class DomainAgent(BaseAgent):
                 "task": task,
             }
 
-        status_callback = kwargs.get('status_callback')
+        status_callback = kwargs.get("status_callback")
         return await self._skill_executor.plan_and_execute(
             task=task,
             discovered_skills=discovered,
@@ -404,14 +405,15 @@ class DomainAgent(BaseAgent):
             Task description string, or empty string
         """
         # Try common task-like keys
-        for key in ('query', 'prompt', 'question', 'description', 'text', 'input'):
+        for key in ("query", "prompt", "question", "description", "text", "input"):
             value = kwargs.get(key)
             if value and isinstance(value, str):
                 return value
         # Last resort: concatenate all string values
         parts = [
-            f"{k}: {v}" for k, v in kwargs.items()
-            if isinstance(v, str) and v and k not in ('status_callback',)
+            f"{k}: {v}"
+            for k, v in kwargs.items()
+            if isinstance(v, str) and v and k not in ("status_callback",)
         ]
         return "; ".join(parts) if parts else ""
 
@@ -432,12 +434,12 @@ class DomainAgent(BaseAgent):
         types, and descriptions extracted from the Signature class.
         Cached after first call.
         """
-        if hasattr(self, '_io_schema') and self._io_schema is not None:
+        if hasattr(self, "_io_schema") and self._io_schema is not None:
             return self._io_schema
 
         from Jotty.core.modes.agent._execution_types import AgentIOSchema, ToolParam
 
-        agent_name = getattr(self.config, 'name', self.__class__.__name__)
+        agent_name = getattr(self.config, "name", self.__class__.__name__)
         if self.signature is not None:
             schema = AgentIOSchema.from_dspy_signature(agent_name, self.signature)
         else:
@@ -454,6 +456,7 @@ class DomainAgent(BaseAgent):
 # =============================================================================
 # CONVENIENCE FUNCTIONS
 # =============================================================================
+
 
 def create_domain_agent(
     signature: Type,
@@ -473,7 +476,11 @@ def create_domain_agent(
     Returns:
         Configured DomainAgent
     """
-    from Jotty.core.infrastructure.foundation.config_defaults import DEFAULT_MODEL_ALIAS, LLM_TIMEOUT_SECONDS
+    from Jotty.core.infrastructure.foundation.config_defaults import (
+        DEFAULT_MODEL_ALIAS,
+        LLM_TIMEOUT_SECONDS,
+    )
+
     model = model or DEFAULT_MODEL_ALIAS
     timeout = timeout or float(LLM_TIMEOUT_SECONDS)
     config = DomainAgentConfig(
@@ -486,7 +493,7 @@ def create_domain_agent(
 
 
 __all__ = [
-    'DomainAgent',
-    'DomainAgentConfig',
-    'create_domain_agent',
+    "DomainAgent",
+    "DomainAgentConfig",
+    "create_domain_agent",
 ]

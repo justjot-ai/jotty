@@ -16,25 +16,26 @@ import asyncio
 import json
 import sys
 import tempfile
-import pytest
-from pathlib import Path
-from unittest.mock import Mock, patch, AsyncMock, MagicMock
 from dataclasses import dataclass
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+
+import pytest
 
 # Add Jotty to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.evaluation import GAIABenchmark, EvalStore
+from core.evaluation import EvalStore, GAIABenchmark
 from core.evaluation.gaia_adapter import (
-    JottyGAIAAdapter,
     GAIA_SYSTEM_PROMPT,
+    JottyGAIAAdapter,
     _extract_answer_from_output,
 )
-
 
 # =============================================================================
 # Helpers
 # =============================================================================
+
 
 def _make_gaia_task(
     task_id="task_001",
@@ -82,6 +83,7 @@ def _make_gaia_dataset(tmp_path, tasks=None):
 @dataclass
 class FakeExecutionResult:
     """Minimal ExecutionResult mock."""
+
     output: str = "42"
     cost_usd: float = 0.001
     llm_calls: int = 1
@@ -92,6 +94,7 @@ class FakeExecutionResult:
 # =============================================================================
 # 0. Answer extraction (GAIA scoring)
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestExtractAnswerFromOutput:
@@ -107,28 +110,35 @@ class TestExtractAnswerFromOutput:
 
     def test_agentic_final_output(self):
         """AgenticExecutionResult.final_output is used when present."""
+
         class MockAgentic:
             final_output = "42"
             outputs = {}
+
         assert _extract_answer_from_output(MockAgentic()) == "42"
 
     def test_agentic_outputs_last_step(self):
         """When final_output is None, last step content from outputs is used."""
+
         class MockAgentic:
             final_output = None
             outputs = {"step_0": {"path": "x"}, "step_1": {"content": "Paris"}}
+
         assert _extract_answer_from_output(MockAgentic()) == "Paris"
 
     def test_agentic_outputs_result_field(self):
         class MockAgentic:
             final_output = None
             outputs = {"step_1": {"result": "28"}}
+
         assert _extract_answer_from_output(MockAgentic()) == "28"
 
     def test_nested_output(self):
         """Nested object with .output is recursed."""
+
         class Nested:
             output = "nested answer"
+
         assert _extract_answer_from_output(Nested()) == "nested answer"
 
     def test_dict_content(self):
@@ -137,17 +147,21 @@ class TestExtractAnswerFromOutput:
 
     def test_avoids_object_repr(self):
         """Object with no final_output/outputs/content returns summary or str, not full repr."""
+
         class NoContent:
             outputs = {}
             final_output = None
+
             def summary(self):
                 return "Task completed"
+
         assert _extract_answer_from_output(NoContent()) == "Task completed"
 
 
 # =============================================================================
 # 1. JottyGAIAAdapter — Core Behavior
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestJottyGAIAAdapterDryRun:
@@ -270,7 +284,7 @@ class TestJottyGAIAAdapterRun:
         mock_jotty.run = AsyncMock(return_value=FakeExecutionResult())
         adapter._jotty = mock_jotty
 
-        with patch('Jotty.core.execution.types.ExecutionTier') as mock_tier_cls:
+        with patch("Jotty.core.execution.types.ExecutionTier") as mock_tier_cls:
             # Create a fake enum
             mock_tier = Mock()
             mock_tier.name = "AGENTIC"
@@ -309,12 +323,17 @@ class TestJottyGAIAAdapterInit:
         assert adapter.use_llm_doc_sources is True
         prompt = adapter._build_prompt("What is 2+2?")
         assert "2+2" in prompt
-        assert "Relevant open-source" in prompt or "microsoft" in prompt.lower() or "huggingface" in prompt.lower()
+        assert (
+            "Relevant open-source" in prompt
+            or "microsoft" in prompt.lower()
+            or "huggingface" in prompt.lower()
+        )
 
 
 # =============================================================================
 # 2. GAIABenchmark — Level Filtering (load_tasks improvements)
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestGAIALoadTasksFiltering:
@@ -417,6 +436,7 @@ class TestGAIALoadTasksFiltering:
 # =============================================================================
 # 3. GAIABenchmark — validate_answer Improvements
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestValidateAnswerImprovements:
@@ -546,6 +566,7 @@ class TestValidateAnswerImprovements:
 # 4. GAIABenchmark.extract_answer — Static Method
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestExtractAnswer:
     """GAIABenchmark.extract_answer() static method."""
@@ -595,6 +616,7 @@ class TestExtractAnswer:
 # 5. GAIABenchmark._strip_currency_pct — Static Method
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestStripCurrencyPct:
     """GAIABenchmark._strip_currency_pct() static method."""
@@ -619,6 +641,7 @@ class TestStripCurrencyPct:
 # 6. GAIABenchmark._estimate_tokens — Static Method
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestEstimateTokens:
     """GAIABenchmark._estimate_tokens() static method."""
@@ -639,6 +662,7 @@ class TestEstimateTokens:
 # 7. GAIABenchmark — evaluate_task metadata includes level
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestEvaluateTaskMetadata:
     """evaluate_task result metadata includes level."""
@@ -653,7 +677,7 @@ class TestEvaluateTaskMetadata:
                 return "4"
 
         result = bench.evaluate_task(task, Agent())
-        assert result.metadata['level'] == 2
+        assert result.metadata["level"] == 2
 
     def test_metadata_has_split(self, tmp_path):
         """Result metadata includes task split."""
@@ -665,12 +689,13 @@ class TestEvaluateTaskMetadata:
                 return "4"
 
         result = bench.evaluate_task(task, Agent())
-        assert result.metadata['split'] == "test"
+        assert result.metadata["split"] == "test"
 
 
 # =============================================================================
 # 8. run_gaia.py — CLI Argument Parsing
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestRunGaiaCLI:
@@ -679,6 +704,7 @@ class TestRunGaiaCLI:
     def test_default_args(self):
         """Default arguments."""
         from scripts.run_gaia import parse_args
+
         args = parse_args([])
         assert args.data_dir == "./data/gaia"
         assert args.split is None
@@ -695,20 +721,32 @@ class TestRunGaiaCLI:
     def test_all_args(self):
         """All arguments set."""
         from scripts.run_gaia import parse_args
-        args = parse_args([
-            "--data-dir", "/tmp/gaia",
-            "--split", "validation",
-            "--level", "1",
-            "--tier", "AGENTIC",
-            "--model", "test-model",
-            "--max-tasks", "5",
-            "--task-id", "task_001",
-            "--dry-run",
-            "--resume",
-            "--db-path", "/tmp/evals.db",
-            "--output", "/tmp/results.json",
-            "--verbose",
-        ])
+
+        args = parse_args(
+            [
+                "--data-dir",
+                "/tmp/gaia",
+                "--split",
+                "validation",
+                "--level",
+                "1",
+                "--tier",
+                "AGENTIC",
+                "--model",
+                "test-model",
+                "--max-tasks",
+                "5",
+                "--task-id",
+                "task_001",
+                "--dry-run",
+                "--resume",
+                "--db-path",
+                "/tmp/evals.db",
+                "--output",
+                "/tmp/results.json",
+                "--verbose",
+            ]
+        )
         assert args.data_dir == "/tmp/gaia"
         assert args.split == "validation"
         assert args.level == 1
@@ -725,6 +763,7 @@ class TestRunGaiaCLI:
     def test_smoke_arg(self):
         """--smoke N sets smoke test mode (first N tasks, deterministic)."""
         from scripts.run_gaia import parse_args
+
         args = parse_args(["--smoke", "10"])
         assert args.smoke == 10
         args2 = parse_args(["--smoke", "5", "--split", "validation"])
@@ -735,6 +774,7 @@ class TestRunGaiaCLI:
 # =============================================================================
 # 9. run_gaia.py — Runner Logic (Mocked)
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestRunGaiaRunner:
@@ -747,12 +787,17 @@ class TestRunGaiaRunner:
         gaia_path = _make_gaia_dataset(tmp_path)
         db_path = str(tmp_path / "test_evals.db")
 
-        exit_code = main([
-            "--data-dir", gaia_path,
-            "--dry-run",
-            "--max-tasks", "2",
-            "--db-path", db_path,
-        ])
+        exit_code = main(
+            [
+                "--data-dir",
+                gaia_path,
+                "--dry-run",
+                "--max-tasks",
+                "2",
+                "--db-path",
+                db_path,
+            ]
+        )
 
         assert exit_code == 0
 
@@ -760,8 +805,8 @@ class TestRunGaiaRunner:
         store = EvalStore(db_path=db_path)
         runs = store.list_runs()
         assert len(runs) == 1
-        summary = store.get_run_summary(runs[0]['id'])
-        assert summary['total'] == 2
+        summary = store.get_run_summary(runs[0]["id"])
+        assert summary["total"] == 2
         store.close()
 
     def test_dry_run_with_level_filter(self, tmp_path):
@@ -771,19 +816,24 @@ class TestRunGaiaRunner:
         gaia_path = _make_gaia_dataset(tmp_path)
         db_path = str(tmp_path / "test_evals.db")
 
-        exit_code = main([
-            "--data-dir", gaia_path,
-            "--dry-run",
-            "--level", "1",
-            "--db-path", db_path,
-        ])
+        exit_code = main(
+            [
+                "--data-dir",
+                gaia_path,
+                "--dry-run",
+                "--level",
+                "1",
+                "--db-path",
+                db_path,
+            ]
+        )
 
         assert exit_code == 0
 
         store = EvalStore(db_path=db_path)
         runs = store.list_runs()
-        summary = store.get_run_summary(runs[0]['id'])
-        assert summary['total'] == 3  # v1, v2, t1 (all level 1)
+        summary = store.get_run_summary(runs[0]["id"])
+        assert summary["total"] == 3  # v1, v2, t1 (all level 1)
         store.close()
 
     def test_dry_run_with_split_filter(self, tmp_path):
@@ -793,19 +843,24 @@ class TestRunGaiaRunner:
         gaia_path = _make_gaia_dataset(tmp_path)
         db_path = str(tmp_path / "test_evals.db")
 
-        exit_code = main([
-            "--data-dir", gaia_path,
-            "--dry-run",
-            "--split", "test",
-            "--db-path", db_path,
-        ])
+        exit_code = main(
+            [
+                "--data-dir",
+                gaia_path,
+                "--dry-run",
+                "--split",
+                "test",
+                "--db-path",
+                db_path,
+            ]
+        )
 
         assert exit_code == 0
 
         store = EvalStore(db_path=db_path)
         runs = store.list_runs()
-        summary = store.get_run_summary(runs[0]['id'])
-        assert summary['total'] == 1  # Only t1
+        summary = store.get_run_summary(runs[0]["id"])
+        assert summary["total"] == 1  # Only t1
         store.close()
 
     def test_dry_run_single_task(self, tmp_path):
@@ -815,19 +870,24 @@ class TestRunGaiaRunner:
         gaia_path = _make_gaia_dataset(tmp_path)
         db_path = str(tmp_path / "test_evals.db")
 
-        exit_code = main([
-            "--data-dir", gaia_path,
-            "--dry-run",
-            "--task-id", "v1",
-            "--db-path", db_path,
-        ])
+        exit_code = main(
+            [
+                "--data-dir",
+                gaia_path,
+                "--dry-run",
+                "--task-id",
+                "v1",
+                "--db-path",
+                db_path,
+            ]
+        )
 
         assert exit_code == 0
 
         store = EvalStore(db_path=db_path)
         runs = store.list_runs()
-        summary = store.get_run_summary(runs[0]['id'])
-        assert summary['total'] == 1
+        summary = store.get_run_summary(runs[0]["id"])
+        assert summary["total"] == 1
         store.close()
 
     def test_missing_task_id(self, tmp_path):
@@ -837,12 +897,17 @@ class TestRunGaiaRunner:
         gaia_path = _make_gaia_dataset(tmp_path)
         db_path = str(tmp_path / "test_evals.db")
 
-        exit_code = main([
-            "--data-dir", gaia_path,
-            "--dry-run",
-            "--task-id", "nonexistent",
-            "--db-path", db_path,
-        ])
+        exit_code = main(
+            [
+                "--data-dir",
+                gaia_path,
+                "--dry-run",
+                "--task-id",
+                "nonexistent",
+                "--db-path",
+                db_path,
+            ]
+        )
 
         assert exit_code == 1
 
@@ -852,11 +917,15 @@ class TestRunGaiaRunner:
 
         db_path = str(tmp_path / "test_evals.db")
 
-        exit_code = main([
-            "--data-dir", str(tmp_path / "nonexistent"),
-            "--dry-run",
-            "--db-path", db_path,
-        ])
+        exit_code = main(
+            [
+                "--data-dir",
+                str(tmp_path / "nonexistent"),
+                "--dry-run",
+                "--db-path",
+                db_path,
+            ]
+        )
 
         assert exit_code == 1
 
@@ -868,13 +937,19 @@ class TestRunGaiaRunner:
         db_path = str(tmp_path / "test_evals.db")
         output_path = str(tmp_path / "results.json")
 
-        exit_code = main([
-            "--data-dir", gaia_path,
-            "--dry-run",
-            "--max-tasks", "2",
-            "--db-path", db_path,
-            "--output", output_path,
-        ])
+        exit_code = main(
+            [
+                "--data-dir",
+                gaia_path,
+                "--dry-run",
+                "--max-tasks",
+                "2",
+                "--db-path",
+                db_path,
+                "--output",
+                output_path,
+            ]
+        )
 
         assert exit_code == 0
         assert Path(output_path).exists()
@@ -890,6 +965,7 @@ class TestRunGaiaRunner:
 # =============================================================================
 # 10. run_gaia.py — Helper Functions
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestRunGaiaHelpers:
@@ -946,6 +1022,7 @@ class TestRunGaiaHelpers:
 # 11. Integration: Adapter + Benchmark + EvalStore
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestAdapterIntegration:
     """Integration of adapter with benchmark and store."""
@@ -964,11 +1041,14 @@ class TestAdapterIntegration:
 
     def test_dry_run_full_pipeline_with_store(self, tmp_path):
         """Full pipeline: benchmark + adapter + store, all dry run."""
-        gaia_path = _make_gaia_dataset(tmp_path, {
-            "validation": [
-                _make_gaia_task("v1", "Q?", "A"),
-            ],
-        })
+        gaia_path = _make_gaia_dataset(
+            tmp_path,
+            {
+                "validation": [
+                    _make_gaia_task("v1", "Q?", "A"),
+                ],
+            },
+        )
         bench = GAIABenchmark(benchmark_path=gaia_path)
         adapter = JottyGAIAAdapter(dry_run=True)
 
@@ -992,14 +1072,15 @@ class TestAdapterIntegration:
         store.finish_run(run_id)
         summary = store.get_run_summary(run_id)
 
-        assert summary['total'] == 1
-        assert summary['status'] == 'finished'
+        assert summary["total"] == 1
+        assert summary["status"] == "finished"
         store.close()
 
 
 # =============================================================================
 # 12. download_gaia.py — Argument Parsing
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestDownloadGaia:
@@ -1008,16 +1089,19 @@ class TestDownloadGaia:
     def test_module_importable(self):
         """download_gaia module is importable."""
         from scripts.download_gaia import download_gaia
+
         assert callable(download_gaia)
 
     def test_download_requires_datasets(self, tmp_path):
         """download_gaia returns error when datasets not available."""
         from scripts.download_gaia import download_gaia
 
-        with patch.dict('sys.modules', {'datasets': None}):
+        with patch.dict("sys.modules", {"datasets": None}):
             # Force reimport to trigger ImportError path
             import importlib
+
             from scripts import download_gaia as dg
+
             importlib.reload(dg)
             result = dg.download_gaia(str(tmp_path / "output"))
             assert result == 1
@@ -1027,6 +1111,7 @@ class TestDownloadGaia:
 # 13. Open-source LLM doc sources (Microsoft, Hugging Face, etc.)
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestLLMDocSources:
     """llm_doc_sources registry and helpers."""
@@ -1034,6 +1119,7 @@ class TestLLMDocSources:
     def test_list_sources_returns_non_empty(self):
         """list_sources() returns at least one source."""
         from Jotty.core.infrastructure.monitoring.evaluation.llm_doc_sources import list_sources
+
         sources = list_sources()
         assert len(sources) >= 1
         assert hasattr(sources[0], "id")
@@ -1042,14 +1128,21 @@ class TestLLMDocSources:
 
     def test_get_sources_by_provider_microsoft(self):
         """get_sources_by_provider('microsoft') returns Microsoft sources."""
-        from Jotty.core.infrastructure.monitoring.evaluation.llm_doc_sources import get_sources_by_provider
+        from Jotty.core.infrastructure.monitoring.evaluation.llm_doc_sources import (
+            get_sources_by_provider,
+        )
+
         ms = get_sources_by_provider("microsoft")
         assert len(ms) >= 1
         assert all(s.provider == "microsoft" for s in ms)
 
     def test_get_source_by_id(self):
         """get_source(id) returns the source or None."""
-        from Jotty.core.infrastructure.monitoring.evaluation.llm_doc_sources import get_source, list_sources
+        from Jotty.core.infrastructure.monitoring.evaluation.llm_doc_sources import (
+            get_source,
+            list_sources,
+        )
+
         first_id = list_sources()[0].id
         s = get_source(first_id)
         assert s is not None
@@ -1058,7 +1151,11 @@ class TestLLMDocSources:
 
     def test_to_context_snippet(self):
         """to_context_snippet returns a string with URLs."""
-        from Jotty.core.infrastructure.monitoring.evaluation.llm_doc_sources import list_sources, to_context_snippet
+        from Jotty.core.infrastructure.monitoring.evaluation.llm_doc_sources import (
+            list_sources,
+            to_context_snippet,
+        )
+
         sources = list_sources()[:2]
         snippet = to_context_snippet(sources, max_items=2)
         assert "Relevant open-source" in snippet or "http" in snippet or "https" in snippet

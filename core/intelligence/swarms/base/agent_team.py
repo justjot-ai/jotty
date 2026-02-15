@@ -34,12 +34,15 @@ Date: February 2026
 
 import asyncio
 import logging
+import re
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Type, Union
-import re
 
 # Canonical definitions live in foundation — single source of truth
-from Jotty.core.infrastructure.foundation.types.execution_types import CoordinationPattern, MergeStrategy
+from Jotty.core.infrastructure.foundation.types.execution_types import (
+    CoordinationPattern,
+    MergeStrategy,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -48,9 +51,11 @@ logger = logging.getLogger(__name__)
 # AGENT SPECIFICATION
 # =============================================================================
 
+
 @dataclass
 class AgentSpec:
     """Specification for a single agent in a team."""
+
     agent_class: Type
     display_name: str
     attr_name: Optional[str] = None
@@ -63,19 +68,21 @@ class AgentSpec:
             # "TestWriter" -> "_test_writer"
             name = self.display_name
             # Insert underscore before capitals (except first)
-            name = re.sub(r'(?<!^)(?=[A-Z])', '_', name).lower()
+            name = re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower()
             # Replace spaces with underscores
-            name = name.replace(' ', '_')
-            self.attr_name = f'_{name}'
+            name = name.replace(" ", "_")
+            self.attr_name = f"_{name}"
 
 
 # =============================================================================
 # TEAM RESULT
 # =============================================================================
 
+
 @dataclass
 class TeamResult:
     """Result from team execution."""
+
     success: bool
     outputs: Dict[str, Any]  # agent_name -> output
     merged_output: Any = None  # Combined result (if merge strategy used)
@@ -88,6 +95,7 @@ class TeamResult:
 # =============================================================================
 # AGENT TEAM
 # =============================================================================
+
 
 @dataclass
 class AgentTeam:
@@ -112,11 +120,12 @@ class AgentTeam:
             pattern=CoordinationPattern.PARALLEL,
         )
     """
+
     agents: Dict[str, AgentSpec] = field(default_factory=dict)
     pattern: CoordinationPattern = CoordinationPattern.NONE
     merge_strategy: MergeStrategy = MergeStrategy.COMBINE
-    timeout: float = 0.0   # 0.0 → resolved in __post_init__
-    max_retries: int = 0   # 0 → resolved in __post_init__
+    timeout: float = 0.0  # 0.0 → resolved in __post_init__
+    max_retries: int = 0  # 0 → resolved in __post_init__
 
     # For hierarchical pattern
     manager_attr: Optional[str] = None
@@ -126,6 +135,7 @@ class AgentTeam:
 
     def __post_init__(self) -> None:
         from Jotty.core.infrastructure.foundation.config_defaults import DEFAULTS
+
         if self.timeout == 0.0:
             self.timeout = float(DEFAULTS.LLM_TIMEOUT_SECONDS)
         if self.max_retries <= 0:
@@ -137,8 +147,8 @@ class AgentTeam:
         display_name: str,
         attr_name: str = None,
         role: str = None,
-        priority: int = 0
-    ) -> 'AgentTeam':
+        priority: int = 0,
+    ) -> "AgentTeam":
         """
         Add an agent to the team.
 
@@ -207,7 +217,7 @@ class AgentTeam:
                 success=True,
                 outputs={},
                 pattern=self.pattern,
-                metadata={"note": "No coordination pattern - swarm handles execution"}
+                metadata={"note": "No coordination pattern - swarm handles execution"},
             )
 
         elif self.pattern == CoordinationPattern.PIPELINE:
@@ -231,7 +241,9 @@ class AgentTeam:
         else:
             raise ValueError(f"Unknown coordination pattern: {self.pattern}")
 
-    async def _execute_pipeline(self, task: Any, context: Dict[str, Any], **kwargs: Any) -> TeamResult:
+    async def _execute_pipeline(
+        self, task: Any, context: Dict[str, Any], **kwargs: Any
+    ) -> TeamResult:
         """Execute agents sequentially, passing output to next.
 
         When agents expose ``get_io_schema()``, output fields are auto-wired
@@ -257,7 +269,7 @@ class AgentTeam:
                 extra_kwargs = {}
                 if prev_schema is not None and prev_output_dict is not None:
                     try:
-                        if hasattr(agent, 'get_io_schema'):
+                        if hasattr(agent, "get_io_schema"):
                             cur_schema = agent.get_io_schema()
                             wired = prev_schema.map_outputs(prev_output_dict, cur_schema)
                             if wired:
@@ -270,12 +282,14 @@ class AgentTeam:
                         logger.debug(f"Pipeline schema wiring skipped: {e}")
 
                 # Pass previous output as input
-                if hasattr(agent, 'execute'):
+                if hasattr(agent, "execute"):
                     result = await asyncio.wait_for(
-                        agent.execute(input=current_input, context=context, **extra_kwargs, **kwargs),
-                        timeout=self.timeout
+                        agent.execute(
+                            input=current_input, context=context, **extra_kwargs, **kwargs
+                        ),
+                        timeout=self.timeout,
                     )
-                    output = result.output if hasattr(result, 'output') else result
+                    output = result.output if hasattr(result, "output") else result
                 else:
                     # Fallback for agents with different interface
                     output = current_input
@@ -285,9 +299,11 @@ class AgentTeam:
 
                 # Track schema + output for next iteration's auto-wiring
                 try:
-                    if hasattr(agent, 'get_io_schema'):
+                    if hasattr(agent, "get_io_schema"):
                         prev_schema = agent.get_io_schema()
-                        prev_output_dict = output if isinstance(output, dict) else {'output': str(output)}
+                        prev_output_dict = (
+                            output if isinstance(output, dict) else {"output": str(output)}
+                        )
                     else:
                         prev_schema = None
                         prev_output_dict = None
@@ -309,10 +325,12 @@ class AgentTeam:
             merged_output=current_input,  # Final pipeline output
             pattern=self.pattern,
             execution_order=execution_order,
-            errors=errors
+            errors=errors,
         )
 
-    async def _execute_parallel(self, task: Any, context: Dict[str, Any], **kwargs: Any) -> TeamResult:
+    async def _execute_parallel(
+        self, task: Any, context: Dict[str, Any], **kwargs: Any
+    ) -> TeamResult:
         """Execute all agents in parallel, merge results."""
         outputs = {}
         errors = {}
@@ -324,12 +342,14 @@ class AgentTeam:
                 return None
 
             try:
-                if hasattr(agent, 'execute'):
+                if hasattr(agent, "execute"):
                     result = await asyncio.wait_for(
-                        agent.execute(input=task, context=context, **kwargs),
-                        timeout=self.timeout
+                        agent.execute(input=task, context=context, **kwargs), timeout=self.timeout
                     )
-                    return (spec.display_name, result.output if hasattr(result, 'output') else result)
+                    return (
+                        spec.display_name,
+                        result.output if hasattr(result, "output") else result,
+                    )
                 return None
             except Exception as e:
                 logger.error(f"Parallel agent {spec.display_name} failed: {e}")
@@ -355,10 +375,12 @@ class AgentTeam:
             merged_output=merged,
             pattern=self.pattern,
             execution_order=execution_order,
-            errors=errors
+            errors=errors,
         )
 
-    async def _execute_consensus(self, task: Any, context: Dict[str, Any], **kwargs: Any) -> TeamResult:
+    async def _execute_consensus(
+        self, task: Any, context: Dict[str, Any], **kwargs: Any
+    ) -> TeamResult:
         """Execute all agents, use voting for final result."""
         # First run parallel
         parallel_result = await self._execute_parallel(task, context, **kwargs)
@@ -384,7 +406,9 @@ class AgentTeam:
         parallel_result.metadata["votes"] = {k: v["count"] for k, v in votes.items()}
         return parallel_result
 
-    async def _execute_hierarchical(self, task: Any, context: Dict[str, Any], **kwargs: Any) -> TeamResult:
+    async def _execute_hierarchical(
+        self, task: Any, context: Dict[str, Any], **kwargs: Any
+    ) -> TeamResult:
         """Manager delegates to workers, aggregates results."""
         outputs = {}
         errors = {}
@@ -407,21 +431,26 @@ class AgentTeam:
 
         # Manager creates subtasks
         try:
-            if hasattr(manager, 'plan') or hasattr(manager, 'delegate'):
-                method = getattr(manager, 'plan', None) or getattr(manager, 'delegate')
+            if hasattr(manager, "plan") or hasattr(manager, "delegate"):
+                method = getattr(manager, "plan", None) or getattr(manager, "delegate")
                 subtasks = await method(task=task, context=context)
             else:
                 # Simple delegation - all workers get same task
-                subtasks = {spec.display_name: task
-                           for attr, spec in self.agents.items()
-                           if spec.role == "worker"}
+                subtasks = {
+                    spec.display_name: task
+                    for attr, spec in self.agents.items()
+                    if spec.role == "worker"
+                }
         except Exception as e:
             logger.error(f"Manager planning failed: {e}")
             subtasks = {}
 
         # Workers execute subtasks
-        workers = [(attr, spec) for attr, spec in self.agents.items()
-                   if spec.role == "worker" or spec.role is None]
+        workers = [
+            (attr, spec)
+            for attr, spec in self.agents.items()
+            if spec.role == "worker" or spec.role is None
+        ]
 
         for attr, spec in workers:
             agent = self._instances.get(attr)
@@ -432,15 +461,17 @@ class AgentTeam:
             execution_order.append(spec.display_name)
 
             try:
-                if hasattr(agent, 'execute'):
+                if hasattr(agent, "execute"):
                     result = await agent.execute(input=subtask, context=context, **kwargs)
-                    outputs[spec.display_name] = result.output if hasattr(result, 'output') else result
+                    outputs[spec.display_name] = (
+                        result.output if hasattr(result, "output") else result
+                    )
             except Exception as e:
                 errors[spec.display_name] = str(e)
 
         # Manager aggregates
         try:
-            if hasattr(manager, 'aggregate'):
+            if hasattr(manager, "aggregate"):
                 merged = await manager.aggregate(outputs, context=context)
             else:
                 merged = outputs
@@ -454,10 +485,12 @@ class AgentTeam:
             merged_output=merged,
             pattern=self.pattern,
             execution_order=execution_order,
-            errors=errors
+            errors=errors,
         )
 
-    async def _execute_blackboard(self, task: Any, context: Dict[str, Any], **kwargs: Any) -> TeamResult:
+    async def _execute_blackboard(
+        self, task: Any, context: Dict[str, Any], **kwargs: Any
+    ) -> TeamResult:
         """Agents contribute to shared blackboard until done."""
         blackboard = {"task": task, "contributions": {}, "done": False}
         outputs = {}
@@ -474,14 +507,14 @@ class AgentTeam:
                     continue
 
                 try:
-                    if hasattr(agent, 'contribute'):
+                    if hasattr(agent, "contribute"):
                         contribution = await agent.contribute(
-                            blackboard=blackboard,
-                            context=context,
-                            **kwargs
+                            blackboard=blackboard, context=context, **kwargs
                         )
                         if contribution:
-                            blackboard["contributions"][f"{spec.display_name}_{round_num}"] = contribution
+                            blackboard["contributions"][
+                                f"{spec.display_name}_{round_num}"
+                            ] = contribution
                             outputs[spec.display_name] = contribution
                             execution_order.append(f"{spec.display_name}(round={round_num})")
                             made_contribution = True
@@ -498,10 +531,12 @@ class AgentTeam:
             pattern=self.pattern,
             execution_order=execution_order,
             errors=errors,
-            metadata={"rounds": round_num + 1}
+            metadata={"rounds": round_num + 1},
         )
 
-    async def _execute_round_robin(self, task: Any, context: Dict[str, Any], **kwargs: Any) -> TeamResult:
+    async def _execute_round_robin(
+        self, task: Any, context: Dict[str, Any], **kwargs: Any
+    ) -> TeamResult:
         """Agents take turns processing subtasks."""
         outputs = {}
         errors = {}
@@ -515,7 +550,9 @@ class AgentTeam:
 
         agents = list(self._instances.items())
         if not agents:
-            return TeamResult(success=False, outputs={}, errors={"team": "No agents"}, pattern=self.pattern)
+            return TeamResult(
+                success=False, outputs={}, errors={"team": "No agents"}, pattern=self.pattern
+            )
 
         for i, subtask in enumerate(subtasks):
             # Round robin selection
@@ -527,9 +564,11 @@ class AgentTeam:
             execution_order.append(f"{spec.display_name}(task={i})")
 
             try:
-                if hasattr(agent, 'execute'):
+                if hasattr(agent, "execute"):
                     result = await agent.execute(input=subtask, context=context, **kwargs)
-                    outputs[f"{spec.display_name}_{i}"] = result.output if hasattr(result, 'output') else result
+                    outputs[f"{spec.display_name}_{i}"] = (
+                        result.output if hasattr(result, "output") else result
+                    )
             except Exception as e:
                 errors[f"{spec.display_name}_{i}"] = str(e)
 
@@ -539,7 +578,7 @@ class AgentTeam:
             merged_output=list(outputs.values()),
             pattern=self.pattern,
             execution_order=execution_order,
-            errors=errors
+            errors=errors,
         )
 
     def _merge_outputs(self, outputs: Dict[str, Any]) -> Any:
@@ -562,6 +601,7 @@ class AgentTeam:
         elif self.merge_strategy == MergeStrategy.VOTE:
             # Simple majority voting
             from collections import Counter
+
             str_values = [str(v)[:200] for v in values]
             most_common = Counter(str_values).most_common(1)
             if most_common:
@@ -589,8 +629,8 @@ class AgentTeam:
         pattern: CoordinationPattern = CoordinationPattern.NONE,
         merge_strategy: MergeStrategy = MergeStrategy.COMBINE,
         timeout: float = 0.0,
-        manager_attr: str = None
-    ) -> 'AgentTeam':
+        manager_attr: str = None,
+    ) -> "AgentTeam":
         """
         Create a team from tuples with optional coordination pattern.
 
@@ -628,7 +668,7 @@ class AgentTeam:
             pattern=pattern,
             merge_strategy=merge_strategy,
             timeout=timeout,
-            manager_attr=manager_attr
+            manager_attr=manager_attr,
         )
 
         for spec in specs:
@@ -647,9 +687,9 @@ class AgentTeam:
 
 
 __all__ = [
-    'AgentTeam',
-    'AgentSpec',
-    'TeamResult',
-    'CoordinationPattern',
-    'MergeStrategy',
+    "AgentTeam",
+    "AgentSpec",
+    "TeamResult",
+    "CoordinationPattern",
+    "MergeStrategy",
 ]

@@ -5,16 +5,18 @@ Tests for EnhancedLogger, ContextRequirements, TokenBudgetManager, and SemanticF
 
 All tests use mocks -- NO real LLM calls, NO real token counting.
 """
-import pytest
+
 import json
 import logging
-from unittest.mock import patch, MagicMock, call
 from dataclasses import fields
+from unittest.mock import MagicMock, call, patch
 
+import pytest
 
 # =============================================================================
 # EnhancedLogger Tests
 # =============================================================================
+
 
 class TestEnhancedLoggerInit:
     """Tests for EnhancedLogger initialization."""
@@ -55,6 +57,7 @@ class TestEnhancedLoggerCountTokens:
             "Jotty.core.utils.context_logger.count_tokens_accurate", return_value=42
         ) as mock_ct:
             from Jotty.core.infrastructure.utils.context_logger import EnhancedLogger
+
             el = EnhancedLogger("ct_test")
             result = el._count_tokens("hello world")
         assert result == 42
@@ -63,10 +66,9 @@ class TestEnhancedLoggerCountTokens:
     @pytest.mark.unit
     def test_count_tokens_empty_string(self):
         """_count_tokens handles empty string input."""
-        with patch(
-            "Jotty.core.utils.context_logger.count_tokens_accurate", return_value=0
-        ):
+        with patch("Jotty.core.utils.context_logger.count_tokens_accurate", return_value=0):
             from Jotty.core.infrastructure.utils.context_logger import EnhancedLogger
+
             el = EnhancedLogger("empty")
             result = el._count_tokens("")
         assert result == 0
@@ -126,6 +128,7 @@ class TestEnhancedLoggerFormat:
             from Jotty.core.infrastructure.utils.context_logger import EnhancedLogger
         el = EnhancedLogger("fmt")
         from datetime import datetime
+
         dt = datetime(2026, 1, 1, 12, 0, 0)
         result = el._format({"ts": dt})
         assert "2026" in result
@@ -137,10 +140,9 @@ class TestEnhancedLoggerLogActorStart:
     @pytest.mark.unit
     def test_log_actor_start_logs_actor_name_and_attempt(self):
         """log_actor_start logs the actor name and attempt number."""
-        with patch(
-            "Jotty.core.utils.context_logger.count_tokens_accurate", return_value=5
-        ):
+        with patch("Jotty.core.utils.context_logger.count_tokens_accurate", return_value=5):
             from Jotty.core.infrastructure.utils.context_logger import EnhancedLogger
+
             el = EnhancedLogger("start_test")
         el.logger = MagicMock()
         el.log_actor_start("MyActor", 2, {"param1": "val1"}, {"ctx1": 100})
@@ -152,10 +154,9 @@ class TestEnhancedLoggerLogActorStart:
     @pytest.mark.unit
     def test_log_actor_start_logs_input_count(self):
         """log_actor_start logs the number of input parameters."""
-        with patch(
-            "Jotty.core.utils.context_logger.count_tokens_accurate", return_value=3
-        ):
+        with patch("Jotty.core.utils.context_logger.count_tokens_accurate", return_value=3):
             from Jotty.core.infrastructure.utils.context_logger import EnhancedLogger
+
             el = EnhancedLogger("start_test")
         el.logger = MagicMock()
         inputs = {"a": 1, "b": 2, "c": 3}
@@ -167,10 +168,9 @@ class TestEnhancedLoggerLogActorStart:
     @pytest.mark.unit
     def test_log_actor_start_logs_context_total_tokens(self):
         """log_actor_start logs the total context tokens."""
-        with patch(
-            "Jotty.core.utils.context_logger.count_tokens_accurate", return_value=1
-        ):
+        with patch("Jotty.core.utils.context_logger.count_tokens_accurate", return_value=1):
             from Jotty.core.infrastructure.utils.context_logger import EnhancedLogger
+
             el = EnhancedLogger("ctx")
         el.logger = MagicMock()
         el.log_actor_start("Actor", 1, {}, {"meta": 200, "mem": 300})
@@ -181,10 +181,9 @@ class TestEnhancedLoggerLogActorStart:
     @pytest.mark.unit
     def test_log_actor_start_empty_inputs(self):
         """log_actor_start handles empty inputs dict."""
-        with patch(
-            "Jotty.core.utils.context_logger.count_tokens_accurate", return_value=0
-        ):
+        with patch("Jotty.core.utils.context_logger.count_tokens_accurate", return_value=0):
             from Jotty.core.infrastructure.utils.context_logger import EnhancedLogger
+
             el = EnhancedLogger("empty")
         el.logger = MagicMock()
         el.log_actor_start("Actor", 1, {}, {})
@@ -199,10 +198,9 @@ class TestEnhancedLoggerLogActorEnd:
     @pytest.mark.unit
     def test_log_actor_end_logs_success_true(self):
         """log_actor_end logs success status when True."""
-        with patch(
-            "Jotty.core.utils.context_logger.count_tokens_accurate", return_value=10
-        ):
+        with patch("Jotty.core.utils.context_logger.count_tokens_accurate", return_value=10):
             from Jotty.core.infrastructure.utils.context_logger import EnhancedLogger
+
             el = EnhancedLogger("end_test")
         el.logger = MagicMock()
         el.log_actor_end("Actor", "some output", True, 1.23)
@@ -213,10 +211,9 @@ class TestEnhancedLoggerLogActorEnd:
     @pytest.mark.unit
     def test_log_actor_end_logs_duration(self):
         """log_actor_end logs the duration formatted to 2 decimals."""
-        with patch(
-            "Jotty.core.utils.context_logger.count_tokens_accurate", return_value=10
-        ):
+        with patch("Jotty.core.utils.context_logger.count_tokens_accurate", return_value=10):
             from Jotty.core.infrastructure.utils.context_logger import EnhancedLogger
+
             el = EnhancedLogger("dur")
         el.logger = MagicMock()
         el.log_actor_end("Actor", "output", True, 3.456)
@@ -227,10 +224,9 @@ class TestEnhancedLoggerLogActorEnd:
     @pytest.mark.unit
     def test_log_actor_end_with_dspy_prediction(self):
         """log_actor_end handles DSPy Prediction objects with _store attribute."""
-        with patch(
-            "Jotty.core.utils.context_logger.count_tokens_accurate", return_value=5
-        ):
+        with patch("Jotty.core.utils.context_logger.count_tokens_accurate", return_value=5):
             from Jotty.core.infrastructure.utils.context_logger import EnhancedLogger
+
             el = EnhancedLogger("dspy")
         el.logger = MagicMock()
         mock_output = MagicMock()
@@ -244,10 +240,9 @@ class TestEnhancedLoggerLogActorEnd:
     @pytest.mark.unit
     def test_log_actor_end_with_raw_output(self):
         """log_actor_end logs raw output when not a DSPy Prediction."""
-        with patch(
-            "Jotty.core.utils.context_logger.count_tokens_accurate", return_value=7
-        ):
+        with patch("Jotty.core.utils.context_logger.count_tokens_accurate", return_value=7):
             from Jotty.core.infrastructure.utils.context_logger import EnhancedLogger
+
             el = EnhancedLogger("raw")
         el.logger = MagicMock()
         el.log_actor_end("Actor", "plain text", False, 2.0)
@@ -258,10 +253,9 @@ class TestEnhancedLoggerLogActorEnd:
     @pytest.mark.unit
     def test_log_actor_end_success_false(self):
         """log_actor_end correctly logs failure."""
-        with patch(
-            "Jotty.core.utils.context_logger.count_tokens_accurate", return_value=3
-        ):
+        with patch("Jotty.core.utils.context_logger.count_tokens_accurate", return_value=3):
             from Jotty.core.infrastructure.utils.context_logger import EnhancedLogger
+
             el = EnhancedLogger("fail")
         el.logger = MagicMock()
         el.log_actor_end("Actor", "error", False, 0.1)
@@ -276,15 +270,12 @@ class TestEnhancedLoggerLogValidation:
     @pytest.mark.unit
     def test_log_validation_valid_decision(self):
         """log_validation logs VALID when decision is True."""
-        with patch(
-            "Jotty.core.utils.context_logger.count_tokens_accurate", return_value=10
-        ):
+        with patch("Jotty.core.utils.context_logger.count_tokens_accurate", return_value=10):
             from Jotty.core.infrastructure.utils.context_logger import EnhancedLogger
+
             el = EnhancedLogger("val")
         el.logger = MagicMock()
-        el.log_validation(
-            "TestValidator", "ACTOR", {"inp": "data"}, True, 0.95, "Looks good"
-        )
+        el.log_validation("TestValidator", "ACTOR", {"inp": "data"}, True, 0.95, "Looks good")
         info_calls = [str(c) for c in el.logger.info.call_args_list]
         joined = " ".join(info_calls)
         assert "VALID" in joined
@@ -294,15 +285,12 @@ class TestEnhancedLoggerLogValidation:
     @pytest.mark.unit
     def test_log_validation_invalid_decision(self):
         """log_validation logs INVALID when decision is False."""
-        with patch(
-            "Jotty.core.utils.context_logger.count_tokens_accurate", return_value=8
-        ):
+        with patch("Jotty.core.utils.context_logger.count_tokens_accurate", return_value=8):
             from Jotty.core.infrastructure.utils.context_logger import EnhancedLogger
+
             el = EnhancedLogger("val")
         el.logger = MagicMock()
-        el.log_validation(
-            "SwarmValidator", "SWARM", {}, False, 0.3, "Bad output"
-        )
+        el.log_validation("SwarmValidator", "SWARM", {}, False, 0.3, "Bad output")
         info_calls = [str(c) for c in el.logger.info.call_args_list]
         joined = " ".join(info_calls)
         assert "INVALID" in joined
@@ -311,10 +299,9 @@ class TestEnhancedLoggerLogValidation:
     @pytest.mark.unit
     def test_log_validation_confidence_format(self):
         """log_validation formats confidence to 2 decimal places."""
-        with patch(
-            "Jotty.core.utils.context_logger.count_tokens_accurate", return_value=5
-        ):
+        with patch("Jotty.core.utils.context_logger.count_tokens_accurate", return_value=5):
             from Jotty.core.infrastructure.utils.context_logger import EnhancedLogger
+
             el = EnhancedLogger("conf")
         el.logger = MagicMock()
         el.log_validation("V", "ACTOR", {}, True, 0.8765, "ok")
@@ -326,10 +313,9 @@ class TestEnhancedLoggerLogValidation:
     def test_log_validation_logs_full_reasoning(self):
         """log_validation logs the full reasoning string without truncation."""
         long_reasoning = "A" * 500
-        with patch(
-            "Jotty.core.utils.context_logger.count_tokens_accurate", return_value=125
-        ):
+        with patch("Jotty.core.utils.context_logger.count_tokens_accurate", return_value=125):
             from Jotty.core.infrastructure.utils.context_logger import EnhancedLogger
+
             el = EnhancedLogger("reason")
         el.logger = MagicMock()
         el.log_validation("V", "ACTOR", {}, True, 0.9, long_reasoning)
@@ -346,6 +332,7 @@ class TestEnhancedLoggerLogCompression:
         """log_compression computes correct compression ratio."""
         with patch("Jotty.core.utils.context_logger.count_tokens_accurate"):
             from Jotty.core.infrastructure.utils.context_logger import EnhancedLogger
+
             el = EnhancedLogger("comp")
         el.logger = MagicMock()
         el.log_compression("metadata", 1000, 500, "summarize", "reduce context")
@@ -361,6 +348,7 @@ class TestEnhancedLoggerLogCompression:
         """log_compression handles zero original_tokens without division error."""
         with patch("Jotty.core.utils.context_logger.count_tokens_accurate"):
             from Jotty.core.infrastructure.utils.context_logger import EnhancedLogger
+
             el = EnhancedLogger("zero")
         el.logger = MagicMock()
         # Should not raise ZeroDivisionError
@@ -374,6 +362,7 @@ class TestEnhancedLoggerLogCompression:
         """log_compression logs original, compressed, ratio, method, and purpose."""
         with patch("Jotty.core.utils.context_logger.count_tokens_accurate"):
             from Jotty.core.infrastructure.utils.context_logger import EnhancedLogger
+
             el = EnhancedLogger("fields")
         el.logger = MagicMock()
         el.log_compression("trajectory", 2000, 400, "truncate", "fit budget")
@@ -391,10 +380,9 @@ class TestEnhancedLoggerLogMemory:
     @pytest.mark.unit
     def test_log_memory_uppercases_operation(self):
         """log_memory uppercases the operation name."""
-        with patch(
-            "Jotty.core.utils.context_logger.count_tokens_accurate", return_value=15
-        ):
+        with patch("Jotty.core.utils.context_logger.count_tokens_accurate", return_value=15):
             from Jotty.core.infrastructure.utils.context_logger import EnhancedLogger
+
             el = EnhancedLogger("mem")
         el.logger = MagicMock()
         el.log_memory("store", "some content", "episodic", {"key": "val"})
@@ -405,10 +393,9 @@ class TestEnhancedLoggerLogMemory:
     @pytest.mark.unit
     def test_log_memory_logs_level(self):
         """log_memory logs the memory level."""
-        with patch(
-            "Jotty.core.utils.context_logger.count_tokens_accurate", return_value=5
-        ):
+        with patch("Jotty.core.utils.context_logger.count_tokens_accurate", return_value=5):
             from Jotty.core.infrastructure.utils.context_logger import EnhancedLogger
+
             el = EnhancedLogger("mem")
         el.logger = MagicMock()
         el.log_memory("retrieve", "data", "semantic", {})
@@ -420,10 +407,9 @@ class TestEnhancedLoggerLogMemory:
     def test_log_memory_logs_full_content(self):
         """log_memory logs full content without truncation."""
         content = "x" * 1000
-        with patch(
-            "Jotty.core.utils.context_logger.count_tokens_accurate", return_value=250
-        ):
+        with patch("Jotty.core.utils.context_logger.count_tokens_accurate", return_value=250):
             from Jotty.core.infrastructure.utils.context_logger import EnhancedLogger
+
             el = EnhancedLogger("mem")
         el.logger = MagicMock()
         el.log_memory("store", content, "procedural", {"src": "test"})
@@ -434,10 +420,9 @@ class TestEnhancedLoggerLogMemory:
     @pytest.mark.unit
     def test_log_memory_serializes_metadata_as_json(self):
         """log_memory serializes metadata dict as JSON."""
-        with patch(
-            "Jotty.core.utils.context_logger.count_tokens_accurate", return_value=5
-        ):
+        with patch("Jotty.core.utils.context_logger.count_tokens_accurate", return_value=5):
             from Jotty.core.infrastructure.utils.context_logger import EnhancedLogger
+
             el = EnhancedLogger("mem")
         el.logger = MagicMock()
         metadata = {"score": 0.95, "source": "test"}
@@ -456,6 +441,7 @@ class TestEnhancedLoggerLogRlUpdate:
         """log_rl_update logs the actor and action."""
         with patch("Jotty.core.utils.context_logger.count_tokens_accurate"):
             from Jotty.core.infrastructure.utils.context_logger import EnhancedLogger
+
             el = EnhancedLogger("rl")
         el.logger = MagicMock()
         el.log_rl_update("SqlActor", {"step": 1}, "generate_query", 0.8, 0.2, 0.5, 0.7)
@@ -469,6 +455,7 @@ class TestEnhancedLoggerLogRlUpdate:
         """log_rl_update logs old and new Q-values with delta."""
         with patch("Jotty.core.utils.context_logger.count_tokens_accurate"):
             from Jotty.core.infrastructure.utils.context_logger import EnhancedLogger
+
             el = EnhancedLogger("rl")
         el.logger = MagicMock()
         el.log_rl_update("Actor", {}, "act", 1.0, 0.1, 0.500, 0.600)
@@ -483,6 +470,7 @@ class TestEnhancedLoggerLogRlUpdate:
         """log_rl_update shows negative delta when q_new < q_old."""
         with patch("Jotty.core.utils.context_logger.count_tokens_accurate"):
             from Jotty.core.infrastructure.utils.context_logger import EnhancedLogger
+
             el = EnhancedLogger("rl")
         el.logger = MagicMock()
         el.log_rl_update("Actor", {}, "act", -0.5, -0.3, 0.800, 0.500)
@@ -495,6 +483,7 @@ class TestEnhancedLoggerLogRlUpdate:
         """log_rl_update serializes state dict as JSON."""
         with patch("Jotty.core.utils.context_logger.count_tokens_accurate"):
             from Jotty.core.infrastructure.utils.context_logger import EnhancedLogger
+
             el = EnhancedLogger("rl")
         el.logger = MagicMock()
         state = {"attempt": 3, "last_score": 0.6}
@@ -513,6 +502,7 @@ class TestEnhancedLoggerLogContextBuilding:
         """log_context_building sums dict budget values for total."""
         with patch("Jotty.core.utils.context_logger.count_tokens_accurate"):
             from Jotty.core.infrastructure.utils.context_logger import EnhancedLogger
+
             el = EnhancedLogger("ctx")
         el.logger = MagicMock()
         budget = {"metadata": 5000, "memories": 3000}
@@ -526,6 +516,7 @@ class TestEnhancedLoggerLogContextBuilding:
         """log_context_building handles scalar (non-dict) budget."""
         with patch("Jotty.core.utils.context_logger.count_tokens_accurate"):
             from Jotty.core.infrastructure.utils.context_logger import EnhancedLogger
+
             el = EnhancedLogger("ctx")
         el.logger = MagicMock()
         el.log_context_building("Actor", 10000, 9000, {"a": 5000, "b": 4000})
@@ -538,6 +529,7 @@ class TestEnhancedLoggerLogContextBuilding:
         """log_context_building handles empty components dict."""
         with patch("Jotty.core.utils.context_logger.count_tokens_accurate"):
             from Jotty.core.infrastructure.utils.context_logger import EnhancedLogger
+
             el = EnhancedLogger("ctx")
         el.logger = MagicMock()
         el.log_context_building("Actor", {"x": 1000}, 0, {})
@@ -550,6 +542,7 @@ class TestEnhancedLoggerLogContextBuilding:
         """log_context_building marks components that exceed total budget as OVER."""
         with patch("Jotty.core.utils.context_logger.count_tokens_accurate"):
             from Jotty.core.infrastructure.utils.context_logger import EnhancedLogger
+
             el = EnhancedLogger("ctx")
         el.logger = MagicMock()
         budget = {"meta": 100}
@@ -563,6 +556,7 @@ class TestEnhancedLoggerLogContextBuilding:
         """log_context_building marks components within budget as OK."""
         with patch("Jotty.core.utils.context_logger.count_tokens_accurate"):
             from Jotty.core.infrastructure.utils.context_logger import EnhancedLogger
+
             el = EnhancedLogger("ctx")
         el.logger = MagicMock()
         budget = {"meta": 10000}
@@ -575,6 +569,7 @@ class TestEnhancedLoggerLogContextBuilding:
 # =============================================================================
 # ContextRequirements Tests
 # =============================================================================
+
 
 class TestContextRequirements:
     """Tests for the ContextRequirements dataclass."""
@@ -663,6 +658,7 @@ class TestContextRequirements:
 # TokenBudgetManager Tests
 # =============================================================================
 
+
 class TestTokenBudgetManagerInit:
     """Tests for TokenBudgetManager initialization."""
 
@@ -708,7 +704,10 @@ class TestTokenBudgetManagerAllocate:
     def test_allocate_essential_components_capped_at_2000(self):
         """Essential components are capped at 2000 tokens each."""
         with patch("Jotty.core.utils.context_logger.count_tokens_accurate"):
-            from Jotty.core.infrastructure.utils.context_logger import TokenBudgetManager, ContextRequirements
+            from Jotty.core.infrastructure.utils.context_logger import (
+                ContextRequirements,
+                TokenBudgetManager,
+            )
         mgr = TokenBudgetManager()
         req = ContextRequirements()
         sizes = {"goal": 5000, "task": 3000}
@@ -720,7 +719,10 @@ class TestTokenBudgetManagerAllocate:
     def test_allocate_essential_below_cap(self):
         """Essential components below 2000 get their actual size."""
         with patch("Jotty.core.utils.context_logger.count_tokens_accurate"):
-            from Jotty.core.infrastructure.utils.context_logger import TokenBudgetManager, ContextRequirements
+            from Jotty.core.infrastructure.utils.context_logger import (
+                ContextRequirements,
+                TokenBudgetManager,
+            )
         mgr = TokenBudgetManager()
         req = ContextRequirements()
         sizes = {"goal": 500, "task": 800}
@@ -732,7 +734,10 @@ class TestTokenBudgetManagerAllocate:
     def test_allocate_missing_essential_gets_zero(self):
         """Essential components missing from sizes get 0."""
         with patch("Jotty.core.utils.context_logger.count_tokens_accurate"):
-            from Jotty.core.infrastructure.utils.context_logger import TokenBudgetManager, ContextRequirements
+            from Jotty.core.infrastructure.utils.context_logger import (
+                ContextRequirements,
+                TokenBudgetManager,
+            )
         mgr = TokenBudgetManager()
         req = ContextRequirements()
         alloc = mgr.allocate(req, {})
@@ -743,7 +748,10 @@ class TestTokenBudgetManagerAllocate:
     def test_allocate_flexible_uses_proportions(self):
         """Flexible components get proportional allocation from remaining budget."""
         with patch("Jotty.core.utils.context_logger.count_tokens_accurate"):
-            from Jotty.core.infrastructure.utils.context_logger import TokenBudgetManager, ContextRequirements
+            from Jotty.core.infrastructure.utils.context_logger import (
+                ContextRequirements,
+                TokenBudgetManager,
+            )
         mgr = TokenBudgetManager(total_budget=30000, output_reserve=8000)
         # input_budget = 22000, no essentials used = 22000 remaining
         req = ContextRequirements()
@@ -761,7 +769,10 @@ class TestTokenBudgetManagerAllocate:
     def test_allocate_remaining_reduced_by_essentials(self):
         """Flexible budget is reduced by essential component allocations."""
         with patch("Jotty.core.utils.context_logger.count_tokens_accurate"):
-            from Jotty.core.infrastructure.utils.context_logger import TokenBudgetManager, ContextRequirements
+            from Jotty.core.infrastructure.utils.context_logger import (
+                ContextRequirements,
+                TokenBudgetManager,
+            )
         mgr = TokenBudgetManager(total_budget=30000, output_reserve=8000)
         req = ContextRequirements()
         # 2 essentials at 2000 each = 4000 used
@@ -774,11 +785,12 @@ class TestTokenBudgetManagerAllocate:
     def test_allocate_with_custom_proportions(self):
         """Allocate respects custom budget_proportions."""
         with patch("Jotty.core.utils.context_logger.count_tokens_accurate"):
-            from Jotty.core.infrastructure.utils.context_logger import TokenBudgetManager, ContextRequirements
+            from Jotty.core.infrastructure.utils.context_logger import (
+                ContextRequirements,
+                TokenBudgetManager,
+            )
         mgr = TokenBudgetManager(total_budget=30000, output_reserve=8000)
-        req = ContextRequirements(
-            budget_proportions={"metadata": 0.5, "memories": 0.5}
-        )
+        req = ContextRequirements(budget_proportions={"metadata": 0.5, "memories": 0.5})
         alloc = mgr.allocate(req, {})
         # remaining = 22000
         assert alloc["metadata"] == int(22000 * 0.5)
@@ -788,7 +800,10 @@ class TestTokenBudgetManagerAllocate:
     def test_allocate_error_context_essential(self):
         """error_context is treated as an essential component."""
         with patch("Jotty.core.utils.context_logger.count_tokens_accurate"):
-            from Jotty.core.infrastructure.utils.context_logger import TokenBudgetManager, ContextRequirements
+            from Jotty.core.infrastructure.utils.context_logger import (
+                ContextRequirements,
+                TokenBudgetManager,
+            )
         mgr = TokenBudgetManager()
         req = ContextRequirements()
         sizes = {"error_context": 1500}
@@ -799,7 +814,10 @@ class TestTokenBudgetManagerAllocate:
     def test_allocate_required_params_essential(self):
         """required_params is treated as an essential component."""
         with patch("Jotty.core.utils.context_logger.count_tokens_accurate"):
-            from Jotty.core.infrastructure.utils.context_logger import TokenBudgetManager, ContextRequirements
+            from Jotty.core.infrastructure.utils.context_logger import (
+                ContextRequirements,
+                TokenBudgetManager,
+            )
         mgr = TokenBudgetManager()
         req = ContextRequirements()
         sizes = {"required_params": 1800}
@@ -825,6 +843,7 @@ class TestTokenBudgetManagerAllocate:
 # SemanticFilter Tests
 # =============================================================================
 
+
 class TestSemanticFilterFilterByRequirements:
     """Tests for SemanticFilter.filter_by_requirements."""
 
@@ -842,7 +861,10 @@ class TestSemanticFilterFilterByRequirements:
     def test_filters_dict_by_metadata_fields(self):
         """filter_by_requirements filters dict to only requested metadata_fields."""
         with patch("Jotty.core.utils.context_logger.count_tokens_accurate"):
-            from Jotty.core.infrastructure.utils.context_logger import SemanticFilter, ContextRequirements
+            from Jotty.core.infrastructure.utils.context_logger import (
+                ContextRequirements,
+                SemanticFilter,
+            )
         sf = SemanticFilter()
         content = {"tables": ["t1"], "columns": ["c1"], "indexes": ["i1"]}
         req = ContextRequirements(metadata_fields=["tables", "columns"])
@@ -854,7 +876,10 @@ class TestSemanticFilterFilterByRequirements:
     def test_filters_dict_missing_fields_skipped(self):
         """filter_by_requirements skips requested fields not present in content."""
         with patch("Jotty.core.utils.context_logger.count_tokens_accurate"):
-            from Jotty.core.infrastructure.utils.context_logger import SemanticFilter, ContextRequirements
+            from Jotty.core.infrastructure.utils.context_logger import (
+                ContextRequirements,
+                SemanticFilter,
+            )
         sf = SemanticFilter()
         content = {"tables": ["t1"]}
         req = ContextRequirements(metadata_fields=["tables", "nonexistent"])
@@ -865,7 +890,10 @@ class TestSemanticFilterFilterByRequirements:
     def test_summarizes_list_items_in_summary_mode(self):
         """filter_by_requirements summarizes list items when detail is 'summary'."""
         with patch("Jotty.core.utils.context_logger.count_tokens_accurate"):
-            from Jotty.core.infrastructure.utils.context_logger import SemanticFilter, ContextRequirements
+            from Jotty.core.infrastructure.utils.context_logger import (
+                ContextRequirements,
+                SemanticFilter,
+            )
         sf = SemanticFilter()
         content = [
             {"name": "table1", "description": "Main table", "rows": 1000, "extra": "data"},
@@ -881,7 +909,10 @@ class TestSemanticFilterFilterByRequirements:
     def test_returns_content_unchanged_for_string_input(self):
         """filter_by_requirements returns string content unchanged."""
         with patch("Jotty.core.utils.context_logger.count_tokens_accurate"):
-            from Jotty.core.infrastructure.utils.context_logger import SemanticFilter, ContextRequirements
+            from Jotty.core.infrastructure.utils.context_logger import (
+                ContextRequirements,
+                SemanticFilter,
+            )
         sf = SemanticFilter()
         req = ContextRequirements()
         result = sf.filter_by_requirements("plain text", req, "goal")
@@ -891,7 +922,10 @@ class TestSemanticFilterFilterByRequirements:
     def test_dict_without_metadata_fields_returns_unchanged(self):
         """filter_by_requirements returns dict unchanged when metadata_fields is None."""
         with patch("Jotty.core.utils.context_logger.count_tokens_accurate"):
-            from Jotty.core.infrastructure.utils.context_logger import SemanticFilter, ContextRequirements
+            from Jotty.core.infrastructure.utils.context_logger import (
+                ContextRequirements,
+                SemanticFilter,
+            )
         sf = SemanticFilter()
         content = {"a": 1, "b": 2, "c": 3}
         req = ContextRequirements(metadata_fields=None)
@@ -902,7 +936,10 @@ class TestSemanticFilterFilterByRequirements:
     def test_list_without_summary_mode_returns_unchanged(self):
         """filter_by_requirements returns list unchanged when detail is not 'summary'."""
         with patch("Jotty.core.utils.context_logger.count_tokens_accurate"):
-            from Jotty.core.infrastructure.utils.context_logger import SemanticFilter, ContextRequirements
+            from Jotty.core.infrastructure.utils.context_logger import (
+                ContextRequirements,
+                SemanticFilter,
+            )
         sf = SemanticFilter()
         content = [{"name": "x", "extra": "y"}]
         req = ContextRequirements(metadata_detail="full")

@@ -8,6 +8,7 @@ Uses Jotty gateway HTTP API (JOTTY_GATEWAY_URL, default http://localhost:8766).
 Run (standalone):  python server.py     (from Jotty/mcp/ or deploy dir)
 Run (as package):  python -m Jotty.mcp.server
 """
+
 import asyncio
 import json
 import logging
@@ -40,6 +41,7 @@ JOTTY_GATEWAY_URL = os.environ.get("JOTTY_GATEWAY_URL", "http://localhost:8766")
 async def _post(path: str, body: dict) -> dict:
     """POST to Jotty gateway and return JSON."""
     import httpx
+
     url = f"{JOTTY_GATEWAY_URL}{path}"
     try:
         async with httpx.AsyncClient(timeout=60.0) as client:
@@ -54,6 +56,7 @@ async def _post(path: str, body: dict) -> dict:
 async def _get(path: str) -> dict:
     """GET from Jotty gateway and return JSON."""
     import httpx
+
     url = f"{JOTTY_GATEWAY_URL}{path}"
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
@@ -86,9 +89,18 @@ async def list_tools() -> list[types.Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "message": {"type": "string", "description": "The task or question to send to Jotty"},
-                    "session_id": {"type": "string", "description": "Optional session ID for conversation continuity"},
-                    "history": {"type": "array", "description": "Optional list of prior messages for context"},
+                    "message": {
+                        "type": "string",
+                        "description": "The task or question to send to Jotty",
+                    },
+                    "session_id": {
+                        "type": "string",
+                        "description": "Optional session ID for conversation continuity",
+                    },
+                    "history": {
+                        "type": "array",
+                        "description": "Optional list of prior messages for context",
+                    },
                 },
                 "required": ["message"],
             },
@@ -111,8 +123,15 @@ async def list_tools() -> list[types.Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "skill_name": {"type": "string", "description": "Name of the skill (e.g. web-search)"},
-                    "params": {"type": "object", "description": "Parameters for the skill", "default": {}},
+                    "skill_name": {
+                        "type": "string",
+                        "description": "Name of the skill (e.g. web-search)",
+                    },
+                    "params": {
+                        "type": "object",
+                        "description": "Parameters for the skill",
+                        "default": {},
+                    },
                 },
                 "required": ["skill_name"],
             },
@@ -173,6 +192,7 @@ async def main_async() -> None:
 def main() -> None:
     try:
         import anyio
+
         # Prefer trio if available (mcp stdio uses anyio); else asyncio
         try:
             anyio.run(main_async, backend="trio")

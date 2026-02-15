@@ -7,11 +7,16 @@ Full AutoML pipeline using PyCaret for classification and regression.
 
 import logging
 from typing import Any, Dict, List, Optional
+
 import numpy as np
 import pandas as pd
 
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
+from Jotty.core.infrastructure.utils.tool_helpers import (
+    async_tool_wrapper,
+    tool_error,
+    tool_response,
+)
 
 # Status emitter for progress updates
 status = SkillStatus("pycaret")
@@ -36,20 +41,20 @@ async def pycaret_classify_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with best models, scores, and comparison results
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
-    from pycaret.classification import setup, compare_models, pull, get_config
+    from pycaret.classification import compare_models, get_config, pull, setup
 
     logger.info("[PyCaret] Starting AutoML classification...")
 
-    data = params.get('data')
+    data = params.get("data")
     if isinstance(data, str):
         data = pd.read_csv(data)
 
-    target = params.get('target')
-    features = params.get('features')
-    exclude_models = params.get('exclude_models', [])
-    n_select = params.get('n_select', 5)
+    target = params.get("target")
+    features = params.get("features")
+    exclude_models = params.get("exclude_models", [])
+    n_select = params.get("n_select", 5)
 
     df = data.copy()
     if features:
@@ -66,9 +71,7 @@ async def pycaret_classify_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
     # Compare models
     best_models = compare_models(
-        exclude=exclude_models if exclude_models else None,
-        n_select=n_select,
-        sort='Accuracy'
+        exclude=exclude_models if exclude_models else None, n_select=n_select, sort="Accuracy"
     )
 
     # Get comparison dataframe
@@ -84,12 +87,12 @@ async def pycaret_classify_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     logger.info(f"[PyCaret] Best models: {model_names}")
 
     return {
-        'success': True,
-        'best_models': best_models,
-        'best_model_name': model_names[0],
-        'model_names': model_names,
-        'comparison': comparison_df.to_dict(),
-        'best_score': float(comparison_df.iloc[0]['Accuracy']),
+        "success": True,
+        "best_models": best_models,
+        "best_model_name": model_names[0],
+        "model_names": model_names,
+        "comparison": comparison_df.to_dict(),
+        "best_score": float(comparison_df.iloc[0]["Accuracy"]),
     }
 
 
@@ -109,20 +112,20 @@ async def pycaret_regress_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with best models, scores, and comparison results
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
-    from pycaret.regression import setup, compare_models, pull
+    from pycaret.regression import compare_models, pull, setup
 
     logger.info("[PyCaret] Starting AutoML regression...")
 
-    data = params.get('data')
+    data = params.get("data")
     if isinstance(data, str):
         data = pd.read_csv(data)
 
-    target = params.get('target')
-    features = params.get('features')
-    exclude_models = params.get('exclude_models', [])
-    n_select = params.get('n_select', 5)
+    target = params.get("target")
+    features = params.get("features")
+    exclude_models = params.get("exclude_models", [])
+    n_select = params.get("n_select", 5)
 
     df = data.copy()
     if features:
@@ -139,9 +142,7 @@ async def pycaret_regress_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
     # Compare models
     best_models = compare_models(
-        exclude=exclude_models if exclude_models else None,
-        n_select=n_select,
-        sort='R2'
+        exclude=exclude_models if exclude_models else None, n_select=n_select, sort="R2"
     )
 
     comparison_df = pull()
@@ -155,12 +156,12 @@ async def pycaret_regress_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     logger.info(f"[PyCaret] Best regression models: {model_names}")
 
     return {
-        'success': True,
-        'best_models': best_models,
-        'best_model_name': model_names[0],
-        'model_names': model_names,
-        'comparison': comparison_df.to_dict(),
-        'best_score': float(comparison_df.iloc[0]['R2']),
+        "success": True,
+        "best_models": best_models,
+        "best_model_name": model_names[0],
+        "model_names": model_names,
+        "comparison": comparison_df.to_dict(),
+        "best_score": float(comparison_df.iloc[0]["R2"]),
     }
 
 
@@ -181,24 +182,24 @@ async def pycaret_tune_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with tuned model and best parameters
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     logger.info("[PyCaret] Tuning model...")
 
-    data = params.get('data')
+    data = params.get("data")
     if isinstance(data, str):
         data = pd.read_csv(data)
 
-    target = params.get('target')
-    task = params.get('task', 'classification')
-    n_iter = params.get('n_iter', 50)
-    model = params.get('model')
-    optimize = params.get('optimize', 'Accuracy' if task == 'classification' else 'R2')
+    target = params.get("target")
+    task = params.get("task", "classification")
+    n_iter = params.get("n_iter", 50)
+    model = params.get("model")
+    optimize = params.get("optimize", "Accuracy" if task == "classification" else "R2")
 
-    if task == 'classification':
-        from pycaret.classification import setup, create_model, tune_model, pull
+    if task == "classification":
+        from pycaret.classification import create_model, pull, setup, tune_model
     else:
-        from pycaret.regression import setup, create_model, tune_model, pull
+        from pycaret.regression import create_model, pull, setup, tune_model
 
     setup(
         data=data,
@@ -215,23 +216,18 @@ async def pycaret_tune_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         base_model = model
 
     # Tune the model
-    tuned_model = tune_model(
-        base_model,
-        n_iter=n_iter,
-        optimize=optimize,
-        verbose=False
-    )
+    tuned_model = tune_model(base_model, n_iter=n_iter, optimize=optimize, verbose=False)
 
     results = pull()
 
     logger.info(f"[PyCaret] Model tuned: {type(tuned_model).__name__}")
 
     return {
-        'success': True,
-        'tuned_model': tuned_model,
-        'model_name': type(tuned_model).__name__,
-        'best_params': tuned_model.get_params() if hasattr(tuned_model, 'get_params') else {},
-        'tuning_results': results.to_dict() if hasattr(results, 'to_dict') else {},
+        "success": True,
+        "tuned_model": tuned_model,
+        "model_name": type(tuned_model).__name__,
+        "best_params": tuned_model.get_params() if hasattr(tuned_model, "get_params") else {},
+        "tuning_results": results.to_dict() if hasattr(results, "to_dict") else {},
     }
 
 
@@ -251,27 +247,23 @@ async def pycaret_ensemble_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with ensemble model and performance
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     logger.info("[PyCaret] Creating ensemble...")
 
-    data = params.get('data')
+    data = params.get("data")
     if isinstance(data, str):
         data = pd.read_csv(data)
 
-    target = params.get('target')
-    task = params.get('task', 'classification')
-    method = params.get('method', 'Blending')
-    models = params.get('models', [])
+    target = params.get("target")
+    task = params.get("task", "classification")
+    method = params.get("method", "Blending")
+    models = params.get("models", [])
 
-    if task == 'classification':
-        from pycaret.classification import (
-            setup, blend_models, stack_models, ensemble_model, pull
-        )
+    if task == "classification":
+        from pycaret.classification import blend_models, ensemble_model, pull, setup, stack_models
     else:
-        from pycaret.regression import (
-            setup, blend_models, stack_models, ensemble_model, pull
-        )
+        from pycaret.regression import blend_models, ensemble_model, pull, setup, stack_models
 
     setup(
         data=data,
@@ -281,16 +273,16 @@ async def pycaret_ensemble_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         html=False,
     )
 
-    if method == 'Blending':
+    if method == "Blending":
         ensemble = blend_models(models) if models else blend_models()
-    elif method == 'Stacking':
+    elif method == "Stacking":
         ensemble = stack_models(models) if models else stack_models()
-    elif method == 'Bagging':
+    elif method == "Bagging":
         base = models[0] if models else None
-        ensemble = ensemble_model(base, method='Bagging') if base else ensemble_model()
-    elif method == 'Boosting':
+        ensemble = ensemble_model(base, method="Bagging") if base else ensemble_model()
+    elif method == "Boosting":
         base = models[0] if models else None
-        ensemble = ensemble_model(base, method='Boosting') if base else ensemble_model()
+        ensemble = ensemble_model(base, method="Boosting") if base else ensemble_model()
     else:
         ensemble = blend_models(models) if models else blend_models()
 
@@ -299,10 +291,10 @@ async def pycaret_ensemble_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     logger.info(f"[PyCaret] Ensemble created: {method}")
 
     return {
-        'success': True,
-        'ensemble_model': ensemble,
-        'method': method,
-        'results': results.to_dict() if hasattr(results, 'to_dict') else {},
+        "success": True,
+        "ensemble_model": ensemble,
+        "method": method,
+        "results": results.to_dict() if hasattr(results, "to_dict") else {},
     }
 
 
@@ -320,35 +312,35 @@ async def pycaret_predict_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict with predictions
     """
-    status.set_callback(params.pop('_status_callback', None))
+    status.set_callback(params.pop("_status_callback", None))
 
     logger.info("[PyCaret] Generating predictions...")
 
-    model = params.get('model')
-    data = params.get('data')
-    task = params.get('task', 'classification')
+    model = params.get("model")
+    data = params.get("data")
+    task = params.get("task", "classification")
 
     if isinstance(data, str):
         data = pd.read_csv(data)
 
-    if task == 'classification':
+    if task == "classification":
         from pycaret.classification import predict_model
     else:
         from pycaret.regression import predict_model
 
     predictions_df = predict_model(model, data=data)
 
-    if task == 'classification':
-        pred_col = 'prediction_label' if 'prediction_label' in predictions_df.columns else 'Label'
+    if task == "classification":
+        pred_col = "prediction_label" if "prediction_label" in predictions_df.columns else "Label"
         predictions = predictions_df[pred_col].tolist()
     else:
-        pred_col = 'prediction_label' if 'prediction_label' in predictions_df.columns else 'Label'
+        pred_col = "prediction_label" if "prediction_label" in predictions_df.columns else "Label"
         predictions = predictions_df[pred_col].tolist()
 
     logger.info(f"[PyCaret] Generated {len(predictions)} predictions")
 
     return {
-        'success': True,
-        'predictions': predictions,
-        'predictions_df': predictions_df,
+        "success": True,
+        "predictions": predictions,
+        "predictions_df": predictions_df,
     }

@@ -3,13 +3,15 @@ LookML Data Models
 
 Represents LookML constructs: views, explores, dimensions, measures, joins.
 """
+
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List, Optional
 
 
 class DimensionType(Enum):
     """LookML dimension types."""
+
     STRING = "string"
     NUMBER = "number"
     YESNO = "yesno"
@@ -23,6 +25,7 @@ class DimensionType(Enum):
 
 class MeasureType(Enum):
     """LookML measure types."""
+
     COUNT = "count"
     COUNT_DISTINCT = "count_distinct"
     SUM = "sum"
@@ -36,6 +39,7 @@ class MeasureType(Enum):
 
 class JoinType(Enum):
     """LookML join types."""
+
     LEFT_OUTER = "left_outer"
     INNER = "inner"
     FULL_OUTER = "full_outer"
@@ -44,6 +48,7 @@ class JoinType(Enum):
 
 class Relationship(Enum):
     """LookML join relationships."""
+
     ONE_TO_ONE = "one_to_one"
     ONE_TO_MANY = "one_to_many"
     MANY_TO_ONE = "many_to_one"
@@ -53,6 +58,7 @@ class Relationship(Enum):
 @dataclass
 class Dimension:
     """LookML dimension."""
+
     name: str
     type: DimensionType = DimensionType.STRING
     sql: Optional[str] = None
@@ -86,6 +92,7 @@ class Dimension:
 @dataclass
 class Measure:
     """LookML measure."""
+
     name: str
     type: MeasureType = MeasureType.COUNT
     sql: Optional[str] = None
@@ -119,6 +126,7 @@ class Measure:
 @dataclass
 class View:
     """LookML view representing a table."""
+
     name: str
     sql_table_name: Optional[str] = None
     label: Optional[str] = None
@@ -146,6 +154,7 @@ class View:
 @dataclass
 class Join:
     """LookML join definition."""
+
     name: str
     type: JoinType = JoinType.LEFT_OUTER
     relationship: Relationship = Relationship.MANY_TO_ONE
@@ -168,6 +177,7 @@ class Join:
 @dataclass
 class Explore:
     """LookML explore representing a queryable dataset."""
+
     name: str
     view_name: Optional[str] = None
     label: Optional[str] = None
@@ -188,8 +198,9 @@ class Explore:
         if self.joins:
             d["joins"] = [j.to_dict() for j in self.joins]
         if self.always_filter:
-            d["always_filter"] = {"filters": [{"field": k, "value": v}
-                                              for k, v in self.always_filter.items()]}
+            d["always_filter"] = {
+                "filters": [{"field": k, "value": v} for k, v in self.always_filter.items()]
+            }
         if self.hidden:
             d["hidden"] = "yes"
         return d
@@ -198,6 +209,7 @@ class Explore:
 @dataclass
 class LookMLModel:
     """Complete LookML model with views and explores."""
+
     name: str
     connection: str = ""
     views: List[View] = field(default_factory=list)

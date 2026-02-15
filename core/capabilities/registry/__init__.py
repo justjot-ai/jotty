@@ -1,4 +1,5 @@
 from typing import Any
+
 """
 Jotty Registry System - Hands and Eyes
 =======================================
@@ -15,38 +16,23 @@ Quick Start:
 
 import importlib as _importlib
 
-# =============================================================================
-# EAGER: Core registry classes used everywhere (lightweight, no DSPy)
-# =============================================================================
-
-from .unified_registry import (
-    UnifiedRegistry,
-    get_unified_registry,
-    reset_unified_registry,
-)
-
+from .skill_dependency_manager import SkillDependencyManager, get_dependency_manager
 from .skills_registry import (
-    SkillsRegistry,
     SkillDefinition,
+    SkillsRegistry,
     SkillType,
     ToolMetadata,
     get_skills_registry,
 )
-
-from .ui_registry import (
-    UIRegistry,
-    UIComponent,
-    get_ui_registry,
-    reset_ui_registry,
-)
-
 from .tool_collection import ToolCollection
-from .tool_validation import ToolValidator, validate_tool_attributes, RegistryValidationResult
+from .tool_validation import RegistryValidationResult, ToolValidator, validate_tool_attributes
+from .ui_registry import UIComponent, UIRegistry, get_ui_registry, reset_ui_registry
+from .unified_registry import UnifiedRegistry, get_unified_registry, reset_unified_registry
 
-from .skill_dependency_manager import (
-    SkillDependencyManager,
-    get_dependency_manager,
-)
+# =============================================================================
+# EAGER: Core registry classes used everywhere (lightweight, no DSPy)
+# =============================================================================
+
 
 # =============================================================================
 # LAZY: Heavy modules (DSPy-dependent) loaded on first attribute access
@@ -92,11 +78,24 @@ def __getattr__(name: str) -> Any:
 
 __all__ = [
     # Eager exports
-    'UnifiedRegistry', 'get_unified_registry', 'reset_unified_registry',
-    'SkillsRegistry', 'SkillDefinition', 'SkillType', 'ToolMetadata', 'get_skills_registry',
-    'UIRegistry', 'UIComponent', 'get_ui_registry', 'reset_ui_registry',
-    'ToolCollection', 'ToolValidator', 'validate_tool_attributes', 'ValidationResult',
-    'SkillDependencyManager', 'get_dependency_manager',
+    "UnifiedRegistry",
+    "get_unified_registry",
+    "reset_unified_registry",
+    "SkillsRegistry",
+    "SkillDefinition",
+    "SkillType",
+    "ToolMetadata",
+    "get_skills_registry",
+    "UIRegistry",
+    "UIComponent",
+    "get_ui_registry",
+    "reset_ui_registry",
+    "ToolCollection",
+    "ToolValidator",
+    "validate_tool_attributes",
+    "ValidationResult",
+    "SkillDependencyManager",
+    "get_dependency_manager",
     # Lazy exports
     *_LAZY_IMPORTS.keys(),
 ]

@@ -10,11 +10,12 @@ Features:
 - Creates LLM summaries and insights for each chart
 - Produces cohesive, story-telling dashboards
 """
-import logging
+
 import json
-from typing import Dict, Any, Optional, List, Union
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime
+from typing import Any, Dict, List, Optional, Union
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +23,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ChartPlan:
     """Plan for a single chart."""
+
     title: str
     question: str
     chart_type: str
@@ -34,6 +36,7 @@ class ChartPlan:
 @dataclass
 class DashboardPlan:
     """Complete dashboard plan."""
+
     title: str
     description: str
     charts: List[ChartPlan]
@@ -45,6 +48,7 @@ class DashboardPlan:
 @dataclass
 class ChartWithInsight:
     """Chart with LLM-generated insight."""
+
     chart: Any  # ChartResult
     insight: str
     title: str
@@ -56,6 +60,7 @@ class ChartWithInsight:
 @dataclass
 class CompleteDashboard:
     """Complete dashboard with all charts and insights."""
+
     plan: DashboardPlan
     charts: List[ChartWithInsight]
     executive_summary: str
@@ -81,7 +86,15 @@ class DashboardPlanner:
         )
     """
 
-    def __init__(self, viz_layer: Any, provider: str = 'claude-cli', model: str = '', max_charts: int = 6, library: str = 'plotly', **kwargs: Any) -> None:
+    def __init__(
+        self,
+        viz_layer: Any,
+        provider: str = "claude-cli",
+        model: str = "",
+        max_charts: int = 6,
+        library: str = "plotly",
+        **kwargs: Any,
+    ) -> None:
         """
         Initialize dashboard planner.
 
@@ -94,6 +107,7 @@ class DashboardPlanner:
             **kwargs: Additional LLM options
         """
         from Jotty.core.infrastructure.foundation.config_defaults import DEFAULT_MODEL_ALIAS
+
         self.viz_layer = viz_layer
         self.provider = provider
         self.model = model or DEFAULT_MODEL_ALIAS
@@ -109,6 +123,7 @@ class DashboardPlanner:
         """Lazy import of core.llm.generate."""
         if self._llm_generate is None:
             from core.llm import generate
+
             self._llm_generate = generate
         return self._llm_generate
 
@@ -123,9 +138,11 @@ class DashboardPlanner:
 
         for col in df.columns:
             dtype = str(df[col].dtype)
-            if df[col].dtype in ['int64', 'float64']:
-                stats = f"min={df[col].min():.2f}, max={df[col].max():.2f}, mean={df[col].mean():.2f}"
-            elif df[col].dtype == 'object':
+            if df[col].dtype in ["int64", "float64"]:
+                stats = (
+                    f"min={df[col].min():.2f}, max={df[col].max():.2f}, mean={df[col].mean():.2f}"
+                )
+            elif df[col].dtype == "object":
                 unique = df[col].nunique()
                 samples = df[col].unique()[:5].tolist()
                 stats = f"unique={unique}, samples={samples}"
@@ -139,11 +156,7 @@ class DashboardPlanner:
 
         return "\n".join(context_parts)
 
-    def plan_dashboard(
-        self,
-        user_request: str,
-        num_charts: int = 4
-    ) -> DashboardPlan:
+    def plan_dashboard(self, user_request: str, num_charts: int = 4) -> DashboardPlan:
         """
         Use Claude to plan a comprehensive dashboard.
 
@@ -197,12 +210,13 @@ IMPORTANT:
 Respond ONLY with the JSON, no other text."""
 
         from Jotty.core.infrastructure.foundation.config_defaults import LLM_TIMEOUT_SECONDS
+
         response = self.llm_generate(
             prompt=prompt,
             provider=self.provider,
             model=self.model,
             timeout=LLM_TIMEOUT_SECONDS,
-            **self.kwargs
+            **self.kwargs,
         )
 
         if not response.success:
@@ -228,7 +242,7 @@ Respond ONLY with the JSON, no other text."""
                     rationale=c.get("rationale", ""),
                     columns=c.get("columns", []),
                     aggregation=c.get("aggregation"),
-                    priority=c.get("priority", i+1)
+                    priority=c.get("priority", i + 1),
                 )
                 for i, c in enumerate(plan_data.get("charts", []))
             ]
@@ -238,7 +252,7 @@ Respond ONLY with the JSON, no other text."""
                 description=plan_data.get("description", ""),
                 charts=charts,
                 layout=plan_data.get("layout", "grid"),
-                theme=plan_data.get("theme", "dark")
+                theme=plan_data.get("theme", "dark"),
             )
 
         except json.JSONDecodeError as e:
@@ -275,22 +289,14 @@ Provide a 2-3 sentence insight that:
 Keep it concise and actionable. Do not use markdown formatting."""
 
         response = self.llm_generate(
-            prompt=prompt,
-            provider=self.provider,
-            model=self.model,
-            timeout=60,
-            **self.kwargs
+            prompt=prompt, provider=self.provider, model=self.model, timeout=60, **self.kwargs
         )
 
         if response.success:
             return response.text.strip()
         return "Insight generation failed."
 
-    def generate_executive_summary(
-        self,
-        plan: DashboardPlan,
-        insights: List[str]
-    ) -> str:
+    def generate_executive_summary(self, plan: DashboardPlan, insights: List[str]) -> str:
         """Generate executive summary for the entire dashboard."""
         insights_text = "\n".join([f"- {insight}" for insight in insights])
 
@@ -310,11 +316,7 @@ Write a 3-4 sentence executive summary that:
 Keep it professional and actionable. Do not use markdown formatting."""
 
         response = self.llm_generate(
-            prompt=prompt,
-            provider=self.provider,
-            model=self.model,
-            timeout=60,
-            **self.kwargs
+            prompt=prompt, provider=self.provider, model=self.model, timeout=60, **self.kwargs
         )
 
         if response.success:
@@ -326,7 +328,7 @@ Keep it professional and actionable. Do not use markdown formatting."""
         user_request: str,
         num_charts: int = 4,
         include_insights: bool = True,
-        include_summary: bool = True
+        include_summary: bool = True,
     ) -> CompleteDashboard:
         """
         Create a complete dashboard with charts and insights.
@@ -356,9 +358,7 @@ Keep it professional and actionable. Do not use markdown formatting."""
                 try:
                     # Generate visualization with configured library
                     chart_results = self.viz_layer.visualize(
-                        question=chart_plan.question,
-                        library=self.library,
-                        n=1
+                        question=chart_plan.question, library=self.library, n=1
                     )
 
                     chart = chart_results[0] if chart_results else None
@@ -370,25 +370,34 @@ Keep it professional and actionable. Do not use markdown formatting."""
 
                     # Generate interactive HTML for Plotly/Altair
                     interactive_html = None
-                    if chart and chart.success and chart.code and self.library in ["plotly", "altair"]:
+                    if (
+                        chart
+                        and chart.success
+                        and chart.code
+                        and self.library in ["plotly", "altair"]
+                    ):
                         interactive_html = self._generate_interactive_html(chart, chart_plan.title)
 
-                    charts_with_insights.append(ChartWithInsight(
-                        chart=chart,
-                        insight=insight,
-                        title=chart_plan.title,
-                        library=self.library,
-                        interactive_html=interactive_html
-                    ))
+                    charts_with_insights.append(
+                        ChartWithInsight(
+                            chart=chart,
+                            insight=insight,
+                            title=chart_plan.title,
+                            library=self.library,
+                            interactive_html=interactive_html,
+                        )
+                    )
 
                 except Exception as e:
                     logger.error(f"Failed to generate chart {chart_plan.title}: {e}")
-                    charts_with_insights.append(ChartWithInsight(
-                        chart=None,
-                        insight=f"Chart generation failed: {str(e)}",
-                        title=chart_plan.title,
-                        library=self.library
-                    ))
+                    charts_with_insights.append(
+                        ChartWithInsight(
+                            chart=None,
+                            insight=f"Chart generation failed: {str(e)}",
+                            title=chart_plan.title,
+                            library=self.library,
+                        )
+                    )
 
             # Step 3: Generate executive summary
             executive_summary = ""
@@ -404,18 +413,13 @@ Keep it professional and actionable. Do not use markdown formatting."""
                 charts=charts_with_insights,
                 executive_summary=executive_summary,
                 html=html,
-                success=True
+                success=True,
             )
 
         except Exception as e:
             logger.error(f"Dashboard creation failed: {e}")
             return CompleteDashboard(
-                plan=None,
-                charts=[],
-                executive_summary="",
-                html=None,
-                success=False,
-                error=str(e)
+                plan=None, charts=[], executive_summary="", html=None, success=False, error=str(e)
             )
 
     def _generate_interactive_html(self, chart: Any, title: str) -> Optional[str]:
@@ -430,65 +434,69 @@ Keep it professional and actionable. Do not use markdown formatting."""
 
         try:
             if self.library == "plotly":
+                import numpy as np
+                import pandas as pd
                 import plotly.express as px
                 import plotly.graph_objects as go
-                import pandas as pd
-                import numpy as np
 
                 # Get the dataframe
                 df = self.viz_layer.data_source.query("").to_dataframe()
 
                 # Create execution namespace with all imports
                 exec_namespace = {
-                    'px': px,
-                    'go': go,
-                    'pd': pd,
-                    'np': np,
-                    'numpy': np,
-                    'pandas': pd,
-                    'df': df,
-                    'data': df,
-                    '__builtins__': __builtins__
+                    "px": px,
+                    "go": go,
+                    "pd": pd,
+                    "np": np,
+                    "numpy": np,
+                    "pandas": pd,
+                    "df": df,
+                    "data": df,
+                    "__builtins__": __builtins__,
                 }
 
                 # Execute the chart code
                 exec(chart.code, exec_namespace)
 
                 # Find the figure object - LIDA typically creates 'chart' variable
-                fig = exec_namespace.get('chart') or exec_namespace.get('fig') or exec_namespace.get('figure')
+                fig = (
+                    exec_namespace.get("chart")
+                    or exec_namespace.get("fig")
+                    or exec_namespace.get("figure")
+                )
 
-                if fig and hasattr(fig, 'to_html'):
+                if fig and hasattr(fig, "to_html"):
                     # Generate HTML with full Plotly JS included
                     return fig.to_html(
                         full_html=False,
-                        include_plotlyjs='cdn',
-                        config={'responsive': True, 'displayModeBar': True}
+                        include_plotlyjs="cdn",
+                        config={"responsive": True, "displayModeBar": True},
                     )
 
             elif self.library == "altair":
                 import altair as alt
-                import pandas as pd
                 import numpy as np
+                import pandas as pd
 
                 df = self.viz_layer.data_source.query("").to_dataframe()
 
                 exec_namespace = {
-                    'alt': alt,
-                    'pd': pd,
-                    'np': np,
-                    'numpy': np,
-                    'pandas': pd,
-                    'df': df,
-                    'data': df,
-                    '__builtins__': __builtins__
+                    "alt": alt,
+                    "pd": pd,
+                    "np": np,
+                    "numpy": np,
+                    "pandas": pd,
+                    "df": df,
+                    "data": df,
+                    "__builtins__": __builtins__,
                 }
 
                 exec(chart.code, exec_namespace)
 
                 # Find the chart object
-                alt_chart = exec_namespace.get('chart') or exec_namespace.get('fig')
+                alt_chart = exec_namespace.get("chart") or exec_namespace.get("fig")
 
-                if alt_chart and hasattr(alt_chart, 'to_html'):
+                if alt_chart and hasattr(alt_chart, "to_html"):
                     return alt_chart.to_html()
 
         except Exception as e:
@@ -498,10 +506,7 @@ Keep it professional and actionable. Do not use markdown formatting."""
         return None
 
     def _render_dashboard_html(
-        self,
-        plan: DashboardPlan,
-        charts: List[ChartWithInsight],
-        executive_summary: str
+        self, plan: DashboardPlan, charts: List[ChartWithInsight], executive_summary: str
     ) -> str:
         """Render complete dashboard as HTML."""
         import base64
@@ -538,7 +543,7 @@ Keep it professional and actionable. Do not use markdown formatting."""
             elif cwi.chart and cwi.chart.success and cwi.chart.raster:
                 # Fallback to static image
                 if isinstance(cwi.chart.raster, bytes):
-                    b64 = base64.b64encode(cwi.chart.raster).decode('utf-8')
+                    b64 = base64.b64encode(cwi.chart.raster).decode("utf-8")
                 else:
                     b64 = cwi.chart.raster
 
@@ -725,9 +730,9 @@ Keep it professional and actionable. Do not use markdown formatting."""
 
 
 __all__ = [
-    'DashboardPlanner',
-    'DashboardPlan',
-    'ChartPlan',
-    'ChartWithInsight',
-    'CompleteDashboard',
+    "DashboardPlanner",
+    "DashboardPlan",
+    "ChartPlan",
+    "ChartWithInsight",
+    "CompleteDashboard",
 ]

@@ -1,4 +1,5 @@
 from typing import Any
+
 """
 Learning Layer - Reinforcement Learning
 =======================================
@@ -61,12 +62,12 @@ _LAZY_IMPORTS: dict[str, str] = {
 
 
 _FACADE_IMPORTS = {
-    'get_learning_system',
-    'get_td_lambda',
-    'get_credit_assigner',
-    'get_offline_learner',
-    'get_reward_manager',
-    'get_cooperative_agents',
+    "get_learning_system",
+    "get_td_lambda",
+    "get_credit_assigner",
+    "get_offline_learner",
+    "get_reward_manager",
+    "get_cooperative_agents",
 }
 
 
@@ -79,6 +80,7 @@ def __getattr__(name: str) -> Any:
         return value
     if name in _FACADE_IMPORTS:
         from . import facade
+
         value = getattr(facade, name)
         globals()[name] = value
         return value
@@ -86,15 +88,12 @@ def __getattr__(name: str) -> Any:
 
 
 __all__ = list(_LAZY_IMPORTS.keys()) + [
-    'get_learning_system',
-    'get_td_lambda',
-    'get_credit_assigner',
-    'get_offline_learner',
-    'get_reward_manager',
-    'get_cooperative_agents',
+    "get_learning_system",
+    "get_td_lambda",
+    "get_credit_assigner",
+    "get_offline_learner",
+    "get_reward_manager",
+    "get_cooperative_agents",
 ]
 
-from .cost_aware_td import (
-    CostAwareTDLambda,
-    get_cost_aware_td_lambda,
-)
+from .cost_aware_td import CostAwareTDLambda, get_cost_aware_td_lambda

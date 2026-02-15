@@ -8,13 +8,13 @@ This ensures LIDA integration always stays in sync with
 JustJot's available section types and their schemas.
 """
 
-import re
 import json
 import logging
-from pathlib import Path
-from typing import Dict, Any, Optional, List
+import re
 from dataclasses import dataclass
 from functools import lru_cache
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -22,8 +22,10 @@ logger = logging.getLogger(__name__)
 # From: Jotty/core/semantic/visualization/justjot/section_registry.py
 # To:   JustJot.ai/src/lib/section-registry.ts
 # Path traversal: justjot -> visualization -> semantic -> core -> Jotty -> stock_market (6 parents)
-JUSTJOT_REGISTRY_PATH = Path(__file__).parent.parent.parent.parent.parent.parent / \
-    "JustJot.ai/src/lib/section-registry.ts"
+JUSTJOT_REGISTRY_PATH = (
+    Path(__file__).parent.parent.parent.parent.parent.parent
+    / "JustJot.ai/src/lib/section-registry.ts"
+)
 
 
 @dataclass
@@ -33,9 +35,10 @@ class SectionTypeDefinition:
 
     Matches the structure in section-registry.ts
     """
+
     value: str  # Section type ID (e.g., 'chart', 'recharts')
     label: str  # Human-readable label
-    icon: str   # Emoji icon
+    icon: str  # Emoji icon
     description: str
     category: str
     has_own_ui: bool
@@ -46,7 +49,7 @@ class SectionTypeDefinition:
         """Get parsed schema (JSON parsed if applicable)."""
         if not self.content_schema:
             return None
-        if self.content_type == 'json':
+        if self.content_type == "json":
             try:
                 return json.loads(self.content_schema)
             except json.JSONDecodeError:
@@ -56,14 +59,14 @@ class SectionTypeDefinition:
     def to_dict(self) -> Dict:
         """Convert to dictionary."""
         return {
-            'value': self.value,
-            'label': self.label,
-            'icon': self.icon,
-            'description': self.description,
-            'category': self.category,
-            'hasOwnUI': self.has_own_ui,
-            'contentType': self.content_type,
-            'contentSchema': self.content_schema
+            "value": self.value,
+            "label": self.label,
+            "icon": self.icon,
+            "description": self.description,
+            "category": self.category,
+            "hasOwnUI": self.has_own_ui,
+            "contentType": self.content_type,
+            "contentSchema": self.content_schema,
         }
 
 
@@ -85,21 +88,21 @@ class JustJotSectionRegistry:
     """
 
     # Categories relevant for LIDA visualization output
-    VISUALIZATION_CATEGORIES = ['Diagrams', 'Data', 'Content', 'Planning & Tracking']
+    VISUALIZATION_CATEGORIES = ["Diagrams", "Data", "Content", "Planning & Tracking"]
 
     # Section types most useful for LIDA output (only types that exist in registry)
     LIDA_PREFERRED_TYPES = [
-        'chart',         # Chart.js visualizations (bar, line, pie, etc.)
-        'data-table',    # AG Grid data table with sorting/filtering
-        'csv',           # CSV table data
-        'code',          # Code block for generated visualization code
-        'text',          # Markdown text for insights
-        'html',          # Custom HTML (for Plotly/Altair interactive)
-        'json',          # JSON data structures
-        'mermaid',       # Mermaid diagrams (flowcharts, etc.)
-        'timeline',      # Timeline visualizations
-        'network-graph', # Network/graph visualizations
-        'mindmap',       # Mind map diagrams
+        "chart",  # Chart.js visualizations (bar, line, pie, etc.)
+        "data-table",  # AG Grid data table with sorting/filtering
+        "csv",  # CSV table data
+        "code",  # Code block for generated visualization code
+        "text",  # Markdown text for insights
+        "html",  # Custom HTML (for Plotly/Altair interactive)
+        "json",  # JSON data structures
+        "mermaid",  # Mermaid diagrams (flowcharts, etc.)
+        "timeline",  # Timeline visualizations
+        "network-graph",  # Network/graph visualizations
+        "mindmap",  # Mind map diagrams
     ]
 
     def __init__(self, registry_path: Path = None) -> None:
@@ -127,7 +130,7 @@ class JustJotSectionRegistry:
             return False
 
         try:
-            content = self.registry_path.read_text(encoding='utf-8')
+            content = self.registry_path.read_text(encoding="utf-8")
             self._parse_registry(content)
             self._loaded = True
             logger.info(f"Loaded {len(self._types)} section types from {self.registry_path}")
@@ -140,7 +143,7 @@ class JustJotSectionRegistry:
         """Parse the TypeScript registry file."""
         # Extract the SECTION_REGISTRY array
         # Pattern matches the array contents between [ and ] as const;
-        array_pattern = r'export const SECTION_REGISTRY\s*=\s*\[(.*?)\]\s*as\s*const;'
+        array_pattern = r"export const SECTION_REGISTRY\s*=\s*\[(.*?)\]\s*as\s*const;"
         match = re.search(array_pattern, content, re.DOTALL)
 
         if not match:
@@ -151,7 +154,7 @@ class JustJotSectionRegistry:
 
         # Parse each object in the array
         # Pattern matches { ... } blocks
-        object_pattern = r'\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}'
+        object_pattern = r"\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}"
         objects = re.findall(object_pattern, array_content)
 
         categories_seen = set()
@@ -170,7 +173,8 @@ class JustJotSectionRegistry:
 
     def _parse_type_object(self, obj_content: str) -> Optional[SectionTypeDefinition]:
         """Parse a single type definition object."""
-        def extract_value(pattern: str, default: str = '') -> str:
+
+        def extract_value(pattern: str, default: str = "") -> str:
             match = re.search(pattern, obj_content)
             if match:
                 return match.group(1)
@@ -188,19 +192,21 @@ class JustJotSectionRegistry:
 
         # hasOwnUI is a boolean
         has_own_ui_match = re.search(r"hasOwnUI:\s*(true|false)", obj_content)
-        has_own_ui = has_own_ui_match.group(1) == 'true' if has_own_ui_match else False
+        has_own_ui = has_own_ui_match.group(1) == "true" if has_own_ui_match else False
 
         # contentType has 'as ContentType' suffix
         content_type = extract_value(r"contentType:\s*['\"]([^'\"]+)['\"]")
 
         # contentSchema can be empty string or complex JSON
-        schema_match = re.search(r"contentSchema:\s*['\"](.*)['\"]\s*(?:,|\}|$)", obj_content, re.DOTALL)
+        schema_match = re.search(
+            r"contentSchema:\s*['\"](.*)['\"]\s*(?:,|\}|$)", obj_content, re.DOTALL
+        )
         if schema_match:
             content_schema = schema_match.group(1)
             # Unescape JSON strings
             content_schema = content_schema.replace("\\'", "'").replace('\\"', '"')
         else:
-            content_schema = ''
+            content_schema = ""
 
         return SectionTypeDefinition(
             value=value,
@@ -210,7 +216,7 @@ class JustJotSectionRegistry:
             category=category,
             has_own_ui=has_own_ui,
             content_type=content_type,
-            content_schema=content_schema
+            content_schema=content_schema,
         )
 
     def ensure_loaded(self) -> None:
@@ -241,15 +247,12 @@ class JustJotSectionRegistry:
     def get_visualization_types(self) -> List[SectionTypeDefinition]:
         """Get types relevant for visualization output."""
         self.ensure_loaded()
-        return [
-            t for t in self._types.values()
-            if t.value in self.LIDA_PREFERRED_TYPES
-        ]
+        return [t for t in self._types.values() if t.value in self.LIDA_PREFERRED_TYPES]
 
     def get_content_type(self, type_id: str) -> str:
         """Get the content type for a section type."""
         type_def = self.get_type(type_id)
-        return type_def.content_type if type_def else 'text'
+        return type_def.content_type if type_def else "text"
 
     def get_schema(self, type_id: str) -> Optional[str]:
         """Get the content schema for a section type."""
@@ -261,7 +264,7 @@ class JustJotSectionRegistry:
         chart_type: str = None,
         has_interactive_html: bool = False,
         library: str = None,
-        data_heavy: bool = False
+        data_heavy: bool = False,
     ) -> str:
         """
         Suggest the best JustJot section type for LIDA output.
@@ -276,20 +279,20 @@ class JustJotSectionRegistry:
             Recommended section type ID
         """
         # Interactive HTML from Plotly/Altair
-        if has_interactive_html and library in ['plotly', 'altair']:
-            return 'html'
+        if has_interactive_html and library in ["plotly", "altair"]:
+            return "html"
 
         # Simple chart types work well with recharts
-        simple_types = ['bar', 'line', 'area', 'pie']
+        simple_types = ["bar", "line", "area", "pie"]
         if chart_type and chart_type.lower() in simple_types:
-            return 'recharts'
+            return "recharts"
 
         # Data-heavy output
         if data_heavy:
-            return 'data-table'
+            return "data-table"
 
         # Default to full chart schema
-        return 'chart'
+        return "chart"
 
 
 # ============================================
@@ -326,49 +329,60 @@ def get_section_schema(type_id: str) -> Optional[str]:
 
 # JustJot chart types (from chartTypes.ts)
 JUSTJOT_CHART_TYPES = [
-    'bar', 'column', 'line', 'area', 'pie', 'doughnut',
-    'scatter', 'radar', 'combo', 'heatmap', 'funnel', 'gauge'
+    "bar",
+    "column",
+    "line",
+    "area",
+    "pie",
+    "doughnut",
+    "scatter",
+    "radar",
+    "combo",
+    "heatmap",
+    "funnel",
+    "gauge",
 ]
 
 # LIDA to JustJot chart type mapping
 LIDA_TO_JUSTJOT_CHART_MAP = {
-    'bar': 'bar',
-    'bar chart': 'bar',
-    'column': 'column',
-    'column chart': 'column',
-    'line': 'line',
-    'line chart': 'line',
-    'area': 'area',
-    'area chart': 'area',
-    'pie': 'pie',
-    'pie chart': 'pie',
-    'doughnut': 'doughnut',
-    'donut': 'doughnut',
-    'scatter': 'scatter',
-    'scatter plot': 'scatter',
-    'scatterplot': 'scatter',
-    'radar': 'radar',
-    'heatmap': 'heatmap',
-    'heat map': 'heatmap',
-    'histogram': 'bar',
-    'box': 'bar',
-    'boxplot': 'bar',
-    'funnel': 'funnel',
-    'gauge': 'gauge',
+    "bar": "bar",
+    "bar chart": "bar",
+    "column": "column",
+    "column chart": "column",
+    "line": "line",
+    "line chart": "line",
+    "area": "area",
+    "area chart": "area",
+    "pie": "pie",
+    "pie chart": "pie",
+    "doughnut": "doughnut",
+    "donut": "doughnut",
+    "scatter": "scatter",
+    "scatter plot": "scatter",
+    "scatterplot": "scatter",
+    "radar": "radar",
+    "heatmap": "heatmap",
+    "heat map": "heatmap",
+    "histogram": "bar",
+    "box": "bar",
+    "boxplot": "bar",
+    "funnel": "funnel",
+    "gauge": "gauge",
 }
 
 
 def map_lida_to_justjot_chart_type(lida_type: str) -> str:
     """Map LIDA chart type to JustJot chart type."""
     if not lida_type:
-        return 'bar'
+        return "bar"
     normalized = lida_type.lower().strip()
-    return LIDA_TO_JUSTJOT_CHART_MAP.get(normalized, 'bar')
+    return LIDA_TO_JUSTJOT_CHART_MAP.get(normalized, "bar")
 
 
 # ============================================
 # Content Schema Builders (using registry)
 # ============================================
+
 
 class ContentSchemaBuilder:
     """
@@ -386,7 +400,7 @@ class ContentSchemaBuilder:
         labels: List[str],
         datasets: List[Dict],
         title: str = None,
-        customization: Dict = None
+        customization: Dict = None,
     ) -> str:
         """
         Build V2 chart section content.
@@ -396,10 +410,7 @@ class ContentSchemaBuilder:
         content = {
             "version": 2,
             "type": map_lida_to_justjot_chart_type(chart_type),
-            "data": {
-                "labels": labels,
-                "datasets": datasets
-            }
+            "data": {"labels": labels, "datasets": datasets},
         }
         if title:
             content["title"] = title
@@ -407,27 +418,19 @@ class ContentSchemaBuilder:
             content["customization"] = customization
         return json.dumps(content)
 
-    def build_recharts(
-        self,
-        chart_type: str,
-        data: List[Dict],
-        colors: List[str] = None
-    ) -> str:
+    def build_recharts(self, chart_type: str, data: List[Dict], colors: List[str] = None) -> str:
         """
         Build Recharts section content.
 
         Schema: {"type":"line","data":[{"name":"Jan","value":400}]}
         """
         # Map to recharts supported types
-        recharts_types = {'bar', 'line', 'area', 'pie'}
-        normalized_type = chart_type.lower() if chart_type else 'bar'
+        recharts_types = {"bar", "line", "area", "pie"}
+        normalized_type = chart_type.lower() if chart_type else "bar"
         if normalized_type not in recharts_types:
-            normalized_type = 'bar'
+            normalized_type = "bar"
 
-        content = {
-            "type": normalized_type,
-            "data": data
-        }
+        content = {"type": normalized_type, "data": data}
         if colors:
             content["colors"] = colors
         return json.dumps(content)
@@ -440,33 +443,28 @@ class ContentSchemaBuilder:
         """
         normalized = []
         for i, kpi in enumerate(kpis):
-            normalized.append({
-                "id": kpi.get("id", str(i + 1)),
-                "name": kpi.get("name", f"KPI {i + 1}"),
-                "value": kpi.get("value", 0),
-                "target": kpi.get("target", 100),
-                "unit": kpi.get("unit", ""),
-                "trend": kpi.get("trend", "stable"),
-                "period": kpi.get("period", "current")
-            })
+            normalized.append(
+                {
+                    "id": kpi.get("id", str(i + 1)),
+                    "name": kpi.get("name", f"KPI {i + 1}"),
+                    "value": kpi.get("value", 0),
+                    "target": kpi.get("target", 100),
+                    "unit": kpi.get("unit", ""),
+                    "trend": kpi.get("trend", "stable"),
+                    "period": kpi.get("period", "current"),
+                }
+            )
         return json.dumps({"kpis": normalized})
 
-    def build_table(
-        self,
-        columns: List[Dict],
-        rows: List[Dict]
-    ) -> str:
+    def build_table(self, columns: List[Dict], rows: List[Dict]) -> str:
         """
         Build interactive table section content.
 
         Schema: {"columns":[...],"rows":[...],"sortColumn":null,"sortDirection":"asc"}
         """
-        return json.dumps({
-            "columns": columns,
-            "rows": rows,
-            "sortColumn": None,
-            "sortDirection": "asc"
-        })
+        return json.dumps(
+            {"columns": columns, "rows": rows, "sortColumn": None, "sortDirection": "asc"}
+        )
 
 
 # ============================================

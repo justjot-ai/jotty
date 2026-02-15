@@ -1,16 +1,16 @@
 """CLI Configuration Module."""
 
+from .defaults import DEFAULT_CONFIG
+from .loader import ConfigLoader
 from .schema import (
     CLIConfig,
-    ProviderConfig,
-    SwarmConfig,
-    LearningConfig,
-    UIConfig,
     FeaturesConfig,
+    LearningConfig,
+    ProviderConfig,
     SessionConfig,
+    SwarmConfig,
+    UIConfig,
 )
-from .loader import ConfigLoader
-from .defaults import DEFAULT_CONFIG
 
 __all__ = [
     "CLIConfig",

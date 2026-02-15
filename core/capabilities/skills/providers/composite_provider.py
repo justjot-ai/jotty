@@ -6,13 +6,13 @@ Combines multiple providers for complex multi-step tasks.
 Uses swarm intelligence to coordinate and learn.
 """
 
-import time
-import logging
 import asyncio
-from typing import Any, Dict, List, Optional, Tuple
+import logging
+import time
 from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Tuple
 
-from .base import SkillProvider, SkillCategory, ProviderCapability, ProviderResult
+from .base import ProviderCapability, ProviderResult, SkillCategory, SkillProvider
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class CompositeStep:
     """A step in a composite task."""
+
     provider_name: str
     category: SkillCategory
     task: str
@@ -95,29 +96,29 @@ class ResearchAndAnalyzeProvider(SkillProvider):
                     f"Search and gather information about: {task}",
                     context,
                 )
-                results['research'] = browser_result.output
+                results["research"] = browser_result.output
             else:
-                results['research'] = {'status': 'skipped', 'reason': 'no registry'}
+                results["research"] = {"status": "skipped", "reason": "no registry"}
 
             # Step 2: Data analysis
             logger.info(f" Step 2: Analyzing gathered data...")
-            if self._registry and results.get('research'):
+            if self._registry and results.get("research"):
                 analysis_task = f"Analyze this data and extract insights: {results['research']}"
                 code_result = await self._registry.execute(
                     SkillCategory.CODE_EXECUTION,
                     analysis_task,
-                    {'data': results['research']},
+                    {"data": results["research"]},
                 )
-                results['analysis'] = code_result.output
+                results["analysis"] = code_result.output
             else:
-                results['analysis'] = {'status': 'skipped'}
+                results["analysis"] = {"status": "skipped"}
 
             # Step 3: Synthesis
             logger.info(f" Step 3: Synthesizing results...")
-            results['synthesis'] = {
-                'task': task,
-                'research_summary': str(results.get('research', ''))[:500],
-                'analysis_summary': str(results.get('analysis', ''))[:500],
+            results["synthesis"] = {
+                "task": task,
+                "research_summary": str(results.get("research", ""))[:500],
+                "analysis_summary": str(results.get("analysis", ""))[:500],
             }
 
             execution_time = time.time() - start_time
@@ -204,11 +205,13 @@ class AutomateWorkflowProvider(SkillProvider):
                 # Check dependency satisfaction
                 if step.depends_on:
                     deps_met = all(
-                        dep_id in results and results[dep_id].get('success', False)
+                        dep_id in results and results[dep_id].get("success", False)
                         for dep_id in step.depends_on
                     )
                     if not deps_met:
-                        logger.warning(f"Skipping step '{step.step_id}': unmet dependencies {step.depends_on}")
+                        logger.warning(
+                            f"Skipping step '{step.step_id}': unmet dependencies {step.depends_on}"
+                        )
                         if not step.optional:
                             break
                         continue
@@ -217,14 +220,14 @@ class AutomateWorkflowProvider(SkillProvider):
                     step_result = await self._registry.execute(
                         step.category,
                         step.task,
-                        {**context, 'step': i, 'previous_results': list(results.values())},
+                        {**context, "step": i, "previous_results": list(results.values())},
                     )
                     result_dict = {
-                        'step': i + 1,
-                        'step_id': step.step_id,
-                        'action': step.task,
-                        'success': step_result.success,
-                        'output': step_result.output,
+                        "step": i + 1,
+                        "step_id": step.step_id,
+                        "action": step.task,
+                        "success": step_result.success,
+                        "output": step_result.output,
                     }
                     results[step.step_id] = result_dict
 
@@ -234,15 +237,15 @@ class AutomateWorkflowProvider(SkillProvider):
 
             execution_time = time.time() - start_time
 
-            all_success = all(r['success'] for r in results.values()) if results else False
+            all_success = all(r["success"] for r in results.values()) if results else False
 
             return ProviderResult(
                 success=all_success,
                 output={
-                    'workflow': task,
-                    'steps': list(results.values()),
-                    'total_steps': len(steps),
-                    'completed_steps': len(results),
+                    "workflow": task,
+                    "steps": list(results.values()),
+                    "total_steps": len(steps),
+                    "completed_steps": len(results),
                 },
                 execution_time=execution_time,
                 provider_name=self.name,
@@ -263,23 +266,23 @@ class AutomateWorkflowProvider(SkillProvider):
         steps: List[CompositeStep] = []
 
         # Split on ' then ' first (preserves order/dependency), then ', '
-        parts = task.replace(' then ', '\x00').split('\x00')
+        parts = task.replace(" then ", "\x00").split("\x00")
         expanded: list[Any] = []
         for part in parts:
-            expanded.extend(p.strip() for p in part.split(',') if p.strip())
+            expanded.extend(p.strip() for p in part.split(",") if p.strip())
 
         prev_step_id: Optional[str] = None
         for idx, part in enumerate(expanded):
             part_lower = part.lower()
 
             # Determine category
-            if any(kw in part_lower for kw in ['browse', 'open url', 'website', 'search']):
+            if any(kw in part_lower for kw in ["browse", "open url", "website", "search"]):
                 category = SkillCategory.BROWSER
-            elif any(kw in part_lower for kw in ['click', 'type', 'screenshot', 'gui']):
+            elif any(kw in part_lower for kw in ["click", "type", "screenshot", "gui"]):
                 category = SkillCategory.COMPUTER_USE
-            elif any(kw in part_lower for kw in ['run', 'execute', 'command', 'git', 'pip']):
+            elif any(kw in part_lower for kw in ["run", "execute", "command", "git", "pip"]):
                 category = SkillCategory.TERMINAL
-            elif any(kw in part_lower for kw in ['analyze', 'process', 'code']):
+            elif any(kw in part_lower for kw in ["analyze", "process", "code"]):
                 category = SkillCategory.CODE_EXECUTION
             else:
                 category = SkillCategory.TERMINAL  # Default
@@ -291,18 +294,20 @@ class AutomateWorkflowProvider(SkillProvider):
                 task=part,
                 step_id=step_id,
                 depends_on=[prev_step_id] if prev_step_id else None,
-                optional='optional' in part_lower,
+                optional="optional" in part_lower,
             )
             steps.append(step)
             prev_step_id = step_id
 
         if not steps:
-            steps = [CompositeStep(
-                provider_name=self.name,
-                category=SkillCategory.TERMINAL,
-                task=task,
-                step_id="step_0",
-            )]
+            steps = [
+                CompositeStep(
+                    provider_name=self.name,
+                    category=SkillCategory.TERMINAL,
+                    task=task,
+                    step_id="step_0",
+                )
+            ]
 
         return steps
 
@@ -366,13 +371,13 @@ class FullStackAgentProvider(SkillProvider):
                     # Registry will select best provider for this category
                     result = await self._registry.execute(category, task, context)
                     results[category.value] = {
-                        'success': result.success,
-                        'output': result.output,
-                        'provider': result.provider_name,
+                        "success": result.success,
+                        "output": result.output,
+                        "provider": result.provider_name,
                     }
 
                     # Update context with results for next step
-                    context[f'{category.value}_result'] = result.output
+                    context[f"{category.value}_result"] = result.output
 
                     # Record in swarm intelligence
                     if self._swarm_intelligence and result.success:
@@ -385,14 +390,14 @@ class FullStackAgentProvider(SkillProvider):
             execution_time = time.time() - start_time
 
             # Determine overall success
-            all_success = all(r.get('success', False) for r in results.values())
+            all_success = all(r.get("success", False) for r in results.values())
 
             return ProviderResult(
                 success=all_success,
                 output={
-                    'task': task,
-                    'categories_used': [c.value for c in required_categories],
-                    'results': results,
+                    "task": task,
+                    "categories_used": [c.value for c in required_categories],
+                    "results": results,
                 },
                 execution_time=execution_time,
                 provider_name=self.name,
@@ -416,13 +421,13 @@ class FullStackAgentProvider(SkillProvider):
 
         # Check for category keywords
         category_keywords = {
-            SkillCategory.BROWSER: ['browse', 'website', 'url', 'web', 'search online'],
-            SkillCategory.TERMINAL: ['command', 'shell', 'terminal', 'git', 'run'],
-            SkillCategory.CODE_EXECUTION: ['code', 'python', 'analyze', 'calculate'],
-            SkillCategory.COMPUTER_USE: ['click', 'type', 'gui', 'desktop', 'application'],
-            SkillCategory.FILE_OPERATIONS: ['file', 'read', 'write', 'save', 'load'],
-            SkillCategory.DATA_EXTRACTION: ['extract', 'scrape', 'parse', 'data'],
-            SkillCategory.WEB_SEARCH: ['search', 'find', 'lookup', 'research'],
+            SkillCategory.BROWSER: ["browse", "website", "url", "web", "search online"],
+            SkillCategory.TERMINAL: ["command", "shell", "terminal", "git", "run"],
+            SkillCategory.CODE_EXECUTION: ["code", "python", "analyze", "calculate"],
+            SkillCategory.COMPUTER_USE: ["click", "type", "gui", "desktop", "application"],
+            SkillCategory.FILE_OPERATIONS: ["file", "read", "write", "save", "load"],
+            SkillCategory.DATA_EXTRACTION: ["extract", "scrape", "parse", "data"],
+            SkillCategory.WEB_SEARCH: ["search", "find", "lookup", "research"],
         }
 
         for category, keywords in category_keywords.items():

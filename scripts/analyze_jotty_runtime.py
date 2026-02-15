@@ -63,21 +63,26 @@ def main() -> None:
 
     if args.scenario == "capabilities":
         from Jotty import capabilities
+
         _ = capabilities()
     elif args.scenario == "jotty-init":
         from Jotty import Jotty
+
         _ = Jotty()
     elif args.scenario == "explain":
         from Jotty.core.capabilities import capabilities, explain
+
         _ = capabilities()
         _ = explain("memory")
     elif args.scenario == "minimal":
         from Jotty.core.capabilities import explain
+
         _ = explain("memory")
     elif args.scenario == "self-test":
         # No Jotty imports; proves the analyzer works (avoids zipimporter issues)
         def _dummy(n: int) -> int:
             return n + 1
+
         _ = [_dummy(i) for i in range(3)]
 
     code_analyzer.stop()

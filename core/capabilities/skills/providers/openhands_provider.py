@@ -13,14 +13,14 @@ Capabilities:
 - Process management
 """
 
-import time
-import logging
 import asyncio
+import logging
 import subprocess
-from typing import Any, Dict, List, Optional
+import time
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
-from .base import SkillProvider, SkillCategory, ProviderCapability, ProviderResult
+from .base import ProviderCapability, ProviderResult, SkillCategory, SkillProvider
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +28,8 @@ logger = logging.getLogger(__name__)
 try:
     # OpenHands SDK imports
     from openhands import Agent as OpenHandsAgent
-    from openhands.tools import TerminalTool, FileEditTool
+    from openhands.tools import FileEditTool, TerminalTool
+
     OPENHANDS_AVAILABLE = True
 except ImportError:
     OPENHANDS_AVAILABLE = False
@@ -74,9 +75,9 @@ class OpenHandsProvider(SkillProvider):
         ]
 
         # Configuration
-        self.sandbox_mode = config.get('sandbox', True) if config else True
-        self.working_dir = config.get('working_dir', '.') if config else '.'
-        self.timeout = config.get('timeout', 120) if config else 120
+        self.sandbox_mode = config.get("sandbox", True) if config else True
+        self.working_dir = config.get("working_dir", ".") if config else "."
+        self.timeout = config.get("timeout", 120) if config else 120
 
         # State
         self._agent = None
@@ -119,15 +120,15 @@ class OpenHandsProvider(SkillProvider):
             # Determine task type
             task_lower = task.lower()
 
-            if any(kw in task_lower for kw in ['run', 'execute', 'command', 'shell', 'bash']):
+            if any(kw in task_lower for kw in ["run", "execute", "command", "shell", "bash"]):
                 result = await self._execute_command(task, context)
-            elif any(kw in task_lower for kw in ['edit', 'modify', 'change', 'update file']):
+            elif any(kw in task_lower for kw in ["edit", "modify", "change", "update file"]):
                 result = await self._edit_file(task, context)
-            elif any(kw in task_lower for kw in ['read', 'cat', 'show', 'display file']):
+            elif any(kw in task_lower for kw in ["read", "cat", "show", "display file"]):
                 result = await self._read_file(task, context)
-            elif any(kw in task_lower for kw in ['git', 'commit', 'push', 'pull']):
+            elif any(kw in task_lower for kw in ["git", "commit", "push", "pull"]):
                 result = await self._git_operation(task, context)
-            elif any(kw in task_lower for kw in ['install', 'pip', 'npm', 'apt']):
+            elif any(kw in task_lower for kw in ["install", "pip", "npm", "apt"]):
                 result = await self._install_package(task, context)
             else:
                 # Generic command execution
@@ -175,23 +176,20 @@ class OpenHandsProvider(SkillProvider):
                 cwd=self.working_dir,
             )
 
-            stdout, stderr = await asyncio.wait_for(
-                process.communicate(),
-                timeout=self.timeout
-            )
+            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=self.timeout)
 
             success = process.returncode == 0
             output = {
-                'command': command,
-                'stdout': stdout.decode('utf-8', errors='replace'),
-                'stderr': stderr.decode('utf-8', errors='replace'),
-                'return_code': process.returncode,
+                "command": command,
+                "stdout": stdout.decode("utf-8", errors="replace"),
+                "stderr": stderr.decode("utf-8", errors="replace"),
+                "return_code": process.returncode,
             }
 
             return ProviderResult(
                 success=success,
                 output=output,
-                error=stderr.decode('utf-8', errors='replace') if not success else "",
+                error=stderr.decode("utf-8", errors="replace") if not success else "",
                 category=SkillCategory.TERMINAL,
                 confidence=0.95 if success else 0.3,
             )
@@ -208,8 +206,8 @@ class OpenHandsProvider(SkillProvider):
     async def _edit_file(self, task: str, context: Dict) -> ProviderResult:
         """Edit a file."""
         # This would use OpenHands FileEditTool or fall back to manual edit
-        file_path = context.get('file_path')
-        changes = context.get('changes')
+        file_path = context.get("file_path")
+        changes = context.get("changes")
 
         if not file_path:
             return ProviderResult(
@@ -232,7 +230,7 @@ class OpenHandsProvider(SkillProvider):
 
             return ProviderResult(
                 success=True,
-                output={'file': str(path), 'edited': True},
+                output={"file": str(path), "edited": True},
                 category=SkillCategory.FILE_OPERATIONS,
             )
 
@@ -246,7 +244,7 @@ class OpenHandsProvider(SkillProvider):
 
     async def _read_file(self, task: str, context: Dict) -> ProviderResult:
         """Read a file."""
-        file_path = context.get('file_path') or self._extract_file_path(task)
+        file_path = context.get("file_path") or self._extract_file_path(task)
 
         if not file_path:
             return ProviderResult(
@@ -269,7 +267,7 @@ class OpenHandsProvider(SkillProvider):
             content = path.read_text()
             return ProviderResult(
                 success=True,
-                output={'file': str(path), 'content': content},
+                output={"file": str(path), "content": content},
                 category=SkillCategory.FILE_OPERATIONS,
             )
 
@@ -285,17 +283,17 @@ class OpenHandsProvider(SkillProvider):
         """Execute git operation."""
         task_lower = task.lower()
 
-        if 'commit' in task_lower:
-            message = context.get('message', 'Auto-commit by Jotty')
+        if "commit" in task_lower:
+            message = context.get("message", "Auto-commit by Jotty")
             command = f'git add -A && git commit -m "{message}"'
-        elif 'push' in task_lower:
-            command = 'git push'
-        elif 'pull' in task_lower:
-            command = 'git pull'
-        elif 'status' in task_lower:
-            command = 'git status'
-        elif 'diff' in task_lower:
-            command = 'git diff'
+        elif "push" in task_lower:
+            command = "git push"
+        elif "pull" in task_lower:
+            command = "git pull"
+        elif "status" in task_lower:
+            command = "git status"
+        elif "diff" in task_lower:
+            command = "git diff"
         else:
             command = self._extract_command(task)
 
@@ -305,13 +303,13 @@ class OpenHandsProvider(SkillProvider):
         """Install a package."""
         task_lower = task.lower()
 
-        if 'pip' in task_lower:
+        if "pip" in task_lower:
             package = self._extract_package_name(task)
             command = f"pip install {package}"
-        elif 'npm' in task_lower:
+        elif "npm" in task_lower:
             package = self._extract_package_name(task)
             command = f"npm install {package}"
-        elif 'apt' in task_lower:
+        elif "apt" in task_lower:
             package = self._extract_package_name(task)
             command = f"sudo apt-get install -y {package}"
         else:
@@ -326,12 +324,12 @@ class OpenHandsProvider(SkillProvider):
 
         # Look for backtick or quote enclosed commands
         patterns = [
-            r'`([^`]+)`',
+            r"`([^`]+)`",
             r'"([^"]+)"',
             r"'([^']+)'",
-            r'run[:\s]+(.+?)(?:\.|$)',
-            r'execute[:\s]+(.+?)(?:\.|$)',
-            r'command[:\s]+(.+?)(?:\.|$)',
+            r"run[:\s]+(.+?)(?:\.|$)",
+            r"execute[:\s]+(.+?)(?:\.|$)",
+            r"command[:\s]+(.+?)(?:\.|$)",
         ]
 
         for pattern in patterns:
@@ -340,7 +338,7 @@ class OpenHandsProvider(SkillProvider):
                 return match.group(1).strip()
 
         # Fallback: if task looks like a command itself
-        if task.startswith(('ls', 'cd', 'cat', 'echo', 'git', 'pip', 'npm', 'python')):
+        if task.startswith(("ls", "cd", "cat", "echo", "git", "pip", "npm", "python")):
             return task
 
         return None
@@ -348,10 +346,11 @@ class OpenHandsProvider(SkillProvider):
     def _extract_file_path(self, task: str) -> Optional[str]:
         """Extract file path from task."""
         import re
+
         # Look for path-like strings
         patterns = [
-            r'([/\w.-]+\.\w+)',  # file.ext
-            r'([/\w.-]+/[\w.-]+)',  # path/file
+            r"([/\w.-]+\.\w+)",  # file.ext
+            r"([/\w.-]+/[\w.-]+)",  # path/file
         ]
         for pattern in patterns:
             match = re.search(pattern, task)
@@ -362,8 +361,9 @@ class OpenHandsProvider(SkillProvider):
     def _extract_package_name(self, task: str) -> str:
         """Extract package name from install task."""
         import re
+
         # Look for package name after install keyword
-        match = re.search(r'install\s+(\S+)', task, re.IGNORECASE)
+        match = re.search(r"install\s+(\S+)", task, re.IGNORECASE)
         if match:
             return match.group(1)
         return ""
@@ -376,11 +376,11 @@ class OpenHandsProvider(SkillProvider):
 
     async def run_python(self, script: str) -> ProviderResult:
         """Run Python code."""
-        return await self.execute(f"Run Python: `python -c \"{script}\"`")
+        return await self.execute(f'Run Python: `python -c "{script}"`')
 
     async def git_commit(self, message: str) -> ProviderResult:
         """Create a git commit."""
-        return await self.execute("git commit", context={'message': message})
+        return await self.execute("git commit", context={"message": message})
 
     async def install_pip(self, package: str) -> ProviderResult:
         """Install a pip package."""

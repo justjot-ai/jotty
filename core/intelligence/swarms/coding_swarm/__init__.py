@@ -12,20 +12,31 @@ Usage:
     result = await swarm.generate("Create a REST API for user management")
 """
 
-from .types import (
-    CodeLanguage, CodeStyle, EditMode,
-    CodingConfig, CodingResult, CodeOutput,
-)
 from .agents import (
-    ArchitectAgent, DeveloperAgent, DebuggerAgent,
-    OptimizerAgent, TestWriterAgent, DocWriterAgent,
+    ArchitectAgent,
+    DebuggerAgent,
+    DeveloperAgent,
+    DocWriterAgent,
+    OptimizerAgent,
+    TestWriterAgent,
 )
 from .swarm import CodingSwarm, code, code_sync
+from .types import CodeLanguage, CodeOutput, CodeStyle, CodingConfig, CodingResult, EditMode
 
 __all__ = [
-    'CodingSwarm', 'CodingConfig', 'CodingResult', 'CodeOutput',
-    'CodeLanguage', 'CodeStyle', 'EditMode',
-    'code', 'code_sync',
-    'ArchitectAgent', 'DeveloperAgent', 'DebuggerAgent',
-    'OptimizerAgent', 'TestWriterAgent', 'DocWriterAgent',
+    "CodingSwarm",
+    "CodingConfig",
+    "CodingResult",
+    "CodeOutput",
+    "CodeLanguage",
+    "CodeStyle",
+    "EditMode",
+    "code",
+    "code_sync",
+    "ArchitectAgent",
+    "DeveloperAgent",
+    "DebuggerAgent",
+    "OptimizerAgent",
+    "TestWriterAgent",
+    "DocWriterAgent",
 ]

@@ -9,14 +9,15 @@ using the smart swarm registry.
 User provides intent, system figures out the rest.
 """
 
-from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
+
 from ..orchestration import (
-    MultiStagePipeline,
-    SwarmAdapter,
     MergeStrategy,
+    MultiStagePipeline,
     PipelineResult,
-    extract_code_from_markdown
+    SwarmAdapter,
+    extract_code_from_markdown,
 )
 from .smart_swarm_registry import StageType, get_smart_registry
 
@@ -24,6 +25,7 @@ from .smart_swarm_registry import StageType, get_smart_registry
 @dataclass
 class WorkflowIntent:
     """High-level workflow intent."""
+
     goal: str
     project_type: Optional[str] = None  # "rest_api", "trading_strategy", "ml_model", etc.
     deliverables: Optional[List[str]] = None  # ["code", "tests", "docs", "deployment"]
@@ -75,7 +77,7 @@ class AutoWorkflow:
         deliverables: Optional[List[str]] = None,
         tech_stack: Optional[List[str]] = None,
         features: Optional[List[str]] = None,
-        requirements: Optional[List[str]] = None
+        requirements: Optional[List[str]] = None,
     ) -> "AutoWorkflow":
         """
         Create workflow from intent (without executing).
@@ -98,7 +100,7 @@ class AutoWorkflow:
             deliverables=deliverables,
             tech_stack=tech_stack,
             features=features,
-            requirements=requirements
+            requirements=requirements,
         )
         return cls(intent)
 
@@ -111,7 +113,7 @@ class AutoWorkflow:
         tech_stack: Optional[List[str]] = None,
         features: Optional[List[str]] = None,
         requirements: Optional[List[str]] = None,
-        verbose: bool = True
+        verbose: bool = True,
     ) -> PipelineResult:
         """
         Execute workflow from high-level intent (simplest API).
@@ -134,7 +136,7 @@ class AutoWorkflow:
             deliverables=deliverables,
             tech_stack=tech_stack,
             features=features,
-            requirements=requirements
+            requirements=requirements,
         )
 
         workflow = cls(intent)
@@ -160,7 +162,11 @@ class AutoWorkflow:
         if self.intent.project_type == "rest_api" or "api" in goal_lower:
             return ["requirements", "architecture", "code", "tests", "docs", "deployment"]
 
-        elif self.intent.project_type == "trading_strategy" or "trading" in goal_lower or "strategy" in goal_lower:
+        elif (
+            self.intent.project_type == "trading_strategy"
+            or "trading" in goal_lower
+            or "strategy" in goal_lower
+        ):
             return ["research", "strategy", "code", "validation"]
 
         elif "research" in goal_lower or "analyze" in goal_lower:
@@ -205,7 +211,9 @@ class AutoWorkflow:
                 # Use custom swarms
                 swarms = stage_config["custom_swarms"]
                 merge_strategy = stage_config.get("merge_strategy", MergeStrategy.BEST_OF_N)
-                context_from = stage_config.get("context_from", previous_stages.copy() if previous_stages else None)
+                context_from = stage_config.get(
+                    "context_from", previous_stages.copy() if previous_stages else None
+                )
 
             else:
                 # Auto-generate with SmartRegistry (possibly customized)
@@ -226,7 +234,10 @@ class AutoWorkflow:
                 if stage_config.get("additional_context"):
                     # Add additional context to each swarm prompt
                     swarms_config = [
-                        (name, f"{prompt}\n\nAdditional Context:\n{stage_config['additional_context']}")
+                        (
+                            name,
+                            f"{prompt}\n\nAdditional Context:\n{stage_config['additional_context']}",
+                        )
                         for name, prompt in swarms_config
                     ]
 
@@ -235,13 +246,15 @@ class AutoWorkflow:
                     merge_strategy = stage_config["merge_strategy"]
                 else:
                     merge_strategy_str = self.registry.get_merge_strategy(stage_type)
-                    merge_strategy = getattr(MergeStrategy, merge_strategy_str, MergeStrategy.BEST_OF_N)
+                    merge_strategy = getattr(
+                        MergeStrategy, merge_strategy_str, MergeStrategy.BEST_OF_N
+                    )
 
                 # Create swarms
                 swarms = SwarmAdapter.quick_swarms(
                     swarms_config,
                     model=stage_config.get("model", "claude-3-5-haiku-20241022"),
-                    max_tokens=stage_config.get("max_tokens", 800)
+                    max_tokens=stage_config.get("max_tokens", 800),
                 )
 
                 # Determine context sources (use all previous stages)
@@ -253,7 +266,7 @@ class AutoWorkflow:
                 swarms=swarms,
                 merge_strategy=merge_strategy,
                 context_from=context_from,
-                max_context_chars=1500
+                max_context_chars=1500,
             )
 
             previous_stages.append(deliverable)
@@ -271,7 +284,7 @@ class AutoWorkflow:
                     swarms=swarms,
                     merge_strategy=merge_strategy,
                     context_from=context_from,
-                    max_context_chars=1500
+                    max_context_chars=1500,
                 )
 
     def _build_stage_context(self) -> Dict[str, Any]:
@@ -292,7 +305,15 @@ class AutoWorkflow:
 
         return context
 
-    def customize_stage(self, stage_name: str, model: Optional[str] = None, max_tokens: Optional[int] = None, merge_strategy: Optional[MergeStrategy] = None, additional_context: Optional[str] = None, custom_prompts: Optional[List[str]] = None) -> Any:
+    def customize_stage(
+        self,
+        stage_name: str,
+        model: Optional[str] = None,
+        max_tokens: Optional[int] = None,
+        merge_strategy: Optional[MergeStrategy] = None,
+        additional_context: Optional[str] = None,
+        custom_prompts: Optional[List[str]] = None,
+    ) -> Any:
         """
         Customize a specific stage (keeps auto-generation but tweaks it).
 
@@ -318,7 +339,13 @@ class AutoWorkflow:
         if custom_prompts:
             self.stage_configs[stage_name]["custom_prompts"] = custom_prompts
 
-    def replace_stage(self, stage_name: str, swarms: List[Any], merge_strategy: Optional[MergeStrategy] = None, context_from: Optional[List[str]] = None) -> Any:
+    def replace_stage(
+        self,
+        stage_name: str,
+        swarms: List[Any],
+        merge_strategy: Optional[MergeStrategy] = None,
+        context_from: Optional[List[str]] = None,
+    ) -> Any:
         """
         Completely replace a stage with custom swarms (full control).
 
@@ -338,7 +365,14 @@ class AutoWorkflow:
         if context_from:
             self.stage_configs[stage_name]["context_from"] = context_from
 
-    def add_custom_stage(self, stage_name: str, swarms: List[Any], position: Optional[int] = None, merge_strategy: MergeStrategy = MergeStrategy.BEST_OF_N, context_from: Optional[List[str]] = None) -> Any:
+    def add_custom_stage(
+        self,
+        stage_name: str,
+        swarms: List[Any],
+        position: Optional[int] = None,
+        merge_strategy: MergeStrategy = MergeStrategy.BEST_OF_N,
+        context_from: Optional[List[str]] = None,
+    ) -> Any:
         """
         Add a completely custom stage (insert new stage).
 
@@ -354,7 +388,7 @@ class AutoWorkflow:
             "swarms": swarms,
             "position": position,
             "merge_strategy": merge_strategy,
-            "context_from": context_from
+            "context_from": context_from,
         }
 
     def inspect_pipeline(self) -> Dict[str, Any]:
@@ -366,18 +400,14 @@ class AutoWorkflow:
         """
         deliverables = self.intent.deliverables or self._infer_deliverables()
 
-        inspection = {
-            "goal": self.intent.goal,
-            "deliverables": deliverables,
-            "stages": []
-        }
+        inspection = {"goal": self.intent.goal, "deliverables": deliverables, "stages": []}
 
         for deliverable in deliverables:
             stage_info = {
                 "name": deliverable,
                 "stage_type": deliverable,
                 "customized": deliverable in self.stage_configs,
-                "replaced": self.stage_configs.get(deliverable, {}).get("replace", False)
+                "replaced": self.stage_configs.get(deliverable, {}).get("replace", False),
             }
             inspection["stages"].append(stage_info)
 
@@ -390,9 +420,9 @@ class AutoWorkflow:
         inspection = self.inspect_pipeline()
 
         if verbose:
-            print("\n" + "="*70)
+            print("\n" + "=" * 70)
             print("PIPELINE INSPECTION")
-            print("="*70)
+            print("=" * 70)
             print(f"\n🎯 Goal: {inspection['goal']}")
             print(f"📊 Stages: {len(inspection['stages'])}")
             print()
@@ -408,7 +438,7 @@ class AutoWorkflow:
 
                 print(f"{i}. {stage['name']:<20} {status}")
 
-            print("\n" + "="*70 + "\n")
+            print("\n" + "=" * 70 + "\n")
 
     async def run(self, verbose: bool = True) -> PipelineResult:
         """Execute the workflow pipeline."""
@@ -430,7 +460,7 @@ async def build(goal: str, **kwargs: Any) -> PipelineResult:
     return await AutoWorkflow.execute(goal, **kwargs)
 
 
-async def research(topic: str, depth: str = 'comprehensive', **kwargs: Any) -> PipelineResult:
+async def research(topic: str, depth: str = "comprehensive", **kwargs: Any) -> PipelineResult:
     """
     Research a topic automatically.
 
@@ -441,11 +471,13 @@ async def research(topic: str, depth: str = 'comprehensive', **kwargs: Any) -> P
         goal=f"Research {topic} ({depth} analysis)",
         project_type="research",
         deliverables=["research", "analysis", "synthesis"],
-        **kwargs
+        **kwargs,
     )
 
 
-async def develop(description: str, tech_stack: Optional[List[str]] = None, **kwargs: Any) -> PipelineResult:
+async def develop(
+    description: str, tech_stack: Optional[List[str]] = None, **kwargs: Any
+) -> PipelineResult:
     """
     Develop software from description.
 
@@ -460,5 +492,5 @@ async def develop(description: str, tech_stack: Optional[List[str]] = None, **kw
         project_type="rest_api",
         deliverables=["requirements", "architecture", "code", "tests", "docs", "deployment"],
         tech_stack=tech_stack,
-        **kwargs
+        **kwargs,
     )

@@ -17,23 +17,24 @@ Fixtures from conftest.py:
 """
 
 import asyncio
-import pytest
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
-from Jotty.core.modes.agent.base.base_agent import BaseAgent, AgentRuntimeConfig, AgentResult
-from Jotty.core.modes.agent.agents.domain_agent import DomainAgent, DomainAgentConfig
+import pytest
+
 from Jotty.core.modes.agent.agents.composite_agent import (
     CompositeAgent,
     CompositeAgentConfig,
-    UnifiedResult,
     CoordinationPattern,
     MergeStrategy,
+    UnifiedResult,
 )
-
+from Jotty.core.modes.agent.agents.domain_agent import DomainAgent, DomainAgentConfig
+from Jotty.core.modes.agent.base.base_agent import AgentResult, AgentRuntimeConfig, BaseAgent
 
 # =============================================================================
 # BaseAgent
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestBaseAgent:
@@ -92,6 +93,7 @@ class TestBaseAgent:
     @pytest.mark.asyncio
     async def test_execute_timeout(self, make_concrete_agent):
         """execute() times out and returns failure."""
+
         class SlowAgent(BaseAgent):
             async def _execute_impl(self, **kwargs):
                 await asyncio.sleep(10)
@@ -115,7 +117,7 @@ class TestBaseAgent:
         hook_called = []
 
         def pre_hook(agent_instance, **kwargs):
-            hook_called.append(kwargs.get('task'))
+            hook_called.append(kwargs.get("task"))
 
         agent.add_pre_hook(pre_hook)
         await agent.execute(task="hooktest")
@@ -236,6 +238,7 @@ class TestBaseAgent:
 # DomainAgent
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestDomainAgent:
     """Test DomainAgent DSPy execution and skill fallback."""
@@ -252,15 +255,15 @@ class TestDomainAgent:
             name="Analyzer",
             module_output=mock_result,
         )
-        agent._input_fields = ['text']
-        agent._output_fields = ['analysis', 'confidence']
+        agent._input_fields = ["text"]
+        agent._output_fields = ["analysis", "confidence"]
 
         result = await agent.execute(text="some text")
 
         assert result.success is True
-        assert result.output['analysis'] == "deep analysis"
-        assert result.output['confidence'] == 0.95
-        assert result.output['_reasoning'] == "step by step"
+        assert result.output["analysis"] == "deep analysis"
+        assert result.output["confidence"] == 0.95
+        assert result.output["_reasoning"] == "step by step"
 
     @pytest.mark.asyncio
     async def test_execute_no_module_falls_back_to_skills(self, make_domain_agent):
@@ -269,10 +272,12 @@ class TestDomainAgent:
         agent._module = None  # Ensure no module
 
         # Mock _execute_with_skills directly to avoid duplicate 'task' kwarg issue
-        agent._execute_with_skills = AsyncMock(return_value={
-            "success": True,
-            "result": "skill output",
-        })
+        agent._execute_with_skills = AsyncMock(
+            return_value={
+                "success": True,
+                "result": "skill output",
+            }
+        )
 
         result = await agent.execute(task="do something")
 
@@ -295,14 +300,16 @@ class TestDomainAgent:
         """When DSPy execution raises, DomainAgent falls back to skills."""
         agent = make_domain_agent(name="Fallback")
         agent._module = Mock(side_effect=RuntimeError("DSPy broke"))
-        agent._input_fields = ['task']
-        agent._output_fields = ['result']
+        agent._input_fields = ["task"]
+        agent._output_fields = ["result"]
 
         # Mock _execute_with_skills directly to avoid duplicate 'task' kwarg issue
-        agent._execute_with_skills = AsyncMock(return_value={
-            "success": True,
-            "result": "recovered via skills",
-        })
+        agent._execute_with_skills = AsyncMock(
+            return_value={
+                "success": True,
+                "result": "recovered via skills",
+            }
+        )
 
         result = await agent.execute(task="recoverable")
 
@@ -312,27 +319,27 @@ class TestDomainAgent:
     def test_input_output_fields(self, make_domain_agent):
         """input_fields and output_fields return copies."""
         agent = make_domain_agent()
-        agent._input_fields = ['a', 'b']
-        agent._output_fields = ['c']
+        agent._input_fields = ["a", "b"]
+        agent._output_fields = ["c"]
 
-        assert agent.input_fields == ['a', 'b']
-        assert agent.output_fields == ['c']
+        assert agent.input_fields == ["a", "b"]
+        assert agent.output_fields == ["c"]
         # Verify they're copies, not references
-        agent.input_fields.append('x')
-        assert 'x' not in agent._input_fields
+        agent.input_fields.append("x")
+        assert "x" not in agent._input_fields
 
     def test_build_task_from_kwargs(self, make_domain_agent):
         """_build_task_from_kwargs extracts task from common keys."""
         agent = make_domain_agent()
-        assert agent._build_task_from_kwargs({'query': 'hello'}) == 'hello'
-        assert agent._build_task_from_kwargs({'prompt': 'do it'}) == 'do it'
-        assert agent._build_task_from_kwargs({}) == ''
+        assert agent._build_task_from_kwargs({"query": "hello"}) == "hello"
+        assert agent._build_task_from_kwargs({"prompt": "do it"}) == "do it"
+        assert agent._build_task_from_kwargs({}) == ""
 
     def test_get_io_schema_no_signature(self, make_domain_agent):
         """DomainAgent without signature returns field-based schema."""
         agent = make_domain_agent()
-        agent._input_fields = ['task']
-        agent._output_fields = ['result']
+        agent._input_fields = ["task"]
+        agent._output_fields = ["result"]
         schema = agent.get_io_schema()
         assert schema is not None
 
@@ -340,6 +347,7 @@ class TestDomainAgent:
 # =============================================================================
 # UnifiedResult
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestUnifiedResult:
@@ -409,6 +417,7 @@ class TestUnifiedResult:
 # =============================================================================
 # CompositeAgent
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestCompositeAgent:
@@ -503,7 +512,9 @@ class TestCompositeAgent:
         composite = CompositeAgent.compose(
             "Consensus",
             coordination=CoordinationPattern.CONSENSUS,
-            a=a1, b=a2, c=a3,
+            a=a1,
+            b=a2,
+            c=a3,
         )
         composite._initialized = True
 
@@ -525,7 +536,9 @@ class TestCompositeAgent:
         composite = CompositeAgent.compose(
             "Consensus",
             coordination=CoordinationPattern.CONSENSUS,
-            a=a1, b=a2, c=a3,
+            a=a1,
+            b=a2,
+            c=a3,
         )
         composite._initialized = True
 
@@ -539,11 +552,13 @@ class TestCompositeAgent:
         mock_swarm = AsyncMock()
         mock_swarm.config = Mock(name="TestSwarm", timeout_seconds=300)
         mock_swarm.__class__.__name__ = "TestSwarm"
-        mock_swarm.execute = AsyncMock(return_value=make_swarm_result(
-            success=True,
-            output={"swarm_result": "done"},
-            name="TestSwarm",
-        ))
+        mock_swarm.execute = AsyncMock(
+            return_value=make_swarm_result(
+                success=True,
+                output={"swarm_result": "done"},
+                name="TestSwarm",
+            )
+        )
 
         composite = CompositeAgent.from_swarm(mock_swarm)
         composite._initialized = True
@@ -641,6 +656,7 @@ class TestCompositeAgent:
     @pytest.mark.asyncio
     async def test_pipeline_non_dict_output_chains_as_task(self, make_concrete_agent):
         """Non-dict output replaces 'task' key for next agent."""
+
         class StringAgent(BaseAgent):
             async def _execute_impl(self, **kwargs):
                 return "string output"
@@ -656,7 +672,9 @@ class TestCompositeAgent:
         a2._initialized = True
 
         composite = CompositeAgent.compose(
-            "Pipeline", first=a1, second=a2,
+            "Pipeline",
+            first=a1,
+            second=a2,
             coordination=CoordinationPattern.PIPELINE,
         )
         composite._initialized = True
@@ -681,6 +699,7 @@ class TestCompositeAgent:
 # =============================================================================
 # Merge Strategies
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestMergeStrategies:

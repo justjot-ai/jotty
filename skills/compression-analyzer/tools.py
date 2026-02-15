@@ -1,11 +1,14 @@
 """Compression analyzer — entropy, RLE, Huffman tree visualization."""
+
 import math
 from collections import Counter
-from typing import Dict, Any, List, Tuple
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
+from typing import Any, Dict, List, Tuple
+
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("compression-analyzer")
+
 
 def _entropy(text: str) -> float:
     if not text:
@@ -13,6 +16,7 @@ def _entropy(text: str) -> float:
     freq = Counter(text)
     n = len(text)
     return -sum((c / n) * math.log2(c / n) for c in freq.values())
+
 
 def _rle_encode(text: str) -> str:
     if not text:
@@ -27,12 +31,16 @@ def _rle_encode(text: str) -> str:
     result.append(f"{count}{prev}" if count > 1 else prev)
     return "".join(result)
 
+
 def _rle_decode(encoded: str) -> str:
     import re
+
     return "".join(ch * int(n) if n else ch for n, ch in re.findall(r"(\d*)(\D)", encoded))
+
 
 def _huffman_tree(text: str) -> Tuple[Dict[str, str], List[str]]:
     import heapq
+
     freq = Counter(text)
     if len(freq) <= 1:
         ch = next(iter(freq))
@@ -51,6 +59,7 @@ def _huffman_tree(text: str) -> Tuple[Dict[str, str], List[str]]:
     tree_lines = [f"  '{ch}' ({freq[ch]}x) -> {code}" for ch, code in sorted(codes.items())]
     return codes, tree_lines
 
+
 @tool_wrapper(required_params=["operation", "text"])
 def compression_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     """Compression analysis: entropy, rle_encode, rle_decode, huffman, analyze."""
@@ -60,26 +69,47 @@ def compression_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     try:
         if op == "entropy":
             e = _entropy(text)
-            return tool_response(entropy=round(e, 4), max_entropy=round(math.log2(max(len(set(text)), 1)), 4), length=len(text))
+            return tool_response(
+                entropy=round(e, 4),
+                max_entropy=round(math.log2(max(len(set(text)), 1)), 4),
+                length=len(text),
+            )
         if op == "rle_encode":
             enc = _rle_encode(text)
-            return tool_response(encoded=enc, original_len=len(text), encoded_len=len(enc), ratio=round(len(enc) / max(len(text), 1), 3))
+            return tool_response(
+                encoded=enc,
+                original_len=len(text),
+                encoded_len=len(enc),
+                ratio=round(len(enc) / max(len(text), 1), 3),
+            )
         if op == "rle_decode":
             return tool_response(decoded=_rle_decode(text))
         if op == "huffman":
             codes, tree = _huffman_tree(text)
             total_bits = sum(len(codes[ch]) * cnt for ch, cnt in Counter(text).items())
-            return tool_response(codes=codes, tree="\n".join(tree), total_bits=total_bits, bits_per_char=round(total_bits / max(len(text), 1), 3))
+            return tool_response(
+                codes=codes,
+                tree="\n".join(tree),
+                total_bits=total_bits,
+                bits_per_char=round(total_bits / max(len(text), 1), 3),
+            )
         if op == "analyze":
             e = _entropy(text)
             rle = _rle_encode(text)
             codes, _ = _huffman_tree(text)
             huff_bits = sum(len(codes[ch]) * cnt for ch, cnt in Counter(text).items())
-            return tool_response(length=len(text), unique_chars=len(set(text)), entropy=round(e, 4),
-                                 rle_ratio=round(len(rle) / max(len(text), 1), 3), huffman_bits=huff_bits,
-                                 huffman_bpc=round(huff_bits / max(len(text), 1), 3), naive_bits=len(text) * 8)
+            return tool_response(
+                length=len(text),
+                unique_chars=len(set(text)),
+                entropy=round(e, 4),
+                rle_ratio=round(len(rle) / max(len(text), 1), 3),
+                huffman_bits=huff_bits,
+                huffman_bpc=round(huff_bits / max(len(text), 1), 3),
+                naive_bits=len(text) * 8,
+            )
         return tool_error(f"Unknown op: {op}. Use entropy/rle_encode/rle_decode/huffman/analyze")
     except Exception as e:
         return tool_error(str(e))
+
 
 __all__ = ["compression_tool"]

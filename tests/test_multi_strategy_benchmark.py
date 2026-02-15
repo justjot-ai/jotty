@@ -6,9 +6,10 @@ Tests for Multi-Strategy Benchmark Utility
 Tests the high-level benchmarking utility that reduces boilerplate.
 """
 
-import pytest
 import asyncio
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
 
 
 @pytest.mark.asyncio
@@ -16,8 +17,8 @@ async def test_benchmark_imports():
     """Test that benchmark utilities are properly exported."""
     # Should be importable from orchestration
     from Jotty.core.intelligence.orchestration import (
-        MultiStrategyBenchmark,
         BenchmarkResults,
+        MultiStrategyBenchmark,
         StrategyResult,
         benchmark_strategies,
     )
@@ -29,14 +30,14 @@ async def test_benchmark_imports():
 
 
 @pytest.mark.asyncio
-@patch('os.getenv')
-@patch('anthropic.AsyncAnthropic')
+@patch("os.getenv")
+@patch("anthropic.AsyncAnthropic")
 async def test_benchmark_basic_usage(mock_anthropic_class, mock_getenv):
     """Test basic benchmark usage with mocked API."""
     from Jotty.core.intelligence.orchestration import (
-        SwarmAdapter,
+        MergeStrategy,
         MultiStrategyBenchmark,
-        MergeStrategy
+        SwarmAdapter,
     )
 
     # Mock API
@@ -51,16 +52,18 @@ async def test_benchmark_basic_usage(mock_anthropic_class, mock_getenv):
     mock_anthropic_class.return_value = mock_client
 
     # Create swarms
-    swarms = SwarmAdapter.quick_swarms([
-        ("Expert1", "Prompt 1"),
-        ("Expert2", "Prompt 2"),
-    ])
+    swarms = SwarmAdapter.quick_swarms(
+        [
+            ("Expert1", "Prompt 1"),
+            ("Expert2", "Prompt 2"),
+        ]
+    )
 
     # Create benchmark
     benchmark = MultiStrategyBenchmark(
         swarms=swarms,
         task="Test task",
-        strategies=[MergeStrategy.VOTING, MergeStrategy.CONCATENATE]
+        strategies=[MergeStrategy.VOTING, MergeStrategy.CONCATENATE],
     )
 
     # Run benchmark
@@ -68,7 +71,7 @@ async def test_benchmark_basic_usage(mock_anthropic_class, mock_getenv):
         auto_trace=True,
         auto_learn=True,
         auto_threshold=True,
-        verbose=False  # Suppress output in tests
+        verbose=False,  # Suppress output in tests
     )
 
     # Verify results structure
@@ -87,8 +90,8 @@ async def test_benchmark_basic_usage(mock_anthropic_class, mock_getenv):
 
 
 @pytest.mark.asyncio
-@patch('os.getenv')
-@patch('anthropic.AsyncAnthropic')
+@patch("os.getenv")
+@patch("anthropic.AsyncAnthropic")
 async def test_benchmark_all_strategies(mock_anthropic_class, mock_getenv):
     """Test benchmark with all 5 merge strategies."""
     from Jotty.core.intelligence.orchestration import SwarmAdapter, benchmark_strategies
@@ -119,27 +122,23 @@ async def test_benchmark_all_strategies(mock_anthropic_class, mock_getenv):
 @pytest.mark.asyncio
 async def test_benchmark_results_print_summary():
     """Test that BenchmarkResults.print_summary() works."""
-    from Jotty.core.intelligence.orchestration import (
-        BenchmarkResults,
-        StrategyResult,
-        MergeStrategy,
-        SwarmResult
-    )
     import io
     import sys
+
+    from Jotty.core.intelligence.orchestration import (
+        BenchmarkResults,
+        MergeStrategy,
+        StrategyResult,
+        SwarmResult,
+    )
 
     # Create mock results
     strategy_result = StrategyResult(
         strategy=MergeStrategy.VOTING,
         strategy_name="VOTING",
-        result=SwarmResult(
-            swarm_name="test",
-            output="Test output",
-            success=True,
-            confidence=0.8
-        ),
+        result=SwarmResult(swarm_name="test", output="Test output", success=True, confidence=0.8),
         execution_time=1.0,
-        cost=0.001
+        cost=0.001,
     )
 
     results = BenchmarkResults(
@@ -149,7 +148,7 @@ async def test_benchmark_results_print_summary():
         total_cost=0.001,
         total_time=1.0,
         speedup=2.0,
-        best_strategy=strategy_result
+        best_strategy=strategy_result,
     )
 
     # Capture output
@@ -175,7 +174,7 @@ async def test_benchmark_results_print_summary():
 @pytest.mark.asyncio
 async def test_benchmark_auto_integration_flags():
     """Test that auto-integration flags work correctly."""
-    from Jotty.core.intelligence.orchestration import MultiStrategyBenchmark, MergeStrategy
+    from Jotty.core.intelligence.orchestration import MergeStrategy, MultiStrategyBenchmark
 
     # Create mock swarms
     class MockSwarm:
@@ -183,27 +182,20 @@ async def test_benchmark_auto_integration_flags():
 
         async def execute(self, task):
             from Jotty.core.intelligence.orchestration import SwarmResult
+
             return SwarmResult(
-                swarm_name=self.name,
-                output="Mock output",
-                success=True,
-                confidence=0.9
+                swarm_name=self.name, output="Mock output", success=True, confidence=0.9
             )
 
     swarms = [MockSwarm(), MockSwarm()]
 
     benchmark = MultiStrategyBenchmark(
-        swarms=swarms,
-        task="Test",
-        strategies=[MergeStrategy.VOTING]  # Just one for speed
+        swarms=swarms, task="Test", strategies=[MergeStrategy.VOTING]  # Just one for speed
     )
 
     # Test with all auto flags enabled
     results = await benchmark.run(
-        auto_trace=True,
-        auto_learn=True,
-        auto_threshold=True,
-        verbose=False
+        auto_trace=True, auto_learn=True, auto_threshold=True, verbose=False
     )
 
     assert results is not None
@@ -211,15 +203,12 @@ async def test_benchmark_auto_integration_flags():
 
     # Test with all auto flags disabled
     results2 = await benchmark.run(
-        auto_trace=False,
-        auto_learn=False,
-        auto_threshold=False,
-        verbose=False
+        auto_trace=False, auto_learn=False, auto_threshold=False, verbose=False
     )
 
     assert results2 is not None
     assert len(results2.results) == 1
 
 
-if __name__ == '__main__':
-    pytest.main([__file__, '-v'])
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

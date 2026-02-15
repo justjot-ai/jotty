@@ -5,17 +5,16 @@ Sharing routes - share links, QR codes, public share pages.
 import asyncio
 import json
 import logging
-from typing import Optional, Dict, Any, List
 from datetime import datetime
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
 
-
 def register_sharing_routes(app, api):
-    from fastapi import HTTPException, WebSocket, WebSocketDisconnect, UploadFile, File, Form
-    from fastapi.responses import FileResponse, JSONResponse, StreamingResponse, HTMLResponse
+    from fastapi import File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
+    from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
     from pydantic import BaseModel
 
     class CreateShareLinkRequest(BaseModel):
@@ -27,7 +26,7 @@ def register_sharing_routes(app, api):
     @app.post("/api/share/create")
     async def create_share_link(request: CreateShareLinkRequest):
         """Create a shareable link for a conversation."""
-        from Jotty.apps.cli.repl.session import get_share_link_registry, get_session_registry
+        from Jotty.apps.cli.repl.session import get_session_registry, get_share_link_registry
 
         # Verify session exists
         registry = get_session_registry()
@@ -41,14 +40,10 @@ def register_sharing_routes(app, api):
             session_id=request.session_id,
             title=request.title,
             expires_in_days=request.expires_in_days,
-            branch_id=request.branch_id
+            branch_id=request.branch_id,
         )
 
-        return {
-            "success": True,
-            "link": link.to_dict(),
-            "url": f"/share/{link.token}"
-        }
+        return {"success": True, "link": link.to_dict(), "url": f"/share/{link.token}"}
 
     @app.get("/api/share/{token}")
     async def get_share_link_info(token: str):
@@ -66,7 +61,7 @@ def register_sharing_routes(app, api):
     @app.get("/api/share/{token}/conversation")
     async def get_shared_conversation(token: str):
         """Get the shared conversation (public read-only view)."""
-        from Jotty.apps.cli.repl.session import get_share_link_registry, get_session_registry
+        from Jotty.apps.cli.repl.session import get_session_registry, get_share_link_registry
 
         share_registry = get_share_link_registry()
         link = share_registry.get_link(token)
@@ -92,7 +87,7 @@ def register_sharing_routes(app, api):
             "messages": [m.to_dict() for m in messages],
             "created_at": link.created_at.isoformat(),
             "access_count": link.access_count,
-            "branch_id": link.branch_id
+            "branch_id": link.branch_id,
         }
 
     @app.post("/api/share/{token}/revoke")
@@ -119,11 +114,7 @@ def register_sharing_routes(app, api):
         if not new_link:
             raise HTTPException(status_code=404, detail="Share link not found")
 
-        return {
-            "success": True,
-            "link": new_link.to_dict(),
-            "url": f"/share/{new_link.token}"
-        }
+        return {"success": True, "link": new_link.to_dict(), "url": f"/share/{new_link.token}"}
 
     @app.get("/api/share/{token}/qrcode")
     async def get_share_qrcode(token: str, base_url: str = None):
@@ -138,9 +129,10 @@ def register_sharing_routes(app, api):
 
         # Generate QR code as data URL
         try:
-            import qrcode
-            import io
             import base64
+            import io
+
+            import qrcode
 
             share_url = f"{base_url or ''}/share/{token}"
             qr = qrcode.QRCode(version=1, box_size=10, border=5)
@@ -149,19 +141,16 @@ def register_sharing_routes(app, api):
 
             img = qr.make_image(fill_color="black", back_color="white")
             buffer = io.BytesIO()
-            img.save(buffer, format='PNG')
+            img.save(buffer, format="PNG")
             img_str = base64.b64encode(buffer.getvalue()).decode()
 
-            return {
-                "qrcode": f"data:image/png;base64,{img_str}",
-                "url": share_url
-            }
+            return {"qrcode": f"data:image/png;base64,{img_str}", "url": share_url}
         except ImportError:
             # qrcode library not installed, return URL only
             return {
                 "qrcode": None,
                 "url": f"{base_url or ''}/share/{token}",
-                "error": "QR code library not installed"
+                "error": "QR code library not installed",
             }
 
     # Public share page (no auth required)
@@ -177,7 +166,8 @@ def register_sharing_routes(app, api):
             raise HTTPException(status_code=404, detail="Share link not found or expired")
 
         # Return HTML page that will load the conversation
-        return HTMLResponse(f"""
+        return HTMLResponse(
+            f"""
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -232,10 +222,10 @@ def register_sharing_routes(app, api):
     </script>
 </body>
 </html>
-        """)
+        """
+        )
 
     # ===== TEMPORARY CHAT ENDPOINTS =====
 
     class CreateTempSessionRequest(BaseModel):
         expiry_days: Optional[int] = 30
-

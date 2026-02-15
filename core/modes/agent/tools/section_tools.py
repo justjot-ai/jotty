@@ -7,7 +7,8 @@ Enables LLM to choose ANY section type based on user query.
 This is the DRY way - no hardcoded logic per section type!
 """
 
-from typing import List, Dict, Any
+from typing import Any, Dict, List
+
 from ..ui.schema_validator import schema_registry
 
 
@@ -51,24 +52,21 @@ def generate_section_tools() -> List[Dict[str, Any]]:
         # Build tool definition
         tool = {
             "name": tool_name,
-            "description": schema.get('description', f'Return {section_type} section'),
+            "description": schema.get("description", f"Return {section_type} section"),
         }
 
         # Add input schema if available
-        if 'schema' in schema:
-            section_schema = schema['schema']
+        if "schema" in schema:
+            section_schema = schema["schema"]
 
             # Wrap section schema in parameters
             tool["input_schema"] = {
                 "type": "object",
                 "properties": {
                     "content": section_schema,  # The main content
-                    "title": {
-                        "type": "string",
-                        "description": "Optional title for the section"
-                    }
+                    "title": {"type": "string", "description": "Optional title for the section"},
                 },
-                "required": ["content"]
+                "required": ["content"],
             }
 
         tools.append(tool)
@@ -107,11 +105,11 @@ def generate_tool_hints() -> str:
             continue
 
         # Get hint (or generate default)
-        hint = schema.get('llmHint', f"return_{section_type.replace('-', '_')}(content, title)")
-        description = schema.get('description', '')
+        hint = schema.get("llmHint", f"return_{section_type.replace('-', '_')}(content, title)")
+        description = schema.get("description", "")
 
         # Get category from schema, default to 'General' if not specified
-        category = schema.get('category', 'General')
+        category = schema.get("category", "General")
 
         if category not in by_category:
             by_category[category] = []

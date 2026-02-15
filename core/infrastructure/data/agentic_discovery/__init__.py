@@ -4,23 +4,30 @@ Agentic Discovery — LLM-based artifact analysis and registration.
 All implementation lives in ``discovery.py``.
 """
 
-from .discovery import (                           # noqa: F401
-    RegistrationOrchestrator,
-    ArtifactAnalyzer,
-    SemanticTagger,
-    InformationExtractor,
-    ArtifactValidator,
-    ArtifactType,
+from .discovery import (  # noqa: F401
     AnalysisResult,
-    TaggingResult,
+    ArtifactAnalyzer,
+    ArtifactType,
+    ArtifactValidator,
     ExtractionResult,
-    ValidationResult,
+    InformationExtractor,
+    RegistrationOrchestrator,
     RegistrationResult,
+    SemanticTagger,
+    TaggingResult,
+    ValidationResult,
 )
 
 __all__ = [
-    'RegistrationOrchestrator', 'ArtifactAnalyzer', 'SemanticTagger',
-    'InformationExtractor', 'ArtifactValidator',
-    'ArtifactType', 'AnalysisResult', 'TaggingResult',
-    'ExtractionResult', 'ValidationResult', 'RegistrationResult',
+    "RegistrationOrchestrator",
+    "ArtifactAnalyzer",
+    "SemanticTagger",
+    "InformationExtractor",
+    "ArtifactValidator",
+    "ArtifactType",
+    "AnalysisResult",
+    "TaggingResult",
+    "ExtractionResult",
+    "ValidationResult",
+    "RegistrationResult",
 ]

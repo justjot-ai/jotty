@@ -10,49 +10,61 @@ Tests for:
   (core/orchestration/optimization_pipeline.py)
 """
 
-import pytest
 import asyncio
-import time
-import tempfile
 import json
+import tempfile
+import time
+from dataclasses import asdict, fields
 from pathlib import Path
-from unittest.mock import Mock, MagicMock, AsyncMock, patch, PropertyMock
-from dataclasses import fields, asdict
+from unittest.mock import AsyncMock, MagicMock, Mock, PropertyMock, patch
+
+import pytest
 
 # ---------------------------------------------------------------------------
 # Conditional imports with pytest.skip support
 # ---------------------------------------------------------------------------
 try:
     from Jotty.core.intelligence.orchestration.sandbox_manager import (
-        TrustLevel, SandboxType, SandboxConfig, SandboxResult, SandboxManager,
+        SandboxConfig,
+        SandboxManager,
+        SandboxResult,
+        SandboxType,
+        TrustLevel,
     )
+
     HAS_SANDBOX = True
 except ImportError:
     HAS_SANDBOX = False
 
 try:
     from Jotty.core.intelligence.orchestration.learning_pipeline import EffectivenessTracker
+
     HAS_EFFECTIVENESS = True
 except ImportError:
     HAS_EFFECTIVENESS = False
 
 try:
     from Jotty.core.intelligence.orchestration.paradigm_executor import ParadigmExecutor
+
     HAS_PARADIGM = True
 except ImportError:
     HAS_PARADIGM = False
 
 try:
     from Jotty.core.intelligence.orchestration.optimization_pipeline import (
-        OptimizationConfig, IterationResult, OptimizationPipeline,
+        IterationResult,
+        OptimizationConfig,
+        OptimizationPipeline,
     )
+
     HAS_OPTIMIZATION = True
 except ImportError:
     HAS_OPTIMIZATION = False
 
 try:
-    from Jotty.core.infrastructure.foundation.data_structures import EpisodeResult, SwarmConfig
     from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
+    from Jotty.core.infrastructure.foundation.data_structures import EpisodeResult, SwarmConfig
+
     HAS_FOUNDATION = True
 except ImportError:
     HAS_FOUNDATION = False
@@ -61,6 +73,7 @@ except ImportError:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_episode_result(**overrides):
     """Create a minimal EpisodeResult with sensible defaults."""
@@ -89,7 +102,13 @@ def _make_mock_manager(**overrides):
     m._schedule_background_learning = MagicMock()
     m._mas_zero_verify = MagicMock(return_value=None)
     m.credit_weights = MagicMock()
-    m.credit_weights.get = MagicMock(side_effect=lambda k: {"base_reward": 0.3, "cooperation_bonus": 0.4, "predictability_bonus": 0.3}.get(k, 0.0))
+    m.credit_weights.get = MagicMock(
+        side_effect=lambda k: {
+            "base_reward": 0.3,
+            "cooperation_bonus": 0.4,
+            "predictability_bonus": 0.3,
+        }.get(k, 0.0)
+    )
     m.credit_weights.update_from_feedback = MagicMock()
     m.learning_manager = MagicMock()
     m.learning = MagicMock()
@@ -101,6 +120,7 @@ def _make_mock_manager(**overrides):
 # =============================================================================
 # TrustLevel Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestTrustLevel:
@@ -128,6 +148,7 @@ class TestTrustLevel:
 # SandboxType Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestSandboxType:
     """Tests for the SandboxType enum."""
@@ -152,6 +173,7 @@ class TestSandboxType:
 # =============================================================================
 # SandboxConfig Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestSandboxConfig:
@@ -218,6 +240,7 @@ class TestSandboxConfig:
 # =============================================================================
 # SandboxResult Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestSandboxResult:
@@ -286,6 +309,7 @@ class TestSandboxResult:
 # SandboxManager Init Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestSandboxManagerInit:
     """Tests for SandboxManager initialization."""
@@ -344,6 +368,7 @@ class TestSandboxManagerInit:
 # =============================================================================
 # SandboxManager Config Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestSandboxManagerConfig:
@@ -447,6 +472,7 @@ class TestSandboxManagerConfig:
 # =============================================================================
 # SandboxManager Execute Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestSandboxManagerExecute:
@@ -611,6 +637,7 @@ class TestSandboxManagerExecute:
 # SandboxManager Status Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestSandboxManagerStatus:
     """Tests for SandboxManager.get_available_backends() and get_status()."""
@@ -659,6 +686,7 @@ class TestSandboxManagerStatus:
 # EffectivenessTracker Init Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestEffectivenessTrackerInit:
     """Tests for EffectivenessTracker initialization."""
@@ -689,6 +717,7 @@ class TestEffectivenessTrackerInit:
 # =============================================================================
 # EffectivenessTracker Record Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestEffectivenessTrackerRecord:
@@ -761,6 +790,7 @@ class TestEffectivenessTrackerRecord:
 # EffectivenessTracker Windows Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestEffectivenessTrackerWindows:
     """Tests for _split_windows() and _rate()."""
@@ -825,6 +855,7 @@ class TestEffectivenessTrackerWindows:
 # =============================================================================
 # EffectivenessTracker Report Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestEffectivenessTrackerReport:
@@ -917,6 +948,7 @@ class TestEffectivenessTrackerReport:
 # EffectivenessTracker IsImproving Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestEffectivenessTrackerIsImproving:
     """Tests for is_improving()."""
@@ -970,6 +1002,7 @@ class TestEffectivenessTrackerIsImproving:
 # EffectivenessTracker Persistence Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestEffectivenessTrackerPersistence:
     """Tests for to_dict() and from_dict()."""
@@ -1021,17 +1054,22 @@ class TestEffectivenessTrackerPersistence:
 # ParadigmExecutor Init Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestParadigmExecutorInit:
     """Tests for ParadigmExecutor initialization."""
 
-    @pytest.mark.skipif(not HAS_PARADIGM or not HAS_FOUNDATION, reason="paradigm_executor not importable")
+    @pytest.mark.skipif(
+        not HAS_PARADIGM or not HAS_FOUNDATION, reason="paradigm_executor not importable"
+    )
     def test_stores_manager_ref(self):
         mgr = _make_mock_manager()
         pe = ParadigmExecutor(mgr)
         assert pe._manager is mgr
 
-    @pytest.mark.skipif(not HAS_PARADIGM or not HAS_FOUNDATION, reason="paradigm_executor not importable")
+    @pytest.mark.skipif(
+        not HAS_PARADIGM or not HAS_FOUNDATION, reason="paradigm_executor not importable"
+    )
     def test_different_managers(self):
         m1 = _make_mock_manager()
         m2 = _make_mock_manager()
@@ -1039,7 +1077,9 @@ class TestParadigmExecutorInit:
         pe2 = ParadigmExecutor(m2)
         assert pe1._manager is not pe2._manager
 
-    @pytest.mark.skipif(not HAS_PARADIGM or not HAS_FOUNDATION, reason="paradigm_executor not importable")
+    @pytest.mark.skipif(
+        not HAS_PARADIGM or not HAS_FOUNDATION, reason="paradigm_executor not importable"
+    )
     def test_manager_accessible(self):
         mgr = _make_mock_manager(episode_count=5)
         pe = ParadigmExecutor(mgr)
@@ -1050,11 +1090,14 @@ class TestParadigmExecutorInit:
 # ParadigmExecutor RunAgent Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestParadigmExecutorRunAgent:
     """Tests for ParadigmExecutor.run_agent() fast path vs full path."""
 
-    @pytest.mark.skipif(not HAS_PARADIGM or not HAS_FOUNDATION, reason="paradigm_executor not importable")
+    @pytest.mark.skipif(
+        not HAS_PARADIGM or not HAS_FOUNDATION, reason="paradigm_executor not importable"
+    )
     @pytest.mark.asyncio
     async def test_full_path_with_search_keyword(self):
         """Goals containing tool keywords use the full pipeline."""
@@ -1067,7 +1110,9 @@ class TestParadigmExecutorRunAgent:
         runner.run.assert_awaited_once()
         assert result.output == "searched result"
 
-    @pytest.mark.skipif(not HAS_PARADIGM or not HAS_FOUNDATION, reason="paradigm_executor not importable")
+    @pytest.mark.skipif(
+        not HAS_PARADIGM or not HAS_FOUNDATION, reason="paradigm_executor not importable"
+    )
     @pytest.mark.asyncio
     async def test_full_path_with_fetch_keyword(self):
         mgr = _make_mock_manager()
@@ -1078,7 +1123,9 @@ class TestParadigmExecutorRunAgent:
         result = await pe.run_agent(runner, "fetch the data from API", "agent1")
         runner.run.assert_awaited_once()
 
-    @pytest.mark.skipif(not HAS_PARADIGM or not HAS_FOUNDATION, reason="paradigm_executor not importable")
+    @pytest.mark.skipif(
+        not HAS_PARADIGM or not HAS_FOUNDATION, reason="paradigm_executor not importable"
+    )
     @pytest.mark.asyncio
     async def test_full_path_with_email_keyword(self):
         mgr = _make_mock_manager()
@@ -1089,7 +1136,9 @@ class TestParadigmExecutorRunAgent:
         result = await pe.run_agent(runner, "email the report to the team", "agent1")
         runner.run.assert_awaited_once()
 
-    @pytest.mark.skipif(not HAS_PARADIGM or not HAS_FOUNDATION, reason="paradigm_executor not importable")
+    @pytest.mark.skipif(
+        not HAS_PARADIGM or not HAS_FOUNDATION, reason="paradigm_executor not importable"
+    )
     @pytest.mark.asyncio
     async def test_fast_path_no_tool_keywords(self):
         """Simple goal without tool keywords attempts fast path via dspy LM."""
@@ -1108,7 +1157,9 @@ class TestParadigmExecutorRunAgent:
             assert result.output == "fast path response"
             assert "agent1" in result.agent_contributions
 
-    @pytest.mark.skipif(not HAS_PARADIGM or not HAS_FOUNDATION, reason="paradigm_executor not importable")
+    @pytest.mark.skipif(
+        not HAS_PARADIGM or not HAS_FOUNDATION, reason="paradigm_executor not importable"
+    )
     @pytest.mark.asyncio
     async def test_fast_path_returns_list(self):
         """When LM returns a list, first element is used."""
@@ -1125,7 +1176,9 @@ class TestParadigmExecutorRunAgent:
             result = await pe.run_agent(runner, "analyze this", "agent1")
             assert result.output == "response one"
 
-    @pytest.mark.skipif(not HAS_PARADIGM or not HAS_FOUNDATION, reason="paradigm_executor not importable")
+    @pytest.mark.skipif(
+        not HAS_PARADIGM or not HAS_FOUNDATION, reason="paradigm_executor not importable"
+    )
     @pytest.mark.asyncio
     async def test_fast_path_fallback_on_error(self):
         """If fast path fails, falls back to full pipeline."""
@@ -1143,7 +1196,9 @@ class TestParadigmExecutorRunAgent:
             runner.run.assert_awaited_once()
             assert result.output == "fallback result"
 
-    @pytest.mark.skipif(not HAS_PARADIGM or not HAS_FOUNDATION, reason="paradigm_executor not importable")
+    @pytest.mark.skipif(
+        not HAS_PARADIGM or not HAS_FOUNDATION, reason="paradigm_executor not importable"
+    )
     @pytest.mark.asyncio
     async def test_fast_path_no_lm_falls_back(self):
         """If no dspy LM configured, falls back to full pipeline."""
@@ -1158,7 +1213,9 @@ class TestParadigmExecutorRunAgent:
             result = await pe.run_agent(runner, "analyze this", "agent1")
             runner.run.assert_awaited_once()
 
-    @pytest.mark.skipif(not HAS_PARADIGM or not HAS_FOUNDATION, reason="paradigm_executor not importable")
+    @pytest.mark.skipif(
+        not HAS_PARADIGM or not HAS_FOUNDATION, reason="paradigm_executor not importable"
+    )
     @pytest.mark.asyncio
     async def test_full_path_database_keyword(self):
         mgr = _make_mock_manager()
@@ -1174,11 +1231,14 @@ class TestParadigmExecutorRunAgent:
 # ParadigmExecutor Aggregate Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestParadigmExecutorAggregate:
     """Tests for ParadigmExecutor.aggregate_results()."""
 
-    @pytest.mark.skipif(not HAS_PARADIGM or not HAS_FOUNDATION, reason="paradigm_executor not importable")
+    @pytest.mark.skipif(
+        not HAS_PARADIGM or not HAS_FOUNDATION, reason="paradigm_executor not importable"
+    )
     def test_aggregate_empty(self):
         mgr = _make_mock_manager()
         pe = ParadigmExecutor(mgr)
@@ -1187,7 +1247,9 @@ class TestParadigmExecutorAggregate:
         assert result.output is None
         assert "No tasks executed" in result.alerts
 
-    @pytest.mark.skipif(not HAS_PARADIGM or not HAS_FOUNDATION, reason="paradigm_executor not importable")
+    @pytest.mark.skipif(
+        not HAS_PARADIGM or not HAS_FOUNDATION, reason="paradigm_executor not importable"
+    )
     def test_aggregate_single_result(self):
         mgr = _make_mock_manager()
         pe = ParadigmExecutor(mgr)
@@ -1195,7 +1257,9 @@ class TestParadigmExecutorAggregate:
         result = pe.aggregate_results({"agent1": r}, "test goal")
         assert result is r
 
-    @pytest.mark.skipif(not HAS_PARADIGM or not HAS_FOUNDATION, reason="paradigm_executor not importable")
+    @pytest.mark.skipif(
+        not HAS_PARADIGM or not HAS_FOUNDATION, reason="paradigm_executor not importable"
+    )
     def test_aggregate_multiple_all_success(self):
         mgr = _make_mock_manager()
         pe = ParadigmExecutor(mgr)
@@ -1204,7 +1268,9 @@ class TestParadigmExecutorAggregate:
         result = pe.aggregate_results({"a1": r1, "a2": r2}, "goal")
         assert result.success is True
 
-    @pytest.mark.skipif(not HAS_PARADIGM or not HAS_FOUNDATION, reason="paradigm_executor not importable")
+    @pytest.mark.skipif(
+        not HAS_PARADIGM or not HAS_FOUNDATION, reason="paradigm_executor not importable"
+    )
     def test_aggregate_multiple_partial_failure(self):
         mgr = _make_mock_manager()
         pe = ParadigmExecutor(mgr)
@@ -1213,7 +1279,9 @@ class TestParadigmExecutorAggregate:
         result = pe.aggregate_results({"a1": r1, "a2": r2}, "goal")
         assert result.success is False
 
-    @pytest.mark.skipif(not HAS_PARADIGM or not HAS_FOUNDATION, reason="paradigm_executor not importable")
+    @pytest.mark.skipif(
+        not HAS_PARADIGM or not HAS_FOUNDATION, reason="paradigm_executor not importable"
+    )
     def test_aggregate_merges_trajectory(self):
         mgr = _make_mock_manager()
         pe = ParadigmExecutor(mgr)
@@ -1225,7 +1293,9 @@ class TestParadigmExecutorAggregate:
         assert "a1" in agents_in_traj
         assert "a2" in agents_in_traj
 
-    @pytest.mark.skipif(not HAS_PARADIGM or not HAS_FOUNDATION, reason="paradigm_executor not importable")
+    @pytest.mark.skipif(
+        not HAS_PARADIGM or not HAS_FOUNDATION, reason="paradigm_executor not importable"
+    )
     def test_aggregate_merges_contributions(self):
         mgr = _make_mock_manager()
         pe = ParadigmExecutor(mgr)
@@ -1240,18 +1310,23 @@ class TestParadigmExecutorAggregate:
 # ParadigmExecutor Credit Assignment Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestParadigmExecutorCredit:
     """Tests for assign_cooperative_credit()."""
 
-    @pytest.mark.skipif(not HAS_PARADIGM or not HAS_FOUNDATION, reason="paradigm_executor not importable")
+    @pytest.mark.skipif(
+        not HAS_PARADIGM or not HAS_FOUNDATION, reason="paradigm_executor not importable"
+    )
     def test_credit_skipped_empty(self):
         mgr = _make_mock_manager()
         pe = ParadigmExecutor(mgr)
         pe.assign_cooperative_credit({}, "goal")
         mgr.learning_manager.record_outcome.assert_not_called()
 
-    @pytest.mark.skipif(not HAS_PARADIGM or not HAS_FOUNDATION, reason="paradigm_executor not importable")
+    @pytest.mark.skipif(
+        not HAS_PARADIGM or not HAS_FOUNDATION, reason="paradigm_executor not importable"
+    )
     def test_credit_skipped_single(self):
         mgr = _make_mock_manager()
         pe = ParadigmExecutor(mgr)
@@ -1259,7 +1334,9 @@ class TestParadigmExecutorCredit:
         pe.assign_cooperative_credit({"a1": r1}, "goal")
         mgr.learning_manager.record_outcome.assert_not_called()
 
-    @pytest.mark.skipif(not HAS_PARADIGM or not HAS_FOUNDATION, reason="paradigm_executor not importable")
+    @pytest.mark.skipif(
+        not HAS_PARADIGM or not HAS_FOUNDATION, reason="paradigm_executor not importable"
+    )
     def test_credit_recorded_for_multiple(self):
         mgr = _make_mock_manager()
         pe = ParadigmExecutor(mgr)
@@ -1268,7 +1345,9 @@ class TestParadigmExecutorCredit:
         pe.assign_cooperative_credit({"a1": r1, "a2": r2}, "goal")
         assert mgr.learning_manager.record_outcome.call_count == 2
 
-    @pytest.mark.skipif(not HAS_PARADIGM or not HAS_FOUNDATION, reason="paradigm_executor not importable")
+    @pytest.mark.skipif(
+        not HAS_PARADIGM or not HAS_FOUNDATION, reason="paradigm_executor not importable"
+    )
     def test_credit_weights_updated_on_success(self):
         mgr = _make_mock_manager()
         pe = ParadigmExecutor(mgr)
@@ -1277,7 +1356,9 @@ class TestParadigmExecutorCredit:
         pe.assign_cooperative_credit({"a1": r1, "a2": r2}, "goal")
         mgr.credit_weights.update_from_feedback.assert_called()
 
-    @pytest.mark.skipif(not HAS_PARADIGM or not HAS_FOUNDATION, reason="paradigm_executor not importable")
+    @pytest.mark.skipif(
+        not HAS_PARADIGM or not HAS_FOUNDATION, reason="paradigm_executor not importable"
+    )
     def test_credit_weights_updated_on_failure(self):
         mgr = _make_mock_manager()
         pe = ParadigmExecutor(mgr)
@@ -1290,6 +1371,7 @@ class TestParadigmExecutorCredit:
 # =============================================================================
 # OptimizationConfig Tests
 # =============================================================================
+
 
 @pytest.mark.unit
 class TestOptimizationConfig:
@@ -1368,6 +1450,7 @@ class TestOptimizationConfig:
 # IterationResult Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestIterationResult:
     """Tests for IterationResult dataclass."""
@@ -1432,8 +1515,12 @@ class TestIterationResult:
 
     @pytest.mark.skipif(not HAS_OPTIMIZATION, reason="optimization_pipeline not importable")
     def test_metadata_independent(self):
-        a = IterationResult(iteration=1, success=True, evaluation_score=1.0, evaluation_status="OK", output="a")
-        b = IterationResult(iteration=2, success=True, evaluation_score=1.0, evaluation_status="OK", output="b")
+        a = IterationResult(
+            iteration=1, success=True, evaluation_score=1.0, evaluation_status="OK", output="a"
+        )
+        b = IterationResult(
+            iteration=2, success=True, evaluation_score=1.0, evaluation_status="OK", output="b"
+        )
         a.metadata["x"] = 1
         assert "x" not in b.metadata
 
@@ -1446,11 +1533,14 @@ class TestIterationResult:
 # OptimizationPipeline Init Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestOptimizationPipelineInit:
     """Tests for OptimizationPipeline.__init__()."""
 
-    @pytest.mark.skipif(not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable")
+    @pytest.mark.skipif(
+        not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable"
+    )
     def test_basic_init(self):
         agent = AgentConfig(name="test_agent", agent=MagicMock())
         cfg = OptimizationConfig(enable_thinking_log=False, save_improvements=False)
@@ -1460,7 +1550,9 @@ class TestOptimizationPipelineInit:
         assert pipeline.iteration_count == 0
         assert pipeline.consecutive_passes == 0
 
-    @pytest.mark.skipif(not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable")
+    @pytest.mark.skipif(
+        not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable"
+    )
     def test_with_conductor(self):
         agent = AgentConfig(name="test_agent", agent=MagicMock())
         cfg = OptimizationConfig(enable_thinking_log=False, save_improvements=False)
@@ -1468,14 +1560,18 @@ class TestOptimizationPipelineInit:
         pipeline = OptimizationPipeline(agents=[agent], config=cfg, conductor=conductor)
         assert pipeline.conductor is conductor
 
-    @pytest.mark.skipif(not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable")
+    @pytest.mark.skipif(
+        not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable"
+    )
     def test_jotty_config_default(self):
         agent = AgentConfig(name="test_agent", agent=MagicMock())
         cfg = OptimizationConfig(enable_thinking_log=False, save_improvements=False)
         pipeline = OptimizationPipeline(agents=[agent], config=cfg)
         assert pipeline.jotty_config is not None
 
-    @pytest.mark.skipif(not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable")
+    @pytest.mark.skipif(
+        not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable"
+    )
     def test_credit_assignment_enabled(self):
         agent = AgentConfig(name="test_agent", agent=MagicMock())
         cfg = OptimizationConfig(
@@ -1486,7 +1582,9 @@ class TestOptimizationPipelineInit:
         pipeline = OptimizationPipeline(agents=[agent], config=cfg)
         assert pipeline.credit_assignment is not None
 
-    @pytest.mark.skipif(not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable")
+    @pytest.mark.skipif(
+        not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable"
+    )
     def test_adaptive_learning_enabled(self):
         agent = AgentConfig(name="test_agent", agent=MagicMock())
         cfg = OptimizationConfig(
@@ -1502,11 +1600,14 @@ class TestOptimizationPipelineInit:
 # OptimizationPipeline ThinkingLog Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestOptimizationPipelineThinkingLog:
     """Tests for _write_thinking_log() and _clear_thinking_log()."""
 
-    @pytest.mark.skipif(not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable")
+    @pytest.mark.skipif(
+        not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable"
+    )
     def test_write_log_disabled(self):
         agent = AgentConfig(name="test_agent", agent=MagicMock())
         cfg = OptimizationConfig(enable_thinking_log=False, save_improvements=False)
@@ -1514,7 +1615,9 @@ class TestOptimizationPipelineThinkingLog:
         # Should not raise even without path
         pipeline._write_thinking_log("test message")
 
-    @pytest.mark.skipif(not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable")
+    @pytest.mark.skipif(
+        not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable"
+    )
     def test_write_log_enabled(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             log_path = Path(tmpdir) / "thinking.log"
@@ -1529,7 +1632,9 @@ class TestOptimizationPipelineThinkingLog:
             content = log_path.read_text()
             assert "hello log" in content
 
-    @pytest.mark.skipif(not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable")
+    @pytest.mark.skipif(
+        not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable"
+    )
     def test_clear_log(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             log_path = Path(tmpdir) / "thinking.log"
@@ -1545,7 +1650,9 @@ class TestOptimizationPipelineThinkingLog:
             content = log_path.read_text()
             assert content == ""
 
-    @pytest.mark.skipif(not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable")
+    @pytest.mark.skipif(
+        not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable"
+    )
     def test_write_log_timestamp_format(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             log_path = Path(tmpdir) / "thinking.log"
@@ -1562,7 +1669,9 @@ class TestOptimizationPipelineThinkingLog:
             assert "[20" in content
             assert "timestamped" in content
 
-    @pytest.mark.skipif(not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable")
+    @pytest.mark.skipif(
+        not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable"
+    )
     def test_write_log_no_path(self):
         agent = AgentConfig(name="test_agent", agent=MagicMock())
         cfg = OptimizationConfig(
@@ -1579,11 +1688,14 @@ class TestOptimizationPipelineThinkingLog:
 # OptimizationPipeline Optimize Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestOptimizationPipelineOptimize:
     """Tests for OptimizationPipeline.optimize()."""
 
-    @pytest.mark.skipif(not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable")
+    @pytest.mark.skipif(
+        not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable"
+    )
     @pytest.mark.asyncio
     async def test_optimize_immediate_success(self):
         """Pipeline completes when evaluation passes required_pass_count times."""
@@ -1608,7 +1720,9 @@ class TestOptimizationPipelineOptimize:
         assert result["optimization_complete"] is True
         assert result["consecutive_passes"] >= 2
 
-    @pytest.mark.skipif(not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable")
+    @pytest.mark.skipif(
+        not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable"
+    )
     @pytest.mark.asyncio
     async def test_optimize_max_iterations_reached(self):
         """Pipeline stops after max_iterations even without success."""
@@ -1633,7 +1747,9 @@ class TestOptimizationPipelineOptimize:
         assert result["optimization_complete"] is False
         assert result["total_iterations"] == 3
 
-    @pytest.mark.skipif(not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable")
+    @pytest.mark.skipif(
+        not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable"
+    )
     @pytest.mark.asyncio
     async def test_optimize_error_handling(self):
         """Pipeline handles agent errors gracefully."""
@@ -1655,7 +1771,9 @@ class TestOptimizationPipelineOptimize:
         errors = [it for it in result["iterations"] if it["error"] is not None]
         assert len(errors) > 0
 
-    @pytest.mark.skipif(not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable")
+    @pytest.mark.skipif(
+        not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable"
+    )
     @pytest.mark.asyncio
     async def test_optimize_returns_best_result(self):
         """Final result should be the best iteration."""
@@ -1684,7 +1802,9 @@ class TestOptimizationPipelineOptimize:
         assert result["final_result"] is not None
         assert result["final_result"]["evaluation_score"] is not None
 
-    @pytest.mark.skipif(not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable")
+    @pytest.mark.skipif(
+        not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable"
+    )
     @pytest.mark.asyncio
     async def test_optimize_with_conductor(self):
         """Pipeline uses conductor when available."""
@@ -1707,13 +1827,17 @@ class TestOptimizationPipelineOptimize:
             evaluation_function=eval_fn,
         )
         pipeline = OptimizationPipeline(
-            agents=[agent_cfg], config=cfg, conductor=conductor,
+            agents=[agent_cfg],
+            config=cfg,
+            conductor=conductor,
         )
         result = await pipeline.optimize(task="test task", gold_standard="expected")
         assert result["optimization_complete"] is True
         conductor.arun.assert_awaited()
 
-    @pytest.mark.skipif(not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable")
+    @pytest.mark.skipif(
+        not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable"
+    )
     @pytest.mark.asyncio
     async def test_optimize_default_evaluation(self):
         """Without custom eval function, uses simple string comparison."""
@@ -1733,7 +1857,9 @@ class TestOptimizationPipelineOptimize:
         result = await pipeline.optimize(task="test", gold_standard="expected output")
         assert result["optimization_complete"] is True
 
-    @pytest.mark.skipif(not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable")
+    @pytest.mark.skipif(
+        not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable"
+    )
     @pytest.mark.asyncio
     async def test_optimize_iterations_structure(self):
         """Each iteration in results has expected keys."""
@@ -1761,7 +1887,9 @@ class TestOptimizationPipelineOptimize:
             assert "evaluation_score" in it
             assert "evaluation_status" in it
 
-    @pytest.mark.skipif(not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable")
+    @pytest.mark.skipif(
+        not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable"
+    )
     @pytest.mark.asyncio
     async def test_optimize_consecutive_passes_reset_on_failure(self):
         """Consecutive passes reset when evaluation fails."""
@@ -1792,7 +1920,9 @@ class TestOptimizationPipelineOptimize:
         assert result["optimization_complete"] is True
         assert result["total_iterations"] == 4
 
-    @pytest.mark.skipif(not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable")
+    @pytest.mark.skipif(
+        not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable"
+    )
     def test_get_best_result_empty(self):
         """_get_best_result with no iterations returns None values."""
         agent_cfg = AgentConfig(name="worker", agent=MagicMock())
@@ -1805,7 +1935,9 @@ class TestOptimizationPipelineOptimize:
         assert best["iteration"] is None
         assert best["output"] is None
 
-    @pytest.mark.skipif(not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable")
+    @pytest.mark.skipif(
+        not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable"
+    )
     def test_get_previous_outputs_empty(self):
         agent_cfg = AgentConfig(name="worker", agent=MagicMock())
         cfg = OptimizationConfig(
@@ -1821,11 +1953,14 @@ class TestOptimizationPipelineOptimize:
 # OptimizationPipeline Improvement Recording Tests
 # =============================================================================
 
+
 @pytest.mark.unit
 class TestOptimizationPipelineImprovements:
     """Tests for improvement recording in OptimizationPipeline."""
 
-    @pytest.mark.skipif(not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable")
+    @pytest.mark.skipif(
+        not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable"
+    )
     def test_record_improvement_disabled(self):
         agent_cfg = AgentConfig(name="worker", agent=MagicMock())
         cfg = OptimizationConfig(
@@ -1842,7 +1977,9 @@ class TestOptimizationPipelineImprovements:
         )
         assert result is None
 
-    @pytest.mark.skipif(not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable")
+    @pytest.mark.skipif(
+        not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable"
+    )
     def test_record_improvement_enabled(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             imp_file = Path(tmpdir) / "improvements.json"
@@ -1865,7 +2002,9 @@ class TestOptimizationPipelineImprovements:
             assert result["task"] == "my task"
             assert len(pipeline.improvements) == 1
 
-    @pytest.mark.skipif(not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable")
+    @pytest.mark.skipif(
+        not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable"
+    )
     def test_extract_learned_pattern(self):
         agent_cfg = AgentConfig(name="worker", agent=MagicMock())
         cfg = OptimizationConfig(
@@ -1881,7 +2020,9 @@ class TestOptimizationPipelineImprovements:
         assert isinstance(pattern, str)
         assert len(pattern) > 0
 
-    @pytest.mark.skipif(not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable")
+    @pytest.mark.skipif(
+        not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable"
+    )
     def test_validate_teacher_output_empty(self):
         agent_cfg = AgentConfig(name="worker", agent=MagicMock())
         cfg = OptimizationConfig(
@@ -1897,7 +2038,9 @@ class TestOptimizationPipelineImprovements:
         )
         assert result is None
 
-    @pytest.mark.skipif(not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable")
+    @pytest.mark.skipif(
+        not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable"
+    )
     def test_validate_teacher_output_same_as_student(self):
         agent_cfg = AgentConfig(name="worker", agent=MagicMock())
         cfg = OptimizationConfig(
@@ -1913,7 +2056,9 @@ class TestOptimizationPipelineImprovements:
         )
         assert result is None
 
-    @pytest.mark.skipif(not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable")
+    @pytest.mark.skipif(
+        not HAS_OPTIMIZATION or not HAS_FOUNDATION, reason="optimization_pipeline not importable"
+    )
     def test_validate_teacher_output_good(self):
         agent_cfg = AgentConfig(name="worker", agent=MagicMock())
         cfg = OptimizationConfig(

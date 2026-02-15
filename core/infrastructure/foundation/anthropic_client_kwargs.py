@@ -8,7 +8,7 @@ providers are configured in CCR; Jotty only needs one base URL and one auth.
 """
 
 import os
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 
 def get_anthropic_client_kwargs(api_key: Optional[str] = None) -> Dict[str, Any]:

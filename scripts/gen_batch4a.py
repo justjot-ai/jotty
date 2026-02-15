@@ -939,6 +939,7 @@ def generate_robots_txt(params: Dict[str, Any]) -> Dict[str, Any]:
 __all__ = ["generate_robots_txt"]
 '''
 
+
 # ===========================================================================
 # Create all 10 skills
 # ===========================================================================
@@ -950,10 +951,12 @@ def main():
         frontmatter_name="sql-query-builder",
         description="Build SQL queries programmatically (SELECT, INSERT, UPDATE, DELETE with WHERE, JOIN, ORDER BY)",
         category="development",
-        capabilities=["Build SELECT queries with JOIN, WHERE, ORDER BY, GROUP BY, LIMIT",
-                       "Build INSERT queries with multiple rows",
-                       "Build UPDATE queries with SET and WHERE",
-                       "Build DELETE queries with WHERE conditions"],
+        capabilities=[
+            "Build SELECT queries with JOIN, WHERE, ORDER BY, GROUP BY, LIMIT",
+            "Build INSERT queries with multiple rows",
+            "Build UPDATE queries with SET and WHERE",
+            "Build DELETE queries with WHERE conditions",
+        ],
         triggers=["build SQL query", "generate SQL", "create SELECT statement", "SQL builder"],
         tools_code=SQL_QUERY_BUILDER,
         tool_docs="### build_sql_query\nBuild SQL queries from structured parameters.",
@@ -966,8 +969,10 @@ def main():
         frontmatter_name="readme-generator",
         description="Generate README.md files from project info (name, description, features, installation, usage, license)",
         category="documentation",
-        capabilities=["Generate README with features, install, usage sections",
-                       "Support badges, contributing, author, license sections"],
+        capabilities=[
+            "Generate README with features, install, usage sections",
+            "Support badges, contributing, author, license sections",
+        ],
         triggers=["generate README", "create README.md", "project readme"],
         tools_code=README_GENERATOR,
         tool_docs="### generate_readme\nGenerate README.md from project metadata.",
@@ -980,9 +985,11 @@ def main():
         frontmatter_name="gitignore-generator",
         description="Generate .gitignore files for languages/frameworks (Python, Node, Java, Go, Rust, etc)",
         category="development",
-        capabilities=["Generate .gitignore for Python, Node, Java, Go, Rust, C",
-                       "Combine multiple language templates",
-                       "Add custom extra patterns"],
+        capabilities=[
+            "Generate .gitignore for Python, Node, Java, Go, Rust, C",
+            "Combine multiple language templates",
+            "Add custom extra patterns",
+        ],
         triggers=["generate gitignore", "create .gitignore", "gitignore for Python"],
         tools_code=GITIGNORE_GENERATOR,
         tool_docs="### generate_gitignore\nGenerate .gitignore for given languages.",
@@ -995,8 +1002,10 @@ def main():
         frontmatter_name="license-generator",
         description="Generate open-source license text (MIT, Apache-2.0, GPL-3.0, BSD-2, ISC) with year/author substitution",
         category="documentation",
-        capabilities=["Generate MIT, Apache-2.0, GPL-3.0, BSD-2, ISC license text",
-                       "Substitute year and author into templates"],
+        capabilities=[
+            "Generate MIT, Apache-2.0, GPL-3.0, BSD-2, ISC license text",
+            "Substitute year and author into templates",
+        ],
         triggers=["generate license", "create MIT license", "license file generator"],
         tools_code=LICENSE_GENERATOR,
         tool_docs="### generate_license\nGenerate license text for a given type.",
@@ -1009,13 +1018,18 @@ def main():
         frontmatter_name="api-docs-generator",
         description="Generate OpenAPI/Swagger docs from endpoint definitions (path, method, params, responses)",
         category="documentation",
-        capabilities=["Generate OpenAPI 3.0 JSON spec from endpoint definitions",
-                       "Support parameters, request bodies, responses, tags"],
+        capabilities=[
+            "Generate OpenAPI 3.0 JSON spec from endpoint definitions",
+            "Support parameters, request bodies, responses, tags",
+        ],
         triggers=["generate API docs", "create OpenAPI spec", "Swagger generator"],
         tools_code=API_DOCS_GENERATOR,
         tool_docs="### generate_api_docs\nGenerate OpenAPI spec from endpoint definitions.",
         eval_tool="generate_api_docs",
-        eval_input={"title": "My API", "endpoints": [{"path": "/users", "method": "get", "summary": "List users"}]},
+        eval_input={
+            "title": "My API",
+            "endpoints": [{"path": "/users", "method": "get", "summary": "List users"}],
+        },
     )
 
     create_skill(
@@ -1023,14 +1037,19 @@ def main():
         frontmatter_name="db-seed-generator",
         description="Generate SQL INSERT statements or JSON seed data from schema definitions with realistic fake data",
         category="development",
-        capabilities=["Generate SQL INSERT statements with fake data",
-                       "Generate JSON seed data",
-                       "Support multiple column types (name, email, int, date, etc.)"],
+        capabilities=[
+            "Generate SQL INSERT statements with fake data",
+            "Generate JSON seed data",
+            "Support multiple column types (name, email, int, date, etc.)",
+        ],
         triggers=["generate seed data", "create test data", "database seed generator"],
         tools_code=DB_SEED_GENERATOR,
         tool_docs="### generate_seed_data\nGenerate seed data from schema.",
         eval_tool="generate_seed_data",
-        eval_input={"table": "users", "columns": [{"name": "id", "type": "integer"}, {"name": "name", "type": "name"}]},
+        eval_input={
+            "table": "users",
+            "columns": [{"name": "id", "type": "integer"}, {"name": "name", "type": "name"}],
+        },
     )
 
     create_skill(
@@ -1038,9 +1057,11 @@ def main():
         frontmatter_name="code-complexity-analyzer",
         description="Calculate cyclomatic complexity, LOC, function count from Python source code using ast module",
         category="development",
-        capabilities=["Calculate cyclomatic complexity per function",
-                       "Count lines of code, blank lines, comment lines",
-                       "Identify high-complexity functions"],
+        capabilities=[
+            "Calculate cyclomatic complexity per function",
+            "Count lines of code, blank lines, comment lines",
+            "Identify high-complexity functions",
+        ],
         triggers=["analyze code complexity", "cyclomatic complexity", "code quality metrics"],
         tools_code=CODE_COMPLEXITY_ANALYZER,
         tool_docs="### analyze_complexity\nAnalyze Python source complexity.",
@@ -1053,9 +1074,11 @@ def main():
         frontmatter_name="dependency-checker",
         description="Parse requirements.txt/package.json and check for outdated versions or known issues",
         category="development",
-        capabilities=["Parse requirements.txt and package.json",
-                       "Check against known security advisories",
-                       "Identify unpinned dependencies"],
+        capabilities=[
+            "Parse requirements.txt and package.json",
+            "Check against known security advisories",
+            "Identify unpinned dependencies",
+        ],
         triggers=["check dependencies", "dependency audit", "requirements checker"],
         tools_code=DEPENDENCY_CHECKER,
         tool_docs="### check_dependencies\nParse and check dependencies for issues.",
@@ -1068,9 +1091,11 @@ def main():
         frontmatter_name="sitemap-generator",
         description="Generate XML sitemaps from URL lists with lastmod, changefreq, priority",
         category="web",
-        capabilities=["Generate XML sitemaps conforming to sitemaps.org schema",
-                       "Support lastmod, changefreq, priority per URL",
-                       "Accept simple URL strings or detailed URL dicts"],
+        capabilities=[
+            "Generate XML sitemaps conforming to sitemaps.org schema",
+            "Support lastmod, changefreq, priority per URL",
+            "Accept simple URL strings or detailed URL dicts",
+        ],
         triggers=["generate sitemap", "create XML sitemap", "sitemap.xml generator"],
         tools_code=SITEMAP_GENERATOR,
         tool_docs="### generate_sitemap\nGenerate XML sitemap from URL list.",
@@ -1083,9 +1108,11 @@ def main():
         frontmatter_name="robots-txt-generator",
         description="Generate robots.txt files with user-agent rules, Allow/Disallow, sitemap reference",
         category="web",
-        capabilities=["Generate robots.txt with multiple user-agent rules",
-                       "Support Allow, Disallow, Crawl-delay directives",
-                       "Add Sitemap and Host directives"],
+        capabilities=[
+            "Generate robots.txt with multiple user-agent rules",
+            "Support Allow, Disallow, Crawl-delay directives",
+            "Add Sitemap and Host directives",
+        ],
         triggers=["generate robots.txt", "create robots.txt", "robots txt generator"],
         tools_code=ROBOTS_TXT_GENERATOR,
         tool_docs="### generate_robots_txt\nGenerate robots.txt from rules.",

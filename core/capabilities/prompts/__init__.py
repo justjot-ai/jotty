@@ -23,7 +23,7 @@ Model-family adaptations:
     - Generic: Safe middle ground
 """
 
-from .composer import PromptComposer, ModelFamily
-from .rules import load_project_rules, clear_rules_cache
+from .composer import ModelFamily, PromptComposer
+from .rules import clear_rules_cache, load_project_rules
 
-__all__ = ['PromptComposer', 'ModelFamily', 'load_project_rules', 'clear_rules_cache']
+__all__ = ["PromptComposer", "ModelFamily", "load_project_rules", "clear_rules_cache"]

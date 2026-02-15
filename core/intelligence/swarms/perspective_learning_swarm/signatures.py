@@ -52,10 +52,17 @@ class CurriculumDesignerSignature(dspy.Signature):
     Think: "If I had to help a child understand this from every possible angle,
     what's the perfect plan so they discover it themselves?"
     """
-    topic: str = dspy.InputField(desc="The topic to teach (e.g., 'Media and its influence on decisions')")
+
+    topic: str = dspy.InputField(
+        desc="The topic to teach (e.g., 'Media and its influence on decisions')"
+    )
     student_name: str = dspy.InputField(desc="Student's name for personalization")
-    age_group: str = dspy.InputField(desc="Age group: early_primary, primary, middle, high, general")
-    central_idea: str = dspy.InputField(desc="Optional central idea/statement to explore (leave empty to auto-generate)")
+    age_group: str = dspy.InputField(
+        desc="Age group: early_primary, primary, middle, high, general"
+    )
+    central_idea: str = dspy.InputField(
+        desc="Optional central idea/statement to explore (leave empty to auto-generate)"
+    )
 
     learning_objectives: str = dspy.OutputField(
         desc="6-8 specific learning objectives separated by |. Each objective should be "
@@ -77,9 +84,9 @@ class CurriculumDesignerSignature(dspy.Signature):
         "a setting, concrete details, and a narrative arc. The scenario must be relatable "
         "to the student's age group and naturally illustrate the core concepts. "
         "Example: 'Riya is scrolling through her tablet when she sees a colorful ad for "
-        "a new chocolate brand. It says: \"Kids who eat ChocoBurst are smarter!\" Her friend "
+        'a new chocolate brand. It says: "Kids who eat ChocoBurst are smarter!" Her friend '
         "Aarav says it must be true because a famous cricketer is holding the chocolate. "
-        "But Riya's older sister Priya asks: \"Who paid for this ad? Do they have proof?\" "
+        'But Riya\'s older sister Priya asks: "Who paid for this ad? Do they have proof?" '
         "Now Riya is confused — should she believe the ad or question it?...'"
     )
     vocabulary_json: str = dspy.OutputField(
@@ -123,6 +130,7 @@ class IntuitiveExplainerSignature(dspy.Signature):
 
     The student should feel like they DISCOVERED the idea, not that it was lectured at them.
     """
+
     topic: str = dspy.InputField(desc="Topic to explain")
     concepts: str = dspy.InputField(desc="Key concepts (JSON or comma-separated)")
     student_name: str = dspy.InputField(desc="Student's name")
@@ -173,6 +181,7 @@ class FrameworkBuilderSignature(dspy.Signature):
 
     The student should feel empowered: "Now I have a SYSTEM for thinking about this!"
     """
+
     topic: str = dspy.InputField(desc="Topic to build frameworks for")
     concepts: str = dspy.InputField(desc="Key concepts")
     student_name: str = dspy.InputField(desc="Student's name")
@@ -223,6 +232,7 @@ class StorytellerSignature(dspy.Signature):
     5. Resolve the conflict with the concept as the key insight
     6. End with a moral/lesson and questions for reflection
     """
+
     topic: str = dspy.InputField(desc="Topic to tell a story about")
     concepts: str = dspy.InputField(desc="Key concepts to weave into the story")
     student_name: str = dspy.InputField(desc="Student's name")
@@ -276,6 +286,7 @@ class DebateArchitectSignature(dspy.Signature):
     5. Guide the student to form their OWN opinion with reasoning
     6. Provide critical questions that challenge both sides
     """
+
     topic: str = dspy.InputField(desc="Topic to debate")
     concepts: str = dspy.InputField(desc="Key concepts")
     student_name: str = dspy.InputField(desc="Student's name")
@@ -335,6 +346,7 @@ class ProjectDesignerSignature(dspy.Signature):
     5. Create a presentation outline the student can use
     6. End with a reflection activity
     """
+
     topic: str = dspy.InputField(desc="Topic for hands-on projects")
     concepts: str = dspy.InputField(desc="Key concepts to reinforce")
     student_name: str = dspy.InputField(desc="Student's name")
@@ -391,6 +403,7 @@ class RealWorldConnectorSignature(dspy.Signature):
     4. Show how this shapes the student's future
     5. Provide interview questions for parents/guests
     """
+
     topic: str = dspy.InputField(desc="Topic to connect to real world")
     concepts: str = dspy.InputField(desc="Key concepts")
     student_name: str = dspy.InputField(desc="Student's name")
@@ -445,6 +458,7 @@ class MultilingualContentSignature(dspy.Signature):
     For Kannada: Use Kannada script. Focus on role-play and poster activities.
     For French: Use proper French. Focus on persuasive writing and debate.
     """
+
     topic: str = dspy.InputField(desc="Topic (in English for reference)")
     key_concepts: str = dspy.InputField(desc="Key concepts to cover")
     vocabulary: str = dspy.InputField(desc="Key vocabulary terms to translate")
@@ -509,6 +523,7 @@ class ContentAssemblerSignature(dspy.Signature):
     11. PARENT'S GUIDE — Tips for parents
     12. KEY INSIGHTS & REFLECTION — Synthesis
     """
+
     student_name: str = dspy.InputField(desc="Student's name")
     topic: str = dspy.InputField(desc="Topic being taught")
     central_idea: str = dspy.InputField(desc="Central idea statement")
@@ -555,8 +570,13 @@ class NarrativeEditorSignature(dspy.Signature):
        lessons from ALL perspectives. Each takeaway should be one sentence that a
        student could remember and apply.
     """
-    content_summary: str = dspy.InputField(desc="Summary of the lesson content (key concepts and themes)")
-    running_example: str = dspy.InputField(desc="The running example scenario used throughout the lesson")
+
+    content_summary: str = dspy.InputField(
+        desc="Summary of the lesson content (key concepts and themes)"
+    )
+    running_example: str = dspy.InputField(
+        desc="The running example scenario used throughout the lesson"
+    )
     student_name: str = dspy.InputField(desc="Student's name")
     topic: str = dspy.InputField(desc="Topic being taught")
 
@@ -584,9 +604,14 @@ class NarrativeEditorSignature(dspy.Signature):
 
 
 __all__ = [
-    'CurriculumDesignerSignature', 'IntuitiveExplainerSignature',
-    'FrameworkBuilderSignature', 'StorytellerSignature',
-    'DebateArchitectSignature', 'ProjectDesignerSignature',
-    'RealWorldConnectorSignature', 'MultilingualContentSignature',
-    'ContentAssemblerSignature', 'NarrativeEditorSignature',
+    "CurriculumDesignerSignature",
+    "IntuitiveExplainerSignature",
+    "FrameworkBuilderSignature",
+    "StorytellerSignature",
+    "DebateArchitectSignature",
+    "ProjectDesignerSignature",
+    "RealWorldConnectorSignature",
+    "MultilingualContentSignature",
+    "ContentAssemblerSignature",
+    "NarrativeEditorSignature",
 ]

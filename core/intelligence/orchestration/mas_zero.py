@@ -38,6 +38,7 @@ def _get_dspy() -> Any:
         with _dspy_lock:
             if _dspy is None:
                 import dspy
+
                 _dspy = dspy
     return _dspy
 
@@ -46,8 +47,10 @@ def _get_dspy() -> Any:
 # ENUMS & DATA STRUCTURES
 # =============================================================================
 
+
 class TaskDifficulty(Enum):
     """Agent's self-assessed difficulty of a sub-task."""
+
     EASY = "easy"
     MEDIUM = "medium"
     HARD = "hard"
@@ -56,15 +59,17 @@ class TaskDifficulty(Enum):
 
 class SubTaskStrategy(Enum):
     """Strategy to use for a sub-task (MAS-ZERO building blocks)."""
-    DIRECT = "direct"              # Single agent, direct execution
-    SELF_REFINE = "self_refine"    # Execute then self-critique
-    ENSEMBLE = "ensemble"          # Multi-perspective then synthesize
-    DECOMPOSE = "decompose"        # Further break down sub-task
+
+    DIRECT = "direct"  # Single agent, direct execution
+    SELF_REFINE = "self_refine"  # Execute then self-critique
+    ENSEMBLE = "ensemble"  # Multi-perspective then synthesize
+    DECOMPOSE = "decompose"  # Further break down sub-task
 
 
 @dataclass
 class EpisodeExperience:
     """Single experience entry within a problem's execution."""
+
     iteration: int
     agent_name: str
     sub_goal: str
@@ -72,15 +77,16 @@ class EpisodeExperience:
     output_summary: str
     success: bool
     feedback: str = ""
-    solvability: float = 0.0     # 0-1: how solvable was this sub-task
-    completeness: float = 0.0    # 0-1: how complete relative to goal
+    solvability: float = 0.0  # 0-1: how solvable was this sub-task
+    completeness: float = 0.0  # 0-1: how complete relative to goal
     timestamp: float = field(default_factory=time.time)
 
 
 @dataclass
 class CandidateAnswer:
     """A candidate answer from any strategy/iteration."""
-    source: str           # e.g., "direct", "ensemble", "iteration_2"
+
+    source: str  # e.g., "direct", "ensemble", "iteration_2"
     agent_name: str
     output: Any
     success: bool
@@ -91,6 +97,7 @@ class CandidateAnswer:
 # =============================================================================
 # EXPERIENCE LIBRARY (Per-Problem Memory)
 # =============================================================================
+
 
 class ExperienceLibrary:
     """
@@ -105,30 +112,52 @@ class ExperienceLibrary:
         self.candidates: List[CandidateAnswer] = []
         self._iteration = 0
 
-    def record(self, agent_name: str, sub_goal: str, strategy: str, output_summary: str, success: bool, feedback: str = '', solvability: float = 0.0, completeness: float = 0.0) -> Any:
+    def record(
+        self,
+        agent_name: str,
+        sub_goal: str,
+        strategy: str,
+        output_summary: str,
+        success: bool,
+        feedback: str = "",
+        solvability: float = 0.0,
+        completeness: float = 0.0,
+    ) -> Any:
         """Record an experience from this problem's execution."""
-        self.experiences.append(EpisodeExperience(
-            iteration=self._iteration,
-            agent_name=agent_name,
-            sub_goal=sub_goal,
-            strategy=strategy,
-            output_summary=output_summary[:500],
-            success=success,
-            feedback=feedback,
-            solvability=solvability,
-            completeness=completeness,
-        ))
+        self.experiences.append(
+            EpisodeExperience(
+                iteration=self._iteration,
+                agent_name=agent_name,
+                sub_goal=sub_goal,
+                strategy=strategy,
+                output_summary=output_summary[:500],
+                success=success,
+                feedback=feedback,
+                solvability=solvability,
+                completeness=completeness,
+            )
+        )
 
-    def add_candidate(self, source: str, agent_name: str, output: Any, success: bool, confidence: float = 0.5, execution_time: float = 0.0) -> Any:
+    def add_candidate(
+        self,
+        source: str,
+        agent_name: str,
+        output: Any,
+        success: bool,
+        confidence: float = 0.5,
+        execution_time: float = 0.0,
+    ) -> Any:
         """Add a candidate answer to the pool."""
-        self.candidates.append(CandidateAnswer(
-            source=source,
-            agent_name=agent_name,
-            output=output,
-            success=success,
-            confidence=confidence,
-            execution_time=execution_time,
-        ))
+        self.candidates.append(
+            CandidateAnswer(
+                source=source,
+                agent_name=agent_name,
+                output=output,
+                success=success,
+                confidence=confidence,
+                execution_time=execution_time,
+            )
+        )
 
     def next_iteration(self) -> None:
         """Advance to next refinement iteration."""
@@ -166,6 +195,7 @@ class ExperienceLibrary:
 # =============================================================================
 # CANDIDATE VERIFIER (MAS-Verify)
 # =============================================================================
+
 
 class CandidateVerifier:
     """
@@ -207,7 +237,7 @@ class CandidateVerifier:
         """Use LLM to select the best candidate."""
         dspy = _get_dspy()
 
-        if not hasattr(dspy.settings, 'lm') or dspy.settings.lm is None:
+        if not hasattr(dspy.settings, "lm") or dspy.settings.lm is None:
             return max(candidates, key=lambda c: c.confidence)
 
         # Format candidates for LLM
@@ -215,8 +245,7 @@ class CandidateVerifier:
         for i, c in enumerate(candidates):
             output_str = str(c.output)[:600] if c.output else "(empty)"
             candidate_descriptions.append(
-                f"[{i}] Source: {c.source}, Agent: {c.agent_name}\n"
-                f"    Output: {output_str}"
+                f"[{i}] Source: {c.source}, Agent: {c.agent_name}\n" f"    Output: {output_str}"
             )
 
         prompt = (
@@ -232,7 +261,8 @@ class CandidateVerifier:
 
         # Parse selection
         import re
-        match = re.search(r'\[?(\d+)\]?', text.strip())
+
+        match = re.search(r"\[?(\d+)\]?", text.strip())
         if match:
             idx = int(match.group(1))
             if 0 <= idx < len(candidates):
@@ -245,6 +275,7 @@ class CandidateVerifier:
 # =============================================================================
 # META-FEEDBACK EVALUATOR (Solvability + Completeness)
 # =============================================================================
+
 
 class MetaFeedbackEvaluator:
     """
@@ -277,17 +308,17 @@ class MetaFeedbackEvaluator:
         """
         # Quick check: if all succeeded, likely good enough
         all_success = all(
-            r.success if hasattr(r, 'success') else r.get('success', False)
+            r.success if hasattr(r, "success") else r.get("success", False)
             for r in results.values()
         )
 
         if all_success and len(results) >= len(sub_tasks):
             return {
-                'solvability': 1.0,
-                'completeness': 1.0,
-                'feedback': '',
-                'should_refine': False,
-                'too_hard_tasks': [],
+                "solvability": 1.0,
+                "completeness": 1.0,
+                "feedback": "",
+                "should_refine": False,
+                "too_hard_tasks": [],
             }
 
         # LLM evaluation for mixed results
@@ -297,17 +328,18 @@ class MetaFeedbackEvaluator:
             logger.debug(f"Meta-feedback LLM evaluation failed: {e}")
             # Heuristic fallback
             success_count = sum(
-                1 for r in results.values()
-                if (hasattr(r, 'success') and r.success)
-                or (isinstance(r, dict) and r.get('success'))
+                1
+                for r in results.values()
+                if (hasattr(r, "success") and r.success)
+                or (isinstance(r, dict) and r.get("success"))
             )
             solvability = success_count / max(len(results), 1)
             return {
-                'solvability': solvability,
-                'completeness': solvability,  # rough proxy
-                'feedback': 'Some sub-tasks failed' if solvability < 1.0 else '',
-                'should_refine': solvability < 0.75,  # Refine if >25% of tasks failed
-                'too_hard_tasks': [],
+                "solvability": solvability,
+                "completeness": solvability,  # rough proxy
+                "feedback": "Some sub-tasks failed" if solvability < 1.0 else "",
+                "should_refine": solvability < 0.75,  # Refine if >25% of tasks failed
+                "too_hard_tasks": [],
             }
 
     def _llm_evaluate(
@@ -319,21 +351,21 @@ class MetaFeedbackEvaluator:
         """LLM-based meta-feedback evaluation."""
         dspy = _get_dspy()
 
-        if not hasattr(dspy.settings, 'lm') or dspy.settings.lm is None:
+        if not hasattr(dspy.settings, "lm") or dspy.settings.lm is None:
             raise AgentExecutionError("No LLM configured")
 
         # Format sub-tasks and results
         task_lines = []
         for st in sub_tasks:
-            agent = st.get('agent_name', 'unknown')
-            sub_goal = st.get('sub_goal', '')[:100]
+            agent = st.get("agent_name", "unknown")
+            sub_goal = st.get("sub_goal", "")[:100]
             result = results.get(agent)
             if result is None:
                 status = "NOT_EXECUTED"
-            elif hasattr(result, 'success'):
+            elif hasattr(result, "success"):
                 status = "OK" if result.success else "FAILED"
             elif isinstance(result, dict):
-                status = "OK" if result.get('success') else "FAILED"
+                status = "OK" if result.get("success") else "FAILED"
             else:
                 status = "UNKNOWN"
             task_lines.append(f"- [{agent}] {sub_goal} -> {status}")
@@ -355,14 +387,19 @@ class MetaFeedbackEvaluator:
 
         # Parse response
         import re
-        solv_match = re.search(r'solvability\s*=\s*([\d.]+)', text, re.IGNORECASE)
-        comp_match = re.search(r'completeness\s*=\s*([\d.]+)', text, re.IGNORECASE)
-        hard_match = re.search(r'too_hard\s*=\s*\[(.*?)\]', text, re.IGNORECASE)
-        fb_match = re.search(r'feedback\s*=\s*(.+)', text, re.IGNORECASE)
+
+        solv_match = re.search(r"solvability\s*=\s*([\d.]+)", text, re.IGNORECASE)
+        comp_match = re.search(r"completeness\s*=\s*([\d.]+)", text, re.IGNORECASE)
+        hard_match = re.search(r"too_hard\s*=\s*\[(.*?)\]", text, re.IGNORECASE)
+        fb_match = re.search(r"feedback\s*=\s*(.+)", text, re.IGNORECASE)
 
         solvability = float(solv_match.group(1)) if solv_match else 0.5
         completeness = float(comp_match.group(1)) if comp_match else 0.5
-        too_hard = [t.strip().strip("'\"") for t in hard_match.group(1).split(',') if t.strip()] if hard_match else []
+        too_hard = (
+            [t.strip().strip("'\"") for t in hard_match.group(1).split(",") if t.strip()]
+            if hard_match
+            else []
+        )
         feedback = fb_match.group(1).strip() if fb_match else text[:200]
 
         # Clamp values
@@ -370,11 +407,11 @@ class MetaFeedbackEvaluator:
         completeness = max(0.0, min(1.0, completeness))
 
         return {
-            'solvability': solvability,
-            'completeness': completeness,
-            'feedback': feedback,
-            'should_refine': solvability < 0.6 or completeness < 0.6,
-            'too_hard_tasks': too_hard,
+            "solvability": solvability,
+            "completeness": completeness,
+            "feedback": feedback,
+            "should_refine": solvability < 0.6 or completeness < 0.6,
+            "too_hard_tasks": too_hard,
         }
 
 
@@ -390,6 +427,7 @@ class MetaFeedbackEvaluator:
 # =============================================================================
 # DYNAMIC REDUCTION CHECKER
 # =============================================================================
+
 
 def should_reduce_to_single(
     goal: str,
@@ -419,13 +457,17 @@ def should_reduce_to_single(
         recent = experience.experiences[-4:]
         fail_rate = sum(1 for e in recent if not e.success) / len(recent)
         if fail_rate >= 0.75:
-            logger.info("Dynamic reduction: >75% failure rate in recent experience, reducing to single agent")
+            logger.info(
+                "Dynamic reduction: >75% failure rate in recent experience, reducing to single agent"
+            )
             return True
 
     # Check for trivially short goals (likely don't need multi-agent)
     word_count = len(goal.split())
     if word_count <= 3 and agents_count > 2:
-        logger.info(f"Dynamic reduction: trivial goal ({word_count} words) with {agents_count} agents")
+        logger.info(
+            f"Dynamic reduction: trivial goal ({word_count} words) with {agents_count} agents"
+        )
         return True
 
     return False

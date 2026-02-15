@@ -13,12 +13,11 @@ This shows:
 
 import asyncio
 import logging
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 
 # Setup logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -46,8 +45,8 @@ async def test_multi_agent_system():
     # Import our DRY-refactored experts
     from core.experts.math_latex_expert import MathLaTeXExpertAgent
     from core.experts.mermaid_expert import MermaidExpertAgent
-    from core.experts.plantuml_expert import PlantUMLExpertAgent
     from core.experts.pipeline_expert import PipelineExpertAgent
+    from core.experts.plantuml_expert import PlantUMLExpertAgent
 
     # Step 1: Initialize all expert agents
     print("\n[STEP 1] Initializing Expert Agents...")
@@ -81,26 +80,26 @@ async def test_multi_agent_system():
             "expert": "LaTeX",
             "task": "Rate limiting formula",
             "description": "Generate token bucket algorithm formula: r = min(b, t + (now - last_update) * rate)",
-            "agent": math_expert
+            "agent": math_expert,
         },
         {
             "expert": "Mermaid",
             "task": "API request flow",
             "description": "Sequence diagram showing client → API → database → response",
-            "agent": mermaid_expert
+            "agent": mermaid_expert,
         },
         {
             "expert": "PlantUML",
             "task": "Data model",
             "description": "Class diagram for User, Post, Comment entities",
-            "agent": plantuml_expert
+            "agent": plantuml_expert,
         },
         {
             "expert": "Pipeline",
             "task": "CI/CD workflow",
             "description": "Deployment pipeline: Build → Test → Deploy",
-            "agent": pipeline_expert
-        }
+            "agent": pipeline_expert,
+        },
     ]
 
     for i, task in enumerate(tasks, 1):
@@ -113,8 +112,8 @@ async def test_multi_agent_system():
     results = {}
 
     for task in tasks:
-        expert_name = task['expert']
-        agent = task['agent']
+        expert_name = task["expert"]
+        agent = task["agent"]
 
         print(f"\n📋 {expert_name} Expert working on: {task['task']}")
 
@@ -125,35 +124,37 @@ async def test_multi_agent_system():
                 result = await agent._evaluate_domain(
                     output="$$r = \\min(b, t + (now - last) \\times rate)$$",
                     gold_standard="$$r = \\min(b, t + (now - last) \\times rate)$$",
-                    task=task['task'],
-                    context={"expression_type": "display"}
+                    task=task["task"],
+                    context={"expression_type": "display"},
                 )
             elif expert_name == "Mermaid":
                 result = await agent._evaluate_domain(
                     output="sequenceDiagram\n    Client->>API: Request\n    API->>DB: Query\n    DB-->>API: Data\n    API-->>Client: Response",
                     gold_standard="sequenceDiagram\n    Client->>API: Request\n    API->>DB: Query\n    DB-->>API: Data\n    API-->>Client: Response",
-                    task=task['task'],
-                    context={"diagram_type": "sequence"}
+                    task=task["task"],
+                    context={"diagram_type": "sequence"},
                 )
             elif expert_name == "PlantUML":
                 result = await agent._evaluate_domain(
                     output="@startuml\nclass User\nclass Post\nUser --> Post\n@enduml",
                     gold_standard="@startuml\nclass User\nclass Post\nUser --> Post\n@enduml",
-                    task=task['task'],
-                    context={"diagram_type": "class"}
+                    task=task["task"],
+                    context={"diagram_type": "class"},
                 )
             else:  # Pipeline
                 result = await agent._evaluate_domain(
                     output="graph LR\n    A[Build]-->B[Test]-->C[Deploy]",
                     gold_standard="graph LR\n    A[Build]-->B[Test]-->C[Deploy]",
-                    task=task['task'],
-                    context={"description": task['description']}
+                    task=task["task"],
+                    context={"description": task["description"]},
                 )
 
             results[expert_name] = result
 
             # Display result
-            status_emoji = "✅" if result['score'] >= 0.9 else "⚠️" if result['score'] >= 0.5 else "❌"
+            status_emoji = (
+                "✅" if result["score"] >= 0.9 else "⚠️" if result["score"] >= 0.5 else "❌"
+            )
             print(f"   {status_emoji} Score: {result['score']:.2f} | Status: {result['status']}")
 
         except Exception as e:
@@ -164,7 +165,7 @@ async def test_multi_agent_system():
     print("\n[STEP 4] Results Aggregation (Orchestration)")
     print("-" * 70)
 
-    total_score = sum(r['score'] for r in results.values())
+    total_score = sum(r["score"] for r in results.values())
     avg_score = total_score / len(results)
 
     print(f"\nMulti-Agent Task Completion:")
@@ -180,7 +181,7 @@ async def test_multi_agent_system():
 
     print("\n✅ All experts inherit from BaseExpert (DRY pattern):")
     for task in tasks:
-        agent = task['agent']
+        agent = task["agent"]
         print(f"  - {agent.__class__.__name__} → BaseExpert")
         print(f"      domain: {agent.domain}")
         print(f"      has _evaluate_domain(): {hasattr(agent, '_evaluate_domain')}")
@@ -191,7 +192,7 @@ async def test_multi_agent_system():
     print("-" * 70)
 
     for task in tasks:
-        agent = task['agent']
+        agent = task["agent"]
         stats = agent.get_stats()
         print(f"\n{task['expert']} Expert Stats:")
         for key, value in stats.items():

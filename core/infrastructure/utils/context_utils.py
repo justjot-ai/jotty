@@ -12,15 +12,16 @@ Features:
 """
 
 import logging
-from typing import Optional, List, Dict, Any, Tuple
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
 
 class ErrorType(Enum):
     """Categorized error types for different handling strategies."""
+
     CONTEXT_LENGTH = "context_length"
     TIMEOUT = "timeout"
     PARSE_ERROR = "parse_error"
@@ -33,6 +34,7 @@ class ErrorType(Enum):
 @dataclass
 class CompressionResult:
     """Result of context compression."""
+
     original_length: int
     compressed_length: int
     compression_ratio: float
@@ -59,7 +61,7 @@ class ContextCompressor:
         content: str,
         target_ratio: float = 0.5,
         preserve_keywords: Optional[List[str]] = None,
-        trajectory: str = ""
+        trajectory: str = "",
     ) -> CompressionResult:
         """
         Compress content while preserving important information.
@@ -79,7 +81,7 @@ class ContextCompressor:
                 compressed_length=0,
                 compression_ratio=1.0,
                 content="",
-                preserved_trajectory=trajectory
+                preserved_trajectory=trajectory,
             )
 
         original_length = len(content)
@@ -104,7 +106,7 @@ class ContextCompressor:
             compressed_length=len(compressed),
             compression_ratio=len(compressed) / original_length if original_length > 0 else 1.0,
             content=compressed,
-            preserved_trajectory=trajectory
+            preserved_trajectory=trajectory,
         )
 
     def _split_into_sections(self, content: str) -> List[Dict[str, Any]]:
@@ -112,72 +114,68 @@ class ContextCompressor:
         sections = []
 
         # Split by double newlines (paragraphs)
-        paragraphs = content.split('\n\n')
+        paragraphs = content.split("\n\n")
 
         for i, para in enumerate(paragraphs):
             if para.strip():
-                sections.append({
-                    'text': para.strip(),
-                    'position': i,
-                    'length': len(para),
-                    'score': 0.0,
-                    'is_recent': i >= len(paragraphs) - 3  # Last 3 paragraphs are recent
-                })
+                sections.append(
+                    {
+                        "text": para.strip(),
+                        "position": i,
+                        "length": len(para),
+                        "score": 0.0,
+                        "is_recent": i >= len(paragraphs) - 3,  # Last 3 paragraphs are recent
+                    }
+                )
 
         return sections
 
     def _score_and_sort_sections(
-        self,
-        sections: List[Dict[str, Any]],
-        keywords: List[str]
+        self, sections: List[Dict[str, Any]], keywords: List[str]
     ) -> List[Dict[str, Any]]:
         """Score sections by keyword relevance and recency."""
         for section in sections:
-            text_lower = section['text'].lower()
+            text_lower = section["text"].lower()
 
             # Keyword matching score
             keyword_score = sum(1 for kw in keywords if kw.lower() in text_lower)
 
             # Recency bonus
-            recency_score = 2.0 if section['is_recent'] else 0.0
+            recency_score = 2.0 if section["is_recent"] else 0.0
 
             # Combine scores
-            section['score'] = keyword_score + recency_score
+            section["score"] = keyword_score + recency_score
 
         # Sort by score (highest first), then by position (most recent first)
-        sections.sort(key=lambda s: (-s['score'], -s['position']))
+        sections.sort(key=lambda s: (-s["score"], -s["position"]))
 
         return sections
 
-    def _build_compressed_content(
-        self,
-        sections: List[Dict[str, Any]],
-        target_length: int
-    ) -> str:
+    def _build_compressed_content(self, sections: List[Dict[str, Any]], target_length: int) -> str:
         """Build compressed content from scored sections."""
         selected = []
         current_length = 0
 
         # Always include recent sections first
-        recent_sections = [s for s in sections if s['is_recent']]
-        other_sections = [s for s in sections if not s['is_recent']]
+        recent_sections = [s for s in sections if s["is_recent"]]
+        other_sections = [s for s in sections if not s["is_recent"]]
 
         # Add recent sections
         for section in recent_sections:
-            if current_length + section['length'] <= target_length:
+            if current_length + section["length"] <= target_length:
                 selected.append(section)
-                current_length += section['length']
+                current_length += section["length"]
 
         # Add other high-scoring sections
         for section in other_sections:
-            if current_length + section['length'] <= target_length:
+            if current_length + section["length"] <= target_length:
                 selected.append(section)
-                current_length += section['length']
+                current_length += section["length"]
 
         # Sort by original position for coherent output
-        selected.sort(key=lambda s: s['position'])
+        selected.sort(key=lambda s: s["position"])
 
-        return '\n\n'.join(s['text'] for s in selected)
+        return "\n\n".join(s["text"] for s in selected)
 
 
 class ErrorDetector:
@@ -285,40 +283,40 @@ class ErrorDetector:
         """
         strategies = {
             ErrorType.CONTEXT_LENGTH: {
-                'should_retry': True,
-                'action': 'compress',
-                'max_retries': 3,
-                'delay_seconds': 0,
+                "should_retry": True,
+                "action": "compress",
+                "max_retries": 3,
+                "delay_seconds": 0,
             },
             ErrorType.TIMEOUT: {
-                'should_retry': True,
-                'action': 'backoff',
-                'max_retries': 3,
-                'delay_seconds': 2,  # Will be multiplied by attempt
+                "should_retry": True,
+                "action": "backoff",
+                "max_retries": 3,
+                "delay_seconds": 2,  # Will be multiplied by attempt
             },
             ErrorType.PARSE_ERROR: {
-                'should_retry': True,
-                'action': 'simplify',
-                'max_retries': 2,
-                'delay_seconds': 0,
+                "should_retry": True,
+                "action": "simplify",
+                "max_retries": 2,
+                "delay_seconds": 0,
             },
             ErrorType.RATE_LIMIT: {
-                'should_retry': True,
-                'action': 'wait',
-                'max_retries': 3,
-                'delay_seconds': 30,
+                "should_retry": True,
+                "action": "wait",
+                "max_retries": 3,
+                "delay_seconds": 30,
             },
             ErrorType.NETWORK: {
-                'should_retry': True,
-                'action': 'backoff',
-                'max_retries': 3,
-                'delay_seconds': 1,
+                "should_retry": True,
+                "action": "backoff",
+                "max_retries": 3,
+                "delay_seconds": 1,
             },
             ErrorType.UNKNOWN: {
-                'should_retry': False,
-                'action': 'fail',
-                'max_retries': 0,
-                'delay_seconds': 0,
+                "should_retry": False,
+                "action": "fail",
+                "max_retries": 0,
+                "delay_seconds": 0,
             },
         }
         return strategies.get(error_type, strategies[ErrorType.UNKNOWN])
@@ -332,6 +330,7 @@ class ExecutionTrajectory:
     When an LLM call fails mid-execution (e.g., context too long),
     we want to preserve the work done so far rather than starting over.
     """
+
     steps_completed: List[Dict[str, Any]]
     outputs_collected: Dict[str, Any]
     current_step_index: int
@@ -346,8 +345,8 @@ class ExecutionTrajectory:
         parts = ["[Progress so far]"]
 
         for i, step in enumerate(self.steps_completed):
-            step_desc = step.get('description', f'Step {i+1}')
-            step_output = step.get('output', '')
+            step_desc = step.get("description", f"Step {i+1}")
+            step_output = step.get("output", "")
             if step_output:
                 output_preview = str(step_output)[:200]
                 parts.append(f"Step {i+1}: {step_desc}\nResult: {output_preview}")
@@ -362,16 +361,16 @@ class ExecutionTrajectory:
     def add_step(self, step: Dict[str, Any], output: Any = None) -> None:
         """Add a completed step to trajectory."""
         step_record = {
-            'description': step.get('description', ''),
-            'skill': step.get('skill_name', ''),
-            'tool': step.get('tool_name', ''),
-            'output': output,
+            "description": step.get("description", ""),
+            "skill": step.get("skill_name", ""),
+            "tool": step.get("tool_name", ""),
+            "output": output,
         }
         self.steps_completed.append(step_record)
         self.current_step_index += 1
 
         if output:
-            key = step.get('output_key', f'step_{self.current_step_index}')
+            key = step.get("output_key", f"step_{self.current_step_index}")
             self.outputs_collected[key] = output
 
 
@@ -394,36 +393,36 @@ class ExecutionTrajectory:
 
 ENRICHMENT_MARKERS: tuple[str, ...] = (
     # Ensemble / multi-perspective
-    '\n[Multi-Perspective Analysis',
-    '\n[Multi-Perspective',
+    "\n[Multi-Perspective Analysis",
+    "\n[Multi-Perspective",
     # Learning context (Q-learning, transfer learning)
-    '\nLearned Insights:',
-    '\n# Transferable Learnings',
-    '\n# Q-Learning Lessons',
+    "\nLearned Insights:",
+    "\n# Transferable Learnings",
+    "\n# Q-Learning Lessons",
     # Agent runner injections
-    '\n[Learning Context',
-    '\n[Judge feedback',
-    '\n[Skill guidance',
+    "\n[Learning Context",
+    "\n[Judge feedback",
+    "\n[Skill guidance",
     # Swarm intelligence hints
-    '\n[Learned]',
-    '\n[Analysis]:',
-    '\n[Consensus]:',
-    '\n[Tensions]:',
-    '\n[Blind Spots]:',
+    "\n[Learned]",
+    "\n[Analysis]:",
+    "\n[Consensus]:",
+    "\n[Tensions]:",
+    "\n[Blind Spots]:",
     # Meta-learning sections
-    '\n## Task Type Pattern',
-    '\n## Role Advice',
-    '\n## Meta-Learning Advice',
+    "\n## Task Type Pattern",
+    "\n## Role Advice",
+    "\n## Meta-Learning Advice",
     # Common separators before context
-    '\nBased on previous learnings:',
-    '\nRecommended approach:',
-    '\nPrevious success patterns:',
-    '\nRelevant past experience:',
-    '\n\n---\n',
+    "\nBased on previous learnings:",
+    "\nRecommended approach:",
+    "\nPrevious success patterns:",
+    "\nRelevant past experience:",
+    "\n\n---\n",
     # Paradigm executor injections (relay, refinement, debate)
     "\n[Previous agent '",
-    '\n\nHere is the current draft. Improve it:\n',
-    '\nOther agents produced these solutions.',
+    "\n\nHere is the current draft. Improve it:\n",
+    "\nOther agents produced these solutions.",
 )
 
 
@@ -453,7 +452,7 @@ def strip_enrichment_context(task: str) -> str:
 
     # Also handle double-newline variants of the markers
     for marker in ENRICHMENT_MARKERS:
-        double_nl = '\n' + marker.lstrip('\n')
+        double_nl = "\n" + marker.lstrip("\n")
         if double_nl in cleaned:
             cleaned = cleaned.split(double_nl)[0]
 

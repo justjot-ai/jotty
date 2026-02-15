@@ -49,10 +49,10 @@ export async function GET(req: NextRequest) {
 
     // Build query based on entity type
     const query: any = {};
-    
+
     // All Jotty entities are user-specific
     query.userId = userId;
-    
+
     // Special handling for memory entities
     if (type === 'memory-entity') {
       // Memory entities use entity_id, filter by userId in metadata if available
@@ -115,7 +115,7 @@ export async function POST(req: NextRequest) {
 
     const { db } = await connectToDatabase();
     const collectionName = ENTITY_COLLECTIONS[type as JottyEntityType];
-    
+
     const entity = {
       name,
       description: description || '',

@@ -6,6 +6,7 @@ Inspect hierarchical memory.
 """
 
 from typing import TYPE_CHECKING
+
 from .base import BaseCommand, CommandResult, ParsedArgs
 
 if TYPE_CHECKING:
@@ -77,11 +78,7 @@ class MemoryCommand(BaseCommand):
             cli.renderer.info(f"Querying memory: {query}")
 
             # Retrieve relevant memories
-            results = await memory.retrieve(
-                query=query,
-                top_k=10,
-                context={"goal": query}
-            )
+            results = await memory.retrieve(query=query, top_k=10, context={"goal": query})
 
             if not results:
                 cli.renderer.warning("No relevant memories found")
@@ -90,11 +87,15 @@ class MemoryCommand(BaseCommand):
             # Format results
             memory_data = []
             for mem in results:
-                memory_data.append({
-                    "level": str(mem.level.name) if hasattr(mem.level, "name") else str(mem.level),
-                    "content": str(mem.content)[:100],
-                    "relevance_score": getattr(mem, "relevance_score", 0.0),
-                })
+                memory_data.append(
+                    {
+                        "level": (
+                            str(mem.level.name) if hasattr(mem.level, "name") else str(mem.level)
+                        ),
+                        "content": str(mem.content)[:100],
+                        "relevance_score": getattr(mem, "relevance_score", 0.0),
+                    }
+                )
 
             table = cli.renderer.tables.memory_table(memory_data)
             cli.renderer.tables.print_table(table)
@@ -109,19 +110,13 @@ class MemoryCommand(BaseCommand):
         """Show memory level descriptions."""
         try:
             # Memory levels (SDK uses string levels)
-            memory_levels = [
-                "EPISODIC",
-                "SEMANTIC",
-                "PROCEDURAL",
-                "META",
-                "CAUSAL"
-            ]
+            memory_levels = ["EPISODIC", "SEMANTIC", "PROCEDURAL", "META", "CAUSAL"]
 
             levels_info = {}
             for level_name in memory_levels:
                 levels_info[level_name] = {
                     "Value": level_name.lower(),
-                    "Description": self._get_level_description(level_name)
+                    "Description": self._get_level_description(level_name),
                 }
 
             cli.renderer.tree(levels_info, title="Memory Levels")

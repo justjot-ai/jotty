@@ -16,7 +16,7 @@ Usage:
 """
 
 import threading
-from typing import TypeVar, Generic, Callable, Any
+from typing import Any, Callable, Generic, TypeVar
 
 T = TypeVar("T")
 
@@ -31,7 +31,7 @@ class LazyComponent(Generic[T]):
     repeated factory calls.
     """
 
-    def __init__(self, factory: Callable[..., T], attr_name: str = '') -> None:
+    def __init__(self, factory: Callable[..., T], attr_name: str = "") -> None:
         self._factory = factory
         self._attr_name = attr_name  # Set by __set_name__
         self._lock = threading.Lock()

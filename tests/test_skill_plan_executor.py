@@ -8,12 +8,15 @@ artifact tagging, and large output spilling.
 
 import json
 import os
-import pytest
 import string
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
-from Jotty.core.modes.agent.executors.skill_plan_executor import ParameterResolver, SkillPlanExecutor
+import pytest
 
+from Jotty.core.modes.agent.executors.skill_plan_executor import (
+    ParameterResolver,
+    SkillPlanExecutor,
+)
 
 # =============================================================================
 # ParameterResolver Tests
@@ -73,11 +76,7 @@ class TestParameterResolver:
 
     def test_resolve_path_resolves_dotted_paths(self):
         """resolve_path navigates nested dicts via dot-separated keys."""
-        outputs = {
-            "step_1": {
-                "data": {"name": "Alice"}
-            }
-        }
+        outputs = {"step_1": {"data": {"name": "Alice"}}}
         resolver = ParameterResolver(outputs)
 
         result = resolver.resolve_path("step_1.data.name")
@@ -135,15 +134,15 @@ class TestParameterResolver:
 
     def test_sanitize_command_param_flags_suspicious_long_commands(self):
         """_sanitize_command_param rewrites long non-command strings to python invocations."""
-        outputs = {
-            "step_0": {"path": "/tmp/script.py", "success": True}
-        }
+        outputs = {"step_0": {"path": "/tmp/script.py", "success": True}}
         resolver = ParameterResolver(outputs)
 
         # A long string with many spaces (>15) that doesn't look like a shell command
-        long_non_command = "This is a very long description of what " + \
-            "should be done with the task and it contains way too many words " + \
-            "to be a real shell command and should be auto-fixed by the sanitizer"
+        long_non_command = (
+            "This is a very long description of what "
+            + "should be done with the task and it contains way too many words "
+            + "to be a real shell command and should be auto-fixed by the sanitizer"
+        )
         step = Mock()
         step.description = "Run the script"
 
@@ -209,7 +208,9 @@ class TestSkillPlanExecutor:
         mock_registry = Mock()
         executor = SkillPlanExecutor(skills_registry=mock_registry)
         # Patch planner property to return None so keyword fallback is used
-        with patch.object(type(executor), 'planner', new_callable=lambda: property(lambda self: None)):
+        with patch.object(
+            type(executor), "planner", new_callable=lambda: property(lambda self: None)
+        ):
             result = executor.infer_task_type("Research the latest AI trends")
             assert result == "research"
 
@@ -220,7 +221,9 @@ class TestSkillPlanExecutor:
         """infer_task_type detects creation tasks via keyword matching."""
         mock_registry = Mock()
         executor = SkillPlanExecutor(skills_registry=mock_registry)
-        with patch.object(type(executor), 'planner', new_callable=lambda: property(lambda self: None)):
+        with patch.object(
+            type(executor), "planner", new_callable=lambda: property(lambda self: None)
+        ):
             result = executor.infer_task_type("Create a report about sales")
             assert result == "creation"
 
@@ -233,7 +236,9 @@ class TestSkillPlanExecutor:
         executor = SkillPlanExecutor(skills_registry=mock_registry)
         # Patch the planner property to return None so keyword fallback is used
         # (setting _planner=None triggers lazy-load of a real TaskPlanner)
-        with patch.object(type(executor), 'planner', new_callable=lambda: property(lambda self: None)):
+        with patch.object(
+            type(executor), "planner", new_callable=lambda: property(lambda self: None)
+        ):
             result = executor.infer_task_type("xyzzy plugh foobar")
         assert result == "unknown"
 
@@ -284,6 +289,7 @@ class TestSkillPlanExecutor:
 
         # Check the replacement is a FileReference (imported from _execution_types)
         from Jotty.core.modes.agent._execution_types import FileReference
+
         assert isinstance(spilled["content"], FileReference)
         assert spilled["content"].size_bytes > 0
         assert "Spilled large value" in spilled["content"].description
@@ -303,11 +309,13 @@ class TestToolCallCache:
 
     def _make_cache(self, **kwargs):
         from Jotty.core.modes.agent.executors.skill_plan_executor import ToolCallCache
+
         return ToolCallCache(**kwargs)
 
     def test_make_key_returns_md5_hex_string(self):
         """make_key returns a 32-char hex string (MD5 digest)."""
         from Jotty.core.modes.agent.executors.skill_plan_executor import ToolCallCache
+
         key = ToolCallCache.make_key("web-search", "search_web_tool", {"query": "AI"})
         assert isinstance(key, str)
         assert len(key) == 32
@@ -317,6 +325,7 @@ class TestToolCallCache:
     def test_make_key_is_deterministic(self):
         """Same inputs always produce the same cache key."""
         from Jotty.core.modes.agent.executors.skill_plan_executor import ToolCallCache
+
         key1 = ToolCallCache.make_key("skill-a", "tool_x", {"a": 1, "b": 2})
         key2 = ToolCallCache.make_key("skill-a", "tool_x", {"b": 2, "a": 1})
         assert key1 == key2
@@ -324,6 +333,7 @@ class TestToolCallCache:
     def test_make_key_differs_for_different_inputs(self):
         """Different params produce different cache keys."""
         from Jotty.core.modes.agent.executors.skill_plan_executor import ToolCallCache
+
         key1 = ToolCallCache.make_key("skill", "tool", {"query": "AI"})
         key2 = ToolCallCache.make_key("skill", "tool", {"query": "ML"})
         assert key1 != key2
@@ -342,6 +352,7 @@ class TestToolCallCache:
     def test_get_returns_none_for_expired_entry(self):
         """get() returns None when the TTL has expired."""
         import time
+
         cache = self._make_cache(ttl_seconds=0)
         cache.set("key1", "value")
         time.sleep(0.01)
@@ -403,10 +414,7 @@ class TestParameterResolverDeep:
         """${ref} is always substituted, even when code markers are present."""
         outputs = {"step_0": {"path": "/tmp/test.py"}}
         resolver = ParameterResolver(outputs)
-        result = resolver._substitute_templates(
-            "script",
-            "import os; path = ${step_0.path}"
-        )
+        result = resolver._substitute_templates("script", "import os; path = ${step_0.path}")
         assert "/tmp/test.py" in result
 
     def test_substitute_templates_bare_brace_skipped_for_fstrings(self):
@@ -448,13 +456,13 @@ class TestParameterResolverDeep:
         outputs = {
             "research_0": {
                 "query": "AI trends",
-                "results": [{"title": "AI boom", "snippet": "Rapid growth", "url": "http://ai.com"}]
+                "results": [
+                    {"title": "AI boom", "snippet": "Rapid growth", "url": "http://ai.com"}
+                ],
             }
         }
         resolver = ParameterResolver(outputs)
-        result = resolver._substitute_templates(
-            "content", "Summary: ${research_0.results}"
-        )
+        result = resolver._substitute_templates("content", "Summary: ${research_0.results}")
         # The ${} template is substituted first (JSON), then aggregation may run
         assert "Summary:" in result
 
@@ -470,11 +478,13 @@ class TestParameterResolverDeep:
     def test_smart_extract_content_like_prefers_rich_text(self):
         """_smart_extract for content-like params prefers rich text fields."""
         resolver = ParameterResolver({})
-        json_str = json.dumps({
-            "success": True,
-            "response": "This is a very long and rich response text that should be selected because it is substantial enough.",
-            "status": "ok"
-        })
+        json_str = json.dumps(
+            {
+                "success": True,
+                "response": "This is a very long and rich response text that should be selected because it is substantial enough.",
+                "status": "ok",
+            }
+        )
         result = resolver._smart_extract(json_str, "content")
         assert result is not None
         assert "rich response text" in result
@@ -482,20 +492,17 @@ class TestParameterResolverDeep:
     def test_smart_extract_url_from_results(self):
         """_smart_extract for url params extracts URL from nested search results."""
         resolver = ParameterResolver({})
-        json_str = json.dumps({
-            "results": [
-                {"title": "Page", "link": "https://example.com/page1", "snippet": "text"}
-            ]
-        })
+        json_str = json.dumps(
+            {"results": [{"title": "Page", "link": "https://example.com/page1", "snippet": "text"}]}
+        )
         result = resolver._smart_extract(json_str, "url")
         assert result == "https://example.com/page1"
 
     def test_smart_extract_path_from_outputs(self):
         """_smart_extract for 'path' param scans all outputs for most recent path."""
-        resolver = ParameterResolver({
-            "step_0": {"path": "/tmp/first.txt"},
-            "step_1": {"path": "/tmp/second.txt"}
-        })
+        resolver = ParameterResolver(
+            {"step_0": {"path": "/tmp/first.txt"}, "step_1": {"path": "/tmp/second.txt"}}
+        )
         json_str = json.dumps({"data": "value"})
         result = resolver._smart_extract(json_str, "path")
         assert result == "/tmp/second.txt"
@@ -588,9 +595,7 @@ class TestParameterResolverDeep:
         """Uppercase placeholders like {CONTENT_FROM_STEP} are replaced."""
         outputs = {"step_0": {"response": "real data from step"}}
         resolver = ParameterResolver(outputs)
-        result = resolver._resolve_placeholder_strings(
-            "content", "Use this: {CONTENT_FROM_STEP}"
-        )
+        result = resolver._resolve_placeholder_strings("content", "Use this: {CONTENT_FROM_STEP}")
         # Should be replaced with last output serialized as JSON
         assert "real data" in result
         assert "{CONTENT_FROM_STEP}" not in result
@@ -598,9 +603,7 @@ class TestParameterResolverDeep:
     def test_resolve_placeholder_strings_no_outputs_unchanged(self):
         """Uppercase placeholders remain if outputs is empty."""
         resolver = ParameterResolver({})
-        result = resolver._resolve_placeholder_strings(
-            "content", "Use this: {CONTENT_FROM_STEP}"
-        )
+        result = resolver._resolve_placeholder_strings("content", "Use this: {CONTENT_FROM_STEP}")
         assert "{CONTENT_FROM_STEP}" in result
 
     def test_resolve_placeholder_strings_no_uppercase_unchanged(self):
@@ -682,7 +685,11 @@ class TestParameterResolverDeep:
 
     def test_sanitize_content_json_success_replaced(self):
         """JSON success response content is detected as bad."""
-        outputs = {"step_0": {"response": "Real content that is more than 80 characters long and should be used as a replacement for the JSON success response."}}
+        outputs = {
+            "step_0": {
+                "response": "Real content that is more than 80 characters long and should be used as a replacement for the JSON success response."
+            }
+        }
         resolver = ParameterResolver(outputs)
         bad = '{"success": true, "bytes_written": 500}'
         result = resolver._sanitize_content_param("content", bad)
@@ -690,7 +697,11 @@ class TestParameterResolverDeep:
 
     def test_sanitize_content_instruction_prefix_replaced(self):
         """Content starting with instruction-like prefix is detected as bad."""
-        outputs = {"step_0": {"response": "Actual real data content that is more than 80 characters and should be used as a replacement instead of the instruction prefix."}}
+        outputs = {
+            "step_0": {
+                "response": "Actual real data content that is more than 80 characters and should be used as a replacement instead of the instruction prefix."
+            }
+        }
         resolver = ParameterResolver(outputs)
         bad = "I'll help you create a document with the following content that is a bit longer than eighty characters"
         result = resolver._sanitize_content_param("content", bad)
@@ -732,7 +743,9 @@ class TestParameterResolverDeep:
         """_find_best_content returns the largest non-bad content from outputs."""
         outputs = {
             "step_0": {"response": "Short"},
-            "step_1": {"content": "A much longer and substantial piece of content that has well over 100 characters and should be selected as the best content."},
+            "step_1": {
+                "content": "A much longer and substantial piece of content that has well over 100 characters and should be selected as the best content."
+            },
         }
         resolver = ParameterResolver(outputs)
         result = resolver._find_best_content()
@@ -805,6 +818,7 @@ class TestToolResultProcessorDeep:
 
     def _make_processor(self):
         from Jotty.core.modes.agent.executors.step_processors import ToolResultProcessor
+
         return ToolResultProcessor()
 
     def test_process_non_dict_converted(self):
@@ -881,12 +895,7 @@ class TestToolResultProcessorDeep:
     def test_strip_binary_nested_dict_handling(self):
         """_strip_binary handles nested dicts recursively."""
         processor = self._make_processor()
-        data = {
-            "outer": {
-                "image_data": "X" * 2000,
-                "text": "normal"
-            }
-        }
+        data = {"outer": {"image_data": "X" * 2000, "text": "normal"}}
         result = processor._strip_binary(data)
         assert result["outer"]["image_data"].startswith("[binary data:")
         assert result["outer"]["text"] == "normal"
@@ -927,6 +936,7 @@ class TestToolResultProcessorDeep:
     def test_format_search_results_with_query(self):
         """_format_search_results includes query header when provided."""
         from Jotty.core.modes.agent.executors.step_processors import ToolResultProcessor
+
         results = [{"title": "Page 1", "snippet": "Info", "link": "http://p1.com"}]
         text = ToolResultProcessor._format_search_results(results, query="AI trends")
         assert "Search Results: AI trends" in text
@@ -935,6 +945,7 @@ class TestToolResultProcessorDeep:
     def test_format_search_results_without_query(self):
         """_format_search_results omits header when query is empty."""
         from Jotty.core.modes.agent.executors.step_processors import ToolResultProcessor
+
         results = [{"title": "Item", "snippet": "Desc"}]
         text = ToolResultProcessor._format_search_results(results, query="")
         assert "Search Results" not in text
@@ -943,6 +954,7 @@ class TestToolResultProcessorDeep:
     def test_format_search_results_non_dict_items(self):
         """_format_search_results handles non-dict items by stringifying."""
         from Jotty.core.modes.agent.executors.step_processors import ToolResultProcessor
+
         results = ["plain text item", 42]
         text = ToolResultProcessor._format_search_results(results)
         assert "plain text item" in text
@@ -1092,6 +1104,7 @@ class TestSkillPlanExecutorDeep:
             if name == "skill-b":
                 return mock_skill_b
             return None
+
         mock_registry.get_skill.side_effect = get_skill_side_effect
 
         executor = self._make_executor(registry=mock_registry)
@@ -1228,9 +1241,7 @@ class TestSkillPlanExecutorDeep:
         selected = [{"name": "web-search"}]
         available = [{"name": "web-search"}, {"name": "shell-exec"}]
 
-        result = executor._inject_essential_skills(
-            "execute the python script", selected, available
-        )
+        result = executor._inject_essential_skills("execute the python script", selected, available)
         names = {s["name"] for s in result}
         assert "shell-exec" in names
 
@@ -1252,9 +1263,7 @@ class TestSkillPlanExecutorDeep:
         selected = [{"name": "shell-exec"}]
         available = [{"name": "shell-exec"}]
 
-        result = executor._inject_essential_skills(
-            "execute the script", selected, available
-        )
+        result = executor._inject_essential_skills("execute the script", selected, available)
         assert len(result) == 1
 
     def test_inject_essential_skills_not_available(self):
@@ -1263,9 +1272,7 @@ class TestSkillPlanExecutorDeep:
         selected = [{"name": "web-search"}]
         available = [{"name": "web-search"}]  # shell-exec NOT available
 
-        result = executor._inject_essential_skills(
-            "execute the script", selected, available
-        )
+        result = executor._inject_essential_skills("execute the script", selected, available)
         names = {s["name"] for s in result}
         assert "shell-exec" not in names
 
@@ -1318,21 +1325,27 @@ class TestSkillPlanExecutorDeep:
     def test_infer_task_type_comparison(self):
         """infer_task_type returns 'comparison' for compare-related keywords."""
         executor = self._make_executor()
-        with patch.object(type(executor), 'planner', new_callable=lambda: property(lambda self: None)):
+        with patch.object(
+            type(executor), "planner", new_callable=lambda: property(lambda self: None)
+        ):
             assert executor.infer_task_type("Compare Python vs Java") == "comparison"
             assert executor.infer_task_type("X versus Y analysis") == "comparison"
 
     def test_infer_task_type_analysis(self):
         """infer_task_type returns 'analysis' for analyze-related keywords."""
         executor = self._make_executor()
-        with patch.object(type(executor), 'planner', new_callable=lambda: property(lambda self: None)):
+        with patch.object(
+            type(executor), "planner", new_callable=lambda: property(lambda self: None)
+        ):
             assert executor.infer_task_type("Analyze the dataset") == "analysis"
             assert executor.infer_task_type("Evaluate the performance") == "analysis"
 
     def test_infer_task_type_unknown(self):
         """infer_task_type returns 'unknown' for unrecognized tasks."""
         executor = self._make_executor()
-        with patch.object(type(executor), 'planner', new_callable=lambda: property(lambda self: None)):
+        with patch.object(
+            type(executor), "planner", new_callable=lambda: property(lambda self: None)
+        ):
             assert executor.infer_task_type("do something random") == "unknown"
 
 
@@ -1346,16 +1359,19 @@ class TestToolSchemaDeep:
     """Deep tests for the ToolSchema class."""
 
     def _make_schema(self, name="test_tool", params=None):
-        from Jotty.core.modes.agent._execution_types import ToolSchema, ToolParam
+        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
+
         return ToolSchema(name=name, params=params or [])
 
     def _make_param(self, **kwargs):
         from Jotty.core.modes.agent._execution_types import ToolParam
+
         return ToolParam(**kwargs)
 
     def test_from_metadata_builds_from_json_schema(self):
         """from_metadata builds a ToolSchema from a JSON schema dict."""
         from Jotty.core.modes.agent._execution_types import ToolSchema
+
         metadata = {
             "description": "Search the web",
             "parameters": {
@@ -1364,7 +1380,7 @@ class TestToolSchemaDeep:
                     "limit": {"type": "int", "description": "Max results"},
                 },
                 "required": ["query"],
-            }
+            },
         }
         schema = ToolSchema.from_metadata("search_tool", metadata)
         assert schema.name == "search_tool"
@@ -1379,55 +1395,67 @@ class TestToolSchemaDeep:
 
     def test_validate_returns_errors_for_missing_required(self):
         """validate returns errors when required params are missing."""
-        schema = self._make_schema(params=[
-            self._make_param(name="query", required=True),
-            self._make_param(name="limit", required=False),
-        ])
+        schema = self._make_schema(
+            params=[
+                self._make_param(name="query", required=True),
+                self._make_param(name="limit", required=False),
+            ]
+        )
         result = schema.validate({})
         assert not result.valid
         assert any("Missing required parameter: query" in e for e in result.errors)
 
     def test_validate_valid_params(self):
         """validate returns no errors for valid params."""
-        schema = self._make_schema(params=[
-            self._make_param(name="query", required=True),
-        ])
+        schema = self._make_schema(
+            params=[
+                self._make_param(name="query", required=True),
+            ]
+        )
         result = schema.validate({"query": "test"})
         assert result.valid
         assert result.errors == []
 
     def test_validate_coercion(self):
         """validate with coerce=True coerces types and returns coerced_params."""
-        schema = self._make_schema(params=[
-            self._make_param(name="count", type_hint="int", required=True),
-        ])
+        schema = self._make_schema(
+            params=[
+                self._make_param(name="count", type_hint="int", required=True),
+            ]
+        )
         result = schema.validate({"count": "42"}, coerce=True)
         assert result.valid
         assert result.coerced_params.get("count") == 42
 
     def test_get_param_by_name(self):
         """get_param finds param by canonical name."""
-        schema = self._make_schema(params=[
-            self._make_param(name="query"),
-        ])
+        schema = self._make_schema(
+            params=[
+                self._make_param(name="query"),
+            ]
+        )
         assert schema.get_param("query") is not None
         assert schema.get_param("nonexistent") is None
 
     def test_get_param_by_alias(self):
         """get_param finds param by alias."""
-        schema = self._make_schema(params=[
-            self._make_param(name="query", aliases=["q", "search_query"]),
-        ])
+        schema = self._make_schema(
+            params=[
+                self._make_param(name="query", aliases=["q", "search_query"]),
+            ]
+        )
         result = schema.get_param("q")
         assert result is not None
         assert result.name == "query"
 
     def test_get_llm_visible_params_excludes_reserved(self):
         """get_llm_visible_params excludes reserved params."""
-        schema = self._make_schema(params=[
-            self._make_param(name="query", reserved=False),
-            self._make_param(name="_status_callback", reserved=True),
-        ])
+        schema = self._make_schema(
+            params=[
+                self._make_param(name="query", reserved=False),
+                self._make_param(name="_status_callback", reserved=True),
+            ]
+        )
         visible = schema.get_llm_visible_params()
         visible_names = [p.name for p in visible]
         assert "query" in visible_names
@@ -1435,9 +1463,11 @@ class TestToolSchemaDeep:
 
     def test_resolve_aliases_maps_to_canonical(self):
         """resolve_aliases maps alias keys to canonical param names."""
-        schema = self._make_schema(params=[
-            self._make_param(name="query", aliases=["q", "search_query"]),
-        ])
+        schema = self._make_schema(
+            params=[
+                self._make_param(name="query", aliases=["q", "search_query"]),
+            ]
+        )
         params = {"q": "test search"}
         resolved = schema.resolve_aliases(params)
         assert "query" in resolved
@@ -1446,9 +1476,11 @@ class TestToolSchemaDeep:
 
     def test_auto_wire_exact_name_match(self):
         """auto_wire fills missing required param from exact name match in outputs."""
-        schema = self._make_schema(params=[
-            self._make_param(name="query", required=True),
-        ])
+        schema = self._make_schema(
+            params=[
+                self._make_param(name="query", required=True),
+            ]
+        )
         outputs = {"step_0": {"query": "wired value"}}
         params = {}
         result = schema.auto_wire(params, outputs)
@@ -1456,20 +1488,28 @@ class TestToolSchemaDeep:
 
     def test_auto_wire_content_direct_match(self):
         """auto_wire matches content param via direct name match (not _CONTENT_FIELDS scan)."""
-        schema = self._make_schema(params=[
-            self._make_param(name="content", required=True),
-        ])
+        schema = self._make_schema(
+            params=[
+                self._make_param(name="content", required=True),
+            ]
+        )
         # Direct 'content' key match — this works
-        outputs = {"step_0": {"content": "This is substantial content that exceeds 50 characters in length."}}
+        outputs = {
+            "step_0": {
+                "content": "This is substantial content that exceeds 50 characters in length."
+            }
+        }
         params = {}
         result = schema.auto_wire(params, outputs)
         assert "substantial content" in result.get("content", "")
 
     def test_auto_wire_path_strategy(self):
         """auto_wire uses path fallback for path/file_path params."""
-        schema = self._make_schema(params=[
-            self._make_param(name="path", required=True),
-        ])
+        schema = self._make_schema(
+            params=[
+                self._make_param(name="path", required=True),
+            ]
+        )
         outputs = {"step_0": {"path": "/tmp/output.txt"}}
         params = {}
         result = schema.auto_wire(params, outputs)

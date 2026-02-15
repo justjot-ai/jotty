@@ -7,7 +7,9 @@ Demonstrates:
 - Tracking learning progress
 - Understanding eligibility traces
 """
+
 import asyncio
+
 from Jotty.core.intelligence.learning import get_td_lambda
 
 
@@ -26,7 +28,7 @@ async def main():
         state={"task": "research", "step": 1},
         action={"tool": "web-search", "query": "AI trends 2026"},
         reward=0.5,  # Partial reward (found some info)
-        next_state={"task": "research", "step": 2}
+        next_state={"task": "research", "step": 2},
     )
     print("✅ Step 1: Web search (reward=0.5)")
 
@@ -35,7 +37,7 @@ async def main():
         state={"task": "research", "step": 2},
         action={"tool": "web-scraper", "url": "https://example.com"},
         reward=0.3,  # Partial reward
-        next_state={"task": "research", "step": 3}
+        next_state={"task": "research", "step": 3},
     )
     print("✅ Step 2: Web scraper (reward=0.3)")
 
@@ -44,7 +46,7 @@ async def main():
         state={"task": "research", "step": 3},
         action={"tool": "summarizer"},
         reward=1.0,  # Full reward (task completed successfully!)
-        next_state={"task": "research", "step": 4, "done": True}
+        next_state={"task": "research", "step": 4, "done": True},
     )
     print("✅ Step 3: Summarize (reward=1.0 - SUCCESS!)\n")
 

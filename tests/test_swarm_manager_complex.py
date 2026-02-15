@@ -19,11 +19,11 @@ import asyncio
 import os
 import time
 from pathlib import Path
+
 import pytest
 
 pytestmark = pytest.mark.skipif(
-    not os.getenv('ANTHROPIC_API_KEY'),
-    reason="Requires ANTHROPIC_API_KEY for real LLM calls"
+    not os.getenv("ANTHROPIC_API_KEY"), reason="Requires ANTHROPIC_API_KEY for real LLM calls"
 )
 
 # Load API keys from project root or tests dir
@@ -43,6 +43,7 @@ for env_file in [
                         os.environ[k] = v
 
 import logging
+
 import pytest
 
 logging.basicConfig(level=logging.WARNING, format="%(levelname)-8s %(name)s: %(message)s")
@@ -131,10 +132,16 @@ async def test_multistep_research_summarize_save():
     output = extract_output(result)
 
     assert result is not None, "Result should not be None"
-    assert getattr(result, "success", True) or len(output) > 100, "Should succeed or return substantial output"
-    assert "python" in output.lower() or "3.12" in output or "feature" in output.lower(), "Output should mention Python 3.12 or features"
+    assert (
+        getattr(result, "success", True) or len(output) > 100
+    ), "Should succeed or return substantial output"
+    assert (
+        "python" in output.lower() or "3.12" in output or "feature" in output.lower()
+    ), "Output should mention Python 3.12 or features"
 
-    logger.info(f"Multi-step research: {elapsed:.0f}s, {len(output)} chars, success={getattr(result, 'success', None)}")
+    logger.info(
+        f"Multi-step research: {elapsed:.0f}s, {len(output)} chars, success={getattr(result, 'success', None)}"
+    )
     for t, stage, detail in trail[-6:]:
         logger.info(f"  [{t:.1f}s] {stage}: {detail}")
     return result
@@ -172,7 +179,9 @@ async def test_comparison_three_items_table():
         "Flask": "flask" in output.lower(),
         "Django": "django" in output.lower(),
         "table_or_structured": "|" in output or "table" in output.lower() or "---" in output,
-        "recommendation": any(w in output.lower() for w in ["recommend", "best", "choose", "suggest"]),
+        "recommendation": any(
+            w in output.lower() for w in ["recommend", "best", "choose", "suggest"]
+        ),
     }
     quality = sum(checks.values()) / len(checks) * 100
     assert quality >= 40, f"Comparison quality too low: {checks}"
@@ -213,7 +222,9 @@ async def test_creation_code_and_docs():
     has_json = "json" in output.lower() or "load" in output.lower()
     has_code = "def " in output or "import " in output or "argparse" in output or "sys" in output
     has_artifact = "script.py" in output or "path=" in output or ".py" in output
-    assert has_json or has_code or has_artifact, "Should contain JSON handling, code, or script artifact path"
+    assert (
+        has_json or has_code or has_artifact
+    ), "Should contain JSON handling, code, or script artifact path"
 
     logger.info(f"Creation code+docs: {elapsed:.0f}s, {len(output)} chars")
     return result
@@ -246,8 +257,12 @@ async def test_analysis_ranked_list():
     output = extract_output(result)
 
     assert result is not None
-    assert "risk" in output.lower() or "health" in output.lower() or "ai" in output.lower(), "Should mention AI/healthcare/risk"
-    assert any(c in output for c in ["1.", "2.", "3.", "1)", "#"]) or "first" in output.lower(), "Should be a list"
+    assert (
+        "risk" in output.lower() or "health" in output.lower() or "ai" in output.lower()
+    ), "Should mention AI/healthcare/risk"
+    assert (
+        any(c in output for c in ["1.", "2.", "3.", "1)", "#"]) or "first" in output.lower()
+    ), "Should be a list"
 
     logger.info(f"Analysis ranked list: {elapsed:.0f}s, {len(output)} chars")
     return result
@@ -280,7 +295,13 @@ async def test_mixed_search_summarize_followup():
 
     assert result is not None
     assert "typescript" in output.lower() or "javascript" in output.lower(), "Should mention TS/JS"
-    assert "bullet" in output.lower() or "•" in output or "- " in output or "1." in output or "benefit" in output.lower(), "Should have list or benefits"
+    assert (
+        "bullet" in output.lower()
+        or "•" in output
+        or "- " in output
+        or "1." in output
+        or "benefit" in output.lower()
+    ), "Should have list or benefits"
 
     logger.info(f"Mixed search+summarize: {elapsed:.0f}s, {len(output)} chars")
     return result
@@ -299,7 +320,9 @@ async def _run_all():
     ]
     print(f"\n{B}{'═'*60}{E}")
     print(f"{B}  Orchestrator V2 — Complex Use Cases{E}")
-    print(f"{D}  {len(cases)} scenarios (enable_lotus=False, skip_autonomous_setup=True where used){E}")
+    print(
+        f"{D}  {len(cases)} scenarios (enable_lotus=False, skip_autonomous_setup=True where used){E}"
+    )
     print(f"{B}{'═'*60}{E}\n")
 
     results = []

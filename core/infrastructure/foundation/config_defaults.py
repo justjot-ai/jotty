@@ -320,7 +320,7 @@ class JottyDefaults:
     # =========================================================================
 
     @classmethod
-    def for_model(cls, model_name: str) -> 'JottyDefaults':
+    def for_model(cls, model_name: str) -> "JottyDefaults":
         """
         Get recommended defaults for a specific model.
 
@@ -339,7 +339,7 @@ class JottyDefaults:
         return cls()
 
     @classmethod
-    def conservative(cls) -> 'JottyDefaults':
+    def conservative(cls) -> "JottyDefaults":
         """
         Get conservative defaults for safety.
 
@@ -351,7 +351,7 @@ class JottyDefaults:
         return cls()
 
     @classmethod
-    def aggressive(cls) -> 'JottyDefaults':
+    def aggressive(cls) -> "JottyDefaults":
         """
         Get aggressive defaults for maximum performance.
 
@@ -386,9 +386,9 @@ DEFAULT_MODEL_ALIAS = DEFAULTS.DEFAULT_MODEL_ALIAS
 
 # Model aliases dict — maps short names to full version strings
 MODEL_ALIASES = {
-    'sonnet': DEFAULTS.MODEL_SONNET,
-    'opus': DEFAULTS.MODEL_OPUS,
-    'haiku': DEFAULTS.MODEL_HAIKU,
+    "sonnet": DEFAULTS.MODEL_SONNET,
+    "opus": DEFAULTS.MODEL_OPUS,
+    "haiku": DEFAULTS.MODEL_HAIKU,
 }
 
 # LLM defaults
@@ -398,24 +398,24 @@ MAX_RETRIES = DEFAULTS.MAX_RETRIES
 RETRY_BACKOFF_SECONDS = DEFAULTS.RETRY_BACKOFF_SECONDS
 
 __all__ = [
-    'JottyDefaults',
-    'DEFAULTS',
+    "JottyDefaults",
+    "DEFAULTS",
     # Token budgets
-    'MAX_TOKENS',
-    'SAFETY_MARGIN',
-    'EPISODIC_CAPACITY',
-    'MAX_ENTRY_TOKENS',
-    'LLM_MAX_OUTPUT_TOKENS',
-    'LLM_PLANNING_MAX_TOKENS',
+    "MAX_TOKENS",
+    "SAFETY_MARGIN",
+    "EPISODIC_CAPACITY",
+    "MAX_ENTRY_TOKENS",
+    "LLM_MAX_OUTPUT_TOKENS",
+    "LLM_PLANNING_MAX_TOKENS",
     # Model names
-    'MODEL_SONNET',
-    'MODEL_OPUS',
-    'MODEL_HAIKU',
-    'DEFAULT_MODEL_ALIAS',
-    'MODEL_ALIASES',
+    "MODEL_SONNET",
+    "MODEL_OPUS",
+    "MODEL_HAIKU",
+    "DEFAULT_MODEL_ALIAS",
+    "MODEL_ALIASES",
     # LLM defaults
-    'LLM_TEMPERATURE',
-    'LLM_TIMEOUT_SECONDS',
-    'MAX_RETRIES',
-    'RETRY_BACKOFF_SECONDS',
+    "LLM_TEMPERATURE",
+    "LLM_TIMEOUT_SECONDS",
+    "MAX_RETRIES",
+    "RETRY_BACKOFF_SECONDS",
 ]

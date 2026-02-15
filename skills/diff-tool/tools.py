@@ -1,10 +1,11 @@
 """Diff Tool Skill — compare text and files."""
+
 import difflib
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any, Dict
 
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, tool_wrapper
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import tool_error, tool_response, tool_wrapper
 
 status = SkillStatus("diff-tool")
 
@@ -20,8 +21,9 @@ def diff_text_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     diff = list(difflib.unified_diff(a_lines, b_lines, fromfile="a", tofile="b", n=n))
     changes = sum(1 for line in diff if line.startswith("+") or line.startswith("-"))
 
-    return tool_response(diff="".join(diff), changes=changes, lines_a=len(a_lines),
-                         lines_b=len(b_lines))
+    return tool_response(
+        diff="".join(diff), changes=changes, lines_a=len(a_lines), lines_b=len(b_lines)
+    )
 
 
 @tool_wrapper(required_params=["file_a", "file_b"])
@@ -35,9 +37,10 @@ def diff_files_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         return tool_error(str(e))
 
     n = int(params.get("context_lines", 3))
-    diff = list(difflib.unified_diff(a, b, fromfile=params["file_a"],
-                                     tofile=params["file_b"], n=n))
-    changes = sum(1 for line in diff if line.startswith(("+", "-")) and not line.startswith(("+++", "---")))
+    diff = list(difflib.unified_diff(a, b, fromfile=params["file_a"], tofile=params["file_b"], n=n))
+    changes = sum(
+        1 for line in diff if line.startswith(("+", "-")) and not line.startswith(("+++", "---"))
+    )
 
     return tool_response(diff="".join(diff), changes=changes)
 

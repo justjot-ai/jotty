@@ -34,15 +34,17 @@ Cons:
 """
 
 import asyncio
-import dspy
 import logging
-from pathlib import Path
 from datetime import datetime
-from typing import Dict, Any, List, Optional
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+import dspy
+
+from core.foundation.types.agent_types import AgentMessage, CommunicationType, SharedScratchpad
 
 # Import collaboration infrastructure
 from core.persistence.shared_context import SharedContext
-from core.foundation.types.agent_types import SharedScratchpad, AgentMessage, CommunicationType
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -56,7 +58,7 @@ async def run_collaborative_agent(
     shared_context: SharedContext,
     scratchpad: SharedScratchpad,
     max_iterations: int = 3,
-    score_threshold: float = 0.85
+    score_threshold: float = 0.85,
 ) -> Dict[str, Any]:
     """
     Run agent with access to shared collaboration workspace.
@@ -111,7 +113,8 @@ async def run_collaborative_agent(
 
         # 2. Get messages from other agents
         relevant_messages = [
-            msg for msg in scratchpad.messages
+            msg
+            for msg in scratchpad.messages
             if msg.receiver in [agent_name, "*"]  # Messages to me or broadcast
         ]
         messages_received += len(relevant_messages)
@@ -128,13 +131,13 @@ async def run_collaborative_agent(
 
         # BUILD CONTEXT from shared workspace
         collaboration_context = {
-            'shared_data': all_shared_data,
-            'messages': [
+            "shared_data": all_shared_data,
+            "messages": [
                 f"{msg.sender}: {msg.content.get('summary', str(msg.content)[:100])}"
                 for msg in relevant_messages[-5:]  # Last 5 messages
             ],
-            'insights': shared_insights[-5:],  # Last 5 insights
-            'tool_cache': list(scratchpad.tool_cache.keys())
+            "insights": shared_insights[-5:],  # Last 5 insights
+            "tool_cache": list(scratchpad.tool_cache.keys()),
         }
 
         # Generate output
@@ -144,7 +147,7 @@ async def run_collaborative_agent(
         result = agent(
             task=initial_task,
             previous_feedback=feedback,
-            collaboration_context=str(collaboration_context)  # Pass shared context
+            collaboration_context=str(collaboration_context),  # Pass shared context
         )
         output = result.output  # Adjust field name
 
@@ -166,11 +169,11 @@ async def run_collaborative_agent(
             receiver="*",  # Broadcast to all
             message_type=CommunicationType.INSIGHT,
             content={
-                'summary': output[:200] + "..." if len(output) > 200 else output,
-                'full_output_key': context_key,
-                'iteration': iteration
+                "summary": output[:200] + "..." if len(output) > 200 else output,
+                "full_output_key": context_key,
+                "iteration": iteration,
             },
-            insight=f"{agent_name} completed iteration {iteration}"
+            insight=f"{agent_name} completed iteration {iteration}",
         )
         scratchpad.add_message(insight_msg)
         messages_sent += 1
@@ -186,28 +189,30 @@ async def run_collaborative_agent(
             output=output,
             gold_standard="",
             task=f"{agent_name} collaborative task",
-            context={"iteration": iteration, "collaboration_mode": True}
+            context={"iteration": iteration, "collaboration_mode": True},
         )
 
-        score = evaluation.get('score', 0.0)
-        status = evaluation.get('status', 'UNKNOWN')
-        issues = evaluation.get('issues', [])
-        suggestions = evaluation.get('suggestions', '')
+        score = evaluation.get("score", 0.0)
+        status = evaluation.get("status", "UNKNOWN")
+        issues = evaluation.get("issues", [])
+        suggestions = evaluation.get("suggestions", "")
 
         print(f"   📊 Score: {score:.2f} - Status: {status}")
 
         if issues:
             print(f"   ⚠️  Issues: {', '.join(issues[:2])}")
 
-        iterations_history.append({
-            'iteration': iteration,
-            'output': output,
-            'score': score,
-            'status': status,
-            'issues': issues,
-            'time': elapsed,
-            'messages_in_context': len(relevant_messages)
-        })
+        iterations_history.append(
+            {
+                "iteration": iteration,
+                "output": output,
+                "score": score,
+                "status": status,
+                "issues": issues,
+                "time": elapsed,
+                "messages_in_context": len(relevant_messages),
+            }
+        )
 
         # Check threshold
         if score >= score_threshold:
@@ -245,13 +250,13 @@ async def run_collaborative_agent(
     print(f"{'='*90}")
 
     return {
-        'output': final['output'],
-        'iterations': len(iterations_history),
-        'scores': [h['score'] for h in iterations_history],
-        'history': iterations_history,
-        'messages_sent': messages_sent,
-        'messages_received': messages_received,
-        'tool_cache_hits': tool_cache_hits
+        "output": final["output"],
+        "iterations": len(iterations_history),
+        "scores": [h["score"] for h in iterations_history],
+        "history": iterations_history,
+        "messages_sent": messages_sent,
+        "messages_received": messages_received,
+        "tool_cache_hits": tool_cache_hits,
     }
 
 
@@ -276,7 +281,7 @@ async def collaborative_team_workflow():
     # Configure LLM
     from core.integration.direct_claude_cli_lm import DirectClaudeCLI
 
-    lm = DirectClaudeCLI(model='sonnet')
+    lm = DirectClaudeCLI(model="sonnet")
     dspy.configure(lm=lm)
 
     print("✅ LLM configured")
@@ -291,16 +296,16 @@ async def collaborative_team_workflow():
     print("-" * 90)
 
     # Initialize domain experts
-    from core.experts.product_manager_expert import ProductManagerExpertAgent
-    from core.experts.ux_researcher_expert import UXResearcherExpertAgent
     from core.experts.designer_expert import DesignerExpertAgent
     from core.experts.frontend_expert import FrontendExpertAgent
+    from core.experts.product_manager_expert import ProductManagerExpertAgent
+    from core.experts.ux_researcher_expert import UXResearcherExpertAgent
 
     experts = {
-        'pm': ProductManagerExpertAgent(),
-        'ux': UXResearcherExpertAgent(),
-        'design': DesignerExpertAgent(),
-        'frontend': FrontendExpertAgent(),
+        "pm": ProductManagerExpertAgent(),
+        "ux": UXResearcherExpertAgent(),
+        "design": DesignerExpertAgent(),
+        "frontend": FrontendExpertAgent(),
     }
 
     print(f"✅ {len(experts)} experts initialized")
@@ -323,34 +328,34 @@ async def collaborative_team_workflow():
     print()
 
     # Store initial task in shared context
-    shared_context.set('task_description', shared_task)
+    shared_context.set("task_description", shared_task)
 
     # Create agents
-    from core.experts.product_manager_expert import ProductRequirementsGenerator
-    from core.experts.ux_researcher_expert import UXResearchGenerator
     from core.experts.designer_expert import DesignGenerator
     from core.experts.frontend_expert import FrontendArchitectureGenerator
+    from core.experts.product_manager_expert import ProductRequirementsGenerator
+    from core.experts.ux_researcher_expert import UXResearchGenerator
 
     agents_config = [
         {
-            'name': 'Product Manager',
-            'agent': dspy.ChainOfThought(ProductRequirementsGenerator),
-            'expert': experts['pm']
+            "name": "Product Manager",
+            "agent": dspy.ChainOfThought(ProductRequirementsGenerator),
+            "expert": experts["pm"],
         },
         {
-            'name': 'UX Researcher',
-            'agent': dspy.ChainOfThought(UXResearchGenerator),
-            'expert': experts['ux']
+            "name": "UX Researcher",
+            "agent": dspy.ChainOfThought(UXResearchGenerator),
+            "expert": experts["ux"],
         },
         {
-            'name': 'Designer',
-            'agent': dspy.ChainOfThought(DesignGenerator),
-            'expert': experts['design']
+            "name": "Designer",
+            "agent": dspy.ChainOfThought(DesignGenerator),
+            "expert": experts["design"],
         },
         {
-            'name': 'Frontend Developer',
-            'agent': dspy.ChainOfThought(FrontendArchitectureGenerator),
-            'expert': experts['frontend']
+            "name": "Frontend Developer",
+            "agent": dspy.ChainOfThought(FrontendArchitectureGenerator),
+            "expert": experts["frontend"],
         },
     ]
 
@@ -363,14 +368,14 @@ async def collaborative_team_workflow():
         # NOTE: This is pseudo-parallel - they'll run sequentially due to await
         # For true parallelism, use asyncio.gather()
         task = run_collaborative_agent(
-            agent_name=config['name'],
-            agent=config['agent'],
-            expert=config['expert'],
+            agent_name=config["name"],
+            agent=config["agent"],
+            expert=config["expert"],
             initial_task=shared_task,
             shared_context=shared_context,
             scratchpad=scratchpad,
             max_iterations=2,  # Fewer iterations since they collaborate
-            score_threshold=0.85
+            score_threshold=0.85,
         )
         tasks.append(task)
 
@@ -378,10 +383,7 @@ async def collaborative_team_workflow():
     results = await asyncio.gather(*tasks)
 
     # Map results
-    team_results = {
-        agents_config[i]['name']: results[i]
-        for i in range(len(agents_config))
-    }
+    team_results = {agents_config[i]["name"]: results[i] for i in range(len(agents_config))}
 
     # Analysis
     print("\n" + "=" * 90)
@@ -394,12 +396,12 @@ async def collaborative_team_workflow():
     total_tool_cache_hits = 0
 
     for agent_name, result in team_results.items():
-        total_iterations += result['iterations']
-        total_messages += result['messages_sent'] + result['messages_received']
-        total_tool_cache_hits += result['tool_cache_hits']
+        total_iterations += result["iterations"]
+        total_messages += result["messages_sent"] + result["messages_received"]
+        total_tool_cache_hits += result["tool_cache_hits"]
 
-        initial_score = result['scores'][0]
-        final_score = result['scores'][-1]
+        initial_score = result["scores"][0]
+        final_score = result["scores"][-1]
         improvement = final_score - initial_score
 
         print(f"\n{agent_name.upper()}:")
@@ -445,7 +447,7 @@ async def collaborative_team_workflow():
 """
 
     for agent_name, result in team_results.items():
-        final = result['scores'][-1]
+        final = result["scores"][-1]
         doc += f"| {agent_name} | {result['iterations']} | {final:.2f} | {result['messages_sent']} | {result['messages_received']} | {result['tool_cache_hits']} |\n"
 
     doc += f"""
@@ -544,7 +546,7 @@ if __name__ == "__main__":
     print("All agents work in parallel with shared workspace\n")
 
     response = input("Ready to run? (y/n): ")
-    if response.lower() == 'y':
+    if response.lower() == "y":
         asyncio.run(main())
     else:
         print("Cancelled")

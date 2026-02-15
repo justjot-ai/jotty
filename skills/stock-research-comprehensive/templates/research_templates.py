@@ -1,4 +1,5 @@
 from typing import Any
+
 """
 Research Report Templates
 =========================
@@ -10,7 +11,7 @@ Professional templates inspired by global investment banks:
 - Motilal Oswal: Colorful, Indian market, orange accent
 """
 
-from .base_template import BaseTemplate, TemplateColors, TemplateTypography, TemplateRegistry
+from .base_template import BaseTemplate, TemplateColors, TemplateRegistry, TemplateTypography
 
 
 class GoldmanSachsTemplate(BaseTemplate):
@@ -23,7 +24,7 @@ class GoldmanSachsTemplate(BaseTemplate):
         self.category = "research"
 
         self.colors = TemplateColors(
-            primary="#10294a",        # GS Navy
+            primary="#10294a",  # GS Navy
             primary_dark="#091830",
             primary_light="#1a4075",
             secondary="#6b7c93",
@@ -39,7 +40,9 @@ class GoldmanSachsTemplate(BaseTemplate):
         )
 
     def get_css(self) -> str:
-        return self.get_base_css() + f"""
+        return (
+            self.get_base_css()
+            + f"""
 /* Goldman Sachs Style */
 @page {{
     @top-right {{
@@ -133,6 +136,7 @@ th {{
     page-break-inside: avoid;
 }}
 """
+        )
 
     def get_html_wrapper(self, content: str, title: str) -> str:
         return f"""<!DOCTYPE html>
@@ -156,7 +160,7 @@ class MorganStanleyTemplate(BaseTemplate):
         self.category = "research"
 
         self.colors = TemplateColors(
-            primary="#00205b",        # MS Blue
+            primary="#00205b",  # MS Blue
             primary_dark="#001640",
             primary_light="#003380",
             secondary="#5c6670",
@@ -172,7 +176,9 @@ class MorganStanleyTemplate(BaseTemplate):
         )
 
     def get_css(self) -> str:
-        return self.get_base_css() + f"""
+        return (
+            self.get_base_css()
+            + f"""
 /* Morgan Stanley Style */
 @page {{
     @top-left {{
@@ -291,6 +297,7 @@ th {{
     margin: 12pt 0;
 }}
 """
+        )
 
     def get_html_wrapper(self, content: str, title: str) -> str:
         return f"""<!DOCTYPE html>
@@ -314,7 +321,7 @@ class CLSATemplate(BaseTemplate):
         self.category = "research"
 
         self.colors = TemplateColors(
-            primary="#b71c1c",        # CLSA Red
+            primary="#b71c1c",  # CLSA Red
             primary_dark="#7f0000",
             primary_light="#e53935",
             secondary="#424242",
@@ -330,7 +337,9 @@ class CLSATemplate(BaseTemplate):
         )
 
     def get_css(self) -> str:
-        return self.get_base_css() + f"""
+        return (
+            self.get_base_css()
+            + f"""
 /* CLSA Style */
 @page {{
     @top-center {{
@@ -427,6 +436,7 @@ td {{
     page-break-inside: avoid;
 }}
 """
+        )
 
     def get_html_wrapper(self, content: str, title: str) -> str:
         return f"""<!DOCTYPE html>
@@ -450,7 +460,7 @@ class MotilalOswalTemplate(BaseTemplate):
         self.category = "research"
 
         self.colors = TemplateColors(
-            primary="#e65100",        # MOSL Orange
+            primary="#e65100",  # MOSL Orange
             primary_dark="#bf360c",
             primary_light="#ff9800",
             secondary="#37474f",
@@ -466,7 +476,9 @@ class MotilalOswalTemplate(BaseTemplate):
         )
 
     def get_css(self) -> str:
-        return self.get_base_css() + f"""
+        return (
+            self.get_base_css()
+            + f"""
 /* Motilal Oswal Style */
 @page {{
     @top-left {{
@@ -607,6 +619,7 @@ th:last-child {{
     font-weight: 700;
 }}
 """
+        )
 
     def get_html_wrapper(self, content: str, title: str) -> str:
         return f"""<!DOCTYPE html>

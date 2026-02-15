@@ -25,9 +25,9 @@ import json
 import logging
 import sys
 import textwrap
-from pathlib import Path
-from typing import Dict, List, Optional, Any
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +35,7 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 # SPEC LOADER
 # =============================================================================
+
 
 def load_spec(spec_path: Path) -> Dict[str, Any]:
     """Load OpenAPI spec, generating fresh if missing."""
@@ -45,6 +46,7 @@ def load_spec(spec_path: Path) -> Dict[str, Any]:
     try:
         sys.path.insert(0, str(spec_path.parent.parent))
         from core.api.openapi import generate_openapi_spec
+
         spec = generate_openapi_spec()
         spec_path.parent.mkdir(parents=True, exist_ok=True)
         spec_path.write_text(json.dumps(spec, indent=2))
@@ -67,17 +69,20 @@ def extract_endpoints(spec: Dict) -> List[Dict[str, Any]]:
                     schema = content.get("schema", {})
                     body_ref = schema.get("$ref", "").split("/")[-1] if "$ref" in schema else None
 
-                endpoints.append({
-                    "path": path,
-                    "method": method.upper(),
-                    "operation_id": details.get("operationId", ""),
-                    "summary": details.get("summary", ""),
-                    "tags": details.get("tags", []),
-                    "path_params": [p["name"] for p in params if p.get("in") == "path"],
-                    "query_params": [p["name"] for p in params if p.get("in") == "query"],
-                    "body_schema": body_ref,
-                    "is_stream": "event-stream" in str(details.get("responses", {}).get("200", {}).get("content", {})),
-                })
+                endpoints.append(
+                    {
+                        "path": path,
+                        "method": method.upper(),
+                        "operation_id": details.get("operationId", ""),
+                        "summary": details.get("summary", ""),
+                        "tags": details.get("tags", []),
+                        "path_params": [p["name"] for p in params if p.get("in") == "path"],
+                        "query_params": [p["name"] for p in params if p.get("in") == "query"],
+                        "body_schema": body_ref,
+                        "is_stream": "event-stream"
+                        in str(details.get("responses", {}).get("200", {}).get("content", {})),
+                    }
+                )
     return endpoints
 
 
@@ -89,6 +94,7 @@ def extract_types(spec: Dict) -> Dict[str, Dict]:
 # =============================================================================
 # TYPESCRIPT GENERATOR
 # =============================================================================
+
 
 def _ts_type(schema: Dict) -> str:
     """Convert OpenAPI schema to TypeScript type."""
@@ -141,22 +147,24 @@ def generate_typescript(spec: Dict, output_dir: Path):
             lines.append("")
 
     # Add event types
-    lines.extend([
-        "export type EventCallback = (event: SDKEvent) => void;",
-        "",
-        "export type JottyEventMap = {",
-        '  start: SDKEvent;',
-        '  complete: SDKEvent;',
-        '  error: SDKEvent;',
-        '  thinking: SDKEvent;',
-        '  planning: SDKEvent;',
-        '  skill_start: SDKEvent;',
-        '  skill_complete: SDKEvent;',
-        '  stream: SDKEvent;',
-        '  "*": SDKEvent;',
-        "};",
-        "",
-    ])
+    lines.extend(
+        [
+            "export type EventCallback = (event: SDKEvent) => void;",
+            "",
+            "export type JottyEventMap = {",
+            "  start: SDKEvent;",
+            "  complete: SDKEvent;",
+            "  error: SDKEvent;",
+            "  thinking: SDKEvent;",
+            "  planning: SDKEvent;",
+            "  skill_start: SDKEvent;",
+            "  skill_complete: SDKEvent;",
+            "  stream: SDKEvent;",
+            '  "*": SDKEvent;',
+            "};",
+            "",
+        ]
+    )
 
     (output_dir / "types.ts").write_text("\n".join(lines))
 
@@ -165,12 +173,12 @@ def generate_typescript(spec: Dict, output_dir: Path):
         "// Auto-generated Jotty TypeScript SDK",
         f"// Generated: {datetime.now().isoformat()}",
         "",
-        'import type {',
-        '  SDKResponse, SDKEvent, SDKSession, SDKRequest,',
-        '  ExecutionContext, EventCallback, JottyEventMap,',
+        "import type {",
+        "  SDKResponse, SDKEvent, SDKSession, SDKRequest,",
+        "  ExecutionContext, EventCallback, JottyEventMap,",
         '} from "./types";',
         "",
-        'export type { SDKResponse, SDKEvent, SDKSession, SDKRequest, ExecutionContext };',
+        "export type { SDKResponse, SDKEvent, SDKSession, SDKRequest, ExecutionContext };",
         "",
         "export interface SwarmConfig {",
         "  baseUrl?: string;",
@@ -235,7 +243,7 @@ def generate_typescript(spec: Dict, output_dir: Path):
         "        headers,",
         "        signal: controller.signal,",
         "      });",
-        '      if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);',
+        "      if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);",
         "      return await res.json();",
         "    } finally {",
         "      clearTimeout(timer);",
@@ -367,7 +375,7 @@ def generate_typescript(spec: Dict, output_dir: Path):
 
     # Generate index.ts
     (output_dir / "index.ts").write_text(
-        '// Jotty SDK for TypeScript\n'
+        "// Jotty SDK for TypeScript\n"
         'export { Jotty, type SwarmConfig } from "./client";\n'
         'export type * from "./types";\n'
     )
@@ -415,6 +423,7 @@ def generate_typescript(spec: Dict, output_dir: Path):
 # PYTHON GENERATOR (standalone pip-installable package)
 # =============================================================================
 
+
 def generate_python(spec: Dict, output_dir: Path):
     """Generate standalone Python SDK (pip-installable)."""
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -425,17 +434,23 @@ def generate_python(spec: Dict, output_dir: Path):
     endpoints = extract_endpoints(spec)
 
     # __init__.py
-    (pkg_dir / "__init__.py").write_text(textwrap.dedent('''\
+    (pkg_dir / "__init__.py").write_text(
+        textwrap.dedent(
+            '''\
         """Jotty SDK - Official Python client for Jotty AI Framework."""
         from .client import Jotty, JottySync
         from .types import SDKResponse, SDKEvent, SDKSession
 
         __version__ = "{version}"
         __all__ = ["Jotty", "JottySync", "SDKResponse", "SDKEvent", "SDKSession"]
-    ''').format(version=spec.get("info", {}).get("version", "2.0.0")))
+    '''
+        ).format(version=spec.get("info", {}).get("version", "2.0.0"))
+    )
 
     # types.py - lightweight, no dependency on Jotty internals
-    (pkg_dir / "types.py").write_text(textwrap.dedent('''\
+    (pkg_dir / "types.py").write_text(
+        textwrap.dedent(
+            '''\
         """Jotty SDK Types - Auto-generated from OpenAPI spec."""
         from dataclasses import dataclass, field
         from typing import Dict, List, Any, Optional
@@ -477,10 +492,14 @@ def generate_python(spec: Dict, output_dir: Path):
             messages: List[Dict[str, Any]] = field(default_factory=list)
             preferences: Dict[str, Any] = field(default_factory=dict)
             metadata: Dict[str, Any] = field(default_factory=dict)
-    '''))
+    '''
+        )
+    )
 
     # client.py - standalone, only needs httpx
-    (pkg_dir / "client.py").write_text(textwrap.dedent('''\
+    (pkg_dir / "client.py").write_text(
+        textwrap.dedent(
+            '''\
         """Jotty SDK Client - Async + Sync Python client."""
         import json
         import asyncio
@@ -673,10 +692,14 @@ def generate_python(spec: Dict, output_dir: Path):
 
             def close(self):
                 self._run(self._async.close())
-    '''))
+    '''
+        )
+    )
 
     # setup.py / pyproject.toml
-    (output_dir / "pyproject.toml").write_text(textwrap.dedent(f'''\
+    (output_dir / "pyproject.toml").write_text(
+        textwrap.dedent(
+            f"""\
         [build-system]
         requires = ["setuptools>=61.0"]
         build-backend = "setuptools.backends._legacy:_Backend"
@@ -691,7 +714,9 @@ def generate_python(spec: Dict, output_dir: Path):
 
         [project.optional-dependencies]
         dev = ["pytest", "pytest-asyncio"]
-    '''))
+    """
+        )
+    )
 
     return len(endpoints)
 
@@ -700,6 +725,7 @@ def generate_python(spec: Dict, output_dir: Path):
 # GO GENERATOR
 # =============================================================================
 
+
 def generate_go(spec: Dict, output_dir: Path):
     """Generate Go SDK."""
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -707,14 +733,20 @@ def generate_go(spec: Dict, output_dir: Path):
     version = spec.get("info", {}).get("version", "2.0.0")
 
     # go.mod
-    (output_dir / "go.mod").write_text(textwrap.dedent('''\
+    (output_dir / "go.mod").write_text(
+        textwrap.dedent(
+            """\
         module github.com/jotty-ai/jotty-sdk-go
 
         go 1.21
-    '''))
+    """
+        )
+    )
 
     # jotty.go
-    (output_dir / "jotty.go").write_text(textwrap.dedent('''\
+    (output_dir / "jotty.go").write_text(
+        textwrap.dedent(
+            """\
         // Package jotty provides the official Go SDK for Jotty AI Framework.
         //
         // Usage:
@@ -882,7 +914,9 @@ def generate_go(spec: Dict, output_dir: Path):
         	}
         	return a.client.post(ctx, "/api/agent/"+a.name, body)
         }
-    '''))
+    """
+        )
+    )
 
     return len(extract_endpoints(spec))
 
@@ -902,20 +936,27 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(description="Generate multi-language SDKs from OpenAPI spec")
-    parser.add_argument("--spec", type=Path, default=Path("sdk/openapi.json"), help="OpenAPI spec path")
-    parser.add_argument("--languages", nargs="+", choices=list(GENERATORS.keys()),
-                        help="Languages to generate (default: all)")
-    parser.add_argument("--output-dir", type=Path, default=Path("sdk/generated"),
-                        help="Output directory")
+    parser.add_argument(
+        "--spec", type=Path, default=Path("sdk/openapi.json"), help="OpenAPI spec path"
+    )
+    parser.add_argument(
+        "--languages",
+        nargs="+",
+        choices=list(GENERATORS.keys()),
+        help="Languages to generate (default: all)",
+    )
+    parser.add_argument(
+        "--output-dir", type=Path, default=Path("sdk/generated"), help="Output directory"
+    )
     parser.add_argument("--dry-run", action="store_true", help="Show what would be generated")
 
     args = parser.parse_args()
 
     # Load or generate spec
     spec = load_spec(args.spec)
-    logger.info("Loaded spec: %s v%s", spec['info']['title'], spec['info']['version'])
-    logger.info("  Endpoints: %d", len(spec['paths']))
-    logger.info("  Schemas: %d", len(spec['components']['schemas']))
+    logger.info("Loaded spec: %s v%s", spec["info"]["title"], spec["info"]["version"])
+    logger.info("  Endpoints: %d", len(spec["paths"]))
+    logger.info("  Schemas: %d", len(spec["components"]["schemas"]))
 
     languages = args.languages or list(GENERATORS.keys())
 

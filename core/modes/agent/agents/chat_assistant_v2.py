@@ -9,23 +9,18 @@ Key differences from V1:
 - V2: LLM chooses tool → return_text() or return_kanban()  (1 method)
 """
 
-import logging
 import json
-from typing import Dict, Any, Optional
+import logging
+from typing import Any, Dict, Optional
+
 from anthropic import Anthropic
 
-from Jotty.core.infrastructure.foundation.config_defaults import LLM_MAX_OUTPUT_TOKENS
 from Jotty.core.infrastructure.foundation.anthropic_client_kwargs import get_anthropic_client_kwargs
+from Jotty.core.infrastructure.foundation.config_defaults import LLM_MAX_OUTPUT_TOKENS
 
-from .section_tools import generate_section_tools, get_system_prompt
-from ..ui import (
-    return_kanban,
-    return_chart,
-    return_mermaid,
-    return_section,
-    return_data_table
-)
+from ..ui import return_chart, return_data_table, return_kanban, return_mermaid, return_section
 from ..ui.status_taxonomy import status_mapper
+from .section_tools import generate_section_tools, get_system_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -68,13 +63,15 @@ class ChatAssistantV2:
             A2UI formatted response (LLM chose the section type!)
         """
         # Extract query
-        goal = (kwargs.get('goal') or
-                kwargs.get('message') or
-                kwargs.get('context') or
-                kwargs.get('task_description', ''))
+        goal = (
+            kwargs.get("goal")
+            or kwargs.get("message")
+            or kwargs.get("context")
+            or kwargs.get("task_description", "")
+        )
 
         if not goal:
-            return {'role': 'assistant', 'content': 'No query provided'}
+            return {"role": "assistant", "content": "No query provided"}
 
         logger.info(f"Processing query: {goal}")
 
@@ -95,25 +92,35 @@ class ChatAssistantV2:
         # Fetch task data if query is about tasks
         if self._is_task_query(query) and self.state_manager:
             tasks = await self._fetch_tasks()
-            context['tasks'] = tasks
-            context['task_count'] = len(tasks)
+            context["tasks"] = tasks
+            context["task_count"] = len(tasks)
 
             # Group by status (using generic taxonomy)
             by_status = {}
             for task in tasks:
-                canonical_status = status_mapper.normalize(task.get('status', 'backlog'))
+                canonical_status = status_mapper.normalize(task.get("status", "backlog"))
                 if canonical_status not in by_status:
                     by_status[canonical_status] = []
                 by_status[canonical_status].append(task)
 
-            context['tasks_by_status'] = by_status
-            context['status_counts'] = {k: len(v) for k, v in by_status.items()}
+            context["tasks_by_status"] = by_status
+            context["status_counts"] = {k: len(v) for k, v in by_status.items()}
 
         return context
 
     def _is_task_query(self, query: str) -> bool:
         """Detect if query is about tasks."""
-        keywords = ['task', 'backlog', 'pending', 'completed', 'done', 'todo', 'in progress', 'show', 'list']
+        keywords = [
+            "task",
+            "backlog",
+            "pending",
+            "completed",
+            "done",
+            "todo",
+            "in progress",
+            "show",
+            "list",
+        ]
         return any(keyword in query.lower() for keyword in keywords)
 
     async def _fetch_tasks(self) -> list:
@@ -155,7 +162,7 @@ Available data:
 {json.dumps(context, indent=2)}
 
 Choose the BEST section format for this query and generate appropriate content.
-"""
+""",
             }
         ]
 
@@ -167,7 +174,7 @@ Choose the BEST section format for this query and generate appropriate content.
                 system=get_system_prompt(),  # Includes tool hints
                 messages=messages,
                 tools=self.tools,  # Auto-generated from schemas
-                tool_choice={"type": "any"}  # LLM must use a tool
+                tool_choice={"type": "any"},  # LLM must use a tool
             )
 
             # Execute the tool LLM chose
@@ -201,27 +208,25 @@ Choose the BEST section format for this query and generate appropriate content.
 
         # Map tool name to helper function
         tool_map = {
-            'return_kanban': lambda: return_kanban(
-                columns=tool_input.get('content', {}).get('columns', []),
-                title=tool_input.get('title')
+            "return_kanban": lambda: return_kanban(
+                columns=tool_input.get("content", {}).get("columns", []),
+                title=tool_input.get("title"),
             ),
-            'return_text': lambda: return_section(
-                section_type='text',
-                content=tool_input.get('content', ''),
-                title=tool_input.get('title')
+            "return_text": lambda: return_section(
+                section_type="text",
+                content=tool_input.get("content", ""),
+                title=tool_input.get("title"),
             ),
-            'return_chart': lambda: return_chart(
-                chart_type=tool_input.get('content', {}).get('type', 'bar'),
-                data=tool_input.get('content', {}).get('data', {}),
-                title=tool_input.get('title')
+            "return_chart": lambda: return_chart(
+                chart_type=tool_input.get("content", {}).get("type", "bar"),
+                data=tool_input.get("content", {}).get("data", {}),
+                title=tool_input.get("title"),
             ),
-            'return_mermaid': lambda: return_mermaid(
-                diagram=tool_input.get('content', ''),
-                title=tool_input.get('title')
+            "return_mermaid": lambda: return_mermaid(
+                diagram=tool_input.get("content", ""), title=tool_input.get("title")
             ),
-            'return_data_table': lambda: return_data_table(
-                csv_data=tool_input.get('content', ''),
-                title=tool_input.get('title')
+            "return_data_table": lambda: return_data_table(
+                csv_data=tool_input.get("content", ""), title=tool_input.get("title")
             ),
             # ... other tools auto-mapped
         }
@@ -231,11 +236,11 @@ Choose the BEST section format for this query and generate appropriate content.
             return tool_map[tool_name]()
         else:
             # Generic section helper (works for ANY type!)
-            section_type = tool_name.replace('return_', '').replace('_', '-')
+            section_type = tool_name.replace("return_", "").replace("_", "-")
             return return_section(
                 section_type=section_type,
-                content=tool_input.get('content'),
-                title=tool_input.get('title')
+                content=tool_input.get("content"),
+                title=tool_input.get("title"),
             )
 
     def _fallback_response(self, context: Dict[str, Any]) -> Dict[str, Any]:
@@ -244,28 +249,30 @@ Choose the BEST section format for this query and generate appropriate content.
 
         Returns kanban board if tasks available.
         """
-        tasks = context.get('tasks', [])
+        tasks = context.get("tasks", [])
         if not tasks:
-            return {'role': 'assistant', 'content': 'No tasks found'}
+            return {"role": "assistant", "content": "No tasks found"}
 
         # Build kanban columns using status taxonomy
         columns = status_mapper.create_kanban_columns()
 
         for task in tasks:
-            canonical_status = status_mapper.normalize(task.get('status', 'backlog'))
+            canonical_status = status_mapper.normalize(task.get("status", "backlog"))
             column_id = status_mapper.to_kanban_column(canonical_status)
 
             # Find column and add task
             for col in columns:
-                if col['id'] == column_id:
-                    col['items'].append({
-                        'id': task.get('task_id', task.get('id')),
-                        'title': task.get('title', 'Untitled'),
-                        'description': task.get('description'),
-                        'priority': task.get('priority'),
-                    })
+                if col["id"] == column_id:
+                    col["items"].append(
+                        {
+                            "id": task.get("task_id", task.get("id")),
+                            "title": task.get("title", "Untitled"),
+                            "description": task.get("description"),
+                            "priority": task.get("priority"),
+                        }
+                    )
 
-        return return_kanban(columns=columns, title=f'Tasks ({len(tasks)} total)')
+        return return_kanban(columns=columns, title=f"Tasks ({len(tasks)} total)")
 
 
 # Example usage

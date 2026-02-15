@@ -27,34 +27,62 @@ Usage:
     result = await swarm.teach(topic="Media and its influence on decisions")
 """
 
-from .types import (
-    PerspectiveType, Language, AgeGroup, ContentDepth,
-    PerspectiveLearningConfig, PerspectiveLearningResult,
-    PerspectiveSection, LanguageContent, DebatePoint,
-    ProjectActivity, FrameworkModel, LessonContent,
-)
 from .agents import (
-    CurriculumDesignerAgent, IntuitiveExplainerAgent,
-    FrameworkBuilderAgent, StorytellerAgent,
-    DebateArchitectAgent, ProjectDesignerAgent,
-    RealWorldConnectorAgent, MultilingualAgent,
-    ContentAssemblerAgent, NarrativeEditorAgent,
+    ContentAssemblerAgent,
+    CurriculumDesignerAgent,
+    DebateArchitectAgent,
+    FrameworkBuilderAgent,
+    IntuitiveExplainerAgent,
+    MultilingualAgent,
+    NarrativeEditorAgent,
+    ProjectDesignerAgent,
+    RealWorldConnectorAgent,
+    StorytellerAgent,
 )
 from .swarm import PerspectiveLearningSwarm, teach_perspectives, teach_perspectives_sync
+from .types import (
+    AgeGroup,
+    ContentDepth,
+    DebatePoint,
+    FrameworkModel,
+    Language,
+    LanguageContent,
+    LessonContent,
+    PerspectiveLearningConfig,
+    PerspectiveLearningResult,
+    PerspectiveSection,
+    PerspectiveType,
+    ProjectActivity,
+)
 
 __all__ = [
     # Swarm
-    'PerspectiveLearningSwarm', 'PerspectiveLearningConfig', 'PerspectiveLearningResult',
+    "PerspectiveLearningSwarm",
+    "PerspectiveLearningConfig",
+    "PerspectiveLearningResult",
     # Convenience
-    'teach_perspectives', 'teach_perspectives_sync',
+    "teach_perspectives",
+    "teach_perspectives_sync",
     # Types
-    'PerspectiveType', 'Language', 'AgeGroup', 'ContentDepth',
-    'PerspectiveSection', 'LanguageContent', 'DebatePoint',
-    'ProjectActivity', 'FrameworkModel', 'LessonContent',
+    "PerspectiveType",
+    "Language",
+    "AgeGroup",
+    "ContentDepth",
+    "PerspectiveSection",
+    "LanguageContent",
+    "DebatePoint",
+    "ProjectActivity",
+    "FrameworkModel",
+    "LessonContent",
     # Agents
-    'CurriculumDesignerAgent', 'IntuitiveExplainerAgent',
-    'FrameworkBuilderAgent', 'StorytellerAgent',
-    'DebateArchitectAgent', 'ProjectDesignerAgent',
-    'RealWorldConnectorAgent', 'MultilingualAgent',
-    'ContentAssemblerAgent', 'NarrativeEditorAgent',
+    "CurriculumDesignerAgent",
+    "IntuitiveExplainerAgent",
+    "FrameworkBuilderAgent",
+    "StorytellerAgent",
+    "DebateArchitectAgent",
+    "ProjectDesignerAgent",
+    "RealWorldConnectorAgent",
+    "MultilingualAgent",
+    "ContentAssemblerAgent",
+    "NarrativeEditorAgent",
 ]

@@ -4,10 +4,11 @@ Protocol definitions for mixin classes.
 These protocols define the expected attributes and methods that mixins
 can assume will be available from the parent class they're mixed with.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Protocol, Dict, List, Any, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Protocol
 
 if TYPE_CHECKING:
     import pandas as pd

@@ -22,10 +22,15 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
-from .base_agent import BaseAgent, AgentRuntimeConfig, AgentResult
-from Jotty.core.infrastructure.utils.async_utils import StatusReporter, AgentEventBroadcaster, AgentEvent
-from .skill_plan_executor import SkillPlanExecutor
+from Jotty.core.infrastructure.utils.async_utils import (
+    AgentEvent,
+    AgentEventBroadcaster,
+    StatusReporter,
+)
+
 from ..types.execution_types import ExecutionStep
+from .base_agent import AgentResult, AgentRuntimeConfig, BaseAgent
+from .skill_plan_executor import SkillPlanExecutor
 
 logger = logging.getLogger(__name__)
 
@@ -34,9 +39,11 @@ logger = logging.getLogger(__name__)
 # AUTONOMOUS AGENT CONFIG
 # =============================================================================
 
+
 @dataclass
 class AutonomousAgentConfig(AgentRuntimeConfig):
     """Configuration specific to AutonomousAgent."""
+
     max_steps: int = 10
     enable_replanning: bool = False  # Disabled: stop immediately on failure
     max_replans: int = 3
@@ -50,6 +57,7 @@ class AutonomousAgentConfig(AgentRuntimeConfig):
 # =============================================================================
 # EXECUTION CONTEXT MANAGER
 # =============================================================================
+
 
 class ExecutionContextManager:
     """
@@ -75,6 +83,7 @@ class ExecutionContextManager:
     def add_step(self, step_info: dict) -> None:
         """Append a step result and trigger compression if needed."""
         import json
+
         self._total_chars += len(json.dumps(step_info, default=str))
         self._history.append(step_info)
         if self._total_chars > self._max_history_size:
@@ -91,25 +100,28 @@ class ExecutionContextManager:
 
         summary_parts = []
         for i, entry in enumerate(old_entries):
-            skill = entry.get('skill_name', entry.get('step', f'step_{i}'))
-            success = entry.get('success', '?')
-            output = ''
-            for key in ('output', 'response', 'text', 'content', 'result'):
+            skill = entry.get("skill_name", entry.get("step", f"step_{i}"))
+            success = entry.get("success", "?")
+            output = ""
+            for key in ("output", "response", "text", "content", "result"):
                 if key in entry and isinstance(entry[key], str):
                     output = entry[key][:150]
                     break
-            summary_parts.append(f"  {skill}: success={success}" + (f" | {output}..." if output else ""))
+            summary_parts.append(
+                f"  {skill}: success={success}" + (f" | {output}..." if output else "")
+            )
 
         compressed_entry = {
-            '_compressed': True,
-            '_original_count': len(old_entries),
-            'summary': f"Compressed {len(old_entries)} earlier steps:\n" + "\n".join(summary_parts),
+            "_compressed": True,
+            "_original_count": len(old_entries),
+            "summary": f"Compressed {len(old_entries)} earlier steps:\n" + "\n".join(summary_parts),
         }
 
         self._history = [compressed_entry] + recent_entries
 
         # Recalculate and compound ratio
         import json
+
         self._total_chars = sum(len(json.dumps(e, default=str)) for e in self._history)
         self._compression_ratio *= 0.7
         logger.info(
@@ -123,12 +135,13 @@ class ExecutionContextManager:
 
     def get_trajectory(self) -> List[dict]:
         """Return only the current uncompressed steps."""
-        return [e for e in self._history if not e.get('_compressed')]
+        return [e for e in self._history if not e.get("_compressed")]
 
 
 # =============================================================================
 # AUTONOMOUS AGENT
 # =============================================================================
+
 
 class AutonomousAgent(BaseAgent):
     """
@@ -173,6 +186,7 @@ class AutonomousAgent(BaseAgent):
         if self._planner is None:
             try:
                 from ..agentic_planner import TaskPlanner
+
                 self._planner = TaskPlanner()
                 logger.debug("Initialized TaskPlanner")
             except Exception as e:
@@ -228,10 +242,10 @@ class AutonomousAgent(BaseAgent):
         filtered = []
         for skill in all_skills:
             # Skip excluded skills
-            if skill['name'] in excluded:
+            if skill["name"] in excluded:
                 continue
             # Apply category filter if set
-            if config.skill_filter and skill.get('category', 'general') != config.skill_filter:
+            if config.skill_filter and skill.get("category", "general") != config.skill_filter:
                 continue
             filtered.append(skill)
 
@@ -245,7 +259,9 @@ class AutonomousAgent(BaseAgent):
         task_type: str = "",
     ) -> List[Dict[str, Any]]:
         """Select best skills using the executor's planner (with caching)."""
-        return await self.executor.select_skills(task, available_skills, max_skills, task_type=task_type)
+        return await self.executor.select_skills(
+            task, available_skills, max_skills, task_type=task_type
+        )
 
     # =========================================================================
     # EXECUTION PLANNING (delegates to executor)
@@ -265,7 +281,9 @@ class AutonomousAgent(BaseAgent):
     # STEP EXECUTION (delegates to executor)
     # =========================================================================
 
-    async def _execute_step(self, step: Any, outputs: Dict[str, Any], status_callback: Optional[Callable] = None) -> Dict[str, Any]:
+    async def _execute_step(
+        self, step: Any, outputs: Dict[str, Any], status_callback: Optional[Callable] = None
+    ) -> Dict[str, Any]:
         """Execute a single step via SkillPlanExecutor."""
         return await self.executor.execute_step(step, outputs, status_callback)
 
@@ -277,11 +295,13 @@ class AutonomousAgent(BaseAgent):
         """Emit an AgentEvent via the global broadcaster."""
         try:
             broadcaster = AgentEventBroadcaster.get_instance()
-            broadcaster.emit(AgentEvent(
-                type=event_type,
-                data=data,
-                agent_id=self.config.name,
-            ))
+            broadcaster.emit(
+                AgentEvent(
+                    type=event_type,
+                    data=data,
+                    agent_id=self.config.name,
+                )
+            )
         except Exception:
             pass
 
@@ -289,7 +309,7 @@ class AutonomousAgent(BaseAgent):
     # MAIN EXECUTION (orchestration loop with replanning)
     # =========================================================================
 
-    async def _execute_impl(self, task: str = '', **kwargs: Any) -> Dict[str, Any]:
+    async def _execute_impl(self, task: str = "", **kwargs: Any) -> Dict[str, Any]:
         """
         Execute an autonomous task.
 
@@ -303,10 +323,10 @@ class AutonomousAgent(BaseAgent):
         """
         config: AutonomousAgentConfig = self.config
         start_time = time.time()
-        status_callback = kwargs.pop('status_callback', None)
-        learning_context = kwargs.pop('learning_context', None)
-        workspace_dir = kwargs.pop('workspace_dir', None)
-        direct_llm = kwargs.pop('direct_llm', False)
+        status_callback = kwargs.pop("status_callback", None)
+        learning_context = kwargs.pop("learning_context", None)
+        workspace_dir = kwargs.pop("workspace_dir", None)
+        direct_llm = kwargs.pop("direct_llm", False)
 
         _status = StatusReporter(status_callback, logger)
 
@@ -332,32 +352,57 @@ class AutonomousAgent(BaseAgent):
         if sys_context and self.VVP_PROMPT in sys_context:
             _status("VVP", "visual verification protocol enabled")
 
-        self._emit("status", phase="skills_selected", count=len(skills),
-                   names=[s.get('name') for s in skills[:8]])
+        self._emit(
+            "status",
+            phase="skills_selected",
+            count=len(skills),
+            names=[s.get("name") for s in skills[:8]],
+        )
 
         # TOO_HARD early-exit
         if not all_skills and not skills:
             self._emit("error", phase="too_hard", reason="no relevant skills")
             _status("TOO_HARD", "no relevant skills found for this sub-task")
             return self._build_result(
-                task, task_type, {}, [], ["TOO_HARD: No relevant skills found"],
-                [], start_time, stopped=True, too_hard=True,
+                task,
+                task_type,
+                {},
+                [],
+                ["TOO_HARD: No relevant skills found"],
+                [],
+                start_time,
+                stopped=True,
+                too_hard=True,
             )
 
         # Step 4: Create plan or go direct
         steps, skill_names = await self._create_or_skip_plan(
-            task, task_type, skills, learning_context, workspace_dir, _status,
+            task,
+            task_type,
+            skills,
+            learning_context,
+            workspace_dir,
+            _status,
         )
 
         # No plan → direct LLM response
         if not steps:
             return await self._handle_no_plan_fallback(
-                task, task_type, skill_names, start_time, _status,
+                task,
+                task_type,
+                skill_names,
+                start_time,
+                _status,
             )
 
         # Step 5: Execute plan steps with replanning
         outputs, skills_used, errors, warnings, stopped = await self._run_execution_loop(
-            steps, task, task_type, skills, _status, status_callback,
+            steps,
+            task,
+            task_type,
+            skills,
+            _status,
+            status_callback,
         )
 
         # Post-execution: verify expected output files exist
@@ -365,13 +410,22 @@ class AutonomousAgent(BaseAgent):
 
         is_success = len(outputs) > 0 and not stopped and len(errors) == 0
         self._emit(
-            "step_end", phase="execute_impl", success=is_success,
-            steps=len(outputs), errors=len(errors),
+            "step_end",
+            phase="execute_impl",
+            success=is_success,
+            steps=len(outputs),
+            errors=len(errors),
             elapsed=round(time.time() - start_time, 2),
         )
         return self._build_result(
-            task, task_type, outputs, skills_used, errors,
-            warnings, start_time, stopped=stopped,
+            task,
+            task_type,
+            outputs,
+            skills_used,
+            errors,
+            warnings,
+            start_time,
+            stopped=stopped,
         )
 
     # =========================================================================
@@ -379,7 +433,10 @@ class AutonomousAgent(BaseAgent):
     # =========================================================================
 
     async def _handle_direct_llm(
-        self, task: str, start_time: float, status: StatusReporter,
+        self,
+        task: str,
+        start_time: float,
+        status: StatusReporter,
     ) -> Dict[str, Any]:
         """Handle direct LLM mode — bypass skill pipeline entirely."""
         status("Direct LLM", "bypassing skill pipeline (multi-agent sub-agent)")
@@ -388,28 +445,40 @@ class AutonomousAgent(BaseAgent):
         elapsed = time.time() - start_time
         if llm_response:
             self._emit("tool_end", skill="direct-llm", success=True, elapsed=round(elapsed, 2))
-            self._emit("step_end", phase="execute_impl", success=True, steps=1, elapsed=round(elapsed, 2))
+            self._emit(
+                "step_end", phase="execute_impl", success=True, steps=1, elapsed=round(elapsed, 2)
+            )
             return {
-                "success": True, "task": task, "task_type": "direct_llm",
-                "skills_used": ["direct-llm"], "steps_executed": 1,
+                "success": True,
+                "task": task,
+                "task_type": "direct_llm",
+                "skills_used": ["direct-llm"],
+                "steps_executed": 1,
                 "outputs": {"llm_response": llm_response},
-                "final_output": llm_response, "errors": [],
+                "final_output": llm_response,
+                "errors": [],
                 "execution_time": elapsed,
             }
         self._emit("tool_end", skill="direct-llm", success=False, elapsed=round(elapsed, 2))
         self._emit("step_end", phase="execute_impl", success=False, elapsed=round(elapsed, 2))
         return {
-            "success": False, "task": task,
+            "success": False,
+            "task": task,
             "error": "Direct LLM response failed",
-            "skills_used": [], "steps_executed": 0, "outputs": {},
+            "skills_used": [],
+            "steps_executed": 0,
+            "outputs": {},
             "execution_time": elapsed,
         }
 
     async def _discover_and_classify(
-        self, task: str, status: StatusReporter,
+        self,
+        task: str,
+        status: StatusReporter,
     ) -> tuple:
         """Infer task type and discover skills in parallel."""
         import asyncio as _asyncio
+
         status("Analyzing", "inferring task type + discovering skills (parallel)")
 
         async def _infer_type_async() -> Any:
@@ -422,17 +491,22 @@ class AutonomousAgent(BaseAgent):
         status("Task type", task_type)
         status("Skills found", f"{len(all_skills)} potential")
 
-        if self.skills_registry and hasattr(self.skills_registry, 'get_failed_skills'):
+        if self.skills_registry and hasattr(self.skills_registry, "get_failed_skills"):
             failed = self.skills_registry.get_failed_skills()
             if failed:
-                status("Warning", f"{len(failed)} skills failed to load: {', '.join(failed.keys())}")
+                status(
+                    "Warning", f"{len(failed)} skills failed to load: {', '.join(failed.keys())}"
+                )
                 logger.warning(f"Failed skills: {failed}")
 
         return task_type, all_skills
 
     async def _select_and_optimize_skills(
-        self, task: str, task_type: str,
-        all_skills: List[Dict], learning_context: Optional[str],
+        self,
+        task: str,
+        task_type: str,
+        all_skills: List[Dict],
+        learning_context: Optional[str],
         status: StatusReporter,
     ) -> List[Dict]:
         """Select best skills and strip heavy ones for knowledge tasks."""
@@ -442,73 +516,142 @@ class AutonomousAgent(BaseAgent):
         selection_task = task
         if learning_context:
             approach_lines = [
-                ln for ln in learning_context.split('\n')
-                if any(kw in ln.lower() for kw in ['avoid', 'failed approach', 'successful approach', 'use:'])
+                ln
+                for ln in learning_context.split("\n")
+                if any(
+                    kw in ln.lower()
+                    for kw in ["avoid", "failed approach", "successful approach", "use:"]
+                )
             ]
             if approach_lines:
-                selection_task = f"{task}\n\n[Skill guidance from past experience]:\n" + '\n'.join(approach_lines[:5])
+                selection_task = f"{task}\n\n[Skill guidance from past experience]:\n" + "\n".join(
+                    approach_lines[:5]
+                )
 
         skills = await self._select_skills(selection_task, all_skills, task_type=task_type)
 
         # Strip heavy/irrelevant skills for knowledge-only tasks
         skills = self._optimize_for_knowledge_tasks(task, task_type, skills, all_skills, status)
 
-        status("Skills selected", ", ".join(s['name'] for s in skills[:5]))
+        status("Skills selected", ", ".join(s["name"] for s in skills[:5]))
         return skills
 
     def _optimize_for_knowledge_tasks(
-        self, task: str, task_type: str,
-        skills: List[Dict], all_skills: List[Dict],
+        self,
+        task: str,
+        task_type: str,
+        skills: List[Dict],
+        all_skills: List[Dict],
         status: StatusReporter,
     ) -> List[Dict]:
         """Strip heavy skills for tasks the LLM can answer directly."""
-        _KNOWLEDGE_TASK_TYPES = {'analysis', 'explanation', 'design', 'architecture',
-                                 'algorithm', 'tutorial', 'comparison', 'review'}
-        _KNOWLEDGE_USEFUL = {'claude-cli-llm', 'file-operations', 'calculator',
-                             'text-utils', 'shell-exec', 'unit-converter'}
+        _KNOWLEDGE_TASK_TYPES = {
+            "analysis",
+            "explanation",
+            "design",
+            "architecture",
+            "algorithm",
+            "tutorial",
+            "comparison",
+            "review",
+        }
+        _KNOWLEDGE_USEFUL = {
+            "claude-cli-llm",
+            "file-operations",
+            "calculator",
+            "text-utils",
+            "shell-exec",
+            "unit-converter",
+        }
 
         task_lower = task.lower()
-        is_knowledge = (
-            task_type in _KNOWLEDGE_TASK_TYPES
-            or any(kw in task_lower for kw in [
-                'design', 'architect', 'explain', 'compare', 'review',
-                'algorithm', 'pattern', 'best practice', 'how to implement',
-                'trade-off', 'pros and cons', 'what is', 'describe',
-            ])
+        is_knowledge = task_type in _KNOWLEDGE_TASK_TYPES or any(
+            kw in task_lower
+            for kw in [
+                "design",
+                "architect",
+                "explain",
+                "compare",
+                "review",
+                "algorithm",
+                "pattern",
+                "best practice",
+                "how to implement",
+                "trade-off",
+                "pros and cons",
+                "what is",
+                "describe",
+            ]
         )
-        wants_heavy = any(kw in task_lower for kw in [
-            'search', 'find online', 'latest', 'recent', 'news', 'current',
-            'scrape', 'fetch', 'url', 'http', 'website', 'browse',
-            'arxiv', 'paper', 'slides', 'presentation', 'mindmap',
-            'research', 'benchmark', 'github stars', 'statistics',
-            'released in', 'top 5', 'top 10', 'trending',
-        ])
+        wants_heavy = any(
+            kw in task_lower
+            for kw in [
+                "search",
+                "find online",
+                "latest",
+                "recent",
+                "news",
+                "current",
+                "scrape",
+                "fetch",
+                "url",
+                "http",
+                "website",
+                "browse",
+                "arxiv",
+                "paper",
+                "slides",
+                "presentation",
+                "mindmap",
+                "research",
+                "benchmark",
+                "github stars",
+                "statistics",
+                "released in",
+                "top 5",
+                "top 10",
+                "trending",
+            ]
+        )
 
         if is_knowledge and not wants_heavy:
             before = len(skills)
-            remaining = [s for s in skills if s.get('name') in _KNOWLEDGE_USEFUL]
+            remaining = [s for s in skills if s.get("name") in _KNOWLEDGE_USEFUL]
             if not remaining:
-                remaining = [s for s in all_skills if s.get('name') == 'claude-cli-llm'][:1]
+                remaining = [s for s in all_skills if s.get("name") == "claude-cli-llm"][:1]
             if remaining and len(remaining) < before:
                 stripped = before - len(remaining)
-                status("Optimized", f"kept {len(remaining)} useful skills for knowledge task (stripped {stripped} heavy)")
+                status(
+                    "Optimized",
+                    f"kept {len(remaining)} useful skills for knowledge task (stripped {stripped} heavy)",
+                )
                 return remaining
 
         return skills
 
     async def _create_or_skip_plan(
-        self, task: str, task_type: str, skills: List[Dict],
-        learning_context: Optional[str], workspace_dir: Optional[str],
+        self,
+        task: str,
+        task_type: str,
+        skills: List[Dict],
+        learning_context: Optional[str],
+        workspace_dir: Optional[str],
         status: StatusReporter,
     ) -> tuple:
         """Create execution plan, or skip planning for simple tasks."""
-        skill_names = {s['name'] for s in skills}
-        _direct_llm_only = {'claude-cli-llm', 'calculator', 'unit-converter',
-                            'text-utils', 'file-operations', 'shell-exec'}
+        skill_names = {s["name"] for s in skills}
+        _direct_llm_only = {
+            "claude-cli-llm",
+            "calculator",
+            "unit-converter",
+            "text-utils",
+            "file-operations",
+            "shell-exec",
+        }
         needs_planning = not skill_names.issubset(_direct_llm_only)
 
         # Code generation tasks ALWAYS need planning
-        if not needs_planning and task_type in ('creation', 'generation', 'automation'):
+        if not needs_planning and task_type in ("creation", "generation", "automation"):
             needs_planning = True
             logger.info(f"Forcing planning for {task_type} task (code gen needs a multi-step plan)")
 
@@ -516,11 +659,28 @@ class AutonomousAgent(BaseAgent):
         # even when only "simple" skills are selected
         if not needs_planning:
             _tool_action_kws = [
-                'list', 'read', 'write', 'create', 'delete', 'find', 'search',
-                'run', 'execute', 'install', 'directory', 'folder', 'file',
-                'save', 'count', 'check', 'scan', 'rename', 'move', 'copy',
+                "list",
+                "read",
+                "write",
+                "create",
+                "delete",
+                "find",
+                "search",
+                "run",
+                "execute",
+                "install",
+                "directory",
+                "folder",
+                "file",
+                "save",
+                "count",
+                "check",
+                "scan",
+                "rename",
+                "move",
+                "copy",
             ]
-            _tool_skills = skill_names & {'file-operations', 'shell-exec'}
+            _tool_skills = skill_names & {"file-operations", "shell-exec"}
             if _tool_skills and any(kw in task.lower() for kw in _tool_action_kws):
                 needs_planning = True
                 logger.info(f"Forcing planning: task requires actual {_tool_skills} execution")
@@ -530,28 +690,37 @@ class AutonomousAgent(BaseAgent):
             status("Planning", "creating execution plan")
             prev_outputs = {}
             if learning_context:
-                prev_outputs['_learning_guidance'] = learning_context[:2000]
+                prev_outputs["_learning_guidance"] = learning_context[:2000]
             if workspace_dir:
                 try:
                     from Jotty.core.capabilities.prompts.rules import load_project_rules
+
                     rules = load_project_rules(workspace_dir)
                     if rules:
-                        prev_outputs['_project_rules'] = rules[:2000]
+                        prev_outputs["_project_rules"] = rules[:2000]
                 except Exception:
                     pass
             steps = await self._create_plan(
-                task, task_type, skills,
+                task,
+                task_type,
+                skills,
                 previous_outputs=prev_outputs if prev_outputs else None,
             )
             status("Plan ready", f"{len(steps)} steps")
         else:
-            status("Direct mode", f"simple task — skipping planner (skills: {', '.join(skill_names)})")
+            status(
+                "Direct mode", f"simple task — skipping planner (skills: {', '.join(skill_names)})"
+            )
 
         return steps, skill_names
 
     async def _handle_no_plan_fallback(
-        self, task: str, task_type: str, skill_names: set,
-        start_time: float, status: StatusReporter,
+        self,
+        task: str,
+        task_type: str,
+        skill_names: set,
+        start_time: float,
+        status: StatusReporter,
     ) -> Dict[str, Any]:
         """Generate direct LLM response when no plan was created."""
         status("Generating", "direct LLM response")
@@ -560,17 +729,21 @@ class AutonomousAgent(BaseAgent):
 
         if llm_response:
             # Auto-save if file-operations was selected and task wants output saved
-            if 'file-operations' in skill_names:
+            if "file-operations" in skill_names:
                 try:
-                    _save_kws = ['save', 'write to', 'create a file', 'output to']
+                    _save_kws = ["save", "write to", "create a file", "output to"]
                     if any(kw in task.lower() for kw in _save_kws) and self.skills_registry:
-                        fo_skill = self.skills_registry.get_skill('file-operations')
+                        fo_skill = self.skills_registry.get_skill("file-operations")
                         if fo_skill and fo_skill.tools:
-                            write_tool = fo_skill.tools.get('write_file_tool')
+                            write_tool = fo_skill.tools.get("write_file_tool")
                             if write_tool:
                                 from Jotty.core.modes.agent._plan_utils_mixin import PlanUtilsMixin
-                                fname = PlanUtilsMixin._infer_filename_from_task(None, task) or 'output.md'
-                                write_tool({'path': fname, 'content': llm_response})
+
+                                fname = (
+                                    PlanUtilsMixin._infer_filename_from_task(None, task)
+                                    or "output.md"
+                                )
+                                write_tool({"path": fname, "content": llm_response})
                                 status("Saved", f"output written to {fname}")
                 except Exception as e:
                     logger.debug(f"Auto-save failed (non-critical): {e}")
@@ -579,24 +752,35 @@ class AutonomousAgent(BaseAgent):
             self._emit("tool_end", skill="claude-cli-llm", success=True, elapsed=elapsed)
             self._emit("step_end", phase="execute_impl", success=True, steps=1, elapsed=elapsed)
             return {
-                "success": True, "task": task, "task_type": task_type,
-                "skills_used": ["claude-cli-llm"], "steps_executed": 1,
+                "success": True,
+                "task": task,
+                "task_type": task_type,
+                "skills_used": ["claude-cli-llm"],
+                "steps_executed": 1,
                 "outputs": {"llm_response": llm_response},
-                "final_output": llm_response, "errors": [],
+                "final_output": llm_response,
+                "errors": [],
                 "execution_time": time.time() - start_time,
             }
         elapsed = round(time.time() - start_time, 2)
         self._emit("tool_end", skill="claude-cli-llm", success=False, elapsed=elapsed)
         self._emit("step_end", phase="execute_impl", success=False, elapsed=elapsed)
         return {
-            "success": False, "task": task,
+            "success": False,
+            "task": task,
             "error": "Could not generate response",
-            "skills_used": [], "steps_executed": 0, "outputs": {},
+            "skills_used": [],
+            "steps_executed": 0,
+            "outputs": {},
         }
 
     async def _run_execution_loop(
-        self, steps: list, task: str, task_type: str,
-        skills: List[Dict], status: StatusReporter,
+        self,
+        steps: list,
+        task: str,
+        task_type: str,
+        skills: List[Dict],
+        status: StatusReporter,
         status_callback: Optional[Callable],
     ) -> tuple:
         """Execute plan steps with replanning on failure."""
@@ -617,39 +801,53 @@ class AutonomousAgent(BaseAgent):
             elapsed = time.time() - budget_start
             remaining = TOTAL_BUDGET - elapsed
             if remaining < 5.0:
-                status("Budget", f"execution budget exhausted ({elapsed:.0f}s) — returning partial results")
+                status(
+                    "Budget",
+                    f"execution budget exhausted ({elapsed:.0f}s) — returning partial results",
+                )
                 errors.append(f"Budget exhausted after step {i}/{len(steps)} ({elapsed:.0f}s)")
                 execution_stopped = True
                 break
 
             step = steps[i]
-            status(f"Step {i+1}/{len(steps)}", f"{step.skill_name}: {step.description[:100]} (budget: {remaining:.0f}s left)")
+            status(
+                f"Step {i+1}/{len(steps)}",
+                f"{step.skill_name}: {step.description[:100]} (budget: {remaining:.0f}s left)",
+            )
 
             self._emit("step_start", step=i + 1, total=len(steps), skill=step.skill_name)
             result = await self._execute_step(step, outputs, status_callback)
 
-            if result.get('success'):
+            if result.get("success"):
                 self._emit("step_end", step=i + 1, skill=step.skill_name, success=True)
-                key = step.output_key or f'step_{i}'
+                key = step.output_key or f"step_{i}"
                 outputs[key] = result
                 # Also store under step_{i} alias so LLM step references resolve
-                if key != f'step_{i}':
-                    outputs[f'step_{i}'] = result
+                if key != f"step_{i}":
+                    outputs[f"step_{i}"] = result
                 skills_used.append(step.skill_name)
                 # Track in context manager for trajectory-preserving compression
-                ctx.add_step({
-                    'skill_name': step.skill_name,
-                    'step': i,
-                    'success': True,
-                    **{k: v for k, v in result.items() if k != 'success'},
-                })
+                ctx.add_step(
+                    {
+                        "skill_name": step.skill_name,
+                        "step": i,
+                        "success": True,
+                        **{k: v for k, v in result.items() if k != "success"},
+                    }
+                )
                 status(f"Step {i+1}", "completed")
                 i += 1
             else:
-                error_msg = result.get('error', 'Unknown error')
+                error_msg = result.get("error", "Unknown error")
                 if not isinstance(error_msg, str):
                     error_msg = str(error_msg)
-                self._emit("step_end", step=i + 1, skill=step.skill_name, success=False, error=error_msg[:200])
+                self._emit(
+                    "step_end",
+                    step=i + 1,
+                    skill=step.skill_name,
+                    success=False,
+                    error=error_msg[:200],
+                )
                 errors.append(f"Step {i+1}: {error_msg}")
                 status(f"Step {i+1}", f"failed: {error_msg}")
 
@@ -663,32 +861,47 @@ class AutonomousAgent(BaseAgent):
                     status("Replanning", "adapting to failure with reflection")
 
                     exclusion_keywords = [
-                        'not found', '404', 'invalid', 'delisted',
-                        'not implemented', 'unsupported', 'deprecated',
-                        'permission denied', 'unauthorized', 'forbidden',
-                        'module not found', 'import error', 'no module',
+                        "not found",
+                        "404",
+                        "invalid",
+                        "delisted",
+                        "not implemented",
+                        "unsupported",
+                        "deprecated",
+                        "permission denied",
+                        "unauthorized",
+                        "forbidden",
+                        "module not found",
+                        "import error",
+                        "no module",
                     ]
                     if any(kw in error_msg.lower() for kw in exclusion_keywords):
                         self.executor.exclude_skill(step.skill_name)
                         logger.info(f"Excluded skill '{step.skill_name}' due to: {error_msg[:50]}")
 
                     failed_step_info = {
-                        'skill_name': step.skill_name,
-                        'tool_name': step.tool_name,
-                        'error': error_msg,
-                        'params': step.params,
+                        "skill_name": step.skill_name,
+                        "tool_name": step.tool_name,
+                        "error": error_msg,
+                        "params": step.params,
                     }
                     new_steps, reflection, _ = await self.executor.create_reflective_plan(
-                        task, task_type, skills,
-                        [failed_step_info], outputs,
+                        task,
+                        task_type,
+                        skills,
+                        [failed_step_info],
+                        outputs,
                         max_steps=config.max_steps - (i + 1),
                     )
                     if new_steps:
-                        steps = steps[:i + 1] + new_steps
+                        steps = steps[: i + 1] + new_steps
                         replan_count += 1
                         if errors:
                             warnings.append(errors.pop())
-                        status("Replanned", f"{len(new_steps)} new steps (reflection: {reflection[:200]})")
+                        status(
+                            "Replanned",
+                            f"{len(new_steps)} new steps (reflection: {reflection[:200]})",
+                        )
                         i += 1
                         continue
 
@@ -702,16 +915,20 @@ class AutonomousAgent(BaseAgent):
         """Auto-save missing files mentioned in the task."""
         try:
             import re as _re
-            mentioned_files = _re.findall(
-                r'\b([a-zA-Z][a-zA-Z0-9_.-]*\.\w{1,5})\b', task
-            )
+
+            mentioned_files = _re.findall(r"\b([a-zA-Z][a-zA-Z0-9_.-]*\.\w{1,5})\b", task)
             seen = set()
-            skip_exts = {'com', 'org', 'net', 'io', 'ai', 'dev', 'app', 'co'}
+            skip_exts = {"com", "org", "net", "io", "ai", "dev", "app", "co"}
 
             for fname in mentioned_files:
-                ext = fname.rsplit('.', 1)[-1].lower() if '.' in fname else ''
-                if (fname in seen or fname.startswith('0.')
-                        or '/' in fname or ext in skip_exts or len(fname) >= 100):
+                ext = fname.rsplit(".", 1)[-1].lower() if "." in fname else ""
+                if (
+                    fname in seen
+                    or fname.startswith("0.")
+                    or "/" in fname
+                    or ext in skip_exts
+                    or len(fname) >= 100
+                ):
                     continue
                 seen.add(fname)
 
@@ -725,39 +942,42 @@ class AutonomousAgent(BaseAgent):
                     target_path.parent.mkdir(parents=True, exist_ok=True)
                     # Atomic write: write to temp file then rename
                     import tempfile
+
                     fd, tmp_path = tempfile.mkstemp(
                         dir=str(target_path.parent),
-                        suffix='.tmp',
+                        suffix=".tmp",
                     )
                     try:
-                        with open(fd, 'w') as f:
+                        with open(fd, "w") as f:
                             f.write(best_content)
                         Path(tmp_path).replace(target_path)
                     except Exception:
                         Path(tmp_path).unlink(missing_ok=True)
                         raise
                     logger.info(f"Auto-saved missing file: {fname} ({len(best_content)} chars)")
-                    outputs[f'auto_save_{fname}'] = {
-                        'success': True, 'path': str(target_path),
-                        'bytes_written': len(best_content),
+                    outputs[f"auto_save_{fname}"] = {
+                        "success": True,
+                        "path": str(target_path),
+                        "bytes_written": len(best_content),
                     }
         except Exception as e:
             logger.debug(f"Post-exec file check skipped: {e}")
 
     @staticmethod
     def _find_best_content_for_file(
-        target_path: Path, outputs: Dict[str, Any],
+        target_path: Path,
+        outputs: Dict[str, Any],
     ) -> str:
         """Find the best output content to save for a target file."""
         best = ""
         target_stem = target_path.stem.lower()
-        content_keys = ('text', 'content', 'output', 'stdout')
+        content_keys = ("text", "content", "output", "stdout")
 
         # First pass: prefer outputs whose key matches the filename
         for key, val in outputs.items():
             if isinstance(val, dict) and target_stem in key.lower():
                 for ck in content_keys:
-                    txt = str(val.get(ck, ''))
+                    txt = str(val.get(ck, ""))
                     if len(txt) > len(best):
                         best = txt
 
@@ -766,17 +986,21 @@ class AutonomousAgent(BaseAgent):
             for val in outputs.values():
                 if isinstance(val, dict):
                     for ck in content_keys:
-                        txt = str(val.get(ck, ''))
+                        txt = str(val.get(ck, ""))
                         if len(txt) > len(best):
                             best = txt
         return best
 
     @staticmethod
     def _build_result(
-        task: str, task_type: str,
-        outputs: Dict, skills_used: List[str],
-        errors: List[str], warnings: List[str],
-        start_time: float, stopped: bool = False,
+        task: str,
+        task_type: str,
+        outputs: Dict,
+        skills_used: List[str],
+        errors: List[str],
+        warnings: List[str],
+        start_time: float,
+        stopped: bool = False,
         too_hard: bool = False,
     ) -> Dict[str, Any]:
         """Assemble the execution result dict."""
@@ -821,9 +1045,11 @@ class AutonomousAgent(BaseAgent):
         # Run in executor so sync HTTP doesn't block the event loop
         # (critical for multi-agent parallel execution)
         try:
-            import dspy
             import asyncio as _aio
-            if hasattr(dspy.settings, 'lm') and dspy.settings.lm is not None:
+
+            import dspy
+
+            if hasattr(dspy.settings, "lm") and dspy.settings.lm is not None:
                 lm = dspy.settings.lm
                 loop = _aio.get_running_loop()
                 response = await loop.run_in_executor(None, lambda: lm(prompt=prompt))
@@ -839,13 +1065,19 @@ class AutonomousAgent(BaseAgent):
         # 2. Fallback to claude-cli-llm skill (slower — shells out to CLI binary)
         try:
             if self.skills_registry:
-                skill = self.skills_registry.get_skill('claude-cli-llm')
+                skill = self.skills_registry.get_skill("claude-cli-llm")
                 if skill and skill.tools:
-                    llm_tool = skill.tools.get('claude_cli_llm_tool') or skill.tools.get('generate_text_tool')
+                    llm_tool = skill.tools.get("claude_cli_llm_tool") or skill.tools.get(
+                        "generate_text_tool"
+                    )
                     if llm_tool:
-                        result = llm_tool({'prompt': prompt})
+                        result = llm_tool({"prompt": prompt})
                         if isinstance(result, dict):
-                            return result.get('response') or result.get('content') or result.get('text')
+                            return (
+                                result.get("response")
+                                or result.get("content")
+                                or result.get("text")
+                            )
                         return str(result) if result else None
         except Exception as e:
             logger.warning(f"Fallback LLM response failed: {e}")
@@ -866,6 +1098,7 @@ class AutonomousAgent(BaseAgent):
 # CONVENIENCE FUNCTIONS
 # =============================================================================
 
+
 def create_autonomous_agent(
     max_steps: int = 10,
     enable_replanning: bool = True,
@@ -885,6 +1118,7 @@ def create_autonomous_agent(
         Configured AutonomousAgent
     """
     from Jotty.core.infrastructure.foundation.config_defaults import DEFAULT_MODEL_ALIAS
+
     model = model or DEFAULT_MODEL_ALIAS
     config = AutonomousAgentConfig(
         name="AutonomousAgent",
@@ -897,9 +1131,9 @@ def create_autonomous_agent(
 
 
 __all__ = [
-    'AutonomousAgent',
-    'AutonomousAgentConfig',
-    'ExecutionContextManager',
-    'ExecutionStep',
-    'create_autonomous_agent',
+    "AutonomousAgent",
+    "AutonomousAgentConfig",
+    "ExecutionContextManager",
+    "ExecutionStep",
+    "create_autonomous_agent",
 ]

@@ -20,9 +20,9 @@ Usage:
         return tool_response(data={'id': '123'})
 """
 
-import logging
 import functools
-from typing import Dict, Any, List, Optional, Callable
+import logging
+from typing import Any, Callable, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -40,14 +40,14 @@ except ImportError:
 # Tool-specific aliases that LLM planners commonly produce.
 # Merged with DEFAULT_PARAM_ALIASES at module load.
 _TOOL_PARAM_ALIASES: Dict[str, List[str]] = {
-    'path': ['file_path', 'filepath', 'filename', 'file_name', 'file'],
-    'content': ['text', 'data', 'body', 'file_content'],
-    'command': ['cmd', 'shell_command', 'shell_cmd'],
-    'script': ['script_content', 'script_code', 'code', 'python_code', 'script_path'],
-    'query': ['search_query', 'q', 'search', 'question'],
-    'url': ['link', 'href', 'website', 'page_url'],
-    'message': ['msg', 'text_message'],
-    'timeout': ['time_limit', 'max_time'],
+    "path": ["file_path", "filepath", "filename", "file_name", "file"],
+    "content": ["text", "data", "body", "file_content"],
+    "command": ["cmd", "shell_command", "shell_cmd"],
+    "script": ["script_content", "script_code", "code", "python_code", "script_path"],
+    "query": ["search_query", "q", "search", "question"],
+    "url": ["link", "href", "website", "page_url"],
+    "message": ["msg", "text_message"],
+    "timeout": ["time_limit", "max_time"],
 }
 
 # Merge: tool-specific aliases take priority, DEFAULT_PARAM_ALIASES fill gaps.
@@ -105,10 +105,7 @@ def tool_error(error: str, code: Optional[str] = None, **kwargs: Any) -> Dict[st
     return result
 
 
-def require_params(
-    params: Dict[str, Any],
-    required: List[str]
-) -> Optional[Dict[str, Any]]:
+def require_params(params: Dict[str, Any], required: List[str]) -> Optional[Dict[str, Any]]:
     """
     Validate required parameters.
 
@@ -126,8 +123,7 @@ def require_params(
 
 
 def validate_params(
-    params: Dict[str, Any],
-    schema: Dict[str, Dict[str, Any]]
+    params: Dict[str, Any], schema: Dict[str, Dict[str, Any]]
 ) -> Optional[Dict[str, Any]]:
     """
     Validate parameters against schema.
@@ -147,36 +143,33 @@ def validate_params(
         value = params.get(name)
 
         # Required check
-        if rules.get('required', False) and value is None:
+        if rules.get("required", False) and value is None:
             return tool_error(f"{name} parameter is required")
 
         if value is None:
             continue
 
         # Type check
-        expected_type = rules.get('type')
+        expected_type = rules.get("type")
         if expected_type and not isinstance(value, expected_type):
             return tool_error(f"{name} must be {expected_type.__name__}")
 
         # Min/max for numbers
         if isinstance(value, (int, float)):
-            if 'min' in rules and value < rules['min']:
+            if "min" in rules and value < rules["min"]:
                 return tool_error(f"{name} must be at least {rules['min']}")
-            if 'max' in rules and value > rules['max']:
+            if "max" in rules and value > rules["max"]:
                 return tool_error(f"{name} must be at most {rules['max']}")
 
         # Length for strings
         if isinstance(value, str):
-            if 'max_length' in rules and len(value) > rules['max_length']:
+            if "max_length" in rules and len(value) > rules["max_length"]:
                 return tool_error(f"{name} cannot exceed {rules['max_length']} characters")
 
     return None
 
 
-def tool_wrapper(
-    required_params: Optional[List[str]] = None,
-    log_errors: bool = True
-) -> Callable:
+def tool_wrapper(required_params: Optional[List[str]] = None, log_errors: bool = True) -> Callable:
     """
     Decorator for tool functions with automatic error handling.
 
@@ -192,6 +185,7 @@ def tool_wrapper(
             message = params['message']
             ...
     """
+
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         def wrapper(params: Dict[str, Any]) -> Dict[str, Any]:
@@ -215,18 +209,19 @@ def tool_wrapper(
         # Stash required_params for ToolSchema introspection
         wrapper._required_params = required_params or []
         return wrapper
+
     return decorator
 
 
 def async_tool_wrapper(
-    required_params: Optional[List[str]] = None,
-    log_errors: bool = True
+    required_params: Optional[List[str]] = None, log_errors: bool = True
 ) -> Callable:
     """
     Decorator for async tool functions with automatic error handling.
 
     Same as tool_wrapper but for async functions.
     """
+
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         async def wrapper(params: Dict[str, Any]) -> Dict[str, Any]:
@@ -249,4 +244,5 @@ def async_tool_wrapper(
         # Stash required_params for ToolSchema introspection
         wrapper._required_params = required_params or []
         return wrapper
+
     return decorator

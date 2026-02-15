@@ -5,11 +5,12 @@ Dynamically selects Architect and Auditor prompts based on task type.
 Uses pattern matching to choose specialized templates for better validation.
 """
 
-import re
-import yaml
 import logging
+import re
 from pathlib import Path
-from typing import Tuple, Optional, Dict, List, Any
+from typing import Any, Dict, List, Optional, Tuple
+
+import yaml
 
 logger = logging.getLogger(__name__)
 
@@ -45,29 +46,25 @@ class PromptSelector:
         """Load the template registry YAML."""
         try:
             if self.registry_path.exists():
-                with open(self.registry_path, 'r') as f:
+                with open(self.registry_path, "r") as f:
                     return yaml.safe_load(f)
         except Exception as e:
             logger.warning(f"Failed to load prompt registry: {e}")
 
         # Return default config if file doesn't exist
         return {
-            'defaults': {
-                'architect': 'base_architect.md',
-                'auditor': 'base_auditor.md'
-            },
-            'templates': {}
+            "defaults": {"architect": "base_architect.md", "auditor": "base_auditor.md"},
+            "templates": {},
         }
 
     def _compile_patterns(self) -> Any:
         """Pre-compile regex patterns for efficiency."""
-        templates = self.registry.get('templates', {})
+        templates = self.registry.get("templates", {})
 
         for template_name, template_config in templates.items():
-            patterns = template_config.get('patterns', [])
+            patterns = template_config.get("patterns", [])
             self._compiled_patterns[template_name] = [
-                re.compile(pattern, re.IGNORECASE)
-                for pattern in patterns
+                re.compile(pattern, re.IGNORECASE) for pattern in patterns
             ]
 
     def detect_task_type(self, task: str) -> str:
@@ -86,10 +83,12 @@ class PromptSelector:
         for template_name, patterns in self._compiled_patterns.items():
             for pattern in patterns:
                 if pattern.search(task_lower):
-                    logger.debug(f"Task matched template '{template_name}' via pattern: {pattern.pattern}")
+                    logger.debug(
+                        f"Task matched template '{template_name}' via pattern: {pattern.pattern}"
+                    )
                     return template_name
 
-        return 'default'
+        return "default"
 
     def select_prompts(self, task: str) -> Tuple[str, str]:
         """
@@ -103,14 +102,14 @@ class PromptSelector:
         """
         task_type = self.detect_task_type(task)
 
-        if task_type == 'default':
-            defaults = self.registry.get('defaults', {})
-            architect = defaults.get('architect', 'base_architect.md')
-            auditor = defaults.get('auditor', 'base_auditor.md')
+        if task_type == "default":
+            defaults = self.registry.get("defaults", {})
+            architect = defaults.get("architect", "base_architect.md")
+            auditor = defaults.get("auditor", "base_auditor.md")
         else:
-            template = self.registry.get('templates', {}).get(task_type, {})
-            architect = template.get('architect', self.registry['defaults']['architect'])
-            auditor = template.get('auditor', self.registry['defaults']['auditor'])
+            template = self.registry.get("templates", {}).get(task_type, {})
+            architect = template.get("architect", self.registry["defaults"]["architect"])
+            auditor = template.get("auditor", self.registry["defaults"]["auditor"])
 
         # Build full paths
         architect_path = str(self.base_path / "architect" / architect)
@@ -133,13 +132,12 @@ class PromptSelector:
 
     def get_available_templates(self) -> Dict[str, str]:
         """Get list of available templates with descriptions."""
-        descriptions = self.registry.get('descriptions', {})
-        templates = {'default': 'Base templates for general tasks'}
+        descriptions = self.registry.get("descriptions", {})
+        templates = {"default": "Base templates for general tasks"}
 
-        for template_name in self.registry.get('templates', {}).keys():
+        for template_name in self.registry.get("templates", {}).keys():
             templates[template_name] = descriptions.get(
-                template_name,
-                f"Specialized template for {template_name.replace('_', ' ')} tasks"
+                template_name, f"Specialized template for {template_name.replace('_', ' ')} tasks"
             )
 
         return templates

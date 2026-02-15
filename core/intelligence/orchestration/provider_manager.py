@@ -9,11 +9,14 @@ Dependencies are passed explicitly rather than inherited via mixin.
 """
 
 import logging
-from typing import Dict, Any, Optional, TYPE_CHECKING
 from pathlib import Path
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 if TYPE_CHECKING:
-    from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig, SwarmLearningConfig
+    from Jotty.core.infrastructure.foundation.data_structures import (
+        SwarmConfig,
+        SwarmLearningConfig,
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +29,7 @@ class ProviderManager:
     Takes explicit dependencies instead of accessing self.xxx on host.
     """
 
-    def __init__(self, config: 'SwarmConfig', get_swarm_intelligence: Any) -> None:
+    def __init__(self, config: "SwarmConfig", get_swarm_intelligence: Any) -> None:
         """
         Args:
             config: SwarmConfig instance
@@ -48,14 +51,14 @@ class ProviderManager:
             logger.debug("Skill providers not available")
             return
 
-        PR = _provider_cache['ProviderRegistry']
-        BrowserUseProvider = _provider_cache['BrowserUseProvider']
-        OpenHandsProvider = _provider_cache['OpenHandsProvider']
-        AgentSProvider = _provider_cache['AgentSProvider']
-        OpenInterpreterProvider = _provider_cache['OpenInterpreterProvider']
-        ResearchAndAnalyzeProvider = _provider_cache['ResearchAndAnalyzeProvider']
-        AutomateWorkflowProvider = _provider_cache['AutomateWorkflowProvider']
-        FullStackAgentProvider = _provider_cache['FullStackAgentProvider']
+        PR = _provider_cache["ProviderRegistry"]
+        BrowserUseProvider = _provider_cache["BrowserUseProvider"]
+        OpenHandsProvider = _provider_cache["OpenHandsProvider"]
+        AgentSProvider = _provider_cache["AgentSProvider"]
+        OpenInterpreterProvider = _provider_cache["OpenInterpreterProvider"]
+        ResearchAndAnalyzeProvider = _provider_cache["ResearchAndAnalyzeProvider"]
+        AutomateWorkflowProvider = _provider_cache["AutomateWorkflowProvider"]
+        FullStackAgentProvider = _provider_cache["FullStackAgentProvider"]
 
         try:
             si = self.swarm_intelligence
@@ -63,10 +66,10 @@ class ProviderManager:
 
             # Register external providers
             for provider in [
-                BrowserUseProvider({'headless': True}),
-                OpenHandsProvider({'sandbox': True}),
-                AgentSProvider({'safe_mode': True}),
-                OpenInterpreterProvider({'auto_run': True}),
+                BrowserUseProvider({"headless": True}),
+                OpenHandsProvider({"sandbox": True}),
+                AgentSProvider({"safe_mode": True}),
+                OpenInterpreterProvider({"auto_run": True}),
             ]:
                 try:
                     self.provider_registry.register(provider)
@@ -81,7 +84,7 @@ class ProviderManager:
             ]:
                 try:
                     provider.set_registry(self.provider_registry)
-                    if hasattr(provider, 'set_swarm_intelligence'):
+                    if hasattr(provider, "set_swarm_intelligence"):
                         provider.set_swarm_intelligence(si)
                     self.provider_registry.register(provider)
                 except Exception as e:
@@ -104,12 +107,14 @@ class ProviderManager:
 
     def _get_provider_registry_path(self) -> Path:
         """Get path for provider registry persistence."""
-        base = getattr(self.config, 'base_path', None)
+        base = getattr(self.config, "base_path", None)
         if base:
-            return Path(base) / 'provider_learnings.json'
-        return Path.home() / '.jotty' / 'provider_learnings.json'
+            return Path(base) / "provider_learnings.json"
+        return Path.home() / ".jotty" / "provider_learnings.json"
 
-    async def execute_with_provider(self, category: str, task: str, context: Dict[str, Any] = None, provider_name: str = None) -> Any:
+    async def execute_with_provider(
+        self, category: str, task: str, context: Dict[str, Any] = None, provider_name: str = None
+    ) -> Any:
         """
         Execute a task using the skill provider system.
 
@@ -128,8 +133,11 @@ class ProviderManager:
 
         try:
             from .swarm_manager import _provider_cache
-            SkillCategory = _provider_cache.get('SkillCategory')
-            cat_enum = SkillCategory(category) if isinstance(category, str) and SkillCategory else category
+
+            SkillCategory = _provider_cache.get("SkillCategory")
+            cat_enum = (
+                SkillCategory(category) if isinstance(category, str) and SkillCategory else category
+            )
 
             result = await self.provider_registry.execute(
                 category=cat_enum,
@@ -155,8 +163,8 @@ class ProviderManager:
     def get_provider_summary(self) -> Dict[str, Any]:
         """Get summary of provider registry state."""
         if not self.provider_registry:
-            return {'available': False}
+            return {"available": False}
         return {
-            'available': True,
+            "available": True,
             **self.provider_registry.get_registry_summary(),
         }

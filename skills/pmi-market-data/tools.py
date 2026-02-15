@@ -7,11 +7,15 @@ Provides quotes, indices, charts, breadth, and sector analysis.
 """
 
 import logging
-from typing import Dict, Any
+from typing import Any, Dict
 
 from Jotty.core.infrastructure.utils.env_loader import load_jotty_env
-from Jotty.core.infrastructure.utils.tool_helpers import tool_response, tool_error, async_tool_wrapper
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
+from Jotty.core.infrastructure.utils.tool_helpers import (
+    async_tool_wrapper,
+    tool_error,
+    tool_response,
+)
 
 load_jotty_env()
 logger = logging.getLogger(__name__)
@@ -22,6 +26,7 @@ def _get_pmi_client():
     """Lazy import to avoid circular deps with hyphenated directory."""
     import importlib.util
     from pathlib import Path
+
     spec = importlib.util.spec_from_file_location(
         "pmi_client",
         Path(__file__).resolve().parent / "pmi_client.py",
@@ -141,11 +146,14 @@ async def search_symbols_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     query = params["query"]
     status.emit("Searching", f"Searching symbols: {query}...")
 
-    result = client.get("/api/search/symbols", params={
-        "q": query,
-        "exchange": params.get("exchange", ""),
-        "limit": params.get("limit", 10),
-    })
+    result = client.get(
+        "/api/search/symbols",
+        params={
+            "q": query,
+            "exchange": params.get("exchange", ""),
+            "limit": params.get("limit", 10),
+        },
+    )
     if not result.get("success"):
         return tool_error(result.get("error", "Symbol search failed"))
 
@@ -176,9 +184,12 @@ async def get_indices_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
     status.emit("Fetching", "Getting market indices...")
 
-    result = client.get("/v2/get_indices", params={
-        "exchange": params.get("exchange", ""),
-    })
+    result = client.get(
+        "/v2/get_indices",
+        params={
+            "exchange": params.get("exchange", ""),
+        },
+    )
     if not result.get("success"):
         return tool_error(result.get("error", "Failed to get indices"))
 
@@ -216,11 +227,14 @@ async def get_chart_data_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     days = params.get("days", 30)
     status.emit("Fetching", f"Getting chart data for {symbol} ({interval})...")
 
-    result = client.get("/api/chart/data", params={
-        "symbol": symbol,
-        "interval": interval,
-        "days": days,
-    })
+    result = client.get(
+        "/api/chart/data",
+        params={
+            "symbol": symbol,
+            "interval": interval,
+            "days": days,
+        },
+    )
     if not result.get("success"):
         return tool_error(result.get("error", f"Failed to get chart data for {symbol}"))
 
@@ -257,9 +271,12 @@ async def get_market_breadth_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
     status.emit("Fetching", "Getting market breadth...")
 
-    result = client.get("/api/analysis/market-breadth", params={
-        "exchange": params.get("exchange", ""),
-    })
+    result = client.get(
+        "/api/analysis/market-breadth",
+        params={
+            "exchange": params.get("exchange", ""),
+        },
+    )
     if not result.get("success"):
         return tool_error(result.get("error", "Failed to get market breadth"))
 

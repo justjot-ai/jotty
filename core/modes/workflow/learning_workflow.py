@@ -32,19 +32,16 @@ Usage:
     result = await workflow.run()
 """
 
-from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 from enum import Enum
-from ..orchestration import (
-    MultiStagePipeline,
-    SwarmAdapter,
-    MergeStrategy,
-    PipelineResult,
-)
+from typing import Any, Dict, List, Optional
+
+from ..orchestration import MergeStrategy, MultiStagePipeline, PipelineResult, SwarmAdapter
 
 
 class Subject(Enum):
     """Learning subjects."""
+
     MATHEMATICS = "mathematics"
     PHYSICS = "physics"
     CHEMISTRY = "chemistry"
@@ -57,25 +54,28 @@ class Subject(Enum):
 
 class LearningLevel(Enum):
     """Difficulty levels."""
-    FOUNDATION = "foundation"      # K-5 (ages 5-10)
+
+    FOUNDATION = "foundation"  # K-5 (ages 5-10)
     INTERMEDIATE = "intermediate"  # 6-8 (ages 11-13)
-    ADVANCED = "advanced"          # 9-12 (ages 14-18)
-    OLYMPIAD = "olympiad"          # Competition level
-    UNIVERSITY = "university"      # Undergraduate
-    RESEARCH = "research"          # Graduate/Research
+    ADVANCED = "advanced"  # 9-12 (ages 14-18)
+    OLYMPIAD = "olympiad"  # Competition level
+    UNIVERSITY = "university"  # Undergraduate
+    RESEARCH = "research"  # Graduate/Research
 
 
 class LearningDepth(Enum):
     """Content depth levels."""
-    QUICK = "quick"              # 15-30 min lesson
-    STANDARD = "standard"        # 1-2 hour lesson
-    DEEP = "deep"               # 3-5 hour comprehensive
-    MARATHON = "marathon"        # Full day workshop
+
+    QUICK = "quick"  # 15-30 min lesson
+    STANDARD = "standard"  # 1-2 hour lesson
+    DEEP = "deep"  # 3-5 hour comprehensive
+    MARATHON = "marathon"  # Full day workshop
 
 
 @dataclass
 class LearningIntent:
     """High-level learning intent."""
+
     subject: str
     topic: str
     student_name: str
@@ -122,7 +122,7 @@ class LearningWorkflow:
         deliverables: Optional[List[str]] = None,
         output_formats: Optional[List[str]] = None,
         send_telegram: bool = True,
-        include_assessment: bool = True
+        include_assessment: bool = True,
     ) -> "LearningWorkflow":
         """
         Create learning workflow from intent (without executing).
@@ -150,7 +150,7 @@ class LearningWorkflow:
             deliverables=deliverables,
             output_formats=output_formats or ["pdf", "html"],
             send_telegram=send_telegram,
-            include_assessment=include_assessment
+            include_assessment=include_assessment,
         )
         return cls(intent)
 
@@ -166,7 +166,7 @@ class LearningWorkflow:
         output_formats: Optional[List[str]] = None,
         send_telegram: bool = True,
         include_assessment: bool = True,
-        verbose: bool = True
+        verbose: bool = True,
     ) -> PipelineResult:
         """
         Execute learning workflow from high-level intent (simplest API).
@@ -195,7 +195,7 @@ class LearningWorkflow:
             deliverables=deliverables,
             output_formats=output_formats or ["pdf", "html"],
             send_telegram=send_telegram,
-            include_assessment=include_assessment
+            include_assessment=include_assessment,
         )
 
         workflow = cls(intent)
@@ -206,7 +206,9 @@ class LearningWorkflow:
         """Build pipeline from learning intent."""
         deliverables = self.intent.deliverables or self._infer_deliverables()
 
-        self.pipeline = MultiStagePipeline(task=f"Learning: {self.intent.topic} for {self.intent.student_name}")
+        self.pipeline = MultiStagePipeline(
+            task=f"Learning: {self.intent.topic} for {self.intent.student_name}"
+        )
 
         self._add_learning_stages(deliverables)
 
@@ -226,7 +228,9 @@ class LearningWorkflow:
         elif depth == "deep":
             base.extend(["examples", "problems", "solutions", "mistakes", "connections"])
         else:  # marathon
-            base.extend(["examples", "problems", "solutions", "mistakes", "connections", "advanced_topics"])
+            base.extend(
+                ["examples", "problems", "solutions", "mistakes", "connections", "advanced_topics"]
+            )
 
         # Add assessment for intermediate and above
         if level in ["intermediate", "advanced", "olympiad", "university"]:
@@ -242,12 +246,7 @@ class LearningWorkflow:
         """Add pipeline stages for learning deliverables."""
 
         # Determine problem counts based on depth
-        depth_to_problems = {
-            "quick": 5,
-            "standard": 10,
-            "deep": 20,
-            "marathon": 50
-        }
+        depth_to_problems = {"quick": 5, "standard": 10, "deep": 20, "marathon": 50}
         num_problems = depth_to_problems.get(self.intent.depth, 10)
 
         # Build base context
@@ -272,7 +271,9 @@ Teaching Philosophy:
 
         # Stage prompts
         stage_prompts = {
-            "curriculum": ("Curriculum Architect", f"""Design comprehensive curriculum plan for this topic.
+            "curriculum": (
+                "Curriculum Architect",
+                f"""Design comprehensive curriculum plan for this topic.
 
 {base_context}
 
@@ -283,9 +284,11 @@ Create:
 4. Estimated Time for Each Section
 5. Assessment Criteria
 
-Output in structured markdown."""),
-
-            "concepts": ("Concept Expert", f"""Break down the topic into fundamental concepts.
+Output in structured markdown.""",
+            ),
+            "concepts": (
+                "Concept Expert",
+                f"""Break down the topic into fundamental concepts.
 
 {base_context}
 
@@ -296,9 +299,11 @@ For each core concept:
 4. Key Properties/Rules
 5. Visual Representation (describe diagram)
 
-Make it crystal clear and engaging."""),
-
-            "intuition": ("Intuition Builder", f"""Build deep intuitive understanding.
+Make it crystal clear and engaging.""",
+            ),
+            "intuition": (
+                "Intuition Builder",
+                f"""Build deep intuitive understanding.
 
 {base_context}
 
@@ -309,9 +314,11 @@ For each concept:
 4. Common Misconceptions (what NOT to think)
 5. Intuitive Explanation (before formal definition)
 
-Use storytelling and metaphors. Make it memorable."""),
-
-            "patterns": ("Pattern Hunter", f"""Identify key patterns and techniques.
+Use storytelling and metaphors. Make it memorable.""",
+            ),
+            "patterns": (
+                "Pattern Hunter",
+                f"""Identify key patterns and techniques.
 
 {base_context}
 
@@ -322,9 +329,11 @@ Find:
 4. Variations & Extensions
 5. Power Moves (advanced tricks)
 
-Create pattern recognition guide with examples."""),
-
-            "examples": ("Example Creator", f"""Create illustrative examples.
+Create pattern recognition guide with examples.""",
+            ),
+            "examples": (
+                "Example Creator",
+                f"""Create illustrative examples.
 
 {base_context}
 
@@ -337,9 +346,11 @@ Provide:
 2. Counter-Examples (common mistakes)
 3. Edge Cases
 
-Show the THINKING, not just steps."""),
-
-            "problems": ("Problem Crafter", f"""Create {num_problems} practice problems.
+Show the THINKING, not just steps.""",
+            ),
+            "problems": (
+                "Problem Crafter",
+                f"""Create {num_problems} practice problems.
 
 {base_context}
 
@@ -355,9 +366,11 @@ For each problem:
 3. Hints (progressive, don't give away)
 4. Learning Goal (what skill it develops)
 
-No solutions here - only problems."""),
-
-            "solutions": ("Solution Strategist", f"""Provide detailed solutions to all problems.
+No solutions here - only problems.""",
+            ),
+            "solutions": (
+                "Solution Strategist",
+                f"""Provide detailed solutions to all problems.
 
 {base_context}
 
@@ -368,9 +381,11 @@ For each problem solution:
 4. Common Pitfalls to Avoid
 5. Extensions (what if we change X?)
 
-Explain WHY each step works, not just HOW."""),
-
-            "mistakes": ("Mistake Analyzer", f"""Analyze common mistakes and misconceptions.
+Explain WHY each step works, not just HOW.""",
+            ),
+            "mistakes": (
+                "Mistake Analyzer",
+                f"""Analyze common mistakes and misconceptions.
 
 {base_context}
 
@@ -384,9 +399,11 @@ Identify:
 3. Calculation Errors (typical traps)
 4. Prevention Strategies
 
-Turn mistakes into learning moments."""),
-
-            "connections": ("Connection Mapper", f"""Map connections to other topics and real-world.
+Turn mistakes into learning moments.""",
+            ),
+            "connections": (
+                "Connection Mapper",
+                f"""Map connections to other topics and real-world.
 
 {base_context}
 
@@ -398,9 +415,11 @@ Show:
 5. Real-World Applications (specific examples)
 6. Historical Context (who/when/why)
 
-Create concept map with clear links."""),
-
-            "advanced_topics": ("Advanced Topics Guide", f"""Introduce advanced extensions.
+Create concept map with clear links.""",
+            ),
+            "advanced_topics": (
+                "Advanced Topics Guide",
+                f"""Introduce advanced extensions.
 
 {base_context}
 
@@ -411,9 +430,11 @@ For motivated students:
 4. Competition-Level Techniques
 5. Further Reading (books, papers, resources)
 
-Inspire curiosity and deeper exploration."""),
-
-            "assessment": ("Assessment Designer", f"""Create comprehensive assessment.
+Inspire curiosity and deeper exploration.""",
+            ),
+            "assessment": (
+                "Assessment Designer",
+                f"""Create comprehensive assessment.
 
 {base_context}
 
@@ -429,9 +450,11 @@ Design:
    - Require synthesis
 4. Answer Keys for All
 
-Include grading rubrics."""),
-
-            "content_assembly": ("Content Assembler", f"""Assemble all content into cohesive learning module.
+Include grading rubrics.""",
+            ),
+            "content_assembly": (
+                "Content Assembler",
+                f"""Assemble all content into cohesive learning module.
 
 {base_context}
 
@@ -444,9 +467,11 @@ Create structured document:
 6. Resources & Next Steps
 
 Professional formatting. Clear navigation.
-Output Format: {', '.join(self.intent.output_formats)}"""),
-
-            "pdf_generation": ("PDF Generator", f"""Generate professional PDF document.
+Output Format: {', '.join(self.intent.output_formats)}""",
+            ),
+            "pdf_generation": (
+                "PDF Generator",
+                f"""Generate professional PDF document.
 
 {base_context}
 
@@ -459,9 +484,11 @@ Specifications:
 - Sections: Clear hierarchy
 - Images: Placeholder descriptions
 
-Create publication-quality learning material."""),
-
-            "summary": ("Summarizer", f"""Create concise summary.
+Create publication-quality learning material.""",
+            ),
+            "summary": (
+                "Summarizer",
+                f"""Create concise summary.
 
 {base_context}
 
@@ -471,7 +498,8 @@ One-page summary:
 3. Problem-Solving Checklist
 4. Quick Reference Guide
 
-Perfect for review before test."""),
+Perfect for review before test.""",
+            ),
         }
 
         # Add stages based on deliverables
@@ -482,7 +510,9 @@ Perfect for review before test."""),
             if stage_config.get("replace"):
                 swarms = stage_config["custom_swarms"]
                 merge_strategy = stage_config.get("merge_strategy", MergeStrategy.BEST_OF_N)
-                context_from = stage_config.get("context_from", previous_stages.copy() if previous_stages else None)
+                context_from = stage_config.get(
+                    "context_from", previous_stages.copy() if previous_stages else None
+                )
             else:
                 # Auto-generate with prompts
                 if deliverable not in stage_prompts:
@@ -493,13 +523,17 @@ Perfect for review before test."""),
 
                 # Apply customizations
                 if stage_config.get("additional_context"):
-                    prompt = f"{prompt}\n\nAdditional Context:\n{stage_config['additional_context']}"
+                    prompt = (
+                        f"{prompt}\n\nAdditional Context:\n{stage_config['additional_context']}"
+                    )
 
                 # Create swarms
                 swarms = SwarmAdapter.quick_swarms(
                     [(agent_name, prompt)],
                     model=stage_config.get("model", "claude-3-5-haiku-20241022"),
-                    max_tokens=stage_config.get("max_tokens", 2500)  # Higher default for educational content
+                    max_tokens=stage_config.get(
+                        "max_tokens", 2500
+                    ),  # Higher default for educational content
                 )
 
                 merge_strategy = stage_config.get("merge_strategy", MergeStrategy.BEST_OF_N)
@@ -511,7 +545,7 @@ Perfect for review before test."""),
                 swarms=swarms,
                 merge_strategy=merge_strategy,
                 context_from=context_from,
-                max_context_chars=2500  # Educational content needs more context
+                max_context_chars=2500,  # Educational content needs more context
             )
 
             previous_stages.append(deliverable)
@@ -528,10 +562,17 @@ Perfect for review before test."""),
                     swarms=swarms,
                     merge_strategy=merge_strategy,
                     context_from=context_from,
-                    max_context_chars=2500
+                    max_context_chars=2500,
                 )
 
-    def customize_stage(self, stage_name: str, model: Optional[str] = None, max_tokens: Optional[int] = None, merge_strategy: Optional[MergeStrategy] = None, additional_context: Optional[str] = None) -> Any:
+    def customize_stage(
+        self,
+        stage_name: str,
+        model: Optional[str] = None,
+        max_tokens: Optional[int] = None,
+        merge_strategy: Optional[MergeStrategy] = None,
+        additional_context: Optional[str] = None,
+    ) -> Any:
         """Customize a specific stage."""
         if stage_name not in self.stage_configs:
             self.stage_configs[stage_name] = {}
@@ -545,7 +586,13 @@ Perfect for review before test."""),
         if additional_context:
             self.stage_configs[stage_name]["additional_context"] = additional_context
 
-    def replace_stage(self, stage_name: str, swarms: List[Any], merge_strategy: Optional[MergeStrategy] = None, context_from: Optional[List[str]] = None) -> Any:
+    def replace_stage(
+        self,
+        stage_name: str,
+        swarms: List[Any],
+        merge_strategy: Optional[MergeStrategy] = None,
+        context_from: Optional[List[str]] = None,
+    ) -> Any:
         """Completely replace a stage with custom swarms."""
         if stage_name not in self.stage_configs:
             self.stage_configs[stage_name] = {}
@@ -557,14 +604,21 @@ Perfect for review before test."""),
         if context_from:
             self.stage_configs[stage_name]["context_from"] = context_from
 
-    def add_custom_stage(self, stage_name: str, swarms: List[Any], position: Optional[int] = None, merge_strategy: MergeStrategy = MergeStrategy.BEST_OF_N, context_from: Optional[List[str]] = None) -> Any:
+    def add_custom_stage(
+        self,
+        stage_name: str,
+        swarms: List[Any],
+        position: Optional[int] = None,
+        merge_strategy: MergeStrategy = MergeStrategy.BEST_OF_N,
+        context_from: Optional[List[str]] = None,
+    ) -> Any:
         """Add a completely custom stage."""
         self.stage_configs[stage_name] = {
             "custom_stage": True,
             "swarms": swarms,
             "position": position,
             "merge_strategy": merge_strategy,
-            "context_from": context_from
+            "context_from": context_from,
         }
 
     def show_pipeline(self, verbose: bool = True) -> Any:
@@ -572,9 +626,9 @@ Perfect for review before test."""),
         deliverables = self.intent.deliverables or self._infer_deliverables()
 
         if verbose:
-            print("\n" + "="*70)
+            print("\n" + "=" * 70)
             print("LEARNING PIPELINE INSPECTION")
-            print("="*70)
+            print("=" * 70)
             print(f"\n🎯 Topic: {self.intent.topic}")
             print(f"📚 Subject: {self.intent.subject}")
             print(f"👤 Student: {self.intent.student_name}")
@@ -594,7 +648,7 @@ Perfect for review before test."""),
 
                 print(f"{i}. {stage:<25} {status}")
 
-            print("\n" + "="*70 + "\n")
+            print("\n" + "=" * 70 + "\n")
 
     async def run(self, verbose: bool = True) -> PipelineResult:
         """Execute the learning pipeline."""
@@ -607,7 +661,7 @@ Perfect for review before test."""),
         self,
         output_formats: Optional[List[str]] = None,
         output_dir: Optional[str] = None,
-        verbose: bool = True
+        verbose: bool = True,
     ) -> Dict[str, Any]:
         """
         Execute pipeline and generate multiple output formats.
@@ -636,27 +690,31 @@ Perfect for review before test."""),
         if not content_stage:
             # No content assembly stage, just return pipeline result
             return {
-                'pipeline_result': pipeline_result,
-                'outputs': {},
-                'note': 'No content_assembly stage found - outputs not generated'
+                "pipeline_result": pipeline_result,
+                "outputs": {},
+                "note": "No content_assembly stage found - outputs not generated",
             }
 
         # Save markdown content to file
-        from pathlib import Path
         import os
+        from pathlib import Path
 
         output_path = Path(output_dir or os.path.expanduser("~/jotty/outputs"))
         output_path.mkdir(parents=True, exist_ok=True)
 
         # Create markdown file
-        safe_topic = "".join(c for c in self.intent.topic if c.isalnum() or c in (' ', '-', '_')).strip()
-        safe_topic = safe_topic.replace(' ', '_')[:50]
+        safe_topic = "".join(
+            c for c in self.intent.topic if c.isalnum() or c in (" ", "-", "_")
+        ).strip()
+        safe_topic = safe_topic.replace(" ", "_")[:50]
         markdown_path = str(output_path / f"learning_{self.intent.student_name}_{safe_topic}.md")
 
-        with open(markdown_path, 'w', encoding='utf-8') as f:
+        with open(markdown_path, "w", encoding="utf-8") as f:
             f.write(f"# {self.intent.topic}\n\n")
             f.write(f"**Student:** {self.intent.student_name}\n\n")
-            f.write(f"**Subject:** {self.intent.subject} | **Level:** {self.intent.level} | **Depth:** {self.intent.depth}\n\n")
+            f.write(
+                f"**Subject:** {self.intent.subject} | **Level:** {self.intent.level} | **Depth:** {self.intent.depth}\n\n"
+            )
             f.write("---\n\n")
             f.write(content_stage.result.output)
 
@@ -671,10 +729,12 @@ Perfect for review before test."""),
             chapters = []
             for stage in pipeline_result.stages:
                 if stage.stage_name not in ["pdf_generation", "content_assembly"]:
-                    chapters.append({
-                        'title': stage.stage_name.replace('_', ' ').title(),
-                        'content': stage.result.output
-                    })
+                    chapters.append(
+                        {
+                            "title": stage.stage_name.replace("_", " ").title(),
+                            "content": stage.result.output,
+                        }
+                    )
 
         # Generate outputs using OutputFormatManager
         try:
@@ -689,7 +749,7 @@ Perfect for review before test."""),
                 title=f"{self.intent.topic} - {self.intent.student_name}",
                 author="Jotty Learning Workflow",
                 n_slides=15,  # For presentations
-                tone="educational"
+                tone="educational",
             )
 
             # Generate rich EPUB with chapters if requested
@@ -699,32 +759,32 @@ Perfect for review before test."""),
                     title=self.intent.topic,
                     author=f"For {self.intent.student_name}",
                     description=f"{self.intent.subject} - {self.intent.level} level",
-                    language="en"
+                    language="en",
                 )
-                outputs['epub'] = epub_result
+                outputs["epub"] = epub_result
 
             if verbose:
                 summary = manager.get_summary(outputs)
                 print(f"\n📦 Generated {summary['successful']}/{summary['total']} output formats:")
-                for fmt in summary['successful_formats']:
+                for fmt in summary["successful_formats"]:
                     print(f"   ✅ {fmt}: {summary['file_paths'][fmt]}")
-                if summary['failed_formats']:
+                if summary["failed_formats"]:
                     print(f"\n❌ Failed formats: {', '.join(summary['failed_formats'])}")
 
             return {
-                'pipeline_result': pipeline_result,
-                'outputs': outputs,
-                'markdown_path': markdown_path
+                "pipeline_result": pipeline_result,
+                "outputs": outputs,
+                "markdown_path": markdown_path,
             }
 
         except Exception as e:
             if verbose:
                 print(f"\n⚠️  Output generation failed: {e}")
             return {
-                'pipeline_result': pipeline_result,
-                'outputs': {},
-                'markdown_path': markdown_path,
-                'error': str(e)
+                "pipeline_result": pipeline_result,
+                "outputs": {},
+                "markdown_path": markdown_path,
+                "error": str(e),
             }
 
 

@@ -1,14 +1,15 @@
 """ArXiv Learning Swarm - Types, enums, and dataclasses."""
 
 import logging
-from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
 from ..swarm_types import SwarmConfig, SwarmResult
 
 logger = logging.getLogger(__name__)
+
 
 def format_steps_on_newlines(text: str) -> str:
     """Post-process text to ensure steps are on separate lines.
@@ -22,14 +23,14 @@ def format_steps_on_newlines(text: str) -> str:
 
     # Pattern 1: "Step N:" followed by text until next "Step M:"
     # Insert newlines before each "Step N:"
-    text = re.sub(r'(?<=[.!?:,])\s*(Step\s*\d+)\s*:', r'\n\n\1:', text)
+    text = re.sub(r"(?<=[.!?:,])\s*(Step\s*\d+)\s*:", r"\n\n\1:", text)
 
     # Pattern 2: Numbered items like "1." "2." etc
     # Insert newlines before numbered items that follow sentences
-    text = re.sub(r'(?<=[.!?])\s*(\d+)\.\s+', r'\n\n\1. ', text)
+    text = re.sub(r"(?<=[.!?])\s*(\d+)\.\s+", r"\n\n\1. ", text)
 
     # Clean up excessive newlines
-    text = re.sub(r'\n{3,}', '\n\n', text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
 
     return text.strip()
 
@@ -38,30 +39,35 @@ def format_steps_on_newlines(text: str) -> str:
 # CONFIGURATION
 # =============================================================================
 
+
 class LearningDepth(Enum):
     """How deep to go in explanations."""
-    QUICK = "quick"          # 5-minute overview
-    STANDARD = "standard"    # Full understanding
-    DEEP = "deep"            # Expert-level with all math
+
+    QUICK = "quick"  # 5-minute overview
+    STANDARD = "standard"  # Full understanding
+    DEEP = "deep"  # Expert-level with all math
 
 
 class ContentStyle(Enum):
     """Style of content generation."""
-    ENGAGING = "engaging"      # Fun, intuitive, builds excitement
-    TECHNICAL = "technical"    # More formal, equation-heavy
-    VISUAL = "visual"          # Emphasis on diagrams and visualizations
+
+    ENGAGING = "engaging"  # Fun, intuitive, builds excitement
+    TECHNICAL = "technical"  # More formal, equation-heavy
+    VISUAL = "visual"  # Emphasis on diagrams and visualizations
 
 
 class AudienceLevel(Enum):
     """Target audience starting level."""
-    BEGINNER = "beginner"          # High school math
+
+    BEGINNER = "beginner"  # High school math
     INTERMEDIATE = "intermediate"  # Undergraduate
-    ADVANCED = "advanced"          # Graduate level
+    ADVANCED = "advanced"  # Graduate level
 
 
 @dataclass
 class ArxivLearningConfig(SwarmConfig):
     """Configuration for ArxivLearningSwarm."""
+
     depth: LearningDepth = LearningDepth.STANDARD
     style: ContentStyle = ContentStyle.ENGAGING
     audience: AudienceLevel = AudienceLevel.BEGINNER
@@ -101,6 +107,7 @@ class ArxivLearningConfig(SwarmConfig):
         self.name = "ArxivLearningSwarm"
         if self.llm_timeout <= 0:
             from Jotty.core.infrastructure.foundation.config_defaults import LLM_TIMEOUT_SECONDS
+
             self.llm_timeout = LLM_TIMEOUT_SECONDS
         self.domain = "arxiv_learning"
 
@@ -108,6 +115,7 @@ class ArxivLearningConfig(SwarmConfig):
 @dataclass
 class PaperInfo:
     """ArXiv paper information."""
+
     arxiv_id: str
     title: str
     authors: List[str]
@@ -121,6 +129,7 @@ class PaperInfo:
 @dataclass
 class Concept:
     """A concept from the paper."""
+
     name: str
     description: str
     why_it_matters: str
@@ -132,6 +141,7 @@ class Concept:
 @dataclass
 class LearningSection:
     """A section of learning content."""
+
     title: str
     content: str
     level: int  # 1=basics, 2=intuition, 3=math, 4=applications, 5=deep
@@ -144,6 +154,7 @@ class LearningSection:
 @dataclass
 class LearningContent:
     """Complete learning content for a paper."""
+
     paper: PaperInfo
     hook: str  # Why should you care?
     concepts: List[Concept]
@@ -157,6 +168,7 @@ class LearningContent:
 @dataclass
 class ArxivLearningResult(SwarmResult):
     """Result from ArxivLearningSwarm."""
+
     paper: Optional[PaperInfo] = None
     content: Optional[LearningContent] = None
     learning_time_estimate: str = ""
@@ -172,4 +184,3 @@ class ArxivLearningResult(SwarmResult):
 # =============================================================================
 # DSPy SIGNATURES - Teaching Philosophy Embedded
 # =============================================================================
-

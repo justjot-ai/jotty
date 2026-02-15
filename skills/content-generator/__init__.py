@@ -9,8 +9,8 @@ from .document import Document, Section, SectionType
 from .generators import ContentGenerators
 
 __all__ = [
-    'Document',
-    'Section',
-    'SectionType',
-    'ContentGenerators',
+    "Document",
+    "Section",
+    "SectionType",
+    "ContentGenerators",
 ]
