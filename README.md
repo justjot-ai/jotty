@@ -23,7 +23,7 @@ LEARNING SYSTEM    TD(λ) with Eligibility Traces + Adaptive Learning Rate
 - **LLM-First Design**: All decisions via LLM, no hardcoded rules
 - **Brain-Inspired Memory**: 5-level hierarchy with sleep consolidation
 - **TD(λ) Learning**: Temporal difference with adaptive rates
-- **126 Skills**: Modular, discoverable capabilities
+- **273 Skills**: Modular, discoverable capabilities
 - **Multi-Provider**: Auto-detection chain (Claude CLI → Cursor → Anthropic → OpenRouter → OpenAI → Groq)
 
 ## Quick Start
@@ -102,7 +102,7 @@ Components:
 
 ### Skills System
 
-126 skills organized by category:
+273 skills organized by category:
 
 | Category | Examples |
 |----------|----------|
@@ -150,7 +150,7 @@ Jotty/
 │   ├── learning/           # TD-Lambda, credit assignment
 │   ├── registry/           # UnifiedRegistry, Skills, UI
 │   └── foundation/         # Config, exceptions, data structures
-├── skills/                 # 126 skill definitions
+├── skills/                 # 273 skill definitions
 ├── layers/                 # Layer-based imports
 ├── docs/                   # Architecture documentation
 │   ├── JOTTY_ARCHITECTURE.md
@@ -182,7 +182,7 @@ from Jotty.layers.registry import get_unified_registry
 
 # Get unified registry
 registry = get_unified_registry()
-skills = registry.list_skills()  # 126 skills
+skills = registry.list_skills()  # 273 skills
 
 # Discover for task
 discovery = registry.discover_for_task("create a chart")

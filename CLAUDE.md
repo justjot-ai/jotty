@@ -82,7 +82,7 @@ credit = get_credit_assigner()        # ReasoningCreditAssigner
 # CONTEXT — token management, compression, overflow protection
 from Jotty.core.context import get_context_manager, get_context_guard, get_content_gate
 
-# SKILLS — 164 skills, 8 providers
+# SKILLS — 273 skills, 8 providers
 from Jotty.core.skills import get_registry, list_providers, list_skills
 registry = get_registry()             # UnifiedRegistry
 providers = list_providers()          # [{name, description, installed}, ...]
@@ -230,7 +230,7 @@ j = Jotty()
 j.capabilities()          # structured map of everything
 j.router                   # ModeRouter (chat/workflow/agent)
 j.chat_executor            # ChatExecutor (fast LLM tool-calling)
-j.registry                 # UnifiedRegistry (164 skills, 16 UI components)
+j.registry                 # UnifiedRegistry (273 skills, 16 UI components)
 ```
 
 ## Testing Requirements
@@ -289,7 +289,7 @@ from Jotty.core.swarms import BaseSwarm, CodingSwarm
 from Jotty.core.learning import TDLambdaLearner
 from Jotty.core.api import JottyAPI
 from Jotty.core.foundation.exceptions import JottyError
-from Jotty.core.swarms.swarm_types import SwarmBaseConfig  # NOT SwarmConfig
+from Jotty.core.swarms.swarm_types import SwarmConfig  # NOT SwarmConfig
 from Jotty.core.memory.cortex import SwarmMemory
 ```
 
@@ -318,7 +318,7 @@ Jotty/
 │   │   └── specialized/    # CodingSwarm, TestingSwarm, etc.
 │   ├── registry/           # The unified registry system
 │   │   ├── unified_registry.py  # MAIN ENTRY: get_unified_registry()
-│   │   ├── skills_registry.py   # Skills (Hands) - 126 skills
+│   │   ├── skills_registry.py   # Skills (Hands) - 273 skills
 │   │   ├── ui_registry.py       # UI (Eyes) - 16 components
 │   │   └── api.py               # Registry HTTP API
 │   ├── api/                # Programmatic API layer
@@ -366,11 +366,11 @@ def my_tool(params: dict) -> dict:
 
 ### New Swarm
 ```python
-from Jotty.core.swarms.swarm_types import SwarmBaseConfig
+from Jotty.core.swarms.swarm_types import SwarmConfig
 
 class MySwarm(DomainSwarm):
     def __init__(self):
-        super().__init__(SwarmBaseConfig(name="MySwarm", domain="my-domain"))
+        super().__init__(SwarmConfig(name="MySwarm", domain="my-domain"))
         self._define_agents([...])
 ```
 
@@ -419,7 +419,7 @@ The codebase targets 100% type hint coverage. Use `Any` when the concrete type i
 ```python
 from Jotty.core.skills import get_registry
 registry = get_registry()
-skills = registry.list_skills()  # 164 skills
+skills = registry.list_skills()  # 273 skills
 ```
 
 ### Discover for task

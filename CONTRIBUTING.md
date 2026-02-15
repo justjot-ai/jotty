@@ -202,10 +202,10 @@ touch __init__.py types.py agents.py swarm.py README.md
 ```python
 # types.py
 from dataclasses import dataclass
-from ..swarm_types import SwarmBaseConfig, SwarmResult
+from ..swarm_types import SwarmConfig, SwarmResult
 
 @dataclass
-class MySwarmConfig(SwarmBaseConfig):
+class MySwarmConfig(SwarmConfig):
     """Configuration for MySwarm."""
     custom_param: str = "default"
 
@@ -361,6 +361,7 @@ Use GitHub Issues with:
 ## 📚 Resources
 
 - **Architecture**: `docs/JOTTY_ARCHITECTURE.md`
+- **Happy Path**: `docs/HAPPY_PATH_GUIDE.md` - Complete flow from Telegram to response
 - **Error Handling**: `docs/ERROR_HANDLING_GUIDE.md`
 - **Quick Reference**: `Jotty/CLAUDE.md`
 - **Progress Tracker**: `PROGRESS_TO_10.md`

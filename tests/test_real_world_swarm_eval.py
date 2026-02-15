@@ -374,6 +374,7 @@ async def test_6_learning() -> Score:
 # ══════════════════════════════════════════════════════════════════════
 # 7. MULTI-AGENT AGGREGATION — Result combining
 # ══════════════════════════════════════════════════════════════════════
+@pytest.mark.timeout(120)
 @pytest.mark.skipif(not os.getenv('ANTHROPIC_API_KEY'), reason="Requires ANTHROPIC_API_KEY for real LLM calls")
 async def test_7_multi_agent() -> Score:
     from Jotty.core.orchestration.swarm_manager import Orchestrator
