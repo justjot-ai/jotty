@@ -560,6 +560,12 @@ class TaskClassifier:
         total_weight_cast = sum(votes.values())
         confidence = votes[winner] / total_weight_cast if total_weight_cast > 0 else 0.0
 
+        # Skill-only votes are too weak to trust at 100% confidence;
+        # cap to the actual weight so a lone skill signal (0.15) stays
+        # below the CONFIDENCE_THRESHOLD (0.40).
+        if total_weight_cast <= self.SKILL_WEIGHT and not intent_swarm and not keyword_swarm:
+            confidence = votes[winner]
+
         reasoning = f"signals=[{', '.join(signals_used)}]"
 
         if confidence < CONFIDENCE_THRESHOLD:

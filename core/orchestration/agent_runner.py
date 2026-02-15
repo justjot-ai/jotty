@@ -814,6 +814,11 @@ class AgentRunner:
         Orchestrates a pipeline of stages via ExecutionContext:
         setup → gather context → architect → execute → auditor → record result.
 
+        Judge intervention (MALLM-inspired): when auditor_confidence < 0.6 and
+        feedback is not "No feedback", retries with judge_goal incorporating
+        auditor reasoning. Uses _judge_retried flag (checks not _judge_retried)
+        to prevent infinite retry loops.
+
         Args:
             goal: Task goal/description
             skip_validation: If True, skip architect validation (fast mode)

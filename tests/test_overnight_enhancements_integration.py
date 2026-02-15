@@ -203,8 +203,10 @@ class TestIndividualEnhancements:
 
     def test_distributed_tracer_initialization(self):
         """Test distributed tracer initializes correctly."""
-        from Jotty.core.observability import get_distributed_tracer
-
+        from Jotty.core.observability.distributed_tracing import (
+            get_distributed_tracer, reset_distributed_tracer,
+        )
+        reset_distributed_tracer()
         tracer = get_distributed_tracer("test")
         assert tracer.service_name == "test"
 
@@ -226,8 +228,10 @@ class TestIndividualEnhancements:
 
     def test_multi_swarm_coordinator_initialization(self):
         """Test multi-swarm coordinator initializes correctly."""
-        from Jotty.core.orchestration import get_multi_swarm_coordinator
-
+        from Jotty.core.orchestration.multi_swarm_coordinator import (
+            get_multi_swarm_coordinator, reset_multi_swarm_coordinator,
+        )
+        reset_multi_swarm_coordinator()
         coordinator = get_multi_swarm_coordinator()
         assert coordinator.execution_count == 0
 

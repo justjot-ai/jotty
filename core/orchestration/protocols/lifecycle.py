@@ -26,20 +26,12 @@ class LifecycleMixin:
     # PRIORITY QUEUE (Handle urgent tasks first)
     # =========================================================================
 
-    def __init_priority_queue(self) -> Any:
-        """Initialize priority queue if not exists."""
-        if not hasattr(self, 'priority_queue'):
-            self.priority_queue: List[Dict] = []
-
-
-
     def enqueue_task(self, task_id: str, task_type: str, priority: int = 5, deadline: float = None, context: Dict = None) -> Any:
         """
         Add task to priority queue.
 
         Priority 1-10 (10 = most urgent).
         """
-        self.__init_priority_queue()
 
         task = {
             "task_id": task_id,
@@ -73,8 +65,6 @@ class LifecycleMixin:
 
     def dequeue_task(self) -> Optional[Dict]:
         """Get highest priority task from queue."""
-        self.__init_priority_queue()
-
         if not self.priority_queue:
             return None
 
@@ -84,14 +74,12 @@ class LifecycleMixin:
 
     def peek_queue(self, n: int = 5) -> List[Dict]:
         """Peek at top N tasks in queue."""
-        self.__init_priority_queue()
         return self.priority_queue[:n]
 
 
 
     def escalate_priority(self, task_id: str, new_priority: int) -> None:
         """Escalate task priority (reposition in queue)."""
-        self.__init_priority_queue()
 
         # Find and remove task
         task = None
@@ -489,15 +477,6 @@ class LifecycleMixin:
     # SMART CACHING (Reduce redundant LLM calls)
     # =========================================================================
 
-    def __init_cache(self) -> Any:
-        """Initialize result cache."""
-        if not hasattr(self, '_result_cache'):
-            self._result_cache: Dict[str, Dict] = {}
-            self._cache_hits = 0
-            self._cache_misses = 0
-
-
-
     def cache_result(self, key: str, result: Any, ttl: float = 3600.0) -> None:
         """
         Cache a result with TTL.
@@ -507,7 +486,6 @@ class LifecycleMixin:
             result: Result to cache
             ttl: Time-to-live in seconds (default 1 hour)
         """
-        self.__init_cache()
         self._result_cache[key] = {
             "result": result,
             "cached_at": time.time(),
@@ -522,8 +500,6 @@ class LifecycleMixin:
 
         Returns None if not cached or expired.
         """
-        self.__init_cache()
-
         entry = self._result_cache.get(key)
         if not entry:
             self._cache_misses += 1
@@ -543,7 +519,6 @@ class LifecycleMixin:
 
     def get_cache_stats(self) -> Dict[str, Any]:
         """Get cache statistics."""
-        self.__init_cache()
         total = self._cache_hits + self._cache_misses
         return {
             "hits": self._cache_hits,
@@ -556,7 +531,6 @@ class LifecycleMixin:
 
     def clear_cache(self, pattern: str = None) -> None:
         """Clear cache entries (optionally matching pattern)."""
-        self.__init_cache()
         if pattern:
             import fnmatch
             keys_to_delete = [k for k in self._result_cache if fnmatch.fnmatch(k, pattern)]

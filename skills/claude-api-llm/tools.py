@@ -481,7 +481,6 @@ class AgenticToolExecutor:
         self.execution_output: List[str] = []
         self.tool_call_history: List[Dict[str, Any]] = []
 
-    @tool_wrapper()
     def execute_tool(self, tool_name: str, tool_input: Dict[str, Any]) -> str:
         """Execute a tool call and return the result as a string."""
         result = None

@@ -207,27 +207,38 @@ class ObservabilityProtocol(Protocol):
         ...
 
 
+@runtime_checkable
 class MetadataProvider(Protocol):
-    """Protocol for objects that provide metadata."""
+    """Protocol for objects that provide actor/swarm metadata context."""
 
-    def get_metadata(self) -> Dict[str, Any]:
-        """Return metadata dictionary."""
+    def get_context_for_actor(self, actor_name: str, query: str, previous_outputs: Any = None, **kwargs: Any) -> Dict[str, Any]:
+        """Return context for a specific actor."""
+        ...
+
+    def get_swarm_context(self, **kwargs: Any) -> Dict[str, Any]:
+        """Return swarm-level context."""
         ...
 
 
+@runtime_checkable
 class DataProvider(Protocol):
-    """Protocol for objects that provide data."""
+    """Protocol for objects that provide data retrieval and storage."""
 
-    def get_data(self) -> Any:
-        """Return data."""
+    def retrieve(self, key: str, format: Optional[str] = None, **kwargs: Any) -> Any:
+        """Retrieve data by key."""
+        ...
+
+    def store(self, key: str, value: Any, format: Optional[str] = None, **kwargs: Any) -> None:
+        """Store data by key."""
         ...
 
 
+@runtime_checkable
 class ContextExtractor(Protocol):
-    """Protocol for objects that extract context."""
+    """Protocol for objects that extract context from content."""
 
-    def extract_context(self, source: Any) -> Dict[str, Any]:
-        """Extract context from source."""
+    def extract(self, content: Any, query: str, max_tokens: int, **kwargs: Any) -> Any:
+        """Extract relevant context from content."""
         ...
 
 

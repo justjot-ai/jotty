@@ -194,6 +194,24 @@ class SwarmIntelligence:
         self.supervisor_tree: Dict[str, SupervisorNode] = {}
         self._tree_built = False
 
+        # Gossip protocol state (used by CoordinationMixin)
+        self.gossip_inbox: Dict[str, List[GossipMessage]] = {}
+        self.gossip_seen: Dict[str, bool] = {}
+
+        # Auction state (used by CoordinationMixin)
+        self.active_auctions: Dict[str, List[AuctionBid]] = {}
+
+        # Circuit breaker state (used by ResilienceMixin)
+        self.circuit_breakers: Dict[str, Dict] = {}
+
+        # Priority queue (used by LifecycleMixin)
+        self.priority_queue: List[Dict] = []
+
+        # Result cache (used by LifecycleMixin)
+        self._result_cache: Dict[str, Dict] = {}
+        self._cache_hits: int = 0
+        self._cache_misses: int = 0
+
         # ================================================================
         # PROTOCOL METHODS (via composition)
         #
@@ -223,7 +241,7 @@ class SwarmIntelligence:
         self._method_table: Dict[str, Any] = {}
         for MixinClass in self._delegate_classes:
             for attr_name in dir(MixinClass):
-                if attr_name.startswith('_'):
+                if attr_name.startswith('__'):
                     continue
                 method = getattr(MixinClass, attr_name, None)
                 if callable(method) and attr_name not in self._method_table:
@@ -612,7 +630,7 @@ class SwarmIntelligence:
         # Route signal (for task routing)
         self.stigmergy.deposit(
             signal_type='route',
-            content={'agent': agent, 'task_type': task_type},
+            content={'agent': agent, 'task_type': task_type, 'success': True},
             agent=agent,
             strength=1.0
         )

@@ -173,7 +173,8 @@ class ParadigmExecutor:
             if not runner:
                 continue
 
-            sub_goal = agent_config.capabilities[0] if agent_config.capabilities else enriched_goal
+            caps = getattr(agent_config, 'capabilities', None)
+            sub_goal = caps[0] if caps else enriched_goal
 
             # Schema-aware wiring
             if prev_schema is not None and prev_output is not None:
@@ -246,7 +247,7 @@ class ParadigmExecutor:
             runner = sm.runners.get(agent_config.name)
             if not runner:
                 continue
-            sub_goal = agent_config.capabilities[0] if agent_config.capabilities else goal
+            sub_goal = getattr(agent_config, 'capabilities', None) and agent_config.capabilities[0] or goal
             draft_tasks.append((agent_config.name, runner, sub_goal))
 
         async def _run_draft(name: Any, runner: Any, sub_goal: Any) -> Any:
@@ -290,7 +291,7 @@ class ParadigmExecutor:
                     for name, text in drafts.items()
                     if name != agent_config.name
                 )
-                sub_goal = agent_config.capabilities[0] if agent_config.capabilities else goal
+                sub_goal = getattr(agent_config, 'capabilities', None) and agent_config.capabilities[0] or goal
                 critique_goal = (
                     f"{sub_goal}\n\n"
                     f"Other agents produced these solutions. "
@@ -327,7 +328,7 @@ class ParadigmExecutor:
 
         first_agent = sm.agents[0]
         runner = sm.runners.get(first_agent.name)
-        sub_goal = first_agent.capabilities[0] if first_agent.capabilities else goal
+        sub_goal = getattr(first_agent, 'capabilities', None) and first_agent.capabilities[0] or goal
 
         safe_status(status_callback, "Refinement", f"initial draft by {first_agent.name}")
 
@@ -362,7 +363,7 @@ class ParadigmExecutor:
                 if not refiner:
                     continue
 
-                refine_sub = agent_config.capabilities[0] if agent_config.capabilities else goal
+                refine_sub = getattr(agent_config, 'capabilities', None) and agent_config.capabilities[0] or goal
                 refine_goal = (
                     f"{refine_sub}\n\n"
                     f"Here is the current draft. Improve it:\n{current_draft}"
@@ -396,7 +397,7 @@ class ParadigmExecutor:
                 success=False,
                 trajectory=[],
                 tagged_outputs=[],
-                episode=sm.episode_count,
+                episode=getattr(sm, 'episode_count', 0),
                 execution_time=0.0,
                 architect_results=[],
                 auditor_results=[],
@@ -433,7 +434,7 @@ class ParadigmExecutor:
             success=all_success,
             trajectory=merged_trajectory,
             tagged_outputs=[],
-            episode=sm.episode_count,
+            episode=getattr(sm, 'episode_count', 0),
             execution_time=sum(getattr(r, 'execution_time', 0) for r in results.values()),
             architect_results=[],
             auditor_results=[],

@@ -1,4 +1,3 @@
-from typing import Any
 """
 Orchestration Layer - Multi-Agent Coordination
 ===============================================
@@ -26,6 +25,7 @@ Usage:
     result = await swarm.run(goal="Research AI startups")
 """
 
+from typing import Any
 import importlib as _importlib
 
 # ── Direct module imports (module_path, attribute_name) ─────────────────

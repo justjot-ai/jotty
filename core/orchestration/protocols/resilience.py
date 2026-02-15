@@ -102,16 +102,8 @@ class ResilienceMixin:
     # CIRCUIT BREAKER (Stop sending to failing agents)
     # =========================================================================
 
-    def __init_circuit_breakers(self) -> Any:
-        """Initialize circuit breakers if not exists."""
-        if not hasattr(self, 'circuit_breakers'):
-            self.circuit_breakers: Dict[str, Dict] = {}  # agent -> {state, failures, last_failure}
-
-
-
     def get_circuit_state(self, agent: str) -> str:
         """Get circuit breaker state: 'closed' (ok), 'open' (blocked), 'half-open' (testing)."""
-        self.__init_circuit_breakers()
         cb = self.circuit_breakers.get(agent, {})
         return cb.get('state', 'closed')
 
@@ -124,8 +116,6 @@ class ResilienceMixin:
         After `threshold` failures, circuit opens (blocks agent).
         After `cooldown` seconds, circuit becomes half-open (allows one test).
         """
-        self.__init_circuit_breakers()
-
         if agent not in self.circuit_breakers:
             self.circuit_breakers[agent] = {'state': 'closed', 'failures': 0, 'last_failure': 0}
 
@@ -141,8 +131,6 @@ class ResilienceMixin:
 
     def record_circuit_success(self, agent: str) -> None:
         """Record success - resets circuit breaker."""
-        self.__init_circuit_breakers()
-
         if agent in self.circuit_breakers:
             self.circuit_breakers[agent] = {'state': 'closed', 'failures': 0, 'last_failure': 0}
 
@@ -154,8 +142,6 @@ class ResilienceMixin:
 
         Returns True if agent can receive tasks.
         """
-        self.__init_circuit_breakers()
-
         cb = self.circuit_breakers.get(agent)
         if not cb:
             return True

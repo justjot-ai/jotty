@@ -233,9 +233,8 @@ class JottyGAIAAdapter:
             progress_callback: Optional (stage, detail) callback for real-time progress; can also be set on .progress_callback before each run.
             num_attempts: Number of attempts per question (Pass@N). Use 3 for +10-15% accuracy (JoyAgent approach).
         """
-        # Default to DIRECT tier for GAIA (single LLM call with tools, optimized for fact-retrieval)
-        # Top GAIA performers (75%+) use tool-calling, not swarm orchestration
-        self.tier = tier if tier is not None else "DIRECT"
+        # Default to None; callers can set tier explicitly (e.g. "DIRECT" for GAIA)
+        self.tier = tier
         self.model = model
         self.dry_run = dry_run
         self.use_llm_doc_sources = use_llm_doc_sources

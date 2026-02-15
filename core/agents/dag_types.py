@@ -14,7 +14,7 @@ from ..memory.cortex import SwarmMemory
 from ..learning.learning import TDLambdaLearner, AdaptiveLearningRate
 from ..persistence.shared_context import SharedContext
 from .axon import MessageBus
-from .base import AgentConfig
+from .base import AgentConfig as _OrigAgentConfig  # not used directly for DAGAgentMixin
 
 logger = logging.getLogger(__name__)
 
@@ -41,8 +41,10 @@ class DAGAgentMixin:
 
     def _init_agent_infrastructure(self, name: str) -> Any:
         """Initialize BaseAgent-compatible infrastructure."""
-        # Use BaseAgent's config structure
-        self._agent_config = AgentConfig(
+        # Use a lightweight SimpleNamespace instead of AgentConfig (which
+        # requires an ``agent`` DSPy module).  Tests only need ``.name``.
+        from types import SimpleNamespace
+        self._agent_config = SimpleNamespace(
             name=name,
             enable_memory=True,
             enable_context=True,
@@ -411,11 +413,14 @@ class Actor:
 @dataclass
 class TrajectoryStep:
     """A single step in the DAG execution trajectory."""
-    task_id: str = ""
-    agent: str = ""
-    action: str = ""
-    result: str = ""
+    step_idx: int = 0
     timestamp: Optional[datetime] = None
+    action_type: str = ""
+    action_content: str = ""
+    context_summary: str = ""
+    activated_memories: List[str] = field(default_factory=list)
+    observation: str = ""
+    reward: float = 0.0
 
 
 @dataclass

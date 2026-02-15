@@ -830,8 +830,11 @@ class TestConfigValidation:
 
     def test_memory_config_zero_capacity(self):
         from Jotty.core.foundation.configs import MemoryConfig
+        # Zero capacity is allowed (means disabled); negative is not
+        cfg = MemoryConfig(episodic_capacity=0)
+        assert cfg.episodic_capacity == 0
         with pytest.raises(ValueError, match="episodic_capacity"):
-            MemoryConfig(episodic_capacity=0)
+            MemoryConfig(episodic_capacity=-1)
 
     def test_memory_config_bad_threshold(self):
         from Jotty.core.foundation.configs import MemoryConfig
@@ -862,14 +865,16 @@ class TestConfigValidation:
 
     def test_context_budget_sum_exceeds_max(self):
         from Jotty.core.foundation.configs import ContextBudgetConfig
-        with pytest.raises(ValueError, match="Sum of static budgets"):
-            ContextBudgetConfig(
-                max_context_tokens=10000,
-                system_prompt_budget=5000,
-                current_input_budget=5000,
-                trajectory_budget=5000,
-                tool_output_budget=5000,
-            )
+        # Sum exceeding max now produces a warning instead of a ValueError,
+        # because dynamic budgeting clamps memory_budget at runtime.
+        cfg = ContextBudgetConfig(
+            max_context_tokens=10000,
+            system_prompt_budget=5000,
+            current_input_budget=5000,
+            trajectory_budget=5000,
+            tool_output_budget=5000,
+        )
+        assert cfg.max_context_tokens == 10000
 
     def test_context_budget_zero_budget(self):
         from Jotty.core.foundation.configs import ContextBudgetConfig
@@ -885,8 +890,11 @@ class TestConfigValidation:
 
     def test_execution_config_zero_iters(self):
         from Jotty.core.foundation.configs import ExecutionConfig
+        # Zero is allowed (means unlimited/disabled); negative is not
+        cfg = ExecutionConfig(max_actor_iters=0)
+        assert cfg.max_actor_iters == 0
         with pytest.raises(ValueError, match="max_actor_iters"):
-            ExecutionConfig(max_actor_iters=0)
+            ExecutionConfig(max_actor_iters=-1)
 
     def test_execution_config_negative_timeout(self):
         from Jotty.core.foundation.configs import ExecutionConfig
@@ -1001,7 +1009,7 @@ class TestSwarmConfigValidationDelegation:
         """Multiple invalid fields produce multiple error lines."""
         from Jotty.core.foundation.data_structures import SwarmConfig
         with pytest.raises(ValueError) as exc_info:
-            SwarmConfig(gamma=1.5, episodic_capacity=0, max_actor_iters=0)
+            SwarmConfig(gamma=1.5, episodic_capacity=-1, max_actor_iters=-1)
         msg = str(exc_info.value)
         assert "to_learning_config" in msg
         assert "to_memory_config" in msg

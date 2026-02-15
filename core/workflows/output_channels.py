@@ -115,7 +115,7 @@ class OutputChannelManager:
             logger.warning(f"Could not load skills registry: {e}")
             logger.warning("Channel delivery will not be available")
 
-    def send_to_telegram(
+    async def send_to_telegram(
         self,
         file_path: Optional[str] = None,
         message: Optional[str] = None,
@@ -166,7 +166,14 @@ class OutputChannelManager:
                 # Check if async
                 if inspect.iscoroutinefunction(send_tool):
                     import asyncio
-                    result = asyncio.run(send_tool(params))
+                    # If we're already in an event loop, await directly
+                    try:
+                        loop = asyncio.get_running_loop()
+                        # We're in an async context - create task and wait
+                        result = await send_tool(params)
+                    except RuntimeError:
+                        # No running loop - use asyncio.run()
+                        result = asyncio.run(send_tool(params))
                 else:
                     result = send_tool(params)
 
@@ -189,8 +196,7 @@ class OutputChannelManager:
                     params['chat_id'] = chat_id
 
                 if inspect.iscoroutinefunction(send_tool):
-                    import asyncio
-                    result = asyncio.run(send_tool(params))
+                    result = await send_tool(params)
                 else:
                     result = send_tool(params)
 
@@ -224,7 +230,7 @@ class OutputChannelManager:
                 error=str(e)
             )
 
-    def send_to_whatsapp(
+    async def send_to_whatsapp(
         self,
         to: str,
         file_path: Optional[str] = None,
@@ -331,7 +337,7 @@ class OutputChannelManager:
                 error=str(e)
             )
 
-    def send_to_all(
+    async def send_to_all(
         self,
         channels: List[str],
         file_path: Optional[str] = None,
@@ -361,7 +367,7 @@ class OutputChannelManager:
             channel_lower = channel.lower()
 
             if channel_lower == "telegram":
-                results["telegram"] = self.send_to_telegram(
+                results["telegram"] = await self.send_to_telegram(
                     file_path=file_path,
                     message=message,
                     caption=caption,
@@ -378,7 +384,7 @@ class OutputChannelManager:
                         error="whatsapp_to parameter required"
                     )
                 else:
-                    results["whatsapp"] = self.send_to_whatsapp(
+                    results["whatsapp"] = await self.send_to_whatsapp(
                         to=whatsapp_to,
                         file_path=file_path,
                         message=message,

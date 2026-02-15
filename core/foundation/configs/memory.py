@@ -25,13 +25,20 @@ class MemoryConfig:
     chunk_overlap: int = 50
 
     def __post_init__(self) -> None:
-        # Positive capacity fields
-        _pos_fields = {
+        # Capacity fields: allow zero (disabled) or positive
+        _capacity_fields = {
             'episodic_capacity': self.episodic_capacity,
             'semantic_capacity': self.semantic_capacity,
             'procedural_capacity': self.procedural_capacity,
             'meta_capacity': self.meta_capacity,
             'causal_capacity': self.causal_capacity,
+        }
+        for name, val in _capacity_fields.items():
+            if val < 0:
+                raise ValueError(f"{name} must be >= 0, got {val}")
+
+        # Strictly positive fields (non-capacity settings)
+        _pos_fields = {
             'max_entry_tokens': self.max_entry_tokens,
             'rag_window_size': self.rag_window_size,
             'rag_max_candidates': self.rag_max_candidates,
@@ -58,7 +65,7 @@ class MemoryConfig:
             )
 
         # retrieval_mode validation
-        valid_modes = {"synthesize", "raw", "ranked"}
+        valid_modes = {"synthesize", "raw", "ranked", "discrete"}
         if self.retrieval_mode not in valid_modes:
             raise ValueError(
                 f"retrieval_mode must be one of {valid_modes}, got '{self.retrieval_mode}'"

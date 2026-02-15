@@ -24,9 +24,16 @@ class ExecutionConfig:
     enable_deterministic: bool = True
 
     def __post_init__(self) -> None:
+        # Non-negative integer limits (0 means unlimited/disabled)
+        _nonneg_int_fields = {
+            'max_actor_iters': self.max_actor_iters,
+        }
+        for name, val in _nonneg_int_fields.items():
+            if val < 0:
+                raise ValueError(f"{name} must be >= 0, got {val}")
+
         # Positive integer limits
         _pos_int_fields = {
-            'max_actor_iters': self.max_actor_iters,
             'max_eval_iters': self.max_eval_iters,
             'max_episode_iterations': self.max_episode_iterations,
             'max_concurrent_agents': self.max_concurrent_agents,

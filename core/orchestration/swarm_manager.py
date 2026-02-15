@@ -2422,18 +2422,24 @@ class Orchestrator:
             workspace_dir=_os.getcwd(),
         )
 
-    async def run(self, goal: str, **kwargs: Any) -> Any: return await self._engine.run(goal, **kwargs)
+    def _ensure_engine(self) -> 'ExecutionEngine':
+        """Lazy-init ExecutionEngine (supports tests using __new__)."""
+        if not hasattr(self, '_engine'):
+            self._engine = ExecutionEngine(self)
+        return self._engine
+
+    async def run(self, goal: str, **kwargs: Any) -> Any: return await self._ensure_engine().run(goal, **kwargs)
 
     # _execute_ensemble and _should_auto_ensemble — delegated to EnsembleManager
 
-    async def _execute_single_agent(self, goal: str, **kwargs: Any) -> Any: return await self._engine._execute_single_agent(goal, **kwargs)
-    async def _execute_multi_agent(self, goal: str, **kwargs: Any) -> Any: return await self._engine._execute_multi_agent(goal, **kwargs)
-    async def _paradigm_run_agent(self, *args: Any, **kwargs: Any) -> Any: return await self._engine._paradigm_run_agent(*args, **kwargs)
-    async def _paradigm_relay(self, goal: str, **kwargs: Any) -> Any: return await self._engine._paradigm_relay(goal, **kwargs)
-    async def _paradigm_debate(self, goal: str, **kwargs: Any) -> Any: return await self._engine._paradigm_debate(goal, **kwargs)
-    async def _paradigm_refinement(self, goal: str, **kwargs: Any) -> Any: return await self._engine._paradigm_refinement(goal, **kwargs)
-    def _aggregate_results(self, results: Any, goal: str) -> Any: return self._engine._aggregate_results(results, goal)
-    def _assign_cooperative_credit(self, results: Any, goal: str) -> Any: return self._engine._assign_cooperative_credit(results, goal)
+    async def _execute_single_agent(self, goal: str, **kwargs: Any) -> Any: return await self._ensure_engine()._execute_single_agent(goal, **kwargs)
+    async def _execute_multi_agent(self, goal: str, **kwargs: Any) -> Any: return await self._ensure_engine()._execute_multi_agent(goal, **kwargs)
+    async def _paradigm_run_agent(self, *args: Any, **kwargs: Any) -> Any: return await self._ensure_engine()._paradigm_run_agent(*args, **kwargs)
+    async def _paradigm_relay(self, goal: str, **kwargs: Any) -> Any: return await self._ensure_engine()._paradigm_relay(goal, **kwargs)
+    async def _paradigm_debate(self, goal: str, **kwargs: Any) -> Any: return await self._ensure_engine()._paradigm_debate(goal, **kwargs)
+    async def _paradigm_refinement(self, goal: str, **kwargs: Any) -> Any: return await self._ensure_engine()._paradigm_refinement(goal, **kwargs)
+    def _aggregate_results(self, results: Any, goal: str) -> Any: return self._ensure_engine()._aggregate_results(results, goal)
+    def _assign_cooperative_credit(self, results: Any, goal: str) -> Any: return self._ensure_engine()._assign_cooperative_credit(results, goal)
 
     def _create_zero_config_agents(self, task: Any, status_callback: Any = None) -> Any: return self._agent_factory.create_zero_config_agents(task, status_callback)
 

@@ -304,9 +304,16 @@ def get_multi_swarm_coordinator() -> MultiSwarmCoordinator:
     return _coordinator
 
 
+def reset_multi_swarm_coordinator() -> None:
+    """Reset the singleton coordinator (used in tests)."""
+    global _coordinator
+    _coordinator = None
+
+
 __all__ = [
     'MultiSwarmCoordinator',
     'MergeStrategy',
     'SwarmResult',
     'get_multi_swarm_coordinator',
+    'reset_multi_swarm_coordinator',
 ]

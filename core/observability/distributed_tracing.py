@@ -149,7 +149,14 @@ def get_distributed_tracer(service_name: str = "jotty") -> DistributedTracer:
     return _distributed_tracer
 
 
+def reset_distributed_tracer() -> None:
+    """Reset the singleton distributed tracer (used in tests)."""
+    global _distributed_tracer
+    _distributed_tracer = None
+
+
 __all__ = [
     'DistributedTracer',
     'get_distributed_tracer',
+    'reset_distributed_tracer',
 ]

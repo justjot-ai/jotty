@@ -55,7 +55,7 @@ class ValidationConfig:
             raise ValueError(f"refinement_timeout must be > 0, got {self.refinement_timeout}")
 
         # Validation mode
-        valid_modes = {"full", "quick", "none"}
+        valid_modes = {"full", "quick", "none", "standard", "architect_only", "thorough"}
         if self.validation_mode not in valid_modes:
             raise ValueError(
                 f"validation_mode must be one of {valid_modes}, got '{self.validation_mode}'"

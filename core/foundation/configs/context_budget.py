@@ -39,11 +39,17 @@ class ContextBudgetConfig:
                 f"<= max_memory_budget ({self.max_memory_budget})"
             )
 
-        # Static budgets should not exceed max context
+        # Note: Static budgets may exceed max_context_tokens when dynamic
+        # budgeting is enabled — the runtime will clamp memory_budget to the
+        # configured min_memory_budget floor.  We only log a warning here
+        # instead of raising, so that legitimate configs (e.g. generous
+        # per-category budgets with a low max_context_tokens) are accepted.
+        import logging as _logging
         static_sum = (self.system_prompt_budget + self.current_input_budget +
                       self.trajectory_budget + self.tool_output_budget)
         if static_sum > self.max_context_tokens:
-            raise ValueError(
-                f"Sum of static budgets ({static_sum}) exceeds "
-                f"max_context_tokens ({self.max_context_tokens})"
+            _logging.getLogger(__name__).warning(
+                "Sum of static budgets (%d) exceeds max_context_tokens (%d); "
+                "memory_budget will be clamped to min_memory_budget at runtime.",
+                static_sum, self.max_context_tokens,
             )

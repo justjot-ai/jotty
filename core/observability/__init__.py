@@ -16,19 +16,33 @@ Usage:
     metrics.skill_execution_count.inc()
 """
 
-from .tracing import get_tracer, trace_skill, trace_agent, trace_swarm
-from .metrics import get_metrics, MetricsCollector
+from .tracing import (
+    get_tracer, reset_tracer, trace_skill, trace_agent, trace_swarm,
+    Span, Trace, TracingContext, SpanStatus,
+)
+from .metrics import (
+    get_metrics, reset_metrics, MetricsCollector,
+    ExecutionRecord, AgentMetrics,
+)
 from .health import HealthCheck
 
 __all__ = [
     'DistributedTracer',
     'get_distributed_tracer',
     'get_tracer',
+    'reset_tracer',
     'trace_skill',
     'trace_agent',
     'trace_swarm',
+    'Span',
+    'Trace',
+    'TracingContext',
+    'SpanStatus',
     'get_metrics',
+    'reset_metrics',
     'MetricsCollector',
+    'ExecutionRecord',
+    'AgentMetrics',
     'HealthCheck',
 ]
 
