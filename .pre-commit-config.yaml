@@ -90,3 +90,11 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+
+      - id: file-size-check
+        name: File Size Check - Detect oversized files
+        entry: python3 scripts/analyze_file_size.py --hook
+        language: system
+        pass_filenames: false
+        always_run: true
+        verbose: true
