@@ -293,17 +293,17 @@ Examples:
     async def _cmd_status(self, chat, update, context):
         """Status command."""
         state = chat.state_machine.get_state()
-        status_text = f"""
-📊 *Bot Status*
+        status_text = f"""📊 Bot Status
 
-*State:* {state.value}
-*Messages:* {len(chat.session.messages)}
-*Session:* `{chat.session.session_id}`
-*Created:* {chat.session.created_at.strftime("%Y-%m-%d %H:%M")}
+State: {state.value}
+Messages: {len(chat.session.messages)}
+Session: {chat.session.session_id}
+Created: {chat.session.created_at.strftime("%Y-%m-%d %H:%M")}
 
 ✅ All systems operational
 """
-        await update.message.reply_text(status_text, parse_mode="MarkdownV2")
+        # Use plain text to avoid MarkdownV2 escaping issues
+        await update.message.reply_text(status_text)
 
     async def _cmd_clear(self, chat, update, context):
         """Clear command."""
@@ -317,19 +317,19 @@ Examples:
         """Session commands."""
         if not args or args[0] == "info":
             session = chat.session
-            info = f"""
-📊 *Session Info*
+            info = f"""📊 Session Info
 
-*ID:* `{session.session_id}`
-*Messages:* {len(session.messages)}
-*Created:* {session.created_at.strftime("%Y-%m-%d %H:%M")}
+ID: {session.session_id}
+Messages: {len(session.messages)}
+Created: {session.created_at.strftime("%Y-%m-%d %H:%M")}
 
-*Message Breakdown:*
+Message Breakdown:
 • User: {sum(1 for m in session.messages if m.role == 'user')}
 • Assistant: {sum(1 for m in session.messages if m.role == 'assistant')}
 • System: {sum(1 for m in session.messages if m.role == 'system')}
 """
-            await update.message.reply_text(info, parse_mode="MarkdownV2")
+            # Use plain text to avoid MarkdownV2 escaping issues
+            await update.message.reply_text(info)
         elif args[0] == "save":
             await update.message.reply_text("💾 Session save: Coming soon\\!")
         elif args[0] == "load":

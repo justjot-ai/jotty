@@ -77,7 +77,13 @@ class JottyCLI:
         if debug:
             logging.basicConfig(level=logging.DEBUG)
         else:
-            logging.basicConfig(level=logging.WARNING)
+            # Hide internal Jotty logs from user - only show errors
+            logging.basicConfig(level=logging.ERROR)
+            # Suppress specific noisy loggers
+            logging.getLogger("Jotty").setLevel(logging.ERROR)
+            logging.getLogger("openai").setLevel(logging.ERROR)
+            logging.getLogger("httpx").setLevel(logging.ERROR)
+            logging.getLogger("litellm").setLevel(logging.ERROR)
 
         # Create chat interface
         self.chat = ChatInterface(
@@ -149,7 +155,7 @@ class JottyCLI:
                 self.chat.add_message(user_msg)
 
                 # Execute via SDK with streaming
-                async for event in self.sdk.chat_stream(user_input):
+                async for event in self.sdk.stream(user_input):
                     # Process event (auto-updates UI)
                     await self.event_processor.process_event(event)
 

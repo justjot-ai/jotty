@@ -30,6 +30,7 @@ try:
         FetchResult,
         ProxyRotator,
         _blocked_cache,
+        _detect_markdown,
         _random_headers,
         _try_archive_org,
         get_proxy_rotator,
@@ -120,6 +121,8 @@ class TestFetchResult:
             "error",
             "skipped",
             "source",
+            "is_markdown",
+            "markdown_tokens",
         }
         assert set(FetchResult.__slots__) == expected_slots
 
@@ -1114,3 +1117,181 @@ class TestSmartFetchEdgeCases:
         assert result.success is False
         assert result.skipped is True
         mock_request.assert_not_called()
+
+
+# =============================================================================
+# TestDetectMarkdown
+# =============================================================================
+
+
+class TestDetectMarkdown:
+    """Tests for _detect_markdown() helper (Cloudflare Markdown for Agents)."""
+
+    def test_html_response_not_markdown(self):
+        """text/html response is not detected as markdown."""
+        resp = Mock()
+        resp.headers = {"Content-Type": "text/html; charset=utf-8"}
+        is_md, tokens = _detect_markdown(resp)
+        assert is_md is False
+        assert tokens == 0
+
+    def test_markdown_with_token_count(self):
+        """text/markdown with x-markdown-tokens header detected correctly."""
+        resp = Mock()
+        resp.headers = {
+            "Content-Type": "text/markdown; charset=utf-8",
+            "x-markdown-tokens": "1234",
+        }
+        is_md, tokens = _detect_markdown(resp)
+        assert is_md is True
+        assert tokens == 1234
+
+    def test_markdown_without_token_header(self):
+        """text/markdown without x-markdown-tokens returns tokens=0."""
+        resp = Mock()
+        resp.headers = {"Content-Type": "text/markdown"}
+        is_md, tokens = _detect_markdown(resp)
+        assert is_md is True
+        assert tokens == 0
+
+    def test_invalid_token_header_value(self):
+        """Non-numeric x-markdown-tokens does not crash."""
+        resp = Mock()
+        resp.headers = {
+            "Content-Type": "text/markdown",
+            "x-markdown-tokens": "not-a-number",
+        }
+        is_md, tokens = _detect_markdown(resp)
+        assert is_md is True
+        assert tokens == 0
+
+    def test_json_response_not_markdown(self):
+        """application/json is not detected as markdown."""
+        resp = Mock()
+        resp.headers = {"Content-Type": "application/json"}
+        is_md, tokens = _detect_markdown(resp)
+        assert is_md is False
+        assert tokens == 0
+
+    def test_missing_content_type(self):
+        """Missing Content-Type header does not crash."""
+        resp = Mock()
+        resp.headers = {}
+        is_md, tokens = _detect_markdown(resp)
+        assert is_md is False
+        assert tokens == 0
+
+
+# =============================================================================
+# TestFetchResultMarkdownFields
+# =============================================================================
+
+
+class TestFetchResultMarkdownFields:
+    """Tests for FetchResult is_markdown and markdown_tokens fields."""
+
+    def test_defaults(self):
+        """FetchResult defaults: is_markdown=False, markdown_tokens=0."""
+        r = FetchResult()
+        assert r.is_markdown is False
+        assert r.markdown_tokens == 0
+
+    def test_explicit_values(self):
+        """FetchResult stores explicit markdown values."""
+        r = FetchResult(success=True, is_markdown=True, markdown_tokens=500)
+        assert r.is_markdown is True
+        assert r.markdown_tokens == 500
+
+
+# =============================================================================
+# TestAcceptHeaderMarkdown
+# =============================================================================
+
+
+class TestAcceptHeaderMarkdown:
+    """Tests that Accept header prefers text/markdown."""
+
+    def test_accept_prefers_markdown(self):
+        """Accept header starts with text/markdown (highest priority)."""
+        headers = _random_headers()
+        accept = headers["Accept"]
+        assert accept.startswith("text/markdown")
+
+    def test_accept_includes_html_fallback(self):
+        """Accept header includes text/html as fallback."""
+        headers = _random_headers()
+        assert "text/html" in headers["Accept"]
+
+
+# =============================================================================
+# TestSmartFetchMarkdownIntegration
+# =============================================================================
+
+
+class TestSmartFetchMarkdownIntegration:
+    """Tests that smart_fetch correctly detects markdown responses."""
+
+    def setup_method(self):
+        _clear_blocked_cache()
+
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.requests.request")
+    def test_direct_markdown_response(self, mock_request):
+        """Direct request returning text/markdown sets is_markdown=True."""
+        mock_resp = Mock()
+        mock_resp.status_code = 200
+        mock_resp.text = "# Hello World\n\nThis is markdown content."
+        mock_resp.headers = {
+            "Content-Type": "text/markdown; charset=utf-8",
+            "x-markdown-tokens": "42",
+        }
+        mock_request.return_value = mock_resp
+
+        result = smart_fetch("https://example.com/page")
+        assert result.success is True
+        assert result.is_markdown is True
+        assert result.markdown_tokens == 42
+        assert result.content == "# Hello World\n\nThis is markdown content."
+
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.requests.request")
+    def test_direct_html_response_not_markdown(self, mock_request):
+        """Direct request returning text/html sets is_markdown=False."""
+        mock_resp = Mock()
+        mock_resp.status_code = 200
+        mock_resp.text = "<html><body>Hello</body></html>"
+        mock_resp.headers = {"Content-Type": "text/html; charset=utf-8"}
+        mock_request.return_value = mock_resp
+
+        result = smart_fetch("https://example.com/page")
+        assert result.success is True
+        assert result.is_markdown is False
+        assert result.markdown_tokens == 0
+
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.get_proxy_rotator")
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher._try_archive_org", return_value=None)
+    @patch("Jotty.core.infrastructure.utils.smart_fetcher.requests.request")
+    def test_proxy_markdown_response(self, mock_request, mock_archive, mock_get_rotator):
+        """Proxy response returning text/markdown sets is_markdown=True."""
+        direct_resp = Mock()
+        direct_resp.status_code = 403
+
+        proxy_resp = Mock()
+        proxy_resp.status_code = 200
+        proxy_resp.text = "# Proxy Content\n\nFetched via proxy."
+        proxy_resp.headers = {
+            "Content-Type": "text/markdown",
+            "x-markdown-tokens": "99",
+        }
+        mock_request.side_effect = [direct_resp, proxy_resp]
+
+        mock_rotator = Mock()
+        mock_rotator.get_proxy.return_value = {
+            "http": "http://proxy:8080",
+            "https": "http://proxy:8080",
+        }
+        mock_get_rotator.return_value = mock_rotator
+
+        result = smart_fetch("https://hard-to-reach.com/page")
+        assert result.success is True
+        assert result.is_markdown is True
+        assert result.markdown_tokens == 99
+        assert result.used_proxy is True

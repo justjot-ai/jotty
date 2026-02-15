@@ -74,7 +74,7 @@ __all__ = [
     "WebServerCommand",
     "ModelChatCommand",
     "GatewayCommand",
-    "WhatsAppCommand",
+    # "WhatsAppCommand",  # Moved to apps/whatsapp/
     "HeartbeatCommand",
     "RemindCommand",
     "TaskCommand",
@@ -115,7 +115,7 @@ def register_all_commands(registry: CommandRegistry) -> Any:
         WebServerCommand(),
         ModelChatCommand(),
         GatewayCommand(),
-        WhatsAppCommand(),
+        # WhatsAppCommand(),  # Moved to apps/whatsapp/
         HeartbeatCommand(),
         RemindCommand(),
         TaskCommand(),

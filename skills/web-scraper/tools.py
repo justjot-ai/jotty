@@ -5,6 +5,7 @@ Scrape websites and extract content.
 Refactored to use Jotty core utilities.
 """
 
+import re
 from typing import Any, Dict, List, Optional
 from urllib.parse import urljoin, urlparse
 
@@ -57,6 +58,20 @@ def _scrape_single_page(
 
             html_content = result.content
             used_proxy = result.used_proxy
+
+            # If server returned markdown (Cloudflare "Markdown for Agents"),
+            # skip BeautifulSoup/html2text — content is already clean markdown
+            if result.is_markdown:
+                heading_match = re.search(r"^#\s+(.+)$", html_content, re.MULTILINE)
+                title = heading_match.group(1).strip() if heading_match else "Untitled"
+                return tool_response(
+                    url=url,
+                    title=title,
+                    content=html_content[:100000],
+                    content_length=len(html_content),
+                    pages_scraped=1,
+                    fetched_via="markdown",
+                )
 
         soup = BeautifulSoup(html_content, "html.parser")
 

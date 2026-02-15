@@ -580,7 +580,7 @@ class Jotty(EventEmitter):
     ) -> Dict[str, Any]:
         """Execute chat locally using ModeRouter."""
         try:
-            from ..core.api.mode_router import get_mode_router
+            from ..core.interface.api.mode_router import get_mode_router
 
             router = get_mode_router()
 
@@ -698,7 +698,7 @@ class Jotty(EventEmitter):
     ) -> Dict[str, Any]:
         """Execute workflow locally using ModeRouter."""
         try:
-            from ..core.api.mode_router import get_mode_router
+            from ..core.interface.api.mode_router import get_mode_router
 
             router = get_mode_router()
             result = await router.workflow(goal, exec_context)
@@ -812,7 +812,7 @@ class Jotty(EventEmitter):
     ) -> AsyncIterator[SDKEvent]:
         """Stream locally using ModeRouter."""
         try:
-            from ..core.api.mode_router import get_mode_router
+            from ..core.interface.api.mode_router import get_mode_router
 
             router = get_mode_router()
 

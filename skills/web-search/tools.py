@@ -240,6 +240,20 @@ def _scrape_url(url: str, max_length: int = 10000) -> Dict[str, Any]:
     if result.skipped or not result.success:
         raise requests.RequestException(result.error)
 
+    # If server returned markdown (Cloudflare "Markdown for Agents"), skip HTML stripping
+    if result.is_markdown:
+        text = result.content
+        # Extract title from first markdown heading if present
+        heading_match = re.search(r"^#\s+(.+)$", text, re.MULTILINE)
+        title = heading_match.group(1).strip() if heading_match else "Untitled"
+        if len(text) > max_length:
+            text = text[:max_length] + "..."
+        return {
+            "title": title,
+            "content": text,
+            "fetched_via": "markdown",
+        }
+
     html = result.content
 
     title_match = re.search(r"<title[^>]*>([^<]+)</title>", html, re.IGNORECASE)
@@ -264,7 +278,6 @@ def _scrape_url(url: str, max_length: int = 10000) -> Dict[str, Any]:
     if len(text) > max_length:
         text = text[:max_length] + "..."
 
-    proxy_note = " (via proxy)" if result.used_proxy else ""
     return {
         "title": title,
         "content": text,
@@ -392,6 +405,21 @@ def fetch_webpage_tool(params: Dict[str, Any]) -> Dict[str, Any]:
 
     if not result.success:
         return tool_error(f"Failed to fetch: {result.error}")
+
+    # If server returned markdown (Cloudflare "Markdown for Agents"), skip HTML stripping
+    if result.is_markdown:
+        text = result.content
+        heading_match = re.search(r"^#\s+(.+)$", text, re.MULTILINE)
+        title = heading_match.group(1).strip() if heading_match else "Untitled"
+        if len(text) > max_length:
+            text = text[:max_length] + "..."
+        return tool_response(
+            url=url,
+            title=title,
+            content=text,
+            length=len(text),
+            fetched_via="markdown",
+        )
 
     html = result.content
 

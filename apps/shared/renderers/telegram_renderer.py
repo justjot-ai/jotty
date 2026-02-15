@@ -161,30 +161,36 @@ class TelegramMessageRenderer(MessageRenderer):
 
         Special chars: _ * [ ] ( ) ~ ` > # + - = | { } . !
         """
-        special_chars = r"_*[]()~>#+-=|{}.!"
+        # All MarkdownV2 special characters that need escaping
+        # Note: Backtick ` is handled separately in code blocks
+        special_chars = [
+            "_",
+            "*",
+            "[",
+            "]",
+            "(",
+            ")",
+            "~",
+            "`",
+            ">",
+            "#",
+            "+",
+            "-",
+            "=",
+            "|",
+            "{",
+            "}",
+            ".",
+            "!",
+            "\\",
+        ]
 
-        result = []
-        i = 0
-        while i < len(text):
-            char = text[i]
+        # Simple approach: escape all special characters
+        result = text
+        for char in special_chars:
+            result = result.replace(char, "\\" + char)
 
-            # Check for URLs (don't escape inside)
-            if text[i : i + 4] in ("http", "www."):
-                url_match = re.match(r"https?://[^\s\)]+|www\.[^\s\)]+", text[i:])
-                if url_match:
-                    result.append(url_match.group())
-                    i += len(url_match.group())
-                    continue
-
-            # Escape special characters
-            if char in special_chars:
-                result.append("\\" + char)
-            else:
-                result.append(char)
-
-            i += 1
-
-        return "".join(result)
+        return result
 
     def _split_message(self, text: str) -> List[str]:
         """

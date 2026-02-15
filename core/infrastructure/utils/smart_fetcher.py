@@ -74,7 +74,7 @@ def _random_headers() -> Dict[str, str]:
     """Get randomized browser-like headers."""
     return {
         "User-Agent": random.choice(USER_AGENTS),
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept": "text/markdown, text/html;q=0.9, application/xhtml+xml;q=0.8, */*;q=0.7",
         "Accept-Language": "en-US,en;q=0.9",
         "Accept-Encoding": "gzip, deflate, br",
         "DNT": "1",
@@ -270,6 +270,8 @@ class FetchResult:
         "error",
         "skipped",
         "source",
+        "is_markdown",
+        "markdown_tokens",
     )
 
     def __init__(
@@ -282,6 +284,8 @@ class FetchResult:
         error: Any = "",
         skipped: Any = False,
         source: Any = "direct",
+        is_markdown: Any = False,
+        markdown_tokens: Any = 0,
     ) -> None:
         self.success = success
         self.response = response
@@ -291,6 +295,26 @@ class FetchResult:
         self.error = error
         self.skipped = skipped
         self.source = source  # 'direct', 'google_cache', 'archive_org', 'proxy'
+        self.is_markdown = is_markdown  # True if server returned text/markdown
+        self.markdown_tokens = markdown_tokens  # From x-markdown-tokens header
+
+
+def _detect_markdown(resp: requests.Response) -> tuple:
+    """Check if response is markdown and extract token count.
+
+    Returns (is_markdown: bool, markdown_tokens: int).
+    Cloudflare's "Markdown for Agents" feature returns text/markdown
+    when Accept: text/markdown is sent, with token count in x-markdown-tokens.
+    """
+    content_type = resp.headers.get("Content-Type", "")
+    is_md = "text/markdown" in content_type
+    tokens = 0
+    if is_md:
+        try:
+            tokens = int(resp.headers.get("x-markdown-tokens", 0))
+        except (ValueError, TypeError):
+            tokens = 0
+    return is_md, tokens
 
 
 def smart_fetch(
@@ -362,12 +386,17 @@ def smart_fetch(
                 method, url, headers=req_headers, timeout=_t, allow_redirects=True
             )
             if resp.status_code < 400:
+                is_md, md_tokens = _detect_markdown(resp)
+                if is_md:
+                    logger.info(f"SmartFetch: {domain} returned markdown ({md_tokens} tokens)")
                 return FetchResult(
                     success=True,
                     response=resp,
                     content=resp.text,
                     status_code=resp.status_code,
                     source="direct",
+                    is_markdown=is_md,
+                    markdown_tokens=md_tokens,
                 )
             elif resp.status_code not in (403, 429, 451):
                 # 404, 500, etc. — don't escalate
@@ -446,6 +475,7 @@ def smart_fetch(
                 allow_redirects=True,
             )
             if resp.status_code < 400:
+                is_md, md_tokens = _detect_markdown(resp)
                 logger.info(f"SmartFetch: {domain} via proxy (attempt {attempt + 1})")
                 return FetchResult(
                     success=True,
@@ -454,6 +484,8 @@ def smart_fetch(
                     status_code=resp.status_code,
                     used_proxy=True,
                     source="proxy",
+                    is_markdown=is_md,
+                    markdown_tokens=md_tokens,
                 )
             elif resp.status_code in (403, 429):
                 rotator.mark_failed(proxy_url)
