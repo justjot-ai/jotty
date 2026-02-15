@@ -27,7 +27,7 @@ if jotty_root not in sys.path:
 
 from apps.shared import ChatInterface
 from apps.shared.events import EventProcessor
-from apps.shared.models import ChatSession, Message
+from apps.shared.models import Message
 from apps.shared.renderers import TelegramMessageRenderer, TelegramStatusRenderer
 from Jotty.sdk import Jotty
 

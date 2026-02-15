@@ -418,9 +418,9 @@ def generate_presentation_tool(params: Dict[str, Any]) -> Dict[str, Any]:
     auto_start = params.get("auto_start", True)
 
     # Check if Presenton is running
-    status = check_presenton_status_tool({"base_url": base_url})
+    preso_status = check_presenton_status_tool({"base_url": base_url})
 
-    if not status.get("api_accessible"):
+    if not preso_status.get("api_accessible"):
         if auto_start:
             logger.info("Presenton not running, attempting to start...")
             start_result = start_presenton_tool(

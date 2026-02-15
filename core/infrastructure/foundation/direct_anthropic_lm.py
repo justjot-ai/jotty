@@ -56,7 +56,6 @@ from Jotty.core.infrastructure.foundation.anthropic_client_kwargs import get_ant
 
 # Model name mapping — centralized in config_defaults
 from Jotty.core.infrastructure.foundation.config_defaults import (
-    DEFAULT_MODEL_ALIAS,
     LLM_TEMPERATURE,
     LLM_TIMEOUT_SECONDS,
     MODEL_HAIKU,

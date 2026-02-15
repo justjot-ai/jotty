@@ -19,7 +19,7 @@ Usage:
 """
 
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from .ateam_roster import (
     Expert,

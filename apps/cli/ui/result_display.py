@@ -11,7 +11,7 @@ Extracted from app.py. Handles displaying execution results:
 
 import logging
 import re
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 logger = logging.getLogger(__name__)
 

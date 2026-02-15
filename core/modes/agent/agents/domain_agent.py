@@ -25,8 +25,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Type, Union
+from dataclasses import dataclass
+from typing import Any, Callable, Dict, List, Optional, Type
 
 from .base_agent import AgentRuntimeConfig, BaseAgent
 

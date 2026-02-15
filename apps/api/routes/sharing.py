@@ -2,19 +2,15 @@
 Sharing routes - share links, QR codes, public share pages.
 """
 
-import asyncio
-import json
 import logging
-from datetime import datetime
-from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 
 def register_sharing_routes(app, api):
-    from fastapi import File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
-    from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
+    from fastapi import HTTPException
+    from fastapi.responses import HTMLResponse
     from pydantic import BaseModel
 
     class CreateShareLinkRequest(BaseModel):
@@ -83,7 +79,7 @@ def register_sharing_routes(app, api):
         messages = session.get_branch_messages(link.branch_id)
 
         return {
-            "title": link.title or f"Shared Chat",
+            "title": link.title or "Shared Chat",
             "messages": [m.to_dict() for m in messages],
             "created_at": link.created_at.isoformat(),
             "access_count": link.access_count,

@@ -5,8 +5,6 @@ Progress and Spinner Management
 Rich-based progress bars and spinners for Jotty CLI.
 """
 
-import asyncio
-import os
 import re
 import select
 import sys
@@ -1012,7 +1010,7 @@ class SwarmDashboard:
 
         # Output path
         if self.state.output_path:
-            sections.append(f"[bold]Output:[/bold]")
+            sections.append("[bold]Output:[/bold]")
             sections.append(f"  [cyan]{self.state.output_path}[/cyan]")
 
         return Panel(
@@ -1234,7 +1232,7 @@ class SwarmDashboard:
         # Load file contents for preview
         self.load_file_contents(result)
 
-        self.console.print(f"\n[bold cyan]Export Options[/bold cyan]")
+        self.console.print("\n[bold cyan]Export Options[/bold cyan]")
 
         if output_path:
             self.console.print(f"  [green]Auto-saved to:[/green] {output_path}")
@@ -1245,11 +1243,11 @@ class SwarmDashboard:
             self.console.print("  [dim]No code to export[/dim]")
             return
 
-        self.console.print(f"  [bold]1[/bold]) Save code files to current directory")
-        self.console.print(f"  [bold]2[/bold]) Copy main file to clipboard")
-        self.console.print(f"  [bold]3[/bold]) Export as markdown report")
-        self.console.print(f"  [bold]4[/bold]) Auto-commit to git")
-        self.console.print(f"  [bold]s[/bold]) Skip")
+        self.console.print("  [bold]1[/bold]) Save code files to current directory")
+        self.console.print("  [bold]2[/bold]) Copy main file to clipboard")
+        self.console.print("  [bold]3[/bold]) Export as markdown report")
+        self.console.print("  [bold]4[/bold]) Auto-commit to git")
+        self.console.print("  [bold]s[/bold]) Skip")
 
         try:
             choice = input("\n  Choice [1/2/3/4/s]: ").strip().lower()
@@ -1353,7 +1351,7 @@ class SwarmDashboard:
         """Export full markdown report."""
         from pathlib import Path
 
-        lines = [f"# Swarm Generation Report\n"]
+        lines = ["# Swarm Generation Report\n"]
         lines.append(f"**Requirements:** {state.requirements}\n")
         lines.append(
             f"**Team:** {state.team} | **Language:** {state.language}"

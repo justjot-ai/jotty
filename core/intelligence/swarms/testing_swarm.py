@@ -54,18 +54,15 @@ import json
 import logging
 from dataclasses import dataclass, field
 from enum import Enum
-from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import dspy
 
-from Jotty.core.modes.agent.base import BaseSwarmAgent, DomainAgent, DomainAgentConfig
+from Jotty.core.modes.agent.base import BaseSwarmAgent
 
 from .base import AgentTeam, DomainSwarm, _split_field
 from .base_swarm import (
     AgentRole,
-    BaseSwarm,
-    ExecutionTrace,
     SwarmBaseConfig,
     SwarmResult,
     register_swarm,

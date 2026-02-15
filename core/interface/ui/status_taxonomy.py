@@ -17,7 +17,7 @@ Usage:
     # Returns: 'In Progress'
 """
 
-from typing import Any, Dict, Optional
+from typing import Dict, Optional
 
 
 class StatusTaxonomy:

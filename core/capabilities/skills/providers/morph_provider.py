@@ -24,7 +24,6 @@ Requirements:
 import asyncio
 import logging
 import os
-import shutil
 import subprocess
 import time
 from dataclasses import dataclass, field

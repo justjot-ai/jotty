@@ -12,7 +12,6 @@ Also provides:
 
 from __future__ import annotations
 
-import hashlib
 import inspect
 import json
 import logging

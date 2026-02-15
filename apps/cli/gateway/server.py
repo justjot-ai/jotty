@@ -20,7 +20,7 @@ import logging
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Set
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,6 @@ except ImportError:
     logger.warning("FastAPI not installed. Run: pip install fastapi uvicorn")
 
 from .channels import ChannelRouter, ChannelType, MessageEvent, ResponseEvent
-from .responders import ChannelResponderRegistry
 from .responders import ResponseEvent as ResponderResponseEvent
 from .responders import get_responder_registry
 from .trust import TrustManager

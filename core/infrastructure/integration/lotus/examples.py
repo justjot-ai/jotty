@@ -5,7 +5,7 @@ Demonstrates how to use the LOTUS optimization layer for cost-efficient LLM oper
 """
 
 import asyncio
-from typing import Any, List, Tuple
+from typing import Any, Tuple
 
 # =============================================================================
 # Example 1: Basic LOTUS Optimizer Usage

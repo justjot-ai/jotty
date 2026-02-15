@@ -12,12 +12,12 @@ All specialized coding agents used by CodingSwarm:
 
 import json
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import dspy
 
 from Jotty.core.intelligence.swarms.base import _split_field
-from Jotty.core.modes.agent.base import BaseSwarmAgent, DomainAgent, DomainAgentConfig
+from Jotty.core.modes.agent.base import BaseSwarmAgent
 
 from .signatures import (
     APIGenerationSignature,

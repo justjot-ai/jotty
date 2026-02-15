@@ -31,7 +31,7 @@ Usage:
 
 import asyncio
 import logging
-from typing import Any, List, Optional, Tuple
+from typing import Any, List, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +58,6 @@ class SwarmAdapter:
         Returns:
             List of Multi-Swarm compatible swarms
         """
-        from .multi_swarm_coordinator import SwarmResult
 
         adapted = []
 

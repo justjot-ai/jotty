@@ -60,7 +60,7 @@ from typing import Any, Dict, List, Optional
 
 import dspy
 
-from Jotty.core.modes.agent.base import BaseSwarmAgent, DomainAgent, DomainAgentConfig
+from Jotty.core.modes.agent.base import BaseSwarmAgent
 
 from .base import AgentTeam, DomainSwarm, _safe_join, _safe_num, _split_field
 from .base_swarm import AgentRole, SwarmBaseConfig, SwarmResult, register_swarm

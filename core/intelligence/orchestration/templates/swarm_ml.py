@@ -29,8 +29,7 @@ Performance:
     - Generic across all tabular ML problems
 """
 
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import numpy as np
 import pandas as pd

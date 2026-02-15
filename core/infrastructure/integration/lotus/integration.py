@@ -20,14 +20,10 @@ Usage:
     swarm = LotusSwarmManager(agents=[...], enable_lotus=True)
 """
 
-import asyncio
 import logging
-from functools import wraps
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
-from .adaptive_validator import AdaptiveValidator
-from .batch_executor import BatchExecutor
-from .config import LotusConfig, ModelTier
+from .config import LotusConfig
 from .model_cascade import ModelCascade
 from .optimizer import LotusOptimizer
 from .semantic_cache import SemanticCache
@@ -110,7 +106,7 @@ def enhance_swarm_manager(swarm_manager: Any, config: Optional[LotusConfig] = No
     for name, runner in getattr(swarm_manager, "runners", {}).items():
         _enhance_agent_runner(runner, enhancement)
 
-    logger.info(f"Orchestrator enhanced with LOTUS optimization")
+    logger.info("Orchestrator enhanced with LOTUS optimization")
 
     return swarm_manager
 

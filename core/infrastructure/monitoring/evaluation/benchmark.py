@@ -5,7 +5,6 @@ Standardized benchmark interface for evaluating agents.
 Supports GAIA, BrowseComp, and custom benchmarks.
 """
 
-import json
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field

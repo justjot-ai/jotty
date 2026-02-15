@@ -24,15 +24,10 @@ Features:
 """
 
 import logging
-import os
-import shutil
-import subprocess
-import tempfile
-import warnings
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Protocol, Tuple, Union
+from typing import Any, Dict, List, Optional, Protocol
 
 import numpy as np
 import pandas as pd
@@ -1030,9 +1025,9 @@ class ProfessionalMLReport(
         if overall_light == "GREEN":
             assessment_text = f"The model demonstrates strong performance across all evaluated metrics. {best_model} appears ready for production deployment with standard monitoring."
         elif overall_light == "AMBER":
-            assessment_text = f"The model shows moderate performance with some areas needing improvement. Consider additional tuning or feature engineering before production deployment."
+            assessment_text = "The model shows moderate performance with some areas needing improvement. Consider additional tuning or feature engineering before production deployment."
         else:
-            assessment_text = f"The model has significant performance gaps that should be addressed before deployment. Review the detailed analysis sections for specific improvement recommendations."
+            assessment_text = "The model has significant performance gaps that should be addressed before deployment. Review the detailed analysis sections for specific improvement recommendations."
 
         summary = f"""
 # Executive Summary
@@ -1440,7 +1435,7 @@ Side-by-side evaluation of {len(models)} trained models on the test set.
 
     def _add_roc_analysis_impl(self, y_true: Any, y_prob: Any, pos_label: Any) -> Any:
         preds = self._make_predictions(y_true, y_true, y_prob)  # y_pred not used, pass y_true
-        from sklearn.metrics import auc, roc_auc_score, roc_curve
+        from sklearn.metrics import auc, roc_curve
         from sklearn.preprocessing import label_binarize
 
         n_classes = len(np.unique(preds.y_true))
@@ -1924,7 +1919,7 @@ Understanding feature relationships is critical for model interpretation and fea
             content += "*No highly correlated pairs found above threshold.*\n"
 
         if vif_data:
-            content += f"""
+            content += """
 ## Variance Inflation Factor (VIF)
 
 VIF measures multicollinearity. VIF > 5 indicates moderate, VIF > 10 indicates severe multicollinearity.
@@ -2044,7 +2039,6 @@ VIF measures multicollinearity. VIF > 5 indicates moderate, VIF > 10 indicates s
         self, model: Any, params: Any, random_state: Any, environment: Any
     ) -> Any:
         import platform
-        import sys
 
         # Get environment info
         env_info = environment or {}
@@ -2102,7 +2096,7 @@ Full information for reproducing this analysis.
 | Train/Test Split | {random_state} |
 """
 
-        content += f"""
+        content += """
 ## Environment
 
 | Component | Version |
@@ -2111,7 +2105,7 @@ Full information for reproducing this analysis.
         for k, v in env_info.items():
             content += f"| {k} | {v} |\n"
 
-        content += f"""
+        content += """
 ## Package Versions
 
 | Package | Version |

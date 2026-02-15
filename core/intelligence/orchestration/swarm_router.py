@@ -17,7 +17,7 @@ This is one of the focused sub-managers that reduces Orchestrator's
 
 import logging
 import math
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Tuple
 
 logger = logging.getLogger(__name__)
 

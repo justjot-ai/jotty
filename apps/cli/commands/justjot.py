@@ -76,7 +76,7 @@ class JustJotCommand(BaseCommand):
             )
 
             if result.get("success"):
-                cli.renderer.success(f"Idea submitted to JustJot.ai!")
+                cli.renderer.success("Idea submitted to JustJot.ai!")
                 if result.get("url"):
                     cli.renderer.print(f"  View: [cyan]{result['url']}[/cyan]")
                 return CommandResult.ok(output="Idea created successfully")

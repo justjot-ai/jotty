@@ -12,9 +12,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List
 
 from .adaptive_validator import AdaptiveValidator
-from .batch_executor import BatchExecutor
-from .config import LotusConfig, ModelTier
-from .model_cascade import CascadeResult, ModelCascade
+from .config import LotusConfig
 from .semantic_cache import SemanticCache
 
 
@@ -378,10 +376,10 @@ async def run_benchmarks() -> Any:
 
     llm = MockLLM()
 
-    print(f"\nTest Configuration:")
+    print("\nTest Configuration:")
     print(f"  Items: {len(items)}")
-    print(f"  Repeat rate for cache tests: 30%")
-    print(f"  Models: Haiku ($0.25/1M), Sonnet ($3/1M), Opus ($15/1M)")
+    print("  Repeat rate for cache tests: 30%")
+    print("  Models: Haiku ($0.25/1M), Sonnet ($3/1M), Opus ($15/1M)")
     print()
 
     # Run benchmarks
@@ -436,7 +434,7 @@ async def run_benchmarks() -> Any:
     cost_reduction = (1 - lotus_cost / baseline_cost) * 100 if baseline_cost > 0 else 0
     cost_multiplier = baseline_cost / lotus_cost if lotus_cost > 0 else float("inf")
 
-    print(f"\nFULL LOTUS ADVANTAGE:")
+    print("\nFULL LOTUS ADVANTAGE:")
     print(f"  Cost reduction: {cost_reduction:.1f}% ({cost_multiplier:.1f}x cheaper)")
     print(f"  Cache hits: {result5.cache_hits} (free queries)")
     print(f"  Validations skipped: {result5.validations_skipped}")

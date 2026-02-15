@@ -14,7 +14,6 @@ This module provides convenience factory functions for common expert types.
 """
 
 import logging
-from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)

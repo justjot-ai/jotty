@@ -7,7 +7,7 @@ Enums, configuration dataclasses, and result types for CodingSwarm.
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 from ..swarm_types import SwarmConfig, SwarmResult
 

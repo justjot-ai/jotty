@@ -6,12 +6,11 @@ Compatible with supervisor's task structure
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from ..foundation.config_defaults import MAX_RETRIES
 
 # REFACTORING PHASE 1.2: Import TaskStatus from canonical location
-from ..foundation.types import TaskStatus
 
 
 class TaskPriority(Enum):

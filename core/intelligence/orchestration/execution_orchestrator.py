@@ -15,10 +15,9 @@ inlined in Orchestrator.run() and _execute_multi_agent(). The actual agent execu
 still goes through AgentRunner.run().
 """
 
-import asyncio
 import logging
 import time
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List
 
 if TYPE_CHECKING:
     from .swarm_manager import Orchestrator

@@ -8,7 +8,7 @@ Provides beautiful real-time status output during task execution.
 
 import re
 import sys
-from typing import Any, Callable, Optional
+from typing import Any, Callable
 
 # Agent activity icons
 AGENT_ICONS = {

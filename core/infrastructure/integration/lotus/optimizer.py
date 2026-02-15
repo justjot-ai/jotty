@@ -12,16 +12,15 @@ Single entry point for optimized LLM operations.
 DRY: Composes all optimization components with shared configuration.
 """
 
-import asyncio
 import logging
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from .adaptive_validator import AdaptiveValidator, ValidationDecision
-from .batch_executor import BatchExecutor, ParallelBatchExecutor
+from .adaptive_validator import AdaptiveValidator
+from .batch_executor import ParallelBatchExecutor
 from .config import LotusConfig, ModelTier
-from .model_cascade import CascadeResult, ModelCascade
+from .model_cascade import ModelCascade
 from .semantic_cache import SemanticCache
 
 logger = logging.getLogger(__name__)

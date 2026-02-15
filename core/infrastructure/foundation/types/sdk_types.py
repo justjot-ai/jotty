@@ -12,8 +12,8 @@ Provides unified types for:
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum, auto
-from typing import Any, Callable, Dict, List, Optional, Union
+from enum import Enum
+from typing import Any, Callable, Dict, List, Optional
 
 # =============================================================================
 # ENUMS

@@ -11,7 +11,6 @@ Usage:
         f.write(spec)
 """
 
-from typing import Any, Dict, List
 
 import yaml
 

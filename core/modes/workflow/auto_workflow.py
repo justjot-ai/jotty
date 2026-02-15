@@ -17,7 +17,6 @@ from ..orchestration import (
     MultiStagePipeline,
     PipelineResult,
     SwarmAdapter,
-    extract_code_from_markdown,
 )
 from .smart_swarm_registry import StageType, get_smart_registry
 

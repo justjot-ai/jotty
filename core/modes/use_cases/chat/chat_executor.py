@@ -200,7 +200,7 @@ class ChatExecutor:
         """Extract response text from agent result."""
         # Handle None result
         if result is None:
-            logger.warning(f"Conductor returned None result, using empty string")
+            logger.warning("Conductor returned None result, using empty string")
             return ""
 
         if isinstance(result, dict):

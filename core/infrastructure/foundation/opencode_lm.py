@@ -12,7 +12,6 @@ import os
 import subprocess
 from typing import Any, Iterator, Optional
 
-import dspy
 from dspy.clients.base_lm import BaseLM
 
 from Jotty.core.infrastructure.foundation.exceptions import LLMError

@@ -9,7 +9,7 @@ import logging
 import shutil
 import subprocess
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional, Tuple
+from typing import TYPE_CHECKING, Any
 
 from .base import BaseCommand, CommandResult, ParsedArgs
 
@@ -236,7 +236,7 @@ class PreviewCommand(BaseCommand):
                 for line in lines:
                     print(line)
                 if len(result.stdout.split("\n")) > max_lines:
-                    cli.renderer.print(f"[dim]... (truncated)[/dim]")
+                    cli.renderer.print("[dim]... (truncated)[/dim]")
                 return
 
         if tools["pandoc"]:
@@ -464,7 +464,6 @@ class PreviewCommand(BaseCommand):
 
     async def _show_file_metadata(self, cli: "JottyCLI", path: Path, tools: dict) -> Any:
         """Show file metadata."""
-        import os
         from datetime import datetime
 
         stat = path.stat()

@@ -346,28 +346,28 @@ class ChatAssistant:
 
         items = [
             {
-                "title": f"Backlog",
+                "title": "Backlog",
                 "subtitle": f"{backlog} tasks waiting to start",
                 "icon": "circle",
                 "status": "backlog",
                 "metadata": [{"label": "Count", "value": str(backlog)}],
             },
             {
-                "title": f"In Progress",
+                "title": "In Progress",
                 "subtitle": f"{in_progress} tasks currently being worked on",
                 "icon": "circle",
                 "status": "in_progress",
                 "metadata": [{"label": "Count", "value": str(in_progress)}],
             },
             {
-                "title": f"Completed",
+                "title": "Completed",
                 "subtitle": f"{completed} tasks finished successfully",
                 "icon": "check_circle",
                 "status": "completed",
                 "metadata": [{"label": "Count", "value": str(completed)}],
             },
             {
-                "title": f"Failed",
+                "title": "Failed",
                 "subtitle": f"{failed} tasks encountered errors",
                 "icon": "error",
                 "status": "failed",

@@ -190,9 +190,9 @@ def _required_skills_for_gaia(question: str, attachment_paths: list) -> list:
             skills.extend(["voice", "openai-whisper-api"])
         elif ext in {".xlsx", ".xls", ".csv"}:
             skills.append("xlsx-tools")
-        elif ext == ".pdf":
+        elif ext == ".pd":
             skills.append("pdf-tools")
-        elif ext in {".jpg", ".jpeg", ".png", ".gif", ".bmp"}:
+        elif ext in {".jpg", ".jpeg", ".png", ".gi", ".bmp"}:
             skills.append("image-enhancer")  # For image analysis
         else:
             skills.append("file-operations")
@@ -402,7 +402,7 @@ class JottyGAIAAdapter:
                     parts.append(
                         f"Attached audio file: {path}\n"
                         f"IMPORTANT: Use voice_to_text_tool with audio_path='{path}' to transcribe this audio file. "
-                        f"Do NOT use read_file for audio. Read the full transcript before answering."
+                        "Do NOT use read_file for audio. Read the full transcript before answering."
                     )
                 elif ext in {".xlsx", ".xls", ".csv"}:
                     parts.append(f"Attached spreadsheet: {path}\nUse read_file to read this file.")
@@ -638,7 +638,7 @@ class JottyGAIAAdapter:
         ]
         if any(kw in q_lower for kw in video_keywords):
             logger.warning(
-                f"[Multimodal] ⚠️ Question requires VIDEO watching - accuracy may be limited"
+                "[Multimodal] ⚠️ Question requires VIDEO watching - accuracy may be limited"
             )
             return "video"
 
@@ -646,7 +646,7 @@ class JottyGAIAAdapter:
         audio_keywords = ["listen", "hear", "narrated", "voice", "spoken", "audio"]
         if any(kw in q_lower for kw in audio_keywords) and "video" not in q_lower:
             logger.info(
-                f"[Multimodal] Question requires AUDIO - using whisper if attachment available"
+                "[Multimodal] Question requires AUDIO - using whisper if attachment available"
             )
             return "audio"
 
@@ -665,7 +665,6 @@ class JottyGAIAAdapter:
         4. Validation check: Reuse _is_answer_correct() (DRY)
         """
         import math
-        import re
         from collections import Counter
 
         question_type = self._classify_question_type(question)
@@ -768,7 +767,7 @@ class JottyGAIAAdapter:
                 # Check exact match first (reuse validation - DRY)
                 if self._is_answer_correct(answer, expected_answer):
                     score += 1000  # Correct answer wins!
-                    logger.info(f"[Validation] ✓ Answer matches expected!")
+                    logger.info("[Validation] ✓ Answer matches expected!")
                 else:
                     # Score by numerical proximity if both numeric
                     answer_num = self._extract_number(answer)

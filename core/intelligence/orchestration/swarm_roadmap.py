@@ -22,7 +22,6 @@ import json
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum, auto
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
@@ -985,7 +984,7 @@ class SwarmTaskBoard:
         pending = [t for t in self.subtasks.values() if t.status == TaskStatus.PENDING]
         in_progress = [t for t in self.subtasks.values() if t.status == TaskStatus.IN_PROGRESS]
 
-        summary = f"### Task List State\n"
+        summary = "### Task List State\n"
         summary += f"**Root Task:** {self.root_task}\n"
         summary += f"**Progress:** {len(self.completed_tasks)}/{len(self.subtasks)} completed\n\n"
 

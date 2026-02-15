@@ -25,21 +25,15 @@ Usage:
 """
 
 import asyncio
-import json
 import logging
 import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-import dspy
 
 from ..base import AgentTeam, DomainSwarm, PhaseExecutor
 from ..base_swarm import (
     AgentRole,
-    BaseSwarm,
-    ExecutionTrace,
-    SwarmBaseConfig,
-    SwarmResult,
     register_swarm,
 )
 from .agents import (
@@ -56,7 +50,6 @@ from .agents import (
 )
 from .types import (
     LANGUAGE_LABELS,
-    PERSPECTIVE_LABELS,
     AgeGroup,
     ContentDepth,
     Language,
@@ -66,7 +59,6 @@ from .types import (
     PerspectiveLearningResult,
     PerspectiveSection,
     PerspectiveType,
-    format_steps_on_newlines,
 )
 
 # Telegram support
@@ -743,7 +735,7 @@ class PerspectiveLearningSwarm(DomainSwarm):
             parts.append("")
 
         # ===== PERSPECTIVE 1: Intuitive Visual =====
-        parts.append(f"\n## See It Clearly\n")
+        parts.append("\n## See It Clearly\n")
         if intuitive.get("simplest_example"):
             parts.append(f"### Let's Start Simple\n{intuitive['simplest_example']}\n")
         if intuitive.get("step_by_step_build"):
@@ -762,7 +754,7 @@ class PerspectiveLearningSwarm(DomainSwarm):
             parts.append("")
 
         # ===== PERSPECTIVE 2: Structured Framework =====
-        parts.append(f"\n## Think It Through\n")
+        parts.append("\n## Think It Through\n")
         if framework.get("frameworks"):
             for fw in framework["frameworks"]:
                 if isinstance(fw, dict):
@@ -790,7 +782,7 @@ class PerspectiveLearningSwarm(DomainSwarm):
             parts.append("")
 
         # ===== PERSPECTIVE 3: Storytelling =====
-        parts.append(f"\n## Feel the Story\n")
+        parts.append("\n## Feel the Story\n")
         if story.get("story"):
             parts.append(f"{story['story']}\n")
         if story.get("moral_or_lesson"):
@@ -804,7 +796,7 @@ class PerspectiveLearningSwarm(DomainSwarm):
             parts.append(f"### How This Connects to You\n{story['connect_to_life']}\n")
 
         # ===== PERSPECTIVE 4: Debate / Critical Thinking =====
-        parts.append(f"\n## Debate It\n")
+        parts.append("\n## Debate It\n")
         if debate.get("central_question"):
             parts.append(f"**The Big Question:** {debate['central_question']}\n")
         if debate.get("points_for"):
@@ -834,7 +826,7 @@ class PerspectiveLearningSwarm(DomainSwarm):
             parts.append("")
 
         # ===== PERSPECTIVE 5: Hands-On Projects =====
-        parts.append(f"\n## Build It\n")
+        parts.append("\n## Build It\n")
         if project.get("projects"):
             for proj in project["projects"]:
                 if isinstance(proj, dict):
@@ -856,7 +848,7 @@ class PerspectiveLearningSwarm(DomainSwarm):
             parts.append(f"### Reflect\n{project['reflection_activity']}\n")
 
         # ===== PERSPECTIVE 6: Real-World Connections =====
-        parts.append(f"\n## Live It\n")
+        parts.append("\n## Live It\n")
         if realworld.get("daily_life_connections"):
             parts.append("### In Your Daily Life")
             for conn in realworld["daily_life_connections"]:
@@ -1146,7 +1138,7 @@ class PerspectiveLearningSwarm(DomainSwarm):
             )
 
             if result.get("success"):
-                logger.info(f"Sent summary to Telegram")
+                logger.info("Sent summary to Telegram")
             else:
                 logger.error(f"Telegram message failed: {result.get('error')}")
 

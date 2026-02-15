@@ -326,7 +326,7 @@ class BaseMetadataProvider:
                 if self._enable_caching:
                     cache_key = f"{name}:{args}:{tuple(sorted(kwargs.items()))}"
                     self._tool_cache[cache_key] = result
-                    logger.debug(f" Cached result for future calls")
+                    logger.debug(" Cached result for future calls")
 
                 return result
 

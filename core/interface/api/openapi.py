@@ -11,7 +11,6 @@ Usage:
     save_openapi_spec(spec, Path("sdk/openapi.json"))
 """
 
-import inspect
 import json
 import logging
 from dataclasses import MISSING
@@ -19,7 +18,7 @@ from dataclasses import fields as dc_fields
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union, get_type_hints
+from typing import Any, Dict, List, Union, get_type_hints
 
 logger = logging.getLogger(__name__)
 
@@ -143,12 +142,8 @@ def generate_openapi_spec(
             base_url = os.getenv("JOTTY_GATEWAY_URL", "http://localhost:8766")
 
     from Jotty.core.infrastructure.foundation.types.sdk_types import (
-        ChannelType,
         ExecutionContext,
-        ExecutionMode,
-        ResponseFormat,
         SDKEvent,
-        SDKEventType,
         SDKRequest,
         SDKResponse,
         SDKSession,

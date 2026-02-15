@@ -12,17 +12,13 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 import dspy
 
 from ..base import AgentTeam, DomainSwarm
 from ..base_swarm import (
     AgentRole,
-    BaseSwarm,
-    ExecutionTrace,
-    SwarmBaseConfig,
-    SwarmResult,
     register_swarm,
 )
 from ..swarm_signatures import CodingSwarmSignature
@@ -54,11 +50,9 @@ from .types import (
     CodeStyle,
     CodingConfig,
     CodingResult,
-    EditMode,
     FullStackContext,
-    ResearchContext,
 )
-from .utils import _extract_components_from_text, _progress, _stream_call, _strip_code_fences
+from .utils import _progress, _strip_code_fences
 from .workspace import WorkspaceManager
 
 logger = logging.getLogger(__name__)
@@ -394,7 +388,7 @@ class CodingSwarm(CodebaseMixin, EditMixin, ReviewMixin, PersistenceMixin, Domai
             ctx.orm_models = db_result.get("orm_models", "")
             files["schema.sql"] = _strip_code_fences(ctx.schema_sql)
             files["models.py"] = _strip_code_fences(ctx.orm_models)
-            _progress("Phase 2a", "DatabaseArchitect", f"Done -- schema.sql + models.py")
+            _progress("Phase 2a", "DatabaseArchitect", "Done -- schema.sql + models.py")
         else:
             _progress("Phase 2a", "DatabaseArchitect", f"Error: {db_result['error']}")
 

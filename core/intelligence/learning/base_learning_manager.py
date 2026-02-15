@@ -24,7 +24,7 @@ REFACTORING PHASE 5: Learning System Interface
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Tuple
 
-from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig, SwarmLearningConfig
+from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
 
 
 class BaseLearningManager(ABC):

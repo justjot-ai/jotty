@@ -36,7 +36,7 @@ async def test_mermaid_expert_learning():
     try:
         lm = dspy.settings.lm
         print(f"✅ LLM Configured: {type(lm).__name__}")
-    except:
+    except Exception:
         print("⚠️  No LLM configured. Using mock mode.")
         print("   Configure with: dspy.configure(lm=dspy.LM(model='claude-3-opus'))")
         print()

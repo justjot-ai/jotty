@@ -8,19 +8,10 @@ These are mixed into SwarmIntelligence at class definition.
 import logging
 import time
 from collections import defaultdict
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 from ..swarm_data_structures import (
     AgentProfile,
-    AgentSession,
-    AgentSpecialization,
-    AuctionBid,
-    Coalition,
-    ConsensusVote,
-    GossipMessage,
-    HandoffContext,
-    SupervisorNode,
-    SwarmDecision,
 )
 
 logger = logging.getLogger(__name__)

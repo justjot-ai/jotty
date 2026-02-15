@@ -58,7 +58,7 @@ from typing import Any, Dict, List, Optional
 
 import dspy
 
-from Jotty.core.modes.agent.base import BaseSwarmAgent, DomainAgent, DomainAgentConfig
+from Jotty.core.modes.agent.base import BaseSwarmAgent
 
 from .base import AgentTeam, DomainSwarm, _split_field
 from .base_swarm import AgentRole, SwarmBaseConfig, SwarmResult, register_swarm
@@ -897,10 +897,10 @@ class DevOpsSwarm(DomainSwarm):
         deployment_steps = [
             f"1. Review and customize {config.iac_tool.value} configuration",
             f"2. Initialize {config.iac_tool.value}: `terraform init`",
-            f"3. Plan infrastructure: `terraform plan`",
-            f"4. Apply infrastructure: `terraform apply`",
+            "3. Plan infrastructure: `terraform plan`",
+            "4. Apply infrastructure: `terraform apply`",
             f"5. Build container: `docker build -t {app_name} .`",
-            f"6. Push to registry",
+            "6. Push to registry",
             f"7. Deploy via {config.ci_provider.value} pipeline",
             "8. Verify monitoring dashboards",
             "9. Run smoke tests",

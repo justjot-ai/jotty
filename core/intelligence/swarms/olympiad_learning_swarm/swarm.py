@@ -33,19 +33,13 @@ import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-import dspy
 
 from ..base import AgentTeam, DomainSwarm, PhaseExecutor
 from ..base_swarm import (
     AgentRole,
-    BaseSwarm,
-    ExecutionTrace,
-    SwarmBaseConfig,
-    SwarmResult,
     register_swarm,
 )
 from .agents import (
-    BaseOlympiadAgent,
     ConceptDecomposerAgent,
     ConnectionMapperAgent,
     ContentAssemblerAgent,
@@ -73,7 +67,6 @@ from .types import (
     Problem,
     StrategyCard,
     Subject,
-    TeachingMode,
     format_steps_on_newlines,
     tier_to_level,
 )
@@ -1175,7 +1168,7 @@ class OlympiadLearningSwarm(DomainSwarm):
 
         # Building Blocks
         if building_blocks:
-            parts.append(f"\n## Foundation Check\n")
+            parts.append("\n## Foundation Check\n")
             parts.append(
                 f"Before we dive in, {student_name}, let's make sure these building blocks are solid:\n"
             )
@@ -1190,7 +1183,7 @@ class OlympiadLearningSwarm(DomainSwarm):
             parts.append(
                 f"\n*Now that you have the building blocks, let's discover something exciting, {student_name}...*\n"
             )
-            parts.append(f"\n## The Discovery\n")
+            parts.append("\n## The Discovery\n")
             parts.append(f"### Start Simple\n{decomposition['simplest_example']}\n")
 
         if decomposition.get("pattern_discovery"):
@@ -1201,11 +1194,11 @@ class OlympiadLearningSwarm(DomainSwarm):
 
         # Intuition
         if intuition.get("analogy"):
-            parts.append(f"\n## The Big Picture\n")
+            parts.append("\n## The Big Picture\n")
             parts.append(f"**Think of it like this:** {intuition['analogy']}\n")
 
         if intuition.get("intuition_build"):
-            parts.append(f"\n### Building Understanding\n")
+            parts.append("\n### Building Understanding\n")
             parts.append(format_steps_on_newlines(intuition["intuition_build"]))
 
         if intuition.get("aha_moment"):
@@ -1213,7 +1206,7 @@ class OlympiadLearningSwarm(DomainSwarm):
 
         # Formal Definition
         if decomposition.get("formal_definition"):
-            parts.append(f"\n## The Precise Framework\n")
+            parts.append("\n## The Precise Framework\n")
             parts.append(
                 f"Now that you see WHY it works, {student_name}, here's the formal language:\n"
             )
@@ -1225,7 +1218,7 @@ class OlympiadLearningSwarm(DomainSwarm):
         # Pattern Library
         if patterns:
             parts.append(f"\n*Here's where it gets exciting, {student_name}...*\n")
-            parts.append(f"\n## Pattern Library\n")
+            parts.append("\n## Pattern Library\n")
             parts.append(
                 f"These are the patterns that competition winners recognize instantly, {student_name}:\n"
             )
@@ -1244,7 +1237,7 @@ class OlympiadLearningSwarm(DomainSwarm):
 
         # Strategies
         if strategies:
-            parts.append(f"\n## Strategy Toolkit\n")
+            parts.append("\n## Strategy Toolkit\n")
             for s in strategies:
                 parts.append(f"### {s.name}")
                 parts.append(f"{s.description}")
@@ -1260,12 +1253,12 @@ class OlympiadLearningSwarm(DomainSwarm):
                     parts.append(f"\n**Solution:** {s.example_solution}\n")
 
         if speed_techniques:
-            parts.append(f"\n### Speed Techniques\n")
+            parts.append("\n### Speed Techniques\n")
             for t in speed_techniques:
                 parts.append(f"- {t}")
 
         if stuck_toolkit:
-            parts.append(f"\n### When You're Stuck\n")
+            parts.append("\n### When You're Stuck\n")
             for i, t in enumerate(stuck_toolkit, 1):
                 parts.append(f"{i}. {t}")
 
@@ -1276,7 +1269,7 @@ class OlympiadLearningSwarm(DomainSwarm):
                 parts.append(
                     f"\n*Remember our scenario: {hook[:120]}... Many problems connect back to it.*\n"
                 )
-            parts.append(f"\n## Problem Ladder\n")
+            parts.append("\n## Problem Ladder\n")
             parts.append(f"Time to build mastery, {student_name}! Work through these in order.\n")
 
             for tier in DifficultyTier:
@@ -1314,7 +1307,7 @@ class OlympiadLearningSwarm(DomainSwarm):
 
         # Common Mistakes
         if mistakes:
-            parts.append(f"\n## Trap Alert!\n")
+            parts.append("\n## Trap Alert!\n")
             parts.append(
                 f"Watch out for these, {student_name} - they catch even experienced students:\n"
             )
@@ -1327,17 +1320,17 @@ class OlympiadLearningSwarm(DomainSwarm):
 
         # Connections
         if connections.get("direct_connections") or connections.get("surprising_connections"):
-            parts.append(f"\n## Where This Leads\n")
+            parts.append("\n## Where This Leads\n")
             if connections.get("direct_connections"):
                 parts.append("**Builds directly into:**")
                 for c in connections["direct_connections"]:
                     parts.append(f"- {c}")
             if connections.get("surprising_connections"):
-                parts.append(f"\n**Surprising connections:**")
+                parts.append("\n**Surprising connections:**")
                 for c in connections["surprising_connections"]:
                     parts.append(f"- {c}")
             if connections.get("powerful_combinations"):
-                parts.append(f"\n**Powerful when combined with:**")
+                parts.append("\n**Powerful when combined with:**")
                 for c in connections["powerful_combinations"]:
                     parts.append(f"- {c}")
 

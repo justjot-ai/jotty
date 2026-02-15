@@ -6,7 +6,6 @@ Main REPL (Read-Eval-Print Loop) engine using prompt_toolkit.
 """
 
 import logging
-import sys
 from typing import TYPE_CHECKING, Any, Awaitable, Callable, Optional
 
 try:

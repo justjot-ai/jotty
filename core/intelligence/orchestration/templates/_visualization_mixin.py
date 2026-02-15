@@ -9,16 +9,14 @@ self._save_figure(), and self._fig_path_for_markdown() from the main class.
 from __future__ import annotations
 
 import logging
-import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
 
 if TYPE_CHECKING:
-    from ._protocols import ReportGeneratorProtocol
-    from .ml_report_generator import ReportContext
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -902,7 +900,6 @@ class VisualizationMixin:
     ) -> str:
         """Create SHAP dependence plots."""
         try:
-            import shap
 
             if hasattr(shap_values, "values"):
                 values = shap_values.values
@@ -1056,7 +1053,6 @@ class VisualizationMixin:
         """Create 1x3 subplot: parallel coordinates, importance bar, optimization history."""
         try:
             import matplotlib.pyplot as plt
-            from matplotlib.collections import LineCollection
 
             with self._chart_context(
                 "hyperparameter_analysis", figsize=(18, 6), nrows=1, ncols=3

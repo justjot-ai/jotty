@@ -7,7 +7,7 @@ Non-blocking: falls back to string-only mode if SwarmTerminal is unavailable.
 """
 
 import logging
-from typing import Any, List, Optional
+from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 

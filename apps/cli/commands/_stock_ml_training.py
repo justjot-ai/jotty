@@ -6,10 +6,8 @@ Extended training modes for StockMLCommand: comparison, world-class backtest,
 sweep, unified training, cross-stock normalization, comprehensive features.
 """
 
-import json
 import warnings
-from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict
 
 warnings.filterwarnings("ignore")
 
@@ -30,8 +28,6 @@ class StockMLTrainingMixin:
         self, args: ParsedArgs, cli: "JottyCLI", symbol: str
     ) -> CommandResult:
         """Run comparison across multiple targets and timeframes."""
-        import numpy as np
-        import pandas as pd
 
         years = int(args.flags.get("years", args.flags.get("y", "3")))
         use_mlflow = "mlflow" in args.flags
@@ -133,7 +129,7 @@ class StockMLTrainingMixin:
         # Summary
         best = sorted_results[0]
         cli.renderer.info("")
-        cli.renderer.info(f"Best Configuration:")
+        cli.renderer.info("Best Configuration:")
         cli.renderer.info(f"  Target:    {best['target']} ({best['days']}-day prediction)")
         cli.renderer.info(f"  Timeframe: {best['timeframe']}")
         cli.renderer.info(f"  Model:     {best['best_model']}")
@@ -185,7 +181,6 @@ class StockMLTrainingMixin:
         self, X: Any, y: Any, feature_names: Any, target_config: Any, cli: Any
     ) -> Dict[str, Any]:
         """Quick training with fewer models for comparison mode."""
-        import numpy as np
         from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
 
         is_classification = target_config["type"] == "classification"
@@ -240,8 +235,6 @@ class StockMLTrainingMixin:
 
     async def _run_world_class_backtest(self, args: ParsedArgs, cli: "JottyCLI") -> CommandResult:
         """Run world-class comprehensive backtest with institutional-grade analysis."""
-        from datetime import datetime
-        from pathlib import Path
 
         import numpy as np
         import pandas as pd
@@ -456,7 +449,7 @@ class StockMLTrainingMixin:
                     }
 
             # Find best model
-            from sklearn.metrics import accuracy_score, f1_score, r2_score, roc_auc_score
+            from sklearn.metrics import accuracy_score, r2_score, roc_auc_score
 
             best_model = None
             best_score = -np.inf
@@ -637,7 +630,6 @@ class StockMLTrainingMixin:
         """Run comprehensive sweep across stocks, targets, timeframes, periods."""
         from datetime import datetime
 
-        import pandas as pd
 
         # Parse sweep parameters
         stocks_input = args.flags.get("stocks", args.flags.get("s", "top10"))
@@ -1115,7 +1107,7 @@ class StockMLTrainingMixin:
             if holdout_results:
                 avg_holdout_auc = sum(r["auc"] for r in holdout_results) / len(holdout_results)
                 cli.renderer.info("")
-                cli.renderer.info(f"Holdout Generalization:")
+                cli.renderer.info("Holdout Generalization:")
                 cli.renderer.info(f"  Average AUC on unseen stocks: {avg_holdout_auc:.4f}")
                 cli.renderer.info(f"  Validation AUC:               {best_score:.4f}")
                 cli.renderer.info(
@@ -1208,7 +1200,6 @@ class StockMLTrainingMixin:
         3. Market regime indicators (shared across stocks)
         4. Leave-one-out cross-validation across stocks
         """
-        from datetime import datetime
 
         import numpy as np
         import pandas as pd
@@ -1294,13 +1285,13 @@ class StockMLTrainingMixin:
                 for feat in feature_names[:10]:  # Top 10 features
                     data["X"][f"{feat}_vs_sector"] = data["X"][feat] - sector_mean.get(feat, 0)
 
-        cli.renderer.info(f"  Added sector-relative features")
+        cli.renderer.info("  Added sector-relative features")
 
         # ============ Phase 4: Leave-One-Out Training ============
         cli.renderer.info("")
         cli.renderer.info("Phase 4: Leave-One-Out Cross-Validation...")
 
-        from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
+        from sklearn.ensemble import GradientBoostingClassifier
         from sklearn.metrics import roc_auc_score
 
         results = []
@@ -1474,7 +1465,7 @@ class StockMLTrainingMixin:
         cli.renderer.info("Training with comprehensive features...")
 
         from sklearn.ensemble import GradientBoostingClassifier
-        from sklearn.metrics import accuracy_score, roc_auc_score
+        from sklearn.metrics import roc_auc_score
         from sklearn.model_selection import TimeSeriesSplit
 
         tscv = TimeSeriesSplit(n_splits=5)

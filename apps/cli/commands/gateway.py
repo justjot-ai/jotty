@@ -37,7 +37,6 @@ class GatewayCommand(BaseCommand):
 
     async def execute(self, args: ParsedArgs, cli: "JottyCLI") -> CommandResult:
         """Execute gateway command."""
-        import socket
 
         subcommand = args.positional[0] if args.positional else "start"
         port = int(args.flags.get("port", 8766))
@@ -232,25 +231,25 @@ gateway.run()
         cli.renderer.print("\n[bold]Configure these URLs in each platform:[/bold]\n")
 
         cli.renderer.print("[cyan]Telegram:[/cyan]")
-        cli.renderer.print(f"  1. Talk to @BotFather, use /setwebhook")
+        cli.renderer.print("  1. Talk to @BotFather, use /setwebhook")
         cli.renderer.print(f"  2. URL: {public_url}/webhook/telegram")
         cli.renderer.print("")
 
         cli.renderer.print("[cyan]Slack:[/cyan]")
-        cli.renderer.print(f"  1. Go to api.slack.com/apps > Event Subscriptions")
+        cli.renderer.print("  1. Go to api.slack.com/apps > Event Subscriptions")
         cli.renderer.print(f"  2. Request URL: {public_url}/webhook/slack")
-        cli.renderer.print(f"  3. Subscribe to: message.channels, message.im")
+        cli.renderer.print("  3. Subscribe to: message.channels, message.im")
         cli.renderer.print("")
 
         cli.renderer.print("[cyan]Discord:[/cyan]")
-        cli.renderer.print(f"  1. Go to discord.com/developers/applications")
+        cli.renderer.print("  1. Go to discord.com/developers/applications")
         cli.renderer.print(f"  2. Interactions Endpoint: {public_url}/webhook/discord")
         cli.renderer.print("")
 
         cli.renderer.print("[cyan]WhatsApp:[/cyan]")
-        cli.renderer.print(f"  1. Go to developers.facebook.com > WhatsApp")
+        cli.renderer.print("  1. Go to developers.facebook.com > WhatsApp")
         cli.renderer.print(f"  2. Webhook URL: {public_url}/webhook/whatsapp")
-        cli.renderer.print(f"  3. Verify Token: jotty (or set WHATSAPP_VERIFY_TOKEN)")
+        cli.renderer.print("  3. Verify Token: jotty (or set WHATSAPP_VERIFY_TOKEN)")
         cli.renderer.print("")
 
         cli.renderer.print("[cyan]WebSocket:[/cyan]")

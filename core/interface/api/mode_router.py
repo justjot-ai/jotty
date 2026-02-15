@@ -33,7 +33,6 @@ from Jotty.core.infrastructure.foundation.types.sdk_types import (
     ChannelType,
     ExecutionContext,
     ExecutionMode,
-    ResponseFormat,
     SDKEvent,
     SDKEventType,
     SDKRequest,
@@ -286,7 +285,6 @@ class ModeRouter:
             except Exception as e:
                 logger.error(f"Direct chat error: {e}", exc_info=True)
                 # Fallback to complex executor
-                pass
 
         # Medium or complex query - use full executor
         context.emit_event(SDKEventType.THINKING, {"message": message})

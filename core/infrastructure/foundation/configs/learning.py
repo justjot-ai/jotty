@@ -1,7 +1,7 @@
 """Learning configuration — RL, exploration, credit, consolidation, protection."""
 
 from dataclasses import dataclass
-from typing import Any, List, Optional
+from typing import List, Optional
 
 
 @dataclass

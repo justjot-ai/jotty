@@ -17,11 +17,10 @@ Usage:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Protocol, Set, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Protocol, Set
 
 if TYPE_CHECKING:
-    import numpy as np
-    import pandas as pd
+    pass
 
 
 class ReportGeneratorProtocol(Protocol):

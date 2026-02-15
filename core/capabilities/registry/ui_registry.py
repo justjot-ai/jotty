@@ -42,10 +42,9 @@ Author: Jotty Team
 Date: February 2026
 """
 
-import json
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 

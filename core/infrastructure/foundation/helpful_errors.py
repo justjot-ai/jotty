@@ -19,9 +19,7 @@ Usage:
 
 from typing import Any, Dict, List, Optional
 
-from .exceptions import ConfigurationError, ExecutionError
-from .exceptions import ImportError as JottyImportError
-from .exceptions import InvalidConfigError, JottyError, MissingConfigError
+from .exceptions import JottyError
 
 
 class HelpfulError(JottyError):
@@ -63,8 +61,8 @@ class SwarmConfigImportError(HelpfulError):
         super().__init__(
             message=f"Cannot import '{attempted_import}' - this class has been renamed",
             suggestion="Use 'SwarmBaseConfig' instead:\n"
-            f"  from ..swarm_types import SwarmConfig\n"
-            f"  class MyConfig(SwarmConfig): ...",
+            "  from ..swarm_types import SwarmConfig\n"
+            "  class MyConfig(SwarmConfig): ...",
             doc_link="Jotty/CLAUDE.md - Legacy Imports section",
         )
 
@@ -192,15 +190,15 @@ class LLMError(HelpfulError):
             )
         elif "rate limit" in error.lower():
             suggestion += (
-                f"  1. Wait a moment and retry\n"
-                f"  2. Reduce concurrent requests\n"
-                f"  3. Upgrade your API plan"
+                "  1. Wait a moment and retry\n"
+                "  2. Reduce concurrent requests\n"
+                "  3. Upgrade your API plan"
             )
         elif "timeout" in error.lower():
             suggestion += (
-                f"  1. Increase timeout setting\n"
-                f"  2. Reduce input size\n"
-                f"  3. Try again (may be temporary network issue)"
+                "  1. Increase timeout setting\n"
+                "  2. Reduce input size\n"
+                "  3. Try again (may be temporary network issue)"
             )
         else:
             suggestion += (
@@ -274,11 +272,11 @@ class AgentFailedError(HelpfulError):
         message = f"Agent '{agent_name}' failed: {error}"
 
         suggestion = (
-            f"Debugging steps:\n"
-            f"  1. Check logs for detailed error messages\n"
-            f"  2. Verify agent has access to required tools\n"
-            f"  3. Ensure task is clear and achievable\n"
-            f"  4. Try running with a simpler version of the task"
+            "Debugging steps:\n"
+            "  1. Check logs for detailed error messages\n"
+            "  2. Verify agent has access to required tools\n"
+            "  3. Ensure task is clear and achievable\n"
+            "  4. Try running with a simpler version of the task"
         )
 
         if trace:

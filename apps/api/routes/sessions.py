@@ -2,19 +2,14 @@
 Session routes - CRUD, folders, branching, temporary sessions.
 """
 
-import asyncio
-import json
 import logging
-from datetime import datetime
-from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
 
 def register_sessions_routes(app, api):
-    from fastapi import File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
-    from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
+    from fastapi import HTTPException
     from pydantic import BaseModel
 
     @app.get("/api/sessions")

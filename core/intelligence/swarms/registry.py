@@ -16,7 +16,6 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type
 if TYPE_CHECKING:
     from .base_swarm import BaseSwarm
 
-from .swarm_types import SwarmConfig
 
 
 class SwarmRegistry:

@@ -20,21 +20,18 @@ from typing import Any, Callable, Dict, List, Optional
 from Jotty.core.infrastructure.foundation.data_structures import (
     EpisodeResult,
     SwarmConfig,
-    SwarmLearningConfig,
 )
 from Jotty.core.infrastructure.foundation.exceptions import (
     AgentExecutionError,
-    ConsolidationError,
     DSPyError,
     LearningError,
     LLMError,
     MemoryRetrievalError,
-    MemoryStorageError,
     ToolExecutionError,
 )
 from Jotty.core.infrastructure.utils.async_utils import StatusReporter
 from Jotty.core.infrastructure.utils.prompt_selector import PromptSelector, get_prompt_selector
-from Jotty.core.intelligence.learning.learning import AdaptiveLearningRate, TDLambdaLearner
+from Jotty.core.intelligence.learning.learning import TDLambdaLearner
 from Jotty.core.intelligence.learning.shaped_rewards import ShapedRewardManager
 from Jotty.core.intelligence.memory.cortex import SwarmMemory
 from Jotty.core.intelligence.orchestration.prompts import (
@@ -43,7 +40,6 @@ from Jotty.core.intelligence.orchestration.prompts import (
     get_swarm_auditor_prompt,
 )
 from Jotty.core.intelligence.orchestration.validation_gate import (
-    GateDecision,
     ValidationGate,
     ValidationMode,
     get_validation_gate,
@@ -408,7 +404,7 @@ class AgentRunner:
                     if asyncio.iscoroutinefunction(fn):
                         # Can't await in sync hook runner — skip async agent hooks
                         logger.debug(
-                            f"Skipping async agent pre-hook (not supported in AgentRunner)"
+                            "Skipping async agent pre-hook (not supported in AgentRunner)"
                         )
                         return
                     fn(agent, **{k: v for k, v in ctx.items() if k in ("goal", "kwargs")})
@@ -1307,7 +1303,7 @@ class AgentRunner:
                     f" Judge intervention: auditor rejected "
                     f"(confidence={ctx.auditor_confidence:.2f}), retrying with feedback"
                 )
-                ctx._status("Judge intervention", f"retrying with auditor feedback")
+                ctx._status("Judge intervention", "retrying with auditor feedback")
 
                 # Hook: allow external observers to see intervention
                 self._run_hooks(
@@ -1523,7 +1519,7 @@ class AgentRunner:
             # Try auto-fix using SwarmTerminal (only for unexpected errors)
             if self.swarm_terminal:
                 try:
-                    logger.info(f" Attempting auto-fix via SwarmTerminal...")
+                    logger.info(" Attempting auto-fix via SwarmTerminal...")
                     error_keywords = [
                         "command",
                         "module",
@@ -1547,7 +1543,7 @@ class AgentRunner:
 
                             # Retry the original execution if fix was applied
                             if fix_applied:
-                                logger.info(f" Retrying execution after fix...")
+                                logger.info(" Retrying execution after fix...")
                                 ctx._status("Retrying", "after auto-fix")
                                 if not ctx.kwargs.get("_retry_after_fix"):
                                     ctx.kwargs["_retry_after_fix"] = True

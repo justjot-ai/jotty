@@ -7,21 +7,18 @@ and folder management. Used by FastAPI routes in web/routes/.
 All execution flows through ModeRouter for consistent behavior.
 """
 
-import asyncio
-import json
 import logging
 import uuid
-from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
 # Absolute imports - single source of truth
-from Jotty.core.interface.api.mode_router import ModeRouter, RouteResult, get_mode_router
+from Jotty.core.interface.api.mode_router import ModeRouter, get_mode_router
 
 # Import SDK types from public package
-from Jotty.sdk import ChannelType, ExecutionContext, ExecutionMode, ResponseFormat
+from Jotty.sdk import ChannelType, ExecutionContext, ExecutionMode
 
 
 class JottyAPI:
@@ -506,8 +503,6 @@ class JottyAPI:
         command behavior - they all use the same JottyCLI core.
         """
         import io
-        import sys
-        from contextlib import redirect_stderr, redirect_stdout
 
         try:
             # Get shared CLI instance
@@ -665,7 +660,7 @@ class JottyAPI:
 
     def update_session(self, session_id: str, updates: Dict[str, Any]) -> bool:
         """Update session metadata (title, isPinned, isArchived, folderId)."""
-        from Jotty.cli.repl.session import InterfaceType, SessionManager
+        from Jotty.cli.repl.session import SessionManager
 
         manager = SessionManager()
         session_file = manager.session_dir / f"{session_id}.json"

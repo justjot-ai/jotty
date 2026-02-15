@@ -11,14 +11,14 @@ import sys
 from collections import deque
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Callable, Deque, Dict, Optional
+from typing import Callable, Deque, Dict, Optional
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
 
 from Jotty.sdk import SDKEvent, SDKEventType
 
 from .interface import ChatInterface
-from .models import Error, Message, Status
+from .models import Error, Message
 from .state import ChatState
 
 

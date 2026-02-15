@@ -37,7 +37,7 @@ async def test_mermaid_expert_with_llm():
         try:
             lm = dspy.settings.lm
             print(f"  LM: {type(lm).__name__}")
-        except:
+        except Exception:
             print("  LM: Not configured (will use default)")
     print()
 

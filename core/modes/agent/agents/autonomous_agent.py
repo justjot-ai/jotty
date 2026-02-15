@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import logging
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
@@ -29,7 +29,7 @@ from Jotty.core.infrastructure.utils.async_utils import (
 )
 
 from ..types.execution_types import ExecutionStep
-from .base_agent import AgentResult, AgentRuntimeConfig, BaseAgent
+from .base_agent import AgentRuntimeConfig, BaseAgent
 from .skill_plan_executor import SkillPlanExecutor
 
 logger = logging.getLogger(__name__)

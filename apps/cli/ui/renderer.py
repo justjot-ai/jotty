@@ -6,7 +6,6 @@ Main rendering class using Rich library.
 """
 
 import math
-import os
 import re
 import subprocess
 import sys
@@ -14,7 +13,6 @@ import threading
 import time
 from contextlib import contextmanager
 from enum import Enum
-from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional
 
 try:
@@ -33,7 +31,7 @@ except ImportError:
 from ..config.schema import ColorDepth, TerminalDetector
 from .progress import ProgressManager
 from .tables import TableRenderer
-from .themes import Theme, get_theme
+from .themes import get_theme
 
 
 class ShimmerEffect:
@@ -940,7 +938,7 @@ Multi-Agent AI Assistant v{version}
 """
         if RICH_AVAILABLE:
             self._console.print(f"[{self.theme.primary}]{banner}[/{self.theme.primary}]")
-            self._console.print(f"Type [bold]/help[/bold] for commands, or just start typing!")
+            self._console.print("Type [bold]/help[/bold] for commands, or just start typing!")
         else:
             print(banner)
             print("Type /help for commands, or just start typing!")

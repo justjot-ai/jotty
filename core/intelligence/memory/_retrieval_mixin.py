@@ -1,20 +1,15 @@
 """SwarmMemory mixin — retrieval methods."""
 
 import logging
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Set, Tuple
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Set
 
 logger = logging.getLogger(__name__)
 
 from Jotty.core.infrastructure.foundation.data_structures import (
     CausalLink,
-    GoalHierarchy,
-    GoalNode,
-    GoalValue,
     MemoryEntry,
     MemoryLevel,
-    StoredEpisode,
-    SwarmConfig,
 )
 
 

@@ -11,18 +11,16 @@ Background monitors for proactive features:
 - Custom watchers
 """
 
-import asyncio
 import hashlib
-import json
 import logging
 import re
 import subprocess
 import threading
 import time
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 

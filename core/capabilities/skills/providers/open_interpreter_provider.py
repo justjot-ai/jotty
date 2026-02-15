@@ -360,7 +360,7 @@ class OpenInterpreterProvider(SkillProvider):
         # Look for code blocks
         patterns = [
             rf"```{language}\n?(.*?)```",
-            rf"```\n?(.*?)```",
+            r"```\n?(.*?)```",
             r"`([^`]+)`",
         ]
 

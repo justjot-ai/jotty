@@ -19,7 +19,6 @@ Used by: web-search, web-scraper, screener-financials, etc.
 
 import logging
 import random
-import re
 import time
 from typing import Any, Dict, List, Optional, Set
 from urllib.parse import quote, urlparse

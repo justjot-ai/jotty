@@ -9,9 +9,7 @@ Manages Node.js subprocess and provides async API.
 import asyncio
 import json
 import logging
-import os
 import subprocess
-import sys
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime

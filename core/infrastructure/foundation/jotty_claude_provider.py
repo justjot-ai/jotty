@@ -21,7 +21,6 @@ Usage:
     configure_jotty_claude()  # One-liner setup
 """
 
-import atexit
 import logging
 import os
 import shutil

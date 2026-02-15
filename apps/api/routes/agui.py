@@ -3,11 +3,9 @@ AG-UI routes - Agent UI protocol endpoints.
 """
 
 import asyncio
-import json
 import logging
 from datetime import datetime
-from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 logger = logging.getLogger(__name__)
 
@@ -15,8 +13,6 @@ logger = logging.getLogger(__name__)
 def register_agui_routes(app, api):
     import uuid
 
-    from fastapi import File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
-    from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
     from pydantic import BaseModel
 
     class AGUIRunRequest(BaseModel):
@@ -121,7 +117,7 @@ def register_agui_routes(app, api):
                     except queue.Empty:
                         break
                 await asyncio.sleep(0.05)
-                yield f": keepalive\n\n"
+                yield ": keepalive\n\n"
 
             # Drain remaining events
             while True:

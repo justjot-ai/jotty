@@ -3,8 +3,6 @@ SQLite Task Queue Implementation
 Preserves all supervisor functionality
 """
 
-import json
-import os
 import sqlite3
 import subprocess
 from contextlib import contextmanager

@@ -19,7 +19,7 @@ Refactored to use BaseAgent hierarchy (Feb 2026).
 import json
 import logging
 from dataclasses import asdict
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 from .swarm_types import (
     AgentRole,

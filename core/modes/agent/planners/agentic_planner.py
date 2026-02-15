@@ -43,7 +43,6 @@ try:
         ContextCompressor,
         ErrorDetector,
         ErrorType,
-        ExecutionTrajectory,
         detect_error_type,
     )
 
@@ -200,9 +199,7 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
         2. DirectAnthropicLM Haiku (fast: ~5.6s avg)
         3. DSPy global LM fallback (Sonnet — slower but works)
         """
-        import os
 
-        from Jotty.core.infrastructure.foundation.config_defaults import LLM_PLANNING_MAX_TOKENS
 
         # Use global LM singleton (shared across all components)
         try:
@@ -211,7 +208,7 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
             # Try to use Haiku for fast planning/routing
             self._fast_lm = get_global_lm(provider="anthropic", model="claude-haiku-4-5-20251001")
             self._fast_model = "haiku"
-            logger.info(f"Fast LM: Using global LM (routing/classification)")
+            logger.info("Fast LM: Using global LM (routing/classification)")
         except Exception as e:
             logger.warning(f"Could not get global LM for planning: {e}")
             # Fallback: try global LM without specifying model
@@ -220,7 +217,7 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
 
                 self._fast_lm = get_global_lm()
                 self._fast_model = "default"
-                logger.info(f"Fast LM: Using global LM default model")
+                logger.info("Fast LM: Using global LM default model")
             except Exception as e2:
                 logger.warning(f"Global LM not available: {e2}")
                 self._fast_lm = None
@@ -316,7 +313,7 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
                         logger.warning(f"Rate limit hit, will wait {wait_time}s before retry")
                     elif "timeout" in error_str:
                         error_type = "timeout"
-                        strategy = {"should_retry": True, "action": "backoff", "delay_seconds": 2}
+                        strategy = {"should_retry": True, "action": "backof", "delay_seconds": 2}
                     else:
                         error_type = "unknown"
                         strategy = {"should_retry": False}
@@ -342,7 +339,7 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
 
                     compression_ratio *= 0.7  # More aggressive next time
 
-                elif action == "backoff":
+                elif action == "backof":
                     delay = strategy.get("delay_seconds", 1) * (2**attempt)
                     delay = min(delay, 30)  # Cap at 30s
                     logger.info(f"   Backing off for {delay}s...")
@@ -440,7 +437,7 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
                         logger.warning(f"Rate limit hit, will wait {wait_time}s before retry")
                     elif "timeout" in error_str:
                         error_type = "timeout"
-                        strategy = {"should_retry": True, "action": "backoff", "delay_seconds": 2}
+                        strategy = {"should_retry": True, "action": "backof", "delay_seconds": 2}
                     else:
                         error_type = "unknown"
                         strategy = {"should_retry": False}
@@ -464,7 +461,7 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
                                 )
                     compression_ratio *= 0.7
 
-                elif action == "backoff":
+                elif action == "backof":
                     delay = strategy.get("delay_seconds", 1) * (2**attempt)
                     delay = min(delay, 30)
                     logger.info(f"   Backing off for {delay}s...")
@@ -531,7 +528,7 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
             abstracted_task = self._abstract_task_for_planning(task)
             logger.debug(f"Task: '{abstracted_task[:80]}'")
 
-            logger.info(f"Calling LLM for execution plan...")
+            logger.info("Calling LLM for execution plan...")
             logger.debug(f"   Task: {abstracted_task[:100]}")
             logger.debug(f"   Skills count: {len(skills)}")
 
@@ -553,7 +550,7 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
                 lm=self._fast_lm,
             )
 
-            logger.info(f"LLM response received")
+            logger.info("LLM response received")
             raw_plan = getattr(result, "execution_plan", None)
             logger.debug(f"   Raw execution_plan type: {type(raw_plan)}")
             logger.debug(
@@ -620,7 +617,7 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
                     return steps, f"Fallback plan (planning failed: {str(e)[:100]})"
                 else:
                     logger.error(
-                        f" Fallback plan generated steps but 0 were converted to ExecutionStep objects"
+                        " Fallback plan generated steps but 0 were converted to ExecutionStep objects"
                     )
             except Exception as fallback_e:
                 logger.error(f"Fallback plan also failed: {fallback_e}", exc_info=True)
@@ -681,7 +678,7 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
                 "config": {"response_format": {"type": "json_object"}},
             }
 
-            logger.info(f" Calling LLM for execution plan (async)...")
+            logger.info(" Calling LLM for execution plan (async)...")
 
             # ── ASYNC LLM CALL ─────────────────────────────────
             result = await self._acall_with_retry(
@@ -692,7 +689,7 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
                 lm=self._fast_lm,
             )
 
-            logger.info(f" LLM response received (async)")
+            logger.info(" LLM response received (async)")
 
             # Post-processing: parse plan (reuse sync method — pure CPU)
             raw_plan = getattr(result, "execution_plan", None)
@@ -1021,7 +1018,7 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
             f"Task type: {task_type_str}\n"
             f"Previous failed approaches:\n{failed_summary}\n\n"
             f"Generate a COMPLETELY DIFFERENT approach using these skills:\n{skills_json}\n"
-            f"The new approach must avoid the failed strategies entirely."
+            "The new approach must avoid the failed strategies entirely."
         )
 
         alternatives = []

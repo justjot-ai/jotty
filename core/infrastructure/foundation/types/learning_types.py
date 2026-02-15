@@ -23,8 +23,7 @@ from .memory_types import CausalLink
 
 
 if TYPE_CHECKING:
-    from .agent_types import AgentContribution
-    from .validation_types import ValidationResult
+    pass
 
 
 # =============================================================================

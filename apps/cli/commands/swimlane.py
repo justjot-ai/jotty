@@ -5,7 +5,7 @@ Swimlane Command
 View tasks organized by swimlane/status.
 """
 
-from typing import TYPE_CHECKING, Dict, List
+from typing import TYPE_CHECKING
 
 import aiohttp
 

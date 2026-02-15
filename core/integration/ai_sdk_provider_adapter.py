@@ -22,7 +22,6 @@ import requests
 from dspy import BaseLM
 
 from Jotty.core.infrastructure.foundation.config_defaults import (
-    DEFAULT_MODEL_ALIAS,
     LLM_TEMPERATURE,
     LLM_TIMEOUT_SECONDS,
 )

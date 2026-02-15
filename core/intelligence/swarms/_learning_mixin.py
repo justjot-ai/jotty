@@ -20,16 +20,10 @@ from typing import Any, Dict, List, Optional
 
 from Jotty.core.infrastructure.foundation.exceptions import (
     AgentExecutionError,
-    ConfigurationError,
-    CreditAssignmentError,
-    ExecutionError,
     LearningError,
     LLMError,
     MemoryError,
-    MemoryRetrievalError,
     MemoryStorageError,
-    PolicyUpdateError,
-    RewardCalculationError,
 )
 
 from ._coordination_mixin import SwarmCoordinationMixin

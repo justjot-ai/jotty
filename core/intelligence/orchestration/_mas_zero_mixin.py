@@ -15,7 +15,7 @@ KISS: One mixin, clean integration points.
 """
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
 logger = logging.getLogger(__name__)
 
@@ -277,7 +277,7 @@ class MASZeroMixin:
                 if context:
                     enriched_goal = f"{enriched_goal}\n\n{context}"
 
-                _status(f"MAS-Evolve", f"re-running {name} with feedback context")
+                _status("MAS-Evolve", f"re-running {name} with feedback context")
                 try:
                     new_result = await runner.run(goal=enriched_goal, **kwargs)
                     best_results[name] = new_result

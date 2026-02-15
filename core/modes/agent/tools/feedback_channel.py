@@ -367,7 +367,7 @@ class FeedbackChannel:
                 formatted += f"   Context: {str(msg.context)}\n"
 
             if msg.requires_response:
-                formatted += f" Requires Response\n"
+                formatted += " Requires Response\n"
 
             formatted += "\n"
 

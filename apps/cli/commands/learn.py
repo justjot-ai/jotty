@@ -57,7 +57,7 @@ class LearnCommand(BaseCommand):
                 stats = await swarm.warmup(num_episodes=episodes, verbose=verbose)
 
             # Display results
-            cli.renderer.success(f"Warmup complete!")
+            cli.renderer.success("Warmup complete!")
 
             result_info = {
                 "Episodes Run": stats["episodes_run"],

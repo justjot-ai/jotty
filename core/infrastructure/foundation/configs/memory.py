@@ -1,7 +1,6 @@
 """Memory configuration — capacities, RAG retrieval, chunking."""
 
 from dataclasses import dataclass
-from typing import Any
 
 
 @dataclass

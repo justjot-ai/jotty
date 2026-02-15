@@ -9,17 +9,14 @@ Language sections use appropriate fonts (Noto Sans Devanagari, Noto Sans Kannada
 
 import asyncio
 import logging
-import re
 from pathlib import Path
-from typing import Any, Optional
+from typing import Optional
 
 from .types import (
     LANGUAGE_LABELS,
     PERSPECTIVE_LABELS,
     Language,
-    LanguageContent,
     LessonContent,
-    PerspectiveSection,
     PerspectiveType,
 )
 

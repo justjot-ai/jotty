@@ -7,10 +7,9 @@ and Q-learning for stock ML optimization.
 """
 
 import json
-import os
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Tuple
 
 warnings.filterwarnings("ignore")
 
@@ -38,7 +37,6 @@ class StockMLSwarmMixin:
         """
         from datetime import datetime
 
-        import numpy as np
 
         cli.renderer.header("SwarmML Auto-Learning")
         cli.renderer.info("")
@@ -654,7 +652,7 @@ class StockMLSwarmMixin:
                 "best_config"
             ].get("timeframe"):
 
-                cli.renderer.info(f"Trying sector-recommended config:")
+                cli.renderer.info("Trying sector-recommended config:")
                 cli.renderer.info(f"  Target: {suggested_target}")
                 cli.renderer.info(f"  Timeframe: {suggested_tf}")
                 cli.renderer.info("")

@@ -13,9 +13,8 @@ import logging
 import os
 import subprocess
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, List
 
-import dspy
 from dspy import BaseLM
 
 from Jotty.core.infrastructure.foundation.exceptions import InputValidationError, LLMError

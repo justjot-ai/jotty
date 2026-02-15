@@ -9,11 +9,10 @@ Like OpenClaw's heartbeat - Jotty can act WITHOUT being asked.
 """
 
 import asyncio
-import hashlib
 import json
 import logging
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional

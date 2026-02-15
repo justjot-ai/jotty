@@ -6,8 +6,6 @@ Manages CLI session state, history, and context.
 Supports cross-interface sync for CLI, Telegram, and Web UI.
 """
 
-import base64
-import hashlib
 import json
 import logging
 import secrets

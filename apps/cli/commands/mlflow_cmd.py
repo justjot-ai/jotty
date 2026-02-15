@@ -13,8 +13,7 @@ Usage:
     /mlflow ui                      # Launch MLflow UI
 """
 
-import asyncio
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict
 
 from .base import BaseCommand, CommandResult, ParsedArgs
 from .ml import MLCommand  # Import to access MLflow state
@@ -180,7 +179,7 @@ class MLflowCommand(BaseCommand):
             cli.renderer.error(f"Failed to load model from run {run_id}")
             return CommandResult.fail("Model load failed")
 
-        cli.renderer.success(f"Model loaded successfully!")
+        cli.renderer.success("Model loaded successfully!")
         cli.renderer.info(f"Type: {type(model).__name__}")
 
         # Store in CLI context for later use
@@ -211,7 +210,6 @@ class MLflowCommand(BaseCommand):
 
     async def _launch_ui(self, args: ParsedArgs, cli: "JottyCLI", tracker: Any) -> CommandResult:
         """Launch MLflow UI."""
-        import os
         import subprocess
 
         port = args.flags.get("port", args.flags.get("p", "5000"))

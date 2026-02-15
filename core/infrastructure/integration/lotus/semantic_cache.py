@@ -20,10 +20,10 @@ import json
 import logging
 import time
 from collections import OrderedDict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
-from .config import CacheConfig, LotusConfig
+from .config import LotusConfig
 
 logger = logging.getLogger(__name__)
 

@@ -6,7 +6,7 @@ All enum types used across the Jotty framework.
 Extracted from data_structures.py for better organization.
 """
 
-from enum import Enum, auto
+from enum import Enum
 
 
 class MemoryLevel(Enum):

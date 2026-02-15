@@ -20,7 +20,6 @@ Architecture:
 """
 
 import hashlib
-import inspect
 import json
 import logging
 import threading
@@ -28,7 +27,7 @@ import time
 import traceback
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Any, Callable, Dict, List, Optional, Set
+from typing import Any, Callable, Dict, List, Optional
 
 import dspy
 

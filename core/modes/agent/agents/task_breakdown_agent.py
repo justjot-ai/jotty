@@ -8,9 +8,8 @@ from typing import Any, Dict, List, Optional
 
 import dspy
 
-from ..foundation.data_structures import MemoryLevel, SwarmConfig, SwarmLearningConfig
+from ..foundation.data_structures import MemoryLevel, SwarmConfig
 from ..orchestration.swarm_roadmap import SwarmTaskBoard
-from ..persistence.shared_context import SharedContext
 from .base import AgentResult
 
 logger = logging.getLogger(__name__)

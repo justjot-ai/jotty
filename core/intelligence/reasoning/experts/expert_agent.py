@@ -28,18 +28,16 @@ Migration Guide:
 This class is kept for backward compatibility only.
 """
 
-import asyncio
 import json
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Awaitable, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
 from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel, SwarmConfig
 from Jotty.core.intelligence.orchestration import (
-    OptimizationConfig,
     OptimizationPipeline,
     create_optimization_pipeline,
 )
@@ -122,7 +120,6 @@ class ExpertAgent:
         # Create memory system if not provided but enabled
         if config.use_memory_storage and not memory:
             try:
-                from Jotty.core.infrastructure.foundation.data_structures import SwarmLearningConfig
 
                 from ..memory.cortex import SwarmMemory
                 from ..memory.memory_persistence import enable_memory_persistence
@@ -703,17 +700,17 @@ class ExpertAgent:
             # Extract key elements
             if "sequence" in code.lower():
                 return (
-                    f"For sequence diagrams, use participant declarations and proper message syntax"
+                    "For sequence diagrams, use participant declarations and proper message syntax"
                 )
 
         elif self.config.domain == "mermaid":
             # Check for diagram type
             first_line = code.split("\n")[0].strip().lower()
             if "gitgraph" in first_line:
-                return f"When task mentions git flow or branching, use gitGraph syntax, not graph"
+                return "When task mentions git flow or branching, use gitGraph syntax, not graph"
 
             if "sequence" in first_line:
-                return f"For sequence diagrams, use sequenceDiagram syntax with participants"
+                return "For sequence diagrams, use sequenceDiagram syntax with participants"
 
         # Generic pattern
         return f"When generating {diagram_type} diagrams, follow the structure and syntax patterns from examples"

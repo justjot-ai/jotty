@@ -7,7 +7,7 @@ Adaptive learning rate, intermediate rewards, and exploration strategies.
 import logging
 import math
 from collections import defaultdict
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List
 
 logger = logging.getLogger(__name__)
 
@@ -15,21 +15,12 @@ from Jotty.core.infrastructure.foundation.configs.learning import (
     LearningConfig as FocusedLearningConfig,
 )
 from Jotty.core.infrastructure.foundation.data_structures import (
-    AgentContribution,
-    AlertType,
-    CausalLink,
-    GoalHierarchy,
-    GoalValue,
-    LearningMetrics,
     MemoryEntry,
-    MemoryLevel,
-    StoredEpisode,
     SwarmConfig,
-    ValidationResult,
 )
 
 if TYPE_CHECKING:
-    from ..memory.cortex import SwarmMemory
+    pass
 
 
 def _ensure_swarm_config(config: Any) -> Any:

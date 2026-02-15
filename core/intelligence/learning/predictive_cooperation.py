@@ -18,8 +18,7 @@ See also: predictive_marl.py (the actively used multi-agent RL module).
 
 import logging
 from dataclasses import dataclass, field
-from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List
 
 import dspy
 
@@ -170,7 +169,7 @@ class NashBargainingSolver:
                 factor = system_reward / total if total > 0 else 1.0
                 distribution = {k: v * factor for k, v in distribution.items()}
 
-            logger.info(f" Nash Bargaining complete:")
+            logger.info(" Nash Bargaining complete:")
             for agent, reward in distribution.items():
                 logger.info(f"   {agent}: {reward:.3f}")
             logger.info(f"   Fairness: {result.fairness_score}")

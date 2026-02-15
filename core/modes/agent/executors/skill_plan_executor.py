@@ -1546,7 +1546,7 @@ class SkillPlanExecutor:
                     errors.append(f"Step {i + 1}: {result.get('error', 'Unknown')}")
             else:
                 # Multiple independent steps — run in parallel
-                _status(f"Parallel", f"executing {len(layer)} steps concurrently")
+                _status("Parallel", f"executing {len(layer)} steps concurrently")
 
                 async def _run_step(idx: Any) -> Any:
                     s = steps[idx]

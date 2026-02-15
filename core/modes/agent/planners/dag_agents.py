@@ -9,7 +9,7 @@ This module re-exports from the decomposed submodules:
 
 from typing import Optional
 
-from ..foundation.data_structures import SwarmConfig, SwarmLearningConfig
+from ..foundation.data_structures import SwarmConfig
 from .dag_types import (  # noqa: F401
     Actor,
     ActorAssignmentSignature,

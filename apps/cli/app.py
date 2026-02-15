@@ -13,7 +13,6 @@ import asyncio
 import logging
 import os
 import sys
-from pathlib import Path
 from typing import Optional
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -61,7 +60,6 @@ class JottyCLI:
         from .commands.base import CommandRegistry
         from .config.loader import ConfigLoader
         from .repl.engine import REPLEngine, SimpleREPL
-        from .repl.history import HistoryManager
         from .repl.session import SessionManager
 
         # Load configuration

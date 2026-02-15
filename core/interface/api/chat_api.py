@@ -8,7 +8,6 @@ import logging
 from typing import Any, AsyncIterator, Dict, List, Optional
 
 from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
-from Jotty.core.infrastructure.foundation.data_structures import SwarmLearningConfig
 from Jotty.core.intelligence.orchestration import Orchestrator
 from Jotty.core.modes.agent.agents.chat_assistant import create_chat_assistant
 from Jotty.core.modes.use_cases.chat import ChatMessage, ChatUseCase

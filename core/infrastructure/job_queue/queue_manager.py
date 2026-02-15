@@ -6,7 +6,7 @@ High-level manager for processing tasks from queue using Orchestrator
 import asyncio
 import logging
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from ..orchestration import Orchestrator
 from .task import Task

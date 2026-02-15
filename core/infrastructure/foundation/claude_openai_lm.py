@@ -21,7 +21,7 @@ import logging
 import os
 import subprocess
 import time
-from typing import Any, Optional
+from typing import Any
 
 import dspy
 import requests

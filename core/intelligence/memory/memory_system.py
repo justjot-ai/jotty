@@ -148,7 +148,6 @@ class MemorySystem:
         )
         from Jotty.core.infrastructure.foundation.data_structures import (
             MemoryLevel,
-            SwarmLearningConfig,
         )
 
         jc = self._jotty_config

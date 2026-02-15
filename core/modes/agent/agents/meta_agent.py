@@ -23,10 +23,10 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Type
 
-from .base_agent import AgentResult, AgentRuntimeConfig, BaseAgent
+from .base_agent import AgentRuntimeConfig, BaseAgent
 
 logger = logging.getLogger(__name__)
 

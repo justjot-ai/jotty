@@ -8,7 +8,7 @@ Includes cost tracking integration.
 import logging
 import os
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, List, Optional
 
 from Jotty.core.infrastructure.foundation.config_defaults import (
     DEFAULT_MODEL_ALIAS,
@@ -18,11 +18,7 @@ from Jotty.core.infrastructure.foundation.config_defaults import (
 
 from .providers import (
     PROVIDERS,
-    AnthropicAPIProvider,
-    ClaudeCLIProvider,
-    GeminiProvider,
     LLMResponse,
-    OpenAIProvider,
     get_provider,
 )
 

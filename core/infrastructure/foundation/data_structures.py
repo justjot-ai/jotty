@@ -17,13 +17,8 @@ This module has been split into organized sub-modules in the types/ package.
 All classes are re-exported here for backward compatibility.
 """
 
-import hashlib
-import json
 from dataclasses import dataclass, field
-from datetime import datetime
-from enum import Enum, auto
-from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, List, Optional
 
 # Import all types from the new organized structure
 from .types import (  # Enums; Memory types; Learning types; Agent types; Validation types; Workflow types; SDK types
@@ -973,7 +968,7 @@ class SwarmLearningConfig:
             except (ValueError, TypeError) as e:
                 errors.append(f"{method_name}: {e}")
         if errors:
-            raise ValueError(f"SwarmConfig validation failed:\n" + "\n".join(errors))
+            raise ValueError("SwarmConfig validation failed:\n" + "\n".join(errors))
 
     @property
     def memory_budget(self) -> int:

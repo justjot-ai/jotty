@@ -49,11 +49,11 @@ import logging
 import os
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
-from .base import AgentConfig, FeedbackConfig, ModelTier, StageConfig, SwarmTemplate
+from .base import AgentConfig, FeedbackConfig, ModelTier, StageConfig
 from .swarm_ml import SwarmML
 
 logger = logging.getLogger(__name__)

@@ -27,7 +27,7 @@ Usage:
 
 import logging
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
@@ -333,7 +333,7 @@ class ModelTierRouter:
         if not viable_tiers:
             # No tier meets constraints - return cheapest with warning
             logger.warning(
-                f"⚠️  No tier meets all constraints. Using CHEAP (may violate quality/latency)."
+                "⚠️  No tier meets all constraints. Using CHEAP (may violate quality/latency)."
             )
             return ModelTier.CHEAP.value
 

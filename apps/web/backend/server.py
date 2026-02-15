@@ -6,21 +6,18 @@ Serves the web app and provides WebSocket API for chat.
 Uses shared components for consistent behavior.
 """
 
-import asyncio
-import json
 import logging
 import os
 
 # Add parent to path
 import sys
-from typing import Dict, Optional
+from typing import Dict
 from uuid import uuid4
 
 import uvicorn
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../.."))
 
@@ -29,7 +26,7 @@ from apps.cli.commands import register_all_commands
 from apps.cli.commands.base import CommandRegistry, ParsedArgs
 from apps.shared import ChatInterface
 from apps.shared.events import EventProcessor
-from apps.shared.models import Error, Message, Status
+from apps.shared.models import Message
 from apps.shared.renderers import TelegramMessageRenderer  # Reuse for JSON output
 from Jotty.sdk import Jotty
 
@@ -266,7 +263,7 @@ async def websocket_endpoint(websocket: WebSocket):
             await session.send_json(
                 {"type": "error", "message": str(e), "error_type": type(e).__name__}
             )
-        except:
+        except Exception:
             pass
         finally:
             if session_id in sessions:

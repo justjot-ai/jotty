@@ -4,8 +4,6 @@ Wraps supervisor's StateManager to implement TaskQueue interface
 Enables backward compatibility - supervisor can use Jotty's TaskQueue OR continue using StateManager
 """
 
-import asyncio
-from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from .task import Task

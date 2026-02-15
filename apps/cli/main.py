@@ -17,16 +17,13 @@ Usage:
     python -m Jotty.apps.cli.main
 """
 
-import asyncio
 import sys
-from pathlib import Path
 
 
 def main():
     """Main entry point for Jotty CLI."""
     try:
         from Jotty.apps.cli.__main__ import main as cli_main
-        from Jotty.apps.cli.app import JottyCLI
 
         # Run the CLI
         cli_main()

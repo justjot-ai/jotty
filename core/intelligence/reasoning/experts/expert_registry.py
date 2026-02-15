@@ -6,10 +6,9 @@ Provides easy access to pre-trained expert agents.
 """
 
 import logging
-from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Dict, Optional
 
-from .expert_agent import ExpertAgent, ExpertAgentConfig
+from .expert_agent import ExpertAgent
 from .mermaid_expert import MermaidExpertAgent
 from .pipeline_expert import PipelineExpertAgent
 

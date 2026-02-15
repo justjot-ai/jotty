@@ -18,16 +18,11 @@ Architecture: Sub-modules are extracted for maintainability.
 All classes are re-exported here for backward compatibility.
 """
 
-import asyncio
-import hashlib
 import logging
-import math
 import threading
 import time
 from collections import defaultdict, deque
-from dataclasses import dataclass, field
-from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 try:
     import dspy

@@ -41,9 +41,7 @@ Usage:
     )
 """
 
-import re
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, List
 
 try:
     import dspy
@@ -54,7 +52,7 @@ except ImportError:
 
 from Jotty.core.infrastructure.utils.context_utils import strip_enrichment_context
 
-from .base import AgentConfig, FeedbackConfig, ModelTier, StageConfig, SwarmTemplate
+from .base import AgentConfig, ModelTier, StageConfig, SwarmTemplate
 
 # =============================================================================
 # LLM-Based Task Classification (No Keyword Matching)

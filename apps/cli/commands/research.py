@@ -6,9 +6,8 @@ Research Command
 Uses TierExecutor for smart analysis and output formatting.
 """
 
-import asyncio
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from .base import BaseCommand, CommandResult, ParsedArgs
 

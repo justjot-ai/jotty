@@ -7,7 +7,7 @@ Generates both interactive HTML and print-ready PDF.
 import asyncio
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -358,7 +358,6 @@ class LessonHTMLRenderer:
 
     def render(self, content: "LessonContent", learning_time: str = "") -> str:
         """Render full lesson to HTML string."""
-        import markdown
 
         body_parts = []
 

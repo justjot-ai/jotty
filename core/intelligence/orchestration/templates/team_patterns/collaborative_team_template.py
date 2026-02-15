@@ -37,7 +37,7 @@ import asyncio
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
 import dspy
 
@@ -105,7 +105,7 @@ async def run_collaborative_agent(
         print(f"📝 Iteration {iteration}/{max_iterations}")
 
         # READ FROM SHARED WORKSPACE
-        print(f"   📖 Reading shared context...")
+        print("   📖 Reading shared context...")
 
         # 1. Get all shared data
         all_shared_data = shared_context.get_all()
@@ -156,7 +156,7 @@ async def run_collaborative_agent(
         print(f"   ✅ Generated in {elapsed:.1f}s ({len(output)} chars)")
 
         # WRITE TO SHARED WORKSPACE
-        print(f"   📝 Writing to shared workspace...")
+        print("   📝 Writing to shared workspace...")
 
         # 1. Store output in SharedContext
         context_key = f"{agent_name.lower().replace(' ', '_')}_output"
@@ -177,7 +177,7 @@ async def run_collaborative_agent(
         )
         scratchpad.add_message(insight_msg)
         messages_sent += 1
-        print(f"      - Broadcasted insight message")
+        print("      - Broadcasted insight message")
 
         # 3. Add to shared insights
         scratchpad.shared_insights.append(
@@ -235,7 +235,7 @@ async def run_collaborative_agent(
 
             feedback = "; ".join(feedback_parts)
         else:
-            print(f"   ⚠️  Max iterations reached")
+            print("   ⚠️  Max iterations reached")
 
     final = iterations_history[-1]
 
@@ -413,20 +413,20 @@ async def collaborative_team_workflow():
         print(f"  Messages Received: {result['messages_received']}")
         print(f"  Tool Cache Hits: {result['tool_cache_hits']}")
 
-    print(f"\n📊 Collaboration Metrics:")
+    print("\n📊 Collaboration Metrics:")
     print(f"  Total Iterations: {total_iterations}")
     print(f"  Total Messages: {total_messages}")
     print(f"  Tool Cache Hits: {total_tool_cache_hits}")
     print(f"  Shared Context Items: {len(shared_context.keys())}")
     print(f"  Shared Insights: {len(scratchpad.shared_insights)}")
     print(f"  Scratchpad Messages: {len(scratchpad.messages)}")
-    print(f"  Pattern: Collaborative P2P (Parallel)")
+    print("  Pattern: Collaborative P2P (Parallel)")
 
     # Show final shared workspace state
-    print(f"\n🗂️  Final Shared Workspace State:")
+    print("\n🗂️  Final Shared Workspace State:")
     print(f"  SharedContext keys: {shared_context.keys()}")
     print(f"  Scratchpad messages: {len(scratchpad.messages)} total")
-    print(f"  Shared insights:")
+    print("  Shared insights:")
     for insight in scratchpad.shared_insights[-10:]:
         print(f"    - {insight}")
 

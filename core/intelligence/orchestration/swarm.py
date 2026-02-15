@@ -33,16 +33,14 @@ Usage:
     )
 """
 
-import asyncio
 import logging
 import time
 from typing import Any, Dict, List, Optional, Union
 
-import numpy as np
 import pandas as pd
 
 from .swarm_manager import Orchestrator
-from .templates import SwarmML, SwarmTemplate, TemplateRegistry
+from .templates import SwarmTemplate, TemplateRegistry
 from .templates.base import TemplateExecutor
 
 logger = logging.getLogger(__name__)
@@ -371,7 +369,6 @@ class Swarm:
             )
             from sklearn.preprocessing import StandardScaler
 
-            from .skill_orchestrator import SkillOrchestrator
             from .templates.swarm_ml_comprehensive import SwarmMLComprehensive
 
             model = swarm_result.model

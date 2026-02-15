@@ -282,27 +282,27 @@ class IOManager:
         """
         # Strategy 1: actor.resolver.signature (ChainOfThought)
         if hasattr(actor, "resolver") and hasattr(actor.resolver, "signature"):
-            logger.debug(f"   Extracted signature from actor.resolver")
+            logger.debug("   Extracted signature from actor.resolver")
             return actor.resolver.signature
 
         # Strategy 2: actor.predictor.signature (Predict)
         if hasattr(actor, "predictor") and hasattr(actor.predictor, "signature"):
-            logger.debug(f"   Extracted signature from actor.predictor")
+            logger.debug("   Extracted signature from actor.predictor")
             return actor.predictor.signature
 
         # Strategy 3: actor.generator.signature (ReAct)
         if hasattr(actor, "generator") and hasattr(actor.generator, "signature"):
-            logger.debug(f"   Extracted signature from actor.generator")
+            logger.debug("   Extracted signature from actor.generator")
             return actor.generator.signature
 
         # Strategy 4: actor.generate.signature (SQLGenerator pattern)
         if hasattr(actor, "generate") and hasattr(actor.generate, "signature"):
-            logger.debug(f"   Extracted signature from actor.generate")
+            logger.debug("   Extracted signature from actor.generate")
             return actor.generate.signature
 
         # Strategy 5: actor.signature (direct)
         if hasattr(actor, "signature"):
-            logger.debug(f"   Extracted signature from actor.signature")
+            logger.debug("   Extracted signature from actor.signature")
             return actor.signature
 
         # Strategy 6: Introspect forward() return type annotation
@@ -311,7 +311,7 @@ class IOManager:
 
             sig = inspect.signature(actor.forward)
             if sig.return_annotation != inspect.Parameter.empty:
-                logger.debug(f"   Extracted signature from forward() annotation")
+                logger.debug("   Extracted signature from forward() annotation")
                 return sig.return_annotation
 
         logger.debug(f" Could not extract signature from {type(actor).__name__}")
@@ -392,7 +392,7 @@ class IOManager:
                         f" [FALLBACK SUCCESS] Extracted from TaggedOutput.final_output: {len(str(output.final_output))} chars"
                     )
                 else:
-                    logger.warning(f" [FALLBACK FAILED] TaggedOutput.final_output is None/empty!")
+                    logger.warning(" [FALLBACK FAILED] TaggedOutput.final_output is None/empty!")
 
                 return output_fields
 

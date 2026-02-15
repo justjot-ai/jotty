@@ -3,18 +3,14 @@ Tool routes - export, preview, proxy, MCP, code execution, web search.
 """
 
 import asyncio
-import json
 import logging
-from datetime import datetime
-from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 
 def register_tools_routes(app, api):
-    from fastapi import File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
-    from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
+    from fastapi import HTTPException
     from pydantic import BaseModel
 
     @app.post("/api/export")
@@ -93,7 +89,7 @@ def register_tools_routes(app, api):
         import tempfile
         from pathlib import Path
 
-        from starlette.responses import HTMLResponse, PlainTextResponse
+        from starlette.responses import HTMLResponse
 
         content = request.get("content", "")
         preview_format = request.get("format", "html").lower()

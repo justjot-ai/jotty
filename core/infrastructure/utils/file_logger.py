@@ -7,7 +7,6 @@ Configures Python logging to write to files based on SwarmConfig.
 
 import logging
 from pathlib import Path
-from typing import Optional
 
 
 def setup_file_logging(

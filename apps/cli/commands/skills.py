@@ -5,7 +5,7 @@ Skills Command
 List and search skills.
 """
 
-from typing import TYPE_CHECKING, Any, Dict, List
+from typing import TYPE_CHECKING, Dict
 
 from .base import BaseCommand, CommandResult, ParsedArgs
 

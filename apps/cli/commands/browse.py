@@ -9,7 +9,7 @@ import logging
 import shutil
 import subprocess
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 from .base import BaseCommand, CommandResult, ParsedArgs
 

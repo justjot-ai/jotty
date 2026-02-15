@@ -14,13 +14,12 @@ Standalone composed class, replaces MASZeroMixin.
 """
 
 import logging
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List
 
 from Jotty.core.infrastructure.utils.async_utils import StatusReporter
 
 if TYPE_CHECKING:
     from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
-    from Jotty.core.infrastructure.foundation.data_structures import EpisodeResult
 
 logger = logging.getLogger(__name__)
 

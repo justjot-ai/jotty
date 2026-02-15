@@ -33,11 +33,11 @@ import asyncio
 import functools
 import warnings
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
+from typing import Any, Callable, Dict, List, TypeVar, Union
 
 import dspy
 
-from ..foundation.data_structures import EpisodeResult, SwarmConfig, SwarmLearningConfig
+from ..foundation.data_structures import EpisodeResult, SwarmConfig
 from ..utils.tokenizer import SmartTokenizer
 
 # =============================================================================

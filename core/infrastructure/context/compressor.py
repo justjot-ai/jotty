@@ -14,11 +14,10 @@ The compressor UNDERSTANDS the content and preserves what's important!
 """
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 import dspy
 
-from ..utils.tokenizer import SmartTokenizer
 from . import utils as ctx_utils
 
 logger = logging.getLogger(__name__)
@@ -176,7 +175,7 @@ class AgenticCompressor:
             quality = float(result.quality_score)
             if quality < 5.0:
                 logger.warning(f" Low compression quality ({quality}/10)!")
-                logger.warning(f"   Consider increasing target_tokens or reviewing compression")
+                logger.warning("   Consider increasing target_tokens or reviewing compression")
         except (ValueError, TypeError, AttributeError) as e:
             logger.debug(f"Quality score parsing failed: {e}")
             pass

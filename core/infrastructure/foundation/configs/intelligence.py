@@ -1,7 +1,6 @@
 """Intelligence configuration — trust tuning, routing, agent communication, local mode."""
 
 from dataclasses import dataclass
-from typing import Any
 
 
 @dataclass

@@ -14,7 +14,7 @@ Usage:
 import asyncio
 import logging
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from Jotty.core.infrastructure.foundation.data_structures import EpisodeResult
 from Jotty.core.infrastructure.foundation.exceptions import AgentExecutionError, LLMError

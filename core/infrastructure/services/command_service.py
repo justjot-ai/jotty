@@ -20,7 +20,6 @@ Usage:
 import asyncio
 import io
 import re
-import sys
 from dataclasses import asdict, dataclass
 from typing import Any, Dict, List, Optional
 

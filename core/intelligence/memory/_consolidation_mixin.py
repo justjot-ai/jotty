@@ -5,13 +5,12 @@ import json
 import logging
 from collections import defaultdict
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Tuple
 
 logger = logging.getLogger(__name__)
 
 from Jotty.core.infrastructure.foundation.data_structures import (
     CausalLink,
-    GoalHierarchy,
     GoalNode,
     GoalValue,
     MemoryEntry,

@@ -12,7 +12,6 @@
 import logging
 from typing import Any, Dict
 
-import dspy
 
 from Jotty.core.intelligence.swarms.olympiad_learning_swarm.agents import BaseOlympiadAgent
 

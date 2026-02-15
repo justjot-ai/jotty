@@ -2,20 +2,15 @@
 Voice routes - TTS, STT, voice chat, streaming variants.
 """
 
-import asyncio
-import json
 import logging
-from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 
 def register_voice_routes(app, api):
-    from fastapi import File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
-    from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
-    from pydantic import BaseModel
+    from fastapi import File, Form, HTTPException, UploadFile, WebSocket
 
     @app.get("/api/voice/voices")
     async def list_voices():
@@ -210,7 +205,7 @@ def register_voice_routes(app, api):
         """
         import os
 
-        from .voice import VoiceConfig, get_voice_processor
+        from .voice import get_voice_processor
 
         await websocket.accept()
 

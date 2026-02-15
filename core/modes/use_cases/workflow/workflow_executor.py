@@ -6,9 +6,9 @@ Handles execution of workflow tasks.
 
 import logging
 import time
-from typing import Any, AsyncIterator, Dict, List, Optional
+from typing import Any, AsyncIterator, Dict, Optional
 
-from .workflow_context import TaskStatus, WorkflowContext, WorkflowTask
+from .workflow_context import TaskStatus, WorkflowContext
 from .workflow_orchestrator import WorkflowOrchestrator
 
 logger = logging.getLogger(__name__)

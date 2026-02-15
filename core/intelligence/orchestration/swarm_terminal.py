@@ -12,7 +12,6 @@ Intelligent terminal that:
 Integrates terminal-session, web-search, and skill generation.
 """
 
-import asyncio
 import json
 import logging
 import os
@@ -20,7 +19,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -275,7 +274,6 @@ class SwarmTerminal:
         if not self._write_file:
             try:
                 import importlib.util
-                import sys
 
                 tools_path = self.skills_dir / "file-operations" / "tools.py"
                 if tools_path.exists():

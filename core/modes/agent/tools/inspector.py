@@ -16,9 +16,7 @@ Agent types:
 import asyncio
 import json
 import logging
-import re
 import time  # CRITICAL FIX: Missing import causing "name 'time' is not defined"
-from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -424,12 +422,12 @@ class ValidatorAgent:
 
         # AGENT STATUS: Show what agent is doing with nice icons
         agent_type = " Architect" if self.is_architect else " Auditor"
-        logger.info(f"")
+        logger.info("")
         logger.info(f"{'='*80}")
         logger.info(f"{agent_type} Agent: {self.agent_name}")
-        logger.info(f" Task: Validate inputs/output for goal")
+        logger.info(" Task: Validate inputs/output for goal")
         logger.info(f"⏰ Started: {datetime.now().strftime('%H:%M:%S')}")
-        logger.info(f" Status: WORKING... (Agent is analyzing with LLM)")
+        logger.info(" Status: WORKING... (Agent is analyzing with LLM)")
         logger.info(f"{'='*80}")
 
         # A-TEAM FIX: SMART MEMORY for Learning, NOT Blocking!
@@ -437,7 +435,7 @@ class ValidatorAgent:
         if self.is_architect:
             # Architect: Retrieve SUCCESS PATTERNS ONLY (not blocking decisions)
             memory_context = self._build_smart_memory_for_architect(goal, inputs)
-            logger.info(f" [ARCHITECT SMART MEMORY] Retrieved success patterns for learning")
+            logger.info(" [ARCHITECT SMART MEMORY] Retrieved success patterns for learning")
         else:
             # Auditor: Retrieve all patterns for validation
             memory_context = self._build_memory_context(goal, inputs)
@@ -1055,7 +1053,7 @@ Auditor Required Outputs:
             if should_proceed and confidence < 0.5:
                 confidence_warning = f"\n WARNING: Low confidence ({confidence:.2f}) but proceeding. Consider gathering more information."
 
-            logger.info(f"")
+            logger.info("")
             logger.info(f"{'='*80}")
             logger.info(f" Architect Agent: {self.agent_name} - COMPLETE")
             logger.info(f"{decision_icon} Decision: {'PROCEED' if should_proceed else 'BLOCKED'}")
@@ -1064,7 +1062,7 @@ Auditor Required Outputs:
             )
             logger.info(f"⏱ Duration: {elapsed:.2f}s")
             logger.info(f"{'='*80}")
-            logger.info(f"")
+            logger.info("")
 
             return ValidationResult(
                 agent_name=self.agent_name,
@@ -1112,8 +1110,8 @@ Auditor Required Outputs:
 
                     if has_failure or has_real_errors:
                         logger.warning(
-                            f" [AUDITOR OVERRIDE] Output indicates task failure but was marked VALID. "
-                            f"Overriding to INVALID. Failure indicators found in output."
+                            " [AUDITOR OVERRIDE] Output indicates task failure but was marked VALID. "
+                            "Overriding to INVALID. Failure indicators found in output."
                         )
                         is_valid = False
 
@@ -1166,40 +1164,40 @@ Auditor Required Outputs:
                 confidence_level = "VERY LOW"
                 confidence_icon = ""
 
-            logger.info(f"")
+            logger.info("")
             logger.info(f"{'='*80}")
             logger.info(f" Auditor Agent: {self.agent_name} - COMPLETE")
             logger.info(f"{decision_icon} Decision: {'VALID' if is_valid else 'INVALID'}")
             logger.info(f"{confidence_icon} Confidence: {confidence:.2f} ({confidence_level})")
             logger.info(f" Tag: {output_tag.value}")
             logger.info(f"⏱ Duration: {elapsed:.2f}s")
-            logger.info(f"")
-            logger.info(f" What was validated:")
+            logger.info("")
+            logger.info(" What was validated:")
             logger.info(f"   Output: {output_preview}")
             if output_name:
                 logger.info(f"   Output Name: {output_name}")
-            logger.info(f"")
+            logger.info("")
             if is_valid and why_useful:
-                logger.info(f" Why VALID:")
+                logger.info(" Why VALID:")
                 why_lines = why_useful.split("\n")[:3]  # First 3 lines
                 for line in why_lines:
                     if line.strip():
                         logger.info(f"   • {line.strip()}")
             elif not is_valid and fix_instructions:
-                logger.info(f" Why INVALID:")
+                logger.info(" Why INVALID:")
                 fix_lines = fix_instructions.split("\n")[:3]  # First 3 lines
                 for line in fix_lines:
                     if line.strip():
                         logger.info(f"   • {line.strip()}")
-            logger.info(f"")
+            logger.info("")
             if key_points:
-                logger.info(f" Key validation points:")
+                logger.info(" Key validation points:")
                 for point in key_points[:3]:  # Top 3 key points
                     logger.info(f"   • {point}")
-                logger.info(f"")
-            logger.info(f" Full reasoning available in ValidationResult.reasoning")
+                logger.info("")
+            logger.info(" Full reasoning available in ValidationResult.reasoning")
             logger.info(f"{'='*80}")
-            logger.info(f"")
+            logger.info("")
 
             return ValidationResult(
                 agent_name=self.agent_name,

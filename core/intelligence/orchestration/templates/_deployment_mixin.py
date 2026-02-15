@@ -11,13 +11,12 @@ model signature analysis.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, List
 
 import numpy as np
-import pandas as pd
 
 if TYPE_CHECKING:
-    from .ml_report_generator import ReportContext
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -209,7 +208,7 @@ class DeploymentMixin:
             fig_path = self._create_latency_chart(latency_results)
 
             # Build content
-            content = f"""
+            content = """
 # Deployment Readiness Assessment
 
 Evaluating model readiness for production deployment.

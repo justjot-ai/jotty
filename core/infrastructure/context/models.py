@@ -8,9 +8,9 @@ Consolidates data structures from:
 - global_context_guard.py (ContextOverflowInfo)
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import Any, List, Optional
+from typing import Optional
 
 from ..utils.tokenizer import SmartTokenizer
 

@@ -43,7 +43,7 @@ def configure_llm():
             dspy.configure(lm=lm)
             print("✅ Configured with Claude CLI")
             return True
-    except:
+    except Exception:
         pass
 
     return False

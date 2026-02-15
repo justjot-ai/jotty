@@ -31,7 +31,6 @@ from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
 from Jotty.core.infrastructure.foundation.data_structures import (
     EpisodeResult,
     SwarmConfig,
-    SwarmLearningConfig,
 )
 
 from .adaptive_learning import AdaptiveLearning
@@ -1412,7 +1411,6 @@ class OptimizationPipeline:
         # If we have evaluation function, evaluate teacher output
         if self.config.evaluation_function:
             try:
-                import asyncio
 
                 # Note: This is a sync check, but evaluation_function might be async
                 # For now, we'll do a simple check

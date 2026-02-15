@@ -477,9 +477,8 @@ class SkillDefinition:
            and required/optional from the function signature when sources 1-3
            produce no params.
         """
-        import inspect
 
-        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
+        from Jotty.core.modes.agent._execution_types import ToolSchema
 
         tool_func = self.get_tool(tool_name)
         if tool_func is None:
@@ -1555,7 +1554,6 @@ class SkillsRegistry:
         - Missing optional dependencies → skip gracefully
         """
         import importlib.util
-        import sys
 
         try:
             # Read the source to check for common fixable issues

@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Protocol
 
 if TYPE_CHECKING:
-    import pandas as pd
+    pass
 
 
 class ReportGeneratorProtocol(Protocol):

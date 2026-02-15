@@ -11,8 +11,7 @@ DRY PRINCIPLE: Reuses existing consolidation logic.
 import asyncio
 import logging
 from collections import deque
-from datetime import datetime
-from typing import Any, List, Optional
+from typing import Any, List
 
 logger = logging.getLogger(__name__)
 

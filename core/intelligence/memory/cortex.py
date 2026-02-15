@@ -18,10 +18,8 @@ Five levels:
 import hashlib
 import json
 import logging
-from collections import defaultdict
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Set, Tuple
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -36,11 +34,9 @@ from Jotty.core.infrastructure.foundation.configs.memory import MemoryConfig as 
 from Jotty.core.infrastructure.foundation.data_structures import (
     CausalLink,
     GoalHierarchy,
-    GoalNode,
     GoalValue,
     MemoryEntry,
     MemoryLevel,
-    StoredEpisode,
     SwarmConfig,
 )
 

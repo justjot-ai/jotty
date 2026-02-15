@@ -24,7 +24,7 @@ Usage:
 """
 
 import logging
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Dict, List, Type
 
 import numpy as np
 import pandas as pd

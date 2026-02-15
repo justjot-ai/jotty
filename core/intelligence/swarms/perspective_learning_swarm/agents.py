@@ -14,7 +14,7 @@ Each agent is a specialist in one aspect of multi-perspective teaching:
 """
 
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 import dspy
 

@@ -16,8 +16,6 @@ from ..base.domain_swarm import PhaseExecutor
 from ..base_swarm import AgentRole, register_swarm
 from ..swarm_signatures import ResearchSwarmSignature
 from .agents import (
-    BaseSwarmAgent,
-    ChartGeneratorAgent,
     DataFetcherAgent,
     EnhancedChartGeneratorAgent,
     LLMAnalysisAgent,
@@ -36,7 +34,7 @@ from .signatures import (
     StockAnalysisSignature,
     TechnicalSignalsSignature,
 )
-from .types import RatingType, ResearchConfig, ResearchResult, TopicResearchResult
+from .types import ResearchConfig, ResearchResult, TopicResearchResult
 
 logger = logging.getLogger(__name__)
 
@@ -134,7 +132,6 @@ class ResearchSwarm(DomainSwarm):
 
         # Initialize shared resources
         try:
-            from Jotty.core.infrastructure.foundation.data_structures import SwarmLearningConfig
             from Jotty.core.modes.agent.dag_agents import SwarmResources
 
             jotty_config = SwarmConfig()

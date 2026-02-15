@@ -4,11 +4,10 @@ Enhanced Executor - Wraps AutoAgent with autonomous execution
 DRY Principle: Reuses AutoAgent.execute() and existing Jotty components.
 """
 
-import asyncio
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
-from ..agent._execution_types import AgenticExecutionResult, ExecutionStep
+from ..agent._execution_types import AgenticExecutionResult
 from ..agent.agentic_planner import TaskPlan
 from ..agent.auto_agent import AutoAgent
 

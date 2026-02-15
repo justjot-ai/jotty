@@ -291,12 +291,12 @@ class SmartAgentSlack:
             self.message_bus.subscribe(agent_name, callback)
 
         # Log what we learned about this agent
-        logger.info(f" Capabilities:")
+        logger.info(" Capabilities:")
         logger.info(f"    • Preferred format: {caps.preferred_format}")
         logger.info(f"    • Accepts formats: {caps.acceptable_formats}")
         logger.info(f"    • Max input size: {caps.max_input_size} bytes")
         logger.info(f"    • Max context: {caps.max_context_tokens} tokens")
-        logger.info(f" Registered successfully")
+        logger.info(" Registered successfully")
 
     def send(
         self,
@@ -350,7 +350,7 @@ class SmartAgentSlack:
                 logger.info(f" [AUTO] Invoking internal Compressor for {to_agent}")
                 self._compress_agent_context(to_agent)
             else:
-                logger.warning(f" [AUTO] Compressor not available (skipping)")
+                logger.warning(" [AUTO] Compressor not available (skipping)")
 
         # STEP 2: Detect current data format
         current_format = self._detect_format(data)
@@ -381,13 +381,13 @@ class SmartAgentSlack:
                 logger.info(f" Transformed: new size={current_size} bytes, format={current_format}")
             except Exception as e:
                 logger.error(f" Transformation failed: {e}")
-                logger.info(f" ℹ Proceeding with original format (may cause issues)")
+                logger.info(" ℹ Proceeding with original format (may cause issues)")
 
         # STEP 4: Check if chunking needed (data too large for target)
         if current_size > target_caps.max_input_size:
             logger.info(f" [AUTO] Data too large: {current_size} > {target_caps.max_input_size}")
             if self.chunker:
-                logger.info(f" [AUTO] Invoking internal Chunker")
+                logger.info(" [AUTO] Invoking internal Chunker")
 
                 try:
                     chunked_file = self.chunker.chunk_and_consolidate(
@@ -402,9 +402,9 @@ class SmartAgentSlack:
                     logger.info(f" Chunked: new size={current_size} bytes")
                 except Exception as e:
                     logger.error(f" Chunking failed: {e}")
-                    logger.info(f" ℹ Proceeding with original data (may exceed limits)")
+                    logger.info(" ℹ Proceeding with original data (may exceed limits)")
             else:
-                logger.warning(f" [AUTO] Chunker not available (data may exceed limits)")
+                logger.warning(" [AUTO] Chunker not available (data may exceed limits)")
 
         # STEP 5: Deliver message
         message = Message(
@@ -437,12 +437,12 @@ class SmartAgentSlack:
                     impact=1.0,  # Positive impact (helping)
                 )
 
-            logger.info(f" Message delivered successfully")
+            logger.info(" Message delivered successfully")
             logger.info(
                 f" {to_agent} context now: {self.context_budget_tracker[to_agent]}/{target_max} tokens"
             )
         else:
-            logger.error(f" Message delivery failed")
+            logger.error(" Message delivery failed")
 
         return success
 
@@ -601,7 +601,7 @@ class SmartAgentSlack:
                             acceptable_formats = ["list", "json"]
         except Exception as e:
             logger.warning(f" Could not extract format from signature: {e}")
-            logger.warning(f" ℹ Using default capabilities")
+            logger.warning(" ℹ Using default capabilities")
 
         return AgentCapabilities(
             agent_name=agent_name,
@@ -670,7 +670,7 @@ class SmartAgentSlack:
             logger.info(f" [AGENT SLACK] Reset context for {agent_name}")
         else:
             self.context_budget_tracker = {name: 0 for name in self.agent_capabilities.keys()}
-            logger.info(f" [AGENT SLACK] Reset context for all agents")
+            logger.info(" [AGENT SLACK] Reset context for all agents")
 
     # =========================================================================
     # 🆕 COOPERATION METHODS

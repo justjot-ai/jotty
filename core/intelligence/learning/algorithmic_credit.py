@@ -14,14 +14,13 @@ References:
 - Wolpert, D.H. & Tumer, K. (2002). "Optimal Payoff Functions for Members of Collectives"
 """
 
-import asyncio
 import json
 import logging
 import math
 import random
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List
 
 # DSPy loaded lazily — saves ~6s on module import
 # Use _get_dspy() to access the module when needed

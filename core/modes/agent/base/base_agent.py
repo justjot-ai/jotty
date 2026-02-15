@@ -310,7 +310,6 @@ class BaseAgent(ABC):
             try:
                 from Jotty.core.infrastructure.foundation.data_structures import (
                     SwarmConfig,
-                    SwarmLearningConfig,
                 )
                 from Jotty.core.intelligence.memory.cortex import SwarmMemory
 

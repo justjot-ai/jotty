@@ -3,18 +3,14 @@ Chat routes - messaging, streaming, WebSocket, command streaming.
 """
 
 import asyncio
-import json
 import logging
-from datetime import datetime
-from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
 
 def register_chat_routes(app, api):
-    from fastapi import File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
-    from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
+    from fastapi import HTTPException, WebSocket, WebSocketDisconnect
     from pydantic import BaseModel
 
     @app.get("/api/commands")
@@ -48,7 +44,6 @@ def register_chat_routes(app, api):
         import queue
         import re
         import sys
-        import threading
 
         from starlette.responses import StreamingResponse
 

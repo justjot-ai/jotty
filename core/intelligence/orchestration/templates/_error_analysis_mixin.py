@@ -9,13 +9,13 @@ detection, and error analysis chart generation.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List
 
 import numpy as np
 import pandas as pd
 
 if TYPE_CHECKING:
-    from .ml_report_generator import ReportContext
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -114,7 +114,7 @@ Understanding where the model fails helps improve performance and set realistic 
                         content += f"- {labels[i]} misclassified as {labels[j]}: {cm[i, j]:,} ({cm[i, j]/cm[i].sum()*100:.1f}%)\n"
 
             if hardest_samples:
-                content += f"""
+                content += """
 ## Hardest to Classify Samples (Most Confident Errors)
 
 | Sample | True | Predicted | Probability | Confidence |

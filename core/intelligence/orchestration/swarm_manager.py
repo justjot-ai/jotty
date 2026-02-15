@@ -33,7 +33,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import time
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union
 
 if TYPE_CHECKING:
@@ -63,7 +62,6 @@ from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
 from Jotty.core.infrastructure.foundation.data_structures import (
     EpisodeResult,
     SwarmConfig,
-    SwarmLearningConfig,
 )
 from Jotty.core.infrastructure.foundation.exceptions import (
     AgentExecutionError,
@@ -635,7 +633,6 @@ class ExecutionEngine:
         # OPTIMIZATION: Skip gate for multi-agent mode — fast path only works
         # for single-agent, so running the gate wastes an LLM call.
         from Jotty.core.intelligence.orchestration.validation_gate import (
-            ValidationGate,
             ValidationMode,
             get_validation_gate,
         )
@@ -2892,7 +2889,7 @@ class Orchestrator:
                 if errors:
                     parts.append(f"Errors: {'; '.join(str(e) for e in errors[:3])}")
 
-                logger.info(f"\n Execution Summary:\n" + "\n".join(parts))
+                logger.info("\n Execution Summary:\n" + "\n".join(parts))
             elif hasattr(_output, "summary"):
                 logger.info(f"\n Execution Summary:\n{_output.summary}")
         except Exception as e:

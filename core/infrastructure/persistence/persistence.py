@@ -19,7 +19,7 @@ import logging
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List
 
 logger = logging.getLogger(__name__)
 
@@ -208,7 +208,7 @@ class Vault:
 
                 # Intermediary values (NO HARDCODED KEYS - displays whatever is tracked)
                 if task.intermediary_values:
-                    md += f"- **Intermediary Values:**\n"
+                    md += "- **Intermediary Values:**\n"
                     for key, val in task.intermediary_values.items():
                         md += f"  - `{key}`: {val}\n"
 
@@ -296,7 +296,7 @@ class Vault:
                 md += f"- **Last Error:** {task.error if task.error else 'Unknown'}\n"
 
                 if task.failure_reasons:
-                    md += f"- **Failure History:**\n"
+                    md += "- **Failure History:**\n"
                     # Show all failures (NO HARDCODED LIMIT)
                     for i, reason in enumerate(task.failure_reasons, 1):
                         md += f"  {i}. {reason}\n"
@@ -526,7 +526,7 @@ class Vault:
             self.save_brain_state(conductor.brain)
 
         logger.info(f"{'='*60}")
-        logger.info(f" ALL JOTTY STATE SAVED")
+        logger.info(" ALL JOTTY STATE SAVED")
         logger.info(f" Location: {self.jotty_dir}")
         logger.info(f"{'='*60}\n")
 

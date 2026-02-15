@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional
 
-from .benchmark import Benchmark, BenchmarkMetrics
+from .benchmark import Benchmark
 from .evaluation_protocol import EvaluationProtocol, EvaluationReport
 
 logger = logging.getLogger(__name__)
@@ -212,7 +212,6 @@ class AblationStudy:
         # Create copy of baseline config
         if self.baseline_config is None:
             # Create default config
-            from ..foundation.data_structures import SwarmLearningConfig
 
             config = SwarmConfig()
         else:
@@ -638,7 +637,6 @@ class ConfigTuner:
     def _build_config(self, overrides: Dict[str, Any]) -> Any:
         """Build a SwarmConfig with the given overrides applied."""
         if self.baseline_config is None:
-            from ..foundation.data_structures import SwarmLearningConfig
 
             config = SwarmConfig()
         else:

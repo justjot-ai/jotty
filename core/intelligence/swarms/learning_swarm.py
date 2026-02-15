@@ -59,20 +59,17 @@ from typing import Any, Dict, List, Optional
 
 import dspy
 
-from Jotty.core.modes.agent.base import BaseSwarmAgent, DomainAgent, DomainAgentConfig
+from Jotty.core.modes.agent.base import BaseSwarmAgent
 
 from .base import AgentTeam, DomainSwarm, _split_field
 from .base_swarm import (
     AgentRole,
-    BaseSwarm,
     Evaluation,
     EvaluationResult,
     ExecutionTrace,
     GoldStandard,
     GoldStandardDB,
     ImprovementHistory,
-    ImprovementSuggestion,
-    ImprovementType,
     SwarmBaseConfig,
     SwarmRegistry,
     SwarmResult,

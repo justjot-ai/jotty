@@ -47,7 +47,7 @@ import asyncio
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import dspy
 
@@ -87,7 +87,7 @@ async def p2p_discovery_phase(
     """
 
     print(f"\n{'='*90}")
-    print(f"PHASE 1: P2P DISCOVERY - PARALLEL EXPLORATION")
+    print("PHASE 1: P2P DISCOVERY - PARALLEL EXPLORATION")
     print(f"{'='*90}\n")
 
     print(f"📋 Discovery Task: {task[:100]}...")
@@ -150,7 +150,7 @@ async def p2p_discovery_phase(
     discoveries = {r["agent"]: r["output"] for r in results}
 
     print(f"\n{'='*90}")
-    print(f"✅ PHASE 1 COMPLETE - P2P DISCOVERY")
+    print("✅ PHASE 1 COMPLETE - P2P DISCOVERY")
     print(f"{'='*90}")
     print(f"  Discoveries: {len(discoveries)}")
     print(f"  Insights: {len(scratchpad.shared_insights)}")
@@ -191,11 +191,11 @@ async def sequential_delivery_phase(
     """
 
     print(f"\n{'='*90}")
-    print(f"PHASE 2: SEQUENTIAL DELIVERY - ORDERED BUILD")
+    print("PHASE 2: SEQUENTIAL DELIVERY - ORDERED BUILD")
     print(f"{'='*90}\n")
 
     print(f"📦 Deliverables: {len(agents_config)}")
-    print(f"🔗 Using discoveries from Phase 1")
+    print("🔗 Using discoveries from Phase 1")
     print()
 
     deliverables = {}
@@ -253,7 +253,7 @@ PREVIOUS DELIVERABLE:
         previous_output = output  # Pass to next agent
 
     print(f"\n{'='*90}")
-    print(f"✅ PHASE 2 COMPLETE - SEQUENTIAL DELIVERY")
+    print("✅ PHASE 2 COMPLETE - SEQUENTIAL DELIVERY")
     print(f"{'='*90}")
     print(f"  Deliverables: {len(deliverables)}")
 
@@ -366,7 +366,7 @@ async def hybrid_workflow():
     print("HYBRID WORKFLOW COMPLETE")
     print("=" * 90)
 
-    print(f"\n📊 Summary:")
+    print("\n📊 Summary:")
     print(f"  Phase 1 (P2P Discovery): {len(phase1_results['discoveries'])} discoveries")
     print(f"  Phase 2 (Sequential Delivery): {len(phase2_results['deliverables'])} deliverables")
     print(f"  Total Messages: {len(scratchpad.messages)}")

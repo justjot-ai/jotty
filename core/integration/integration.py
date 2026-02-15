@@ -31,7 +31,7 @@ except ImportError:
     DSPY_AVAILABLE = False
 
 from ..context.global_context_guard import GlobalContextGuard, patch_dspy_with_guard, unpatch_dspy
-from ..foundation.data_structures import SwarmConfig, SwarmLearningConfig
+from ..foundation.data_structures import SwarmConfig
 from ..utils.algorithmic_foundations import (
     ContentGate,
     DifferenceRewardEstimator,

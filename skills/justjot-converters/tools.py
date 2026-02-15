@@ -359,10 +359,10 @@ def send_to_kindle_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         success = emailer.send(file_path, subject=subject, convert=convert)
 
         if success:
-            status = emailer.get_status()
+            kindle_status = emailer.get_status()
             return {
                 "success": True,
-                "kindle_email": status.get("kindle_email"),
+                "kindle_email": kindle_status.get("kindle_email"),
                 "message": "Document sent successfully",
             }
         else:
@@ -454,15 +454,15 @@ def kindle_status_tool(params: Dict[str, Any] = None) -> Dict[str, Any]:
         from utils.kindle_email import KindleEmailer
 
         emailer = KindleEmailer()
-        status = emailer.get_status()
+        kindle_status = emailer.get_status()
 
         return {
             "success": True,
-            "configured": status.get("configured", False),
-            "kindle_email": status.get("kindle_email"),
-            "smtp_email": status.get("smtp_email"),
-            "provider": status.get("provider"),
-            "config_file": status.get("config_file"),
+            "configured": kindle_status.get("configured", False),
+            "kindle_email": kindle_status.get("kindle_email"),
+            "smtp_email": kindle_status.get("smtp_email"),
+            "provider": kindle_status.get("provider"),
+            "config_file": kindle_status.get("config_file"),
         }
 
     except ImportError as e:
@@ -602,13 +602,13 @@ def remarkable_status_tool(params: Dict[str, Any] = None) -> Dict[str, Any]:
         from utils.remarkable_sync import RemarkableSync
 
         sync = RemarkableSync()
-        status = sync.get_status()
+        rm_status = sync.get_status()
 
         return {
             "success": True,
-            "registered": status.get("registered", False),
-            "rmapy_installed": status.get("rmapy_installed", False),
-            "config_file": status.get("config_file"),
+            "registered": rm_status.get("registered", False),
+            "rmapy_installed": rm_status.get("rmapy_installed", False),
+            "config_file": rm_status.get("config_file"),
         }
 
     except ImportError as e:

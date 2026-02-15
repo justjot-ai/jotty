@@ -8,7 +8,6 @@ Tracks execution metrics, performance metrics, and errors.
 import logging
 import time
 from dataclasses import dataclass, field
-from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
 

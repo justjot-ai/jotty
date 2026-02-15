@@ -18,20 +18,14 @@ Usage:
 import asyncio
 import json
 import logging
-import os
 import subprocess
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-import dspy
 
 from ..base import AgentTeam, DomainSwarm, PhaseExecutor
 from ..base_swarm import (
     AgentRole,
-    BaseSwarm,
-    ExecutionTrace,
-    SwarmBaseConfig,
-    SwarmResult,
     register_swarm,
 )
 from .agents import (

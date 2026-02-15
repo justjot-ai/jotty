@@ -9,7 +9,6 @@ import logging
 import subprocess
 import sys
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
@@ -54,7 +53,6 @@ class SwarmInstaller:
 
     def _is_builtin_python_module(self, package: str) -> bool:
         """Check if package is a built-in Python module."""
-        import sys
 
         builtin_modules = {
             "multiprocessing",

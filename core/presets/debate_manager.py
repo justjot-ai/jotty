@@ -23,7 +23,7 @@ Usage:
 import logging
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Dict, List
 
 import dspy
 
@@ -332,12 +332,12 @@ class DebateManager:
         summary += f"Consensus: {debate_round.consensus_percentage*100:.1f}%\n"
 
         if concerns_list:
-            summary += f"\nKey Concerns Raised:\n"
+            summary += "\nKey Concerns Raised:\n"
             for concern in concerns_list[:10]:  # Top 10
                 summary += f"- {concern}\n"
 
         if suggestions_list:
-            summary += f"\nSuggestions for Improvement:\n"
+            summary += "\nSuggestions for Improvement:\n"
             for suggestion in suggestions_list[:10]:  # Top 10
                 summary += f"- {suggestion}\n"
 

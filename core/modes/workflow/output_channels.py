@@ -14,7 +14,6 @@ Uses:
 """
 
 import logging
-import os
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -204,7 +203,7 @@ class OutputChannelManager:
                 )
 
             if result.get("success"):
-                logger.info(f"✅ Sent to Telegram")
+                logger.info("✅ Sent to Telegram")
                 return ChannelDeliveryResult(
                     channel="telegram",
                     success=True,

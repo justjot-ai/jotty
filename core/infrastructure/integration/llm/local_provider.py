@@ -9,7 +9,7 @@ Provides fully local inference with no external API calls.
 import logging
 import os
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from Jotty.core.infrastructure.foundation.config_defaults import (
     LLM_TEMPERATURE,

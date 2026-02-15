@@ -10,7 +10,7 @@ Provides health and readiness endpoints for:
 import time
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict
 
 
 class HealthStatus(Enum):

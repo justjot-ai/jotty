@@ -20,7 +20,6 @@ from typing import TYPE_CHECKING, Any, Dict, Optional, Union
 
 if TYPE_CHECKING:
     from Jotty.core.infrastructure.foundation.configs import LearningConfig
-    from Jotty.core.infrastructure.foundation.data_structures import SwarmLearningConfig
     from Jotty.core.intelligence.learning.learning_coordinator import LearningManager
     from Jotty.core.intelligence.learning.reasoning_credit import ReasoningCreditAssigner
     from Jotty.core.intelligence.learning.shaped_rewards import ShapedRewardManager

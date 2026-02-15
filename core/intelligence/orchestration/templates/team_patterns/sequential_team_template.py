@@ -31,7 +31,7 @@ import asyncio
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
 import dspy
 
@@ -145,7 +145,7 @@ async def run_agent_with_learning(
 
             feedback = "; ".join(feedback_parts)
         else:
-            print(f"   ⚠️  Max iterations reached")
+            print("   ⚠️  Max iterations reached")
 
     final = iterations_history[-1]
 
@@ -271,10 +271,10 @@ async def sequential_team_workflow():
         print(f"  Improvement: {improvement:+.2f}")
         print(f"  Score progression: {' → '.join([f'{s:.2f}' for s in result['scores']])}")
 
-    print(f"\n📊 Overall Metrics:")
+    print("\n📊 Overall Metrics:")
     print(f"  Total Iterations: {total_iterations}")
     print(f"  Agents: {len(team_results)}")
-    print(f"  Pattern: Sequential (Waterfall)")
+    print("  Pattern: Sequential (Waterfall)")
     print(f"  Coordination Events: {len(team_results) - 1} (each agent built on previous)")
 
     # Save output

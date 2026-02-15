@@ -17,7 +17,7 @@ MALLM-inspired decision protocols (Becker et al., EMNLP 2025):
 
 import logging
 from collections import defaultdict
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Tuple
 
 from .swarm_data_structures import ConsensusVote, SwarmDecision
 

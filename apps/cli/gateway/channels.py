@@ -13,7 +13,6 @@ Integrates with:
 """
 
 import asyncio
-import json
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -22,7 +21,7 @@ from typing import Any, Callable, Dict, List, Optional
 logger = logging.getLogger(__name__)
 
 # Absolute imports - single source of truth
-from Jotty.sdk import ChannelType, ExecutionContext, ExecutionMode, ResponseFormat
+from Jotty.sdk import ChannelType, ExecutionContext, ExecutionMode
 
 
 @dataclass

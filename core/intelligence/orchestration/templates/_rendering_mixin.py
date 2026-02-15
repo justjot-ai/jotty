@@ -7,13 +7,11 @@ to reduce file size.
 """
 
 import logging
-import os
 import shutil
 import subprocess
-import tempfile
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -244,7 +242,6 @@ window.addEventListener('scroll', () => {{
 
     def _build_html_document(self) -> str:
         """Build complete HTML document from section data and markdown content."""
-        import re
 
         title = self._metadata.get("title", "ML Analysis Report")
         subtitle = self._metadata.get("subtitle", "")
@@ -665,14 +662,13 @@ header-includes:
             import re
 
             from reportlab.lib import colors as rl_colors
-            from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+            from reportlab.lib.enums import TA_CENTER
             from reportlab.lib.pagesizes import letter
             from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
             from reportlab.lib.units import inch
             from reportlab.platypus import BaseDocTemplate, Frame
             from reportlab.platypus import Image as RLImage
             from reportlab.platypus import (
-                NextPageTemplate,
                 PageBreak,
                 PageTemplate,
                 Paragraph,

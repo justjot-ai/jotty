@@ -1,8 +1,7 @@
 """SkillOrchestrator mixin — model selection, hyperopt, and ensemble stages."""
 
 import logging
-import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict
 
 import numpy as np
 import pandas as pd
@@ -44,7 +43,6 @@ class ModelPipelineMixin:
             cross_val_predict,
             cross_val_score,
         )
-        from sklearn.preprocessing import StandardScaler
         from sklearn.svm import SVC, SVR
 
         n_samples, n_features = X.shape
@@ -200,7 +198,6 @@ class ModelPipelineMixin:
         from optuna.samplers import TPESampler
         from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
         from sklearn.model_selection import KFold, StratifiedKFold, cross_val_score
-        from sklearn.preprocessing import StandardScaler
 
         optuna.logging.set_verbosity(optuna.logging.WARNING)
 
@@ -449,10 +446,8 @@ class ModelPipelineMixin:
         from sklearn.model_selection import (
             KFold,
             StratifiedKFold,
-            cross_val_predict,
             cross_val_score,
         )
-        from sklearn.preprocessing import StandardScaler
 
         X_scaled = self._encode_categoricals_and_scale(X)
 
@@ -629,9 +624,6 @@ class ModelPipelineMixin:
                 HistGradientBoostingClassifier,
                 HistGradientBoostingRegressor,
             )
-            from sklearn.linear_model import RidgeClassifier
-            from sklearn.neural_network import MLPClassifier, MLPRegressor
-            from sklearn.svm import SVC, SVR
 
             # Layer 1: Diverse base models with different learning paradigms
             if problem_type == ProblemType.CLASSIFICATION:

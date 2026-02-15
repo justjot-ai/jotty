@@ -6,7 +6,7 @@ Follows DRY: Reuses existing UnifiedLMProvider system.
 """
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import dspy
 from dspy.clients.base_lm import BaseLM

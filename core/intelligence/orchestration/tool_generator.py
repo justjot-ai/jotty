@@ -844,7 +844,7 @@ class UnifiedToolGenerator:
                     filename=f"{display_name}.docx",
                     format="docx",
                     size=size_str,
-                    description=f"Word document created from your content",
+                    description="Word document created from your content",
                     preview=True,  # Enable preview via Google Docs Viewer
                 )
             return result
@@ -897,7 +897,7 @@ class UnifiedToolGenerator:
                     filename=f"{display_name}.pdf",
                     format="pdf",
                     size=size_str,
-                    description=f"PDF document ready for download",
+                    description="PDF document ready for download",
                     preview=True,  # Enable PDF preview
                 )
             return result

@@ -15,12 +15,11 @@ This module provides:
 
 import json
 import logging
-import re
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 # A-TEAM: Import accurate token counting
-from ..foundation.token_counter import count_tokens_accurate, estimate_tokens
+from ..foundation.token_counter import count_tokens_accurate
 
 # ============================================================================
 # ENHANCED LOGGING
@@ -95,7 +94,7 @@ class EnhancedLogger:
         self.logger.info(f"  Confidence: {confidence:.2f}")
         self.logger.info(f"\n  Full Reasoning ({self._count_tokens(reasoning)} tokens):")
         self.logger.info(f"    {reasoning}")
-        self.logger.info(f"\n  Validation Inputs:")
+        self.logger.info("\n  Validation Inputs:")
         for key, value in inputs.items():
             tokens = self._count_tokens(str(value))
             self.logger.info(f"    {key}: {tokens} tokens")
@@ -124,7 +123,7 @@ class EnhancedLogger:
         self.logger.info(f"\n MEMORY {operation.upper()}: {level}")
         self.logger.info(f"  Tokens: {tokens}")
         self.logger.info(f"  Metadata: {json.dumps(metadata, indent=2, default=str)}")
-        self.logger.info(f"  Content:")
+        self.logger.info("  Content:")
         self.logger.info(f"    {content}")
 
     def log_rl_update(
@@ -138,13 +137,13 @@ class EnhancedLogger:
         q_new: float,
     ) -> Any:
         """Log RL learning update"""
-        self.logger.info(f"\n RL UPDATE:")
+        self.logger.info("\n RL UPDATE:")
         self.logger.info(f"  Actor: {actor}")
         self.logger.info(f"  Action: {action}")
         self.logger.info(f"  Reward: {reward:.3f}")
         self.logger.info(f"  TD Error: {td_error:.3f}")
         self.logger.info(f"  Q-value: {q_old:.3f} → {q_new:.3f} (Δ {q_new-q_old:+.3f})")
-        self.logger.info(f"\n  State:")
+        self.logger.info("\n  State:")
         self.logger.info(f"    {json.dumps(state, indent=2, default=str)}")
 
     def log_context_building(
@@ -161,7 +160,7 @@ class EnhancedLogger:
 
         self.logger.info(f"  Total Budget: {total_budget} tokens")
         self.logger.info(f"  Final Size: {final_tokens} tokens")
-        self.logger.info(f"\n  Component Breakdown:")
+        self.logger.info("\n  Component Breakdown:")
 
         # Log actual components (not config values like 'per_agent_budget')
         if components:
@@ -169,7 +168,7 @@ class EnhancedLogger:
                 status = "OK" if actual_tokens <= total_budget else "OVER"
                 self.logger.info(f"    {comp_name}: {actual_tokens} tokens {status}")
         else:
-            self.logger.info(f"    No component breakdown available")
+            self.logger.info("    No component breakdown available")
 
     def _count_tokens(self, text: str) -> int:
         """

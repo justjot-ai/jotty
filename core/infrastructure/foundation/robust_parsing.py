@@ -16,7 +16,7 @@ Generic enough for any agentic system.
 import json
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 

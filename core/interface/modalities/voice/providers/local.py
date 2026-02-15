@@ -8,7 +8,6 @@ No external API calls - full privacy.
 
 import base64
 import logging
-import os
 import subprocess
 import tempfile
 from pathlib import Path

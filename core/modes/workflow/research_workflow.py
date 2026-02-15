@@ -296,7 +296,7 @@ Use proper academic citations (APA format).""",
             ),
             "bibliography": (
                 "Bibliographer",
-                f"""Compile comprehensive bibliography.
+                """Compile comprehensive bibliography.
 
 Format all sources in APA citation format.
 Organize by:
@@ -480,7 +480,7 @@ Justify all forecasts with data.""",
             # Cross-cutting stages
             "visualization": (
                 "Data Visualizer",
-                f"""Create data visualizations.
+                """Create data visualizations.
 
 Based on all research data, create:
 1. Key Charts (3-5)
@@ -512,7 +512,7 @@ Professional quality, publication-ready.""",
             ),
             "summary": (
                 "Summarizer",
-                f"""Create executive summary.
+                """Create executive summary.
 
 Distill all research into:
 1. Key Findings (5-7 bullets)
@@ -716,7 +716,6 @@ Maximum 500 words, extremely clear and actionable.""",
 
         # Save markdown content to file
         import os
-        import tempfile
         from pathlib import Path
 
         output_path = Path(output_dir or os.path.expanduser("~/jotty/outputs"))

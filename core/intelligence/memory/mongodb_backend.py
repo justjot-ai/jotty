@@ -22,7 +22,7 @@ backend.save()  # Persist to MongoDB
 
 import logging
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from pymongo import ASCENDING, DESCENDING, TEXT, MongoClient

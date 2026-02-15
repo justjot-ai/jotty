@@ -6,7 +6,7 @@ This bridges Conductor (needs AgentConfig) and AutoAgent (executes skills).
 """
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 try:
     import dspy

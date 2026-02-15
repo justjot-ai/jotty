@@ -15,13 +15,12 @@ Automatically injects current date/time context to all LLM calls.
 import logging
 import os
 from datetime import datetime
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import dspy
 from dspy.clients.base_lm import BaseLM
 
-from Jotty.core.infrastructure.foundation.exceptions import InputValidationError, InvalidConfigError
+from Jotty.core.infrastructure.foundation.exceptions import InvalidConfigError
 
 logger = logging.getLogger(__name__)
 

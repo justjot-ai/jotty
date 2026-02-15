@@ -32,18 +32,16 @@ Usage:
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import dspy
 
 from .ateam_presets import (
     ATeamPreset,
-    build_custom_team,
     get_preset_config,
-    get_preset_config_by_name,
     get_preset_experts,
 )
-from .ateam_roster import Expert, ExpertDomain, get_all_experts, get_experts_by_names
+from .ateam_roster import Expert, get_all_experts, get_experts_by_names
 from .debate_manager import ConsensusResult, DebateManager
 
 logger = logging.getLogger(__name__)
@@ -226,7 +224,7 @@ class ATeamConductor:
         # Actual selection happens in generate_task()
         experts = get_all_experts()
 
-        logger.info(f" Creating conductor with auto-selection")
+        logger.info(" Creating conductor with auto-selection")
         logger.info(f"   Available: {len(experts)} experts")
 
         return cls(
@@ -292,7 +290,7 @@ class ATeamConductor:
             mode=self.mode,
         )
 
-        logger.info(f" Task generation complete!")
+        logger.info(" Task generation complete!")
         logger.info(f"   Rounds: {result.total_rounds}")
         logger.info(f"   Consensus: {result.consensus_reached}")
 
@@ -304,7 +302,7 @@ class ATeamConductor:
 
         Uses DSPy to analyze task and choose relevant experts.
         """
-        logger.info(f" Auto-selecting experts for task...")
+        logger.info(" Auto-selecting experts for task...")
 
         # Format available experts for LLM
         import json

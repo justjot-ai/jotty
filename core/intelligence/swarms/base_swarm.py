@@ -41,10 +41,9 @@ import asyncio
 import json
 import logging
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -62,15 +61,12 @@ from .improvement_agents import (
     PlannerAgent,
     ReviewerAgent,
 )
-from .registry import SwarmRegistry, register_swarm
 from .swarm_types import (
     AgentRole,
     Evaluation,
     EvaluationResult,
     ExecutionTrace,
     GoldStandard,
-    ImprovementSuggestion,
-    ImprovementType,
     SwarmAgentConfig,
     SwarmBaseConfig,
     SwarmResult,
@@ -172,7 +168,6 @@ class BaseSwarm(SwarmLearningMixin, ABC):
         # Initialize shared resources (use self.config's jotty_config if available,
         # otherwise create a default — but avoid creating multiple independent configs)
         try:
-            from Jotty.core.infrastructure.foundation.data_structures import SwarmLearningConfig
 
             from ..agent.dag_agents import SwarmResources
 
@@ -632,7 +627,7 @@ class BaseSwarm(SwarmLearningMixin, ABC):
             else:
                 result = EvaluationResult.POOR
 
-            feedback.append(f"[Rule-based evaluation — no LLM available]")
+            feedback.append("[Rule-based evaluation — no LLM available]")
 
             return Evaluation(
                 gold_standard_id=gold_standard.id if hasattr(gold_standard, "id") else "unknown",

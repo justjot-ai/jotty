@@ -77,7 +77,7 @@ def configure_llm():
         if hasattr(dspy.settings, "lm") and dspy.settings.lm is not None:
             print(f"✅ DSPy already configured with: {type(dspy.settings.lm).__name__}")
             return True
-    except:
+    except (AttributeError, TypeError):
         pass
 
     print("❌ Could not configure LLM")

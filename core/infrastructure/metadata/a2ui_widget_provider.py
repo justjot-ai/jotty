@@ -90,12 +90,11 @@ agent = dspy.ReAct(ChatSignature, tools=provider.get_tools())
 import json
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional
 
 from .base_metadata_provider import BaseMetadataProvider
 from .widget_params_schema import (
     WidgetParamSchema,
-    generate_param_docstring,
     generate_tool_examples,
 )
 
@@ -322,7 +321,7 @@ class A2UIWidgetProvider(BaseMetadataProvider):
             "Divider",
         }
 
-        logger.info(f" A2UIWidgetProvider initialized")
+        logger.info(" A2UIWidgetProvider initialized")
         logger.info(f"   Widget catalog: {len(self._widget_catalog)} widgets")
         logger.info(f" Data provider: {'' if data_provider_fn else ''}")
         logger.info(f"   Caching: {'enabled' if enable_caching else 'disabled'}")

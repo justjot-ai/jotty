@@ -7,7 +7,6 @@ Follows DRY: Reuses existing code templates and patterns.
 """
 
 import logging
-import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 

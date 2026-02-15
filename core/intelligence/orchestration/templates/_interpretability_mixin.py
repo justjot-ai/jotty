@@ -10,13 +10,12 @@ to keep the main class focused and maintainable.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List
 
 import numpy as np
-import pandas as pd
 
 if TYPE_CHECKING:
-    from .ml_report_generator import ReportContext
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -482,7 +481,7 @@ Local explanations showing why the model makes specific predictions.
                 contribs_str = ", ".join([f"{f[:15]}={w:+.3f}" for f, w in top_contribs])
                 content += f"| #{exp['sample_idx']} | {exp['predicted']} | {exp['confidence']:.4f} | {contribs_str} |\n"
 
-            content += f"""
+            content += """
 ## Least Confident Predictions
 
 | Sample | Predicted | Confidence | Top Contributing Features |
@@ -548,7 +547,7 @@ What minimal changes would flip the prediction? (Generated {len(all_counterfactu
 
             # Feature Interactions subsection (SHAP interaction values)
             if interaction_data:
-                content += f"""## Feature Interactions (SHAP)
+                content += """## Feature Interactions (SHAP)
 
 Top feature interaction pairs detected via SHAP interaction values:
 

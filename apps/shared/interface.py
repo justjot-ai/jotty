@@ -6,8 +6,7 @@ Platform-agnostic interfaces that all renderers must implement.
 """
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from typing import Any, AsyncIterator, Callable, List, Optional
+from typing import Any, Callable, List, Optional
 
 from .models import ChatSession, Error, Message, Status
 from .state import ChatState, ChatStateMachine

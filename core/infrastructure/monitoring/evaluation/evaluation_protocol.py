@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from .benchmark import Benchmark, BenchmarkMetrics, BenchmarkResult
+from .benchmark import Benchmark, BenchmarkMetrics
 from .reproducibility import ReproducibilityConfig, set_reproducible_seeds
 
 logger = logging.getLogger(__name__)

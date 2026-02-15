@@ -13,13 +13,11 @@ Key Features:
 Uses Jotty's unified LLM interface (DSPy BaseLM) for generation.
 """
 
-import json
 import logging
 import os
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-import dspy
 from dspy.clients.base_lm import BaseLM
 
 logger = logging.getLogger(__name__)

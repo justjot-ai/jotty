@@ -10,13 +10,13 @@ drift scoring.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List
 
 import numpy as np
 import pandas as pd
 
 if TYPE_CHECKING:
-    from .ml_report_generator import ReportContext
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -314,7 +314,6 @@ class DriftMixin:
             y_current: Current target for concept drift detection
         """
         try:
-            from scipy.spatial.distance import jensenshannon
             from scipy.stats import ks_2samp
 
             # Preserve DataFrame info before converting
@@ -446,7 +445,7 @@ Monitoring for distribution shift between reference (training) and current (prod
             # Categorical drift section
             if categorical_results:
                 n_cat_alert = sum(1 for r in categorical_results if r.get("status") == "ALERT")
-                content += f"""## Categorical Feature Drift
+                content += """## Categorical Feature Drift
 
 | Feature | Chi-squared | p-value | Cramer's V | Status |
 |---------|------------|---------|-----------|--------|

@@ -5,7 +5,6 @@ Uses TaskPlanner for task type inference (no hardcoded keyword matching).
 """
 
 from dataclasses import dataclass, field
-from enum import Enum
 from typing import Any, Dict, List, Optional
 
 # Shared types (no circular dependency)

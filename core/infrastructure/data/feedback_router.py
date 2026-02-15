@@ -20,8 +20,7 @@ The swarm ITSELF decides feedback routing based on:
 
 import json
 import logging
-from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List
 
 import dspy
 
@@ -109,7 +108,7 @@ class AgenticFeedbackRouter:
         # Parse target agents
         target_agents = self._parse_target_agents_json(result.target_agents)
 
-        logger.info(f" Agentic routing decision:")
+        logger.info(" Agentic routing decision:")
         logger.info(f"   Target agents: {target_agents}")
         logger.info(f"   Feedback type: {result.feedback_type}")
         logger.info(f"   Reasoning: {result.reasoning}")

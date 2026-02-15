@@ -9,7 +9,7 @@ Maps stage types to actual Jotty swarms with best practices built-in.
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Dict, List, Optional
 
 
 class StageType(Enum):

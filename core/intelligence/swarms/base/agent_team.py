@@ -36,7 +36,7 @@ import asyncio
 import logging
 import re
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Type, Union
+from typing import Any, Dict, List, Optional, Type
 
 # Canonical definitions live in foundation — single source of truth
 from Jotty.core.infrastructure.foundation.types.execution_types import (

@@ -14,7 +14,7 @@ Usage:
 import asyncio
 import logging
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any
 
 from .base import BaseCommand, CommandResult, ParsedArgs
 
@@ -236,7 +236,6 @@ Test the SDK client with real-time event visualization.
 
             # Event callback for status updates
             def chat_event_callback(event: Any) -> Any:
-                import sys
                 import time
 
                 event_type = event.type.value if hasattr(event.type, "value") else str(event.type)
@@ -278,7 +277,7 @@ Test the SDK client with real-time event visualization.
 
                 # Handle planning event
                 if event_type == "planning":
-                    print(f"\033[90m Planning execution...\033[0m", flush=True)
+                    print("\033[90m Planning execution...\033[0m", flush=True)
                     return
 
                 # Handle skill events
@@ -467,13 +466,13 @@ Test the SDK client with real-time event visualization.
                     elif "search" in status.lower():
                         if _last_status[0] != "search":
                             _last_status[0] = "search"
-                            print(f"\033[90m Searching the web...\033[0m")
+                            print("\033[90m Searching the web...\033[0m")
                     return
 
                 if not self._show_events:
                     return
                 if event_type == "error":
-                    print(f" Something went wrong. Please try again.")
+                    print(" Something went wrong. Please try again.")
 
             for event_type in SDKEventType:
                 client.on(event_type, chat_event_callback)
@@ -618,7 +617,6 @@ Test the SDK client with real-time event visualization.
         self, cli: Any, client: Any, message: str, history: list
     ) -> Any:
         """Process a single chat message with status updates."""
-        import sys
 
         # Add user message to history
         history.append({"role": "user", "content": message})
@@ -740,7 +738,6 @@ Test the SDK client with real-time event visualization.
         cli.renderer.print(f"[dim]Message: {message}[/dim]\n")
 
         try:
-            from Jotty.sdk import SDKEventType
 
             from ...sdk.client import Jotty
 
@@ -786,17 +783,17 @@ Test the SDK client with real-time event visualization.
                         if status in ("Decision", "Generated", "Preparing") or "=" in status:
                             continue
                         if "search" in status.lower() or status == "Searching":
-                            cli.renderer.print(f" [] Searching the web...")
+                            cli.renderer.print(" [] Searching the web...")
                         elif status == "Analyzing":
-                            cli.renderer.print(f" [] Analyzing...")
+                            cli.renderer.print(" [] Analyzing...")
                         elif status == "Generating":
-                            cli.renderer.print(f" [] Crafting response...")
+                            cli.renderer.print(" [] Crafting response...")
                         elif status == "Processing":
-                            cli.renderer.print(f" [] Processing...")
+                            cli.renderer.print(" [] Processing...")
                         elif status == "Retrying":
-                            cli.renderer.print(f" [] Refining response...")
+                            cli.renderer.print(" [] Refining response...")
                         elif status == "Thinking":
-                            cli.renderer.print(f" [] Thinking...")
+                            cli.renderer.print(" [] Thinking...")
                 elif event_type in ("skill_start", "skill_complete"):
                     # Show skill events if enabled
                     if self._show_events and event.data and isinstance(event.data, dict):
@@ -858,7 +855,7 @@ Test the SDK client with real-time event visualization.
             cli.renderer.newline()
             if response.success:
                 cli.renderer.success(f"Skill completed in {elapsed:.2f}s")
-                cli.renderer.print(f"\n[dim]Result:[/dim]")
+                cli.renderer.print("\n[dim]Result:[/dim]")
                 cli.renderer.markdown(str(response.content))
             else:
                 cli.renderer.error(f"Skill failed: {response.error}")

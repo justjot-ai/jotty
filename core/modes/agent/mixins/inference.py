@@ -3,7 +3,7 @@
 import json
 import logging
 from enum import IntEnum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, List, Tuple
 
 from ..types.execution_types import TaskType
 
@@ -51,7 +51,6 @@ class InferenceMixin:
             return cached
 
         try:
-            import asyncio
             import re
 
             import dspy
@@ -94,7 +93,7 @@ class InferenceMixin:
                     for w in ["create", "build", "make", "write", "generate", "implement"]
                 ):
                     task_type = TaskType.CREATION
-                    logger.info(f"Overriding 'unknown' to 'creation' based on keywords")
+                    logger.info("Overriding 'unknown' to 'creation' based on keywords")
 
             # Parse confidence
             try:
@@ -215,7 +214,6 @@ class InferenceMixin:
         default_capabilities = ["analyze"]
 
         try:
-            import dspy
 
             # Clean task for inference
             task_for_inference = self._abstract_task_for_planning(task)

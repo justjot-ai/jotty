@@ -9,13 +9,12 @@ generate fairness radar charts. Designed to be mixed into ProfessionalMLReport.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List
 
 import numpy as np
-import pandas as pd
 
 if TYPE_CHECKING:
-    from .ml_report_generator import ReportContext
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +64,7 @@ class FairnessMixin:
             y_pred_arr = preds.y_pred
             y_prob_arr = preds.y_prob
 
-            content = f"""
+            content = """
 # Fairness & Bias Audit
 
 Evaluating model fairness across sensitive demographic features using multiple

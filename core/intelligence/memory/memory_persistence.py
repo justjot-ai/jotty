@@ -9,12 +9,11 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Optional
 
 from Jotty.core.infrastructure.foundation.data_structures import (
     MemoryEntry,
     MemoryLevel,
-    SwarmConfig,
 )
 
 from .cortex import SwarmMemory

@@ -14,12 +14,11 @@ The chunker UNDERSTANDS the content structure!
 """
 
 import logging
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List
 
 import dspy
 
 from ..utils.tokenizer import SmartTokenizer
-from . import utils as ctx_utils
 
 logger = logging.getLogger(__name__)
 
@@ -116,7 +115,7 @@ class ContextChunker:
                 max_chunk_size=str(max_chunk_size),
             )
 
-        logger.info(f" Chunking plan:")
+        logger.info(" Chunking plan:")
         logger.info(f"   Num chunks: {chunk_plan.num_chunks}")
         logger.info(f"   Chunk overlap: {chunk_plan.chunk_overlap}")
         logger.info(f"   Strategy: {chunk_plan.processing_strategy}")

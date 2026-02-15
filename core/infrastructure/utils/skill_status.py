@@ -23,7 +23,7 @@ Usage in a skill's tools.py:
 """
 
 import logging
-from typing import Any, Callable, Optional
+from typing import Callable, Optional
 
 logger = logging.getLogger(__name__)
 

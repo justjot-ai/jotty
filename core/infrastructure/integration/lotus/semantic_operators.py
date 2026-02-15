@@ -16,16 +16,15 @@ All operators automatically apply:
 DRY: Operators compose together and reuse core optimization components.
 """
 
-import asyncio
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, Generic, List, Optional, Tuple, TypeVar, Union
+from typing import Any, Dict, List, Optional, Tuple, TypeVar, Union
 
 import pandas as pd
 
-from .batch_executor import BatchExecutor, ParallelBatchExecutor
-from .config import LotusConfig, ModelTier
+from .batch_executor import BatchExecutor
+from .config import LotusConfig
 from .model_cascade import ModelCascade
 from .semantic_cache import SemanticCache
 

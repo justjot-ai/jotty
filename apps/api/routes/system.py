@@ -2,19 +2,17 @@
 System routes - health, capabilities, models, agents, providers, commands, features, static.
 """
 
-import asyncio
-import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
 
 def register_system_routes(app, api):
-    from fastapi import File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
-    from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
+    from fastapi import HTTPException
+    from fastapi.responses import FileResponse
     from pydantic import BaseModel
 
     static_dir = Path(__file__).parent / "static"

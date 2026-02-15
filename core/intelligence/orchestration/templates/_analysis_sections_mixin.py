@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -335,7 +335,6 @@ Evaluating model generalization across {len(results)} different datasets.
     ) -> None:
         """Add SHAP analysis section."""
         try:
-            import shap
 
             # Calculate mean absolute SHAP values
             if hasattr(shap_values, "values"):
@@ -875,7 +874,7 @@ These charts help evaluate model effectiveness for targeted campaigns and priori
         - Stability analysis
         """
         try:
-            from sklearn.model_selection import cross_val_score, cross_validate
+            from sklearn.model_selection import cross_validate
 
             # Multiple metrics
             scoring = ["accuracy", "precision_macro", "recall_macro", "f1_macro"]
@@ -967,7 +966,6 @@ These charts help evaluate model effectiveness for targeted campaigns and priori
         - Force plot for sample predictions
         """
         try:
-            import shap
 
             # Extract values
             if hasattr(shap_values, "values"):
@@ -1011,7 +1009,7 @@ These charts help evaluate model effectiveness for targeted campaigns and priori
             except Exception as e:
                 self._record_chart_failure("shap_waterfall", e)
 
-            content = f"""
+            content = """
 # SHAP Deep Analysis
 
 SHAP (SHapley Additive exPlanations) provides consistent, locally accurate feature attributions
@@ -1109,7 +1107,7 @@ Shows how features contribute to a single prediction.
                 )
                 return
 
-            from sklearn.metrics import confusion_matrix, f1_score, precision_recall_curve
+            from sklearn.metrics import confusion_matrix
 
             # Ensure 1D probabilities
             prob_1d = preds.y_prob if preds.y_prob.ndim == 1 else preds.y_prob[:, 1]
@@ -1322,7 +1320,6 @@ Analysis of {len(trials)} hyperparameter trials exploring {len(param_names)} par
         - Color-coded: green (>0.9), yellow (0.7-0.9), red (<0.7)
         """
         try:
-            import matplotlib.pyplot as plt
 
             # Standardize metric names
             kpi_map = {
@@ -1844,7 +1841,6 @@ values are randomly shuffled, breaking the relationship with the target.
         - Top N features from permutation importance or native importance
         """
         try:
-            from sklearn.inspection import partial_dependence
 
             if feature_names is None:
                 feature_names = (
@@ -1917,7 +1913,7 @@ averaging over the values of all other features.
         - Histogram of bootstrap AUC distribution with CI bands
         """
         try:
-            from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
+            from sklearn.metrics import accuracy_score
 
             preds = self._make_predictions(y_true, y_pred, y_prob)
 
@@ -2072,7 +2068,7 @@ Bootstrap resampling provides robust confidence intervals for model performance 
             except Exception as e:
                 self._record_chart_failure("score_distribution", e)
 
-            content = f"""
+            content = """
 # Score Distribution by Class
 
 Analyzing how predicted probabilities are distributed across actual classes

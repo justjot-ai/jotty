@@ -7,9 +7,7 @@ Uses mermaid.ink API to validate Mermaid diagrams by actually rendering them.
 import base64
 import json
 import re
-import urllib.parse
-import urllib.request
-from typing import Dict, Optional, Tuple
+from typing import Dict, Tuple
 
 
 def clean_mermaid_code(mermaid_code: str) -> str:
@@ -126,14 +124,14 @@ def validate_via_renderer(mermaid_code: str, timeout: int = 3) -> Tuple[bool, st
                     )
                 )
                 if has_valid_structure:
-                    return True, f"Valid (large diagram, structure check)", metadata
+                    return True, "Valid (large diagram, structure check)", metadata
                 return False, f"POST HTTP {e.code}: {e.reason}", metadata
             return False, f"POST HTTP {e.code}: {e.reason}", metadata
         except Exception as e:
             # If POST fails, fall back to structure-based validation for large diagrams
             has_valid_structure = diagram_type != "unknown" and metadata["lines"] > 0
             if has_valid_structure:
-                return True, f"Valid (large diagram, structure check)", metadata
+                return True, "Valid (large diagram, structure check)", metadata
             return False, f"POST error: {str(e)[:100]}", metadata
 
     # For smaller diagrams, use GET request (original method)

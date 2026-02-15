@@ -10,7 +10,6 @@ Generates comprehensive profiling reports with:
 """
 
 import json
-import time
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
@@ -120,7 +119,7 @@ class ProfilingReport:
         timeline = "Timeline: |" + "-" * chart_width + "|"
         lines.append(timeline)
 
-        time_markers = f"          0s"
+        time_markers = "          0s"
         for i in range(1, 5):
             pos = int(chart_width * i / 4)
             marker_time = f"{total_duration * i / 4:.1f}s"

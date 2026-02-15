@@ -19,7 +19,6 @@ from typing import TYPE_CHECKING, Any, Dict, Optional, Union
 
 if TYPE_CHECKING:
     from Jotty.core.infrastructure.foundation.configs import MemoryConfig
-    from Jotty.core.infrastructure.foundation.data_structures import SwarmLearningConfig
     from Jotty.core.intelligence.memory.consolidation_engine import SharpWaveRippleConsolidator
     from Jotty.core.intelligence.memory.llm_rag import LLMRAGRetriever
     from Jotty.core.intelligence.memory.memory_orchestrator import BrainInspiredMemoryManager
@@ -38,14 +37,12 @@ def _resolve_memory_config(config: Any) -> "SwarmConfig":
         - SwarmConfig → pass through
     """
     if config is None:
-        from Jotty.core.infrastructure.foundation.data_structures import SwarmLearningConfig
 
         return SwarmConfig()
 
     from Jotty.core.infrastructure.foundation.configs.memory import MemoryConfig
 
     if isinstance(config, MemoryConfig):
-        from Jotty.core.infrastructure.foundation.data_structures import SwarmLearningConfig
 
         return SwarmConfig.from_configs(memory=config)
 

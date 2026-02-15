@@ -4,16 +4,15 @@ Edit Mixin - Code editing pipeline with test-driven refinement.
 
 import asyncio
 import logging
-import os
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import dspy
 
 from . import utils as _coding_utils
 from .agents import CodebaseAnalyzerAgent, EditPlannerAgent
 from .signatures import TestFailureRefinementSignature
-from .types import CodeOutput, CodingConfig, CodingResult
+from .types import CodeOutput, CodingResult
 from .utils import _progress, _stream_call, _strip_code_fences
 from .workspace import WorkspaceManager
 

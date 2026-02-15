@@ -10,11 +10,10 @@ Implements:
 3. Improvement Prioritization: Rank improvements by credit scores
 """
 
-import json
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 

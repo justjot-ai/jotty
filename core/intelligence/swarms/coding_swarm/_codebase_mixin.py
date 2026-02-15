@@ -3,9 +3,6 @@ Codebase Mixin - File discovery, diffing, git, and test utilities.
 """
 
 import logging
-import os
-import re
-import subprocess
 from typing import Any, Dict, List, Optional
 
 from .types import CodeLanguage
@@ -25,7 +22,6 @@ class CodebaseMixin:
         Returns:
             Dict of {filepath: content} for discovered files
         """
-        import fnmatch
         import os
 
         if extensions is None:

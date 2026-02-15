@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional
 
 import dspy
 
-from Jotty.core.modes.agent.base import BaseSwarmAgent, DomainAgent, DomainAgentConfig
+from Jotty.core.modes.agent.base import BaseSwarmAgent
 
 from .signatures import (
     ConceptExtractionSignature,
@@ -21,14 +21,8 @@ from .signatures import (
     UnifiedConceptLearningSignature,
 )
 from .types import (
-    AudienceLevel,
     Concept,
-    ContentStyle,
-    LearningContent,
-    LearningDepth,
-    LearningSection,
     PaperInfo,
-    format_steps_on_newlines,
 )
 
 # Import LOTUS
@@ -771,7 +765,7 @@ class UnifiedLearningAgent(BaseSwarmAgent):
                 sections.append(f"\n **{celebration_word}!** {cr['aha_moment']}\n")
 
             if cr.get("math_motivation") or cr.get("math_steps"):
-                sections.append(f"\n### The Mathematics\n")
+                sections.append("\n### The Mathematics\n")
                 if cr.get("math_motivation"):
                     sections.append(f"\n{cr['math_motivation']}\n")
                 if cr.get("math_steps"):

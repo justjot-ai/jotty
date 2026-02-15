@@ -3,21 +3,15 @@
 import json
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
 import dspy
 
 from Jotty.core.infrastructure.foundation.data_structures import (
-    CausalLink,
-    GoalHierarchy,
-    GoalNode,
-    GoalValue,
     MemoryEntry,
     MemoryLevel,
-    StoredEpisode,
-    SwarmConfig,
 )
 
 # =============================================================================
@@ -468,7 +462,7 @@ class MemoryLevelClassifier:
         """
         from Jotty.core.infrastructure.foundation.config_defaults import MAX_RETRIES
 
-        from .modern_agents import PatternDetector, UniversalRetryHandler
+        from .modern_agents import UniversalRetryHandler
 
         retry_handler = UniversalRetryHandler(max_retries=MAX_RETRIES)
 

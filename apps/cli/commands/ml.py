@@ -21,7 +21,6 @@ MLflow Integration:
     /ml titanic --mlflow --experiment myexp # Custom experiment name
 """
 
-import asyncio
 import json
 import os
 import warnings
@@ -200,8 +199,6 @@ class MLCommand(BaseCommand):
 
     async def execute(self, args: ParsedArgs, cli: "JottyCLI") -> CommandResult:
         """Execute ML pipeline."""
-        import numpy as np
-        import pandas as pd
 
         # Check for leaderboard flag
         if "leaderboard" in args.flags or "lb" in args.flags:
@@ -231,7 +228,7 @@ class MLCommand(BaseCommand):
 
         # Load from database if query provided
         if query:
-            cli.renderer.info(f"Loading from database query...")
+            cli.renderer.info("Loading from database query...")
             try:
                 X, y, target_name = await self._load_from_database(
                     query=query,
@@ -394,7 +391,6 @@ class MLCommand(BaseCommand):
 
     async def _load_dataset(self, dataset: str, target_col: Optional[str], cli: "JottyCLI") -> Any:
         """Load dataset from various sources."""
-        import numpy as np
         import pandas as pd
 
         dataset_lower = dataset.lower()
@@ -505,8 +501,8 @@ class MLCommand(BaseCommand):
             cli.renderer.info("Available datasets:")
             cli.renderer.info(f"  Seaborn: {', '.join(self.SEABORN_DATASETS)}")
             cli.renderer.info(f"  Sklearn: {', '.join(self.SKLEARN_DATASETS)}")
-            cli.renderer.info(f"  Files: .csv, .parquet, .json, .xlsx")
-            cli.renderer.info(f"  Database: --query 'SQL' --connection pg --target col")
+            cli.renderer.info("  Files: .csv, .parquet, .json, .xlsx")
+            cli.renderer.info("  Database: --query 'SQL' --connection pg --target col")
             return None, None, None
 
         # Prepare X, y
@@ -544,14 +540,13 @@ class MLCommand(BaseCommand):
         """Run the full SwarmML pipeline with optional MLflow tracking."""
         import warnings
 
-        import numpy as np
         import pandas as pd
 
         # Suppress all sklearn/lightgbm feature name warnings
         warnings.filterwarnings("ignore", category=UserWarning)
         warnings.filterwarnings("ignore", message=".*feature names.*")
 
-        from sklearn.model_selection import KFold, StratifiedKFold, cross_val_score
+        from sklearn.model_selection import KFold, StratifiedKFold
 
         # Import skills
         from Jotty.core.capabilities.skills.ml import (
@@ -720,7 +715,7 @@ class MLCommand(BaseCommand):
                 best_score = iteration_score
                 best_iteration = iteration + 1
                 best_model = ens_result.data
-                cli.renderer.success(f"  NEW BEST!")
+                cli.renderer.success("  NEW BEST!")
 
         # Final summary with tables
         cli.renderer.info("")

@@ -15,7 +15,6 @@ High surprise events are RARE and VALUABLE for learning.
 Low surprise events are COMMON and should be stored compactly.
 """
 
-import asyncio
 import hashlib
 import json
 import logging
@@ -23,7 +22,7 @@ import math
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 try:
     import dspy

@@ -6,7 +6,7 @@ back into DSPy modules so they can be used in future runs.
 """
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 try:
     import dspy

@@ -19,8 +19,7 @@ import json
 import logging
 import math
 import re
-from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Tuple
 
 from ..utils.tokenizer import SmartTokenizer
 from . import utils as ctx_utils

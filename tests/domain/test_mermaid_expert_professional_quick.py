@@ -37,7 +37,7 @@ def configure_llm():
             dspy.configure(lm=lm)
             print("✅ Configured with Claude CLI")
             return True
-    except:
+    except Exception:
         pass
 
     if os.getenv("ANTHROPIC_API_KEY"):
@@ -46,7 +46,7 @@ def configure_llm():
             dspy.configure(lm=lm)
             print("✅ Configured with Claude API")
             return True
-        except:
+        except Exception:
             pass
 
     return False

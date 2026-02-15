@@ -8,19 +8,15 @@ These are mixed into SwarmIntelligence at class definition.
 import hashlib
 import logging
 import time
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 from ..swarm_data_structures import (
     AgentProfile,
-    AgentSession,
-    AgentSpecialization,
     AuctionBid,
     Coalition,
-    ConsensusVote,
     GossipMessage,
     HandoffContext,
     SupervisorNode,
-    SwarmDecision,
 )
 
 logger = logging.getLogger(__name__)
@@ -156,7 +152,6 @@ class CoordinationMixin:
             return
 
         self.supervisor_tree.clear()
-        import math
 
         # Level 0: All agents as leaves
         level = 0
@@ -631,7 +626,6 @@ class CoordinationMixin:
         # 5. No double-booking (agents can only join one coalition at a time)
         # =====================================================================
 
-        import random
 
         # STEP 1: Filter available agents (not in other coalitions)
         available = [a for a in self.agent_profiles.keys() if a not in self.agent_coalitions]

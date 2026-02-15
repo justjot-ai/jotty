@@ -498,9 +498,7 @@ class WorkflowCommand(BaseCommand):
 
     async def _start_api_server(self, cli: "JottyCLI", flags: dict) -> CommandResult:
         """Start the Jotty API server for n8n integration (runs in background)."""
-        import os
         import socket
-        import subprocess
 
         host = flags.get("host", "0.0.0.0")
         port = int(flags.get("port", 8765))
@@ -514,8 +512,8 @@ class WorkflowCommand(BaseCommand):
         except OSError:
             cli.renderer.error(f"Port {port} is already in use!")
             cli.renderer.info("Options:")
-            cli.renderer.info(f"  1. Kill existing: /workflow server stop")
-            cli.renderer.info(f"  2. Use different port: /workflow server --port 8766")
+            cli.renderer.info("  1. Kill existing: /workflow server stop")
+            cli.renderer.info("  2. Use different port: /workflow server --port 8766")
             return CommandResult.fail(f"Port {port} in use")
 
         if foreground:

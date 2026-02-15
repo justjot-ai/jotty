@@ -23,7 +23,7 @@ from typing import Any, Callable, Dict, List, Union
 import dspy
 import yaml
 
-from ..foundation.data_structures import SwarmConfig, SwarmLearningConfig
+from ..foundation.data_structures import SwarmConfig
 from .framework_decorators import ContextGuard
 
 # =============================================================================

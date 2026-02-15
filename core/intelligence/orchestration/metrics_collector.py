@@ -18,11 +18,10 @@ SwarmIntelligence state.
 """
 
 import logging
-import math
 import time
-from collections import defaultdict, deque
+from collections import deque
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List
 
 logger = logging.getLogger(__name__)
 
@@ -357,7 +356,7 @@ class MetricsCollector:
             "# MAS Metrics Report",
             "=" * 50,
             "",
-            f"## Overview",
+            "## Overview",
             f"  Tasks: {report['total_tasks']}",
             f"  Success Rate: {report['success_rate']:.1%}",
             f"  Avg Duration: {report['avg_duration']:.2f}s",
@@ -387,7 +386,7 @@ class MetricsCollector:
             for cat, count in report["errors"]["by_category"].items():
                 lines.append(f"  {cat}: {count}")
 
-        lines.append(f"\n## Learning")
+        lines.append("\n## Learning")
         lines.append(f"  Avg TD Error: {report['learning']['avg_td_error']:.4f}")
         lines.append(f"  Converging: {'Yes' if report['learning']['converging'] else 'No'}")
         lines.append(f"  Total Updates: {report['learning']['total_updates']}")

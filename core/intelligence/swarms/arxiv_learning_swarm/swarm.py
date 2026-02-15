@@ -11,14 +11,9 @@ import dspy
 from ..base import AgentTeam, DomainSwarm
 from ..base_swarm import (
     AgentRole,
-    BaseSwarm,
-    ExecutionTrace,
-    SwarmBaseConfig,
-    SwarmResult,
     register_swarm,
 )
 from .agents import (
-    BaseSwarmAgent,
     ConceptExtractorAgent,
     ContentPolisherAgent,
     ExampleGeneratorAgent,
@@ -451,7 +446,7 @@ class ArxivLearningSwarm(DomainSwarm):
         if config.use_swarm_cache:
             unified_result = self._get_cached(content_cache_key)
             if unified_result:
-                logger.info(f" Loaded parallel deep content from cache")
+                logger.info(" Loaded parallel deep content from cache")
 
         if not unified_result:
             unified_result = await executor.run_phase(
@@ -497,7 +492,7 @@ class ArxivLearningSwarm(DomainSwarm):
         if config.use_swarm_cache:
             unified_result = self._get_cached(content_cache_key)
             if unified_result:
-                logger.info(f" Loaded unified content from cache")
+                logger.info(" Loaded unified content from cache")
 
         if not unified_result:
             unified_result = await executor.run_phase(
@@ -1332,7 +1327,7 @@ class ArxivLearningSwarm(DomainSwarm):
                 )
 
                 if file_result.get("success"):
-                    logger.info(f" Sent Learning PDF to Telegram")
+                    logger.info(" Sent Learning PDF to Telegram")
                 else:
                     logger.error(f" Learning PDF send failed: {file_result.get('error')}")
 
@@ -1349,7 +1344,7 @@ class ArxivLearningSwarm(DomainSwarm):
                 )
 
                 if file_result.get("success"):
-                    logger.info(f" Sent Presentation PDF to Telegram")
+                    logger.info(" Sent Presentation PDF to Telegram")
                 else:
                     logger.error(f" Presentation PDF send failed: {file_result.get('error')}")
             elif has_pptx:
@@ -1362,7 +1357,7 @@ class ArxivLearningSwarm(DomainSwarm):
                 )
 
                 if file_result.get("success"):
-                    logger.info(f" Sent PPTX to Telegram")
+                    logger.info(" Sent PPTX to Telegram")
                 else:
                     logger.error(f" PPTX send failed: {file_result.get('error')}")
 
@@ -1378,7 +1373,7 @@ class ArxivLearningSwarm(DomainSwarm):
                 )
 
                 if file_result.get("success"):
-                    logger.info(f" Sent HTML slides to Telegram")
+                    logger.info(" Sent HTML slides to Telegram")
                 else:
                     logger.error(f" HTML slides send failed: {file_result.get('error')}")
 
@@ -1400,7 +1395,7 @@ class ArxivLearningSwarm(DomainSwarm):
                 )
 
                 if file_result.get("success"):
-                    logger.info(f" Sent markdown to Telegram")
+                    logger.info(" Sent markdown to Telegram")
 
                 try:
                     temp_path.unlink()

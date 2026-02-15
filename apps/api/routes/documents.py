@@ -2,19 +2,15 @@
 Document routes - upload, list, search, RAG config.
 """
 
-import asyncio
-import json
 import logging
 from datetime import datetime
-from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 
 def register_document_routes(app, api):
-    from fastapi import File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
-    from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
+    from fastapi import File, Form, HTTPException, UploadFile
     from pydantic import BaseModel
 
     @app.post("/api/documents/upload")

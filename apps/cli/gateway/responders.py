@@ -15,8 +15,7 @@ This module:
 
 import logging
 from dataclasses import dataclass
-from enum import Enum
-from typing import Any, Awaitable, Callable, Dict, Optional
+from typing import Any, Callable, Dict, Optional
 
 logger = logging.getLogger(__name__)
 

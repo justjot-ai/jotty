@@ -1,7 +1,6 @@
 """Validation configuration — multi-round validation and confidence thresholds."""
 
 from dataclasses import dataclass
-from typing import Any
 
 
 @dataclass

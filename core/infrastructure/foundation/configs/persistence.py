@@ -1,7 +1,6 @@
 """Persistence configuration — state storage, auto-save/load, retention."""
 
 from dataclasses import dataclass
-from typing import Any
 
 
 @dataclass

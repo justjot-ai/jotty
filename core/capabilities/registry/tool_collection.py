@@ -11,8 +11,6 @@ Based on OAgents ToolCollection pattern.
 
 import json
 import logging
-import os
-import tempfile
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, ContextManager, Dict, List, Optional, Union
@@ -92,7 +90,6 @@ class ToolCollection:
         Returns:
             List of SkillDefinition objects
         """
-        from .skills_registry import SkillDefinition
 
         skill_definitions = []
 
@@ -373,7 +370,7 @@ class ToolCollection:
                 import asyncio
                 import threading
 
-                from mcp import ClientSession, StdioServerParameters
+                from mcp import ClientSession
 
                 tools = []
                 event_loop = None

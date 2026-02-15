@@ -85,7 +85,7 @@ def inspect_memory_for_expert(memory: SwarmMemory, expert_name: str, domain: str
             try:
                 content_data = json.loads(entry.content)
                 print(f"    {json.dumps(content_data, indent=4, default=str)[:500]}...")
-            except:
+            except Exception:
                 print(f"    {entry.content[:500]}...")
         print()
 

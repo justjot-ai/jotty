@@ -119,7 +119,7 @@ def sync_and_show_memory(expert_name: str, domain: str, improvements: list):
             try:
                 content_data = json.loads(entry.content)
                 print(f"    {json.dumps(content_data, indent=4, default=str)}")
-            except:
+            except Exception:
                 print(f"    {entry.content[:300]}...")
 
         if len(procedural) > 5:

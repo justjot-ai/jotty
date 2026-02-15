@@ -8,7 +8,7 @@ DAG-based orchestration: TaskBreakdownAgent + TodoCreatorAgent + parallel stages
 import asyncio
 import logging
 import time
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Tuple
 
 from Jotty.core.infrastructure.foundation.data_structures import EpisodeResult
 
@@ -47,7 +47,6 @@ class SwarmDAGExecutor:
         Returns:
             EpisodeResult with execution output and metadata
         """
-        from Jotty.core.modes.agent.auto_agent import AutoAgent
         from Jotty.core.modes.agent.dag_agents import TaskBreakdownAgent, TodoCreatorAgent
 
         def _status(stage: str, detail: str = "") -> Any:

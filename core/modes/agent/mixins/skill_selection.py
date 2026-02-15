@@ -2,7 +2,7 @@
 
 import json
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 logger = logging.getLogger(__name__)
 
@@ -125,7 +125,6 @@ class SkillSelectionMixin:
         skill_priorities = {}
 
         try:
-            import dspy
 
             result = self._call_with_retry(
                 module=self.skill_selector,

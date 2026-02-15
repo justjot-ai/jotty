@@ -668,7 +668,7 @@ class ProviderRegistry:
         category = self.detect_category(task)
 
         if not category:
-            logger.warning(f"Could not detect category, using default")
+            logger.warning("Could not detect category, using default")
             category = SkillCategory.CODE_EXECUTION  # Fallback
 
         logger.info(f" Auto-executing: {task[:50]}... (category: {category.value})")

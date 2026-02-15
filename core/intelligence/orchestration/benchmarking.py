@@ -214,7 +214,7 @@ class SwarmBenchmarks:
             "# Swarm Benchmark Report",
             "=" * 40,
             "",
-            f"## Performance Metrics",
+            "## Performance Metrics",
             f"  - Multi-agent speedup ratio: {metrics.single_vs_multi_ratio:.2f}x",
             f"  - Communication overhead: {metrics.communication_overhead:.0f} msgs/hour",
             f"  - Cooperation index: {metrics.cooperation_index:.2%}",

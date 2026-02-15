@@ -12,7 +12,6 @@ This follows DRY principles:
 - Agents automatically get access to client components
 """
 
-import json
 import logging
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional

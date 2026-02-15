@@ -8,13 +8,12 @@ from typing import Any, Dict, List, Optional
 
 import dspy
 
-from ..foundation.data_structures import SwarmConfig, SwarmLearningConfig
+from ..foundation.data_structures import SwarmConfig
 from ..learning.learning import AdaptiveLearningRate, TDLambdaLearner
 from ..memory.cortex import SwarmMemory
 from ..orchestration.swarm_roadmap import SwarmTaskBoard
 from ..persistence.shared_context import SharedContext
 from .axon import MessageBus
-from .base import AgentConfig as _OrigAgentConfig  # not used directly for DAGAgentMixin
 
 logger = logging.getLogger(__name__)
 

@@ -16,7 +16,7 @@ from __future__ import annotations
 import logging
 import re
 import time
-from collections import Counter, defaultdict
+from collections import defaultdict
 from typing import TYPE_CHECKING, Any, Dict, List, Set, Tuple
 
 if TYPE_CHECKING:

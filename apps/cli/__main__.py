@@ -31,7 +31,6 @@ for _logger_name in ["safetensors", "sentence_transformers", "transformers", "hu
 import argparse
 import asyncio
 import sys
-from pathlib import Path
 
 
 async def _list_commands(cli: Any, args: Any) -> Any:

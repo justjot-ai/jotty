@@ -17,17 +17,11 @@ from Jotty.core.infrastructure.foundation.configs.learning import (
     LearningConfig as FocusedLearningConfig,
 )
 from Jotty.core.infrastructure.foundation.data_structures import (
-    AgentContribution,
-    AlertType,
-    CausalLink,
     GoalHierarchy,
     GoalValue,
-    LearningMetrics,
     MemoryEntry,
     MemoryLevel,
-    StoredEpisode,
     SwarmConfig,
-    ValidationResult,
 )
 
 if TYPE_CHECKING:

@@ -24,11 +24,10 @@ Our approach:
 4. Budget-aware selection (no truncation)
 """
 
-import hashlib
 import json
 import logging
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -49,7 +48,6 @@ def _get_dspy() -> Any:
 from Jotty.core.infrastructure.foundation.configs.memory import MemoryConfig as FocusedMemoryConfig
 from Jotty.core.infrastructure.foundation.data_structures import (
     GoalHierarchy,
-    GoalNode,
     MemoryEntry,
     MemoryLevel,
     SwarmConfig,

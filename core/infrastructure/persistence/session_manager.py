@@ -16,7 +16,6 @@ Date: Dec 29, 2025
 import json
 import logging
 import shutil
-from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -210,7 +209,7 @@ class SessionManager:
         if brain_file.exists():
             with open(brain_file) as f:
                 state = json.load(f)
-            logger.info(f" Loaded brain state")
+            logger.info(" Loaded brain state")
             return state
         return None
 
@@ -220,7 +219,7 @@ class SessionManager:
         if todo_file.exists():
             with open(todo_file) as f:
                 content = f.read()
-            logger.info(f" Loaded session task list")
+            logger.info(" Loaded session task list")
             return content
         return None
 

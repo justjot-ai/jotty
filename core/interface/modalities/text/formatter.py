@@ -5,7 +5,6 @@ Text Output Formatter
 Formats text output for different platforms (markdown, emoji, etc.).
 """
 
-from typing import Any, Dict, Optional
 
 
 class TextFormatter:

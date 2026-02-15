@@ -17,13 +17,12 @@ import asyncio
 import json
 import logging
 import re
-from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import dspy
 
-from Jotty.core.modes.agent.base import BaseSwarmAgent, DomainAgent, DomainAgentConfig
+from Jotty.core.modes.agent.base import BaseSwarmAgent
 
 from .signatures import (
     ConceptDecomposerSignature,
@@ -41,19 +40,11 @@ from .signatures import (
 )
 from .types import (
     BuildingBlock,
-    ConceptCore,
     DifficultyTier,
-    LessonContent,
-    LessonDepth,
-    LessonSection,
     MistakeEntry,
     PatternEntry,
     Problem,
     StrategyCard,
-    Subject,
-    TeachingMode,
-    format_steps_on_newlines,
-    tier_to_level,
 )
 
 logger = logging.getLogger(__name__)
@@ -646,7 +637,7 @@ class MistakeAnalyzerAgent(BaseOlympiadAgent):
 
             mistakes_data = self._parse_json_output(str(result.mistakes_json))
             if not mistakes_data:
-                logger.debug(f"MistakeAnalyzerAgent: No mistakes data parsed from JSON")
+                logger.debug("MistakeAnalyzerAgent: No mistakes data parsed from JSON")
             mistakes = []
             for m in mistakes_data if isinstance(mistakes_data, list) else []:
                 mistakes.append(

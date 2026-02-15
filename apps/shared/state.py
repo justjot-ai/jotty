@@ -82,7 +82,7 @@ class StateContext:
             ChatState.PLANNING: "Planning...",
             ChatState.EXECUTING_SKILL: f"Running {self.skill_name or 'skill'}...",
             ChatState.EXECUTING_AGENT: f"Agent: {self.agent_name or 'executing'}...",
-            ChatState.COORDINATING_SWARM: f"Swarm coordination...",
+            ChatState.COORDINATING_SWARM: "Swarm coordination...",
             ChatState.STREAMING: "Streaming response...",
             ChatState.TRANSCRIBING: "Transcribing audio...",
             ChatState.SYNTHESIZING: "Generating speech...",

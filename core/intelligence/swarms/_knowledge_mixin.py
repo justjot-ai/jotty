@@ -12,7 +12,7 @@ coordination and core learning lifecycle concerns.
 import json
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from Jotty.core.infrastructure.foundation.exceptions import (
     MemoryError,
@@ -20,7 +20,6 @@ from Jotty.core.infrastructure.foundation.exceptions import (
     MemoryStorageError,
 )
 
-from .swarm_types import AgentRole, ImprovementSuggestion, ImprovementType
 
 logger = logging.getLogger(__name__)
 

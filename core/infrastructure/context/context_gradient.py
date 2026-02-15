@@ -19,7 +19,6 @@ Author: A-Team (Von Neumann, Nash, Anthropic, Cursor engineers)
 Date: Dec 29, 2025
 """
 
-import json
 import logging
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
@@ -518,7 +517,7 @@ class ContextApplier:
             }
         )
 
-        logger.info(f" DQN: Added prediction corrections")
+        logger.info(" DQN: Added prediction corrections")
 
     def _apply_cooperation_update(self, update: ContextUpdate, context: Dict) -> Any:
         """Apply cooperation update."""

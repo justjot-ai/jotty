@@ -8,7 +8,6 @@ Integrates with SkillVenvManager to install packages in isolated venvs.
 """
 
 import logging
-import os
 import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional

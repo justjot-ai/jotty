@@ -14,7 +14,7 @@ import logging
 import statistics
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 logger = logging.getLogger(__name__)
 
@@ -512,7 +512,7 @@ class EthicalRedTeam:
 
         # Log summary
         logger.info(f"\n{'='*70}")
-        logger.info(f"ETHICAL RED-TEAM AUDIT COMPLETE")
+        logger.info("ETHICAL RED-TEAM AUDIT COMPLETE")
         logger.info(f"{'='*70}")
         logger.info(f"Status: {overall_status}")
         logger.info(f"Tests run: {total_tests}")
@@ -521,7 +521,7 @@ class EthicalRedTeam:
         logger.info(f"Biases detected: {len(biases_detected)}")
 
         if recommendations:
-            logger.info(f"\nRecommendations:")
+            logger.info("\nRecommendations:")
             for i, rec in enumerate(recommendations, 1):
                 logger.info(f"{i}. {rec}")
 

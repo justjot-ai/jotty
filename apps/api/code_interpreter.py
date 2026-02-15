@@ -8,7 +8,6 @@ Supports both Docker-based isolation and subprocess fallback.
 
 import asyncio
 import logging
-import os
 import shutil
 import subprocess
 import sys
@@ -16,7 +15,7 @@ import tempfile
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, AsyncGenerator, Dict, List, Optional
+from typing import Any, AsyncGenerator, Dict, Optional
 
 logger = logging.getLogger(__name__)
 

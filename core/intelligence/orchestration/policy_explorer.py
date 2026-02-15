@@ -6,14 +6,13 @@ Provides exploration strategies for action selection.
 
 import json
 import logging
-import random
 from typing import Any, Dict, List
 
 import dspy
 
 logger = logging.getLogger(__name__)
 
-from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig, SwarmLearningConfig
+from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
 
 from .swarm_roadmap import SwarmTaskBoard, TodoItem
 

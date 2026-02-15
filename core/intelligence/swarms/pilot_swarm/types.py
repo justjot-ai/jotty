@@ -9,7 +9,7 @@ Defines the data structures for autonomous goal-completion:
 
 import enum
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 from ..base_swarm import SwarmResult
 from ..swarm_types import SwarmConfig

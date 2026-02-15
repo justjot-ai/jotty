@@ -7,7 +7,6 @@ Based on OAgents GAIA integration.
 
 import json
 import logging
-import re
 import string
 from pathlib import Path
 from typing import Any, Dict, List, Optional

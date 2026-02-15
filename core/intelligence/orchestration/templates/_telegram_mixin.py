@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 import logging
-from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict
 
 if TYPE_CHECKING:
     from Jotty.core.intelligence.orchestration.templates.swarm_ml_comprehensive import (
@@ -175,7 +174,7 @@ class TelegramMixin:
                 score = results.get("final_score", 0)
                 model = results.get("best_model", "N/A")
 
-                lines.append(f" <b>Results:</b>")
+                lines.append(" <b>Results:</b>")
                 lines.append(f"  • Score: <code>{score:.4f}</code>")
                 lines.append(f"  • Model: <code>{model}</code>")
 

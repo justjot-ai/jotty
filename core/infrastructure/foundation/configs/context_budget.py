@@ -1,7 +1,7 @@
 """Context budget configuration — token allocation and dynamic budgeting."""
 
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Optional
 
 
 @dataclass

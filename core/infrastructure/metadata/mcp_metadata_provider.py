@@ -141,7 +141,7 @@ class MCPMetadataProvider(BaseMetadataProvider):
         # Initialize base class (auto-registers methods as tools)
         super().__init__(token_budget=token_budget, enable_caching=enable_caching)
 
-        logger.info(f" MCPMetadataProvider initialized")
+        logger.info(" MCPMetadataProvider initialized")
         logger.info(f"   Server filter: {server or 'all servers'}")
         logger.info(f"   List function: {'provided' if list_resources_fn else 'not provided'}")
         logger.info(f"   Read function: {'provided' if read_resource_fn else 'not provided'}")

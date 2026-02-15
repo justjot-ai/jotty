@@ -17,7 +17,6 @@ Design Philosophy:
 
 import inspect
 import logging
-from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
@@ -214,7 +213,7 @@ class MetadataToolRegistry:
 
             # Parameters
             if info["params"]:
-                catalog += f"   Parameters:\n"
+                catalog += "   Parameters:\n"
                 for param_name, param_desc in info["params"].items():
                     param_sig = info["signature"]["parameters"].get(param_name, {})
                     required = " (required)" if param_sig.get("required", False) else " (optional)"
@@ -353,7 +352,7 @@ class MetadataToolRegistry:
     def clear_cache(self) -> None:
         """Clear all cached tool results."""
         self._cache.clear()
-        logger.info(f" Cleared tool cache")
+        logger.info(" Cleared tool cache")
 
     def __repr__(self) -> str:
         return (

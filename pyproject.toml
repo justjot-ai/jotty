@@ -118,6 +118,25 @@ show_error_codes = true
 # disallow_incomplete_defs = true
 # check_untyped_defs = true
 
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+exclude = ["apps/_archived"]
+
+[tool.ruff.lint]
+# Rules we enforce
+select = ["E", "F"]
+# Rules we intentionally ignore
+ignore = [
+    "E402",   # Module import not at top — intentional (env setup, lazy imports)
+    "F821",   # Undefined name — false positives from quoted type hints / forward refs
+    "E741",   # Ambiguous variable name — too noisy for existing codebase
+]
+
+[tool.ruff.lint.per-file-ignores]
+"*/__init__.py" = ["F401"]  # Re-exports are intentional
+"tests/*" = ["F841", "E712"]  # Unused vars and comparison style in tests OK
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]

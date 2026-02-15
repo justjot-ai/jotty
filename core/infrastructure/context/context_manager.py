@@ -13,17 +13,12 @@ This is the SMART context manager the user requested.
 
 import asyncio
 import functools
-import json
 import logging
 import re
-from dataclasses import dataclass, field
-from enum import Enum
-from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional
 
 import dspy
 
-from ..utils.tokenizer import SmartTokenizer
 from . import utils as ctx_utils
 from .models import ContextChunk, ContextOverflowInfo, ContextPriority
 

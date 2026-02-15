@@ -21,10 +21,7 @@ Timeframes:
     day, 15minute, 30minute, 60minute, week
 """
 
-import asyncio
-import glob
 import json
-import os
 import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
@@ -385,7 +382,6 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
 
     async def execute(self, args: ParsedArgs, cli: "JottyCLI") -> CommandResult:
         """Execute stock ML pipeline."""
-        import numpy as np
         import pandas as pd
 
         # Check for list flag
@@ -719,7 +715,6 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
 
     def _create_features_and_target(self, df: "pd.DataFrame", target_config: Dict) -> tuple:
         """Create features and target variable."""
-        import numpy as np
         import pandas as pd
 
         df = df.copy()
@@ -858,7 +853,6 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
 
     def _calculate_adx(self, df: "pd.DataFrame", period: int = 14) -> "pd.Series":
         """Calculate Average Directional Index."""
-        import numpy as np
         import pandas as pd
 
         high = df["high"]
@@ -888,8 +882,6 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
         self, df_ohlcv: Any, X: Any, y: Any, model: Any, target_config: Any, symbol: Any, cli: Any
     ) -> Dict[str, Any]:
         """Run comprehensive backtesting with Buy & Hold comparison."""
-        import numpy as np
-        import pandas as pd
 
         cli.renderer.info("")
         cli.renderer.header("Backtesting Results")
@@ -1133,7 +1125,6 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
             r2_score,
             roc_auc_score,
         )
-        from sklearn.model_selection import TimeSeriesSplit
 
         problem_type = target_config["type"]
         is_classification = problem_type == "classification"
@@ -1928,7 +1919,6 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
     def _add_advanced_momentum(self, X: "pd.DataFrame", df: "pd.DataFrame") -> "pd.DataFrame":
         """Add advanced momentum indicators."""
         import numpy as np
-        import pandas as pd
 
         close = df["close"]
 
@@ -1960,7 +1950,6 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
     def _add_volatility_regime(self, X: "pd.DataFrame", df: "pd.DataFrame") -> "pd.DataFrame":
         """Add volatility regime indicators."""
         import numpy as np
-        import pandas as pd
 
         returns = df["close"].pct_change()
 
@@ -2039,7 +2028,6 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
 
     def _add_pattern_features(self, X: "pd.DataFrame", df: "pd.DataFrame") -> "pd.DataFrame":
         """Add candlestick pattern features."""
-        import numpy as np
         import pandas as pd
 
         o, h, l, c = df["open"], df["high"], df["low"], df["close"]
@@ -2224,7 +2212,6 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
     def _load_index_stocks(self, index_name: str) -> List[str]:
         """Load stocks from niftyindices.com index."""
         import pandas as pd
-        import requests
 
         # Normalize index name
         normalized = index_name.lower().replace("_", " ").replace("-", " ")

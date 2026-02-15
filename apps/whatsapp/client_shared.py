@@ -5,11 +5,9 @@ WhatsApp Client (Migrated to Shared Components)
 WhatsApp integration using shared UI components.
 """
 
-import asyncio
 import logging
 import os
 import sys
-from typing import Any, Dict, Optional
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -20,7 +18,7 @@ from apps.shared.renderers import (  # WhatsApp uses similar format
     TelegramMessageRenderer,
     TelegramStatusRenderer,
 )
-from Jotty.sdk import Jotty, SDKEvent
+from Jotty.sdk import Jotty
 
 logger = logging.getLogger(__name__)
 

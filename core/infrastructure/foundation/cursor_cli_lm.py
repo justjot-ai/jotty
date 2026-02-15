@@ -9,11 +9,9 @@ to Cursor CLI and returns raw LLM text for DSPy's adapter to parse.
 """
 
 import json
-import os
 import subprocess
-from typing import Any, Dict, List, Optional
+from typing import Any, List
 
-import dspy
 from dspy import BaseLM
 
 from Jotty.core.infrastructure.foundation.config_defaults import LLM_TIMEOUT_SECONDS

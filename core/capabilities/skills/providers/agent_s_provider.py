@@ -15,11 +15,10 @@ Capabilities:
 Note: Agent-S achieved 72.6% on OSWorld, surpassing human performance!
 """
 
-import asyncio
 import logging
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from .base import ProviderCapability, ProviderResult, SkillCategory, SkillProvider
 

@@ -11,7 +11,7 @@ import asyncio
 import logging
 import os
 import sys
-from typing import Any, Callable, Dict, Optional
+from typing import Callable, Optional
 
 from dotenv import load_dotenv
 
@@ -292,7 +292,6 @@ class TelegramBotHandler:
 
     async def _handle_start(self, update, context):
         """Handle /start command."""
-        from .renderer import TelegramRenderer
 
         chat_id = update.effective_chat.id
 
@@ -667,7 +666,6 @@ class TelegramBotHandler:
 
             async def send_status_async(self, msg):
                 """Send status update immediately to Telegram (edit existing or send new)."""
-                import asyncio
 
                 self._status_history.append(msg)
 

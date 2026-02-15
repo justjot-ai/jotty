@@ -11,13 +11,12 @@ Features:
 - Tracks success/failure metrics
 """
 
-import json
 import logging
 import random
 import subprocess
 import time
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import dspy
 
@@ -118,7 +117,7 @@ class DirectClaudeCLI(dspy.BaseLM):
 
         # Check for non-retryable errors first (policy violations)
         if any(pattern.lower() in error_lower for pattern in self.NON_RETRYABLE_ERRORS):
-            logger.error(f" Policy violation detected - will not retry")
+            logger.error(" Policy violation detected - will not retry")
             return False
 
         # Everything else is retryable (default to retry for unknown errors)

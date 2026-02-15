@@ -21,10 +21,9 @@ import time
 import uuid
 from collections import defaultdict
 from dataclasses import dataclass, field
-from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar
 
-from .config import BatchConfig, LotusConfig
+from .config import LotusConfig
 
 logger = logging.getLogger(__name__)
 

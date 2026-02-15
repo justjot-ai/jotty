@@ -947,7 +947,7 @@ class TierExecutor:
         # This ensures GAIA benchmark gets "79" not "The answer is 79 because..."
         if kwargs.get("_intent") == "fact_retrieval" and len(output) > 100:
             # Response is too verbose for a fact answer - extract the actual answer
-            extraction_prompt = f"""Extract ONLY the final answer from this response. Return just the answer with no explanation.
+            extraction_prompt = """Extract ONLY the final answer from this response. Return just the answer with no explanation.
 
 Response: {output}
 
@@ -990,7 +990,7 @@ Final Answer:"""
                     output = extracted
             elif not extracted or len(extracted) < 2:
                 # Extraction returned empty/garbage - keep original
-                logger.warning(f"Answer extraction returned empty/invalid, keeping original output")
+                logger.warning("Answer extraction returned empty/invalid, keeping original output")
                 pass  # Keep original output
 
         return ExecutionResult(
@@ -1051,7 +1051,7 @@ Final Answer:"""
                         f"Magnitude mismatch: question mentions 'million' but answer is {num}"
                     )
                     # Ask LLM to recalculate
-                    validation_prompt = f"""The question asks: {question}
+                    validation_prompt = """The question asks: {question}
 
 Your answer was: {answer}
 
@@ -1380,7 +1380,7 @@ Correct answer:"""
         self, goal: str, config: ExecutionConfig, status_callback: Optional[Callable], **kwargs: Any
     ) -> ExecutionResult:
         """Tier 4: Domain swarm execution. Expected: 10-30s, $0.15."""
-        logger.info(f"[Tier 4: RESEARCH] Executing with domain swarm...")
+        logger.info("[Tier 4: RESEARCH] Executing with domain swarm...")
 
         skip_swarm = kwargs.pop("skip_swarm_selection", False)
 
@@ -1502,7 +1502,7 @@ Correct answer:"""
                     SwarmIntelligence,
                 )
 
-                si = SwarmIntelligence()
+                SwarmIntelligence()
                 paradigm_used = config.paradigm
                 logger.info(f"Applying paradigm: {config.paradigm}")
             except ImportError:
@@ -1768,12 +1768,12 @@ Correct answer:"""
 
         synthesis_prompt = (
             f"The user asked: {goal}\n\n"
-            f"Here are the results from multiple execution steps:\n\n"
+            "Here are the results from multiple execution steps:\n\n"
             f"{combined_text}\n\n"
-            f"Combine these into a single, coherent response that directly "
+            "Combine these into a single, coherent response that directly "
             f"answers the user's request. Do not mention steps, processes, "
-            f"or that multiple operations were performed. Write as if you are "
-            f"giving a direct answer."
+            "or that multiple operations were performed. Write as if you are "
+            "giving a direct answer."
         )
 
         try:
@@ -1888,7 +1888,7 @@ Correct answer:"""
         # Fallback: use the validator directly unless it's a MultiRoundValidator
         # (which means we fell through from the try/except above)
         fallback = _FallbackValidator(self.provider) if is_multi_round else validator
-        validation_prompt = f"""
+        validation_prompt = """
 Task: {goal}
 
 Result: {str(result.output)[:2000]}

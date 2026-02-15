@@ -481,7 +481,6 @@ class CurriculumGenerator:
 
         Uses existing SyntheticTask with tool hints in metadata (DRY - no new class).
         """
-        import random
 
         # Sync tool stats from state manager
         self._sync_tool_stats_from_state_manager()

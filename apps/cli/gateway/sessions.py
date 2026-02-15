@@ -40,7 +40,7 @@ from typing import Dict, List, Optional
 logger = logging.getLogger(__name__)
 
 # Absolute imports - single source of truth
-from Jotty.sdk import ChannelType, ExecutionContext, SDKSession
+from Jotty.sdk import ChannelType, SDKSession
 
 
 class PersistentSessionManager:

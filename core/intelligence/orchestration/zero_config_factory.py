@@ -8,7 +8,7 @@ LLM-driven agent creation: analyzes task to decide single vs multi-agent.
 import json
 import logging
 import re
-from typing import Any, List, Optional
+from typing import Any, List
 
 from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
 from Jotty.core.infrastructure.utils.async_utils import StatusReporter

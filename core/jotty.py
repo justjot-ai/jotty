@@ -42,7 +42,7 @@ from .data.io_manager import IOManager as Datastream
 from .foundation.agent_config import AgentConfig
 
 # Configuration
-from .foundation.data_structures import SwarmConfig, SwarmLearningConfig
+from .foundation.data_structures import SwarmConfig
 
 # Cortex = Hierarchical Memory
 from .intelligence.memory.cortex import SwarmMemory as Cortex

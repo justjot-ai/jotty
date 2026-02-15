@@ -10,7 +10,7 @@ from learning and knowledge concerns.
 """
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from Jotty.core.infrastructure.foundation.exceptions import ExecutionError, LearningError
 

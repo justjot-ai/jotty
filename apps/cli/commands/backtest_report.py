@@ -14,9 +14,8 @@ Templates:
     quantitative (default), two_sigma, renaissance, aqr, man_group, citadel
 """
 
-from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING
 
 from .base import BaseCommand, CommandResult, ParsedArgs
 

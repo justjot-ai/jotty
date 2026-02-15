@@ -1,7 +1,7 @@
 """Execution configuration — runtime limits, timeouts, parallelism, reproducibility."""
 
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Optional
 
 
 @dataclass

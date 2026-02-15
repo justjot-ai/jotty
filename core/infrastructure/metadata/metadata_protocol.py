@@ -18,8 +18,7 @@ import asyncio
 import inspect
 import logging
 import time
-from dataclasses import dataclass, field
-from functools import wraps
+from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional, Protocol, runtime_checkable
 
 logger = logging.getLogger(__name__)
@@ -560,9 +559,9 @@ class MetadataValidator:
         for method in methods:
             logger.info(f" {method.name}: {method.description}")
             if not method.docstring:
-                logger.warning(f" No docstring")
+                logger.warning(" No docstring")
             if not method.parameters:
-                logger.warning(f" No parameters")
+                logger.warning(" No parameters")
 
         return True
 

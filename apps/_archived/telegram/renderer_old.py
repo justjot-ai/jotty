@@ -6,9 +6,8 @@ Formats Jotty output for Telegram display.
 Handles markdown conversion, message splitting, and formatting.
 """
 
-import html
 import re
-from typing import List, Tuple
+from typing import List
 
 
 class TelegramRenderer:

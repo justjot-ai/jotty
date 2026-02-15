@@ -8,7 +8,6 @@ Heartbeat Command
 Like OpenClaw's "Heartbeat" feature.
 """
 
-import asyncio
 import json
 import logging
 from datetime import datetime, timedelta

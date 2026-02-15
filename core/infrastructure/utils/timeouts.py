@@ -17,8 +17,8 @@ import logging
 import signal
 import time
 from collections import deque
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
@@ -234,7 +234,7 @@ def timeout(seconds: float, error_message: str = "Operation timed out") -> Any:
                 return result
             except AttributeError:
                 # Windows doesn't have signal.SIGALRM
-                logger.warning(f" Timeout not supported on this platform, running without timeout")
+                logger.warning(" Timeout not supported on this platform, running without timeout")
                 return func(*args, **kwargs)
 
         return wrapper
@@ -455,7 +455,6 @@ class AdaptiveTimeout:
             return self.initial
 
         # Use percentile of observed latencies
-        import statistics
 
         latencies = sorted(self.latencies[operation])
         index = int(len(latencies) * (self.percentile / 100.0))

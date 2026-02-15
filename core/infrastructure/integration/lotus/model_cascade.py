@@ -12,11 +12,9 @@ Cost Impact (example):
     Result: ~9x cost reduction
 """
 
-import asyncio
 import logging
 import time
-from dataclasses import dataclass, field
-from enum import Enum
+from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from .config import CascadeThresholds, LotusConfig, ModelTier

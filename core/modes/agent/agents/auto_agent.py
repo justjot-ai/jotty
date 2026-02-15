@@ -11,7 +11,7 @@ Refactored to inherit from AutonomousAgent for unified infrastructure.
 import inspect
 import logging
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, Optional, Tuple
 
 from Jotty.core.infrastructure.foundation.exceptions import (
     AgentExecutionError,
@@ -23,7 +23,6 @@ from Jotty.core.infrastructure.utils.async_utils import (
     AgentEvent,
     AgentEventBroadcaster,
     StatusReporter,
-    safe_status,
 )
 
 from ..types.execution_types import AgenticExecutionResult, TaskType, _clean_for_display

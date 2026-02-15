@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import dspy
 
-from ..foundation.data_structures import MemoryLevel, SwarmConfig, SwarmLearningConfig
+from ..foundation.data_structures import MemoryLevel, SwarmConfig
 from ..foundation.exceptions import AgentExecutionError
 from ..orchestration.swarm_roadmap import SwarmTaskBoard
 from .base import AgentResult

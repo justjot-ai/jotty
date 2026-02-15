@@ -22,7 +22,6 @@ from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
 from Jotty.core.infrastructure.foundation.data_structures import (
     EpisodeResult,
     SwarmConfig,
-    SwarmLearningConfig,
 )
 from Jotty.core.infrastructure.foundation.robust_parsing import AdaptiveWeightGroup
 

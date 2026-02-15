@@ -22,10 +22,9 @@ Usage:
     # Or: Swarm.solve(template="science", subject="Science", topic="Photosynthesis", student_name="Maya")
 """
 
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
-from .base import AgentConfig, FeedbackConfig, ModelTier, StageConfig, SwarmTemplate
+from .base import AgentConfig, ModelTier, StageConfig, SwarmTemplate
 
 # =============================================================================
 # PEDAGOGY CONSTANTS (used in prompts)

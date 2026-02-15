@@ -195,7 +195,7 @@ class ReportMixin:
             return
 
         try:
-            from sklearn.metrics import auc, roc_auc_score, roc_curve
+            from sklearn.metrics import auc, roc_curve
 
             fpr, tpr, thresholds = roc_curve(y_true, y_prob, pos_label=pos_label)
             roc_auc = auc(fpr, tpr)
@@ -256,7 +256,6 @@ class ReportMixin:
             return
 
         try:
-            import shap
 
             # Calculate mean absolute SHAP values per feature
             if hasattr(shap_values, "values"):

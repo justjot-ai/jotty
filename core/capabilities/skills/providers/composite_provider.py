@@ -6,11 +6,10 @@ Combines multiple providers for complex multi-step tasks.
 Uses swarm intelligence to coordinate and learn.
 """
 
-import asyncio
 import logging
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 from .base import ProviderCapability, ProviderResult, SkillCategory, SkillProvider
 
@@ -101,7 +100,7 @@ class ResearchAndAnalyzeProvider(SkillProvider):
                 results["research"] = {"status": "skipped", "reason": "no registry"}
 
             # Step 2: Data analysis
-            logger.info(f" Step 2: Analyzing gathered data...")
+            logger.info(" Step 2: Analyzing gathered data...")
             if self._registry and results.get("research"):
                 analysis_task = f"Analyze this data and extract insights: {results['research']}"
                 code_result = await self._registry.execute(
@@ -114,7 +113,7 @@ class ResearchAndAnalyzeProvider(SkillProvider):
                 results["analysis"] = {"status": "skipped"}
 
             # Step 3: Synthesis
-            logger.info(f" Step 3: Synthesizing results...")
+            logger.info(" Step 3: Synthesizing results...")
             results["synthesis"] = {
                 "task": task,
                 "research_summary": str(results.get("research", ""))[:500],

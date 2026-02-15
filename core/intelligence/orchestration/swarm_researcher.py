@@ -518,7 +518,6 @@ Format your response clearly with sections for tools, APIs, and documentation.
             return False
 
         # Check if it's a built-in Python module
-        import sys
 
         builtin_modules = {
             "multiprocessing",
@@ -796,7 +795,7 @@ Format your response clearly with sections for tools, APIs, and documentation.
 
             # Build search query
             query = f"{capability} python library language:python"
-            url = f"https://api.github.com/search/repositories"
+            url = "https://api.github.com/search/repositories"
             params = {
                 "q": query,
                 "sort": "stars",
@@ -975,7 +974,7 @@ Format your response clearly with sections for tools, APIs, and documentation.
             import aiohttp
 
             # Fetch the awesome-list
-            url = f"https://raw.githubusercontent.com/vinta/awesome-python/master/README.md"
+            url = "https://raw.githubusercontent.com/vinta/awesome-python/master/README.md"
 
             async with aiohttp.ClientSession() as session:
                 async with session.get(url, timeout=30) as response:

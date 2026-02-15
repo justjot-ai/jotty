@@ -17,8 +17,6 @@ Features:
 import json
 import random
 from collections import defaultdict
-from dataclasses import dataclass, field
-from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
 import dspy
@@ -28,15 +26,13 @@ from Jotty.core.infrastructure.foundation.configs.learning import (
 )
 from Jotty.core.infrastructure.foundation.data_structures import (
     AgentContribution,
-    CausalLink,
     MemoryLevel,
     StoredEpisode,
     SwarmConfig,
-    ValidationResult,
 )
 
 from ..memory.cortex import SwarmMemory
-from .learning import AdaptiveLearningRate, TDLambdaLearner
+from .learning import TDLambdaLearner
 
 
 def _ensure_swarm_config(config: Any) -> Any:

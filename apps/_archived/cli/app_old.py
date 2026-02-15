@@ -5,19 +5,15 @@ Jotty CLI Main Application
 Main JottyCLI class that orchestrates the interactive CLI.
 """
 
-import asyncio
 import logging
-from pathlib import Path
 from typing import Any, Optional
 
 from .commands import register_all_commands
-from .commands.base import CommandRegistry, ParsedArgs
+from .commands.base import CommandRegistry
 from .commands.help_cmd import ClearCommand, HistoryCommand, QuitCommand
 from .config.loader import ConfigLoader
-from .config.schema import CLIConfig
 from .plugins.loader import PluginLoader
 from .repl.engine import REPLEngine, SimpleREPL
-from .repl.history import HistoryManager
 from .repl.session import SessionManager
 from .ui.renderer import DesktopNotifier, MarkdownStreamRenderer, REPLState, RichRenderer
 from .ui.result_display import display_result
@@ -184,7 +180,6 @@ class JottyCLI:
                     _logging.getLogger(_name).setLevel(_logging.ERROR)
 
                 # Suppress stdout/stderr during model loading
-                import io
                 import sys
 
                 _old_stdout, _old_stderr = sys.stdout, sys.stderr
@@ -444,7 +439,6 @@ class JottyCLI:
         Returns:
             True to continue
         """
-        import re
         import time
 
         # Add to conversation

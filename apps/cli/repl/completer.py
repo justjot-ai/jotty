@@ -7,7 +7,7 @@ Autocomplete for CLI commands.
 
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Iterable, List, Optional
+from typing import TYPE_CHECKING, Any, Iterable, List
 
 try:
     from prompt_toolkit.completion import Completer, Completion
