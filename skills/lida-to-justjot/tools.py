@@ -740,27 +740,27 @@ def _to_dataframe(data: Any) -> Optional[pd.DataFrame]:
             try:
                 from io import StringIO
                 return pd.read_csv(StringIO(data))
-            except:
+            except (ValueError, pd.errors.ParserError):
                 pass
             # Try parsing as JSON
             try:
                 return pd.read_json(data)
-            except:
+            except (ValueError, pd.errors.ParserError):
                 pass
 
     if isinstance(data, list):
         try:
             return pd.DataFrame(data)
-        except:
+        except (ValueError, TypeError):
             pass
 
     if isinstance(data, dict):
         try:
             return pd.DataFrame(data)
-        except:
+        except (ValueError, TypeError):
             try:
                 return pd.DataFrame([data])
-            except:
+            except (ValueError, TypeError):
                 pass
 
     return None

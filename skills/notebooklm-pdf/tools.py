@@ -269,7 +269,8 @@ async def _try_browser_automation(content: str, title: str, output_file: Path, p
                         if sign_in_element and await sign_in_element.is_visible():
                             needs_sign_in = True
                             break
-                    except:
+                    except Exception:
+                        # Selector not found or not visible, try next
                         continue
                 
                 if needs_sign_in:
@@ -292,7 +293,8 @@ async def _try_browser_automation(content: str, title: str, output_file: Path, p
                                     if sign_in_element and await sign_in_element.is_visible():
                                         needs_sign_in = True
                                         break
-                                except:
+                                except Exception:
+                                    # Selector not found or not visible, try next
                                     continue
                         
                         if needs_sign_in:

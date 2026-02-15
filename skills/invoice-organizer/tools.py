@@ -147,7 +147,8 @@ async def _extract_invoice_info(invoice_file: Path, extract_amounts: bool) -> Op
                         with open(invoice_file, 'rb') as f:
                             pdf_reader = PyPDF2.PdfReader(f)
                             content = "\n".join([page.extract_text() for page in pdf_reader.pages[:3]])[:2000]
-                    except:
+                    except (OSError, PyPDF2.errors.PdfReadError):
+                        # PDF reading failed
                         content = f"Invoice file: {invoice_file.name}"
                 else:
                     content = f"Invoice file: {invoice_file.name}"
@@ -204,7 +205,8 @@ Return JSON:
         try:
             mtime = datetime.fromtimestamp(invoice_file.stat().st_mtime)
             invoice_data['date'] = mtime.strftime('%Y-%m-%d')
-        except:
+        except (OSError, ValueError):
+            # File stat failed, use current date
             invoice_data['date'] = datetime.now().strftime('%Y-%m-%d')
     
     if not invoice_data.get('vendor'):

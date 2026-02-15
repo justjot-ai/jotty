@@ -129,7 +129,8 @@ async def _analyze_directory(directory: Path) -> Dict:
             file_types[ext] = file_types.get(ext, 0) + 1
             try:
                 total_size += item.stat().st_size
-            except:
+            except (OSError, FileNotFoundError):
+                # File not accessible or deleted
                 pass
         elif item.is_dir():
             folders.append(item)
@@ -240,7 +241,8 @@ async def _generate_organization_plan(
                         'from': str(file_path),
                         'to': str(archive_path)
                     })
-            except:
+            except (OSError, ValueError):
+                # Date parsing or file stat failed
                 pass
     
     return {

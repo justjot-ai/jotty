@@ -87,7 +87,8 @@ class JottyDoctor:
                                 message="Wildcard import makes dependencies unclear",
                                 fix="Use explicit imports: from module import specific_name"
                             ))
-            except:
+            except (OSError, UnicodeDecodeError):
+                # Skip files that can't be read or decoded
                 pass
 
     def check_secrets(self) -> None:
@@ -123,7 +124,8 @@ class JottyDoctor:
                                 message=f"Hardcoded {secret_type} detected",
                                 fix=f"Use: os.getenv('{secret_type.upper().replace(' ', '_')}')"
                             ))
-            except:
+            except (OSError, UnicodeDecodeError):
+                # Skip files that can't be read or decoded
                 pass
 
     def check_type_hints(self, sample_size: int = 50) -> None:
@@ -146,7 +148,8 @@ class JottyDoctor:
                         total_funcs += 1
                         if not node.returns and node.name not in ['__init__', '__str__', '__repr__', '__eq__']:
                             no_hints += 1
-            except:
+            except (OSError, UnicodeDecodeError, SyntaxError):
+                # Skip files with parse errors
                 pass
 
         if total_funcs > 0:
@@ -210,7 +213,8 @@ class JottyDoctor:
                                     message="Broad 'except Exception' without logging",
                                     fix="Add logging or use specific exception type"
                                 ))
-            except:
+            except (OSError, UnicodeDecodeError, SyntaxError):
+                # Skip files with parse errors
                 pass
 
     def check_todos(self) -> None:
@@ -234,7 +238,8 @@ class JottyDoctor:
                     matches = re.finditer(pattern, content, re.IGNORECASE)
                     for match in matches:
                         todo_count += 1
-            except:
+            except (OSError, UnicodeDecodeError):
+                # Skip files that can't be read
                 pass
 
         if todo_count > 50:

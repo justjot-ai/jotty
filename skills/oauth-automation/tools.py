@@ -252,7 +252,8 @@ async def _google_oauth_login(
                         await page.wait_for_timeout(3000)
                         logger.info("✅ Clicked Next")
                         break
-                except:
+                except Exception:
+                    # Button not found or not clickable, try next selector
                     continue
             
             # Wait for password input
@@ -298,7 +299,8 @@ async def _google_oauth_login(
                         await page.wait_for_timeout(5000)
                         logger.info("✅ Password submitted")
                         break
-                except:
+                except Exception:
+                    # Button not found or not clickable, try next selector
                     continue
             
             # Check for 2FA
@@ -407,7 +409,8 @@ async def _google_oauth_login(
                                             logger.info("✅ Verification submitted")
                                             code_entered = True
                                             break
-                                    except:
+                                    except Exception:
+                                        # Input/button not found, try next selector
                                         continue
                                 if code_entered:
                                     break
@@ -465,7 +468,8 @@ async def _google_oauth_login(
                             await page.wait_for_timeout(3000)
                             logger.info("✅ Permissions granted")
                             break
-                    except:
+                    except Exception:
+                        # Button not found or not clickable, try next selector
                         continue
             
             # Final check - navigate back to service

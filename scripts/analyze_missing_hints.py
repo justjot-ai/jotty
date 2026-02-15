@@ -118,7 +118,8 @@ def analyze_file(filepath: Path) -> List[Dict]:
         with open(filepath) as f:
             content = f.read()
         tree = ast.parse(content, filename=str(filepath))
-    except:
+    except (OSError, UnicodeDecodeError, SyntaxError):
+        # File not readable or has syntax errors
         return []
 
     suggestions = []

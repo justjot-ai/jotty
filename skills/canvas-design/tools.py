@@ -219,7 +219,8 @@ def _draw_minimalist(draw: ImageDraw.Draw, width: int, height: int, brief: str):
     # Small text element (minimal)
     try:
         font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 24)
-    except:
+    except (OSError, IOError):
+        # Font file not found, use default
         font = ImageFont.load_default()
     
     text = brief[:30] if len(brief) <= 30 else brief[:27] + '...'
@@ -250,7 +251,8 @@ def _draw_bold(draw: ImageDraw.Draw, width: int, height: int, brief: str):
     # Bold text
     try:
         font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 48)
-    except:
+    except (OSError, IOError):
+        # Font file not found, use default
         font = ImageFont.load_default()
     
     text = brief[:20] if len(brief) <= 20 else brief[:17] + '...'

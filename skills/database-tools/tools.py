@@ -690,7 +690,8 @@ def get_database_info_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                     'name': table,
                     'column_count': len(cols)
                 })
-            except:
+            except Exception:
+                # Column inspection failed
                 table_info.append({'name': table, 'column_count': 'unknown'})
 
         return {

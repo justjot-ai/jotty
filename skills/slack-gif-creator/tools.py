@@ -215,7 +215,8 @@ async def _generate_frames(
         if width >= 200 and height >= 200:
             try:
                 font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 20)
-            except:
+            except (OSError, IOError):
+                # Font file not found, use default
                 font = ImageFont.load_default()
             
             text = description[:20] if len(description) <= 20 else description[:17] + '...'

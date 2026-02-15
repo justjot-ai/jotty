@@ -208,7 +208,7 @@ def read_note_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                 try:
                     import yaml
                     frontmatter = yaml.safe_load(parts[1])
-                except:
+                except (ImportError, yaml.YAMLError):
                     pass  # Ignore frontmatter parsing errors
 
         # Extract links

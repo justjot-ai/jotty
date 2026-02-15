@@ -131,7 +131,8 @@ def get_commodities_prices_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                                 float(text.replace(',', ''))
                                 if 'last' not in price_data:
                                     price_data['last'] = text
-                            except:
+                            except (ValueError, AttributeError):
+                                # Not a valid number, skip
                                 pass
                         
                         # Change %: contains %

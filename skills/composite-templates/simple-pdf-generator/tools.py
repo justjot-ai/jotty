@@ -113,7 +113,8 @@ async def generate_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
             if cleanup_temp and os.path.exists(temp_input_file):
                 try:
                     os.remove(temp_input_file)
-                except:
+                except OSError:
+                    # File removal failed, ignore
                     pass
             return {
                 'success': False,
@@ -124,7 +125,8 @@ async def generate_pdf_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         if cleanup_temp and os.path.exists(temp_input_file):
             try:
                 os.remove(temp_input_file)
-            except:
+            except OSError:
+                # File removal failed, ignore
                 pass
         
         return {

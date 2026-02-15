@@ -202,7 +202,8 @@ def check_remarkable_status_tool(params: Dict[str, Any]) -> Dict[str, Any]:
                 client = Client()
                 client.renew_token()
                 connected = True
-            except:
+            except Exception:
+                # Token renewal failed or client error
                 connected = False
         
         return {

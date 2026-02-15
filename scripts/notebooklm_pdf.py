@@ -38,7 +38,7 @@ def check_pandoc() -> bool:
     try:
         subprocess.run(['which', 'pandoc'], capture_output=True, check=True)
         return True
-    except:
+    except (subprocess.CalledProcessError, FileNotFoundError):
         return False
 
 
@@ -165,7 +165,8 @@ async def generate_pdf_with_notebooklm(
                     if sign_in_element and await sign_in_element.is_visible():
                         needs_sign_in = True
                         break
-                except:
+                except Exception:
+                    # Selector not found or not visible, try next
                     continue
             
             if needs_sign_in:
@@ -202,7 +203,8 @@ async def generate_pdf_with_notebooklm(
                         await page.wait_for_timeout(3000)
                         print("✅ Notebook created")
                         break
-                except:
+                except Exception:
+                    # Button not found or not clickable, try next selector
                     continue
             
             # Paste content
@@ -226,7 +228,8 @@ async def generate_pdf_with_notebooklm(
                         print("✅ Content added")
                         content_added = True
                         break
-                except:
+                except Exception:
+                    # Editor not found or fill failed, try next selector
                     continue
             
             if not content_added:
@@ -265,13 +268,14 @@ async def generate_pdf_with_notebooklm(
                     if export_button and await export_button.is_visible():
                         async with page.expect_download(timeout=15000) as download_info:
                             await export_button.click()
-                        
+
                         download = await download_info.value
                         await download.save_as(output_file)
                         print("✅ PDF downloaded")
                         pdf_exported = True
                         break
-                except:
+                except Exception:
+                    # Export button not found or download failed, try next selector
                     continue
             
             await browser.close()
