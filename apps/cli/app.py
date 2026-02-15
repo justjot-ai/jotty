@@ -109,6 +109,7 @@ class JottyCLI:
         self._skills_registry = None
         self._notifier = None
         self._clipboard_watcher = None
+        self._sdk_client = None  # SDK client for clean architecture
 
         logger.info("JottyCLI initialized")
 
@@ -120,6 +121,27 @@ class JottyCLI:
         self.command_registry.register(QuitCommand())
         self.command_registry.register(ClearCommand())
         self.command_registry.register(HistoryCommand())
+
+    def _get_sdk_client(self) -> Any:
+        """
+        Get or create SDK client (lazy initialization).
+
+        Returns:
+            Jotty SDK client instance
+        """
+        if self._sdk_client is None:
+            try:
+                from ...sdk.client import Jotty
+                # Use local mode (direct API access, no HTTP)
+                self._sdk_client = Jotty().use_local()
+                logger.info("SDK client initialized (local mode)")
+            except ImportError:
+                # Fallback to absolute import
+                from sdk.client import Jotty
+                self._sdk_client = Jotty().use_local()
+                logger.info("SDK client initialized (local mode)")
+
+        return self._sdk_client
 
     async def get_swarm_manager(self) -> Any:
         """
@@ -147,33 +169,19 @@ class JottyCLI:
                 import io
                 _old_stdout, _old_stderr = sys.stdout, sys.stderr
 
-                # Try relative import first (for installed package)
-                try:
-                    from ..core.orchestration import Orchestrator
-                    from ..core.foundation.data_structures import SwarmConfig
-                    from ..core.foundation.unified_lm_provider import configure_dspy_lm
-                except ImportError:
-                    # Fallback for direct execution
-                    from Jotty.core.intelligence.orchestration import Orchestrator
-                    from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
-                    from Jotty.core.infrastructure.foundation.unified_lm_provider import configure_dspy_lm
+                # Use SDK for LM configuration (clean architecture)
+                sdk_client = self._get_sdk_client()
 
-                # Configure DSPy LM before creating Orchestrator
+                # Configure DSPy LM via SDK
                 # This ensures all DSPy modules have access to an LM
                 # Use auto-detection which tries claude-cli first (free), then API providers
                 lm_configured = False
                 try:
                     # Auto-detect: tries claude-cli, cursor-cli, then API providers
-                    lm = configure_dspy_lm()  # Uses built-in fallback logic
-                    if lm:
-                        # Extract meaningful provider/model info
-                        model_name = getattr(lm, 'model', None) or getattr(lm, 'model_name', None) or 'unknown'
-                        # model_name might be like "anthropic/claude-sonnet-4-20250514"
-                        if '/' in str(model_name):
-                            provider_name, model_short = str(model_name).split('/', 1)
-                        else:
-                            provider_name = type(lm).__name__
-                            model_short = str(model_name)
+                    result = await sdk_client.configure_lm()
+                    if result.get("success"):
+                        provider_name = result.get("provider", "auto")
+                        model_short = result.get("model", "auto")
                         self.renderer.info(f"LLM: {provider_name} ({model_short[:30]})")
                         lm_configured = True
                 except Exception as e:
@@ -181,8 +189,8 @@ class JottyCLI:
                     # Try explicit fallback order from config
                     for provider in self.config.provider.fallback_order:
                         try:
-                            lm = configure_dspy_lm(provider=provider)
-                            if lm:
+                            result = await sdk_client.configure_lm(provider=provider)
+                            if result.get("success"):
                                 self.renderer.info(f"LLM configured: {provider}")
                                 lm_configured = True
                                 break
@@ -199,6 +207,14 @@ class JottyCLI:
                         "     - OPENAI_API_KEY for OpenAI\n"
                         "     - GROQ_API_KEY for Groq (free tier available)"
                     )
+
+                # Import Orchestrator and SwarmConfig locally (internal implementation)
+                try:
+                    from ..core.intelligence.orchestration import Orchestrator
+                    from ..core.infrastructure.foundation.data_structures import SwarmConfig
+                except ImportError:
+                    from Jotty.core.intelligence.orchestration import Orchestrator
+                    from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
 
                 # Create SwarmConfig from CLI config
                 jotty_config = SwarmConfig(
@@ -222,16 +238,18 @@ class JottyCLI:
         """
         Get or create SkillsRegistry (lazy initialization).
 
+        NOTE: For new code, prefer using SDK client's list_skills() method.
+        This is kept for backward compatibility with internal commands.
+
         Returns:
             SkillsRegistry instance
         """
         if self._skills_registry is None:
             try:
-                # Try relative import first (for installed package)
+                # Import locally (internal implementation detail)
                 try:
-                    from ..core.registry.skills_registry import get_skills_registry
+                    from ..core.capabilities.registry.skills_registry import get_skills_registry
                 except ImportError:
-                    # Fallback for direct execution
                     from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
 
                 self._skills_registry = get_skills_registry()
@@ -466,10 +484,10 @@ class JottyCLI:
 
     async def _execute_lean_mode(self, task: str, status_callback: Any = None) -> Any:
         """
-        Execute task via ModeRouter (CHAT mode) - native LLM tool calling.
+        Execute task via SDK (CHAT mode) - native LLM tool calling.
 
         The LLM decides what tools to call: web search, file read, save docx, etc.
-        All execution flows through ModeRouter for consistent behavior.
+        All execution flows through SDK for consistent behavior.
 
         Args:
             task: Task description
@@ -478,10 +496,8 @@ class JottyCLI:
         Returns:
             Result with content and output path
         """
-        from Jotty.core.interface.api.mode_router import get_mode_router
-        from Jotty.core.infrastructure.foundation.types.sdk_types import (
-            ExecutionContext, ExecutionMode, ChannelType,
-        )
+        # Import SDK types (public API)
+        from ...sdk import SDKEventType
 
         # Clean task: Remove any accumulated context pollution
         clean_task = self._clean_task_for_lean_execution(task)
@@ -491,29 +507,25 @@ class JottyCLI:
         stream_started = False
         md_stream = MarkdownStreamRenderer(self.renderer.console)
 
-        def stream_callback(chunk: str) -> Any:
-            nonlocal stream_started
+        # Get SDK client
+        sdk_client = self._get_sdk_client()
 
+        # Register stream callback
+        def on_stream(event: Any) -> None:
+            nonlocal stream_started
             if not stream_started:
-                # Start streaming output section
                 stream_started = True
                 self.renderer.newline()
                 self.renderer.print("[dim]" + "─" * 60 + "[/dim]")
 
-            # Feed to markdown stream renderer for incremental rendering
+            chunk = event.data.get("delta", "") if isinstance(event.data, dict) else str(event.data)
             md_stream.feed(chunk)
             streaming_content.append(chunk)
 
-        # Execute via ModeRouter (canonical path)
-        context = ExecutionContext(
-            mode=ExecutionMode.CHAT,
-            channel=ChannelType.CLI,
-            status_callback=status_callback,
-            stream_callback=stream_callback,
-        )
+        sdk_client.on(SDKEventType.STREAM, on_stream)
 
-        router = get_mode_router()
-        route_result = await router.chat(clean_task, context)
+        # Execute via SDK (clean architecture)
+        route_result = await sdk_client.chat(clean_task)
 
         # Flush remaining markdown buffer and end streaming section
         if stream_started:
