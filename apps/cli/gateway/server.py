@@ -197,7 +197,7 @@ class UnifiedGateway:
                 pass
             # Check skills
             try:
-                from Jotty.core.capabilities.registry import get_unified_registry
+                from Jotty.core.capabilities.registry.unified_registry import get_unified_registry
                 registry = get_unified_registry()
                 result["skills_loaded"] = len(registry.list_skills()) if hasattr(registry, 'list_skills') else 0
             except Exception:
@@ -232,7 +232,7 @@ class UnifiedGateway:
                     return {"success": False, "error": "No message provided"}
 
                 from Jotty.core.interface.api.mode_router import get_mode_router
-                from Jotty.core.infrastructure.foundation.types.sdk_types import (
+                from Jotty.sdk import (
                     ExecutionContext, ExecutionMode, ChannelType as CTType,
                 )
 
@@ -262,7 +262,7 @@ class UnifiedGateway:
                     return {"success": False, "error": "No goal provided"}
 
                 from Jotty.core.interface.api.mode_router import get_mode_router
-                from Jotty.core.infrastructure.foundation.types.sdk_types import (
+                from Jotty.sdk import (
                     ExecutionContext, ExecutionMode, ChannelType as CTType,
                 )
 
@@ -290,7 +290,7 @@ class UnifiedGateway:
             async def event_generator() -> Any:
                 try:
                     from Jotty.core.interface.api.mode_router import get_mode_router
-                    from Jotty.core.infrastructure.foundation.types.sdk_types import (
+                    from Jotty.sdk import (
                         ExecutionContext, ExecutionMode, ChannelType as CTType,
                     )
 
@@ -313,7 +313,7 @@ class UnifiedGateway:
         async def api_list_skills() -> Any:
             """List available skills."""
             try:
-                from Jotty.core.capabilities.registry import get_unified_registry
+                from Jotty.core.capabilities.registry.unified_registry import get_unified_registry
                 registry = get_unified_registry()
                 skills = registry.list_skills()
                 return {"success": True, "skills": skills, "count": len(skills)}
@@ -337,7 +337,7 @@ class UnifiedGateway:
         async def api_skill_info(name: str) -> Any:
             """Get skill info."""
             try:
-                from Jotty.core.capabilities.registry import get_unified_registry
+                from Jotty.core.capabilities.registry.unified_registry import get_unified_registry
                 registry = get_unified_registry()
                 skill = registry.get_skill(name)
                 if skill:
@@ -359,7 +359,7 @@ class UnifiedGateway:
                 task = data.get("task", "")
 
                 from Jotty.core.interface.api.mode_router import get_mode_router
-                from Jotty.core.infrastructure.foundation.types.sdk_types import (
+                from Jotty.sdk import (
                     ExecutionContext, ExecutionMode, ChannelType as CTType,
                 )
 

@@ -22,7 +22,7 @@ from typing import Dict, Any, Optional, Callable, List
 logger = logging.getLogger(__name__)
 
 # Absolute imports - single source of truth
-from Jotty.core.infrastructure.foundation.types.sdk_types import (
+from Jotty.sdk import (
     ExecutionContext, ExecutionMode, ChannelType, ResponseFormat,
 )
 

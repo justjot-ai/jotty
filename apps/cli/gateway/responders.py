@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 # Absolute imports - single source of truth
-from Jotty.core.infrastructure.foundation.types.sdk_types import ChannelType, ExecutionContext
+from Jotty.sdk import ChannelType, ExecutionContext
 
 
 @dataclass
@@ -73,7 +73,7 @@ class ChannelResponderRegistry:
         try:
             # Try to import from skills dynamically
             # This avoids hardcoded imports
-            from Jotty.core.capabilities.registry import get_unified_registry
+            from Jotty.core.capabilities.registry.unified_registry import get_unified_registry
             registry = get_unified_registry()
 
             # Get the skill
