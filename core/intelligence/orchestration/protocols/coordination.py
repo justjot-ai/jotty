@@ -175,7 +175,7 @@ class CoordinationMixin:
         # Build supervisor levels until we have a single root
         while len(current_level) > 1:
             level += 1
-            next_level = []
+            next_level: list[Any] = []
 
             for i in range(0, len(current_level), branching_factor):
                 children = current_level[i:i + branching_factor]

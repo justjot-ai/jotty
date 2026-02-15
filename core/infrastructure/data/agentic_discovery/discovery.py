@@ -559,7 +559,7 @@ class ArtifactValidator:
         artifact_type: ArtifactType
     ) -> tuple:
         """Type-specific validation."""
-        issues = []
+        issues: list[Any] = []
         warnings = []
         
         # Add type-specific checks as needed

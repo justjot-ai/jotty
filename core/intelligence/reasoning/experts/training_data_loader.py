@@ -49,7 +49,7 @@ class TrainingDataLoader:
         Returns:
             List of training examples in format: {"code", "description", "type", "source"}
         """
-        examples = []
+        examples: list[Any] = []
         
         try:
             # Extract repo info from URL

@@ -11,9 +11,11 @@ Jotty follows world-class clean architecture with strict layering:
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  LAYER 5: APPLICATIONS (apps/)                              │
-│  ├── apps/cli/          → Command-line interface            │
-│  ├── apps/web/     → Web UI                            │
-│  └── apps/telegram/ → Telegram integration              │
+│  ├── apps/api/          → Backend API server (HTTP/WS)      │
+│  ├── apps/cli/          → Terminal interface (TUI)          │
+│  ├── apps/web/          → Frontend UI (Next.js)             │
+│  ├── apps/telegram/     → Telegram bot                      │
+│  └── apps/whatsapp/     → WhatsApp bot                      │
 │  ✅ Apps use SDK ONLY, never import from core directly      │
 └────────────────────────┬────────────────────────────────────┘
                          ↓ Uses
@@ -512,8 +514,15 @@ pytest tests/ -m "not requires_llm"         # All offline tests
 
 ```
 Jotty/
-├── apps/                    # LAYER 5: APPLICATIONS (✅ NEW)
-│   ├── cli/                 # Command-line interface (MOVED from core/)
+├── apps/                    # LAYER 5: APPLICATIONS
+│   ├── api/                 # Backend API server (HTTP/WebSocket)
+│   │   ├── jotty_api.py     # Main API handler
+│   │   ├── routes/          # FastAPI routes (chat, voice, documents)
+│   │   ├── websocket.py     # WebSocket support
+│   │   ├── voice.py         # Voice processing
+│   │   ├── documents.py     # Document handling
+│   │   └── simple_server.py # Lightweight API server
+│   ├── cli/                 # Terminal interface (TUI)
 │   │   ├── main.py          # Entry point
 │   │   ├── app.py           # JottyCLI main class
 │   │   ├── commands/        # Slash commands (/run, /swarm, etc.)
@@ -521,8 +530,9 @@ Jotty/
 │   │   ├── gateway/         # UnifiedGateway + ChannelRouter
 │   │   ├── ui/              # Rich rendering, status displays
 │   │   └── config/          # CLI configuration
-│   ├── frontend/            # Web UI
-│   └── telegram_bot/        # Telegram integration
+│   ├── web/                 # Frontend UI (Next.js)
+│   ├── telegram/            # Telegram bot integration
+│   └── whatsapp/            # WhatsApp bot (QR code login)
 │
 ├── sdk/                     # LAYER 4: SDK (Stable Public API)
 │   ├── client.py            # Jotty() SDK client
@@ -532,14 +542,15 @@ Jotty/
 ├── core/                    # LAYERS 2-3: CORE FRAMEWORK
 │   ├── interface/           # LAYER 3: Internal API (for SDK)
 │   │   ├── api/             # JottyAPI, ChatAPI, WorkflowAPI
-│   │   ├── use_cases/       # Chat, workflow use cases
 │   │   ├── interfaces/      # Messages, hosts, adapters
-│   │   └── cli/             # ⚠️ DEPRECATED (backward compat shim)
+│   │   ├── ui/              # A2UI response formatting
+│   │   └── use_cases/       # ⚠️ DEPRECATED (backward compat shim)
 │   │
 │   ├── modes/               # LAYER 2: Execution Modes
 │   │   ├── agent/           # BaseAgent, AutoAgent, ChatAssistant
 │   │   ├── workflow/        # Auto workflows, research, learning
-│   │   └── execution/       # Executors, intent classifiers
+│   │   ├── execution/       # Executors, intent classifiers
+│   │   └── use_cases/       # Use case wrappers (ChatExecutor, WorkflowExecutor)
 │   │
 │   ├── capabilities/        # Skills & Tools
 │   │   ├── skills/          # 273 skills (web-search, calculator, etc.)
@@ -567,13 +578,14 @@ Jotty/
 ├── tests/                   # Test suite
 └── docs/                    # Documentation
 
-IMPORTANT CHANGES (2026-02-15):
-✅ CLI moved from core/interface/cli/ to apps/cli/
-✅ Clean architecture established (apps → sdk → core/interface/api → core)
-✅ Follows same pattern as Google, Amazon, Stripe, GitHub
-✅ core/interface/cli/ kept as deprecated backward compat shim
+CLEANUP COMPLETE (2026-02-15):
+✅ LAYER 5: Deleted 67MB duplicates, consolidated 5 apps (api, cli, web, telegram, whatsapp)
+✅ LAYER 3→2: Moved use_cases to modes/ (196K), all execution in Layer 2
+✅ Clean architecture: apps → sdk → core/interface/api → core/modes
+✅ Follows Google, Amazon, Stripe, GitHub patterns
+✅ Backward compat shims for safe migration
 
-See: ARCHITECTURE_RECOMMENDATION.md, ARCHITECTURE_DIAGRAM.md
+See: LAYER5_CLEANUP_COMPLETE.md, LAYER3_CLEANUP_COMPLETE.md
 ```
 
 ---
@@ -582,10 +594,11 @@ See: ARCHITECTURE_RECOMMENDATION.md, ARCHITECTURE_DIAGRAM.md
 
 | Entry Point | Command | Purpose |
 |-------------|---------|---------|
-| **CLI Interactive** | `python -m Jotty.core.interface.cli` | REPL with slash commands |
-| **CLI Single** | `python -m Jotty.core.interface.cli -c "task"` | One-off execution |
-| **Web Gateway** | `python -m Jotty.core.interface.web` | HTTP/WS server (port 8766) |
-| **Gateway Only** | `python -m Jotty.core.interface.cli.gateway` | Webhooks for Telegram/Slack/etc |
+| **CLI Interactive** | `python -m Jotty.apps.cli` | REPL with slash commands |
+| **CLI Single** | `python -m Jotty.apps.cli -c "task"` | One-off execution |
+| **Web Server** | `python web.py` | HTTP/WS server (port 8766) |
+| **API Server** | `python -m Jotty.apps.api` | Backend API (FastAPI) |
+| **Gateway Only** | `python -m Jotty.apps.cli.gateway` | Webhooks for Telegram/Slack/etc |
 
 ---
 

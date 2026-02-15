@@ -545,7 +545,7 @@ class StreamlitProvider(SkillProvider):
         """Create a chat interface app."""
         app_name = context.get('app_name') or self._extract_app_name(task) or "chat_app"
 
-        imports = []
+        imports: list[Any] = []
         body = CHAT_TEMPLATE
 
         return await self._create_app(
@@ -639,7 +639,7 @@ st.dataframe(df, use_container_width=True)'''
         """Create a form app."""
         app_name = context.get('app_name') or self._extract_app_name(task) or "form_app"
 
-        imports = []
+        imports: list[Any] = []
 
         form_fields = '''name = st.text_input("Name")
     email = st.text_input("Email")

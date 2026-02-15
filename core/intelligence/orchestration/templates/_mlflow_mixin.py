@@ -277,7 +277,7 @@ class MLflowMixin:
 
     def _flatten_dict(self, d: Dict, parent_key: str = '', sep: str = '_') -> Dict:
         """Flatten nested dictionary for MLflow params."""
-        items = []
+        items: list[Any] = []
         for k, v in d.items():
             new_key = f"{parent_key}{sep}{k}" if parent_key else k
             if isinstance(v, dict):

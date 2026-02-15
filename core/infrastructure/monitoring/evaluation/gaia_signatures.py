@@ -15,7 +15,7 @@ except ImportError:
 GAIAAnswerExtractSignature = None
 if DSPY_AVAILABLE:
 
-    class GAIAAnswerExtractSignature(dspy.Signature):
+    class GAIAAnswerExtractSignature(dspy.Signature):  # type: ignore[no-redef]
         """Extract the exact final answer from a model's raw response for GAIA scoring.
 
         You are a GAIA answer normalizer. Given the model's raw response and the

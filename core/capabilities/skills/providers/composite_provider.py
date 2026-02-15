@@ -264,7 +264,7 @@ class AutomateWorkflowProvider(SkillProvider):
 
         # Split on ' then ' first (preserves order/dependency), then ', '
         parts = task.replace(' then ', '\x00').split('\x00')
-        expanded = []
+        expanded: list[Any] = []
         for part in parts:
             expanded.extend(p.strip() for p in part.split(',') if p.strip())
 
@@ -359,7 +359,7 @@ class FullStackAgentProvider(SkillProvider):
             required_categories = self._analyze_task(task)
             logger.info(f" Fullstack agent: Task requires {[c.value for c in required_categories]}")
 
-            results = {}
+            results: dict[str, Any] = {}
 
             for category in required_categories:
                 if self._registry:

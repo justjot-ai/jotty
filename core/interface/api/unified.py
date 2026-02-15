@@ -8,8 +8,8 @@ from typing import List, Dict, Any, Optional, AsyncIterator, Type
 import logging
 
 from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
-from Jotty.core.interface.use_cases import ChatUseCase, WorkflowUseCase, UseCaseConfig
-from Jotty.core.interface.use_cases.base import BaseUseCase, UseCaseType
+from Jotty.core.modes.use_cases import ChatUseCase, WorkflowUseCase, UseCaseConfig
+from Jotty.core.modes.use_cases.base import BaseUseCase, UseCaseType
 from Jotty.core.intelligence.orchestration import Orchestrator
 from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig, SwarmLearningConfig
 
@@ -91,7 +91,7 @@ class JottyAPI:
     def chat(self) -> ChatUseCase:
         """Get chat use case (lazy initialization)."""
         if self._chat_use_case is None:
-            from Jotty.core.interface.use_cases.base import UseCaseType
+            from Jotty.core.modes.use_cases.base import UseCaseType
             self._chat_use_case = ChatUseCase(
                 conductor=self.conductor,
                 config=UseCaseConfig(
@@ -104,7 +104,7 @@ class JottyAPI:
     def workflow(self) -> WorkflowUseCase:
         """Get workflow use case (lazy initialization)."""
         if self._workflow_use_case is None:
-            from Jotty.core.interface.use_cases.base import UseCaseType
+            from Jotty.core.modes.use_cases.base import UseCaseType
             self._workflow_use_case = WorkflowUseCase(
                 conductor=self.conductor,
                 config=UseCaseConfig(

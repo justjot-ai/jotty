@@ -595,7 +595,7 @@ class JottyGAIAAdapter:
                 # Group by order of magnitude (log-scale clustering)
                 # e.g., 65M and 66M cluster together (both ~10^7)
                 # but 65 and 65M do NOT (10^1 vs 10^7)
-                clusters = []
+                clusters: list[Any] = []
                 for ans, num in numeric_answers:
                     matched = False
                     for cluster in clusters:

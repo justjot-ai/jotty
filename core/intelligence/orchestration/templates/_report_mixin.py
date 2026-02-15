@@ -510,7 +510,7 @@ class ReportMixin:
 
     def _render_model_benchmarking(self, content: Dict, styles: Any) -> List:
         """Render model benchmarking section."""
-        elements = []
+        elements: list[Any] = []
 
         models = content.get('models', {})
         if not models:

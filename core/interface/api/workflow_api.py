@@ -7,7 +7,7 @@ Simplified API for workflow execution.
 from typing import List, Dict, Any, Optional, AsyncIterator
 import logging
 
-from Jotty.core.interface.use_cases.workflow import WorkflowUseCase
+from Jotty.core.modes.use_cases.workflow import WorkflowUseCase
 from Jotty.core.intelligence.orchestration import Orchestrator
 from Jotty.core.infrastructure.foundation.data_structures import SwarmLearningConfig
 

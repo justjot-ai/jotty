@@ -66,11 +66,17 @@ class MypyDiagnostics:
     def run_mypy(self) -> Tuple[int, str]:
         """Run mypy and return (exit_code, output)."""
         try:
+            # Run from parent directory so Jotty.* imports work
+            import os
+            parent_dir = Path.cwd().parent if Path.cwd().name == 'Jotty' else Path.cwd()
+
             result = subprocess.run(
-                [sys.executable, '-m', 'mypy'],
+                [sys.executable, '-m', 'mypy', 'Jotty/core', 'Jotty/apps', 'Jotty/sdk',
+                 '--config-file', 'Jotty/mypy.ini'],
                 capture_output=True,
                 text=True,
-                timeout=60
+                timeout=60,
+                cwd=parent_dir
             )
             return result.returncode, result.stdout + result.stderr
         except Exception as e:

@@ -7,7 +7,7 @@ Simplified API for chat interactions.
 from typing import List, Dict, Any, Optional, AsyncIterator
 import logging
 
-from Jotty.core.interface.use_cases.chat import ChatUseCase, ChatMessage
+from Jotty.core.modes.use_cases.chat import ChatUseCase, ChatMessage
 from Jotty.core.intelligence.orchestration import Orchestrator
 from Jotty.core.infrastructure.foundation.data_structures import SwarmLearningConfig
 from Jotty.core.infrastructure.foundation.agent_config import AgentConfig

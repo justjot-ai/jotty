@@ -7,13 +7,18 @@ learning curves, calibration, lift/gain, threshold optimization, etc.
 
 Extracted from ml_report_generator.py to reduce file size.
 """
+from __future__ import annotations
 
 import logging
 import warnings
-from typing import Dict, List, Any, Optional, Tuple, Union
+from pathlib import Path
+from typing import Dict, List, Any, Optional, Tuple, Union, TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
+
+if TYPE_CHECKING:
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +30,29 @@ class AnalysisSectionsMixin:
     ProfessionalMLReport which provides self.sections, self.figures, self._save_figure(),
     self._validate_inputs(), self._maybe_add_narrative(), etc.
     """
+
+    if TYPE_CHECKING:
+        # Declare expected attributes from parent class
+        output_dir: Path
+        figures_dir: Path
+        theme: str
+        config: Dict[str, Any]
+        _llm_narrative_enabled: bool
+        _html_enabled: bool
+        _content: List[Any]
+        _figures: List[Any]
+        _warnings: List[Any]
+        _metadata: Dict[str, Any]
+        _raw_data: Dict[str, Any]
+        _section_data: List[Any]
+        _failed_sections: List[str]
+        _failed_charts: List[str]
+
+        def _record_chart_failure(self, chart_name: str, error: Exception) -> None: ...
+        def _save_figure(self, fig: Any, name: str) -> Optional[Path]: ...
+        def _fig_path_for_markdown(self, fig_path: Path) -> str: ...
+        def _add_section(self, title: str, content: str, **kwargs: Any) -> None: ...
+        def _record_section_failure(self, section: str, error: Exception) -> None: ...
 
     def add_executive_summary(self, metrics: Dict[str, float], best_model: str, n_features: int, context: str = '') -> Any:
         """Add executive summary section with risk scoring and traffic-light indicators."""
