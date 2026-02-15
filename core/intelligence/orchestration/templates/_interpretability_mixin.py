@@ -6,12 +6,14 @@ local interpretability analysis, multiple counterfactual generation strategies,
 and LIME-style visualization helpers. Extracted from ml_report_generator.py
 to keep the main class focused and maintainable.
 """
+
 from __future__ import annotations
+
+import logging
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
-import logging
-from typing import Dict, List, Any, Optional, Tuple, Union, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .ml_report_generator import ReportContext
@@ -33,8 +35,15 @@ class InterpretabilityMixin:
     """
 
     _TREE_MODEL_TYPES = (
-        'RandomForest', 'GradientBoosting', 'XGB', 'LGBM', 'LightGBM',
-        'ExtraTrees', 'DecisionTree', 'CatBoost', 'HistGradientBoosting',
+        "RandomForest",
+        "GradientBoosting",
+        "XGB",
+        "LGBM",
+        "LightGBM",
+        "ExtraTrees",
+        "DecisionTree",
+        "CatBoost",
+        "HistGradientBoosting",
     )
 
     @staticmethod
@@ -45,16 +54,30 @@ class InterpretabilityMixin:
         Falls back to class name string matching if imports fail.
         """
         try:
-            from sklearn.ensemble import (RandomForestClassifier, RandomForestRegressor,
-                                          GradientBoostingClassifier, GradientBoostingRegressor,
-                                          ExtraTreesClassifier, ExtraTreesRegressor,
-                                          HistGradientBoostingClassifier, HistGradientBoostingRegressor)
+            from sklearn.ensemble import (
+                ExtraTreesClassifier,
+                ExtraTreesRegressor,
+                GradientBoostingClassifier,
+                GradientBoostingRegressor,
+                HistGradientBoostingClassifier,
+                HistGradientBoostingRegressor,
+                RandomForestClassifier,
+                RandomForestRegressor,
+            )
             from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
-            sklearn_trees = (RandomForestClassifier, RandomForestRegressor,
-                           GradientBoostingClassifier, GradientBoostingRegressor,
-                           ExtraTreesClassifier, ExtraTreesRegressor,
-                           HistGradientBoostingClassifier, HistGradientBoostingRegressor,
-                           DecisionTreeClassifier, DecisionTreeRegressor)
+
+            sklearn_trees = (
+                RandomForestClassifier,
+                RandomForestRegressor,
+                GradientBoostingClassifier,
+                GradientBoostingRegressor,
+                ExtraTreesClassifier,
+                ExtraTreesRegressor,
+                HistGradientBoostingClassifier,
+                HistGradientBoostingRegressor,
+                DecisionTreeClassifier,
+                DecisionTreeRegressor,
+            )
             if isinstance(model, sklearn_trees):
                 return True
         except ImportError:
@@ -62,6 +85,7 @@ class InterpretabilityMixin:
 
         try:
             import xgboost
+
             if isinstance(model, (xgboost.XGBClassifier, xgboost.XGBRegressor)):
                 return True
         except (ImportError, AttributeError):
@@ -69,6 +93,7 @@ class InterpretabilityMixin:
 
         try:
             import lightgbm
+
             if isinstance(model, (lightgbm.LGBMClassifier, lightgbm.LGBMRegressor)):
                 return True
         except (ImportError, AttributeError):
@@ -76,6 +101,7 @@ class InterpretabilityMixin:
 
         try:
             import catboost
+
             if isinstance(model, (catboost.CatBoostClassifier, catboost.CatBoostRegressor)):
                 return True
         except (ImportError, AttributeError):
@@ -83,10 +109,16 @@ class InterpretabilityMixin:
 
         # Fallback: string matching on class name
         model_name = type(model).__name__
-        return any(t.lower() in model_name.lower()
-                   for t in InterpretabilityMixin._TREE_MODEL_TYPES)
+        return any(t.lower() in model_name.lower() for t in InterpretabilityMixin._TREE_MODEL_TYPES)
 
-    def add_feature_interactions(self, shap_values: Any, feature_names: List[str], X_sample: Any = None, model: Any = None, top_n: int = 3) -> Any:
+    def add_feature_interactions(
+        self,
+        shap_values: Any,
+        feature_names: List[str],
+        X_sample: Any = None,
+        model: Any = None,
+        top_n: int = 3,
+    ) -> Any:
         """
         Add feature interaction detection:
         - SHAP interaction values for tree models
@@ -97,7 +129,7 @@ class InterpretabilityMixin:
             import shap
 
             # Extract SHAP values
-            if hasattr(shap_values, 'values'):
+            if hasattr(shap_values, "values"):
                 values = shap_values.values
             else:
                 values = shap_values
@@ -108,14 +140,16 @@ class InterpretabilityMixin:
             # Try SHAP interaction values for tree models
             interaction_data = None
             try:
-                if model is not None and hasattr(model, 'predict_proba'):
+                if model is not None and hasattr(model, "predict_proba"):
                     explainer = shap.TreeExplainer(model)
                     interaction_values = explainer.shap_interaction_values(X_sample)
                     if isinstance(interaction_values, list):
                         interaction_values = interaction_values[1]  # Binary
                     interaction_data = interaction_values
             except Exception as e:
-                self._record_internal_warning('SHAPInteraction', 'Failed to compute SHAP interaction values for tree model', e)
+                self._record_internal_warning(
+                    "SHAPInteraction", "Failed to compute SHAP interaction values for tree model", e
+                )
                 pass
 
             # Fallback: pairwise SHAP correlation
@@ -126,15 +160,17 @@ class InterpretabilityMixin:
             interactions = []
             for i in range(n_features):
                 for j in range(i + 1, n_features):
-                    interactions.append({
-                        'feature_1': feature_names[i],
-                        'feature_2': feature_names[j],
-                        'correlation': abs(shap_corr[i, j]),
-                        'idx_1': i,
-                        'idx_2': j,
-                    })
+                    interactions.append(
+                        {
+                            "feature_1": feature_names[i],
+                            "feature_2": feature_names[j],
+                            "correlation": abs(shap_corr[i, j]),
+                            "idx_1": i,
+                            "idx_2": j,
+                        }
+                    )
 
-            interactions.sort(key=lambda x: x['correlation'], reverse=True)
+            interactions.sort(key=lambda x: x["correlation"], reverse=True)
             top_interactions = interactions[:top_n]
 
             # Create visualization
@@ -145,7 +181,11 @@ class InterpretabilityMixin:
             # Build table
             table_md = "| Feature 1 | Feature 2 | SHAP Correlation | Strength |\n|-----------|-----------|-----------------|----------|\n"
             for inter in top_interactions:
-                strength = "Strong" if inter['correlation'] > 0.5 else ("Moderate" if inter['correlation'] > 0.3 else "Weak")
+                strength = (
+                    "Strong"
+                    if inter["correlation"] > 0.5
+                    else ("Moderate" if inter["correlation"] > 0.3 else "Weak")
+                )
                 table_md += f"| {inter['feature_1'][:20]} | {inter['feature_2'][:20]} | {inter['correlation']:.4f} | {strength} |\n"
 
             content = f"""
@@ -171,48 +211,71 @@ High SHAP correlation between features suggests they interact in the model.
 ---
 """
             self._content.append(content)
-            self._store_section_data('feature_interactions', 'Feature Interactions', {
-                'n_interactions': len(top_interactions),
-                'top_pairs': [{'f1': i['feature_1'], 'f2': i['feature_2'], 'corr': i['correlation']}
-                              for i in top_interactions],
-            })
+            self._store_section_data(
+                "feature_interactions",
+                "Feature Interactions",
+                {
+                    "n_interactions": len(top_interactions),
+                    "top_pairs": [
+                        {"f1": i["feature_1"], "f2": i["feature_2"], "corr": i["correlation"]}
+                        for i in top_interactions
+                    ],
+                },
+            )
 
         except Exception as e:
-            self._record_section_failure('Feature Interactions', e)
+            self._record_section_failure("Feature Interactions", e)
 
-    def _create_interaction_chart(self, shap_values: Any, feature_names: List[str], X_sample: Any, top_interactions: List[Dict]) -> str:
+    def _create_interaction_chart(
+        self,
+        shap_values: Any,
+        feature_names: List[str],
+        X_sample: Any,
+        top_interactions: List[Dict],
+    ) -> str:
         """Create feature interaction scatter plots."""
         try:
             n = len(top_interactions)
 
-            with self._chart_context('feature_interactions', figsize=(5 * n, 4.5),
-                                     nrows=1, ncols=n) as (fig, axes):
+            with self._chart_context(
+                "feature_interactions", figsize=(5 * n, 4.5), nrows=1, ncols=n
+            ) as (fig, axes):
                 if n == 1:
                     axes = [axes]
 
-                X_arr = X_sample if isinstance(X_sample, np.ndarray) else X_sample.values if hasattr(X_sample, 'values') else np.array(X_sample)
+                X_arr = (
+                    X_sample
+                    if isinstance(X_sample, np.ndarray)
+                    else X_sample.values if hasattr(X_sample, "values") else np.array(X_sample)
+                )
 
                 for i, inter in enumerate(top_interactions):
                     ax = axes[i]
-                    idx1 = inter['idx_1']
-                    idx2 = inter['idx_2']
+                    idx1 = inter["idx_1"]
+                    idx2 = inter["idx_2"]
 
                     feat1_vals = X_arr[:, idx1]
                     feat2_vals = X_arr[:, idx2]
                     shap_vals = shap_values[:, idx1]
 
-                    scatter = ax.scatter(feat1_vals, feat2_vals, c=shap_vals,
-                                       cmap='coolwarm', alpha=0.6, s=20)
-                    fig.colorbar(scatter, ax=ax, label='SHAP Value', shrink=0.8)
+                    scatter = ax.scatter(
+                        feat1_vals, feat2_vals, c=shap_vals, cmap="coolwarm", alpha=0.6, s=20
+                    )
+                    fig.colorbar(scatter, ax=ax, label="SHAP Value", shrink=0.8)
 
-                    ax.set_xlabel(inter['feature_1'][:15], fontsize=10)
-                    ax.set_ylabel(inter['feature_2'][:15], fontsize=10)
-                    ax.set_title(f"r={inter['correlation']:.3f}", fontsize=11, fontweight='medium')
+                    ax.set_xlabel(inter["feature_1"][:15], fontsize=10)
+                    ax.set_ylabel(inter["feature_2"][:15], fontsize=10)
+                    ax.set_title(f"r={inter['correlation']:.3f}", fontsize=11, fontweight="medium")
 
-                fig.suptitle('Feature Interaction Plots', fontsize=14, fontweight='bold',
-                            color=self.theme['primary'], y=1.05)
+                fig.suptitle(
+                    "Feature Interaction Plots",
+                    fontsize=14,
+                    fontweight="bold",
+                    color=self.theme["primary"],
+                    y=1.05,
+                )
 
-            return 'figures/feature_interactions.png'
+            return "figures/feature_interactions.png"
         except Exception as e:
             logger.debug(f"Failed to create interaction chart: {e}")
             return ""
@@ -221,7 +284,9 @@ High SHAP correlation between features suggests they interact in the model.
     # INTERPRETABILITY ANALYSIS (LIME / PERTURBATION)
     # =========================================================================
 
-    def add_interpretability_analysis(self, model: Any, X_sample: Any, y_pred: Any, feature_names: List[str], top_n: int = 5) -> Any:
+    def add_interpretability_analysis(
+        self, model: Any, X_sample: Any, y_pred: Any, feature_names: List[str], top_n: int = 5
+    ) -> Any:
         """
         Add local interpretability analysis using LIME or perturbation-based explanations.
 
@@ -238,15 +303,18 @@ High SHAP correlation between features suggests they interact in the model.
             top_n: Number of most/least confident samples to explain
         """
         try:
-            X_arr = X_sample if isinstance(X_sample, np.ndarray) else (
-                X_sample.values if hasattr(X_sample, 'values') else np.array(X_sample))
+            X_arr = (
+                X_sample
+                if isinstance(X_sample, np.ndarray)
+                else (X_sample.values if hasattr(X_sample, "values") else np.array(X_sample))
+            )
             # Ensure float64 to avoid numpy ufunc errors with object dtypes
             if X_arr.dtype == object:
                 X_arr = X_arr.astype(np.float64)
             y_pred_arr = np.asarray(y_pred)
 
             # Get prediction confidences
-            has_proba = hasattr(model, 'predict_proba')
+            has_proba = hasattr(model, "predict_proba")
             if has_proba:
                 probas = model.predict_proba(X_arr)
                 confidences = np.max(probas, axis=1)
@@ -258,16 +326,17 @@ High SHAP correlation between features suggests they interact in the model.
             least_confident = sorted_idx[:top_n]
 
             # Explanation cascade: SHAP -> LIME -> perturbation (last resort)
-            method = 'perturbation'
+            method = "perturbation"
             explanations = []
 
             # Try SHAP first (global feature importance)
             shap_global = self._shap_explain(model, X_arr, feature_names)
             if shap_global is not None:
-                method = 'shap'
+                method = "shap"
                 # Use SHAP for per-sample explanations via KernelExplainer
                 try:
                     import shap
+
                     is_tree = self._is_tree_model(model)
 
                     if is_tree:
@@ -278,65 +347,97 @@ High SHAP correlation between features suggests they interact in the model.
                         explainer = shap.KernelExplainer(predict_fn, background)
 
                     for idx in list(most_confident) + list(least_confident):
-                        sv = explainer.shap_values(X_arr[idx:idx+1], nsamples=200) if not is_tree else explainer.shap_values(X_arr[idx:idx+1])
+                        sv = (
+                            explainer.shap_values(X_arr[idx : idx + 1], nsamples=200)
+                            if not is_tree
+                            else explainer.shap_values(X_arr[idx : idx + 1])
+                        )
                         if isinstance(sv, list):
                             sv = sv[1]
-                        contributions = {feature_names[i]: float(sv[0][i]) for i in range(len(feature_names))}
-                        explanations.append({
-                            'sample_idx': int(idx),
-                            'confidence': float(confidences[idx]),
-                            'predicted': int(y_pred_arr[idx]),
-                            'contributions': contributions,
-                        })
+                        contributions = {
+                            feature_names[i]: float(sv[0][i]) for i in range(len(feature_names))
+                        }
+                        explanations.append(
+                            {
+                                "sample_idx": int(idx),
+                                "confidence": float(confidences[idx]),
+                                "predicted": int(y_pred_arr[idx]),
+                                "contributions": contributions,
+                            }
+                        )
                 except Exception as e:
                     # SHAP per-sample failed, fall back to perturbation for per-sample
-                    self._record_internal_warning('SHAPPerSample', 'Per-sample SHAP explanation failed, falling back to perturbation', e)
-                    method = 'shap_global_perturbation_local'
+                    self._record_internal_warning(
+                        "SHAPPerSample",
+                        "Per-sample SHAP explanation failed, falling back to perturbation",
+                        e,
+                    )
+                    method = "shap_global_perturbation_local"
                     for idx in list(most_confident) + list(least_confident):
                         contributions = self._perturbation_explain(
-                            model, X_arr, idx, feature_names, has_proba)
-                        explanations.append({
-                            'sample_idx': int(idx),
-                            'confidence': float(confidences[idx]),
-                            'predicted': int(y_pred_arr[idx]),
-                            'contributions': contributions,
-                        })
+                            model, X_arr, idx, feature_names, has_proba
+                        )
+                        explanations.append(
+                            {
+                                "sample_idx": int(idx),
+                                "confidence": float(confidences[idx]),
+                                "predicted": int(y_pred_arr[idx]),
+                                "contributions": contributions,
+                            }
+                        )
 
             # Try LIME if SHAP not available
             if not explanations:
                 try:
-                    from lime.lime_tabular import LimeTabularExplainer
+                    from lime.lime_tabular import (
+                        LimeTabularExplainer,  # type: ignore[import-not-found]
+                    )
+
                     explainer = LimeTabularExplainer(
-                        X_arr, feature_names=feature_names, mode='classification',
-                        discretize_continuous=True, random_state=42)
-                    method = 'lime'
+                        X_arr,
+                        feature_names=feature_names,
+                        mode="classification",
+                        discretize_continuous=True,
+                        random_state=42,
+                    )
+                    method = "lime"
 
                     for idx in list(most_confident) + list(least_confident):
-                        exp = explainer.explain_instance(X_arr[idx], model.predict_proba if has_proba else model.predict,
-                                                         num_features=min(10, len(feature_names)))
+                        exp = explainer.explain_instance(
+                            X_arr[idx],
+                            model.predict_proba if has_proba else model.predict,
+                            num_features=min(10, len(feature_names)),
+                        )
                         contributions = {f: w for f, w in exp.as_list()}
-                        explanations.append({
-                            'sample_idx': int(idx),
-                            'confidence': float(confidences[idx]),
-                            'predicted': int(y_pred_arr[idx]),
-                            'contributions': contributions,
-                        })
+                        explanations.append(
+                            {
+                                "sample_idx": int(idx),
+                                "confidence": float(confidences[idx]),
+                                "predicted": int(y_pred_arr[idx]),
+                                "contributions": contributions,
+                            }
+                        )
                 except ImportError as e:
-                    self._record_internal_warning('LIMEImport', 'LIME library import failed, skipping LIME explanations', e)
+                    self._record_internal_warning(
+                        "LIMEImport", "LIME library import failed, skipping LIME explanations", e
+                    )
                     pass
 
             # Perturbation-based last resort
             if not explanations:
-                method = 'perturbation'
+                method = "perturbation"
                 for idx in list(most_confident) + list(least_confident):
                     contributions = self._perturbation_explain(
-                        model, X_arr, idx, feature_names, has_proba)
-                    explanations.append({
-                        'sample_idx': int(idx),
-                        'confidence': float(confidences[idx]),
-                        'predicted': int(y_pred_arr[idx]),
-                        'contributions': contributions,
-                    })
+                        model, X_arr, idx, feature_names, has_proba
+                    )
+                    explanations.append(
+                        {
+                            "sample_idx": int(idx),
+                            "confidence": float(confidences[idx]),
+                            "predicted": int(y_pred_arr[idx]),
+                            "contributions": contributions,
+                        }
+                    )
 
             # SHAP interaction values (tree models only)
             interaction_data = self._shap_interaction_values(model, X_arr, feature_names)
@@ -354,7 +455,8 @@ High SHAP correlation between features suggests they interact in the model.
                 sample_idx = most_confident[0]
                 for mag in [0.5, 1.0, 2.0]:
                     contrib = self._perturbation_explain(
-                        model, X_arr, sample_idx, feature_names, has_proba, magnitudes=[mag])
+                        model, X_arr, sample_idx, feature_names, has_proba, magnitudes=[mag]
+                    )
                     sensitivity_data[mag] = contrib
 
             # Create visualization
@@ -374,8 +476,10 @@ Local explanations showing why the model makes specific predictions.
 |--------|-----------|------------|--------------------------|
 """
             for exp in explanations[:top_n]:
-                top_contribs = sorted(exp['contributions'].items(), key=lambda x: abs(x[1]), reverse=True)[:3]
-                contribs_str = ', '.join([f"{f[:15]}={w:+.3f}" for f, w in top_contribs])
+                top_contribs = sorted(
+                    exp["contributions"].items(), key=lambda x: abs(x[1]), reverse=True
+                )[:3]
+                contribs_str = ", ".join([f"{f[:15]}={w:+.3f}" for f, w in top_contribs])
                 content += f"| #{exp['sample_idx']} | {exp['predicted']} | {exp['confidence']:.4f} | {contribs_str} |\n"
 
             content += f"""
@@ -385,8 +489,10 @@ Local explanations showing why the model makes specific predictions.
 |--------|-----------|------------|--------------------------|
 """
             for exp in explanations[top_n:]:
-                top_contribs = sorted(exp['contributions'].items(), key=lambda x: abs(x[1]), reverse=True)[:3]
-                contribs_str = ', '.join([f"{f[:15]}={w:+.3f}" for f, w in top_contribs])
+                top_contribs = sorted(
+                    exp["contributions"].items(), key=lambda x: abs(x[1]), reverse=True
+                )[:3]
+                contribs_str = ", ".join([f"{f[:15]}={w:+.3f}" for f, w in top_contribs])
                 content += f"| #{exp['sample_idx']} | {exp['predicted']} | {exp['confidence']:.4f} | {contribs_str} |\n"
 
             # Sensitivity Analysis subsection
@@ -401,7 +507,9 @@ Effect of perturbation magnitude on top-5 features (bidirectional, normalized):
 """
                 # Get top 5 features from 1.0x magnitude
                 if 1.0 in sensitivity_data:
-                    top5 = sorted(sensitivity_data[1.0].items(), key=lambda x: abs(x[1]), reverse=True)[:5]
+                    top5 = sorted(
+                        sensitivity_data[1.0].items(), key=lambda x: abs(x[1]), reverse=True
+                    )[:5]
                     for feat, _ in top5:
                         vals = []
                         for mag in [0.5, 1.0, 2.0]:
@@ -419,7 +527,7 @@ Effect of perturbation magnitude on top-5 features (bidirectional, normalized):
 
             if all_counterfactuals:
                 # Show the best counterfactual (fewest changes) from multiple
-                best_cf = min(all_counterfactuals, key=lambda x: x['n_changes'])
+                best_cf = min(all_counterfactuals, key=lambda x: x["n_changes"])
                 content += f"""## Counterfactual Analysis
 
 What minimal changes would flip the prediction? (Generated {len(all_counterfactuals)} counterfactual(s), showing best)
@@ -430,8 +538,12 @@ What minimal changes would flip the prediction? (Generated {len(all_counterfactu
 |--------|--------------|----------|-----------|-----------------|
 """
                 for cf in all_counterfactuals:
-                    changes = ', '.join([f"{c['feature'][:15]}: {c['from']:.2f}\u2192{c['to']:.2f}"
-                                        for c in cf['changes'][:3]])
+                    changes = ", ".join(
+                        [
+                            f"{c['feature'][:15]}: {c['from']:.2f}\u2192{c['to']:.2f}"
+                            for c in cf["changes"][:3]
+                        ]
+                    )
                     content += f"| #{cf['sample_idx']} | {cf['original_pred']} | {cf['new_pred']} | {cf['n_changes']} | {changes} |\n"
 
             # Feature Interactions subsection (SHAP interaction values)
@@ -447,9 +559,11 @@ Top feature interaction pairs detected via SHAP interaction values:
                     content += f"| {inter['feature_1'][:20]} | {inter['feature_2'][:20]} | {inter['interaction_value']:.4f} |\n"
                 content += "\n"
 
-            narrative = self._maybe_add_narrative('Interpretability Analysis',
-                f'Method: {method}, Explained: {len(explanations)}, Counterfactuals: {len(all_counterfactuals)}',
-                section_type='interpretability')
+            narrative = self._maybe_add_narrative(
+                "Interpretability Analysis",
+                f"Method: {method}, Explained: {len(explanations)}, Counterfactuals: {len(all_counterfactuals)}",
+                section_type="interpretability",
+            )
 
             content += f"""
 {narrative}
@@ -457,17 +571,28 @@ Top feature interaction pairs detected via SHAP interaction values:
 ---
 """
             self._content.append(content)
-            self._store_section_data('interpretability', 'Interpretability Analysis', {
-                'method': method,
-                'n_explained': len(explanations),
-                'n_counterfactuals': len(all_counterfactuals),
-                'sensitivity_data': {str(k): {fk: float(fv) for fk, fv in v.items()}
-                                     for k, v in sensitivity_data.items()} if sensitivity_data else {},
-                'interaction_data': interaction_data if interaction_data else [],
-            }, [{'type': 'importance_bar'}])
+            self._store_section_data(
+                "interpretability",
+                "Interpretability Analysis",
+                {
+                    "method": method,
+                    "n_explained": len(explanations),
+                    "n_counterfactuals": len(all_counterfactuals),
+                    "sensitivity_data": (
+                        {
+                            str(k): {fk: float(fv) for fk, fv in v.items()}
+                            for k, v in sensitivity_data.items()
+                        }
+                        if sensitivity_data
+                        else {}
+                    ),
+                    "interaction_data": interaction_data if interaction_data else [],
+                },
+                [{"type": "importance_bar"}],
+            )
 
         except Exception as e:
-            self._record_section_failure('Interpretability Analysis', e)
+            self._record_section_failure("Interpretability Analysis", e)
 
     def _shap_explain(self, model: Any, X_arr: Any, feature_names: Any) -> Any:
         """Compute SHAP-based feature contributions using TreeExplainer or KernelExplainer.
@@ -484,7 +609,7 @@ Top feature interaction pairs detected via SHAP interaction values:
             import shap
 
             # Ensure float64 to avoid numpy ufunc errors with object dtypes
-            if hasattr(X_arr, 'dtype') and X_arr.dtype == object:
+            if hasattr(X_arr, "dtype") and X_arr.dtype == object:
                 X_arr = X_arr.astype(np.float64)
 
             # Try TreeExplainer for tree-based models
@@ -500,15 +625,25 @@ Top feature interaction pairs detected via SHAP interaction values:
                     mean_abs = np.mean(np.abs(shap_values), axis=0)
                     return {feature_names[i]: float(mean_abs[i]) for i in range(len(feature_names))}
                 except Exception as e:
-                    self._record_internal_warning('SHAPTreeExplainer', 'TreeExplainer failed, falling back to KernelExplainer', e)
+                    self._record_internal_warning(
+                        "SHAPTreeExplainer",
+                        "TreeExplainer failed, falling back to KernelExplainer",
+                        e,
+                    )
                     pass  # Fall through to KernelExplainer
 
             # KernelExplainer fallback for non-tree models
             try:
                 background_size = min(100, len(X_arr))
-                background = shap.sample(X_arr, background_size, random_state=42) if len(X_arr) > background_size else X_arr
+                background = (
+                    shap.sample(X_arr, background_size, random_state=42)
+                    if len(X_arr) > background_size
+                    else X_arr
+                )
 
-                predict_fn = model.predict_proba if hasattr(model, 'predict_proba') else model.predict
+                predict_fn = (
+                    model.predict_proba if hasattr(model, "predict_proba") else model.predict
+                )
                 explainer = shap.KernelExplainer(predict_fn, background)
 
                 sample_size = min(50, len(X_arr))
@@ -520,19 +655,25 @@ Top feature interaction pairs detected via SHAP interaction values:
                 mean_abs = np.mean(np.abs(shap_values), axis=0)
                 return {feature_names[i]: float(mean_abs[i]) for i in range(len(feature_names))}
             except Exception as e:
-                self._record_internal_warning('SHAPKernelExplainer', 'KernelExplainer failed to compute SHAP values', e)
+                self._record_internal_warning(
+                    "SHAPKernelExplainer", "KernelExplainer failed to compute SHAP values", e
+                )
                 pass
 
         except ImportError as e:
-            self._record_internal_warning('SHAPExplain', 'SHAP library import failed', e)
+            self._record_internal_warning("SHAPExplain", "SHAP library import failed", e)
             pass
         except Exception as e:
-            self._record_internal_warning('SHAPExplain', 'Unexpected error during SHAP explanation', e)
+            self._record_internal_warning(
+                "SHAPExplain", "Unexpected error during SHAP explanation", e
+            )
             pass
 
         return None
 
-    def _shap_interaction_values(self, model: Any, X_arr: Any, feature_names: Any, top_k: Any = 5) -> Any:
+    def _shap_interaction_values(
+        self, model: Any, X_arr: Any, feature_names: Any, top_k: Any = 5
+    ) -> Any:
         """Compute SHAP interaction values for tree-based models.
 
         Uses TreeExplainer.shap_interaction_values to extract top-k feature interaction pairs.
@@ -570,20 +711,32 @@ Top feature interaction pairs detected via SHAP interaction values:
             pairs = []
             for i in range(n_features):
                 for j in range(i + 1, n_features):
-                    pairs.append({
-                        'feature_1': feature_names[i],
-                        'feature_2': feature_names[j],
-                        'interaction_value': float(mean_interactions[i, j]),
-                    })
+                    pairs.append(
+                        {
+                            "feature_1": feature_names[i],
+                            "feature_2": feature_names[j],
+                            "interaction_value": float(mean_interactions[i, j]),
+                        }
+                    )
 
-            pairs.sort(key=lambda x: x['interaction_value'], reverse=True)
+            pairs.sort(key=lambda x: x["interaction_value"], reverse=True)
             return pairs[:top_k]
 
         except Exception as e:
-            self._record_internal_warning('SHAPInteractionValues', 'Failed to compute SHAP interaction values', e)
+            self._record_internal_warning(
+                "SHAPInteractionValues", "Failed to compute SHAP interaction values", e
+            )
             return []
 
-    def _perturbation_explain(self, model: Any, X_arr: Any, idx: Any, feature_names: Any, has_proba: Any, magnitudes: Any = None) -> Any:
+    def _perturbation_explain(
+        self,
+        model: Any,
+        X_arr: Any,
+        idx: Any,
+        feature_names: Any,
+        has_proba: Any,
+        magnitudes: Any = None,
+    ) -> Any:
         """Compute feature contributions via bidirectional multi-magnitude perturbation.
 
         Args:
@@ -655,13 +808,17 @@ Top feature interaction pairs detected via SHAP interaction values:
             effects = feature_effects[i]
             if effects:
                 avg_effect = float(np.mean(effects))
-                contributions[feat] = avg_effect / base_magnitude if base_magnitude > 0 else avg_effect
+                contributions[feat] = (
+                    avg_effect / base_magnitude if base_magnitude > 0 else avg_effect
+                )
             else:
                 contributions[feat] = 0.0
 
         return contributions
 
-    def _find_prototype_counterfactual(self, model: Any, X_arr: Any, idx: Any, feature_names: Any) -> Any:
+    def _find_prototype_counterfactual(
+        self, model: Any, X_arr: Any, idx: Any, feature_names: Any
+    ) -> Any:
         """Find nearest training instance with opposite prediction (L2 in standardized space).
 
         Always valid since it's a real observed data point.
@@ -698,7 +855,9 @@ Top feature interaction pairs detected via SHAP interaction values:
             X_opposite_std = (X_arr[opposite_indices] - col_means) / col_stds
 
             # L2 distance in standardized space
-            distances = np.sqrt(np.asarray((X_opposite_std - original_std) ** 2).sum(axis=1).astype(np.float64))
+            distances = np.sqrt(
+                np.asarray((X_opposite_std - original_std) ** 2).sum(axis=1).astype(np.float64)
+            )
             nearest_idx = opposite_indices[np.argmin(distances)]
             nearest = X_arr[nearest_idx]
             new_pred = int(all_preds[nearest_idx])
@@ -708,25 +867,37 @@ Top feature interaction pairs detected via SHAP interaction values:
             for i, feat in enumerate(feature_names):
                 diff = abs(nearest[i] - original[i])
                 if diff > 1e-10:
-                    changes.append({
-                        'feature': feat,
-                        'from': float(original[i]),
-                        'to': float(nearest[i]),
-                    })
+                    changes.append(
+                        {
+                            "feature": feat,
+                            "from": float(original[i]),
+                            "to": float(nearest[i]),
+                        }
+                    )
 
             return {
-                'sample_idx': int(idx),
-                'original_pred': original_pred,
-                'new_pred': new_pred,
-                'changes': changes,
-                'n_changes': len(changes),
-                'method': 'prototype',
+                "sample_idx": int(idx),
+                "original_pred": original_pred,
+                "new_pred": new_pred,
+                "changes": changes,
+                "n_changes": len(changes),
+                "method": "prototype",
             }
         except Exception as e:
-            self._record_internal_warning('PrototypeCounterfactual', 'Failed to find prototype counterfactual', e)
+            self._record_internal_warning(
+                "PrototypeCounterfactual", "Failed to find prototype counterfactual", e
+            )
             return None
 
-    def _growing_spheres_counterfactual(self, model: Any, X_arr: Any, idx: Any, feature_names: Any, n_directions: Any = 50, max_radius_steps: Any = 20) -> Any:
+    def _growing_spheres_counterfactual(
+        self,
+        model: Any,
+        X_arr: Any,
+        idx: Any,
+        feature_names: Any,
+        n_directions: Any = 50,
+        max_radius_steps: Any = 20,
+    ) -> Any:
         """Find counterfactual by expanding random perturbation radius until prediction flips.
 
         Args:
@@ -753,7 +924,7 @@ Top feature interaction pairs detected via SHAP interaction values:
             n_features = len(feature_names)
 
             best_cf = None
-            best_radius = float('inf')
+            best_radius = float("inf")
 
             for step in range(1, max_radius_steps + 1):
                 radius = step * 0.2  # Start small, expand in 0.2 std increments
@@ -767,25 +938,29 @@ Top feature interaction pairs detected via SHAP interaction values:
 
                     new_pred = int(model.predict(perturbed.reshape(1, -1))[0])
                     if new_pred != original_pred:
-                        actual_radius = np.sqrt(np.float64(np.sum(((perturbed - original) / col_stds) ** 2)))
+                        actual_radius = np.sqrt(
+                            np.float64(np.sum(((perturbed - original) / col_stds) ** 2))
+                        )
                         if actual_radius < best_radius:
                             best_radius = actual_radius
                             changes = []
                             for i, feat in enumerate(feature_names):
                                 diff = abs(perturbed[i] - original[i])
                                 if diff > 1e-10:
-                                    changes.append({
-                                        'feature': feat,
-                                        'from': float(original[i]),
-                                        'to': float(perturbed[i]),
-                                    })
+                                    changes.append(
+                                        {
+                                            "feature": feat,
+                                            "from": float(original[i]),
+                                            "to": float(perturbed[i]),
+                                        }
+                                    )
                             best_cf = {
-                                'sample_idx': int(idx),
-                                'original_pred': original_pred,
-                                'new_pred': new_pred,
-                                'changes': changes,
-                                'n_changes': len(changes),
-                                'method': 'growing_spheres',
+                                "sample_idx": int(idx),
+                                "original_pred": original_pred,
+                                "new_pred": new_pred,
+                                "changes": changes,
+                                "n_changes": len(changes),
+                                "method": "growing_spheres",
                             }
 
                 if best_cf is not None:
@@ -793,10 +968,16 @@ Top feature interaction pairs detected via SHAP interaction values:
 
             return best_cf
         except Exception as e:
-            self._record_internal_warning('GrowingSpheresCounterfactual', 'Failed to generate growing spheres counterfactual', e)
+            self._record_internal_warning(
+                "GrowingSpheresCounterfactual",
+                "Failed to generate growing spheres counterfactual",
+                e,
+            )
             return None
 
-    def _sparse_counterfactual(self, model: Any, X_arr: Any, idx: Any, feature_names: Any, actionability: Any = None) -> Any:
+    def _sparse_counterfactual(
+        self, model: Any, X_arr: Any, idx: Any, feature_names: Any, actionability: Any = None
+    ) -> Any:
         """Generate counterfactual with explicit L0 sparsity constraint.
 
         Tries single-feature changes first, then pairs, then triples.
@@ -844,6 +1025,7 @@ Top feature interaction pairs detected via SHAP interaction values:
 
                     # Iterate over all target value combinations
                     from itertools import product as iter_product
+
                     for targets in iter_product(*target_sets):
                         perturbed = original.copy()
                         changes = []
@@ -854,24 +1036,26 @@ Top feature interaction pairs detected via SHAP interaction values:
                             old_val = original[feat_idx]
 
                             # Check actionability constraints
-                            constraint = actionability.get(feat, 'free')
-                            if constraint == 'fixed':
+                            constraint = actionability.get(feat, "free")
+                            if constraint == "fixed":
                                 valid = False
                                 break
-                            elif constraint == 'increase_only' and target_val < old_val:
+                            elif constraint == "increase_only" and target_val < old_val:
                                 valid = False
                                 break
-                            elif constraint == 'decrease_only' and target_val > old_val:
+                            elif constraint == "decrease_only" and target_val > old_val:
                                 valid = False
                                 break
 
                             perturbed[feat_idx] = target_val
                             if abs(target_val - old_val) > 1e-10:
-                                changes.append({
-                                    'feature': feat,
-                                    'from': float(old_val),
-                                    'to': float(target_val),
-                                })
+                                changes.append(
+                                    {
+                                        "feature": feat,
+                                        "from": float(old_val),
+                                        "to": float(target_val),
+                                    }
+                                )
 
                         if not valid or not changes:
                             continue
@@ -879,20 +1063,31 @@ Top feature interaction pairs detected via SHAP interaction values:
                         new_pred = int(model.predict(perturbed.reshape(1, -1))[0])
                         if new_pred != original_pred:
                             return {
-                                'sample_idx': int(idx),
-                                'original_pred': original_pred,
-                                'new_pred': new_pred,
-                                'changes': changes,
-                                'n_changes': len(changes),
-                                'method': 'sparse',
+                                "sample_idx": int(idx),
+                                "original_pred": original_pred,
+                                "new_pred": new_pred,
+                                "changes": changes,
+                                "n_changes": len(changes),
+                                "method": "sparse",
                             }
 
             return None
         except Exception as e:
-            self._record_internal_warning('SparseCounterfactual', 'Failed to generate sparse counterfactual', e)
+            self._record_internal_warning(
+                "SparseCounterfactual", "Failed to generate sparse counterfactual", e
+            )
             return None
 
-    def _greedy_mean_counterfactual(self, model: Any, X_arr: Any, idx: Any, feature_names: Any, has_proba: Any, n_counterfactuals: Any = 3, step_fraction: Any = 0.1) -> Any:
+    def _greedy_mean_counterfactual(
+        self,
+        model: Any,
+        X_arr: Any,
+        idx: Any,
+        feature_names: Any,
+        has_proba: Any,
+        n_counterfactuals: Any = 3,
+        step_fraction: Any = 0.1,
+    ) -> Any:
         """Generate counterfactuals by incremental perturbation toward feature means (legacy).
 
         Args:
@@ -947,22 +1142,26 @@ Top feature interaction pairs detected via SHAP interaction values:
                         new_val = float(np.clip(new_val, col_mins[feat_idx], col_maxs[feat_idx]))
                         perturbed[feat_idx] = new_val
 
-                    changes.append({
-                        'feature': feat,
-                        'from': float(old_val),
-                        'to': float(perturbed[feat_idx]),
-                    })
+                    changes.append(
+                        {
+                            "feature": feat,
+                            "from": float(old_val),
+                            "to": float(perturbed[feat_idx]),
+                        }
+                    )
 
                     new_pred = int(model.predict(perturbed.reshape(1, -1))[0])
                     if new_pred != original_pred:
-                        results.append({
-                            'sample_idx': int(idx),
-                            'original_pred': original_pred,
-                            'new_pred': new_pred,
-                            'changes': changes,
-                            'n_changes': len(changes),
-                            'method': 'greedy_mean',
-                        })
+                        results.append(
+                            {
+                                "sample_idx": int(idx),
+                                "original_pred": original_pred,
+                                "new_pred": new_pred,
+                                "changes": changes,
+                                "n_changes": len(changes),
+                                "method": "greedy_mean",
+                            }
+                        )
                         found = True
                         break
 
@@ -970,14 +1169,26 @@ Top feature interaction pairs detected via SHAP interaction values:
                     pass
 
             if results:
-                results.sort(key=lambda x: x['n_changes'])
+                results.sort(key=lambda x: x["n_changes"])
                 return results
             return None
         except Exception as e:
-            self._record_internal_warning('GreedyMeanCounterfactual', 'Failed to generate greedy mean counterfactual', e)
+            self._record_internal_warning(
+                "GreedyMeanCounterfactual", "Failed to generate greedy mean counterfactual", e
+            )
             return None
 
-    def _generate_counterfactual(self, model: Any, X_arr: Any, idx: Any, feature_names: Any, has_proba: Any, n_counterfactuals: Any = 3, step_fraction: Any = 0.1, actionability: Any = None) -> Any:
+    def _generate_counterfactual(
+        self,
+        model: Any,
+        X_arr: Any,
+        idx: Any,
+        feature_names: Any,
+        has_proba: Any,
+        n_counterfactuals: Any = 3,
+        step_fraction: Any = 0.1,
+        actionability: Any = None,
+    ) -> Any:
         """Orchestrate counterfactual generation using multiple strategies.
 
         Priority: prototype -> sparse -> growing_spheres -> greedy_mean.
@@ -1006,8 +1217,9 @@ Top feature interaction pairs detected via SHAP interaction values:
 
             # 2. Sparse (L0-minimal changes)
             if len(results) < n_counterfactuals:
-                sparse = self._sparse_counterfactual(model, X_arr, idx, feature_names,
-                                                      actionability=actionability)
+                sparse = self._sparse_counterfactual(
+                    model, X_arr, idx, feature_names, actionability=actionability
+                )
                 if sparse:
                     results.append(sparse)
 
@@ -1020,19 +1232,26 @@ Top feature interaction pairs detected via SHAP interaction values:
             # 4. Greedy mean (legacy fallback)
             if len(results) < n_counterfactuals:
                 greedy = self._greedy_mean_counterfactual(
-                    model, X_arr, idx, feature_names, has_proba,
+                    model,
+                    X_arr,
+                    idx,
+                    feature_names,
+                    has_proba,
                     n_counterfactuals=max(1, n_counterfactuals - len(results)),
-                    step_fraction=step_fraction)
+                    step_fraction=step_fraction,
+                )
                 if greedy:
                     results.extend(greedy)
 
             # Deduplicate and limit
             if results:
-                results.sort(key=lambda x: x['n_changes'])
+                results.sort(key=lambda x: x["n_changes"])
                 return results[:n_counterfactuals]
             return None
         except Exception as e:
-            self._record_internal_warning('CounterfactualGeneration', 'Failed to orchestrate counterfactual generation', e)
+            self._record_internal_warning(
+                "CounterfactualGeneration", "Failed to orchestrate counterfactual generation", e
+            )
             return None
 
     def _create_lime_chart(self, explanations: Any, feature_names: Any) -> Any:
@@ -1042,29 +1261,41 @@ Top feature interaction pairs detected via SHAP interaction values:
             if n_exp == 0:
                 return ""
 
-            with self._chart_context('interpretability_analysis', figsize=(5 * n_exp, 5),
-                                     nrows=1, ncols=n_exp) as (fig, axes):
+            with self._chart_context(
+                "interpretability_analysis", figsize=(5 * n_exp, 5), nrows=1, ncols=n_exp
+            ) as (fig, axes):
                 if n_exp == 1:
                     axes = [axes]
 
                 for i, exp in enumerate(explanations[:n_exp]):
                     ax = axes[i]
-                    sorted_contribs = sorted(exp['contributions'].items(), key=lambda x: x[1])[-10:]
+                    sorted_contribs = sorted(exp["contributions"].items(), key=lambda x: x[1])[-10:]
                     names = [c[0][:20] for c in sorted_contribs]
                     vals = [c[1] for c in sorted_contribs]
-                    colors = [self.theme['success'] if v > 0 else self.theme['danger'] for v in vals]
+                    colors = [
+                        self.theme["success"] if v > 0 else self.theme["danger"] for v in vals
+                    ]
 
                     ax.barh(range(len(names)), vals, color=colors, alpha=0.85)
                     ax.set_yticks(range(len(names)))
                     ax.set_yticklabels(names, fontsize=8)
-                    ax.set_title(f"Sample #{exp['sample_idx']}\n(conf={exp['confidence']:.3f})",
-                                fontsize=10, fontweight='bold', color=self.theme['primary'])
-                    ax.axvline(x=0, color='gray', linewidth=0.5)
+                    ax.set_title(
+                        f"Sample #{exp['sample_idx']}\n(conf={exp['confidence']:.3f})",
+                        fontsize=10,
+                        fontweight="bold",
+                        color=self.theme["primary"],
+                    )
+                    ax.axvline(x=0, color="gray", linewidth=0.5)
 
-                fig.suptitle('Feature Contributions (Local Explanations)', fontsize=14,
-                            fontweight='bold', color=self.theme['primary'], y=1.02)
+                fig.suptitle(
+                    "Feature Contributions (Local Explanations)",
+                    fontsize=14,
+                    fontweight="bold",
+                    color=self.theme["primary"],
+                    y=1.02,
+                )
 
-            return 'figures/interpretability_analysis.png'
+            return "figures/interpretability_analysis.png"
         except Exception as e:
             logger.debug(f"Failed to create interpretability chart: {e}")
             return ""

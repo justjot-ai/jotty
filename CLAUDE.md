@@ -4,6 +4,39 @@
 
 **Main Architecture Doc:** `docs/JOTTY_ARCHITECTURE.md` - READ THIS FIRST
 
+## 📋 Key Terminology (Platforms, Modes, Modalities)
+
+Jotty has three distinct concepts that are often confused:
+
+| Concept | What It Means | Examples | Location |
+|---------|---------------|----------|----------|
+| **Platforms** | WHERE users interact | WhatsApp, Telegram, CLI, Web | `apps/` |
+| **Modes** | HOW execution happens | Chat, Workflow, Streaming | `core/modes/` |
+| **Modalities** | WHAT medium is used | Text, Voice, Image | `core/interface/modalities/` |
+
+**Example:**
+```python
+# User sends VOICE message (modality) via TELEGRAM (platform)
+# System processes in CHAT mode (execution mode)
+
+from Jotty.core.interface.modalities.voice import speech_to_text
+from Jotty import Jotty
+
+# Convert voice to text (modality conversion)
+text = speech_to_text(telegram_voice_message, platform="telegram")
+
+# Process in chat mode (execution)
+jotty = Jotty()
+result = jotty.chat(text)  # Chat mode
+```
+
+**Industry Standards:**
+- **Platforms**: Google uses "platforms" (Android, iOS, Web)
+- **Modes**: OpenAI uses "modes" (streaming, batch)
+- **Modalities**: Google/OpenAI use "modalities" (text, voice, image)
+
+---
+
 ## 🏗️ Clean Architecture (Like Google, Amazon, Stripe)
 
 Jotty follows world-class clean architecture with strict layering:
@@ -26,8 +59,10 @@ Jotty follows world-class clean architecture with strict layering:
 └────────────────────────┬────────────────────────────────────┘
                          ↓ Calls
 ┌────────────────────────┴────────────────────────────────────┐
-│  LAYER 3: CORE API (core/interface/api/)                    │
-│  └── JottyAPI, ChatAPI, WorkflowAPI (internal for SDK)      │
+│  LAYER 3: CORE API (core/interface/)                        │
+│  ├── api/           → JottyAPI, ChatAPI, WorkflowAPI        │
+│  ├── modalities/    → Text/Voice handlers (NEW)             │
+│  └── use_cases/     → Chat, Workflow use cases              │
 └────────────────────────┬────────────────────────────────────┘
                          ↓ Uses
 ┌────────────────────────┴────────────────────────────────────┐
@@ -268,6 +303,20 @@ from Jotty.core.interface.api.unified import JottyAPI
 from Jotty.core.interface.api.chat_api import ChatAPI
 from Jotty.core.interface.api.workflow_api import WorkflowAPI
 
+# MODALITIES — Text/Voice handlers (NEW)
+from Jotty.core.interface.modalities import (
+    TextModality,          # Text input/output
+    VoiceModality,         # Voice input/output
+    speech_to_text,        # STT convenience function
+    text_to_speech,        # TTS convenience function
+)
+from Jotty.core.interface.modalities.text import parse_input, format_output
+from Jotty.core.interface.modalities.voice import (
+    SpeechToText,          # STT class
+    TextToSpeech,          # TTS class
+    AudioProcessor,        # Audio processing
+)
+
 # USE CASES — Common use case implementations
 from Jotty.core.interface.use_cases.chat.chat_executor import ChatExecutor
 ```
@@ -275,6 +324,49 @@ from Jotty.core.interface.use_cases.chat.chat_executor import ChatExecutor
 ---
 
 ## Usage Examples
+
+### Modalities — Text & Voice Handling (NEW)
+
+```python
+# === TEXT MODALITY ===
+from Jotty.core.interface.modalities.text import parse_input, format_output
+
+# Parse text from platform
+parsed = parse_input("Hello, how are you?", platform="telegram")
+# {'text': 'Hello, how are you?', 'platform': 'telegram', 'modality': 'text'}
+
+# Format output for platform (markdown, emoji support, etc.)
+formatted = format_output("**Bold** text", platform="telegram")
+
+# === VOICE MODALITY ===
+from Jotty.core.interface.modalities.voice import speech_to_text, text_to_speech
+
+# Convert voice message to text
+text = speech_to_text("voice_message.ogg", platform="whatsapp", provider="whisper")
+
+# Convert text to voice
+audio_bytes = text_to_speech("Hello!", platform="telegram", provider="openai", voice="alloy")
+
+# === FULL EXAMPLE: Voice Chat on Telegram ===
+from Jotty import Jotty
+from Jotty.core.interface.modalities.voice import speech_to_text, text_to_speech
+
+# 1. Receive voice message from Telegram
+telegram_voice_file = "path/to/voice.ogg"
+
+# 2. Convert voice to text (modality conversion)
+user_text = speech_to_text(telegram_voice_file, platform="telegram")
+
+# 3. Process in chat mode
+jotty = Jotty()
+response = jotty.chat(user_text)
+
+# 4. Convert response to voice (modality conversion)
+response_audio = text_to_speech(response, platform="telegram", voice="nova")
+
+# 5. Send voice response back to Telegram
+# (platform-specific code here)
+```
 
 ### Memory — Store, Retrieve, Check Status
 ```python
