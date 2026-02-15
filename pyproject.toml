@@ -79,6 +79,7 @@ dev = [
     "flake8>=6.1.0",
     "mypy>=1.7.0",
     "python-code-analyzer>=1.0.14",
+    "import-linter>=1.8.0",
 ]
 
 [project.urls]

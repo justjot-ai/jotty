@@ -4,21 +4,69 @@
 
 **Main Architecture Doc:** `docs/JOTTY_ARCHITECTURE.md` - READ THIS FIRST
 
-## 🏗️ New 5-Layer Architecture
+## 🏗️ Clean Architecture (Like Google, Amazon, Stripe)
 
-Jotty is now organized in a clean 5-layer hierarchy:
+Jotty follows world-class clean architecture with strict layering:
 
 ```
-Layer 1: INTERFACE      → External entry points (API, UI, CLI)
-Layer 2: MODES          → Execution modes (Agent, Workflow, Execution)
-Layer 3: CAPABILITIES   → Skills, Registry, Tools (273 skills!)
-Layer 4: INTELLIGENCE   → Learning, Memory, Swarms, Orchestration
-Layer 5: INFRASTRUCTURE → Foundation, Utils, Context, Monitoring
+┌─────────────────────────────────────────────────────────────┐
+│  LAYER 5: APPLICATIONS (apps/)                              │
+│  ├── apps/cli/          → Command-line interface            │
+│  ├── apps/frontend/     → Web UI                            │
+│  └── apps/telegram_bot/ → Telegram integration              │
+│  ✅ Apps use SDK ONLY, never import from core directly      │
+└────────────────────────┬────────────────────────────────────┘
+                         ↓ Uses
+┌────────────────────────┴────────────────────────────────────┐
+│  LAYER 4: SDK (sdk/)   → Stable public API                  │
+│  └── from jotty import Jotty                                │
+│  ✅ SDK is dogfooded by internal apps                       │
+└────────────────────────┬────────────────────────────────────┘
+                         ↓ Calls
+┌────────────────────────┴────────────────────────────────────┐
+│  LAYER 3: CORE API (core/interface/api/)                    │
+│  └── JottyAPI, ChatAPI, WorkflowAPI (internal for SDK)      │
+└────────────────────────┬────────────────────────────────────┘
+                         ↓ Uses
+┌────────────────────────┴────────────────────────────────────┐
+│  LAYER 2: CORE FRAMEWORK (core/)                            │
+│  ├── interface/      → Interfaces, use cases, messages      │
+│  ├── modes/          → Agent, workflow, execution           │
+│  ├── capabilities/   → Skills, registry, tools (273 skills) │
+│  ├── intelligence/   → Learning, memory, swarms             │
+│  └── infrastructure/ → Foundation, utils, context           │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-**Import Pattern:** `from Jotty.core.{layer}.{module} import X`
+**CRITICAL RULES:**
+- ✅ Apps (Layer 5) import ONLY from SDK (Layer 4)
+- ✅ SDK imports ONLY from core/interface/api/ (Layer 3)
+- ❌ Apps NEVER import from core directly
+- ❌ SDK NEVER imports from apps
 
-Example: `from Jotty.core.intelligence.memory.facade import get_memory_system`
+**Example:**
+```python
+# ✅ CORRECT: Apps use SDK
+from jotty import Jotty
+client = Jotty()
+result = await client.chat("Hello")
+
+# ❌ WRONG: Apps bypass SDK
+from Jotty.core.intelligence.orchestration import Orchestrator  # NO!
+```
+
+**Why This Matters:**
+- Same pattern as Google (Gmail uses Google Cloud SDK)
+- Same pattern as Amazon (Amazon.com uses AWS)
+- Same pattern as Stripe (Dashboard uses Stripe API)
+- Same pattern as GitHub (gh CLI uses GitHub API)
+- Enables proper "dogfooding" of SDK
+- Core can change without breaking apps
+
+**Architecture Docs:**
+- `ARCHITECTURE_RECOMMENDATION.md` - Technical details
+- `ARCHITECTURE_DIAGRAM.md` - Visual diagrams
+- `ARCHITECTURE_WORLD_CLASS_EXAMPLES.md` - Industry proof
 
 ---
 
@@ -460,60 +508,72 @@ pytest tests/ -m "not requires_llm"         # All offline tests
 
 ---
 
-## Directory Structure (5-Layer Architecture)
+## Directory Structure (Clean Architecture - Updated 2026-02-15)
 
 ```
 Jotty/
-├── core/
-│   ├── interface/           # Layer 1: Entry Points
+├── apps/                    # LAYER 5: APPLICATIONS (✅ NEW)
+│   ├── cli/                 # Command-line interface (MOVED from core/)
+│   │   ├── main.py          # Entry point
+│   │   ├── app.py           # JottyCLI main class
+│   │   ├── commands/        # Slash commands (/run, /swarm, etc.)
+│   │   ├── repl/            # REPL engine
+│   │   ├── gateway/         # UnifiedGateway + ChannelRouter
+│   │   ├── ui/              # Rich rendering, status displays
+│   │   └── config/          # CLI configuration
+│   ├── frontend/            # Web UI
+│   └── telegram_bot/        # Telegram integration
+│
+├── sdk/                     # LAYER 4: SDK (Stable Public API)
+│   ├── client.py            # Jotty() SDK client
+│   ├── __init__.py          # Public exports
+│   └── generated/           # Multi-language SDKs
+│
+├── core/                    # LAYERS 2-3: CORE FRAMEWORK
+│   ├── interface/           # LAYER 3: Internal API (for SDK)
 │   │   ├── api/             # JottyAPI, ChatAPI, WorkflowAPI
-│   │   ├── ui/              # UI components, formatters
-│   │   └── use_cases/       # Common use case implementations
+│   │   ├── use_cases/       # Chat, workflow use cases
+│   │   ├── interfaces/      # Messages, hosts, adapters
+│   │   └── cli/             # ⚠️ DEPRECATED (backward compat shim)
 │   │
-│   ├── modes/               # Layer 2: Execution Modes
-│   │   ├── agent/
-│   │   │   ├── base/        # BaseAgent, AutoAgent, ChatAssistant
-│   │   │   └── autonomous/  # Intent parser, enhanced executor
+│   ├── modes/               # LAYER 2: Execution Modes
+│   │   ├── agent/           # BaseAgent, AutoAgent, ChatAssistant
 │   │   ├── workflow/        # Auto workflows, research, learning
 │   │   └── execution/       # Executors, intent classifiers
 │   │
-│   ├── capabilities/        # Layer 3: Skills & Tools
+│   ├── capabilities/        # Skills & Tools
 │   │   ├── skills/          # 273 skills (web-search, calculator, etc.)
 │   │   ├── registry/        # Unified registry, skill registry
 │   │   ├── tools/           # Content generation tools
 │   │   ├── sdk/             # Skill development kit
 │   │   └── semantic/        # Query engine, visualization
 │   │
-│   ├── intelligence/        # Layer 4: Brain Layer
+│   ├── intelligence/        # Brain Layer
 │   │   ├── learning/        # TD-Lambda, Q-learning, RL
 │   │   ├── memory/          # 5-level memory system
 │   │   ├── orchestration/   # SwarmIntelligence, paradigms
 │   │   ├── swarms/          # BaseSwarm, domain swarms
-│   │   ├── reasoning/
-│   │   │   └── experts/     # Expert agents, templates
-│   │   └── optimization/    # Policy explorer
+│   │   └── reasoning/       # Expert agents, templates
 │   │
-│   └── infrastructure/      # Layer 5: Foundation
+│   └── infrastructure/      # Foundation
 │       ├── foundation/      # Data structures, configs, types
 │       ├── utils/           # Budget tracker, cache, circuit breaker
 │       ├── context/         # Context manager, chunker, compressor
-│       ├── persistence/     # Swarm persistence
-│       ├── integration/     # LLM providers, Lotus
 │       ├── monitoring/      # Performance, safety, observability
-│       ├── data/            # Feedback router, discovery
-│       ├── metadata/        # Widget params, MCP metadata
-│       ├── services/        # Command service
-│       └── job_queue/       # Queue manager
-│
-├── cli/                     # CLI application (outside core/)
-│   ├── app.py               # JottyCLI main class
-│   ├── gateway/             # UnifiedGateway + ChannelRouter
-│   ├── commands/            # Slash commands (/run, /swarm, etc.)
-│   └── repl/                # REPL engine
+│       └── integration/     # LLM providers, integrations
 │
 ├── skills/                  # Skill definitions (loaded lazily)
-├── sdk/                     # Generated client libraries
-└── web.py                   # Web server entry point
+├── examples/                # Usage examples
+├── tests/                   # Test suite
+└── docs/                    # Documentation
+
+IMPORTANT CHANGES (2026-02-15):
+✅ CLI moved from core/interface/cli/ to apps/cli/
+✅ Clean architecture established (apps → sdk → core/interface/api → core)
+✅ Follows same pattern as Google, Amazon, Stripe, GitHub
+✅ core/interface/cli/ kept as deprecated backward compat shim
+
+See: ARCHITECTURE_RECOMMENDATION.md, ARCHITECTURE_DIAGRAM.md
 ```
 
 ---

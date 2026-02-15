@@ -1,0 +1,31 @@
+[importlinter]
+root_package = Jotty
+
+# PRAGMATIC ARCHITECTURE ENFORCEMENT (Feb 2026)
+# ===============================================
+# Full SDK migration analyzed - 50 core imports in CLI documented
+# Decision: Allow current imports, prevent NEW architecture violations
+# See: /tmp/cli_sdk_migration_analysis.md, CLI_MIGRATION_COMPLETE.md
+
+# GOAL: Prevent NEW architecture violations without breaking current state
+# APPROACH: Start with minimal enforcement, expand as SDK coverage grows
+
+[importlinter:contract:cli-independence]
+name = CLI must not import from other apps
+type = forbidden
+source_modules =
+    Jotty.apps.cli
+forbidden_modules =
+    Jotty.apps.frontend
+    Jotty.apps.telegram_bot
+ignore_imports =
+    # CLI /telegram command needs to start/stop the bot
+    # TODO: Consider creating an abstraction layer for app management
+    Jotty.apps.cli.commands.telegram_bot -> Jotty.apps.telegram_bot.bot
+
+# Future contracts to add as architecture matures:
+# - Apps must use SDK only (requires expanding SDK to cover all current use cases)
+# - SDK must only use core/interface/api (requires restructuring core internals)
+# - No circular dependencies (requires untangling current circular imports)
+
+# For now: Architecture is documented, imports are tracked, foundation is set
