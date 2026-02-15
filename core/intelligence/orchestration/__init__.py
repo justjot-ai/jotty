@@ -67,8 +67,8 @@ _LAZY_MAP: dict[str, tuple[str, str]] = {
     "ToolResult": (".unified_executor", "ToolResult"),
     "StreamEvent": (".unified_executor", "StreamEvent"),
     "create_unified_executor": (".unified_executor", "create_unified_executor"),
-    "UnifiedToolGenerator": (".tool_generator", "UnifiedToolGenerator"),
-    "ToolDefinition": (".tool_generator", "ToolDefinition"),
+    "UnifiedToolGenerator": ("Jotty.skills._tools", "UnifiedToolGenerator"),
+    "ToolDefinition": ("Jotty.skills._tools.tool_generator", "ToolDefinition"),
     # SwarmLearner
     "SwarmLearner": (".swarm_learner", "SwarmLearner"),
     "SwarmLearnerSignature": (".swarm_learner", "SwarmLearnerSignature"),

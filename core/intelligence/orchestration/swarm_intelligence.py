@@ -69,7 +69,7 @@ from .metrics_collector import MetricsCollector
 # Protocol modules (now composed, not inherited)
 from .protocols import CoordinationMixin, LifecycleMixin, ResilienceMixin, RoutingMixin
 from .stigmergy import StigmergyLayer, StigmergySignal
-from .tool_management import ToolManager
+from Jotty.skills._tools import ToolManager
 
 # =============================================================================
 # SWARM INTELLIGENCE ENGINE

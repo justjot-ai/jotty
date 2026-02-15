@@ -47,6 +47,8 @@ import asyncio
 import logging
 from typing import AsyncGenerator, Callable, Dict, List, Optional, Tuple
 
+from Jotty.skills._tools import UnifiedToolGenerator
+
 # Import types and providers from extracted llm_providers package
 from .llm_providers import (
     LLMExecutionResult,
@@ -57,13 +59,16 @@ from .llm_providers import (
     auto_detect_provider,
     create_provider,
 )
-from .tool_generator import UnifiedToolGenerator
+<<<<<<< Updated upstream
+from Jotty.skills._tools import UnifiedToolGenerator
+=======
+>>>>>>> Stashed changes
 
 logger = logging.getLogger(__name__)
 
 
 # =============================================================================
-# DSPy Signatures (for JottyClaudeProvider fallback)
+# DSPy Signatures (for DSPy-based execution)
 # =============================================================================
 
 
@@ -228,7 +233,6 @@ UNIFIED_SYSTEM_PROMPT = """You are Jotty, a world-class AI assistant with access
 #   anthropic.py - AnthropicProvider
 #   openai.py    - OpenAIProvider, OpenRouterProvider, GroqProvider
 #   google.py    - GoogleProvider
-#   adapter.py   - JottyClaudeProviderAdapter
 #   factory.py   - create_provider(), auto_detect_provider()
 #   types.py     - ToolResult, LLMExecutionResult, StreamEvent, LLMResponse, etc.
 # All are re-imported at the top of this file for backward compatibility.
@@ -481,7 +485,7 @@ The user has requested {section_name} visualization format. You MUST:
         self, task: str, history: Optional[List[Dict[str, Any]]] = None
     ) -> LLMExecutionResult:
         """
-        Execute task using DSPy signatures (for JottyClaudeProvider).
+        Execute task using DSPy signatures (fallback path).
 
         This is used when native tool calling isn't available.
         Uses DSPy's ChainOfThought for task analysis and content generation.
@@ -723,7 +727,7 @@ The user has requested {section_name} visualization format. You MUST:
         Returns:
             LLMExecutionResult with content, tool results, and sections
         """
-        # If using JottyClaudeProvider (DSPy-based), use DSPy execution path
+        # If using DSPy-based provider, use DSPy execution path
         if self.provider_name == "jotty-claude":
             return await self._execute_dspy(task, history)
         steps = []
