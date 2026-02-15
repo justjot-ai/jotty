@@ -24,7 +24,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 try:
-    import dspy
+    import dspy  # noqa: F401
 
     DSPY_AVAILABLE = True
 except ImportError:

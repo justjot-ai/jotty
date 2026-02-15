@@ -50,7 +50,7 @@ except ImportError:
 
 # Check LOTUS availability
 try:
-    import lotus
+    import lotus  # noqa: F401
 
     LOTUS_AVAILABLE = True
 except ImportError:

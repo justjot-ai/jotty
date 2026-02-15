@@ -89,7 +89,7 @@ class EdgeTTSProvider:
             Dict with success, audio data, and metadata
         """
         try:
-            import asyncio
+            import asyncio  # noqa: F401
 
             import edge_tts
         except ImportError:

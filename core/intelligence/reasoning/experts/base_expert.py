@@ -220,7 +220,7 @@ class BaseExpert(ABC):
     def _is_dspy_available(self) -> bool:
         """Check if DSPy is available."""
         try:
-            import dspy
+            import dspy  # noqa: F401
 
             return True
         except ImportError:

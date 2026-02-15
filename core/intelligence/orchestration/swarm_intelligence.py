@@ -25,7 +25,7 @@ from collections import defaultdict, deque
 from typing import Any, Dict, List, Optional
 
 try:
-    import dspy
+    import dspy  # noqa: F401
 
     DSPY_AVAILABLE = True
 except ImportError:
@@ -52,7 +52,7 @@ from .swarm_data_structures import (  # arXiv swarm enhancements
 )
 
 try:
-    from .morph_scoring import TaskAgentAlignmentSignature
+    from .morph_scoring import TaskAgentAlignmentSignature  # noqa: F401
 except ImportError:
     pass  # DSPy not available
 

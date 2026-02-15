@@ -176,7 +176,7 @@ class SemanticEmbedder:
 
         # Lazy numpy check
         try:
-            import numpy as _np
+            import numpy as np  # noqa: F401
 
             NUMPY_AVAILABLE = True
         except ImportError:

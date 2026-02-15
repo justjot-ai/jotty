@@ -470,7 +470,7 @@ class ChartGeneratorAgent(BaseSwarmAgent):
             import matplotlib
 
             matplotlib.use("Agg")
-            import matplotlib.dates as mdates
+            import matplotlib.dates as mdates  # noqa: F401
             import matplotlib.pyplot as plt
 
             prices = data.get("price_history", [])

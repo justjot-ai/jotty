@@ -189,7 +189,7 @@ class ClaudeSDKLM(dspy.BaseLM):
 def is_sdk_available() -> bool:
     """Check if claude-agent-sdk is installed and working."""
     try:
-        from claude_agent_sdk import ClaudeAgentOptions, query
+        from claude_agent_sdk import ClaudeAgentOptions, query  # noqa: F401
 
         return True
     except ImportError:

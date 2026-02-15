@@ -16,7 +16,7 @@ except ImportError:
     DSPY_AVAILABLE = False
 
 try:
-    from pydantic import BaseModel
+    from pydantic import BaseModel  # noqa: F401
 
     PYDANTIC_AVAILABLE = True
 except ImportError:

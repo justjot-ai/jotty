@@ -129,6 +129,7 @@ select = ["E", "F"]
 # Rules we intentionally ignore
 ignore = [
     "E402",   # Module import not at top — intentional (env setup, lazy imports)
+    "E501",   # Line too long — handled by formatter
     "F821",   # Undefined name — false positives from quoted type hints / forward refs
     "E741",   # Ambiguous variable name — too noisy for existing codebase
 ]

@@ -118,7 +118,7 @@ class SandboxManager:
         """Check availability of E2B and Docker backends."""
         # Check E2B
         try:
-            import e2b_code_interpreter
+            import e2b_code_interpreter  # noqa: F401
 
             self.e2b_api_key = self.config.get("e2b_api_key") or os.getenv("E2B_API_KEY")
             if self.e2b_api_key:

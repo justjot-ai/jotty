@@ -420,7 +420,7 @@ def get_tokenizer_info(model: str) -> Dict[str, any]:
         - accurate: bool (True if tokencost installed)
     """
     try:
-        from tokencost import count_string_tokens
+        from tokencost import count_string_tokens  # noqa: F401
 
         # Get model limits
         limits = get_model_limits(model)

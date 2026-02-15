@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 # Try to import Prometheus client, fall back to no-op
 try:
-    from prometheus_client import (
+    from prometheus_client import (  # noqa: F401
         CollectorRegistry,
         Counter,
         Gauge,

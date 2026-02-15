@@ -71,7 +71,7 @@ class VoiceConfig:
         """Check if local Whisper is available (Python package or whisper.cpp)."""
         # Check Python whisper package first (openai-whisper)
         try:
-            import whisper
+            import whisper  # noqa: F401
 
             return True
         except ImportError:
@@ -86,7 +86,7 @@ class VoiceConfig:
         """Check if local Piper TTS is available."""
         # Check if piper-tts is installed as Python package
         try:
-            import piper
+            import piper  # noqa: F401
 
             return True
         except ImportError:
