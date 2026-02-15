@@ -2,8 +2,8 @@
 
 from Jotty.core.infrastructure.foundation.types.execution_types import CoordinationPattern
 
+from ..._base.swarm_learning import SwarmBaseConfig, SwarmLearning, SwarmResult
 from ...base.team_coordinator import TeamCoordinator
-from ...swarm_learning import SwarmBaseConfig, SwarmLearning, SwarmResult
 
 
 class HybridTemplate(SwarmLearning):

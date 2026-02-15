@@ -10,8 +10,9 @@ from typing import Any, Dict, List, Optional
 
 import dspy
 
-from ..base import SwarmTemplate, TeamCoordinator
-from ..swarm_learning import AgentRole, register_swarm
+from Jotty.core.intelligence.swarms.base import SwarmTemplate, TeamCoordinator
+
+from .._base.swarm_learning import AgentRole, register_swarm
 from .agents import (
     ConceptExtractorAgent,
     ContentPolisherAgent,

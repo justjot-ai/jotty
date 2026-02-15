@@ -35,8 +35,8 @@ import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from .._base.swarm_learning import AgentRole, register_swarm
 from ..base import PhaseExecutor, SwarmTemplate, TeamCoordinator
-from ..swarm_learning import AgentRole, register_swarm
 from .agents import (
     ConceptDecomposerAgent,
     ConnectionMapperAgent,

@@ -18,8 +18,8 @@ try:
     Config = getattr(PilotSwarm, "__config__", None)
     Result = getattr(PilotSwarm, "__result__", None)
 except (ImportError, AttributeError):
-    from ..swarm_learning import SwarmBaseConfig as Config
-    from ..swarm_learning import SwarmResult as Result
+    from .._base.swarm_learning import SwarmBaseConfig as Config
+    from .._base.swarm_learning import SwarmResult as Result
 
 PilotConfig = Config or type("Config", (), {})
 PilotResult = Result or type("Result", (), {})

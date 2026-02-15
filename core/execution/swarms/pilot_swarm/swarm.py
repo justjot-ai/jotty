@@ -24,8 +24,9 @@ import subprocess
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from ..base import PhaseExecutor, SwarmTemplate, TeamCoordinator
-from ..swarm_learning import AgentRole, register_swarm
+from Jotty.core.intelligence.swarms.base import PhaseExecutor, SwarmTemplate, TeamCoordinator
+
+from .._base.swarm_learning import AgentRole, register_swarm
 from .agents import (
     PilotCoderAgent,
     PilotPlannerAgent,
@@ -537,7 +538,7 @@ class PilotSwarm(SwarmTemplate):
         swarm_name = subtask.tool_hint or "coding"
 
         try:
-            from ..swarm_learning import SwarmRegistry
+            from .._base.swarm_learning import SwarmRegistry
 
             swarm_class = SwarmRegistry.get(swarm_name)
 

@@ -18,10 +18,10 @@ Example:
 from typing import Any, Optional
 
 from Jotty.core.infrastructure.foundation.types.execution_types import CoordinationPattern
+from Jotty.core.intelligence.swarms.base.swarm_template import SwarmTemplate
+from Jotty.core.intelligence.swarms.base.team_coordinator import TeamCoordinator
 
-from ..base.swarm_template import SwarmTemplate
-from ..base.team_coordinator import TeamCoordinator
-from ..stage_config import StageConfig
+from .._base.stage_config import StageConfig
 
 # Import agents from coding_swarm
 try:
@@ -39,8 +39,8 @@ except ImportError:
     DeveloperAgent = BaseAgent
     TestWriterAgent = BaseAgent
 
-    from ..swarm_learning import SwarmBaseConfig as CodingConfig
-    from ..swarm_learning import SwarmResult as CodingResult
+    from .._base.swarm_learning import SwarmBaseConfig as CodingConfig
+    from .._base.swarm_learning import SwarmResult as CodingResult
 
 
 class CodingTemplate(SwarmTemplate):

@@ -31,7 +31,7 @@ from Jotty.core.intelligence.swarms.base.agent_team import (
     TeamResult,
 )
 from Jotty.core.intelligence.swarms.base.domain_swarm import PhaseExecutor, SwarmTemplate
-from Jotty.core.intelligence.swarms.swarm_types import AgentRole, SwarmBaseConfig, SwarmResult
+from Jotty.core.intelligence.swarms._base.swarm_types import AgentRole, SwarmBaseConfig, SwarmResult
 
 # =============================================================================
 # Test Enums

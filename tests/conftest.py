@@ -588,7 +588,7 @@ def make_domain_agent():
 @pytest.fixture
 def make_swarm_result():
     """Factory to create SwarmResult instances."""
-    from Jotty.core.intelligence.swarms.swarm_types import SwarmResult
+    from Jotty.core.intelligence.swarms._base.swarm_types import SwarmResult
 
     def _factory(success=True, output=None, name="TestSwarm", domain="test", **kw):
         return SwarmResult(

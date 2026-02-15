@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from Jotty.core.intelligence.swarms.base.agent_team import CoordinationPattern, MergeStrategy
-from Jotty.core.intelligence.swarms.swarm_types import AgentRole, ExecutionTrace, SwarmResult
+from Jotty.core.intelligence.swarms._base.swarm_types import AgentRole, ExecutionTrace, SwarmResult
 from Jotty.core.modes.agent.agents.composite_agent import (
     CompositeAgent,
     CompositeAgentConfig,

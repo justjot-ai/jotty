@@ -26,7 +26,7 @@ from Jotty.core.infrastructure.foundation.exceptions import (
 )
 from Jotty.core.infrastructure.monitoring.observability.tracing import SpanStatus
 from Jotty.core.intelligence.orchestration.paradigm_executor import _extract_output_text
-from Jotty.core.intelligence.swarms.swarm_types import SwarmConfig
+from Jotty.core.intelligence.swarms._base.swarm_types import SwarmConfig
 
 from .tier_detector import TierDetector
 from .types import (
@@ -1559,7 +1559,7 @@ Correct answer:"""
     def _select_swarm(self, goal: str, swarm_name: Optional[str] = None) -> Optional[Any]:
         """Select and instantiate the right domain swarm."""
         self._ensure_swarms_registered()
-        from Jotty.core.intelligence.swarms.registry import SwarmRegistry
+        from Jotty.core.intelligence.swarms._base.registry import SwarmRegistry
 
         # Explicit swarm name takes priority
         if swarm_name:

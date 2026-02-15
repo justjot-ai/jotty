@@ -28,8 +28,8 @@ from Jotty.core.intelligence.swarms.base.agent_team import (
     TeamResult,
 )
 from Jotty.core.intelligence.swarms.base.domain_swarm import PhaseExecutor, SwarmTemplate
-from Jotty.core.intelligence.swarms.registry import SwarmRegistry, register_swarm
-from Jotty.core.intelligence.swarms.swarm_types import (
+from Jotty.core.intelligence.swarms._base.registry import SwarmRegistry, register_swarm
+from Jotty.core.intelligence.swarms._base.swarm_types import (
     AgentRole,
     EvaluationResult,
     ExecutionTrace,

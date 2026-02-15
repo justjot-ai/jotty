@@ -20,6 +20,7 @@ from typing import Any, Dict, Optional
 
 from Jotty.core.infrastructure.foundation.types.execution_types import CoordinationPattern
 
+from .._base.stage_config import StageConfig
 from ..base import SwarmTemplate, TeamCoordinator
 from ..research_swarm.agents import (
     DataFetcherAgent,
@@ -34,7 +35,6 @@ from ..research_swarm.agents import (
     WebSearchAgent,
 )
 from ..research_swarm.types import ResearchConfig, ResearchResult
-from ..stage_config import StageConfig
 
 
 class ResearchTemplate(SwarmTemplate):

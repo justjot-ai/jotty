@@ -7,9 +7,8 @@ Demonstrates learning template pattern.
 from typing import Any, Optional
 
 from Jotty.core.infrastructure.foundation.types.execution_types import CoordinationPattern
-
-from ..base.swarm_template import SwarmTemplate
-from ..base.team_coordinator import TeamCoordinator
+from Jotty.core.intelligence.swarms.base.swarm_template import SwarmTemplate
+from Jotty.core.intelligence.swarms.base.team_coordinator import TeamCoordinator
 
 # Import from existing swarm
 try:
@@ -18,8 +17,8 @@ try:
     Config = getattr(ArxivLearningSwarm, "__config__", None)
     Result = getattr(ArxivLearningSwarm, "__result__", None)
 except (ImportError, AttributeError):
-    from ..swarm_learning import SwarmBaseConfig as Config
-    from ..swarm_learning import SwarmResult as Result
+    from .._base.swarm_learning import SwarmBaseConfig as Config
+    from .._base.swarm_learning import SwarmResult as Result
 
 ArxivLearningConfig = Config or type("Config", (), {})
 ArxivLearningResult = Result or type("Result", (), {})

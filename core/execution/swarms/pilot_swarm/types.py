@@ -11,8 +11,8 @@ import enum
 from dataclasses import dataclass, field
 from typing import List, Optional
 
-from ..swarm_learning import SwarmResult
-from ..swarm_types import SwarmConfig
+from .._base.swarm_learning import SwarmResult
+from .._base.swarm_types import SwarmConfig
 
 
 class SubtaskType(enum.Enum):

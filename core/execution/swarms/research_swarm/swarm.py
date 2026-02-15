@@ -11,9 +11,10 @@ from typing import Any, Dict, List, Optional
 
 import dspy
 
-from ..base import SwarmTemplate, TeamCoordinator
-from ..base.swarm_template import PhaseExecutor
-from ..swarm_signatures import ResearchSwarmSignature
+from Jotty.core.intelligence.swarms.base import SwarmTemplate, TeamCoordinator
+from Jotty.core.intelligence.swarms.base.swarm_template import PhaseExecutor
+
+from .._base.swarm_signatures import ResearchSwarmSignature
 from .agents import (
     DataFetcherAgent,
     EnhancedChartGeneratorAgent,

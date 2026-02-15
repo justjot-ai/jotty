@@ -18,8 +18,8 @@ try:
     Config = getattr(PerspectiveLearningSwarm, "__config__", None)
     Result = getattr(PerspectiveLearningSwarm, "__result__", None)
 except (ImportError, AttributeError):
-    from ..swarm_learning import SwarmBaseConfig as Config
-    from ..swarm_learning import SwarmResult as Result
+    from .._base.swarm_learning import SwarmBaseConfig as Config
+    from .._base.swarm_learning import SwarmResult as Result
 
 PerspectiveLearningConfig = Config or type("Config", (), {})
 PerspectiveLearningResult = Result or type("Result", (), {})

@@ -11,9 +11,9 @@ from typing import Any, Dict, List, Optional
 
 import dspy
 
+from .._base.swarm_signatures import ResearchSwarmSignature
 from ..base import SwarmTemplate, TeamCoordinator
 from ..base.swarm_template import PhaseExecutor
-from ..swarm_signatures import ResearchSwarmSignature
 from .agents import (
     DataFetcherAgent,
     EnhancedChartGeneratorAgent,

@@ -9,7 +9,7 @@ Run with: pytest tests/test_review_template.py -v -s
 import logging
 
 import pytest
-from Jotty.core.intelligence.swarms.swarm_learning import SwarmBaseConfig
+from Jotty.core.intelligence.swarms._base.swarm_learning import SwarmBaseConfig
 from Jotty.core.intelligence.swarms.templates.review import ReviewTemplate
 
 # Setup logging

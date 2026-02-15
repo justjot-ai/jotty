@@ -60,11 +60,11 @@ from typing import Dict, List, Optional
 
 import dspy
 
+from Jotty.core.intelligence.swarms.base import SwarmTemplate, TeamCoordinator, _split_field
 from Jotty.core.modes.agent.agents.swarm_agent import SwarmLearningAgent
 
-from .base import SwarmTemplate, TeamCoordinator, _split_field
-from .swarm_learning import AgentRole, SwarmBaseConfig, SwarmResult, register_swarm
-from .swarm_signatures import TestingSwarmSignature
+from .._base.swarm_learning import AgentRole, SwarmBaseConfig, SwarmResult, register_swarm
+from .._base.swarm_signatures import TestingSwarmSignature
 
 logger = logging.getLogger(__name__)
 

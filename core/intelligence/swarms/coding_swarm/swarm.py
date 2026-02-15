@@ -18,9 +18,9 @@ from typing import Any, Dict, Optional
 
 import dspy
 
+from .._base.swarm_learning import AgentRole, register_swarm
+from .._base.swarm_signatures import CodingSwarmSignature
 from ..base import SwarmTemplate, TeamCoordinator
-from ..swarm_learning import AgentRole, register_swarm
-from ..swarm_signatures import CodingSwarmSignature
 from . import utils as _coding_utils
 from ._codebase_mixin import CodebaseMixin
 from ._edit_mixin import EditMixin

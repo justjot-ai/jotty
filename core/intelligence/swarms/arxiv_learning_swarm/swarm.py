@@ -10,8 +10,8 @@ from typing import Any, Dict, List, Optional
 
 import dspy
 
+from .._base.swarm_learning import AgentRole, register_swarm
 from ..base import SwarmTemplate, TeamCoordinator
-from ..swarm_learning import AgentRole, register_swarm
 from .agents import (
     ConceptExtractorAgent,
     ContentPolisherAgent,

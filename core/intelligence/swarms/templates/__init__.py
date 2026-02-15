@@ -21,95 +21,70 @@ Author: Jotty Team
 Date: February 2026
 """
 
-# Learning templates
-from .arxiv_learning import ArxivLearningTemplate
+import importlib as _importlib
+from typing import Any
 
-# Core templates
-from .coding import CodingTemplate
-from .data_analysis import DataAnalysisTemplate
-from .devops import DevopsTemplate
-from .fundamental import FundamentalTemplate
-from .idea_writer import IdeaWriterTemplate
-from .learning import LearningTemplate
+_LAZY_IMPORTS: dict[str, str] = {
+    # Template classes
+    "ArxivLearningTemplate": ".arxiv_learning",
+    "CodingTemplate": ".coding",
+    "DataAnalysisTemplate": ".data_analysis",
+    "DevopsTemplate": ".devops",
+    "FundamentalTemplate": ".fundamental",
+    "IdeaWriterTemplate": ".idea_writer",
+    "LearningTemplate": ".learning",
+    "MLTemplate": ".ml",
+    "MlComprehensiveTemplate": ".ml_comprehensive",
+    "OlympiadLearningTemplate": ".olympiad_learning",
+    "PerspectiveLearningTemplate": ".perspective_learning",
+    "PilotTemplate": ".pilot",
+    "ResearchTemplate": ".research",
+    "ReviewTemplate": ".review",
+    "TestingTemplate": ".testing",
+    # Team patterns
+    "CollaborativeTemplate": ".team_patterns.collaborative",
+    "HybridTemplate": ".team_patterns.hybrid",
+    "SequentialTemplate": ".team_patterns.sequential",
+}
 
-# ML templates
-from .ml import MLTemplate
-from .ml_comprehensive import MlComprehensiveTemplate
-from .olympiad_learning import OlympiadLearningTemplate
-from .perspective_learning import PerspectiveLearningTemplate
+# Backward compatibility aliases (map to their template class)
+_ALIASES: dict[str, str] = {
+    "CodingSwarm": "CodingTemplate",
+    "ResearchSwarm": "ResearchTemplate",
+    "ReviewSwarm": "ReviewTemplate",
+    "TestingSwarm": "TestingTemplate",
+    "DataAnalysisSwarm": "DataAnalysisTemplate",
+    "DevOpsSwarm": "DevopsTemplate",
+    "FundamentalSwarm": "FundamentalTemplate",
+    "IdeaWriterSwarm": "IdeaWriterTemplate",
+    "LearningSwarm": "LearningTemplate",
+    "ArxivLearningSwarm": "ArxivLearningTemplate",
+    "OlympiadLearningSwarm": "OlympiadLearningTemplate",
+    "PerspectiveLearningSwarm": "PerspectiveLearningTemplate",
+    "PilotSwarm": "PilotTemplate",
+    "SwarmML": "MLTemplate",
+    "SwarmMLComprehensive": "MlComprehensiveTemplate",
+    "CollaborativeTeam": "CollaborativeTemplate",
+    "HybridTeam": "HybridTemplate",
+    "SequentialTeam": "SequentialTemplate",
+}
 
-# Pilot template
-from .pilot import PilotTemplate
-from .research import ResearchTemplate
-from .review import ReviewTemplate
 
-# Team pattern templates
-from .team_patterns.collaborative import CollaborativeTemplate
-from .team_patterns.hybrid import HybridTemplate
-from .team_patterns.sequential import SequentialTemplate
-from .testing import TestingTemplate
+def __getattr__(name: str) -> Any:
+    # Direct template class
+    if name in _LAZY_IMPORTS:
+        module_path = _LAZY_IMPORTS[name]
+        module = _importlib.import_module(module_path, __name__)
+        value = getattr(module, name)
+        globals()[name] = value
+        return value
+    # Backward compat alias
+    if name in _ALIASES:
+        target = _ALIASES[name]
+        value = __getattr__(target)
+        globals()[name] = value
+        return value
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
-# Backward compatibility aliases
-CodingSwarm = CodingTemplate
-ResearchSwarm = ResearchTemplate
-ReviewSwarm = ReviewTemplate
-TestingSwarm = TestingTemplate
-DataAnalysisSwarm = DataAnalysisTemplate
-DevOpsSwarm = DevopsTemplate
-FundamentalSwarm = FundamentalTemplate
-IdeaWriterSwarm = IdeaWriterTemplate
-LearningSwarm = LearningTemplate
 
-ArxivLearningSwarm = ArxivLearningTemplate
-OlympiadLearningSwarm = OlympiadLearningTemplate
-PerspectiveLearningSwarm = PerspectiveLearningTemplate
-
-PilotSwarm = PilotTemplate
-
-SwarmML = MLTemplate
-SwarmMLComprehensive = MlComprehensiveTemplate
-
-CollaborativeTeam = CollaborativeTemplate
-HybridTeam = HybridTemplate
-SequentialTeam = SequentialTemplate
-
-__all__ = [
-    # Templates
-    "CodingTemplate",
-    "ResearchTemplate",
-    "ReviewTemplate",
-    "TestingTemplate",
-    "DataAnalysisTemplate",
-    "DevopsTemplate",
-    "FundamentalTemplate",
-    "IdeaWriterTemplate",
-    "LearningTemplate",
-    "ArxivLearningTemplate",
-    "OlympiadLearningTemplate",
-    "PerspectiveLearningTemplate",
-    "PilotTemplate",
-    "MLTemplate",
-    "MlComprehensiveTemplate",
-    "CollaborativeTemplate",
-    "HybridTemplate",
-    "SequentialTemplate",
-    # Aliases (backward compat)
-    "CodingSwarm",
-    "ResearchSwarm",
-    "ReviewSwarm",
-    "TestingSwarm",
-    "DataAnalysisSwarm",
-    "DevOpsSwarm",
-    "FundamentalSwarm",
-    "IdeaWriterSwarm",
-    "LearningSwarm",
-    "ArxivLearningSwarm",
-    "OlympiadLearningSwarm",
-    "PerspectiveLearningSwarm",
-    "PilotSwarm",
-    "SwarmML",
-    "SwarmMLComprehensive",
-    "CollaborativeTeam",
-    "HybridTeam",
-    "SequentialTeam",
-]
+__all__ = [*_LAZY_IMPORTS.keys(), *_ALIASES.keys()]

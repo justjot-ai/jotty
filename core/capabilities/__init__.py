@@ -172,7 +172,7 @@ def _subsystems() -> Dict[str, Any]:
 def _swarms() -> list:
     """List available domain swarms (safe import)."""
     try:
-        from Jotty.core.intelligence.swarms.registry import SwarmRegistry
+        from Jotty.core.intelligence.swarms._base.registry import SwarmRegistry
 
         return SwarmRegistry.list_all()
     except Exception:

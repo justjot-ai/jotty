@@ -779,7 +779,7 @@ class TeamCoordinator:
         if not self.stages:
             raise ValueError("CUSTOM pattern requires stages configuration")
 
-        from ..stage_config import StageResult, topological_sort, validate_stages
+        from .._base.stage_config import StageResult, topological_sort, validate_stages
 
         # Validate and sort stages
         validate_stages(self.stages)

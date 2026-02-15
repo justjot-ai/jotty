@@ -67,9 +67,9 @@ import dspy
 
 from Jotty.core.modes.agent.agents.swarm_agent import SwarmLearningAgent
 
-from .base import SwarmTemplate, TeamCoordinator, _split_field
-from .swarm_learning import AgentRole, SwarmBaseConfig, SwarmResult, register_swarm
-from .swarm_signatures import IdeaWriterSwarmSignature
+from .._base.swarm_learning import AgentRole, SwarmBaseConfig, SwarmResult, register_swarm
+from .._base.swarm_signatures import IdeaWriterSwarmSignature
+from ..base import SwarmTemplate, TeamCoordinator, _split_field
 
 logger = logging.getLogger(__name__)
 

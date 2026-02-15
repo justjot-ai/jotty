@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List
 
-from ..swarm_types import SwarmConfig
+from .._base.swarm_types import SwarmConfig
 
 logger = logging.getLogger(__name__)
 

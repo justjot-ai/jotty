@@ -57,8 +57,8 @@ from abc import abstractmethod
 from datetime import datetime
 from typing import Callable, ClassVar, Dict, List, Optional, Tuple, Type
 
-from ..swarm_learning import AgentRole, SwarmBaseConfig, SwarmLearning, SwarmResult
-from ..swarm_types import _safe_join, _safe_num, _split_field
+from .._base.swarm_learning import AgentRole, SwarmBaseConfig, SwarmLearning, SwarmResult
+from .._base.swarm_types import _safe_join, _safe_num, _split_field
 from .team_coordinator import CoordinationPattern, TeamCoordinator, TeamResult
 
 logger = logging.getLogger(__name__)
@@ -449,7 +449,7 @@ class SwarmTemplate(SwarmLearning):
 
         # AUTO pattern selection
         if self.AGENT_TEAM.pattern == CoordinationPattern.AUTO:
-            from ..pattern_selector import PatternSelector
+            from .._base.pattern_selector import PatternSelector
 
             selector = PatternSelector(
                 memory=self._memory,

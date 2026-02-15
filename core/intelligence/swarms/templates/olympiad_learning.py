@@ -18,8 +18,8 @@ try:
     Config = getattr(OlympiadLearningSwarm, "__config__", None)
     Result = getattr(OlympiadLearningSwarm, "__result__", None)
 except (ImportError, AttributeError):
-    from ..swarm_learning import SwarmBaseConfig as Config
-    from ..swarm_learning import SwarmResult as Result
+    from .._base.swarm_learning import SwarmBaseConfig as Config
+    from .._base.swarm_learning import SwarmResult as Result
 
 OlympiadLearningConfig = Config or type("Config", (), {})
 OlympiadLearningResult = Result or type("Result", (), {})

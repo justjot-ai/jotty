@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List, Optional
 
-from ..swarm_types import SwarmConfig, SwarmResult
+from .._base.swarm_types import SwarmConfig, SwarmResult
 
 # =============================================================================
 # ENUMS

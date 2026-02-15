@@ -7,10 +7,10 @@ Provides data analysis and visualization capabilities
 from typing import Any, Optional
 
 from Jotty.core.infrastructure.foundation.types.execution_types import CoordinationPattern
+from Jotty.core.intelligence.swarms.base.swarm_template import SwarmTemplate
+from Jotty.core.intelligence.swarms.base.team_coordinator import TeamCoordinator
 
-from ..base.swarm_template import SwarmTemplate
-from ..base.team_coordinator import TeamCoordinator
-from ..swarm_learning import SwarmBaseConfig, SwarmResult
+from .._base.swarm_learning import SwarmBaseConfig, SwarmResult
 
 
 class DataAnalysisTemplate(SwarmTemplate):

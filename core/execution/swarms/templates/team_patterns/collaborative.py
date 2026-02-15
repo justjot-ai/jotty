@@ -1,9 +1,9 @@
 """Collaborative Team Pattern Template"""
 
 from Jotty.core.infrastructure.foundation.types.execution_types import CoordinationPattern
+from Jotty.core.intelligence.swarms.base.team_coordinator import TeamCoordinator
 
-from ...base.team_coordinator import TeamCoordinator
-from ...swarm_learning import SwarmBaseConfig, SwarmLearning, SwarmResult
+from ..._base.swarm_learning import SwarmBaseConfig, SwarmLearning, SwarmResult
 
 
 class CollaborativeTemplate(SwarmLearning):

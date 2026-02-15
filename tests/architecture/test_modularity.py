@@ -1684,7 +1684,7 @@ class TestResearchSwarmRegistration:
         import importlib
 
         importlib.import_module("Jotty.core.swarms.research_swarm")
-        from Jotty.core.intelligence.swarms.registry import SwarmRegistry
+        from Jotty.core.intelligence.swarms._base.registry import SwarmRegistry
 
         assert (
             "research" in SwarmRegistry.list_all()
@@ -1692,7 +1692,7 @@ class TestResearchSwarmRegistration:
 
     def test_ensure_swarms_registered_all_11(self):
         """After _ensure_swarms_registered(), all 11 swarms are present."""
-        from Jotty.core.intelligence.swarms.registry import SwarmRegistry
+        from Jotty.core.intelligence.swarms._base.registry import SwarmRegistry
         from Jotty.core.modes.execution.executor import TierExecutor
 
         # Reset registration state
