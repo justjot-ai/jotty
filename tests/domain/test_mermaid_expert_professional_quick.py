@@ -6,6 +6,7 @@ Tests if improvements are loaded and renderer validation works.
 
 import asyncio
 import json
+import logging
 import os
 import sys
 from pathlib import Path
@@ -37,8 +38,8 @@ def configure_llm():
             dspy.configure(lm=lm)
             print("✅ Configured with Claude CLI")
             return True
-    except Exception:
-        pass
+    except Exception as e:
+        logging.debug(f"Configuration failed: {e}")
 
     if os.getenv("ANTHROPIC_API_KEY"):
         try:
@@ -46,8 +47,8 @@ def configure_llm():
             dspy.configure(lm=lm)
             print("✅ Configured with Claude API")
             return True
-        except Exception:
-            pass
+        except Exception as e:
+            logging.debug(f"Configuration failed: {e}")
 
     return False
 

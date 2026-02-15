@@ -688,7 +688,7 @@ class TelegramBotHandler:
                     # If edit fails, try sending new message
                     try:
                         self._status_message = await self.update.message.reply_text(f"⏳ {msg}")
-                    except:
+                    except Exception:
                         logger.debug(f"Status update failed: {e}")
 
             async def clear_status_message(self):
@@ -696,7 +696,7 @@ class TelegramBotHandler:
                 if self._status_message:
                     try:
                         await self._status_message.delete()
-                    except:
+                    except Exception:
                         pass
                     self._status_message = None
 

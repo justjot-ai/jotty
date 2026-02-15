@@ -5,7 +5,6 @@ Integrates with Presenton (https://github.com/presenton/presenton) to generate
 AI-powered presentations via Docker container and REST API.
 """
 
-import asyncio
 import logging
 import os
 import subprocess
@@ -13,12 +12,7 @@ import time
 from typing import Any, Dict, Optional
 
 from Jotty.core.infrastructure.utils.skill_status import SkillStatus
-from Jotty.core.infrastructure.utils.tool_helpers import (
-    async_tool_wrapper,
-    tool_error,
-    tool_response,
-    tool_wrapper,
-)
+from Jotty.core.infrastructure.utils.tool_helpers import async_tool_wrapper, tool_wrapper
 
 logger = logging.getLogger(__name__)
 

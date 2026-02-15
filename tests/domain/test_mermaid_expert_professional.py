@@ -6,6 +6,7 @@ Tests if Mermaid expert has learned to generate complex, professional diagrams.
 
 import asyncio
 import json
+import logging
 import os
 import re
 import sys
@@ -38,8 +39,8 @@ def configure_llm():
             dspy.configure(lm=lm)
             print("✅ Configured with Claude CLI")
             return True
-    except Exception:
-        pass
+    except Exception as e:
+        logging.debug(f"Configuration failed: {e}")
 
     if os.getenv("ANTHROPIC_API_KEY"):
         try:
@@ -47,8 +48,8 @@ def configure_llm():
             dspy.configure(lm=lm)
             print("✅ Configured with Claude API")
             return True
-        except Exception:
-            pass
+        except Exception as e:
+            logging.debug(f"Configuration failed: {e}")
 
     return False
 

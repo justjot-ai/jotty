@@ -4,6 +4,7 @@ Tests memory integration with fewer scenarios for faster execution.
 """
 
 import asyncio
+import logging
 import os
 import re
 import sys
@@ -36,8 +37,8 @@ def configure_llm():
             dspy.configure(lm=lm)
             print("✅ Configured with Claude CLI")
             return True
-    except Exception:
-        pass
+    except Exception as e:
+        logging.debug(f"Claude CLI configuration failed: {e}")
 
     # Fallback to API
     if os.getenv("ANTHROPIC_API_KEY"):
@@ -46,8 +47,8 @@ def configure_llm():
             dspy.configure(lm=lm)
             print("✅ Configured with Claude API")
             return True
-        except Exception:
-            pass
+        except Exception as e:
+            logging.debug(f"Anthropic API configuration failed: {e}")
 
     if os.getenv("OPENAI_API_KEY"):
         try:
@@ -55,8 +56,8 @@ def configure_llm():
             dspy.configure(lm=lm)
             print("✅ Configured with OpenAI")
             return True
-        except Exception:
-            pass
+        except Exception as e:
+            logging.debug(f"OpenAI configuration failed: {e}")
 
     print("❌ No LLM available")
     return False

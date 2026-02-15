@@ -4,6 +4,7 @@ Verifies that learned improvements from memory are used correctly.
 """
 
 import asyncio
+import logging
 import os
 import re
 import sys
@@ -77,8 +78,8 @@ def configure_llm():
         if hasattr(dspy.settings, "lm") and dspy.settings.lm is not None:
             print(f"✅ DSPy already configured with: {type(dspy.settings.lm).__name__}")
             return True
-    except (AttributeError, TypeError):
-        pass
+    except (AttributeError, TypeError) as e:
+        logging.debug(f"Attribute check failed: {e}")
 
     print("❌ Could not configure LLM")
     print("   Options:")
