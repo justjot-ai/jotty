@@ -14,7 +14,14 @@ Problem: Generate a complete technical specification document with:
 import asyncio
 import dspy
 import logging
+import os
 from pathlib import Path
+import pytest
+
+pytestmark = pytest.mark.skipif(
+    not os.getenv('ANTHROPIC_API_KEY'),
+    reason="Requires ANTHROPIC_API_KEY for real LLM calls"
+)
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)

@@ -21,6 +21,12 @@ import os
 import sys
 import time
 from pathlib import Path
+import pytest
+
+pytestmark = pytest.mark.skipif(
+    not os.getenv('ANTHROPIC_API_KEY'),
+    reason="Requires ANTHROPIC_API_KEY for real LLM calls"
+)
 
 # ── Load API keys ──
 for env_file in [Path(__file__).parents[2] / '.env.anthropic',

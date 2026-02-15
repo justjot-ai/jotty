@@ -7,6 +7,7 @@ Test all Jotty CLI features for automated testing and n8n workflows.
 
 import pytest
 import asyncio
+import os
 import sys
 from pathlib import Path
 
@@ -70,6 +71,7 @@ class TestMLPipeline:
 
     @pytest.mark.asyncio
     @pytest.mark.slow
+    @pytest.mark.skipif(not os.getenv('ANTHROPIC_API_KEY'), reason="Requires ANTHROPIC_API_KEY for real LLM calls")
     async def test_ml_iris(self, cli):
         """Test /ml iris (fast dataset)."""
         result = await cli.run_once("/ml iris --iterations 1")
@@ -77,6 +79,7 @@ class TestMLPipeline:
 
     @pytest.mark.asyncio
     @pytest.mark.slow
+    @pytest.mark.skipif(not os.getenv('ANTHROPIC_API_KEY'), reason="Requires ANTHROPIC_API_KEY for real LLM calls")
     async def test_ml_wine(self, cli):
         """Test /ml wine."""
         result = await cli.run_once("/ml wine --iterations 1")
@@ -120,6 +123,7 @@ class TestResearch:
 
     @pytest.mark.asyncio
     @pytest.mark.slow
+    @pytest.mark.skipif(not os.getenv('ANTHROPIC_API_KEY'), reason="Requires ANTHROPIC_API_KEY for real LLM calls")
     async def test_research_quick(self, cli):
         """Test /research with quick mode."""
         result = await cli.run_once("/research python --quick")

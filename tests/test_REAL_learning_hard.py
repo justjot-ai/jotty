@@ -12,8 +12,15 @@ that are commonly missed on first try.
 import asyncio
 import dspy
 import logging
+import os
 from pathlib import Path
 from datetime import datetime
+import pytest
+
+pytestmark = pytest.mark.skipif(
+    not os.getenv('ANTHROPIC_API_KEY'),
+    reason="Requires ANTHROPIC_API_KEY for real LLM calls"
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

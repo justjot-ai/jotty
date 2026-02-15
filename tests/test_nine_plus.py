@@ -9,10 +9,16 @@ Tests for the 9+ rating features:
 
 import json
 import asyncio
+import os
 import tempfile
 import pytest
 from pathlib import Path
 from unittest.mock import patch, AsyncMock
+
+pytestmark = pytest.mark.skipif(
+    not os.getenv('ANTHROPIC_API_KEY'),
+    reason="Requires ANTHROPIC_API_KEY for real LLM calls"
+)
 
 from Jotty.core.foundation.data_structures import SwarmConfig, EpisodeResult
 

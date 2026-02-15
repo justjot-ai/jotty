@@ -5,9 +5,16 @@ Tests loading PlantUML examples from GitHub and saving as JSON.
 """
 
 import asyncio
+import json
+import os
 import sys
 from pathlib import Path
-import json
+import pytest
+
+pytestmark = pytest.mark.skipif(
+    not os.getenv('ANTHROPIC_API_KEY'),
+    reason="Requires ANTHROPIC_API_KEY for real LLM calls"
+)
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 

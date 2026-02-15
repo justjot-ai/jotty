@@ -21,9 +21,16 @@ This will take ~30 minutes but shows REAL learning, not simulation.
 import asyncio
 import dspy
 import logging
+import os
 from pathlib import Path
 from typing import Dict, List, Any
 from datetime import datetime
+import pytest
+
+pytestmark = pytest.mark.skipif(
+    not os.getenv('ANTHROPIC_API_KEY'),
+    reason="Requires ANTHROPIC_API_KEY for real LLM calls"
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

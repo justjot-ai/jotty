@@ -209,6 +209,7 @@ class TestComponentBehavior:
 
         print("\n✅ ParameterResolver component verified")
 
+    @pytest.mark.skip(reason="ToolManager module was removed in refactoring")
     def test_tool_manager_component_standalone(self):
         """Test ToolManager component works standalone."""
         from core.orchestration.tool_manager import ToolManager
@@ -229,6 +230,7 @@ class TestComponentBehavior:
 
         print("\n✅ ToolManager component verified")
 
+    @pytest.mark.skip(reason="StateManager module was removed in refactoring")
     def test_state_manager_component_standalone(self):
         """Test StateManager component works standalone."""
         from core.orchestration.state_manager import StateManager

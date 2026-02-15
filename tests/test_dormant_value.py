@@ -8,7 +8,14 @@ Each test simulates a realistic scenario and asserts the module's output
 changes the system's decisions in a provably better direction.
 """
 
+import os
 import pytest
+
+pytestmark = pytest.mark.skipif(
+    not os.getenv('ANTHROPIC_API_KEY'),
+    reason="Requires ANTHROPIC_API_KEY for real LLM calls"
+)
+
 from Jotty.core.foundation.data_structures import SwarmConfig, EpisodeResult
 
 

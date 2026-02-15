@@ -14,9 +14,16 @@ No complex expert evaluation - just clear metrics.
 
 import asyncio
 import dspy
+import os
 import re
 from datetime import datetime
 from pathlib import Path
+import pytest
+
+pytestmark = pytest.mark.skipif(
+    not os.getenv('ANTHROPIC_API_KEY'),
+    reason="Requires ANTHROPIC_API_KEY for real LLM calls"
+)
 
 async def simple_real_learning():
     """Simple learning test with clear metrics."""

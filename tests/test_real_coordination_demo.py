@@ -14,7 +14,14 @@ Saves final document showing the complete coordinated workflow.
 import asyncio
 import dspy
 import logging
+import os
 from pathlib import Path
+import pytest
+
+pytestmark = pytest.mark.skipif(
+    not os.getenv('ANTHROPIC_API_KEY'),
+    reason="Requires ANTHROPIC_API_KEY for real LLM calls"
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

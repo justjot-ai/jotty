@@ -18,6 +18,7 @@ import os
 import random
 import sys
 import time
+import pytest
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -373,6 +374,7 @@ async def test_6_learning() -> Score:
 # ══════════════════════════════════════════════════════════════════════
 # 7. MULTI-AGENT AGGREGATION — Result combining
 # ══════════════════════════════════════════════════════════════════════
+@pytest.mark.skipif(not os.getenv('ANTHROPIC_API_KEY'), reason="Requires ANTHROPIC_API_KEY for real LLM calls")
 async def test_7_multi_agent() -> Score:
     from Jotty.core.orchestration.swarm_manager import Orchestrator
     from Jotty.core.foundation.data_structures import EpisodeResult
@@ -452,6 +454,7 @@ async def test_7_multi_agent() -> Score:
 # ══════════════════════════════════════════════════════════════════════
 # 8. FULL PIPELINE — Real run() with LLM (single agent, fast path)
 # ══════════════════════════════════════════════════════════════════════
+@pytest.mark.skipif(not os.getenv('ANTHROPIC_API_KEY'), reason="Requires ANTHROPIC_API_KEY for real LLM calls")
 async def test_8_full_pipeline() -> Score:
     from Jotty.core.orchestration.swarm_manager import Orchestrator
     sc = Score(name="Full Pipeline (Real LLM E2E)")

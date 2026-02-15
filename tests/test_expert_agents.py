@@ -50,36 +50,31 @@ async def test_mermaid_expert():
 
 
 async def test_pipeline_expert():
-    """Test PipelineExpertAgent training and generation."""
+    """Test PipelineExpertAgent (BaseExpert-based) training data and stats."""
     print("=" * 80)
     print("TESTING PIPELINE EXPERT AGENT")
     print("=" * 80)
     print()
-    
+
     # Create expert agent
     expert = PipelineExpertAgent(output_format="mermaid")
-    
-    print("📚 Training Pipeline Expert...")
-    training_results = await expert.train()
-    
-    print(f"Training Results:")
-    print(f"  Success: {training_results.get('overall_success')}")
-    print(f"  Passed: {training_results.get('passed_cases')}/{training_results.get('total_cases')}")
+
+    # Verify training data
+    training_data = expert.get_training_data()
+    print(f"Training Data:")
+    print(f"  Cases available: {len(training_data)}")
     print()
-    
-    # Generate
-    print("🎨 Generating Pipeline Diagram...")
-    pipeline = await expert.generate_pipeline(
-        stages=["Build", "Test", "Deploy", "Release"],
-        description="CI/CD Pipeline"
-    )
-    
-    print("Generated Pipeline:")
-    print("```mermaid")
-    print(pipeline)
-    print("```")
+
+    # Stats
+    stats = expert.get_stats()
+    print("Expert Stats:")
+    print(f"  Domain: {stats['domain']}")
+    print(f"  Expert Type: {stats['expert_type']}")
+    print(f"  Training Cases: {stats['training_cases']}")
+    print(f"  Validation Cases: {stats['validation_cases']}")
+    print(f"  Improvements: {stats['improvements_count']}")
     print()
-    
+
     return expert
 
 

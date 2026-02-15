@@ -11,6 +11,12 @@ Tests that:
 import sys
 import os
 from pathlib import Path
+import pytest
+
+pytestmark = pytest.mark.skipif(
+    not os.getenv('ANTHROPIC_API_KEY'),
+    reason="Requires ANTHROPIC_API_KEY for real LLM calls"
+)
 
 # Add Jotty to path
 sys.path.insert(0, str(Path(__file__).parent))

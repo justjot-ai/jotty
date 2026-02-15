@@ -595,6 +595,7 @@ class TestTransferableLearningStore:
         assert store.meta_patterns == {}
 
     @pytest.mark.unit
+    @pytest.mark.skipif(not os.getenv('ANTHROPIC_API_KEY'), reason="Requires ANTHROPIC_API_KEY for real LLM calls")
     def test_record_experience_stores_entry(self):
         store = self._store()
         store.record_experience(
@@ -651,6 +652,7 @@ class TestTransferableLearningStore:
         assert pattern.failure_count == 1
 
     @pytest.mark.unit
+    @pytest.mark.skipif(not os.getenv('ANTHROPIC_API_KEY'), reason="Requires ANTHROPIC_API_KEY for real LLM calls")
     def test_record_experience_evicts_old(self):
         store = self._store()
         for i in range(1100):

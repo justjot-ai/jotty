@@ -10,8 +10,14 @@ Run:  pytest tests/test_mallm_real_world.py -v -s --timeout=180
 """
 
 import asyncio
+import os
 import pytest
 import logging
+
+pytestmark = pytest.mark.skipif(
+    not os.getenv('ANTHROPIC_API_KEY'),
+    reason="Requires ANTHROPIC_API_KEY for real LLM calls"
+)
 
 logging.basicConfig(level=logging.INFO, format='%(name)s %(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)
