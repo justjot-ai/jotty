@@ -127,7 +127,7 @@ class TaskBreakdownAgent(dspy.Module, DAGAgentMixin):
         logger.info("[TASK BREAKDOWN] Starting plan analysis...")
 
         # Retrieve relevant patterns from memory
-        relevant_patterns = self.memory.retrieve(
+        self.memory.retrieve(
             query=f"task breakdown patterns for: {implementation_plan[:200]}",
             goal="effective task decomposition",
             budget_tokens=1000,

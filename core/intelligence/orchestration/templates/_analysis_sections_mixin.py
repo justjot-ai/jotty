@@ -663,8 +663,6 @@ Per-class calibration analysis for {n_classes} classes.
                 else:
                     feature_names = [f"Feature_{i}" for i in range(np.asarray(X_sample).shape[1])]
 
-            X_arr = np.asarray(X_sample)
-
             # For multiclass, use max probability as confidence; for binary, use positive class prob
             if preds.y_prob.ndim == 2:
                 prob_1d = np.max(preds.y_prob, axis=1)
@@ -816,7 +814,6 @@ Analyzing model prediction confidence and its relationship to actual correctness
             deciles = np.arange(1, n + 1) / n
 
             # Calculate lift
-            random_gains = deciles
             lift = cum_gains / (deciles + 1e-10)
 
             # KS statistic
@@ -1349,7 +1346,6 @@ Analysis of {len(trials)} hyperparameter trials exploring {len(param_names)} par
                 status = (
                     "Excellent" if value > 0.9 else ("Good" if value > 0.7 else "Needs Improvement")
                 )
-                color_indicator = "" if value > 0.9 else ("" if value > 0.7 else "")
                 table_md += f"| {name.upper()} | {value:.4f} | {status} |\n"
 
             content = f"""
@@ -1653,7 +1649,6 @@ Automated scan of all analysis sections for actionable findings.
 
             y_true_arr = np.asarray(y_true)
             unique_classes, class_counts = np.unique(y_true_arr, return_counts=True)
-            n_classes = len(unique_classes)
 
             if labels is None:
                 labels = [f"Class {c}" for c in unique_classes]

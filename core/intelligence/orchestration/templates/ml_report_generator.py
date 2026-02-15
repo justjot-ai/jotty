@@ -2419,7 +2419,6 @@ transparent model documentation.
 
             # Simple Breusch-Pagan approximation
             # Regress squared residuals on predictions
-            res_sq = residuals**2
             n = len(residuals)
 
             # Correlation between |residuals| and predictions

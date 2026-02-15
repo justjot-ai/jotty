@@ -742,7 +742,7 @@ class ReviewSwarm(DomainSwarm):
         # =================================================================
         # PHASE 2: STYLE CHECK
         # =================================================================
-        style_result = await executor.run_phase(
+        await executor.run_phase(
             2,
             "Style Check",
             "StyleChecker",

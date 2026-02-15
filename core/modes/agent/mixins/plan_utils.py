@@ -1316,7 +1316,6 @@ Filename: {filename}
 
                     if "." in ref:
                         # Already field-level — record in inputs_needed
-                        base_key = ref.split(".")[0]
                         if param_name not in inferred_inputs:
                             inferred_inputs[param_name] = ref
                         continue

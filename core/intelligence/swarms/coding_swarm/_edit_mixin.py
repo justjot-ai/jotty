@@ -314,7 +314,7 @@ class EditMixin:
             # =================================================================
             if config.analyze_dependencies and len(affected_files) > 1:
                 _progress("Phase 0.5", "DependencyAnalyzer", "Analyzing import graph...")
-                import_graph = self._analyze_import_graph(target_files)
+                self._analyze_import_graph(target_files)
                 affected_files = self._get_edit_order(target_files, affected_files)
                 _progress(
                     "Phase 0.5",

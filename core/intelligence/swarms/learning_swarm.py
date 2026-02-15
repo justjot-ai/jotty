@@ -408,8 +408,6 @@ class GoldCurator(BaseSwarmAgent):
             except Exception:
                 gold_data = []
 
-            criteria_list = _split_field(result.evaluation_criteria)
-
             gold_standards = []
             for i, gs in enumerate(gold_data):
                 gold_standards.append(

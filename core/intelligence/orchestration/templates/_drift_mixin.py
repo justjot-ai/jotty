@@ -148,9 +148,6 @@ class DriftMixin:
                 d = cdist(X, Y, "sqeuclidean")
                 return np.exp(-d / (2.0 * sigma2))
 
-            n_ref = len(X_ref)
-            n_cur = len(X_cur)
-
             K_rr = _rbf_kernel(X_ref, X_ref)
             K_cc = _rbf_kernel(X_cur, X_cur)
             K_rc = _rbf_kernel(X_ref, X_cur)
@@ -318,7 +315,6 @@ class DriftMixin:
 
             # Preserve DataFrame info before converting
             ref_df = X_reference if hasattr(X_reference, "columns") else None
-            cur_df = X_current if hasattr(X_current, "columns") else None
 
             X_ref = np.asarray(X_reference)
             X_cur = np.asarray(X_current)

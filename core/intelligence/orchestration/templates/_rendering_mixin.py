@@ -326,7 +326,6 @@ window.addEventListener('scroll', () => {{
         def replace_image(match: Any) -> Any:
             alt = match.group(1)
             src = match.group(2)
-            full_path = self.output_dir / src
             return f'<div class="chart-container"><img src="{src}" alt="{alt}" loading="lazy"><p style="text-align:center;color:var(--muted);font-size:12px;">{alt}</p></div>'
 
         html = re.sub(r"!\[(.+?)\]\((.+?)\)", replace_image, html)
@@ -438,16 +437,16 @@ window.addEventListener('scroll', () => {{
             # Goldman: serif, uppercase headers, minimal lines, cool gray bg
             section_format = "\\\\titleformat{{\\\\section}}{{\\\\Large\\\\color{{Primary}}\\\\scshape}}{{\\\\thesection}}{{1em}}{{}}"
             subsection_format = "\\\\titleformat{{\\\\subsection}}{{\\\\large\\\\color{{Secondary}}}}{{\\\\thesubsection}}{{1em}}{{}}"
-            font_pkg = "\\\\usepackage{{charter}}"
-            extra_packages = """  - \\\\usepackage{{titlesec}}
+            _font_pkg = "\\\\usepackage{{charter}}"
+            _extra_packages = """  - \\\\usepackage{{titlesec}}
   - {section_format}
   - {subsection_format}""".format(
                 section_format=section_format, subsection_format=subsection_format
             )
         else:
             # Professional: sans-serif, bold headers
-            font_pkg = ""
-            extra_packages = ""
+            _font_pkg = ""
+            _extra_packages = ""
 
         header_brand = t["header_brand"]
         footer_text = t["footer_text"]
@@ -998,9 +997,6 @@ header-includes:
             try:
                 # Try multiBuild for TOC
                 builder = _TOCBuilder(toc)
-                original_afterFlowable = (
-                    doc.afterFlowable if hasattr(doc, "afterFlowable") else None
-                )
                 doc.afterFlowable = builder.afterFlowable
                 doc.multiBuild(story)
             except Exception:

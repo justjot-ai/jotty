@@ -541,7 +541,7 @@ JSON only:""",
             exec_sessions = self._transfer_store.get_relevant_sessions(task_desc, top_k=5)
 
             # Get sessions relevant for LEARNING (find lessons to apply)
-            learning_sessions = self._transfer_store.get_learning_sessions(task_desc, top_k=10)
+            self._transfer_store.get_learning_sessions(task_desc, top_k=10)
 
             result["similar_sessions"] = exec_sessions
 

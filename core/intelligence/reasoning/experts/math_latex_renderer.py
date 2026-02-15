@@ -33,8 +33,11 @@ try:
             from .latex_validator_wrapper import validate_latex_with_openreview
 
             LATEX_VALIDATION_AVAILABLE = True
+
             # Wrapper returns (is_valid, error_msg, metadata)
-            validate_latex = lambda code: validate_latex_with_openreview(code)
+            def validate_latex(code):
+                return validate_latex_with_openreview(code)
+
             logger.info("latex-validation Node.js wrapper available (HTTP server or CLI)")
         except ImportError:
             LATEX_VALIDATION_AVAILABLE = False

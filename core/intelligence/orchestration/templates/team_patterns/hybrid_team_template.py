@@ -102,7 +102,7 @@ async def p2p_discovery_phase(
 
         agent_name = config["name"]
         agent = config["agent"]
-        expert = config.get("expert")
+        _expert = config.get("expert")
 
         print(f"🔍 {agent_name} - Starting discovery...")
 

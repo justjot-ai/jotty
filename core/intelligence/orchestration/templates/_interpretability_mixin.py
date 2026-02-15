@@ -137,14 +137,13 @@ class InterpretabilityMixin:
                 values = values[:, :, 1]  # Binary classification
 
             # Try SHAP interaction values for tree models
-            interaction_data = None
             try:
                 if model is not None and hasattr(model, "predict_proba"):
                     explainer = shap.TreeExplainer(model)
                     interaction_values = explainer.shap_interaction_values(X_sample)
                     if isinstance(interaction_values, list):
                         interaction_values = interaction_values[1]  # Binary
-                    interaction_data = interaction_values
+                    _interaction_data = interaction_values
             except Exception as e:
                 self._record_internal_warning(
                     "SHAPInteraction", "Failed to compute SHAP interaction values for tree model", e

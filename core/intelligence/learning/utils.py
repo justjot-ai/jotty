@@ -385,7 +385,7 @@ class SimilarityEngine:
             v1, v2 = dict1[key], dict2[key]
             if v1 == v2:
                 value_scores.append(1.0)
-            elif type(v1) == type(v2):
+            elif type(v1) is type(v2):
                 if isinstance(v1, (int, float)) and isinstance(v2, (int, float)):
                     # Numeric similarity
                     max_val = max(abs(v1), abs(v2), 1)

@@ -59,7 +59,7 @@ class SwarmProviderGateway:
         import asyncio
 
         try:
-            loop = asyncio.get_running_loop()
+            asyncio.get_running_loop()
             # In async context - don't auto-configure yet, will configure on-demand
             logger.debug(
                 "SwarmProviderGateway: Detected async context, deferring auto-configuration"
@@ -77,7 +77,7 @@ class SwarmProviderGateway:
 
             # Check if we're in async context
             try:
-                loop = asyncio.get_running_loop()
+                asyncio.get_running_loop()
                 in_async_context = True
             except RuntimeError:
                 in_async_context = False
@@ -221,7 +221,7 @@ class SwarmProviderGateway:
         import asyncio
 
         try:
-            loop = asyncio.get_running_loop()
+            asyncio.get_running_loop()
             # In async context - configure without calling dspy.configure()
             logger.debug("SwarmProviderGateway.get_lm(): Configuring in async context")
             self._auto_configure()
@@ -271,7 +271,7 @@ class SwarmProviderGateway:
 
         # Check if we're in async context
         try:
-            loop = asyncio.get_running_loop()
+            asyncio.get_running_loop()
             in_async_context = True
         except RuntimeError:
             in_async_context = False

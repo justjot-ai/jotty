@@ -868,8 +868,6 @@ Format your response clearly with sections for tools, APIs, and documentation.
 
             # PyPI doesn't have a search API, use the warehouse API
             # We'll search for common package names based on capability
-            search_terms = capability.lower().replace(" ", "-").split("-")
-
             # Try direct package lookup for common patterns
             package_patterns = [
                 capability.lower().replace(" ", "-"),

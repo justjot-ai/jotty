@@ -396,7 +396,6 @@ class ModelChatAgent:
             return {"response": f"No models found for {symbol or 'any stock'}."}
 
         run = runs[0]
-        run_id = run.get("run_id")
 
         # Try to get feature importance from metrics
         feature_metrics = {

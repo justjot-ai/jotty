@@ -28,7 +28,13 @@ from Jotty.core.infrastructure.foundation.exceptions import (
 
 from ._coordination_mixin import SwarmCoordinationMixin
 from ._knowledge_mixin import SwarmKnowledgeMixin
-from .swarm_types import AgentRole, ExecutionTrace, ImprovementSuggestion, ImprovementType
+from .swarm_types import (
+    AgentRole,
+    EvaluationResult,
+    ExecutionTrace,
+    ImprovementSuggestion,
+    ImprovementType,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -91,7 +97,7 @@ class SwarmLearningMixin(SwarmCoordinationMixin, SwarmKnowledgeMixin):
             stats = si.curriculum_generator.get_curriculum_stats()
             save_path = self._get_intelligence_save_path()
             if stats["feedback_count"] == 0 and not Path(save_path).exists():
-                warmup_result = await self._run_auto_warmup()
+                await self._run_auto_warmup()
                 learned_context["warmup_completed"] = True
                 logger.info("Auto-warmup complete — seeded initial learning data")
 
@@ -261,7 +267,6 @@ class SwarmLearningMixin(SwarmCoordinationMixin, SwarmKnowledgeMixin):
             output_data: Optional dict of output metrics for evaluation
             input_data: Optional dict of input params for evaluation matching
         """
-        _learning_errors = []  # Track failures for observability
         try:
             # 1. Send executor feedback (tools, success, timing)
             self._send_executor_feedback(
@@ -617,4 +622,3 @@ class SwarmLearningMixin(SwarmCoordinationMixin, SwarmKnowledgeMixin):
 # =============================================================================
 # EXPORTS
 # =============================================================================
-

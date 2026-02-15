@@ -228,7 +228,6 @@ _LAZY_IMPORTS: dict[str, str] = {
     "DifferenceRewardEstimator": ".utils.algorithmic_foundations",
     "SurpriseEstimator": ".utils.algorithmic_foundations",
     "MutualInformationRetriever": ".utils.algorithmic_foundations",
-    "GlobalContextGuard": ".utils.algorithmic_foundations",
     "ContentGate": ".utils.algorithmic_foundations",
     # --- context.global_context_guard ---
     "GlobalContextGuard": ".context.global_context_guard",

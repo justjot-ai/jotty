@@ -161,7 +161,7 @@ def register_system_routes(app, api):
                 agents = registry.list_agents_from_skills()
                 # Handle if it's a coroutine
                 if hasattr(agents, "__await__"):
-                    import asyncio
+                    import asyncio  # noqa: F401
 
                     agents = await agents
                 return {"agents": agents if agents else [], "count": len(agents) if agents else 0}

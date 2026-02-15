@@ -28,7 +28,7 @@ except ImportError:
 
 try:
     # MCP integration (if available)
-    import mcp
+    import mcp  # noqa: F401
 
     MCP_AVAILABLE = True
 except ImportError:

@@ -158,7 +158,6 @@ class VisualizationMixin:
                     )
 
                     # Shape info
-                    in_shape = step.get("input_shape", None)
                     out_shape = step.get("output_shape", None)
                     if out_shape:
                         ax.text(
@@ -463,7 +462,7 @@ class VisualizationMixin:
                 colors = [
                     "#e53e3e" if v > 10 else ("#d69e2e" if v > 5 else "#38a169") for v in values
                 ]
-                bars = ax.barh(range(len(features)), values, color=colors)
+                ax.barh(range(len(features)), values, color=colors)
 
                 ax.set_yticks(range(len(features)))
                 ax.set_yticklabels(features, fontsize=9)
@@ -603,7 +602,7 @@ class VisualizationMixin:
                 confidences = [b["confidence"] for b in bins if b["count"] > 0]
                 accuracies = [b["accuracy"] for b in bins if b["count"] > 0]
                 counts = [b["count"] for b in bins if b["count"] > 0]
-                gaps = [b["gap"] for b in bins if b["count"] > 0]
+                _gaps = [b["gap"] for b in bins if b["count"] > 0]
 
                 # 1. Reliability diagram
                 ax1.plot([0, 1], [0, 1], "k--", label="Perfect Calibration")
@@ -928,7 +927,7 @@ class VisualizationMixin:
                     )
                     shap_vals = values[:, idx]
 
-                    scatter = ax.scatter(
+                    ax.scatter(
                         feat_values, shap_vals, c=feat_values, cmap="coolwarm", alpha=0.6, s=20
                     )
                     ax.set_xlabel(feat_name[:20], fontsize=10)
@@ -1188,8 +1187,8 @@ class VisualizationMixin:
             color = self.theme["danger"]
 
         # Create donut arc
-        theta1 = 180  # Start angle (left)
-        theta2 = 180 - (value * 180)  # End angle based on value
+        # Start angle (left) = 180, end angle based on value
+        # (used implicitly by the arc drawing below)
 
         # Background arc (full semicircle)
         bg_theta = np.linspace(0, np.pi, 100)
@@ -1373,8 +1372,6 @@ class VisualizationMixin:
             ):
                 if n == 1:
                     axes = [axes]
-
-                X_array = X.values if hasattr(X, "values") else X
 
                 for i, feat_name in enumerate(top_features):
                     ax = axes[i]

@@ -238,14 +238,12 @@ Selective prediction: reject uncertain samples to improve accuracy.
             X_scaled = scaler.fit_transform(error_X.fillna(0))
 
             # PCA when >20 features: keep components explaining 95% variance
-            pca_used = False
             if X_scaled.shape[1] > 20:
                 try:
                     from sklearn.decomposition import PCA
 
                     pca = PCA(n_components=0.95, random_state=42)
                     X_scaled = pca.fit_transform(X_scaled)
-                    pca_used = True
                 except Exception as e:
                     self._record_internal_warning(
                         "PCAReduction", "PCA dimensionality reduction failed", e

@@ -502,8 +502,6 @@ class JottyAPI:
         This ensures all interfaces (CLI, Telegram, Web) have identical
         command behavior - they all use the same JottyCLI core.
         """
-        import io
-
         try:
             # Get shared CLI instance
             cli = self._get_cli()

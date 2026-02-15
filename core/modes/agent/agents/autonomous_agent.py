@@ -321,7 +321,6 @@ class AutonomousAgent(BaseAgent):
             **kwargs: Additional arguments
                 direct_llm: If True, bypass skill pipeline and use LLM directly.
         """
-        config: AutonomousAgentConfig = self.config
         start_time = time.time()
         status_callback = kwargs.pop("status_callback", None)
         learning_context = kwargs.pop("learning_context", None)

@@ -159,7 +159,7 @@ class TodoCreatorAgent(DAGAgentMixin):
         ]
 
         # Retrieve relevant patterns from memory
-        relevant_memories = self.memory.retrieve(
+        self.memory.retrieve(
             query=f"actor assignment for {markovian_todo.root_task}",
             goal="optimal actor assignment",
             budget_tokens=1000,

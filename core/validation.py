@@ -116,13 +116,13 @@ class ParamValidator:
         if param_type and not isinstance(value, param_type):
             # Try to coerce if possible
             try:
-                if param_type == bool:
+                if param_type is bool:
                     value = str(value).lower() in ("true", "1", "yes")
-                elif param_type == int:
+                elif param_type is int:
                     value = int(value)
-                elif param_type == float:
+                elif param_type is float:
                     value = float(value)
-                elif param_type == str:
+                elif param_type is str:
                     value = str(value)
                 else:
                     error_msg = f"'{name}' must be {param_type.__name__}"

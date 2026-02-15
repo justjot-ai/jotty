@@ -36,10 +36,10 @@ try:
         TimeElapsedColumn,
         TimeRemainingColumn,
     )
-    from rich.spinner import Spinner
+    from rich.spinner import Spinner  # noqa: F401
     from rich.syntax import Syntax
     from rich.table import Table
-    from rich.text import Text
+    from rich.text import Text  # noqa: F401
     from rich.tree import Tree as RichTree
 
     RICH_AVAILABLE = True

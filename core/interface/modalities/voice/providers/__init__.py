@@ -43,7 +43,10 @@ except ImportError:
             has_local_piper = False
             has_whisper_api = False
             has_local_whisper = False
-            has_groq_whisper = lambda self: bool(os.getenv("GROQ_API_KEY"))
+
+            def has_groq_whisper(self):
+                return bool(os.getenv("GROQ_API_KEY"))
+
             has_edge_tts = True  # edge-tts is free, no API key needed
 
         def get_config():

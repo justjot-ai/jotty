@@ -21,7 +21,7 @@ try:
     from rich.markdown import Markdown
     from rich.panel import Panel
     from rich.syntax import Syntax
-    from rich.text import Text
+    from rich.text import Text  # noqa: F401
     from rich.tree import Tree
 
     RICH_AVAILABLE = True

@@ -590,13 +590,13 @@ class SmartAgentSlack:
                     # Check for type annotations
                     if hasattr(field_obj, "annotation"):
                         annotation = field_obj.annotation
-                        if annotation == dict or str(annotation) == "Dict":
+                        if annotation is dict or str(annotation) == "Dict":
                             preferred_format = "dict"
                             acceptable_formats = ["dict", "json"]
-                        elif annotation == str:
+                        elif annotation is str:
                             preferred_format = "str"
                             acceptable_formats = ["str", "text"]
-                        elif annotation == list or str(annotation) == "List":
+                        elif annotation is list or str(annotation) == "List":
                             preferred_format = "list"
                             acceptable_formats = ["list", "json"]
         except Exception as e:

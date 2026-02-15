@@ -107,7 +107,6 @@ class ErrorPatternMatcher:
     @classmethod
     def match_error(cls, error_text: str) -> Optional[Dict[str, Any]]:
         """Match error text to known patterns."""
-        error_lower = error_text.lower()
         for pattern, fix_info in cls.KNOWN_PATTERNS.items():
             match = re.search(pattern, error_text, re.IGNORECASE)
             if match:

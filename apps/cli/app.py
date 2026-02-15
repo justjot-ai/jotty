@@ -29,7 +29,7 @@ from Jotty.sdk import Jotty
 
 # Check for prompt_toolkit
 try:
-    import prompt_toolkit
+    import prompt_toolkit  # noqa: F401
 
     PROMPT_TOOLKIT_AVAILABLE = True
 except ImportError:

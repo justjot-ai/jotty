@@ -546,8 +546,6 @@ class MLCommand(BaseCommand):
         warnings.filterwarnings("ignore", category=UserWarning)
         warnings.filterwarnings("ignore", message=".*feature names.*")
 
-        from sklearn.model_selection import KFold, StratifiedKFold
-
         # Import skills
         from Jotty.core.capabilities.skills.ml import (
             EnsembleSkill,

@@ -474,8 +474,6 @@ class ChartGeneratorAgent(BaseSwarmAgent):
             import matplotlib.pyplot as plt
 
             prices = data.get("price_history", [])
-            dates = data.get("dates", [])
-
             if not prices or len(prices) < 10:
                 return {"chart_paths": []}
 
@@ -694,18 +692,18 @@ class EnhancedChartGeneratorAgent(BaseSwarmAgent):
             import matplotlib
 
             matplotlib.use("Agg")
-            import matplotlib.pyplot as plt
-            import mplfinance as mpf
-            import numpy as np
-            import pandas as pd
+            import matplotlib.pyplot as plt  # noqa: F401
+            import mplfinance as mpf  # noqa: F401
+            import numpy as np  # noqa: F401
+            import pandas as pd  # noqa: F401
 
             # Try pandas_ta first, fallback to ta library
             try:
-                import pandas_ta
+                import pandas_ta  # noqa: F401
 
                 self._use_pandas_ta = True
             except ImportError:
-                import ta
+                import ta  # noqa: F401
 
                 self._use_pandas_ta = False
         except ImportError as e:
