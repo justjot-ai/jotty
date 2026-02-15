@@ -716,7 +716,8 @@ uvicorn.run(app, host="{host}", port={port}, log_level="warning")
             registry = _load_workflow_registry()
             workflow_names = list(registry.get("workflows", {}).keys())
             aliases = list(registry.get("aliases", {}).keys())
-        except:
+        except (OSError, json.JSONDecodeError, KeyError):
+            # Registry loading failed, use empty lists
             workflow_names = []
             aliases = []
 

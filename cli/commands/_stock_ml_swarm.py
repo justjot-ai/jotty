@@ -717,7 +717,8 @@ class StockMLQLearner:
                     self.Q = data.get('Q', {})
                     self.alpha = data.get('alpha', 0.1)
                     self.epsilon = data.get('epsilon', 0.15)
-            except:
+            except (FileNotFoundError, json.JSONDecodeError, KeyError):
+                # Q-table file not found or invalid, start fresh
                 self.Q = {}
 
     def _save_q_table(self) -> Any:

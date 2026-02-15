@@ -461,7 +461,8 @@ class PreviewCommand(BaseCommand):
             with open(path, 'rb') as f:
                 chunk = f.read(8192)
                 return b'\x00' in chunk
-        except:
+        except (OSError, IOError):
+            # File not readable
             return False
 
     def get_completions(self, partial: str) -> list:

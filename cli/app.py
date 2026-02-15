@@ -1135,7 +1135,8 @@ class JottyCLI:
                                 self.renderer.print("[dim]...[/dim]")
                                 break
                             print(line.rstrip())
-                except:
+                except (UnicodeDecodeError, OSError):
+                    # Binary file or read error
                     self.renderer.print("[dim]Binary file[/dim]")
 
         except Exception as e:

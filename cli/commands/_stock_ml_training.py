@@ -191,7 +191,8 @@ class StockMLTrainingMixin:
             f1 = f1_score(y_test, pred)
             try:
                 auc = roc_auc_score(y_test, proba[:, 1])
-            except:
+            except (ValueError, IndexError):
+                # ROC AUC calculation failed (e.g., single class in y_test)
                 auc = acc
 
             return {
@@ -363,7 +364,8 @@ class StockMLTrainingMixin:
                     try:
                         proba = model.predict_proba(X_test.values)
                         score = roc_auc_score(y_test, proba[:, 1])
-                    except:
+                    except (ValueError, IndexError, AttributeError):
+                        # ROC AUC failed, fall back to accuracy
                         score = accuracy_score(y_test, pred)
                 else:
                     score = r2_score(y_test, pred)
@@ -551,7 +553,8 @@ class StockMLTrainingMixin:
                         df = await self._load_stock_data(symbol, timeframe, years, cli)
                         if df is None or len(df) < 100:
                             continue
-                    except:
+                    except Exception:
+                        # Data loading failed, skip this configuration
                         continue
 
                     for target_type in targets:
@@ -875,7 +878,8 @@ class StockMLTrainingMixin:
                 f1 = f1_score(y_val, pred)
                 try:
                     auc = roc_auc_score(y_val, proba[:, 1])
-                except:
+                except (ValueError, IndexError):
+                    # ROC AUC calculation failed
                     auc = acc
                 score = auc
                 results.append({'model': name, 'accuracy': acc, 'f1': f1, 'auc': auc})
@@ -924,7 +928,8 @@ class StockMLTrainingMixin:
                     acc = accuracy_score(y_test, pred)
                     try:
                         auc = roc_auc_score(y_test, proba[:, 1])
-                    except:
+                    except (ValueError, IndexError):
+                        # ROC AUC calculation failed
                         auc = acc
 
                     holdout_results.append({

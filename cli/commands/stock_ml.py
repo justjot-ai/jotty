@@ -1108,7 +1108,8 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
                 f1 = f1_score(y_test, pred)
                 try:
                     auc = roc_auc_score(y_test, proba[:, 1])
-                except:
+                except (ValueError, IndexError):
+                    # ROC AUC calculation failed
                     auc = acc
                 score = auc
 
@@ -1727,7 +1728,8 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
             try:
                 with open(self.SWEEP_RESULTS_FILE) as f:
                     existing = json.load(f)
-            except:
+            except (FileNotFoundError, json.JSONDecodeError):
+                # Results file not found or corrupted, start fresh
                 existing = []
 
         # Append new results
@@ -1820,7 +1822,8 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
                     key = name.lower().replace(" ", "_").replace("-", "_")
                     cli.renderer.info(f"  {key}")
                 cli.renderer.info(f"  ... and {len(indices) - 15} more")
-            except:
+            except Exception:
+                # Index fetching failed, skip display
                 pass
 
         cli.renderer.info("")
@@ -1939,7 +1942,8 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
             try:
                 with open(self.SWARM_ML_STATE_FILE) as f:
                     return json.load(f)
-            except:
+            except (FileNotFoundError, json.JSONDecodeError):
+                # State file not found or corrupted
                 pass
         return {
             'stock_profiles': {},
@@ -1986,7 +1990,8 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
                     self.Q = data.get('Q', {})
                     self.alpha = data.get('alpha', 0.1)
                     self.epsilon = data.get('epsilon', 0.15)
-            except:
+            except (FileNotFoundError, json.JSONDecodeError, KeyError):
+                # Q-table file not found or invalid, start fresh
                 self.Q = {}
 
     def _save_q_table(self) -> Any:

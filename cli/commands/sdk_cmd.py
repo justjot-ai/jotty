@@ -600,7 +600,8 @@ Test the SDK client with real-time event visualization.
                         import json
                         parsed = json.loads(content.replace("'", '"'))
                         formatted = self._format_research_result(cli, parsed)
-                    except:
+                    except (json.JSONDecodeError, ValueError, KeyError):
+                        # JSON parsing failed, use raw content
                         formatted = content
                 else:
                     formatted = str(content)
@@ -782,7 +783,8 @@ Test the SDK client with real-time event visualization.
             import json
             try:
                 params = json.loads(params_str) if params_str.startswith("{") else {"input": params_str}
-            except:
+            except (json.JSONDecodeError, ValueError):
+                # JSON parsing failed, treat as plain string input
                 params = {"input": params_str}
 
             # Execute skill

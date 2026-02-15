@@ -96,7 +96,8 @@ class MLCommand(BaseCommand):
             try:
                 with open(cls.MLFLOW_STATE_FILE, 'r') as f:
                     return json.load(f)
-            except:
+            except (OSError, json.JSONDecodeError):
+                # State file corrupted or unreadable, use defaults
                 pass
         return {"experiment_name": "jotty_ml", "last_run_id": None, "tracking_uri": None}
 
@@ -692,7 +693,8 @@ class MLCommand(BaseCommand):
         if mlflow_tracker:
             try:
                 result_data['mlflow_run_id'] = run_info.get('run_id') if run_info else None
-            except:
+            except (AttributeError, KeyError):
+                # run_info invalid or missing
                 result_data['mlflow_run_id'] = None
 
         return result_data
