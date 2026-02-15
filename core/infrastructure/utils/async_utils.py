@@ -94,7 +94,7 @@ class StatusReporter:
         # → calls callback("[agent1] Executing", "step 2")
     """
 
-    __slots__ = ("_callback", "_logger", "_emoji", "_prefix")
+    __slots__ = ("_callback", "_emoji", "_logger", "_prefix")
 
     def __init__(
         self,

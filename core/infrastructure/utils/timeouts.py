@@ -193,7 +193,7 @@ class CircuitOpenError(Exception):
 # TIMEOUT DECORATORS
 # =============================================================================
 
-from Jotty.core.infrastructure.foundation.exceptions import TimeoutError  # noqa: F811
+from Jotty.core.infrastructure.foundation.exceptions import TimeoutError
 
 
 def timeout(seconds: float, error_message: str = "Operation timed out") -> Any:

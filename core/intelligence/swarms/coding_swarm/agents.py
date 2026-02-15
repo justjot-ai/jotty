@@ -112,6 +112,17 @@ class ArchitectAgent(BaseCodeAgent):
             logger.error(f"Architecture design failed: {e}")
             return {"error": str(e)}
 
+    async def _execute_impl(self, **kwargs) -> dict:
+        """Execute architecture design (called by BaseAgent.execute())."""
+        context = kwargs.get("context") or {}
+        requirements = (
+            context.get("requirements") or kwargs.get("requirements") or "No requirements specified"
+        )
+        language = context.get("language") or kwargs.get("language") or "Python"
+        style = context.get("style") or kwargs.get("style") or "clean"
+        constraints = context.get("constraints") or kwargs.get("constraints") or ""
+        return await self.design(requirements, language, style, constraints)
+
 
 class DeveloperAgent(BaseCodeAgent):
     """Generates production code."""
@@ -157,6 +168,23 @@ class DeveloperAgent(BaseCodeAgent):
         except Exception as e:
             logger.error(f"Code generation failed: {e}")
             return {"error": str(e)}
+
+    async def _execute_impl(self, **kwargs) -> dict:
+        """Execute code generation (called by BaseAgent.execute())."""
+        context = kwargs.get("context") or {}
+
+        # Get architecture from previous stage
+        architecture = ""
+        if "_architect" in context:
+            arch_data = context.get("_architect") or {}
+            architecture = arch_data.get("architecture", "")
+        architecture = architecture or kwargs.get("architecture") or "No architecture provided"
+
+        component = kwargs.get("component") or "main"
+        language = context.get("language") or kwargs.get("language") or "Python"
+        dependencies = kwargs.get("dependencies") or []
+
+        return await self.generate(architecture, component, language, dependencies)
 
 
 class DebuggerAgent(BaseCodeAgent):
@@ -286,6 +314,22 @@ class TestWriterAgent(BaseCodeAgent):
         except Exception as e:
             logger.error(f"Test generation failed: {e}")
             return {"error": str(e)}
+
+    async def _execute_impl(self, **kwargs) -> dict:
+        """Execute test generation (called by BaseAgent.execute())."""
+        context = kwargs.get("context") or {}
+
+        # Get code from previous stage
+        code = ""
+        if "_developer" in context:
+            dev_data = context.get("_developer") or {}
+            code = dev_data.get("code", "")
+        code = code or kwargs.get("code") or "No code provided"
+
+        language = context.get("language") or kwargs.get("language") or "Python"
+        framework = kwargs.get("framework") or "pytest"
+
+        return await self.write_tests(code, language, framework)
 
 
 class DocWriterAgent(BaseCodeAgent):

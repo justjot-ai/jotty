@@ -261,16 +261,16 @@ class FetchResult:
     """Result of a smart_fetch call."""
 
     __slots__ = (
-        "success",
-        "response",
         "content",
-        "status_code",
-        "used_proxy",
         "error",
-        "skipped",
-        "source",
         "is_markdown",
         "markdown_tokens",
+        "response",
+        "skipped",
+        "source",
+        "status_code",
+        "success",
+        "used_proxy",
     )
 
     def __init__(

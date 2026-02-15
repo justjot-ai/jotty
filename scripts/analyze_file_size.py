@@ -49,7 +49,7 @@ class FileSizeAnalyzer:
         """Count actual code lines vs documentation."""
         try:
             content = file_path.read_text()
-            lines = content.split('\n')
+            lines = content.split("\n")
 
             in_docstring = False
             code_lines = 0
@@ -68,17 +68,17 @@ class FileSizeAnalyzer:
                     doc_lines += 1
                 elif not stripped:
                     blank_lines += 1
-                elif stripped.startswith('#'):
+                elif stripped.startswith("#"):
                     comment_lines += 1
                 else:
                     code_lines += 1
 
             return {
-                'total': len(lines),
-                'code': code_lines,
-                'docs': doc_lines,
-                'comments': comment_lines,
-                'blank': blank_lines,
+                "total": len(lines),
+                "code": code_lines,
+                "docs": doc_lines,
+                "comments": comment_lines,
+                "blank": blank_lines,
             }
         except Exception:
             return None
@@ -96,21 +96,23 @@ class FileSizeAnalyzer:
                     for item in node.body:
                         if isinstance(item, ast.FunctionDef):
                             start = item.lineno
-                            end = item.end_lineno if hasattr(item, 'end_lineno') else start + 10
-                            methods.append({
-                                'name': item.name,
-                                'lines': end - start,
-                            })
+                            end = item.end_lineno if hasattr(item, "end_lineno") else start + 10
+                            methods.append(
+                                {
+                                    "name": item.name,
+                                    "lines": end - start,
+                                }
+                            )
 
                     classes[node.name] = {
-                        'methods': methods,
-                        'total_methods': len(methods),
-                        'total_lines': sum(m['lines'] for m in methods),
+                        "methods": methods,
+                        "total_methods": len(methods),
+                        "total_lines": sum(m["lines"] for m in methods),
                     }
 
             return self._suggest_split(file_path, classes)
         except Exception:
-            return {'suggestion': 'Manual review needed'}
+            return {"suggestion": "Manual review needed"}
 
     def _suggest_split(self, file_path: Path, classes: Dict) -> Dict[str, any]:
         """Suggest how to split a file based on its structure."""
@@ -123,25 +125,25 @@ class FileSizeAnalyzer:
                     f"Extract {class_name} to {file_path.stem}_{class_name.lower()}.py "
                     f"({info['total_methods']} methods, ~{info['total_lines']} lines)"
                 )
-            return {'suggestion': 'Split by class', 'details': suggestions}
+            return {"suggestion": "Split by class", "details": suggestions}
 
         # If single large class, analyze methods
         if len(classes) == 1:
             class_name, info = list(classes.items())[0]
-            methods = info['methods']
+            methods = info["methods"]
 
             # Group methods by prefix/responsibility
             groups = {}
             for method in methods:
                 # Extract prefix (first word before underscore or camelCase)
-                name = method['name']
-                if name.startswith('_'):
-                    prefix = 'private'
-                elif '_' in name:
-                    prefix = name.split('_')[0]
+                name = method["name"]
+                if name.startswith("_"):
+                    prefix = "private"
+                elif "_" in name:
+                    prefix = name.split("_")[0]
                 else:
                     # CamelCase - take first lowercase part
-                    prefix = ''.join(c for c in name if c.islower())[:5]
+                    prefix = "".join(c for c in name if c.islower())[:5]
 
                 if prefix not in groups:
                     groups[prefix] = []
@@ -149,19 +151,24 @@ class FileSizeAnalyzer:
 
             # Suggest splitting if we have clear groups
             if len(groups) > 2:
-                for prefix, methods_list in sorted(groups.items(), key=lambda x: len(x[1]), reverse=True):
+                for prefix, methods_list in sorted(
+                    groups.items(), key=lambda x: len(x[1]), reverse=True
+                ):
                     if len(methods_list) >= 3:
-                        total = sum(m['lines'] for m in methods_list)
+                        total = sum(m["lines"] for m in methods_list)
                         suggestions.append(
                             f"Extract '{prefix}' methods to {file_path.stem}_{prefix}.py "
                             f"({len(methods_list)} methods, ~{total} lines)"
                         )
-                return {'suggestion': 'Split by responsibility', 'details': suggestions}
+                return {"suggestion": "Split by responsibility", "details": suggestions}
 
-        return {'suggestion': 'Manual review needed', 'details': [
-            'File is complex but doesn\'t have obvious split points.',
-            'Consider extracting helper functions or refactoring for cohesion.'
-        ]}
+        return {
+            "suggestion": "Manual review needed",
+            "details": [
+                "File is complex but doesn't have obvious split points.",
+                "Consider extracting helper functions or refactoring for cohesion.",
+            ],
+        }
 
     def analyze_file(self, file_path: Path) -> Optional[Dict]:
         """Analyze a single file."""
@@ -170,33 +177,33 @@ class FileSizeAnalyzer:
             return None
 
         # Only flag if >1,000 lines of code
-        if stats['code'] < 1000:
+        if stats["code"] < 1000:
             return None
 
         rel_path = str(file_path.relative_to(self.base_path))
         structure = self.analyze_structure(file_path)
 
         return {
-            'file': rel_path,
-            'stats': stats,
-            'structure': structure,
+            "file": rel_path,
+            "stats": stats,
+            "structure": structure,
         }
 
     def analyze_all(self, exclude_tests: bool = True) -> List[Dict]:
         """Analyze all Python files in the codebase."""
         results = []
 
-        for py_file in self.base_path.rglob('*.py'):
-            if exclude_tests and 'test' in str(py_file):
+        for py_file in self.base_path.rglob("*.py"):
+            if exclude_tests and "test" in str(py_file):
                 continue
 
             result = self.analyze_file(py_file)
             if result:
                 results.append(result)
 
-        return sorted(results, key=lambda x: x['stats']['code'], reverse=True)
+        return sorted(results, key=lambda x: x["stats"]["code"], reverse=True)
 
-    def report(self, results: List[Dict], mode: str = 'full') -> int:
+    def report(self, results: List[Dict], mode: str = "full") -> int:
         """Print analysis report. Returns number of oversized files."""
         if not results:
             print("✓ No files exceed 1,000 lines of code (excluding documentation)")
@@ -207,19 +214,21 @@ class FileSizeAnalyzer:
         print("=" * 100)
 
         for i, result in enumerate(results, 1):
-            file = result['file']
-            stats = result['stats']
-            structure = result['structure']
+            file = result["file"]
+            stats = result["stats"]
+            structure = result["structure"]
 
-            doc_pct = stats['docs'] / stats['total'] * 100
+            doc_pct = stats["docs"] / stats["total"] * 100
 
             print(f"\n{i}. {file}")
-            print(f"   Total: {stats['total']:,} lines | Code: {stats['code']:,} lines | Docs: {stats['docs']:,} lines ({doc_pct:.0f}%)")
+            print(
+                f"   Total: {stats['total']:,} lines | Code: {stats['code']:,} lines | Docs: {stats['docs']:,} lines ({doc_pct:.0f}%)"
+            )
 
-            if mode == 'full':
+            if mode == "full":
                 print(f"\n   📋 Suggestion: {structure['suggestion']}")
-                if 'details' in structure and structure['details']:
-                    for detail in structure['details'][:3]:  # Limit to top 3
+                if "details" in structure and structure["details"]:
+                    for detail in structure["details"][:3]:  # Limit to top 3
                         print(f"      • {detail}")
 
         print("\n" + "=" * 100)
@@ -233,11 +242,13 @@ def main():
     """Main entry point."""
     import argparse
 
-    parser = argparse.ArgumentParser(description='Analyze Python file sizes')
-    parser.add_argument('path', nargs='?', help='Specific file to analyze')
-    parser.add_argument('--hook', action='store_true', help='Pre-commit hook mode (non-blocking)')
-    parser.add_argument('--ci', action='store_true', help='CI mode (fails if oversized files found)')
-    parser.add_argument('--brief', action='store_true', help='Brief output (no split suggestions)')
+    parser = argparse.ArgumentParser(description="Analyze Python file sizes")
+    parser.add_argument("path", nargs="?", help="Specific file to analyze")
+    parser.add_argument("--hook", action="store_true", help="Pre-commit hook mode (non-blocking)")
+    parser.add_argument(
+        "--ci", action="store_true", help="CI mode (fails if oversized files found)"
+    )
+    parser.add_argument("--brief", action="store_true", help="Brief output (no split suggestions)")
 
     args = parser.parse_args()
 
@@ -266,7 +277,7 @@ def main():
         results = analyzer.analyze_all()
 
     # Report based on mode
-    mode = 'brief' if args.brief else 'full'
+    mode = "brief" if args.brief else "full"
     count = analyzer.report(results, mode=mode)
 
     # Exit code
@@ -281,5 +292,5 @@ def main():
     return 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

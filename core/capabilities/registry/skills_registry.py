@@ -551,10 +551,12 @@ class SkillsRegistry:
 
             if not skills_dir:
                 # Try repo-relative (for development)
-                # __file__ is core/registry/skills_registry.py
-                # Go up: core/registry -> core -> Jotty -> skills
+                # __file__ is core/capabilities/registry/skills_registry.py
+                # Go up: registry -> capabilities -> core -> Jotty
                 current_file = Path(__file__).resolve()
-                repo_root = current_file.parent.parent.parent  # core/registry -> core -> Jotty
+                repo_root = (
+                    current_file.parent.parent.parent.parent
+                )  # registry -> capabilities -> core -> Jotty
                 repo_skills = repo_root / "skills"
                 if repo_skills.exists() or repo_root.name == "Jotty":
                     # Create if doesn't exist (we're in repo)
@@ -939,9 +941,12 @@ class SkillsRegistry:
         # Parse tool parameter schemas from SKILL.md
         tool_schemas = self._parse_tool_schemas(skill_md)
 
+        # Use name from SKILL.md frontmatter if available, otherwise use directory name
+        skill_name_final = skill_metadata.get("name") or skill_name
+
         return SkillDefinition(
-            name=skill_name,
-            description=skill_metadata["description"] or f"Skill: {skill_name}",
+            name=skill_name_final,
+            description=skill_metadata["description"] or f"Skill: {skill_name_final}",
             _tool_loader=make_tool_loader(skill_dir, skill_name, is_claude_code_skill, skill_md),
             metadata=skill_meta,
             tool_metadata=tool_schemas,
@@ -1012,7 +1017,11 @@ class SkillsRegistry:
                 if end_idx > 0:
                     frontmatter = content[3:end_idx].strip()
                     for fm_line in frontmatter.split("\n"):
-                        if fm_line.startswith("description:"):
+                        if fm_line.startswith("name:"):
+                            fm_name = fm_line[len("name:") :].strip().strip('"').strip("'")
+                            if fm_name:
+                                metadata["name"] = fm_name  # Extract skill name
+                        elif fm_line.startswith("description:"):
                             fm_desc = fm_line[len("description:") :].strip().strip('"').strip("'")
                             if fm_desc:
                                 metadata["description"] = fm_desc

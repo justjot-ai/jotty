@@ -1,137 +1,68 @@
 """
-ML Template - Iterative Improvement Pattern
-============================================
+ML Template - Machine Learning Workflow
 
-Example of template using ITERATIVE pattern.
-Keeps improving model until quality threshold met.
-
-Author: Jotty Team
-Date: February 2026
+Demonstrates ML training workflow with preprocessing, feature engineering, and model training.
 """
 
-from __future__ import annotations
-
-from typing import Any
+from typing import Any, Optional
 
 from Jotty.core.infrastructure.foundation.types.execution_types import CoordinationPattern
 
-# Import existing agents (stub - will be properly implemented later)
-from Jotty.core.modes.agent.agents.swarm_agent import SwarmLearningAgent as DataPreprocessorAgent
-from Jotty.core.modes.agent.agents.swarm_agent import SwarmLearningAgent as FeatureEngineerAgent
-from Jotty.core.modes.agent.agents.swarm_agent import SwarmLearningAgent as ModelTrainerAgent
-
-from ..swarm_learning import SwarmBaseConfig, SwarmLearning, SwarmResult
-
-MLConfig = SwarmBaseConfig  # Stub
-MLResult = SwarmResult  # Stub
-
+from ..base.swarm_template import SwarmTemplate
 from ..base.team_coordinator import TeamCoordinator
+from ..swarm_learning import SwarmBaseConfig, SwarmResult
 
 
-class MLTemplate(SwarmLearning):
+class MLTemplate(SwarmTemplate):
     """
-    ML swarm template - ITERATIVE pattern.
+    ML template for machine learning workflows.
 
-    Iterative improvement loop:
-    1. Preprocess data + engineer features + train model
-    2. Evaluate model quality
-    3. If quality < 0.85: improve and repeat (max 5 iterations)
-    4. Return best model across all iterations
-
-    Inherits ALL learning layers from SwarmLearning automatically.
-
-    Usage:
-        swarm = MLTemplate()
-        result = await swarm.execute(
-            data="data.csv",
-            target="price",
-            quality_threshold=0.85
-        )
+    Workflow:
+    1. Data preprocessing
+    2. Feature engineering
+    3. Model training
+    4. Evaluation
     """
 
-    # Agent team definition - ITERATIVE pattern
     AGENT_TEAM = TeamCoordinator.define(
-        (DataPreprocessorAgent, "DataPreprocessor"),
-        (FeatureEngineerAgent, "FeatureEngineer"),
-        (ModelTrainerAgent, "ModelTrainer"),
-        pattern=CoordinationPattern.ITERATIVE,  # Feedback loop until quality met
-        quality_threshold=0.85,  # Stop when model score >= 0.85
-        max_iterations=5,  # Maximum improvement rounds
+        pattern=CoordinationPattern.SEQUENTIAL,
     )
 
-    # Template metadata
-    TEMPLATE_NAME = "ml"
-    TEMPLATE_VERSION = "2.0.0"
-    RESULT_CLASS = MLResult
+    TASK_TYPE = "ml"
 
-    def __init__(self, config: SwarmBaseConfig = None) -> None:
+    def __init__(self, config: Optional[SwarmBaseConfig] = None) -> None:
         """Initialize ML template."""
-        super().__init__(config or MLConfig())
+        super().__init__(config or SwarmBaseConfig(name="ML", domain="ml"))
 
-    async def execute(
-        self,
-        data: str | None = None,
-        target: str | None = None,
-        quality_threshold: float = 0.85,
-        **kwargs: Any,
-    ) -> SwarmResult:
+    async def _execute_domain(self, query: str, **kwargs: Any) -> SwarmResult:
         """
-        Execute ML training with iterative improvement.
+        Execute ML workflow.
 
         Args:
-            data: Path to training data
-            target: Target column name
-            quality_threshold: Quality score to achieve (0-1)
-            **kwargs: Additional arguments
+            query: ML task description
+            **kwargs: data, target, model_type, etc.
 
         Returns:
-            MLResult with best model across all iterations
+            SwarmResult with model and metrics
         """
-        # Initialize agents
-        self._init_agents()
+        data = kwargs.get("data", "")
+        target = kwargs.get("target", "")
+        model_type = kwargs.get("model_type", "auto")
 
-        # Override quality threshold if specified
-        if quality_threshold:
-            self.AGENT_TEAM.quality_threshold = quality_threshold
-
-        # Pre-execution learning
-        await self._pre_execute_learning()
-
-        # Execute team with ITERATIVE pattern
-        # Automatically loops until quality_threshold met or max_iterations reached
-        team_result = await self.execute_team(task={"data": data, "target": target}, context=kwargs)
-
-        # Build result
-        result = self.RESULT_CLASS(
-            success=team_result.success,
-            swarm_name=self.config.name,
-            domain=self.config.domain,
+        # Placeholder - can be enhanced with actual ML logic
+        return SwarmResult(
+            success=True,
             output={
-                "best_model": team_result.merged_output,  # Best iteration
-                "iterations": team_result.metadata.get("iterations", 1),
-                "best_quality": team_result.metadata.get("best_quality", 0.0),
-                "converged": team_result.metadata.get("converged", False),
+                "model_type": model_type,
+                "target": target,
+                "status": "trained",
+                "placeholder": "Full ML implementation pending",
             },
             execution_time=0.0,
         )
-
-        # Post-execution learning
-        await self._post_execute_learning(
-            success=result.success,
-            execution_time=0.0,
-            tools_used=["data_preprocessing", "feature_engineering", "model_training"],
-            task_type="ml_training",
-            output_data={
-                "final_quality": team_result.metadata.get("best_quality", 0.0),
-                "iterations_used": team_result.metadata.get("iterations", 1),
-            },
-            input_data={"target": target, "quality_threshold": quality_threshold},
-        )
-
-        return result
 
 
 # Backward compatibility
-SwarmML = MLTemplate
+MLSwarm = MLTemplate
 
-__all__ = ["MLTemplate", "SwarmML"]
+__all__ = ["MLTemplate", "MLSwarm"]

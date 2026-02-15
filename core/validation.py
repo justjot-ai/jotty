@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional, Type, Union
 logger = logging.getLogger(__name__)
 
 
-from Jotty.core.infrastructure.foundation.exceptions import ValidationError  # noqa: F401
+from Jotty.core.infrastructure.foundation.exceptions import ValidationError
 
 
 class ParamValidator:

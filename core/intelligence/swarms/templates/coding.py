@@ -1,150 +1,152 @@
 """
-Coding Template - Complex Multi-Stage Workflow
-===============================================
+Coding Template - Multi-Stage Software Development
 
-Example of complex template using CUSTOM pattern with STAGES.
-Shows declarative multi-stage workflow with dependencies.
+Demonstrates CUSTOM pattern with STAGES for complex coding workflows.
 
-Author: Jotty Team
-Date: February 2026
+Architecture:
+    Stage 1: Design (Architect) - Creates system architecture
+    Stage 2: Implement (Developer) - Generates code based on design
+    Stage 3: Test (TestWriter) - Creates comprehensive tests
+
+Example:
+    from Jotty.core.intelligence.swarms.templates.coding import CodingTemplate
+
+    template = CodingTemplate()
+    result = await template.execute("Build a REST API for user management")
 """
 
-from __future__ import annotations
-
-from typing import Any
+from typing import Any, Optional
 
 from Jotty.core.infrastructure.foundation.types.execution_types import CoordinationPattern
 
+from ..base.swarm_template import SwarmTemplate
+from ..base.team_coordinator import TeamCoordinator
 from ..stage_config import StageConfig
-from ..swarm_learning import SwarmBaseConfig, SwarmLearning, SwarmResult
 
-# Import existing agents (will be defined/imported from original swarm)
+# Import agents from coding_swarm
 try:
     from ..coding_swarm import (
         ArchitectAgent,
-        CodingConfig,
-        CodingResult,
         DeveloperAgent,
         TestWriterAgent,
     )
+    from ..coding_swarm.types import CodingConfig, CodingResult
 except ImportError:
     # Fallback
-    from Jotty.core.modes.agent.agents.swarm_agent import SwarmLearningAgent as ArchitectAgent
-    from Jotty.core.modes.agent.agents.swarm_agent import SwarmLearningAgent as DeveloperAgent
-    from Jotty.core.modes.agent.agents.swarm_agent import SwarmLearningAgent as TestWriterAgent
+    from Jotty.core.modes.agent.agents.swarm_agent import SwarmLearningAgent as BaseAgent
 
-    CodingConfig = SwarmBaseConfig
-    CodingResult = SwarmResult
+    ArchitectAgent = BaseAgent
+    DeveloperAgent = BaseAgent
+    TestWriterAgent = BaseAgent
 
-from ..base.team_coordinator import TeamCoordinator
+    from ..swarm_learning import SwarmBaseConfig as CodingConfig
+    from ..swarm_learning import SwarmResult as CodingResult
 
 
-class CodingTemplate(SwarmLearning):
+class CodingTemplate(SwarmTemplate):
     """
-    Coding swarm template - CUSTOM pattern with STAGES.
+    Coding swarm template with CUSTOM pattern and STAGES.
 
     Multi-stage workflow:
-    1. Design (Architect)
-    2. Implement (Developer) - needs Design
-    3. Test (TestWriter) - needs Implement
-
-    Inherits ALL learning layers from SwarmLearning automatically.
-
-    Usage:
-        swarm = CodingTemplate()
-        result = await swarm.execute(requirements="Build a REST API")
+    1. Design (Architect) - System architecture
+    2. Implement (Developer) - Code generation
+    3. Test (TestWriter) - Test suite creation
     """
+
+    # Multi-stage workflow definition
+    STAGES = [
+        StageConfig(
+            name="design",
+            agents=["_architect"],
+            parallel=False,
+            output_key="architecture",
+        ),
+        StageConfig(
+            name="implement",
+            agents=["_developer"],
+            needs=["design"],  # Waits for design
+            parallel=False,
+            output_key="code",
+        ),
+        StageConfig(
+            name="test",
+            agents=["_test_writer"],
+            needs=["implement"],  # Waits for code
+            parallel=False,
+            output_key="tests",
+        ),
+    ]
 
     # Agent team definition
     AGENT_TEAM = TeamCoordinator.define(
         (ArchitectAgent, "Architect", "_architect"),
         (DeveloperAgent, "Developer", "_developer"),
         (TestWriterAgent, "TestWriter", "_test_writer"),
-        pattern=CoordinationPattern.CUSTOM,  # Multi-stage with dependencies
-        # STAGES defined below
+        pattern=CoordinationPattern.CUSTOM,
+        stages=STAGES,
     )
 
-    # Multi-stage workflow configuration
-    STAGES = [
-        StageConfig(
-            name="design",
-            agents=["_architect"],
-            description="Design system architecture",
-            output_key="architecture",
-        ),
-        StageConfig(
-            name="implement",
-            agents=["_developer"],
-            needs=["design"],  # Waits for design stage
-            description="Implement code based on architecture",
-            output_key="code",
-        ),
-        StageConfig(
-            name="test",
-            agents=["_test_writer"],
-            needs=["implement"],  # Waits for implement stage
-            description="Write comprehensive tests",
-            output_key="tests",
-        ),
-    ]
+    TASK_TYPE = "coding"
+    DEFAULT_TOOLS = ["design", "code_generation", "test_generation"]
 
-    # Template metadata
-    TEMPLATE_NAME = "coding"
-    TEMPLATE_VERSION = "2.0.0"
-    RESULT_CLASS = CodingResult
-
-    def __init__(self, config: SwarmBaseConfig = None) -> None:
+    def __init__(self, config: Optional[CodingConfig] = None) -> None:
         """Initialize coding template."""
         super().__init__(config or CodingConfig())
-        # Wire STAGES into agent team
-        self.AGENT_TEAM.stages = self.STAGES
+        self._initialized = False
 
-    async def execute(self, requirements: str | None = None, **kwargs: Any) -> SwarmResult:
+    async def _execute_domain(self, query: str, **kwargs: Any) -> CodingResult:
         """
-        Execute coding workflow.
+        Execute coding workflow (called by SwarmTemplate.execute()).
 
         Args:
-            requirements: What to build
-            **kwargs: Additional arguments
+            query: What to build (requirements)
+            **kwargs: Additional arguments (language, style, framework, etc.)
 
         Returns:
             CodingResult with architecture, code, and tests
         """
-        # Initialize agents
-        self._init_agents()
+        # Prepare context for stage execution
+        context = {
+            "query": query,
+            "requirements": query,
+            "language": kwargs.get("language", "Python"),
+            "style": kwargs.get("style", "clean"),
+            "framework": kwargs.get("framework", "pytest"),
+            "config": self.config,
+        }
 
-        # Pre-execution learning
-        await self._pre_execute_learning()
+        # Execute using CUSTOM pattern with STAGES
+        result = await self.execute_team(
+            task=f"coding: {query}",
+            context=context,
+            tools_used=self.DEFAULT_TOOLS,
+        )
 
-        # Execute team with CUSTOM pattern (uses STAGES)
-        # STAGES are automatically executed in topological order
-        team_result = await self.execute_team(task={"requirements": requirements}, context=kwargs)
+        # Convert team result to CodingResult
+        return self._build_result(result, context)
 
-        # Build result from stage outputs
-        result = self.RESULT_CLASS(
-            success=team_result.success,
-            swarm_name=self.config.name,
-            domain=self.config.domain,
+    def _build_result(self, team_result: Any, context: dict) -> CodingResult:
+        """Build CodingResult from team execution."""
+        outputs = team_result.outputs if hasattr(team_result, "outputs") else {}
+
+        # Extract outputs from each stage
+        architecture = outputs.get("_architect", {}) or {}
+        code = outputs.get("_developer", {}) or {}
+        tests = outputs.get("_test_writer", {}) or {}
+
+        return CodingResult(
+            success=team_result.success if hasattr(team_result, "success") else True,
             output={
-                "architecture": team_result.outputs.get("_architect", ""),
-                "code": team_result.outputs.get("_developer", ""),
-                "tests": team_result.outputs.get("_test_writer", ""),
-                "metadata": team_result.metadata,
+                "architecture": architecture.get("architecture", ""),
+                "components": architecture.get("components", []),
+                "code": code.get("code", ""),
+                "filename": code.get("filename", ""),
+                "tests": tests.get("tests", ""),
+                "test_framework": tests.get("framework", "pytest"),
+                "metadata": team_result.metadata if hasattr(team_result, "metadata") else {},
             },
-            execution_time=0.0,
+            execution_time=getattr(team_result, "execution_time", 0.0),
         )
-
-        # Post-execution learning
-        await self._post_execute_learning(
-            success=result.success,
-            execution_time=0.0,
-            tools_used=["architecture_design", "code_generation", "test_generation"],
-            task_type="coding",
-            output_data={"stages_completed": team_result.metadata.get("stages", [])},
-            input_data={"requirements_length": len(requirements or "")},
-        )
-
-        return result
 
 
 # Backward compatibility

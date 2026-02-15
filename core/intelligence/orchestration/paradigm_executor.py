@@ -277,8 +277,8 @@ class ParadigmExecutor:
             if not runner:
                 continue
             sub_goal = (
-                getattr(agent_config, "capabilities", None) and agent_config.capabilities[0] or goal
-            )
+                getattr(agent_config, "capabilities", None) and agent_config.capabilities[0]
+            ) or goal
             draft_tasks.append((agent_config.name, runner, sub_goal))
 
         async def _run_draft(name: Any, runner: Any, sub_goal: Any) -> Any:
@@ -323,10 +323,8 @@ class ParadigmExecutor:
                     if name != agent_config.name
                 )
                 sub_goal = (
-                    getattr(agent_config, "capabilities", None)
-                    and agent_config.capabilities[0]
-                    or goal
-                )
+                    getattr(agent_config, "capabilities", None) and agent_config.capabilities[0]
+                ) or goal
                 critique_goal = (
                     f"{sub_goal}\n\n"
                     f"Other agents produced these solutions. "
@@ -364,8 +362,8 @@ class ParadigmExecutor:
         first_agent = sm.agents[0]
         runner = sm.runners.get(first_agent.name)
         sub_goal = (
-            getattr(first_agent, "capabilities", None) and first_agent.capabilities[0] or goal
-        )
+            getattr(first_agent, "capabilities", None) and first_agent.capabilities[0]
+        ) or goal
 
         safe_status(status_callback, "Refinement", f"initial draft by {first_agent.name}")
 
@@ -399,10 +397,8 @@ class ParadigmExecutor:
                     continue
 
                 refine_sub = (
-                    getattr(agent_config, "capabilities", None)
-                    and agent_config.capabilities[0]
-                    or goal
-                )
+                    getattr(agent_config, "capabilities", None) and agent_config.capabilities[0]
+                ) or goal
                 refine_goal = (
                     f"{refine_sub}\n\n" f"Here is the current draft. Improve it:\n{current_draft}"
                 )

@@ -22,13 +22,14 @@ from fastapi.responses import FileResponse
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../.."))
 
 # Import command registry for all 36 commands
+from Jotty.sdk import Jotty
+
 from apps.cli.commands import register_all_commands
 from apps.cli.commands.base import CommandRegistry, ParsedArgs
 from apps.shared import ChatInterface
 from apps.shared.events import EventProcessor
 from apps.shared.models import Message
 from apps.shared.renderers import TelegramMessageRenderer  # Reuse for JSON output
-from Jotty.sdk import Jotty
 
 logger = logging.getLogger(__name__)
 
@@ -266,8 +267,7 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
         except Exception:
             pass
         finally:
-            if session_id in sessions:
-                del sessions[session_id]
+            sessions.pop(session_id, None)
 
 
 def main() -> None:

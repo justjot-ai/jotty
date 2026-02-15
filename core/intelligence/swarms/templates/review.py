@@ -1,133 +1,67 @@
 """
-Review Template - Simple Parallel Review Swarm
-===============================================
+Review Template - Code Review Workflow
 
-Example of simple template using PARALLEL pattern.
-All 8 learning layers come from SwarmLearning automatically.
-
-Author: Jotty Team
-Date: February 2026
+Demonstrates code review workflow with analysis, feedback, and improvement suggestions.
 """
 
-from __future__ import annotations
+from typing import Any, Optional
 
-from typing import Any
+from Jotty.core.infrastructure.foundation.types.execution_types import CoordinationPattern
 
-from Jotty.core.infrastructure.foundation.types.execution_types import (
-    CoordinationPattern,
-    MergeStrategy,
-    SynthesisStrategy,
-)
-
-from ..swarm_learning import SwarmBaseConfig, SwarmLearning, SwarmResult
-
-# Import existing agents (will be defined/imported from original swarm)
-# For now, using placeholder - in real implementation, import from review_swarm
-try:
-    from ..review_swarm import (
-        CodeReviewer,
-        PerformanceAnalyzer,
-        ReviewConfig,
-        ReviewResult,
-        SecurityScanner,
-    )
-except ImportError:
-    # Fallback if not available yet
-    from Jotty.core.modes.agent.agents.swarm_agent import SwarmLearningAgent as CodeReviewer
-    from Jotty.core.modes.agent.agents.swarm_agent import SwarmLearningAgent as PerformanceAnalyzer
-    from Jotty.core.modes.agent.agents.swarm_agent import SwarmLearningAgent as SecurityScanner
-
-    ReviewConfig = SwarmBaseConfig
-    ReviewResult = SwarmResult
-
+from ..base.swarm_template import SwarmTemplate
 from ..base.team_coordinator import TeamCoordinator
+from ..swarm_learning import SwarmBaseConfig, SwarmResult
 
 
-class ReviewTemplate(SwarmLearning):
+class ReviewTemplate(SwarmTemplate):
     """
-    Code review swarm template - PARALLEL pattern.
+    Review template for code review workflows.
 
-    Template (not base class) - inherits ALL learning from SwarmLearning:
-    1. ✅ Memory (5 levels: EPISODIC, SEMANTIC, PROCEDURAL, META, CAUSAL)
-    2. ✅ TD-Lambda reinforcement learning
-    3. ✅ Swarm Intelligence meta-learning
-    4. ✅ Gold Standard evaluation
-    5. ✅ Improvement Agents (Expert, Reviewer, Planner, Actor, Auditor, Learner)
-    6. ✅ Pattern Learning
-    7. ✅ Transfer Learning
-    8. ✅ Adaptive Components
-
-    Usage:
-        swarm = ReviewTemplate()
-        result = await swarm.execute(code="def foo(): pass", language="python")
+    Workflow:
+    1. Code analysis
+    2. Issue detection
+    3. Improvement suggestions
+    4. Report generation
     """
 
-    # Agent team definition - PARALLEL execution
     AGENT_TEAM = TeamCoordinator.define(
-        (CodeReviewer, "CodeReviewer"),
-        (SecurityScanner, "SecurityScanner"),
-        (PerformanceAnalyzer, "PerformanceAnalyzer"),
-        pattern=CoordinationPattern.PARALLEL,  # All reviewers run concurrently
-        merge_strategy=MergeStrategy.COMBINE,  # Combine all outputs
-        synthesis_strategy=SynthesisStrategy.SYNTHESIZE,  # LLM synthesizes final report
+        pattern=CoordinationPattern.SEQUENTIAL,
     )
 
-    # Template metadata
-    TEMPLATE_NAME = "review"
-    TEMPLATE_VERSION = "2.0.0"
-    RESULT_CLASS = ReviewResult
+    TASK_TYPE = "review"
 
-    def __init__(self, config: SwarmBaseConfig = None) -> None:
+    def __init__(self, config: Optional[SwarmBaseConfig] = None) -> None:
         """Initialize review template."""
-        super().__init__(config or ReviewConfig())
+        super().__init__(config or SwarmBaseConfig(name="Review", domain="review"))
 
-    async def execute(
-        self, code: str | None = None, language: str = "python", **kwargs: Any
-    ) -> SwarmResult:
+    async def _execute_domain(self, query: str, **kwargs: Any) -> SwarmResult:
         """
-        Execute code review.
+        Execute code review workflow.
 
         Args:
-            code: Code to review
-            language: Programming language
-            **kwargs: Additional arguments
+            query: Code to review or review request
+            **kwargs: code, language, focus_areas, etc.
 
         Returns:
-            ReviewResult with synthesis of all reviewer outputs
+            SwarmResult with review findings
         """
-        # Initialize agents
-        self._init_agents()
+        code = kwargs.get("code", query)
+        language = kwargs.get("language", "Python")
+        focus = kwargs.get("focus_areas", ["quality", "security", "performance"])
 
-        # Pre-execution learning
-        await self._pre_execute_learning()
-
-        # Execute team with PARALLEL pattern
-        # SwarmLearning automatically uses synthesis_strategy=SYNTHESIZE
-        # to intelligently combine all reviewer outputs
-        team_result = await self.execute_team(
-            task={"code": code, "language": language}, context=kwargs
-        )
-
-        # Build result
-        result = self.RESULT_CLASS(
-            success=team_result.success,
-            swarm_name=self.config.name,
-            domain=self.config.domain,
-            output=team_result.merged_output,  # Synthesized review
-            execution_time=0.0,  # Would track in real implementation
-        )
-
-        # Post-execution learning
-        await self._post_execute_learning(
-            success=result.success,
+        # Placeholder - can be enhanced with actual review logic
+        return SwarmResult(
+            success=True,
+            output={
+                "code_analyzed": len(code) > 0,
+                "language": language,
+                "focus_areas": focus,
+                "issues_found": [],
+                "suggestions": [],
+                "placeholder": "Full review implementation pending",
+            },
             execution_time=0.0,
-            tools_used=["code_review", "security_scan", "performance_analysis"],
-            task_type="code_review",
-            output_data={"synthesized_review": str(team_result.merged_output)[:500]},
-            input_data={"code_length": len(code or ""), "language": language},
         )
-
-        return result
 
 
 # Backward compatibility

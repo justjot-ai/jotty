@@ -4,7 +4,7 @@ Agentic Discovery — LLM-based artifact analysis and registration.
 All implementation lives in ``discovery.py``.
 """
 
-from .discovery import (  # noqa: F401
+from .discovery import (
     AnalysisResult,
     ArtifactAnalyzer,
     ArtifactType,

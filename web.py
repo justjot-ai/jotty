@@ -27,7 +27,6 @@ Environment Variables:
 import argparse
 import logging
 import os
-import sys
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +73,7 @@ def main():
     # Import gateway components (CLI now in apps/)
     try:
         from Jotty.apps.cli.app import JottyCLI
-        from Jotty.apps.cli.gateway import UnifiedGateway, start_gateway
+        from Jotty.apps.cli.gateway import UnifiedGateway, start_gateway  # noqa: F401
     except ImportError as e:
         logger.error(f"Failed to import CLI components: {e}")
         logger.info("Make sure Jotty.apps.cli is accessible")

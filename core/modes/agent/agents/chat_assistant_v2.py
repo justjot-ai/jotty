@@ -14,7 +14,6 @@ import logging
 from typing import Any, Dict, Optional
 
 from anthropic import Anthropic
-
 from Jotty.core.infrastructure.foundation.anthropic_client_kwargs import get_anthropic_client_kwargs
 from Jotty.core.infrastructure.foundation.config_defaults import LLM_MAX_OUTPUT_TOKENS
 

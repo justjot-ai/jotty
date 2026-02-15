@@ -36,27 +36,27 @@ import logging
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union
 
 if TYPE_CHECKING:
-    from Jotty.core.intelligence.orchestration.swarm_roadmap import SwarmTaskBoard
-    from Jotty.core.modes.agent.planners.agentic_planner import TaskPlanner
-    from Jotty.core.modes.agent.autonomous.intent_parser import IntentParser
-    from Jotty.core.intelligence.memory.cortex import SwarmMemory
-    from Jotty.core.intelligence.orchestration.swarm_provider_gateway import SwarmProviderGateway
-    from Jotty.core.intelligence.orchestration.swarm_researcher import SwarmResearcher
-    from Jotty.core.intelligence.orchestration.swarm_installer import SwarmInstaller
-    from Jotty.core.intelligence.orchestration.swarm_configurator import SwarmConfigurator
-    from Jotty.core.intelligence.orchestration.swarm_code_generator import SwarmCodeGenerator
-    from Jotty.core.intelligence.orchestration.swarm_workflow_learner import SwarmWorkflowLearner
-    from Jotty.core.intelligence.orchestration.swarm_integrator import SwarmIntegrator
-    from Jotty.core.intelligence.orchestration.swarm_terminal import SwarmTerminal
     from Jotty.core.capabilities.registry.tool_validation import ToolValidator
-    from Jotty.core.intelligence.orchestration.swarm_state_manager import SwarmStateManager
-    from Jotty.core.infrastructure.persistence.shared_context import SharedContext
-    from Jotty.core.infrastructure.data.io_manager import IOManager
-    from Jotty.core.infrastructure.data.data_registry import DataRegistry
     from Jotty.core.infrastructure.context.context_guard import LLMContextManager
+    from Jotty.core.infrastructure.data.data_registry import DataRegistry
+    from Jotty.core.infrastructure.data.io_manager import IOManager
+    from Jotty.core.infrastructure.monitoring.monitoring.profiler import PerformanceProfiler
+    from Jotty.core.infrastructure.persistence.shared_context import SharedContext
+    from Jotty.core.intelligence.memory.cortex import SwarmMemory
     from Jotty.core.intelligence.orchestration.learning_pipeline import SwarmLearningPipeline
     from Jotty.core.intelligence.orchestration.mas_learning import MASLearning
-    from Jotty.core.infrastructure.monitoring.monitoring.profiler import PerformanceProfiler
+    from Jotty.core.intelligence.orchestration.swarm_code_generator import SwarmCodeGenerator
+    from Jotty.core.intelligence.orchestration.swarm_configurator import SwarmConfigurator
+    from Jotty.core.intelligence.orchestration.swarm_installer import SwarmInstaller
+    from Jotty.core.intelligence.orchestration.swarm_integrator import SwarmIntegrator
+    from Jotty.core.intelligence.orchestration.swarm_provider_gateway import SwarmProviderGateway
+    from Jotty.core.intelligence.orchestration.swarm_researcher import SwarmResearcher
+    from Jotty.core.intelligence.orchestration.swarm_roadmap import SwarmTaskBoard
+    from Jotty.core.intelligence.orchestration.swarm_state_manager import SwarmStateManager
+    from Jotty.core.intelligence.orchestration.swarm_terminal import SwarmTerminal
+    from Jotty.core.intelligence.orchestration.swarm_workflow_learner import SwarmWorkflowLearner
+    from Jotty.core.modes.agent.autonomous.intent_parser import IntentParser
+    from Jotty.core.modes.agent.planners.agentic_planner import TaskPlanner
 
 from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
 from Jotty.core.infrastructure.foundation.data_structures import EpisodeResult, SwarmConfig

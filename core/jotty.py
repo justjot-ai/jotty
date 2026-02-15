@@ -66,10 +66,15 @@ from .learning.q_learning import LLMQPredictor as RewardLearner
 # Optimization Pipeline (V2)
 # Roadmap = Markovian Task List (V2)
 # Orchestrator = Main Orchestrator (V2)
-from .orchestration import IterationResult, OptimizationConfig, OptimizationPipeline, Orchestrator
+from .orchestration import (
+    IterationResult,
+    OptimizationConfig,
+    OptimizationPipeline,
+    Orchestrator,
+    create_optimization_pipeline,
+)
 from .orchestration import SubtaskState as Checkpoint
 from .orchestration import SwarmTaskBoard as Roadmap
-from .orchestration import create_optimization_pipeline
 
 # Persistence
 from .persistence.persistence import Vault as Vault

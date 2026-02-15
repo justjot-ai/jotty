@@ -18,7 +18,7 @@ Date: February 2026
 """
 
 # Backwards compat: dag_types.py and others import AgentConfig from here
-from ....infrastructure.foundation.agent_config import AgentConfig  # noqa: F401
+from ....infrastructure.foundation.agent_config import AgentConfig
 
 # Core base classes (from base/ directory only - no circular imports)
 from .base_agent import AgentResult, AgentRuntimeConfig, BaseAgent

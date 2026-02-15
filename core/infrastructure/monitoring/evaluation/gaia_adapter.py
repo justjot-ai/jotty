@@ -342,7 +342,6 @@ class JottyGAIAAdapter:
             # to avoid "cannot be launched inside another Claude Code session" errors
             try:
                 import dspy
-
                 from Jotty.core.infrastructure.foundation.llm_singleton import get_global_lm
 
                 api_lm = get_global_lm(provider="anthropic", model="claude-sonnet-4-20250514")

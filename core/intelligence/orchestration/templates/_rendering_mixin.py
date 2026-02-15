@@ -649,9 +649,9 @@ header-includes:
             from reportlab.lib.pagesizes import letter
             from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
             from reportlab.lib.units import inch
-            from reportlab.platypus import BaseDocTemplate, Frame
-            from reportlab.platypus import Image as RLImage
             from reportlab.platypus import (
+                BaseDocTemplate,
+                Frame,
                 PageBreak,
                 PageTemplate,
                 Paragraph,
@@ -659,6 +659,7 @@ header-includes:
                 Table,
                 TableStyle,
             )
+            from reportlab.platypus import Image as RLImage
             from reportlab.platypus.tableofcontents import TableOfContents
 
             t = self.theme

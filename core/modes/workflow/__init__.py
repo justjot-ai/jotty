@@ -22,8 +22,13 @@ from .learning_workflow import (
 )
 from .output_channels import ChannelDeliveryResult, OutputChannel, OutputChannelManager
 from .output_formats import OutputFormat, OutputFormatManager, OutputFormatResult
-from .research_workflow import research  # This is the actual research workflow
-from .research_workflow import ResearchDepth, ResearchIntent, ResearchType, ResearchWorkflow
+from .research_workflow import (
+    ResearchDepth,
+    ResearchIntent,
+    ResearchType,
+    ResearchWorkflow,
+    research,  # This is the actual research workflow
+)
 from .smart_swarm_registry import SmartSwarmRegistry, StageType, SwarmConfig, get_smart_registry
 
 __all__ = [

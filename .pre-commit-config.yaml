@@ -12,12 +12,13 @@ repos:
         args: [--line-length=100]
         exclude: ^(apps/_archived/|tests/manual/)
 
-  # Import sorting
-  - repo: https://github.com/PyCQA/isort
-    rev: 5.13.2
+  # Lint + import sorting (replaces flake8 + isort)
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.14
     hooks:
-      - id: isort
-        args: [--profile=black, --line-length=100]
+      - id: ruff
+        args: [--fix]
+        exclude: ^(apps/_archived/|tests/|scripts/|skills/|sdk/|examples/)
 
   # Basic checks
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -33,13 +34,6 @@ repos:
       - id: debug-statements
       - id: mixed-line-ending
 
-  # Python lint (config in .flake8). Exclude archived and test files.
-  - repo: https://github.com/PyCQA/flake8
-    rev: 7.0.0
-    hooks:
-      - id: flake8
-        exclude: ^(apps/_archived/|tests/|scripts/)
-
   # Security checks
   - repo: https://github.com/PyCQA/bandit
     rev: 1.7.6
@@ -48,13 +42,13 @@ repos:
         args: [-c, .bandit.yaml, -r, Jotty/]
         pass_filenames: false
 
-  # Type checking with mypy (only fail on syntax errors for now)
-  # Note: import-not-found disabled — too many false positives from try/except
-  # availability checks and stale paths. Track import cleanup separately.
+  # Type checking with mypy (strict mode — leverages 100% return type coverage)
+  # Checks: syntax errors, type mismatches, untyped defs
+  # Skips: import-not-found (too many optional deps with try/except)
   - repo: local
     hooks:
-      - id: mypy-critical
-        name: mypy - Critical Errors Only (syntax)
+      - id: mypy-strict
+        name: mypy - Strict Type Checking
         entry: bash -c 'mypy core/ apps/ sdk/ --config-file=mypy.ini 2>&1 | grep -E "\[syntax\]" && exit 1 || exit 0'
         language: system
         pass_filenames: false

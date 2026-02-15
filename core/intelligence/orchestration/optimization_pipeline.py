@@ -1313,17 +1313,13 @@ class OptimizationPipeline:
 
         # Detect syntax mismatches
         if (
-            "mermaid" in student_lower
-            and "plantuml" in teacher_lower
-            or "@startuml" in teacher_lower
-        ):
+            "mermaid" in student_lower and "plantuml" in teacher_lower
+        ) or "@startuml" in teacher_lower:
             return f"When task is '{task}', use PlantUML syntax (@startuml/@enduml) instead of Mermaid syntax"
 
         if (
-            "plantuml" in student_lower
-            and "mermaid" in teacher_lower
-            or "sequenceDiagram" in teacher_lower
-        ):
+            "plantuml" in student_lower and "mermaid" in teacher_lower
+        ) or "sequenceDiagram" in teacher_lower:
             return f"When task is '{task}', use Mermaid syntax instead of PlantUML syntax"
 
         # Check for missing tags

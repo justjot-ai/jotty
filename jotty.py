@@ -11,9 +11,11 @@ Usage:
     result = await jotty.run("Research AI trends")
 """
 
+from __future__ import annotations
+
 import logging
 from pathlib import Path
-from typing import Any, AsyncGenerator, Callable, Dict, List, Optional
+from typing import AsyncGenerator, Callable, Dict, List, Optional
 
 from .core.modes.execution import (
     ExecutionConfig,
@@ -22,7 +24,7 @@ from .core.modes.execution import (
     TierDetector,
     TierExecutor,
 )
-from .core.modes.execution.types import StreamEvent, StreamEventType
+from .core.modes.execution.types import StreamEvent
 
 logger = logging.getLogger(__name__)
 
@@ -523,7 +525,7 @@ class Jotty:
 
         return get_metrics().recent_errors(limit)
 
-    def save_metrics(self, path: str = None) -> str:
+    def save_metrics(self, path: str | None = None) -> str:
         """
         Save metrics to a JSON file.
 

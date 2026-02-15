@@ -50,7 +50,6 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 import dspy
-
 from core.foundation.types.agent_types import AgentMessage, CommunicationType, SharedScratchpad
 from core.persistence.scratchpad_persistence import ScratchpadPersistence
 from core.persistence.shared_context import SharedContext
