@@ -66,49 +66,40 @@ class WorkflowUseCase(BaseUseCase):
     async def execute(self, goal: str, context: Optional[Dict[str, Any]] = None, max_iterations: int = 100, **kwargs: Any) -> UseCaseResult:
         """
         Execute workflow synchronously.
-        
+
         Args:
             goal: Workflow goal
             context: Additional context
             max_iterations: Maximum iterations
             **kwargs: Additional arguments
-            
+
         Returns:
             UseCaseResult with workflow results
         """
-        start_time = time.time()
-        
-        try:
-            result = await self.executor.execute(
-                goal=goal,
-                context=context,
-                max_iterations=max_iterations
-            )
-            
-            execution_time = time.time() - start_time
-            
-            return self._create_result(
-                success=result.get("success", False),
-                output=result.get("result"),
-                metadata={
-                    "workflow_id": result.get("workflow_id"),
-                    "task_id": result.get("task_id"),
-                    "execution_time": result.get("execution_time", execution_time),
-                    "summary": result.get("summary", {})
-                },
-                execution_time=execution_time
-            )
-            
-        except Exception as e:
-            logger.error(f"Workflow execution failed: {e}", exc_info=True)
-            execution_time = time.time() - start_time
-            
-            return self._create_result(
-                success=False,
-                output=None,
-                metadata={"error": str(e)},
-                execution_time=execution_time
-            )
+        # DRY: Use base class error handling wrapper
+        return await self._execute_with_error_handling(
+            self.executor.execute,
+            goal=goal,
+            context=context,
+            max_iterations=max_iterations
+        )
+
+    def _extract_output(self, result: Dict[str, Any]) -> Any:
+        """Extract workflow result."""
+        return result.get("result")
+
+    def _extract_metadata(self, result: Dict[str, Any], execution_time: float) -> Dict[str, Any]:
+        """Extract workflow metadata."""
+        return {
+            "workflow_id": result.get("workflow_id"),
+            "task_id": result.get("task_id"),
+            "execution_time": result.get("execution_time", execution_time),
+            "summary": result.get("summary", {})
+        }
+
+    def _error_output(self, error: Exception) -> Any:
+        """Workflow errors return None instead of error string."""
+        return None
     
     async def stream(self, goal: str, context: Optional[Dict[str, Any]] = None, max_iterations: int = 100, **kwargs: Any) -> AsyncIterator[Dict[str, Any]]:
         """

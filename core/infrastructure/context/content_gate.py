@@ -23,6 +23,8 @@ from dataclasses import dataclass
 import logging
 
 from ..utils.tokenizer import SmartTokenizer
+from .models import ProcessedContent, ContextChunk, ContextPriority
+from . import utils as ctx_utils
 
 try:
     import dspy
@@ -31,31 +33,6 @@ except ImportError:
     DSPY_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
-
-
-# =============================================================================
-# DATA STRUCTURES
-# =============================================================================
-
-@dataclass
-class ContentChunk:
-    """A chunk of content with metadata."""
-    content: str
-    index: int
-    total_chunks: int
-    relevance_score: float = 0.0
-    extracted_info: str = ""
-
-
-@dataclass
-class ProcessedContent:
-    """Result of content processing."""
-    content: str
-    was_chunked: bool
-    original_tokens: int
-    final_tokens: int
-    chunks_used: int
-    chunks_total: int
 
 
 # =============================================================================
@@ -100,7 +77,7 @@ class RelevanceEstimator:
     
     async def estimate_relevance(
         self,
-        chunk: ContentChunk,
+        chunk: ContextChunk,
         query: str,
         future_tasks: List[str] = None
     ) -> Tuple[float, str]:
@@ -230,8 +207,8 @@ class ContentGate:
         )
     
     def estimate_tokens(self, content: str) -> int:
-        """Estimate token count using SmartTokenizer."""
-        return self._tokenizer.count_tokens(content)
+        """Estimate token count using shared utility."""
+        return ctx_utils.estimate_tokens(content)
     
     async def process(
         self,
@@ -306,7 +283,7 @@ class ContentGate:
             chunks_total=len(chunks)
         )
     
-    def _create_chunks(self, content: str) -> List[ContentChunk]:
+    def _create_chunks(self, content: str) -> List[ContextChunk]:
         """Split content into overlapping chunks."""
         # Use ~4 chars per token as approximation for chunking boundaries
         chars_per_token = 4
@@ -330,10 +307,12 @@ class ContentGate:
             chunks.append(chunk_content)
             pos = end - overlap_chars
         
-        # Convert to ContentChunk objects
+        # Convert to ContextChunk objects
         return [
-            ContentChunk(
+            ContextChunk(
                 content=c,
+                priority=ContextPriority.MEDIUM,  # Default priority for content chunks
+                category="content",  # Category for content gate chunks
                 index=i,
                 total_chunks=len(chunks)
             )
@@ -414,7 +393,7 @@ def with_content_gate(max_tokens: int = 28000) -> Any:
 import functools
 
 __all__ = [
-    'ContentChunk',
+    'ContextChunk',
     'ProcessedContent',
     'RelevanceEstimator',
     'ContentGate',

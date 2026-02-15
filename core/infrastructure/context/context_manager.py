@@ -14,44 +14,114 @@ This is the SMART context manager the user requested.
 import re
 import json
 import logging
-from typing import Dict, Any, List, Optional, Tuple
+import asyncio
+import functools
+from typing import Dict, Any, List, Optional, Tuple, Callable
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 import dspy
 
 from ..utils.tokenizer import SmartTokenizer
+from .models import ContextPriority, ContextChunk, ContextOverflowInfo
+from . import utils as ctx_utils
 
 logger = logging.getLogger(__name__)
 
 
 # =============================================================================
-# PRIORITY LEVELS FOR CONTEXT PRESERVATION
+# OVERFLOW DETECTOR (from global_context_guard.py)
 # =============================================================================
 
-class ContextPriority(Enum):
-    """Priority levels for context chunks during compression."""
-    CRITICAL = 1    # NEVER compress: current task, task list state, goal
-    HIGH = 2        # Compress last: recent memories, errors, tool results
-    MEDIUM = 3      # Compress when needed: trajectory, history
-    LOW = 4         # Compress first: verbose logs, old memories
+class OverflowDetector:
+    """
+    Detect context overflow using STRUCTURAL analysis.
 
+    NO HARDCODED STRING MATCHING.
+    Uses: numeric extraction, type hierarchy, attributes, error codes.
+    """
 
-@dataclass
-class ContextChunk:
-    """A chunk of context with metadata for smart compression."""
-    content: str
-    priority: ContextPriority
-    category: str  # "task", "todo", "memory", "trajectory", "tool_result"
-    tokens: int = 0
-    is_compressed: bool = False
-    original_tokens: int = 0
-    
-    def __post_init__(self) -> None:
-        if not self.tokens:
-            self.tokens = SmartTokenizer.get_instance().count_tokens(self.content)
-        if not self.original_tokens:
-            self.original_tokens = self.tokens
+    def __init__(self, max_tokens: int = 28000) -> None:
+        self.max_tokens = max_tokens
+
+        # Structural indicators (in class/type names)
+        self.overflow_type_indicators = frozenset([
+            'overflow', 'length', 'size', 'limit', 'exhausted',
+            'context', 'token', 'sequence', 'long', 'exceed',
+            'capacity', 'window', 'memory', 'oom'
+        ])
+
+        # Common error codes that indicate overflow
+        self.overflow_error_codes = frozenset([
+            400, 413, 429,  # HTTP codes
+            'context_length', 'invalid_request', 'resource_exhausted'
+        ])
+
+    def detect(self, error: Exception) -> ContextOverflowInfo:
+        """Detect if error is a context overflow."""
+        # Try multiple detection methods
+        for method in [self._detect_by_numbers, self._detect_by_type,
+                       self._detect_by_attributes, self._detect_by_code]:
+            result = method(error)
+            if result.is_overflow:
+                return result
+        return ContextOverflowInfo(is_overflow=False)
+
+    def _detect_by_numbers(self, error: Exception) -> ContextOverflowInfo:
+        """Find numbers in error that exceed max_tokens."""
+        numbers = re.findall(r'\d+', str(error))
+        for num_str in numbers:
+            try:
+                num = int(num_str)
+                if num > self.max_tokens and num < 1000000:
+                    return ContextOverflowInfo(
+                        is_overflow=True, detected_tokens=num,
+                        max_allowed=self.max_tokens,
+                        detection_method="numeric_extraction"
+                    )
+            except ValueError:
+                continue
+        return ContextOverflowInfo(is_overflow=False)
+
+    def _detect_by_type(self, error: Exception) -> ContextOverflowInfo:
+        """Check error type hierarchy for overflow indicators."""
+        error_types = [cls.__name__.lower() for cls in type(error).__mro__]
+        for type_name in error_types:
+            for indicator in self.overflow_type_indicators:
+                if indicator in type_name:
+                    return ContextOverflowInfo(
+                        is_overflow=True,
+                        detection_method=f"type_hierarchy_{type_name}"
+                    )
+        return ContextOverflowInfo(is_overflow=False)
+
+    def _detect_by_attributes(self, error: Exception) -> ContextOverflowInfo:
+        """Check error attributes for token-related info."""
+        attrs = ['code', 'error_code', 'status_code', 'max_tokens',
+                 'token_count', 'context_length', 'param', 'type', 'message']
+        for attr in attrs:
+            if hasattr(error, attr):
+                value = str(getattr(error, attr, '')).lower()
+                for indicator in self.overflow_type_indicators:
+                    if indicator in value:
+                        return ContextOverflowInfo(
+                            is_overflow=True,
+                            detection_method=f"attribute_{attr}"
+                        )
+        return ContextOverflowInfo(is_overflow=False)
+
+    def _detect_by_code(self, error: Exception) -> ContextOverflowInfo:
+        """Check error codes."""
+        for attr in ['code', 'status_code', 'error_code', 'status']:
+            if hasattr(error, attr):
+                code = str(getattr(error, attr)).lower()
+                for overflow_code in self.overflow_error_codes:
+                    if str(overflow_code) in code:
+                        return ContextOverflowInfo(
+                            is_overflow=True,
+                            detection_method=f"error_code_{code}"
+                        )
+        return ContextOverflowInfo(is_overflow=False)
 
 
 # =============================================================================
@@ -80,15 +150,15 @@ class SmartContextManager:
         self.max_tokens = max_tokens
         self.effective_limit = int(max_tokens * safety_margin)
         self.enable_api_error_recovery = enable_api_error_recovery
-        
+
         # Token estimation
         self.chars_per_token = 4
-        
+
         # Statistics
         self.compressions_count = 0
         self.api_errors_recovered = 0
         self.total_tokens_saved = 0
-        
+
         # Current context state
         self.current_chunks: List[ContextChunk] = []
 
@@ -96,10 +166,13 @@ class SmartContextManager:
         self._current_todo: Optional[str] = None
         self._current_goal: Optional[str] = None
         self._critical_memories: List[str] = []
-        
+
         # Compression history for learning
         self.compression_history: List[Dict] = []
-        
+
+        # Overflow detection (from global_context_guard)
+        self.overflow_detector = OverflowDetector(max_tokens)
+
         # LLM summarizer for smart compression
         self._init_summarizer()
     
@@ -468,16 +541,8 @@ class SmartContextManager:
         return new_chunk
     
     def _simple_compress(self, text: str, target_tokens: int) -> str:
-        """Simple compression: keep start + end, summarize middle."""
-        target_chars = target_tokens * self.chars_per_token
-        
-        if len(text) <= target_chars:
-            return text
-        
-        keep_start = target_chars // 2
-        keep_end = target_chars // 2 - 50
-        
-        return text[:keep_start] + "\n[...COMPRESSED...]\n" + text[-keep_end:]
+        """Simple compression using shared utility."""
+        return ctx_utils.prefix_suffix_compress(text, target_tokens, self.chars_per_token)
     
     # =========================================================================
     # API ERROR RECOVERY
@@ -486,60 +551,142 @@ class SmartContextManager:
     def catch_and_recover(self, error: Exception, current_context: str) -> Optional[str]:
         """
         Catch API token limit errors and recover with compressed context.
-        
+
+        Uses structural overflow detection (no hardcoded strings).
+
         Returns: Compressed context if recoverable, None otherwise
         """
         if not self.enable_api_error_recovery:
             return None
-        
-        error_str = str(error).lower()
-        
-        # Check for token limit errors
-        token_error_patterns = [
-            "context_length",
-            "maximum context length",
-            "token limit",
-            "too long",
-            "context window",
-            "max_tokens",
-            "context length exceeded"
-        ]
-        
-        is_token_error = any(pattern in error_str for pattern in token_error_patterns)
-        
-        if not is_token_error:
+
+        # Use structural overflow detection
+        overflow_info = self.overflow_detector.detect(error)
+
+        if not overflow_info.is_overflow:
             return None
-        
+
         self.api_errors_recovered += 1
-        logger.warning(f" Token limit error detected - auto-recovering...")
-        
-        # Extract required reduction
-        # Try to find number in error message
-        match = re.search(r'(\d+)\s*tokens?', error_str)
-        if match:
-            error_tokens = int(match.group(1))
-            reduction_needed = error_tokens - self.effective_limit
+        logger.warning(
+            f" Token limit error detected (method={overflow_info.detection_method}). "
+            f"Auto-recovering..."
+        )
+
+        # Calculate reduction needed
+        if overflow_info.detected_tokens and overflow_info.max_allowed:
+            reduction_needed = overflow_info.detected_tokens - overflow_info.max_allowed
         else:
             # Assume 30% reduction needed
             reduction_needed = int(len(current_context) / self.chars_per_token * 0.3)
-        
+
         # Compress context
         target_tokens = self.effective_limit - 1000  # Extra safety margin
         compressed = self._simple_compress(current_context, target_tokens)
-        
+
         logger.info(f" Context compressed: {len(current_context)} → {len(compressed)} chars")
-        
+
         return compressed
-    
+
+    def wrap_function(self, func: Callable) -> Callable:
+        """
+        Wrap a function with overflow protection and auto-retry.
+
+        From global_context_guard - allows protecting ANY function.
+
+        Args:
+            func: Function to wrap
+
+        Returns:
+            Wrapped function with overflow protection
+        """
+        @functools.wraps(func)
+        async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
+            return await self._guarded_call(func, args, kwargs)
+
+        @functools.wraps(func)
+        def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
+            try:
+                asyncio.get_running_loop()
+                # In async context - run in thread
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                    return pool.submit(
+                        asyncio.run, self._guarded_call(func, args, kwargs)
+                    ).result()
+            except RuntimeError:
+                # No running loop - safe to use asyncio.run()
+                return asyncio.run(self._guarded_call(func, args, kwargs))
+
+        if asyncio.iscoroutinefunction(func):
+            return async_wrapper
+        return sync_wrapper
+
+    async def _guarded_call(
+        self,
+        func: Callable,
+        args: tuple,
+        kwargs: dict,
+        retry_count: int = 0,
+        max_retries: int = 3
+    ) -> Any:
+        """Execute function with overflow protection and retry."""
+        try:
+            if asyncio.iscoroutinefunction(func):
+                return await func(*args, **kwargs)
+            else:
+                return func(*args, **kwargs)
+        except Exception as e:
+            # Detect overflow
+            overflow_info = self.overflow_detector.detect(e)
+
+            if overflow_info.is_overflow and retry_count < max_retries:
+                logger.warning(
+                    f" Overflow detected (method={overflow_info.detection_method}). "
+                    f"Compressing and retrying ({retry_count + 1}/{max_retries})..."
+                )
+                self.api_errors_recovered += 1
+
+                # Compress string arguments
+                compressed_args = self._compress_args(args)
+                compressed_kwargs = self._compress_kwargs(kwargs)
+
+                # Retry
+                return await self._guarded_call(
+                    func, compressed_args, compressed_kwargs,
+                    retry_count + 1, max_retries
+                )
+
+            # Not overflow or max retries exceeded
+            raise
+
+    def _compress_args(self, args: tuple) -> tuple:
+        """Compress string arguments."""
+        result = []
+        for arg in args:
+            if isinstance(arg, str) and len(arg) > 1000:
+                target = int(len(arg) * 0.7)  # 30% reduction
+                result.append(ctx_utils.simple_truncate(arg, target // 4))
+            else:
+                result.append(arg)
+        return tuple(result)
+
+    def _compress_kwargs(self, kwargs: dict) -> dict:
+        """Compress string keyword arguments."""
+        result = {}
+        for key, value in kwargs.items():
+            if isinstance(value, str) and len(value) > 1000:
+                target = int(len(value) * 0.7)
+                result[key] = ctx_utils.simple_truncate(value, target // 4)
+            else:
+                result[key] = value
+        return result
+
     # =========================================================================
     # UTILITIES
     # =========================================================================
     
     def estimate_tokens(self, text: str) -> int:
-        """Estimate token count using SmartTokenizer."""
-        if not text:
-            return 0
-        return SmartTokenizer.get_instance().count_tokens(text)
+        """Estimate token count using shared utility."""
+        return ctx_utils.estimate_tokens(text)
     
     def clear_chunks(self) -> None:
         """Clear non-persistent chunks."""
@@ -597,13 +744,85 @@ def with_smart_context(max_tokens: int = 28000) -> Any:
 
 
 # =============================================================================
+# DSPY INTEGRATION (from global_context_guard)
+# =============================================================================
+
+def patch_dspy_with_guard(manager: SmartContextManager) -> None:
+    """
+    Patch DSPy to use SmartContextManager for ALL LLM calls.
+
+    This ensures that ANY DSPy module (ChainOfThought, ReAct, etc.)
+    is protected from context overflow.
+
+    Args:
+        manager: SmartContextManager instance to use for protection
+    """
+    try:
+        # Check if dspy is available
+        if not hasattr(dspy, 'LM'):
+            logger.warning("DSPy not available or incompatible, skipping patch")
+            return
+
+        # Store original if not already patched
+        if hasattr(dspy, '_original_lm_call'):
+            logger.debug("DSPy already patched")
+            return
+
+        dspy._original_lm_call = dspy.LM.__call__
+
+        def guarded_lm_call(lm_self: Any, prompt: Any, *args: Any, **kwargs: Any) -> Any:
+            """Wrapped LM call with overflow protection."""
+            try:
+                return dspy._original_lm_call(lm_self, prompt, *args, **kwargs)
+            except Exception as e:
+                overflow_info = manager.overflow_detector.detect(e)
+
+                if overflow_info.is_overflow:
+                    logger.warning(
+                        f" DSPy LM overflow detected (method={overflow_info.detection_method}), "
+                        f"compressing prompt..."
+                    )
+                    manager.api_errors_recovered += 1
+
+                    # Compress prompt
+                    compressed_prompt = ctx_utils.simple_truncate(
+                        prompt, manager.max_tokens - 2000
+                    )
+                    manager.compressions_count += 1
+
+                    return dspy._original_lm_call(lm_self, compressed_prompt, *args, **kwargs)
+
+                raise
+
+        dspy.LM.__call__ = guarded_lm_call
+        logger.info(" DSPy patched with SmartContextManager overflow protection")
+
+    except Exception as e:
+        logger.error(f"Failed to patch DSPy: {e}")
+
+
+def unpatch_dspy() -> None:
+    """Restore original DSPy LM call."""
+    try:
+        if hasattr(dspy, '_original_lm_call'):
+            dspy.LM.__call__ = dspy._original_lm_call
+            del dspy._original_lm_call
+            logger.info(" DSPy unpatched")
+    except Exception as e:
+        logger.error(f"Failed to unpatch DSPy: {e}")
+
+
+# =============================================================================
 # EXPORTS
 # =============================================================================
 
 __all__ = [
     'SmartContextManager',
+    'OverflowDetector',
     'ContextChunk',
     'ContextPriority',
-    'with_smart_context'
+    'with_smart_context',
+    'patch_dspy_with_guard',
+    'unpatch_dspy',
 ]
 

@@ -62,49 +62,36 @@ class ChatUseCase(BaseUseCase):
     async def execute(self, goal: str, context: Optional[Dict[str, Any]] = None, history: Optional[List[ChatMessage]] = None, **kwargs: Any) -> UseCaseResult:
         """
         Execute chat interaction synchronously.
-        
+
         Args:
             goal: User message
             context: Additional context
             history: Conversation history
             **kwargs: Additional arguments
-            
+
         Returns:
             UseCaseResult with chat response
         """
-        import time
-        start_time = time.time()
-        
-        try:
-            result = await self.executor.execute(
-                message=goal,
-                history=history,
-                context=context
-            )
-            
-            execution_time = time.time() - start_time
-            
-            return self._create_result(
-                success=result.get("success", False),
-                output=result.get("message", ""),
-                metadata={
-                    "agent": result.get("agent"),
-                    "execution_time": result.get("execution_time", execution_time),
-                    **result.get("metadata", {})
-                },
-                execution_time=execution_time
-            )
-            
-        except Exception as e:
-            logger.error(f"Chat execution failed: {e}", exc_info=True)
-            execution_time = time.time() - start_time
-            
-            return self._create_result(
-                success=False,
-                output=f"Error: {str(e)}",
-                metadata={"error": str(e)},
-                execution_time=execution_time
-            )
+        # DRY: Use base class error handling wrapper
+        return await self._execute_with_error_handling(
+            self.executor.execute,
+            message=goal,
+            history=history,
+            context=context
+        )
+
+    def _extract_output(self, result: Dict[str, Any]) -> Any:
+        """Extract chat message from result."""
+        return result.get("message", "")
+
+    def _extract_metadata(self, result: Dict[str, Any], execution_time: float) -> Dict[str, Any]:
+        """Extract chat metadata."""
+        metadata = {
+            "agent": result.get("agent"),
+            "execution_time": result.get("execution_time", execution_time),
+        }
+        metadata.update(result.get("metadata", {}))
+        return metadata
     
     async def stream(self, goal: str, context: Optional[Dict[str, Any]] = None, history: Optional[List[ChatMessage]] = None, **kwargs: Any) -> AsyncIterator[Dict[str, Any]]:
         """

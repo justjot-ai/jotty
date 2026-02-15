@@ -107,11 +107,20 @@ from Jotty.core.infrastructure.utils.facade import (
     get_tokenizer,           # Token counting
 )
 
-# CONTEXT — Token management, compression
+# CONTEXT — Unified token management, compression, chunking
+from Jotty.core.infrastructure.context import (
+    # Unified models (DRY - single source of truth)
+    ContextChunk,            # Chunk with priority, relevance, compression tracking
+    ContextPriority,         # CRITICAL=0, HIGH=1, MEDIUM=2, LOW=3
+    CompressionConfig,       # Compression strategy config
+    ChunkingConfig,          # Chunking strategy config
+    # Shared utilities
+    context_utils,           # estimate_tokens, compress, chunk helpers
+)
 from Jotty.core.infrastructure.context.facade import (
-    get_context_manager,     # Build context within token limits
-    get_context_guard,       # Overflow protection
-    get_content_gate,        # Content filtering
+    get_context_manager,     # SmartContextManager - priority-based budgeting
+    get_context_guard,       # GlobalContextGuard - overflow detection
+    get_content_gate,        # ContentGate - relevance filtering
 )
 
 # MONITORING — Performance, safety, observability
@@ -272,18 +281,57 @@ if hit:
 stats = cache.stats()  # CacheStats with .hits, .misses, .hit_rate
 ```
 
-### Context Management — Build Context Within Token Limits
+### Context Management — Unified Architecture (DRY + Best Practices)
 ```python
+from Jotty.core.infrastructure.context import (
+    ContextChunk, ContextPriority, context_utils
+)
 from Jotty.core.infrastructure.context.facade import get_context_manager
+
+# === OPTION 1: SmartContextManager (priority-based budgeting) ===
 ctx = get_context_manager()  # max_tokens=28000
 
+# Register critical content (NEVER compressed)
 ctx.register_goal("Research AI startups")
 ctx.register_critical_memory("Budget is $0.50 max")
+
+# Add chunks with auto-priority detection
 ctx.add_chunk("Previous research findings...", category="research")
 
+# Build context within token limits
 result = ctx.build_context(
     system_prompt="You are a research assistant",
     user_input="Find recent AI startup funding rounds",
+)
+
+# === OPTION 2: Use shared utilities directly ===
+# Token estimation (DRY - used across ALL context files)
+tokens = context_utils.estimate_tokens("Hello world")  # Single source of truth
+
+# Compression strategies
+compressed = context_utils.simple_truncate(text, target_tokens=1000)
+compressed = context_utils.prefix_suffix_compress(text, target_tokens=1000)
+compressed = context_utils.structured_extract(text, target_tokens=1000,
+                                               preserve_keywords=["CRITICAL"])
+
+# LLM-based intelligent compression with Shapley credits
+result = await context_utils.intelligent_compress(
+    text, target_tokens=1000,
+    task_context={'goal': 'summarize', 'actor_name': 'researcher'},
+    shapley_credits={'section1': 0.9, 'section2': 0.1}  # Prioritize section1
+)
+
+# Chunking
+chunks = context_utils.create_chunks(content, max_chunk_tokens=4000,
+                                     overlap_tokens=200, preserve_sentences=True)
+
+# === OPTION 3: Manual chunk creation with unified models ===
+chunk = ContextChunk(
+    content="Important data",
+    priority=ContextPriority.CRITICAL,  # 0=CRITICAL, 1=HIGH, 2=MEDIUM, 3=LOW
+    category="task",
+    relevance_score=0.95,  # Relevance to current task
+    extracted_info="Key findings"
 )
 ```
 

@@ -4,18 +4,32 @@ Context Layer - Context Management & Protection
 
 Token management, auto-chunking, compression, and context overflow prevention.
 
-Modules:
---------
-- context_manager: Auto-chunking, compression coordinator
+Unified Architecture:
+--------------------
+- models: Unified data structures (ContextChunk, ContextPriority, configs)
+- utils: Shared utilities (token estimation, compression, chunking)
+- context_manager: Smart context coordination
 - global_context_guard: Global context protection
-- context_guard: Context overflow prevention
+- content_gate: Content filtering & relevance
+- chunker: LLM-based semantic chunking
+- compressor: LLM-based compression with Shapley credits
 - context_gradient: Context-as-gradient learning
-- content_gate: Content filtering
-- chunker: LLM-based chunking
-- compressor: LLM-based compression
 """
 
-# Import all context management components
+# Import unified models (single source of truth)
+from .models import (
+    ContextChunk,
+    ContextPriority,
+    ProcessedContent,
+    ContextOverflowInfo,
+    CompressionConfig,
+    ChunkingConfig,
+)
+
+# Import shared utilities
+from . import utils as context_utils
+
+# Import specific components
 from .chunker import (
     ContextChunker,
     ChunkingSignature,
@@ -26,9 +40,7 @@ from .compressor import (
     CompressionSignature,
 )
 from .content_gate import (
-    ContentChunk,
     ContentGate,
-    ProcessedContent,
     RelevanceEstimator,
     RelevanceSignature,
     with_content_gate,
@@ -40,19 +52,12 @@ from .context_gradient import (
     CooperationGradientSignature,
     MemoryGradientSignature,
 )
-from .context_guard import (
-    LLMContextManager,
-)
-from .global_context_guard import (
-    GlobalContextGuard,
+from .context_manager import (
+    SmartContextManager,
+    OverflowDetector,
+    with_smart_context,
     patch_dspy_with_guard,
     unpatch_dspy,
-)
-from .context_manager import (
-    ContextChunk,
-    ContextPriority,
-    SmartContextManager,
-    with_smart_context,
 )
 
 from .facade import (
@@ -62,39 +67,41 @@ from .facade import (
 )
 
 __all__ = [
-    # facade
+    # Unified models (no duplicates!)
+    'ContextChunk',
+    'ContextPriority',
+    'ProcessedContent',
+    'ContextOverflowInfo',
+    'CompressionConfig',
+    'ChunkingConfig',
+    # Shared utilities
+    'context_utils',
+    # Facades
     'get_context_manager',
     'get_context_guard',
     'get_content_gate',
-    # chunker
+    # Chunker
     'ContextChunker',
     'ChunkingSignature',
     'CombiningSignature',
-    # compressor
+    # Compressor
     'AgenticCompressor',
     'CompressionSignature',
-    # content_gate
-    'ContentChunk',
+    # Content gate
     'ContentGate',
-    'ProcessedContent',
     'RelevanceEstimator',
     'RelevanceSignature',
     'with_content_gate',
-    # context_gradient
+    # Context gradient
     'ContextApplier',
     'ContextGradient',
     'ContextUpdate',
     'CooperationGradientSignature',
     'MemoryGradientSignature',
-    # context_guard
-    'LLMContextManager',
-    # global_context_guard
-    'GlobalContextGuard',
+    # Unified context manager (includes all guard features)
+    'SmartContextManager',
+    'OverflowDetector',
+    'with_smart_context',
     'patch_dspy_with_guard',
     'unpatch_dspy',
-    # context_manager
-    'ContextChunk',
-    'ContextPriority',
-    'SmartContextManager',
-    'with_smart_context',
 ]

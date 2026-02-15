@@ -59,11 +59,16 @@ class Host(ABC):
 class NullHost(Host):
     """Silent host — does nothing. Default before initialization."""
 
+    # DRY: Level mapping constant
+    _LOG_LEVELS = {
+        'info': logging.INFO,
+        'warning': logging.WARNING,
+        'error': logging.ERROR
+    }
+
     def notify(self, message: str, level: str = "info") -> None:
-        logger.log(
-            {'info': logging.INFO, 'warning': logging.WARNING, 'error': logging.ERROR}.get(level, logging.INFO),
-            f"[NullHost] {message}"
-        )
+        log_level = self._LOG_LEVELS.get(level, logging.INFO)
+        logger.log(log_level, f"[NullHost] {message}")
 
     async def prompt_user(self, question: str, default: str = "") -> str:
         logger.warning(f"[NullHost] prompt_user called but no host: {question}")
@@ -74,7 +79,8 @@ class NullHost(Host):
             logger.info(f"[NullHost] {progress.render()}")
 
     def display_diff(self, diff_text: str, title: str = "") -> None:
-        logger.info(f"[NullHost] diff: {title}\n{diff_text[:500]}")
+        preview = diff_text[:500]
+        logger.info(f"[NullHost] diff: {title}\n{preview}")
 
     def log_tool_use(self, tool_name: str, trust_level: str, allowed: bool, reason: str = "") -> None:
         status = "ALLOWED" if allowed else f"BLOCKED: {reason}"
@@ -84,9 +90,17 @@ class NullHost(Host):
 class CLIHost(Host):
     """CLI terminal host implementation."""
 
+    # DRY: Level icons constant
+    _ICONS = {'info': 'ℹ', 'warning': '', 'error': ''}
+
+    # DRY: ANSI color codes
+    _COLOR_GREEN = "\033[32m"
+    _COLOR_RED = "\033[31m"
+    _COLOR_RESET = "\033[0m"
+    _MAX_DIFF_LINES = 50
+
     def notify(self, message: str, level: str = "info") -> None:
-        icons = {'info': 'ℹ', 'warning': '', 'error': ''}
-        icon = icons.get(level, '')
+        icon = self._ICONS.get(level, '')
         logger.info(f" {icon} {message}")
 
     async def prompt_user(self, question: str, default: str = "") -> str:
@@ -108,16 +122,26 @@ class CLIHost(Host):
     def display_diff(self, diff_text: str, title: str = "") -> None:
         if title:
             logger.info(f"\n{'='*40} {title} {'='*40}")
-        # Basic colorization for +/- lines
-        for line in diff_text.split('\n')[:50]:
-            if line.startswith('+'):
-                logger.info(f"\033[32m{line}\033[0m")
-            elif line.startswith('-'):
-                logger.info(f"\033[31m{line}\033[0m")
-            else:
-                logger.info(line)
-        if diff_text.count('\n') > 50:
-            logger.info(f"  ... ({diff_text.count(chr(10)) - 50} more lines)")
+
+        # DRY: Colorize diff lines
+        lines = diff_text.split('\n')
+        for line in lines[:self._MAX_DIFF_LINES]:
+            colored_line = self._colorize_diff_line(line)
+            logger.info(colored_line)
+
+        # Show truncation message if needed
+        remaining = len(lines) - self._MAX_DIFF_LINES
+        if remaining > 0:
+            logger.info(f"  ... ({remaining} more lines)")
+
+    def _colorize_diff_line(self, line: str) -> str:
+        """DRY helper: colorize a diff line based on prefix."""
+        if line.startswith('+'):
+            return f"{self._COLOR_GREEN}{line}{self._COLOR_RESET}"
+        elif line.startswith('-'):
+            return f"{self._COLOR_RED}{line}{self._COLOR_RESET}"
+        else:
+            return line
 
     def log_tool_use(self, tool_name: str, trust_level: str, allowed: bool, reason: str = "") -> None:
         if not allowed:

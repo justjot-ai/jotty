@@ -18,6 +18,7 @@ from typing import Dict, List, Optional, Any
 import logging
 
 from ..utils.tokenizer import SmartTokenizer
+from . import utils as ctx_utils
 
 logger = logging.getLogger(__name__)
 
@@ -95,8 +96,7 @@ class AgenticCompressor:
         Returns:
             Compressed content preserving critical information
         """
-        tokenizer = SmartTokenizer.get_instance()
-        current_tokens = tokenizer.count_tokens(content)
+        current_tokens = ctx_utils.estimate_tokens(content)
         logger.info(f" Agentic compression for {task_context.get('actor_name', 'unknown')}...")
         logger.info(f"   Original length: {len(content)} chars (~{current_tokens} tokens)")
         logger.info(f"   Target: {target_tokens} tokens")
@@ -146,7 +146,7 @@ class AgenticCompressor:
             )
         
         compressed = result.compressed_content
-        compressed_tokens = tokenizer.count_tokens(compressed)
+        compressed_tokens = ctx_utils.estimate_tokens(compressed)
         
         logger.info(f" Compressed: {current_tokens} → {compressed_tokens} tokens ({result.compression_ratio})")
         logger.info(f"   Quality score: {result.quality_score}/10")
@@ -198,9 +198,8 @@ class AgenticCompressor:
             logger.info(" Empty data, returning empty string")
             return ""
 
-        # Calculate target tokens using SmartTokenizer
-        tokenizer = SmartTokenizer.get_instance()
-        current_tokens = tokenizer.count_tokens(data)
+        # Calculate target tokens using shared utility
+        current_tokens = ctx_utils.estimate_tokens(data)
         target_tokens = int(current_tokens * target_ratio)
         
         if current_tokens <= target_tokens:

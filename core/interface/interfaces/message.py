@@ -10,7 +10,7 @@ JottyMessage provides a common message format across all interfaces:
 This enables cross-interface sync and consistent processing.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict, fields as dataclass_fields
 from datetime import datetime
 from enum import Enum
 from typing import Dict, Any, List, Optional
@@ -36,25 +36,19 @@ class Attachment:
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary (excluding binary data)."""
-        return {
-            "filename": self.filename,
-            "content_type": self.content_type,
-            "size": self.size,
-            "url": self.url,
-            "metadata": self.metadata,
-        }
+        """Convert to dictionary (excluding binary data). DRY: uses asdict."""
+        return {k: v for k, v in asdict(self).items() if k != 'data'}
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Attachment":
-        """Create from dictionary."""
-        return cls(
-            filename=data.get("filename", ""),
-            content_type=data.get("content_type", "application/octet-stream"),
-            size=data.get("size", 0),
-            url=data.get("url"),
-            metadata=data.get("metadata", {}),
-        )
+        """Create from dictionary. DRY: filters to valid fields only."""
+        valid_fields = {f.name for f in dataclass_fields(cls)}
+        kwargs = {k: v for k, v in data.items() if k in valid_fields}
+        # Set defaults for required fields if missing
+        kwargs.setdefault("filename", "")
+        kwargs.setdefault("content_type", "application/octet-stream")
+        kwargs.setdefault("size", 0)
+        return cls(**kwargs)
 
 
 @dataclass
@@ -122,7 +116,7 @@ class JottyMessage:
         session_id: Optional[str] = None
     ) -> "JottyMessage":
         """
-        Create from Telegram update.
+        Create from Telegram update. DRY: delegates to MessageAdapter.
 
         Args:
             update: Telegram Update object
@@ -131,47 +125,7 @@ class JottyMessage:
         Returns:
             JottyMessage instance
         """
-        message = update.message or update.edited_message
-
-        if not message:
-            raise ValueError("No message in update")
-
-        chat_id = str(message.chat.id)
-        user_id = str(message.from_user.id) if message.from_user else chat_id
-
-        # Build attachments from documents/photos
-        attachments = []
-        if message.document:
-            attachments.append(Attachment(
-                filename=message.document.file_name or "document",
-                content_type=message.document.mime_type or "application/octet-stream",
-                size=message.document.file_size or 0,
-                metadata={"file_id": message.document.file_id}
-            ))
-        if message.photo:
-            # Get largest photo
-            photo = message.photo[-1]
-            attachments.append(Attachment(
-                filename=f"photo_{photo.file_unique_id}.jpg",
-                content_type="image/jpeg",
-                size=photo.file_size or 0,
-                metadata={"file_id": photo.file_id}
-            ))
-
-        return cls(
-            content=message.text or message.caption or "",
-            interface=InterfaceType.TELEGRAM,
-            user_id=user_id,
-            session_id=session_id or f"tg_{chat_id}",
-            metadata={
-                "chat_id": chat_id,
-                "message_id": message.message_id,
-                "chat_type": message.chat.type,
-                "username": message.from_user.username if message.from_user else None,
-                "first_name": message.from_user.first_name if message.from_user else None,
-            },
-            attachments=attachments,
-        )
+        return MessageAdapter._from_telegram(update, session_id=session_id)
 
     @classmethod
     def from_web(
@@ -181,7 +135,7 @@ class JottyMessage:
         session_id: Optional[str] = None
     ) -> "JottyMessage":
         """
-        Create from Web API request.
+        Create from Web API request. DRY: delegates to MessageAdapter.
 
         Args:
             request_data: Request body dict with 'message', 'session_id', etc.
@@ -191,16 +145,7 @@ class JottyMessage:
         Returns:
             JottyMessage instance
         """
-        return cls(
-            content=request_data.get("message", ""),
-            interface=InterfaceType.WEB,
-            user_id=user_id,
-            session_id=session_id or request_data.get("session_id", str(uuid.uuid4())[:8]),
-            metadata={
-                "user_agent": request_data.get("user_agent"),
-                "ip": request_data.get("ip"),
-            },
-        )
+        return MessageAdapter._from_web(request_data, user_id=user_id, session_id=session_id)
 
     @classmethod
     def from_cli(
@@ -210,7 +155,7 @@ class JottyMessage:
         user_id: str = "cli_user"
     ) -> "JottyMessage":
         """
-        Create from CLI input.
+        Create from CLI input. DRY: delegates to MessageAdapter.
 
         Args:
             text: User input text
@@ -220,12 +165,7 @@ class JottyMessage:
         Returns:
             JottyMessage instance
         """
-        return cls(
-            content=text,
-            interface=InterfaceType.CLI,
-            user_id=user_id,
-            session_id=session_id,
-        )
+        return MessageAdapter._from_cli(text, session_id=session_id, user_id=user_id)
 
     @classmethod
     def assistant_response(
@@ -302,48 +242,42 @@ class InternalEvent:
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
-        d = {
-            'event_type': self.event_type.value,
-            'event_id': self.event_id,
-            'source': self.source,
-            'timestamp': self.timestamp,
-            'agent_name': self.agent_name,
-            'goal': self.goal,
-        }
-        # Only include non-default fields to keep messages lean
-        if self.success is not None:
-            d['success'] = self.success
-        if self.output:
-            d['output'] = self.output[:500]  # Cap for serialization
-        if self.error:
-            d['error'] = self.error[:500]
-        if self.tool_name:
-            d['tool_name'] = self.tool_name
-        if self.trust_level:
-            d['trust_level'] = self.trust_level
-        if self.execution_time:
-            d['execution_time'] = self.execution_time
-        if self.metadata:
-            d['metadata'] = self.metadata
-        return d
+        """Convert to dict, excluding None/empty values. DRY: uses asdict."""
+        d = asdict(self)
+        d['event_type'] = d['event_type'].value  # Enum to string
+
+        # Core fields always included
+        core_fields = {'event_type', 'event_id', 'source', 'timestamp'}
+
+        # Filter out None and empty values, keep core fields
+        result = {}
+        for k, v in d.items():
+            if k in core_fields:
+                result[k] = v
+            elif v not in (None, '', 0.0, {}):
+                # Cap strings for serialization
+                if k in ('output', 'error') and isinstance(v, str):
+                    result[k] = v[:500]
+                else:
+                    result[k] = v
+
+        return result
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "InternalEvent":
-        return cls(
-            event_type=EventType(data.get('event_type', 'agent_start')),
-            event_id=data.get('event_id', ''),
-            source=data.get('source', ''),
-            timestamp=data.get('timestamp', 0),
-            agent_name=data.get('agent_name', ''),
-            goal=data.get('goal', ''),
-            success=data.get('success'),
-            output=data.get('output'),
-            error=data.get('error'),
-            tool_name=data.get('tool_name', ''),
-            trust_level=data.get('trust_level', ''),
-            execution_time=data.get('execution_time', 0),
-            metadata=data.get('metadata', {}),
-        )
+        """Create from dict. DRY: uses dataclass fields for validation."""
+        valid_fields = {f.name for f in dataclass_fields(cls)}
+        kwargs = {k: v for k, v in data.items() if k in valid_fields}
+
+        # Handle enum conversion
+        if 'event_type' in kwargs and isinstance(kwargs['event_type'], str):
+            kwargs['event_type'] = EventType(kwargs['event_type'])
+
+        # Set defaults for required fields
+        kwargs.setdefault('event_type', EventType.AGENT_START)
+        kwargs.setdefault('source', '')
+
+        return cls(**kwargs)
 
     # Convenience constructors
     @classmethod
@@ -362,3 +296,129 @@ class InternalEvent:
     def progress_update(cls, agent: str, progress_data: Dict) -> "InternalEvent":
         return cls(event_type=EventType.PROGRESS_UPDATE, source="agent_runner",
                    agent_name=agent, metadata=progress_data)
+
+
+# =============================================================================
+# MESSAGE ADAPTER - DRY Message Conversion Pattern
+# =============================================================================
+# Unifies from_telegram, from_web, from_cli into a single strategy pattern
+
+
+class MessageAdapter:
+    """
+    DRY adapter for converting external messages to JottyMessage.
+
+    Eliminates duplication across from_telegram, from_web, from_cli methods.
+    Uses strategy pattern for clean separation of concerns.
+
+    Usage:
+        # Single entry point
+        msg = MessageAdapter.from_source(InterfaceType.TELEGRAM, telegram_update)
+
+        # Or use existing methods (backwards compatible)
+        msg = JottyMessage.from_telegram(telegram_update)
+    """
+
+    @staticmethod
+    def from_source(
+        source_type: InterfaceType,
+        data: Any,
+        **kwargs: Any
+    ) -> JottyMessage:
+        """
+        Single entry point for message conversion.
+
+        Args:
+            source_type: InterfaceType enum
+            data: Source-specific data (Update, dict, str)
+            **kwargs: Additional arguments passed to converter
+
+        Returns:
+            JottyMessage instance
+        """
+        converters = {
+            InterfaceType.TELEGRAM: MessageAdapter._from_telegram,
+            InterfaceType.WEB: MessageAdapter._from_web,
+            InterfaceType.CLI: MessageAdapter._from_cli,
+        }
+
+        converter = converters.get(source_type)
+        if not converter:
+            raise ValueError(f"Unsupported interface type: {source_type}")
+
+        return converter(data, **kwargs)
+
+    @staticmethod
+    def _from_telegram(update: Any, session_id: Optional[str] = None) -> JottyMessage:
+        """Internal: Convert Telegram update. Called by from_source."""
+        message = update.message or update.edited_message
+        if not message:
+            raise ValueError("No message in update")
+
+        chat_id = str(message.chat.id)
+        user_id = str(message.from_user.id) if message.from_user else chat_id
+
+        # Build attachments
+        attachments = []
+        if message.document:
+            attachments.append(Attachment(
+                filename=message.document.file_name or "document",
+                content_type=message.document.mime_type or "application/octet-stream",
+                size=message.document.file_size or 0,
+                metadata={"file_id": message.document.file_id}
+            ))
+        if message.photo:
+            photo = message.photo[-1]
+            attachments.append(Attachment(
+                filename=f"photo_{photo.file_unique_id}.jpg",
+                content_type="image/jpeg",
+                size=photo.file_size or 0,
+                metadata={"file_id": photo.file_id}
+            ))
+
+        return JottyMessage(
+            content=message.text or message.caption or "",
+            interface=InterfaceType.TELEGRAM,
+            user_id=user_id,
+            session_id=session_id or f"tg_{chat_id}",
+            metadata={
+                "chat_id": chat_id,
+                "message_id": message.message_id,
+                "chat_type": message.chat.type,
+                "username": message.from_user.username if message.from_user else None,
+                "first_name": message.from_user.first_name if message.from_user else None,
+            },
+            attachments=attachments,
+        )
+
+    @staticmethod
+    def _from_web(
+        request_data: Dict[str, Any],
+        user_id: str = "web_user",
+        session_id: Optional[str] = None
+    ) -> JottyMessage:
+        """Internal: Convert web request. Called by from_source."""
+        return JottyMessage(
+            content=request_data.get("message", ""),
+            interface=InterfaceType.WEB,
+            user_id=user_id,
+            session_id=session_id or request_data.get("session_id", str(uuid.uuid4())[:8]),
+            metadata={
+                "user_agent": request_data.get("user_agent"),
+                "ip": request_data.get("ip"),
+            },
+        )
+
+    @staticmethod
+    def _from_cli(
+        text: str,
+        session_id: str,
+        user_id: str = "cli_user"
+    ) -> JottyMessage:
+        """Internal: Convert CLI input. Called by from_source."""
+        return JottyMessage(
+            content=text,
+            interface=InterfaceType.CLI,
+            user_id=user_id,
+            session_id=session_id,
+        )

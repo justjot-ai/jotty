@@ -5,8 +5,15 @@ Context Subsystem Facade
 Clean, discoverable API for context management components.
 No new business logic — just imports + convenience accessors.
 
+UNIFIED ARCHITECTURE:
+- SmartContextManager now includes ALL features:
+  - Priority-based budgeting (from context_manager.py)
+  - Overflow detection (from global_context_guard.py)
+  - Function wrapping (from global_context_guard.py)
+  - DSPy patching (from global_context_guard.py)
+
 Usage:
-    from Jotty.core.infrastructure.context.facade import get_context_manager, list_components
+    from Jotty.core.infrastructure.context.facade import get_context_manager
 
     ctx = get_context_manager()
 """
@@ -15,30 +22,37 @@ from typing import Dict, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from Jotty.core.infrastructure.context.context_manager import SmartContextManager
-    from Jotty.core.infrastructure.context.global_context_guard import GlobalContextGuard
     from Jotty.core.infrastructure.context.content_gate import ContentGate
 
 
 def get_context_manager() -> 'SmartContextManager':
     """
-    Return a SmartContextManager for auto-chunking and compression.
+    Return a SmartContextManager (unified context management).
+
+    Features:
+    - Priority-based context budgeting
+    - Overflow detection and recovery
+    - Function wrapping with auto-retry
+    - DSPy integration support
 
     Returns:
-        SmartContextManager instance.
+        SmartContextManager instance with all features.
     """
     from Jotty.core.infrastructure.context.context_manager import SmartContextManager
     return SmartContextManager()
 
 
-def get_context_guard() -> 'GlobalContextGuard':
+def get_context_guard() -> 'SmartContextManager':
     """
-    Return a GlobalContextGuard for context overflow protection.
+    Return a context guard (alias for get_context_manager).
+
+    DEPRECATED: Use get_context_manager() instead.
+    Kept for backwards compatibility - returns same unified manager.
 
     Returns:
-        GlobalContextGuard instance.
+        SmartContextManager instance (same as get_context_manager).
     """
-    from Jotty.core.infrastructure.context.global_context_guard import GlobalContextGuard
-    return GlobalContextGuard()
+    return get_context_manager()
 
 
 def get_content_gate() -> 'ContentGate':
@@ -60,12 +74,10 @@ def list_components() -> Dict[str, str]:
         Dict mapping component name to description.
     """
     return {
-        "SmartContextManager": "Auto-chunking and compression coordinator",
-        "GlobalContextGuard": "Global context overflow prevention with budget enforcement",
+        "SmartContextManager": "UNIFIED: Priority budgeting + overflow detection + function wrapping + DSPy patching",
         "ContentGate": "Relevance filtering before context injection",
-        "LLMContextManager": "Context overflow prevention for LLM calls",
-        "AgenticCompressor": "LLM-based context compression",
-        "ContextChunker": "LLM-based chunking for large inputs",
+        "AgenticCompressor": "LLM-based compression with Shapley impact prioritization",
+        "ContextChunker": "LLM-based semantic chunking for large inputs",
         "ContextGradient": "Context-as-gradient learning for cooperation",
         "ContextApplier": "Applies context gradients to agent prompts",
     }
