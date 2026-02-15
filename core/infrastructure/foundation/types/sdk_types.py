@@ -9,88 +9,107 @@ Provides unified types for:
 - SDKResponse: Standardized response format
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Any, Optional, Callable, Union
-from enum import Enum, auto
-from datetime import datetime
 import uuid
-
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum, auto
+from typing import Any, Callable, Dict, List, Optional, Union
 
 # =============================================================================
 # ENUMS
 # =============================================================================
 
+
 class ExecutionMode(Enum):
     """Execution mode for requests."""
-    CHAT = "chat"           # Conversational, single-turn
-    WORKFLOW = "workflow"   # Multi-step autonomous execution
-    AGENT = "agent"         # Direct agent invocation
-    SKILL = "skill"         # Direct skill execution
-    STREAM = "stream"       # Streaming response
+
+    CHAT = "chat"  # Conversational, single-turn
+    WORKFLOW = "workflow"  # Multi-step autonomous execution
+    AGENT = "agent"  # Direct agent invocation
+    SKILL = "skill"  # Direct skill execution
+    STREAM = "stream"  # Streaming response
+    VOICE = "voice"  # Voice interaction (STT/TTS)
+    SWARM = "swarm"  # Multi-agent swarm coordination
 
 
 class ChannelType(Enum):
     """Source channel for requests."""
-    CLI = "cli"             # Command-line interface
-    WEB = "web"             # Web UI
-    SDK = "sdk"             # SDK client (programmatic)
-    TELEGRAM = "telegram"   # Telegram bot
-    SLACK = "slack"         # Slack integration
-    DISCORD = "discord"     # Discord bot
-    WHATSAPP = "whatsapp"   # WhatsApp Business
-    WEBSOCKET = "websocket" # WebSocket connection
-    HTTP = "http"           # Generic HTTP
-    CUSTOM = "custom"       # Custom channel
+
+    CLI = "cli"  # Command-line interface
+    WEB = "web"  # Web UI
+    SDK = "sdk"  # SDK client (programmatic)
+    TELEGRAM = "telegram"  # Telegram bot
+    SLACK = "slack"  # Slack integration
+    DISCORD = "discord"  # Discord bot
+    WHATSAPP = "whatsapp"  # WhatsApp Business
+    WEBSOCKET = "websocket"  # WebSocket connection
+    HTTP = "http"  # Generic HTTP
+    CUSTOM = "custom"  # Custom channel
 
 
 class SDKEventType(Enum):
     """Types of SDK events for streaming/callbacks."""
+
     # Lifecycle events
-    START = "start"                 # Execution started
-    COMPLETE = "complete"           # Execution completed
-    ERROR = "error"                 # Error occurred
+    START = "start"  # Execution started
+    COMPLETE = "complete"  # Execution completed
+    ERROR = "error"  # Error occurred
 
     # Processing events
-    THINKING = "thinking"           # Agent is reasoning
-    PLANNING = "planning"           # Creating execution plan
+    THINKING = "thinking"  # Agent is reasoning
+    PLANNING = "planning"  # Creating execution plan
 
     # Skill events
-    SKILL_START = "skill_start"     # Skill execution starting
+    SKILL_START = "skill_start"  # Skill execution starting
     SKILL_PROGRESS = "skill_progress"  # Skill progress update
     SKILL_COMPLETE = "skill_complete"  # Skill execution completed
 
     # Output events
-    STREAM = "stream"               # Streaming text chunk
-    DELTA = "delta"                 # Incremental update
+    STREAM = "stream"  # Streaming text chunk
+    DELTA = "delta"  # Incremental update
 
     # Agent events
-    AGENT_START = "agent_start"     # Agent started
+    AGENT_START = "agent_start"  # Agent started
     AGENT_COMPLETE = "agent_complete"  # Agent completed
 
     # Memory events
     MEMORY_RECALL = "memory_recall"  # Retrieved from memory
-    MEMORY_STORE = "memory_store"    # Stored to memory
+    MEMORY_STORE = "memory_store"  # Stored to memory
 
     # Validation events
-    VALIDATION_START = "validation_start"      # Validation started
+    VALIDATION_START = "validation_start"  # Validation started
     VALIDATION_COMPLETE = "validation_complete"  # Validation completed
 
     # Learning events
     LEARNING_UPDATE = "learning_update"  # Learning state updated
 
+    # Voice events (modalities)
+    VOICE_STT_START = "voice_stt_start"  # STT transcription started
+    VOICE_STT_COMPLETE = "voice_stt_complete"  # STT transcription completed
+    VOICE_TTS_START = "voice_tts_start"  # TTS synthesis started
+    VOICE_TTS_CHUNK = "voice_tts_chunk"  # TTS audio chunk available
+    VOICE_TTS_COMPLETE = "voice_tts_complete"  # TTS synthesis completed
+
+    # Swarm events (multi-agent coordination)
+    SWARM_AGENT_START = "swarm_agent_start"  # Swarm agent started
+    SWARM_AGENT_COMPLETE = "swarm_agent_complete"  # Swarm agent completed
+    SWARM_COORDINATION = "swarm_coordination"  # Swarm coordination event
+
 
 class ResponseFormat(Enum):
     """Output format for responses."""
-    TEXT = "text"           # Plain text
-    MARKDOWN = "markdown"   # Markdown formatted
-    JSON = "json"           # JSON data
-    HTML = "html"           # HTML content
-    A2UI = "a2ui"          # Agent-to-UI widgets
+
+    TEXT = "text"  # Plain text
+    MARKDOWN = "markdown"  # Markdown formatted
+    JSON = "json"  # JSON data
+    HTML = "html"  # HTML content
+    A2UI = "a2ui"  # Agent-to-UI widgets
 
 
 # =============================================================================
 # EXECUTION CONTEXT
 # =============================================================================
+
 
 @dataclass
 class ExecutionContext:
@@ -113,6 +132,7 @@ class ExecutionContext:
         )
         result = await mode_router.execute(request, context)
     """
+
     # Required fields
     mode: ExecutionMode
     channel: ChannelType
@@ -129,12 +149,12 @@ class ExecutionContext:
     # Channel-specific data
     channel_id: Optional[str] = None  # Chat/channel ID
     message_id: Optional[str] = None  # Original message ID
-    reply_to: Optional[str] = None    # Thread/reply context
+    reply_to: Optional[str] = None  # Thread/reply context
 
     # Execution configuration
-    timeout: float = 300.0            # Execution timeout in seconds
-    max_steps: int = 10               # Max workflow steps
-    streaming: bool = False           # Enable streaming
+    timeout: float = 300.0  # Execution timeout in seconds
+    max_steps: int = 10  # Max workflow steps
+    streaming: bool = False  # Enable streaming
     response_format: ResponseFormat = ResponseFormat.MARKDOWN
 
     # Metadata
@@ -176,7 +196,9 @@ class ExecutionContext:
             user_id=data.get("user_id"),
             user_name=data.get("user_name"),
             request_id=data.get("request_id", str(uuid.uuid4())),
-            timestamp=datetime.fromisoformat(data["timestamp"]) if "timestamp" in data else datetime.now(),
+            timestamp=(
+                datetime.fromisoformat(data["timestamp"]) if "timestamp" in data else datetime.now()
+            ),
             channel_id=data.get("channel_id"),
             message_id=data.get("message_id"),
             reply_to=data.get("reply_to"),
@@ -215,10 +237,7 @@ class ExecutionContext:
         """Emit an event if callback is registered."""
         if self.event_callback:
             event = SDKEvent(
-                type=event_type,
-                data=data,
-                context_id=self.request_id,
-                timestamp=datetime.now()
+                type=event_type, data=data, context_id=self.request_id, timestamp=datetime.now()
             )
             self.event_callback(event)
 
@@ -226,6 +245,7 @@ class ExecutionContext:
 # =============================================================================
 # SDK EVENTS
 # =============================================================================
+
 
 @dataclass
 class SDKEvent:
@@ -242,9 +262,11 @@ class SDKEvent:
         client.on("skill_start", lambda e: print(f"Using {e.data['skill']}"))
         client.on("stream", lambda e: print(e.data['delta'], end=""))
     """
+
     type: SDKEventType
     data: Any = None
     context_id: Optional[str] = None
+    seq: int = 0  # Sequence number for ordering guarantees
     timestamp: datetime = field(default_factory=datetime.now)
 
     def to_dict(self) -> Dict[str, Any]:
@@ -253,6 +275,7 @@ class SDKEvent:
             "type": self.type.value,
             "data": self.data,
             "context_id": self.context_id,
+            "seq": self.seq,
             "timestamp": self.timestamp.isoformat(),
         }
 
@@ -263,13 +286,17 @@ class SDKEvent:
             type=SDKEventType(data["type"]),
             data=data.get("data"),
             context_id=data.get("context_id"),
-            timestamp=datetime.fromisoformat(data["timestamp"]) if "timestamp" in data else datetime.now(),
+            seq=data.get("seq", 0),
+            timestamp=(
+                datetime.fromisoformat(data["timestamp"]) if "timestamp" in data else datetime.now()
+            ),
         )
 
 
 # =============================================================================
 # SDK SESSION
 # =============================================================================
+
 
 @dataclass
 class SDKSession:
@@ -287,6 +314,7 @@ class SDKSession:
         session.add_message("user", "Hello")
         await session_manager.save(session)
     """
+
     session_id: str
     user_id: str
 
@@ -312,15 +340,17 @@ class SDKSession:
 
     def add_message(self, role: str, content: str, metadata: Optional[Dict] = None) -> None:
         """Add message to history, maintaining max size."""
-        self.messages.append({
-            "role": role,
-            "content": content,
-            "timestamp": datetime.now().isoformat(),
-            "metadata": metadata or {}
-        })
+        self.messages.append(
+            {
+                "role": role,
+                "content": content,
+                "timestamp": datetime.now().isoformat(),
+                "metadata": metadata or {},
+            }
+        )
         # Trim to max_history
         if len(self.messages) > self.max_history:
-            self.messages = self.messages[-self.max_history:]
+            self.messages = self.messages[-self.max_history :]
         self.last_active = datetime.now()
         self.updated_at = datetime.now()
 
@@ -359,14 +389,28 @@ class SDKSession:
             session_id=data["session_id"],
             user_id=data["user_id"],
             channels=data.get("channels", {}),
-            primary_channel=ChannelType(data["primary_channel"]) if data.get("primary_channel") else None,
+            primary_channel=(
+                ChannelType(data["primary_channel"]) if data.get("primary_channel") else None
+            ),
             messages=data.get("messages", []),
             max_history=data.get("max_history", 50),
             user_name=data.get("user_name"),
             preferences=data.get("preferences", {}),
-            created_at=datetime.fromisoformat(data["created_at"]) if "created_at" in data else datetime.now(),
-            updated_at=datetime.fromisoformat(data["updated_at"]) if "updated_at" in data else datetime.now(),
-            last_active=datetime.fromisoformat(data["last_active"]) if "last_active" in data else datetime.now(),
+            created_at=(
+                datetime.fromisoformat(data["created_at"])
+                if "created_at" in data
+                else datetime.now()
+            ),
+            updated_at=(
+                datetime.fromisoformat(data["updated_at"])
+                if "updated_at" in data
+                else datetime.now()
+            ),
+            last_active=(
+                datetime.fromisoformat(data["last_active"])
+                if "last_active" in data
+                else datetime.now()
+            ),
             metadata=data.get("metadata", {}),
         )
 
@@ -374,6 +418,7 @@ class SDKSession:
 # =============================================================================
 # SDK RESPONSE
 # =============================================================================
+
 
 @dataclass
 class SDKResponse:
@@ -391,6 +436,7 @@ class SDKResponse:
         print(response.content)
         print(response.metadata)
     """
+
     success: bool
     content: Any
 
@@ -450,9 +496,52 @@ class SDKResponse:
         )
 
 
+@dataclass
+class SDKVoiceResponse(SDKResponse):
+    """
+    Specialized response for voice interactions (extends SDKResponse).
+
+    Provides voice-specific fields:
+    - user_text: Transcribed text from STT
+    - audio_data: Generated audio bytes from TTS
+    - audio_format: MIME type of audio
+    - confidence: STT confidence score
+    - provider: Voice provider used (groq, edge, whisper, etc.)
+
+    Usage:
+        response = await client.stt(audio_data)
+        print(response.user_text)
+        print(f"Confidence: {response.confidence}")
+    """
+
+    # Voice-specific fields
+    user_text: Optional[str] = None  # Transcribed text from STT
+    audio_data: Optional[bytes] = None  # Generated audio from TTS
+    audio_format: str = "audio/mp3"  # MIME type (audio/mp3, audio/wav, audio/webm)
+    confidence: float = 1.0  # STT confidence score (0.0 to 1.0)
+    provider: Optional[str] = None  # Provider used (groq, edge, whisper, elevenlabs, local)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        base = super().to_dict()
+        base.update(
+            {
+                "user_text": self.user_text,
+                "audio_data": (
+                    self.audio_data.decode("latin1") if self.audio_data else None
+                ),  # Base64 encode in real impl
+                "audio_format": self.audio_format,
+                "confidence": self.confidence,
+                "provider": self.provider,
+            }
+        )
+        return base
+
+
 # =============================================================================
 # SDK REQUEST
 # =============================================================================
+
 
 @dataclass
 class SDKRequest:
@@ -465,6 +554,7 @@ class SDKRequest:
     - Skill invocations
     - Agent commands
     """
+
     content: str
     mode: ExecutionMode = ExecutionMode.CHAT
 

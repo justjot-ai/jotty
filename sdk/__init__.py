@@ -28,31 +28,29 @@ Features:
 For full documentation, see: https://docs.jotty.ai/sdk
 """
 
-from .client import (
-    # Main clients
-    Jotty,
-    JottySync,
-    Client,
-    SyncClient,
-    # Handles
-    SkillHandle,
-    AgentHandle,
-    SessionHandle,
-    # Event emitter
-    EventEmitter,
-)
-
 # Import types for convenience
 from ..core.foundation.types.sdk_types import (
-    ExecutionMode,
     ChannelType,
-    SDKEventType,
-    ResponseFormat,
     ExecutionContext,
+    ExecutionMode,
+    ResponseFormat,
     SDKEvent,
-    SDKSession,
-    SDKResponse,
+    SDKEventType,
     SDKRequest,
+    SDKResponse,
+    SDKSession,
+    SDKVoiceResponse,
+)
+from .client import (  # Main clients; Handles; Event emitter
+    AgentHandle,
+    Client,
+    EventEmitter,
+    Jotty,
+    JottySync,
+    SessionHandle,
+    SkillHandle,
+    SyncClient,
+    VoiceHandle,
 )
 
 __all__ = [
@@ -65,6 +63,7 @@ __all__ = [
     "SkillHandle",
     "AgentHandle",
     "SessionHandle",
+    "VoiceHandle",
     # Event emitter
     "EventEmitter",
     # Types
@@ -76,6 +75,7 @@ __all__ = [
     "SDKEvent",
     "SDKSession",
     "SDKResponse",
+    "SDKVoiceResponse",
     "SDKRequest",
 ]
 
