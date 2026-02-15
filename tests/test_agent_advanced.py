@@ -38,16 +38,16 @@ if _jotty_parent not in sys.path:
 # Try importing core modules with skipif fallback
 try:
     from Jotty.core.modes.agent.base.base_agent import BaseAgent, AgentRuntimeConfig, AgentResult
-    from Jotty.core.modes.agent.base.meta_agent import MetaAgent, MetaAgentConfig, create_meta_agent
-    from Jotty.core.modes.agent.base.composite_agent import (
+    from Jotty.core.modes.agent.implementations.meta_agent import MetaAgent, MetaAgentConfig, create_meta_agent
+    from Jotty.core.modes.agent.implementations.composite_agent import (
         CompositeAgent, CompositeAgentConfig, UnifiedResult,
     )
     from Jotty.core.intelligence.swarms.base.agent_team import CoordinationPattern, MergeStrategy
-    from Jotty.core.modes.agent.base.autonomous_agent import (
+    from Jotty.core.modes.agent.implementations.autonomous_agent import (
         AutonomousAgent, AutonomousAgentConfig, ExecutionContextManager,
         create_autonomous_agent,
     )
-    from Jotty.core.modes.agent.base.skill_plan_executor import SkillPlanExecutor, ToolCallCache
+    from Jotty.core.modes.agent.executors.skill_plan_executor import SkillPlanExecutor, ToolCallCache
     AGENTS_AVAILABLE = True
 except ImportError as e:
     AGENTS_AVAILABLE = False

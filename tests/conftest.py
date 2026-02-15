@@ -538,7 +538,7 @@ def make_concrete_agent():
 @pytest.fixture
 def make_domain_agent():
     """Factory to create a DomainAgent with a mocked DSPy module."""
-    from Jotty.core.modes.agent.base.domain_agent import DomainAgent, DomainAgentConfig
+    from Jotty.core.modes.agent.implementations.domain_agent import DomainAgent, DomainAgentConfig
 
     def _factory(name="TestDomainAgent", module_output=None, signature=None, **config_kw):
         config = DomainAgentConfig(name=name, **config_kw)

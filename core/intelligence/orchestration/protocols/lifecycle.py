@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+
+from pathlib import Path
 """
 Lifecycle protocol mixin: priority queue, task decomposition, leader election, scaling, caching, parallel execution.
 
@@ -8,7 +12,7 @@ These are mixed into SwarmIntelligence at class definition.
 import asyncio
 import time
 import logging
-from typing import Dict, List, Any, Optional, Tuple, Callable
+from typing import Dict, List, Any, Optional, Tuple, Callable, TYPE_CHECKING, Set
 
 from ..swarm_data_structures import (
     AgentSpecialization, AgentProfile, ConsensusVote, SwarmDecision,
@@ -28,38 +32,41 @@ class LifecycleMixin:
 
     def enqueue_task(self, task_id: str, task_type: str, priority: int = 5, deadline: float = None, context: Dict = None) -> Any:
         """
-        Add task to priority queue.
 
-        Priority 1-10 (10 = most urgent).
-        """
+    if TYPE_CHECKING:
+        # Comprehensive attribute declarations for type checking
+        # These are provided by parent class or other mixins in composition
 
-        task = {
-            "task_id": task_id,
-            "task_type": task_type,
-            "priority": priority,
-            "deadline": deadline or (time.time() + 3600),
-            "context": context or {},
-            "enqueued_at": time.time()
-        }
+    # Orchestration attributes
+    agents: List[Any]
+    agent_profiles: Dict[str, Any]
+    agent_name: Optional[str]
+    config: Dict[str, Any]
+    name: str
+    history: List[Any]
+    handoff_history: List[Any]
+    pending_handoffs: List[Any]
+    active_auctions: Dict[str, Any]
+    agent_coalitions: Dict[str, Any]
+    coalitions: Dict[str, Any]
+    circuit_breakers: Dict[str, Any]
+    gossip_inbox: List[Any]
+    gossip_seen: Set[str]
+    consensus_history: List[Any]
+    morph_score_history: List[Any]
+    morph_scorer: Optional[Any]
 
-        # Insert in priority order (higher priority first)
-        inserted = False
-        for i, t in enumerate(self.priority_queue):
-            if priority > t["priority"]:
-                self.priority_queue.insert(i, task)
-                inserted = True
-                break
-            elif priority == t["priority"]:
-                # Same priority: earlier deadline first
-                if task["deadline"] < t["deadline"]:
-                    self.priority_queue.insert(i, task)
-                    inserted = True
-                    break
-
-        if not inserted:
-            self.priority_queue.append(task)
-
-        logger.debug(f"Task enqueued: {task_id} (priority={priority})")
+    def register_agent(self, agent: Any) -> None: ...
+    def find_idle_agents(self) -> List[Any]: ...
+    def find_overloaded_agents(self) -> List[Any]: ...
+    def get_agent_load(self, agent_id: str) -> float: ...
+    def get_available_agents(self) -> List[Any]: ...
+    def initiate_handoff(self, from_agent: str, to_agent: str, **kwargs: Any) -> None: ...
+    def auto_auction(self, task: Any) -> Any: ...
+    def form_coalition(self, agents: List[str]) -> str: ...
+    def check_circuit(self, operation: str) -> bool: ...
+    def gossip_broadcast(self, message: Any) -> None: ...
+    def get_swarm_health(self) -> Dict[str, Any]: ...
 
 
 

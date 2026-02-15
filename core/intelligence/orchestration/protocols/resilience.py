@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+
+from pathlib import Path
 """
 Resilience protocol mixin: circuit breakers, failure tracking, backpressure, adaptive timeouts.
 
@@ -7,7 +11,7 @@ These are mixed into SwarmIntelligence at class definition.
 
 import time
 import logging
-from typing import Dict, List, Any, Optional, Tuple, Callable
+from typing import Dict, List, Any, Optional, Tuple, Callable, TYPE_CHECKING, Set
 from collections import defaultdict
 
 from ..swarm_data_structures import (
@@ -35,46 +39,41 @@ class ResilienceMixin:
         context: Dict = None
     ) -> Optional[str]:
         """
-        Record task failure and auto-reassign to different agent.
 
-        Failure recovery pattern: Automatic retry with alternative.
+    if TYPE_CHECKING:
+        # Comprehensive attribute declarations for type checking
+        # These are provided by parent class or other mixins in composition
 
-        Returns:
-            New assigned agent or None if no alternatives.
-        """
-        # Update agent profile (reduce trust)
-        if agent in self.agent_profiles:
-            profile = self.agent_profiles[agent]
-            profile.trust_score = max(0.1, profile.trust_score - 0.1)
-            profile.update_task_result(task_type, False, 0.0)
+    # Orchestration attributes
+    agents: List[Any]
+    agent_profiles: Dict[str, Any]
+    agent_name: Optional[str]
+    config: Dict[str, Any]
+    name: str
+    history: List[Any]
+    handoff_history: List[Any]
+    pending_handoffs: List[Any]
+    active_auctions: Dict[str, Any]
+    agent_coalitions: Dict[str, Any]
+    coalitions: Dict[str, Any]
+    circuit_breakers: Dict[str, Any]
+    gossip_inbox: List[Any]
+    gossip_seen: Set[str]
+    consensus_history: List[Any]
+    morph_score_history: List[Any]
+    morph_scorer: Optional[Any]
 
-        # Find alternative agent
-        failed_agents = [agent]
-        if task_id in self.pending_handoffs:
-            failed_agents.extend(self.pending_handoffs[task_id].handoff_chain)
-
-        available = [a for a in self.agent_profiles.keys() if a not in failed_agents]
-
-        if not available:
-            logger.warning(f"Task {task_id} failed, no alternatives available")
-            return None
-
-        # Use auction to find best alternative
-        new_agent = self.auto_auction(f"{task_id}_retry", task_type, available)
-
-        if new_agent:
-            # Create handoff with failure context
-            self.initiate_handoff(
-                task_id=f"{task_id}_retry",
-                from_agent=agent,
-                to_agent=new_agent,
-                task_type=task_type,
-                context={**(context or {}), "retry_reason": error_type, "failed_agent": agent},
-                progress=0.0
-            )
-            logger.info(f"Task {task_id} reassigned: {agent} (failed) → {new_agent}")
-
-        return new_agent
+    def register_agent(self, agent: Any) -> None: ...
+    def find_idle_agents(self) -> List[Any]: ...
+    def find_overloaded_agents(self) -> List[Any]: ...
+    def get_agent_load(self, agent_id: str) -> float: ...
+    def get_available_agents(self) -> List[Any]: ...
+    def initiate_handoff(self, from_agent: str, to_agent: str, **kwargs: Any) -> None: ...
+    def auto_auction(self, task: Any) -> Any: ...
+    def form_coalition(self, agents: List[str]) -> str: ...
+    def check_circuit(self, operation: str) -> bool: ...
+    def gossip_broadcast(self, message: Any) -> None: ...
+    def get_swarm_health(self) -> Dict[str, Any]: ...
 
 
 

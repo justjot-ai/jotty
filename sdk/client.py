@@ -531,7 +531,7 @@ class Jotty(EventEmitter):
         except Exception as e:
             # Fallback to ChatAssistant directly
             try:
-                from ..core.agents.chat_assistant import ChatAssistant
+                from ..core.interface.api.agents import ChatAssistant
                 assistant = ChatAssistant()
                 result = await assistant.run(goal=message)
                 return {
@@ -646,7 +646,7 @@ class Jotty(EventEmitter):
             logger.warning(f"ModeRouter failed, falling back to AutoAgent: {e}")
             # Fallback to AutoAgent directly
             try:
-                from ..core.agents.auto_agent import AutoAgent
+                from ..core.interface.api.agents import AutoAgent
                 agent = AutoAgent()
                 result = await agent.execute(goal)
                 return {
@@ -833,7 +833,7 @@ class Jotty(EventEmitter):
 
         try:
             if self._local_mode:
-                from ..core.registry import get_unified_registry
+                from ..core.interface.api.registry import get_unified_registry
                 registry = get_unified_registry()
                 skill = registry.get_skill(name)
                 if skill:
@@ -875,7 +875,7 @@ class Jotty(EventEmitter):
         try:
             if self._local_mode:
                 # Get agent from registry and execute
-                from ..core.agents import AutoAgent
+                from ..core.interface.api.agents import AutoAgent
                 agent = AutoAgent()
                 result = await agent.execute(task)
                 result_dict = {
@@ -927,7 +927,7 @@ class Jotty(EventEmitter):
     async def _get_skill_info(self, name: str) -> Dict[str, Any]:
         """Get skill information."""
         if self._local_mode:
-            from ..core.registry import get_unified_registry
+            from ..core.interface.api.registry import get_unified_registry
             registry = get_unified_registry()
             skill = registry.get_skill(name)
             if skill:
@@ -1029,7 +1029,7 @@ class Jotty(EventEmitter):
     async def list_skills(self) -> List[str]:
         """List available skills."""
         if self._local_mode:
-            from ..core.registry import get_unified_registry
+            from ..core.interface.api.registry import get_unified_registry
             registry = get_unified_registry()
             return registry.list_skills()
         else:

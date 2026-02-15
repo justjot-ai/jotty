@@ -29,7 +29,7 @@ from Jotty.core.infrastructure.foundation.exceptions import (
     ConsolidationError,
     LearningError,
 )
-from Jotty.core.modes.agent.base.inspector import ValidatorAgent, MultiRoundValidator
+from Jotty.core.modes.agent.tools.inspector import ValidatorAgent, MultiRoundValidator
 from Jotty.core.intelligence.memory.cortex import SwarmMemory
 from Jotty.core.infrastructure.utils.prompt_selector import get_prompt_selector, PromptSelector
 from Jotty.core.intelligence.orchestration.prompts import (

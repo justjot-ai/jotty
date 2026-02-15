@@ -45,7 +45,7 @@ class ZeroConfigAgentFactory:
         multiple for truly independent parallel sub-goals.
         MAS-ZERO: assigns per-subtask strategy via metadata.
         """
-        from Jotty.core.modes.agent.base.auto_agent import AutoAgent
+        from Jotty.core.modes.agent.implementations.auto_agent import AutoAgent
         import dspy
 
         _status = StatusReporter(status_callback, logger, emoji="")

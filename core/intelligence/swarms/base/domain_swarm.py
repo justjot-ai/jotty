@@ -659,7 +659,7 @@ class DomainSwarm(BaseSwarm):
         Returns:
             CompositeAgent wrapping this swarm
         """
-        from Jotty.core.modes.agent.base.composite_agent import CompositeAgent
+        from Jotty.core.modes.agent.implementations.composite_agent import CompositeAgent
         return CompositeAgent.from_swarm(self, signature=signature or self.SWARM_SIGNATURE)
 
     def __repr__(self) -> str:

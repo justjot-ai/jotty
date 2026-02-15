@@ -389,7 +389,7 @@ class TestDomainAgent:
     @pytest.mark.unit
     def test_extract_fields_from_signature(self, mock_signature):
         """DomainAgent extracts input/output fields from DSPy Signature."""
-        from Jotty.core.modes.agent.base.domain_agent import DomainAgent, DomainAgentConfig
+        from Jotty.core.modes.agent.implementations.domain_agent import DomainAgent, DomainAgentConfig
         config = DomainAgentConfig(name="test")
         agent = DomainAgent(mock_signature, config)
         assert 'task' in agent.input_fields
@@ -400,7 +400,7 @@ class TestDomainAgent:
     @pytest.mark.unit
     def test_input_fields_returns_copy(self, mock_signature):
         """input_fields property returns a copy, not a reference."""
-        from Jotty.core.modes.agent.base.domain_agent import DomainAgent, DomainAgentConfig
+        from Jotty.core.modes.agent.implementations.domain_agent import DomainAgent, DomainAgentConfig
         config = DomainAgentConfig(name="test")
         agent = DomainAgent(mock_signature, config)
         fields1 = agent.input_fields
@@ -413,7 +413,7 @@ class TestDomainAgent:
     @pytest.mark.unit
     def test_output_fields_returns_copy(self, mock_signature):
         """output_fields property returns a copy."""
-        from Jotty.core.modes.agent.base.domain_agent import DomainAgent, DomainAgentConfig
+        from Jotty.core.modes.agent.implementations.domain_agent import DomainAgent, DomainAgentConfig
         config = DomainAgentConfig(name="test")
         agent = DomainAgent(mock_signature, config)
         fields = agent.output_fields
@@ -423,7 +423,7 @@ class TestDomainAgent:
     @pytest.mark.unit
     def test_no_signature_empty_fields(self):
         """DomainAgent with signature=None has empty field lists."""
-        from Jotty.core.modes.agent.base.domain_agent import DomainAgent, DomainAgentConfig
+        from Jotty.core.modes.agent.implementations.domain_agent import DomainAgent, DomainAgentConfig
         config = DomainAgentConfig(name="test")
         agent = DomainAgent(None, config)
         assert agent.input_fields == []
@@ -432,7 +432,7 @@ class TestDomainAgent:
     @pytest.mark.unit
     def test_get_io_schema(self, mock_signature):
         """get_io_schema returns AgentIOSchema with correct fields."""
-        from Jotty.core.modes.agent.base.domain_agent import DomainAgent, DomainAgentConfig
+        from Jotty.core.modes.agent.implementations.domain_agent import DomainAgent, DomainAgentConfig
         config = DomainAgentConfig(name="test")
         agent = DomainAgent(mock_signature, config)
         schema = agent.get_io_schema()
@@ -444,7 +444,7 @@ class TestDomainAgent:
     @pytest.mark.unit
     def test_get_io_schema_cached(self, mock_signature):
         """get_io_schema caches result after first call."""
-        from Jotty.core.modes.agent.base.domain_agent import DomainAgent, DomainAgentConfig
+        from Jotty.core.modes.agent.implementations.domain_agent import DomainAgent, DomainAgentConfig
         config = DomainAgentConfig(name="test")
         agent = DomainAgent(mock_signature, config)
         schema1 = agent.get_io_schema()
@@ -454,7 +454,7 @@ class TestDomainAgent:
     @pytest.mark.unit
     def test_create_domain_agent_factory(self, mock_signature):
         """create_domain_agent factory returns configured DomainAgent."""
-        from Jotty.core.modes.agent.base.domain_agent import create_domain_agent
+        from Jotty.core.modes.agent.implementations.domain_agent import create_domain_agent
         agent = create_domain_agent(mock_signature, use_chain_of_thought=True)
         assert 'task' in agent.input_fields
         assert agent.config.use_chain_of_thought is True
@@ -462,14 +462,14 @@ class TestDomainAgent:
     @pytest.mark.unit
     def test_create_domain_agent_no_cot(self, mock_signature):
         """create_domain_agent with use_chain_of_thought=False."""
-        from Jotty.core.modes.agent.base.domain_agent import create_domain_agent
+        from Jotty.core.modes.agent.implementations.domain_agent import create_domain_agent
         agent = create_domain_agent(mock_signature, use_chain_of_thought=False)
         assert agent.config.use_chain_of_thought is False
 
     @pytest.mark.unit
     def test_domain_agent_config_defaults(self):
         """DomainAgentConfig has sensible defaults."""
-        from Jotty.core.modes.agent.base.domain_agent import DomainAgentConfig
+        from Jotty.core.modes.agent.implementations.domain_agent import DomainAgentConfig
         config = DomainAgentConfig()
         assert config.use_chain_of_thought is True
         assert config.use_react is False
@@ -478,7 +478,7 @@ class TestDomainAgent:
     @pytest.mark.unit
     def test_build_task_from_kwargs_query_key(self, mock_signature):
         """_build_task_from_kwargs extracts 'query' key."""
-        from Jotty.core.modes.agent.base.domain_agent import DomainAgent, DomainAgentConfig
+        from Jotty.core.modes.agent.implementations.domain_agent import DomainAgent, DomainAgentConfig
         config = DomainAgentConfig(name="test")
         agent = DomainAgent(mock_signature, config)
         result = agent._build_task_from_kwargs({"query": "search AI trends"})
@@ -487,7 +487,7 @@ class TestDomainAgent:
     @pytest.mark.unit
     def test_build_task_from_kwargs_fallback(self, mock_signature):
         """_build_task_from_kwargs concatenates string values as fallback."""
-        from Jotty.core.modes.agent.base.domain_agent import DomainAgent, DomainAgentConfig
+        from Jotty.core.modes.agent.implementations.domain_agent import DomainAgent, DomainAgentConfig
         config = DomainAgentConfig(name="test")
         agent = DomainAgent(mock_signature, config)
         result = agent._build_task_from_kwargs({"x": "hello", "y": "world"})
@@ -497,7 +497,7 @@ class TestDomainAgent:
     @pytest.mark.unit
     def test_build_task_from_kwargs_empty(self, mock_signature):
         """_build_task_from_kwargs returns empty for empty kwargs."""
-        from Jotty.core.modes.agent.base.domain_agent import DomainAgent, DomainAgentConfig
+        from Jotty.core.modes.agent.implementations.domain_agent import DomainAgent, DomainAgentConfig
         config = DomainAgentConfig(name="test")
         agent = DomainAgent(mock_signature, config)
         result = agent._build_task_from_kwargs({})
@@ -514,7 +514,7 @@ class TestUnifiedResult:
     @pytest.mark.unit
     def test_to_agent_result(self):
         """UnifiedResult converts to AgentResult."""
-        from Jotty.core.modes.agent.base.composite_agent import UnifiedResult
+        from Jotty.core.modes.agent.implementations.composite_agent import UnifiedResult
         from Jotty.core.modes.agent.base.base_agent import AgentResult
         ur = UnifiedResult(
             success=True, output="hello", name="TestAgent",
@@ -530,7 +530,7 @@ class TestUnifiedResult:
     @pytest.mark.unit
     def test_from_agent_result(self):
         """UnifiedResult creates from AgentResult."""
-        from Jotty.core.modes.agent.base.composite_agent import UnifiedResult
+        from Jotty.core.modes.agent.implementations.composite_agent import UnifiedResult
         from Jotty.core.modes.agent.base.base_agent import AgentResult
         ar = AgentResult(
             success=True, output="data", agent_name="A",
@@ -545,7 +545,7 @@ class TestUnifiedResult:
     @pytest.mark.unit
     def test_roundtrip_agent_result(self):
         """AgentResult → UnifiedResult → AgentResult preserves fields."""
-        from Jotty.core.modes.agent.base.composite_agent import UnifiedResult
+        from Jotty.core.modes.agent.implementations.composite_agent import UnifiedResult
         from Jotty.core.modes.agent.base.base_agent import AgentResult
         original = AgentResult(
             success=False, output=None, agent_name="B",
@@ -560,7 +560,7 @@ class TestUnifiedResult:
     @pytest.mark.unit
     def test_unified_result_defaults(self):
         """UnifiedResult has sensible defaults for optional fields."""
-        from Jotty.core.modes.agent.base.composite_agent import UnifiedResult
+        from Jotty.core.modes.agent.implementations.composite_agent import UnifiedResult
         ur = UnifiedResult(success=True, output="x", name="A", execution_time=0.1)
         assert ur.error is None
         assert ur.metadata == {}
@@ -592,7 +592,7 @@ class TestCompositeAgent:
     @pytest.mark.unit
     def test_create_default(self):
         """CompositeAgent creates with defaults."""
-        from Jotty.core.modes.agent.base.composite_agent import CompositeAgent
+        from Jotty.core.modes.agent.implementations.composite_agent import CompositeAgent
         agent = CompositeAgent()
         assert agent.config.name == "CompositeAgent"
         assert agent._sub_agents == {}
@@ -601,7 +601,7 @@ class TestCompositeAgent:
     @pytest.mark.unit
     def test_compose_factory(self):
         """compose() creates configured CompositeAgent from sub-agents."""
-        from Jotty.core.modes.agent.base.composite_agent import CompositeAgent, CoordinationPattern, MergeStrategy
+        from Jotty.core.modes.agent.implementations.composite_agent import CompositeAgent, CoordinationPattern, MergeStrategy
         a = self._make_sub_agent("a")
         b = self._make_sub_agent("b")
         composite = CompositeAgent.compose(
@@ -616,7 +616,7 @@ class TestCompositeAgent:
     @pytest.mark.unit
     def test_compose_pipeline_timeout_is_sum(self):
         """Pipeline timeout is sum of sub-agent timeouts."""
-        from Jotty.core.modes.agent.base.composite_agent import CompositeAgent, CoordinationPattern
+        from Jotty.core.modes.agent.implementations.composite_agent import CompositeAgent, CoordinationPattern
         a = self._make_sub_agent("a")
         a.config.timeout = 10.0
         b = self._make_sub_agent("b")
@@ -627,7 +627,7 @@ class TestCompositeAgent:
     @pytest.mark.unit
     def test_compose_parallel_timeout_is_max(self):
         """Parallel timeout is max of sub-agent timeouts."""
-        from Jotty.core.modes.agent.base.composite_agent import CompositeAgent, CoordinationPattern
+        from Jotty.core.modes.agent.implementations.composite_agent import CompositeAgent, CoordinationPattern
         a = self._make_sub_agent("a")
         a.config.timeout = 10.0
         b = self._make_sub_agent("b")
@@ -638,7 +638,7 @@ class TestCompositeAgent:
     @pytest.mark.unit
     def test_add_remove_get_agent(self):
         """add_agent/remove_agent/get_agent manage sub-agents."""
-        from Jotty.core.modes.agent.base.composite_agent import CompositeAgent
+        from Jotty.core.modes.agent.implementations.composite_agent import CompositeAgent
         composite = CompositeAgent()
         a = self._make_sub_agent("a")
         composite.add_agent("alpha", a)
@@ -649,7 +649,7 @@ class TestCompositeAgent:
     @pytest.mark.unit
     def test_add_agent_returns_self(self):
         """add_agent returns self for chaining."""
-        from Jotty.core.modes.agent.base.composite_agent import CompositeAgent
+        from Jotty.core.modes.agent.implementations.composite_agent import CompositeAgent
         composite = CompositeAgent()
         result = composite.add_agent("x", self._make_sub_agent())
         assert result is composite
@@ -657,7 +657,7 @@ class TestCompositeAgent:
     @pytest.mark.unit
     def test_sub_agents_returns_copy(self):
         """sub_agents property returns a copy, not the internal dict."""
-        from Jotty.core.modes.agent.base.composite_agent import CompositeAgent
+        from Jotty.core.modes.agent.implementations.composite_agent import CompositeAgent
         composite = CompositeAgent()
         composite.add_agent("x", self._make_sub_agent())
         snapshot = composite.sub_agents
@@ -667,7 +667,7 @@ class TestCompositeAgent:
     @pytest.mark.unit
     def test_merge_outputs_combine(self):
         """_merge_outputs with COMBINE returns dict of outputs."""
-        from Jotty.core.modes.agent.base.composite_agent import CompositeAgent, CompositeAgentConfig, MergeStrategy
+        from Jotty.core.modes.agent.implementations.composite_agent import CompositeAgent, CompositeAgentConfig, MergeStrategy
         config = CompositeAgentConfig(merge_strategy=MergeStrategy.COMBINE)
         agent = CompositeAgent(config=config)
         merged = agent._merge_outputs({"a": "result_a", "b": "result_b"})
@@ -676,7 +676,7 @@ class TestCompositeAgent:
     @pytest.mark.unit
     def test_merge_outputs_first(self):
         """_merge_outputs with FIRST returns first value."""
-        from Jotty.core.modes.agent.base.composite_agent import CompositeAgent, CompositeAgentConfig, MergeStrategy
+        from Jotty.core.modes.agent.implementations.composite_agent import CompositeAgent, CompositeAgentConfig, MergeStrategy
         config = CompositeAgentConfig(merge_strategy=MergeStrategy.FIRST)
         agent = CompositeAgent(config=config)
         merged = agent._merge_outputs({"a": "first", "b": "second"})
@@ -685,7 +685,7 @@ class TestCompositeAgent:
     @pytest.mark.unit
     def test_merge_outputs_concat(self):
         """_merge_outputs with CONCAT joins string representations."""
-        from Jotty.core.modes.agent.base.composite_agent import CompositeAgent, CompositeAgentConfig, MergeStrategy
+        from Jotty.core.modes.agent.implementations.composite_agent import CompositeAgent, CompositeAgentConfig, MergeStrategy
         config = CompositeAgentConfig(merge_strategy=MergeStrategy.CONCAT)
         agent = CompositeAgent(config=config)
         merged = agent._merge_outputs({"a": "hello", "b": "world"})
@@ -695,7 +695,7 @@ class TestCompositeAgent:
     @pytest.mark.unit
     def test_merge_outputs_best(self):
         """_merge_outputs with BEST returns longest output."""
-        from Jotty.core.modes.agent.base.composite_agent import CompositeAgent, CompositeAgentConfig, MergeStrategy
+        from Jotty.core.modes.agent.implementations.composite_agent import CompositeAgent, CompositeAgentConfig, MergeStrategy
         config = CompositeAgentConfig(merge_strategy=MergeStrategy.BEST)
         agent = CompositeAgent(config=config)
         merged = agent._merge_outputs({"a": "short", "b": "this is longer"})
@@ -704,7 +704,7 @@ class TestCompositeAgent:
     @pytest.mark.unit
     def test_merge_outputs_empty(self):
         """_merge_outputs with empty dict returns None."""
-        from Jotty.core.modes.agent.base.composite_agent import CompositeAgent
+        from Jotty.core.modes.agent.implementations.composite_agent import CompositeAgent
         agent = CompositeAgent()
         assert agent._merge_outputs({}) is None
 
@@ -712,7 +712,7 @@ class TestCompositeAgent:
     @pytest.mark.asyncio
     async def test_orchestrate_no_agents_fails(self):
         """_orchestrate with no sub-agents returns failure."""
-        from Jotty.core.modes.agent.base.composite_agent import CompositeAgent, UnifiedResult
+        from Jotty.core.modes.agent.implementations.composite_agent import CompositeAgent, UnifiedResult
         agent = CompositeAgent()
         result = await agent._orchestrate()
         assert isinstance(result, UnifiedResult)
@@ -723,7 +723,7 @@ class TestCompositeAgent:
     @pytest.mark.asyncio
     async def test_execute_pipeline_success(self):
         """Pipeline executes sub-agents sequentially."""
-        from Jotty.core.modes.agent.base.composite_agent import CompositeAgent, CoordinationPattern
+        from Jotty.core.modes.agent.implementations.composite_agent import CompositeAgent, CoordinationPattern
         a = self._make_sub_agent("a", output="from_a")
         b = self._make_sub_agent("b", output="from_b")
         composite = CompositeAgent.compose(
@@ -737,7 +737,7 @@ class TestCompositeAgent:
     @pytest.mark.asyncio
     async def test_execute_pipeline_fails_at_stage(self):
         """Pipeline stops and reports failure when a stage fails."""
-        from Jotty.core.modes.agent.base.composite_agent import CompositeAgent, CoordinationPattern
+        from Jotty.core.modes.agent.implementations.composite_agent import CompositeAgent, CoordinationPattern
         a = self._make_sub_agent("a", output="ok")
         b = self._make_sub_agent("b", success=False, error="stage_b_error")
         composite = CompositeAgent.compose(
@@ -752,7 +752,7 @@ class TestCompositeAgent:
     @pytest.mark.asyncio
     async def test_execute_parallel_success(self):
         """Parallel executes all sub-agents concurrently."""
-        from Jotty.core.modes.agent.base.composite_agent import CompositeAgent, CoordinationPattern
+        from Jotty.core.modes.agent.implementations.composite_agent import CompositeAgent, CoordinationPattern
         a = self._make_sub_agent("a", output="result_a")
         b = self._make_sub_agent("b", output="result_b")
         composite = CompositeAgent.compose(
@@ -766,7 +766,7 @@ class TestCompositeAgent:
     @pytest.mark.asyncio
     async def test_execute_consensus_majority(self):
         """Consensus succeeds when majority of agents succeed."""
-        from Jotty.core.modes.agent.base.composite_agent import CompositeAgent, CoordinationPattern
+        from Jotty.core.modes.agent.implementations.composite_agent import CompositeAgent, CoordinationPattern
         a = self._make_sub_agent("a", output="yes")
         b = self._make_sub_agent("b", output="yes")
         c = self._make_sub_agent("c", success=False, error="no")
@@ -780,7 +780,7 @@ class TestCompositeAgent:
     @pytest.mark.unit
     def test_to_dict(self):
         """to_dict includes composite-specific fields."""
-        from Jotty.core.modes.agent.base.composite_agent import CompositeAgent, CoordinationPattern
+        from Jotty.core.modes.agent.implementations.composite_agent import CompositeAgent, CoordinationPattern
         a = self._make_sub_agent("a")
         composite = CompositeAgent.compose("Test", coordination=CoordinationPattern.PIPELINE, a=a)
         d = composite.to_dict()
@@ -792,7 +792,7 @@ class TestCompositeAgent:
     @pytest.mark.unit
     def test_repr_with_agents(self):
         """__repr__ shows name and agent list."""
-        from Jotty.core.modes.agent.base.composite_agent import CompositeAgent
+        from Jotty.core.modes.agent.implementations.composite_agent import CompositeAgent
         composite = CompositeAgent()
         composite.add_agent("x", self._make_sub_agent("x"))
         r = repr(composite)
@@ -802,7 +802,7 @@ class TestCompositeAgent:
     @pytest.mark.unit
     def test_extract_output_nested_unified(self):
         """_extract_output unwraps nested UnifiedResult."""
-        from Jotty.core.modes.agent.base.composite_agent import CompositeAgent, UnifiedResult
+        from Jotty.core.modes.agent.implementations.composite_agent import CompositeAgent, UnifiedResult
         from Jotty.core.modes.agent.base.base_agent import AgentResult
         inner_unified = UnifiedResult(
             success=True, output="inner_data", name="inner",
@@ -816,7 +816,7 @@ class TestCompositeAgent:
     @pytest.mark.unit
     def test_extract_output_plain(self):
         """_extract_output returns plain output and metadata."""
-        from Jotty.core.modes.agent.base.composite_agent import CompositeAgent
+        from Jotty.core.modes.agent.implementations.composite_agent import CompositeAgent
         from Jotty.core.modes.agent.base.base_agent import AgentResult
         ar = AgentResult(success=True, output="plain", agent_name="A", execution_time=1.0, metadata={"k": "v"})
         output, meta = CompositeAgent._extract_output(ar)
@@ -834,7 +834,7 @@ class TestMetaAgent:
     @pytest.mark.unit
     def test_create_default(self):
         """MetaAgent creates with defaults."""
-        from Jotty.core.modes.agent.base.meta_agent import MetaAgent
+        from Jotty.core.modes.agent.implementations.meta_agent import MetaAgent
         agent = MetaAgent()
         assert agent.config.name == "MetaAgent"
         assert agent.gold_db is None
@@ -843,7 +843,7 @@ class TestMetaAgent:
     @pytest.mark.unit
     def test_create_with_config(self):
         """MetaAgent respects custom config."""
-        from Jotty.core.modes.agent.base.meta_agent import MetaAgent, MetaAgentConfig
+        from Jotty.core.modes.agent.implementations.meta_agent import MetaAgent, MetaAgentConfig
         config = MetaAgentConfig(
             name="CustomMeta",
             improvement_threshold=0.9,
@@ -858,7 +858,7 @@ class TestMetaAgent:
     @pytest.mark.asyncio
     async def test_evaluate_no_gold_db(self):
         """evaluate_against_gold returns default when no gold_db."""
-        from Jotty.core.modes.agent.base.meta_agent import MetaAgent
+        from Jotty.core.modes.agent.implementations.meta_agent import MetaAgent
         agent = MetaAgent()
         result = await agent.evaluate_against_gold("test_id", {"answer": "42"})
         assert result["overall_score"] == 0.5
@@ -869,7 +869,7 @@ class TestMetaAgent:
     @pytest.mark.asyncio
     async def test_evaluate_gold_not_found(self):
         """evaluate_against_gold returns failed when gold standard not in db."""
-        from Jotty.core.modes.agent.base.meta_agent import MetaAgent
+        from Jotty.core.modes.agent.implementations.meta_agent import MetaAgent
         mock_db = MagicMock()
         mock_db.get.return_value = None
         agent = MetaAgent(gold_db=mock_db)
@@ -880,7 +880,7 @@ class TestMetaAgent:
     @pytest.mark.unit
     def test_simple_evaluation_exact_match(self):
         """_simple_evaluation gives 1.0 for exact field matches."""
-        from Jotty.core.modes.agent.base.meta_agent import MetaAgent
+        from Jotty.core.modes.agent.implementations.meta_agent import MetaAgent
         agent = MetaAgent()
         gold = MagicMock()
         gold.id = "g1"
@@ -892,7 +892,7 @@ class TestMetaAgent:
     @pytest.mark.unit
     def test_simple_evaluation_partial_string(self):
         """_simple_evaluation computes word overlap for partial string match."""
-        from Jotty.core.modes.agent.base.meta_agent import MetaAgent
+        from Jotty.core.modes.agent.implementations.meta_agent import MetaAgent
         agent = MetaAgent()
         gold = MagicMock()
         gold.id = "g1"
@@ -904,7 +904,7 @@ class TestMetaAgent:
     @pytest.mark.unit
     def test_simple_evaluation_missing_field(self):
         """_simple_evaluation gives 0.0 for missing fields."""
-        from Jotty.core.modes.agent.base.meta_agent import MetaAgent
+        from Jotty.core.modes.agent.implementations.meta_agent import MetaAgent
         agent = MetaAgent()
         gold = MagicMock()
         gold.id = "g1"
@@ -916,7 +916,7 @@ class TestMetaAgent:
     @pytest.mark.asyncio
     async def test_extract_learnings_not_excellent(self):
         """extract_learnings returns empty for non-excellent results."""
-        from Jotty.core.modes.agent.base.meta_agent import MetaAgent
+        from Jotty.core.modes.agent.implementations.meta_agent import MetaAgent
         agent = MetaAgent()
         result = await agent.extract_learnings(
             {"task": "x"}, {"output": "y"},
@@ -928,7 +928,7 @@ class TestMetaAgent:
     @pytest.mark.asyncio
     async def test_extract_learnings_good_no_dspy(self):
         """extract_learnings returns simple learnings for good results without DSPy."""
-        from Jotty.core.modes.agent.base.meta_agent import MetaAgent
+        from Jotty.core.modes.agent.implementations.meta_agent import MetaAgent
         agent = MetaAgent()
         result = await agent.extract_learnings(
             {"task": "x"}, {"output": "y"},
@@ -941,7 +941,7 @@ class TestMetaAgent:
     @pytest.mark.asyncio
     async def test_analyze_empty_evaluations(self):
         """analyze_and_suggest_improvements returns empty for no evaluations."""
-        from Jotty.core.modes.agent.base.meta_agent import MetaAgent
+        from Jotty.core.modes.agent.implementations.meta_agent import MetaAgent
         agent = MetaAgent()
         result = await agent.analyze_and_suggest_improvements([])
         assert result == []
@@ -950,7 +950,7 @@ class TestMetaAgent:
     @pytest.mark.asyncio
     async def test_analyze_no_dspy_module(self):
         """analyze_and_suggest_improvements returns empty without DSPy module."""
-        from Jotty.core.modes.agent.base.meta_agent import MetaAgent
+        from Jotty.core.modes.agent.implementations.meta_agent import MetaAgent
         agent = MetaAgent()
         result = await agent.analyze_and_suggest_improvements([{"score": 0.5}])
         assert result == []
@@ -958,7 +958,7 @@ class TestMetaAgent:
     @pytest.mark.unit
     def test_get_agent_state_no_context(self):
         """get_agent_state returns None when context is None."""
-        from Jotty.core.modes.agent.base.meta_agent import MetaAgent
+        from Jotty.core.modes.agent.implementations.meta_agent import MetaAgent
         agent = MetaAgent()
         agent._context_manager = None
         agent.config.enable_context = False
@@ -967,7 +967,7 @@ class TestMetaAgent:
     @pytest.mark.unit
     def test_get_agent_state_with_context(self):
         """get_agent_state retrieves from shared context."""
-        from Jotty.core.modes.agent.base.meta_agent import MetaAgent
+        from Jotty.core.modes.agent.implementations.meta_agent import MetaAgent
         agent = MetaAgent()
         mock_ctx = MagicMock()
         mock_ctx.get.return_value = {"AgentA": {"score": 0.9}}
@@ -978,7 +978,7 @@ class TestMetaAgent:
     @pytest.mark.unit
     def test_publish_state(self):
         """publish_state writes to shared context."""
-        from Jotty.core.modes.agent.base.meta_agent import MetaAgent
+        from Jotty.core.modes.agent.implementations.meta_agent import MetaAgent
         agent = MetaAgent()
         mock_ctx = MagicMock()
         mock_ctx.get.return_value = {}
@@ -992,7 +992,7 @@ class TestMetaAgent:
     @pytest.mark.unit
     def test_get_all_agent_states_no_context(self):
         """get_all_agent_states returns empty dict when no context."""
-        from Jotty.core.modes.agent.base.meta_agent import MetaAgent
+        from Jotty.core.modes.agent.implementations.meta_agent import MetaAgent
         agent = MetaAgent()
         agent._context_manager = None
         agent.config.enable_context = False
@@ -1001,7 +1001,7 @@ class TestMetaAgent:
     @pytest.mark.unit
     def test_create_meta_agent_factory(self):
         """create_meta_agent factory returns configured MetaAgent."""
-        from Jotty.core.modes.agent.base.meta_agent import create_meta_agent
+        from Jotty.core.modes.agent.implementations.meta_agent import create_meta_agent
         agent = create_meta_agent()
         assert isinstance(agent, type(agent))  # MetaAgent
         assert agent.config.name == "MetaAgent"
@@ -1010,7 +1010,7 @@ class TestMetaAgent:
     def test_create_meta_agent_with_signature(self):
         """create_meta_agent with signature includes name in config."""
         import dspy
-        from Jotty.core.modes.agent.base.meta_agent import create_meta_agent
+        from Jotty.core.modes.agent.implementations.meta_agent import create_meta_agent
         class TestSig(dspy.Signature):
             """Test signature."""
             task: str = dspy.InputField()
@@ -1021,7 +1021,7 @@ class TestMetaAgent:
     @pytest.mark.unit
     def test_meta_agent_config_defaults(self):
         """MetaAgentConfig has sensible defaults."""
-        from Jotty.core.modes.agent.base.meta_agent import MetaAgentConfig
+        from Jotty.core.modes.agent.implementations.meta_agent import MetaAgentConfig
         config = MetaAgentConfig()
         assert config.enable_gold_db is True
         assert config.enable_improvement_history is True
@@ -2075,7 +2075,7 @@ class TestAutonomousAgent:
     @pytest.mark.unit
     def test_autonomous_agent_config_defaults(self):
         """AutonomousAgentConfig has correct defaults."""
-        from Jotty.core.modes.agent.base.autonomous_agent import AutonomousAgentConfig
+        from Jotty.core.modes.agent.implementations.autonomous_agent import AutonomousAgentConfig
         config = AutonomousAgentConfig()
         assert config.max_steps == 10
         assert config.enable_replanning is False
@@ -2089,7 +2089,7 @@ class TestAutonomousAgent:
     @pytest.mark.unit
     def test_autonomous_agent_config_custom(self):
         """AutonomousAgentConfig accepts custom values."""
-        from Jotty.core.modes.agent.base.autonomous_agent import AutonomousAgentConfig
+        from Jotty.core.modes.agent.implementations.autonomous_agent import AutonomousAgentConfig
         config = AutonomousAgentConfig(
             max_steps=20,
             enable_replanning=True,
@@ -2112,7 +2112,7 @@ class TestAutonomousAgent:
     @pytest.mark.unit
     def test_autonomous_agent_forces_enable_skills(self):
         """AutonomousAgent constructor forces enable_skills=True."""
-        from Jotty.core.modes.agent.base.autonomous_agent import (
+        from Jotty.core.modes.agent.implementations.autonomous_agent import (
             AutonomousAgent, AutonomousAgentConfig,
         )
         config = AutonomousAgentConfig(name="TestAuto", enable_skills=False)
@@ -2122,14 +2122,14 @@ class TestAutonomousAgent:
     @pytest.mark.unit
     def test_autonomous_agent_default_name(self):
         """AutonomousAgent uses class name when no config provided."""
-        from Jotty.core.modes.agent.base.autonomous_agent import AutonomousAgent
+        from Jotty.core.modes.agent.implementations.autonomous_agent import AutonomousAgent
         agent = AutonomousAgent()
         assert agent.config.name == "AutonomousAgent"
 
     @pytest.mark.unit
     def test_execution_context_manager_empty(self):
         """ExecutionContextManager starts empty."""
-        from Jotty.core.modes.agent.base.autonomous_agent import ExecutionContextManager
+        from Jotty.core.modes.agent.implementations.autonomous_agent import ExecutionContextManager
         ctx = ExecutionContextManager()
         assert ctx.get_context() == []
         assert ctx.get_trajectory() == []
@@ -2137,7 +2137,7 @@ class TestAutonomousAgent:
     @pytest.mark.unit
     def test_execution_context_manager_add_step(self):
         """add_step appends to history."""
-        from Jotty.core.modes.agent.base.autonomous_agent import ExecutionContextManager
+        from Jotty.core.modes.agent.implementations.autonomous_agent import ExecutionContextManager
         ctx = ExecutionContextManager()
         ctx.add_step({"step": 0, "output": "hello"})
         ctx.add_step({"step": 1, "output": "world"})
@@ -2148,7 +2148,7 @@ class TestAutonomousAgent:
     @pytest.mark.unit
     def test_execution_context_manager_get_context_returns_copy(self):
         """get_context returns a copy, not the internal list."""
-        from Jotty.core.modes.agent.base.autonomous_agent import ExecutionContextManager
+        from Jotty.core.modes.agent.implementations.autonomous_agent import ExecutionContextManager
         ctx = ExecutionContextManager()
         ctx.add_step({"step": 0})
         snapshot = ctx.get_context()
@@ -2158,7 +2158,7 @@ class TestAutonomousAgent:
     @pytest.mark.unit
     def test_execution_context_manager_get_trajectory_excludes_compressed(self):
         """get_trajectory returns only uncompressed steps."""
-        from Jotty.core.modes.agent.base.autonomous_agent import ExecutionContextManager
+        from Jotty.core.modes.agent.implementations.autonomous_agent import ExecutionContextManager
         ctx = ExecutionContextManager()
         # Manually inject a compressed entry
         ctx._history.append({"_compressed": True, "summary": "old stuff"})
@@ -2170,7 +2170,7 @@ class TestAutonomousAgent:
     @pytest.mark.unit
     def test_execution_context_manager_compression_trigger(self):
         """Compression triggers when total chars exceed max_history_size."""
-        from Jotty.core.modes.agent.base.autonomous_agent import ExecutionContextManager
+        from Jotty.core.modes.agent.implementations.autonomous_agent import ExecutionContextManager
         ctx = ExecutionContextManager(max_history_size=500)
         # Add enough data to trigger compression
         for i in range(20):
@@ -2184,7 +2184,7 @@ class TestAutonomousAgent:
     @pytest.mark.unit
     def test_execution_context_manager_compression_preserves_recent(self):
         """Compression keeps recent entries intact."""
-        from Jotty.core.modes.agent.base.autonomous_agent import ExecutionContextManager
+        from Jotty.core.modes.agent.implementations.autonomous_agent import ExecutionContextManager
         ctx = ExecutionContextManager(max_history_size=500)
         for i in range(20):
             ctx.add_step({"step": i, "output": "X" * 50})
@@ -2198,7 +2198,7 @@ class TestAutonomousAgent:
     @pytest.mark.unit
     def test_execution_context_manager_no_compression_when_small(self):
         """No compression when below threshold."""
-        from Jotty.core.modes.agent.base.autonomous_agent import ExecutionContextManager
+        from Jotty.core.modes.agent.implementations.autonomous_agent import ExecutionContextManager
         ctx = ExecutionContextManager(max_history_size=100_000)
         for i in range(5):
             ctx.add_step({"step": i, "output": "short"})
@@ -2209,7 +2209,7 @@ class TestAutonomousAgent:
     @pytest.mark.unit
     def test_create_autonomous_agent_factory(self):
         """create_autonomous_agent returns configured AutonomousAgent."""
-        from Jotty.core.modes.agent.base.autonomous_agent import create_autonomous_agent
+        from Jotty.core.modes.agent.implementations.autonomous_agent import create_autonomous_agent
         agent = create_autonomous_agent(max_steps=15, enable_replanning=True)
         assert agent.config.name == "AutonomousAgent"
         assert agent.config.max_steps == 15
@@ -2218,7 +2218,7 @@ class TestAutonomousAgent:
     @pytest.mark.unit
     def test_create_autonomous_agent_factory_with_skill_filter(self):
         """create_autonomous_agent respects skill_filter."""
-        from Jotty.core.modes.agent.base.autonomous_agent import create_autonomous_agent
+        from Jotty.core.modes.agent.implementations.autonomous_agent import create_autonomous_agent
         agent = create_autonomous_agent(skill_filter="research")
         assert agent.config.skill_filter == "research"
 
@@ -2226,7 +2226,7 @@ class TestAutonomousAgent:
     def test_build_result_success(self):
         """_build_result produces correct success dict."""
         import time
-        from Jotty.core.modes.agent.base.autonomous_agent import AutonomousAgent
+        from Jotty.core.modes.agent.implementations.autonomous_agent import AutonomousAgent
         start_time = time.time()
         result = AutonomousAgent._build_result(
             task="test task",
@@ -2249,7 +2249,7 @@ class TestAutonomousAgent:
     def test_build_result_failure(self):
         """_build_result produces failure when errors present."""
         import time
-        from Jotty.core.modes.agent.base.autonomous_agent import AutonomousAgent
+        from Jotty.core.modes.agent.implementations.autonomous_agent import AutonomousAgent
         start_time = time.time()
         result = AutonomousAgent._build_result(
             task="failing task",
@@ -2268,7 +2268,7 @@ class TestAutonomousAgent:
     def test_build_result_too_hard(self):
         """_build_result includes too_hard flag."""
         import time
-        from Jotty.core.modes.agent.base.autonomous_agent import AutonomousAgent
+        from Jotty.core.modes.agent.implementations.autonomous_agent import AutonomousAgent
         start_time = time.time()
         result = AutonomousAgent._build_result(
             task="impossible",
@@ -3402,7 +3402,7 @@ class TestChatAssistant:
     @pytest.mark.unit
     def test_chat_assistant_creation(self):
         """ChatAssistant creates with default config."""
-        from Jotty.core.modes.agent.base.chat_assistant import ChatAssistant
+        from Jotty.core.modes.agent.implementations.chat_assistant import ChatAssistant
         assistant = ChatAssistant()
         assert assistant.state_manager is None
         assert assistant.config == {}
@@ -3410,7 +3410,7 @@ class TestChatAssistant:
     @pytest.mark.unit
     def test_chat_assistant_with_state_manager(self):
         """ChatAssistant stores state_manager reference."""
-        from Jotty.core.modes.agent.base.chat_assistant import ChatAssistant
+        from Jotty.core.modes.agent.implementations.chat_assistant import ChatAssistant
         mock_sm = MagicMock()
         assistant = ChatAssistant(state_manager=mock_sm)
         assert assistant.state_manager is mock_sm
@@ -3418,7 +3418,7 @@ class TestChatAssistant:
     @pytest.mark.unit
     def test_is_task_query_positive(self):
         """_is_task_query detects task-related keywords."""
-        from Jotty.core.modes.agent.base.chat_assistant import ChatAssistant
+        from Jotty.core.modes.agent.implementations.chat_assistant import ChatAssistant
         assistant = ChatAssistant()
         assert assistant._is_task_query("show me all tasks") is True
         assert assistant._is_task_query("what is in the backlog") is True
@@ -3431,7 +3431,7 @@ class TestChatAssistant:
     @pytest.mark.unit
     def test_is_task_query_negative(self):
         """_is_task_query rejects non-task queries."""
-        from Jotty.core.modes.agent.base.chat_assistant import ChatAssistant
+        from Jotty.core.modes.agent.implementations.chat_assistant import ChatAssistant
         assistant = ChatAssistant()
         assert assistant._is_task_query("hello world") is False
         assert assistant._is_task_query("what is the weather") is False
@@ -3440,7 +3440,7 @@ class TestChatAssistant:
     @pytest.mark.unit
     def test_is_status_query_positive(self):
         """_is_status_query detects status-related keywords."""
-        from Jotty.core.modes.agent.base.chat_assistant import ChatAssistant
+        from Jotty.core.modes.agent.implementations.chat_assistant import ChatAssistant
         assistant = ChatAssistant()
         assert assistant._is_status_query("system status") is True
         assert assistant._is_status_query("health check") is True
@@ -3449,7 +3449,7 @@ class TestChatAssistant:
     @pytest.mark.unit
     def test_is_status_query_negative(self):
         """_is_status_query rejects non-status queries."""
-        from Jotty.core.modes.agent.base.chat_assistant import ChatAssistant
+        from Jotty.core.modes.agent.implementations.chat_assistant import ChatAssistant
         assistant = ChatAssistant()
         assert assistant._is_status_query("hello") is False
         assert assistant._is_status_query("show tasks") is False
@@ -3457,7 +3457,7 @@ class TestChatAssistant:
     @pytest.mark.unit
     def test_is_help_query_positive(self):
         """_is_help_query detects help-related keywords."""
-        from Jotty.core.modes.agent.base.chat_assistant import ChatAssistant
+        from Jotty.core.modes.agent.implementations.chat_assistant import ChatAssistant
         assistant = ChatAssistant()
         assert assistant._is_help_query("help me") is True
         assert assistant._is_help_query("how do I do this") is True
@@ -3467,7 +3467,7 @@ class TestChatAssistant:
     @pytest.mark.unit
     def test_is_help_query_negative(self):
         """_is_help_query rejects non-help queries."""
-        from Jotty.core.modes.agent.base.chat_assistant import ChatAssistant
+        from Jotty.core.modes.agent.implementations.chat_assistant import ChatAssistant
         assistant = ChatAssistant()
         assert assistant._is_help_query("hello") is False
         assert assistant._is_help_query("list tasks") is False
@@ -3476,7 +3476,7 @@ class TestChatAssistant:
     @pytest.mark.unit
     def test_handle_help_query_returns_card(self):
         """_handle_help_query returns a card with help text."""
-        from Jotty.core.modes.agent.base.chat_assistant import ChatAssistant
+        from Jotty.core.modes.agent.implementations.chat_assistant import ChatAssistant
         assistant = ChatAssistant()
         result = assistant._handle_help_query()
         assert isinstance(result, dict)
@@ -3486,7 +3486,7 @@ class TestChatAssistant:
     @pytest.mark.unit
     def test_handle_general_query(self):
         """_handle_general_query returns text response."""
-        from Jotty.core.modes.agent.base.chat_assistant import ChatAssistant
+        from Jotty.core.modes.agent.implementations.chat_assistant import ChatAssistant
         assistant = ChatAssistant()
         result = assistant._handle_general_query("hello world")
         assert isinstance(result, dict)
@@ -3494,7 +3494,7 @@ class TestChatAssistant:
     @pytest.mark.unit
     def test_task_to_dict_from_dict(self):
         """_task_to_dict returns dict unchanged."""
-        from Jotty.core.modes.agent.base.chat_assistant import ChatAssistant
+        from Jotty.core.modes.agent.implementations.chat_assistant import ChatAssistant
         assistant = ChatAssistant()
         task_dict = {"task_id": "1", "title": "Test", "status": "backlog"}
         assert assistant._task_to_dict(task_dict) is task_dict
@@ -3502,7 +3502,7 @@ class TestChatAssistant:
     @pytest.mark.unit
     def test_task_to_dict_from_object(self):
         """_task_to_dict converts object with attributes to dict."""
-        from Jotty.core.modes.agent.base.chat_assistant import ChatAssistant
+        from Jotty.core.modes.agent.implementations.chat_assistant import ChatAssistant
         assistant = ChatAssistant()
         mock_task = MagicMock()
         mock_task.task_id = "T-001"
@@ -3521,7 +3521,7 @@ class TestChatAssistant:
     @pytest.mark.asyncio
     async def test_run_no_goal_returns_summary(self):
         """run() with no goal returns task summary widget."""
-        from Jotty.core.modes.agent.base.chat_assistant import ChatAssistant
+        from Jotty.core.modes.agent.implementations.chat_assistant import ChatAssistant
         assistant = ChatAssistant()
         # With no state_manager, _fetch_tasks returns empty
         result = await assistant.run()
@@ -3531,7 +3531,7 @@ class TestChatAssistant:
     @pytest.mark.asyncio
     async def test_run_help_query(self):
         """run() routes help queries to _handle_help_query."""
-        from Jotty.core.modes.agent.base.chat_assistant import ChatAssistant
+        from Jotty.core.modes.agent.implementations.chat_assistant import ChatAssistant
         assistant = ChatAssistant()
         result = await assistant.run(goal="help me understand")
         assert isinstance(result, dict)
@@ -3540,7 +3540,7 @@ class TestChatAssistant:
     @pytest.mark.asyncio
     async def test_run_status_query(self):
         """run() routes status queries to _handle_status_query."""
-        from Jotty.core.modes.agent.base.chat_assistant import ChatAssistant
+        from Jotty.core.modes.agent.implementations.chat_assistant import ChatAssistant
         assistant = ChatAssistant()
         result = await assistant.run(goal="system status")
         assert isinstance(result, dict)
@@ -3548,7 +3548,7 @@ class TestChatAssistant:
     @pytest.mark.unit
     def test_create_chat_assistant_no_api_key(self):
         """create_chat_assistant falls back to V1 without API key."""
-        from Jotty.core.modes.agent.base.chat_assistant import create_chat_assistant, ChatAssistant
+        from Jotty.core.modes.agent.implementations.chat_assistant import create_chat_assistant, ChatAssistant
         with patch.dict('os.environ', {}, clear=True):
             # Remove ANTHROPIC_API_KEY if present
             import os

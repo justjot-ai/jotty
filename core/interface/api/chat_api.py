@@ -11,7 +11,7 @@ from Jotty.core.modes.use_cases.chat import ChatUseCase, ChatMessage
 from Jotty.core.intelligence.orchestration import Orchestrator
 from Jotty.core.infrastructure.foundation.data_structures import SwarmLearningConfig
 from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
-from Jotty.core.modes.agent.base.chat_assistant import create_chat_assistant
+from Jotty.core.modes.agent.implementations.chat_assistant import create_chat_assistant
 
 logger = logging.getLogger(__name__)
 

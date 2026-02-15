@@ -12,7 +12,7 @@ import pytest
 import string
 from unittest.mock import Mock, AsyncMock, patch, MagicMock
 
-from Jotty.core.modes.agent.base.skill_plan_executor import ParameterResolver, SkillPlanExecutor
+from Jotty.core.modes.agent.executors.skill_plan_executor import ParameterResolver, SkillPlanExecutor
 
 
 # =============================================================================
@@ -302,12 +302,12 @@ class TestToolCallCache:
     """Tests for the ToolCallCache class."""
 
     def _make_cache(self, **kwargs):
-        from Jotty.core.modes.agent.base.skill_plan_executor import ToolCallCache
+        from Jotty.core.modes.agent.executors.skill_plan_executor import ToolCallCache
         return ToolCallCache(**kwargs)
 
     def test_make_key_returns_md5_hex_string(self):
         """make_key returns a 32-char hex string (MD5 digest)."""
-        from Jotty.core.modes.agent.base.skill_plan_executor import ToolCallCache
+        from Jotty.core.modes.agent.executors.skill_plan_executor import ToolCallCache
         key = ToolCallCache.make_key("web-search", "search_web_tool", {"query": "AI"})
         assert isinstance(key, str)
         assert len(key) == 32
@@ -316,14 +316,14 @@ class TestToolCallCache:
 
     def test_make_key_is_deterministic(self):
         """Same inputs always produce the same cache key."""
-        from Jotty.core.modes.agent.base.skill_plan_executor import ToolCallCache
+        from Jotty.core.modes.agent.executors.skill_plan_executor import ToolCallCache
         key1 = ToolCallCache.make_key("skill-a", "tool_x", {"a": 1, "b": 2})
         key2 = ToolCallCache.make_key("skill-a", "tool_x", {"b": 2, "a": 1})
         assert key1 == key2
 
     def test_make_key_differs_for_different_inputs(self):
         """Different params produce different cache keys."""
-        from Jotty.core.modes.agent.base.skill_plan_executor import ToolCallCache
+        from Jotty.core.modes.agent.executors.skill_plan_executor import ToolCallCache
         key1 = ToolCallCache.make_key("skill", "tool", {"query": "AI"})
         key2 = ToolCallCache.make_key("skill", "tool", {"query": "ML"})
         assert key1 != key2
@@ -804,7 +804,7 @@ class TestToolResultProcessorDeep:
     """Deep tests for ToolResultProcessor covering all internal methods."""
 
     def _make_processor(self):
-        from Jotty.core.modes.agent.base.step_processors import ToolResultProcessor
+        from Jotty.core.modes.agent.executors.step_processors import ToolResultProcessor
         return ToolResultProcessor()
 
     def test_process_non_dict_converted(self):
@@ -926,7 +926,7 @@ class TestToolResultProcessorDeep:
 
     def test_format_search_results_with_query(self):
         """_format_search_results includes query header when provided."""
-        from Jotty.core.modes.agent.base.step_processors import ToolResultProcessor
+        from Jotty.core.modes.agent.executors.step_processors import ToolResultProcessor
         results = [{"title": "Page 1", "snippet": "Info", "link": "http://p1.com"}]
         text = ToolResultProcessor._format_search_results(results, query="AI trends")
         assert "Search Results: AI trends" in text
@@ -934,7 +934,7 @@ class TestToolResultProcessorDeep:
 
     def test_format_search_results_without_query(self):
         """_format_search_results omits header when query is empty."""
-        from Jotty.core.modes.agent.base.step_processors import ToolResultProcessor
+        from Jotty.core.modes.agent.executors.step_processors import ToolResultProcessor
         results = [{"title": "Item", "snippet": "Desc"}]
         text = ToolResultProcessor._format_search_results(results, query="")
         assert "Search Results" not in text
@@ -942,7 +942,7 @@ class TestToolResultProcessorDeep:
 
     def test_format_search_results_non_dict_items(self):
         """_format_search_results handles non-dict items by stringifying."""
-        from Jotty.core.modes.agent.base.step_processors import ToolResultProcessor
+        from Jotty.core.modes.agent.executors.step_processors import ToolResultProcessor
         results = ["plain text item", 42]
         text = ToolResultProcessor._format_search_results(results)
         assert "plain text item" in text

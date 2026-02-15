@@ -1190,7 +1190,7 @@ class TestToolResultProcessor:
 
     def test_process_strips_binary(self):
         """Binary/base64 data is replaced with size placeholder."""
-        from Jotty.core.modes.agent.base.skill_plan_executor import ToolResultProcessor
+        from Jotty.core.modes.agent.executors.skill_plan_executor import ToolResultProcessor
         processor = ToolResultProcessor()
         result = processor.process({
             'success': True,
@@ -1203,7 +1203,7 @@ class TestToolResultProcessor:
 
     def test_process_converts_sets(self):
         """Sets are converted to sorted lists."""
-        from Jotty.core.modes.agent.base.skill_plan_executor import ToolResultProcessor
+        from Jotty.core.modes.agent.executors.skill_plan_executor import ToolResultProcessor
         processor = ToolResultProcessor()
         result = processor.process({'tags': {'b', 'a', 'c'}})
         assert isinstance(result['tags'], list)
@@ -1211,7 +1211,7 @@ class TestToolResultProcessor:
 
     def test_process_truncates_large_values(self):
         """Large string values are truncated while preserving keys."""
-        from Jotty.core.modes.agent.base.skill_plan_executor import ToolResultProcessor
+        from Jotty.core.modes.agent.executors.skill_plan_executor import ToolResultProcessor
         processor = ToolResultProcessor()
         result = processor.process({
             'status': 'ok',
@@ -1224,14 +1224,14 @@ class TestToolResultProcessor:
 
     def test_process_adds_execution_time(self):
         """Elapsed time is added to result."""
-        from Jotty.core.modes.agent.base.skill_plan_executor import ToolResultProcessor
+        from Jotty.core.modes.agent.executors.skill_plan_executor import ToolResultProcessor
         processor = ToolResultProcessor()
         result = processor.process({'success': True}, elapsed=1.5)
         assert result['_execution_time_ms'] == 1500.0
 
     def test_process_non_dict_input(self):
         """Non-dict input is wrapped in output key."""
-        from Jotty.core.modes.agent.base.skill_plan_executor import ToolResultProcessor
+        from Jotty.core.modes.agent.executors.skill_plan_executor import ToolResultProcessor
         processor = ToolResultProcessor()
         result = processor.process("plain string")
         assert 'output' in result
@@ -1239,7 +1239,7 @@ class TestToolResultProcessor:
 
     def test_process_preserves_small_results(self):
         """Small results pass through unchanged (except set conversion)."""
-        from Jotty.core.modes.agent.base.skill_plan_executor import ToolResultProcessor
+        from Jotty.core.modes.agent.executors.skill_plan_executor import ToolResultProcessor
         processor = ToolResultProcessor()
         original = {'success': True, 'path': '/tmp/file.txt', 'bytes': 42}
         result = processor.process(original)
@@ -1775,14 +1775,14 @@ class TestParameterResolver:
 
     def test_resolve_simple_passthrough(self):
         """Params with no templates pass through unchanged."""
-        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         resolver = ParameterResolver({})
         result = resolver.resolve({'query': 'test', 'max': 5})
         assert result == {'query': 'test', 'max': 5}
 
     def test_resolve_template_substitution(self):
         """${ref} templates are resolved from outputs."""
-        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         outputs = {'step_0': {'path': '/tmp/report.pdf', 'success': True}}
         resolver = ParameterResolver(outputs)
         result = resolver.resolve({'file': '${step_0.path}'})
@@ -1790,7 +1790,7 @@ class TestParameterResolver:
 
     def test_resolve_bare_key_to_path(self):
         """Bare output keys (e.g. 'step_0') resolve to matching field."""
-        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         outputs = {'step_0': {'path': '/tmp/result.txt', 'success': True}}
         resolver = ParameterResolver(outputs)
         result = resolver.resolve({'path': 'step_0'})
@@ -1798,7 +1798,7 @@ class TestParameterResolver:
 
     def test_resolve_nested_dict(self):
         """Nested dict params are resolved recursively."""
-        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         outputs = {'step_0': {'url': 'https://example.com'}}
         resolver = ParameterResolver(outputs)
         result = resolver.resolve({'config': {'target': '${step_0.url}'}})
@@ -1806,26 +1806,26 @@ class TestParameterResolver:
 
     def test_resolve_max_depth_protection(self):
         """Deeply nested params hit max depth and return as-is."""
-        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         resolver = ParameterResolver({})
         result = resolver.resolve({'key': 'val'}, _depth=11)
         assert result == {'key': 'val'}
 
     def test_is_bad_content_short(self):
         """Short strings are detected as bad content."""
-        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         resolver = ParameterResolver({})
         assert resolver._is_bad_content("too short") is True
 
     def test_is_bad_content_success_json(self):
         """Success JSON responses are detected as bad content."""
-        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         resolver = ParameterResolver({})
         assert resolver._is_bad_content('{"success": true, "bytes_written": 42}') is True
 
     def test_is_bad_content_good(self):
         """Real content passes the check."""
-        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         resolver = ParameterResolver({})
         # Must be >300 chars or >80 chars without instruction prefixes
         good_content = "Python is a versatile language used in web development, data science, and AI. " * 5
@@ -1833,21 +1833,21 @@ class TestParameterResolver:
 
     def test_resolve_path_dotted(self):
         """Dotted paths like 'step_0.output' are resolved."""
-        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         outputs = {'step_0': {'output': 'hello world'}}
         resolver = ParameterResolver(outputs)
         assert resolver.resolve_path('step_0.output') == 'hello world'
 
     def test_resolve_path_array_index(self):
         """Array index paths like 'step_0.items[0]' are resolved."""
-        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         outputs = {'step_0': {'items': ['first', 'second']}}
         resolver = ParameterResolver(outputs)
         assert resolver.resolve_path('step_0.items[0]') == 'first'
 
     def test_resolve_path_missing_returns_unresolved(self):
         """Missing path keys return unresolved path (no broadcast scan)."""
-        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         outputs = {'step_0': {'content': 'actual content that is long enough to be valid for fallback resolution purposes'}}
         resolver = ParameterResolver(outputs)
         result = resolver.resolve_path('step_99.content')
@@ -1856,7 +1856,7 @@ class TestParameterResolver:
 
     def test_sanitize_command_long_text(self):
         """Long non-command text in 'command' param gets auto-fixed."""
-        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         outputs = {'step_0': {'path': '/tmp/script.py', 'success': True}}
         resolver = ParameterResolver(outputs)
         long_text = "This is a very long text " * 20  # > 150 chars, > 15 spaces
@@ -1865,7 +1865,7 @@ class TestParameterResolver:
 
     def test_sanitize_path_long_content(self):
         """Long content in 'path' param gets auto-fixed to real path."""
-        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         outputs = {'step_0': {'path': '/tmp/output.txt', 'success': True}}
         resolver = ParameterResolver(outputs)
         long_content = "x" * 300  # > 200 chars
@@ -1874,7 +1874,7 @@ class TestParameterResolver:
 
     def test_find_best_content(self):
         """_find_best_content returns longest valid content from outputs."""
-        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         short_content = "short"
         good_content = "A" * 200
         outputs = {
@@ -1886,7 +1886,7 @@ class TestParameterResolver:
 
     def test_aggregate_research_outputs(self):
         """Research outputs are aggregated into formatted markdown."""
-        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         outputs = {
             'research_0': {
                 'query': 'AI trends',
@@ -1902,7 +1902,7 @@ class TestParameterResolver:
 
     def test_backward_compat_import(self):
         """ParameterResolver can still be imported from skill_plan_executor."""
-        from Jotty.core.modes.agent.base.skill_plan_executor import ParameterResolver
+        from Jotty.core.modes.agent.executors.skill_plan_executor import ParameterResolver
         assert ParameterResolver is not None
         resolver = ParameterResolver({})
         assert resolver.resolve({'key': 'val'}) == {'key': 'val'}
@@ -2850,13 +2850,13 @@ class TestReActMode:
     """Test ReAct execution mode configuration."""
 
     def test_react_config_defaults(self):
-        from Jotty.core.modes.agent.base.domain_agent import DomainAgentConfig
+        from Jotty.core.modes.agent.implementations.domain_agent import DomainAgentConfig
         config = DomainAgentConfig(use_react=True)
         assert config.use_react is True
         assert config.max_react_iters == 5
 
     def test_react_mode_disabled_by_default(self):
-        from Jotty.core.modes.agent.base.domain_agent import DomainAgentConfig
+        from Jotty.core.modes.agent.implementations.domain_agent import DomainAgentConfig
         config = DomainAgentConfig()
         assert config.use_react is False
 
@@ -2926,19 +2926,19 @@ class TestToolCallCache:
     """Test ToolCallCache TTL and LRU."""
 
     def test_cache_set_and_get(self):
-        from Jotty.core.modes.agent.base.skill_plan_executor import ToolCallCache
+        from Jotty.core.modes.agent.executors.skill_plan_executor import ToolCallCache
         cache = ToolCallCache(ttl_seconds=60)
         key = cache.make_key("web-search", "search_tool", {"query": "test"})
         cache.set(key, {"result": "data"})
         assert cache.get(key) == {"result": "data"}
 
     def test_cache_miss(self):
-        from Jotty.core.modes.agent.base.skill_plan_executor import ToolCallCache
+        from Jotty.core.modes.agent.executors.skill_plan_executor import ToolCallCache
         cache = ToolCallCache()
         assert cache.get("nonexistent") is None
 
     def test_cache_ttl_expiry(self):
-        from Jotty.core.modes.agent.base.skill_plan_executor import ToolCallCache
+        from Jotty.core.modes.agent.executors.skill_plan_executor import ToolCallCache
         cache = ToolCallCache(ttl_seconds=0.01)
         key = "test"
         cache.set(key, "value")
@@ -2947,7 +2947,7 @@ class TestToolCallCache:
         assert cache.get(key) is None
 
     def test_cache_max_size_eviction(self):
-        from Jotty.core.modes.agent.base.skill_plan_executor import ToolCallCache
+        from Jotty.core.modes.agent.executors.skill_plan_executor import ToolCallCache
         cache = ToolCallCache(max_size=2)
         cache.set("k1", "v1")
         cache.set("k2", "v2")
@@ -2955,7 +2955,7 @@ class TestToolCallCache:
         assert cache.size == 2
 
     def test_deterministic_key(self):
-        from Jotty.core.modes.agent.base.skill_plan_executor import ToolCallCache
+        from Jotty.core.modes.agent.executors.skill_plan_executor import ToolCallCache
         k1 = ToolCallCache.make_key("s", "t", {"a": 1, "b": 2})
         k2 = ToolCallCache.make_key("s", "t", {"b": 2, "a": 1})
         assert k1 == k2  # Same regardless of dict order
@@ -2966,7 +2966,7 @@ class TestDAGExecution:
     """Test DAG dependency graph and parallel grouping."""
 
     def test_build_dependency_graph(self):
-        from Jotty.core.modes.agent.base.skill_plan_executor import SkillPlanExecutor
+        from Jotty.core.modes.agent.executors.skill_plan_executor import SkillPlanExecutor
         executor = SkillPlanExecutor(skills_registry=None)
         steps = [Mock(depends_on=[]), Mock(depends_on=[0]), Mock(depends_on=[0])]
         graph = executor._build_dependency_graph(steps)
@@ -2975,7 +2975,7 @@ class TestDAGExecution:
         assert graph[2] == [0]
 
     def test_find_parallel_groups(self):
-        from Jotty.core.modes.agent.base.skill_plan_executor import SkillPlanExecutor
+        from Jotty.core.modes.agent.executors.skill_plan_executor import SkillPlanExecutor
         executor = SkillPlanExecutor(skills_registry=None)
         # Step 0: no deps, Step 1: depends on 0, Step 2: depends on 0
         steps = [Mock(depends_on=[]), Mock(depends_on=[0]), Mock(depends_on=[0])]
@@ -2984,7 +2984,7 @@ class TestDAGExecution:
         assert set(layers[1]) == {1, 2}  # Steps 1,2 in parallel
 
     def test_sequential_chain(self):
-        from Jotty.core.modes.agent.base.skill_plan_executor import SkillPlanExecutor
+        from Jotty.core.modes.agent.executors.skill_plan_executor import SkillPlanExecutor
         executor = SkillPlanExecutor(skills_registry=None)
         steps = [Mock(depends_on=[]), Mock(depends_on=[0]), Mock(depends_on=[1])]
         layers = executor._find_parallel_groups(steps)
@@ -3952,7 +3952,7 @@ class RealOrchestratorIntegrationTest:
         self.section("INIT: Registry + Executor")
 
         from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
-        from Jotty.core.modes.agent.base.skill_plan_executor import SkillPlanExecutor
+        from Jotty.core.modes.agent.executors.skill_plan_executor import SkillPlanExecutor
 
         sr = get_skills_registry()
         sr.init()
@@ -4220,7 +4220,7 @@ class TestToolCallCache:
     @pytest.mark.unit
     def test_make_key_deterministic(self):
         """make_key produces same key for same inputs."""
-        from Jotty.core.modes.agent.base.skill_plan_executor import ToolCallCache
+        from Jotty.core.modes.agent.executors.skill_plan_executor import ToolCallCache
         k1 = ToolCallCache.make_key("web-search", "search", {"query": "AI"})
         k2 = ToolCallCache.make_key("web-search", "search", {"query": "AI"})
         assert k1 == k2
@@ -4228,7 +4228,7 @@ class TestToolCallCache:
     @pytest.mark.unit
     def test_make_key_different_params(self):
         """make_key produces different keys for different params."""
-        from Jotty.core.modes.agent.base.skill_plan_executor import ToolCallCache
+        from Jotty.core.modes.agent.executors.skill_plan_executor import ToolCallCache
         k1 = ToolCallCache.make_key("web-search", "search", {"query": "AI"})
         k2 = ToolCallCache.make_key("web-search", "search", {"query": "ML"})
         assert k1 != k2
@@ -4236,7 +4236,7 @@ class TestToolCallCache:
     @pytest.mark.unit
     def test_make_key_sorts_params(self):
         """make_key is order-independent for params."""
-        from Jotty.core.modes.agent.base.skill_plan_executor import ToolCallCache
+        from Jotty.core.modes.agent.executors.skill_plan_executor import ToolCallCache
         k1 = ToolCallCache.make_key("s", "t", {"a": 1, "b": 2})
         k2 = ToolCallCache.make_key("s", "t", {"b": 2, "a": 1})
         assert k1 == k2
@@ -4244,7 +4244,7 @@ class TestToolCallCache:
     @pytest.mark.unit
     def test_get_set(self):
         """set() stores value, get() retrieves it."""
-        from Jotty.core.modes.agent.base.skill_plan_executor import ToolCallCache
+        from Jotty.core.modes.agent.executors.skill_plan_executor import ToolCallCache
         cache = ToolCallCache(ttl_seconds=60)
         key = cache.make_key("s", "t", {"x": 1})
         cache.set(key, {"result": "data"})
@@ -4253,7 +4253,7 @@ class TestToolCallCache:
     @pytest.mark.unit
     def test_get_miss(self):
         """get() returns None for missing key."""
-        from Jotty.core.modes.agent.base.skill_plan_executor import ToolCallCache
+        from Jotty.core.modes.agent.executors.skill_plan_executor import ToolCallCache
         cache = ToolCallCache()
         assert cache.get("nonexistent") is None
 
@@ -4261,7 +4261,7 @@ class TestToolCallCache:
     def test_ttl_expiry(self):
         """get() returns None for expired entries."""
         import time as _time
-        from Jotty.core.modes.agent.base.skill_plan_executor import ToolCallCache
+        from Jotty.core.modes.agent.executors.skill_plan_executor import ToolCallCache
         cache = ToolCallCache(ttl_seconds=0)  # Immediate expiry
         key = "test_key"
         cache.set(key, "value")
@@ -4271,7 +4271,7 @@ class TestToolCallCache:
     @pytest.mark.unit
     def test_lru_eviction(self):
         """Oldest entry is evicted when max_size is reached."""
-        from Jotty.core.modes.agent.base.skill_plan_executor import ToolCallCache
+        from Jotty.core.modes.agent.executors.skill_plan_executor import ToolCallCache
         cache = ToolCallCache(max_size=2)
         cache.set("a", 1)
         cache.set("b", 2)
@@ -4283,7 +4283,7 @@ class TestToolCallCache:
     @pytest.mark.unit
     def test_clear(self):
         """clear() empties the cache."""
-        from Jotty.core.modes.agent.base.skill_plan_executor import ToolCallCache
+        from Jotty.core.modes.agent.executors.skill_plan_executor import ToolCallCache
         cache = ToolCallCache()
         cache.set("a", 1)
         cache.set("b", 2)
@@ -4295,7 +4295,7 @@ class TestToolCallCache:
     @pytest.mark.unit
     def test_size_property(self):
         """size property returns number of cached entries."""
-        from Jotty.core.modes.agent.base.skill_plan_executor import ToolCallCache
+        from Jotty.core.modes.agent.executors.skill_plan_executor import ToolCallCache
         cache = ToolCallCache()
         assert cache.size == 0
         cache.set("a", 1)
@@ -4304,7 +4304,7 @@ class TestToolCallCache:
     @pytest.mark.unit
     def test_overwrite_existing_key(self):
         """Setting existing key updates value without eviction."""
-        from Jotty.core.modes.agent.base.skill_plan_executor import ToolCallCache
+        from Jotty.core.modes.agent.executors.skill_plan_executor import ToolCallCache
         cache = ToolCallCache(max_size=2)
         cache.set("a", 1)
         cache.set("b", 2)
@@ -4321,7 +4321,7 @@ class TestSkillPlanExecutorDAG:
     """Tests for dependency graph and parallel group detection."""
 
     def _make_executor(self):
-        from Jotty.core.modes.agent.base.skill_plan_executor import SkillPlanExecutor
+        from Jotty.core.modes.agent.executors.skill_plan_executor import SkillPlanExecutor
         mock_registry = MagicMock()
         return SkillPlanExecutor(skills_registry=mock_registry)
 
@@ -4402,7 +4402,7 @@ class TestSkillExclusions:
     """Tests for skill exclusion management."""
 
     def _make_executor(self):
-        from Jotty.core.modes.agent.base.skill_plan_executor import SkillPlanExecutor
+        from Jotty.core.modes.agent.executors.skill_plan_executor import SkillPlanExecutor
         return SkillPlanExecutor(skills_registry=MagicMock())
 
     @pytest.mark.unit
@@ -5461,7 +5461,7 @@ class TestScopedResolution:
 
     def test_io_contract_literal_resolution(self):
         """Literal sources in inputs_needed are resolved directly."""
-        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
 
         step = AgenticStep(
@@ -5475,7 +5475,7 @@ class TestScopedResolution:
 
     def test_io_contract_step_reference_resolution(self):
         """Step references in inputs_needed resolve from outputs."""
-        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
 
         outputs = {
@@ -5492,7 +5492,7 @@ class TestScopedResolution:
 
     def test_io_contract_does_not_override_templates(self):
         """If param already has a template, inputs_needed should not override it."""
-        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
 
         outputs = {'step_0': {'text': 'resolved text'}}
@@ -5509,7 +5509,7 @@ class TestScopedResolution:
 
     def test_is_template_detection(self):
         """_is_template correctly identifies template references."""
-        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         assert ParameterResolver._is_template('${step_0.content}')
         assert ParameterResolver._is_template('{step_0}')
         assert not ParameterResolver._is_template('plain text')
@@ -5517,7 +5517,7 @@ class TestScopedResolution:
 
     def test_resolve_missing_path_scoped(self):
         """_resolve_missing_path uses scoped resolution — no broadcast scan."""
-        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
 
         outputs = {
             'step_0': {'content': 'wrong content from step 0', 'path': '/init.py'},
@@ -5535,7 +5535,7 @@ class TestScopedResolution:
 
     def test_resolve_missing_path_adjacent_step(self):
         """Adjacent step (N-1) is checked as fallback."""
-        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
 
         outputs = {
             'step_0': {'generated_code': 'code content here', 'path': '/test.py'},
@@ -5548,7 +5548,7 @@ class TestScopedResolution:
 
     def test_scoped_auto_wire_with_depends_on(self):
         """auto_wire scoping via depends_on narrows the search to dependency outputs."""
-        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         from Jotty.core.modes.agent._execution_types import (
             ExecutionStep as AgenticStep, ToolSchema, ToolParam,
         )
@@ -5578,13 +5578,13 @@ class TestSemanticParamResolver:
 
     def test_init_creates_resolver(self):
         """SemanticParamResolver initializes without error."""
-        from Jotty.core.modes.agent.base.step_processors import SemanticParamResolver
+        from Jotty.core.modes.agent.executors.step_processors import SemanticParamResolver
         resolver = SemanticParamResolver()
         assert resolver._matcher is None  # Lazy init
 
     def test_non_high_stakes_returns_none(self):
         """Non-high-stakes params (e.g. 'query') return None immediately."""
-        from Jotty.core.modes.agent.base.step_processors import SemanticParamResolver
+        from Jotty.core.modes.agent.executors.step_processors import SemanticParamResolver
         resolver = SemanticParamResolver()
         result = resolver.resolve('query', 'Search for data', {'step_0': {'text': 'hello'}})
         assert result is None
@@ -5592,14 +5592,14 @@ class TestSemanticParamResolver:
     @patch('Jotty.core.agents.base.step_processors._DSPY_AVAILABLE', False)
     def test_no_dspy_returns_none(self):
         """Without DSPy, resolver returns None gracefully."""
-        from Jotty.core.modes.agent.base.step_processors import SemanticParamResolver
+        from Jotty.core.modes.agent.executors.step_processors import SemanticParamResolver
         resolver = SemanticParamResolver()
         result = resolver.resolve('content', 'Write file', {'step_0': {'text': 'hello'}})
         assert result is None
 
     def test_high_stakes_with_mock_dspy(self):
         """High-stakes param resolves when DSPy returns high-confidence match."""
-        from Jotty.core.modes.agent.base.step_processors import SemanticParamResolver
+        from Jotty.core.modes.agent.executors.step_processors import SemanticParamResolver
 
         resolver = SemanticParamResolver()
         mock_matcher = Mock()
@@ -5615,7 +5615,7 @@ class TestSemanticParamResolver:
 
     def test_low_confidence_returns_none(self):
         """Low confidence match returns None."""
-        from Jotty.core.modes.agent.base.step_processors import SemanticParamResolver
+        from Jotty.core.modes.agent.executors.step_processors import SemanticParamResolver
 
         resolver = SemanticParamResolver()
         mock_matcher = Mock()
@@ -5631,7 +5631,7 @@ class TestSemanticParamResolver:
 
     def test_no_match_returns_none(self):
         """NO_MATCH response returns None."""
-        from Jotty.core.modes.agent.base.step_processors import SemanticParamResolver
+        from Jotty.core.modes.agent.executors.step_processors import SemanticParamResolver
 
         resolver = SemanticParamResolver()
         mock_matcher = Mock()
@@ -5647,7 +5647,7 @@ class TestSemanticParamResolver:
 
     def test_empty_outputs_returns_none(self):
         """Empty outputs dict returns None."""
-        from Jotty.core.modes.agent.base.step_processors import SemanticParamResolver
+        from Jotty.core.modes.agent.executors.step_processors import SemanticParamResolver
         resolver = SemanticParamResolver()
         resolver._matcher = Mock()  # Won't be called
         result = resolver.resolve('content', 'Write file', {})
@@ -5810,7 +5810,7 @@ class TestRealWorldCodeGenPipeline:
 
     def test_code_gen_write_execute_full_pipeline(self):
         """Full 3-step code gen pipeline resolves content correctly."""
-        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         from Jotty.core.modes.agent._execution_types import (
             ExecutionStep as AgenticStep, ToolSchema, ToolParam,
         )
@@ -5848,7 +5848,7 @@ class TestRealWorldCodeGenPipeline:
 
     def test_code_gen_wrong_step_content_blocked(self):
         """Step 2 (write stats.py) must NOT get __init__.py from step 0."""
-        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         from Jotty.core.modes.agent._execution_types import (
             ExecutionStep as AgenticStep, ToolSchema, ToolParam,
         )
@@ -5893,7 +5893,7 @@ class TestRealWorldCodeGenPipeline:
 
     def test_shell_exec_after_file_write(self):
         """Step 3 (shell exec) gets correct file path from step 2."""
-        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         from Jotty.core.modes.agent._execution_types import (
             ExecutionStep as AgenticStep, ToolSchema, ToolParam,
         )
@@ -5930,7 +5930,7 @@ class TestRealWorldResearchSynthesis:
 
     def test_comparison_synthesis_uses_correct_research(self):
         """Synthesis step (step 2) gets both search results from steps 0 and 1."""
-        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         from Jotty.core.modes.agent._execution_types import (
             ExecutionStep as AgenticStep, ToolSchema, ToolParam,
         )
@@ -5978,7 +5978,7 @@ class TestRealWorldResearchSynthesis:
 
     def test_pdf_step_gets_synthesis_not_raw_search(self):
         """PDF creation step gets the synthesis output, not raw search JSON."""
-        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         from Jotty.core.modes.agent._execution_types import (
             ExecutionStep as AgenticStep, ToolSchema, ToolParam,
         )
@@ -6049,7 +6049,7 @@ class TestRealWorldMultiFileProject:
 
     def test_init_file_gets_init_content(self):
         """__init__.py write step gets __init__ content, not main.py or utils.py."""
-        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         from Jotty.core.modes.agent._execution_types import (
             ExecutionStep as AgenticStep, ToolSchema, ToolParam,
         )
@@ -6079,7 +6079,7 @@ class TestRealWorldMultiFileProject:
 
     def test_main_file_gets_main_content(self):
         """main.py write step gets main content, not __init__.py or utils.py."""
-        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         from Jotty.core.modes.agent._execution_types import (
             ExecutionStep as AgenticStep, ToolSchema, ToolParam,
         )
@@ -6109,7 +6109,7 @@ class TestRealWorldMultiFileProject:
 
     def test_utils_file_gets_utils_content(self):
         """utils.py write step gets utils content, not __init__.py or main.py."""
-        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         from Jotty.core.modes.agent._execution_types import (
             ExecutionStep as AgenticStep, ToolSchema, ToolParam,
         )
@@ -6139,7 +6139,7 @@ class TestRealWorldMultiFileProject:
 
     def test_all_three_files_get_unique_content(self):
         """All 3 write steps produce different content — no cross-contamination."""
-        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         from Jotty.core.modes.agent._execution_types import (
             ExecutionStep as AgenticStep, ToolSchema, ToolParam,
         )
@@ -6187,7 +6187,7 @@ class TestRealWorldWebScrapeAnalyze:
 
     def test_analysis_step_receives_scraped_data(self):
         """Analysis step (step 1) should get scraped data from step 0."""
-        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         from Jotty.core.modes.agent._execution_types import (
             ExecutionStep as AgenticStep, ToolSchema, ToolParam,
         )
@@ -6221,7 +6221,7 @@ class TestRealWorldWebScrapeAnalyze:
 
     def test_report_step_gets_analysis_not_scrape(self):
         """Report write step (step 2) gets analysis output, not raw scrape."""
-        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         from Jotty.core.modes.agent._execution_types import (
             ExecutionStep as AgenticStep, ToolSchema, ToolParam,
         )
@@ -6345,7 +6345,7 @@ class TestRealWorldReplanRecovery:
 
     def test_replan_step_resolves_from_surviving_outputs(self):
         """After replan, new step correctly resolves from pre-replan outputs."""
-        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         from Jotty.core.modes.agent._execution_types import (
             ExecutionStep as AgenticStep, ToolSchema, ToolParam,
         )
@@ -6389,7 +6389,7 @@ class TestRealWorldReplanRecovery:
 
     def test_replan_with_custom_output_keys(self):
         """Replan steps referencing custom output_keys resolve correctly."""
-        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
 
         outputs = {
@@ -6427,7 +6427,7 @@ class TestRealWorldEdgeCases:
 
     def test_empty_io_contracts_backward_compat(self):
         """Steps without I/O contracts still resolve via templates (backward compat)."""
-        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
 
         outputs = {
@@ -6450,7 +6450,7 @@ class TestRealWorldEdgeCases:
 
     def test_literal_prefix_with_special_chars(self):
         """Literal sources with special characters resolve correctly."""
-        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
 
         step = AgenticStep(
@@ -6470,7 +6470,7 @@ class TestRealWorldEdgeCases:
 
     def test_mixed_literal_and_step_references(self):
         """Mix of literal and step references in same inputs_needed."""
-        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         from Jotty.core.modes.agent._execution_types import ExecutionStep as AgenticStep
 
         outputs = {
@@ -6498,7 +6498,7 @@ class TestRealWorldEdgeCases:
 
     def test_io_contract_unresolved_source_falls_through(self):
         """When inputs_needed source doesn't resolve, template/auto-wire take over."""
-        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         from Jotty.core.modes.agent._execution_types import (
             ExecutionStep as AgenticStep, ToolSchema, ToolParam,
         )
@@ -6529,7 +6529,7 @@ class TestRealWorldEdgeCases:
 
     def test_step_with_no_outputs_yet(self):
         """First step in a plan (no previous outputs) resolves correctly."""
-        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         from Jotty.core.modes.agent._execution_types import (
             ExecutionStep as AgenticStep, ToolSchema, ToolParam,
         )
@@ -6553,7 +6553,7 @@ class TestRealWorldEdgeCases:
 
     def test_deeply_nested_step_reference(self):
         """Dotted path with nested field access (step_0.results[0].title)."""
-        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
 
         outputs = {
             'step_0': {
@@ -6611,7 +6611,7 @@ class TestCodeFenceExtraction:
     """Test ParameterResolver._extract_code_from_fences() for LLM preamble stripping."""
 
     def _extract(self, value: str) -> str:
-        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         return ParameterResolver._extract_code_from_fences(value)
 
     def test_no_fences_returns_original(self):
@@ -6716,7 +6716,7 @@ class TestCodeFenceExtraction:
 
     def test_sanitize_content_calls_extraction(self):
         """_sanitize_content_param integrates code fence extraction."""
-        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         resolver = ParameterResolver({})
         value = (
             "I'll create a calculator:\n\n"
@@ -6729,7 +6729,7 @@ class TestCodeFenceExtraction:
 
     def test_non_content_key_skips_extraction(self):
         """_sanitize_content_param only applies to 'content' key."""
-        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         resolver = ParameterResolver({})
         value = "I'll create: ```python\ncode\n```"
         result = resolver._sanitize_content_param('query', value)
@@ -6743,7 +6743,7 @@ class TestCodeFenceExtractionInExecuteStep:
     @pytest.mark.asyncio
     async def test_file_write_strips_fences(self):
         """file-operations/write_file_tool strips LLM preamble from content."""
-        from Jotty.core.modes.agent.base.skill_plan_executor import SkillPlanExecutor
+        from Jotty.core.modes.agent.executors.skill_plan_executor import SkillPlanExecutor
         from Jotty.core.modes.agent._execution_types import ExecutionStep as AgentStep
 
         mock_registry = MagicMock()
@@ -7381,7 +7381,7 @@ class TestSkillSubstitution:
     @pytest.mark.asyncio
     async def test_substitution_when_api_key_available(self):
         """execute_step swaps claude-cli-llm to claude-api-llm when key is set."""
-        from Jotty.core.modes.agent.base.skill_plan_executor import SkillPlanExecutor
+        from Jotty.core.modes.agent.executors.skill_plan_executor import SkillPlanExecutor
 
         mock_registry = Mock()
         mock_api_skill = Mock()
@@ -7407,7 +7407,7 @@ class TestSkillSubstitution:
     @pytest.mark.asyncio
     async def test_no_substitution_without_api_key(self):
         """execute_step keeps claude-cli-llm when no API key."""
-        from Jotty.core.modes.agent.base.skill_plan_executor import SkillPlanExecutor
+        from Jotty.core.modes.agent.executors.skill_plan_executor import SkillPlanExecutor
 
         mock_registry = Mock()
         mock_cli_skill = Mock()
@@ -7429,7 +7429,7 @@ class TestSkillSubstitution:
     @pytest.mark.asyncio
     async def test_no_substitution_for_other_skills(self):
         """execute_step doesn't substitute non-claude-cli-llm skills."""
-        from Jotty.core.modes.agent.base.skill_plan_executor import SkillPlanExecutor
+        from Jotty.core.modes.agent.executors.skill_plan_executor import SkillPlanExecutor
 
         mock_registry = Mock()
         mock_skill = Mock()
@@ -7521,7 +7521,7 @@ class TestSmartExtractFilenameResolution:
 
     def test_filename_key_extracted(self):
         """_smart_extract resolves 'filename' key from tool response."""
-        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         resolver = ParameterResolver({})
         json_str = json.dumps({
             "filename": "/tmp/output.py",
@@ -7533,7 +7533,7 @@ class TestSmartExtractFilenameResolution:
 
     def test_filepath_key_extracted(self):
         """_smart_extract resolves 'filepath' key."""
-        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         resolver = ParameterResolver({})
         json_str = json.dumps({
             "filepath": "/tmp/result.txt",
@@ -7544,7 +7544,7 @@ class TestSmartExtractFilenameResolution:
 
     def test_file_path_param_scans_outputs(self):
         """file_path param name scans outputs for path-like keys."""
-        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         resolver = ParameterResolver({
             "step_0": {"filename": "/tmp/code.py", "success": True},
         })
@@ -7554,7 +7554,7 @@ class TestSmartExtractFilenameResolution:
 
     def test_resolve_path_large_dict_extracts_field(self):
         """resolve_path with a large dict extracts relevant field instead of full JSON."""
-        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         large_content = "x" * 600
         resolver = ParameterResolver({
             "step_0": {
@@ -7570,7 +7570,7 @@ class TestSmartExtractFilenameResolution:
 
     def test_resolve_path_small_dict_returns_json(self):
         """resolve_path with a small dict returns full JSON (no extraction needed)."""
-        from Jotty.core.modes.agent.base.step_processors import ParameterResolver
+        from Jotty.core.modes.agent.executors.step_processors import ParameterResolver
         resolver = ParameterResolver({
             "step_0": {"path": "/tmp/f.py", "ok": True},
         })
@@ -7599,7 +7599,7 @@ class TestClaudeCliUpgradeToolValidation:
     @pytest.mark.asyncio
     async def test_upgrade_skipped_when_tool_missing(self):
         """Upgrade from cli to api is skipped when tool doesn't exist in api skill."""
-        from Jotty.core.modes.agent.base.skill_plan_executor import SkillPlanExecutor
+        from Jotty.core.modes.agent.executors.skill_plan_executor import SkillPlanExecutor
 
         mock_registry = Mock()
         api_skill = Mock()
@@ -7631,7 +7631,7 @@ class TestClaudeCliUpgradeToolValidation:
     @pytest.mark.asyncio
     async def test_upgrade_proceeds_when_tool_exists(self):
         """Upgrade from cli to api proceeds when tool exists in api skill."""
-        from Jotty.core.modes.agent.base.skill_plan_executor import SkillPlanExecutor
+        from Jotty.core.modes.agent.executors.skill_plan_executor import SkillPlanExecutor
 
         mock_registry = Mock()
         api_skill = Mock()
@@ -7655,7 +7655,7 @@ class TestClaudeCliUpgradeToolValidation:
     @pytest.mark.asyncio
     async def test_upgrade_proceeds_when_no_tool_name(self):
         """Upgrade proceeds when step has no specific tool_name."""
-        from Jotty.core.modes.agent.base.skill_plan_executor import SkillPlanExecutor
+        from Jotty.core.modes.agent.executors.skill_plan_executor import SkillPlanExecutor
 
         mock_registry = Mock()
         api_skill = Mock()

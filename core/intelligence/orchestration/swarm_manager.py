@@ -38,7 +38,7 @@ from typing import TYPE_CHECKING, List, Dict, Any, Optional, Union, Callable
 
 if TYPE_CHECKING:
     from Jotty.core.intelligence.orchestration.swarm_roadmap import SwarmTaskBoard
-    from Jotty.core.modes.agent.base.agentic_planner import TaskPlanner
+    from Jotty.core.modes.agent.planning.agentic_planner import TaskPlanner
     from Jotty.core.modes.agent.autonomous.intent_parser import IntentParser
     from Jotty.core.intelligence.memory.cortex import SwarmMemory
     from Jotty.core.intelligence.orchestration.swarm_provider_gateway import SwarmProviderGateway
@@ -146,7 +146,7 @@ def _create_task_board() -> "SwarmTaskBoard":
     return SwarmTaskBoard()
 
 def _create_planner() -> "TaskPlanner":
-    from Jotty.core.modes.agent.base.agentic_planner import TaskPlanner
+    from Jotty.core.modes.agent.planning.agentic_planner import TaskPlanner
     return TaskPlanner()
 
 def _create_intent_parser(planner: "TaskPlanner") -> "IntentParser":
