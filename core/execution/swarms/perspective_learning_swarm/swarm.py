@@ -1237,7 +1237,7 @@ async def teach_perspectives(
     One-liner multi-perspective learning.
 
     Usage:
-        from Jotty.core.intelligence.swarms.perspective_learning_swarm import teach_perspectives
+        from Jotty.core.execution.swarms.perspective_learning_swarm import teach_perspectives
 
         # Basic
         result = await teach_perspectives("Media and its influence on decisions", student_name="Aria")

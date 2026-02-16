@@ -11,7 +11,7 @@ Execution loop:
     Phase 4: ADAPT — re-plan if validation fails (up to max_retries)
 
 Usage:
-    from Jotty.core.intelligence.swarms.pilot_swarm import pilot
+    from Jotty.core.execution.swarms.pilot_swarm import pilot
     result = await pilot("Set up a FastAPI project with JWT auth and tests")
 """
 
@@ -1058,7 +1058,7 @@ async def pilot(
     One-liner autonomous goal completion.
 
     Usage:
-        from Jotty.core.intelligence.swarms.pilot_swarm import pilot
+        from Jotty.core.execution.swarms.pilot_swarm import pilot
 
         # Simple
         result = await pilot("Find the top 5 Python web frameworks and compare them")

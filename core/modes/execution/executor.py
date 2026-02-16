@@ -19,6 +19,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, AsyncGenerator, Callable, Dict, List, Optional
 
+from Jotty.core.execution.swarms._base.swarm_types import (  # type: ignore[import-not-found, import]
+    SwarmConfig,  # type: ignore[import-not-found, import]
+)
 from Jotty.core.infrastructure.foundation.exceptions import (  # type: ignore[import-not-found]
     ConfigurationError,
     ExecutionError,
@@ -28,9 +31,6 @@ from Jotty.core.infrastructure.monitoring.observability.tracing import (  # type
     SpanStatus,  # type: ignore[import]
 )
 from Jotty.core.intelligence.orchestration.paradigm_executor import _extract_output_text
-from Jotty.core.intelligence.swarms._base.swarm_types import (  # type: ignore[import-not-found, import]
-    SwarmConfig,  # type: ignore[import-not-found, import]
-)
 
 from .tier_detector import TierDetector
 from .types import (
@@ -1550,17 +1550,17 @@ Correct answer:"""
         if TierExecutor._swarms_registered:
             return
         swarm_modules = [
-            "Jotty.core.intelligence.swarms.coding_swarm",
-            "Jotty.core.intelligence.swarms.research_swarm",
-            "Jotty.core.intelligence.swarms.templates.testing_swarm",
-            "Jotty.core.intelligence.swarms.templates.review_swarm",
-            "Jotty.core.intelligence.swarms.templates.data_analysis_swarm",
-            "Jotty.core.intelligence.swarms.templates.devops_swarm",
-            "Jotty.core.intelligence.swarms.templates.idea_writer_swarm",
-            "Jotty.core.intelligence.swarms.templates.fundamental_swarm",
-            "Jotty.core.intelligence.swarms.templates.learning_swarm",
-            "Jotty.core.intelligence.swarms.arxiv_learning_swarm",
-            "Jotty.core.intelligence.swarms.olympiad_learning_swarm",
+            "Jotty.core.execution.swarms.coding_swarm",
+            "Jotty.core.execution.swarms.research_swarm",
+            "Jotty.core.execution.swarms.templates.testing_swarm",
+            "Jotty.core.execution.swarms.templates.review_swarm",
+            "Jotty.core.execution.swarms.templates.data_analysis_swarm",
+            "Jotty.core.execution.swarms.templates.devops_swarm",
+            "Jotty.core.execution.swarms.templates.idea_writer_swarm",
+            "Jotty.core.execution.swarms.templates.fundamental_swarm",
+            "Jotty.core.execution.swarms.templates.learning_swarm",
+            "Jotty.core.execution.swarms.arxiv_learning_swarm",
+            "Jotty.core.execution.swarms.olympiad_learning_swarm",
         ]
         import importlib
 
@@ -1574,7 +1574,7 @@ Correct answer:"""
     def _select_swarm(self, goal: str, swarm_name: Optional[str] = None) -> Optional[Any]:
         """Select and instantiate the right domain swarm."""
         self._ensure_swarms_registered()
-        from Jotty.core.intelligence.swarms._base.registry import (  # type: ignore[import-not-found]
+        from Jotty.core.execution.swarms._base.registry import (  # type: ignore[import-not-found]
             SwarmRegistry,  # type: ignore[import-not-found, import]
         )
 

@@ -430,7 +430,7 @@ class Jotty:
             swarms = Jotty.list_swarms()
             print(swarms)  # ['coding', 'research', 'testing', ...]
         """
-        from Jotty.core.intelligence.swarms._base.registry import SwarmRegistry
+        from Jotty.core.execution.swarms._base.registry import SwarmRegistry
 
         return SwarmRegistry.list_all()
 

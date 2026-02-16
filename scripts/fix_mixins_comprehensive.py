@@ -304,9 +304,9 @@ def main():
         "core/intelligence/orchestration/templates/*_mixin.py",
         "core/intelligence/orchestration/*_mixin.py",
         "core/intelligence/orchestration/protocols/*.py",
-        "core/intelligence/swarms/*_mixin.py",
+        "core/execution/swarms/*_mixin.py",
         "core/intelligence/memory/*_mixin.py",
-        "core/intelligence/swarms/coding_swarm/*_mixin.py",
+        "core/execution/swarms/coding_swarm/*_mixin.py",
     ]
 
     mixin_files = []

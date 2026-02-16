@@ -32,7 +32,7 @@ if _jotty_parent not in sys.path:
 
 # Try importing core modules with skipif fallback
 try:
-    from Jotty.core.intelligence.swarms.base.team_coordinator import (
+    from Jotty.core.execution.swarms.base.team_coordinator import (
         CoordinationPattern,
         MergeStrategy,
     )
@@ -587,11 +587,7 @@ class TestUnifiedResult:
         mock_sr_cls.return_value = MagicMock()
         with patch.dict(
             "sys.modules",
-            {
-                "Jotty.core.intelligence.swarms._base.swarm_types": MagicMock(
-                    SwarmResult=mock_sr_cls
-                )
-            },
+            {"Jotty.core.execution.swarms._base.swarm_types": MagicMock(SwarmResult=mock_sr_cls)},
         ):
             sr = ur.to_swarm_result()
             mock_sr_cls.assert_called_once()

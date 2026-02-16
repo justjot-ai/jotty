@@ -13,9 +13,13 @@ from .agents import (
     WebSearchAgent,
 )
 from .swarm import ResearchSwarm, research, research_sync
+from .types import RatingType, ResearchConfig, ResearchResult
 
 __all__ = [
     "ResearchSwarm",
+    "ResearchConfig",
+    "ResearchResult",
+    "RatingType",
     "DataFetcherAgent",
     "WebSearchAgent",
     "SentimentAgent",

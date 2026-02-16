@@ -4,7 +4,7 @@ Multi-perspective educational swarm that explores ANY topic from 6 distinct
 perspectives in 4 languages, producing professional PDF + HTML output.
 
 Usage:
-    from Jotty.core.intelligence.swarms.perspective_learning_swarm import teach_perspectives, teach_perspectives_sync
+    from Jotty.core.execution.swarms.perspective_learning_swarm import teach_perspectives, teach_perspectives_sync
 
     # Async
     result = await teach_perspectives("Media and its influence on decisions", student_name="Aria")
@@ -13,7 +13,7 @@ Usage:
     result = teach_perspectives_sync("Media and its influence on decisions", student_name="Aria")
 
     # Full control
-    from Jotty.core.intelligence.swarms.perspective_learning_swarm import (
+    from Jotty.core.execution.swarms.perspective_learning_swarm import (
         PerspectiveLearningSwarm, PerspectiveLearningConfig,
         PerspectiveType, AgeGroup, ContentDepth, Language,
     )

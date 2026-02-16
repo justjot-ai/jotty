@@ -10,7 +10,7 @@ Architecture:
     Phase 4: Report Generation (sequential)
 
 Example:
-    from Jotty.core.intelligence.swarms.templates.research import ResearchTemplate
+    from Jotty.core.execution.swarms.templates.research import ResearchTemplate
 
     swarm = ResearchTemplate()
     result = await swarm.execute("AAPL")
@@ -389,7 +389,7 @@ async def research(query: str, **kwargs: Any) -> ResearchResult:
     One-liner research function.
 
     Example:
-        from Jotty.core.intelligence.swarms.templates.research import research
+        from Jotty.core.execution.swarms.templates.research import research
         result = await research("AAPL", send_telegram=True)
     """
     template = ResearchTemplate()

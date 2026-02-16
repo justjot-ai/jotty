@@ -76,7 +76,7 @@ def find_mixin_files() -> List[Path]:
 
     # Find in other directories
     for pattern in [
-        "core/intelligence/swarms/_*_mixin.py",
+        "core/execution/swarms/_*_mixin.py",
         "core/intelligence/memory/_*_mixin.py",
         "core/intelligence/orchestration/_*_mixin.py",
         "core/intelligence/orchestration/protocols/*.py",

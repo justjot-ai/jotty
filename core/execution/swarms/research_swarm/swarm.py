@@ -12,7 +12,6 @@ from typing import Any, Dict, List, Optional
 import dspy
 
 from .._base.swarm_signatures import ResearchSwarmSignature
-from .._base.swarm_types import AgentRole
 from ..base import SwarmTemplate, TeamCoordinator
 from ..base.swarm_template import PhaseExecutor
 from .agents import (
@@ -185,9 +184,6 @@ class ResearchSwarm(SwarmTemplate):
         Returns:
             ResearchResult with all data and analysis
         """
-        # Initialize agents
-        self._init_agents()
-
         # Parse inputs before entering executor
         ticker = ticker or self._extract_ticker(query)
         exchange = exchange or self.config.exchange  # type: ignore[attr-defined]

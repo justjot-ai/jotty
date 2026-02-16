@@ -18,7 +18,7 @@ from typing import Any, Dict
 
 import dspy
 
-from Jotty.core.intelligence.swarms.olympiad_learning_swarm.agents import BaseOlympiadAgent
+from Jotty.core.execution.swarms.olympiad_learning_swarm.agents import BaseOlympiadAgent
 
 from .signatures import (
     ContentAssemblerSignature,

@@ -18,7 +18,7 @@ from typing import Any, Dict, List
 
 import dspy
 
-from Jotty.core.intelligence.swarms.base import _split_field
+from Jotty.core.execution.swarms.base import _split_field
 from Jotty.core.modes.agent.agents.swarm_agent import SwarmLearningAgent
 
 from .signatures import (

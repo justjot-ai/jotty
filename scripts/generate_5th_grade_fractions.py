@@ -96,7 +96,7 @@ async def main():
     configure_direct_anthropic(model="haiku")
     print("Pre-configured DSPy with DirectAnthropicLM (API)")
 
-    from Jotty.core.intelligence.swarms.olympiad_learning_swarm import (
+    from Jotty.core.execution.swarms.olympiad_learning_swarm import (
         DifficultyTier,
         LessonDepth,
         OlympiadLearningConfig,

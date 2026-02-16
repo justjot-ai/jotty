@@ -77,7 +77,7 @@ class TestExecutionTypesExtraction:
 
     def test_swarms_reexport_still_works(self):
         """Backward compat: importing from swarms still works."""
-        from Jotty.core.intelligence.swarms.base.team_coordinator import (
+        from Jotty.core.execution.swarms.base.team_coordinator import (
             CoordinationPattern,
             MergeStrategy,
         )
@@ -86,7 +86,7 @@ class TestExecutionTypesExtraction:
         assert MergeStrategy.FIRST.value == "first"
 
     def test_swarms_init_reexport(self):
-        from Jotty.core.intelligence.swarms import CoordinationPattern, MergeStrategy
+        from Jotty.core.execution.swarms import CoordinationPattern, MergeStrategy
 
         assert len(CoordinationPattern) == 12
         assert len(MergeStrategy) == 5
@@ -127,8 +127,8 @@ class TestExecutionTypesExtraction:
         from Jotty.core.infrastructure.foundation.types.execution_types import (
             CoordinationPattern as CP1,
         )
-        from Jotty.core.intelligence.swarms import CoordinationPattern as CP3
-        from Jotty.core.intelligence.swarms.base.team_coordinator import CoordinationPattern as CP2
+        from Jotty.core.execution.swarms import CoordinationPattern as CP3
+        from Jotty.core.execution.swarms.base.team_coordinator import CoordinationPattern as CP2
 
         assert CP1 is CP2 is CP3
 
@@ -1679,8 +1679,8 @@ class TestResearchSwarmRegistration:
         """Importing research_swarm registers 'research' in SwarmRegistry."""
         import importlib
 
-        importlib.import_module("Jotty.core.intelligence.swarms.research_swarm")
-        from Jotty.core.intelligence.swarms._base.registry import SwarmRegistry
+        importlib.import_module("Jotty.core.execution.swarms.research_swarm")
+        from Jotty.core.execution.swarms._base.registry import SwarmRegistry
 
         assert (
             "research" in SwarmRegistry.list_all()
@@ -1688,7 +1688,7 @@ class TestResearchSwarmRegistration:
 
     def test_ensure_swarms_registered_all_11(self):
         """After _ensure_swarms_registered(), all 11 swarms are present."""
-        from Jotty.core.intelligence.swarms._base.registry import SwarmRegistry
+        from Jotty.core.execution.swarms._base.registry import SwarmRegistry
         from Jotty.core.modes.execution.executor import TierExecutor
 
         # Reset registration state
@@ -1741,7 +1741,7 @@ class TestSelectSwarmIntegration:
                 mock_get_tc.return_value = mock_tc
 
                 with patch(
-                    "Jotty.core.intelligence.swarms._base.registry.SwarmRegistry.create"
+                    "Jotty.core.execution.swarms._base.registry.SwarmRegistry.create"
                 ) as mock_create:
                     mock_swarm = MagicMock()
                     mock_create.return_value = mock_swarm

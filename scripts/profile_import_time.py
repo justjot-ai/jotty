@@ -27,10 +27,10 @@ imports = [
     "Jotty",
     "Jotty.core",
     "Jotty.core.execution",
-    "Jotty.core.intelligence.swarms",
-    "Jotty.core.intelligence.swarms.olympiad_learning_swarm",
+    "Jotty.core.execution.swarms",
+    "Jotty.core.execution.swarms.olympiad_learning_swarm",
     "Jotty.core.intelligence",
-    "Jotty.core.intelligence.swarms",
+    "Jotty.core.execution.swarms",
     "Jotty.core.infrastructure",
     "dspy",
 ]

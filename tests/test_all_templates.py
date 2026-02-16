@@ -7,7 +7,7 @@ Run: python test_all_templates.py
 import asyncio
 import sys
 
-from core.intelligence.swarms.templates import *
+from core.execution.swarms.templates import *
 
 
 async def test_all_templates():

@@ -3,7 +3,7 @@ Swarm infrastructure — base classes, types, evaluation, and learning.
 
 Re-exports all public names so callers can use::
 
-    from core.intelligence.swarms._base import SwarmLearning, SwarmResult
+    from core.execution.swarms._base import SwarmLearning, SwarmResult
 """
 
 from ._coordination_mixin import SwarmCoordinationMixin

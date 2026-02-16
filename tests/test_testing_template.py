@@ -9,8 +9,8 @@ Run with: pytest tests/test_testing_template.py -v -s
 import logging
 
 import pytest
-from Jotty.core.intelligence.swarms._base.swarm_learning import SwarmBaseConfig
-from Jotty.core.intelligence.swarms.templates.testing import TestingTemplate
+from Jotty.core.execution.swarms._base.swarm_learning import SwarmBaseConfig
+from Jotty.core.execution.swarms.templates.testing import TestingTemplate
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -73,7 +73,7 @@ def calculate_total(items):
 
 def test_testing_template_backward_compatibility():
     """Test backward compatibility alias."""
-    from Jotty.core.intelligence.swarms.templates.testing import TestingSwarm
+    from Jotty.core.execution.swarms.templates.testing import TestingSwarm
 
     assert TestingSwarm is TestingTemplate
 

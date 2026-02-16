@@ -23,9 +23,9 @@ import asyncio
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-from Jotty.core.intelligence.swarms._base.swarm_types import AgentRole, SwarmBaseConfig, SwarmResult
-from Jotty.core.intelligence.swarms.base.swarm_template import PhaseExecutor, SwarmTemplate
-from Jotty.core.intelligence.swarms.base.team_coordinator import (
+from Jotty.core.execution.swarms._base.swarm_types import AgentRole, SwarmBaseConfig, SwarmResult
+from Jotty.core.execution.swarms.base.swarm_template import PhaseExecutor, SwarmTemplate
+from Jotty.core.execution.swarms.base.team_coordinator import (
     AgentSpec,
     CoordinationPattern,
     MergeStrategy,
@@ -1118,9 +1118,7 @@ class TestSwarmTemplateInit:
 class TestSwarmTemplateInitAgents:
     """Test SwarmTemplate._init_agents method."""
 
-    @patch(
-        "Jotty.core.intelligence.swarms.base.swarm_template.SwarmTemplate._init_shared_resources"
-    )
+    @patch("Jotty.core.execution.swarms.base.swarm_template.SwarmTemplate._init_shared_resources")
     def test_init_agents_basic(self, mock_init_shared):
         """Test basic agent initialization."""
 
@@ -1148,9 +1146,7 @@ class TestSwarmTemplateInitAgents:
         assert hasattr(swarm, "_agent1")
         mock_init_shared.assert_called_once()
 
-    @patch(
-        "Jotty.core.intelligence.swarms.base.swarm_template.SwarmTemplate._init_shared_resources"
-    )
+    @patch("Jotty.core.execution.swarms.base.swarm_template.SwarmTemplate._init_shared_resources")
     def test_init_agents_multiple(self, mock_init_shared):
         """Test initializing multiple agents."""
 
@@ -1184,9 +1180,7 @@ class TestSwarmTemplateInitAgents:
         assert hasattr(swarm, "_agent1")
         assert hasattr(swarm, "_agent2")
 
-    @patch(
-        "Jotty.core.intelligence.swarms.base.swarm_template.SwarmTemplate._init_shared_resources"
-    )
+    @patch("Jotty.core.execution.swarms.base.swarm_template.SwarmTemplate._init_shared_resources")
     def test_init_agents_idempotent(self, mock_init_shared):
         """Test _init_agents is idempotent."""
 

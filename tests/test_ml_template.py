@@ -9,8 +9,8 @@ Run with: pytest tests/test_ml_template.py -v -s
 import logging
 
 import pytest
-from Jotty.core.intelligence.swarms._base.swarm_learning import SwarmBaseConfig
-from Jotty.core.intelligence.swarms.templates.ml import MLTemplate
+from Jotty.core.execution.swarms._base.swarm_learning import SwarmBaseConfig
+from Jotty.core.execution.swarms.templates.ml import MLTemplate
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -68,7 +68,7 @@ async def test_ml_template_placeholder_execution(ml_config):
 
 def test_ml_template_backward_compatibility():
     """Test backward compatibility alias."""
-    from Jotty.core.intelligence.swarms.templates.ml import MLSwarm
+    from Jotty.core.execution.swarms.templates.ml import MLSwarm
 
     assert MLSwarm is MLTemplate
 

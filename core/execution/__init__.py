@@ -16,7 +16,7 @@ Example:
         MemoryCapability
     )
     from Jotty.core.execution.agents import MermaidAgent
-    from Jotty.core.intelligence.swarms import CodingSwarm
+    from Jotty.core.execution.swarms import CodingSwarm
     from Jotty.core.execution.workflows import ResearchWorkflow
 
     # Create agent with capabilities

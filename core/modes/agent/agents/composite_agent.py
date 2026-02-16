@@ -34,10 +34,10 @@ from Jotty.core.infrastructure.foundation.types.execution_types import (  # type
 from ..base.base_agent import AgentResult, AgentRuntimeConfig, BaseAgent
 
 if TYPE_CHECKING:
-    from Jotty.core.intelligence.swarms._base.swarm_types import (  # type: ignore[import-not-found, import]
+    from Jotty.core.execution.swarms._base.swarm_types import (  # type: ignore[import-not-found, import]
         SwarmResult,  # type: ignore[import-not-found, import]
     )
-    from Jotty.core.intelligence.swarms.base.swarm_template import (  # type: ignore[import]
+    from Jotty.core.execution.swarms.base.swarm_template import (  # type: ignore[import]
         SwarmTemplate,  # type: ignore[import-not-found]
     )
 
@@ -97,7 +97,7 @@ class UnifiedResult:
 
     def to_swarm_result(self) -> SwarmResult:
         """Convert to SwarmResult (lazy import avoids circular dep)."""
-        from Jotty.core.intelligence.swarms._base.swarm_types import SwarmResult
+        from Jotty.core.execution.swarms._base.swarm_types import SwarmResult
 
         return SwarmResult(
             success=self.success,

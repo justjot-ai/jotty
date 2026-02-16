@@ -27,7 +27,7 @@ files_to_fix = [
     "core/intelligence/orchestration/templates/_rendering_mixin.py",
     "core/intelligence/orchestration/templates/_telegram_mixin.py",
     "core/intelligence/orchestration/templates/_world_class_report_mixin.py",
-    "core/intelligence/swarms/_learning_mixin.py",
+    "core/execution/swarms/_learning_mixin.py",
     "core/intelligence/memory/_consolidation_mixin.py",
 ]
 

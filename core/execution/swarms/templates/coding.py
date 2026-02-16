@@ -9,7 +9,7 @@ Architecture:
     Stage 3: Test (TestWriter) - Creates comprehensive tests
 
 Example:
-    from Jotty.core.intelligence.swarms.templates.coding import CodingTemplate
+    from Jotty.core.execution.swarms.templates.coding import CodingTemplate
 
     template = CodingTemplate()
     result = await template.execute("Build a REST API for user management")

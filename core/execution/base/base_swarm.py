@@ -57,18 +57,18 @@ from abc import abstractmethod
 from datetime import datetime
 from typing import Callable, ClassVar, Dict, List, Optional, Tuple, Type
 
-from Jotty.core.intelligence.swarms._base.swarm_learning import (  # type: ignore[import]
+from Jotty.core.execution.swarms._base.swarm_learning import (  # type: ignore[import]
     AgentRole,
     SwarmBaseConfig,
     SwarmLearning,
     SwarmResult,
 )
-from Jotty.core.intelligence.swarms._base.swarm_types import (  # type: ignore[import-not-found, import]
+from Jotty.core.execution.swarms._base.swarm_types import (  # type: ignore[import-not-found, import]
     _safe_join,
     _safe_num,
     _split_field,
 )
-from Jotty.core.intelligence.swarms.base.team_coordinator import (
+from Jotty.core.execution.swarms.base.team_coordinator import (
     CoordinationPattern,
     TeamCoordinator,
     TeamResult,

@@ -14,13 +14,13 @@ from datetime import datetime
 from unittest.mock import Mock, patch
 
 import pytest
-from Jotty.core.intelligence.swarms._base.evaluation import (
+from Jotty.core.execution.swarms._base.evaluation import (
     EvaluationHistory,
     GoldStandardDB,
     ImprovementHistory,
 )
-from Jotty.core.intelligence.swarms._base.registry import SwarmRegistry, register_swarm
-from Jotty.core.intelligence.swarms._base.swarm_types import (
+from Jotty.core.execution.swarms._base.registry import SwarmRegistry, register_swarm
+from Jotty.core.execution.swarms._base.swarm_types import (
     AgentRole,
     Evaluation,
     EvaluationResult,
