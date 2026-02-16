@@ -44,8 +44,8 @@ class SwarmTester:
         print("=" * 80)
 
         try:
-            from Jotty.core.execution.swarms.olympiad_learning_swarm import OlympiadLearningSwarm
-            from Jotty.core.execution.swarms.olympiad_learning_swarm.types import (
+            from Jotty.core.intelligence.swarms.olympiad_learning_swarm import OlympiadLearningSwarm
+            from Jotty.core.intelligence.swarms.olympiad_learning_swarm.types import (
                 OlympiadLearningConfig,
                 Subject,
                 LessonDepth,
@@ -93,7 +93,7 @@ class SwarmTester:
         print("=" * 80)
 
         try:
-            from Jotty.core.execution.swarms.arxiv_learning_swarm import learn_paper
+            from Jotty.core.intelligence.swarms.arxiv_learning_swarm import learn_paper
 
             start = time.time()
             result = await learn_paper(
@@ -124,8 +124,8 @@ class SwarmTester:
         print("=" * 80)
 
         try:
-            from Jotty.core.execution.swarms.research_swarm import ResearchSwarm
-            from Jotty.core.execution.swarms.research_swarm.types import ResearchConfig
+            from Jotty.core.intelligence.swarms.research_swarm import ResearchSwarm
+            from Jotty.core.intelligence.swarms.research_swarm.types import ResearchConfig
 
             config = ResearchConfig(
                 send_telegram=False,

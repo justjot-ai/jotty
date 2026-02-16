@@ -40,7 +40,7 @@ async def test_research_swarm() -> SwarmRating:
     """Test ResearchSwarm."""
     start = time.time()
     try:
-        from Jotty.core.execution.swarms.research_swarm import ResearchSwarm
+        from Jotty.core.intelligence.swarms.research_swarm import ResearchSwarm
 
         swarm = ResearchSwarm()
         result = await swarm.execute(
@@ -74,7 +74,7 @@ async def test_coding_swarm() -> SwarmRating:
     """Test CodingSwarm."""
     start = time.time()
     try:
-        from Jotty.core.execution.swarms.coding_swarm import CodingSwarm
+        from Jotty.core.intelligence.swarms.coding_swarm import CodingSwarm
 
         swarm = CodingSwarm()
         result = await swarm.execute(task="Write a function to reverse a string in Python")
@@ -106,7 +106,7 @@ async def test_olympiad_learning_swarm() -> SwarmRating:
     """Test OlympiadLearningSwarm."""
     start = time.time()
     try:
-        from Jotty.core.execution.swarms.olympiad_learning_swarm import OlympiadLearningSwarm
+        from Jotty.core.intelligence.swarms.olympiad_learning_swarm import OlympiadLearningSwarm
 
         swarm = OlympiadLearningSwarm()
         result = await swarm.execute(

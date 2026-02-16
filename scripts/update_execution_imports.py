@@ -4,7 +4,7 @@ Update imports to use new core/execution/ structure.
 
 Migrates:
 - from Jotty.core.modes.agent → from Jotty.core.execution.base
-- from Jotty.core.execution.swarms → from Jotty.core.execution.swarms
+- from Jotty.core.intelligence.swarms → from Jotty.core.intelligence.swarms
 - from Jotty.core.modes.workflow → from Jotty.core.execution.workflows
 """
 
@@ -31,15 +31,15 @@ IMPORT_REPLACEMENTS = [
     # Swarm imports (now canonical location is core.intelligence.swarms)
     (
         r"from Jotty\.core\.execution\.swarms\.templates import",
-        "from Jotty.core.execution.swarms.templates import",
+        "from Jotty.core.intelligence.swarms.templates import",
     ),
     (
         r"from Jotty\.core\.execution\.swarms\.base import",
-        "from Jotty.core.execution.swarms.base import",
+        "from Jotty.core.intelligence.swarms.base import",
     ),
     (
         r"from Jotty\.core\.execution\.swarms import",
-        "from Jotty.core.execution.swarms import",
+        "from Jotty.core.intelligence.swarms import",
     ),
     # Workflow imports
     (
