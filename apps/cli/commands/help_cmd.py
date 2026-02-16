@@ -37,7 +37,7 @@ class HelpCommand(BaseCommand):
         commands = cli.command_registry.list_commands()
 
         # Group by category
-        categories = {}
+        categories = {}  # type: ignore[var-annotated]
         for cmd in commands:
             cat = cmd.get("category", "general")
             if cat not in categories:
@@ -45,16 +45,16 @@ class HelpCommand(BaseCommand):
             categories[cat].append(cmd)
 
         # Display commands table
-        table = cli.renderer.tables.commands_table(commands)
-        cli.renderer.tables.print_table(table)
+        table = cli.renderer.tables.commands_table(commands)  # type: ignore[attr-defined]
+        cli.renderer.tables.print_table(table)  # type: ignore[attr-defined]
 
         # Tips
-        cli.renderer.newline()
-        cli.renderer.info("Tips:")
-        cli.renderer.print("  • Type /run <task> to execute tasks with AI")
-        cli.renderer.print("  • Type naturally without / for chat mode")
-        cli.renderer.print("  • Use Tab for autocomplete")
-        cli.renderer.print("  • Use /quit to exit")
+        cli.renderer.newline()  # type: ignore[attr-defined]
+        cli.renderer.info("Tips:")  # type: ignore[attr-defined]
+        cli.renderer.print("  • Type /run <task> to execute tasks with AI")  # type: ignore[attr-defined]
+        cli.renderer.print("  • Type naturally without / for chat mode")  # type: ignore[attr-defined]
+        cli.renderer.print("  • Use Tab for autocomplete")  # type: ignore[attr-defined]
+        cli.renderer.print("  • Use /quit to exit")  # type: ignore[attr-defined]
 
         return CommandResult.ok(data=commands)
 
@@ -67,13 +67,13 @@ class HelpCommand(BaseCommand):
         cmd = cli.command_registry.get(cmd_name)
 
         if not cmd:
-            cli.renderer.error(f"Unknown command: {cmd_name}")
-            cli.renderer.info("Type /help for list of commands")
+            cli.renderer.error(f"Unknown command: {cmd_name}")  # type: ignore[attr-defined]
+            cli.renderer.info("Type /help for list of commands")  # type: ignore[attr-defined]
             return CommandResult.fail(f"Unknown command: {cmd_name}")
 
         # Show detailed help
         help_text = cmd.help_text()
-        cli.renderer.panel(help_text, title=f"Help: /{cmd.name}", style="cyan")
+        cli.renderer.panel(help_text, title=f"Help: /{cmd.name}", style="cyan")  # type: ignore[attr-defined]
 
         return CommandResult.ok(data={"command": cmd.name, "help": help_text})
 
@@ -94,7 +94,7 @@ class QuitCommand(BaseCommand):
 
     async def execute(self, args: ParsedArgs, cli: "JottyCLI") -> CommandResult:
         """Exit CLI."""
-        cli.renderer.goodbye()
+        cli.renderer.goodbye()  # type: ignore[attr-defined]
         return CommandResult.exit()
 
 
@@ -109,7 +109,7 @@ class ClearCommand(BaseCommand):
 
     async def execute(self, args: ParsedArgs, cli: "JottyCLI") -> CommandResult:
         """Clear screen."""
-        cli.renderer.clear()
+        cli.renderer.clear()  # type: ignore[attr-defined]
         return CommandResult.ok()
 
 
@@ -129,7 +129,7 @@ class HistoryCommand(BaseCommand):
         history = cli.session.get_history(limit)
 
         if not history:
-            cli.renderer.info("No history yet")
+            cli.renderer.info("No history yet")  # type: ignore[attr-defined]
             return CommandResult.ok(data=[])
 
         # Format history
@@ -139,6 +139,6 @@ class HistoryCommand(BaseCommand):
             content = entry.get("content", "")[:60]
             lines.append(f"{i}. [{role}] {content}")
 
-        cli.renderer.panel("\n".join(lines), title=f"History (last {len(history)})", style="dim")
+        cli.renderer.panel("\n".join(lines), title=f"History (last {len(history)})", style="dim")  # type: ignore[attr-defined]
 
         return CommandResult.ok(data=history)

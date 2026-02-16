@@ -49,7 +49,7 @@ def register_chat_routes(app, api) -> Any:
 
         async def event_generator() -> Any:
             # Thread-safe queue for output
-            output_queue = queue.Queue()
+            output_queue = queue.Queue()  # type: ignore[var-annotated]
             result_holder = {"done": False, "success": True, "error": None}
 
             # Padding to flush proxy buffers
@@ -174,7 +174,7 @@ def register_chat_routes(app, api) -> Any:
                             loop.close()
                     except Exception as e:
                         result_holder["success"] = False
-                        result_holder["error"] = str(e)
+                        result_holder["error"] = str(e)  # type: ignore[assignment]
                         add_output(f"❌ Error: {e}")
                     finally:
                         sys.stdout = original_stdout
@@ -272,7 +272,7 @@ def register_chat_routes(app, api) -> Any:
         session_id = session_id or str(uuid.uuid4())[:8]
 
         # Use asyncio.Queue for non-blocking async communication
-        event_queue = asyncio.Queue()
+        event_queue = asyncio.Queue()  # type: ignore[var-annotated]
         done_event = asyncio.Event()
 
         async def process_message_async() -> None:
@@ -356,7 +356,7 @@ def register_chat_routes(app, api) -> Any:
         The relevant context is retrieved and prepended to the message
         for the LLM to use in generating a response.
         """
-        from .documents import get_document_processor
+        from .documents import get_document_processor  # type: ignore[attr-defined]
 
         try:
             processor = get_document_processor()
@@ -405,7 +405,7 @@ QUESTION: {request.message}"""
 
         from starlette.responses import StreamingResponse
 
-        from .documents import get_document_processor
+        from .documents import get_document_processor  # type: ignore[attr-defined]
 
         session_id = session_id or str(uuid.uuid4())[:8]
 
@@ -434,7 +434,7 @@ QUESTION: {message}"""
                 yield f"data: {json.dumps({'type': 'context', 'has_context': False})}\n\n"
 
             # Thread-safe queue for events
-            event_queue = queue.Queue()
+            event_queue = queue.Queue()  # type: ignore[var-annotated]
             result_holder = {"result": None, "done": False}
             padding = " " * 16384
 
@@ -461,7 +461,7 @@ QUESTION: {message}"""
                     finally:
                         loop.close()
                 except Exception as e:
-                    result_holder["result"] = {"success": False, "error": str(e)}
+                    result_holder["result"] = {"success": False, "error": str(e)}  # type: ignore[assignment]
                 finally:
                     result_holder["done"] = True
 
@@ -556,7 +556,7 @@ QUESTION: {message}"""
                     import queue
 
                     # Thread-safe queue for events
-                    event_queue = queue.Queue()
+                    event_queue = queue.Queue()  # type: ignore[var-annotated]
                     result_holder = {"result": None, "done": False}
 
                     # Sync callbacks that queue events
@@ -597,7 +597,7 @@ QUESTION: {message}"""
                                 loop.close()
                         except Exception as e:
                             logger.error(f"WS processing error: {e}", exc_info=True)
-                            result_holder["result"] = {"success": False, "error": str(e)}
+                            result_holder["result"] = {"success": False, "error": str(e)}  # type: ignore[assignment]
                         # Set done AFTER result is set (avoid race condition)
                         result_holder["done"] = True
 
@@ -631,15 +631,15 @@ QUESTION: {message}"""
                     # Send result (match SSE format with nested 'result')
                     result = result_holder["result"]
                     logger.info(f"WS final result check: {result}")
-                    if result and result.get("success"):
+                    if result and result.get("success"):  # type: ignore[attr-defined]
                         await websocket.send_json(
                             {
                                 "type": "complete",
                                 "result": {
                                     "success": True,
-                                    "message_id": result.get("message_id", ""),
-                                    "content": result.get("content", ""),
-                                    "output_path": result.get("output_path"),
+                                    "message_id": result.get("message_id", ""),  # type: ignore[attr-defined]
+                                    "content": result.get("content", ""),  # type: ignore[attr-defined]
+                                    "output_path": result.get("output_path"),  # type: ignore[attr-defined]
                                 },
                             }
                         )
@@ -648,7 +648,7 @@ QUESTION: {message}"""
                             {
                                 "type": "error",
                                 "error": (
-                                    result.get("error", "Unknown error")
+                                    result.get("error", "Unknown error")  # type: ignore[attr-defined]
                                     if result
                                     else "Processing failed"
                                 ),

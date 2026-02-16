@@ -55,7 +55,7 @@ def register_agui_routes(app, api) -> Any:
             message_id = f"msg_{uuid.uuid4().hex[:12]}"
 
             # Thread-safe queue for events
-            event_queue = queue.Queue()
+            event_queue = queue.Queue()  # type: ignore[var-annotated]
             result_holder = {"result": None, "done": False}
             padding = " " * 8192
 
@@ -101,7 +101,7 @@ def register_agui_routes(app, api) -> Any:
                         loop.close()
                 except Exception as e:
                     logger.error(f"AG-UI processing error: {e}", exc_info=True)
-                    result_holder["result"] = {"success": False, "error": str(e)}
+                    result_holder["result"] = {"success": False, "error": str(e)}  # type: ignore[assignment]
                 finally:
                     result_holder["done"] = True
 
@@ -136,10 +136,10 @@ def register_agui_routes(app, api) -> Any:
                 yield f"data: {json.dumps({'type': 'StateSnapshot', 'snapshot': {'lastResult': result}})}\n\n"
 
             # Emit RunFinished or RunError
-            if result and result.get("success"):
-                yield f"data: {json.dumps({'type': 'RunFinished', 'threadId': thread_id, 'runId': run_id, 'result': {'content': result.get('content', '')}, 'timestamp': datetime.now().isoformat()})}\n\n"
+            if result and result.get("success"):  # type: ignore[attr-defined]
+                yield f"data: {json.dumps({'type': 'RunFinished', 'threadId': thread_id, 'runId': run_id, 'result': {'content': result.get('content', '')}, 'timestamp': datetime.now().isoformat()})}\n\n"  # type: ignore[attr-defined]
             else:
-                yield f"data: {json.dumps({'type': 'RunError', 'message': result.get('error', 'Unknown error') if result else 'Processing failed', 'code': 'PROCESSING_ERROR'})}\n\n"
+                yield f"data: {json.dumps({'type': 'RunError', 'message': result.get('error', 'Unknown error') if result else 'Processing failed', 'code': 'PROCESSING_ERROR'})}\n\n"  # type: ignore[attr-defined]
 
         return StreamingResponse(
             agui_event_generator(),

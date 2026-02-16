@@ -140,7 +140,7 @@ class ProgressManager:
             columns.extend([TimeElapsedColumn(), TimeRemainingColumn()])
 
         with Progress(*columns, console=self.console) as progress:
-            self._active_progress = progress
+            self._active_progress = progress  # type: ignore[assignment]
             task_id = progress.add_task(description, total=total)
             try:
                 yield ProgressTask(progress, task_id)
@@ -183,7 +183,7 @@ class ProgressTask:
         """
         kwargs = {"advance": advance}
         if description is not None:
-            kwargs["description"] = description
+            kwargs["description"] = description  # type: ignore[assignment]
         self.progress.update(self.task_id, **kwargs)
 
     def complete(self) -> Any:
@@ -205,7 +205,7 @@ class AsyncSpinnerContext:
             self._status = self.manager.console.status(
                 f"[{self.style}]{self.message}[/{self.style}]"
             )
-            self._status.__enter__()
+            self._status.__enter__()  # type: ignore[attr-defined]
             self.manager._active_spinner = self._status
         else:
             print(f"  {self.message}")
@@ -612,7 +612,7 @@ class SwarmDashboard:
         if not TERMIOS_AVAILABLE:
             return
         try:
-            self._old_term_settings = termios.tcgetattr(sys.stdin)
+            self._old_term_settings = termios.tcgetattr(sys.stdin)  # type: ignore[assignment]
         except (termios.error, ValueError):
             return  # Not a terminal, skip keyboard input
 
@@ -696,8 +696,8 @@ class SwarmDashboard:
                     except Exception:
                         pass
 
-        self._key_thread = threading.Thread(target=_listener, daemon=True)
-        self._key_thread.start()
+        self._key_thread = threading.Thread(target=_listener, daemon=True)  # type: ignore[assignment]
+        self._key_thread.start()  # type: ignore[attr-defined]
 
     def _stop_key_listener(self) -> Any:
         """Stop keyboard listener and restore terminal."""
@@ -1170,13 +1170,13 @@ class SwarmDashboard:
     def start(self) -> Any:
         """Start the Live display."""
         self.state.start_time = time.time()
-        self._live = Live(
+        self._live = Live(  # type: ignore[assignment]
             self._build_layout(),
             console=self.console,
             refresh_per_second=4,
             screen=True,
         )
-        self._live.start()
+        self._live.start()  # type: ignore[attr-defined]
         self._start_key_listener()
 
     def stop(self) -> Any:

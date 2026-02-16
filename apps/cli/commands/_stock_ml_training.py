@@ -43,34 +43,34 @@ class StockMLTrainingMixin:
         if "compare-timeframes" in args.flags:
             timeframes_to_test = args.flags["compare-timeframes"].split(",")
 
-        cli.renderer.header(f"Stock ML Comparison: {symbol}")
-        cli.renderer.info(
+        cli.renderer.header(f"Stock ML Comparison: {symbol}")  # type: ignore[attr-defined]
+        cli.renderer.info(  # type: ignore[attr-defined]
             f"Testing {len(targets_to_test)} targets × {len(timeframes_to_test)} timeframes"
         )
-        cli.renderer.info("")
+        cli.renderer.info("")  # type: ignore[attr-defined]
 
         all_results = []
 
         for timeframe in timeframes_to_test:
             # Load data once per timeframe
-            cli.renderer.info(f"Loading {symbol} ({timeframe} data, last {years} years)...")
+            cli.renderer.info(f"Loading {symbol} ({timeframe} data, last {years} years)...")  # type: ignore[attr-defined]
             try:
-                df = await self._load_stock_data(symbol, timeframe, years, cli)
+                df = await self._load_stock_data(symbol, timeframe, years, cli)  # type: ignore[attr-defined]
                 if df is None or len(df) < 100:
-                    cli.renderer.error(f"Insufficient data for {timeframe}")
+                    cli.renderer.error(f"Insufficient data for {timeframe}")  # type: ignore[attr-defined]
                     continue
             except Exception as e:
-                cli.renderer.error(f"Failed to load {timeframe} data: {e}")
+                cli.renderer.error(f"Failed to load {timeframe} data: {e}")  # type: ignore[attr-defined]
                 continue
 
-            cli.renderer.info(f"Loaded {len(df)} records")
+            cli.renderer.info(f"Loaded {len(df)} records")  # type: ignore[attr-defined]
 
             for target_type in targets_to_test:
-                target_config = self._parse_target(target_type)
-                cli.renderer.status(f"Testing {target_type} ({timeframe})...")
+                target_config = self._parse_target(target_type)  # type: ignore[attr-defined]
+                cli.renderer.status(f"Testing {target_type} ({timeframe})...")  # type: ignore[attr-defined]
 
                 try:
-                    X, y, feature_names = self._create_features_and_target(df.copy(), target_config)
+                    X, y, feature_names = self._create_features_and_target(df.copy(), target_config)  # type: ignore[attr-defined]
                     if X is None or len(X) < 100:
                         continue
 
@@ -91,24 +91,24 @@ class StockMLTrainingMixin:
                         }
                     )
                 except Exception as e:
-                    cli.renderer.error(f"  Failed: {e}")
+                    cli.renderer.error(f"  Failed: {e}")  # type: ignore[attr-defined]
                     continue
 
         if not all_results:
-            cli.renderer.error("No successful runs")
+            cli.renderer.error("No successful runs")  # type: ignore[attr-defined]
             return CommandResult.fail("No results")
 
         # Display comparison table
-        cli.renderer.info("")
-        cli.renderer.header("Comparison Results")
-        cli.renderer.info("")
-        cli.renderer.info(
+        cli.renderer.info("")  # type: ignore[attr-defined]
+        cli.renderer.header("Comparison Results")  # type: ignore[attr-defined]
+        cli.renderer.info("")  # type: ignore[attr-defined]
+        cli.renderer.info(  # type: ignore[attr-defined]
             "┌─────────────┬────────────┬───────────┬──────────┬──────────┬──────────┬─────────────────┐"
         )
-        cli.renderer.info(
+        cli.renderer.info(  # type: ignore[attr-defined]
             "│  Timeframe  │   Target   │   Days    │ Samples  │ Accuracy │  AUC     │   Best Model    │"
         )
-        cli.renderer.info(
+        cli.renderer.info(  # type: ignore[attr-defined]
             "├─────────────┼────────────┼───────────┼──────────┼──────────┼──────────┼─────────────────┤"
         )
 
@@ -117,24 +117,24 @@ class StockMLTrainingMixin:
 
         for r in sorted_results:
             marker = "" if r == sorted_results[0] else " "
-            cli.renderer.info(
+            cli.renderer.info(  # type: ignore[attr-defined]
                 f"│{marker}{r['timeframe']:<11} │ {r['target']:<10} │ {r['days']:^9} │ {r['samples']:^8} │ "
                 f"{r['accuracy']:^8.4f} │ {r['auc']:^8.4f} │ {r['best_model']:<15} │"
             )
 
-        cli.renderer.info(
+        cli.renderer.info(  # type: ignore[attr-defined]
             "└─────────────┴────────────┴───────────┴──────────┴──────────┴──────────┴─────────────────┘"
         )
 
         # Summary
         best = sorted_results[0]
-        cli.renderer.info("")
-        cli.renderer.info("Best Configuration:")
-        cli.renderer.info(f"  Target:    {best['target']} ({best['days']}-day prediction)")
-        cli.renderer.info(f"  Timeframe: {best['timeframe']}")
-        cli.renderer.info(f"  Model:     {best['best_model']}")
-        cli.renderer.info(f"  AUC:       {best['auc']:.4f}")
-        cli.renderer.info(f"  Accuracy:  {best['accuracy']:.4f}")
+        cli.renderer.info("")  # type: ignore[attr-defined]
+        cli.renderer.info("Best Configuration:")  # type: ignore[attr-defined]
+        cli.renderer.info(f"  Target:    {best['target']} ({best['days']}-day prediction)")  # type: ignore[attr-defined]
+        cli.renderer.info(f"  Timeframe: {best['timeframe']}")  # type: ignore[attr-defined]
+        cli.renderer.info(f"  Model:     {best['best_model']}")  # type: ignore[attr-defined]
+        cli.renderer.info(f"  AUC:       {best['auc']:.4f}")  # type: ignore[attr-defined]
+        cli.renderer.info(f"  Accuracy:  {best['accuracy']:.4f}")  # type: ignore[attr-defined]
 
         # Log to MLflow if enabled
         if use_mlflow:
@@ -167,7 +167,7 @@ class StockMLTrainingMixin:
             run_info = await tracker.end_run()
             if run_info:
                 MLCommand.save_mlflow_state(experiment_name, run_info["run_id"])
-                cli.renderer.info(f"MLflow run: {run_info['run_id']}")
+                cli.renderer.info(f"MLflow run: {run_info['run_id']}")  # type: ignore[attr-defined]
 
         return CommandResult.ok(
             data={
@@ -246,45 +246,45 @@ class StockMLTrainingMixin:
         years = int(args.flags.get("years", args.flags.get("y", "2")))
 
         if not symbol:
-            cli.renderer.error("Stock symbol required for world-class backtest.")
-            cli.renderer.info("")
-            cli.renderer.info("Usage: /stock-ml <SYMBOL> --wc [options]")
-            cli.renderer.info("")
-            cli.renderer.info("Examples:")
-            cli.renderer.info("  /stock-ml RELIANCE --wc")
-            cli.renderer.info("  /stock-ml TCS --wc --target next_10d_up")
-            cli.renderer.info("  /stock-ml HDFCBANK --wc --years 3")
+            cli.renderer.error("Stock symbol required for world-class backtest.")  # type: ignore[attr-defined]
+            cli.renderer.info("")  # type: ignore[attr-defined]
+            cli.renderer.info("Usage: /stock-ml <SYMBOL> --wc [options]")  # type: ignore[attr-defined]
+            cli.renderer.info("")  # type: ignore[attr-defined]
+            cli.renderer.info("Examples:")  # type: ignore[attr-defined]
+            cli.renderer.info("  /stock-ml RELIANCE --wc")  # type: ignore[attr-defined]
+            cli.renderer.info("  /stock-ml TCS --wc --target next_10d_up")  # type: ignore[attr-defined]
+            cli.renderer.info("  /stock-ml HDFCBANK --wc --years 3")  # type: ignore[attr-defined]
             return CommandResult.fail("Symbol required")
 
-        cli.renderer.header(f"World-Class ML Backtest: {symbol}")
-        cli.renderer.info(f"Target: {target_type}")
-        cli.renderer.info(f"Period: {years} years | Timeframe: {timeframe}")
-        cli.renderer.info("")
+        cli.renderer.header(f"World-Class ML Backtest: {symbol}")  # type: ignore[attr-defined]
+        cli.renderer.info(f"Target: {target_type}")  # type: ignore[attr-defined]
+        cli.renderer.info(f"Period: {years} years | Timeframe: {timeframe}")  # type: ignore[attr-defined]
+        cli.renderer.info("")  # type: ignore[attr-defined]
 
         try:
             # Parse target config
-            target_config = self._parse_target(target_type)
+            target_config = self._parse_target(target_type)  # type: ignore[attr-defined]
             is_classification = target_config["type"] == "classification"
 
             # Load data
-            cli.renderer.status(f"Loading {symbol} data...")
-            df = await self._load_stock_data(symbol, timeframe, years, cli)
+            cli.renderer.status(f"Loading {symbol} data...")  # type: ignore[attr-defined]
+            df = await self._load_stock_data(symbol, timeframe, years, cli)  # type: ignore[attr-defined]
             if df is None or len(df) < 100:
-                cli.renderer.error(f"Insufficient data for {symbol}")
+                cli.renderer.error(f"Insufficient data for {symbol}")  # type: ignore[attr-defined]
                 return CommandResult.fail("Insufficient data")
 
-            cli.renderer.info(
+            cli.renderer.info(  # type: ignore[attr-defined]
                 f"Loaded {len(df)} records ({df['date'].min().date()} to {df['date'].max().date()})"
             )
 
             # Create features
-            cli.renderer.status("Engineering features...")
-            X, y, feature_names = self._create_features_and_target(df.copy(), target_config)
+            cli.renderer.status("Engineering features...")  # type: ignore[attr-defined]
+            X, y, feature_names = self._create_features_and_target(df.copy(), target_config)  # type: ignore[attr-defined]
             if X is None or len(X) < 100:
-                cli.renderer.error("Insufficient data after feature engineering")
+                cli.renderer.error("Insufficient data after feature engineering")  # type: ignore[attr-defined]
                 return CommandResult.fail("Insufficient data")
 
-            cli.renderer.info(f"Features: {len(feature_names)}")
+            cli.renderer.info(f"Features: {len(feature_names)}")  # type: ignore[attr-defined]
 
             # Scale features
             from sklearn.preprocessing import StandardScaler
@@ -298,7 +298,7 @@ class StockMLTrainingMixin:
             y_train, y_test = y.iloc[:split_idx], y.iloc[split_idx:]
 
             # Train models with timeframe-optimized hyperparameters
-            cli.renderer.status("Training models with optimized hyperparameters...")
+            cli.renderer.status("Training models with optimized hyperparameters...")  # type: ignore[attr-defined]
             import lightgbm as lgb
             import xgboost as xgb
 
@@ -456,12 +456,12 @@ class StockMLTrainingMixin:
             best_name = None
 
             for name, model in models.items():
-                model.fit(X_train.values, y_train.values)
-                pred = model.predict(X_test.values)
+                model.fit(X_train.values, y_train.values)  # type: ignore[attr-defined]
+                pred = model.predict(X_test.values)  # type: ignore[attr-defined]
 
                 if is_classification:
                     try:
-                        proba = model.predict_proba(X_test.values)
+                        proba = model.predict_proba(X_test.values)  # type: ignore[attr-defined]
                         score = roc_auc_score(y_test, proba[:, 1])
                     except (ValueError, IndexError, AttributeError):
                         # ROC AUC failed, fall back to accuracy
@@ -469,23 +469,23 @@ class StockMLTrainingMixin:
                 else:
                     score = r2_score(y_test, pred)
 
-                cli.renderer.info(f"  {name}: Score={score:.4f}")
+                cli.renderer.info(f"  {name}: Score={score:.4f}")  # type: ignore[attr-defined]
                 if score > best_score:
                     best_score = score
                     best_model = model
                     best_name = name
 
-            cli.renderer.info(f"Best: {best_name} (Score: {best_score:.4f})")
+            cli.renderer.info(f"Best: {best_name} (Score: {best_score:.4f})")  # type: ignore[attr-defined]
 
             # Generate predictions for full test set
             if is_classification:
-                predictions = best_model.predict_proba(X_test.values)[:, 1]
+                predictions = best_model.predict_proba(X_test.values)[:, 1]  # type: ignore[attr-defined]
             else:
-                predictions = best_model.predict(X_test.values)
+                predictions = best_model.predict(X_test.values)  # type: ignore[attr-defined]
 
             # Run World-Class Backtest Engine
-            cli.renderer.info("")
-            cli.renderer.header("Running World-Class Backtest Engine")
+            cli.renderer.info("")  # type: ignore[attr-defined]
+            cli.renderer.header("Running World-Class Backtest Engine")  # type: ignore[attr-defined]
 
             from Jotty.core.capabilities.skills.ml import (
                 ComprehensiveBacktestReportGenerator,
@@ -516,7 +516,7 @@ class StockMLTrainingMixin:
             test_df = test_df.reset_index(drop=True)
 
             # Run backtest
-            cli.renderer.status("Running comprehensive analysis...")
+            cli.renderer.status("Running comprehensive analysis...")  # type: ignore[attr-defined]
             result = engine.run_backtest(
                 prices=test_df,
                 signals=signals,
@@ -528,76 +528,76 @@ class StockMLTrainingMixin:
             )
 
             # Generate comprehensive report
-            cli.renderer.info("")
-            cli.renderer.header("Generating Comprehensive Report")
+            cli.renderer.info("")  # type: ignore[attr-defined]
+            cli.renderer.header("Generating Comprehensive Report")  # type: ignore[attr-defined]
 
             report_generator = ComprehensiveBacktestReportGenerator()
 
             # Generate both markdown and PDF reports
-            cli.renderer.status("Generating reports...")
+            cli.renderer.status("Generating reports...")  # type: ignore[attr-defined]
             try:
                 md_path, pdf_path = await report_generator.generate_report(
                     result=result, template_name="quantitative"
                 )
-                cli.renderer.info(f"Markdown: {md_path}")
-                cli.renderer.info(f"PDF: {pdf_path}")
+                cli.renderer.info(f"Markdown: {md_path}")  # type: ignore[attr-defined]
+                cli.renderer.info(f"PDF: {pdf_path}")  # type: ignore[attr-defined]
             except Exception as e:
-                cli.renderer.warning(f"Report generation failed: {e}")
+                cli.renderer.warning(f"Report generation failed: {e}")  # type: ignore[attr-defined]
                 md_path = None
                 pdf_path = None
 
             # Send to Telegram
-            cli.renderer.info("")
-            cli.renderer.status("Sending to Telegram...")
+            cli.renderer.info("")  # type: ignore[attr-defined]
+            cli.renderer.status("Sending to Telegram...")  # type: ignore[attr-defined]
             try:
                 sent = await report_generator.send_to_telegram(pdf_path or md_path, result)
                 if sent:
-                    cli.renderer.info(" Report sent to Telegram")
+                    cli.renderer.info(" Report sent to Telegram")  # type: ignore[attr-defined]
                 else:
-                    cli.renderer.warning("Telegram send failed")
+                    cli.renderer.warning("Telegram send failed")  # type: ignore[attr-defined]
             except Exception as e:
-                cli.renderer.warning(f"Telegram error: {e}")
+                cli.renderer.warning(f"Telegram error: {e}")  # type: ignore[attr-defined]
 
             # Print summary
-            cli.renderer.info("")
-            cli.renderer.header("Performance Summary")
+            cli.renderer.info("")  # type: ignore[attr-defined]
+            cli.renderer.header("Performance Summary")  # type: ignore[attr-defined]
 
             stats = result.statistical_tests
             risk = result.risk_metrics
             mc = result.monte_carlo
 
-            cli.renderer.info("")
-            cli.renderer.info("┌─────────────────────────────────────────────────────────┐")
-            cli.renderer.info(
+            cli.renderer.info("")  # type: ignore[attr-defined]
+            cli.renderer.info("┌─────────────────────────────────────────────────────────┐")  # type: ignore[attr-defined]
+            cli.renderer.info(  # type: ignore[attr-defined]
                 f"│  Total Return (Gross):      {result.total_return*100:>+8.2f}%                   │"
             )
-            cli.renderer.info(
+            cli.renderer.info(  # type: ignore[attr-defined]
                 f"│  Total Return (Net):        {result.total_return_net*100:>+8.2f}%                   │"
             )
-            cli.renderer.info(
+            cli.renderer.info(  # type: ignore[attr-defined]
                 f"│  Sharpe Ratio:              {result.sharpe_ratio:>+8.2f}                     │"
             )
-            cli.renderer.info(
+            cli.renderer.info(  # type: ignore[attr-defined]
                 f"│  Sortino Ratio:             {result.sortino_ratio:>+8.2f}                     │"
             )
-            cli.renderer.info(
+            cli.renderer.info(  # type: ignore[attr-defined]
                 f"│  Max Drawdown:              {risk.max_drawdown*100:>+8.2f}%                   │"
             )
-            cli.renderer.info(
+            cli.renderer.info(  # type: ignore[attr-defined]
                 f"│  Win Rate:                  {result.win_rate*100:>8.1f}%                   │"
             )
-            cli.renderer.info("├─────────────────────────────────────────────────────────┤")
+            cli.renderer.info("├─────────────────────────────────────────────────────────┤")  # type: ignore[attr-defined]
             is_significant = stats.p_value < 0.05
-            cli.renderer.info(
+            cli.renderer.info(  # type: ignore[attr-defined]
                 f"│  P-Value:                   {stats.p_value:>8.4f}                     │"
             )
-            cli.renderer.info(
+            cli.renderer.info(  # type: ignore[attr-defined]
                 f"│  Statistically Significant: {'Yes' if is_significant else 'No':>8}                     │"
             )
-            cli.renderer.info(
+            cli.renderer.info(  # type: ignore[attr-defined]
                 f"│  Monte Carlo P(Profit):     {mc.prob_positive*100:>8.1f}%                   │"
             )
-            cli.renderer.info("└─────────────────────────────────────────────────────────┘")
+            cli.renderer.info("└─────────────────────────────────────────────────────────┘")  # type: ignore[attr-defined]
 
             return CommandResult.ok(
                 data={
@@ -616,7 +616,7 @@ class StockMLTrainingMixin:
             )
 
         except Exception as e:
-            cli.renderer.error(f"World-class backtest failed: {e}")
+            cli.renderer.error(f"World-class backtest failed: {e}")  # type: ignore[attr-defined]
             import traceback
 
             traceback.print_exc()
@@ -637,9 +637,9 @@ class StockMLTrainingMixin:
         experiment_name = args.flags.get("experiment", "stock_sweep")
 
         # Parse stocks (supports predefined sets, nifty indices, or comma-separated)
-        stocks = self._get_stocks_for_sweep(stocks_input)
+        stocks = self._get_stocks_for_sweep(stocks_input)  # type: ignore[attr-defined]
         if not stocks:
-            cli.renderer.error(f"No stocks found for: {stocks_input}")
+            cli.renderer.error(f"No stocks found for: {stocks_input}")  # type: ignore[attr-defined]
             return CommandResult.fail("No stocks")
 
         # Parse other params
@@ -649,13 +649,13 @@ class StockMLTrainingMixin:
 
         total_configs = len(stocks) * len(targets) * len(timeframes) * len(periods)
 
-        cli.renderer.header("Stock ML Sweep")
-        cli.renderer.info(f"Stocks:     {len(stocks)} ({stocks_input})")
-        cli.renderer.info(f"Targets:    {len(targets)} ({', '.join(targets)})")
-        cli.renderer.info(f"Timeframes: {len(timeframes)} ({', '.join(timeframes)})")
-        cli.renderer.info(f"Periods:    {len(periods)} years ({', '.join(map(str, periods))})")
-        cli.renderer.info(f"Total:      {total_configs} configurations")
-        cli.renderer.info("")
+        cli.renderer.header("Stock ML Sweep")  # type: ignore[attr-defined]
+        cli.renderer.info(f"Stocks:     {len(stocks)} ({stocks_input})")  # type: ignore[attr-defined]
+        cli.renderer.info(f"Targets:    {len(targets)} ({', '.join(targets)})")  # type: ignore[attr-defined]
+        cli.renderer.info(f"Timeframes: {len(timeframes)} ({', '.join(timeframes)})")  # type: ignore[attr-defined]
+        cli.renderer.info(f"Periods:    {len(periods)} years ({', '.join(map(str, periods))})")  # type: ignore[attr-defined]
+        cli.renderer.info(f"Total:      {total_configs} configurations")  # type: ignore[attr-defined]
+        cli.renderer.info("")  # type: ignore[attr-defined]
 
         all_results = []
         completed = 0
@@ -664,9 +664,9 @@ class StockMLTrainingMixin:
             for timeframe in timeframes:
                 for years in periods:
                     # Load data once per stock/timeframe/period combo
-                    cli.renderer.status(f"Loading {symbol} ({timeframe}, {years}y)...")
+                    cli.renderer.status(f"Loading {symbol} ({timeframe}, {years}y)...")  # type: ignore[attr-defined]
                     try:
-                        df = await self._load_stock_data(symbol, timeframe, years, cli)
+                        df = await self._load_stock_data(symbol, timeframe, years, cli)  # type: ignore[attr-defined]
                         if df is None or len(df) < 100:
                             continue
                     except Exception:
@@ -675,13 +675,13 @@ class StockMLTrainingMixin:
 
                     for target_type in targets:
                         completed += 1
-                        target_config = self._parse_target(target_type)
-                        cli.renderer.status(
+                        target_config = self._parse_target(target_type)  # type: ignore[attr-defined]
+                        cli.renderer.status(  # type: ignore[attr-defined]
                             f"[{completed}/{total_configs}] {symbol} {target_type} {timeframe} {years}y"
                         )
 
                         try:
-                            X, y, feature_names = self._create_features_and_target(
+                            X, y, feature_names = self._create_features_and_target(  # type: ignore[attr-defined]
                                 df.copy(), target_config
                             )
                             if X is None or len(X) < 100:
@@ -709,41 +709,41 @@ class StockMLTrainingMixin:
                             continue
 
         if not all_results:
-            cli.renderer.error("No successful runs")
+            cli.renderer.error("No successful runs")  # type: ignore[attr-defined]
             return CommandResult.fail("No results")
 
         # Sort by AUC
         sorted_results = sorted(all_results, key=lambda x: -x["auc"])
 
         # Display top results
-        cli.renderer.info("")
-        cli.renderer.header(f"Sweep Results (Top 20 of {len(all_results)})")
-        cli.renderer.info("")
-        cli.renderer.info(
+        cli.renderer.info("")  # type: ignore[attr-defined]
+        cli.renderer.header(f"Sweep Results (Top 20 of {len(all_results)})")  # type: ignore[attr-defined]
+        cli.renderer.info("")  # type: ignore[attr-defined]
+        cli.renderer.info(  # type: ignore[attr-defined]
             "┌──────────────┬─────────────┬───────────┬──────────┬────────┬──────────┬──────────┐"
         )
-        cli.renderer.info(
+        cli.renderer.info(  # type: ignore[attr-defined]
             "│    Symbol    │   Target    │ Timeframe │  Years   │ Samples│ Accuracy │   AUC    │"
         )
-        cli.renderer.info(
+        cli.renderer.info(  # type: ignore[attr-defined]
             "├──────────────┼─────────────┼───────────┼──────────┼────────┼──────────┼──────────┤"
         )
 
         for i, r in enumerate(sorted_results[:20]):
             marker = "" if i == 0 else " "
-            cli.renderer.info(
+            cli.renderer.info(  # type: ignore[attr-defined]
                 f"│{marker}{r['symbol']:<12} │ {r['target']:<11} │ {r['timeframe']:<9} │ {r['years']:^8} │ "
                 f"{r['samples']:^6} │ {r['accuracy']:^8.4f} │ {r['auc']:^8.4f} │"
             )
 
-        cli.renderer.info(
+        cli.renderer.info(  # type: ignore[attr-defined]
             "└──────────────┴─────────────┴───────────┴──────────┴────────┴──────────┴──────────┘"
         )
 
         # Summary statistics
-        cli.renderer.info("")
-        cli.renderer.info("Summary by Stock (avg AUC):")
-        stock_aucs = {}
+        cli.renderer.info("")  # type: ignore[attr-defined]
+        cli.renderer.info("Summary by Stock (avg AUC):")  # type: ignore[attr-defined]
+        stock_aucs = {}  # type: ignore[var-annotated]
         for r in all_results:
             if r["symbol"] not in stock_aucs:
                 stock_aucs[r["symbol"]] = []
@@ -752,11 +752,11 @@ class StockMLTrainingMixin:
         stock_avg = [(s, sum(aucs) / len(aucs)) for s, aucs in stock_aucs.items()]
         stock_avg.sort(key=lambda x: -x[1])
         for symbol, avg_auc in stock_avg[:10]:
-            cli.renderer.info(f"  {symbol:<12} {avg_auc:.4f}")
+            cli.renderer.info(f"  {symbol:<12} {avg_auc:.4f}")  # type: ignore[attr-defined]
 
-        cli.renderer.info("")
-        cli.renderer.info("Summary by Target (avg AUC):")
-        target_aucs = {}
+        cli.renderer.info("")  # type: ignore[attr-defined]
+        cli.renderer.info("Summary by Target (avg AUC):")  # type: ignore[attr-defined]
+        target_aucs = {}  # type: ignore[var-annotated]
         for r in all_results:
             if r["target"] not in target_aucs:
                 target_aucs[r["target"]] = []
@@ -765,23 +765,23 @@ class StockMLTrainingMixin:
         target_avg = [(t, sum(aucs) / len(aucs)) for t, aucs in target_aucs.items()]
         target_avg.sort(key=lambda x: -x[1])
         for target, avg_auc in target_avg:
-            cli.renderer.info(f"  {target:<15} {avg_auc:.4f}")
+            cli.renderer.info(f"  {target:<15} {avg_auc:.4f}")  # type: ignore[attr-defined]
 
         # Save results to file
-        self._save_sweep_results(sorted_results)
-        cli.renderer.info("")
-        cli.renderer.success(f"Results saved to {self.SWEEP_RESULTS_FILE}")
+        self._save_sweep_results(sorted_results)  # type: ignore[attr-defined]
+        cli.renderer.info("")  # type: ignore[attr-defined]
+        cli.renderer.success(f"Results saved to {self.SWEEP_RESULTS_FILE}")  # type: ignore[attr-defined]
 
         # Best configuration
         best = sorted_results[0]
-        cli.renderer.info("")
-        cli.renderer.info("Best Configuration:")
-        cli.renderer.info(f"  Symbol:    {best['symbol']}")
-        cli.renderer.info(f"  Target:    {best['target']} ({best['days']}-day)")
-        cli.renderer.info(f"  Timeframe: {best['timeframe']}")
-        cli.renderer.info(f"  Period:    {best['years']} years")
-        cli.renderer.info(f"  AUC:       {best['auc']:.4f}")
-        cli.renderer.info(f"  Accuracy:  {best['accuracy']:.4f}")
+        cli.renderer.info("")  # type: ignore[attr-defined]
+        cli.renderer.info("Best Configuration:")  # type: ignore[attr-defined]
+        cli.renderer.info(f"  Symbol:    {best['symbol']}")  # type: ignore[attr-defined]
+        cli.renderer.info(f"  Target:    {best['target']} ({best['days']}-day)")  # type: ignore[attr-defined]
+        cli.renderer.info(f"  Timeframe: {best['timeframe']}")  # type: ignore[attr-defined]
+        cli.renderer.info(f"  Period:    {best['years']} years")  # type: ignore[attr-defined]
+        cli.renderer.info(f"  AUC:       {best['auc']:.4f}")  # type: ignore[attr-defined]
+        cli.renderer.info(f"  Accuracy:  {best['accuracy']:.4f}")  # type: ignore[attr-defined]
 
         # Log to MLflow if enabled
         if use_mlflow:
@@ -817,7 +817,7 @@ class StockMLTrainingMixin:
             run_info = await tracker.end_run()
             if run_info:
                 MLCommand.save_mlflow_state(experiment_name, run_info["run_id"])
-                cli.renderer.info(f"MLflow run: {run_info['run_id']}")
+                cli.renderer.info(f"MLflow run: {run_info['run_id']}")  # type: ignore[attr-defined]
 
         return CommandResult.ok(
             data={
@@ -847,21 +847,21 @@ class StockMLTrainingMixin:
         experiment_name = args.flags.get("experiment", f"unified_{stocks_input}")
 
         # Get stocks
-        stocks = self._get_stocks_for_sweep(stocks_input)
+        stocks = self._get_stocks_for_sweep(stocks_input)  # type: ignore[attr-defined]
         if not stocks:
-            cli.renderer.error(f"No stocks found for: {stocks_input}")
+            cli.renderer.error(f"No stocks found for: {stocks_input}")  # type: ignore[attr-defined]
             return CommandResult.fail("No stocks")
 
-        target_config = self._parse_target(target_type)
+        target_config = self._parse_target(target_type)  # type: ignore[attr-defined]
         is_classification = target_config["type"] == "classification"
 
-        cli.renderer.header("Unified Cross-Stock Training")
-        cli.renderer.info(f"Stock Set:   {stocks_input} ({len(stocks)} stocks)")
-        cli.renderer.info(f"Target:      {target_type} ({target_config['type']})")
-        cli.renderer.info(f"Timeframe:   {timeframe}")
-        cli.renderer.info(f"Period:      {years} years")
-        cli.renderer.info(f"Holdout:     {holdout_pct*100:.0f}% stocks for generalization test")
-        cli.renderer.info("")
+        cli.renderer.header("Unified Cross-Stock Training")  # type: ignore[attr-defined]
+        cli.renderer.info(f"Stock Set:   {stocks_input} ({len(stocks)} stocks)")  # type: ignore[attr-defined]
+        cli.renderer.info(f"Target:      {target_type} ({target_config['type']})")  # type: ignore[attr-defined]
+        cli.renderer.info(f"Timeframe:   {timeframe}")  # type: ignore[attr-defined]
+        cli.renderer.info(f"Period:      {years} years")  # type: ignore[attr-defined]
+        cli.renderer.info(f"Holdout:     {holdout_pct*100:.0f}% stocks for generalization test")  # type: ignore[attr-defined]
+        cli.renderer.info("")  # type: ignore[attr-defined]
 
         # Split stocks into train and holdout (for generalization testing)
         np.random.seed(42)
@@ -869,24 +869,24 @@ class StockMLTrainingMixin:
         holdout_stocks = list(np.random.choice(stocks, n_holdout, replace=False))
         train_stocks = [s for s in stocks if s not in holdout_stocks]
 
-        cli.renderer.info(f"Training stocks:  {len(train_stocks)}")
-        cli.renderer.info(f"Holdout stocks:   {len(holdout_stocks)} ({', '.join(holdout_stocks)})")
-        cli.renderer.info("")
+        cli.renderer.info(f"Training stocks:  {len(train_stocks)}")  # type: ignore[attr-defined]
+        cli.renderer.info(f"Holdout stocks:   {len(holdout_stocks)} ({', '.join(holdout_stocks)})")  # type: ignore[attr-defined]
+        cli.renderer.info("")  # type: ignore[attr-defined]
 
         # Load and normalize data from all training stocks
-        cli.renderer.info("Loading and normalizing data...")
+        cli.renderer.info("Loading and normalizing data...")  # type: ignore[attr-defined]
         all_train_data = []
         stock_scalers = {}
 
         for symbol in train_stocks:
-            cli.renderer.status(f"Loading {symbol}...")
+            cli.renderer.status(f"Loading {symbol}...")  # type: ignore[attr-defined]
             try:
-                df = await self._load_stock_data(symbol, timeframe, years, cli)
+                df = await self._load_stock_data(symbol, timeframe, years, cli)  # type: ignore[attr-defined]
                 if df is None or len(df) < 100:
                     continue
 
                 # Create features
-                X, y, feature_names = self._create_features_and_target(df.copy(), target_config)
+                X, y, feature_names = self._create_features_and_target(df.copy(), target_config)  # type: ignore[attr-defined]
                 if X is None or len(X) < 50:
                     continue
 
@@ -907,12 +907,12 @@ class StockMLTrainingMixin:
                 continue
 
         if len(all_train_data) < 2:
-            cli.renderer.error("Not enough stocks with valid data")
+            cli.renderer.error("Not enough stocks with valid data")  # type: ignore[attr-defined]
             return CommandResult.fail("Insufficient data")
 
         # Combine all training data
         combined_train = pd.concat(all_train_data, ignore_index=True)
-        cli.renderer.info(f"Combined training samples: {len(combined_train)}")
+        cli.renderer.info(f"Combined training samples: {len(combined_train)}")  # type: ignore[attr-defined]
 
         # Extract features and target
         feature_cols = [c for c in combined_train.columns if not c.startswith("_")]
@@ -926,11 +926,11 @@ class StockMLTrainingMixin:
         y_train = y_train_all.iloc[:split_idx]
         y_val = y_train_all.iloc[split_idx:]
 
-        cli.renderer.info(f"Train: {len(X_train)}, Validation: {len(X_val)}")
-        cli.renderer.info("")
+        cli.renderer.info(f"Train: {len(X_train)}, Validation: {len(X_val)}")  # type: ignore[attr-defined]
+        cli.renderer.info("")  # type: ignore[attr-defined]
 
         # Train models
-        cli.renderer.header("Training Unified Models")
+        cli.renderer.header("Training Unified Models")  # type: ignore[attr-defined]
 
         import lightgbm as lgb
         import xgboost as xgb
@@ -1006,12 +1006,12 @@ class StockMLTrainingMixin:
         best_name = None
 
         for name, model in models.items():
-            cli.renderer.status(f"Training {name}...")
-            model.fit(X_train.values, y_train.values)
-            pred = model.predict(X_val.values)
+            cli.renderer.status(f"Training {name}...")  # type: ignore[attr-defined]
+            model.fit(X_train.values, y_train.values)  # type: ignore[attr-defined]
+            pred = model.predict(X_val.values)  # type: ignore[attr-defined]
 
             if is_classification:
-                proba = model.predict_proba(X_val.values)
+                proba = model.predict_proba(X_val.values)  # type: ignore[attr-defined]
                 acc = accuracy_score(y_val, pred)
                 f1 = f1_score(y_val, pred)
                 try:
@@ -1021,12 +1021,12 @@ class StockMLTrainingMixin:
                     auc = acc
                 score = auc
                 results.append({"model": name, "accuracy": acc, "f1": f1, "auc": auc})
-                cli.renderer.info(f"  {name}: Acc={acc:.4f}, F1={f1:.4f}, AUC={auc:.4f}")
+                cli.renderer.info(f"  {name}: Acc={acc:.4f}, F1={f1:.4f}, AUC={auc:.4f}")  # type: ignore[attr-defined]
             else:
                 r2 = r2_score(y_val, pred)
                 score = r2
                 results.append({"model": name, "r2": r2})
-                cli.renderer.info(f"  {name}: R²={r2:.4f}")
+                cli.renderer.info(f"  {name}: R²={r2:.4f}")  # type: ignore[attr-defined]
 
             if score > best_score:
                 best_score = score
@@ -1034,18 +1034,18 @@ class StockMLTrainingMixin:
                 best_name = name
 
         # Test generalization on holdout stocks
-        cli.renderer.info("")
-        cli.renderer.header("Generalization Test (Holdout Stocks)")
+        cli.renderer.info("")  # type: ignore[attr-defined]
+        cli.renderer.header("Generalization Test (Holdout Stocks)")  # type: ignore[attr-defined]
 
         holdout_results = []
 
         for symbol in holdout_stocks:
             try:
-                df = await self._load_stock_data(symbol, timeframe, years, cli)
+                df = await self._load_stock_data(symbol, timeframe, years, cli)  # type: ignore[attr-defined]
                 if df is None or len(df) < 100:
                     continue
 
-                X, y, _ = self._create_features_and_target(df.copy(), target_config)
+                X, y, _ = self._create_features_and_target(df.copy(), target_config)  # type: ignore[attr-defined]
                 if X is None or len(X) < 50:
                     continue
 
@@ -1059,10 +1059,10 @@ class StockMLTrainingMixin:
                 X_test = X_normalized[test_start:]
                 y_test = y.iloc[test_start:]
 
-                pred = best_model.predict(X_test)
+                pred = best_model.predict(X_test)  # type: ignore[attr-defined]
 
                 if is_classification:
-                    proba = best_model.predict_proba(X_test)
+                    proba = best_model.predict_proba(X_test)  # type: ignore[attr-defined]
                     acc = accuracy_score(y_test, pred)
                     try:
                         auc = roc_auc_score(y_test, proba[:, 1])
@@ -1073,47 +1073,47 @@ class StockMLTrainingMixin:
                     holdout_results.append(
                         {"symbol": symbol, "accuracy": acc, "auc": auc, "samples": len(X_test)}
                     )
-                    cli.renderer.info(f"  {symbol}: Acc={acc:.4f}, AUC={auc:.4f} (n={len(X_test)})")
+                    cli.renderer.info(f"  {symbol}: Acc={acc:.4f}, AUC={auc:.4f} (n={len(X_test)})")  # type: ignore[attr-defined]
                 else:
                     r2 = r2_score(y_test, pred)
                     holdout_results.append({"symbol": symbol, "r2": r2, "samples": len(X_test)})
-                    cli.renderer.info(f"  {symbol}: R²={r2:.4f} (n={len(X_test)})")
+                    cli.renderer.info(f"  {symbol}: R²={r2:.4f} (n={len(X_test)})")  # type: ignore[attr-defined]
 
             except Exception as e:
-                cli.renderer.error(f"  {symbol}: Failed - {e}")
+                cli.renderer.error(f"  {symbol}: Failed - {e}")  # type: ignore[attr-defined]
                 continue
 
         # Summary
-        cli.renderer.info("")
-        cli.renderer.header("Results Summary")
+        cli.renderer.info("")  # type: ignore[attr-defined]
+        cli.renderer.header("Results Summary")  # type: ignore[attr-defined]
 
         if is_classification:
-            cli.renderer.info("Validation Results:")
-            cli.renderer.info("┌─────────────────┬──────────┬──────────┬──────────┐")
-            cli.renderer.info("│     Model       │ Accuracy │    F1    │  ROC-AUC │")
-            cli.renderer.info("├─────────────────┼──────────┼──────────┼──────────┤")
+            cli.renderer.info("Validation Results:")  # type: ignore[attr-defined]
+            cli.renderer.info("┌─────────────────┬──────────┬──────────┬──────────┐")  # type: ignore[attr-defined]
+            cli.renderer.info("│     Model       │ Accuracy │    F1    │  ROC-AUC │")  # type: ignore[attr-defined]
+            cli.renderer.info("├─────────────────┼──────────┼──────────┼──────────┤")  # type: ignore[attr-defined]
             for r in results:
                 marker = " " if r["model"] == best_name else " "
-                cli.renderer.info(
+                cli.renderer.info(  # type: ignore[attr-defined]
                     f"│{marker}{r['model']:<13} │ {r['accuracy']:^8.4f} │ {r['f1']:^8.4f} │ {r['auc']:^8.4f} │"
                 )
-            cli.renderer.info("└─────────────────┴──────────┴──────────┴──────────┘")
+            cli.renderer.info("└─────────────────┴──────────┴──────────┴──────────┘")  # type: ignore[attr-defined]
 
             if holdout_results:
                 avg_holdout_auc = sum(r["auc"] for r in holdout_results) / len(holdout_results)
-                cli.renderer.info("")
-                cli.renderer.info("Holdout Generalization:")
-                cli.renderer.info(f"  Average AUC on unseen stocks: {avg_holdout_auc:.4f}")
-                cli.renderer.info(f"  Validation AUC:               {best_score:.4f}")
-                cli.renderer.info(
+                cli.renderer.info("")  # type: ignore[attr-defined]
+                cli.renderer.info("Holdout Generalization:")  # type: ignore[attr-defined]
+                cli.renderer.info(f"  Average AUC on unseen stocks: {avg_holdout_auc:.4f}")  # type: ignore[attr-defined]
+                cli.renderer.info(f"  Validation AUC:               {best_score:.4f}")  # type: ignore[attr-defined]
+                cli.renderer.info(  # type: ignore[attr-defined]
                     f"  Generalization gap:           {best_score - avg_holdout_auc:.4f}"
                 )
 
-        cli.renderer.info("")
-        cli.renderer.info(f"Best Unified Model: {best_name}")
-        cli.renderer.info(f"Validation Score:   {best_score:.4f}")
-        cli.renderer.info(f"Training Stocks:    {len(train_stocks)}")
-        cli.renderer.info(f"Total Samples:      {len(combined_train)}")
+        cli.renderer.info("")  # type: ignore[attr-defined]
+        cli.renderer.info(f"Best Unified Model: {best_name}")  # type: ignore[attr-defined]
+        cli.renderer.info(f"Validation Score:   {best_score:.4f}")  # type: ignore[attr-defined]
+        cli.renderer.info(f"Training Stocks:    {len(train_stocks)}")  # type: ignore[attr-defined]
+        cli.renderer.info(f"Total Samples:      {len(combined_train)}")  # type: ignore[attr-defined]
 
         # Feature importance
         if hasattr(best_model, "feature_importances_"):
@@ -1124,15 +1124,15 @@ class StockMLTrainingMixin:
             }
             sorted_imp = sorted(importance.items(), key=lambda x: -x[1])[:15]
 
-            cli.renderer.info("")
-            cli.renderer.info("Top 15 Cross-Stock Features:")
-            cli.renderer.info("┌────────────────────────────────┬────────────┐")
-            cli.renderer.info("│           Feature              │ Importance │")
-            cli.renderer.info("├────────────────────────────────┼────────────┤")
+            cli.renderer.info("")  # type: ignore[attr-defined]
+            cli.renderer.info("Top 15 Cross-Stock Features:")  # type: ignore[attr-defined]
+            cli.renderer.info("┌────────────────────────────────┬────────────┐")  # type: ignore[attr-defined]
+            cli.renderer.info("│           Feature              │ Importance │")  # type: ignore[attr-defined]
+            cli.renderer.info("├────────────────────────────────┼────────────┤")  # type: ignore[attr-defined]
             for feat, imp in sorted_imp:
                 feat_display = feat[:30] if len(feat) > 30 else feat
-                cli.renderer.info(f"│ {feat_display:<30} │ {imp:>8.2f} % │")
-            cli.renderer.info("└────────────────────────────────┴────────────┘")
+                cli.renderer.info(f"│ {feat_display:<30} │ {imp:>8.2f} % │")  # type: ignore[attr-defined]
+            cli.renderer.info("└────────────────────────────────┴────────────┘")  # type: ignore[attr-defined]
 
         # Log to MLflow
         if use_mlflow:
@@ -1167,7 +1167,7 @@ class StockMLTrainingMixin:
 
             model_uri = await tracker.log_model(best_model, f"unified_{stocks_input}_model")
             if model_uri:
-                cli.renderer.info(f"Model logged to MLflow: {model_uri}")
+                cli.renderer.info(f"Model logged to MLflow: {model_uri}")  # type: ignore[attr-defined]
 
             run_info = await tracker.end_run()
             if run_info:
@@ -1200,44 +1200,44 @@ class StockMLTrainingMixin:
         import pandas as pd
         from sklearn.preprocessing import StandardScaler
 
-        cli.renderer.header("Cross-Stock Normalized Training")
+        cli.renderer.header("Cross-Stock Normalized Training")  # type: ignore[attr-defined]
 
         # Parse arguments
         stocks_input = args.flags.get("stocks", "nifty_bank")
-        stocks = self._get_stocks_for_sweep(stocks_input)
+        stocks = self._get_stocks_for_sweep(stocks_input)  # type: ignore[attr-defined]
         target_type = args.flags.get("target", "next_5d_up")
         timeframe = args.flags.get("timeframe", "60minute")
         years = int(args.flags.get("years", "3"))
 
-        cli.renderer.info(f"Stocks: {len(stocks)} from {stocks_input}")
-        cli.renderer.info(f"Target: {target_type}, Timeframe: {timeframe}, Years: {years}")
-        cli.renderer.info("")
+        cli.renderer.info(f"Stocks: {len(stocks)} from {stocks_input}")  # type: ignore[attr-defined]
+        cli.renderer.info(f"Target: {target_type}, Timeframe: {timeframe}, Years: {years}")  # type: ignore[attr-defined]
+        cli.renderer.info("")  # type: ignore[attr-defined]
 
-        target_config = self._parse_target(target_type)
+        target_config = self._parse_target(target_type)  # type: ignore[attr-defined]
 
         # ============ Phase 1: Load All Data ============
-        cli.renderer.info("Phase 1: Loading all stock data...")
+        cli.renderer.info("Phase 1: Loading all stock data...")  # type: ignore[attr-defined]
 
         all_data = {}
         for symbol in stocks:
-            df = await self._load_stock_data(symbol, timeframe, years, cli)
+            df = await self._load_stock_data(symbol, timeframe, years, cli)  # type: ignore[attr-defined]
             if df is not None and len(df) >= 100:
                 all_data[symbol] = df
-                cli.renderer.info(f"  {symbol}: {len(df)} samples")
+                cli.renderer.info(f"  {symbol}: {len(df)} samples")  # type: ignore[attr-defined]
 
         if len(all_data) < 3:
-            cli.renderer.error("Need at least 3 stocks for cross-stock training")
+            cli.renderer.error("Need at least 3 stocks for cross-stock training")  # type: ignore[attr-defined]
             return CommandResult.fail("Insufficient stocks")
 
         # ============ Phase 2: Create Normalized Features ============
-        cli.renderer.info("")
-        cli.renderer.info("Phase 2: Creating normalized features per stock...")
+        cli.renderer.info("")  # type: ignore[attr-defined]
+        cli.renderer.info("Phase 2: Creating normalized features per stock...")  # type: ignore[attr-defined]
 
         normalized_data = {}
         feature_names = None
 
         for symbol, df in all_data.items():
-            X, y, feat_names = self._create_features_and_target(df.copy(), target_config)
+            X, y, feat_names = self._create_features_and_target(df.copy(), target_config)  # type: ignore[attr-defined]
             if X is None or len(X) < 50:
                 continue
 
@@ -1247,7 +1247,7 @@ class StockMLTrainingMixin:
 
             # Add stock identifier and sector
             X_normalized["_symbol"] = symbol
-            X_normalized["_sector"] = self._infer_sector(symbol)
+            X_normalized["_sector"] = self._infer_sector(symbol)  # type: ignore[attr-defined]
 
             normalized_data[symbol] = {
                 "X": X_normalized,
@@ -1258,14 +1258,14 @@ class StockMLTrainingMixin:
             if feature_names is None:
                 feature_names = feat_names
 
-        cli.renderer.info(f"  Normalized {len(normalized_data)} stocks")
+        cli.renderer.info(f"  Normalized {len(normalized_data)} stocks")  # type: ignore[attr-defined]
 
         # ============ Phase 3: Add Cross-Stock Features ============
-        cli.renderer.info("")
-        cli.renderer.info("Phase 3: Adding cross-stock features...")
+        cli.renderer.info("")  # type: ignore[attr-defined]
+        cli.renderer.info("Phase 3: Adding cross-stock features...")  # type: ignore[attr-defined]
 
         # Compute sector averages for relative features
-        sector_stats = {}
+        sector_stats = {}  # type: ignore[var-annotated]
         for symbol, data in normalized_data.items():
             sector = data["X"]["_sector"].iloc[0]
             if sector not in sector_stats:
@@ -1280,11 +1280,11 @@ class StockMLTrainingMixin:
                 for feat in feature_names[:10]:  # Top 10 features
                     data["X"][f"{feat}_vs_sector"] = data["X"][feat] - sector_mean.get(feat, 0)
 
-        cli.renderer.info("  Added sector-relative features")
+        cli.renderer.info("  Added sector-relative features")  # type: ignore[attr-defined]
 
         # ============ Phase 4: Leave-One-Out Training ============
-        cli.renderer.info("")
-        cli.renderer.info("Phase 4: Leave-One-Out Cross-Validation...")
+        cli.renderer.info("")  # type: ignore[attr-defined]
+        cli.renderer.info("Phase 4: Leave-One-Out Cross-Validation...")  # type: ignore[attr-defined]
 
         from sklearn.ensemble import GradientBoostingClassifier
         from sklearn.metrics import roc_auc_score
@@ -1339,32 +1339,32 @@ class StockMLTrainingMixin:
                 }
             )
 
-            cli.renderer.info(
+            cli.renderer.info(  # type: ignore[attr-defined]
                 f"  {holdout_symbol}: AUC={auc:.4f} (trained on {len(y_train_combined)} samples)"
             )
 
         # ============ Results Summary ============
-        cli.renderer.info("")
-        cli.renderer.header("Cross-Stock Results")
+        cli.renderer.info("")  # type: ignore[attr-defined]
+        cli.renderer.header("Cross-Stock Results")  # type: ignore[attr-defined]
 
         avg_auc = np.mean([r["auc"] for r in results])
         std_auc = np.std([r["auc"] for r in results])
 
-        cli.renderer.info(f"Average AUC: {avg_auc:.4f} ± {std_auc:.4f}")
-        cli.renderer.info("")
+        cli.renderer.info(f"Average AUC: {avg_auc:.4f} ± {std_auc:.4f}")  # type: ignore[attr-defined]
+        cli.renderer.info("")  # type: ignore[attr-defined]
 
-        cli.renderer.info("Per-Stock Performance:")
+        cli.renderer.info("Per-Stock Performance:")  # type: ignore[attr-defined]
         for r in sorted(results, key=lambda x: -x["auc"]):
-            cli.renderer.info(f"  {r['holdout']:<12}: {r['auc']:.4f}")
+            cli.renderer.info(f"  {r['holdout']:<12}: {r['auc']:.4f}")  # type: ignore[attr-defined]
 
         # Key insight
-        cli.renderer.info("")
+        cli.renderer.info("")  # type: ignore[attr-defined]
         if std_auc < 0.05:
-            cli.renderer.info("LOW VARIANCE - Model generalizes well across stocks!")
+            cli.renderer.info("LOW VARIANCE - Model generalizes well across stocks!")  # type: ignore[attr-defined]
         elif std_auc < 0.10:
-            cli.renderer.info("MODERATE VARIANCE - Some stock-specific patterns")
+            cli.renderer.info("MODERATE VARIANCE - Some stock-specific patterns")  # type: ignore[attr-defined]
         else:
-            cli.renderer.info(
+            cli.renderer.info(  # type: ignore[attr-defined]
                 "HIGH VARIANCE - Consider more normalization or sector-specific models"
             )
 
@@ -1391,7 +1391,7 @@ class StockMLTrainingMixin:
         import numpy as np
         import pandas as pd
 
-        cli.renderer.header("Comprehensive Features ML")
+        cli.renderer.header("Comprehensive Features ML")  # type: ignore[attr-defined]
 
         # Parse arguments
         symbol = args.positional[0] if args.positional else "SBIN"
@@ -1399,53 +1399,53 @@ class StockMLTrainingMixin:
         timeframe = args.flags.get("timeframe", "60minute")
         years = int(args.flags.get("years", "3"))
 
-        cli.renderer.info(f"Symbol: {symbol}")
-        cli.renderer.info(f"Target: {target_type}, Timeframe: {timeframe}")
-        cli.renderer.info("")
+        cli.renderer.info(f"Symbol: {symbol}")  # type: ignore[attr-defined]
+        cli.renderer.info(f"Target: {target_type}, Timeframe: {timeframe}")  # type: ignore[attr-defined]
+        cli.renderer.info("")  # type: ignore[attr-defined]
 
         # Load data
-        df = await self._load_stock_data(symbol, timeframe, years, cli)
+        df = await self._load_stock_data(symbol, timeframe, years, cli)  # type: ignore[attr-defined]
         if df is None or len(df) < 100:
             return CommandResult.fail("Insufficient data")
 
-        target_config = self._parse_target(target_type)
+        target_config = self._parse_target(target_type)  # type: ignore[attr-defined]
 
         # Create base features
-        cli.renderer.info("Creating base features...")
-        X_base, y, base_features = self._create_features_and_target(df.copy(), target_config)
+        cli.renderer.info("Creating base features...")  # type: ignore[attr-defined]
+        X_base, y, base_features = self._create_features_and_target(df.copy(), target_config)  # type: ignore[attr-defined]
 
         if X_base is None:
             return CommandResult.fail("Feature creation failed")
 
-        cli.renderer.info(f"  Base features: {len(base_features)}")
+        cli.renderer.info(f"  Base features: {len(base_features)}")  # type: ignore[attr-defined]
 
         # ============ Add Comprehensive Features ============
-        cli.renderer.info("")
-        cli.renderer.info("Adding comprehensive features...")
+        cli.renderer.info("")  # type: ignore[attr-defined]
+        cli.renderer.info("Adding comprehensive features...")  # type: ignore[attr-defined]
 
         X_enhanced = X_base.copy()
 
         # 1. Advanced momentum features
-        cli.renderer.info("  [1/5] Advanced momentum features...")
-        X_enhanced = self._add_advanced_momentum(X_enhanced, df)
+        cli.renderer.info("  [1/5] Advanced momentum features...")  # type: ignore[attr-defined]
+        X_enhanced = self._add_advanced_momentum(X_enhanced, df)  # type: ignore[attr-defined]
 
         # 2. Volatility regime features
-        cli.renderer.info("  [2/5] Volatility regime features...")
-        X_enhanced = self._add_volatility_regime(X_enhanced, df)
+        cli.renderer.info("  [2/5] Volatility regime features...")  # type: ignore[attr-defined]
+        X_enhanced = self._add_volatility_regime(X_enhanced, df)  # type: ignore[attr-defined]
 
         # 3. Volume profile features
-        cli.renderer.info("  [3/5] Volume profile features...")
-        X_enhanced = self._add_volume_profile(X_enhanced, df)
+        cli.renderer.info("  [3/5] Volume profile features...")  # type: ignore[attr-defined]
+        X_enhanced = self._add_volume_profile(X_enhanced, df)  # type: ignore[attr-defined]
 
         # 4. Pattern recognition features
-        cli.renderer.info("  [4/5] Pattern recognition features...")
-        X_enhanced = self._add_pattern_features(X_enhanced, df)
+        cli.renderer.info("  [4/5] Pattern recognition features...")  # type: ignore[attr-defined]
+        X_enhanced = self._add_pattern_features(X_enhanced, df)  # type: ignore[attr-defined]
 
         # 5. Cross-feature interactions
-        cli.renderer.info("  [5/5] Cross-feature interactions...")
-        X_enhanced = self._add_feature_interactions(X_enhanced)
+        cli.renderer.info("  [5/5] Cross-feature interactions...")  # type: ignore[attr-defined]
+        X_enhanced = self._add_feature_interactions(X_enhanced)  # type: ignore[attr-defined]
 
-        cli.renderer.info(f"  Total features: {len(X_enhanced.columns)}")
+        cli.renderer.info(f"  Total features: {len(X_enhanced.columns)}")  # type: ignore[attr-defined]
 
         # Clean up
         X_enhanced = X_enhanced.fillna(0).replace([np.inf, -np.inf], 0)
@@ -1456,8 +1456,8 @@ class StockMLTrainingMixin:
         y = y.loc[common_idx]
 
         # ============ Train and Evaluate ============
-        cli.renderer.info("")
-        cli.renderer.info("Training with comprehensive features...")
+        cli.renderer.info("")  # type: ignore[attr-defined]
+        cli.renderer.info("Training with comprehensive features...")  # type: ignore[attr-defined]
 
         from sklearn.ensemble import GradientBoostingClassifier
         from sklearn.metrics import roc_auc_score
@@ -1482,11 +1482,11 @@ class StockMLTrainingMixin:
             scores.append(auc)
 
         avg_auc = np.mean(scores)
-        cli.renderer.info(f"Average AUC: {avg_auc:.4f}")
+        cli.renderer.info(f"Average AUC: {avg_auc:.4f}")  # type: ignore[attr-defined]
 
         # Feature importance
-        cli.renderer.info("")
-        cli.renderer.info("Top 15 Features:")
+        cli.renderer.info("")  # type: ignore[attr-defined]
+        cli.renderer.info("Top 15 Features:")  # type: ignore[attr-defined]
 
         # Train final model
         model.fit(X_enhanced, y)
@@ -1496,7 +1496,7 @@ class StockMLTrainingMixin:
         total_imp = importance.sum()
         for feat, imp in importance.head(15).items():
             pct = (imp / total_imp) * 100
-            cli.renderer.info(f"  {feat:<35}: {pct:>5.1f}%")
+            cli.renderer.info(f"  {feat:<35}: {pct:>5.1f}%")  # type: ignore[attr-defined]
 
         return CommandResult.ok(
             data={

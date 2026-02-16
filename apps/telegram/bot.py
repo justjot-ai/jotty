@@ -97,7 +97,7 @@ class TelegramBotFull:
             self.sessions[chat_id] = ChatInterface(
                 message_renderer=TelegramMessageRenderer(send_telegram_message),
                 status_renderer=TelegramStatusRenderer(send_telegram_message),
-                input_handler=None,  # Not needed for bot
+                input_handler=None,  # Not needed for bot  # type: ignore[arg-type]
             )
         return self.sessions[chat_id]
 
@@ -590,22 +590,22 @@ _Feature coming soon\\!_
     async def start(self) -> None:
         """Start the bot."""
         # Create application
-        self._application = Application.builder().token(self.token).build()
+        self._application = Application.builder().token(self.token).build()  # type: ignore[arg-type]
 
         # Add message handler
-        self._application.add_handler(
+        self._application.add_handler(  # type: ignore[attr-defined]
             MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_message)
         )
 
         # Add command handler
-        self._application.add_handler(MessageHandler(filters.COMMAND, self.handle_message))
+        self._application.add_handler(MessageHandler(filters.COMMAND, self.handle_message))  # type: ignore[attr-defined]
 
         # Initialize and start polling
         logger.info("Starting Telegram bot (FULL)...")
-        async with self._application:
-            await self._application.initialize()
-            await self._application.start()
-            await self._application.updater.start_polling()
+        async with self._application:  # type: ignore[attr-defined]
+            await self._application.initialize()  # type: ignore[attr-defined]
+            await self._application.start()  # type: ignore[attr-defined]
+            await self._application.updater.start_polling()  # type: ignore[attr-defined]
             logger.info("Bot is running! Press Ctrl+C to stop.")
 
             # Keep running until interrupted
@@ -623,9 +623,9 @@ _Feature coming soon\\!_
             await stop_event.wait()
 
             logger.info("Stopping bot...")
-            await self._application.updater.stop()
-            await self._application.stop()
-            await self._application.shutdown()
+            await self._application.updater.stop()  # type: ignore[attr-defined]
+            await self._application.stop()  # type: ignore[attr-defined]
+            await self._application.shutdown()  # type: ignore[attr-defined]
 
 
 async def main() -> None:

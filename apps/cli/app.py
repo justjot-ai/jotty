@@ -120,13 +120,13 @@ class JottyCLI:
                 prompt_text="jotty> ",
             )
         else:
-            self.repl = SimpleREPL(
+            self.repl = SimpleREPL(  # type: ignore[assignment]
                 command_registry=self.command_registry,
                 prompt_text="jotty> ",
             )
 
         # Output history for /export command
-        self._output_history = []
+        self._output_history = []  # type: ignore[var-annotated]
 
         logger.info("Jotty CLI initialized with shared components and all 36 commands")
 

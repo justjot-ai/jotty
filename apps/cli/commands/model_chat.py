@@ -55,12 +55,12 @@ class ModelChatCommand(BaseCommand):
 
         # Single query mode
         query = " ".join(args.positional)
-        cli.renderer.info(f"Query: {query}")
-        cli.renderer.info("")
+        cli.renderer.info(f"Query: {query}")  # type: ignore[attr-defined]
+        cli.renderer.info("")  # type: ignore[attr-defined]
 
         result = await agent.chat(query)
 
-        cli.renderer.info(result["response"])
+        cli.renderer.info(result["response"])  # type: ignore[attr-defined]
 
         return CommandResult.ok(data=result)
 

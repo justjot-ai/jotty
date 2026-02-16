@@ -42,7 +42,7 @@ class MemoryCommand(BaseCommand):
     async def _show_status(self, cli: "JottyCLI") -> CommandResult:
         """Show memory status."""
         try:
-            swarm = await cli.get_swarm_manager()
+            swarm = await cli.get_swarm_manager()  # type: ignore[attr-defined]
             memory = swarm.swarm_memory
 
             status = {
@@ -51,7 +51,7 @@ class MemoryCommand(BaseCommand):
             }
 
             # Count by level
-            level_counts = {}
+            level_counts = {}  # type: ignore[var-annotated]
             for mem in memory.memories:
                 level = str(mem.level.name) if hasattr(mem.level, "name") else str(mem.level)
                 level_counts[level] = level_counts.get(level, 0) + 1
@@ -62,26 +62,26 @@ class MemoryCommand(BaseCommand):
             recent = memory.memories[-5:] if memory.memories else []
             status["Recent Entries"] = len(recent)
 
-            cli.renderer.tree(status, title="Memory Status")
+            cli.renderer.tree(status, title="Memory Status")  # type: ignore[attr-defined]
             return CommandResult.ok(data=status)
 
         except Exception as e:
-            cli.renderer.error(f"Failed to get memory status: {e}")
+            cli.renderer.error(f"Failed to get memory status: {e}")  # type: ignore[attr-defined]
             return CommandResult.fail(str(e))
 
     async def _query_memory(self, query: str, cli: "JottyCLI") -> CommandResult:
         """Query memory for relevant entries."""
         try:
-            swarm = await cli.get_swarm_manager()
+            swarm = await cli.get_swarm_manager()  # type: ignore[attr-defined]
             memory = swarm.swarm_memory
 
-            cli.renderer.info(f"Querying memory: {query}")
+            cli.renderer.info(f"Querying memory: {query}")  # type: ignore[attr-defined]
 
             # Retrieve relevant memories
             results = await memory.retrieve(query=query, top_k=10, context={"goal": query})
 
             if not results:
-                cli.renderer.warning("No relevant memories found")
+                cli.renderer.warning("No relevant memories found")  # type: ignore[attr-defined]
                 return CommandResult.ok(data=[])
 
             # Format results
@@ -97,13 +97,13 @@ class MemoryCommand(BaseCommand):
                     }
                 )
 
-            table = cli.renderer.tables.memory_table(memory_data)
-            cli.renderer.tables.print_table(table)
+            table = cli.renderer.tables.memory_table(memory_data)  # type: ignore[attr-defined]
+            cli.renderer.tables.print_table(table)  # type: ignore[attr-defined]
 
             return CommandResult.ok(data=memory_data)
 
         except Exception as e:
-            cli.renderer.error(f"Memory query failed: {e}")
+            cli.renderer.error(f"Memory query failed: {e}")  # type: ignore[attr-defined]
             return CommandResult.fail(str(e))
 
     async def _show_levels(self, cli: "JottyCLI") -> CommandResult:
@@ -119,11 +119,11 @@ class MemoryCommand(BaseCommand):
                     "Description": self._get_level_description(level_name),
                 }
 
-            cli.renderer.tree(levels_info, title="Memory Levels")
+            cli.renderer.tree(levels_info, title="Memory Levels")  # type: ignore[attr-defined]
             return CommandResult.ok(data=levels_info)
 
         except Exception as e:
-            cli.renderer.error(f"Failed to get memory levels: {e}")
+            cli.renderer.error(f"Failed to get memory levels: {e}")  # type: ignore[attr-defined]
             return CommandResult.fail(str(e))
 
     def _get_level_description(self, level_name: str) -> str:
@@ -140,21 +140,21 @@ class MemoryCommand(BaseCommand):
     async def _clear_memory(self, confirm: bool, cli: "JottyCLI") -> CommandResult:
         """Clear memory."""
         if not confirm:
-            cli.renderer.warning("This will clear all memory. Use --confirm or -y to proceed.")
+            cli.renderer.warning("This will clear all memory. Use --confirm or -y to proceed.")  # type: ignore[attr-defined]
             return CommandResult.fail("Confirmation required")
 
         try:
-            swarm = await cli.get_swarm_manager()
+            swarm = await cli.get_swarm_manager()  # type: ignore[attr-defined]
             memory = swarm.swarm_memory
 
             count = len(memory.memories)
             memory.memories.clear()
 
-            cli.renderer.success(f"Cleared {count} memory entries")
+            cli.renderer.success(f"Cleared {count} memory entries")  # type: ignore[attr-defined]
             return CommandResult.ok()
 
         except Exception as e:
-            cli.renderer.error(f"Failed to clear memory: {e}")
+            cli.renderer.error(f"Failed to clear memory: {e}")  # type: ignore[attr-defined]
             return CommandResult.fail(str(e))
 
     def get_completions(self, partial: str) -> list:

@@ -44,7 +44,7 @@ async def _list_commands(cli: Any, args: Any) -> Any:
     commands = cli.command_registry.list_commands()
 
     # Group by category
-    categories = {}
+    categories = {}  # type: ignore[var-annotated]
     for cmd in commands:
         cat = cmd.get("category", "general")
         if args.category and cat != args.category:
@@ -238,7 +238,7 @@ For more info: https://github.com/yourusername/jotty
 
     # Handle version
     if args.version:
-        from .. import __version__ as jotty_version
+        from .. import __version__ as jotty_version  # type: ignore[attr-defined]
         from . import __version__
 
         print(f"Jotty CLI v{__version__}")
@@ -260,19 +260,19 @@ For more info: https://github.com/yourusername/jotty
     # Handle subcommands (single execution mode)
     if args.command == "run":
         goal = " ".join(args.goal)
-        return asyncio.run(cli.run_once(f"/run {goal}"))
+        return asyncio.run(cli.run_once(f"/run {goal}"))  # type: ignore[attr-defined]
 
     elif args.command == "skills":
         cmd = "/skills"
         if args.category:
             cmd += f" --category {args.category}"
-        return asyncio.run(cli.run_once(cmd))
+        return asyncio.run(cli.run_once(cmd))  # type: ignore[attr-defined]
 
     elif args.command == "agents":
-        return asyncio.run(cli.run_once("/agents"))
+        return asyncio.run(cli.run_once("/agents"))  # type: ignore[attr-defined]
 
     elif args.command == "warmup":
-        return asyncio.run(cli.run_once(f"/learn warmup {args.episodes}"))
+        return asyncio.run(cli.run_once(f"/learn warmup {args.episodes}"))  # type: ignore[attr-defined]
 
     elif args.command == "commands":
         return asyncio.run(_list_commands(cli, args))
@@ -288,14 +288,14 @@ For more info: https://github.com/yourusername/jotty
             cmd += f" --target {args.target}"
         if args.problem:
             cmd += f" --problem {args.problem}"
-        return asyncio.run(cli.run_once(cmd))
+        return asyncio.run(cli.run_once(cmd))  # type: ignore[attr-defined]
 
     elif args.command == "research":
         cmd = "/research"
         if args.ticker:
             cmd += f" {args.ticker}"
         cmd += f" --pages {args.pages}"
-        return asyncio.run(cli.run_once(cmd))
+        return asyncio.run(cli.run_once(cmd))  # type: ignore[attr-defined]
 
     elif args.command == "mlflow":
         cmd = "/mlflow"
@@ -303,11 +303,11 @@ For more info: https://github.com/yourusername/jotty
             cmd += " --ui"
         if args.experiments:
             cmd += " --experiments"
-        return asyncio.run(cli.run_once(cmd))
+        return asyncio.run(cli.run_once(cmd))  # type: ignore[attr-defined]
 
     # Interactive REPL mode (default)
     try:
-        asyncio.run(cli.run_interactive())
+        asyncio.run(cli.run_interactive())  # type: ignore[attr-defined]
         return 0
     except KeyboardInterrupt:
         print("\nGoodbye!")

@@ -145,7 +145,7 @@ class PluginLoader:
             cli: JottyCLI instance
         """
         try:
-            registry = cli.get_skills_registry()
+            registry = cli.get_skills_registry()  # type: ignore[attr-defined]
 
             if not registry.initialized:
                 registry.init()

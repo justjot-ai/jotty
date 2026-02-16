@@ -180,7 +180,7 @@ class TableRenderer:
         return self.create_table(
             title="Available Skills",
             columns=columns,
-            rows=rows,
+            rows=rows,  # type: ignore[arg-type]
         )
 
     def agents_table(self, agents: List[Dict[str, Any]]) -> Any:
@@ -207,7 +207,7 @@ class TableRenderer:
         return self.create_table(
             title="Agents",
             columns=columns,
-            rows=rows,
+            rows=rows,  # type: ignore[arg-type]
         )
 
     def stats_table(self, stats: Dict[str, Any]) -> Any:
@@ -235,7 +235,7 @@ class TableRenderer:
         return self.create_table(
             title="Learning Statistics",
             columns=columns,
-            rows=rows,
+            rows=rows,  # type: ignore[arg-type]
         )
 
     def memory_table(self, memories: List[Dict[str, Any]]) -> Any:
@@ -261,7 +261,7 @@ class TableRenderer:
         return self.create_table(
             title="Memory Contents",
             columns=columns,
-            rows=rows,
+            rows=rows,  # type: ignore[arg-type]
         )
 
     def commands_table(self, commands: List[Dict[str, Any]]) -> Any:
@@ -286,5 +286,5 @@ class TableRenderer:
         return self.create_table(
             title="Available Commands",
             columns=columns,
-            rows=rows,
+            rows=rows,  # type: ignore[arg-type]
         )

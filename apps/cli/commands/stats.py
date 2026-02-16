@@ -41,7 +41,7 @@ class StatsCommand(BaseCommand):
     async def _show_summary(self, cli: "JottyCLI") -> CommandResult:
         """Show learning summary."""
         try:
-            swarm = await cli.get_swarm_manager()
+            swarm = await cli.get_swarm_manager()  # type: ignore[attr-defined]
 
             stats: Dict[str, Any] = {
                 "Episodes": swarm.episode_count,
@@ -90,28 +90,28 @@ class StatsCommand(BaseCommand):
             if hasattr(swarm, "credit_weights"):
                 stats["Credit Weights"] = swarm.credit_weights.to_dict()
 
-            table = cli.renderer.tables.stats_table(stats)
-            cli.renderer.tables.print_table(table)
+            table = cli.renderer.tables.stats_table(stats)  # type: ignore[attr-defined]
+            cli.renderer.tables.print_table(table)  # type: ignore[attr-defined]
 
             return CommandResult.ok(data=stats)
 
         except Exception as e:
-            cli.renderer.error(f"Failed to get stats: {e}")
+            cli.renderer.error(f"Failed to get stats: {e}")  # type: ignore[attr-defined]
             return CommandResult.fail(str(e))
 
     async def _show_q_table(self, cli: "JottyCLI") -> CommandResult:
         """Show Q-table entries."""
         try:
-            swarm = await cli.get_swarm_manager()
+            swarm = await cli.get_swarm_manager()  # type: ignore[attr-defined]
 
             if not hasattr(swarm, "learning_manager"):
-                cli.renderer.warning("Learning manager not available")
+                cli.renderer.warning("Learning manager not available")  # type: ignore[attr-defined]
                 return CommandResult.fail("Learning manager not available")
 
             q_learner = swarm.learning_manager.q_learner
 
             if not hasattr(q_learner, "q_table") or not q_learner.q_table:
-                cli.renderer.info("Q-table is empty")
+                cli.renderer.info("Q-table is empty")  # type: ignore[attr-defined]
                 return CommandResult.ok(data={})
 
             # Get top entries
@@ -124,7 +124,7 @@ class StatsCommand(BaseCommand):
                     }
                 )
 
-            cli.renderer.panel(
+            cli.renderer.panel(  # type: ignore[attr-defined]
                 "\n".join([f"{e['state_action']}: {e['q_value']}" for e in entries]),
                 title=f"Q-Table ({len(q_learner.q_table)} entries)",
                 style="cyan",
@@ -133,27 +133,27 @@ class StatsCommand(BaseCommand):
             return CommandResult.ok(data=entries)
 
         except Exception as e:
-            cli.renderer.error(f"Failed to get Q-table: {e}")
+            cli.renderer.error(f"Failed to get Q-table: {e}")  # type: ignore[attr-defined]
             return CommandResult.fail(str(e))
 
     async def _show_episodes(self, limit: int, cli: "JottyCLI") -> CommandResult:
         """Show episode history."""
         try:
-            swarm = await cli.get_swarm_manager()
+            swarm = await cli.get_swarm_manager()  # type: ignore[attr-defined]
 
             if not hasattr(swarm, "learning_manager"):
-                cli.renderer.warning("Learning manager not available")
+                cli.renderer.warning("Learning manager not available")  # type: ignore[attr-defined]
                 return CommandResult.fail("Learning manager not available")
 
             lm = swarm.learning_manager
 
             if not hasattr(lm, "episode_history") or not lm.episode_history:
-                cli.renderer.info("No episode history")
+                cli.renderer.info("No episode history")  # type: ignore[attr-defined]
                 return CommandResult.ok(data=[])
 
             episodes = lm.episode_history[-limit:]
 
-            cli.renderer.panel(
+            cli.renderer.panel(  # type: ignore[attr-defined]
                 "\n".join(
                     [
                         f"Episode {i+1}: reward={ep.get('reward', 0):.2f}, success={ep.get('success', False)}"
@@ -167,22 +167,22 @@ class StatsCommand(BaseCommand):
             return CommandResult.ok(data=episodes)
 
         except Exception as e:
-            cli.renderer.error(f"Failed to get episodes: {e}")
+            cli.renderer.error(f"Failed to get episodes: {e}")  # type: ignore[attr-defined]
             return CommandResult.fail(str(e))
 
     async def _show_agent_stats(self, cli: "JottyCLI") -> CommandResult:
         """Show per-agent statistics."""
         try:
-            swarm = await cli.get_swarm_manager()
+            swarm = await cli.get_swarm_manager()  # type: ignore[attr-defined]
 
             if not hasattr(swarm, "swarm_intelligence"):
-                cli.renderer.warning("Swarm intelligence not available")
+                cli.renderer.warning("Swarm intelligence not available")  # type: ignore[attr-defined]
                 return CommandResult.fail("Swarm intelligence not available")
 
             profiles = swarm.swarm_intelligence.agent_profiles
 
             if not profiles:
-                cli.renderer.info("No agent statistics yet")
+                cli.renderer.info("No agent statistics yet")  # type: ignore[attr-defined]
                 return CommandResult.ok(data={})
 
             agent_stats = {}
@@ -203,11 +203,11 @@ class StatsCommand(BaseCommand):
                     "Avg Execution Time": f"{profile.avg_execution_time:.2f}s",
                 }
 
-            cli.renderer.tree(agent_stats, title="Agent Statistics")
+            cli.renderer.tree(agent_stats, title="Agent Statistics")  # type: ignore[attr-defined]
             return CommandResult.ok(data=agent_stats)
 
         except Exception as e:
-            cli.renderer.error(f"Failed to get agent stats: {e}")
+            cli.renderer.error(f"Failed to get agent stats: {e}")  # type: ignore[attr-defined]
             return CommandResult.fail(str(e))
 
     def get_completions(self, partial: str) -> list:

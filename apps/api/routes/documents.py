@@ -22,7 +22,7 @@ def register_document_routes(app, api) -> Any:
 
         Supported formats: PDF, DOCX, PPTX, TXT, MD, CSV, JSON, HTML
         """
-        from .documents import get_document_processor
+        from .documents import get_document_processor  # type: ignore[attr-defined]
 
         try:
             processor = get_document_processor()
@@ -45,7 +45,7 @@ def register_document_routes(app, api) -> Any:
     @app.get("/api/documents")
     async def list_documents(folder_id: Optional[str] = None) -> dict[str, Any]:
         """List all documents, optionally filtered by folder."""
-        from .documents import get_document_processor
+        from .documents import get_document_processor  # type: ignore[attr-defined]
 
         try:
             processor = get_document_processor()
@@ -63,7 +63,7 @@ def register_document_routes(app, api) -> Any:
     @app.get("/api/documents/{doc_id}")
     async def get_document(doc_id: str, include_text: bool = False) -> Any:
         """Get document info and optionally its text content."""
-        from .documents import get_document_processor
+        from .documents import get_document_processor  # type: ignore[attr-defined]
 
         processor = get_document_processor()
         doc = processor.get_document(doc_id)
@@ -80,7 +80,7 @@ def register_document_routes(app, api) -> Any:
     @app.delete("/api/documents/{doc_id}")
     async def delete_document(doc_id: str) -> dict[str, Any]:
         """Delete a document and its embeddings."""
-        from .documents import get_document_processor
+        from .documents import get_document_processor  # type: ignore[attr-defined]
 
         processor = get_document_processor()
         success = processor.delete_document(doc_id)
@@ -98,7 +98,7 @@ def register_document_routes(app, api) -> Any:
             doc_ids: Optional list of document IDs to search
             n_results: Number of results (default 5)
         """
-        from .documents import get_document_processor
+        from .documents import get_document_processor  # type: ignore[attr-defined]
 
         try:
             processor = get_document_processor()
@@ -120,7 +120,7 @@ def register_document_routes(app, api) -> Any:
     @app.get("/api/rag/config")
     async def get_rag_config() -> dict[str, Any]:
         """Get current RAG configuration."""
-        from .documents import RAGConfig, get_document_processor
+        from .documents import RAGConfig, get_document_processor  # type: ignore[attr-defined]
 
         processor = get_document_processor()
         return {
@@ -136,7 +136,7 @@ def register_document_routes(app, api) -> Any:
     @app.post("/api/rag/config")
     async def update_rag_config(request: RAGConfigUpdateRequest) -> dict[str, Any]:
         """Update RAG configuration."""
-        from .documents import RAGConfig, get_document_processor
+        from .documents import RAGConfig, get_document_processor  # type: ignore[attr-defined]
 
         processor = get_document_processor()
 
@@ -168,7 +168,7 @@ def register_document_routes(app, api) -> Any:
     @app.post("/api/rag/reindex/{doc_id}")
     async def reindex_document(doc_id: str) -> dict[str, Any]:
         """Re-index a document with current RAG settings."""
-        from .documents import get_document_processor
+        from .documents import get_document_processor  # type: ignore[attr-defined]
 
         processor = get_document_processor()
         doc = processor.get_document(doc_id)

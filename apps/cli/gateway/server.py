@@ -593,7 +593,7 @@ class UnifiedGateway:
             verify_token = os.getenv("WHATSAPP_VERIFY_TOKEN", "jotty")
 
             if mode == "subscribe" and token == verify_token:
-                return int(challenge)
+                return int(challenge)  # type: ignore[arg-type]
 
             raise HTTPException(status_code=403, detail="Verification failed")
 
@@ -662,7 +662,7 @@ class UnifiedGateway:
                 logger.error(f"HTTP message error: {e}", exc_info=True)
                 return {"success": False, "error": str(e)}
 
-        self._app = app
+        self._app = app  # type: ignore[assignment]
         return app
 
     async def run_async(self) -> Any:

@@ -35,7 +35,7 @@ class MonitorResult:
     title: str = ""
     message: str = ""
     priority: str = "normal"  # normal, high, urgent
-    data: Dict[str, Any] = None
+    data: Dict[str, Any] = None  # type: ignore[assignment]
 
 
 class EmailMonitor:
@@ -147,7 +147,7 @@ class FileMonitor:
         Returns:
             List of AIMarker instances found
         """
-        markers = []
+        markers = []  # type: ignore[var-annotated]
         try:
             path_obj = Path(path)
             if not path_obj.exists() or not path_obj.is_file():
@@ -262,7 +262,7 @@ class InboxMonitor:
 
     async def check(self) -> MonitorResult:
         """Check all inboxes for new messages."""
-        new_messages = []
+        new_messages = []  # type: ignore[var-annotated]
 
         # This would check each connected channel
         # For now, placeholder

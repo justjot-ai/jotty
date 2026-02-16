@@ -36,28 +36,28 @@ class LearnCommand(BaseCommand):
             return await self._show_recommendation(cli)
         elif subcommand == "save":
             path = args.positional[1] if len(args.positional) > 1 else None
-            return await self._save_learnings(path, cli)
+            return await self._save_learnings(path, cli)  # type: ignore[arg-type]
         elif subcommand == "load":
             path = args.positional[1] if len(args.positional) > 1 else None
-            return await self._load_learnings(path, cli)
+            return await self._load_learnings(path, cli)  # type: ignore[arg-type]
         else:
             return await self._show_status(cli)
 
     async def _warmup(self, episodes: int, verbose: bool, cli: "JottyCLI") -> CommandResult:
         """Run DrZero warmup."""
         try:
-            swarm = await cli.get_swarm_manager()
+            swarm = await cli.get_swarm_manager()  # type: ignore[attr-defined]
 
-            cli.renderer.info(f"Starting warmup: {episodes} episodes")
+            cli.renderer.info(f"Starting warmup: {episodes} episodes")  # type: ignore[attr-defined]
 
             # Run warmup with progress
-            async with await cli.renderer.progress.spinner_async(
+            async with await cli.renderer.progress.spinner_async(  # type: ignore[attr-defined]
                 f"Running warmup ({episodes} episodes)...", style="cyan"
             ):
                 stats = await swarm.warmup(num_episodes=episodes, verbose=verbose)
 
             # Display results
-            cli.renderer.success("Warmup complete!")
+            cli.renderer.success("Warmup complete!")  # type: ignore[attr-defined]
 
             result_info = {
                 "Episodes Run": stats["episodes_run"],
@@ -77,17 +77,17 @@ class LearnCommand(BaseCommand):
                     for task_type, r in stats["task_type_results"].items()
                 }
 
-            cli.renderer.tree(result_info, title="Warmup Results")
+            cli.renderer.tree(result_info, title="Warmup Results")  # type: ignore[attr-defined]
             return CommandResult.ok(data=stats)
 
         except Exception as e:
-            cli.renderer.error(f"Warmup failed: {e}")
+            cli.renderer.error(f"Warmup failed: {e}")  # type: ignore[attr-defined]
             return CommandResult.fail(str(e))
 
     async def _show_status(self, cli: "JottyCLI") -> CommandResult:
         """Show learning status."""
         try:
-            swarm = await cli.get_swarm_manager()
+            swarm = await cli.get_swarm_manager()  # type: ignore[attr-defined]
 
             status = {
                 "Episodes": swarm.episode_count,
@@ -116,67 +116,67 @@ class LearnCommand(BaseCommand):
                     "Episodes Generated": curriculum.episodes_generated,
                 }
 
-            cli.renderer.tree(status, title="Learning Status")
+            cli.renderer.tree(status, title="Learning Status")  # type: ignore[attr-defined]
             return CommandResult.ok(data=status)
 
         except Exception as e:
-            cli.renderer.error(f"Failed to get learning status: {e}")
+            cli.renderer.error(f"Failed to get learning status: {e}")  # type: ignore[attr-defined]
             return CommandResult.fail(str(e))
 
     async def _show_recommendation(self, cli: "JottyCLI") -> CommandResult:
         """Show warmup recommendation."""
         try:
-            swarm = await cli.get_swarm_manager()
+            swarm = await cli.get_swarm_manager()  # type: ignore[attr-defined]
 
             recommendation = swarm.get_warmup_recommendation()
 
             if recommendation["should_warmup"]:
-                cli.renderer.warning(f"Warmup recommended: {recommendation['reason']}")
-                cli.renderer.info(f"Suggested episodes: {recommendation['recommended_episodes']}")
+                cli.renderer.warning(f"Warmup recommended: {recommendation['reason']}")  # type: ignore[attr-defined]
+                cli.renderer.info(f"Suggested episodes: {recommendation['recommended_episodes']}")  # type: ignore[attr-defined]
 
                 if recommendation.get("weak_areas"):
-                    cli.renderer.panel(
+                    cli.renderer.panel(  # type: ignore[attr-defined]
                         "\n".join([f"• {area}" for area in recommendation["weak_areas"]]),
                         title="Weak Areas",
                         style="yellow",
                     )
             else:
-                cli.renderer.success("Learning state is healthy - no warmup needed")
+                cli.renderer.success("Learning state is healthy - no warmup needed")  # type: ignore[attr-defined]
 
             return CommandResult.ok(data=recommendation)
 
         except Exception as e:
-            cli.renderer.error(f"Failed to get recommendation: {e}")
+            cli.renderer.error(f"Failed to get recommendation: {e}")  # type: ignore[attr-defined]
             return CommandResult.fail(str(e))
 
     async def _save_learnings(self, path: str, cli: "JottyCLI") -> CommandResult:
         """Save learnings to file."""
         try:
-            swarm = await cli.get_swarm_manager()
+            swarm = await cli.get_swarm_manager()  # type: ignore[attr-defined]
 
             # Use internal save method
             swarm._auto_save_learnings()
 
-            cli.renderer.success("Learnings saved successfully")
+            cli.renderer.success("Learnings saved successfully")  # type: ignore[attr-defined]
             return CommandResult.ok()
 
         except Exception as e:
-            cli.renderer.error(f"Failed to save learnings: {e}")
+            cli.renderer.error(f"Failed to save learnings: {e}")  # type: ignore[attr-defined]
             return CommandResult.fail(str(e))
 
     async def _load_learnings(self, path: str, cli: "JottyCLI") -> CommandResult:
         """Load learnings from file."""
         try:
-            swarm = await cli.get_swarm_manager()
+            swarm = await cli.get_swarm_manager()  # type: ignore[attr-defined]
 
             # Use internal load method
             swarm._auto_load_learnings()
 
-            cli.renderer.success("Learnings loaded successfully")
+            cli.renderer.success("Learnings loaded successfully")  # type: ignore[attr-defined]
             return CommandResult.ok()
 
         except Exception as e:
-            cli.renderer.error(f"Failed to load learnings: {e}")
+            cli.renderer.error(f"Failed to load learnings: {e}")  # type: ignore[attr-defined]
             return CommandResult.fail(str(e))
 
     def get_completions(self, partial: str) -> list:

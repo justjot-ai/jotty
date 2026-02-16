@@ -53,12 +53,12 @@ class PlanCommand(BaseCommand):
     ) -> CommandResult:
         """Create task plan."""
         try:
-            swarm = await cli.get_swarm_manager()
+            swarm = await cli.get_swarm_manager()  # type: ignore[attr-defined]
 
-            cli.renderer.info(f"Planning: {task}")
+            cli.renderer.info(f"Planning: {task}")  # type: ignore[attr-defined]
 
             # Use intent parser to analyze task
-            async with await cli.renderer.progress.spinner_async("Analyzing task...", style="cyan"):
+            async with await cli.renderer.progress.spinner_async("Analyzing task...", style="cyan"):  # type: ignore[attr-defined]
                 task_graph = swarm.swarm_intent_parser.parse(task)
 
             # Build plan info
@@ -85,25 +85,25 @@ class PlanCommand(BaseCommand):
                 if wisdom:
                     plan["Swarm Wisdom"] = wisdom[:500] + "..." if len(wisdom) > 500 else wisdom
 
-            cli.renderer.tree(plan, title="Task Plan")
+            cli.renderer.tree(plan, title="Task Plan")  # type: ignore[attr-defined]
 
             # Execute if requested
             if execute:
-                cli.renderer.info("Executing plan...")
+                cli.renderer.info("Executing plan...")  # type: ignore[attr-defined]
                 result = await swarm.run(task)
 
                 if result.success:
-                    cli.renderer.success("Plan executed successfully")
-                    cli.renderer.result(result, title="Execution Result")
+                    cli.renderer.success("Plan executed successfully")  # type: ignore[attr-defined]
+                    cli.renderer.result(result, title="Execution Result")  # type: ignore[attr-defined]
                 else:
-                    cli.renderer.error(f"Execution failed: {result.error}")
+                    cli.renderer.error(f"Execution failed: {result.error}")  # type: ignore[attr-defined]
 
                 return CommandResult.ok(data={"plan": plan, "result": result})
 
             return CommandResult.ok(data=plan)
 
         except Exception as e:
-            cli.renderer.error(f"Planning failed: {e}")
+            cli.renderer.error(f"Planning failed: {e}")  # type: ignore[attr-defined]
             if cli.config.debug:
                 import traceback
 

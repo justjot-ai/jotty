@@ -172,15 +172,15 @@ class MLCommand(BaseCommand):
 
     def _show_leaderboard(self, cli: "JottyCLI") -> Any:
         """Display dataset leaderboard."""
-        cli.renderer.header("Dataset Leaderboard")
-        cli.renderer.info("")
-        cli.renderer.info(
+        cli.renderer.header("Dataset Leaderboard")  # type: ignore[attr-defined]
+        cli.renderer.info("")  # type: ignore[attr-defined]
+        cli.renderer.info(  # type: ignore[attr-defined]
             "┌────────────────┬────────────────┬──────────┬──────────┬──────────┬─────────┐"
         )
-        cli.renderer.info(
+        cli.renderer.info(  # type: ignore[attr-defined]
             "│    Dataset     │      Type      │ Baseline │   Best   │  Target  │ Samples │"
         )
-        cli.renderer.info(
+        cli.renderer.info(  # type: ignore[attr-defined]
             "├────────────────┼────────────────┼──────────┼──────────┼──────────┼─────────┤"
         )
         for name, info in self.DATASET_LEADERBOARD.items():
@@ -189,15 +189,15 @@ class MLCommand(BaseCommand):
             best = f"{info['best']*100:.1f}%"
             target = info["target"][:8]
             samples = info["samples"]
-            cli.renderer.info(
+            cli.renderer.info(  # type: ignore[attr-defined]
                 f"│ {name:<14} │ {dtype:<14} │ {baseline:>8} │ {best:>8} │ {target:<8} │ {samples:>7} │"
             )
-        cli.renderer.info(
+        cli.renderer.info(  # type: ignore[attr-defined]
             "└────────────────┴────────────────┴──────────┴──────────┴──────────┴─────────┘"
         )
-        cli.renderer.info("")
-        cli.renderer.info("Baseline: Simple model (LogisticRegression/Ridge)")
-        cli.renderer.info("Best: Known best score achievable with AutoML")
+        cli.renderer.info("")  # type: ignore[attr-defined]
+        cli.renderer.info("Baseline: Simple model (LogisticRegression/Ridge)")  # type: ignore[attr-defined]
+        cli.renderer.info("Best: Known best score achievable with AutoML")  # type: ignore[attr-defined]
 
     async def execute(self, args: ParsedArgs, cli: "JottyCLI") -> CommandResult:
         """Execute ML pipeline."""
@@ -230,11 +230,11 @@ class MLCommand(BaseCommand):
 
         # Load from database if query provided
         if query:
-            cli.renderer.info("Loading from database query...")
+            cli.renderer.info("Loading from database query...")  # type: ignore[attr-defined]
             try:
                 X, y, target_name = await self._load_from_database(
                     query=query,
-                    target_col=target_col,
+                    target_col=target_col,  # type: ignore[arg-type]
                     connection=connection,
                     db_type=db_type,
                     host=db_host,
@@ -247,45 +247,45 @@ class MLCommand(BaseCommand):
                 if X is None:
                     return CommandResult.fail("Failed to load from database")
             except Exception as e:
-                cli.renderer.error(f"Database query failed: {e}")
+                cli.renderer.error(f"Database query failed: {e}")  # type: ignore[attr-defined]
                 return CommandResult.fail(str(e))
         elif not dataset:
-            cli.renderer.error("Dataset required. Usage: /ml <dataset> [--target <column>]")
-            cli.renderer.info("Examples:")
-            cli.renderer.info("  /ml titanic                    # Seaborn titanic dataset")
-            cli.renderer.info("  /ml iris                       # Seaborn iris dataset")
-            cli.renderer.info("  /ml data.csv --target label    # Custom CSV")
-            cli.renderer.info("  /ml --query 'SELECT * FROM users' --connection pg --target churn")
-            cli.renderer.info("")
-            cli.renderer.info("MLflow tracking:")
-            cli.renderer.info("  /ml titanic --mlflow           # Enable MLflow")
-            cli.renderer.info("  /ml titanic --mlflow --experiment myexp")
-            cli.renderer.info("")
-            cli.renderer.info("Other options:")
-            cli.renderer.info("  /ml --leaderboard              # Show dataset leaderboard")
+            cli.renderer.error("Dataset required. Usage: /ml <dataset> [--target <column>]")  # type: ignore[attr-defined]
+            cli.renderer.info("Examples:")  # type: ignore[attr-defined]
+            cli.renderer.info("  /ml titanic                    # Seaborn titanic dataset")  # type: ignore[attr-defined]
+            cli.renderer.info("  /ml iris                       # Seaborn iris dataset")  # type: ignore[attr-defined]
+            cli.renderer.info("  /ml data.csv --target label    # Custom CSV")  # type: ignore[attr-defined]
+            cli.renderer.info("  /ml --query 'SELECT * FROM users' --connection pg --target churn")  # type: ignore[attr-defined]
+            cli.renderer.info("")  # type: ignore[attr-defined]
+            cli.renderer.info("MLflow tracking:")  # type: ignore[attr-defined]
+            cli.renderer.info("  /ml titanic --mlflow           # Enable MLflow")  # type: ignore[attr-defined]
+            cli.renderer.info("  /ml titanic --mlflow --experiment myexp")  # type: ignore[attr-defined]
+            cli.renderer.info("")  # type: ignore[attr-defined]
+            cli.renderer.info("Other options:")  # type: ignore[attr-defined]
+            cli.renderer.info("  /ml --leaderboard              # Show dataset leaderboard")  # type: ignore[attr-defined]
             return CommandResult.fail("Dataset required")
         else:
             # Load dataset from file/builtin
-            cli.renderer.info(f"Loading dataset: {dataset}")
+            cli.renderer.info(f"Loading dataset: {dataset}")  # type: ignore[attr-defined]
             try:
                 X, y, target_name = await self._load_dataset(dataset, target_col, cli)
                 if X is None:
                     return CommandResult.fail("Failed to load dataset")
             except Exception as e:
-                cli.renderer.error(f"Failed to load dataset: {e}")
+                cli.renderer.error(f"Failed to load dataset: {e}")  # type: ignore[attr-defined]
                 return CommandResult.fail(str(e))
 
-        cli.renderer.info(f"Data: {X.shape[0]} samples, {X.shape[1]} features")
-        cli.renderer.info(f"Target: {target_name}")
+        cli.renderer.info(f"Data: {X.shape[0]} samples, {X.shape[1]} features")  # type: ignore[attr-defined]
+        cli.renderer.info(f"Target: {target_name}")  # type: ignore[attr-defined]
 
         # Run SwarmML pipeline
-        cli.renderer.info("")
-        cli.renderer.header("SwarmML Pipeline")
-        cli.renderer.info(f"Context: {context}")
-        cli.renderer.info(f"Feedback iterations: {iterations}")
+        cli.renderer.info("")  # type: ignore[attr-defined]
+        cli.renderer.header("SwarmML Pipeline")  # type: ignore[attr-defined]
+        cli.renderer.info(f"Context: {context}")  # type: ignore[attr-defined]
+        cli.renderer.info(f"Feedback iterations: {iterations}")  # type: ignore[attr-defined]
         if use_mlflow:
-            cli.renderer.info(f"MLflow: enabled (experiment: {experiment_name})")
-        cli.renderer.info("")
+            cli.renderer.info(f"MLflow: enabled (experiment: {experiment_name})")  # type: ignore[attr-defined]
+        cli.renderer.info("")  # type: ignore[attr-defined]
 
         try:
             result = await self._run_swarm_ml(
@@ -301,7 +301,7 @@ class MLCommand(BaseCommand):
             )
             return CommandResult.ok(data=result)
         except Exception as e:
-            cli.renderer.error(f"Pipeline failed: {e}")
+            cli.renderer.error(f"Pipeline failed: {e}")  # type: ignore[attr-defined]
             import traceback
 
             traceback.print_exc()
@@ -318,14 +318,14 @@ class MLCommand(BaseCommand):
         database: str | None = None,
         user: str | None = None,
         password: str | None = None,
-        cli: "JottyCLI" = None,
+        cli: "JottyCLI" = None,  # type: ignore[assignment]
     ) -> Any:
         """Load dataset from database using ConnectorX."""
         import pandas as pd
 
         # Resolve connection alias
         if connection and connection in self.DB_ALIASES:
-            conn_config = self.DB_ALIASES[connection].copy()
+            conn_config = self.DB_ALIASES[connection].copy()  # type: ignore[attr-defined]
             db_type = db_type or conn_config.get("db_type")
             host = conn_config.get("host", host)
             port = port or conn_config.get("port")
@@ -337,11 +337,11 @@ class MLCommand(BaseCommand):
         password = password or os.environ.get("JOTTY_DB_PASSWORD", "")
 
         if not database:
-            cli.renderer.error("Database name required. Use --database or set JOTTY_DB_NAME")
+            cli.renderer.error("Database name required. Use --database or set JOTTY_DB_NAME")  # type: ignore[attr-defined]
             return None, None, None
 
         if not target_col:
-            cli.renderer.error("Target column required for database queries. Use --target <column>")
+            cli.renderer.error("Target column required for database queries. Use --target <column>")  # type: ignore[attr-defined]
             return None, None, None
 
         # Use ConnectorX loader
@@ -360,21 +360,21 @@ class MLCommand(BaseCommand):
                 password=password,
             )
 
-            cli.renderer.info(f"Executing query on {db_type}://{host}/{database}...")
+            cli.renderer.info(f"Executing query on {db_type}://{host}/{database}...")  # type: ignore[attr-defined]
             df = loader.load(query, output_format=OutputFormat.PANDAS)
-            cli.renderer.info(f"Loaded {len(df)} rows from database")
+            cli.renderer.info(f"Loaded {len(df)} rows from database")  # type: ignore[attr-defined]
 
         except ImportError:
-            cli.renderer.error("ConnectorX not installed. Install with: pip install connectorx")
+            cli.renderer.error("ConnectorX not installed. Install with: pip install connectorx")  # type: ignore[attr-defined]
             return None, None, None
         except Exception as e:
-            cli.renderer.error(f"Database error: {e}")
+            cli.renderer.error(f"Database error: {e}")  # type: ignore[attr-defined]
             return None, None, None
 
         # Prepare X, y
         if target_col not in df.columns:
-            cli.renderer.error(f"Target column '{target_col}' not in query results")
-            cli.renderer.info(f"Available columns: {list(df.columns)}")
+            cli.renderer.error(f"Target column '{target_col}' not in query results")  # type: ignore[attr-defined]
+            cli.renderer.info(f"Available columns: {list(df.columns)}")  # type: ignore[attr-defined]
             return None, None, None
 
         y = df[target_col]
@@ -402,7 +402,7 @@ class MLCommand(BaseCommand):
             import seaborn as sns
 
             df = sns.load_dataset(dataset_lower)
-            cli.renderer.info(f"Loaded seaborn dataset: {dataset}")
+            cli.renderer.info(f"Loaded seaborn dataset: {dataset}")  # type: ignore[attr-defined]
 
             # Handle specific datasets
             if dataset_lower == "titanic":
@@ -439,14 +439,14 @@ class MLCommand(BaseCommand):
                 df = pd.DataFrame(data.data, columns=data.feature_names)
                 df["target"] = data.target
                 target_col = target_col or "target"
-                cli.renderer.info("Loaded sklearn breast_cancer (classification)")
+                cli.renderer.info("Loaded sklearn breast_cancer (classification)")  # type: ignore[attr-defined]
 
             elif dataset_lower == "wine":
                 data = sklearn_datasets.load_wine()
                 df = pd.DataFrame(data.data, columns=data.feature_names)
                 df["target"] = data.target
                 target_col = target_col or "target"
-                cli.renderer.info("Loaded sklearn wine (classification)")
+                cli.renderer.info("Loaded sklearn wine (classification)")  # type: ignore[attr-defined]
 
             elif dataset_lower == "digits":
                 data = sklearn_datasets.load_digits()
@@ -456,7 +456,7 @@ class MLCommand(BaseCommand):
                 # Sample for speed
                 if len(df) > 1000:
                     df = df.sample(1000, random_state=42)
-                cli.renderer.info("Loaded sklearn digits (classification)")
+                cli.renderer.info("Loaded sklearn digits (classification)")  # type: ignore[attr-defined]
 
             elif dataset_lower == "california":
                 data = sklearn_datasets.fetch_california_housing()
@@ -466,14 +466,14 @@ class MLCommand(BaseCommand):
                 # Sample for speed
                 if len(df) > 5000:
                     df = df.sample(5000, random_state=42)
-                cli.renderer.info("Loaded sklearn california_housing (regression)")
+                cli.renderer.info("Loaded sklearn california_housing (regression)")  # type: ignore[attr-defined]
 
             elif dataset_lower == "diabetes":
                 data = sklearn_datasets.load_diabetes()
                 df = pd.DataFrame(data.data, columns=data.feature_names)
                 df["target"] = data.target
                 target_col = target_col or "target"
-                cli.renderer.info("Loaded sklearn diabetes (regression)")
+                cli.renderer.info("Loaded sklearn diabetes (regression)")  # type: ignore[attr-defined]
 
         elif Path(dataset).exists():
             # Load from file
@@ -486,31 +486,31 @@ class MLCommand(BaseCommand):
             elif dataset.endswith(".xlsx") or dataset.endswith(".xls"):
                 df = pd.read_excel(dataset)
             else:
-                cli.renderer.error(f"Unsupported file format: {dataset}")
+                cli.renderer.error(f"Unsupported file format: {dataset}")  # type: ignore[attr-defined]
                 return None, None, None
 
-            cli.renderer.info(f"Loaded file: {dataset}")
+            cli.renderer.info(f"Loaded file: {dataset}")  # type: ignore[attr-defined]
 
             if not target_col:
-                cli.renderer.error(
+                cli.renderer.error(  # type: ignore[attr-defined]
                     "Target column required for custom datasets. Use --target <column>"
                 )
                 return None, None, None
 
         else:
-            cli.renderer.error(f"Dataset not found: {dataset}")
-            cli.renderer.info("")
-            cli.renderer.info("Available datasets:")
-            cli.renderer.info(f"  Seaborn: {', '.join(self.SEABORN_DATASETS)}")
-            cli.renderer.info(f"  Sklearn: {', '.join(self.SKLEARN_DATASETS)}")
-            cli.renderer.info("  Files: .csv, .parquet, .json, .xlsx")
-            cli.renderer.info("  Database: --query 'SQL' --connection pg --target col")
+            cli.renderer.error(f"Dataset not found: {dataset}")  # type: ignore[attr-defined]
+            cli.renderer.info("")  # type: ignore[attr-defined]
+            cli.renderer.info("Available datasets:")  # type: ignore[attr-defined]
+            cli.renderer.info(f"  Seaborn: {', '.join(self.SEABORN_DATASETS)}")  # type: ignore[attr-defined]
+            cli.renderer.info(f"  Sklearn: {', '.join(self.SKLEARN_DATASETS)}")  # type: ignore[attr-defined]
+            cli.renderer.info("  Files: .csv, .parquet, .json, .xlsx")  # type: ignore[attr-defined]
+            cli.renderer.info("  Database: --query 'SQL' --connection pg --target col")  # type: ignore[attr-defined]
             return None, None, None
 
         # Prepare X, y
         if target_col not in df.columns:
-            cli.renderer.error(f"Target column '{target_col}' not in dataset")
-            cli.renderer.info(f"Available columns: {list(df.columns)}")
+            cli.renderer.error(f"Target column '{target_col}' not in dataset")  # type: ignore[attr-defined]
+            cli.renderer.info(f"Available columns: {list(df.columns)}")  # type: ignore[attr-defined]
             return None, None, None
 
         y = df[target_col]
@@ -566,7 +566,7 @@ class MLCommand(BaseCommand):
             await mlflow_tracker.init(tracking_uri=tracking_uri, experiment_name=experiment_name)
             run_name = f"{dataset_name}_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}"
             await mlflow_tracker.start_run(run_name=run_name)
-            cli.renderer.info(f"MLflow run started: {run_name}")
+            cli.renderer.info(f"MLflow run started: {run_name}")  # type: ignore[attr-defined]
 
         # Detect problem type
         if y.nunique() <= 20 and y.nunique() / len(y) < 0.05:
@@ -574,7 +574,7 @@ class MLCommand(BaseCommand):
         else:
             problem_type = "regression"
 
-        cli.renderer.info(f"Problem type: {problem_type}")
+        cli.renderer.info(f"Problem type: {problem_type}")  # type: ignore[attr-defined]
 
         # Log initial params to MLflow
         if mlflow_tracker:
@@ -612,20 +612,20 @@ class MLCommand(BaseCommand):
         best_iteration = 0
         best_model = None
         results = []
-        feature_importance = {}
+        feature_importance = {}  # type: ignore[var-annotated]
 
         for iteration in range(max_iterations):
-            cli.renderer.info("")
-            cli.renderer.subheader(f"Iteration {iteration + 1}/{max_iterations}")
+            cli.renderer.info("")  # type: ignore[attr-defined]
+            cli.renderer.subheader(f"Iteration {iteration + 1}/{max_iterations}")  # type: ignore[attr-defined]
 
             # Step 1: LLM Feature Reasoning
             if iteration == 0:
-                cli.renderer.status("LLM Feature Reasoning (6 personas)...")
+                cli.renderer.status("LLM Feature Reasoning (6 personas)...")  # type: ignore[attr-defined]
                 llm_result = await llm_skill.execute(
                     X, y, problem_type=problem_type, business_context=context
                 )
             else:
-                cli.renderer.status("LLM Feedback Loop...")
+                cli.renderer.status("LLM Feedback Loop...")  # type: ignore[attr-defined]
                 llm_result = await llm_skill.feedback_loop(
                     X_fe,  # Use engineered features for feedback
                     y,
@@ -636,30 +636,30 @@ class MLCommand(BaseCommand):
                 )
 
             X_llm = llm_result.data
-            cli.renderer.info(f"  Applied: {llm_result.metrics.get('n_applied', 0)} LLM features")
+            cli.renderer.info(f"  Applied: {llm_result.metrics.get('n_applied', 0)} LLM features")  # type: ignore[attr-defined]
 
             # Step 2: Feature Engineering
-            cli.renderer.status("Feature Engineering...")
+            cli.renderer.status("Feature Engineering...")  # type: ignore[attr-defined]
             fe_result = await fe_skill.execute(X_llm, y, problem_type=problem_type)
             X_fe = fe_result.data
-            cli.renderer.info(f"  Features: {X_llm.shape[1]} → {X_fe.shape[1]}")
+            cli.renderer.info(f"  Features: {X_llm.shape[1]} → {X_fe.shape[1]}")  # type: ignore[attr-defined]
 
             # Step 3: Feature Selection (BOHB + PASHA + 12 methods)
-            cli.renderer.status("Feature Selection (14 methods incl. BOHB/PASHA)...")
+            cli.renderer.status("Feature Selection (14 methods incl. BOHB/PASHA)...")  # type: ignore[attr-defined]
             fs_result = await fs_skill.execute(X_fe, y, problem_type=problem_type)
             X_fs = fs_result.data
-            cli.renderer.info(f"  Selected: {X_fs.shape[1]} features")
+            cli.renderer.info(f"  Selected: {X_fs.shape[1]} features")  # type: ignore[attr-defined]
 
             # Step 4: Model Selection
-            cli.renderer.status("Model Selection (8+ algorithms)...")
+            cli.renderer.status("Model Selection (8+ algorithms)...")  # type: ignore[attr-defined]
             ms_result = await ms_skill.execute(X_fs, y, problem_type=problem_type)
             all_scores = ms_result.metadata.get("all_scores", {})
-            cli.renderer.info(
+            cli.renderer.info(  # type: ignore[attr-defined]
                 f"  Best model: {ms_result.metadata.get('best_model')} = {ms_result.metrics.get('score'):.4f}"
             )
 
             # Step 5: Hyperparameter Optimization
-            cli.renderer.status("Hyperparameter Optimization...")
+            cli.renderer.status("Hyperparameter Optimization...")  # type: ignore[attr-defined]
             ho_result = await ho_skill.execute(
                 X_fs,
                 y,
@@ -668,10 +668,10 @@ class MLCommand(BaseCommand):
                 model_ranking=ms_result.metadata.get("model_ranking", []),
                 tune_all=True,
             )
-            cli.renderer.info(f"  Best after tuning: {ho_result.metrics.get('score'):.4f}")
+            cli.renderer.info(f"  Best after tuning: {ho_result.metrics.get('score'):.4f}")  # type: ignore[attr-defined]
 
             # Step 6: Ensemble
-            cli.renderer.status("Ensemble (multi-level stacking)...")
+            cli.renderer.status("Ensemble (multi-level stacking)...")  # type: ignore[attr-defined]
             ens_result = await ens_skill.execute(
                 X_fs,
                 y,
@@ -682,7 +682,7 @@ class MLCommand(BaseCommand):
             )
 
             iteration_score = ens_result.metrics.get("score", 0)
-            cli.renderer.info(f"  Iteration {iteration + 1} Score: {iteration_score:.4f}")
+            cli.renderer.info(f"  Iteration {iteration + 1} Score: {iteration_score:.4f}")  # type: ignore[attr-defined]
 
             # Extract feature importance for next iteration
             feature_importance = EnsembleSkill.extract_feature_importance(
@@ -713,27 +713,27 @@ class MLCommand(BaseCommand):
                 best_score = iteration_score
                 best_iteration = iteration + 1
                 best_model = ens_result.data
-                cli.renderer.success("  NEW BEST!")
+                cli.renderer.success("  NEW BEST!")  # type: ignore[attr-defined]
 
         # Final summary with tables
-        cli.renderer.info("")
-        cli.renderer.header("Results Summary")
+        cli.renderer.info("")  # type: ignore[attr-defined]
+        cli.renderer.header("Results Summary")  # type: ignore[attr-defined]
 
         # Iteration results table
-        cli.renderer.info("")
-        cli.renderer.info("┌─────────────┬──────────┬──────────┬─────────────────┐")
-        cli.renderer.info("│  Iteration  │  Score   │ Features │    Strategy     │")
-        cli.renderer.info("├─────────────┼──────────┼──────────┼─────────────────┤")
+        cli.renderer.info("")  # type: ignore[attr-defined]
+        cli.renderer.info("┌─────────────┬──────────┬──────────┬─────────────────┐")  # type: ignore[attr-defined]
+        cli.renderer.info("│  Iteration  │  Score   │ Features │    Strategy     │")  # type: ignore[attr-defined]
+        cli.renderer.info("├─────────────┼──────────┼──────────┼─────────────────┤")  # type: ignore[attr-defined]
         for r in results:
             marker = " " if r["iteration"] == best_iteration else " "
-            cli.renderer.info(
+            cli.renderer.info(  # type: ignore[attr-defined]
                 f"│{marker} {r['iteration']:^9} │ {r['score']:^8.4f} │ {r['features']:^8} │ {r['strategy'][:15]:^15} │"
             )
-        cli.renderer.info("└─────────────┴──────────┴──────────┴─────────────────┘")
+        cli.renderer.info("└─────────────┴──────────┴──────────┴─────────────────┘")  # type: ignore[attr-defined]
 
-        cli.renderer.info("")
-        cli.renderer.info(f"Best Iteration: {best_iteration}")
-        cli.renderer.info(f"Best Score: {best_score:.4f} ({best_score*100:.2f}%)")
+        cli.renderer.info("")  # type: ignore[attr-defined]
+        cli.renderer.info(f"Best Iteration: {best_iteration}")  # type: ignore[attr-defined]
+        cli.renderer.info(f"Best Score: {best_score:.4f} ({best_score*100:.2f}%)")  # type: ignore[attr-defined]
 
         # Compare to leaderboard if dataset is known
         if dataset_name.lower() in self.DATASET_LEADERBOARD:
@@ -743,26 +743,26 @@ class MLCommand(BaseCommand):
             improvement = ((best_score - baseline) / baseline) * 100
             gap_to_best = ((known_best - best_score) / known_best) * 100
 
-            cli.renderer.info("")
-            cli.renderer.info("Leaderboard Comparison:")
-            cli.renderer.info(f"  Baseline:     {baseline*100:.1f}%")
-            cli.renderer.info(
+            cli.renderer.info("")  # type: ignore[attr-defined]
+            cli.renderer.info("Leaderboard Comparison:")  # type: ignore[attr-defined]
+            cli.renderer.info(f"  Baseline:     {baseline*100:.1f}%")  # type: ignore[attr-defined]
+            cli.renderer.info(  # type: ignore[attr-defined]
                 f"  Your Score:   {best_score*100:.1f}% ({'+' if improvement > 0 else ''}{improvement:.1f}% vs baseline)"
             )
-            cli.renderer.info(f"  Known Best:   {known_best*100:.1f}% ({gap_to_best:.1f}% gap)")
+            cli.renderer.info(f"  Known Best:   {known_best*100:.1f}% ({gap_to_best:.1f}% gap)")  # type: ignore[attr-defined]
 
         sorted_fi = []
         if feature_importance:
             sorted_fi = sorted(feature_importance.items(), key=lambda x: -x[1])[:10]
-            cli.renderer.info("")
-            cli.renderer.info("Top 10 Features:")
-            cli.renderer.info("┌────────────────────────────────┬────────────┐")
-            cli.renderer.info("│           Feature              │ Importance │")
-            cli.renderer.info("├────────────────────────────────┼────────────┤")
+            cli.renderer.info("")  # type: ignore[attr-defined]
+            cli.renderer.info("Top 10 Features:")  # type: ignore[attr-defined]
+            cli.renderer.info("┌────────────────────────────────┬────────────┐")  # type: ignore[attr-defined]
+            cli.renderer.info("│           Feature              │ Importance │")  # type: ignore[attr-defined]
+            cli.renderer.info("├────────────────────────────────┼────────────┤")  # type: ignore[attr-defined]
             for feat, imp in sorted_fi:
                 feat_display = feat[:30] if len(feat) > 30 else feat
-                cli.renderer.info(f"│ {feat_display:<30} │ {imp:>10.4f} │")
-            cli.renderer.info("└────────────────────────────────┴────────────┘")
+                cli.renderer.info(f"│ {feat_display:<30} │ {imp:>10.4f} │")  # type: ignore[attr-defined]
+            cli.renderer.info("└────────────────────────────────┴────────────┘")  # type: ignore[attr-defined]
 
         # Log final results to MLflow
         if mlflow_tracker:
@@ -786,13 +786,13 @@ class MLCommand(BaseCommand):
                     registered_name=f"{dataset_name}_model" if dataset_name != "unknown" else None,
                 )
                 if model_uri:
-                    cli.renderer.info(f"Model logged to MLflow: {model_uri}")
+                    cli.renderer.info(f"Model logged to MLflow: {model_uri}")  # type: ignore[attr-defined]
 
             # End the run
             run_info = await mlflow_tracker.end_run()
             if run_info:
-                cli.renderer.info(f"MLflow run completed: {run_info['run_id']}")
-                cli.renderer.info(f"Artifact URI: {run_info['artifact_uri']}")
+                cli.renderer.info(f"MLflow run completed: {run_info['run_id']}")  # type: ignore[attr-defined]
+                cli.renderer.info(f"Artifact URI: {run_info['artifact_uri']}")  # type: ignore[attr-defined]
 
                 # Save MLflow state for later retrieval
                 MLCommand.save_mlflow_state(

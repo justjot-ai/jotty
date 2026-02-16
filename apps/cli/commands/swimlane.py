@@ -81,18 +81,18 @@ class SwimlaneCommand(BaseCommand):
 
             lines.append(f"\n{'Total':<12}: {total:>3}")
 
-            cli.renderer.panel("\n".join(lines), title="Swimlanes", style="magenta")
+            cli.renderer.panel("\n".join(lines), title="Swimlanes", style="magenta")  # type: ignore[attr-defined]
 
             # Show hint
-            cli.renderer.info("Tip: /swimlane <name> to view tasks in a specific lane")
+            cli.renderer.info("Tip: /swimlane <name> to view tasks in a specific lane")  # type: ignore[attr-defined]
 
             return CommandResult.ok(data=state)
 
         except aiohttp.ClientConnectorError:
-            cli.renderer.error("Cannot connect to Supervisor at localhost:8080")
+            cli.renderer.error("Cannot connect to Supervisor at localhost:8080")  # type: ignore[attr-defined]
             return CommandResult.fail("Connection failed")
         except Exception as e:
-            cli.renderer.error(f"API error: {e}")
+            cli.renderer.error(f"API error: {e}")  # type: ignore[attr-defined]
             return CommandResult.fail(str(e))
 
     async def _show_lane(self, lane_name: str, cli: "JottyCLI") -> CommandResult:
@@ -101,8 +101,8 @@ class SwimlaneCommand(BaseCommand):
         lane_name = lane_name.lower().replace("-", "_")
 
         if lane_name not in self.LANE_KEYS:
-            cli.renderer.error(f"Unknown lane: {lane_name}")
-            cli.renderer.info(f"Available lanes: {', '.join(self.LANE_KEYS.keys())}")
+            cli.renderer.error(f"Unknown lane: {lane_name}")  # type: ignore[attr-defined]
+            cli.renderer.info(f"Available lanes: {', '.join(self.LANE_KEYS.keys())}")  # type: ignore[attr-defined]
             return CommandResult.fail("Unknown lane")
 
         try:
@@ -113,7 +113,7 @@ class SwimlaneCommand(BaseCommand):
             task_details = state.get("task_details", {})
 
             if not task_ids:
-                cli.renderer.info(f"No tasks in '{lane_name}' lane")
+                cli.renderer.info(f"No tasks in '{lane_name}' lane")  # type: ignore[attr-defined]
                 return CommandResult.ok(data=[])
 
             # Build task list
@@ -135,7 +135,7 @@ class SwimlaneCommand(BaseCommand):
                 lines.append(f"\n... and {len(task_ids) - 20} more")
 
             style = self.LANE_STYLES.get(lane_name, "white")
-            cli.renderer.panel(
+            cli.renderer.panel(  # type: ignore[attr-defined]
                 "\n".join(lines),
                 title=f"Swimlane: {lane_name.replace('_', ' ').title()} ({len(task_ids)} tasks)",
                 style=style,
@@ -144,10 +144,10 @@ class SwimlaneCommand(BaseCommand):
             return CommandResult.ok(data=tasks)
 
         except aiohttp.ClientConnectorError:
-            cli.renderer.error("Cannot connect to Supervisor at localhost:8080")
+            cli.renderer.error("Cannot connect to Supervisor at localhost:8080")  # type: ignore[attr-defined]
             return CommandResult.fail("Connection failed")
         except Exception as e:
-            cli.renderer.error(f"API error: {e}")
+            cli.renderer.error(f"API error: {e}")  # type: ignore[attr-defined]
             return CommandResult.fail(str(e))
 
     def get_completions(self, partial: str) -> list:

@@ -44,7 +44,7 @@ class SwarmCommand(BaseCommand):
     async def _show_status(self, cli: "JottyCLI") -> CommandResult:
         """Show swarm intelligence status."""
         try:
-            swarm = await cli.get_swarm_manager()
+            swarm = await cli.get_swarm_manager()  # type: ignore[attr-defined]
 
             status: Dict[str, Any] = {
                 "Mode": swarm.mode,
@@ -88,20 +88,20 @@ class SwarmCommand(BaseCommand):
                 summary = swarm.get_provider_summary()
                 status["Providers"] = summary.get("available", False)
 
-            cli.renderer.tree(status, title="Swarm Intelligence Status")
+            cli.renderer.tree(status, title="Swarm Intelligence Status")  # type: ignore[attr-defined]
             return CommandResult.ok(data=status)
 
         except Exception as e:
-            cli.renderer.error(f"Failed to get swarm status: {e}")
+            cli.renderer.error(f"Failed to get swarm status: {e}")  # type: ignore[attr-defined]
             return CommandResult.fail(str(e))
 
     async def _show_routing(self, cli: "JottyCLI") -> CommandResult:
         """Show task routing information."""
         try:
-            swarm = await cli.get_swarm_manager()
+            swarm = await cli.get_swarm_manager()  # type: ignore[attr-defined]
 
             if not hasattr(swarm, "swarm_intelligence"):
-                cli.renderer.warning("Swarm intelligence not available")
+                cli.renderer.warning("Swarm intelligence not available")  # type: ignore[attr-defined]
                 return CommandResult.fail("Swarm intelligence not available")
 
             si = swarm.swarm_intelligence
@@ -119,23 +119,23 @@ class SwarmCommand(BaseCommand):
                     routing_info[agent_name] = task_success
 
             if not routing_info:
-                cli.renderer.info("No routing data yet. Run some tasks first.")
+                cli.renderer.info("No routing data yet. Run some tasks first.")  # type: ignore[attr-defined]
                 return CommandResult.ok(data={})
 
-            cli.renderer.tree(routing_info, title="Task Routing (Agent -> Task Type Success)")
+            cli.renderer.tree(routing_info, title="Task Routing (Agent -> Task Type Success)")  # type: ignore[attr-defined]
             return CommandResult.ok(data=routing_info)
 
         except Exception as e:
-            cli.renderer.error(f"Failed to get routing info: {e}")
+            cli.renderer.error(f"Failed to get routing info: {e}")  # type: ignore[attr-defined]
             return CommandResult.fail(str(e))
 
     async def _show_consensus(self, cli: "JottyCLI") -> CommandResult:
         """Show consensus mechanism info."""
         try:
-            swarm = await cli.get_swarm_manager()
+            swarm = await cli.get_swarm_manager()  # type: ignore[attr-defined]
 
             if not hasattr(swarm, "swarm_intelligence"):
-                cli.renderer.warning("Swarm intelligence not available")
+                cli.renderer.warning("Swarm intelligence not available")  # type: ignore[attr-defined]
                 return CommandResult.fail("Swarm intelligence not available")
 
             si = swarm.swarm_intelligence
@@ -147,7 +147,7 @@ class SwarmCommand(BaseCommand):
 
             # Get recent consensus decisions from cache
             for key, decision in list(si.consensus_cache.items())[:5]:
-                consensus_info["Recent Decisions"].append(
+                consensus_info["Recent Decisions"].append(  # type: ignore[attr-defined]
                     {
                         "Query": key[:50] + "..." if len(key) > 50 else key,
                         "Decision": decision.get("decision", "unknown"),
@@ -155,40 +155,40 @@ class SwarmCommand(BaseCommand):
                     }
                 )
 
-            cli.renderer.tree(consensus_info, title="Swarm Consensus")
+            cli.renderer.tree(consensus_info, title="Swarm Consensus")  # type: ignore[attr-defined]
             return CommandResult.ok(data=consensus_info)
 
         except Exception as e:
-            cli.renderer.error(f"Failed to get consensus info: {e}")
+            cli.renderer.error(f"Failed to get consensus info: {e}")  # type: ignore[attr-defined]
             return CommandResult.fail(str(e))
 
     async def _show_providers(self, cli: "JottyCLI") -> CommandResult:
         """Show provider registry info."""
         try:
-            swarm = await cli.get_swarm_manager()
+            swarm = await cli.get_swarm_manager()  # type: ignore[attr-defined]
 
             if not hasattr(swarm, "provider_registry") or not swarm.provider_registry:
-                cli.renderer.warning("Provider registry not available")
+                cli.renderer.warning("Provider registry not available")  # type: ignore[attr-defined]
                 return CommandResult.fail("Provider registry not available")
 
             summary = swarm.get_provider_summary()
 
             if not summary.get("available"):
-                cli.renderer.warning("Providers not configured")
+                cli.renderer.warning("Providers not configured")  # type: ignore[attr-defined]
                 return CommandResult.fail("Providers not configured")
 
-            cli.renderer.tree(summary, title="Provider Registry")
+            cli.renderer.tree(summary, title="Provider Registry")  # type: ignore[attr-defined]
             return CommandResult.ok(data=summary)
 
         except Exception as e:
-            cli.renderer.error(f"Failed to get provider info: {e}")
+            cli.renderer.error(f"Failed to get provider info: {e}")  # type: ignore[attr-defined]
             return CommandResult.fail(str(e))
 
     async def _run_with_tui(self, args: ParsedArgs, cli: "JottyCLI") -> CommandResult:
         """Run CodingSwarm with TUI dashboard."""
         requirements = " ".join(args.positional[1:]) if len(args.positional) > 1 else ""
         if not requirements:
-            cli.renderer.error("Usage: /swarm run <requirements>")
+            cli.renderer.error("Usage: /swarm run <requirements>")  # type: ignore[attr-defined]
             return CommandResult.fail("No requirements provided")
 
         try:
@@ -217,7 +217,7 @@ class SwarmCommand(BaseCommand):
             swarm = CodingSwarm(config)
 
             # Create dashboard
-            dashboard = SwarmDashboard(cli.renderer.console, requirements=requirements)
+            dashboard = SwarmDashboard(cli.renderer.console, requirements=requirements)  # type: ignore[attr-defined]
             dashboard.state.team = team
             dashboard.state.language = language
 
@@ -261,11 +261,11 @@ class SwarmCommand(BaseCommand):
 
             # Show generated files
             if result.success and result.code:
-                cli.renderer.newline()
-                cli.renderer.print("[bold green]Generated Files:[/bold green]")
+                cli.renderer.newline()  # type: ignore[attr-defined]
+                cli.renderer.print("[bold green]Generated Files:[/bold green]")  # type: ignore[attr-defined]
                 for fname, content in result.code.files.items():
                     loc = content.count("\n") + 1
-                    cli.renderer.print(f"  {fname} ({loc} lines)")
+                    cli.renderer.print(f"  {fname} ({loc} lines)")  # type: ignore[attr-defined]
 
             return CommandResult.ok(
                 data={
@@ -276,7 +276,7 @@ class SwarmCommand(BaseCommand):
             )
 
         except Exception as e:
-            cli.renderer.error(f"Swarm run failed: {e}")
+            cli.renderer.error(f"Swarm run failed: {e}")  # type: ignore[attr-defined]
             if hasattr(cli.config, "debug") and cli.config.debug:
                 traceback.print_exc()
             return CommandResult.fail(str(e))

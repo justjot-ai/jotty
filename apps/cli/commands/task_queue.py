@@ -117,7 +117,7 @@ Respond ONLY with valid JSON, no markdown."""
             }
 
         except Exception as e:
-            cli.renderer.warning(f"AI generation failed: {e}, using basic task")
+            cli.renderer.warning(f"AI generation failed: {e}, using basic task")  # type: ignore[attr-defined]
             return {
                 "title": brief_idea.strip().capitalize(),
                 "description": brief_idea,
@@ -137,7 +137,7 @@ Respond ONLY with valid JSON, no markdown."""
 
         if len(args.positional) < 2:
             # Show helpful usage with examples
-            cli.renderer.panel(
+            cli.renderer.panel(  # type: ignore[attr-defined]
                 """Create a task with title and description:
 
   /task create "Fix login bug" "Users can't login with OAuth"
@@ -168,18 +168,18 @@ Options:
 
         # AI-assisted generation
         if generate_ai:
-            cli.renderer.info("Generating task with AI...")
+            cli.renderer.info("Generating task with AI...")  # type: ignore[attr-defined]
             generated = await self._generate_task_with_ai(title, cli)
             if generated:
                 title = generated.get("title", title)
                 description = generated.get("description", description)
                 priority = generated.get("priority", priority)
                 category = generated.get("category", category)
-                cli.renderer.success("AI generated task details")
+                cli.renderer.success("AI generated task details")  # type: ignore[attr-defined]
 
         # Validate swimlane
         if status not in self.SWIMLANES:
-            cli.renderer.warning(f"Unknown swimlane '{status}', using 'backlog'")
+            cli.renderer.warning(f"Unknown swimlane '{status}', using 'backlog'")  # type: ignore[attr-defined]
             status = "backlog"
 
         try:
@@ -198,18 +198,18 @@ Options:
 
             if result.get("success"):
                 task_id = result.get("task_id")
-                cli.renderer.success(f"Task created: {task_id}")
-                cli.renderer.info(f"  Title: {title}")
-                cli.renderer.info(f"  Lane: {status}, Priority: {priority}, Agent: {agent_type}")
+                cli.renderer.success(f"Task created: {task_id}")  # type: ignore[attr-defined]
+                cli.renderer.info(f"  Title: {title}")  # type: ignore[attr-defined]
+                cli.renderer.info(f"  Lane: {status}, Priority: {priority}, Agent: {agent_type}")  # type: ignore[attr-defined]
                 if category:
-                    cli.renderer.info(f"  Category: {category}")
+                    cli.renderer.info(f"  Category: {category}")  # type: ignore[attr-defined]
                 return CommandResult.ok(data=result)
             else:
-                cli.renderer.error(f"Failed to create task: {result.get('error')}")
+                cli.renderer.error(f"Failed to create task: {result.get('error')}")  # type: ignore[attr-defined]
                 return CommandResult.fail(result.get("error", "Unknown error"))
 
         except Exception as e:
-            cli.renderer.error(f"API error: {e}")
+            cli.renderer.error(f"API error: {e}")  # type: ignore[attr-defined]
             return CommandResult.fail(str(e))
 
     async def _list_templates(self, cli: "JottyCLI") -> CommandResult:
@@ -220,7 +220,7 @@ Options:
             if result.get("success"):
                 templates = result.get("templates", [])
                 if not templates:
-                    cli.renderer.info("No templates available")
+                    cli.renderer.info("No templates available")  # type: ignore[attr-defined]
                     return CommandResult.ok(data=[])
 
                 lines = []
@@ -232,19 +232,19 @@ Options:
                     lines.append(f"  {name:<15} | {category:<12} | P{priority} | {title}")
 
                 header = f"  {'Name':<15} | {'Category':<12} | Pri | Title Pattern"
-                cli.renderer.panel(
+                cli.renderer.panel(  # type: ignore[attr-defined]
                     f"{header}\n  {'-' * 60}\n" + "\n".join(lines),
                     title="Task Templates",
                     style="cyan",
                 )
-                cli.renderer.info('\nUsage: /task from-template <name> "summary" ["description"]')
+                cli.renderer.info('\nUsage: /task from-template <name> "summary" ["description"]')  # type: ignore[attr-defined]
                 return CommandResult.ok(data=templates)
             else:
-                cli.renderer.error(f"Failed to list templates: {result.get('error')}")
+                cli.renderer.error(f"Failed to list templates: {result.get('error')}")  # type: ignore[attr-defined]
                 return CommandResult.fail(result.get("error", "Unknown error"))
 
         except Exception as e:
-            cli.renderer.error(f"API error: {e}")
+            cli.renderer.error(f"API error: {e}")  # type: ignore[attr-defined]
             return CommandResult.fail(str(e))
 
     async def _create_from_template(self, args: ParsedArgs, cli: "JottyCLI") -> CommandResult:
@@ -254,10 +254,10 @@ Options:
             /task from-template <template> "summary" ["description"] [--priority=N] [--agent=claude] [--lane=backlog]
         """
         if len(args.positional) < 3:
-            cli.renderer.error(
+            cli.renderer.error(  # type: ignore[attr-defined]
                 'Usage: /task from-template <template> "summary" ["description"] [--lane=backlog]'
             )
-            cli.renderer.info("\nAvailable templates:")
+            cli.renderer.info("\nAvailable templates:")  # type: ignore[attr-defined]
             await self._list_templates(cli)
             return CommandResult.fail("Missing template or summary")
 
@@ -271,7 +271,7 @@ Options:
 
         # Validate swimlane
         if status not in self.SWIMLANES:
-            cli.renderer.warning(f"Unknown swimlane '{status}', using 'backlog'")
+            cli.renderer.warning(f"Unknown swimlane '{status}', using 'backlog'")  # type: ignore[attr-defined]
             status = "backlog"
 
         try:
@@ -295,17 +295,17 @@ Options:
             if result.get("success"):
                 task_id = result.get("task_id")
                 title = result.get("title")
-                cli.renderer.success(f"Task created from template '{template_name}'")
-                cli.renderer.info(f"  ID: {task_id}")
-                cli.renderer.info(f"  Title: {title}")
-                cli.renderer.info(f"  Lane: {status}")
+                cli.renderer.success(f"Task created from template '{template_name}'")  # type: ignore[attr-defined]
+                cli.renderer.info(f"  ID: {task_id}")  # type: ignore[attr-defined]
+                cli.renderer.info(f"  Title: {title}")  # type: ignore[attr-defined]
+                cli.renderer.info(f"  Lane: {status}")  # type: ignore[attr-defined]
                 return CommandResult.ok(data=result)
             else:
-                cli.renderer.error(f"Failed to create task: {result.get('error')}")
+                cli.renderer.error(f"Failed to create task: {result.get('error')}")  # type: ignore[attr-defined]
                 return CommandResult.fail(result.get("error", "Unknown error"))
 
         except Exception as e:
-            cli.renderer.error(f"API error: {e}")
+            cli.renderer.error(f"API error: {e}")  # type: ignore[attr-defined]
             return CommandResult.fail(str(e))
 
     async def _move_task(self, args: ParsedArgs, cli: "JottyCLI") -> CommandResult:
@@ -315,16 +315,16 @@ Options:
             /task move <task_id> <lane>
         """
         if len(args.positional) < 3:
-            cli.renderer.error("Usage: /task move <task_id> <lane>")
-            cli.renderer.info(f"Available lanes: {', '.join(self.SWIMLANES)}")
+            cli.renderer.error("Usage: /task move <task_id> <lane>")  # type: ignore[attr-defined]
+            cli.renderer.info(f"Available lanes: {', '.join(self.SWIMLANES)}")  # type: ignore[attr-defined]
             return CommandResult.fail("Missing task_id or lane")
 
         task_id = args.positional[1]
         new_lane = args.positional[2].lower()
 
         if new_lane not in self.SWIMLANES:
-            cli.renderer.error(f"Unknown swimlane: {new_lane}")
-            cli.renderer.info(f"Available lanes: {', '.join(self.SWIMLANES)}")
+            cli.renderer.error(f"Unknown swimlane: {new_lane}")  # type: ignore[attr-defined]
+            cli.renderer.info(f"Available lanes: {', '.join(self.SWIMLANES)}")  # type: ignore[attr-defined]
             return CommandResult.fail("Invalid swimlane")
 
         try:
@@ -333,14 +333,14 @@ Options:
             )
 
             if result.get("success"):
-                cli.renderer.success(f"Task {task_id} moved to '{new_lane}'")
+                cli.renderer.success(f"Task {task_id} moved to '{new_lane}'")  # type: ignore[attr-defined]
                 return CommandResult.ok(data=result)
             else:
-                cli.renderer.error(f"Failed to move task: {result.get('error')}")
+                cli.renderer.error(f"Failed to move task: {result.get('error')}")  # type: ignore[attr-defined]
                 return CommandResult.fail(result.get("error", "Unknown error"))
 
         except Exception as e:
-            cli.renderer.error(f"API error: {e}")
+            cli.renderer.error(f"API error: {e}")  # type: ignore[attr-defined]
             return CommandResult.fail(str(e))
 
     async def _list_tasks(self, args: ParsedArgs, cli: "JottyCLI") -> CommandResult:
@@ -360,9 +360,9 @@ Options:
                 tasks = result.get("tasks", [])
                 if not tasks:
                     if status:
-                        cli.renderer.info(f"No tasks in '{status}' lane")
+                        cli.renderer.info(f"No tasks in '{status}' lane")  # type: ignore[attr-defined]
                     else:
-                        cli.renderer.info("No tasks found")
+                        cli.renderer.info("No tasks found")  # type: ignore[attr-defined]
                     return CommandResult.ok(data=[])
 
                 # Build table data
@@ -380,14 +380,14 @@ Options:
 
                 # Render table
                 self._render_task_table(table_data, cli)
-                cli.renderer.info(f"Total: {len(tasks)} tasks")
+                cli.renderer.info(f"Total: {len(tasks)} tasks")  # type: ignore[attr-defined]
                 return CommandResult.ok(data=tasks)
             else:
-                cli.renderer.error(f"Failed to list tasks: {result.get('error')}")
+                cli.renderer.error(f"Failed to list tasks: {result.get('error')}")  # type: ignore[attr-defined]
                 return CommandResult.fail(result.get("error", "Unknown error"))
 
         except Exception as e:
-            cli.renderer.error(f"API error: {e}")
+            cli.renderer.error(f"API error: {e}")  # type: ignore[attr-defined]
             return CommandResult.fail(str(e))
 
     def _render_task_table(self, data: List[dict], cli: "JottyCLI") -> Any:
@@ -397,8 +397,8 @@ Options:
 
         # Header
         header = f"{'ID':<22} {'Title':<42} {'Status':<12} {'Pri':<4} {'Agent':<8}"
-        cli.renderer.print(f"[bold]{header}[/bold]")
-        cli.renderer.print("-" * 90)
+        cli.renderer.print(f"[bold]{header}[/bold]")  # type: ignore[attr-defined]
+        cli.renderer.print("-" * 90)  # type: ignore[attr-defined]
 
         # Rows
         for row in data:
@@ -413,12 +413,12 @@ Options:
             }.get(status, "white")
 
             line = f"{row['ID']:<22} {row['Title']:<42} [{status_color}]{status:<12}[/{status_color}] {row['Priority']:<4} {row['Agent']:<8}"
-            cli.renderer.print(line)
+            cli.renderer.print(line)  # type: ignore[attr-defined]
 
     async def _get_task(self, args: ParsedArgs, cli: "JottyCLI") -> CommandResult:
         """Get task details."""
         if len(args.positional) < 2:
-            cli.renderer.error("Usage: /task get <task_id>")
+            cli.renderer.error("Usage: /task get <task_id>")  # type: ignore[attr-defined]
             return CommandResult.fail("Missing task_id")
 
         task_id = args.positional[1]
@@ -441,20 +441,20 @@ Options:
                     "Created": task.get("created_at", "?"),
                     "PID": task.get("pid") or "-",
                 }
-                cli.renderer.tree(info, title=f"Task: {task_id}")
+                cli.renderer.tree(info, title=f"Task: {task_id}")  # type: ignore[attr-defined]
                 return CommandResult.ok(data=task)
             else:
-                cli.renderer.error(f"Task not found: {task_id}")
+                cli.renderer.error(f"Task not found: {task_id}")  # type: ignore[attr-defined]
                 return CommandResult.fail("Task not found")
 
         except Exception as e:
-            cli.renderer.error(f"API error: {e}")
+            cli.renderer.error(f"API error: {e}")  # type: ignore[attr-defined]
             return CommandResult.fail(str(e))
 
     async def _start_task(self, args: ParsedArgs, cli: "JottyCLI") -> CommandResult:
         """Start a task (move to pending for spawning)."""
         if len(args.positional) < 2:
-            cli.renderer.error("Usage: /task start <task_id>")
+            cli.renderer.error("Usage: /task start <task_id>")  # type: ignore[attr-defined]
             return CommandResult.fail("Missing task_id")
 
         task_id = args.positional[1]
@@ -465,20 +465,20 @@ Options:
             )
 
             if result.get("success"):
-                cli.renderer.success(f"Task {task_id} moved to pending (will be spawned)")
+                cli.renderer.success(f"Task {task_id} moved to pending (will be spawned)")  # type: ignore[attr-defined]
                 return CommandResult.ok(data=result)
             else:
-                cli.renderer.error(f"Failed to start task: {result.get('error')}")
+                cli.renderer.error(f"Failed to start task: {result.get('error')}")  # type: ignore[attr-defined]
                 return CommandResult.fail(result.get("error", "Unknown error"))
 
         except Exception as e:
-            cli.renderer.error(f"API error: {e}")
+            cli.renderer.error(f"API error: {e}")  # type: ignore[attr-defined]
             return CommandResult.fail(str(e))
 
     async def _pause_task(self, args: ParsedArgs, cli: "JottyCLI") -> CommandResult:
         """Pause a running task."""
         if len(args.positional) < 2:
-            cli.renderer.error("Usage: /task pause <task_id>")
+            cli.renderer.error("Usage: /task pause <task_id>")  # type: ignore[attr-defined]
             return CommandResult.fail("Missing task_id")
 
         task_id = args.positional[1]
@@ -487,20 +487,20 @@ Options:
             result = await self._api_request("POST", "/api/tasks/pause", {"task_id": task_id})
 
             if result.get("success"):
-                cli.renderer.success(f"Task {task_id} paused")
+                cli.renderer.success(f"Task {task_id} paused")  # type: ignore[attr-defined]
                 return CommandResult.ok(data=result)
             else:
-                cli.renderer.error(f"Failed to pause task: {result.get('error')}")
+                cli.renderer.error(f"Failed to pause task: {result.get('error')}")  # type: ignore[attr-defined]
                 return CommandResult.fail(result.get("error", "Unknown error"))
 
         except Exception as e:
-            cli.renderer.error(f"API error: {e}")
+            cli.renderer.error(f"API error: {e}")  # type: ignore[attr-defined]
             return CommandResult.fail(str(e))
 
     async def _kill_task(self, args: ParsedArgs, cli: "JottyCLI") -> CommandResult:
         """Kill a running task."""
         if len(args.positional) < 2:
-            cli.renderer.error("Usage: /task kill <task_id>")
+            cli.renderer.error("Usage: /task kill <task_id>")  # type: ignore[attr-defined]
             return CommandResult.fail("Missing task_id")
 
         task_id = args.positional[1]
@@ -509,20 +509,20 @@ Options:
             result = await self._api_request("POST", "/api/tasks/kill", {"task_id": task_id})
 
             if result.get("success"):
-                cli.renderer.success(f"Task {task_id} killed")
+                cli.renderer.success(f"Task {task_id} killed")  # type: ignore[attr-defined]
                 return CommandResult.ok(data=result)
             else:
-                cli.renderer.error(f"Failed to kill task: {result.get('error')}")
+                cli.renderer.error(f"Failed to kill task: {result.get('error')}")  # type: ignore[attr-defined]
                 return CommandResult.fail(result.get("error", "Unknown error"))
 
         except Exception as e:
-            cli.renderer.error(f"API error: {e}")
+            cli.renderer.error(f"API error: {e}")  # type: ignore[attr-defined]
             return CommandResult.fail(str(e))
 
     async def _delete_task(self, args: ParsedArgs, cli: "JottyCLI") -> CommandResult:
         """Delete a task."""
         if len(args.positional) < 2:
-            cli.renderer.error("Usage: /task delete <task_id>")
+            cli.renderer.error("Usage: /task delete <task_id>")  # type: ignore[attr-defined]
             return CommandResult.fail("Missing task_id")
 
         task_id = args.positional[1]
@@ -531,20 +531,20 @@ Options:
             result = await self._api_request("POST", "/api/tasks/delete", {"task_id": task_id})
 
             if result.get("success"):
-                cli.renderer.success(f"Task {task_id} deleted")
+                cli.renderer.success(f"Task {task_id} deleted")  # type: ignore[attr-defined]
                 return CommandResult.ok(data=result)
             else:
-                cli.renderer.error(f"Failed to delete task: {result.get('error')}")
+                cli.renderer.error(f"Failed to delete task: {result.get('error')}")  # type: ignore[attr-defined]
                 return CommandResult.fail(result.get("error", "Unknown error"))
 
         except Exception as e:
-            cli.renderer.error(f"API error: {e}")
+            cli.renderer.error(f"API error: {e}")  # type: ignore[attr-defined]
             return CommandResult.fail(str(e))
 
     async def _get_log(self, args: ParsedArgs, cli: "JottyCLI") -> CommandResult:
         """Get task output log."""
         if len(args.positional) < 2:
-            cli.renderer.error("Usage: /task log <task_id> [--limit=N]")
+            cli.renderer.error("Usage: /task log <task_id> [--limit=N]")  # type: ignore[attr-defined]
             return CommandResult.fail("Missing task_id")
 
         task_id = args.positional[1]
@@ -556,16 +556,16 @@ Options:
             if result.get("success"):
                 output = result.get("output", "")
                 if output:
-                    cli.renderer.panel(output, title=f"Log: {task_id}", style="cyan")
+                    cli.renderer.panel(output, title=f"Log: {task_id}", style="cyan")  # type: ignore[attr-defined]
                 else:
-                    cli.renderer.info("No output yet")
+                    cli.renderer.info("No output yet")  # type: ignore[attr-defined]
                 return CommandResult.ok(data={"output": output})
             else:
-                cli.renderer.error(f"Failed to get log: {result.get('error')}")
+                cli.renderer.error(f"Failed to get log: {result.get('error')}")  # type: ignore[attr-defined]
                 return CommandResult.fail(result.get("error", "Unknown error"))
 
         except Exception as e:
-            cli.renderer.error(f"API error: {e}")
+            cli.renderer.error(f"API error: {e}")  # type: ignore[attr-defined]
             return CommandResult.fail(str(e))
 
     async def _show_stats(self, cli: "JottyCLI") -> CommandResult:
@@ -593,23 +593,23 @@ Options:
 
             lines.append(f"\n{'Total':<12}: {total:>3}")
 
-            cli.renderer.panel("\n".join(lines), title="Task Queue Statistics", style="magenta")
+            cli.renderer.panel("\n".join(lines), title="Task Queue Statistics", style="magenta")  # type: ignore[attr-defined]
 
             # Show quick actions
-            cli.renderer.info("\nQuick actions:")
-            cli.renderer.info('  /task create "title"          - Create new task')
-            cli.renderer.info("  /task templates               - List templates")
-            cli.renderer.info("  /task from-template bug-fix   - Create from template")
-            cli.renderer.info("  /task list --lane=pending     - List by swimlane")
+            cli.renderer.info("\nQuick actions:")  # type: ignore[attr-defined]
+            cli.renderer.info('  /task create "title"          - Create new task')  # type: ignore[attr-defined]
+            cli.renderer.info("  /task templates               - List templates")  # type: ignore[attr-defined]
+            cli.renderer.info("  /task from-template bug-fix   - Create from template")  # type: ignore[attr-defined]
+            cli.renderer.info("  /task list --lane=pending     - List by swimlane")  # type: ignore[attr-defined]
 
             return CommandResult.ok(data=stats)
 
         except aiohttp.ClientConnectorError:
-            cli.renderer.error("Cannot connect to Supervisor at localhost:8080")
-            cli.renderer.info("Make sure the Supervisor container is running")
+            cli.renderer.error("Cannot connect to Supervisor at localhost:8080")  # type: ignore[attr-defined]
+            cli.renderer.info("Make sure the Supervisor container is running")  # type: ignore[attr-defined]
             return CommandResult.fail("Connection failed")
         except Exception as e:
-            cli.renderer.error(f"API error: {e}")
+            cli.renderer.error(f"API error: {e}")  # type: ignore[attr-defined]
             return CommandResult.fail(str(e))
 
     def get_completions(self, partial: str) -> list:

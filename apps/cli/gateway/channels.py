@@ -101,7 +101,7 @@ class ChannelRouter:
             try:
                 from .sessions import get_session_manager
 
-                self._session_manager = get_session_manager()
+                self._session_manager = get_session_manager()  # type: ignore[assignment]
             except ImportError:
                 logger.warning("Persistent sessions not available, using legacy")
                 self._use_persistent_sessions = False

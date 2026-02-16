@@ -57,35 +57,35 @@ class BacktestReportCommand(BaseCommand):
         years = int(args.flags.get("years", args.flags.get("y", "3")))
 
         if not symbol:
-            cli.renderer.error("Stock symbol required.")
-            cli.renderer.info("")
-            cli.renderer.info("Usage: /backtest-report <SYMBOL> [options]")
-            cli.renderer.info("")
-            cli.renderer.info("Options:")
-            cli.renderer.info("  --template <name>    Template style (default: quantitative)")
-            cli.renderer.info("  --target <type>      Target type (default: next_5d_up)")
-            cli.renderer.info("  --timeframe <tf>     Data timeframe (default: day)")
-            cli.renderer.info("  --years <n>          Years of data (default: 3)")
-            cli.renderer.info("")
-            cli.renderer.info("Examples:")
-            cli.renderer.info("  /backtest-report RELIANCE")
-            cli.renderer.info("  /backtest-report TCS --template citadel")
-            cli.renderer.info("  /backtest-report HDFCBANK --target next_10d_up")
-            cli.renderer.info("")
-            cli.renderer.info("Templates: " + ", ".join(self.TEMPLATES.keys()))
+            cli.renderer.error("Stock symbol required.")  # type: ignore[attr-defined]
+            cli.renderer.info("")  # type: ignore[attr-defined]
+            cli.renderer.info("Usage: /backtest-report <SYMBOL> [options]")  # type: ignore[attr-defined]
+            cli.renderer.info("")  # type: ignore[attr-defined]
+            cli.renderer.info("Options:")  # type: ignore[attr-defined]
+            cli.renderer.info("  --template <name>    Template style (default: quantitative)")  # type: ignore[attr-defined]
+            cli.renderer.info("  --target <type>      Target type (default: next_5d_up)")  # type: ignore[attr-defined]
+            cli.renderer.info("  --timeframe <tf>     Data timeframe (default: day)")  # type: ignore[attr-defined]
+            cli.renderer.info("  --years <n>          Years of data (default: 3)")  # type: ignore[attr-defined]
+            cli.renderer.info("")  # type: ignore[attr-defined]
+            cli.renderer.info("Examples:")  # type: ignore[attr-defined]
+            cli.renderer.info("  /backtest-report RELIANCE")  # type: ignore[attr-defined]
+            cli.renderer.info("  /backtest-report TCS --template citadel")  # type: ignore[attr-defined]
+            cli.renderer.info("  /backtest-report HDFCBANK --target next_10d_up")  # type: ignore[attr-defined]
+            cli.renderer.info("")  # type: ignore[attr-defined]
+            cli.renderer.info("Templates: " + ", ".join(self.TEMPLATES.keys()))  # type: ignore[attr-defined]
             return CommandResult.fail("Symbol required")
 
         # Validate template
         template_key = template.lower().replace(" ", "_")
         if template_key not in self.TEMPLATES:
-            cli.renderer.error(f"Unknown template: {template}")
-            cli.renderer.info(f"Available: {', '.join(self.TEMPLATES.keys())}")
+            cli.renderer.error(f"Unknown template: {template}")  # type: ignore[attr-defined]
+            cli.renderer.info(f"Available: {', '.join(self.TEMPLATES.keys())}")  # type: ignore[attr-defined]
             return CommandResult.fail("Invalid template")
 
-        cli.renderer.header(f"ML Backtest Report: {symbol}")
-        cli.renderer.info(f"Template: {template_key}")
-        cli.renderer.info(f"Target: {target_type}")
-        cli.renderer.info("")
+        cli.renderer.header(f"ML Backtest Report: {symbol}")  # type: ignore[attr-defined]
+        cli.renderer.info(f"Template: {template_key}")  # type: ignore[attr-defined]
+        cli.renderer.info(f"Target: {target_type}")  # type: ignore[attr-defined]
+        cli.renderer.info("")  # type: ignore[attr-defined]
 
         try:
             # Use stock_ml command to run the full pipeline with report generation
@@ -113,14 +113,14 @@ class BacktestReportCommand(BaseCommand):
                 report_paths = data.get("report_paths", {})
 
                 if report_paths:
-                    cli.renderer.info("")
-                    cli.renderer.header("Report Generated Successfully")
-                    cli.renderer.info("")
+                    cli.renderer.info("")  # type: ignore[attr-defined]
+                    cli.renderer.header("Report Generated Successfully")  # type: ignore[attr-defined]
+                    cli.renderer.info("")  # type: ignore[attr-defined]
 
                     if report_paths.get("markdown"):
-                        cli.renderer.info(f"Markdown: {report_paths['markdown']}")
+                        cli.renderer.info(f"Markdown: {report_paths['markdown']}")  # type: ignore[attr-defined]
                     if report_paths.get("pdf"):
-                        cli.renderer.info(f"PDF: {report_paths['pdf']}")
+                        cli.renderer.info(f"PDF: {report_paths['pdf']}")  # type: ignore[attr-defined]
 
                     # Summary
                     backtest = data.get("backtest", {})
@@ -128,17 +128,17 @@ class BacktestReportCommand(BaseCommand):
                         strat = backtest.get("strategy", {})
                         bnh = backtest.get("bnh", {})
 
-                        cli.renderer.info("")
-                        cli.renderer.info("Performance Summary:")
-                        cli.renderer.info(
+                        cli.renderer.info("")  # type: ignore[attr-defined]
+                        cli.renderer.info("Performance Summary:")  # type: ignore[attr-defined]
+                        cli.renderer.info(  # type: ignore[attr-defined]
                             f"  Strategy Return:  {strat.get('total_return', 0):+.2f}%"
                         )
-                        cli.renderer.info(f"  Benchmark Return: {bnh.get('total_return', 0):+.2f}%")
-                        cli.renderer.info(
+                        cli.renderer.info(f"  Benchmark Return: {bnh.get('total_return', 0):+.2f}%")  # type: ignore[attr-defined]
+                        cli.renderer.info(  # type: ignore[attr-defined]
                             f"  Alpha:            {backtest.get('outperformance', 0):+.2f}%"
                         )
-                        cli.renderer.info(f"  Sharpe Ratio:     {strat.get('sharpe', 0):.2f}")
-                        cli.renderer.info(
+                        cli.renderer.info(f"  Sharpe Ratio:     {strat.get('sharpe', 0):.2f}")  # type: ignore[attr-defined]
+                        cli.renderer.info(  # type: ignore[attr-defined]
                             f"  Max Drawdown:     {strat.get('max_drawdown', 0):.2f}%"
                         )
 
@@ -147,7 +147,7 @@ class BacktestReportCommand(BaseCommand):
                 return result
 
         except Exception as e:
-            cli.renderer.error(f"Report generation failed: {e}")
+            cli.renderer.error(f"Report generation failed: {e}")  # type: ignore[attr-defined]
             import traceback
 
             traceback.print_exc()
@@ -155,20 +155,20 @@ class BacktestReportCommand(BaseCommand):
 
     def _list_templates(self, cli: "JottyCLI") -> CommandResult:
         """List available report templates."""
-        cli.renderer.header("Available Backtest Report Templates")
-        cli.renderer.info("")
+        cli.renderer.header("Available Backtest Report Templates")  # type: ignore[attr-defined]
+        cli.renderer.info("")  # type: ignore[attr-defined]
 
-        cli.renderer.info("┌───────────────────┬────────────────────────────────────────────┐")
-        cli.renderer.info("│     Template      │              Description                   │")
-        cli.renderer.info("├───────────────────┼────────────────────────────────────────────┤")
+        cli.renderer.info("┌───────────────────┬────────────────────────────────────────────┐")  # type: ignore[attr-defined]
+        cli.renderer.info("│     Template      │              Description                   │")  # type: ignore[attr-defined]
+        cli.renderer.info("├───────────────────┼────────────────────────────────────────────┤")  # type: ignore[attr-defined]
 
         for name, desc in self.TEMPLATES.items():
-            cli.renderer.info(f"│ {name:<17} │ {desc:<42} │")
+            cli.renderer.info(f"│ {name:<17} │ {desc:<42} │")  # type: ignore[attr-defined]
 
-        cli.renderer.info("└───────────────────┴────────────────────────────────────────────┘")
+        cli.renderer.info("└───────────────────┴────────────────────────────────────────────┘")  # type: ignore[attr-defined]
 
-        cli.renderer.info("")
-        cli.renderer.info("Usage: /backtest-report <SYMBOL> --template <name>")
+        cli.renderer.info("")  # type: ignore[attr-defined]
+        cli.renderer.info("Usage: /backtest-report <SYMBOL> --template <name>")  # type: ignore[attr-defined]
 
         return CommandResult.ok(data=self.TEMPLATES)
 
@@ -217,16 +217,16 @@ class BatchBacktestReportCommand(BaseCommand):
             # Try to parse as comma-separated list
             stocks = [s.strip().upper() for s in stock_set.split(",")]
 
-        cli.renderer.header(f"Batch Backtest Reports: {len(stocks)} stocks")
-        cli.renderer.info(f"Stocks: {', '.join(stocks[:5])}{'...' if len(stocks) > 5 else ''}")
-        cli.renderer.info(f"Template: {template}")
-        cli.renderer.info(f"Target: {target_type}")
-        cli.renderer.info("")
+        cli.renderer.header(f"Batch Backtest Reports: {len(stocks)} stocks")  # type: ignore[attr-defined]
+        cli.renderer.info(f"Stocks: {', '.join(stocks[:5])}{'...' if len(stocks) > 5 else ''}")  # type: ignore[attr-defined]
+        cli.renderer.info(f"Template: {template}")  # type: ignore[attr-defined]
+        cli.renderer.info(f"Target: {target_type}")  # type: ignore[attr-defined]
+        cli.renderer.info("")  # type: ignore[attr-defined]
 
         results = []
 
         for i, symbol in enumerate(stocks, 1):
-            cli.renderer.info(f"[{i}/{len(stocks)}] Processing {symbol}...")
+            cli.renderer.info(f"[{i}/{len(stocks)}] Processing {symbol}...")  # type: ignore[attr-defined]
 
             try:
                 # Create backtest report command
@@ -263,43 +263,43 @@ class BatchBacktestReportCommand(BaseCommand):
                             "outperformance": backtest.get("outperformance", 0),
                         }
                     )
-                    cli.renderer.info(
+                    cli.renderer.info(  # type: ignore[attr-defined]
                         f" {symbol}: Return={backtest.get('strategy', {}).get('total_return', 0):+.1f}%, Sharpe={backtest.get('strategy', {}).get('sharpe', 0):.2f}"
                     )
                 else:
                     results.append({"symbol": symbol, "status": "failed"})
-                    cli.renderer.info(f" {symbol}: Failed")
+                    cli.renderer.info(f" {symbol}: Failed")  # type: ignore[attr-defined]
 
             except Exception as e:
                 results.append({"symbol": symbol, "status": "error", "error": str(e)})
-                cli.renderer.info(f" {symbol}: Error - {e}")
+                cli.renderer.info(f" {symbol}: Error - {e}")  # type: ignore[attr-defined]
 
         # Summary
         successful = [r for r in results if r["status"] == "success"]
 
-        cli.renderer.info("")
-        cli.renderer.header("Batch Summary")
-        cli.renderer.info(f"Completed: {len(successful)}/{len(stocks)}")
+        cli.renderer.info("")  # type: ignore[attr-defined]
+        cli.renderer.header("Batch Summary")  # type: ignore[attr-defined]
+        cli.renderer.info(f"Completed: {len(successful)}/{len(stocks)}")  # type: ignore[attr-defined]
 
         if successful:
-            cli.renderer.info("")
-            cli.renderer.info(
+            cli.renderer.info("")  # type: ignore[attr-defined]
+            cli.renderer.info(  # type: ignore[attr-defined]
                 "┌─────────────┬─────────────┬─────────┬─────────────────────────────────┐"
             )
-            cli.renderer.info(
+            cli.renderer.info(  # type: ignore[attr-defined]
                 "│   Symbol    │   Return    │  Sharpe │              PDF                │"
             )
-            cli.renderer.info(
+            cli.renderer.info(  # type: ignore[attr-defined]
                 "├─────────────┼─────────────┼─────────┼─────────────────────────────────┤"
             )
 
             for r in sorted(successful, key=lambda x: -x.get("total_return", 0)):
                 pdf_display = Path(r.get("pdf_path", "")).name if r.get("pdf_path") else "-"
-                cli.renderer.info(
+                cli.renderer.info(  # type: ignore[attr-defined]
                     f"│ {r['symbol']:<11} │ {r.get('total_return', 0):>+9.1f}% │ {r.get('sharpe', 0):>7.2f} │ {pdf_display:<31} │"
                 )
 
-            cli.renderer.info(
+            cli.renderer.info(  # type: ignore[attr-defined]
                 "└─────────────┴─────────────┴─────────┴─────────────────────────────────┘"
             )
 

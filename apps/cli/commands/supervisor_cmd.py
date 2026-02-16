@@ -78,15 +78,15 @@ class SupervisorCommand(BaseCommand):
                     running_info.append(f"  • {task_id}: {title}")
                 info["Running Tasks"] = "\n" + "\n".join(running_info)
 
-            cli.renderer.tree(info, title="Supervisor Status")
+            cli.renderer.tree(info, title="Supervisor Status")  # type: ignore[attr-defined]
             return CommandResult.ok(data={"status": status, "state": state})
 
         except aiohttp.ClientConnectorError:
-            cli.renderer.error("Cannot connect to Supervisor at localhost:8080")
-            cli.renderer.info("Make sure the Supervisor container is running")
+            cli.renderer.error("Cannot connect to Supervisor at localhost:8080")  # type: ignore[attr-defined]
+            cli.renderer.info("Make sure the Supervisor container is running")  # type: ignore[attr-defined]
             return CommandResult.fail("Connection failed")
         except Exception as e:
-            cli.renderer.error(f"API error: {e}")
+            cli.renderer.error(f"API error: {e}")  # type: ignore[attr-defined]
             return CommandResult.fail(str(e))
 
     async def _check_credentials(self, cli: "JottyCLI") -> CommandResult:
@@ -100,14 +100,14 @@ class SupervisorCommand(BaseCommand):
                 status = " Available" if available else " Missing"
                 lines.append(f"{agent.capitalize():<12}: {status}")
 
-            cli.renderer.panel("\n".join(lines), title="Agent Credentials", style="cyan")
+            cli.renderer.panel("\n".join(lines), title="Agent Credentials", style="cyan")  # type: ignore[attr-defined]
             return CommandResult.ok(data=result)
 
         except aiohttp.ClientConnectorError:
-            cli.renderer.error("Cannot connect to Supervisor at localhost:8080")
+            cli.renderer.error("Cannot connect to Supervisor at localhost:8080")  # type: ignore[attr-defined]
             return CommandResult.fail("Connection failed")
         except Exception as e:
-            cli.renderer.error(f"API error: {e}")
+            cli.renderer.error(f"API error: {e}")  # type: ignore[attr-defined]
             return CommandResult.fail(str(e))
 
     def get_completions(self, partial: str) -> list:

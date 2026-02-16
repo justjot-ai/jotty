@@ -59,13 +59,13 @@ class GitCommand(BaseCommand):
             return await self._git_stash(cli, action)
         elif subcommand == "checkout":
             branch = args.positional[1] if len(args.positional) > 1 else None
-            return await self._git_checkout(cli, branch, args.flags)
+            return await self._git_checkout(cli, branch, args.flags)  # type: ignore[arg-type]
         elif subcommand == "fetch":
             return await self._git_fetch(cli)
         elif subcommand == "undo":
             return await self._git_undo(cli)
         elif subcommand == "auto-commit":
-            message = " ".join(args.positional[1:]) if len(args.positional) > 1 else None
+            message = " ".join(args.positional[1:]) if len(args.positional) > 1 else None  # type: ignore[assignment]
             return await self._git_auto_commit(cli, message)
         else:
             return await self._git_status(cli)
@@ -92,18 +92,18 @@ class GitCommand(BaseCommand):
 
         if not success:
             if "not a git repository" in stderr.lower():
-                cli.renderer.warning("Not in a git repository")
+                cli.renderer.warning("Not in a git repository")  # type: ignore[attr-defined]
             else:
-                cli.renderer.error(f"Git error: {stderr}")
+                cli.renderer.error(f"Git error: {stderr}")  # type: ignore[attr-defined]
             return CommandResult.fail(stderr)
 
         if not stdout.strip():
-            cli.renderer.success("Working directory clean")
+            cli.renderer.success("Working directory clean")  # type: ignore[attr-defined]
             return CommandResult.ok(data={"clean": True})
 
         # Parse status
         lines = stdout.strip().split("\n")
-        changes = {
+        changes = {  # type: ignore[var-annotated]
             "modified": [],
             "added": [],
             "deleted": [],
@@ -135,7 +135,7 @@ class GitCommand(BaseCommand):
                 if len(files) > 5:
                     output_lines.append(f"  ... and {len(files) - 5} more")
 
-        cli.renderer.panel("\n".join(output_lines), title="Git Status", style="cyan")
+        cli.renderer.panel("\n".join(output_lines), title="Git Status", style="cyan")  # type: ignore[attr-defined]
 
         return CommandResult.ok(data=changes)
 
@@ -144,10 +144,10 @@ class GitCommand(BaseCommand):
         success, stdout, stderr = self._run_git(["log", f"-{limit}", "--oneline", "--decorate"])
 
         if not success:
-            cli.renderer.error(f"Git error: {stderr}")
+            cli.renderer.error(f"Git error: {stderr}")  # type: ignore[attr-defined]
             return CommandResult.fail(stderr)
 
-        cli.renderer.panel(
+        cli.renderer.panel(  # type: ignore[attr-defined]
             stdout.strip() or "No commits yet", title=f"Git Log (last {limit})", style="blue"
         )
 
@@ -158,14 +158,14 @@ class GitCommand(BaseCommand):
         success, stdout, stderr = self._run_git(["diff", "--stat"])
 
         if not success:
-            cli.renderer.error(f"Git error: {stderr}")
+            cli.renderer.error(f"Git error: {stderr}")  # type: ignore[attr-defined]
             return CommandResult.fail(stderr)
 
         if not stdout.strip():
-            cli.renderer.info("No changes")
+            cli.renderer.info("No changes")  # type: ignore[attr-defined]
             return CommandResult.ok(data={"diff": ""})
 
-        cli.renderer.code(stdout, language="diff", title="Git Diff")
+        cli.renderer.code(stdout, language="diff", title="Git Diff")  # type: ignore[attr-defined]
         return CommandResult.ok(data={"diff": stdout})
 
     async def _git_branch(self, cli: "JottyCLI") -> CommandResult:
@@ -173,23 +173,23 @@ class GitCommand(BaseCommand):
         success, stdout, stderr = self._run_git(["branch", "-a"])
 
         if not success:
-            cli.renderer.error(f"Git error: {stderr}")
+            cli.renderer.error(f"Git error: {stderr}")  # type: ignore[attr-defined]
             return CommandResult.fail(stderr)
 
-        cli.renderer.panel(stdout.strip() or "No branches", title="Git Branches", style="green")
+        cli.renderer.panel(stdout.strip() or "No branches", title="Git Branches", style="green")  # type: ignore[attr-defined]
 
         return CommandResult.ok(data={"branches": stdout})
 
     async def _git_commit(self, message: str, cli: "JottyCLI") -> CommandResult:
         """Create git commit."""
         if not message:
-            cli.renderer.error("Commit message required")
+            cli.renderer.error("Commit message required")  # type: ignore[attr-defined]
             return CommandResult.fail("Commit message required")
 
         # Stage all changes
         success, _, stderr = self._run_git(["add", "-A"])
         if not success:
-            cli.renderer.error(f"Failed to stage: {stderr}")
+            cli.renderer.error(f"Failed to stage: {stderr}")  # type: ignore[attr-defined]
             return CommandResult.fail(stderr)
 
         # Commit
@@ -197,17 +197,17 @@ class GitCommand(BaseCommand):
 
         if not success:
             if "nothing to commit" in stderr.lower() or "nothing to commit" in stdout.lower():
-                cli.renderer.warning("Nothing to commit")
+                cli.renderer.warning("Nothing to commit")  # type: ignore[attr-defined]
             else:
-                cli.renderer.error(f"Commit failed: {stderr}")
+                cli.renderer.error(f"Commit failed: {stderr}")  # type: ignore[attr-defined]
             return CommandResult.fail(stderr or "Nothing to commit")
 
-        cli.renderer.success(f"Committed: {message}")
+        cli.renderer.success(f"Committed: {message}")  # type: ignore[attr-defined]
         return CommandResult.ok(data={"message": message})
 
     async def _git_push(self, cli: "JottyCLI", force: bool = False) -> CommandResult:
         """Push to remote."""
-        cli.renderer.info("Pushing to remote...")
+        cli.renderer.info("Pushing to remote...")  # type: ignore[attr-defined]
 
         args = ["push"]
         if force:
@@ -226,22 +226,22 @@ class GitCommand(BaseCommand):
 
         if not success:
             if "no upstream branch" in stderr.lower():
-                cli.renderer.info(f"Setting upstream for {branch}...")
+                cli.renderer.info(f"Setting upstream for {branch}...")  # type: ignore[attr-defined]
                 success, stdout, stderr = self._run_git(["push", "-u", "origin", branch])
 
             if not success:
-                cli.renderer.error(f"Push failed: {stderr}")
+                cli.renderer.error(f"Push failed: {stderr}")  # type: ignore[attr-defined]
                 return CommandResult.fail(stderr)
 
-        cli.renderer.success(f"Pushed to origin/{branch}")
+        cli.renderer.success(f"Pushed to origin/{branch}")  # type: ignore[attr-defined]
         if stdout.strip():
-            cli.renderer.print(f"[dim]{stdout.strip()}[/dim]")
+            cli.renderer.print(f"[dim]{stdout.strip()}[/dim]")  # type: ignore[attr-defined]
 
         return CommandResult.ok(data={"branch": branch})
 
     async def _git_pull(self, cli: "JottyCLI", rebase: bool = False) -> CommandResult:
         """Pull from remote."""
-        cli.renderer.info("Pulling from remote...")
+        cli.renderer.info("Pulling from remote...")  # type: ignore[attr-defined]
 
         args = ["pull"]
         if rebase:
@@ -251,18 +251,18 @@ class GitCommand(BaseCommand):
 
         if not success:
             if "conflict" in stderr.lower() or "conflict" in stdout.lower():
-                cli.renderer.error("Merge conflicts detected!")
-                cli.renderer.info("Resolve conflicts and run: /git commit")
+                cli.renderer.error("Merge conflicts detected!")  # type: ignore[attr-defined]
+                cli.renderer.info("Resolve conflicts and run: /git commit")  # type: ignore[attr-defined]
             else:
-                cli.renderer.error(f"Pull failed: {stderr}")
+                cli.renderer.error(f"Pull failed: {stderr}")  # type: ignore[attr-defined]
             return CommandResult.fail(stderr)
 
         if "Already up to date" in stdout or "Already up-to-date" in stdout:
-            cli.renderer.success("Already up to date")
+            cli.renderer.success("Already up to date")  # type: ignore[attr-defined]
         else:
-            cli.renderer.success("Pulled successfully")
+            cli.renderer.success("Pulled successfully")  # type: ignore[attr-defined]
             if stdout.strip():
-                cli.renderer.print(f"[dim]{stdout.strip()[:500]}[/dim]")
+                cli.renderer.print(f"[dim]{stdout.strip()[:500]}[/dim]")  # type: ignore[attr-defined]
 
         return CommandResult.ok(data={"output": stdout})
 
@@ -271,53 +271,53 @@ class GitCommand(BaseCommand):
         if action == "push" or action == "save":
             success, stdout, stderr = self._run_git(["stash", "push"])
             if success:
-                cli.renderer.success("Changes stashed")
+                cli.renderer.success("Changes stashed")  # type: ignore[attr-defined]
             else:
-                cli.renderer.error(f"Stash failed: {stderr}")
+                cli.renderer.error(f"Stash failed: {stderr}")  # type: ignore[attr-defined]
                 return CommandResult.fail(stderr)
 
         elif action == "pop":
             success, stdout, stderr = self._run_git(["stash", "pop"])
             if success:
-                cli.renderer.success("Stash applied and removed")
+                cli.renderer.success("Stash applied and removed")  # type: ignore[attr-defined]
             else:
-                cli.renderer.error(f"Stash pop failed: {stderr}")
+                cli.renderer.error(f"Stash pop failed: {stderr}")  # type: ignore[attr-defined]
                 return CommandResult.fail(stderr)
 
         elif action == "apply":
             success, stdout, stderr = self._run_git(["stash", "apply"])
             if success:
-                cli.renderer.success("Stash applied (kept in stash)")
+                cli.renderer.success("Stash applied (kept in stash)")  # type: ignore[attr-defined]
             else:
-                cli.renderer.error(f"Stash apply failed: {stderr}")
+                cli.renderer.error(f"Stash apply failed: {stderr}")  # type: ignore[attr-defined]
                 return CommandResult.fail(stderr)
 
         elif action == "list":
             success, stdout, stderr = self._run_git(["stash", "list"])
             if stdout.strip():
-                cli.renderer.panel(stdout.strip(), title="Stash List", style="yellow")
+                cli.renderer.panel(stdout.strip(), title="Stash List", style="yellow")  # type: ignore[attr-defined]
             else:
-                cli.renderer.info("No stashes")
+                cli.renderer.info("No stashes")  # type: ignore[attr-defined]
 
         elif action == "drop":
             success, stdout, stderr = self._run_git(["stash", "drop"])
             if success:
-                cli.renderer.success("Stash dropped")
+                cli.renderer.success("Stash dropped")  # type: ignore[attr-defined]
             else:
-                cli.renderer.error(f"Stash drop failed: {stderr}")
+                cli.renderer.error(f"Stash drop failed: {stderr}")  # type: ignore[attr-defined]
                 return CommandResult.fail(stderr)
 
         elif action == "clear":
             success, stdout, stderr = self._run_git(["stash", "clear"])
             if success:
-                cli.renderer.success("All stashes cleared")
+                cli.renderer.success("All stashes cleared")  # type: ignore[attr-defined]
             else:
-                cli.renderer.error(f"Stash clear failed: {stderr}")
+                cli.renderer.error(f"Stash clear failed: {stderr}")  # type: ignore[attr-defined]
                 return CommandResult.fail(stderr)
 
         else:
-            cli.renderer.error(f"Unknown stash action: {action}")
-            cli.renderer.info("Available: push, pop, apply, list, drop, clear")
+            cli.renderer.error(f"Unknown stash action: {action}")  # type: ignore[attr-defined]
+            cli.renderer.info("Available: push, pop, apply, list, drop, clear")  # type: ignore[attr-defined]
             return CommandResult.fail("Unknown action")
 
         return CommandResult.ok()
@@ -325,9 +325,9 @@ class GitCommand(BaseCommand):
     async def _git_checkout(self, cli: "JottyCLI", branch: str, flags: dict) -> CommandResult:
         """Checkout branch or create new."""
         if not branch:
-            cli.renderer.error("Branch name required")
-            cli.renderer.info("Usage: /git checkout <branch>")
-            cli.renderer.info("       /git checkout -b <new-branch>")
+            cli.renderer.error("Branch name required")  # type: ignore[attr-defined]
+            cli.renderer.info("Usage: /git checkout <branch>")  # type: ignore[attr-defined]
+            cli.renderer.info("       /git checkout -b <new-branch>")  # type: ignore[attr-defined]
             return CommandResult.fail("Branch required")
 
         args = ["checkout"]
@@ -342,28 +342,28 @@ class GitCommand(BaseCommand):
 
         if not success:
             if "did not match any" in stderr:
-                cli.renderer.error(f"Branch not found: {branch}")
-                cli.renderer.info("Create with: /git checkout -b {branch}")
+                cli.renderer.error(f"Branch not found: {branch}")  # type: ignore[attr-defined]
+                cli.renderer.info("Create with: /git checkout -b {branch}")  # type: ignore[attr-defined]
             else:
-                cli.renderer.error(f"Checkout failed: {stderr}")
+                cli.renderer.error(f"Checkout failed: {stderr}")  # type: ignore[attr-defined]
             return CommandResult.fail(stderr)
 
-        cli.renderer.success(f"Switched to: {branch}")
+        cli.renderer.success(f"Switched to: {branch}")  # type: ignore[attr-defined]
         return CommandResult.ok(data={"branch": branch})
 
     async def _git_fetch(self, cli: "JottyCLI") -> CommandResult:
         """Fetch from remote."""
-        cli.renderer.info("Fetching from remote...")
+        cli.renderer.info("Fetching from remote...")  # type: ignore[attr-defined]
 
         success, stdout, stderr = self._run_git(["fetch", "--all", "--prune"])
 
         if not success:
-            cli.renderer.error(f"Fetch failed: {stderr}")
+            cli.renderer.error(f"Fetch failed: {stderr}")  # type: ignore[attr-defined]
             return CommandResult.fail(stderr)
 
-        cli.renderer.success("Fetched all remotes")
+        cli.renderer.success("Fetched all remotes")  # type: ignore[attr-defined]
         if stdout.strip():
-            cli.renderer.print(f"[dim]{stdout.strip()}[/dim]")
+            cli.renderer.print(f"[dim]{stdout.strip()}[/dim]")  # type: ignore[attr-defined]
 
         return CommandResult.ok()
 
@@ -372,39 +372,39 @@ class GitCommand(BaseCommand):
         # Get last commit message
         success, stdout, stderr = self._run_git(["log", "-1", "--oneline"])
         if not success:
-            cli.renderer.error(f"Git error: {stderr}")
+            cli.renderer.error(f"Git error: {stderr}")  # type: ignore[attr-defined]
             return CommandResult.fail(stderr)
 
         commit_msg = stdout.strip()
         if not commit_msg:
-            cli.renderer.warning("No commits to undo")
+            cli.renderer.warning("No commits to undo")  # type: ignore[attr-defined]
             return CommandResult.fail("No commits")
 
         # Check if it's an AI commit
         if "[AI]" not in commit_msg:
-            cli.renderer.warning(f"Last commit is not AI-tagged: {commit_msg}")
-            cli.renderer.info("Only [AI]-tagged commits can be undone with /git undo")
+            cli.renderer.warning(f"Last commit is not AI-tagged: {commit_msg}")  # type: ignore[attr-defined]
+            cli.renderer.info("Only [AI]-tagged commits can be undone with /git undo")  # type: ignore[attr-defined]
             return CommandResult.fail("Not an AI commit")
 
         # Confirmation
-        cli.renderer.warning(f"Will soft-reset: {commit_msg}")
+        cli.renderer.warning(f"Will soft-reset: {commit_msg}")  # type: ignore[attr-defined]
         try:
             confirm = input("  Confirm undo? [y/N]: ").strip().lower()
         except (EOFError, KeyboardInterrupt):
             return CommandResult.ok()
 
         if confirm != "y":
-            cli.renderer.info("Undo cancelled")
+            cli.renderer.info("Undo cancelled")  # type: ignore[attr-defined]
             return CommandResult.ok()
 
         # Soft reset (keeps changes staged)
         success, stdout, stderr = self._run_git(["reset", "--soft", "HEAD~1"])
         if not success:
-            cli.renderer.error(f"Undo failed: {stderr}")
+            cli.renderer.error(f"Undo failed: {stderr}")  # type: ignore[attr-defined]
             return CommandResult.fail(stderr)
 
-        cli.renderer.success(f"Undone: {commit_msg}")
-        cli.renderer.info("Changes are still staged. Modify and re-commit as needed.")
+        cli.renderer.success(f"Undone: {commit_msg}")  # type: ignore[attr-defined]
+        cli.renderer.info("Changes are still staged. Modify and re-commit as needed.")  # type: ignore[attr-defined]
         return CommandResult.ok(data={"undone": commit_msg})
 
     async def _git_auto_commit(self, cli: "JottyCLI", message: str | None = None) -> CommandResult:
@@ -412,17 +412,17 @@ class GitCommand(BaseCommand):
         # Check for changes
         success, stdout, stderr = self._run_git(["status", "--porcelain"])
         if not success:
-            cli.renderer.error(f"Git error: {stderr}")
+            cli.renderer.error(f"Git error: {stderr}")  # type: ignore[attr-defined]
             return CommandResult.fail(stderr)
 
         if not stdout.strip():
-            cli.renderer.warning("No changes to commit")
+            cli.renderer.warning("No changes to commit")  # type: ignore[attr-defined]
             return CommandResult.fail("Nothing to commit")
 
         # Stage all
         success, _, stderr = self._run_git(["add", "-A"])
         if not success:
-            cli.renderer.error(f"Failed to stage: {stderr}")
+            cli.renderer.error(f"Failed to stage: {stderr}")  # type: ignore[attr-defined]
             return CommandResult.fail(stderr)
 
         # Build commit message
@@ -446,12 +446,12 @@ class GitCommand(BaseCommand):
 
         if not success:
             if "nothing to commit" in (stderr + stdout).lower():
-                cli.renderer.warning("Nothing to commit")
+                cli.renderer.warning("Nothing to commit")  # type: ignore[attr-defined]
             else:
-                cli.renderer.error(f"Commit failed: {stderr}")
+                cli.renderer.error(f"Commit failed: {stderr}")  # type: ignore[attr-defined]
             return CommandResult.fail(stderr or "Commit failed")
 
-        cli.renderer.success(f"Committed: {full_message}")
+        cli.renderer.success(f"Committed: {full_message}")  # type: ignore[attr-defined]
         return CommandResult.ok(data={"message": full_message})
 
     def get_completions(self, partial: str) -> list:

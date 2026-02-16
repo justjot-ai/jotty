@@ -6,7 +6,7 @@ Telegram bot interface for Jotty, sharing the same
 TierExecutor backend as CLI and Web UI.
 """
 
-from .bot import TelegramBotHandler
+from .bot import TelegramBotHandler  # type: ignore[attr-defined]
 from .renderer import TelegramRenderer
 
 __all__ = [

@@ -43,10 +43,10 @@ class ToolsCommand(BaseCommand):
     async def _list_tools(self, cli: "JottyCLI", category: str | None = None) -> CommandResult:
         """List available tools."""
         try:
-            registry = cli.get_skills_registry()
+            registry = cli.get_skills_registry()  # type: ignore[attr-defined]
 
             if not registry.initialized:
-                with cli.renderer.progress.spinner("Loading skills..."):
+                with cli.renderer.progress.spinner("Loading skills..."):  # type: ignore[attr-defined]
                     registry.init()
 
             # Get all tools from skills
@@ -57,7 +57,7 @@ class ToolsCommand(BaseCommand):
                 tools = {k: v for k, v in tools.items() if category.lower() in k.lower()}
 
             if not tools:
-                cli.renderer.info("No tools found")
+                cli.renderer.info("No tools found")  # type: ignore[attr-defined]
                 return CommandResult.ok(data=[])
 
             # Format as table
@@ -70,14 +70,14 @@ class ToolsCommand(BaseCommand):
                 for name in sorted(tools.keys())[:50]
             ]
 
-            table = cli.renderer.tables.skills_table(tool_list)
-            cli.renderer.tables.print_table(table)
+            table = cli.renderer.tables.skills_table(tool_list)  # type: ignore[attr-defined]
+            cli.renderer.tables.print_table(table)  # type: ignore[attr-defined]
 
-            cli.renderer.info(f"Total: {len(tools)} tools. Use /tools <name> <args> to execute.")
+            cli.renderer.info(f"Total: {len(tools)} tools. Use /tools <name> <args> to execute.")  # type: ignore[attr-defined]
             return CommandResult.ok(data=list(tools.keys()))
 
         except Exception as e:
-            cli.renderer.error(f"Failed to list tools: {e}")
+            cli.renderer.error(f"Failed to list tools: {e}")  # type: ignore[attr-defined]
             return CommandResult.fail(str(e))
 
     async def _execute_tool(
@@ -85,7 +85,7 @@ class ToolsCommand(BaseCommand):
     ) -> CommandResult:
         """Execute a specific tool."""
         try:
-            registry = cli.get_skills_registry()
+            registry = cli.get_skills_registry()  # type: ignore[attr-defined]
 
             if not registry.initialized:
                 registry.init()
@@ -99,21 +99,21 @@ class ToolsCommand(BaseCommand):
                 if len(matches) == 1:
                     tool_name = matches[0]
                 elif len(matches) > 1:
-                    cli.renderer.warning(f"Multiple tools match '{tool_name}': {matches[:5]}")
+                    cli.renderer.warning(f"Multiple tools match '{tool_name}': {matches[:5]}")  # type: ignore[attr-defined]
                     return CommandResult.fail(f"Ambiguous tool name: {tool_name}")
                 else:
-                    cli.renderer.error(f"Tool not found: {tool_name}")
+                    cli.renderer.error(f"Tool not found: {tool_name}")  # type: ignore[attr-defined]
                     return CommandResult.fail(f"Tool not found: {tool_name}")
 
             tool = tools[tool_name]
 
-            cli.renderer.info(f"Executing: {tool_name}")
+            cli.renderer.info(f"Executing: {tool_name}")  # type: ignore[attr-defined]
 
             # Build params from args and flags
             params = {"query": tool_args, "input": tool_args, **flags}
 
             # Execute tool
-            async with await cli.renderer.progress.spinner_async(
+            async with await cli.renderer.progress.spinner_async(  # type: ignore[attr-defined]
                 f"Running {tool_name}...", style="cyan"
             ):
                 if callable(tool):
@@ -127,22 +127,22 @@ class ToolsCommand(BaseCommand):
             if isinstance(result, dict):
                 success = result.get("success", True)
                 if success:
-                    cli.renderer.success(f"Tool {tool_name} completed")
-                    cli.renderer.result(result, title=f"Tool: {tool_name}")
+                    cli.renderer.success(f"Tool {tool_name} completed")  # type: ignore[attr-defined]
+                    cli.renderer.result(result, title=f"Tool: {tool_name}")  # type: ignore[attr-defined]
                 else:
-                    cli.renderer.error(f"Tool failed: {result.get('error', 'Unknown error')}")
+                    cli.renderer.error(f"Tool failed: {result.get('error', 'Unknown error')}")  # type: ignore[attr-defined]
                 return (
                     CommandResult.ok(data=result)
                     if success
                     else CommandResult.fail(result.get("error", "Failed"))
                 )
             else:
-                cli.renderer.success(f"Tool {tool_name} completed")
-                cli.renderer.panel(str(result)[:500], title=f"Output: {tool_name}")
+                cli.renderer.success(f"Tool {tool_name} completed")  # type: ignore[attr-defined]
+                cli.renderer.panel(str(result)[:500], title=f"Output: {tool_name}")  # type: ignore[attr-defined]
                 return CommandResult.ok(data={"output": result})
 
         except Exception as e:
-            cli.renderer.error(f"Tool execution failed: {e}")
+            cli.renderer.error(f"Tool execution failed: {e}")  # type: ignore[attr-defined]
             if cli.config.debug:
                 import traceback
 

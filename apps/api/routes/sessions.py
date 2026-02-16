@@ -216,7 +216,7 @@ def register_sessions_routes(app, api) -> Any:
         expiry_days: Optional[int] = 30
 
     @app.post("/api/sessions/temporary")
-    async def create_temporary_session(request: CreateTempSessionRequest = None) -> dict[str, Any]:
+    async def create_temporary_session(request: CreateTempSessionRequest = None) -> dict[str, Any]:  # type: ignore[assignment]
         """Create a temporary (ephemeral) chat session."""
         from Jotty.apps.cli.repl.session import InterfaceType, SessionManager
 

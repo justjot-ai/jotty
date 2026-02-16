@@ -52,7 +52,7 @@ class JustJotCommand(BaseCommand):
                 first_line = lines[0].strip().lstrip("#").strip()
                 idea_title = first_line[:100] if first_line else "Idea from Jotty"
             else:
-                cli.renderer.warning(
+                cli.renderer.warning(  # type: ignore[attr-defined]
                     "No content to submit. Provide idea text or run a query first."
                 )
                 return CommandResult.fail("No content available")
@@ -61,7 +61,7 @@ class JustJotCommand(BaseCommand):
         email = args.flags.get("email", DEFAULT_EMAIL)
 
         # Show preview
-        cli.renderer.panel(
+        cli.renderer.panel(  # type: ignore[attr-defined]
             f"**Title:** {idea_title}\n\n"
             f"**Content preview:** {idea_content[:200]}{'...' if len(idea_content) > 200 else ''}\n\n"
             f"**Email:** {email}",
@@ -76,17 +76,17 @@ class JustJotCommand(BaseCommand):
             )
 
             if result.get("success"):
-                cli.renderer.success("Idea submitted to JustJot.ai!")
+                cli.renderer.success("Idea submitted to JustJot.ai!")  # type: ignore[attr-defined]
                 if result.get("url"):
-                    cli.renderer.print(f"  View: [cyan]{result['url']}[/cyan]")
+                    cli.renderer.print(f"  View: [cyan]{result['url']}[/cyan]")  # type: ignore[attr-defined]
                 return CommandResult.ok(output="Idea created successfully")
             else:
-                cli.renderer.error(f"Failed: {result.get('error', 'Unknown error')}")
+                cli.renderer.error(f"Failed: {result.get('error', 'Unknown error')}")  # type: ignore[attr-defined]
                 return CommandResult.fail(result.get("error", "Submission failed"))
 
         except Exception as e:
             logger.error(f"JustJot submission error: {e}")
-            cli.renderer.error(f"Error: {e}")
+            cli.renderer.error(f"Error: {e}")  # type: ignore[attr-defined]
             return CommandResult.fail(str(e))
 
     async def _submit_to_justjot(
@@ -176,7 +176,7 @@ class JustJotCommand(BaseCommand):
     ) -> dict:
         """Try submitting via mcp-justjot skill."""
         try:
-            registry = cli.get_skills_registry()
+            registry = cli.get_skills_registry()  # type: ignore[attr-defined]
 
             skill = registry.get_skill("mcp-justjot")
             if skill:

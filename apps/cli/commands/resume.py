@@ -42,23 +42,23 @@ class ResumeCommand(BaseCommand):
         sessions = cli.session.list_sessions()
 
         if not sessions:
-            cli.renderer.warning("No saved sessions found.")
-            cli.renderer.info("Start a conversation and it will auto-save.")
+            cli.renderer.warning("No saved sessions found.")  # type: ignore[attr-defined]
+            cli.renderer.info("Start a conversation and it will auto-save.")  # type: ignore[attr-defined]
             return CommandResult.ok()
 
         if session_id:
             # Load specific session
             matching = [s for s in sessions if s["session_id"].startswith(session_id)]
             if not matching:
-                cli.renderer.error(f"Session not found: {session_id}")
-                cli.renderer.info("Use /resume list to see available sessions")
+                cli.renderer.error(f"Session not found: {session_id}")  # type: ignore[attr-defined]
+                cli.renderer.info("Use /resume list to see available sessions")  # type: ignore[attr-defined]
                 return CommandResult.fail("Session not found")
             target_session = matching[0]
         else:
             # Load most recent (skip current)
             other_sessions = [s for s in sessions if s["session_id"] != cli.session.session_id]
             if not other_sessions:
-                cli.renderer.info("No previous sessions to resume.")
+                cli.renderer.info("No previous sessions to resume.")  # type: ignore[attr-defined]
                 return CommandResult.ok()
             target_session = other_sessions[0]
 
@@ -67,20 +67,20 @@ class ResumeCommand(BaseCommand):
 
         # Show summary
         msg_count = len(cli.session.conversation_history)
-        cli.renderer.success(f"Resumed session: {cli.session.session_id}")
-        cli.renderer.info(f"Loaded {msg_count} messages from conversation history")
+        cli.renderer.success(f"Resumed session: {cli.session.session_id}")  # type: ignore[attr-defined]
+        cli.renderer.info(f"Loaded {msg_count} messages from conversation history")  # type: ignore[attr-defined]
 
         # Show last few messages as context
         if msg_count > 0:
-            cli.renderer.newline()
-            cli.renderer.print("[bold]Recent context:[/bold]")
+            cli.renderer.newline()  # type: ignore[attr-defined]
+            cli.renderer.print("[bold]Recent context:[/bold]")  # type: ignore[attr-defined]
             recent = cli.session.conversation_history[-3:]
             for msg in recent:
                 role_color = "cyan" if msg.role == "user" else "green"
                 preview = msg.content[:100].replace("\n", " ")
                 if len(msg.content) > 100:
                     preview += "..."
-                cli.renderer.print(f"  [{role_color}]{msg.role}:[/{role_color}] {preview}")
+                cli.renderer.print(f"  [{role_color}]{msg.role}:[/{role_color}] {preview}")  # type: ignore[attr-defined]
 
         # Restore output history if available
         if hasattr(cli, "_output_history"):
@@ -91,8 +91,8 @@ class ResumeCommand(BaseCommand):
                     cli._output_history = []
                 cli._output_history.append(msg.content)
 
-        cli.renderer.newline()
-        cli.renderer.info("Continue the conversation or use /export to access previous outputs")
+        cli.renderer.newline()  # type: ignore[attr-defined]
+        cli.renderer.info("Continue the conversation or use /export to access previous outputs")  # type: ignore[attr-defined]
 
         return CommandResult.ok(output=f"Resumed session {cli.session.session_id}")
 
@@ -101,11 +101,11 @@ class ResumeCommand(BaseCommand):
         sessions = cli.session.list_sessions()
 
         if not sessions:
-            cli.renderer.warning("No saved sessions found.")
+            cli.renderer.warning("No saved sessions found.")  # type: ignore[attr-defined]
             return CommandResult.ok()
 
-        cli.renderer.print("\n[bold]Available Sessions:[/bold]")
-        cli.renderer.print("[dim]" + "─" * 60 + "[/dim]")
+        cli.renderer.print("\n[bold]Available Sessions:[/bold]")  # type: ignore[attr-defined]
+        cli.renderer.print("[dim]" + "─" * 60 + "[/dim]")  # type: ignore[attr-defined]
 
         for i, session in enumerate(sessions[:10], 1):
             session_id = session["session_id"]
@@ -115,14 +115,14 @@ class ResumeCommand(BaseCommand):
             # Mark current session
             current = " [yellow](current)[/yellow]" if session_id == cli.session.session_id else ""
 
-            cli.renderer.print(
+            cli.renderer.print(  # type: ignore[attr-defined]
                 f"  [cyan]{session_id}[/cyan]{current}"
                 f"  [dim]{created}[/dim]  "
                 f"[white]{msg_count} msgs[/white]"
             )
 
-        cli.renderer.print("[dim]" + "─" * 60 + "[/dim]")
-        cli.renderer.print("[dim]Use: /resume <session_id> or /resume (loads most recent)[/dim]")
+        cli.renderer.print("[dim]" + "─" * 60 + "[/dim]")  # type: ignore[attr-defined]
+        cli.renderer.print("[dim]Use: /resume <session_id> or /resume (loads most recent)[/dim]")  # type: ignore[attr-defined]
 
         return CommandResult.ok()
 

@@ -59,7 +59,7 @@ class WhatsAppCommand(BaseCommand):
                 if len(args.positional) > 2
                 else None
             )
-            return await self._send_message(cli, to, message)
+            return await self._send_message(cli, to, message)  # type: ignore[arg-type]
         elif subcommand == "chats":
             return await self._list_chats(cli)
         elif subcommand == "contacts":

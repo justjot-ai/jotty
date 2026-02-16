@@ -54,7 +54,7 @@ class WebChatSession:
         self.sdk = Jotty()
 
         # Message queue for WebSocket
-        self.message_queue = []
+        self.message_queue = []  # type: ignore[var-annotated]
 
         # Create send callback that queues messages
         def queue_message(text: str) -> None:
@@ -63,15 +63,15 @@ class WebChatSession:
                 {
                     "type": "message",
                     "content": text,
-                    "timestamp": Message.timestamp.default_factory().isoformat(),
+                    "timestamp": Message.timestamp.default_factory().isoformat(),  # type: ignore[attr-defined]
                 }
             )
 
         # Create chat interface with JSON renderer
         self.chat = ChatInterface(
             message_renderer=TelegramMessageRenderer(queue_message),  # Reuse for JSON
-            status_renderer=None,  # Will send status via WebSocket directly
-            input_handler=None,  # Not needed for web
+            status_renderer=None,  # Will send status via WebSocket directly  # type: ignore[arg-type]
+            input_handler=None,  # Not needed for web  # type: ignore[arg-type]
         )
 
         # Event processor
@@ -188,8 +188,8 @@ class WebChatSession:
 
         try:
             # Execute command
-            parsed_args = ParsedArgs(command=cmd_name, args=args, raw_input=command)
-            result = await cmd_obj.execute(parsed_args)
+            parsed_args = ParsedArgs(command=cmd_name, args=args, raw_input=command)  # type: ignore[call-arg]
+            result = await cmd_obj.execute(parsed_args)  # type: ignore[call-arg]
 
             # Send result
             await self.send_json(

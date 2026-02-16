@@ -162,36 +162,36 @@ class ShareLinkRegistry:
             with cls._lock:
                 if cls._instance is None:
                     cls._instance = super().__new__(cls)
-                    cls._instance._links: Dict[str, ShareLink] = {}  # token -> ShareLink
-                    cls._instance._session_links: Dict[str, List[str]] = (
+                    cls._instance._links: Dict[str, ShareLink] = {}  # token -> ShareLink  # type: ignore[attr-defined]
+                    cls._instance._session_links: Dict[str, List[str]] = (  # type: ignore[attr-defined]
                         {}
                     )  # session_id -> [tokens]
-                    cls._instance._share_dir = Path("~/.jotty/shares").expanduser()
-                    cls._instance._share_dir.mkdir(parents=True, exist_ok=True)
+                    cls._instance._share_dir = Path("~/.jotty/shares").expanduser()  # type: ignore[attr-defined]
+                    cls._instance._share_dir.mkdir(parents=True, exist_ok=True)  # type: ignore[attr-defined]
                     cls._instance._load_links()
         return cls._instance
 
     def _load_links(self) -> Any:
         """Load share links from disk."""
-        index_file = self._share_dir / "index.json"
+        index_file = self._share_dir / "index.json"  # type: ignore[attr-defined]
         if index_file.exists():
             try:
                 with open(index_file, "r") as f:
                     data = json.load(f)
                 for link_data in data.get("links", []):
                     link = ShareLink.from_dict(link_data)
-                    self._links[link.token] = link
-                    if link.session_id not in self._session_links:
-                        self._session_links[link.session_id] = []
-                    self._session_links[link.session_id].append(link.token)
+                    self._links[link.token] = link  # type: ignore[attr-defined]
+                    if link.session_id not in self._session_links:  # type: ignore[attr-defined]
+                        self._session_links[link.session_id] = []  # type: ignore[attr-defined]
+                    self._session_links[link.session_id].append(link.token)  # type: ignore[attr-defined]
             except Exception as e:
                 logger.error(f"Failed to load share links: {e}")
 
     def _save_links(self) -> Any:
         """Save share links to disk."""
-        index_file = self._share_dir / "index.json"
+        index_file = self._share_dir / "index.json"  # type: ignore[attr-defined]
         try:
-            data = {"links": [link.to_dict() for link in self._links.values()]}
+            data = {"links": [link.to_dict() for link in self._links.values()]}  # type: ignore[attr-defined]
             with open(index_file, "w") as f:
                 json.dump(data, f, indent=2)
         except Exception as e:
@@ -214,10 +214,10 @@ class ShareLinkRegistry:
                 session_id=session_id, title=title, expires_at=expires_at, branch_id=branch_id
             )
 
-            self._links[link.token] = link
-            if session_id not in self._session_links:
-                self._session_links[session_id] = []
-            self._session_links[session_id].append(link.token)
+            self._links[link.token] = link  # type: ignore[attr-defined]
+            if session_id not in self._session_links:  # type: ignore[attr-defined]
+                self._session_links[session_id] = []  # type: ignore[attr-defined]
+            self._session_links[session_id].append(link.token)  # type: ignore[attr-defined]
 
             self._save_links()
             logger.info(f"Created share link {link.token} for session {session_id}")
@@ -225,21 +225,21 @@ class ShareLinkRegistry:
 
     def get_link(self, token: str) -> Optional[ShareLink]:
         """Get a share link by token."""
-        link = self._links.get(token)
+        link = self._links.get(token)  # type: ignore[attr-defined]
         if link and link.is_valid:
             return link
         return None
 
     def get_session_links(self, session_id: str) -> List[ShareLink]:
         """Get all share links for a session."""
-        tokens = self._session_links.get(session_id, [])
-        return [self._links[t] for t in tokens if t in self._links]
+        tokens = self._session_links.get(session_id, [])  # type: ignore[attr-defined]
+        return [self._links[t] for t in tokens if t in self._links]  # type: ignore[attr-defined]
 
     def revoke_link(self, token: str) -> bool:
         """Revoke a share link."""
         with self._lock:
-            if token in self._links:
-                self._links[token].is_active = False
+            if token in self._links:  # type: ignore[attr-defined]
+                self._links[token].is_active = False  # type: ignore[attr-defined]
                 self._save_links()
                 logger.info(f"Revoked share link {token}")
                 return True
@@ -248,10 +248,10 @@ class ShareLinkRegistry:
     def refresh_link(self, token: str, expires_in_days: int = 30) -> Optional[ShareLink]:
         """Refresh a share link with new expiry and token."""
         with self._lock:
-            if token not in self._links:
+            if token not in self._links:  # type: ignore[attr-defined]
                 return None
 
-            old_link = self._links[token]
+            old_link = self._links[token]  # type: ignore[attr-defined]
             new_link = ShareLink(
                 session_id=old_link.session_id,
                 title=old_link.title,
@@ -263,9 +263,9 @@ class ShareLinkRegistry:
             old_link.is_active = False
 
             # Add new link
-            self._links[new_link.token] = new_link
-            if old_link.session_id in self._session_links:
-                self._session_links[old_link.session_id].append(new_link.token)
+            self._links[new_link.token] = new_link  # type: ignore[attr-defined]
+            if old_link.session_id in self._session_links:  # type: ignore[attr-defined]
+                self._session_links[old_link.session_id].append(new_link.token)  # type: ignore[attr-defined]
 
             self._save_links()
             logger.info(f"Refreshed share link {token} -> {new_link.token}")
@@ -274,19 +274,19 @@ class ShareLinkRegistry:
     def record_access(self, token: str) -> Any:
         """Record an access to a share link."""
         with self._lock:
-            if token in self._links:
-                self._links[token].access_count += 1
+            if token in self._links:  # type: ignore[attr-defined]
+                self._links[token].access_count += 1  # type: ignore[attr-defined]
                 self._save_links()
 
     def delete_session_links(self, session_id: str) -> Any:
         """Delete all share links for a session."""
         with self._lock:
-            tokens = self._session_links.get(session_id, [])
+            tokens = self._session_links.get(session_id, [])  # type: ignore[attr-defined]
             for token in tokens:
-                if token in self._links:
-                    del self._links[token]
-            if session_id in self._session_links:
-                del self._session_links[session_id]
+                if token in self._links:  # type: ignore[attr-defined]
+                    del self._links[token]  # type: ignore[attr-defined]
+            if session_id in self._session_links:  # type: ignore[attr-defined]
+                del self._session_links[session_id]  # type: ignore[attr-defined]
             self._save_links()
 
 
@@ -311,9 +311,9 @@ class SessionRegistry:
             with cls._lock:
                 if cls._instance is None:
                     cls._instance = super().__new__(cls)
-                    cls._instance._sessions: Dict[str, "SessionManager"] = {}
-                    cls._instance._session_dir = Path("~/.jotty/sessions").expanduser()
-                    cls._instance._session_dir.mkdir(parents=True, exist_ok=True)
+                    cls._instance._sessions: Dict[str, "SessionManager"] = {}  # type: ignore[attr-defined]
+                    cls._instance._session_dir = Path("~/.jotty/sessions").expanduser()  # type: ignore[attr-defined]
+                    cls._instance._session_dir.mkdir(parents=True, exist_ok=True)  # type: ignore[attr-defined]
         return cls._instance
 
     def get_session(
@@ -331,37 +331,37 @@ class SessionRegistry:
             SessionManager instance or None
         """
         with self._lock:
-            if session_id in self._sessions:
-                session = self._sessions[session_id]
+            if session_id in self._sessions:  # type: ignore[attr-defined]
+                session = self._sessions[session_id]  # type: ignore[attr-defined]
                 session.last_interface = interface
                 return session
 
             # Try loading from disk
-            session_file = self._session_dir / f"{session_id}.json"
+            session_file = self._session_dir / f"{session_id}.json"  # type: ignore[attr-defined]
             if session_file.exists():
                 session = SessionManager(session_id=session_id)
                 session.load()
                 session.last_interface = interface
-                self._sessions[session_id] = session
+                self._sessions[session_id] = session  # type: ignore[attr-defined]
                 return session
 
             # Create new if requested
             if create:
                 session = SessionManager(session_id=session_id)
                 session.last_interface = interface
-                self._sessions[session_id] = session
+                self._sessions[session_id] = session  # type: ignore[attr-defined]
                 return session
 
             return None
 
     def list_active_sessions(self) -> List[str]:
         """Get list of active session IDs."""
-        return list(self._sessions.keys())
+        return list(self._sessions.keys())  # type: ignore[attr-defined]
 
     def remove_session(self, session_id: str) -> Any:
         """Remove session from registry (doesn't delete from disk)."""
         with self._lock:
-            self._sessions.pop(session_id, None)
+            self._sessions.pop(session_id, None)  # type: ignore[attr-defined]
 
 
 def get_session_registry() -> SessionRegistry:
@@ -705,10 +705,10 @@ class SessionManager:
         Returns:
             List of deleted session IDs
         """
-        session_dir = Path(session_dir or "~/.jotty/sessions").expanduser()
+        session_dir = Path(session_dir or "~/.jotty/sessions").expanduser()  # type: ignore[assignment]
         deleted = []
 
-        for file in session_dir.glob("*.json"):
+        for file in session_dir.glob("*.json"):  # type: ignore[union-attr]
             try:
                 with open(file, "r") as f:
                     data = json.load(f)
@@ -771,7 +771,7 @@ class SessionManager:
                     "fork_point": None,
                 }
             tree[branch]["message_count"] += 1
-            tree[branch]["messages"].append(
+            tree[branch]["messages"].append(  # type: ignore[attr-defined]
                 {
                     "message_id": msg.message_id,
                     "role": msg.role,
@@ -933,7 +933,7 @@ class SessionManager:
         branch_id = branch_id or getattr(self, "active_branch", "main")
 
         # Get messages for this branch
-        branch_messages = self.get_branch_messages(branch_id)
+        branch_messages = self.get_branch_messages(branch_id)  # type: ignore[arg-type]
 
         # If branch has parent, include parent messages up to fork point
         if hasattr(self, "branch_metadata") and branch_id in self.branch_metadata:

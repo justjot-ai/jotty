@@ -161,7 +161,7 @@ class DocumentProcessor:
                 import chromadb
                 from chromadb.config import Settings
 
-                self._chroma_client = chromadb.PersistentClient(
+                self._chroma_client = chromadb.PersistentClient(  # type: ignore[assignment]
                     path=str(VECTORS_DIR), settings=Settings(anonymized_telemetry=False)
                 )
                 logger.info(f"ChromaDB initialized at {VECTORS_DIR}")
@@ -194,8 +194,8 @@ class DocumentProcessor:
                 from sentence_transformers import SentenceTransformer
 
                 model_name = self.config.embedding_model
-                self._embedding_model = SentenceTransformer(model_name)
-                self._embedding_model_name = model_name
+                self._embedding_model = SentenceTransformer(model_name)  # type: ignore[assignment]
+                self._embedding_model_name = model_name  # type: ignore[assignment]
                 logger.info(f"Loaded embedding model: {model_name}")
             except ImportError:
                 logger.warning(
@@ -223,7 +223,7 @@ class DocumentProcessor:
 
             # Extract text from elements
             texts = []
-            element_types = {}
+            element_types = {}  # type: ignore[var-annotated]
 
             for element in elements:
                 text = str(element)

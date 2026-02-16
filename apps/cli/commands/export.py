@@ -45,8 +45,8 @@ class ExportCommand(BaseCommand):
         elif export_type == "code":
             return await self._export_code(cli, filename)
         else:
-            cli.renderer.error(f"Unknown export type: {export_type}")
-            cli.renderer.info("Available: last, history, code")
+            cli.renderer.error(f"Unknown export type: {export_type}")  # type: ignore[attr-defined]
+            cli.renderer.info("Available: last, history, code")  # type: ignore[attr-defined]
             return CommandResult.fail("Unknown export type")
 
     async def _export_last_output(
@@ -60,7 +60,7 @@ class ExportCommand(BaseCommand):
                 content = msg.content
                 break
         else:
-            cli.renderer.warning("No assistant output to export.")
+            cli.renderer.warning("No assistant output to export.")  # type: ignore[attr-defined]
             return CommandResult.ok()
 
         if filename:
@@ -69,7 +69,7 @@ class ExportCommand(BaseCommand):
             path = Path.cwd() / "jotty_output.md"
 
         path.write_text(content)
-        cli.renderer.success(f"Exported to: {path}")
+        cli.renderer.success(f"Exported to: {path}")  # type: ignore[attr-defined]
 
         return CommandResult.ok(output=str(path))
 
@@ -77,7 +77,7 @@ class ExportCommand(BaseCommand):
         """Export full conversation history."""
 
         if not cli.session.conversation_history:
-            cli.renderer.warning("No conversation history to export.")
+            cli.renderer.warning("No conversation history to export.")  # type: ignore[attr-defined]
             return CommandResult.ok()
 
         if filename:
@@ -93,7 +93,7 @@ class ExportCommand(BaseCommand):
             lines.append(f"## {role}\n\n{msg.content}\n\n---\n\n")
 
         path.write_text("".join(lines))
-        cli.renderer.success(
+        cli.renderer.success(  # type: ignore[attr-defined]
             f"Exported {len(cli.session.conversation_history)} messages to: {path}"
         )
 
@@ -112,7 +112,7 @@ class ExportCommand(BaseCommand):
                 code_blocks.extend(blocks)
 
         if not code_blocks:
-            cli.renderer.warning("No code blocks found in conversation.")
+            cli.renderer.warning("No code blocks found in conversation.")  # type: ignore[attr-defined]
             return CommandResult.ok()
 
         if filename:
@@ -125,7 +125,7 @@ class ExportCommand(BaseCommand):
             lines.append(f"# === {lang or 'code'} ===\n{code.strip()}\n\n")
 
         path.write_text("".join(lines))
-        cli.renderer.success(f"Exported {len(code_blocks)} code blocks to: {path}")
+        cli.renderer.success(f"Exported {len(code_blocks)} code blocks to: {path}")  # type: ignore[attr-defined]
 
         return CommandResult.ok(output=str(path))
 

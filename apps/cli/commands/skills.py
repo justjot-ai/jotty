@@ -46,11 +46,11 @@ class SkillsCommand(BaseCommand):
     ) -> CommandResult:
         """List all skills."""
         try:
-            registry = cli.get_skills_registry()
+            registry = cli.get_skills_registry()  # type: ignore[attr-defined]
 
             # Initialize if needed
             if not registry.initialized:
-                with cli.renderer.progress.spinner("Loading skills..."):
+                with cli.renderer.progress.spinner("Loading skills..."):  # type: ignore[attr-defined]
                     registry.init()
 
             # Get skills
@@ -65,24 +65,24 @@ class SkillsCommand(BaseCommand):
             skills = skills[:limit]
 
             # Render table
-            table = cli.renderer.tables.skills_table(skills)
-            cli.renderer.tables.print_table(table)
+            table = cli.renderer.tables.skills_table(skills)  # type: ignore[attr-defined]
+            cli.renderer.tables.print_table(table)  # type: ignore[attr-defined]
 
             if total > limit:
-                cli.renderer.info(f"Showing {limit} of {total} skills. Use --category to filter.")
+                cli.renderer.info(f"Showing {limit} of {total} skills. Use --category to filter.")  # type: ignore[attr-defined]
             else:
-                cli.renderer.info(f"Total: {total} skills")
+                cli.renderer.info(f"Total: {total} skills")  # type: ignore[attr-defined]
 
             return CommandResult.ok(data=skills)
 
         except Exception as e:
-            cli.renderer.error(f"Failed to list skills: {e}")
+            cli.renderer.error(f"Failed to list skills: {e}")  # type: ignore[attr-defined]
             return CommandResult.fail(str(e))
 
     async def _search_skills(self, query: str, cli: "JottyCLI") -> CommandResult:
         """Search skills by query."""
         try:
-            registry = cli.get_skills_registry()
+            registry = cli.get_skills_registry()  # type: ignore[attr-defined]
 
             if not registry.initialized:
                 registry.init()
@@ -106,23 +106,23 @@ class SkillsCommand(BaseCommand):
                     matches.append(skill)
 
             if not matches:
-                cli.renderer.warning(f"No skills found matching: {query}")
+                cli.renderer.warning(f"No skills found matching: {query}")  # type: ignore[attr-defined]
                 return CommandResult.ok(data=[])
 
-            table = cli.renderer.tables.skills_table(matches)
-            cli.renderer.tables.print_table(table)
+            table = cli.renderer.tables.skills_table(matches)  # type: ignore[attr-defined]
+            cli.renderer.tables.print_table(table)  # type: ignore[attr-defined]
 
-            cli.renderer.info(f"Found {len(matches)} matching skills")
+            cli.renderer.info(f"Found {len(matches)} matching skills")  # type: ignore[attr-defined]
             return CommandResult.ok(data=matches)
 
         except Exception as e:
-            cli.renderer.error(f"Search failed: {e}")
+            cli.renderer.error(f"Search failed: {e}")  # type: ignore[attr-defined]
             return CommandResult.fail(str(e))
 
     async def _skill_info(self, name: str, cli: "JottyCLI") -> CommandResult:
         """Show detailed skill info."""
         try:
-            registry = cli.get_skills_registry()
+            registry = cli.get_skills_registry()  # type: ignore[attr-defined]
 
             if not registry.initialized:
                 registry.init()
@@ -130,7 +130,7 @@ class SkillsCommand(BaseCommand):
             skill = registry.get_skill(name)
 
             if not skill:
-                cli.renderer.error(f"Skill not found: {name}")
+                cli.renderer.error(f"Skill not found: {name}")  # type: ignore[attr-defined]
                 return CommandResult.fail(f"Skill not found: {name}")
 
             # Build info
@@ -141,17 +141,17 @@ class SkillsCommand(BaseCommand):
                 "Metadata": skill.metadata,
             }
 
-            cli.renderer.tree(info, title=f"Skill: {name}")
+            cli.renderer.tree(info, title=f"Skill: {name}")  # type: ignore[attr-defined]
             return CommandResult.ok(data=info)
 
         except Exception as e:
-            cli.renderer.error(f"Failed to get skill info: {e}")
+            cli.renderer.error(f"Failed to get skill info: {e}")  # type: ignore[attr-defined]
             return CommandResult.fail(str(e))
 
     async def _list_categories(self, cli: "JottyCLI") -> CommandResult:
         """List skill categories."""
         try:
-            registry = cli.get_skills_registry()
+            registry = cli.get_skills_registry()  # type: ignore[attr-defined]
 
             if not registry.initialized:
                 registry.init()
@@ -173,7 +173,7 @@ class SkillsCommand(BaseCommand):
             # Sort by count
             sorted_cats = sorted(categories.items(), key=lambda x: x[1], reverse=True)
 
-            cli.renderer.panel(
+            cli.renderer.panel(  # type: ignore[attr-defined]
                 "\n".join([f"• {cat}: {count} skills" for cat, count in sorted_cats]),
                 title="Skill Categories",
                 style="blue",
@@ -182,7 +182,7 @@ class SkillsCommand(BaseCommand):
             return CommandResult.ok(data=dict(sorted_cats))
 
         except Exception as e:
-            cli.renderer.error(f"Failed to list categories: {e}")
+            cli.renderer.error(f"Failed to list categories: {e}")  # type: ignore[attr-defined]
             return CommandResult.fail(str(e))
 
     def get_completions(self, partial: str) -> list:

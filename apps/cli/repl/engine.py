@@ -18,9 +18,9 @@ try:
     PROMPT_TOOLKIT_AVAILABLE = True
 except ImportError:
     PROMPT_TOOLKIT_AVAILABLE = False
-    PromptSession = None
-    Style = None
-    HTML = None
+    PromptSession = None  # type: ignore[assignment]
+    Style = None  # type: ignore[assignment]
+    HTML = None  # type: ignore[assignment]
 
 from ..ui.renderer import FooterHints, REPLState
 from .completer import CommandCompleter, SimpleCompleter
@@ -73,7 +73,7 @@ class REPLEngine:
         if PROMPT_TOOLKIT_AVAILABLE:
             self.completer = CommandCompleter(command_registry)
         else:
-            self.completer = SimpleCompleter(command_registry)
+            self.completer = SimpleCompleter(command_registry)  # type: ignore[assignment]
 
         # Footer hints
         self._footer_hints = FooterHints()
@@ -104,7 +104,7 @@ class REPLEngine:
             return HTML(self._footer_hints.get_toolbar_text())
 
         # Create session
-        session = PromptSession(
+        session = PromptSession(  # type: ignore[var-annotated]
             history=self.history.get_prompt_toolkit_history(),
             completer=self.completer,
             style=style,
@@ -196,7 +196,7 @@ class REPLEngine:
 
                     loop = asyncio.get_running_loop()
                     return await loop.run_in_executor(
-                        None, lambda: self._session.prompt(self.prompt_text)
+                        None, lambda: self._session.prompt(self.prompt_text)  # type: ignore[union-attr]
                     )
             except EOFError:
                 return None

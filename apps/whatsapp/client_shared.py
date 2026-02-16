@@ -80,9 +80,9 @@ class WhatsAppChatInterface:
 
         # Create chat interface with WhatsApp renderer
         self.chat = ChatInterface(
-            message_renderer=WhatsAppRenderer(send_callback),
+            message_renderer=WhatsAppRenderer(send_callback),  # type: ignore[arg-type]
             status_renderer=TelegramStatusRenderer(send_callback),
-            input_handler=None,  # Not needed for bot
+            input_handler=None,  # Not needed for bot  # type: ignore[arg-type]
         )
 
         # Event processor

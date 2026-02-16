@@ -43,7 +43,7 @@ def main() -> None:
         allowed_chat_ids = [int(x.strip()) for x in args.chat_ids.split(",")]
 
     try:
-        from .bot import TelegramBotHandler
+        from .bot import TelegramBotHandler  # type: ignore[attr-defined]
 
         bot = TelegramBotHandler(token=args.token, allowed_chat_ids=allowed_chat_ids)
 

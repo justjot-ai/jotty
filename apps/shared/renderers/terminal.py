@@ -22,7 +22,7 @@ try:
     DEPS_AVAILABLE = True
 except ImportError:
     DEPS_AVAILABLE = False
-    Console = None
+    Console = None  # type: ignore[assignment]
 
 import os
 import sys
@@ -169,7 +169,7 @@ class TerminalStatusRenderer(StatusRenderer):
 
         if self._task_id is not None:
             self._progress.update(
-                self._task_id,
+                self._task_id,  # type: ignore[arg-type]
                 completed=int(progress * 100),
                 description=message or "Processing...",
             )

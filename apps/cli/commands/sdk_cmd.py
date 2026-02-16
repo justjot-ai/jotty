@@ -302,7 +302,7 @@ Test the SDK client with real-time event visualization.
                 client.on(event_type, chat_event_callback)
 
             # Conversation history
-            conv_history = []
+            conv_history = []  # type: ignore[var-annotated]
 
             # Custom key bindings
             kb = KeyBindings()
@@ -327,7 +327,7 @@ Test the SDK client with real-time event visualization.
 
             # Create prompt session with history
             input_history = InMemoryHistory()
-            session = PromptSession(
+            session = PromptSession(  # type: ignore[var-annotated]
                 history=input_history,
                 auto_suggest=AutoSuggestFromHistory(),
                 key_bindings=kb,
@@ -438,7 +438,7 @@ Test the SDK client with real-time event visualization.
             from ...sdk.client import Jotty
 
             client = Jotty().use_local()
-            conv_history = []
+            conv_history = []  # type: ignore[var-annotated]
 
             _status_msgs = {
                 "Searching": " Searching the web...",

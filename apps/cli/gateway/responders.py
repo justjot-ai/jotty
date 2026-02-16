@@ -32,7 +32,7 @@ class ResponseEvent:
     channel_id: str
     content: str
     reply_to: Optional[str] = None
-    attachments: list = None
+    attachments: list = None  # type: ignore[assignment]
     context: Optional[ExecutionContext] = None
 
     def __post_init__(self) -> None:

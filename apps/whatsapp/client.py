@@ -156,7 +156,7 @@ class WhatsAppWebClient:
         while self._process and self._process.poll() is None:
             try:
                 line = await asyncio.get_running_loop().run_in_executor(
-                    None, self._process.stdout.readline
+                    None, self._process.stdout.readline  # type: ignore[union-attr]
                 )
 
                 if not line:
@@ -202,12 +202,12 @@ class WhatsAppWebClient:
 
         elif event_type == "message":
             msg = WhatsAppWebMessage(
-                id=data.get("id"),
-                from_number=data.get("from"),
-                to_number=data.get("to"),
+                id=data.get("id"),  # type: ignore[arg-type]
+                from_number=data.get("from"),  # type: ignore[arg-type]
+                to_number=data.get("to"),  # type: ignore[arg-type]
                 body=data.get("body", ""),
-                type=data.get("type"),
-                timestamp=data.get("timestamp"),
+                type=data.get("type"),  # type: ignore[arg-type]
+                timestamp=data.get("timestamp"),  # type: ignore[arg-type]
                 is_group=data.get("is_group", False),
                 chat_name=data.get("chat_name", ""),
                 sender_name=data.get("sender_name", ""),
@@ -290,8 +290,8 @@ class WhatsAppWebClient:
         if not self._process or self._process.poll() is not None:
             raise RuntimeError("WhatsApp client not running")
 
-        self._process.stdin.write(json.dumps(command) + "\n")
-        self._process.stdin.flush()
+        self._process.stdin.write(json.dumps(command) + "\n")  # type: ignore[union-attr]
+        self._process.stdin.flush()  # type: ignore[union-attr]
 
     async def send_message(self, to: str, message: str) -> Dict[str, Any]:
         """

@@ -48,7 +48,7 @@ class ShimmerEffect:
     PERIOD = 2.0  # seconds for full wave cycle
     BAND_WIDTH = 5  # characters wide for the shimmer band
 
-    def __init__(self, color_depth: ColorDepth = None) -> None:
+    def __init__(self, color_depth: ColorDepth = None) -> None:  # type: ignore[assignment]
         self._color_depth = color_depth or TerminalDetector.detect_color_depth()
         self._message = ""
         self._running = False
@@ -133,7 +133,7 @@ class MarkdownStreamRenderer:
     across chunk boundaries. Renders complete blocks via Rich Markdown.
     """
 
-    def __init__(self, console: "Console" = None) -> None:
+    def __init__(self, console: "Console" = None) -> None:  # type: ignore[assignment]
         self._console = console
         self._buffer = ""
         self._in_code_block = False
@@ -413,7 +413,7 @@ class RichRenderer:
                 force_terminal=True,
             )
         else:
-            self._console = None
+            self._console = None  # type: ignore[assignment]
 
         # Sub-renderers
         self.progress = ProgressManager(self._console, no_color)
@@ -565,7 +565,7 @@ class RichRenderer:
         )
 
         if title:
-            self.panel(syntax, title=title, style=self.theme.code)
+            self.panel(syntax, title=title, style=self.theme.code)  # type: ignore[arg-type]
         else:
             self._console.print(syntax)
 

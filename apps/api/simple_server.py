@@ -32,8 +32,8 @@ try:
     FASTAPI_AVAILABLE = True
 except ImportError:
     FASTAPI_AVAILABLE = False
-    FastAPI = None
-    BaseModel = object
+    FastAPI = None  # type: ignore[assignment]
+    BaseModel = object  # type: ignore[assignment]
 
 
 class TaskRequest(BaseModel if FASTAPI_AVAILABLE else object):
@@ -149,7 +149,7 @@ class JottyAPIServer:
             if request.async_mode:
                 task_id = f"task_{len(self._task_results)}"
                 background_tasks.add_task(
-                    self._execute_task_async, task_id, request.task, request.options
+                    self._execute_task_async, task_id, request.task, request.options  # type: ignore[arg-type]
                 )
                 return {"task_id": task_id, "status": "processing"}
 
@@ -260,7 +260,7 @@ class JottyAPIServer:
                     )
             return {"commands": commands, "count": len(commands)}
 
-        self._app = app
+        self._app = app  # type: ignore[assignment]
         return app
 
     async def _execute_task_async(self, task_id: str, task: str, options: dict) -> Any:

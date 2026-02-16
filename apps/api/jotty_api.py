@@ -90,9 +90,9 @@ class JottyAPI:
             success: bool = True
             content: str = ""
             output_format: str = "markdown"
-            output_path: str = None
+            output_path: str = None  # type: ignore[assignment]
             steps_taken: int = 1
-            error: str = None
+            error: str = None  # type: ignore[assignment]
 
         # Validate image count
         if len(images) > self.MAX_IMAGES_PER_REQUEST:
@@ -194,7 +194,7 @@ class JottyAPI:
                 try:
                     import openai
 
-                    client = openai.OpenAI(api_key=openai_key)
+                    client = openai.OpenAI(api_key=openai_key)  # type: ignore[assignment]
 
                     # Convert to OpenAI format
                     openai_content = []
@@ -212,7 +212,7 @@ class JottyAPI:
                         else:
                             openai_content.append(item)
 
-                    response = client.chat.completions.create(
+                    response = client.chat.completions.create(  # type: ignore[attr-defined]
                         model="gpt-4o",
                         max_tokens=4096,
                         messages=[{"role": "user", "content": openai_content}],
@@ -235,7 +235,7 @@ class JottyAPI:
                 try:
                     import openai
 
-                    client = openai.OpenAI(
+                    client = openai.OpenAI(  # type: ignore[assignment]
                         api_key=openrouter_key, base_url="https://openrouter.ai/api/v1"
                     )
 
@@ -255,7 +255,7 @@ class JottyAPI:
                             openrouter_content.append(item)
 
                     logger.info("Trying OpenRouter for vision...")
-                    response = client.chat.completions.create(
+                    response = client.chat.completions.create(  # type: ignore[attr-defined]
                         model="anthropic/claude-sonnet-4",  # Vision-capable model
                         max_tokens=4096,
                         messages=[{"role": "user", "content": openrouter_content}],

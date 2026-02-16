@@ -65,7 +65,7 @@ def register_voice_routes(app, api) -> Any:
         """
         from fastapi.responses import Response
 
-        from .voice import get_voice_processor
+        from .voice import get_voice_processor  # type: ignore[attr-defined]
 
         text = request.get("text", "")
         voice = request.get("voice")
@@ -93,7 +93,7 @@ def register_voice_routes(app, api) -> Any:
         Accepts audio file (webm, wav, mp3, etc.)
         Returns: {"text": "transcribed text"}
         """
-        from .voice import get_voice_processor
+        from .voice import get_voice_processor  # type: ignore[attr-defined]
 
         content = await audio.read()
         mime_type = audio.content_type or "audio/webm"
@@ -117,7 +117,7 @@ def register_voice_routes(app, api) -> Any:
         """
         from fastapi.responses import Response
 
-        from .voice import get_voice_processor
+        from .voice import get_voice_processor  # type: ignore[attr-defined]
 
         session_id = session_id or str(uuid.uuid4())[:8]
 
@@ -197,7 +197,7 @@ def register_voice_routes(app, api) -> Any:
         """
         import os
 
-        from .voice import get_voice_processor
+        from .voice import get_voice_processor  # type: ignore[attr-defined]
 
         await websocket.accept()
 
@@ -338,7 +338,7 @@ def register_voice_routes(app, api) -> Any:
         Accepts audio files (webm, wav, mp3, ogg, flac, m4a).
         Returns transcribed text.
         """
-        from .voice import get_voice_processor
+        from .voice import get_voice_processor  # type: ignore[attr-defined]
 
         processor = get_voice_processor()
         audio_data = await audio.read()
@@ -366,7 +366,7 @@ def register_voice_routes(app, api) -> Any:
         """
         from fastapi.responses import Response
 
-        from .voice import get_voice_processor
+        from .voice import get_voice_processor  # type: ignore[attr-defined]
 
         processor = get_voice_processor()
         audio_bytes = await processor.text_to_speech(text, voice)
@@ -379,7 +379,7 @@ def register_voice_routes(app, api) -> Any:
     @app.get("/api/voice/voices")
     async def list_voices() -> dict[str, Any]:
         """List available TTS voices."""
-        from .voice import VoiceProcessor
+        from .voice import VoiceProcessor  # type: ignore[attr-defined]
 
         return {"voices": VoiceProcessor.get_available_voices(), "default": "en-US-AvaNeural"}
 
@@ -397,7 +397,7 @@ def register_voice_routes(app, api) -> Any:
         """
         import base64
 
-        from .voice import get_voice_processor
+        from .voice import get_voice_processor  # type: ignore[attr-defined]
 
         processor = get_voice_processor()
         audio_data = await audio.read()
@@ -440,7 +440,7 @@ def register_voice_routes(app, api) -> Any:
         """
         import base64
 
-        from .voice import get_voice_processor
+        from .voice import get_voice_processor  # type: ignore[attr-defined]
 
         processor = get_voice_processor()
         audio_data = await audio.read()
@@ -489,7 +489,7 @@ def register_voice_routes(app, api) -> Any:
         import httpx
         from fastapi.responses import Response
 
-        from .voice import get_voice_processor
+        from .voice import get_voice_processor  # type: ignore[attr-defined]
 
         processor = get_voice_processor()
         audio_data = await audio.read()
@@ -558,7 +558,7 @@ def register_voice_routes(app, api) -> Any:
 
         from fastapi.responses import StreamingResponse
 
-        from .voice import get_voice_processor
+        from .voice import get_voice_processor  # type: ignore[attr-defined]
 
         processor = get_voice_processor()
         audio_data = await audio.read()
@@ -631,7 +631,7 @@ def register_voice_routes(app, api) -> Any:
         import httpx
         from fastapi.responses import StreamingResponse
 
-        from .voice import get_voice_processor
+        from .voice import get_voice_processor  # type: ignore[attr-defined]
 
         processor = get_voice_processor()
         audio_data = await audio.read()
@@ -745,7 +745,7 @@ def register_voice_routes(app, api) -> Any:
         import httpx
         from fastapi.responses import StreamingResponse
 
-        from .voice import get_voice_processor
+        from .voice import get_voice_processor  # type: ignore[attr-defined]
 
         processor = get_voice_processor()
         audio_data = await audio.read()

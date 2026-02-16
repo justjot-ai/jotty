@@ -56,11 +56,11 @@ class ConfigCommand(BaseCommand):
 
             clean_config = clean_dict(config_dict)
 
-            cli.renderer.tree(clean_config, title="Current Configuration")
+            cli.renderer.tree(clean_config, title="Current Configuration")  # type: ignore[attr-defined]
             return CommandResult.ok(data=config_dict)
 
         except Exception as e:
-            cli.renderer.error(f"Failed to show config: {e}")
+            cli.renderer.error(f"Failed to show config: {e}")  # type: ignore[attr-defined]
             return CommandResult.fail(str(e))
 
     async def _get_config(self, key: str, cli: "JottyCLI") -> CommandResult:
@@ -69,14 +69,14 @@ class ConfigCommand(BaseCommand):
             value = cli.config_loader.get(key)
 
             if value is None:
-                cli.renderer.warning(f"Config key not found: {key}")
+                cli.renderer.warning(f"Config key not found: {key}")  # type: ignore[attr-defined]
                 return CommandResult.fail(f"Key not found: {key}")
 
-            cli.renderer.info(f"{key} = {value}")
+            cli.renderer.info(f"{key} = {value}")  # type: ignore[attr-defined]
             return CommandResult.ok(data={"key": key, "value": value})
 
         except Exception as e:
-            cli.renderer.error(f"Failed to get config: {e}")
+            cli.renderer.error(f"Failed to get config: {e}")  # type: ignore[attr-defined]
             return CommandResult.fail(str(e))
 
     async def _set_config(self, key: str, value: str, cli: "JottyCLI") -> CommandResult:
@@ -88,32 +88,32 @@ class ConfigCommand(BaseCommand):
             elif value.lower() == "false":
                 parsed_value = False
             elif value.isdigit():
-                parsed_value = int(value)
+                parsed_value = int(value)  # type: ignore[assignment]
             else:
                 try:
-                    parsed_value = float(value)
+                    parsed_value = float(value)  # type: ignore[assignment]
                 except ValueError:
-                    parsed_value = value
+                    parsed_value = value  # type: ignore[assignment]
 
             cli.config_loader.set(key, parsed_value)
             cli.config_loader.save()
 
-            cli.renderer.success(f"Set {key} = {parsed_value}")
+            cli.renderer.success(f"Set {key} = {parsed_value}")  # type: ignore[attr-defined]
             return CommandResult.ok()
 
         except Exception as e:
-            cli.renderer.error(f"Failed to set config: {e}")
+            cli.renderer.error(f"Failed to set config: {e}")  # type: ignore[attr-defined]
             return CommandResult.fail(str(e))
 
     async def _reset_config(self, cli: "JottyCLI") -> CommandResult:
         """Reset to default configuration."""
         try:
             cli.config_loader.create_default_config(force=True)
-            cli.renderer.success("Configuration reset to defaults")
+            cli.renderer.success("Configuration reset to defaults")  # type: ignore[attr-defined]
             return CommandResult.ok()
 
         except Exception as e:
-            cli.renderer.error(f"Failed to reset config: {e}")
+            cli.renderer.error(f"Failed to reset config: {e}")  # type: ignore[attr-defined]
             return CommandResult.fail(str(e))
 
     async def _show_path(self, cli: "JottyCLI") -> CommandResult:
@@ -122,13 +122,13 @@ class ConfigCommand(BaseCommand):
             path = cli.config_loader.default_config_file
             exists = path.exists()
 
-            cli.renderer.info(f"Config path: {path}")
-            cli.renderer.info(f"Exists: {exists}")
+            cli.renderer.info(f"Config path: {path}")  # type: ignore[attr-defined]
+            cli.renderer.info(f"Exists: {exists}")  # type: ignore[attr-defined]
 
             return CommandResult.ok(data={"path": str(path), "exists": exists})
 
         except Exception as e:
-            cli.renderer.error(f"Failed to get config path: {e}")
+            cli.renderer.error(f"Failed to get config path: {e}")  # type: ignore[attr-defined]
             return CommandResult.fail(str(e))
 
     def get_completions(self, partial: str) -> list:

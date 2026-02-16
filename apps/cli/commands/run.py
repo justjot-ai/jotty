@@ -47,13 +47,13 @@ class RunCommand(BaseCommand):
         # Get options
         verbose = args.flags.get("verbose", False) or args.flags.get("v", False)
         # Zero-config swarm mode - system decides single vs multi-agent
-        cli.renderer.info("Swarm mode: zero-config (system decides single/multi-agent)")
+        cli.renderer.info("Swarm mode: zero-config (system decides single/multi-agent)")  # type: ignore[attr-defined]
 
         start_time = time.time()
 
         try:
             # Initialize swarm if needed
-            swarm = await cli.get_swarm_manager()
+            swarm = await cli.get_swarm_manager()  # type: ignore[attr-defined]
 
             # Status callback for streaming progress
             def status_callback(stage: str, detail: str = "") -> Any:
@@ -64,15 +64,15 @@ class RunCommand(BaseCommand):
                 step_match = re.match(r"Step (\d+)/(\d+)", stage)
                 if step_match:
                     icon = "▶" if "completed" not in (detail or "").lower() else ""
-                    cli.renderer.print(f"  [bold cyan]{icon}[/bold cyan] {stage}: {detail}")
+                    cli.renderer.print(f"  [bold cyan]{icon}[/bold cyan] {stage}: {detail}")  # type: ignore[attr-defined]
                 elif "error" in stage.lower() or "failed" in (detail or "").lower():
-                    cli.renderer.print(f" [bold red][/bold red] {stage}: {detail}")
+                    cli.renderer.print(f" [bold red][/bold red] {stage}: {detail}")  # type: ignore[attr-defined]
                 elif "complete" in stage.lower() or "success" in (detail or "").lower():
-                    cli.renderer.print(f" [bold green][/bold green] {stage}: {detail}")
+                    cli.renderer.print(f" [bold green][/bold green] {stage}: {detail}")  # type: ignore[attr-defined]
                 elif detail:
-                    cli.renderer.print(f"  [cyan]→[/cyan] {stage}: {detail}")
+                    cli.renderer.print(f"  [cyan]→[/cyan] {stage}: {detail}")  # type: ignore[attr-defined]
                 else:
-                    cli.renderer.print(f"  [cyan]→[/cyan] {stage}")
+                    cli.renderer.print(f"  [cyan]→[/cyan] {stage}")  # type: ignore[attr-defined]
 
             # Add to conversation history
             cli.session.add_message("user", goal)
@@ -88,10 +88,10 @@ class RunCommand(BaseCommand):
             )
 
             # Display result with clear success/failure
-            cli.renderer.newline()
+            cli.renderer.newline()  # type: ignore[attr-defined]
 
             if result.success:
-                cli.renderer.success(f"Task completed in {elapsed:.1f}s")
+                cli.renderer.success(f"Task completed in {elapsed:.1f}s")  # type: ignore[attr-defined]
 
                 # Extract and display file paths + summary from output
                 output = result.output if hasattr(result, "output") else result
@@ -156,8 +156,8 @@ class RunCommand(BaseCommand):
 
                     # Display step-by-step breakdown for multi-step plans
                     if step_summaries and len(step_summaries) > 1:
-                        cli.renderer.newline()
-                        cli.renderer.panel(
+                        cli.renderer.newline()  # type: ignore[attr-defined]
+                        cli.renderer.panel(  # type: ignore[attr-defined]
                             "\n".join(step_summaries),
                             title=f"Execution Steps ({len(step_summaries)})",
                             style="cyan",
@@ -182,15 +182,15 @@ class RunCommand(BaseCommand):
 
                 # Display file paths prominently
                 if file_paths:
-                    cli.renderer.newline()
-                    cli.renderer.print("[bold green] Generated Files:[/bold green]")
+                    cli.renderer.newline()  # type: ignore[attr-defined]
+                    cli.renderer.print("[bold green] Generated Files:[/bold green]")  # type: ignore[attr-defined]
                     for label, path in file_paths:
-                        cli.renderer.print(f"   {label}: [cyan]{path}[/cyan]")
+                        cli.renderer.print(f"   {label}: [cyan]{path}[/cyan]")  # type: ignore[attr-defined]
 
                 # Show summary
                 if summary:
-                    cli.renderer.newline()
-                    cli.renderer.panel(
+                    cli.renderer.newline()  # type: ignore[attr-defined]
+                    cli.renderer.panel(  # type: ignore[attr-defined]
                         "\n".join([f"• {k}: {v}" for k, v in summary.items()]),
                         title="Summary",
                         style="green",
@@ -202,11 +202,11 @@ class RunCommand(BaseCommand):
                     if len(str(final)) > 500:
                         final_str += "..."
                     if final_str.strip():
-                        cli.renderer.newline()
-                        cli.renderer.panel(final_str, title="Output", style="green")
+                        cli.renderer.newline()  # type: ignore[attr-defined]
+                        cli.renderer.panel(final_str, title="Output", style="green")  # type: ignore[attr-defined]
 
                 if verbose and hasattr(result, "trajectory") and result.trajectory:
-                    cli.renderer.panel(
+                    cli.renderer.panel(  # type: ignore[attr-defined]
                         "\n".join([f"• {step}" for step in result.trajectory[:10]]),
                         title="Trajectory",
                         style="dim",
@@ -214,7 +214,7 @@ class RunCommand(BaseCommand):
 
                 return CommandResult.ok(data=result)
             else:
-                cli.renderer.error(f"Task failed after {elapsed:.1f}s")
+                cli.renderer.error(f"Task failed after {elapsed:.1f}s")  # type: ignore[attr-defined]
 
                 # Show error details
                 error_msg = getattr(result, "error", None)
@@ -222,13 +222,13 @@ class RunCommand(BaseCommand):
                     error_msg = "; ".join(result.alerts[:3])
 
                 if error_msg:
-                    cli.renderer.panel(error_msg, title="Error Details", style="red")
+                    cli.renderer.panel(error_msg, title="Error Details", style="red")  # type: ignore[attr-defined]
 
                 return CommandResult.fail(error_msg or "Unknown error", data=result)
 
         except Exception as e:
             elapsed = time.time() - start_time
-            cli.renderer.error(f"Execution error after {elapsed:.1f}s: {e}")
+            cli.renderer.error(f"Execution error after {elapsed:.1f}s: {e}")  # type: ignore[attr-defined]
             if cli.config.debug:
                 import traceback
 

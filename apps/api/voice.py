@@ -872,12 +872,12 @@ class VoiceProcessor:
                 volume=fast_config.volume,
             )
 
-            audio_data = io.BytesIO()
+            audio_data = io.BytesIO()  # type: ignore[assignment]
             async for chunk in communicate.stream():
                 if chunk["type"] == "audio":
-                    audio_data.write(chunk["data"])
+                    audio_data.write(chunk["data"])  # type: ignore[attr-defined]
 
-            response_audio = audio_data.getvalue()
+            response_audio = audio_data.getvalue()  # type: ignore[attr-defined]
             logger.info(f"Fast TTS: {len(response_audio)} bytes for '{response_text[:30]}...'")
 
         except Exception as e:

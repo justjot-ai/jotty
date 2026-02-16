@@ -38,7 +38,7 @@ class AgentsCommand(BaseCommand):
     async def _list_agents(self, cli: "JottyCLI") -> CommandResult:
         """List all agents."""
         try:
-            swarm = await cli.get_swarm_manager()
+            swarm = await cli.get_swarm_manager()  # type: ignore[attr-defined]
 
             # Get agent information
             agents_data: List[Dict[str, Any]] = []
@@ -57,7 +57,7 @@ class AgentsCommand(BaseCommand):
                     if profile:
                         spec = getattr(profile, "specialization", None)
                         agent_info["specialization"] = (
-                            spec.value if hasattr(spec, "value") else (spec or "general")
+                            spec.value if hasattr(spec, "value") else (spec or "general")  # type: ignore[union-attr]
                         )
                         # Calculate success rate from task_success dict
                         if hasattr(profile, "task_success") and profile.task_success:
@@ -71,20 +71,20 @@ class AgentsCommand(BaseCommand):
                 agents_data.append(agent_info)
 
             # Render table
-            table = cli.renderer.tables.agents_table(agents_data)
-            cli.renderer.tables.print_table(table)
+            table = cli.renderer.tables.agents_table(agents_data)  # type: ignore[attr-defined]
+            cli.renderer.tables.print_table(table)  # type: ignore[attr-defined]
 
-            cli.renderer.info(f"Total: {len(agents_data)} agents")
+            cli.renderer.info(f"Total: {len(agents_data)} agents")  # type: ignore[attr-defined]
             return CommandResult.ok(data=agents_data)
 
         except Exception as e:
-            cli.renderer.error(f"Failed to list agents: {e}")
+            cli.renderer.error(f"Failed to list agents: {e}")  # type: ignore[attr-defined]
             return CommandResult.fail(str(e))
 
     async def _agent_info(self, name: str, cli: "JottyCLI") -> CommandResult:
         """Show detailed agent info."""
         try:
-            swarm = await cli.get_swarm_manager()
+            swarm = await cli.get_swarm_manager()  # type: ignore[attr-defined]
 
             # Find agent
             agent_config = None
@@ -94,7 +94,7 @@ class AgentsCommand(BaseCommand):
                     break
 
             if not agent_config:
-                cli.renderer.error(f"Agent not found: {name}")
+                cli.renderer.error(f"Agent not found: {name}")  # type: ignore[attr-defined]
                 return CommandResult.fail(f"Agent not found: {name}")
 
             # Build info
@@ -118,7 +118,7 @@ class AgentsCommand(BaseCommand):
                     info["Trust Score"] = f"{getattr(profile, 'trust_score', 0.5):.2f}"
                     spec = getattr(profile, "specialization", None)
                     info["Specialization"] = (
-                        spec.value if hasattr(spec, "value") else (spec or "general")
+                        spec.value if hasattr(spec, "value") else (spec or "general")  # type: ignore[union-attr]
                     )
                     info["Avg Execution Time"] = (
                         f"{getattr(profile, 'avg_execution_time', 0.0):.2f}s"
@@ -129,29 +129,29 @@ class AgentsCommand(BaseCommand):
                 info["Capabilities"] = ", ".join(agent_config.capabilities)
 
             # Display as tree
-            cli.renderer.tree(info, title=f"Agent: {name}")
+            cli.renderer.tree(info, title=f"Agent: {name}")  # type: ignore[attr-defined]
             return CommandResult.ok(data=info)
 
         except Exception as e:
-            cli.renderer.error(f"Failed to get agent info: {e}")
+            cli.renderer.error(f"Failed to get agent info: {e}")  # type: ignore[attr-defined]
             return CommandResult.fail(str(e))
 
     async def _show_specializations(self, cli: "JottyCLI") -> CommandResult:
         """Show agent specializations."""
         try:
-            swarm = await cli.get_swarm_manager()
+            swarm = await cli.get_swarm_manager()  # type: ignore[attr-defined]
 
             if not hasattr(swarm, "swarm_intelligence"):
-                cli.renderer.warning("Swarm intelligence not available")
+                cli.renderer.warning("Swarm intelligence not available")  # type: ignore[attr-defined]
                 return CommandResult.fail("Swarm intelligence not available")
 
             specs = swarm.get_agent_specializations()
 
             if not specs:
-                cli.renderer.info("No specializations learned yet")
+                cli.renderer.info("No specializations learned yet")  # type: ignore[attr-defined]
                 return CommandResult.ok(data={})
 
-            cli.renderer.panel(
+            cli.renderer.panel(  # type: ignore[attr-defined]
                 "\n".join([f"• {agent}: {spec}" for agent, spec in specs.items()]),
                 title="Agent Specializations",
                 style="magenta",
@@ -160,7 +160,7 @@ class AgentsCommand(BaseCommand):
             return CommandResult.ok(data=specs)
 
         except Exception as e:
-            cli.renderer.error(f"Failed to get specializations: {e}")
+            cli.renderer.error(f"Failed to get specializations: {e}")  # type: ignore[attr-defined]
             return CommandResult.fail(str(e))
 
     def get_completions(self, partial: str) -> list:

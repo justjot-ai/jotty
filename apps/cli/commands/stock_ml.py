@@ -397,7 +397,7 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
         if "compare" in args.flags or "benchmark" in args.flags:
             symbol = args.positional[0].upper() if args.positional else None
             if not symbol:
-                cli.renderer.error("Symbol required for comparison")
+                cli.renderer.error("Symbol required for comparison")  # type: ignore[attr-defined]
                 return CommandResult.fail("Symbol required")
             return await self._run_comparison(args, cli, symbol)
 
@@ -459,51 +459,51 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
         target_config = self._parse_target(target_type)
 
         if not symbol:
-            cli.renderer.error("Stock symbol required.")
-            cli.renderer.info("")
-            cli.renderer.info("Usage: /stock-ml <SYMBOL> [options]")
-            cli.renderer.info("")
-            cli.renderer.info("Examples:")
-            cli.renderer.info(
+            cli.renderer.error("Stock symbol required.")  # type: ignore[attr-defined]
+            cli.renderer.info("")  # type: ignore[attr-defined]
+            cli.renderer.info("Usage: /stock-ml <SYMBOL> [options]")  # type: ignore[attr-defined]
+            cli.renderer.info("")  # type: ignore[attr-defined]
+            cli.renderer.info("Examples:")  # type: ignore[attr-defined]
+            cli.renderer.info(  # type: ignore[attr-defined]
                 "  /stock-ml RELIANCE                    # Default: next day prediction"
             )
-            cli.renderer.info("  /stock-ml RELIANCE --target next_30d_up   # 30-day direction")
-            cli.renderer.info("  /stock-ml RELIANCE --compare              # Compare all targets")
-            cli.renderer.info("  /stock-ml --sweep --stocks top10          # Sweep top 10 stocks")
-            cli.renderer.info(
+            cli.renderer.info("  /stock-ml RELIANCE --target next_30d_up   # 30-day direction")  # type: ignore[attr-defined]
+            cli.renderer.info("  /stock-ml RELIANCE --compare              # Compare all targets")  # type: ignore[attr-defined]
+            cli.renderer.info("  /stock-ml --sweep --stocks top10          # Sweep top 10 stocks")  # type: ignore[attr-defined]
+            cli.renderer.info(  # type: ignore[attr-defined]
                 "  /stock-ml --unified --stocks nifty_bank   # Cross-stock unified model"
             )
-            cli.renderer.info(
+            cli.renderer.info(  # type: ignore[attr-defined]
                 "  /stock-ml --leaderboard                   # Show sweep leaderboard"
             )
-            cli.renderer.info("  /stock-ml --list                      # List available stocks")
-            cli.renderer.info("  /stock-ml --sets                      # Show stock sets")
+            cli.renderer.info("  /stock-ml --list                      # List available stocks")  # type: ignore[attr-defined]
+            cli.renderer.info("  /stock-ml --sets                      # Show stock sets")  # type: ignore[attr-defined]
             return CommandResult.fail("Symbol required")
 
         # Load stock data
-        cli.renderer.info(f"Loading {symbol} ({timeframe} data, last {years} years)...")
+        cli.renderer.info(f"Loading {symbol} ({timeframe} data, last {years} years)...")  # type: ignore[attr-defined]
         try:
             df = await self._load_stock_data(symbol, timeframe, years, cli)
             if df is None or len(df) < 100:
-                cli.renderer.error(f"Insufficient data for {symbol}")
+                cli.renderer.error(f"Insufficient data for {symbol}")  # type: ignore[attr-defined]
                 return CommandResult.fail("Insufficient data")
         except Exception as e:
-            cli.renderer.error(f"Failed to load data: {e}")
+            cli.renderer.error(f"Failed to load data: {e}")  # type: ignore[attr-defined]
             return CommandResult.fail(str(e))
 
-        cli.renderer.info(
+        cli.renderer.info(  # type: ignore[attr-defined]
             f"Loaded {len(df)} records ({df['date'].min().date()} to {df['date'].max().date()})"
         )
 
         # Generate features and target
-        cli.renderer.info(f"Target: {target_config['desc']} ({target_config['type']})")
+        cli.renderer.info(f"Target: {target_config['desc']} ({target_config['type']})")  # type: ignore[attr-defined]
         X, y, feature_names = self._create_features_and_target(df, target_config)
 
         if X is None or len(X) < 100:
-            cli.renderer.error("Insufficient data after feature engineering")
+            cli.renderer.error("Insufficient data after feature engineering")  # type: ignore[attr-defined]
             return CommandResult.fail("Insufficient data")
 
-        cli.renderer.info(f"Technical Features: {len(feature_names)}")
+        cli.renderer.info(f"Technical Features: {len(feature_names)}")  # type: ignore[attr-defined]
 
         # Add fundamental features from Yahoo Finance if enabled
         if use_fundamentals:
@@ -512,7 +512,7 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
 
                 from Jotty.core.capabilities.skills.ml import FundamentalFeaturesSkill
 
-                cli.renderer.status(f"Downloading fundamental data for {symbol}...")
+                cli.renderer.status(f"Downloading fundamental data for {symbol}...")  # type: ignore[attr-defined]
 
                 fund_skill = FundamentalFeaturesSkill()
                 fund_features = await fund_skill.get_fundamental_features(symbol, df_prices=df)
@@ -544,17 +544,17 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
 
                     if added_features:
                         feature_names = list(feature_names) + added_features
-                        cli.renderer.info(
+                        cli.renderer.info(  # type: ignore[attr-defined]
                             f"Fundamental Features: {len(added_features)} (time-varying)"
                         )
                     else:
-                        cli.renderer.info("Note: No time-varying fundamental features")
+                        cli.renderer.info("Note: No time-varying fundamental features")  # type: ignore[attr-defined]
                 else:
-                    cli.renderer.info("Note: No fundamental data available")
+                    cli.renderer.info("Note: No fundamental data available")  # type: ignore[attr-defined]
             except Exception as e:
-                cli.renderer.info(f"Note: Fundamental features skipped: {e}")
+                cli.renderer.info(f"Note: Fundamental features skipped: {e}")  # type: ignore[attr-defined]
 
-        cli.renderer.info(f"Total Features: {len(feature_names)}, Samples: {len(X)}")
+        cli.renderer.info(f"Total Features: {len(feature_names)}, Samples: {len(X)}")  # type: ignore[attr-defined]
 
         # Check if backtesting is enabled
         run_backtest = "backtest" in args.flags or "bt" in args.flags
@@ -571,10 +571,10 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
         )
 
         # Run ML pipeline
-        cli.renderer.info("")
-        cli.renderer.header(f"Stock ML: {symbol}")
-        cli.renderer.info(f"Target: {target_type}")
-        cli.renderer.info(f"Problem: {target_config['type']}")
+        cli.renderer.info("")  # type: ignore[attr-defined]
+        cli.renderer.header(f"Stock ML: {symbol}")  # type: ignore[attr-defined]
+        cli.renderer.info(f"Target: {target_type}")  # type: ignore[attr-defined]
+        cli.renderer.info(f"Problem: {target_config['type']}")  # type: ignore[attr-defined]
 
         try:
             result = await self._run_stock_ml(
@@ -596,7 +596,7 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
             )
             return CommandResult.ok(data=result)
         except Exception as e:
-            cli.renderer.error(f"ML pipeline failed: {e}")
+            cli.renderer.error(f"ML pipeline failed: {e}")  # type: ignore[attr-defined]
             import traceback
 
             traceback.print_exc()
@@ -1505,7 +1505,7 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
 
         # Feature importance (normalized to percentages)
         if hasattr(best_model, "feature_importances_"):
-            raw_importance = best_model.feature_importances_
+            raw_importance = best_model.feature_importances_  # type: ignore[union-attr]
             total = sum(raw_importance) if sum(raw_importance) > 0 else 1
             importance = {
                 feat: (imp / total) * 100 for feat, imp in zip(feature_names, raw_importance)
@@ -1760,7 +1760,7 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
                 # Get predictions on full test set for signals
                 split_idx = int(len(X) * 0.8)
                 X_test_full = X.iloc[split_idx:]
-                signals = best_model.predict(X_test_full)
+                signals = best_model.predict(X_test_full)  # type: ignore[union-attr]
 
                 # Pad signals to match price data
                 full_signals = np.zeros(len(df_ohlcv))
@@ -1864,10 +1864,10 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
         tf_dir = self.TIMEFRAMES.get(timeframe.lower(), "DayData")
         data_path = self.DATA_BASE / tf_dir
 
-        cli.renderer.header(f"Available Stocks ({timeframe})")
+        cli.renderer.header(f"Available Stocks ({timeframe})")  # type: ignore[attr-defined]
 
         if not data_path.exists():
-            cli.renderer.error(f"Data directory not found: {data_path}")
+            cli.renderer.error(f"Data directory not found: {data_path}")  # type: ignore[attr-defined]
             return CommandResult.fail("Directory not found")
 
         # Get unique symbols from 2024
@@ -1880,40 +1880,40 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
             if match:
                 symbols.add(match.group(1))
 
-        symbols = sorted(symbols)
+        symbols = sorted(symbols)  # type: ignore[assignment]
 
-        cli.renderer.info(f"Found {len(symbols)} stocks")
-        cli.renderer.info("")
+        cli.renderer.info(f"Found {len(symbols)} stocks")  # type: ignore[attr-defined]
+        cli.renderer.info("")  # type: ignore[attr-defined]
 
         # Display in columns
         cols = 5
         for i in range(0, len(symbols), cols):
             row = symbols[i : i + cols]
-            cli.renderer.info("  " + "  ".join(f"{s:<12}" for s in row))
+            cli.renderer.info("  " + "  ".join(f"{s:<12}" for s in row))  # type: ignore[attr-defined]
 
         return CommandResult.ok(data=list(symbols))
 
     def _show_targets(self, cli: "JottyCLI") -> CommandResult:
         """Show available target types."""
-        cli.renderer.header("Available Target Types")
-        cli.renderer.info("")
-        cli.renderer.info("Predefined targets:")
-        cli.renderer.info("┌─────────────────┬────────────────┬───────────────────────────────┐")
-        cli.renderer.info("│     Target      │      Type      │         Description           │")
-        cli.renderer.info("├─────────────────┼────────────────┼───────────────────────────────┤")
+        cli.renderer.header("Available Target Types")  # type: ignore[attr-defined]
+        cli.renderer.info("")  # type: ignore[attr-defined]
+        cli.renderer.info("Predefined targets:")  # type: ignore[attr-defined]
+        cli.renderer.info("┌─────────────────┬────────────────┬───────────────────────────────┐")  # type: ignore[attr-defined]
+        cli.renderer.info("│     Target      │      Type      │         Description           │")  # type: ignore[attr-defined]
+        cli.renderer.info("├─────────────────┼────────────────┼───────────────────────────────┤")  # type: ignore[attr-defined]
         for name, config in self.TARGET_TYPES.items():
-            cli.renderer.info(f"│ {name:<15} │ {config['type']:<14} │ {config['desc']:<29} │")
-        cli.renderer.info("└─────────────────┴────────────────┴───────────────────────────────┘")
+            cli.renderer.info(f"│ {name:<15} │ {config['type']:<14} │ {config['desc']:<29} │")  # type: ignore[attr-defined]
+        cli.renderer.info("└─────────────────┴────────────────┴───────────────────────────────┘")  # type: ignore[attr-defined]
 
-        cli.renderer.info("")
-        cli.renderer.info("Custom targets (dynamic):")
-        cli.renderer.info("  next_Nd_up     - Binary: price up after N days")
-        cli.renderer.info("  return_Nd      - Continuous: N-day return percentage")
-        cli.renderer.info("  volatility_Nd  - Continuous: N-day volatility")
-        cli.renderer.info("")
-        cli.renderer.info("Examples:")
-        cli.renderer.info("  /stock-ml RELIANCE --target next_45d_up")
-        cli.renderer.info("  /stock-ml RELIANCE --target return_90d")
+        cli.renderer.info("")  # type: ignore[attr-defined]
+        cli.renderer.info("Custom targets (dynamic):")  # type: ignore[attr-defined]
+        cli.renderer.info("  next_Nd_up     - Binary: price up after N days")  # type: ignore[attr-defined]
+        cli.renderer.info("  return_Nd      - Continuous: N-day return percentage")  # type: ignore[attr-defined]
+        cli.renderer.info("  volatility_Nd  - Continuous: N-day volatility")  # type: ignore[attr-defined]
+        cli.renderer.info("")  # type: ignore[attr-defined]
+        cli.renderer.info("Examples:")  # type: ignore[attr-defined]
+        cli.renderer.info("  /stock-ml RELIANCE --target next_45d_up")  # type: ignore[attr-defined]
+        cli.renderer.info("  /stock-ml RELIANCE --target return_90d")  # type: ignore[attr-defined]
 
         return CommandResult.ok(data=self.TARGET_TYPES)
 
@@ -2116,14 +2116,14 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
     def _show_leaderboard(self, cli: "JottyCLI") -> CommandResult:
         """Show leaderboard from saved sweep results."""
         if not self.SWEEP_RESULTS_FILE.exists():
-            cli.renderer.info("No sweep results yet. Run: /stock-ml --sweep --stocks top10")
+            cli.renderer.info("No sweep results yet. Run: /stock-ml --sweep --stocks top10")  # type: ignore[attr-defined]
             return CommandResult.ok(data=[])
 
         with open(self.SWEEP_RESULTS_FILE) as f:
             results = json.load(f)
 
         if not results:
-            cli.renderer.info("No sweep results yet.")
+            cli.renderer.info("No sweep results yet.")  # type: ignore[attr-defined]
             return CommandResult.ok(data=[])
 
         # Sort by AUC
@@ -2137,76 +2137,76 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
                 unique_best.append(r)
                 seen_stocks.add(r["symbol"])
 
-        cli.renderer.header("Stock ML Leaderboard")
-        cli.renderer.info(f"Total results: {len(results)}")
-        cli.renderer.info("")
+        cli.renderer.header("Stock ML Leaderboard")  # type: ignore[attr-defined]
+        cli.renderer.info(f"Total results: {len(results)}")  # type: ignore[attr-defined]
+        cli.renderer.info("")  # type: ignore[attr-defined]
 
         # Top 20 overall
-        cli.renderer.info("Top 20 Overall:")
-        cli.renderer.info("┌──────────────┬─────────────┬───────────┬──────────┬──────────┐")
-        cli.renderer.info("│    Symbol    │   Target    │ Timeframe │ Accuracy │   AUC    │")
-        cli.renderer.info("├──────────────┼─────────────┼───────────┼──────────┼──────────┤")
+        cli.renderer.info("Top 20 Overall:")  # type: ignore[attr-defined]
+        cli.renderer.info("┌──────────────┬─────────────┬───────────┬──────────┬──────────┐")  # type: ignore[attr-defined]
+        cli.renderer.info("│    Symbol    │   Target    │ Timeframe │ Accuracy │   AUC    │")  # type: ignore[attr-defined]
+        cli.renderer.info("├──────────────┼─────────────┼───────────┼──────────┼──────────┤")  # type: ignore[attr-defined]
 
         for i, r in enumerate(sorted_results[:20]):
             marker = "" if i == 0 else " "
-            cli.renderer.info(
+            cli.renderer.info(  # type: ignore[attr-defined]
                 f"│{marker}{r['symbol']:<12} │ {r['target']:<11} │ {r['timeframe']:<9} │ "
                 f"{r.get('accuracy', 0):^8.4f} │ {r.get('auc', 0):^8.4f} │"
             )
 
-        cli.renderer.info("└──────────────┴─────────────┴───────────┴──────────┴──────────┘")
+        cli.renderer.info("└──────────────┴─────────────┴───────────┴──────────┴──────────┘")  # type: ignore[attr-defined]
 
         # Best per stock
-        cli.renderer.info("")
-        cli.renderer.info("Best per Stock:")
-        cli.renderer.info("┌──────────────┬─────────────┬──────────┐")
-        cli.renderer.info("│    Symbol    │ Best Target │   AUC    │")
-        cli.renderer.info("├──────────────┼─────────────┼──────────┤")
+        cli.renderer.info("")  # type: ignore[attr-defined]
+        cli.renderer.info("Best per Stock:")  # type: ignore[attr-defined]
+        cli.renderer.info("┌──────────────┬─────────────┬──────────┐")  # type: ignore[attr-defined]
+        cli.renderer.info("│    Symbol    │ Best Target │   AUC    │")  # type: ignore[attr-defined]
+        cli.renderer.info("├──────────────┼─────────────┼──────────┤")  # type: ignore[attr-defined]
 
         for r in unique_best[:15]:
-            cli.renderer.info(
+            cli.renderer.info(  # type: ignore[attr-defined]
                 f"│ {r['symbol']:<12} │ {r['target']:<11} │ {r.get('auc', 0):^8.4f} │"
             )
 
-        cli.renderer.info("└──────────────┴─────────────┴──────────┘")
+        cli.renderer.info("└──────────────┴─────────────┴──────────┘")  # type: ignore[attr-defined]
 
         return CommandResult.ok(data=sorted_results[:20])
 
     def _show_stock_sets(self, cli: "JottyCLI") -> CommandResult:
         """Show available stock sets for sweep."""
-        cli.renderer.header("Available Stock Sets")
-        cli.renderer.info("")
+        cli.renderer.header("Available Stock Sets")  # type: ignore[attr-defined]
+        cli.renderer.info("")  # type: ignore[attr-defined]
 
         for name, stocks in self.STOCK_SETS.items():
-            cli.renderer.info(f"{name} ({len(stocks)} stocks):")
+            cli.renderer.info(f"{name} ({len(stocks)} stocks):")  # type: ignore[attr-defined]
             # Display in rows of 5
             for i in range(0, len(stocks), 5):
                 row = stocks[i : i + 5]
-                cli.renderer.info("  " + ", ".join(row))
-            cli.renderer.info("")
+                cli.renderer.info("  " + ", ".join(row))  # type: ignore[attr-defined]
+            cli.renderer.info("")  # type: ignore[attr-defined]
 
         # Show available indices from JSON
         if self.INDICES_JSON.exists():
-            cli.renderer.info("")
-            cli.renderer.header("Available Indices (from niftyindices.com)")
+            cli.renderer.info("")  # type: ignore[attr-defined]
+            cli.renderer.header("Available Indices (from niftyindices.com)")  # type: ignore[attr-defined]
             try:
                 with open(self.INDICES_JSON) as f:
                     indices = json.load(f)
                 for name in sorted(indices.keys())[:15]:
                     key = name.lower().replace(" ", "_").replace("-", "_")
-                    cli.renderer.info(f"  {key}")
-                cli.renderer.info(f"  ... and {len(indices) - 15} more")
+                    cli.renderer.info(f"  {key}")  # type: ignore[attr-defined]
+                cli.renderer.info(f"  ... and {len(indices) - 15} more")  # type: ignore[attr-defined]
             except Exception:
                 # Index fetching failed, skip display
                 pass
 
-        cli.renderer.info("")
-        cli.renderer.info("Usage:")
-        cli.renderer.info("  /stock-ml --sweep --stocks top10")
-        cli.renderer.info(
+        cli.renderer.info("")  # type: ignore[attr-defined]
+        cli.renderer.info("Usage:")  # type: ignore[attr-defined]
+        cli.renderer.info("  /stock-ml --sweep --stocks top10")  # type: ignore[attr-defined]
+        cli.renderer.info(  # type: ignore[attr-defined]
             "  /stock-ml --sweep --stocks nifty_bank       # Load from niftyindices.com"
         )
-        cli.renderer.info("  /stock-ml --sweep --stocks RELIANCE,TCS,INFY")
+        cli.renderer.info("  /stock-ml --sweep --stocks RELIANCE,TCS,INFY")  # type: ignore[attr-defined]
 
         return CommandResult.ok(data=self.STOCK_SETS)
 
@@ -2388,7 +2388,7 @@ class StockMLCommand(StockMLTrainingMixin, StockMLSwarmMixin, BaseCommand):
         return "Low predictability; may be driven by external factors"
 
     def __init__(self) -> None:
-        self.Q = {}  # State-Action -> (value, count, last_updated)
+        self.Q = {}  # State-Action -> (value, count, last_updated)  # type: ignore[var-annotated]
         self.alpha = 0.1  # Learning rate
         self.gamma = 0.9  # Discount factor (lower for stock ML - focus on immediate)
         self.epsilon = 0.15  # Exploration rate

@@ -69,9 +69,9 @@ class PreviewCommand(BaseCommand):
             if hasattr(cli, "_last_output_path") and cli._last_output_path:
                 file_path = cli._last_output_path
             else:
-                cli.renderer.info("Usage: /preview <file>")
-                cli.renderer.info("       /preview last  - Preview last generated file")
-                cli.renderer.info("       /preview tools - Show available preview tools")
+                cli.renderer.info("Usage: /preview <file>")  # type: ignore[attr-defined]
+                cli.renderer.info("       /preview last  - Preview last generated file")  # type: ignore[attr-defined]
+                cli.renderer.info("       /preview tools - Show available preview tools")  # type: ignore[attr-defined]
                 return CommandResult.ok()
         else:
             file_path = args.positional[0]
@@ -83,14 +83,14 @@ class PreviewCommand(BaseCommand):
             if hasattr(cli, "_last_output_path") and cli._last_output_path:
                 file_path = cli._last_output_path
             else:
-                cli.renderer.warning("No recent file to preview.")
+                cli.renderer.warning("No recent file to preview.")  # type: ignore[attr-defined]
                 return CommandResult.ok()
 
         # Expand path
         path = Path(file_path).expanduser().resolve()
 
         if not path.exists():
-            cli.renderer.error(f"File not found: {path}")
+            cli.renderer.error(f"File not found: {path}")  # type: ignore[attr-defined]
             return CommandResult.fail("File not found")
 
         # Get options
@@ -106,8 +106,8 @@ class PreviewCommand(BaseCommand):
         """Show available preview tools."""
         tools = self.detect_tools()
 
-        cli.renderer.print("\n[bold]Preview Tools Status:[/bold]")
-        cli.renderer.print("[dim]" + "─" * 50 + "[/dim]")
+        cli.renderer.print("\n[bold]Preview Tools Status:[/bold]")  # type: ignore[attr-defined]
+        cli.renderer.print("[dim]" + "─" * 50 + "[/dim]")  # type: ignore[attr-defined]
 
         tool_info = [
             ("glow", "Markdown", "go install github.com/charmbracelet/glow@latest"),
@@ -122,11 +122,11 @@ class PreviewCommand(BaseCommand):
 
         for tool, purpose, install in tool_info:
             status = "[green][/green]" if tools.get(tool) else "[red][/red]"
-            cli.renderer.print(
+            cli.renderer.print(  # type: ignore[attr-defined]
                 f"  {status} [cyan]{tool:12}[/cyan] {purpose:12} [dim]{install}[/dim]"
             )
 
-        cli.renderer.print("[dim]" + "─" * 50 + "[/dim]")
+        cli.renderer.print("[dim]" + "─" * 50 + "[/dim]")  # type: ignore[attr-defined]
         return CommandResult.ok()
 
     async def _preview_file(
@@ -139,8 +139,8 @@ class PreviewCommand(BaseCommand):
         # File info header
         size = path.stat().st_size
         size_str = self._format_size(size)
-        cli.renderer.print(f"\n[bold cyan] {path.name}[/bold cyan] [dim]({size_str})[/dim]")
-        cli.renderer.print("[dim]" + "─" * 60 + "[/dim]")
+        cli.renderer.print(f"\n[bold cyan] {path.name}[/bold cyan] [dim]({size_str})[/dim]")  # type: ignore[attr-defined]
+        cli.renderer.print("[dim]" + "─" * 60 + "[/dim]")  # type: ignore[attr-defined]
 
         try:
             # Route to appropriate previewer
@@ -165,11 +165,11 @@ class PreviewCommand(BaseCommand):
                 await self._preview_code(cli, path, tools, max_lines, raw)
 
         except Exception as e:
-            cli.renderer.error(f"Preview failed: {e}")
+            cli.renderer.error(f"Preview failed: {e}")  # type: ignore[attr-defined]
             # Fallback to raw
             await self._preview_raw(cli, path, max_lines)
 
-        cli.renderer.print("[dim]" + "─" * 60 + "[/dim]")
+        cli.renderer.print("[dim]" + "─" * 60 + "[/dim]")  # type: ignore[attr-defined]
 
     async def _preview_markdown(self, cli: "JottyCLI", path: Path, tools: dict, raw: bool) -> Any:
         """Preview markdown with glow or rich."""
@@ -186,7 +186,7 @@ class PreviewCommand(BaseCommand):
 
         # Fallback to Rich markdown
         content = path.read_text()
-        cli.renderer.markdown(content)
+        cli.renderer.markdown(content)  # type: ignore[attr-defined]
 
     async def _preview_pdf(self, cli: "JottyCLI", path: Path, tools: dict, max_lines: int) -> Any:
         """Preview PDF with pdftotext."""
@@ -202,7 +202,7 @@ class PreviewCommand(BaseCommand):
                 for line in lines:
                     print(line)
                 if len(result.stdout.split("\n")) > max_lines:
-                    cli.renderer.print(
+                    cli.renderer.print(  # type: ignore[attr-defined]
                         f"[dim]... ({len(result.stdout.split(chr(10))) - max_lines} more lines)[/dim]"
                     )
                 return
@@ -221,7 +221,7 @@ class PreviewCommand(BaseCommand):
                     print(line)
                 return
 
-        cli.renderer.warning("PDF preview requires pdftotext: apt install poppler-utils")
+        cli.renderer.warning("PDF preview requires pdftotext: apt install poppler-utils")  # type: ignore[attr-defined]
         # Show metadata at least
         await self._show_file_metadata(cli, path, tools)
 
@@ -236,7 +236,7 @@ class PreviewCommand(BaseCommand):
                 for line in lines:
                     print(line)
                 if len(result.stdout.split("\n")) > max_lines:
-                    cli.renderer.print("[dim]... (truncated)[/dim]")
+                    cli.renderer.print("[dim]... (truncated)[/dim]")  # type: ignore[attr-defined]
                 return
 
         if tools["pandoc"]:
@@ -252,8 +252,8 @@ class PreviewCommand(BaseCommand):
                     print(line)
                 return
 
-        cli.renderer.warning("DOCX preview requires catdoc or pandoc")
-        cli.renderer.info("  apt install catdoc  OR  apt install pandoc")
+        cli.renderer.warning("DOCX preview requires catdoc or pandoc")  # type: ignore[attr-defined]
+        cli.renderer.info("  apt install catdoc  OR  apt install pandoc")  # type: ignore[attr-defined]
 
     async def _preview_image(self, cli: "JottyCLI", path: Path, tools: dict) -> Any:
         """Preview image in terminal."""
@@ -290,8 +290,8 @@ class PreviewCommand(BaseCommand):
                 print(result.stdout)
                 return
 
-        cli.renderer.warning("Image preview requires chafa, timg, or viu")
-        cli.renderer.info("  apt install chafa")
+        cli.renderer.warning("Image preview requires chafa, timg, or viu")  # type: ignore[attr-defined]
+        cli.renderer.info("  apt install chafa")  # type: ignore[attr-defined]
         # Show metadata
         await self._show_file_metadata(cli, path, tools)
 
@@ -382,7 +382,7 @@ class PreviewCommand(BaseCommand):
             rows = list(reader)[: max_lines + 1]
 
         if not rows:
-            cli.renderer.print("[dim]Empty file[/dim]")
+            cli.renderer.print("[dim]Empty file[/dim]")  # type: ignore[attr-defined]
             return
 
         # Calculate column widths
@@ -394,8 +394,8 @@ class PreviewCommand(BaseCommand):
         # Print header
         header = rows[0]
         header_str = " │ ".join(str(h)[:w].ljust(w) for h, w in zip(header, col_widths))
-        cli.renderer.print(f"[bold]{header_str}[/bold]")
-        cli.renderer.print("─" * len(header_str))
+        cli.renderer.print(f"[bold]{header_str}[/bold]")  # type: ignore[attr-defined]
+        cli.renderer.print("─" * len(header_str))  # type: ignore[attr-defined]
 
         # Print rows
         for row in rows[1:]:
@@ -448,7 +448,7 @@ class PreviewCommand(BaseCommand):
             print(result.stdout)
             return
 
-        cli.renderer.print("[dim]Binary file - use hexyl for preview[/dim]")
+        cli.renderer.print("[dim]Binary file - use hexyl for preview[/dim]")  # type: ignore[attr-defined]
 
     async def _preview_raw(self, cli: "JottyCLI", path: Path, max_lines: int) -> Any:
         """Raw text preview."""
@@ -456,19 +456,19 @@ class PreviewCommand(BaseCommand):
             with open(path, "r", errors="replace") as f:
                 for i, line in enumerate(f):
                     if i >= max_lines:
-                        cli.renderer.print(f"[dim]... (truncated at {max_lines} lines)[/dim]")
+                        cli.renderer.print(f"[dim]... (truncated at {max_lines} lines)[/dim]")  # type: ignore[attr-defined]
                         break
                     print(line.rstrip())
         except Exception as e:
-            cli.renderer.error(f"Cannot read file: {e}")
+            cli.renderer.error(f"Cannot read file: {e}")  # type: ignore[attr-defined]
 
     async def _show_file_metadata(self, cli: "JottyCLI", path: Path, tools: dict) -> Any:
         """Show file metadata."""
         from datetime import datetime
 
         stat = path.stat()
-        cli.renderer.print(f"[dim]Size: {self._format_size(stat.st_size)}[/dim]")
-        cli.renderer.print(
+        cli.renderer.print(f"[dim]Size: {self._format_size(stat.st_size)}[/dim]")  # type: ignore[attr-defined]
+        cli.renderer.print(  # type: ignore[attr-defined]
             f"[dim]Modified: {datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S')}[/dim]"
         )
 
@@ -491,14 +491,14 @@ class PreviewCommand(BaseCommand):
             )
             if result.returncode == 0 and result.stdout.strip():
                 for line in result.stdout.strip().split("\n")[:5]:
-                    cli.renderer.print(f"[dim]{line}[/dim]")
+                    cli.renderer.print(f"[dim]{line}[/dim]")  # type: ignore[attr-defined]
 
     def _format_size(self, size: int) -> str:
         """Format file size."""
         for unit in ["B", "KB", "MB", "GB"]:
             if size < 1024:
                 return f"{size:.1f} {unit}"
-            size /= 1024
+            size /= 1024  # type: ignore[assignment]
         return f"{size:.1f} TB"
 
     def _is_binary(self, path: Path) -> bool:

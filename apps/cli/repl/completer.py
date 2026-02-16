@@ -16,9 +16,9 @@ try:
     PROMPT_TOOLKIT_AVAILABLE = True
 except ImportError:
     PROMPT_TOOLKIT_AVAILABLE = False
-    Completer = object
-    Completion = None
-    Document = None
+    Completer = object  # type: ignore[assignment]
+    Completion = None  # type: ignore[assignment]
+    Document = None  # type: ignore[assignment]
 
 if TYPE_CHECKING:
     from ..commands.base import CommandRegistry

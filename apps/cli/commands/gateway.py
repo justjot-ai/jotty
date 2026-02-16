@@ -52,7 +52,7 @@ class GatewayCommand(BaseCommand):
         elif subcommand == "webhooks":
             return await self._show_webhooks(cli, port)
         else:
-            cli.renderer.error(f"Unknown subcommand: {subcommand}")
+            cli.renderer.error(f"Unknown subcommand: {subcommand}")  # type: ignore[attr-defined]
             return CommandResult.fail("Unknown subcommand")
 
     async def _start_gateway(
@@ -67,9 +67,9 @@ class GatewayCommand(BaseCommand):
             sock.bind((host, port))
             sock.close()
         except OSError:
-            cli.renderer.error(f"Port {port} is already in use!")
-            cli.renderer.info("Stop existing: /gateway stop")
-            cli.renderer.info(f"Or use different port: /gateway start --port {port + 1}")
+            cli.renderer.error(f"Port {port} is already in use!")  # type: ignore[attr-defined]
+            cli.renderer.info("Stop existing: /gateway stop")  # type: ignore[attr-defined]
+            cli.renderer.info(f"Or use different port: /gateway start --port {port + 1}")  # type: ignore[attr-defined]
             return CommandResult.fail(f"Port {port} in use")
 
         if foreground:
@@ -79,7 +79,7 @@ class GatewayCommand(BaseCommand):
 
     async def _run_gateway_background(self, cli: "JottyCLI", host: str, port: int) -> CommandResult:
         """Start gateway in background."""
-        cli.renderer.info(f"Starting gateway on port {port}...")
+        cli.renderer.info(f"Starting gateway on port {port}...")  # type: ignore[attr-defined]
 
         # Get Jotty path
         jotty_path = str(Path(__file__).parent.parent.parent.resolve())
@@ -116,41 +116,41 @@ gateway.run()
         await asyncio.sleep(1)
 
         if process.poll() is None:
-            cli.renderer.success(f"Gateway running in background (PID: {process.pid})")
-            cli.renderer.newline()
-            cli.renderer.print("[bold green]PWA Chat App:[/bold green]")
-            cli.renderer.print(f"  http://localhost:{port}")
-            cli.renderer.print(f"  http://localhost:{port}/app")
-            cli.renderer.newline()
-            cli.renderer.print("[bold]API:[/bold]")
-            cli.renderer.print(f"  Docs: http://localhost:{port}/docs")
-            cli.renderer.print(f"  Health: http://localhost:{port}/health")
-            cli.renderer.newline()
-            cli.renderer.print("[bold]Webhook URLs:[/bold]")
-            cli.renderer.print(f"  Telegram: http://YOUR_DOMAIN:{port}/webhook/telegram")
-            cli.renderer.print(f"  Slack:    http://YOUR_DOMAIN:{port}/webhook/slack")
-            cli.renderer.print(f"  Discord:  http://YOUR_DOMAIN:{port}/webhook/discord")
-            cli.renderer.print(f"  WhatsApp: http://YOUR_DOMAIN:{port}/webhook/whatsapp")
-            cli.renderer.print(f"  WebSocket: ws://YOUR_DOMAIN:{port}/ws")
-            cli.renderer.newline()
-            cli.renderer.info("Open browser: http://localhost:{port}")
-            cli.renderer.info("Stop with: /gateway stop")
+            cli.renderer.success(f"Gateway running in background (PID: {process.pid})")  # type: ignore[attr-defined]
+            cli.renderer.newline()  # type: ignore[attr-defined]
+            cli.renderer.print("[bold green]PWA Chat App:[/bold green]")  # type: ignore[attr-defined]
+            cli.renderer.print(f"  http://localhost:{port}")  # type: ignore[attr-defined]
+            cli.renderer.print(f"  http://localhost:{port}/app")  # type: ignore[attr-defined]
+            cli.renderer.newline()  # type: ignore[attr-defined]
+            cli.renderer.print("[bold]API:[/bold]")  # type: ignore[attr-defined]
+            cli.renderer.print(f"  Docs: http://localhost:{port}/docs")  # type: ignore[attr-defined]
+            cli.renderer.print(f"  Health: http://localhost:{port}/health")  # type: ignore[attr-defined]
+            cli.renderer.newline()  # type: ignore[attr-defined]
+            cli.renderer.print("[bold]Webhook URLs:[/bold]")  # type: ignore[attr-defined]
+            cli.renderer.print(f"  Telegram: http://YOUR_DOMAIN:{port}/webhook/telegram")  # type: ignore[attr-defined]
+            cli.renderer.print(f"  Slack:    http://YOUR_DOMAIN:{port}/webhook/slack")  # type: ignore[attr-defined]
+            cli.renderer.print(f"  Discord:  http://YOUR_DOMAIN:{port}/webhook/discord")  # type: ignore[attr-defined]
+            cli.renderer.print(f"  WhatsApp: http://YOUR_DOMAIN:{port}/webhook/whatsapp")  # type: ignore[attr-defined]
+            cli.renderer.print(f"  WebSocket: ws://YOUR_DOMAIN:{port}/ws")  # type: ignore[attr-defined]
+            cli.renderer.newline()  # type: ignore[attr-defined]
+            cli.renderer.info("Open browser: http://localhost:{port}")  # type: ignore[attr-defined]
+            cli.renderer.info("Stop with: /gateway stop")  # type: ignore[attr-defined]
         else:
-            cli.renderer.error("Gateway failed to start")
+            cli.renderer.error("Gateway failed to start")  # type: ignore[attr-defined]
             return CommandResult.fail("Gateway failed")
 
         return CommandResult.ok()
 
     async def _run_gateway_foreground(self, cli: "JottyCLI", host: str, port: int) -> CommandResult:
         """Run gateway in foreground (blocking)."""
-        cli.renderer.header("Starting Jotty Gateway (foreground)")
-        cli.renderer.info(f"Host: {host}")
-        cli.renderer.info(f"Port: {port}")
-        cli.renderer.newline()
-        cli.renderer.print("[bold green]PWA Chat App: http://localhost:{port}[/bold green]")
-        cli.renderer.print(f"API Docs: http://localhost:{port}/docs")
-        cli.renderer.newline()
-        cli.renderer.info("Press Ctrl+C to stop")
+        cli.renderer.header("Starting Jotty Gateway (foreground)")  # type: ignore[attr-defined]
+        cli.renderer.info(f"Host: {host}")  # type: ignore[attr-defined]
+        cli.renderer.info(f"Port: {port}")  # type: ignore[attr-defined]
+        cli.renderer.newline()  # type: ignore[attr-defined]
+        cli.renderer.print("[bold green]PWA Chat App: http://localhost:{port}[/bold green]")  # type: ignore[attr-defined]
+        cli.renderer.print(f"API Docs: http://localhost:{port}/docs")  # type: ignore[attr-defined]
+        cli.renderer.newline()  # type: ignore[attr-defined]
+        cli.renderer.info("Press Ctrl+C to stop")  # type: ignore[attr-defined]
 
         try:
             import uvicorn
@@ -166,11 +166,11 @@ gateway.run()
             await server.serve()
 
         except ImportError as e:
-            cli.renderer.error(f"Missing dependency: {e}")
-            cli.renderer.info("Install with: pip install fastapi uvicorn")
+            cli.renderer.error(f"Missing dependency: {e}")  # type: ignore[attr-defined]
+            cli.renderer.info("Install with: pip install fastapi uvicorn")  # type: ignore[attr-defined]
             return CommandResult.fail(str(e))
         except KeyboardInterrupt:
-            cli.renderer.info("Gateway stopped.")
+            cli.renderer.info("Gateway stopped.")  # type: ignore[attr-defined]
 
         return CommandResult.ok()
 
@@ -181,19 +181,19 @@ gateway.run()
         pid_file = Path.home() / ".jotty" / "gateway.pid"
 
         if not pid_file.exists():
-            cli.renderer.warning("No gateway PID file found")
+            cli.renderer.warning("No gateway PID file found")  # type: ignore[attr-defined]
             return CommandResult.ok()
 
         try:
             pid = int(pid_file.read_text().strip())
             os.kill(pid, signal.SIGTERM)
             pid_file.unlink()
-            cli.renderer.success(f"Gateway stopped (PID: {pid})")
+            cli.renderer.success(f"Gateway stopped (PID: {pid})")  # type: ignore[attr-defined]
         except ProcessLookupError:
             pid_file.unlink()
-            cli.renderer.info("Gateway was not running")
+            cli.renderer.info("Gateway was not running")  # type: ignore[attr-defined]
         except Exception as e:
-            cli.renderer.error(f"Failed to stop gateway: {e}")
+            cli.renderer.error(f"Failed to stop gateway: {e}")  # type: ignore[attr-defined]
             return CommandResult.fail(str(e))
 
         return CommandResult.ok()
@@ -207,56 +207,56 @@ gateway.run()
                 async with session.get(f"http://localhost:{port}/health", timeout=5) as resp:
                     if resp.status == 200:
                         data = await resp.json()
-                        cli.renderer.success("Gateway is running")
-                        cli.renderer.print(f"  Active sessions: {data.get('active_sessions', 0)}")
-                        cli.renderer.print(
+                        cli.renderer.success("Gateway is running")  # type: ignore[attr-defined]
+                        cli.renderer.print(f"  Active sessions: {data.get('active_sessions', 0)}")  # type: ignore[attr-defined]
+                        cli.renderer.print(  # type: ignore[attr-defined]
                             f"  WebSocket clients: {data.get('websocket_clients', 0)}"
                         )
                         return CommandResult.ok(data=data)
                     else:
-                        cli.renderer.warning(f"Gateway returned {resp.status}")
+                        cli.renderer.warning(f"Gateway returned {resp.status}")  # type: ignore[attr-defined]
         except Exception as e:
-            cli.renderer.warning(f"Gateway not accessible: {e}")
-            cli.renderer.info("Start with: /gateway start")
+            cli.renderer.warning(f"Gateway not accessible: {e}")  # type: ignore[attr-defined]
+            cli.renderer.info("Start with: /gateway start")  # type: ignore[attr-defined]
 
         return CommandResult.ok()
 
     async def _show_webhooks(self, cli: "JottyCLI", port: int) -> CommandResult:
         """Show webhook configuration URLs."""
-        cli.renderer.header("Gateway Webhook URLs")
+        cli.renderer.header("Gateway Webhook URLs")  # type: ignore[attr-defined]
 
         # Get public URL if available
         public_url = os.getenv("PUBLIC_URL", f"http://YOUR_DOMAIN:{port}")
 
-        cli.renderer.print("\n[bold]Configure these URLs in each platform:[/bold]\n")
+        cli.renderer.print("\n[bold]Configure these URLs in each platform:[/bold]\n")  # type: ignore[attr-defined]
 
-        cli.renderer.print("[cyan]Telegram:[/cyan]")
-        cli.renderer.print("  1. Talk to @BotFather, use /setwebhook")
-        cli.renderer.print(f"  2. URL: {public_url}/webhook/telegram")
-        cli.renderer.print("")
+        cli.renderer.print("[cyan]Telegram:[/cyan]")  # type: ignore[attr-defined]
+        cli.renderer.print("  1. Talk to @BotFather, use /setwebhook")  # type: ignore[attr-defined]
+        cli.renderer.print(f"  2. URL: {public_url}/webhook/telegram")  # type: ignore[attr-defined]
+        cli.renderer.print("")  # type: ignore[attr-defined]
 
-        cli.renderer.print("[cyan]Slack:[/cyan]")
-        cli.renderer.print("  1. Go to api.slack.com/apps > Event Subscriptions")
-        cli.renderer.print(f"  2. Request URL: {public_url}/webhook/slack")
-        cli.renderer.print("  3. Subscribe to: message.channels, message.im")
-        cli.renderer.print("")
+        cli.renderer.print("[cyan]Slack:[/cyan]")  # type: ignore[attr-defined]
+        cli.renderer.print("  1. Go to api.slack.com/apps > Event Subscriptions")  # type: ignore[attr-defined]
+        cli.renderer.print(f"  2. Request URL: {public_url}/webhook/slack")  # type: ignore[attr-defined]
+        cli.renderer.print("  3. Subscribe to: message.channels, message.im")  # type: ignore[attr-defined]
+        cli.renderer.print("")  # type: ignore[attr-defined]
 
-        cli.renderer.print("[cyan]Discord:[/cyan]")
-        cli.renderer.print("  1. Go to discord.com/developers/applications")
-        cli.renderer.print(f"  2. Interactions Endpoint: {public_url}/webhook/discord")
-        cli.renderer.print("")
+        cli.renderer.print("[cyan]Discord:[/cyan]")  # type: ignore[attr-defined]
+        cli.renderer.print("  1. Go to discord.com/developers/applications")  # type: ignore[attr-defined]
+        cli.renderer.print(f"  2. Interactions Endpoint: {public_url}/webhook/discord")  # type: ignore[attr-defined]
+        cli.renderer.print("")  # type: ignore[attr-defined]
 
-        cli.renderer.print("[cyan]WhatsApp:[/cyan]")
-        cli.renderer.print("  1. Go to developers.facebook.com > WhatsApp")
-        cli.renderer.print(f"  2. Webhook URL: {public_url}/webhook/whatsapp")
-        cli.renderer.print("  3. Verify Token: jotty (or set WHATSAPP_VERIFY_TOKEN)")
-        cli.renderer.print("")
+        cli.renderer.print("[cyan]WhatsApp:[/cyan]")  # type: ignore[attr-defined]
+        cli.renderer.print("  1. Go to developers.facebook.com > WhatsApp")  # type: ignore[attr-defined]
+        cli.renderer.print(f"  2. Webhook URL: {public_url}/webhook/whatsapp")  # type: ignore[attr-defined]
+        cli.renderer.print("  3. Verify Token: jotty (or set WHATSAPP_VERIFY_TOKEN)")  # type: ignore[attr-defined]
+        cli.renderer.print("")  # type: ignore[attr-defined]
 
-        cli.renderer.print("[cyan]WebSocket:[/cyan]")
-        cli.renderer.print(
+        cli.renderer.print("[cyan]WebSocket:[/cyan]")  # type: ignore[attr-defined]
+        cli.renderer.print(  # type: ignore[attr-defined]
             f"  Connect to: ws://{public_url.replace('http://', '').replace('https://', '')}/ws"
         )
-        cli.renderer.print("")
+        cli.renderer.print("")  # type: ignore[attr-defined]
 
         return CommandResult.ok()
 

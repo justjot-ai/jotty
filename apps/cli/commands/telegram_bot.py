@@ -56,21 +56,21 @@ class TelegramCommand(BaseCommand):
             return CommandResult.fail("Bot is already running. Use /telegram stop first.")
 
         try:
-            from ...telegram.bot import TelegramBotHandler
+            from ...telegram.bot import TelegramBotHandler  # type: ignore[attr-defined]
 
             # Create status callback
             def status_callback(stage: str, detail: str = "") -> Any:
-                if cli.renderer:
-                    cli.renderer.status(f"[Telegram] {stage}: {detail}")
+                if cli.renderer:  # type: ignore[attr-defined]
+                    cli.renderer.status(f"[Telegram] {stage}: {detail}")  # type: ignore[attr-defined]
 
             self._bot = TelegramBotHandler(status_callback=status_callback)
 
             # Start bot in background task
             async def run_bot() -> Any:
                 try:
-                    await self._bot.run_async()
+                    await self._bot.run_async()  # type: ignore[attr-defined]
                     # Keep running until stopped
-                    while self._bot._application:
+                    while self._bot._application:  # type: ignore[attr-defined]
                         await asyncio.sleep(1)
                 except asyncio.CancelledError:
                     logger.info("Bot task cancelled")
