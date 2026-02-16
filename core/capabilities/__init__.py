@@ -226,7 +226,7 @@ def _providers() -> list:
             except ImportError:
                 pass
         else:
-            installed: bool | None = None  # API-based, no local module  # type: ignore[assignment]
+            installed = None  # API-based, no local module  # type: ignore[assignment]
         result.append(
             {
                 "name": p["name"],  # type: ignore[index]

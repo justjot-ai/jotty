@@ -33,7 +33,7 @@ async def find_mynotes_chat(client: WhatsAppWebClient):
 
 
 async def main():
-    from Jotty.core.execution.swarms.olympiad_learning_swarm import learn_topic
+    from Jotty.core.intelligence.swarms.olympiad_learning_swarm import learn_topic
     from Jotty.core.modes.workflow import OutputChannelManager
 
     print("\n" + "=" * 80)

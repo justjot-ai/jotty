@@ -52,7 +52,7 @@ class RouteResult:
     agents_used: List[str] = None  # type: ignore[assignment]
     steps_executed: int = 0
     error: Optional[str] = None
-    errors: List[str] = []  # Multiple errors from execution  # type: ignore[assignment]
+    errors: List[str] = None  # Multiple errors from execution  # type: ignore[assignment]
     stopped_early: bool = False  # True if execution stopped due to failure
     metadata: Dict[str, Any] = None  # type: ignore[assignment]
 
