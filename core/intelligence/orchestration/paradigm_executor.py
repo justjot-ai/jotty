@@ -17,8 +17,13 @@ import time
 from typing import Any, Dict
 
 from Jotty.core.infrastructure.foundation.data_structures import EpisodeResult
-from Jotty.core.infrastructure.foundation.exceptions import AgentExecutionError, LLMError
-from Jotty.core.infrastructure.utils.async_utils import safe_status
+from Jotty.core.infrastructure.foundation.exceptions import (  # type: ignore[import-not-found]
+    AgentExecutionError,
+    LLMError,
+)
+from Jotty.core.infrastructure.utils.async_utils import (
+    safe_status,  # type: ignore[import-not-found, import]
+)
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +57,7 @@ def _extract_output_text(output: Any) -> str:
                 return str(output[field])
     # Last resort: summary if available, otherwise str()
     if hasattr(output, "summary"):
-        return output.summary
+        return output.summary  # type: ignore[no-any-return]
     return str(output)
 
 

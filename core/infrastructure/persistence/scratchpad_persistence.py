@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import List, Optional
 
 try:
-    from Jotty.core.infrastructure.foundation.types.agent_types import (
+    from Jotty.core.infrastructure.foundation.types.agent_types import (  # type: ignore[import]
         AgentMessage,
         CommunicationType,
         SharedScratchpad,
@@ -267,7 +267,7 @@ class ScratchpadPersistence:
         scratchpad = self.load_scratchpad(session_file)
 
         # Already sorted by timestamp (append-only)
-        return scratchpad.messages
+        return scratchpad.messages  # type: ignore[no-any-return]
 
     def get_messages_by_agent(self, session_file: Path, agent_name: str) -> List[AgentMessage]:
         """

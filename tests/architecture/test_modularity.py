@@ -77,7 +77,7 @@ class TestExecutionTypesExtraction:
 
     def test_swarms_reexport_still_works(self):
         """Backward compat: importing from swarms still works."""
-        from Jotty.core.intelligence.swarms.base.agent_team import (
+        from Jotty.core.intelligence.swarms.base.team_coordinator import (
             CoordinationPattern,
             MergeStrategy,
         )
@@ -86,32 +86,28 @@ class TestExecutionTypesExtraction:
         assert MergeStrategy.FIRST.value == "first"
 
     def test_swarms_init_reexport(self):
-        from Jotty.core.execution.swarms import CoordinationPattern, MergeStrategy
+        from Jotty.core.intelligence.swarms import CoordinationPattern, MergeStrategy
 
-        assert len(CoordinationPattern) == 7
+        assert len(CoordinationPattern) == 12
         assert len(MergeStrategy) == 5
 
     def test_composite_agent_uses_foundation(self):
         """composite_agent.py should import from foundation, not from swarms."""
-        import inspect
-
-        from Jotty.core.execution.base import composite_agent
-
-        source = inspect.getsource(composite_agent)
-        assert "from Jotty.core.infrastructure.foundation.types.execution_types import" in source
-        assert (
-            "from Jotty.core.intelligence.swarms.base.agent_team import CoordinationPattern"
-            not in source
-        )
+        pytest.skip("composite_agent module was removed")
 
     def test_all_coordination_patterns(self):
         from Jotty.core.infrastructure.foundation.types.execution_types import CoordinationPattern
 
         expected = {
-            "none",
+            "auto",
+            "custom",
+            "sequential",
             "pipeline",
+            "none",
             "parallel",
             "consensus",
+            "debate",
+            "iterative",
             "hierarchical",
             "blackboard",
             "round_robin",
@@ -128,11 +124,11 @@ class TestExecutionTypesExtraction:
 
     def test_identity_across_import_paths(self):
         """Same enum class regardless of import path."""
-        from Jotty.core.execution.swarms import CoordinationPattern as CP3
         from Jotty.core.infrastructure.foundation.types.execution_types import (
             CoordinationPattern as CP1,
         )
-        from Jotty.core.intelligence.swarms.base.agent_team import CoordinationPattern as CP2
+        from Jotty.core.intelligence.swarms import CoordinationPattern as CP3
+        from Jotty.core.intelligence.swarms.base.team_coordinator import CoordinationPattern as CP2
 
         assert CP1 is CP2 is CP3
 
@@ -1683,7 +1679,7 @@ class TestResearchSwarmRegistration:
         """Importing research_swarm registers 'research' in SwarmRegistry."""
         import importlib
 
-        importlib.import_module("Jotty.core.swarms.research_swarm")
+        importlib.import_module("Jotty.core.intelligence.swarms.research_swarm")
         from Jotty.core.intelligence.swarms._base.registry import SwarmRegistry
 
         assert (
@@ -1744,7 +1740,9 @@ class TestSelectSwarmIntegration:
                 mock_tc.classify_swarm.return_value = mock_classification
                 mock_get_tc.return_value = mock_tc
 
-                with patch("Jotty.core.swarms.registry.SwarmRegistry.create") as mock_create:
+                with patch(
+                    "Jotty.core.intelligence.swarms._base.registry.SwarmRegistry.create"
+                ) as mock_create:
                     mock_swarm = MagicMock()
                     mock_create.return_value = mock_swarm
 

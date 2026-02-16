@@ -234,7 +234,7 @@ class LearningCapability:
 
         try:
             result = await self.domain_validator(output, expected, task or "", context or {})
-            return result
+            return result  # type: ignore[no-any-return]
         except Exception as e:
             logger.error(f"Validation error in {self.learning_domain}: {e}")
             return {"valid": False, "score": 0.0, "errors": [str(e)]}

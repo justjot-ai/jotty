@@ -35,7 +35,7 @@ Usage:
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -150,12 +150,12 @@ class MemoryCapability:
             )
 
             # Update statistics
-            self._memory_stats["memories_stored"] += 1
-            self._memory_stats["last_storage"] = datetime.now().isoformat()
+            self._memory_stats["memories_stored"] += 1  # type: ignore[operator]
+            self._memory_stats["last_storage"] = datetime.now().isoformat()  # type: ignore[assignment]
 
             logger.debug(f"Stored memory in {level} level for {self.memory_domain}: {memory_id}")
 
-            return memory_id
+            return memory_id  # type: ignore[no-any-return]
 
         except Exception as e:
             logger.error(f"Failed to store memory for {self.memory_domain}: {e}")
@@ -203,8 +203,8 @@ class MemoryCapability:
             ]
 
             # Update statistics
-            self._memory_stats["memories_retrieved"] += len(domain_memories)
-            self._memory_stats["last_retrieval"] = datetime.now().isoformat()
+            self._memory_stats["memories_retrieved"] += len(domain_memories)  # type: ignore[operator]
+            self._memory_stats["last_retrieval"] = datetime.now().isoformat()  # type: ignore[assignment]
 
             logger.debug(f"Retrieved {len(domain_memories)} memories for {self.memory_domain}")
 
@@ -270,7 +270,7 @@ class MemoryCapability:
         return context
 
     async def memory_enhanced_execution(
-        self, execute_fn: callable, query: str, store_result: bool | None = None, **kwargs
+        self, execute_fn: Callable, query: str, store_result: bool | None = None, **kwargs
     ) -> Any:
         """
         Execute function with memory enhancement.
@@ -300,7 +300,7 @@ class MemoryCapability:
             kwargs["memory_context"] = memory_context
 
         # Execute function
-        result = await execute_fn(query=query, **kwargs)
+        result = await execute_fn(query=query, **kwargs)  # type: ignore[misc]
 
         # Store result if enabled
         if store_result and result:

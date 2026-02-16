@@ -37,11 +37,21 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union
 
 if TYPE_CHECKING:
     from Jotty.core.capabilities.registry.tool_validation import ToolValidator
-    from Jotty.core.infrastructure.context.context_guard import LLMContextManager
-    from Jotty.core.infrastructure.data.data_registry import DataRegistry
-    from Jotty.core.infrastructure.data.io_manager import IOManager
-    from Jotty.core.infrastructure.monitoring.monitoring.profiler import PerformanceProfiler
-    from Jotty.core.infrastructure.persistence.shared_context import SharedContext
+    from Jotty.core.infrastructure.context.context_guard import (
+        LLMContextManager,  # type: ignore[import-not-found]
+    )
+    from Jotty.core.infrastructure.data.data_registry import (
+        DataRegistry,  # type: ignore[import-not-found, import]
+    )
+    from Jotty.core.infrastructure.data.io_manager import (
+        IOManager,  # type: ignore[import-not-found, import]
+    )
+    from Jotty.core.infrastructure.monitoring.monitoring.profiler import (
+        PerformanceProfiler,  # type: ignore[import]
+    )
+    from Jotty.core.infrastructure.persistence.shared_context import (
+        SharedContext,  # type: ignore[import-not-found, import]
+    )
     from Jotty.core.intelligence.memory.cortex import SwarmMemory
     from Jotty.core.intelligence.orchestration.learning_pipeline import SwarmLearningPipeline
     from Jotty.core.intelligence.orchestration.mas_learning import MASLearning
@@ -55,19 +65,24 @@ if TYPE_CHECKING:
     from Jotty.core.intelligence.orchestration.swarm_state_manager import SwarmStateManager
     from Jotty.core.intelligence.orchestration.swarm_terminal import SwarmTerminal
     from Jotty.core.intelligence.orchestration.swarm_workflow_learner import SwarmWorkflowLearner
-    from Jotty.core.modes.agent.autonomous.intent_parser import IntentParser
-    from Jotty.core.modes.agent.planners.agentic_planner import TaskPlanner
+    from Jotty.core.modes.agent.autonomous.intent_parser import IntentParser  # type: ignore[import]
+    from Jotty.core.modes.agent.planners.agentic_planner import TaskPlanner  # type: ignore[import]
 
-from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
+from Jotty.core.infrastructure.foundation.agent_config import (
+    AgentConfig,  # type: ignore[import-not-found, import]
+)
 from Jotty.core.infrastructure.foundation.data_structures import EpisodeResult, SwarmConfig
-from Jotty.core.infrastructure.foundation.exceptions import (
+from Jotty.core.infrastructure.foundation.exceptions import (  # type: ignore[import-not-found]
     AgentExecutionError,
     ConfigurationError,
     LearningError,
     LLMError,
 )
-from Jotty.core.infrastructure.utils.async_utils import StatusReporter, safe_status
-from Jotty.core.modes.agent.auto_agent import AutoAgent
+from Jotty.core.infrastructure.utils.async_utils import (  # type: ignore[import-not-found, import]
+    StatusReporter,
+    safe_status,
+)
+from Jotty.core.modes.agent.auto_agent import AutoAgent  # type: ignore[import-not-found]
 
 from ._lazy import LazyComponent
 from .agent_runner import AgentRunner, AgentRunnerConfig
@@ -84,14 +99,20 @@ from .training_daemon import TrainingDaemon
 
 # Optional feedback channel imports
 try:
-    from Jotty.core.modes.agent.feedback_channel import FeedbackMessage, FeedbackType
+    from Jotty.core.modes.agent.feedback_channel import (  # type: ignore[import-not-found]
+        FeedbackMessage,
+        FeedbackType,
+    )
 except ImportError:
     FeedbackMessage = None  # type: ignore
     FeedbackType = None  # type: ignore
 
 # Optional observability imports
 try:
-    from Jotty.core.infrastructure.monitoring.observability import get_metrics, get_tracer
+    from Jotty.core.infrastructure.monitoring.observability import (  # type: ignore[import-not-found, import]
+        get_metrics,
+        get_tracer,
+    )
 except ImportError:
     get_metrics = None  # type: ignore
     get_tracer = None  # type: ignore
@@ -132,18 +153,25 @@ def _load_providers() -> bool:
         return True
 
     try:
-        from Jotty.skills._infrastructure import ProviderRegistry, SkillCategory
-        from Jotty.skills._providers.agent_s_provider import AgentSProvider
-        from Jotty.skills._providers.browser_use_provider import BrowserUseProvider
-        from Jotty.skills._providers.composite_provider import (
+        from Jotty.skills._infrastructure import (  # type: ignore[import]
+            ProviderRegistry,
+            SkillCategory,
+        )
+        from Jotty.skills._providers.agent_s_provider import AgentSProvider  # type: ignore[import]
+        from Jotty.skills._providers.browser_use_provider import (
+            BrowserUseProvider,  # type: ignore[import]
+        )
+        from Jotty.skills._providers.composite_provider import (  # type: ignore[import]
             AutomateWorkflowProvider,
             FullStackAgentProvider,
             ResearchAndAnalyzeProvider,
         )
-        from Jotty.skills._providers.open_interpreter_provider import (
+        from Jotty.skills._providers.open_interpreter_provider import (  # type: ignore[import]
             OpenInterpreterProvider,
         )
-        from Jotty.skills._providers.openhands_provider import OpenHandsProvider
+        from Jotty.skills._providers.openhands_provider import (
+            OpenHandsProvider,  # type: ignore[import]
+        )
 
         _provider_cache.update(
             {
@@ -274,7 +302,7 @@ def _create_profiler(config: SwarmConfig) -> Optional["PerformanceProfiler"]:
 def _create_state_manager(sm: "Orchestrator") -> "SwarmStateManager":
     from Jotty.core.intelligence.orchestration.swarm_state_manager import SwarmStateManager
 
-    agents_dict = {a.name: a for a in sm.agents}
+    agents_dict = {a.name: a for a in sm.agents}  # type: ignore[union-attr]
     return SwarmStateManager(
         swarm_task_board=sm.swarm_task_board,
         swarm_memory=sm.swarm_memory,
@@ -307,7 +335,9 @@ def _create_data_registry() -> "DataRegistry":
 
 
 def _create_context_guard() -> "LLMContextManager":
-    from Jotty.core.infrastructure.context.context_manager import SmartContextManager
+    from Jotty.core.infrastructure.context.context_manager import (
+        SmartContextManager,  # type: ignore[import-not-found, import]
+    )
 
     return SmartContextManager()
 
@@ -344,21 +374,21 @@ class AgentFactory:
             return
 
         for agent_config in sm.agents:
-            if agent_config.name in sm.runners:
+            if agent_config.name in sm.runners:  # type: ignore[union-attr]
                 continue
 
             runner_config = AgentRunnerConfig(
                 architect_prompts=sm.architect_prompts,
                 auditor_prompts=sm.auditor_prompts,
                 config=sm.config,
-                agent_name=agent_config.name,
+                agent_name=agent_config.name,  # type: ignore[union-attr]
                 enable_learning=True,
                 enable_memory=True,
             )
 
             # Propagate SwarmConfig to agent so lazy-loaded components
             # (memory, context, etc.) use the same config as Orchestrator.
-            agent = agent_config.agent
+            agent = agent_config.agent  # type: ignore[union-attr]
             if hasattr(agent, "set_jotty_config"):
                 agent.set_jotty_config(sm.config)
 
@@ -374,7 +404,7 @@ class AgentFactory:
                 swarm_terminal=sm.swarm_terminal,
                 swarm_intelligence=sm.swarm_intelligence,
             )
-            sm.runners[agent_config.name] = runner
+            sm.runners[agent_config.name] = runner  # type: ignore[union-attr]
 
         # Register agents with Axon for inter-agent communication
         self.register_agents_with_axon()
@@ -447,16 +477,16 @@ class AgentFactory:
 
         for agent_config in sm.agents:
             try:
-                agent_obj = agent_config.agent
+                agent_obj = agent_config.agent  # type: ignore[union-attr]
                 signature_obj = getattr(agent_obj, "signature", None)
                 sm.agent_slack.register_agent(
-                    agent_name=agent_config.name,
+                    agent_name=agent_config.name,  # type: ignore[union-attr]
                     signature=signature_obj if hasattr(signature_obj, "input_fields") else None,
-                    callback=_make_slack_callback(agent_config.name),
+                    callback=_make_slack_callback(agent_config.name),  # type: ignore[union-attr]
                     max_context=getattr(sm.config, "max_context_tokens", 16000),
                 )
             except Exception as e:
-                logger.warning(f"Could not register {agent_config.name} with SmartAgentSlack: {e}")
+                logger.warning(f"Could not register {agent_config.name} with SmartAgentSlack: {e}")  # type: ignore[union-attr]
 
     def create_zero_config_agents(
         self, task: str, status_callback: Optional[Callable] = None
@@ -469,7 +499,7 @@ class AgentFactory:
             )
 
             sm._zero_config_factory = ZeroConfigAgentFactory()
-        return sm._zero_config_factory.create_agents(task, status_callback)
+        return sm._zero_config_factory.create_agents(task, status_callback)  # type: ignore[no-any-return]
 
     def init_lotus_optimization(self) -> None:
         """
@@ -485,7 +515,7 @@ class AgentFactory:
         """
         sm = self._manager
         try:
-            from Jotty.core.infrastructure.integration.lotus.integration import (
+            from Jotty.core.infrastructure.integration.lotus.integration import (  # type: ignore[import]
                 LotusEnhancement,
                 _enhance_agent_runner,
             )
@@ -496,7 +526,7 @@ class AgentFactory:
                 enable_cache=True,
                 enable_adaptive_validation=True,
             )
-            sm.lotus_optimizer = sm.lotus.lotus_optimizer
+            sm.lotus_optimizer = sm.lotus.lotus_optimizer  # type: ignore[attr-defined]
 
             # Enhance all agent runners with adaptive validation
             for name, runner in sm.runners.items():
@@ -506,8 +536,8 @@ class AgentFactory:
                 # This allows validation skipping from the start
                 # (simulates 15 successful validations per agent)
                 for _ in range(15):
-                    sm.lotus.adaptive_validator.record_result(name, "architect", success=True)
-                    sm.lotus.adaptive_validator.record_result(name, "auditor", success=True)
+                    sm.lotus.adaptive_validator.record_result(name, "architect", success=True)  # type: ignore[attr-defined]
+                    sm.lotus.adaptive_validator.record_result(name, "auditor", success=True)  # type: ignore[attr-defined]
                 logger.debug(f"Pre-warmed LOTUS validator for agent: {name}")
 
             logger.info("LOTUS optimization layer initialized (pre-warmed validators)")
@@ -521,14 +551,14 @@ class AgentFactory:
         """Get LOTUS optimization statistics."""
         sm = self._manager
         if sm.lotus:
-            return sm.lotus.get_stats()
+            return sm.lotus.get_stats()  # type: ignore[unreachable]
         return {}
 
     def get_lotus_savings(self) -> Dict[str, float]:
         """Get estimated cost savings from LOTUS optimization."""
         sm = self._manager
         if sm.lotus:
-            return sm.lotus.get_savings()
+            return sm.lotus.get_savings()  # type: ignore[unreachable]
         return {}
 
 
@@ -602,7 +632,9 @@ class ExecutionEngine:
                 status_callback = exec_context.status_callback
             # Emit start event
             if hasattr(exec_context, "emit_event"):
-                from Jotty.core.infrastructure.foundation.types.sdk_types import SDKEventType
+                from Jotty.core.infrastructure.foundation.types.sdk_types import (
+                    SDKEventType,  # type: ignore[import-not-found, import]
+                )
 
                 exec_context.emit_event(
                     SDKEventType.PLANNING,
@@ -656,7 +688,7 @@ class ExecutionEngine:
 
             _gate_decision = await _fast_gate.decide(
                 goal=goal,
-                agent_name=sm.agents[0].name if sm.agents else "auto",
+                agent_name=sm.agents[0].name if sm.agents else "auto",  # type: ignore[union-attr]
                 force_mode=_force_mode,
             )
 
@@ -670,7 +702,7 @@ class ExecutionEngine:
                 if sm._model_tier_router is None:
                     sm._model_tier_router = ModelTierRouter()
                 tier_decision = sm._model_tier_router.get_model_for_mode(ValidationMode.DIRECT)
-                tier_lm = sm._model_tier_router.get_lm_for_mode(ValidationMode.DIRECT)
+                tier_lm = sm._model_tier_router.get_lm_for_mode(ValidationMode.DIRECT)  # type: ignore[func-returns-value]
                 if tier_lm:
                     lm = tier_lm
                     _status(
@@ -794,7 +826,7 @@ class ExecutionEngine:
                 if sm._model_tier_router is None:
                     sm._model_tier_router = ModelTierRouter()
                 tier_decision = sm._model_tier_router.get_model_for_mode(_gate_decision.mode)
-                tier_lm = sm._model_tier_router.get_lm_for_mode(_gate_decision.mode)
+                tier_lm = sm._model_tier_router.get_lm_for_mode(_gate_decision.mode)  # type: ignore[func-returns-value]
                 if tier_lm and dspy:
                     dspy.configure(lm=tier_lm)
                     _status("Model tier", f"{tier_decision.tier.value} ({tier_decision.model})")
@@ -933,7 +965,7 @@ class ExecutionEngine:
 
             # Single-agent mode: Simple execution
             if sm.mode == "single":
-                agent_name = sm.agents[0].name if sm.agents else "auto"
+                agent_name = sm.agents[0].name if sm.agents else "auto"  # type: ignore[union-attr]
                 _status("Executing", f"agent '{agent_name}' with skill orchestration")
                 # Architect → Actor → Auditor pipeline (now fast with max_eval_iters=2)
                 # skip_validation: explicit kwarg wins, else derive from skip_autonomous_setup
@@ -1089,7 +1121,7 @@ class ExecutionEngine:
             except Exception as e:
                 logger.debug(f"Router select_agent skipped (unexpected): {e}", exc_info=True)
 
-        runner = sm.runners[agent_config.name]
+        runner = sm.runners[agent_config.name]  # type: ignore[union-attr]
 
         # ── READ LEARNED INTELLIGENCE (closes the learning loop) ──────────
         # Post-episode writes: stigmergy outcomes, byzantine trust, morph scores.
@@ -1172,7 +1204,9 @@ class ExecutionEngine:
             # 4. Workflow patterns: known successful tool sequences for this task type
             if sm.swarm_workflow_learner:
                 try:
-                    from Jotty.core.intelligence.learning.transfer_learning import PatternExtractor
+                    from Jotty.core.intelligence.learning.transfer_learning import (
+                        PatternExtractor,  # type: ignore[import]
+                    )
 
                     norm_type = PatternExtractor.normalize_task_type(task_type)
                     wf_patterns = sm.swarm_workflow_learner.get_patterns_by_task_type(norm_type)
@@ -1224,7 +1258,7 @@ class ExecutionEngine:
         _metrics = get_metrics() if get_metrics else None
 
         if _tracer:
-            with _tracer.span("agent_execute", agent=agent_config.name, mode="single") as _span:
+            with _tracer.span("agent_execute", agent=agent_config.name, mode="single") as _span:  # type: ignore[union-attr]
                 result = await runner.run(goal=goal, **kwargs)
                 _exec_elapsed = _t.time() - _exec_start
                 _span.set_attribute("success", result.success)
@@ -1238,7 +1272,7 @@ class ExecutionEngine:
         # Observability: record metrics
         if _metrics:
             _metrics.record_execution(
-                agent_name=agent_config.name,
+                agent_name=agent_config.name,  # type: ignore[union-attr]
                 task_type="single_agent",
                 duration_s=_exec_elapsed,
                 success=result.success,
@@ -1266,7 +1300,9 @@ class ExecutionEngine:
         DRY: All paradigms reuse the same AgentRunner.run() and semaphore.
         """
         sm = self._manager
-        from Jotty.core.intelligence.learning.predictive_marl import ActualTrajectory
+        from Jotty.core.intelligence.learning.predictive_marl import (
+            ActualTrajectory,  # type: ignore[import]
+        )
         from Jotty.core.intelligence.orchestration.swarm_roadmap import TaskStatus
 
         # Extract callbacks and ensemble params before passing to runners
@@ -1341,7 +1377,7 @@ class ExecutionEngine:
             # Wire coordination: initiate handoff between relay agents
             if sm.swarm_intelligence:
                 try:
-                    available = [a.name for a in sm.agents]
+                    available = [a.name for a in sm.agents]  # type: ignore[union-attr]
                     if len(available) >= 2:
                         sm.swarm_intelligence.initiate_handoff(
                             from_agent=available[0],
@@ -1361,7 +1397,7 @@ class ExecutionEngine:
         # Wire coordination: form coalition for fanout tasks (agents collaborate)
         if sm.swarm_intelligence and len(sm.agents) >= 2:
             try:
-                available = [a.name for a in sm.agents]
+                available = [a.name for a in sm.agents]  # type: ignore[union-attr]
                 _task_type = sm.learning.transfer_learning.extractor.extract_task_type(goal)
                 sm.swarm_intelligence.form_coalition(
                     task_type=_task_type,
@@ -1412,7 +1448,7 @@ class ExecutionEngine:
             )
 
         all_results = {}  # agent_name -> EpisodeResult
-        attempt_counts = {}  # task_id -> attempts
+        attempt_counts: Dict[str, Any] = {}  # task_id -> attempts
         _max_iters = getattr(sm.config, "max_episode_iterations", 12)
         _iter_count = 0
 
@@ -1441,10 +1477,10 @@ class ExecutionEngine:
                     )
                     # Show each agent's task for clarity
                     for task in batch:
-                        agent_cfg = next((a for a in sm.agents if a.name == task.actor), None)
+                        agent_cfg = next((a for a in sm.agents if a.name == task.actor), None)  # type: ignore[union-attr]
                         sub_goal = (
-                            agent_cfg.capabilities[0]
-                            if agent_cfg and agent_cfg.capabilities
+                            agent_cfg.capabilities[0]  # type: ignore[union-attr]
+                            if agent_cfg and agent_cfg.capabilities  # type: ignore[union-attr]
                             else task.description[:50]
                         )
                         status_callback(f"  {task.actor}", sub_goal[:60])
@@ -1462,7 +1498,7 @@ class ExecutionEngine:
                             current_state=sm.get_current_state(),
                             acting_agent=task.actor,
                             proposed_action={"task": task.description},
-                            other_agents=[a.name for a in sm.agents if a.name != task.actor],
+                            other_agents=[a.name for a in sm.agents if a.name != task.actor],  # type: ignore[union-attr]
                             goal=goal,
                         )
                         predictions[task.actor] = prediction
@@ -1492,10 +1528,10 @@ class ExecutionEngine:
 
                     try:
                         # Show which agent is executing
-                        agent_cfg = next((a for a in sm.agents if a.name == task.actor), None)
+                        agent_cfg = next((a for a in sm.agents if a.name == task.actor), None)  # type: ignore[union-attr]
                         sub_goal = (
-                            agent_cfg.capabilities[0]
-                            if agent_cfg and agent_cfg.capabilities
+                            agent_cfg.capabilities[0]  # type: ignore[union-attr]
+                            if agent_cfg and agent_cfg.capabilities  # type: ignore[union-attr]
                             else task.description[:60]
                         )
 
@@ -1575,7 +1611,7 @@ class ExecutionEngine:
                     safe_status(status_callback, "Agent error", str(coro_result)[:60])
                     continue
 
-                task, result = coro_result
+                task, result = coro_result  # type: ignore[misc]
                 attempt_counts[task.task_id] = attempt_counts.get(task.task_id, 0) + 1
 
                 # Show agent completion status
@@ -1620,7 +1656,7 @@ class ExecutionEngine:
                     )
                     all_results[task.actor] = result
 
-                    agent_config = next((a for a in sm.agents if a.name == task.actor), None)
+                    agent_config = next((a for a in sm.agents if a.name == task.actor), None)  # type: ignore[union-attr]
                     if agent_config:
                         sm._learn_from_result(result, agent_config, goal=task.description or goal)
                 else:
@@ -1748,7 +1784,7 @@ class ExecutionEngine:
 
         # Cache check: skip if already set up for this goal
         cache_key = hash(goal)
-        if cache_key in sm._setup_cache:
+        if cache_key in sm._setup_cache:  # type: ignore[comparison-overlap]
             _status("Setup", "using cached")
             return
 
@@ -1801,7 +1837,7 @@ class ExecutionEngine:
                 await sm.swarm_configurator.configure(integration)
 
         # Mark as cached
-        sm._setup_cache[cache_key] = True
+        sm._setup_cache[cache_key] = True  # type: ignore[index]
         _status("Setup complete", "")
 
 
@@ -1987,7 +2023,7 @@ class Orchestrator:
         # Backward compat: self.provider_registry -> self._providers.provider_registry
 
         # Setup cache
-        self._setup_cache = {}
+        self._setup_cache: Dict[str, Any] = {}
 
         # Optima-inspired efficiency tracking (Chen et al., 2024):
         # Track orchestration overhead vs. actual execution per run.
@@ -2063,8 +2099,8 @@ class Orchestrator:
     def agent_semaphore(self) -> asyncio.Semaphore:
         """Lazy-create asyncio.Semaphore in the current event loop."""
         if self._agent_semaphore is None:
-            self._agent_semaphore = asyncio.Semaphore(self.max_concurrent_agents)
-        return self._agent_semaphore
+            self._agent_semaphore = asyncio.Semaphore(self.max_concurrent_agents)  # type: ignore[assignment]
+        return self._agent_semaphore  # type: ignore[return-value]
 
     def __getattr__(self, name: str) -> Any:
         """
@@ -2421,7 +2457,7 @@ class Orchestrator:
 
         result = {
             "mode": self.mode,
-            "agents": [a.name for a in self.agents],
+            "agents": [a.name for a in self.agents],  # type: ignore[union-attr]
             "runners_built": self._runners_built,
             "runners": list(self.runners.keys()),
             "episode_count": self.episode_count,
@@ -2512,7 +2548,7 @@ class Orchestrator:
                 _tracer = get_tracer()
                 _trace = _tracer.get_current_trace()
                 if _trace:
-                    result["observability"]["last_trace"] = {
+                    result["observability"]["last_trace"] = {  # type: ignore[index]
                         "trace_id": _trace.trace_id[:8],
                         "spans": _trace.span_count,
                         "duration_ms": round(_trace.duration_ms, 0),
@@ -2656,13 +2692,15 @@ class Orchestrator:
         This is a utility — the existing raw string path still works.
         Use this when you want model-optimized prompts.
         """
-        from Jotty.core.capabilities.prompts import PromptComposer
+        from Jotty.core.capabilities.prompts import (
+            PromptComposer,  # type: ignore[import-not-found, import]
+        )
 
         # Detect model from agent config
         model = ""
         for ac in self.agents:
-            if ac.name == agent_name or not agent_name:
-                model = getattr(ac, "model", "") or getattr(ac.agent, "model", "") or ""
+            if ac.name == agent_name or not agent_name:  # type: ignore[union-attr]
+                model = getattr(ac, "model", "") or getattr(ac.agent, "model", "") or ""  # type: ignore[union-attr]
                 break
         if not model:
             model = getattr(self.config, "model", "")
@@ -2688,15 +2726,15 @@ class Orchestrator:
         # Agent identity
         identity = ""
         for ac in self.agents:
-            if ac.name == agent_name or not agent_name:
-                identity = getattr(ac.agent, "system_prompt", "") or getattr(
+            if ac.name == agent_name or not agent_name:  # type: ignore[union-attr]
+                identity = getattr(ac.agent, "system_prompt", "") or getattr(  # type: ignore[union-attr]
                     ac, "system_prompt", ""
                 )
                 break
 
         import os as _os
 
-        return composer.compose(
+        return composer.compose(  # type: ignore[no-any-return]
             identity=identity,
             tools=tool_names if tool_names else None,
             tool_descriptions=tool_descs,
@@ -2819,7 +2857,7 @@ class Orchestrator:
 
     async def _drain_background_tasks(self, timeout: float = 10.0) -> Any:
         """Await all pending background learning tasks (with timeout)."""
-        tasks = getattr(self, "_background_tasks", set())
+        tasks = getattr(self, "_background_tasks", set())  # type: ignore[var-annotated]
         if tasks:
             pending = [t for t in tasks if not t.done()]
             if pending:
@@ -2856,7 +2894,7 @@ class Orchestrator:
                     parts.append(f"Skills used: {', '.join(skills)}")
 
                 if hasattr(_output, "artifacts"):
-                    artifacts = _output.artifacts
+                    artifacts = _output.artifacts  # type: ignore[union-attr]
                     if artifacts:
                         parts.append("Files created:")
                         for a in artifacts:
@@ -2869,7 +2907,7 @@ class Orchestrator:
 
                 logger.info("\n Execution Summary:\n" + "\n".join(parts))
             elif hasattr(_output, "summary"):
-                logger.info(f"\n Execution Summary:\n{_output.summary}")
+                logger.info(f"\n Execution Summary:\n{_output.summary}")  # type: ignore[union-attr]
         except Exception as e:
             logger.debug(f"Summary logging skipped: {e}")
 
@@ -2897,7 +2935,7 @@ class Orchestrator:
         """Get current swarm-level state."""
         if not self.swarm_state_manager:
             return {}
-        return self.swarm_state_manager.get_current_state()
+        return self.swarm_state_manager.get_current_state()  # type: ignore[no-any-return]
 
     # =====================================================================
     # Warmup — delegated to SwarmWarmup
@@ -2905,7 +2943,7 @@ class Orchestrator:
 
     def _ensure_warmup(self) -> Any:
         """Lazy-load SwarmWarmup instance."""
-        if not hasattr(self, "_warmup") or self._warmup is None:
+        if not hasattr(self, "_warmup") or self._warmup is None:  # type: ignore[has-type]
             from Jotty.core.intelligence.orchestration.swarm_warmup import SwarmWarmup
 
             self._warmup = SwarmWarmup(self)
@@ -2913,11 +2951,11 @@ class Orchestrator:
 
     async def warmup(self, **kwargs: Any) -> Dict[str, Any]:
         """DrZero-inspired zero-data bootstrapping. See SwarmWarmup."""
-        return await self._ensure_warmup().warmup(**kwargs)
+        return await self._ensure_warmup().warmup(**kwargs)  # type: ignore[no-any-return]
 
     def get_warmup_recommendation(self) -> Dict[str, Any]:
         """Check if warmup would be beneficial."""
-        return self._ensure_warmup().get_recommendation()
+        return self._ensure_warmup().get_recommendation()  # type: ignore[no-any-return]
 
     # =====================================================================
     # DAG — delegated to SwarmDAGExecutor
@@ -2925,7 +2963,7 @@ class Orchestrator:
 
     def _ensure_dag_executor(self) -> Any:
         """Lazy-load SwarmDAGExecutor instance."""
-        if not hasattr(self, "_dag_executor") or self._dag_executor is None:
+        if not hasattr(self, "_dag_executor") or self._dag_executor is None:  # type: ignore[has-type]
             from Jotty.core.intelligence.orchestration.swarm_dag_executor import SwarmDAGExecutor
 
             self._dag_executor = SwarmDAGExecutor(self)

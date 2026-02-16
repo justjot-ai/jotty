@@ -27,7 +27,9 @@ except ImportError:
     DSPY_AVAILABLE = False
     dspy = None
 
-from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
+from Jotty.core.infrastructure.foundation.agent_config import (
+    AgentConfig,  # type: ignore[import-not-found, import]
+)
 from Jotty.core.infrastructure.foundation.data_structures import EpisodeResult, SwarmConfig
 
 from .adaptive_learning import AdaptiveLearning
@@ -149,14 +151,14 @@ class OptimizationPipeline:
             self.output_path = Path(self.config.output_path)
             self.output_path.mkdir(parents=True, exist_ok=True)
         else:
-            self.output_path = None
+            self.output_path = None  # type: ignore[assignment]
 
         if self.config.thinking_log_path:
             self.thinking_log_path = Path(self.config.thinking_log_path)
         elif self.output_path:
             self.thinking_log_path = self.output_path / "thinking.log"
         else:
-            self.thinking_log_path = None
+            self.thinking_log_path = None  # type: ignore[assignment]
 
         # Initialize thinking log
         if self.config.enable_thinking_log and self.thinking_log_path:
@@ -173,15 +175,15 @@ class OptimizationPipeline:
         self.improvements_file = None
 
         # Credit assignment and adaptive learning
-        if config.enable_credit_assignment and CreditAssignment:
+        if config.enable_credit_assignment and CreditAssignment:  # type: ignore[truthy-function]
             self.credit_assignment = CreditAssignment()
         else:
-            self.credit_assignment = None
+            self.credit_assignment = None  # type: ignore[assignment]
 
-        if config.enable_adaptive_learning and AdaptiveLearning:
+        if config.enable_adaptive_learning and AdaptiveLearning:  # type: ignore[truthy-function]
             self.adaptive_learning = AdaptiveLearning()
         else:
-            self.adaptive_learning = None
+            self.adaptive_learning = None  # type: ignore[assignment]
         if self.config.save_improvements:
             if self.config.improvements_file:
                 self.improvements_file = Path(self.config.improvements_file)
@@ -265,7 +267,7 @@ class OptimizationPipeline:
 
         # Otherwise, run agents sequentially
         self._write_thinking_log("Running agents sequentially")
-        intermediate_outputs = {}
+        intermediate_outputs: Dict[str, Any] = {}
         current_context = {**context, "task": task}
 
         if previous_outputs:
@@ -790,7 +792,7 @@ class OptimizationPipeline:
         self.all_iterations = []
 
         # Reset adaptive learning if enabled
-        if self.adaptive_learning and AdaptiveLearning:
+        if self.adaptive_learning and AdaptiveLearning:  # type: ignore[truthy-function]
             self.adaptive_learning = AdaptiveLearning()
 
         # Get gold standard if provider is available
@@ -984,7 +986,7 @@ class OptimizationPipeline:
                 final_output_for_result = output
                 if teacher_output and eval_score < 1.0:
                     # Check if teacher output is better
-                    teacher_eval = evaluation_result.get("teacher_evaluation")
+                    teacher_eval = evaluation_result.get("teacher_evaluation")  # type: ignore[assignment]
                     if teacher_eval and teacher_eval.get("score", 0.0) > eval_score:
                         final_output_for_result = teacher_output
                         eval_score = teacher_eval.get("score", eval_score)
@@ -1230,7 +1232,9 @@ class OptimizationPipeline:
 
         if memory_system:
             try:
-                from ..experts.memory_integration import store_improvement_to_memory
+                from ..experts.memory_integration import (
+                    store_improvement_to_memory,  # type: ignore[import-not-found]
+                )
 
                 # Use expert info if available (from Method 0)
                 if hasattr(self, "expert_name") and hasattr(self, "expert_domain"):

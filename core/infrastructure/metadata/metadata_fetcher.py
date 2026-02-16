@@ -347,7 +347,7 @@ class MetaDataFetcher:
 
         # Execute ReAct
         logger.debug(" Executing ReAct agent...")
-        result = self._react_agent(
+        result = self._react_agent(  # type: ignore[misc]
             query=query, available_tools=tool_catalog, previous_context=context_str
         )
 
@@ -609,7 +609,7 @@ Return ONLY the JSON, no other text."""
             # Parse JSON
             parsed = json.loads(response_text)
             logger.debug(f" LLM parsed {len(parsed)} filter categories")
-            return parsed
+            return parsed  # type: ignore[no-any-return]
 
         except Exception as e:
             logger.warning(f" LLM parsing failed: {e}")
@@ -627,7 +627,7 @@ Return ONLY the JSON, no other text."""
                     logger.debug(
                         f" Cache hit for query (age: {(datetime.now() - entry.timestamp).seconds}s)"
                     )
-                    return entry.data
+                    return entry.data  # type: ignore[no-any-return]
                 else:
                     logger.debug(" Cache entry expired, removing")
                     del self._cache[query_hash]

@@ -120,7 +120,7 @@ class SandboxManager:
         try:
             import e2b_code_interpreter  # noqa: F401
 
-            self.e2b_api_key = self.config.get("e2b_api_key") or os.getenv("E2B_API_KEY")
+            self.e2b_api_key = self.config.get("e2b_api_key") or os.getenv("E2B_API_KEY")  # type: ignore[assignment]
             if self.e2b_api_key:
                 self.e2b_available = True
                 logger.info(" E2B sandbox available")

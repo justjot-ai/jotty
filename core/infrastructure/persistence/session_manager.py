@@ -61,7 +61,7 @@ class SessionManager:
         │   └── config_snapshot.json
     """
 
-    def __init__(self, config: "SwarmConfig") -> None:
+    def __init__(self, config: "SwarmConfig") -> None:  # type: ignore[name-defined]
         """
         Initialize session manager.
 
@@ -154,11 +154,11 @@ class SessionManager:
 
             # Load brain state
             if self.config.persist_brain_state:
-                state["brain_state"] = self._load_brain_state(latest_dir)
+                state["brain_state"] = self._load_brain_state(latest_dir)  # type: ignore[assignment]
 
             # Load task lists
             if self.config.persist_todos:
-                state["todos"] = self._load_todos(latest_dir)
+                state["todos"] = self._load_todos(latest_dir)  # type: ignore[assignment]
 
             logger.info(f" Loaded previous state from {latest_dir}")
             return state
@@ -210,7 +210,7 @@ class SessionManager:
             with open(brain_file) as f:
                 state = json.load(f)
             logger.info(" Loaded brain state")
-            return state
+            return state  # type: ignore[no-any-return]
         return None
 
     def _load_todos(self, source_dir: Path) -> Optional[str]:

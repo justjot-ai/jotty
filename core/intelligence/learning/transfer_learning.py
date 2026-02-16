@@ -163,7 +163,7 @@ class SemanticEmbedder:
             sys.stdout = io.StringIO()
             sys.stderr = io.StringIO()
             try:
-                self.model = SentenceTransformer(self._model_name, trust_remote_code=False)
+                self.model = SentenceTransformer(self._model_name, trust_remote_code=False)  # type: ignore[assignment]
             finally:
                 sys.stdout = _real_stdout
                 sys.stderr = _real_stderr
@@ -217,9 +217,9 @@ class SemanticEmbedder:
 
         if NUMPY_AVAILABLE and self.model:
             # Cosine similarity
-            dot = np.dot(emb1, emb2)
-            norm1 = np.linalg.norm(emb1)
-            norm2 = np.linalg.norm(emb2)
+            dot = np.dot(emb1, emb2)  # type: ignore[name-defined]
+            norm1 = np.linalg.norm(emb1)  # type: ignore[name-defined]
+            norm2 = np.linalg.norm(emb2)  # type: ignore[name-defined]
             if norm1 > 0 and norm2 > 0:
                 return float(dot / (norm1 * norm2))
             return 0.0
@@ -243,7 +243,7 @@ class SemanticEmbedder:
     def _fallback_embed(self, text: str) -> Dict[str, float]:
         """Fallback: word frequency vector."""
         words = text.lower().split()
-        freq = defaultdict(float)
+        freq = defaultdict(float)  # type: ignore[var-annotated]
         for w in words:
             if len(w) > 2:  # Skip very short words
                 freq[w] += 1.0
@@ -268,7 +268,7 @@ class SemanticEmbedder:
         norm2 = sum(v**2 for v in emb2.values()) ** 0.5
 
         if norm1 > 0 and norm2 > 0:
-            return dot / (norm1 * norm2)
+            return dot / (norm1 * norm2)  # type: ignore[no-any-return]
         return 0.0
 
 
@@ -646,7 +646,7 @@ class TransferableLearningStore:
         - Role recommendations
         - Meta-pattern advice
         """
-        result = {
+        result = {  # type: ignore[var-annotated]
             "similar_experiences": [],
             "task_pattern": None,
             "error_patterns": [],
@@ -682,7 +682,7 @@ class TransferableLearningStore:
         task_type = self.extractor.extract_task_type(query)
         if task_type in self.task_patterns:
             pattern = self.task_patterns[task_type]
-            result["task_pattern"] = {
+            result["task_pattern"] = {  # type: ignore[assignment]
                 "task_type": task_type,
                 "success_rate": pattern.success_rate,
                 "avg_reward": pattern.avg_reward,
@@ -694,7 +694,7 @@ class TransferableLearningStore:
             role = self.extractor.extract_role(agent)
             if role in self.role_profiles:
                 profile = self.role_profiles[role]
-                result["role_advice"] = {
+                result["role_advice"] = {  # type: ignore[assignment]
                     "role": role,
                     "strengths": profile.strengths,
                     "weaknesses": profile.weaknesses,
@@ -703,11 +703,11 @@ class TransferableLearningStore:
 
                 # Warn if task type is a weakness
                 if task_type in profile.weaknesses:
-                    result["role_advice"]["warning"] = f"This role struggles with {task_type} tasks"
+                    result["role_advice"]["warning"] = f"This role struggles with {task_type} tasks"  # type: ignore[call-overload, index]
 
         # 4. Get meta-pattern advice
         for meta in self.meta_patterns.values():
-            result["meta_advice"].append(
+            result["meta_advice"].append(  # type: ignore[union-attr]
                 {
                     "trigger": meta.trigger,
                     "strategy": meta.strategy,
@@ -881,7 +881,7 @@ class TransferableLearningStore:
         # Success bonus
         success_bonus = 0.2 if session.get("success", False) else 0
 
-        return 0.5 * topic_score + 0.3 * recency_score + 0.2 + success_bonus
+        return 0.5 * topic_score + 0.3 * recency_score + 0.2 + success_bonus  # type: ignore[no-any-return]
 
     def score_learning_relevance(self, task_description: str, session: Dict) -> float:
         """
@@ -912,7 +912,7 @@ class TransferableLearningStore:
         agents_used = session.get("agents_used", [])
         diversity_score = min(len(agents_used) / 5, 1.0) * 0.1
 
-        return 0.5 * topic_score + outcome_score + quality_score + diversity_score
+        return 0.5 * topic_score + outcome_score + quality_score + diversity_score  # type: ignore[no-any-return]
 
     def get_learning_sessions(self, task_description: str, top_k: int = 10) -> List[Dict]:
         """
@@ -931,7 +931,7 @@ class TransferableLearningStore:
         scored.sort(key=lambda x: x[1], reverse=True)
 
         # Return sessions above threshold, ensuring mix of outcomes
-        results = []
+        results: List[Any] = []
         successes = 0
         failures = 0
 

@@ -108,7 +108,7 @@ class DirectChatExecutor:
     def _get_provider(self) -> Any:
         """Get LLM instance (shared across all components)."""
         if self._provider is None:
-            from Jotty.core.infrastructure.foundation.unified_lm_provider import (
+            from Jotty.core.infrastructure.foundation.unified_lm_provider import (  # type: ignore[import]
                 UnifiedLMProvider,
             )
 

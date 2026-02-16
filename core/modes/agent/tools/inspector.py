@@ -33,7 +33,7 @@ from Jotty.core.infrastructure.foundation.data_structures import (
     ValidationResult,
     ValidationRound,
 )
-from Jotty.core.intelligence.learning.learning import DynamicBudgetManager
+from Jotty.core.intelligence.learning.learning import DynamicBudgetManager  # type: ignore[import]
 from Jotty.core.intelligence.memory.cortex import SwarmMemory
 
 logger = logging.getLogger(__name__)
@@ -65,7 +65,7 @@ def _get_planner_signature() -> Any:
     if _PlannerSignature is None:
         dspy = _get_dspy()
 
-        class PlannerSignature(dspy.Signature):
+        class PlannerSignature(dspy.Signature):  # type: ignore[name-defined]
             """Pre-validation: Quick check if task inputs are sufficient.
 
             You are a VALIDATOR, not an executor. Analyze inputs and decide if task can proceed.
@@ -89,7 +89,7 @@ def _get_reviewer_signature() -> Any:
     if _ReviewerSignature is None:
         dspy = _get_dspy()
 
-        class ReviewerSignature(dspy.Signature):
+        class ReviewerSignature(dspy.Signature):  # type: ignore[name-defined]
             """Post-validation: Quick check if task output is valid.
 
             You are a VALIDATOR. Check if task succeeded and output meets requirements.
@@ -116,7 +116,7 @@ def _get_refinement_signature() -> Any:
     if _RefinementSignature is None:
         dspy = _get_dspy()
 
-        class RefinementSignature(dspy.Signature):
+        class RefinementSignature(dspy.Signature):  # type: ignore[name-defined]
             """Refinement: Improve decision based on feedback."""
 
             original_decision: str = dspy.InputField(
@@ -185,7 +185,7 @@ class InternalReasoningTool:
             )
             # Return FULL memory content, not truncated
             result["relevant_memories"] = [
-                {"content": m.content, "value": m.default_value}
+                {"content": m.content, "value": m.default_value}  # type: ignore[misc]
                 for m in memories  # NO LIMIT - FULL content
             ]
 
@@ -193,7 +193,7 @@ class InternalReasoningTool:
         if context_scope in ("all", "relevant", "causal"):
             causal = self.memory.retrieve_causal(question, {})
             result["causal_insights"] = [
-                {"cause": c.cause, "effect": c.effect, "confidence": c.confidence} for c in causal
+                {"cause": c.cause, "effect": c.effect, "confidence": c.confidence} for c in causal  # type: ignore[misc]
             ]
 
         return result
@@ -496,12 +496,12 @@ class ValidatorAgent:
                                 item_str[:500]
                                 + f"...[{len(item_str)-500} chars truncated for validation]"
                             )
-                        serializable_trajectory.append(item_str)
+                        serializable_trajectory.append(item_str)  # type: ignore[arg-type]
                     else:
                         item_str = str(item)
                         if len(item_str) > 1000:
                             item_str = item_str[:500] + f"...[{len(item_str)-500} chars truncated]"
-                        serializable_trajectory.append(item_str)
+                        serializable_trajectory.append(item_str)  # type: ignore[arg-type]
 
         # USE JOTTY'S BUDGET MANAGER - NO HARDCODING!
         # Compute budget allocation intelligently
@@ -849,7 +849,7 @@ Auditor Required Outputs:
 
         # FILTER OUT blocked/failed memories after retrieval
         if memories:
-            filtered_memories = []
+            filtered_memories: List[Any] = []
             for mem in memories:
                 # Skip memories with failure tags
                 if hasattr(mem, "metadata") and isinstance(mem.metadata, dict):
@@ -1480,7 +1480,7 @@ def _get_completion_review_signature() -> Any:
     if _CompletionReviewSignature is None:
         dspy = _get_dspy()
 
-        class CompletionReviewSignature(dspy.Signature):
+        class CompletionReviewSignature(dspy.Signature):  # type: ignore[name-defined]
             """Assess task completion state after execution.
 
             You are a COMPLETION REVIEWER. Analyze whether the task was fully completed,
@@ -1569,8 +1569,8 @@ class CompletionReviewer:
             async def _run() -> Any:
                 if dspy_lm is not None:
                     with dspy.context(lm=dspy_lm):
-                        return self._predictor(**inputs)
-                return self._predictor(**inputs)
+                        return self._predictor(**inputs)  # type: ignore[misc]
+                return self._predictor(**inputs)  # type: ignore[misc]
 
             prediction = await asyncio.wait_for(
                 asyncio.to_thread(
@@ -1695,7 +1695,9 @@ class FailureRouter:
         Returns:
             Dict with 'action', 'reason', and optionally 'suggested_agent' or 'delay'
         """
-        from Jotty.core.modes.execution.types import ErrorType
+        from Jotty.core.modes.execution.types import (
+            ErrorType,  # type: ignore[import-not-found, import]
+        )
 
         error_type = ErrorType.classify(error_msg)
         lower = error_msg.lower()
@@ -1703,10 +1705,10 @@ class FailureRouter:
         # Check specific patterns first
         for pattern, routing in self.ROUTING_RULES.items():
             if pattern in lower:
-                result = dict(routing)
+                result = dict(routing)  # type: ignore[call-overload]
                 result["error_type"] = error_type.value
                 result["failed_skill"] = failed_skill
-                return result
+                return result  # type: ignore[no-any-return]
 
         # Fallback: use error type classification
         if error_type == ErrorType.INFRASTRUCTURE:

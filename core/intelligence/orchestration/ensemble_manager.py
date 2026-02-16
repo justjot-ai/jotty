@@ -9,7 +9,9 @@ Standalone composed class, replaces EnsembleMixin.
 import logging
 from typing import Any, Dict, Tuple
 
-from Jotty.core.infrastructure.utils.async_utils import StatusReporter
+from Jotty.core.infrastructure.utils.async_utils import (
+    StatusReporter,  # type: ignore[import-not-found, import]
+)
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +67,7 @@ class EnsembleManager:
                         if result.get("success") and result.get("quality_scores"):
                             for name, score in result["quality_scores"].items():
                                 _status(f"  {name}", f"quality={score:.0%}")
-                        return result
+                        return result  # type: ignore[no-any-return]
             except ImportError:
                 pass
 

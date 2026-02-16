@@ -67,12 +67,12 @@ class EnsembleMixin:
                         if result.get("success") and result.get("quality_scores"):
                             for name, score in result["quality_scores"].items():
                                 _status(f"  {name}", f"quality={score:.0%}")
-                        return result
+                        return result  # type: ignore[no-any-return]
             except ImportError:
                 pass
 
             # Fallback: Use DSPy directly for multi-perspective (also parallel)
-            import dspy
+            import dspy  # type: ignore[import-untyped]
 
             if not hasattr(dspy.settings, "lm") or dspy.settings.lm is None:
                 return {"success": False, "error": "No LLM configured"}

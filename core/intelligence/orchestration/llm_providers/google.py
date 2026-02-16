@@ -21,7 +21,7 @@ class GoogleProvider(LLMProvider):
     @property
     def client(self) -> Any:
         if self._client is None:
-            import google.generativeai as genai
+            import google.generativeai as genai  # type: ignore[import-untyped]
 
             genai.configure(api_key=self.api_key)
             self._client = genai.GenerativeModel(self.model)
@@ -106,7 +106,7 @@ class GoogleProvider(LLMProvider):
                 if hasattr(part, "function_call") and part.function_call:
                     fc = part.function_call
                     content.append(
-                        ToolUseBlock(id=f"fc_{fc.name}", name=fc.name, input=dict(fc.args))
+                        ToolUseBlock(id=f"fc_{fc.name}", name=fc.name, input=dict(fc.args))  # type: ignore[arg-type]
                     )
 
         has_tool_calls = any(isinstance(c, ToolUseBlock) for c in content)

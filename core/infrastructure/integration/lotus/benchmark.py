@@ -63,7 +63,7 @@ class MockLLM:
     }
 
     def __init__(self) -> None:
-        self.calls = []
+        self.calls: List[Any] = []
         self.total_cost = 0.0
         self.total_latency = 0.0
 

@@ -127,15 +127,15 @@ class MemoryTaskQueue(TaskQueue):
             }
 
             # Get active PIDs
-            stats["pids"] = [t.pid for t in self.tasks.values() if t.pid is not None]
+            stats["pids"] = [t.pid for t in self.tasks.values() if t.pid is not None]  # type: ignore[assignment]
 
             # Get per-agent stats
-            by_agent = defaultdict(int)
+            by_agent = defaultdict(int)  # type: ignore[var-annotated]
             for t in self.tasks.values():
                 if t.pid is not None:
                     agent = t.agent_type or "claude"
                     by_agent[agent] += 1
-            stats["by_agent"] = dict(by_agent)
+            stats["by_agent"] = dict(by_agent)  # type: ignore[assignment]
 
             return stats
 

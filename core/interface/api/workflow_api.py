@@ -8,7 +8,7 @@ import logging
 from typing import Any, AsyncIterator, Dict, List, Optional
 
 from Jotty.core.intelligence.orchestration import Orchestrator
-from Jotty.core.modes.use_cases.workflow import WorkflowUseCase
+from Jotty.core.modes.use_cases.workflow import WorkflowUseCase  # type: ignore[import]
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +63,7 @@ class WorkflowAPI:
             Workflow result dictionary
         """
         result = await self.workflow_use_case.execute(goal=goal, context=context, **kwargs)
-        return result.to_dict()
+        return result.to_dict()  # type: ignore[no-any-return]
 
     async def stream(
         self, goal: str, context: Optional[Dict[str, Any]] = None, **kwargs: Any
@@ -97,6 +97,6 @@ class WorkflowAPI:
         Returns:
             Task ID
         """
-        return await self.workflow_use_case.enqueue(
+        return await self.workflow_use_case.enqueue(  # type: ignore[no-any-return]
             goal=goal, context=context, priority=priority, **kwargs
         )

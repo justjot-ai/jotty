@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 # Add parent to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from core.registry.justjot_loader import load_justjot_tools_and_widgets
+from .justjot_loader import load_justjot_tools_and_widgets
 
 
 def main() -> None:

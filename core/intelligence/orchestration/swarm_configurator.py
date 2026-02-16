@@ -22,7 +22,7 @@ class ConfigurationResult:
     success: bool
     config: Dict[str, Any]
     requires_user_input: bool
-    prompts: List[str] = None
+    prompts: List[str] = None  # type: ignore[assignment]
     error: Optional[str] = None
 
 

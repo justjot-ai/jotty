@@ -394,7 +394,7 @@ class JustJotMemorySyncAdapter:
         # Build metadata
         metadata = {
             "jotty_key": memory_entry.key if hasattr(memory_entry, "key") else None,
-            "jotty_level": level.value if hasattr(level, "value") else str(level),
+            "jotty_level": level.value if hasattr(level, "value") else str(level),  # type: ignore[union-attr]
             "jotty_default_value": getattr(memory_entry, "default_value", 0.5),
             "jotty_is_protected": getattr(memory_entry, "is_protected", False),
             "jotty_causal_links": getattr(memory_entry, "causal_links", []),
@@ -404,7 +404,7 @@ class JustJotMemorySyncAdapter:
         # Create JustJotMemory
         return JustJotMemory(
             memory_id=memory_id,
-            entity_id=entity_id,
+            entity_id=entity_id,  # type: ignore[arg-type]
             entity_type=self.entity_type,
             content=memory_entry.content,
             content_hash=hashlib.sha256(memory_entry.content.encode()).hexdigest(),
@@ -603,7 +603,7 @@ class JustJotMemorySyncAdapter:
             logger.warning("aiohttp not available, using requests in thread")
             import asyncio
 
-            return await asyncio.to_thread(self._pull_sync, entity_id, limit)
+            return await asyncio.to_thread(self._pull_sync, entity_id, limit)  # type: ignore[arg-type]
         except Exception as e:
             self._sync_errors.append(f"Pull error: {str(e)}")
             logger.error(f"Pull from JustJot failed: {e}", exc_info=True)
@@ -616,7 +616,7 @@ class JustJotMemorySyncAdapter:
 
             response = requests.get(
                 f"{self.api_url}/api/memory/query",
-                params={"entity_id": entity_id, "limit": limit},
+                params={"entity_id": entity_id, "limit": limit},  # type: ignore[arg-type]
                 timeout=30,
             )
 
@@ -654,7 +654,7 @@ class JustJotMemorySyncAdapter:
                         continue
 
                     if await self.push_to_justjot(entry):
-                        stats["pushed"] += 1
+                        stats["pushed"] += 1  # type: ignore[operator]
 
         if direction in ("from_justjot", "both") and self.cortex:
             # Pull from JustJot and store in Cortex
@@ -667,7 +667,7 @@ class JustJotMemorySyncAdapter:
 
                 # Store in cortex
                 self.cortex.memories[entry.level][entry.key] = entry
-                stats["pulled"] += 1
+                stats["pulled"] += 1  # type: ignore[operator]
 
         stats["errors"] = self._sync_errors[-10:]  # Last 10 errors
         self._last_sync = datetime.now()

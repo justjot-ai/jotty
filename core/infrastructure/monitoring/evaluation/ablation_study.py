@@ -213,7 +213,7 @@ class AblationStudy:
         if self.baseline_config is None:
             # Create default config
 
-            config = SwarmConfig()
+            config = SwarmConfig()  # type: ignore[name-defined]
         else:
             # Copy config (simple copy for now)
             import copy
@@ -638,7 +638,7 @@ class ConfigTuner:
         """Build a SwarmConfig with the given overrides applied."""
         if self.baseline_config is None:
 
-            config = SwarmConfig()
+            config = SwarmConfig()  # type: ignore[name-defined]
         else:
             config = copy.deepcopy(self.baseline_config)
 

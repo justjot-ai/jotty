@@ -159,7 +159,7 @@ def parse_json_robust(value: Any) -> Optional[Dict]:
 
         # Try direct parsing
         try:
-            return json.loads(value)
+            return json.loads(value)  # type: ignore[no-any-return]
         except json.JSONDecodeError:
             pass
 
@@ -177,7 +177,7 @@ def parse_json_robust(value: Any) -> Optional[Dict]:
                         content = part.strip()
 
                     try:
-                        return json.loads(content)
+                        return json.loads(content)  # type: ignore[no-any-return]
                     except json.JSONDecodeError:
                         continue
 
@@ -199,7 +199,7 @@ def parse_json_robust(value: Any) -> Optional[Dict]:
 
             if end > start:
                 try:
-                    return json.loads(value[start:end])
+                    return json.loads(value[start:end])  # type: ignore[no-any-return]
                 except json.JSONDecodeError:
                     pass
 
@@ -226,7 +226,7 @@ class AdaptiveThreshold:
         delta = value - self.mean
         self.mean += delta / self.count
         delta2 = value - self.mean
-        self.m2 += delta * delta2
+        self.m2 += delta * delta2  # type: ignore[assignment]
 
         if self.count > 1:
             self.std = (self.m2 / (self.count - 1)) ** 0.5

@@ -59,7 +59,7 @@ def _ensure_dspy_lm() -> None:
         return
     try:
         if dspy.settings.lm is None:
-            from Jotty.core.infrastructure.foundation.unified_lm_provider import (
+            from Jotty.core.infrastructure.foundation.unified_lm_provider import (  # type: ignore[import]
                 UnifiedLMProvider,
             )
 

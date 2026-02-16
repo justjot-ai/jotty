@@ -90,8 +90,8 @@ class PerformanceProfiler:
         self.profiler = cProfile.Profile() if enable_cprofile else None
         self.start_time = time.time()
 
-    @contextmanager
-    def profile(self, name: str, metadata: Optional[Dict[str, Any]] = None) -> None:
+    @contextmanager  # type: ignore[arg-type]
+    def profile(self, name: str, metadata: Optional[Dict[str, Any]] = None) -> None:  # type: ignore[misc]
         """
         Profile a code segment.
 
@@ -192,7 +192,7 @@ class PerformanceProfiler:
             stats = pstats.Stats(self.profiler, stream=s)
             stats.sort_stats("cumulative")
             # Extract call counts (simplified)
-            call_counts = {"total_calls": stats.total_calls}
+            call_counts = {"total_calls": stats.total_calls}  # type: ignore[attr-defined]
 
         return ProfileReport(
             total_duration=total_duration,

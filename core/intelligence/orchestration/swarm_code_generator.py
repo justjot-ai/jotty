@@ -51,7 +51,9 @@ class SwarmCodeGenerator:
     def _init_dependencies(self) -> Any:
         """Lazy load dependencies (DRY: avoid circular imports)."""
         if self._planner is None:
-            from Jotty.core.modes.agent.baseic_planner import TaskPlanner
+            from Jotty.core.modes.agent.baseic_planner import (
+                TaskPlanner,  # type: ignore[import-not-found]
+            )
 
             self._planner = TaskPlanner()
 
@@ -263,13 +265,13 @@ Generate complete, runnable code.
         code_block_pattern = r"```python\n(.*?)```"
         matches = re.findall(code_block_pattern, response, re.DOTALL)
         if matches:
-            return matches[0].strip()
+            return matches[0].strip()  # type: ignore[no-any-return]
 
         # Try generic code block
         code_block_pattern = r"```\n(.*?)```"
         matches = re.findall(code_block_pattern, response, re.DOTALL)
         if matches:
-            return matches[0].strip()
+            return matches[0].strip()  # type: ignore[no-any-return]
 
         # Return response as-is if no code blocks found
         return response.strip()
@@ -532,7 +534,7 @@ import time
 import logging
 from typing import Any, Dict, List, Optional
 
-from core.skills.providers.base import (
+from Jotty.core.skills.providers.base import (
     SkillProvider,
     SkillCategory,
     ProviderCapability,
@@ -714,7 +716,7 @@ else:
     print(f"Error: {{result.error}}")
 
 # Register with ProviderRegistry
-from core.skills.providers import ProviderRegistry
+from Jotty.core.skills.providers import ProviderRegistry
 registry = ProviderRegistry()
 registry.register(provider, trust_level="sandboxed")
 """

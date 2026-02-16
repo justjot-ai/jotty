@@ -19,14 +19,20 @@ Usage:
 from typing import TYPE_CHECKING, Any, Dict, Optional, Union
 
 if TYPE_CHECKING:
-    from Jotty.core.infrastructure.foundation.configs import LearningConfig
-    from Jotty.core.intelligence.learning.learning_coordinator import LearningManager
-    from Jotty.core.intelligence.learning.reasoning_credit import ReasoningCreditAssigner
-    from Jotty.core.intelligence.learning.shaped_rewards import ShapedRewardManager
-    from Jotty.core.intelligence.learning.td_lambda import TDLambdaLearner
+    from Jotty.core.infrastructure.foundation.configs import LearningConfig  # type: ignore[import]
+    from Jotty.core.intelligence.learning.learning_coordinator import (
+        LearningManager,  # type: ignore[import-not-found, import]
+    )
+    from Jotty.core.intelligence.learning.reasoning_credit import (
+        ReasoningCreditAssigner,  # type: ignore[import]
+    )
+    from Jotty.core.intelligence.learning.shaped_rewards import (
+        ShapedRewardManager,  # type: ignore[import]
+    )
+    from Jotty.core.intelligence.learning.td_lambda import TDLambdaLearner  # type: ignore[import]
 
 
-def _resolve_learning_config(config: Any) -> "SwarmConfig":
+def _resolve_learning_config(config: Any) -> "SwarmConfig":  # type: ignore[name-defined]
     """Convert LearningConfig or SwarmConfig to SwarmConfig for internal use.
 
     Accepts:
@@ -39,7 +45,9 @@ def _resolve_learning_config(config: Any) -> "SwarmConfig":
 
         return SwarmConfig()
 
-    from Jotty.core.infrastructure.foundation.configs.learning import LearningConfig
+    from Jotty.core.infrastructure.foundation.configs.learning import (
+        LearningConfig,  # type: ignore[import-not-found, import]
+    )
 
     if isinstance(config, LearningConfig):
         from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
@@ -51,7 +59,7 @@ def _resolve_learning_config(config: Any) -> "SwarmConfig":
 
 
 def get_learning_system(
-    config: Optional[Union["LearningConfig", "SwarmConfig"]] = None,
+    config: Optional[Union["LearningConfig", "SwarmConfig"]] = None,  # type: ignore[name-defined]
 ) -> "LearningManager":
     """
     Return a configured LearningManager (unified learning coordinator).
@@ -69,7 +77,7 @@ def get_learning_system(
 
 
 def get_td_lambda(
-    config: Optional[Union["LearningConfig", "SwarmConfig"]] = None,
+    config: Optional[Union["LearningConfig", "SwarmConfig"]] = None,  # type: ignore[name-defined]
 ) -> "TDLambdaLearner":
     """
     Return a TDLambdaLearner for temporal-difference learning.
@@ -87,7 +95,7 @@ def get_td_lambda(
 
 
 def get_credit_assigner(
-    config: Optional[Union["LearningConfig", "SwarmConfig"]] = None,
+    config: Optional[Union["LearningConfig", "SwarmConfig"]] = None,  # type: ignore[name-defined]
 ) -> "ReasoningCreditAssigner":
     """
     Return a ReasoningCreditAssigner for multi-step reasoning credit.
@@ -105,7 +113,7 @@ def get_credit_assigner(
 
 
 def get_offline_learner(
-    config: Optional[Union["LearningConfig", "SwarmConfig"]] = None,
+    config: Optional[Union["LearningConfig", "SwarmConfig"]] = None,  # type: ignore[name-defined]
 ) -> Dict[str, Any]:
     """
     Return offline learning components: OfflineLearner, CounterfactualLearner, PatternDiscovery.
@@ -116,7 +124,7 @@ def get_offline_learner(
     Returns:
         Dict with 'offline_learner', 'counterfactual', and 'pattern_discovery' keys.
     """
-    from Jotty.core.intelligence.learning.offline_learning import (
+    from Jotty.core.intelligence.learning.offline_learning import (  # type: ignore[import]
         CounterfactualLearner,
         OfflineLearner,
         PatternDiscovery,
@@ -149,7 +157,7 @@ def get_cooperative_agents() -> Dict[str, type]:
     Returns:
         Dict with 'predictive_agent' and 'nash_solver' keys (class objects).
     """
-    from Jotty.core.intelligence.learning.predictive_cooperation import (
+    from Jotty.core.intelligence.learning.predictive_cooperation import (  # type: ignore[import]
         NashBargainingSolver,
         PredictiveCooperativeAgent,
     )

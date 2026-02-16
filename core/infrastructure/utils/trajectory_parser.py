@@ -101,7 +101,7 @@ class TrajectoryParser:
         Returns:
             List of TaggedAttempt with generic tags
         """
-        attempts = []
+        attempts: List[Any] = []
 
         # Check if result has trajectory data
         if not hasattr(result, "_store"):

@@ -360,7 +360,7 @@ class MessageAdapter:
         if not converter:
             raise ValueError(f"Unsupported interface type: {source_type}")
 
-        return converter(data, **kwargs)
+        return converter(data, **kwargs)  # type: ignore[no-any-return, operator]
 
     @staticmethod
     def _from_telegram(update: Any, session_id: Optional[str] = None) -> JottyMessage:

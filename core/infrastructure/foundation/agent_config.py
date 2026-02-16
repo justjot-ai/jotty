@@ -18,7 +18,7 @@ from typing import Any, Dict, List, Optional
 try:
     from ..utils.context_logger import ContextRequirements
 except ImportError:
-    ContextRequirements = None
+    ContextRequirements = None  # type: ignore[assignment, misc]
 
 
 @dataclass

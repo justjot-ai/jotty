@@ -327,7 +327,7 @@ class MCPToolExecutor:
                         timeout=aiohttp.ClientTimeout(total=30),
                     ) as resp:
                         resp.raise_for_status()
-                        return await resp.json()
+                        return await resp.json()  # type: ignore[no-any-return]
                 else:  # POST
                     async with session.post(
                         url,
@@ -336,7 +336,7 @@ class MCPToolExecutor:
                         timeout=aiohttp.ClientTimeout(total=30),
                     ) as resp:
                         resp.raise_for_status()
-                        return await resp.json()
+                        return await resp.json()  # type: ignore[no-any-return]
             except aiohttp.ClientError as e:
                 # If blue fails, try green (for Docker blue-green deployment)
                 if "justjot-ai-blue" in self.base_url:
@@ -350,7 +350,7 @@ class MCPToolExecutor:
                                 timeout=aiohttp.ClientTimeout(total=30),
                             ) as resp:
                                 resp.raise_for_status()
-                                return await resp.json()
+                                return await resp.json()  # type: ignore[no-any-return]
                         else:  # POST
                             async with session.post(
                                 fallback_url,
@@ -359,7 +359,7 @@ class MCPToolExecutor:
                                 timeout=aiohttp.ClientTimeout(total=30),
                             ) as resp:
                                 resp.raise_for_status()
-                                return await resp.json()
+                                return await resp.json()  # type: ignore[no-any-return]
                     except Exception as fallback_err:
                         import logging
 
@@ -426,7 +426,9 @@ class MCPToolExecutor:
         future tool selection.
         """
         try:
-            from Jotty.core.intelligence.learning.facade import get_td_lambda
+            from Jotty.core.intelligence.learning.facade import (
+                get_td_lambda,  # type: ignore[import]
+            )
 
             td = get_td_lambda()
 

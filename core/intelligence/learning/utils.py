@@ -39,19 +39,19 @@ logger = logging.getLogger(__name__)
 try:
     from .transfer_learning import PatternExtractor
 except ImportError:
-    PatternExtractor = None
+    PatternExtractor = None  # type: ignore[assignment, misc]
 
 # PrioritizedEpisodeBuffer from offline_learning
 try:
     from .offline_learning import PrioritizedEpisodeBuffer
 except ImportError:
-    PrioritizedEpisodeBuffer = None
+    PrioritizedEpisodeBuffer = None  # type: ignore[assignment, misc]
 
 # SemanticEmbedder from transfer_learning (for similarity)
 try:
     from .transfer_learning import SemanticEmbedder
 except ImportError:
-    SemanticEmbedder = None
+    SemanticEmbedder = None  # type: ignore[assignment, misc]
 
 
 # =============================================================================
@@ -274,7 +274,7 @@ class SimilarityEngine:
             use_embeddings: Whether to use semantic embeddings if available
         """
         self._embedder = None
-        if use_embeddings and SemanticEmbedder:
+        if use_embeddings and SemanticEmbedder:  # type: ignore[truthy-function]
             try:
                 self._embedder = SemanticEmbedder(use_embeddings=True)
             except Exception as e:

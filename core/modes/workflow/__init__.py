@@ -14,14 +14,14 @@ Three Domain-Specific Workflows:
 """
 
 # Re-export from canonical location
-from Jotty.core.execution.workflows.auto_workflow import (
+from Jotty.core.execution.workflows.auto_workflow import (  # type: ignore[import]
     AutoWorkflow,
     WorkflowIntent,
     build,
     develop,
 )
 from Jotty.core.execution.workflows.auto_workflow import research as research_stage
-from Jotty.core.execution.workflows.learning_workflow import (
+from Jotty.core.execution.workflows.learning_workflow import (  # type: ignore[import]
     LearningDepth,
     LearningIntent,
     LearningLevel,
@@ -29,14 +29,14 @@ from Jotty.core.execution.workflows.learning_workflow import (
     Subject,
     learn,
 )
-from Jotty.core.execution.workflows.research_workflow import (
+from Jotty.core.execution.workflows.research_workflow import (  # type: ignore[import]
     ResearchDepth,
     ResearchIntent,
     ResearchType,
     ResearchWorkflow,
     research,
 )
-from Jotty.core.execution.workflows.smart_swarm_registry import (
+from Jotty.core.execution.workflows.smart_swarm_registry import (  # type: ignore[import]
     SmartSwarmRegistry,
     StageType,
     SwarmConfig,

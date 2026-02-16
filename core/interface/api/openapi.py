@@ -143,7 +143,7 @@ def generate_openapi_spec(
         except ImportError:
             base_url = os.getenv("JOTTY_GATEWAY_URL", "http://localhost:8766")
 
-    from Jotty.core.infrastructure.foundation.types.sdk_types import (
+    from Jotty.core.infrastructure.foundation.types.sdk_types import (  # type: ignore[import-not-found, import]
         ExecutionContext,
         SDKEvent,
         SDKRequest,
@@ -151,7 +151,7 @@ def generate_openapi_spec(
         SDKSession,
     )
 
-    enums_collected = {}
+    enums_collected: Dict[str, Any] = {}
 
     # Auto-generate schemas from dataclasses
     schemas = {}

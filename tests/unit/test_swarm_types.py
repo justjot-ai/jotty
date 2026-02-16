@@ -759,7 +759,7 @@ class TestSwarmSignatures:
     def test_all_exports_exist(self):
         """All entries in __all__ are importable."""
         try:
-            from Jotty.core.execution.swarms import swarm_signatures
+            from Jotty.core.intelligence.swarms._base import swarm_signatures
 
             for name in swarm_signatures.__all__:
                 assert hasattr(swarm_signatures, name), f"{name} not found"

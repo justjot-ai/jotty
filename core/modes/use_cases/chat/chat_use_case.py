@@ -97,7 +97,7 @@ class ChatUseCase(BaseUseCase):
         metadata.update(result.get("metadata", {}))
         return metadata
 
-    async def stream(
+    async def stream(  # type: ignore[override]
         self,
         goal: str,
         context: Optional[Dict[str, Any]] = None,

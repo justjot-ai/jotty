@@ -49,7 +49,10 @@ class SwarmDAGExecutor:
         Returns:
             EpisodeResult with execution output and metadata
         """
-        from Jotty.core.modes.agent.dag_agents import TaskBreakdownAgent, TodoCreatorAgent
+        from Jotty.core.modes.agent.planners.dag_agents import (  # type: ignore[import-not-found, import]
+            TaskBreakdownAgent,
+            TodoCreatorAgent,
+        )
 
         def _status(stage: str, detail: str = "") -> Any:
             if status_callback:
@@ -73,9 +76,9 @@ class SwarmDAGExecutor:
         if available_actors is None:
             available_actors = [
                 {
-                    "name": agent.name,
-                    "capabilities": getattr(agent.agent, "capabilities", ["coding", "analysis"]),
-                    "description": getattr(agent.agent, "description", None),
+                    "name": agent.name,  # type: ignore[union-attr]
+                    "capabilities": getattr(agent.agent, "capabilities", ["coding", "analysis"]),  # type: ignore[union-attr]
+                    "description": getattr(agent.agent, "description", None),  # type: ignore[union-attr]
                 }
                 for agent in self.swarm.agents
             ]
@@ -172,7 +175,7 @@ class SwarmDAGExecutor:
         self, executable_dag: Any, task_ids: List[str], status_callback: Any = None
     ) -> Dict[str, Dict[str, Any]]:
         """Execute a stage of tasks (potentially in parallel)."""
-        from Jotty.core.modes.agent.auto_agent import AutoAgent
+        from Jotty.core.modes.agent.auto_agent import AutoAgent  # type: ignore[import-not-found]
 
         results = {}
 
@@ -232,7 +235,7 @@ class SwarmDAGExecutor:
             if isinstance(item, Exception):
                 logger.error(f"Task execution error: {item}")
             else:
-                task_id, result = item
+                task_id, result = item  # type: ignore[misc]
                 results[task_id] = result
 
         return results
@@ -241,7 +244,7 @@ class SwarmDAGExecutor:
         """Get DAG agents for external use."""
         import dspy
 
-        from Jotty.core.modes.agent.dag_agents import TaskBreakdownAgent, TodoCreatorAgent
+        from Jotty.core.modes.agent.planners.dag_agents import TaskBreakdownAgent, TodoCreatorAgent
 
         if not hasattr(dspy.settings, "lm") or dspy.settings.lm is None:
             lm = self.swarm.swarm_provider_gateway.get_lm()

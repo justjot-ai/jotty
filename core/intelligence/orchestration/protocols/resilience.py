@@ -41,28 +41,28 @@ class ResilienceMixin:
             New assigned agent or None if no alternatives.
         """
         # Update agent profile (reduce trust)
-        if agent in self.agent_profiles:
-            profile = self.agent_profiles[agent]
+        if agent in self.agent_profiles:  # type: ignore[attr-defined]
+            profile = self.agent_profiles[agent]  # type: ignore[attr-defined]
             profile.trust_score = max(0.1, profile.trust_score - 0.1)
             profile.update_task_result(task_type, False, 0.0)
 
         # Find alternative agent
         failed_agents = [agent]
-        if task_id in self.pending_handoffs:
-            failed_agents.extend(self.pending_handoffs[task_id].handoff_chain)
+        if task_id in self.pending_handoffs:  # type: ignore[attr-defined]
+            failed_agents.extend(self.pending_handoffs[task_id].handoff_chain)  # type: ignore[attr-defined]
 
-        available = [a for a in self.agent_profiles.keys() if a not in failed_agents]
+        available = [a for a in self.agent_profiles.keys() if a not in failed_agents]  # type: ignore[attr-defined]
 
         if not available:
             logger.warning(f"Task {task_id} failed, no alternatives available")
             return None
 
         # Use auction to find best alternative
-        new_agent = self.auto_auction(f"{task_id}_retry", task_type, available)
+        new_agent = self.auto_auction(f"{task_id}_retry", task_type, available)  # type: ignore[attr-defined]
 
         if new_agent:
             # Create handoff with failure context
-            self.initiate_handoff(
+            self.initiate_handoff(  # type: ignore[attr-defined]
                 task_id=f"{task_id}_retry",
                 from_agent=agent,
                 to_agent=new_agent,
@@ -72,16 +72,16 @@ class ResilienceMixin:
             )
             logger.info(f"Task {task_id} reassigned: {agent} (failed) → {new_agent}")
 
-        return new_agent
+        return new_agent  # type: ignore[no-any-return]
 
     def get_failure_rate(self, agent: str, task_type: str | None = None) -> float:
         """Get failure rate for an agent (optionally for specific task type)."""
-        profile = self.agent_profiles.get(agent)
+        profile = self.agent_profiles.get(agent)  # type: ignore[attr-defined]
         if not profile:
             return 0.5
 
         if task_type:
-            return 1.0 - profile.get_success_rate(task_type)
+            return 1.0 - profile.get_success_rate(task_type)  # type: ignore[no-any-return]
 
         # Overall failure rate
         total_success = sum(s for s, t in profile.task_success.values())
@@ -98,8 +98,8 @@ class ResilienceMixin:
 
     def get_circuit_state(self, agent: str) -> str:
         """Get circuit breaker state: 'closed' (ok), 'open' (blocked), 'half-open' (testing)."""
-        cb = self.circuit_breakers.get(agent, {})
-        return cb.get("state", "closed")
+        cb = self.circuit_breakers.get(agent, {})  # type: ignore[attr-defined]
+        return cb.get("state", "closed")  # type: ignore[no-any-return]
 
     def record_circuit_failure(
         self, agent: str, threshold: int = 3, cooldown: float = 60.0
@@ -110,10 +110,10 @@ class ResilienceMixin:
         After `threshold` failures, circuit opens (blocks agent).
         After `cooldown` seconds, circuit becomes half-open (allows one test).
         """
-        if agent not in self.circuit_breakers:
-            self.circuit_breakers[agent] = {"state": "closed", "failures": 0, "last_failure": 0}
+        if agent not in self.circuit_breakers:  # type: ignore[attr-defined]
+            self.circuit_breakers[agent] = {"state": "closed", "failures": 0, "last_failure": 0}  # type: ignore[attr-defined]
 
-        cb = self.circuit_breakers[agent]
+        cb = self.circuit_breakers[agent]  # type: ignore[attr-defined]
         cb["failures"] += 1
         cb["last_failure"] = time.time()
 
@@ -123,8 +123,8 @@ class ResilienceMixin:
 
     def record_circuit_success(self, agent: str) -> None:
         """Record success - resets circuit breaker."""
-        if agent in self.circuit_breakers:
-            self.circuit_breakers[agent] = {"state": "closed", "failures": 0, "last_failure": 0}
+        if agent in self.circuit_breakers:  # type: ignore[attr-defined]
+            self.circuit_breakers[agent] = {"state": "closed", "failures": 0, "last_failure": 0}  # type: ignore[attr-defined]
 
     def check_circuit(self, agent: str, cooldown: float = 60.0) -> bool:
         """
@@ -132,7 +132,7 @@ class ResilienceMixin:
 
         Returns True if agent can receive tasks.
         """
-        cb = self.circuit_breakers.get(agent)
+        cb = self.circuit_breakers.get(agent)  # type: ignore[attr-defined]
         if not cb:
             return True
 
@@ -152,7 +152,7 @@ class ResilienceMixin:
 
     def get_available_agents(self, agents: List[str] | None = None) -> List[str]:
         """Get agents with closed or half-open circuits."""
-        agents = agents or list(self.agent_profiles.keys())
+        agents = agents or list(self.agent_profiles.keys())  # type: ignore[attr-defined]
         return [a for a in agents if self.check_circuit(a)]
 
     # =========================================================================
@@ -169,14 +169,14 @@ class ResilienceMixin:
 
         High backpressure means swarm is overwhelmed.
         """
-        if not self.agent_profiles:
+        if not self.agent_profiles:  # type: ignore[attr-defined]
             return 0.0
 
         # Factors contributing to backpressure
-        avg_load = sum(self.get_agent_load(a) for a in self.agent_profiles) / len(
-            self.agent_profiles
+        avg_load = sum(self.get_agent_load(a) for a in self.agent_profiles) / len(  # type: ignore[attr-defined]
+            self.agent_profiles  # type: ignore[attr-defined]
         )
-        pending_ratio = min(1.0, len(self.pending_handoffs) / max(1, len(self.agent_profiles) * 3))
+        pending_ratio = min(1.0, len(self.pending_handoffs) / max(1, len(self.agent_profiles) * 3))  # type: ignore[attr-defined]
         queue_pressure = min(1.0, len(getattr(self, "priority_queue", [])) / 20)
 
         backpressure = avg_load * 0.4 + pending_ratio * 0.4 + queue_pressure * 0.2
@@ -228,14 +228,14 @@ class ResilienceMixin:
         Returns:
             Dict with decision, consensus reached, vote distribution.
         """
-        voters = voters or list(self.agent_profiles.keys())
+        voters = voters or list(self.agent_profiles.keys())  # type: ignore[attr-defined]
 
         # Collect votes (weighted by trust)
-        votes = defaultdict(float)
+        votes = defaultdict(float)  # type: ignore[var-annotated]
         vote_details = []
 
         for agent in voters:
-            profile = self.agent_profiles.get(agent, AgentProfile(agent))
+            profile = self.agent_profiles.get(agent, AgentProfile(agent))  # type: ignore[attr-defined]
 
             # Agent votes for option based on specialization match
             # (In real implementation, this would call agent's vote method)

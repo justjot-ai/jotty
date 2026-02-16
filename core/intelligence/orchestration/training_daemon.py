@@ -68,7 +68,7 @@ class TrainingDaemon:
     def pending_count(self) -> int:
         """Number of curriculum-generated training tasks waiting."""
         try:
-            return self._manager.learning.pending_training_count()
+            return self._manager.learning.pending_training_count()  # type: ignore[no-any-return]
         except Exception as e:
             logger.debug(f"Pending training count unavailable: {e}")
             return 0

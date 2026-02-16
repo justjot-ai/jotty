@@ -13,7 +13,10 @@ import re
 from typing import Any, Dict, List, Optional
 
 from Jotty.core.execution.base import AgentRuntimeConfig, BaseAgent
-from Jotty.core.execution.capabilities import LearningCapability, ValidationCapability
+from Jotty.core.execution.capabilities import (  # type: ignore[import-not-found, import]
+    LearningCapability,
+    ValidationCapability,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -157,7 +160,7 @@ class LaTeXAgent(BaseAgent, LearningCapability, ValidationCapability):
 
         try:
             # Call DSPy agent
-            result = self._dspy_agent(
+            result = self._dspy_agent(  # type: ignore[misc]
                 task=task,
                 description=description,
                 expression_type=expression_type,
@@ -475,6 +478,6 @@ class LaTeXAgent(BaseAgent, LearningCapability, ValidationCapability):
         )
 
         if result.success:
-            return result.output
+            return result.output  # type: ignore[no-any-return]
         else:
             raise ValueError(f"LaTeX generation failed: {result.error}")

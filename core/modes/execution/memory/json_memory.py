@@ -166,7 +166,7 @@ class JSONMemory:
         """Load or create file."""
         if file_path.exists():
             with open(file_path, "r") as f:
-                return json.load(f)
+                return json.load(f)  # type: ignore[no-any-return]
         else:
             return {"entries": []}
 

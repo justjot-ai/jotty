@@ -72,7 +72,7 @@ class GAIABenchmark(Benchmark):
         """
         tasks = []
 
-        benchmark_path = Path(self.benchmark_path)
+        benchmark_path = Path(self.benchmark_path)  # type: ignore[arg-type]
         if not benchmark_path.exists():
             raise FileNotFoundError(
                 f"GAIA dataset not found at {benchmark_path}. "

@@ -208,7 +208,7 @@ class ModelTierRouter:
 
         # Return cached LM if available
         if tier in self._tier_lms and self._tier_lms[tier] is not None:
-            return self._tier_lms[tier]
+            return self._tier_lms[tier]  # type: ignore[no-any-return]
 
         decision = self.get_model_for_mode(mode)
 
@@ -224,7 +224,7 @@ class ModelTierRouter:
                 f"ModelTierRouter: created {decision.tier.value} LM "
                 f"({decision.provider}/{decision.model})"
             )
-            return lm
+            return lm  # type: ignore[no-any-return]
         except Exception as e:
             logger.warning(f"ModelTierRouter: could not create {decision.tier.value} LM: {e}")
             return None

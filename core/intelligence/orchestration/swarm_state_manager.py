@@ -32,10 +32,14 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 if TYPE_CHECKING:
-    from Jotty.core.infrastructure.context.context_guard import LLMContextManager
-    from Jotty.core.infrastructure.data.data_registry import DataRegistry
-    from Jotty.core.infrastructure.data.io_manager import IOManager
-    from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
+    from Jotty.core.infrastructure.context.context_guard import (
+        LLMContextManager,  # type: ignore[import-not-found]
+    )
+    from Jotty.core.infrastructure.data.data_registry import DataRegistry  # type: ignore[import]
+    from Jotty.core.infrastructure.data.io_manager import IOManager  # type: ignore[import]
+    from Jotty.core.infrastructure.foundation.agent_config import (
+        AgentConfig,  # type: ignore[import-not-found, import]
+    )
 
     from .swarm_roadmap import SubtaskState, SwarmTaskBoard, TaskStatus
 else:
@@ -409,12 +413,12 @@ class SwarmStateManager:
                     for tc in step.get("tool_calls", []):
                         tool_name = tc.get("tool") if isinstance(tc, dict) else str(tc)
                         if isinstance(tc, dict) and tc.get("success"):
-                            self.swarm_tool_usage["successful"][tool_name] = (
-                                self.swarm_tool_usage["successful"].get(tool_name, 0) + 1
+                            self.swarm_tool_usage["successful"][tool_name] = (  # type: ignore[index]
+                                self.swarm_tool_usage["successful"].get(tool_name, 0) + 1  # type: ignore[arg-type]
                             )
                         else:
-                            self.swarm_tool_usage["failed"][tool_name] = (
-                                self.swarm_tool_usage["failed"].get(tool_name, 0) + 1
+                            self.swarm_tool_usage["failed"][tool_name] = (  # type: ignore[index]
+                                self.swarm_tool_usage["failed"].get(tool_name, 0) + 1  # type: ignore[arg-type]
                             )
 
         if self.swarm_tool_usage["successful"]:

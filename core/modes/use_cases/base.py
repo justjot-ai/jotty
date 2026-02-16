@@ -212,7 +212,7 @@ class BaseUseCase(ABC):
         """Extract metadata from executor result. Override per use case."""
         metadata = result.get("metadata", {}).copy()
         metadata["execution_time"] = result.get("execution_time", execution_time)
-        return metadata
+        return metadata  # type: ignore[no-any-return]
 
     def _error_output(self, error: Exception) -> Any:
         """Format error output. Override per use case."""

@@ -485,7 +485,8 @@ class TestSwarmSelectionAccuracy:
         mock_swarm.__class__.__name__ = f"{expected_swarm.title()}Swarm"
 
         with patch(
-            "Jotty.core.swarms.registry.SwarmRegistry.create", return_value=mock_swarm
+            "Jotty.core.intelligence.swarms._base.registry.SwarmRegistry.create",
+            return_value=mock_swarm,
         ) as mock_create:
             result = v3_executor._select_swarm(goal)
 
@@ -498,7 +499,8 @@ class TestSwarmSelectionAccuracy:
         mock_swarm = Mock()
 
         with patch(
-            "Jotty.core.swarms.registry.SwarmRegistry.create", return_value=mock_swarm
+            "Jotty.core.intelligence.swarms._base.registry.SwarmRegistry.create",
+            return_value=mock_swarm,
         ) as mock_create:
             result = v3_executor._select_swarm("Random unrelated goal", swarm_name="coding")
 
@@ -507,7 +509,9 @@ class TestSwarmSelectionAccuracy:
 
     def test_no_match_returns_none(self, v3_executor):
         """Goal with no matching keywords returns None."""
-        with patch("Jotty.core.swarms.registry.SwarmRegistry.create", return_value=None):
+        with patch(
+            "Jotty.core.intelligence.swarms._base.registry.SwarmRegistry.create", return_value=None
+        ):
             result = v3_executor._select_swarm("Something completely unrelated to any swarm xyz")
 
         assert result is None
@@ -520,7 +524,10 @@ class TestSwarmSelectionAccuracy:
             call_names.append(name)
             return Mock() if name == call_names[0] else None
 
-        with patch("Jotty.core.swarms.registry.SwarmRegistry.create", side_effect=_tracking_create):
+        with patch(
+            "Jotty.core.intelligence.swarms._base.registry.SwarmRegistry.create",
+            side_effect=_tracking_create,
+        ):
             result = v3_executor._select_swarm("Implement code and research the API design")
 
         assert result is not None
@@ -531,7 +538,10 @@ class TestSwarmSelectionAccuracy:
         """Keyword matching is case-insensitive."""
         mock_swarm = Mock()
 
-        with patch("Jotty.core.swarms.registry.SwarmRegistry.create", return_value=mock_swarm):
+        with patch(
+            "Jotty.core.intelligence.swarms._base.registry.SwarmRegistry.create",
+            return_value=mock_swarm,
+        ):
             result = v3_executor._select_swarm("IMPLEMENT a REST API")
 
         assert result is not None
@@ -541,7 +551,8 @@ class TestSwarmSelectionAccuracy:
         mock_swarm = Mock()
 
         with patch(
-            "Jotty.core.swarms.registry.SwarmRegistry.create", return_value=mock_swarm
+            "Jotty.core.intelligence.swarms._base.registry.SwarmRegistry.create",
+            return_value=mock_swarm,
         ) as mock_create:
             result = v3_executor._select_swarm("dataset analysis for quarterly numbers")
 
@@ -554,7 +565,8 @@ class TestSwarmSelectionAccuracy:
         mock_swarm = Mock()
 
         with patch(
-            "Jotty.core.swarms.registry.SwarmRegistry.create", return_value=mock_swarm
+            "Jotty.core.intelligence.swarms._base.registry.SwarmRegistry.create",
+            return_value=mock_swarm,
         ) as mock_create:
             v3_executor._select_swarm("Deploy to docker container")
 
@@ -562,7 +574,9 @@ class TestSwarmSelectionAccuracy:
 
     def test_fallback_when_registry_returns_none(self, v3_executor):
         """When registry returns None for all swarms → returns None."""
-        with patch("Jotty.core.swarms.registry.SwarmRegistry.create", return_value=None):
+        with patch(
+            "Jotty.core.intelligence.swarms._base.registry.SwarmRegistry.create", return_value=None
+        ):
             result = v3_executor._select_swarm("Implement a REST API in code")
 
         assert result is None

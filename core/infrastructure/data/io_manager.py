@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Type
 
-import dspy
+import dspy  # type: ignore[import-untyped]
 
 # TaggedOutput is not available in this codebase
 TAGGED_OUTPUT_AVAILABLE = False
@@ -278,27 +278,27 @@ class IOManager:
         # Strategy 1: actor.resolver.signature (ChainOfThought)
         if hasattr(actor, "resolver") and hasattr(actor.resolver, "signature"):
             logger.debug("   Extracted signature from actor.resolver")
-            return actor.resolver.signature
+            return actor.resolver.signature  # type: ignore[no-any-return]
 
         # Strategy 2: actor.predictor.signature (Predict)
         if hasattr(actor, "predictor") and hasattr(actor.predictor, "signature"):
             logger.debug("   Extracted signature from actor.predictor")
-            return actor.predictor.signature
+            return actor.predictor.signature  # type: ignore[no-any-return]
 
         # Strategy 3: actor.generator.signature (ReAct)
         if hasattr(actor, "generator") and hasattr(actor.generator, "signature"):
             logger.debug("   Extracted signature from actor.generator")
-            return actor.generator.signature
+            return actor.generator.signature  # type: ignore[no-any-return]
 
         # Strategy 4: actor.generate.signature (SQLGenerator pattern)
         if hasattr(actor, "generate") and hasattr(actor.generate, "signature"):
             logger.debug("   Extracted signature from actor.generate")
-            return actor.generate.signature
+            return actor.generate.signature  # type: ignore[no-any-return]
 
         # Strategy 5: actor.signature (direct)
         if hasattr(actor, "signature"):
             logger.debug("   Extracted signature from actor.signature")
-            return actor.signature
+            return actor.signature  # type: ignore[no-any-return]
 
         # Strategy 6: Introspect forward() return type annotation
         if hasattr(actor, "forward"):
@@ -307,7 +307,7 @@ class IOManager:
             sig = inspect.signature(actor.forward)
             if sig.return_annotation != inspect.Parameter.empty:
                 logger.debug("   Extracted signature from forward() annotation")
-                return sig.return_annotation
+                return sig.return_annotation  # type: ignore[no-any-return]
 
         logger.debug(f" Could not extract signature from {type(actor).__name__}")
         return None
@@ -328,7 +328,7 @@ class IOManager:
         output_fields = {}
 
         # Strategy 0: TaggedOutput (GENERIC handling for ReAct exploration)
-        if TAGGED_OUTPUT_AVAILABLE and isinstance(output, TaggedOutput):
+        if TAGGED_OUTPUT_AVAILABLE and isinstance(output, TaggedOutput):  # type: ignore[name-defined]
             best = output.get_best_attempt()
 
             if best and best.tag == "correct":
@@ -449,7 +449,7 @@ class IOManager:
 
         def get_output(actor_name: str, field_name: str) -> Any:
             """Get output field from specific actor."""
-            return self.get(actor_name, field_name)
+            return self.get(actor_name, field_name)  # type: ignore[attr-defined]
 
         def list_outputs() -> Dict[str, List[str]]:
             """List all available outputs."""

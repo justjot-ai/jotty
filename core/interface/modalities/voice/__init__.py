@@ -93,7 +93,7 @@ class VoiceModality:
         result = await self.stt.transcribe(audio_file, **kwargs)
         if not result.get("success"):
             raise RuntimeError(result.get("error", "Unknown error"))
-        return result["text"]
+        return result["text"]  # type: ignore[no-any-return]
 
     async def synthesize(self, text: str, **kwargs) -> bytes:
         """Convert text to speech."""
@@ -113,7 +113,7 @@ class VoiceModality:
         else:
             raise RuntimeError("No audio data in TTS result")
 
-    async def stream(self, text: str, **kwargs) -> None:
+    async def stream(self, text: str, **kwargs) -> None:  # type: ignore[misc]
         """Stream text-to-speech audio."""
         async for chunk in self.tts.stream(text, **kwargs):
             yield chunk

@@ -17,7 +17,7 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 
 class AgentSpecialization(Enum):
@@ -213,7 +213,7 @@ class HandoffContext:
     partial_result: Any = None
     progress: float = 0.0  # 0-1 completion
     priority: int = 5  # 1-10, higher = more urgent
-    deadline: float = None  # Unix timestamp
+    deadline: Optional[float] = None  # Unix timestamp  # type: ignore[assignment]
     handoff_chain: List[str] = field(default_factory=list)  # Previous agents
     timestamp: float = field(default_factory=time.time)
 
@@ -318,7 +318,7 @@ class SupervisorNode:
     node_id: str
     agent_name: str
     level: int  # 0 = leaf, higher = supervisor
-    parent: str = None  # Parent node_id
+    parent: Optional[str] = None  # Parent node_id  # type: ignore[assignment]
     children: List[str] = field(default_factory=list)  # Child node_ids
     supervised_agents: List[str] = field(default_factory=list)
     load: float = 0.0  # Current workload 0-1

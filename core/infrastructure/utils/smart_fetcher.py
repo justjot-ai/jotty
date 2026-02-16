@@ -424,7 +424,7 @@ def smart_fetch(
         )
 
     # ── Level 2: archive.org Wayback Machine API ──
-    archive_html = _try_archive_org(url, timeout=min(timeout, _budget_remaining()))
+    archive_html = _try_archive_org(url, timeout=min(timeout, _budget_remaining()))  # type: ignore[arg-type]
     if archive_html:
         return FetchResult(
             success=True,

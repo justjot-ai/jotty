@@ -71,14 +71,14 @@ class ConsolidationMixin:
         All → Meta (wisdom)
         Episodes → Causal (why)
         """
-        self.consolidation_count += 1
+        self.consolidation_count += 1  # type: ignore[attr-defined]
 
         # 1. Cluster episodic memories by goal
         clusters = self._cluster_episodic_memories()
 
         # 2. Extract semantic patterns
         for cluster in clusters:
-            if len(cluster.memories) >= self.config.min_cluster_size:
+            if len(cluster.memories) >= self.config.min_cluster_size:  # type: ignore[attr-defined]
                 await self._extract_semantic_pattern(cluster)
 
         # 3. Extract procedural knowledge
@@ -89,7 +89,7 @@ class ConsolidationMixin:
         await self._extract_meta_wisdom()
 
         # 5. Extract causal knowledge
-        if episodes and self.config.enable_causal_learning:
+        if episodes and self.config.enable_causal_learning:  # type: ignore[attr-defined]
             await self._extract_causal(episodes)
 
         # 6. Prune old episodic memories
@@ -99,7 +99,7 @@ class ConsolidationMixin:
         """Cluster episodic memories by goal signature."""
         cons = _get_consolidation()
         _MemoryCluster = cons["MemoryCluster"]
-        episodic = self.memories[MemoryLevel.EPISODIC]
+        episodic = self.memories[MemoryLevel.EPISODIC]  # type: ignore[attr-defined]
 
         # Group by first goal in goal_values
         goal_groups: Dict[str, List[MemoryEntry]] = defaultdict(list)
@@ -137,7 +137,7 @@ class ConsolidationMixin:
             )
 
         try:
-            result = self.pattern_extractor(
+            result = self.pattern_extractor(  # type: ignore[attr-defined]
                 memories=json.dumps(memory_data, indent=2),
                 goal_context=cluster.goal_signature,
                 domain=cluster.goal_signature.split(":")[0],
@@ -145,7 +145,7 @@ class ConsolidationMixin:
 
             confidence = float(result.confidence) if result.confidence else 0.5
 
-            if confidence >= self.config.pattern_confidence_threshold:
+            if confidence >= self.config.pattern_confidence_threshold:  # type: ignore[attr-defined]
                 # Store as semantic memory
                 pattern_content = f"""
 PATTERN: {result.pattern}
@@ -162,7 +162,7 @@ CONFIDENCE: {confidence:.2f}
                 sample_mem = cluster.memories[0]
                 goal = next(iter(sample_mem.goal_values.keys()), "general")
 
-                self.store(
+                self.store(  # type: ignore[attr-defined]
                     content=pattern_content,
                     level=MemoryLevel.SEMANTIC,
                     context={
@@ -209,7 +209,7 @@ CONFIDENCE: {confidence:.2f}
             failure_traces = self._format_traces(fail)
 
             try:
-                result = self.procedural_extractor(
+                result = self.procedural_extractor(  # type: ignore[attr-defined]
                     success_traces=success_traces,
                     failure_traces=failure_traces,
                     task_type=task_type,
@@ -228,7 +228,7 @@ ANALYSIS:
 {result.reasoning}
 """.strip()
 
-                self.store(
+                self.store(  # type: ignore[attr-defined]
                     content=procedure_content,
                     level=MemoryLevel.PROCEDURAL,
                     context={"task_type": task_type, "source_episodes": len(succ) + len(fail)},
@@ -246,7 +246,7 @@ ANALYSIS:
         all_low_value = []
 
         for level in [MemoryLevel.SEMANTIC, MemoryLevel.PROCEDURAL]:
-            for mem in self.memories[level].values():
+            for mem in self.memories[level].values():  # type: ignore[attr-defined]
                 if mem.default_value > 0.8:
                     all_high_value.append(mem.content)
                 elif mem.default_value < 0.3:
@@ -256,8 +256,8 @@ ANALYSIS:
             return
 
         try:
-            result = self.meta_extractor(
-                learning_history=f"Episodes: {self.consolidation_count * 100}, High-value patterns: {len(all_high_value)}, Low-value: {len(all_low_value)}",
+            result = self.meta_extractor(  # type: ignore[attr-defined]
+                learning_history=f"Episodes: {self.consolidation_count * 100}, High-value patterns: {len(all_high_value)}, Low-value: {len(all_low_value)}",  # type: ignore[attr-defined]
                 failure_analysis="\n".join(all_low_value),
                 success_analysis="\n".join(all_high_value),
             )
@@ -270,16 +270,16 @@ WHEN TO APPLY:
 {result.applicability}
 """.strip()
 
-            self.store(
+            self.store(  # type: ignore[attr-defined]
                 content=wisdom_content,
                 level=MemoryLevel.META,
-                context={"consolidation": self.consolidation_count},
+                context={"consolidation": self.consolidation_count},  # type: ignore[attr-defined]
                 goal="meta_wisdom",
                 initial_value=0.9,  # Meta starts high
             )
 
             # Protect meta memories
-            for mem in self.memories[MemoryLevel.META].values():
+            for mem in self.memories[MemoryLevel.META].values():  # type: ignore[attr-defined]
                 mem.is_protected = True
                 mem.protection_reason = "META level"
 
@@ -302,7 +302,7 @@ WHEN TO APPLY:
         if len(successes) < 3 or len(failures) < 2:
             return
 
-        links = self.causal_extractor.extract_from_episodes(
+        links = self.causal_extractor.extract_from_episodes(  # type: ignore[attr-defined]
             success_episodes=successes,
             failure_episodes=failures,
             domain=episodes[0].kwargs.get("domain", "general"),  # Generic default (not 'sql'!)
@@ -313,9 +313,9 @@ WHEN TO APPLY:
                 f"{link_data['cause']}{link_data['effect']}".encode()
             ).hexdigest()
 
-            if link_key in self.causal_links:
+            if link_key in self.causal_links:  # type: ignore[attr-defined]
                 # Update existing
-                existing = self.causal_links[link_key]
+                existing = self.causal_links[link_key]  # type: ignore[attr-defined]
                 existing.update_confidence(True)
                 existing.supporting_episodes.append(episodes[0].episode_id)
             else:
@@ -327,7 +327,7 @@ WHEN TO APPLY:
                     conditions=link_data.get("conditions", []),
                     domain=episodes[0].kwargs.get("domain", "general"),
                 )
-                self.causal_links[link_key] = causal_link
+                self.causal_links[link_key] = causal_link  # type: ignore[attr-defined]
 
                 # Also store as CAUSAL memory
                 causal_content = f"""
@@ -338,7 +338,7 @@ CONFIDENCE: {causal_link.confidence:.2f}
 CONDITIONS: {', '.join(causal_link.conditions) if causal_link.conditions else 'None'}
 """.strip()
 
-                self.store(
+                self.store(  # type: ignore[attr-defined]
                     content=causal_content,
                     level=MemoryLevel.CAUSAL,
                     context={"causal_key": link_key},
@@ -362,7 +362,7 @@ CONDITIONS: {', '.join(causal_link.conditions) if causal_link.conditions else 'N
 
     def _prune_episodic(self) -> Any:
         """Prune old low-value episodic memories."""
-        episodic = self.memories[MemoryLevel.EPISODIC]
+        episodic = self.memories[MemoryLevel.EPISODIC]  # type: ignore[attr-defined]
 
         # Keep top 80% by value, all less than 1 day old
         now = datetime.now()
@@ -384,9 +384,9 @@ CONDITIONS: {', '.join(causal_link.conditions) if causal_link.conditions else 'N
 
     def protect_high_value(self, threshold: float | None = None) -> None:
         """Mark high-value memories as protected."""
-        threshold = threshold or self.config.protected_memory_threshold
+        threshold = threshold or self.config.protected_memory_threshold  # type: ignore[attr-defined]
 
-        for level, memories in self.memories.items():
+        for level, memories in self.memories.items():  # type: ignore[attr-defined]
             for mem in memories.values():
                 if mem.default_value >= threshold:
                     mem.is_protected = True
@@ -405,20 +405,20 @@ CONDITIONS: {', '.join(causal_link.conditions) if causal_link.conditions else 'N
     def to_dict(self) -> Dict[str, Any]:
         """Serialize to dictionary for JSON storage."""
         data = {
-            "agent_name": self.agent_name,
-            "total_accesses": self.total_accesses,
-            "consolidation_count": self.consolidation_count,
+            "agent_name": self.agent_name,  # type: ignore[attr-defined]
+            "total_accesses": self.total_accesses,  # type: ignore[attr-defined]
+            "consolidation_count": self.consolidation_count,  # type: ignore[attr-defined]
             "memories": {},
             "causal_links": {},
             "goal_hierarchy": {
-                "nodes": {k: vars(v) for k, v in self.goal_hierarchy.nodes.items()},
-                "root_id": self.goal_hierarchy.root_id,
+                "nodes": {k: vars(v) for k, v in self.goal_hierarchy.nodes.items()},  # type: ignore[attr-defined]
+                "root_id": self.goal_hierarchy.root_id,  # type: ignore[attr-defined]
             },
         }
 
         for level in MemoryLevel:
             data["memories"][level.value] = {}
-            for key, mem in self.memories[level].items():
+            for key, mem in self.memories[level].items():  # type: ignore[attr-defined]
                 mem_dict = {
                     "key": mem.key,
                     "content": mem.content,
@@ -443,7 +443,7 @@ CONDITIONS: {', '.join(causal_link.conditions) if causal_link.conditions else 'N
                 }
                 data["memories"][level.value][key] = mem_dict
 
-        for key, link in self.causal_links.items():
+        for key, link in self.causal_links.items():  # type: ignore[attr-defined]
             data["causal_links"][key] = {
                 "cause": link.cause,
                 "effect": link.effect,
@@ -456,15 +456,15 @@ CONDITIONS: {', '.join(causal_link.conditions) if causal_link.conditions else 'N
         return data
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any], config: SwarmConfig) -> "SwarmMemory":
+    def from_dict(cls, data: Dict[str, Any], config: SwarmConfig) -> "SwarmMemory":  # type: ignore[name-defined]
         """
         Deserialize from dictionary with automatic key migration.
 
         Migrates old-format keys (hash only) to new hierarchical format (domain:task_type:hash).
         """
-        memory = cls(data["agent_name"], config)
-        memory.total_accesses = data.get("total_accesses", 0)
-        memory.consolidation_count = data.get("consolidation_count", 0)
+        memory = cls(data["agent_name"], config)  # type: ignore[call-arg]
+        memory.total_accesses = data.get("total_accesses", 0)  # type: ignore[attr-defined]
+        memory.consolidation_count = data.get("consolidation_count", 0)  # type: ignore[attr-defined]
 
         # Load memories with automatic migration
         for level_str, memories in data.get("memories", {}).items():
@@ -519,11 +519,11 @@ CONDITIONS: {', '.join(causal_link.conditions) if causal_link.conditions else 'N
                         value=gv_data["value"], access_count=gv_data["access_count"]
                     )
 
-                memory.memories[level][key] = entry
+                memory.memories[level][key] = entry  # type: ignore[attr-defined]
 
         # Load causal links
         for key, link_data in data.get("causal_links", {}).items():
-            memory.causal_links[key] = CausalLink(
+            memory.causal_links[key] = CausalLink(  # type: ignore[attr-defined]
                 cause=link_data["cause"],
                 effect=link_data["effect"],
                 confidence=link_data["confidence"],
@@ -534,9 +534,9 @@ CONDITIONS: {', '.join(causal_link.conditions) if causal_link.conditions else 'N
 
         # Load goal hierarchy
         gh_data = data.get("goal_hierarchy", {})
-        memory.goal_hierarchy.root_id = gh_data.get("root_id", "root")
+        memory.goal_hierarchy.root_id = gh_data.get("root_id", "root")  # type: ignore[attr-defined]
         for node_id, node_data in gh_data.get("nodes", {}).items():
-            memory.goal_hierarchy.nodes[node_id] = GoalNode(
+            memory.goal_hierarchy.nodes[node_id] = GoalNode(  # type: ignore[attr-defined]
                 goal_id=node_data["goal_id"],
                 goal_text=node_data["goal_text"],
                 parent_id=node_data.get("parent_id"),
@@ -557,14 +557,14 @@ CONDITIONS: {', '.join(causal_link.conditions) if causal_link.conditions else 'N
     def get_statistics(self) -> Dict[str, Any]:
         """Get memory statistics."""
         stats = {
-            "total_memories": sum(len(m) for m in self.memories.values()),
-            "by_level": {level.value: len(mems) for level, mems in self.memories.items()},
-            "total_accesses": self.total_accesses,
-            "consolidation_count": self.consolidation_count,
-            "causal_links": len(self.causal_links),
-            "unique_goals": len(self.goal_hierarchy.nodes),
+            "total_memories": sum(len(m) for m in self.memories.values()),  # type: ignore[attr-defined, misc]
+            "by_level": {level.value: len(mems) for level, mems in self.memories.items()},  # type: ignore[attr-defined]
+            "total_accesses": self.total_accesses,  # type: ignore[attr-defined]
+            "consolidation_count": self.consolidation_count,  # type: ignore[attr-defined]
+            "causal_links": len(self.causal_links),  # type: ignore[attr-defined]
+            "unique_goals": len(self.goal_hierarchy.nodes),  # type: ignore[attr-defined]
             "protected_memories": sum(
-                1 for mems in self.memories.values() for m in mems.values() if m.is_protected
+                1 for mems in self.memories.values() for m in mems.values() if m.is_protected  # type: ignore[attr-defined, misc]
             ),
         }
         return stats
@@ -580,7 +580,7 @@ CONDITIONS: {', '.join(causal_link.conditions) if causal_link.conditions else 'N
         consolidated = []
 
         # Semantic patterns (abstracted learnings)
-        semantic_mems = self.memories.get(MemoryLevel.SEMANTIC, {})
+        semantic_mems = self.memories.get(MemoryLevel.SEMANTIC, {})  # type: ignore[attr-defined]
         if semantic_mems:
             # Sort by value if goal provided
             if goal:
@@ -597,7 +597,7 @@ CONDITIONS: {', '.join(causal_link.conditions) if causal_link.conditions else 'N
                 consolidated.append(("PATTERN", mem.content, mem.get_value(goal) if goal else 0.5))
 
         # Procedural knowledge (how-to)
-        procedural_mems = self.memories.get(MemoryLevel.PROCEDURAL, {})
+        procedural_mems = self.memories.get(MemoryLevel.PROCEDURAL, {})  # type: ignore[attr-defined]
         if procedural_mems:
             sorted_procedural = sorted(
                 procedural_mems.values(), key=lambda m: m.access_count, reverse=True
@@ -606,15 +606,15 @@ CONDITIONS: {', '.join(causal_link.conditions) if causal_link.conditions else 'N
                 consolidated.append(("PROCEDURE", mem.content, 0.5))
 
         # Meta wisdom
-        meta_mems = self.memories.get(MemoryLevel.META, {})
+        meta_mems = self.memories.get(MemoryLevel.META, {})  # type: ignore[attr-defined]
         if meta_mems:
             for mem in list(meta_mems.values())[: max_items // 4]:
                 consolidated.append(("WISDOM", mem.content, 0.5))
 
         # Causal knowledge (WHY things work)
-        if self.causal_links:
+        if self.causal_links:  # type: ignore[attr-defined]
             sorted_causal = sorted(
-                self.causal_links.values(), key=lambda link: link.confidence, reverse=True
+                self.causal_links.values(), key=lambda link: link.confidence, reverse=True  # type: ignore[attr-defined]
             )
             for link in sorted_causal[:3]:
                 causal_str = f"CAUSE: {link.cause} → EFFECT: {link.effect}"

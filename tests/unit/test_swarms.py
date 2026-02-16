@@ -20,14 +20,6 @@ from datetime import datetime
 from unittest.mock import AsyncMock, Mock
 
 import pytest
-from Jotty.core.intelligence.swarms.base.agent_team import (
-    AgentSpec,
-    CoordinationPattern,
-    MergeStrategy,
-    TeamCoordinator,
-    TeamResult,
-)
-from Jotty.core.intelligence.swarms.base.domain_swarm import PhaseExecutor, SwarmTemplate
 from Jotty.core.intelligence.swarms._base.registry import SwarmRegistry, register_swarm
 from Jotty.core.intelligence.swarms._base.swarm_types import (
     AgentRole,
@@ -39,6 +31,14 @@ from Jotty.core.intelligence.swarms._base.swarm_types import (
     _safe_join,
     _safe_num,
     _split_field,
+)
+from Jotty.core.intelligence.swarms.base.swarm_template import PhaseExecutor, SwarmTemplate
+from Jotty.core.intelligence.swarms.base.team_coordinator import (
+    AgentSpec,
+    CoordinationPattern,
+    MergeStrategy,
+    TeamCoordinator,
+    TeamResult,
 )
 
 # =============================================================================

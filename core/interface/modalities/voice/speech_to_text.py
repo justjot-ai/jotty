@@ -35,7 +35,7 @@ class SpeechToText:
         """
         self.platform = platform
         self.provider_name = provider
-        self._provider = None
+        self._provider: Optional[VoiceProviderBase] = None  # type: ignore[name-defined]
 
     def _get_provider(self) -> Any:
         """Get or create provider instance."""
@@ -58,7 +58,7 @@ class SpeechToText:
             Dict with success, text, language, provider, model
         """
         provider = self._get_provider()
-        return await provider.speech_to_text(audio_file, language, **kwargs)
+        return await provider.speech_to_text(audio_file, language, **kwargs)  # type: ignore[no-any-return]
 
 
 async def speech_to_text(
@@ -90,4 +90,4 @@ async def speech_to_text(
     if not result.get("success"):
         raise RuntimeError(result.get("error", "Unknown STT error"))
 
-    return result["text"]
+    return result["text"]  # type: ignore[no-any-return]

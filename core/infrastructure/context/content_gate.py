@@ -155,7 +155,7 @@ class RelevanceEstimator:
     def _parse_score(self, score_str: str) -> float:
         """Parse score from LLM output."""
         if isinstance(score_str, (int, float)):
-            return float(score_str)
+            return float(score_str)  # type: ignore[unreachable]
 
         try:
             return float(score_str)

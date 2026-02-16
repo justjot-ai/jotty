@@ -32,9 +32,15 @@ Performance:
 from typing import Any, Dict, List
 
 import numpy as np
-import pandas as pd
+import pandas as pd  # type: ignore[import-untyped]
 
-from .base import AgentConfig, FeedbackConfig, ModelTier, StageConfig, SwarmTemplate
+from .base import (  # type: ignore[attr-defined]
+    AgentConfig,
+    FeedbackConfig,
+    ModelTier,
+    StageConfig,
+    SwarmTemplate,
+)
 
 
 class SwarmML(SwarmTemplate):

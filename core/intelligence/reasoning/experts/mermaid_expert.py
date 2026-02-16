@@ -46,7 +46,7 @@ class MermaidExpertAgent(BaseExpert):
             improvements: Optional list of improvements to inject into signature
         """
         try:
-            import dspy
+            import dspy  # type: ignore[import-untyped]
         except ImportError:
             raise ImportError(
                 "DSPy is required for expert agents. Install with: pip install dspy-ai"
@@ -90,7 +90,7 @@ class MermaidExpertAgent(BaseExpert):
             try:
                 from .dspy_improvements import inject_improvements_into_signature
 
-                signature_class = inject_improvements_into_signature(
+                signature_class = inject_improvements_into_signature(  # type: ignore[assignment]
                     MermaidGenerationSignature, improvements
                 )
             except ImportError:
@@ -353,5 +353,5 @@ class MermaidExpertAgent(BaseExpert):
         task = f"Generate {diagram_type} diagram"
         context = {"description": description, "diagram_type": diagram_type, **kwargs}
 
-        output = await self.generate(task=task, context=context)
+        output = await self.generate(task=task, context=context)  # type: ignore[attr-defined]
         return str(output)

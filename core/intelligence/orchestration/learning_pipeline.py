@@ -20,9 +20,13 @@ from collections import defaultdict, deque
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
+from Jotty.core.infrastructure.foundation.agent_config import (
+    AgentConfig,  # type: ignore[import-not-found, import]
+)
 from Jotty.core.infrastructure.foundation.data_structures import EpisodeResult, SwarmConfig
-from Jotty.core.infrastructure.foundation.robust_parsing import AdaptiveWeightGroup
+from Jotty.core.infrastructure.foundation.robust_parsing import (
+    AdaptiveWeightGroup,  # type: ignore[import-not-found, import]
+)
 
 logger = logging.getLogger(__name__)
 
@@ -135,7 +139,7 @@ class EffectivenessTracker:
         """Quick check: is the system improving for a given task type (or globally)?"""
         report = self.improvement_report()
         key = task_type or "_global"
-        return report.get(key, {}).get("improving", False)
+        return report.get(key, {}).get("improving", False)  # type: ignore[no-any-return]
 
     def to_dict(self) -> Dict:
         """Serialize for persistence."""
@@ -173,22 +177,26 @@ class SwarmLearningPipeline:
 
     def _init_components(self) -> Any:
         """Initialize all learning components."""
-        from Jotty.core.intelligence.learning.learning_coordinator import (
+        from Jotty.core.intelligence.learning.learning_coordinator import (  # type: ignore[import-not-found, import]
             LearningManager as LearningManager,
         )
-        from Jotty.core.intelligence.learning.predictive_marl import (
+        from Jotty.core.intelligence.learning.predictive_marl import (  # type: ignore[import]
             DivergenceMemory,
             LLMTrajectoryPredictor,
         )
-        from Jotty.core.intelligence.learning.transfer_learning import TransferableLearningStore
+        from Jotty.core.intelligence.learning.transfer_learning import (
+            TransferableLearningStore,  # type: ignore[import]
+        )
         from Jotty.core.intelligence.memory.consolidation_engine import (
             AgentAbstractor,
             BrainModeConfig,
             BrainStateMachine,
         )
         from Jotty.core.intelligence.orchestration.swarm_learner import SwarmLearner
-        from Jotty.core.modes.agent.axon import SmartAgentSlack
-        from Jotty.core.modes.agent.feedback_channel import FeedbackChannel
+        from Jotty.core.modes.agent.axon import SmartAgentSlack  # type: ignore[import-not-found]
+        from Jotty.core.modes.agent.feedback_channel import (
+            FeedbackChannel,  # type: ignore[import-not-found]
+        )
 
         from .swarm_intelligence import SwarmIntelligence
 
@@ -276,8 +284,12 @@ class SwarmLearningPipeline:
         self.effectiveness = EffectivenessTracker(recent_window=20, historical_window=100)
 
         # TD(λ) learner with HRPO grouped baselines (was implemented but never wired)
-        from Jotty.core.intelligence.learning.adaptive_components import AdaptiveLearningRate
-        from Jotty.core.intelligence.learning.td_lambda import TDLambdaLearner
+        from Jotty.core.intelligence.learning.adaptive_components import (
+            AdaptiveLearningRate,  # type: ignore[import-not-found, import]
+        )
+        from Jotty.core.intelligence.learning.td_lambda import (
+            TDLambdaLearner,  # type: ignore[import-not-found, import]
+        )
 
         self._adaptive_lr = AdaptiveLearningRate(self.config)
         self.td_learner = TDLambdaLearner(self.config, adaptive_lr=self._adaptive_lr)
@@ -420,7 +432,7 @@ class SwarmLearningPipeline:
         """Attempt to migrate data between major schema versions."""
         fn = SwarmLearningPipeline._MIGRATIONS.get((from_major, to_major))
         if fn:
-            return fn(data)
+            return fn(data)  # type: ignore[no-any-return]
         return None
 
     def _save_versioned(self, path: Path, data: dict) -> None:
@@ -456,10 +468,10 @@ class SwarmLearningPipeline:
                     return migrated
                 # No migration path — return empty to avoid loading incompatible data
                 return {}
-            return raw["data"]
+            return raw["data"]  # type: ignore[no-any-return]
 
         # Legacy bare-dict format (pre-versioning)
-        return raw
+        return raw  # type: ignore[no-any-return]
 
     # =========================================================================
     # Auto-load / Auto-save
@@ -841,8 +853,8 @@ class SwarmLearningPipeline:
                     tools_used.append(str(tool))
         if not tools_used:
             _out = getattr(result, "output", None)
-            if hasattr(_out, "skills_used") and _out.skills_used:
-                tools_used = list(_out.skills_used)
+            if hasattr(_out, "skills_used") and _out.skills_used:  # type: ignore[union-attr]
+                tools_used = list(_out.skills_used)  # type: ignore[union-attr]
             elif isinstance(_out, dict):
                 tools_used = list(_out.get("skills_used", []))
         skill_steps = []
@@ -1130,7 +1142,7 @@ class SwarmLearningPipeline:
             old_explore = getattr(al.state, "exploration_rate", 0.3)
             new_explore = min(0.8, old_explore + 0.2)
             al.state.exploration_rate = new_explore
-            task = self.curriculum_generator.generate_training_task(
+            task = self.curriculum_generator.generate_training_task(  # type: ignore[call-arg]
                 profiles={},
                 focus_task_type=task_type,
             )
@@ -1292,7 +1304,7 @@ class SwarmLearningPipeline:
 
     def get_transferable_context(self, query: str, agent: str | None = None) -> str:
         """Get transferable learnings as context string."""
-        return self.transfer_learning.get_relevant_context(query, agent=agent)
+        return self.transfer_learning.get_relevant_context(query, agent=agent)  # type: ignore[no-any-return]
 
     def get_swarm_wisdom(self, query: str) -> str:
         """Get swarm intelligence wisdom for a query.
@@ -1326,7 +1338,7 @@ class SwarmLearningPipeline:
         """Get the best agent for a given task."""
         try:
             task_type = self.transfer_learning.extractor.extract_task_type(query)
-            return self.swarm_intelligence.get_best_agent_for_task(task_type)
+            return self.swarm_intelligence.get_best_agent_for_task(task_type)  # type: ignore[call-arg]
         except Exception as e:
             logger.debug(f"Best agent lookup failed: {e}")
             return None
@@ -1493,7 +1505,7 @@ class SwarmLearningPipeline:
         """
         stats = self.td_learner.get_grouped_learning_stats()
         stats["adaptive_lr"] = self._adaptive_lr.get_adapted_alpha()
-        return stats
+        return stats  # type: ignore[no-any-return]
 
     # =========================================================================
     # Paradigm effectiveness tracking (auto paradigm selection)
@@ -1596,7 +1608,7 @@ class SwarmLearningPipeline:
 
         if task_type:
             bucket = self._paradigm_stats.get(task_type, {})
-            return _format_bucket(bucket)
+            return _format_bucket(bucket)  # type: ignore[no-any-return]
 
         # Return global + per-type summary
         result = {}

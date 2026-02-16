@@ -88,37 +88,37 @@ class SwarmWarmup:
 
             curriculum.update_from_result(task, success, execution_time)
 
-            stats["episodes_run"] += 1
+            stats["episodes_run"] += 1  # type: ignore[operator]
             if success:
-                stats["successes"] += 1
+                stats["successes"] += 1  # type: ignore[operator]
             else:
-                stats["failures"] += 1
+                stats["failures"] += 1  # type: ignore[operator]
 
             agent_name = task.target_agent or "swarm"
-            stats["agent_results"][agent_name]["total"] += 1
+            stats["agent_results"][agent_name]["total"] += 1  # type: ignore[index]
             if success:
-                stats["agent_results"][agent_name]["success"] += 1
+                stats["agent_results"][agent_name]["success"] += 1  # type: ignore[index]
 
-            stats["task_type_results"][task.task_type]["total"] += 1
+            stats["task_type_results"][task.task_type]["total"] += 1  # type: ignore[index]
             if success:
-                stats["task_type_results"][task.task_type]["success"] += 1
+                stats["task_type_results"][task.task_type]["success"] += 1  # type: ignore[index]
 
-        stats["success_rate"] = stats["successes"] / max(1, stats["episodes_run"])
+        stats["success_rate"] = stats["successes"] / max(1, stats["episodes_run"])  # type: ignore[call-overload]
         stats["final_baselines"] = dict(curriculum.difficulty_by_type)
         stats["curriculum_stats"] = curriculum.get_curriculum_stats()
 
         stats["agent_improvements"] = {}
-        for agent_name, results in stats["agent_results"].items():
+        for agent_name, results in stats["agent_results"].items():  # type: ignore[attr-defined]
             rate = results["success"] / max(1, results["total"])
-            stats["agent_improvements"][agent_name] = rate
+            stats["agent_improvements"][agent_name] = rate  # type: ignore[index]
 
-        stats["agent_results"] = dict(stats["agent_results"])
-        stats["task_type_results"] = dict(stats["task_type_results"])
+        stats["agent_results"] = dict(stats["agent_results"])  # type: ignore[call-overload]
+        stats["task_type_results"] = dict(stats["task_type_results"])  # type: ignore[call-overload]
 
         if verbose:
             logger.info(f" Warmup complete: {stats['success_rate']:.1%} success rate")
             logger.info(f"   Episodes: {stats['episodes_run']}, Successes: {stats['successes']}")
-            for task_type, results in stats["task_type_results"].items():
+            for task_type, results in stats["task_type_results"].items():  # type: ignore[attr-defined]
                 rate = results["success"] / max(1, results["total"])
                 logger.info(f"   {task_type}: {rate:.1%} ({results['total']} episodes)")
 
@@ -136,13 +136,13 @@ class SwarmWarmup:
         if target_agent:
             agent_name = target_agent
         elif self.swarm.mode == "single":
-            agent_name = self.swarm.agents[0].name
+            agent_name = self.swarm.agents[0].name  # type: ignore[union-attr]
         else:
             best = self.swarm.swarm_intelligence.get_best_agent_for_task(
                 task.task_type,
-                [a.name for a in self.swarm.agents],
+                [a.name for a in self.swarm.agents],  # type: ignore[union-attr]
             )
-            agent_name = best or self.swarm.agents[0].name
+            agent_name = best or self.swarm.agents[0].name  # type: ignore[union-attr]
 
         runner = self.swarm.runners.get(agent_name)
         if not runner:

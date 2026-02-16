@@ -19,7 +19,7 @@ import logging
 import re
 from typing import Any, Callable, Dict, List, Optional
 
-import dspy
+import dspy  # type: ignore[import-untyped]
 
 from . import utils as ctx_utils
 from .models import ContextChunk, ContextOverflowInfo, ContextPriority
@@ -240,7 +240,7 @@ class SmartContextManager:
         self._critical_memories.append(memory)
         logger.debug(f" Registered critical memory ({len(memory)} chars)")
 
-    def add_chunk(self, content: str, category: str, priority: ContextPriority = None) -> None:
+    def add_chunk(self, content: str, category: str, priority: ContextPriority = None) -> None:  # type: ignore[assignment]
         """Add a context chunk with auto-detected priority."""
         if priority is None:
             priority = self._auto_detect_priority(category, content)

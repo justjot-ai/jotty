@@ -582,15 +582,15 @@ class SemanticDataFrame:
                 raise ValueError(f"Unknown operation: {op_type}")
 
             current_data = result.data
-            total_stats["operations"].append(
+            total_stats["operations"].append(  # type: ignore[attr-defined]
                 {
                     "type": op_type,
                     "instruction": instruction[:50],
                     "stats": result.stats,
                 }
             )
-            total_stats["total_cache_hits"] += result.cache_hits
-            total_stats["total_items_processed"] += result.items_processed
+            total_stats["total_cache_hits"] += result.cache_hits  # type: ignore[operator]
+            total_stats["total_items_processed"] += result.items_processed  # type: ignore[operator]
 
         # Clear operation queue
         self._operations = []
@@ -598,13 +598,13 @@ class SemanticDataFrame:
         return OperatorResult(
             data=current_data,
             stats=total_stats,
-            cache_hits=total_stats["total_cache_hits"],
-            items_processed=total_stats["total_items_processed"],
+            cache_hits=total_stats["total_cache_hits"],  # type: ignore[arg-type]
+            items_processed=total_stats["total_items_processed"],  # type: ignore[arg-type]
         )
 
     def to_list(self) -> List[Any]:
         """Get current items as list (for sync access before execute)."""
-        return self._items
+        return self._items  # type: ignore[no-any-return]
 
     def __len__(self) -> int:
         return len(self._items)

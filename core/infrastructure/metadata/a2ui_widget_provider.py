@@ -122,7 +122,7 @@ class A2UIComponent:
 
         # Add children reference if present
         if self.children:
-            result["component"][self.component_type]["children"] = {"explicitList": self.children}
+            result["component"][self.component_type]["children"] = {"explicitList": self.children}  # type: ignore[index]
 
         # Add data binding if present
         if self.data_binding:
@@ -459,7 +459,7 @@ class A2UIWidgetProvider(BaseMetadataProvider):
             for widget in widgets_with_params:
                 lines.append(f"  {widget.id}:")
                 # Generate examples from schema
-                examples = generate_tool_examples(widget.param_schema, widget.id)
+                examples = generate_tool_examples(widget.param_schema, widget.id)  # type: ignore[arg-type]
                 for example in examples[:5]:  # Limit to 5 examples per widget
                     lines.append(f"    - {example}")
                 lines.append("")
@@ -584,7 +584,7 @@ class A2UIWidgetProvider(BaseMetadataProvider):
         tools.extend([list_available_widgets, render_widget_tool, get_widget_schema])
 
         logger.info(f" Generated {len(tools)} A2UI widget tools for agents")
-        return tools
+        return tools  # type: ignore[return-value]
 
     def get_tool_names(self) -> List[str]:
         """Get list of tool names."""

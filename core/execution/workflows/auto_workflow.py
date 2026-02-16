@@ -67,7 +67,7 @@ class AutoWorkflow:
         self.intent = intent
         self.registry = get_smart_registry()
         self.pipeline = None
-        self.stage_configs = {}
+        self.stage_configs: Dict[str, Any] = {}
 
     @classmethod
     def from_intent(
@@ -201,7 +201,7 @@ class AutoWorkflow:
         context = self._build_stage_context()
 
         # Track previous stages for context chaining
-        previous_stages = []
+        previous_stages: List[Any] = []
 
         for deliverable in deliverables:
             stage_config = self.stage_configs.get(deliverable, {})
@@ -261,7 +261,7 @@ class AutoWorkflow:
                 context_from = previous_stages.copy() if previous_stages else None
 
             # Add stage
-            self.pipeline.add_stage(
+            self.pipeline.add_stage(  # type: ignore[attr-defined]
                 name=deliverable,
                 swarms=swarms,
                 merge_strategy=merge_strategy,
@@ -279,7 +279,7 @@ class AutoWorkflow:
                 merge_strategy = config.get("merge_strategy", MergeStrategy.BEST_OF_N)
                 context_from = config.get("context_from")
 
-                self.pipeline.add_stage(
+                self.pipeline.add_stage(  # type: ignore[attr-defined]
                     name=stage_name,
                     swarms=swarms,
                     merge_strategy=merge_strategy,
@@ -301,7 +301,7 @@ class AutoWorkflow:
             context["requirements"] = self.intent.requirements
 
         if self.intent.project_type:
-            context["project_type"] = self.intent.project_type
+            context["project_type"] = self.intent.project_type  # type: ignore[assignment]
 
         return context
 
@@ -409,7 +409,7 @@ class AutoWorkflow:
                 "customized": deliverable in self.stage_configs,
                 "replaced": self.stage_configs.get(deliverable, {}).get("replace", False),
             }
-            inspection["stages"].append(stage_info)
+            inspection["stages"].append(stage_info)  # type: ignore[attr-defined]
 
         return inspection
 
@@ -445,7 +445,7 @@ class AutoWorkflow:
         if self.pipeline is None:
             self.build_pipeline()
 
-        return await self.pipeline.execute(auto_trace=True, verbose=verbose)
+        return await self.pipeline.execute(auto_trace=True, verbose=verbose)  # type: ignore[attr-defined]
 
 
 # Convenience functions

@@ -26,7 +26,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Type
 
 # Canonical definitions in foundation — breaks agents → swarms circular dependency
-from Jotty.core.infrastructure.foundation.types.execution_types import (
+from Jotty.core.infrastructure.foundation.types.execution_types import (  # type: ignore[import-not-found, import]
     CoordinationPattern,
     MergeStrategy,
 )
@@ -34,8 +34,12 @@ from Jotty.core.infrastructure.foundation.types.execution_types import (
 from ..base.base_agent import AgentResult, AgentRuntimeConfig, BaseAgent
 
 if TYPE_CHECKING:
-    from Jotty.core.intelligence.swarms._base.swarm_types import SwarmResult
-    from Jotty.core.intelligence.swarms.base.domain_swarm import SwarmTemplate
+    from Jotty.core.intelligence.swarms._base.swarm_types import (  # type: ignore[import-not-found, import]
+        SwarmResult,  # type: ignore[import-not-found, import]
+    )
+    from Jotty.core.intelligence.swarms.base.swarm_template import (  # type: ignore[import]
+        SwarmTemplate,  # type: ignore[import-not-found]
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -157,7 +161,7 @@ class CompositeAgent(BaseAgent):
 
     def __init__(
         self,
-        config: CompositeAgentConfig = None,
+        config: CompositeAgentConfig = None,  # type: ignore[assignment]
         signature: Optional[Type] = None,
         sub_agents: Optional[Dict[str, BaseAgent]] = None,
     ) -> None:
@@ -258,7 +262,9 @@ class CompositeAgent(BaseAgent):
         """
         if hasattr(self, "_io_schema") and self._io_schema is not None:
             return self._io_schema
-        from Jotty.core.modes.agent._execution_types import AgentIOSchema
+        from Jotty.core.modes.agent._execution_types import (  # type: ignore[import-not-found]
+            AgentIOSchema,  # type: ignore[import-not-found]
+        )
 
         if self.signature is not None:
             self._io_schema = AgentIOSchema.from_dspy_signature(self.config.name, self.signature)
@@ -291,7 +297,7 @@ class CompositeAgent(BaseAgent):
                 error="No sub-agents configured",
             )
 
-        pattern = self.config.coordination_pattern
+        pattern = self.config.coordination_pattern  # type: ignore[attr-defined]
         method_name = _COORDINATION_DISPATCH.get(pattern)
         if method_name is None:
             logger.warning(
@@ -305,7 +311,7 @@ class CompositeAgent(BaseAgent):
             pattern.value,
             list(self._sub_agents.keys()),
         )
-        return await getattr(self, method_name)(**kwargs)
+        return await getattr(self, method_name)(**kwargs)  # type: ignore[no-any-return]
 
     # =========================================================================
     # COORDINATION PATTERNS
@@ -444,7 +450,7 @@ class CompositeAgent(BaseAgent):
                 logger.warning("Agent '%s' raised: %s", name, item)
                 errors[name] = str(item)
             else:
-                _, result = item
+                _, result = item  # type: ignore[misc]
                 if result.success:
                     results[name] = result
                 else:
@@ -467,7 +473,7 @@ class CompositeAgent(BaseAgent):
         if not outputs:
             return None
 
-        strategy = self.config.merge_strategy
+        strategy = self.config.merge_strategy  # type: ignore[attr-defined]
 
         if strategy == MergeStrategy.COMBINE:
             return outputs
@@ -523,7 +529,7 @@ class CompositeAgent(BaseAgent):
         return (
             f"CompositeAgent(name='{self.config.name}', "
             f"agents={list(self._sub_agents.keys())}, "
-            f"coordination={self.config.coordination_pattern.value})"
+            f"coordination={self.config.coordination_pattern.value})"  # type: ignore[attr-defined]
         )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -539,8 +545,8 @@ class CompositeAgent(BaseAgent):
                     name: agent.to_dict() if hasattr(agent, "to_dict") else str(agent)
                     for name, agent in self._sub_agents.items()
                 },
-                "coordination": self.config.coordination_pattern.value,
-                "merge_strategy": self.config.merge_strategy.value,
+                "coordination": self.config.coordination_pattern.value,  # type: ignore[attr-defined]
+                "merge_strategy": self.config.merge_strategy.value,  # type: ignore[attr-defined]
                 "has_signature": self.signature is not None,
             }
         )

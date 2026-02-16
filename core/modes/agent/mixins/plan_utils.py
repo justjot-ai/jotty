@@ -7,7 +7,9 @@ import logging
 import re
 from typing import Any, Dict, List, Optional, Union
 
-from Jotty.core.infrastructure.utils.context_utils import strip_enrichment_context
+from Jotty.core.infrastructure.utils.context_utils import (
+    strip_enrichment_context,  # type: ignore[import-not-found, import]
+)
 
 from ..types.execution_types import ExecutionStep, TaskType, ToolSchema
 
@@ -76,7 +78,7 @@ class PlanUtilsMixin:
         Uses the centralised ``strip_enrichment_context()`` utility so
         all marker lists are maintained in one place.
         """
-        return strip_enrichment_context(task)
+        return strip_enrichment_context(task)  # type: ignore[no-any-return]
 
     def _build_skill_params(
         self,
@@ -99,7 +101,9 @@ class PlanUtilsMixin:
                     return params
 
         try:
-            from ..registry.skills_registry import get_skills_registry
+            from ..registry.skills_registry import (
+                get_skills_registry,  # type: ignore[import-not-found]
+            )
 
             registry = get_skills_registry()
             skill = registry.get_skill(skill_name)
@@ -518,7 +522,7 @@ Filename: {filename}
             if ps in skill_names and skill_names[ps] not in sorted_skills:
                 sorted_skills.append(skill_names[ps])
 
-        plan = []
+        plan: List[Any] = []
 
         for skill in sorted_skills:
             skill_name = skill.get("name", "")
@@ -676,11 +680,11 @@ Filename: {filename}
 
     async def plan_with_metadata(
         self,
-        task: Union[str, "TaskGraph"],
+        task: Union[str, "TaskGraph"],  # type: ignore[name-defined]
         available_skills: Optional[List[Dict[str, Any]]] = None,
         max_steps: int = 15,
         convert_to_agents: bool = False,
-    ) -> "TaskPlan":
+    ) -> "TaskPlan":  # type: ignore[name-defined]
         """
         Plan execution with enhanced metadata (TaskPlan).
 
@@ -696,13 +700,13 @@ Filename: {filename}
             TaskPlan with steps and metadata
         """
         # Handle TaskGraph or raw string
-        if TASK_GRAPH_AVAILABLE and isinstance(task, TaskGraph):
+        if TASK_GRAPH_AVAILABLE and isinstance(task, TaskGraph):  # type: ignore[name-defined]
             task_string = task.metadata.get("original_request", "")
             task_type = task.task_type
             integrations = task.integrations
         else:
             task_string = str(task)
-            task_type, _, _ = self.infer_task_type(task_string)
+            task_type, _, _ = self.infer_task_type(task_string)  # type: ignore[attr-defined]
             integrations = []
 
         # Get TaskType for type checking
@@ -721,7 +725,7 @@ Filename: {filename}
                 available_skills = []
 
         # Select best skills
-        selected_skills, selection_reasoning = self.select_skills(
+        selected_skills, selection_reasoning = self.select_skills(  # type: ignore[attr-defined]
             task=task_string, available_skills=available_skills, max_skills=10
         )
 
@@ -731,7 +735,7 @@ Filename: {filename}
             agents = await self._convert_skills_to_agents(selected_skills)
 
         # Plan execution
-        steps, planning_reasoning = self.plan_execution(
+        steps, planning_reasoning = self.plan_execution(  # type: ignore[attr-defined]
             task=task_string, task_type=task_type, skills=selected_skills, max_steps=max_steps
         )
 
@@ -742,7 +746,7 @@ Filename: {filename}
         estimated_time = self._estimate_time(steps)
 
         # Create TaskPlan
-        if TASK_GRAPH_AVAILABLE and isinstance(task, TaskGraph):
+        if TASK_GRAPH_AVAILABLE and isinstance(task, TaskGraph):  # type: ignore[name-defined]
             task_graph = task
         else:
             # Create minimal TaskGraph from raw string
@@ -757,7 +761,7 @@ Filename: {filename}
         if agents:
             metadata["agents_created"] = [a.name for a in agents]
 
-        return TaskPlan(
+        return TaskPlan(  # type: ignore[name-defined]
             task_graph=task_graph,
             steps=steps,
             estimated_time=estimated_time,
@@ -769,7 +773,9 @@ Filename: {filename}
     async def _convert_skills_to_agents(self, skills: List[Dict[str, Any]]) -> Any:
         """Convert skills to AgentConfig for Conductor."""
         try:
-            from ..registry.skill_to_agent_converter import SkillToAgentConverter
+            from ..registry.skill_to_agent_converter import (
+                SkillToAgentConverter,  # type: ignore[import-not-found]
+            )
             from ..registry.skills_registry import get_skills_registry
 
             converter = SkillToAgentConverter()
@@ -822,7 +828,7 @@ Filename: {filename}
 
     def _create_task_graph_from_string(self, task_string: str, task_type: Any) -> Optional[Any]:
         """Create minimal TaskGraph from raw string."""
-        if not TASK_GRAPH_AVAILABLE:
+        if not TASK_GRAPH_AVAILABLE:  # type: ignore[name-defined]
             return None
 
         from ..autonomous.intent_parser import TaskGraph
@@ -1027,17 +1033,17 @@ Filename: {filename}
             if name_lower in {s.lower() for s in available_skill_names}:
                 for s in available_skill_names:
                     if s.lower() == name_lower:
-                        return s
+                        return s  # type: ignore[no-any-return]
             for s in available_skill_names:
                 if name_lower in s.lower() or s.lower() in name_lower:
                     logger.debug(f"Fuzzy matched '{name}' -> '{s}'")
-                    return s
+                    return s  # type: ignore[no-any-return]
             name_words = set(name_lower.replace("-", "_").replace(" ", "_").split("_"))
             for s in available_skill_names:
                 skill_words = set(s.lower().replace("-", "_").split("_"))
                 if name_words & skill_words:
                     logger.debug(f"Word overlap matched '{name}' -> '{s}'")
-                    return s
+                    return s  # type: ignore[no-any-return]
             return ""
 
         for i, step_data in enumerate(plan_data[:max_steps]):
@@ -1362,7 +1368,7 @@ Filename: {filename}
                 return None
             # Check cached schema first
             if hasattr(tool_func, "_tool_schema"):
-                return tool_func._tool_schema
+                return tool_func._tool_schema  # type: ignore[no-any-return]
             return ToolSchema.from_tool_function(tool_func, step.tool_name)
         except Exception:
             return None

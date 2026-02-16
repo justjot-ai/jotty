@@ -9,8 +9,8 @@ and factory methods (from_swarm, compose).
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from Jotty.core.intelligence.swarms.base.agent_team import CoordinationPattern, MergeStrategy
 from Jotty.core.intelligence.swarms._base.swarm_types import AgentRole, ExecutionTrace, SwarmResult
+from Jotty.core.intelligence.swarms.base.team_coordinator import CoordinationPattern, MergeStrategy
 from Jotty.core.modes.agent.agents.composite_agent import (
     CompositeAgent,
     CompositeAgentConfig,

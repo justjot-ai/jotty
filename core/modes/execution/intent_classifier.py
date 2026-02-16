@@ -59,7 +59,7 @@ class IntentClassifier:
         if self._lm is None:
             # Use the already-configured DSPy LM (from benchmark setup)
             # This avoids interfering with existing DSPy configuration
-            import dspy
+            import dspy  # type: ignore[import-untyped]
 
             if dspy.settings.lm is not None:
                 self._lm = dspy.settings.lm
@@ -684,7 +684,7 @@ class TaskClassifier:
             )
 
         # Winner = highest total weight
-        winner = max(votes, key=votes.get)
+        winner = max(votes, key=votes.get)  # type: ignore[arg-type]
         total_weight_cast = sum(votes.values())
         confidence = votes[winner] / total_weight_cast if total_weight_cast > 0 else 0.0
 
@@ -765,7 +765,7 @@ class TaskClassifier:
             if not category_counts:
                 return None
 
-            return max(category_counts, key=category_counts.get)
+            return max(category_counts, key=category_counts.get)  # type: ignore[arg-type]
 
         except Exception as e:
             logger.debug(f"Skill category voting failed: {e}")

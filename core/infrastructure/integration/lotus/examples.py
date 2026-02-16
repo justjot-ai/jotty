@@ -16,7 +16,10 @@ async def example_basic_optimizer() -> Any:
     """
     Basic usage of LotusOptimizer for cost-efficient LLM operations.
     """
-    from Jotty.core.infrastructure.integration.lotus import LotusConfig, LotusOptimizer
+    from Jotty.core.infrastructure.integration.lotus import (  # type: ignore[import]
+        LotusConfig,
+        LotusOptimizer,
+    )
 
     # Create optimizer with default config
     config = LotusConfig()

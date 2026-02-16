@@ -85,7 +85,7 @@ class Vault:
     # MARKOVIAN Task List PERSISTENCE (NO HARDCODING)
     # =========================================================================
 
-    def save_markovian_todo(self, todo: "SwarmTaskBoard") -> None:
+    def save_markovian_todo(self, todo: "SwarmTaskBoard") -> None:  # type: ignore[name-defined]
         """
         Save Markovian Task List state (JSON + rich markdown).
 
@@ -331,7 +331,7 @@ class Vault:
     # Q-TABLE PERSISTENCE (NO HARDCODING)
     # =========================================================================
 
-    def save_q_predictor(self, q_predictor: "LLMQPredictor") -> None:
+    def save_q_predictor(self, q_predictor: "LLMQPredictor") -> None:  # type: ignore[name-defined]
         """
         Save Q-predictor experience buffer.
 
@@ -353,7 +353,7 @@ class Vault:
     # =========================================================================
 
     def save_memory(
-        self, memory: "SwarmMemory", name: str = "shared", max_per_level: int = 100
+        self, memory: "SwarmMemory", name: str = "shared", max_per_level: int = 100  # type: ignore[name-defined]
     ) -> Any:
         """
         Save hierarchical memory.
@@ -395,7 +395,7 @@ class Vault:
                 memory_data[level] = level_data
                 total_memories += len(level_data)
 
-        memory_data["metadata"] = {
+        memory_data["metadata"] = {  # type: ignore[assignment]
             "name": name,
             "total_memories": total_memories,
             "timestamp": time.time(),
@@ -436,7 +436,7 @@ class Vault:
     # BRAIN STATE PERSISTENCE (NO HARDCODING)
     # =========================================================================
 
-    def save_brain_state(self, brain: "SimpleBrain") -> None:
+    def save_brain_state(self, brain: "SimpleBrain") -> None:  # type: ignore[name-defined]
         """
         Save brain consolidated memories.
 

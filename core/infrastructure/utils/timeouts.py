@@ -99,7 +99,7 @@ class CircuitBreaker:
         if self.state == CircuitState.HALF_OPEN:
             return True, "Circuit half-open, allowing test request"
 
-        return False, "Unknown circuit state"
+        return False, "Unknown circuit state"  # type: ignore[unreachable]
 
     def record_success(self) -> None:
         """Record successful call."""
@@ -193,7 +193,9 @@ class CircuitOpenError(Exception):
 # TIMEOUT DECORATORS
 # =============================================================================
 
-from Jotty.core.infrastructure.foundation.exceptions import TimeoutError
+from Jotty.core.infrastructure.foundation.exceptions import (
+    TimeoutError,  # type: ignore[import-not-found]
+)
 
 
 def timeout(seconds: float, error_message: str = "Operation timed out") -> Any:
@@ -333,7 +335,7 @@ class DeadLetterQueue:
             operation_name=operation_name,
             args=args,
             kwargs=kwargs or {},
-            error=error,
+            error=error,  # type: ignore[arg-type]
             timestamp=datetime.now(),
         )
         self.queue.append(failed_op)
@@ -384,7 +386,7 @@ class DeadLetterQueue:
 
     def get_failures_by_operation(self) -> Dict[str, int]:
         """Get count of failures by operation name."""
-        counts = {}
+        counts: Dict[str, Any] = {}
         for failed_op in self.queue:
             counts[failed_op.operation_name] = counts.get(failed_op.operation_name, 0) + 1
         return counts
@@ -484,7 +486,7 @@ class AdaptiveTimeout:
                 ctx_self.start_time = time.time()
                 return ctx_self
 
-            def __exit__(ctx_self: Any, exc_type: Any, exc_val: Any, exc_tb: Any) -> bool:
+            def __exit__(ctx_self: Any, exc_type: Any, exc_val: Any, exc_tb: Any) -> bool:  # type: ignore[return]
                 if ctx_self.start_time:
                     latency = time.time() - ctx_self.start_time
                     ctx_self.adaptive_timeout.record_latency(ctx_self.operation, latency)

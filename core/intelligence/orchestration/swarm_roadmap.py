@@ -41,7 +41,9 @@ def _get_dspy() -> Any:
 
 
 # REFACTORING PHASE 1.2: Import TaskStatus from canonical location
-from Jotty.core.infrastructure.foundation.types import TaskStatus
+from Jotty.core.infrastructure.foundation.types import (
+    TaskStatus,  # type: ignore[import-not-found, import]
+)
 
 # =============================================================================
 # TASK ITEM - Shared across modules
@@ -334,7 +336,7 @@ class DecomposedQFunction:
 
         if objective:
             q_table = getattr(self, f"q_{objective}", self.q_task)
-            return q_table.get(key, self.default_value)
+            return q_table.get(key, self.default_value)  # type: ignore[no-any-return]
 
         # Combined value
         return self.get_combined_value(state, action)
@@ -349,7 +351,7 @@ class DecomposedQFunction:
         q_c = self.q_causal.get(key, self.default_value)
         q_s = self.q_safety.get(key, self.default_value)
 
-        return (
+        return (  # type: ignore[no-any-return]
             self.weights["task"] * q_t
             + self.weights["explore"] * q_e
             + self.weights["causal"] * q_c
@@ -1150,7 +1152,7 @@ class ThoughtLevelCredit:
         self, reasoning_trace: List[str], tool_calls: List[Dict]
     ) -> Dict[int, float]:
         """Compute credit for tool-linked reasoning steps."""
-        tool_credits = {}
+        tool_credits: Dict[str, Any] = {}
 
         for tool_call in tool_calls:
             tool_name = tool_call.get("tool", "")
@@ -1159,9 +1161,9 @@ class ThoughtLevelCredit:
             # Find which reasoning step led to this tool call
             linked_idx = self._find_linked_thought(reasoning_trace, tool_name)
             if linked_idx is not None:
-                tool_credits[linked_idx] = tool_credits.get(linked_idx, 0) + tool_success
+                tool_credits[linked_idx] = tool_credits.get(linked_idx, 0) + tool_success  # type: ignore[call-overload, index]
 
-        return tool_credits
+        return tool_credits  # type: ignore[return-value]
 
     def _find_linked_thought(self, reasoning_trace: List[str], tool_name: str) -> Optional[int]:
         """
@@ -1357,7 +1359,7 @@ def _get_trajectory_predictor_signature() -> Any:
     if _TrajectoryPredictorSignature is None:
         dspy = _get_dspy()
 
-        class TrajectoryPredictorSignature(dspy.Signature):
+        class TrajectoryPredictorSignature(dspy.Signature):  # type: ignore[name-defined]
             """Predict next action and outcome given current state."""
 
             state_summary: str = dspy.InputField(desc="Current state summary")

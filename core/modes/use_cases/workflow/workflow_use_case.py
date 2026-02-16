@@ -106,7 +106,7 @@ class WorkflowUseCase(BaseUseCase):
         """Workflow errors return None instead of error string."""
         return None
 
-    async def stream(
+    async def stream(  # type: ignore[override]
         self,
         goal: str,
         context: Optional[Dict[str, Any]] = None,
@@ -159,4 +159,4 @@ class WorkflowUseCase(BaseUseCase):
             raise RuntimeError("Failed to enqueue task")
 
         logger.info(f"Enqueued workflow task: {task_id}")
-        return task_id
+        return task_id  # type: ignore[no-any-return]

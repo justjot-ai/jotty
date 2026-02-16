@@ -98,7 +98,7 @@ class LearningManager:
             base_dir: Base directory for learning storage
         """
         self.config = config
-        self.base_dir = Path(base_dir or getattr(config, "output_base_dir", "./outputs"))
+        self.base_dir = Path(base_dir or getattr(config, "output_base_dir", "./outputs"))  # type: ignore[arg-type]
         self.learning_dir = self.base_dir / "learning"
         self.learning_dir.mkdir(parents=True, exist_ok=True)
 
@@ -115,8 +115,8 @@ class LearningManager:
         self._agent_memories: Dict[str, Any] = {}  # agent_name -> SimpleFallbackMemory
 
         # Shared learners (cross-agent)
-        self._shared_q_learner = None
-        self._td_lambda_learner = None
+        self._shared_q_learner: Optional[TDLambdaLearner] = None  # type: ignore[name-defined]
+        self._td_lambda_learner: Optional[LLMQPredictor] = None  # type: ignore[name-defined]
 
         # Domain index for transfer learning
         self._domain_index: Dict[str, List[str]] = {}  # domain -> [session_ids]
@@ -432,7 +432,7 @@ class LearningManager:
             return 0.5, 0.1, None
 
         try:
-            return self._shared_q_learner.predict_q_value(state, action, goal)
+            return self._shared_q_learner.predict_q_value(state, action, goal)  # type: ignore[no-any-return]
         except Exception as e:
             logger.warning(f"Q-value prediction failed: {e}")
             return 0.5, 0.1, None
@@ -560,7 +560,7 @@ class LearningManager:
             return ""
 
         try:
-            return self._shared_q_learner.get_learned_context(state, action)
+            return self._shared_q_learner.get_learned_context(state, action)  # type: ignore[no-any-return]
         except Exception as e:
             logger.warning(f"Failed to get learned context: {e}")
             return ""
@@ -572,7 +572,7 @@ class LearningManager:
 
         try:
             if hasattr(self._shared_q_learner, "get_q_table_summary"):
-                return self._shared_q_learner.get_q_table_summary()
+                return self._shared_q_learner.get_q_table_summary()  # type: ignore[no-any-return]
             elif hasattr(self._shared_q_learner, "experience_buffer"):
                 return (
                     f"Q-learner active: {len(self._shared_q_learner.experience_buffer)} experiences"
@@ -597,7 +597,7 @@ class LearningManager:
         summary["per_agent_stats"] = {}
         for agent_name, learner in self._agent_q_learners.items():
             if hasattr(learner, "get_q_table_stats"):
-                summary["per_agent_stats"][agent_name] = learner.get_q_table_stats()
+                summary["per_agent_stats"][agent_name] = learner.get_q_table_stats()  # type: ignore[index]
 
         return summary
 

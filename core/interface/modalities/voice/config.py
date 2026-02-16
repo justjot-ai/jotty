@@ -86,7 +86,7 @@ class VoiceConfig:
         """Check if local Piper TTS is available."""
         # Check if piper-tts is installed as Python package
         try:
-            import piper  # noqa: F401
+            import piper  # noqa: F401  # type: ignore[import-not-found]
 
             return True
         except ImportError:

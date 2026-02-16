@@ -73,7 +73,7 @@ class DomainAgent(BaseAgent):
         # result.output = {'analysis': '...', 'confidence': 0.95}
     """
 
-    def __init__(self, signature: Optional[Type] = None, config: DomainAgentConfig = None) -> None:
+    def __init__(self, signature: Optional[Type] = None, config: DomainAgentConfig = None) -> None:  # type: ignore[assignment]
         """
         Initialize DomainAgent with an optional DSPy signature.
 
@@ -106,7 +106,7 @@ class DomainAgent(BaseAgent):
             # Get fields from signature
             if hasattr(self.signature, "model_fields"):
                 # Pydantic-style signature
-                for name, field_info in self.signature.model_fields.items():
+                for name, field_info in self.signature.model_fields.items():  # type: ignore[union-attr]
                     # Check if it's an input or output field
                     if hasattr(field_info, "json_schema_extra"):
                         extra = field_info.json_schema_extra or {}
@@ -135,10 +135,10 @@ class DomainAgent(BaseAgent):
             # Last resort: use signature's input_fields and output_fields
             if not self._input_fields:
                 if hasattr(self.signature, "input_fields"):
-                    self._input_fields = list(self.signature.input_fields.keys())
+                    self._input_fields = list(self.signature.input_fields.keys())  # type: ignore[union-attr]
             if not self._output_fields:
                 if hasattr(self.signature, "output_fields"):
-                    self._output_fields = list(self.signature.output_fields.keys())
+                    self._output_fields = list(self.signature.output_fields.keys())  # type: ignore[union-attr]
 
             logger.debug(
                 f"Extracted fields - inputs: {self._input_fields}, "
@@ -158,7 +158,7 @@ class DomainAgent(BaseAgent):
             try:
                 import dspy
 
-                config: DomainAgentConfig = self.config
+                config: DomainAgentConfig = self.config  # type: ignore[assignment]
                 if config.use_react:
                     # ReAct mode: multi-step tool-using agent loop
                     tools = self._get_react_tools()
@@ -206,7 +206,7 @@ class DomainAgent(BaseAgent):
 
         try:
             import dspy
-            from Jotty.core.capabilities.prompts import PromptComposer
+            from Jotty.core.capabilities.prompts import PromptComposer  # type: ignore[import]
 
             # Get existing signature instructions (docstring)
             base_instructions = getattr(self.signature, "instructions", "") or ""
@@ -224,8 +224,8 @@ class DomainAgent(BaseAgent):
             )
 
             # Create enriched signature + module
-            enriched_sig = self.signature.with_instructions(enriched)
-            config: DomainAgentConfig = self.config
+            enriched_sig = self.signature.with_instructions(enriched)  # type: ignore[union-attr]
+            config: DomainAgentConfig = self.config  # type: ignore[assignment]
             if config.use_chain_of_thought:
                 return dspy.ChainOfThought(enriched_sig)
             else:
@@ -270,7 +270,7 @@ class DomainAgent(BaseAgent):
         Returns:
             Dict with output field values
         """
-        config: DomainAgentConfig = self.config
+        config: DomainAgentConfig = self.config  # type: ignore[assignment]
 
         # Fast path: no module means immediate fallback
         if self._module is None:
@@ -368,7 +368,7 @@ class DomainAgent(BaseAgent):
                     "success": False,
                     "error": "Skills registry not available for fallback execution",
                 }
-            from .skill_plan_executor import SkillPlanExecutor
+            from .skill_plan_executor import SkillPlanExecutor  # type: ignore[import-not-found]
 
             self._skill_executor = SkillPlanExecutor(
                 skills_registry=self.skills_registry,
@@ -384,7 +384,7 @@ class DomainAgent(BaseAgent):
             }
 
         status_callback = kwargs.get("status_callback")
-        return await self._skill_executor.plan_and_execute(
+        return await self._skill_executor.plan_and_execute(  # type: ignore[attr-defined, no-any-return]
             task=task,
             discovered_skills=discovered,
             status_callback=status_callback,
@@ -407,7 +407,7 @@ class DomainAgent(BaseAgent):
         for key in ("query", "prompt", "question", "description", "text", "input"):
             value = kwargs.get(key)
             if value and isinstance(value, str):
-                return value
+                return value  # type: ignore[no-any-return]
         # Last resort: concatenate all string values
         parts = [
             f"{k}: {v}"
@@ -436,7 +436,10 @@ class DomainAgent(BaseAgent):
         if hasattr(self, "_io_schema") and self._io_schema is not None:
             return self._io_schema
 
-        from Jotty.core.modes.agent._execution_types import AgentIOSchema, ToolParam
+        from Jotty.core.modes.agent._execution_types import (  # type: ignore[import-not-found]
+            AgentIOSchema,
+            ToolParam,
+        )
 
         agent_name = getattr(self.config, "name", self.__class__.__name__)
         if self.signature is not None:

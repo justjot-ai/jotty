@@ -20,7 +20,7 @@ try:
     PROFILING_REPORT_AVAILABLE = True
 except ImportError:
     PROFILING_REPORT_AVAILABLE = False
-    ProfilingReport = None
+    ProfilingReport = None  # type: ignore[assignment, misc]
 
 
 class ExecutionTimer:
@@ -114,8 +114,8 @@ def set_overall_timing(start_time: float, end_time: float) -> None:
         _global_timer.profiling_report.set_overall_timing(start_time, end_time)
 
 
-@contextmanager
-def timed_block(
+@contextmanager  # type: ignore[arg-type]
+def timed_block(  # type: ignore[misc]
     operation: str, component: str = "Other", enabled: bool = True, **metadata: Any
 ) -> None:
     """
@@ -226,7 +226,7 @@ def save_profiling_reports() -> None:
         logger.info("⏱ Profiling reports saved:")
         for report_type, path in files.items():
             logger.info(f" {report_type}: {path}")
-        return files
+        return files  # type: ignore[return-value]
     else:
         logger.warning("⏱ No profiling report available to save")
         return None

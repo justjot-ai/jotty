@@ -438,7 +438,7 @@ class JottyTracer:
             self.tracer = otel_trace.get_tracer("jotty")
             logger.info("OpenTelemetry tracing enabled")
         else:
-            self.tracer = NoOpTracer()
+            self.tracer = NoOpTracer()  # type: ignore[assignment]
 
     def trace(self, span_name: Optional[str] = None, **attributes: Any) -> Any:
         """Decorator for tracing functions."""

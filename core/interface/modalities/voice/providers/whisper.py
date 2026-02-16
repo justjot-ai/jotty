@@ -61,7 +61,7 @@ class WhisperProvider:
                 if language:
                     kwargs["language"] = language
 
-                response = client.audio.transcriptions.create(**kwargs)
+                response = client.audio.transcriptions.create(**kwargs)  # type: ignore[call-overload]
 
             return {
                 "success": True,
@@ -116,7 +116,7 @@ class WhisperProvider:
             logger.error(f"OpenAI TTS error: {e}", exc_info=True)
             return {"success": False, "error": str(e)}
 
-    async def stream_speech(
+    async def stream_speech(  # type: ignore[misc]
         self, text: str, voice_id: Optional[str] = None, chunk_size: int = 1024
     ) -> None:
         """OpenAI TTS streaming is not supported in the same way."""

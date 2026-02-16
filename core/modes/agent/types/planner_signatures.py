@@ -24,7 +24,7 @@ except ImportError:
 
 # ExecutionStepSchema lives in _execution_types (no circular dependency)
 if PYDANTIC_AVAILABLE:
-    from ._execution_types import ExecutionStepSchema
+    from .execution_types import ExecutionStepSchema
 
 
 if DSPY_AVAILABLE:
@@ -245,7 +245,7 @@ if DSPY_AVAILABLE:
                 desc="List of execution steps"
             )
         else:
-            execution_plan: List[dict] = dspy.OutputField(
+            execution_plan: List[dict] = dspy.OutputField(  # type: ignore[no-redef]
                 desc='Steps array. Each: {"skill_name": "...", "tool_name": "...", "params": {...}, "description": "..."}'
             )
         reasoning: str = dspy.OutputField(
@@ -341,7 +341,7 @@ if DSPY_AVAILABLE:
                 desc="List of corrected execution steps that avoid previous failures"
             )
         else:
-            corrected_plan: List[dict] = dspy.OutputField(
+            corrected_plan: List[dict] = dspy.OutputField(  # type: ignore[no-redef]
                 desc='Corrected steps array. Each: {"skill_name": "...", "tool_name": "...", "params": {...}, "description": "...", "verification": "...", "fallback_skill": "..."}'
             )
         reflection: str = dspy.OutputField(

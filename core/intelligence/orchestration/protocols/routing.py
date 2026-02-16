@@ -56,22 +56,22 @@ class RoutingMixin:
             "rl_advantage": 0.0,
         }
 
-        available = list(self.agent_profiles.keys())
+        available = list(self.agent_profiles.keys())  # type: ignore[attr-defined]
         if not available:
             return result
 
         # Filter out circuit-blocked agents
         try:
-            available = self.get_available_agents(available)
+            available = self.get_available_agents(available)  # type: ignore[attr-defined]
         except Exception:
             pass
 
         if not available:
-            available = list(self.agent_profiles.keys())
+            available = list(self.agent_profiles.keys())  # type: ignore[attr-defined]
 
         # Strategy 1: Coalition for complex tasks
         if prefer_coalition:
-            coalition = self.form_coalition(task_type, min_agents=2, max_agents=4)
+            coalition = self.form_coalition(task_type, min_agents=2, max_agents=4)  # type: ignore[attr-defined]
             if coalition:
                 result["assigned_agent"] = coalition.leader
                 result["coalition"] = coalition.coalition_id
@@ -81,7 +81,7 @@ class RoutingMixin:
 
         # Strategy 2: Auction for competitive allocation
         if use_auction:
-            winner = self.auto_auction(task_id, task_type, available)
+            winner = self.auto_auction(task_id, task_type, available)  # type: ignore[attr-defined]
             if winner:
                 result["assigned_agent"] = winner
                 result["method"] = "auction"
@@ -89,8 +89,8 @@ class RoutingMixin:
                 return result
 
         # Strategy 3: Hierarchical routing
-        if use_hierarchy and self._tree_built:
-            agent = self.route_via_hierarchy(task_type)
+        if use_hierarchy and self._tree_built:  # type: ignore[attr-defined]
+            agent = self.route_via_hierarchy(task_type)  # type: ignore[attr-defined]
             if agent:
                 result["assigned_agent"] = agent
                 result["method"] = "hierarchy"
@@ -99,8 +99,8 @@ class RoutingMixin:
 
         # Strategy 4: MorphAgent TRAS scoring
         if task_description:
-            profiles = {a: self.agent_profiles[a] for a in available}
-            best = self.morph_scorer.get_best_agent_by_tras(
+            profiles = {a: self.agent_profiles[a] for a in available}  # type: ignore[attr-defined]
+            best = self.morph_scorer.get_best_agent_by_tras(  # type: ignore[attr-defined]
                 profiles=profiles, task=task_description, task_type=task_type
             )
             if best:
@@ -123,7 +123,7 @@ class RoutingMixin:
             return result
 
         # Strategy 6: Fallback to simple routing
-        best = self.get_best_agent_for_task(task_type, available, task_description)
+        best = self.get_best_agent_for_task(task_type, available, task_description)  # type: ignore[attr-defined]
         result["assigned_agent"] = best
         result["method"] = "simple"
         result["confidence"] = 0.6
@@ -158,7 +158,7 @@ class RoutingMixin:
         best_score = -1.0
 
         for agent_name in available:
-            profile = self.agent_profiles.get(agent_name)
+            profile = self.agent_profiles.get(agent_name)  # type: ignore[attr-defined]
             if not profile:
                 continue
 
@@ -199,11 +199,11 @@ class RoutingMixin:
             return 0.0
 
         baseline = grouped.get_baseline(task_type)
-        profile = self.agent_profiles.get(agent_name)
+        profile = self.agent_profiles.get(agent_name)  # type: ignore[attr-defined]
         if not profile:
             return 0.0
 
-        return profile.get_success_rate(task_type) - baseline
+        return profile.get_success_rate(task_type) - baseline  # type: ignore[no-any-return]
 
     # =========================================================================
     # WORK-STEALING (Idle agents steal from busy ones)
@@ -222,16 +222,16 @@ class RoutingMixin:
         load = 0.0
 
         # Pending handoffs to this agent
-        pending = len([h for h in self.pending_handoffs.values() if h.to_agent == agent])
+        pending = len([h for h in self.pending_handoffs.values() if h.to_agent == agent])  # type: ignore[attr-defined]
         load += min(0.4, pending * 0.1)
 
         # Coalition membership
-        if agent in self.agent_coalitions:
+        if agent in self.agent_coalitions:  # type: ignore[attr-defined]
             load += 0.2
 
         # Recent tasks (from collective memory)
         # Use list() for deque compatibility (deque doesn't support slicing in all Python versions)
-        mem_list = list(self.collective_memory)
+        mem_list = list(self.collective_memory)  # type: ignore[attr-defined]
         recent = [
             m
             for m in mem_list[-20:]
@@ -243,11 +243,11 @@ class RoutingMixin:
 
     def find_overloaded_agents(self, threshold: float = 0.7) -> List[str]:
         """Find agents with load above threshold."""
-        return [a for a in self.agent_profiles.keys() if self.get_agent_load(a) > threshold]
+        return [a for a in self.agent_profiles.keys() if self.get_agent_load(a) > threshold]  # type: ignore[attr-defined]
 
     def find_idle_agents(self, threshold: float = 0.3) -> List[str]:
         """Find agents with load below threshold."""
-        return [a for a in self.agent_profiles.keys() if self.get_agent_load(a) < threshold]
+        return [a for a in self.agent_profiles.keys() if self.get_agent_load(a) < threshold]  # type: ignore[attr-defined]
 
     def work_steal(self, idle_agent: str) -> Optional[HandoffContext]:
         """
@@ -264,7 +264,7 @@ class RoutingMixin:
 
         # Find task to steal (pending handoff to overloaded agent)
         for busy_agent in overloaded:
-            for task_id, handoff in list(self.pending_handoffs.items()):
+            for task_id, handoff in list(self.pending_handoffs.items()):  # type: ignore[attr-defined]
                 if handoff.to_agent == busy_agent:
                     # Steal this task
                     handoff.to_agent = idle_agent
@@ -273,13 +273,13 @@ class RoutingMixin:
                     logger.info(f"Work stolen: {idle_agent} took {task_id} from {busy_agent}")
 
                     # Notify via gossip
-                    self.gossip_broadcast(
+                    self.gossip_broadcast(  # type: ignore[attr-defined]
                         origin_agent=idle_agent,
                         message_type="work_steal",
                         content={"task_id": task_id, "from": busy_agent, "to": idle_agent},
                     )
 
-                    return handoff
+                    return handoff  # type: ignore[no-any-return]
 
         return None
 

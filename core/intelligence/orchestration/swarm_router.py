@@ -246,7 +246,7 @@ class SwarmRouter:
         agents = self._get_agents()
         if not lp:
             return list(agents) if agents else []
-        return lp.order_agents_for_goal(goal, agents)
+        return lp.order_agents_for_goal(goal, agents)  # type: ignore[no-any-return]
 
     def estimate_complexity(self, task: str) -> Dict[str, Any]:
         """

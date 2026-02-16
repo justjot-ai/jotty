@@ -58,7 +58,7 @@ class LocalProvider:
         self, audio_path: str, language: Optional[str] = None
     ) -> Dict[str, Any]:
         """Use OpenAI whisper Python package (runs locally)."""
-        import whisper
+        import whisper  # type: ignore[import-untyped]
 
         audio_file = Path(audio_path)
         if not audio_file.exists():
@@ -107,7 +107,7 @@ class LocalProvider:
                 cmd.extend(["-l", language])
 
             # Run whisper.cpp
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)  # type: ignore[arg-type]
 
             if result.returncode != 0:
                 return {"success": False, "error": f"whisper.cpp error: {result.stderr}"}
@@ -222,7 +222,7 @@ class LocalProvider:
             # Run piper
             cmd = [self.config.piper_path, "--model", voice_path, "--output_file", out_file]
 
-            result = subprocess.run(cmd, input=text, capture_output=True, text=True, timeout=60)
+            result = subprocess.run(cmd, input=text, capture_output=True, text=True, timeout=60)  # type: ignore[arg-type]
 
             if result.returncode != 0:
                 return {"success": False, "error": f"Piper error: {result.stderr}"}

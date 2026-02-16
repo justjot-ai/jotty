@@ -182,7 +182,9 @@ async def sequential_team_workflow() -> bool:
     print("\nWaterfall pattern: Each agent waits for previous to complete\n")
 
     # Configure LLM (adjust to your setup)
-    from Jotty.core.infrastructure.foundation.unified_lm_provider import UnifiedLMProvider
+    from Jotty.core.infrastructure.foundation.unified_lm_provider import (
+        UnifiedLMProvider,  # type: ignore[import]
+    )
 
     lm = UnifiedLMProvider.create_lm(provider="claude-cli", model="sonnet")
     dspy.configure(lm=lm)
@@ -192,8 +194,12 @@ async def sequential_team_workflow() -> bool:
 
     # Initialize your domain experts
     # IMPLEMENT: Replace with your actual experts
-    from core.experts.product_manager_expert import ProductManagerExpertAgent
-    from core.experts.ux_researcher_expert import UXResearcherExpertAgent
+    from core.experts.product_manager_expert import (
+        ProductManagerExpertAgent,  # type: ignore[import-not-found]
+    )
+    from core.experts.ux_researcher_expert import (
+        UXResearcherExpertAgent,  # type: ignore[import-not-found]
+    )
 
     # ... add more as needed
 

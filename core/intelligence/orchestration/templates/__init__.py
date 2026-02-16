@@ -37,7 +37,13 @@ Usage:
     result = await Swarm.auto_solve(X, y)
 """
 
-from .base import AgentConfig, FeedbackConfig, ModelTier, StageConfig, SwarmTemplate
+from .base import (  # type: ignore[attr-defined]
+    AgentConfig,
+    FeedbackConfig,
+    ModelTier,
+    StageConfig,
+    SwarmTemplate,
+)
 from .registry import TemplateRegistry
 from .swarm_lean import SwarmLean
 from .swarm_ml import SwarmML

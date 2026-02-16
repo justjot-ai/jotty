@@ -162,10 +162,10 @@ class ModelChatAgent:
 
         # Initialize MLflow tracker
         try:
-            from core.skills.ml import MLflowTrackerSkill
+            from core.skills.ml import MLflowTrackerSkill  # type: ignore[import-not-found]
 
             self._tracker = MLflowTrackerSkill()
-            await self._tracker.init()
+            await self._tracker.init()  # type: ignore[attr-defined]
         except Exception as e:
             logger.warning(f"Failed to initialize MLflow tracker: {e}")
             self._tracker = None

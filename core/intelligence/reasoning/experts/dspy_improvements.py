@@ -9,7 +9,7 @@ import logging
 from typing import Any, Dict, List
 
 try:
-    import dspy
+    import dspy  # type: ignore[import-untyped]
 
     DSPY_AVAILABLE = True
 except ImportError:

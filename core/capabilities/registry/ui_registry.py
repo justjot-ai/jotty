@@ -519,7 +519,7 @@ class UIRegistry:
 
         if component.to_a2ui_func:
             try:
-                return component.to_a2ui_func(content)
+                return component.to_a2ui_func(content)  # type: ignore[no-any-return]
             except Exception as e:
                 logger.error(f"A2UI conversion failed for {component_type}: {e}")
                 return None
@@ -545,7 +545,7 @@ class UIRegistry:
 
         if component.to_agui_func:
             try:
-                return component.to_agui_func(content)
+                return component.to_agui_func(content)  # type: ignore[no-any-return]
             except Exception as e:
                 logger.error(f"AGUI conversion failed for {component_type}: {e}")
                 return None
@@ -801,7 +801,7 @@ def _load_builtin_components(registry: UIRegistry) -> Any:
 
     # Register core components
     for comp in CORE_COMPONENTS:
-        registry.register(**comp)
+        registry.register(**comp)  # type: ignore[arg-type]
     logger.info(f"📦 Loaded {len(CORE_COMPONENTS)} core UI components")
 
     # Try to load supervisor widgets

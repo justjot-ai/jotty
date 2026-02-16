@@ -23,7 +23,7 @@ validate_latex = None
 try:
     # Try Python package first (if someone creates a Python wrapper)
     try:
-        from latex_validation import validate_latex  # type: ignore[import-not-found]
+        from latex_validation import validate_latex  # type: ignore[import-not-found, no-redef]
 
         LATEX_VALIDATION_AVAILABLE = True
         logger.info("latex-validation Python package available")
@@ -91,7 +91,7 @@ def validate_via_latex_validation_library(
         if callable(validate_latex):
             result = validate_latex(latex_code)
         else:
-            return None, "validate_latex is not callable", {}
+            return None, "validate_latex is not callable", {}  # type: ignore[unreachable]
 
         metadata = {"validation_method": "latex-validation-library", "code_length": len(latex_code)}
 
@@ -200,7 +200,7 @@ def validate_via_renderer(
 
         if should_use_post:
             # Use POST request for large expressions
-            metadata["method"] = "POST"
+            metadata["method"] = "POST"  # type: ignore[assignment]
             url = "https://quicklatex.com/latex3.f"
 
             data = urllib.parse.urlencode({"equation": code}).encode("utf-8")
@@ -234,7 +234,7 @@ def validate_via_renderer(
                 return False, f"HTTP {e.code}: {e.reason}", metadata
         else:
             # Use GET request (smaller expressions)
-            metadata["method"] = "GET"
+            metadata["method"] = "GET"  # type: ignore[assignment]
             url = f"https://quicklatex.com/latex3.f?equation={encoded}"
 
             req = urllib.request.Request(url)

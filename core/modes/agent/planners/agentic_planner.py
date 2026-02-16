@@ -14,7 +14,9 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-from Jotty.core.infrastructure.foundation.exceptions import AgentExecutionError
+from Jotty.core.infrastructure.foundation.exceptions import (
+    AgentExecutionError,  # type: ignore[import-not-found]
+)
 
 # DSPy loaded lazily to avoid ~6s import at module level
 DSPY_AVAILABLE = True  # Assumed; checked on first use
@@ -39,7 +41,12 @@ def _get_dspy() -> Any:
 
 # Import context utilities for error handling and compression
 try:
-    from ..utils.context_utils import ContextCompressor, ErrorDetector, ErrorType, detect_error_type
+    from ..utils.context_utils import (  # type: ignore[import-not-found]
+        ContextCompressor,
+        ErrorDetector,
+        ErrorType,
+        detect_error_type,
+    )
 
     CONTEXT_UTILS_AVAILABLE = True
 except ImportError:
@@ -59,7 +66,7 @@ try:
     TASK_GRAPH_AVAILABLE = True
 except ImportError:
     TASK_GRAPH_AVAILABLE = False
-    TaskGraph = None
+    TaskGraph = None  # type: ignore[assignment, misc]
 
 
 # =============================================================================
@@ -82,7 +89,9 @@ def _load_signatures() -> None:
     if _signatures_loaded:
         return
     _signatures_loaded = True
-    from .planner_signatures import CapabilityInferenceSignature as _CI
+    from .planner_signatures import (
+        CapabilityInferenceSignature as _CI,  # type: ignore[import-not-found]
+    )
     from .planner_signatures import ExecutionPlanningSignature as _EP
     from .planner_signatures import ReflectivePlanningSignature as _RP
     from .planner_signatures import SkillSelectionSignature as _SS
@@ -131,7 +140,7 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
     def _get_semaphore(cls) -> Any:
         """Get or create the global LLM semaphore (thread-safe)."""
         if cls._llm_semaphore is not None:
-            return cls._llm_semaphore
+            return cls._llm_semaphore  # type: ignore[unreachable]
         import threading
 
         if cls._semaphore_lock is None:
@@ -835,7 +844,9 @@ class TaskPlanner(InferenceMixin, SkillSelectionMixin, PlanUtilsMixin):
                 tool_names = []
 
             try:
-                from ..registry.skills_registry import get_skills_registry
+                from ..registry.skills_registry import (
+                    get_skills_registry,  # type: ignore[import-not-found]
+                )
 
                 registry = get_skills_registry()
                 if registry:

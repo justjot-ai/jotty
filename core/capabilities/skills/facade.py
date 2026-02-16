@@ -113,7 +113,7 @@ def list_skills(category: Optional[str] = None) -> List[str]:
         registry = get_unified_registry()
         all_skills = registry.list_skills()
         if category is None:
-            return all_skills
+            return all_skills  # type: ignore[no-any-return]
         # Filter by category if skills have category metadata
         filtered = []
         for skill_name in all_skills:

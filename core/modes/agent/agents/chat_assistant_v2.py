@@ -15,11 +15,22 @@ from typing import Any, Dict, Optional
 
 from anthropic import Anthropic
 from Jotty.core.infrastructure.foundation.config_defaults import LLM_MAX_OUTPUT_TOKENS
-from Jotty.core.infrastructure.foundation.direct_anthropic_lm import get_anthropic_client_kwargs
+from Jotty.core.infrastructure.foundation.direct_anthropic_lm import (
+    get_anthropic_client_kwargs,  # type: ignore[import-not-found, import]
+)
 
-from ..ui import return_chart, return_data_table, return_kanban, return_mermaid, return_section
-from ..ui.status_taxonomy import status_mapper
-from .section_tools import generate_section_tools, get_system_prompt
+from ..ui import (  # type: ignore[import-not-found]
+    return_chart,
+    return_data_table,
+    return_kanban,
+    return_mermaid,
+    return_section,
+)
+from ..ui.status_taxonomy import status_mapper  # type: ignore[import-not-found]
+from .section_tools import (  # type: ignore[import-not-found]
+    generate_section_tools,
+    get_system_prompt,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -92,18 +103,18 @@ class ChatAssistantV2:
         if self._is_task_query(query) and self.state_manager:
             tasks = await self._fetch_tasks()
             context["tasks"] = tasks
-            context["task_count"] = len(tasks)
+            context["task_count"] = len(tasks)  # type: ignore[assignment]
 
             # Group by status (using generic taxonomy)
-            by_status = {}
+            by_status: Dict[str, Any] = {}
             for task in tasks:
                 canonical_status = status_mapper.normalize(task.get("status", "backlog"))
                 if canonical_status not in by_status:
                     by_status[canonical_status] = []
                 by_status[canonical_status].append(task)
 
-            context["tasks_by_status"] = by_status
-            context["status_counts"] = {k: len(v) for k, v in by_status.items()}
+            context["tasks_by_status"] = by_status  # type: ignore[assignment]
+            context["status_counts"] = {k: len(v) for k, v in by_status.items()}  # type: ignore[assignment]
 
         return context
 
@@ -128,7 +139,7 @@ class ChatAssistantV2:
             return []
 
         try:
-            return await self.state_manager.get_all_tasks()
+            return await self.state_manager.get_all_tasks()  # type: ignore[no-any-return]
         except Exception as e:
             logger.error(f"Failed to fetch tasks: {e}")
             return []
@@ -167,7 +178,7 @@ Choose the BEST section format for this query and generate appropriate content.
 
         try:
             # Claude API call with tool calling
-            response = self.llm.messages.create(
+            response = self.llm.messages.create(  # type: ignore[call-overload]
                 model="claude-3-5-sonnet-20241022",
                 max_tokens=LLM_MAX_OUTPUT_TOKENS,
                 system=get_system_prompt(),  # Includes tool hints
@@ -232,11 +243,11 @@ Choose the BEST section format for this query and generate appropriate content.
 
         # Execute tool or use generic fallback
         if tool_name in tool_map:
-            return tool_map[tool_name]()
+            return tool_map[tool_name]()  # type: ignore[no-any-return]
         else:
             # Generic section helper (works for ANY type!)
             section_type = tool_name.replace("return_", "").replace("_", "-")
-            return return_section(
+            return return_section(  # type: ignore[no-any-return]
                 section_type=section_type,
                 content=tool_input.get("content"),
                 title=tool_input.get("title"),
@@ -271,7 +282,7 @@ Choose the BEST section format for this query and generate appropriate content.
                         }
                     )
 
-        return return_kanban(columns=columns, title=f"Tasks ({len(tasks)} total)")
+        return return_kanban(columns=columns, title=f"Tasks ({len(tasks)} total)")  # type: ignore[no-any-return]
 
 
 # Example usage

@@ -27,8 +27,13 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Type
 
-from Jotty.core.infrastructure.foundation.types.enums import OutputTag, ValidationRound
-from Jotty.core.infrastructure.foundation.types.validation_types import ValidationResult
+from Jotty.core.infrastructure.foundation.types.enums import (  # type: ignore[import]
+    OutputTag,
+    ValidationRound,
+)
+from Jotty.core.infrastructure.foundation.types.validation_types import (
+    ValidationResult,  # type: ignore[import]
+)
 
 from .meta_agent import MetaAgent, MetaAgentConfig
 
@@ -153,8 +158,8 @@ class ValidationAgent(MetaAgent):
 
     def __init__(
         self,
-        config: ValidationConfig = None,
-        scratchpad: SharedScratchpad = None,
+        config: ValidationConfig = None,  # type: ignore[assignment]
+        scratchpad: SharedScratchpad = None,  # type: ignore[assignment]
         is_pre_validation: bool = True,
     ) -> None:
         """
@@ -360,7 +365,7 @@ Reasoning: {result.reasoning[:500]}
         if not self.validation_config.enable_multi_round:
             return False
 
-        return result.confidence < self.validation_config.refinement_on_low_confidence
+        return result.confidence < self.validation_config.refinement_on_low_confidence  # type: ignore[no-any-return]
 
     async def refine_result(
         self, original: ValidationResult, feedback: str, additional_context: str = ""
@@ -407,7 +412,7 @@ Reasoning: {result.reasoning[:500]}
 
         result = await self.validate(goal, inputs, trajectory)
 
-        return result.to_dict()
+        return result.to_dict()  # type: ignore[no-any-return]
 
     async def validate(
         self, goal: str, inputs: Dict[str, Any], trajectory: List[Dict] | None = None

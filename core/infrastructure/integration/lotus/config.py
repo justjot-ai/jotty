@@ -150,7 +150,7 @@ class LotusConfig:
         costs = self.model_costs.get(model, (3.0, 15.0))  # Default to Sonnet
         input_cost = (input_tokens / 1_000_000) * costs[0]
         output_cost = (output_tokens / 1_000_000) * costs[1]
-        return input_cost + output_cost
+        return input_cost + output_cost  # type: ignore[no-any-return]
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize config to dictionary."""

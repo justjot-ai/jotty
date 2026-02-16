@@ -30,10 +30,10 @@ if not os.getenv("ANTHROPIC_API_KEY") and not os.getenv("OPENAI_API_KEY"):
 
 print("✓ API key loaded")
 
-from Jotty.core.intelligence.swarms.research_swarm.types import ResearchConfig
+from Jotty.core.execution.swarms.research_swarm.types import ResearchConfig
 
 # Import ResearchTemplate
-from Jotty.core.intelligence.swarms.templates.research import ResearchTemplate
+from Jotty.core.execution.swarms.templates.research import ResearchTemplate
 
 print("✓ Imports successful")
 

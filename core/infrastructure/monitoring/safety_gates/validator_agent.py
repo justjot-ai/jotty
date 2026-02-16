@@ -258,7 +258,7 @@ class ValidatorAgent:
         passed_count = sum(1 for r in self.validation_history if r.passed)
 
         # Count failure types
-        failure_counts = {}
+        failure_counts: Dict[str, Any] = {}
         for report in self.validation_history:
             for failure in report.blocking_failures:
                 failure_counts[failure.constraint] = failure_counts.get(failure.constraint, 0) + 1

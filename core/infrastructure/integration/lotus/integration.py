@@ -111,7 +111,7 @@ def enhance_swarm_manager(swarm_manager: Any, config: Optional[LotusConfig] = No
     return swarm_manager
 
 
-def _enhance_agent_runner(runner: Any, enhancement: LotusEnhancement) -> Tuple:
+def _enhance_agent_runner(runner: Any, enhancement: LotusEnhancement) -> Tuple:  # type: ignore[return]
     """
     Enhance an AgentRunner with adaptive validation.
 
@@ -122,16 +122,20 @@ def _enhance_agent_runner(runner: Any, enhancement: LotusEnhancement) -> Tuple:
     original_auditor = getattr(runner, "auditor_validator", None)
 
     if not enhancement.enable_adaptive_validation:
-        return
+        return  # type: ignore[return-value]
 
     # Import ValidationResult for creating skip results
     try:
-        from ..foundation.data_structures import OutputTag, ValidationResult, ValidationRound
+        from ..foundation.data_structures import (  # type: ignore[import-not-found]
+            OutputTag,
+            ValidationResult,
+            ValidationRound,
+        )
     except ImportError:
         logger.warning(
             "Could not import ValidationResult, skipping adaptive validation enhancement"
         )
-        return
+        return  # type: ignore[return-value]
 
     # Wrap validation calls with adaptive skipping
     if original_architect:

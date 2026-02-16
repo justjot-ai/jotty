@@ -102,7 +102,7 @@ class SlidingWindowLimiter:
         """
         self.rate = rate
         self.period = period
-        self.requests = deque()
+        self.requests = deque()  # type: ignore[var-annotated]
         self.lock = threading.Lock()
 
     def allow(self) -> bool:
@@ -191,7 +191,7 @@ class RateLimiter:
         with self.lock:
             for key in keys:
                 if key in self.limiters:
-                    if not self.limiters[key].allow():
+                    if not self.limiters[key].allow():  # type: ignore[attr-defined]
                         return False
             return True
 

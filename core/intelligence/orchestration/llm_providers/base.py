@@ -5,7 +5,9 @@ Abstract base class for LLM providers with tool calling support.
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, List
 
-from Jotty.core.infrastructure.foundation.config_defaults import LLM_MAX_OUTPUT_TOKENS
+from Jotty.core.infrastructure.foundation.config_defaults import (
+    LLM_MAX_OUTPUT_TOKENS,  # type: ignore[import]
+)
 
 from .types import LLMResponse
 

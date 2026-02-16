@@ -25,7 +25,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import dspy
 
-from ..utils.tokenizer import SmartTokenizer
+from ..utils.tokenizer import SmartTokenizer  # type: ignore[import-not-found]
 
 logger = logging.getLogger(__name__)
 
@@ -182,7 +182,9 @@ class SmartAgentSlack:
         """Lazy-init Transformer agent."""
         if self._transformer is None:
             logger.info(" [SMART AGENT SLACK] Lazy-initializing Transformer...")
-            from skills.data_transformer.transformer import SmartDataTransformer
+            from skills.data_transformer.transformer import (
+                SmartDataTransformer,  # type: ignore[import-not-found]
+            )
 
             # Get LM from config or use global DSPy LM
             lm = self._config.get("lm") if self._config else None
@@ -203,7 +205,9 @@ class SmartAgentSlack:
         """Lazy-init Chunker agent."""
         if self._chunker is None:
             logger.info(" [SMART AGENT SLACK] Lazy-initializing Chunker...")
-            from Jotty.core.infrastructure.context.chunker import ContextChunker
+            from Jotty.core.infrastructure.context.chunker import (
+                ContextChunker,  # type: ignore[import]
+            )
 
             # Get LM from config or use global DSPy LM
             lm = self._config.get("lm") if self._config else None
@@ -224,7 +228,9 @@ class SmartAgentSlack:
         """Lazy-init Compressor agent."""
         if self._compressor is None:
             logger.info(" [SMART AGENT SLACK] Lazy-initializing Compressor...")
-            from Jotty.core.agentic_compressor import AgenticCompressor
+            from Jotty.core.agentic_compressor import (
+                AgenticCompressor,  # type: ignore[import-not-found]
+            )
 
             # Get LM from config or use global DSPy LM
             lm = self._config.get("lm") if self._config else None
@@ -642,7 +648,7 @@ class SmartAgentSlack:
     def _estimate_tokens(self, data: Any) -> int:
         """Estimate token count using SmartTokenizer."""
         if isinstance(data, str):
-            return SmartTokenizer.get_instance().count_tokens(data)
+            return SmartTokenizer.get_instance().count_tokens(data)  # type: ignore[no-any-return]
         # For non-string data, convert to string first
         size_bytes = self._estimate_size(data)
         # Use size-based estimation for non-string types
@@ -723,14 +729,14 @@ class SmartAgentSlack:
             return {"enabled": False}
 
         # Find most helpful agent (gives most help)
-        help_given = {}
+        help_given: Dict[str, Any] = {}
         for (from_agent, to_agent), count in self.help_matrix.items():
             help_given[from_agent] = help_given.get(from_agent, 0) + count
 
         most_helpful = max(help_given.items(), key=lambda x: x[1])[0] if help_given else None
 
         # Find most helped agent (receives most help)
-        help_received = {}
+        help_received: Dict[str, Any] = {}
         for (from_agent, to_agent), count in self.help_matrix.items():
             help_received[to_agent] = help_received.get(to_agent, 0) + count
 
@@ -837,14 +843,14 @@ class SmartAgentSlack:
         # Check recent comms for this pair
         pair_comms = [
             c
-            for c in self.communication_log[-20:]
+            for c in self.communication_log[-20:]  # type: ignore[attr-defined]
             if c.get("from") == from_agent and c.get("to") == to_agent
         ]
         if pair_comms:
             latencies = [c.get("latency", 0.1) for c in pair_comms]
-            return sum(latencies) / len(latencies)
+            return sum(latencies) / len(latencies)  # type: ignore[no-any-return]
         return 0.1  # Default
 
     def _log_communication_decision(self, **kwargs: Any) -> Any:
         """Log communication decision for learning."""
-        self.communication_log.append({"timestamp": time.time(), "type": "nash_decision", **kwargs})
+        self.communication_log.append({"timestamp": time.time(), "type": "nash_decision", **kwargs})  # type: ignore[attr-defined]

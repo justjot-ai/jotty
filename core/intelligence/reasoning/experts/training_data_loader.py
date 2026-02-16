@@ -76,7 +76,7 @@ class TrainingDataLoader:
             logger.debug(f"Received {len(files_data)} items from GitHub API")
 
             # Recursively search for files
-            matching_files = []
+            matching_files: List[Any] = []
 
             def search_directory(dir_path: str, current_depth: int = 0, max_depth: int = 2) -> None:
                 """Recursively search directories for matching files."""

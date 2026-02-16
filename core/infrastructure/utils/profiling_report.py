@@ -79,7 +79,7 @@ class ProfilingReport:
         ]
 
         # Group by component
-        components = {}
+        components: Dict[str, Any] = {}
         for entry in sorted_entries:
             if entry.component not in components:
                 components[entry.component] = []
@@ -128,7 +128,7 @@ class ProfilingReport:
         lines.append("")
 
         # Group by component
-        components = {}
+        components: Dict[str, Any] = {}
         for entry in sorted_entries:
             if entry.component not in components:
                 components[entry.component] = []
@@ -171,9 +171,9 @@ class ProfilingReport:
         for entry in self.entries:
             if entry.component not in component_stats:
                 component_stats[entry.component] = {"count": 0, "total": 0.0, "entries": []}
-            component_stats[entry.component]["count"] += 1
-            component_stats[entry.component]["total"] += entry.duration
-            component_stats[entry.component]["entries"].append(entry)
+            component_stats[entry.component]["count"] += 1  # type: ignore[operator]
+            component_stats[entry.component]["total"] += entry.duration  # type: ignore[operator]
+            component_stats[entry.component]["entries"].append(entry)  # type: ignore[attr-defined]
 
         lines = []
         lines.append("=" * 120)
@@ -187,25 +187,25 @@ class ProfilingReport:
 
         # Sort by total time descending
         sorted_components = sorted(
-            component_stats.items(), key=lambda x: x[1]["total"], reverse=True
+            component_stats.items(), key=lambda x: x[1]["total"], reverse=True  # type: ignore[arg-type, return-value]
         )
 
         for component, stats in sorted_components:
-            avg_time = stats["total"] / stats["count"]
+            avg_time = stats["total"] / stats["count"]  # type: ignore[operator]
             lines.append(f"📦 {component}")
             lines.append(f"   Count:     {stats['count']}")
             lines.append(f"   Total:     {stats['total']:.3f}s")
             lines.append(f"   Average:   {avg_time:.3f}s")
-            lines.append(f"   Min:       {min(e.duration for e in stats['entries']):.3f}s")
-            lines.append(f"   Max:       {max(e.duration for e in stats['entries']):.3f}s")
+            lines.append(f"   Min:       {min(e.duration for e in stats['entries']):.3f}s")  # type: ignore[attr-defined]
+            lines.append(f"   Max:       {max(e.duration for e in stats['entries']):.3f}s")  # type: ignore[attr-defined]
 
             if self.start_time and self.end_time:
-                percentage = (stats["total"] / total_duration) * 100
+                percentage = (stats["total"] / total_duration) * 100  # type: ignore[operator]
                 lines.append(f"   % of Total: {percentage:.1f}%")
 
             # Show individual operations
             lines.append("   Operations:")
-            for entry in stats["entries"]:
+            for entry in stats["entries"]:  # type: ignore[attr-defined]
                 name = entry.metadata.get("name", entry.operation)
                 lines.append(f"      - {name}: {entry.duration:.3f}s ({entry.duration_ms:.0f}ms)")
             lines.append("")

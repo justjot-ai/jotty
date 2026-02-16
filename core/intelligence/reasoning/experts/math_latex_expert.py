@@ -14,7 +14,7 @@ from .base_expert import BaseExpert
 logger = logging.getLogger(__name__)
 
 try:
-    import dspy
+    import dspy  # type: ignore[import-untyped]
 
     DSPY_AVAILABLE = True
 except ImportError:
@@ -103,7 +103,7 @@ class MathLaTeXExpertAgent(BaseExpert):
             try:
                 from .dspy_improvements import inject_improvements_into_signature
 
-                signature_class = inject_improvements_into_signature(
+                signature_class = inject_improvements_into_signature(  # type: ignore[assignment]
                     MathLaTeXGenerationSignature, improvements
                 )
             except ImportError:
@@ -167,7 +167,7 @@ class MathLaTeXExpertAgent(BaseExpert):
         expected_type = context.get("expression_type", "display")
 
         # Validate using domain validator
-        is_valid, error_msg, metadata = validator.validate(
+        is_valid, error_msg, metadata = validator.validate(  # type: ignore[union-attr]
             output=output_str, expected_type=expected_type, context=context
         )
 
@@ -369,5 +369,5 @@ class MathLaTeXExpertAgent(BaseExpert):
         task = f"Generate {expression_type} math expression"
         context = {"description": description, "expression_type": expression_type, **kwargs}
 
-        output = await self.generate(task=task, context=context)
+        output = await self.generate(task=task, context=context)  # type: ignore[attr-defined]
         return str(output)

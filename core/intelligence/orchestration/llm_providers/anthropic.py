@@ -14,7 +14,7 @@ from .types import LLMResponse, TextBlock, ToolUseBlock
 
 
 def _get_client_kwargs(api_key: Optional[str] = None) -> Any:
-    from Jotty.core.infrastructure.foundation.direct_anthropic_lm import (
+    from Jotty.core.infrastructure.foundation.direct_anthropic_lm import (  # type: ignore[import-not-found, import]
         get_anthropic_client_kwargs,
     )
 
@@ -30,7 +30,7 @@ class AnthropicProvider(LLMProvider):
         self.model = model
         self._client_kwargs = _get_client_kwargs(api_key)
         self.api_key = self._client_kwargs.get("api_key") or os.environ.get("ANTHROPIC_API_KEY")
-        self._client = None
+        self._client: Optional[Anthropic] = None  # type: ignore[name-defined]
 
     @property
     def client(self) -> Any:
@@ -94,7 +94,7 @@ class AnthropicProvider(LLMProvider):
             if block.type == "text":
                 content.append(TextBlock(text=block.text))
             elif block.type == "tool_use":
-                content.append(ToolUseBlock(id=block.id, name=block.name, input=block.input))
+                content.append(ToolUseBlock(id=block.id, name=block.name, input=block.input))  # type: ignore[arg-type]
 
         return LLMResponse(
             content=content,

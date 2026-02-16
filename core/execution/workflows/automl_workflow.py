@@ -29,7 +29,7 @@ from enum import Enum
 from typing import Any, Callable, Dict, List, Optional
 
 import numpy as np
-import pandas as pd
+import pandas as pd  # type: ignore[import-untyped]
 
 from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
 
@@ -120,7 +120,7 @@ class AutoMLWorkflow:
 
         try:
             self._skills_registry = get_skills_registry()
-            self._skills_registry.init()
+            self._skills_registry.init()  # type: ignore[attr-defined]
 
             # Discover skills for each category
             self._discover_skills()
@@ -147,7 +147,7 @@ class AutoMLWorkflow:
             "engineering",
         ]
 
-        for skill_name, skill_def in self._skills_registry.loaded_skills.items():
+        for skill_name, skill_def in self._skills_registry.loaded_skills.items():  # type: ignore[attr-defined]
             name_lower = skill_name.lower()
 
             # Check if it's an AutoML skill

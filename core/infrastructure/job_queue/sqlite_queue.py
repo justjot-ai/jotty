@@ -261,7 +261,7 @@ class SQLiteTaskQueue(TaskQueue):
                 import logging
 
                 logging.warning(f"No rows updated for task {task_id} - task may not exist")
-            return rows_updated > 0
+            return rows_updated > 0  # type: ignore[no-any-return]
 
     async def heartbeat(self, task_id: str) -> bool:
         """Update task heartbeat"""
@@ -273,7 +273,7 @@ class SQLiteTaskQueue(TaskQueue):
                 (task_id,),
             )
             conn.commit()
-            return conn.total_changes > 0
+            return conn.total_changes > 0  # type: ignore[no-any-return]
 
     async def get_running_count(self) -> int:
         """Get count of running tasks"""
@@ -283,7 +283,7 @@ class SQLiteTaskQueue(TaskQueue):
                 SELECT COUNT(*) FROM tasks WHERE pid IS NOT NULL
             """
             ).fetchone()[0]
-            return count
+            return count  # type: ignore[no-any-return]
 
     async def get_running_count_by_agent(self, agent_type: str) -> int:
         """Get count of running tasks for specific agent type"""
@@ -295,7 +295,7 @@ class SQLiteTaskQueue(TaskQueue):
             """,
                 (agent_type,),
             ).fetchone()[0]
-            return count
+            return count  # type: ignore[no-any-return]
 
     async def get_stats(self) -> Dict[str, Any]:
         """Get queue statistics (compatible with supervisor)"""
@@ -387,7 +387,7 @@ class SQLiteTaskQueue(TaskQueue):
                 (priority, task_id),
             )
             conn.commit()
-            return conn.total_changes > 0
+            return conn.total_changes > 0  # type: ignore[no-any-return]
 
     async def update_task_metadata(
         self,
@@ -417,7 +417,7 @@ class SQLiteTaskQueue(TaskQueue):
                 if priority < 1 or priority > 5:
                     return False
                 updates.append("priority = ?")
-                params.append(priority)
+                params.append(priority)  # type: ignore[arg-type]
 
             if category is not None:
                 updates.append("category = ?")
@@ -441,14 +441,14 @@ class SQLiteTaskQueue(TaskQueue):
 
             conn.execute(query, params)
             conn.commit()
-            return conn.total_changes > 0
+            return conn.total_changes > 0  # type: ignore[no-any-return]
 
     async def delete_task(self, task_id: str) -> bool:
         """Delete a task"""
         with self._get_connection() as conn:
             conn.execute("DELETE FROM tasks WHERE task_id = ?", (task_id,))
             conn.commit()
-            return conn.total_changes > 0
+            return conn.total_changes > 0  # type: ignore[no-any-return]
 
     async def create_task(
         self,
@@ -535,7 +535,7 @@ class SQLiteTaskQueue(TaskQueue):
                 (task_id,),
             )
             conn.commit()
-            return conn.total_changes > 0
+            return conn.total_changes > 0  # type: ignore[no-any-return]
 
     async def validate_pids(self) -> int:
         """Clean up stale PIDs (matches supervisor)"""

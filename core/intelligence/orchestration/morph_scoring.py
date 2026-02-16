@@ -549,7 +549,7 @@ class MorphScorer:
         history_summary = self._format_history_for_llm(profile)
 
         try:
-            result = self._llm_scorer(
+            result = self._llm_scorer(  # type: ignore[misc]
                 task_description=task[:500],
                 agent_profile=profile_desc,
                 agent_history=history_summary,

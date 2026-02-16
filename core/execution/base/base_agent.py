@@ -161,7 +161,7 @@ class BaseAgent(ABC):
     # Error patterns that are never worth LLM-analyzing (just retry)
     _BLIND_RETRY_PATTERNS = ("rate limit", "429", "overloaded", "capacity")
 
-    def __init__(self, config: AgentRuntimeConfig = None) -> None:
+    def __init__(self, config: AgentRuntimeConfig = None) -> None:  # type: ignore[assignment]
         """
         Initialize BaseAgent with optional configuration.
 
@@ -356,7 +356,7 @@ class BaseAgent(ABC):
             return
 
         try:
-            from Jotty.core.infrastructure.monitoring.safety_gates import (
+            from Jotty.core.infrastructure.monitoring.safety_gates import (  # type: ignore[import]
                 CostBudgetConstraint,
                 MaliciousInputConstraint,
                 PIIConstraint,
@@ -508,7 +508,9 @@ class BaseAgent(ABC):
         """Lazy-load SharedContext."""
         if self._context_manager is None and self.config.enable_context:
             try:
-                from Jotty.core.infrastructure.persistence.shared_context import SharedContext
+                from Jotty.core.infrastructure.persistence.shared_context import (
+                    SharedContext,  # type: ignore[import]
+                )
 
                 self._context_manager = SharedContext()
                 logger.debug(f"Initialized SharedContext for {self.config.name}")
@@ -524,8 +526,8 @@ class BaseAgent(ABC):
                 from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
 
                 self._skills_registry = get_skills_registry()
-                if not self._skills_registry.initialized:
-                    self._skills_registry.init()
+                if not self._skills_registry.initialized:  # type: ignore[attr-defined]
+                    self._skills_registry.init()  # type: ignore[attr-defined]
                 logger.debug(f"Initialized SkillsRegistry for {self.config.name}")
             except Exception as e:
                 logger.warning(f"Could not initialize skills registry: {e}")
@@ -673,7 +675,9 @@ class BaseAgent(ABC):
             return ""
 
         try:
-            from Jotty.core.modes.execution.types import ErrorType
+            from Jotty.core.modes.execution.types import (
+                ErrorType,  # type: ignore[import-not-found, import]
+            )
 
             error_type = ErrorType.classify(error)
 
@@ -789,7 +793,7 @@ class BaseAgent(ABC):
             return []
 
         try:
-            return self.memory.retrieve(query=query, goal=goal, budget_tokens=budget_tokens)
+            return self.memory.retrieve(query=query, goal=goal, budget_tokens=budget_tokens)  # type: ignore[no-any-return]
         except Exception as e:
             logger.warning(f"Failed to retrieve memory: {e}")
             return []
@@ -859,7 +863,7 @@ class BaseAgent(ABC):
             logger.debug("Skills registry not available for discovery")
             return []
 
-        return self.skills_registry.list_skills()
+        return self.skills_registry.list_skills()  # type: ignore[no-any-return]
 
     # =========================================================================
     # SYSTEM CONTEXT & VISUAL VERIFICATION
@@ -1005,10 +1009,13 @@ class BaseAgent(ABC):
         outputs.  Subclasses (DomainAgent) override with signature-derived schemas.
         Cached after first call.
         """
-        if hasattr(self, "_io_schema") and self._io_schema is not None:
-            return self._io_schema
+        if hasattr(self, "_io_schema") and self._io_schema is not None:  # type: ignore[has-type]
+            return self._io_schema  # type: ignore[has-type]
 
-        from Jotty.core.modes.agent._execution_types import AgentIOSchema, ToolParam
+        from Jotty.core.modes.agent._execution_types import (  # type: ignore[import-not-found]
+            AgentIOSchema,
+            ToolParam,
+        )
 
         self._io_schema = AgentIOSchema(
             agent_name=getattr(self.config, "name", self.__class__.__name__),

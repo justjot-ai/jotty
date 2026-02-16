@@ -282,7 +282,7 @@ class MonitoringFramework:
             total_cost=total_cost,
             avg_cost=avg_cost,
             total_tokens=total_tokens,
-            avg_tokens=avg_tokens,
+            avg_tokens=avg_tokens,  # type: ignore[arg-type]
             success_rate=success_rate,
             error_rate=error_rate,
             executions_by_agent=executions_by_agent,

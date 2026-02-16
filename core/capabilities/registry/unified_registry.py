@@ -163,7 +163,7 @@ class UnifiedRegistry:
         Returns:
             List of tool definitions for Claude API
         """
-        tools = []
+        tools: List[Any] = []
         skills_to_check = skill_names or self.list_skills()
 
         for skill_name in skills_to_check:
@@ -175,7 +175,7 @@ class UnifiedRegistry:
 
     def get_mcp_tools(self) -> List[Dict[str, Any]]:
         """Get all MCP-enabled tools."""
-        mcp_tools = []
+        mcp_tools: List[Any] = []
         for skill_name in self.list_skills():
             skill = self._skills.get_skill(skill_name)
             if skill and skill.mcp_enabled:
@@ -220,7 +220,7 @@ class UnifiedRegistry:
         return {
             "skills": {
                 "available": [
-                    self._skills.get_skill(n).to_dict()
+                    self._skills.get_skill(n).to_dict()  # type: ignore[union-attr]
                     for n in self.list_skills()
                     if self._skills.get_skill(n)
                 ],
@@ -233,7 +233,7 @@ class UnifiedRegistry:
         """Get skills registry data (legacy alias)."""
         return {
             "available": [
-                self._skills.get_skill(n).to_dict()
+                self._skills.get_skill(n).to_dict()  # type: ignore[union-attr]
                 for n in self.list_skills()
                 if self._skills.get_skill(n)
             ],
@@ -251,7 +251,7 @@ class UnifiedRegistry:
         Returns:
             Dict mapping tool_name -> exists
         """
-        all_tools = set()
+        all_tools: Set[Any] = set()  # type: ignore[name-defined]
         for skill_name in self.list_skills():
             skill = self._skills.get_skill(skill_name)
             if skill:

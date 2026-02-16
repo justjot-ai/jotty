@@ -165,7 +165,7 @@ class MetadataIntrospector:
     """
 
     def __init__(self) -> None:
-        self.cache = {}
+        self.cache: Dict[str, Any] = {}
 
     def discover(self, metadata_obj: Any) -> List[MethodMetadata]:
         """
@@ -179,8 +179,8 @@ class MetadataIntrospector:
         """
         # Check cache
         obj_id = id(metadata_obj)
-        if obj_id in self.cache:
-            return self.cache[obj_id]
+        if obj_id in self.cache:  # type: ignore[comparison-overlap]
+            return self.cache[obj_id, index]  # type: ignore[index, name-defined, no-any-return]
 
         methods = []
         for name in dir(metadata_obj):
@@ -205,7 +205,7 @@ class MetadataIntrospector:
         logger.info(f" Discovered {len(methods)} metadata methods")
 
         # Cache results
-        self.cache[obj_id] = methods
+        self.cache[obj_id] = methods  # type: ignore[index]
         return methods
 
     def _analyze_method(self, name: str, method: Callable) -> MethodMetadata:
@@ -283,7 +283,7 @@ class MetadataToolWrapper:
     def __init__(self, metadata_obj: Any, method_meta: MethodMetadata) -> None:
         self.metadata = metadata_obj
         self.meta = method_meta
-        self.cache = {} if method_meta.cache else None
+        self.cache: Dict[str, Any] = {} if method_meta.cache else None  # type: ignore[assignment]
         self.call_count = 0
         self.total_time = 0.0
 
@@ -303,9 +303,9 @@ class MetadataToolWrapper:
         # Check cache
         if self.cache is not None:
             cache_key = (self.meta.name, frozenset(kwargs.items()))
-            if cache_key in self.cache:
+            if cache_key in self.cache:  # type: ignore[comparison-overlap]
                 logger.debug(f" Cache hit for {self.meta.name}({kwargs})")
-                return self.cache[cache_key]
+                return self.cache[cache_key]  # type: ignore[index]
 
         # Get method
         method = getattr(self.metadata, self.meta.name)
@@ -323,7 +323,7 @@ class MetadataToolWrapper:
 
             # Cache result
             if self.cache is not None:
-                self.cache[cache_key] = result
+                self.cache[cache_key] = result  # type: ignore[index]
 
             elapsed = time.time() - start_time
             self.total_time += elapsed
@@ -428,7 +428,7 @@ class JottyMetadataBase:
 
     def __init__(self) -> None:
         self._introspector = MetadataIntrospector()
-        self._tools = None
+        self._tools: Optional[list[MetadataToolWrapper]] = None
         self._validated = False
 
     def load_from_directory(self, data_dir: str) -> None:

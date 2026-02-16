@@ -36,7 +36,7 @@ class SwarmResult:
     output: str
     success: bool
     confidence: float = 0.0
-    metadata: Dict[str, Any] = None
+    metadata: Dict[str, Any] = None  # type: ignore[assignment]
 
     def __post_init__(self) -> None:
         if self.metadata is None:

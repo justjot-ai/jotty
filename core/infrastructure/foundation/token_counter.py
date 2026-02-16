@@ -18,7 +18,9 @@ try:
     from .model_limits_catalog import get_model_limits as get_limits_from_catalog
 except ImportError:
     # Fallback for direct execution
-    from model_limits_catalog import get_model_limits as get_limits_from_catalog
+    from model_limits_catalog import (
+        get_model_limits as get_limits_from_catalog,  # type: ignore[no-redef]
+    )
 
 # Try to import tokencost (for accurate counting when network works)
 try:
@@ -177,7 +179,7 @@ class TokenCounter:
             try:
                 count = count_string_tokens(str(text), model=tokencost_model)
                 logger.debug(f" Counted {count} tokens in {len(text)} chars ({model_to_use})")
-                return count
+                return count  # type: ignore[no-any-return]
             except Exception:
                 # Fallback to approximation silently
                 pass
@@ -210,7 +212,7 @@ class TokenCounter:
                 logger.debug(
                     f" Counted {count} tokens in {len(messages)} messages ({model_to_use})"
                 )
-                return count
+                return count  # type: ignore[no-any-return]
             except Exception:
                 # Fallback to approximation silently
                 pass
@@ -404,7 +406,7 @@ def estimate_tokens(text: str) -> int:
     return len(text) // 4 + 1
 
 
-def get_tokenizer_info(model: str) -> Dict[str, any]:
+def get_tokenizer_info(model: str) -> Dict[str, Any]:
     """
     Get information about token counting for a model.
 

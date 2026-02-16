@@ -7,10 +7,12 @@ Simplified API for chat interactions.
 import logging
 from typing import Any, AsyncIterator, Dict, List, Optional
 
-from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
+from Jotty.core.infrastructure.foundation.agent_config import (
+    AgentConfig,  # type: ignore[import-not-found, import]
+)
 from Jotty.core.intelligence.orchestration import Orchestrator
 from Jotty.core.modes.agent.agents.chat_assistant import create_chat_assistant
-from Jotty.core.modes.use_cases.chat import ChatMessage, ChatUseCase
+from Jotty.core.modes.use_cases.chat import ChatMessage, ChatUseCase  # type: ignore[import]
 
 logger = logging.getLogger(__name__)
 
@@ -107,7 +109,7 @@ class ChatAPI:
 
                         class EmptyMemory:
                             def __init__(self) -> None:
-                                self.memories = {}
+                                self.memories: Dict[str, Any] = {}
 
                         self.conductor.local_memories["ChatAssistant"] = EmptyMemory()
                         logger.debug(
@@ -140,7 +142,7 @@ class ChatAPI:
             Chat response dictionary
         """
         result = await self.chat_use_case.execute(goal=message, history=history, **kwargs)
-        return result.to_dict()
+        return result.to_dict()  # type: ignore[no-any-return]
 
     async def stream(
         self, message: str, history: Optional[List[ChatMessage]] = None, **kwargs: Any

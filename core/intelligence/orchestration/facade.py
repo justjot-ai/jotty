@@ -20,14 +20,30 @@ import threading
 from typing import TYPE_CHECKING, Any, Dict, Optional, Type, Union
 
 if TYPE_CHECKING:
-    from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
-    from Jotty.core.intelligence.orchestration.ensemble_manager import EnsembleManager
-    from Jotty.core.intelligence.orchestration.model_tier_router import ModelTierRouter
-    from Jotty.core.intelligence.orchestration.paradigm_executor import ParadigmExecutor
-    from Jotty.core.intelligence.orchestration.provider_manager import ProviderManager
-    from Jotty.core.intelligence.orchestration.swarm_intelligence import SwarmIntelligence
-    from Jotty.core.intelligence.orchestration.swarm_router import SwarmRouter
-    from Jotty.core.intelligence.orchestration.training_daemon import TrainingDaemon
+    from Jotty.core.infrastructure.foundation.data_structures import (
+        SwarmConfig,  # type: ignore[import]
+    )
+    from Jotty.core.intelligence.orchestration.ensemble_manager import (
+        EnsembleManager,  # type: ignore[import]
+    )
+    from Jotty.core.intelligence.orchestration.model_tier_router import (
+        ModelTierRouter,  # type: ignore[import]
+    )
+    from Jotty.core.intelligence.orchestration.paradigm_executor import (
+        ParadigmExecutor,  # type: ignore[import]
+    )
+    from Jotty.core.intelligence.orchestration.provider_manager import (
+        ProviderManager,  # type: ignore[import]
+    )
+    from Jotty.core.intelligence.orchestration.swarm_intelligence import (
+        SwarmIntelligence,  # type: ignore[import]
+    )
+    from Jotty.core.intelligence.orchestration.swarm_router import (
+        SwarmRouter,  # type: ignore[import]
+    )
+    from Jotty.core.intelligence.orchestration.training_daemon import (
+        TrainingDaemon,  # type: ignore[import]
+    )
 
 _lock = threading.Lock()
 _singletons: Dict[str, object] = {}

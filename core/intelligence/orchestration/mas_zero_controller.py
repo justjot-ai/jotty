@@ -16,10 +16,14 @@ Standalone composed class, replaces MASZeroMixin.
 import logging
 from typing import TYPE_CHECKING, Any, Dict, List
 
-from Jotty.core.infrastructure.utils.async_utils import StatusReporter
+from Jotty.core.infrastructure.utils.async_utils import (
+    StatusReporter,  # type: ignore[import-not-found, import]
+)
 
 if TYPE_CHECKING:
-    from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
+    from Jotty.core.infrastructure.foundation.agent_config import (
+        AgentConfig,  # type: ignore[import-not-found, import]
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -40,15 +44,15 @@ class MASZeroController:
         """
         self._get_agents = get_agents
         self._get_runners = get_runners
-        self._experience_library = None
+        self._experience_library: Optional[ExperienceLibrary] = None  # type: ignore[name-defined]
 
     @property
     def agents(self) -> List["AgentConfig"]:
-        return self._get_agents()
+        return self._get_agents()  # type: ignore[no-any-return]
 
     @property
     def runners(self) -> dict:
-        return self._get_runners()
+        return self._get_runners()  # type: ignore[no-any-return]
 
     def _get_experience_library(self) -> Any:
         """Lazy-load per-problem ExperienceLibrary."""
@@ -230,7 +234,7 @@ class MASZeroController:
             for agent_config in self.agents:
                 name = agent_config.name
                 result = best_results.get(name)
-                success = result.success if hasattr(result, "success") else False
+                success = result.success if hasattr(result, "success") else False  # type: ignore[union-attr]
 
                 if success:
                     continue

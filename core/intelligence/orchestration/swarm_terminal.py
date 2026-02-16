@@ -111,8 +111,8 @@ class ErrorPatternMatcher:
             match = re.search(pattern, error_text, re.IGNORECASE)
             if match:
                 result = fix_info.copy()
-                result["match"] = match
-                result["groups"] = match.groups() if match.groups() else ()
+                result["match"] = match  # type: ignore[assignment]
+                result["groups"] = match.groups() if match.groups() else ()  # type: ignore[assignment]
                 return result
         return None
 
@@ -230,7 +230,7 @@ class SwarmTerminal:
     def _load_web_search(self) -> Any:
         """Load web search capability."""
         try:
-            from Jotty.core.capabilities.skills import get_skills_registry
+            from Jotty.core.capabilities.skills import get_skills_registry  # type: ignore[import]
 
             registry = get_skills_registry()
             skill = registry.get_skill("web-search")
@@ -279,8 +279,8 @@ class SwarmTerminal:
                     spec = importlib.util.spec_from_file_location(
                         "file_operations_tools", tools_path
                     )
-                    module = importlib.util.module_from_spec(spec)
-                    spec.loader.exec_module(module)
+                    module = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
+                    spec.loader.exec_module(module)  # type: ignore[union-attr]
                     self._write_file = getattr(module, "write_file_tool", None)
                     self._read_file = getattr(module, "read_file_tool", None)
                     if self._write_file:
@@ -772,7 +772,7 @@ class SwarmTerminal:
                 confidence = result.confidence
                 if isinstance(confidence, str):
                     try:
-                        confidence = float(re.search(r"[\d.]+", confidence).group())
+                        confidence = float(re.search(r"[\d.]+", confidence).group())  # type: ignore[union-attr]
                     except (ValueError, AttributeError):
                         confidence = 0.5
 
@@ -895,28 +895,28 @@ Auto-generated skill to solve: {problem[:100]}
 
         # Check internet connectivity
         net_result = await self.execute("ping -c 1 8.8.8.8", timeout=10, auto_fix=False)
-        diagnostics["checks"]["internet"] = net_result.success
+        diagnostics["checks"]["internet"] = net_result.success  # type: ignore[index]
 
         # Check disk space
         disk_result = await self.execute("df -h /", timeout=5, auto_fix=False)
-        diagnostics["checks"]["disk"] = (
+        diagnostics["checks"]["disk"] = (  # type: ignore[index]
             disk_result.output if disk_result.success else disk_result.error
         )
 
         # Check memory
         mem_result = await self.execute("free -h", timeout=5, auto_fix=False)
-        diagnostics["checks"]["memory"] = mem_result.output if mem_result.success else "N/A"
+        diagnostics["checks"]["memory"] = mem_result.output if mem_result.success else "N/A"  # type: ignore[index]
 
         # Check Python environment
         py_result = await self.execute(
             "python3 --version && pip --version", timeout=5, auto_fix=False
         )
-        diagnostics["checks"]["python"] = py_result.output if py_result.success else py_result.error
+        diagnostics["checks"]["python"] = py_result.output if py_result.success else py_result.error  # type: ignore[index]
 
         # Check common tools
         for tool in ["git", "node", "npm", "docker"]:
             tool_result = await self.execute(f"which {tool}", timeout=5, auto_fix=False)
-            diagnostics["checks"][tool] = "installed" if tool_result.success else "not found"
+            diagnostics["checks"][tool] = "installed" if tool_result.success else "not found"  # type: ignore[index]
 
         return diagnostics
 

@@ -463,7 +463,7 @@ class SimpleFallbackMemory:
 
                 # Serialize all memories
                 for mem_type, storage in self._memories.items():
-                    data["memories"][mem_type.value] = {
+                    data["memories"][mem_type.value] = {  # type: ignore[index]
                         key: entry.to_dict() for key, entry in storage.items()
                     }
 

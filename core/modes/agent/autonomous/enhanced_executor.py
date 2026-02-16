@@ -7,9 +7,9 @@ DRY Principle: Reuses AutoAgent.execute() and existing Jotty components.
 from dataclasses import dataclass, field
 from typing import List, Optional
 
-from ..agent._execution_types import AgenticExecutionResult
-from ..agent.agentic_planner import TaskPlan
-from ..agent.auto_agent import AutoAgent
+from ..agent.agentic_planner import TaskPlan  # type: ignore[import-not-found]
+from ..agent.auto_agent import AutoAgent  # type: ignore[import-not-found]
+from ..types.execution_types import AgenticExecutionResult
 
 
 @dataclass
@@ -44,7 +44,9 @@ class AutonomousExecutor:
 
         # Get dependency manager (reuse existing)
         try:
-            from ..registry.skill_dependency_manager import get_dependency_manager
+            from ..registry.skill_dependency_manager import (
+                get_dependency_manager,  # type: ignore[import-not-found]
+            )
 
             self.dependency_manager = get_dependency_manager()
         except ImportError:
@@ -98,7 +100,7 @@ class AutonomousExecutor:
 
     async def _install_dependencies(self, plan: TaskPlan) -> List[str]:
         """Install dependencies using SkillDependencyManager (reuse existing)."""
-        installed = []
+        installed: List[Any] = []  # type: ignore[name-defined]
 
         if not self.dependency_manager:
             return installed

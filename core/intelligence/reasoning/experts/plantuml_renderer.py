@@ -80,7 +80,7 @@ def validate_via_renderer(
     try:
         if should_use_post:
             # Use POST request for large diagrams
-            metadata["method"] = "POST"
+            metadata["method"] = "POST"  # type: ignore[assignment]
             url = "http://www.plantuml.com/plantuml/img"
 
             # POST request
@@ -105,7 +105,7 @@ def validate_via_renderer(
                 return False, f"HTTP {e.code}: {e.reason}", metadata
         else:
             # Use GET request (smaller diagrams)
-            metadata["method"] = "GET"
+            metadata["method"] = "GET"  # type: ignore[assignment]
             url = f"http://www.plantuml.com/plantuml/img/{encoded}"
 
             req = urllib.request.Request(url)

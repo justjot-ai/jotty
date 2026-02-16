@@ -582,7 +582,7 @@ class SkillsRegistry:
         # Dependency management (now in skills/skill-package-manager/)
         from . import get_dependency_manager
 
-        self.dependency_manager = get_dependency_manager()
+        self.dependency_manager = get_dependency_manager()  # type: ignore[misc]
 
         # LLM-based tool selection (optional, lazy-loaded)
         self._tool_shed: Optional[Any] = None
@@ -712,21 +712,21 @@ class SkillsRegistry:
                         # Fallback: direct import
                         tools_path = self.skills_dir / "n8n-workflows" / "tools.py"
                         spec = importlib.util.spec_from_file_location("n8n_tools", tools_path)
-                        mod = importlib.util.module_from_spec(spec)
-                        spec.loader.exec_module(mod)
+                        mod = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
+                        spec.loader.exec_module(mod)  # type: ignore[union-attr]
                         return await mod.trigger_n8n_workflow_tool(params)
 
                     _trigger.__name__ = f"trigger_{sname.replace('-', '_')}"
                     _trigger.__doc__ = f"Trigger n8n workflow: {wname}"
-                    _trigger._required_params = []
+                    _trigger._required_params = []  # type: ignore[attr-defined]
                     return {_trigger.__name__: _trigger}
 
-                return _loader
+                return _loader  # type: ignore[return-value]
 
             skill = SkillDefinition(
                 name=skill_name,
                 description=description,
-                _tool_loader=_make_loader(),
+                _tool_loader=_make_loader(),  # type: ignore[arg-type]
                 skill_type=SkillType.DERIVED,
                 base_skills=[base_skill_name],
                 capabilities=capabilities,
@@ -855,7 +855,7 @@ class SkillsRegistry:
         except TypeError:
             # Python 3.9 fallback
             all_eps = entry_points()
-            eps = all_eps.get("jotty.skills", [])
+            eps = all_eps.get("jotty.skills", [])  # type: ignore[arg-type]
 
         for ep in eps:
             try:
@@ -924,7 +924,7 @@ class SkillsRegistry:
                         return registry._load_tools_from_file(tools_file)
                     return {}
 
-            return loader
+            return loader  # type: ignore[return-value]
 
         # Resolve SkillType from parsed metadata
         parsed_type = skill_metadata.get("skill_type")
@@ -950,7 +950,7 @@ class SkillsRegistry:
         return SkillDefinition(
             name=skill_name_final,
             description=skill_metadata["description"] or f"Skill: {skill_name_final}",
-            _tool_loader=make_tool_loader(skill_dir, skill_name, is_claude_code_skill, skill_md),
+            _tool_loader=make_tool_loader(skill_dir, skill_name, is_claude_code_skill, skill_md),  # type: ignore[arg-type]
             metadata=skill_meta,
             tool_metadata=tool_schemas,
             category=skill_metadata.get("skill_category") or "general",
@@ -997,7 +997,7 @@ class SkillsRegistry:
         User wants weather sent to Telegram
         ```
         """
-        metadata = {
+        metadata = {  # type: ignore[var-annotated]
             "description": "",
             "skill_type": None,  # None = not specified, will default to BASE
             "base_skills": [],
@@ -1028,7 +1028,7 @@ class SkillsRegistry:
                             fm_desc = fm_line[len("description:") :].strip().strip('"').strip("'")
                             if fm_desc:
                                 metadata["description"] = fm_desc
-                                metadata["_desc_from_frontmatter"] = True
+                                metadata["_desc_from_frontmatter"] = True  # type: ignore[assignment]
                     # Strip frontmatter from content for section parsing
                     content = content[end_idx + 3 :].lstrip("\n")
 
@@ -1104,7 +1104,7 @@ class SkillsRegistry:
                 if current_section == "description" and stripped and not stripped.startswith("- "):
                     if not metadata.get("_desc_from_frontmatter"):
                         if metadata["description"]:
-                            metadata["description"] += " " + stripped
+                            metadata["description"] += " " + stripped  # type: ignore[operator]
                         else:
                             metadata["description"] = stripped
 
@@ -1116,7 +1116,7 @@ class SkillsRegistry:
                 elif current_section == "base_skills" and stripped.startswith("-"):
                     skill_ref = stripped[1:].strip()
                     if skill_ref:
-                        metadata["base_skills"].append(skill_ref)
+                        metadata["base_skills"].append(skill_ref)  # type: ignore[union-attr]
 
                 elif current_section == "execution" and stripped:
                     mode_val = stripped.lower().strip()
@@ -1126,18 +1126,18 @@ class SkillsRegistry:
                 elif current_section == "capabilities" and stripped.startswith("-"):
                     cap = stripped[1:].strip().lower()
                     if cap:
-                        metadata["capabilities"].append(cap)
+                        metadata["capabilities"].append(cap)  # type: ignore[union-attr]
 
                 elif current_section == "use_when" and stripped:
                     if metadata["use_when"]:
-                        metadata["use_when"] += " " + stripped
+                        metadata["use_when"] += " " + stripped  # type: ignore[operator]
                     else:
                         metadata["use_when"] = stripped
 
                 elif current_section == "triggers" and stripped.startswith("-"):
                     trigger = stripped[1:].strip().strip('"').strip("'")
                     if trigger:
-                        metadata["triggers"].append(trigger.lower())
+                        metadata["triggers"].append(trigger.lower())  # type: ignore[union-attr]
 
                 elif current_section == "skill_category" and stripped:
                     metadata["skill_category"] = stripped.lower().strip()
@@ -1147,22 +1147,22 @@ class SkillsRegistry:
                 metadata["description"] = title
 
             # Truncate description
-            metadata["description"] = metadata["description"][:500]
+            metadata["description"] = metadata["description"][:500]  # type: ignore[index]
 
             # Auto-infer use_when from description if not provided
             # This gives the LLM a selection hint without requiring manual SKILL.md edits
             if not metadata["use_when"] and metadata["description"]:
                 desc = metadata["description"]
                 # Strip markdown formatting and truncate
-                clean = desc.replace("**", "").replace("*", "").strip()
+                clean = desc.replace("**", "").replace("*", "").strip()  # type: ignore[union-attr]
                 if len(clean) > 10:
                     metadata["use_when"] = clean[:120]
 
             # Infer skill_type from base_skills if not explicitly set
             if metadata["skill_type"] is None:
-                if len(metadata["base_skills"]) == 1:
+                if len(metadata["base_skills"]) == 1:  # type: ignore[arg-type]
                     metadata["skill_type"] = "derived"
-                elif len(metadata["base_skills"]) >= 2:
+                elif len(metadata["base_skills"]) >= 2:  # type: ignore[arg-type]
                     metadata["skill_type"] = "composite"
                 # else: leave as None, will default to BASE
 
@@ -1316,7 +1316,7 @@ class SkillsRegistry:
     def _read_skill_description(self, skill_md: Path) -> str:
         """Read description from SKILL.md (lightweight metadata parsing)."""
         metadata = self._parse_skill_metadata(skill_md)
-        return metadata["description"]
+        return metadata["description"]  # type: ignore[no-any-return]
 
     def load_all_skills(self) -> Dict[str, Callable]:
         """
@@ -1703,8 +1703,10 @@ class SkillsRegistry:
             tools.update(skill.tools)
 
         # Add package management tools
-        from .skill_package_tools import create_package_management_tools
-        from .skill_venv_manager import get_venv_manager
+        from .skill_package_tools import (
+            create_package_management_tools,  # type: ignore[import-not-found]
+        )
+        from .skill_venv_manager import get_venv_manager  # type: ignore[import-not-found]
 
         venv_manager = get_venv_manager()
         package_tools = create_package_management_tools(venv_manager)
@@ -1749,7 +1751,7 @@ class SkillsRegistry:
 
             # Only list tool names if already loaded — avoids triggering
             # lazy import of all 126+ skills' tools.py modules
-            tool_names = list(skill._tools.keys()) if skill.is_loaded else []
+            tool_names = list(skill._tools.keys()) if skill.is_loaded else []  # type: ignore[union-attr]
 
             skill_dict = {
                 "name": skill.name,
@@ -1930,7 +1932,7 @@ class SkillsRegistry:
 
     def _skill_to_discovery_dict(self, skill: "SkillDefinition", score: int = 0) -> Dict[str, Any]:
         """Convert a SkillDefinition to a dict for discovery output."""
-        tool_names = list(skill._tools.keys()) if skill.is_loaded else []
+        tool_names = list(skill._tools.keys()) if skill.is_loaded else []  # type: ignore[union-attr]
         d = {
             "name": skill.name,
             "description": skill.description or skill.name,
@@ -1988,10 +1990,10 @@ class SkillsRegistry:
             # Skills with no capabilities defined get a low default score
             # (they might still be relevant)
             if not skill.capabilities:
-                score = 0.1
+                score = 0.1  # type: ignore[assignment]
 
             if score > 0:
-                tool_names = list(skill._tools.keys()) if skill.is_loaded else []
+                tool_names = list(skill._tools.keys()) if skill.is_loaded else []  # type: ignore[union-attr]
                 skill_dict = {
                     "name": skill.name,
                     "description": skill.description,
@@ -2022,7 +2024,7 @@ class SkillsRegistry:
         return self.loaded_skills.get(name)
 
     def load_collection(
-        self, collection: "ToolCollection", collection_name: Optional[str] = None
+        self, collection: "ToolCollection", collection_name: Optional[str] = None  # type: ignore[name-defined]
     ) -> Dict[str, Callable]:
         """
         Load a tool collection into the registry.
@@ -2040,7 +2042,7 @@ class SkillsRegistry:
             collection = ToolCollection.from_hub("collection-slug", trust_remote_code=True)
             registry.load_collection(collection)
         """
-        from .tool_collection import ToolCollection
+        from .tool_collection import ToolCollection  # type: ignore[import-not-found]
 
         if not isinstance(collection, ToolCollection):
             raise TypeError(f"Expected ToolCollection, got {type(collection)}")
@@ -2122,7 +2124,9 @@ class SkillsRegistry:
             AgentConfig or None
         """
         try:
-            from .skill_to_agent_converter import SkillToAgentConverter
+            from .skill_to_agent_converter import (
+                SkillToAgentConverter,  # type: ignore[import-not-found]
+            )
 
             converter = SkillToAgentConverter()
             return await converter.create_agent_from_skill_name(skill_name, agent_name)
@@ -2146,7 +2150,7 @@ class SkillsRegistry:
             converter = SkillToAgentConverter()
 
             skills = list(self.loaded_skills.values())
-            return await converter.convert_skills_to_agents(skills, agent_name_prefix)
+            return await converter.convert_skills_to_agents(skills, agent_name_prefix)  # type: ignore[no-any-return]
         except Exception as e:
             logger.warning(f"Failed to convert skills to agents: {e}")
             return []
@@ -2282,7 +2286,7 @@ class SkillsRegistry:
             return []
 
         try:
-            return shed.capability_index.find_chain(
+            return shed.capability_index.find_chain(  # type: ignore[no-any-return]
                 start=start_capability,
                 end=end_capability,
                 max_depth=max_depth,

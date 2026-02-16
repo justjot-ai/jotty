@@ -59,11 +59,11 @@ class MongoDBMemoryBackend:
         # Connect to MongoDB
         mongo_uri = mongo_uri or os.getenv("MONGODB_URI", "mongodb://justjot-mongo:27017/justjot")
 
-        self.client = MongoClient(mongo_uri)
+        self.client = MongoClient(mongo_uri)  # type: ignore[var-annotated]
 
         # Extract database name from URI
-        if "/" in mongo_uri.split("@")[-1]:
-            db_name = mongo_uri.split("/")[-1].split("?")[0]
+        if "/" in mongo_uri.split("@")[-1]:  # type: ignore[union-attr]
+            db_name = mongo_uri.split("/")[-1].split("?")[0]  # type: ignore[union-attr]
         else:
             db_name = "justjot"
 
@@ -388,7 +388,7 @@ class MongoDBMemoryBackend:
         )
 
         # Format for supervisor compatibility
-        context = {"patterns": [], "procedures": [], "similar_tasks": []}
+        context = {"patterns": [], "procedures": [], "similar_tasks": []}  # type: ignore[var-annotated]
 
         for entry in memories:
             if entry.level == MemoryLevel.SEMANTIC:

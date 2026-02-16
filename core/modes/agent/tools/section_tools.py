@@ -97,7 +97,7 @@ def generate_tool_hints() -> str:
     hints = ["Available section helpers:", ""]
 
     # Group by category
-    by_category = {}
+    by_category: Dict[str, Any] = {}
 
     for section_type in schema_registry.list_sections():
         schema = schema_registry.get_schema(section_type)

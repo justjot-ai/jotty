@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
-from Jotty.core.infrastructure.foundation.configs.learning import (
+from Jotty.core.infrastructure.foundation.configs.learning import (  # type: ignore[import-not-found, import]
     LearningConfig as FocusedLearningConfig,
 )
 from Jotty.core.infrastructure.foundation.data_structures import (
@@ -373,7 +373,7 @@ class TDLambdaLearner:
     4. Terminal state has V(s') = 0
     """
 
-    def __init__(self, config: Any, adaptive_lr: AdaptiveLearningRate = None) -> None:
+    def __init__(self, config: Any, adaptive_lr: AdaptiveLearningRate = None) -> None:  # type: ignore[assignment]
         self.config = _ensure_swarm_config(config)
         self.gamma = self.config.gamma
         self.lambda_trace = self.config.lambda_trace
@@ -1149,7 +1149,7 @@ class TDLambdaLearner:
             return False  # Not enough data yet
 
         success_rate = stats["successes"] / stats["total"]
-        return success_rate < self.tool_failure_threshold
+        return success_rate < self.tool_failure_threshold  # type: ignore[no-any-return]
 
 
 # =============================================================================

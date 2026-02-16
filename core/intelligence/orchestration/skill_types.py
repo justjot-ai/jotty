@@ -31,10 +31,13 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 try:
-    from Jotty.core.capabilities.skills.ml.base import SkillCategory, SkillResult
+    from Jotty.core.capabilities.skills.ml.base import (  # type: ignore[import-not-found]
+        SkillCategory,
+        SkillResult,
+    )
 except ImportError:
     # Fallback if skills module not available
-    class SkillCategory(Enum):
+    class SkillCategory(Enum):  # type: ignore[no-redef]
         """Categories of ML skills in the pipeline."""
 
         DATA_PROFILING = "data_profiling"
@@ -48,7 +51,7 @@ except ImportError:
         EXPLANATION = "explanation"
 
     @dataclass
-    class SkillResult:
+    class SkillResult:  # type: ignore[no-redef]
         """Result from a skill execution."""
 
         skill_name: str

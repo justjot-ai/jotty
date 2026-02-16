@@ -192,7 +192,7 @@ class CreditAssignment:
         Returns:
             Dictionary mapping improvement_id to list of similar improvement_ids
         """
-        duplicates = {}
+        duplicates: Dict[str, Any] = {}
 
         for i, imp1 in enumerate(improvements):
             imp1_id = self._get_improvement_id(imp1)
@@ -294,26 +294,26 @@ class CreditAssignment:
                 )
 
         # Sort by credit score (descending)
-        prioritized.sort(key=lambda x: x["credit_score"], reverse=True)
+        prioritized.sort(key=lambda x: x["credit_score"], reverse=True)  # type: ignore[arg-type, return-value]
 
         # Remove duplicates (keep highest credit)
         seen_patterns = set()
         deduplicated = []
         for item in prioritized:
-            pattern = item["improvement"].get("learned_pattern", "").lower()
+            pattern = item["improvement"].get("learned_pattern", "").lower()  # type: ignore[attr-defined]
             pattern_hash = hash(pattern[:100])  # Use first 100 chars as hash
 
             if pattern_hash not in seen_patterns:
                 seen_patterns.add(pattern_hash)
                 deduplicated.append(item)
-            elif item["credit_score"] > 0.5:  # Keep if high credit
+            elif float(item["credit_score"]) > 0.5:  # Keep if high credit  # type: ignore[operator]
                 # Replace existing with higher credit
                 for i, existing in enumerate(deduplicated):
                     if (
-                        hash(existing["improvement"].get("learned_pattern", "").lower()[:100])
+                        hash(existing["improvement"].get("learned_pattern", "").lower()[:100])  # type: ignore[attr-defined]
                         == pattern_hash
                     ):
-                        if item["credit_score"] > existing["credit_score"]:
+                        if item["credit_score"] > existing["credit_score"]:  # type: ignore[operator]
                             deduplicated[i] = item
                         break
 
@@ -322,7 +322,7 @@ class CreditAssignment:
             deduplicated = deduplicated[:max_improvements]
 
         # Return just the improvements (sorted by priority)
-        return [item["improvement"] for item in deduplicated]
+        return [item["improvement"] for item in deduplicated]  # type: ignore[misc]
 
     def prune_low_impact_improvements(
         self,

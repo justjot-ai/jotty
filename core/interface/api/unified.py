@@ -7,11 +7,17 @@ Single entry point for all use cases (chat, workflow).
 import logging
 from typing import Any, AsyncIterator, Dict, List, Optional, Type
 
-from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
+from Jotty.core.infrastructure.foundation.agent_config import (
+    AgentConfig,  # type: ignore[import-not-found, import]
+)
 from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
 from Jotty.core.intelligence.orchestration import Orchestrator
-from Jotty.core.modes.use_cases import ChatUseCase, UseCaseConfig, WorkflowUseCase
-from Jotty.core.modes.use_cases.base import BaseUseCase, UseCaseType
+from Jotty.core.modes.use_cases import (  # type: ignore[import]
+    ChatUseCase,
+    UseCaseConfig,
+    WorkflowUseCase,
+)
+from Jotty.core.modes.use_cases.base import BaseUseCase, UseCaseType  # type: ignore[import]
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +61,7 @@ class JottyAPI:
             conductor: Optional pre-configured conductor (if None, creates one)
         """
         if conductor is None:
-            from Jotty.core.jotty import create_swarm_manager
+            from Jotty.core.jotty import create_swarm_manager  # type: ignore[import]
 
             self.conductor = create_swarm_manager(agents, config)
         else:
@@ -138,7 +144,7 @@ class JottyAPI:
 
         result = await chat.execute(goal=message, history=history, **kwargs)
 
-        return result.to_dict()
+        return result.to_dict()  # type: ignore[no-any-return]
 
     async def chat_stream(
         self,
@@ -201,7 +207,7 @@ class JottyAPI:
 
         result = await workflow.execute(goal=goal, context=context, **kwargs)
 
-        return result.to_dict()
+        return result.to_dict()  # type: ignore[no-any-return]
 
     async def workflow_stream(
         self,
@@ -251,4 +257,4 @@ class JottyAPI:
         Returns:
             Task ID
         """
-        return await self.workflow.enqueue(goal=goal, context=context, priority=priority, **kwargs)
+        return await self.workflow.enqueue(goal=goal, context=context, priority=priority, **kwargs)  # type: ignore[no-any-return]

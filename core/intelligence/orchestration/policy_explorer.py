@@ -8,7 +8,7 @@ import json
 import logging
 from typing import Any, Dict, List
 
-import dspy
+import dspy  # type: ignore[import-untyped]
 
 logger = logging.getLogger(__name__)
 
@@ -115,7 +115,7 @@ class PolicyExplorer:
             )
 
             # Parse new Task List items
-            new_items = []
+            new_items: List[Any] = []
             try:
                 items_json = json.loads(result.new_todo_items or "[]")
                 for item in items_json:

@@ -623,7 +623,7 @@ class CrossSwarmStigmergy:
     """
 
     # Singleton shared layer for all swarms in this process
-    _shared_instance: "CrossSwarmStigmergy" = None
+    _shared_instance: "CrossSwarmStigmergy" = None  # type: ignore[assignment]
     _lock = None
 
     def __init__(self, decay_rate: float = 0.05, max_signals: int = 1000) -> None:

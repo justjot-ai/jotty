@@ -270,7 +270,7 @@ class CodingSwarmProtocol(Protocol):
 # === ALL-IN-ONE PROTOCOLS ===
 
 
-class ComprehensiveMixinProtocol(
+class ComprehensiveMixinProtocol(  # type: ignore[misc]
     ReportGeneratorProtocol,
     OrchestrationProtocol,
     LearningProtocol,

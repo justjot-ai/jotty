@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any, Dict, List
 
 logger = logging.getLogger(__name__)
 
-from Jotty.core.infrastructure.foundation.configs.learning import (
+from Jotty.core.infrastructure.foundation.configs.learning import (  # type: ignore[import-not-found, import]
     LearningConfig as FocusedLearningConfig,
 )
 from Jotty.core.infrastructure.foundation.data_structures import (
@@ -230,7 +230,7 @@ class ReasoningCreditAssigner:
         """
         quotes = []
         in_quote = False
-        current = []
+        current: List[Any] = []
 
         for char in text:
             if char == '"':

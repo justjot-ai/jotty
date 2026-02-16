@@ -51,9 +51,9 @@ import time
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
-import pandas as pd
+import pandas as pd  # type: ignore[import-untyped]
 
-from .base import AgentConfig, FeedbackConfig, ModelTier, StageConfig
+from .base import AgentConfig, FeedbackConfig, ModelTier, StageConfig  # type: ignore[attr-defined]
 from .swarm_ml import SwarmML
 
 logger = logging.getLogger(__name__)
@@ -179,10 +179,10 @@ class LearningState:
     score_history: List[float] = field(default_factory=list)
 
 
-from ._mlflow_mixin import MLflowMixin
-from ._report_mixin import ReportMixin
-from ._telegram_mixin import TelegramMixin
-from ._world_class_report_mixin import WorldClassReportMixin
+from ._mlflow_mixin import MLflowMixin  # type: ignore[import-not-found]
+from ._report_mixin import ReportMixin  # type: ignore[import-not-found]
+from ._telegram_mixin import TelegramMixin  # type: ignore[import-not-found]
+from ._world_class_report_mixin import WorldClassReportMixin  # type: ignore[import-not-found]
 
 
 class SwarmMLComprehensive(MLflowMixin, ReportMixin, WorldClassReportMixin, TelegramMixin, SwarmML):
@@ -491,13 +491,17 @@ JSON only:""",
             return
 
         try:
-            from Jotty.core.intelligence.learning.learning_coordinator import LearningManager
-            from Jotty.core.intelligence.learning.transfer_learning import TransferableLearningStore
+            from Jotty.core.intelligence.learning.learning_coordinator import (
+                LearningManager,  # type: ignore[import-not-found, import]
+            )
+            from Jotty.core.intelligence.learning.transfer_learning import (
+                TransferableLearningStore,  # type: ignore[import]
+            )
 
             self._transfer_store = TransferableLearningStore()
             store_path = os.path.join("Jotty", "outputs", "transfer_store.json")
             if os.path.exists(store_path):
-                self._transfer_store.load(store_path)
+                self._transfer_store.load(store_path)  # type: ignore[attr-defined]
 
             class _LCConfig:
                 output_base_dir = os.path.join("Jotty", "outputs")
@@ -507,7 +511,7 @@ JSON only:""",
                 config=_LCConfig(),
                 base_dir=os.path.join("Jotty", "outputs"),
             )
-            self._learning_coordinator.initialize(auto_load=True)
+            self._learning_coordinator.initialize(auto_load=True)  # type: ignore[attr-defined]
 
             self._initialized_learning = True
             logger.info("Learning components initialized")
@@ -527,7 +531,7 @@ JSON only:""",
         task_desc = kwargs.get("business_context", "") or self._build_task_description(**kwargs)
         self._learning_state.task_description = task_desc
 
-        result = {
+        result = {  # type: ignore[var-annotated]
             "similar_sessions": [],
             "learned_patterns": [],
             "initial_strategy": {},

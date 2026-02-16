@@ -10,7 +10,7 @@ Evaluates test strategy for:
 
 from typing import Any, Dict, List, Optional
 
-import dspy
+import dspy  # type: ignore[import-untyped]
 
 from .base_expert import BaseExpert
 
@@ -117,8 +117,8 @@ class QAExpertAgent(BaseExpert):
 
         return {"score": score, "status": status, "issues": issues, "suggestions": suggestions}
 
-    def _get_default_training_cases(self) -> List[Dict[str, Any]]:
+    def _get_default_training_cases(self) -> List[Dict[str, Any]]:  # type: ignore[override]
         return []
 
-    def _get_default_validation_cases(self) -> List[Dict[str, Any]]:
+    def _get_default_validation_cases(self) -> List[Dict[str, Any]]:  # type: ignore[override]
         return []

@@ -199,7 +199,7 @@ def tool_wrapper(required_params: Optional[List[str]] = None, log_errors: bool =
                     if error:
                         return error
 
-                return func(params)
+                return func(params)  # type: ignore[no-any-return]
 
             except Exception as e:
                 if log_errors:
@@ -207,7 +207,7 @@ def tool_wrapper(required_params: Optional[List[str]] = None, log_errors: bool =
                 return tool_error(f"Failed to execute {func.__name__}: {str(e)}")
 
         # Stash required_params for ToolSchema introspection
-        wrapper._required_params = required_params or []
+        wrapper._required_params = required_params or []  # type: ignore[Any, dict[str, dict[str, Any, attr-defined]
         return wrapper
 
     return decorator
@@ -234,7 +234,7 @@ def async_tool_wrapper(
                     if error:
                         return error
 
-                return await func(params)
+                return await func(params)  # type: ignore[no-any-return]
 
             except Exception as e:
                 if log_errors:
@@ -242,7 +242,7 @@ def async_tool_wrapper(
                 return tool_error(f"Failed to execute {func.__name__}: {str(e)}")
 
         # Stash required_params for ToolSchema introspection
-        wrapper._required_params = required_params or []
+        wrapper._required_params = required_params or []  # type: ignore[Any, dict[str, dict[str, Any, attr-defined]
         return wrapper
 
     return decorator

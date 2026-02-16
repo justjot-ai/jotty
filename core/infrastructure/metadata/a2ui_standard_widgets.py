@@ -885,7 +885,7 @@ def create_standard_widgets() -> Dict[str, WidgetDefinition]:
 
 def create_additional_widgets() -> Dict[str, WidgetDefinition]:
     """Additional standard widgets (Part 2)."""
-    widgets = {}
+    widgets: Dict[str, Any] = {}  # type: ignore[name-defined]
 
     # Skipping implementation details for brevity - would include:
     # 15. Calendar Day
@@ -1004,7 +1004,7 @@ def get_widget_count() -> Dict[str, int]:
         Dict of category -> count
     """
     catalog = get_standard_widget_catalog()
-    counts = {}
+    counts: Dict[str, Any] = {}  # type: ignore[name-defined]
 
     for widget in catalog.values():
         category = widget.category

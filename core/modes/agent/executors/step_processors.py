@@ -136,9 +136,9 @@ class ParameterResolver:
                     value = self._sanitize_content_param(key, value)
                 resolved[key] = value
             elif isinstance(value, dict):
-                resolved[key] = self.resolve(value, step, _depth + 1)
+                resolved[key] = self.resolve(value, step, _depth + 1)  # type: ignore[assignment]
             elif isinstance(value, list):
-                resolved[key] = [
+                resolved[key] = [  # type: ignore[assignment]
                     self.resolve(item, step, _depth + 1) if isinstance(item, dict) else item
                     for item in value
                 ]
@@ -557,7 +557,7 @@ class ParameterResolver:
         if len(blocks) == 1:
             extracted = blocks[0].strip()
             if extracted:
-                return extracted
+                return extracted  # type: ignore[no-any-return]
 
         # Multiple code blocks: concatenate with newlines (multi-file LLM output)
         combined = "\n\n".join(block.strip() for block in blocks if block.strip())
@@ -570,7 +570,9 @@ class ParameterResolver:
         ToolParam exists, falling back to legacy sanitizers for specific
         param categories (command, path, content).
         """
-        from Jotty.core.modes.agent._execution_types import TypeCoercer
+        from Jotty.core.modes.agent._execution_types import (
+            TypeCoercer,  # type: ignore[import-not-found]
+        )
 
         tp = tool_schema.get_param(key)
 
@@ -585,7 +587,7 @@ class ParameterResolver:
                     return found
                 # Still fall back to legacy sanitizer
                 return self._sanitize_path_param(key, value, step)
-            return coerced
+            return coerced  # type: ignore[no-any-return]
 
         # Command params with suspiciously long values
         if key == "command" and len(value) > 150:
@@ -609,7 +611,7 @@ class ParameterResolver:
             if error:
                 logger.debug(f"Schema coercion warning for '{key}': {error}")
                 return value  # Keep original on failure
-            return coerced
+            return coerced  # type: ignore[no-any-return]
 
         return value
 
@@ -676,20 +678,20 @@ class ParameterResolver:
                     if isinstance(value, list) and idx < len(value):
                         value = value[idx]
                     else:
-                        value = None
+                        value = None  # type: ignore[assignment]
                         break
                 except (ValueError, IndexError):
-                    value = None
+                    value = None  # type: ignore[assignment]
                     break
             else:
                 if isinstance(value, dict):
-                    value = value.get(part)
+                    value = value.get(part)  # type: ignore[assignment]
                 else:
                     value = None
                     break
 
         if value is None:
-            return self._resolve_missing_path(path)
+            return self._resolve_missing_path(path)  # type: ignore[unreachable]
 
         if isinstance(value, (dict, list)):
             json_str = json.dumps(value, default=str)
@@ -707,9 +709,9 @@ class ParameterResolver:
                     "code",
                 ):
                     if fk in value and isinstance(value[fk], str):
-                        return value[fk]
+                        return value[fk]  # type: ignore[no-any-return]
             return json_str
-        return str(value)
+        return str(value)  # type: ignore[unreachable]
 
     def _resolve_missing_path(self, path: str) -> str:
         """Step-scoped fallback resolution for missing output keys.
@@ -901,11 +903,11 @@ class ToolResultProcessor:
             if isinstance(value, set):
                 cleaned[key] = sorted(str(v) for v in value)
             elif isinstance(value, dict):
-                cleaned[key] = self._convert_sets(value)
+                cleaned[key] = self._convert_sets(value)  # type: ignore[assignment]
             elif isinstance(value, list):
                 cleaned[key] = [
                     (
-                        self._convert_sets(item)
+                        self._convert_sets(item)  # type: ignore[misc]
                         if isinstance(item, dict)
                         else sorted(str(v) for v in item) if isinstance(item, set) else item
                     )

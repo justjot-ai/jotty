@@ -21,7 +21,7 @@ from typing import Any, List, Optional
 logger = logging.getLogger(__name__)
 
 try:
-    import dspy
+    import dspy  # type: ignore[import-untyped]
 
     class GAIATaskSignature(dspy.Signature):
         """Solve a GAIA benchmark question using available tools."""
@@ -93,7 +93,7 @@ def compile_gaia_module(
         compiled.save(save_path)
 
         logger.info(f"GAIA DSPy module compiled from {len(examples)} examples -> {save_path}")
-        return compiled
+        return compiled  # type: ignore[no-any-return]
     except Exception as e:
         logger.warning(f"DSPy compilation failed: {e}")
         return None

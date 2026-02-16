@@ -14,7 +14,9 @@ import dspy
 logger = logging.getLogger(__name__)
 
 # Import MCP Tool Executor
-from Jotty.core.infrastructure.integration.mcp_tool_executor import MCPToolExecutor
+from Jotty.core.infrastructure.integration.mcp_tool_executor import (
+    MCPToolExecutor,  # type: ignore[import]
+)
 
 
 class ToolUseSignature(dspy.Signature):
@@ -102,7 +104,7 @@ class DSPyMCPAgent:
         tools_description = self.mcp_executor.format_tools_for_dspy()
 
         all_tool_calls = []
-        all_tool_results = []
+        all_tool_results: List[Any] = []
         iteration = 0
 
         while iteration < max_tool_iterations:

@@ -91,7 +91,7 @@ class EdgeTTSProvider:
         try:
             import asyncio  # noqa: F401
 
-            import edge_tts
+            import edge_tts  # type: ignore[import-not-found]
         except ImportError:
             return {
                 "success": False,

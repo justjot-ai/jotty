@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
-from Jotty.core.infrastructure.utils.async_utils import (
+from Jotty.core.infrastructure.utils.async_utils import (  # type: ignore[import-not-found, import]
     AgentEvent,
     AgentEventBroadcaster,
     StatusReporter,
@@ -163,7 +163,7 @@ class AutonomousAgent(BaseAgent):
     - Execution behavior
     """
 
-    def __init__(self, config: AutonomousAgentConfig = None) -> None:
+    def __init__(self, config: AutonomousAgentConfig = None) -> None:  # type: ignore[assignment]
         """
         Initialize AutonomousAgent.
 
@@ -177,7 +177,7 @@ class AutonomousAgent(BaseAgent):
 
         # Lazy-loaded components
         self._planner = None
-        self._executor = None
+        self._executor: Optional[SkillPlanExecutor] = None
 
     def _ensure_initialized(self) -> Any:
         """Initialize planner, executor, and skills registry."""
@@ -185,7 +185,7 @@ class AutonomousAgent(BaseAgent):
 
         if self._planner is None:
             try:
-                from ..agentic_planner import TaskPlanner
+                from ..agentic_planner import TaskPlanner  # type: ignore[import-not-found]
 
                 self._planner = TaskPlanner()
                 logger.debug("Initialized TaskPlanner")
@@ -202,7 +202,7 @@ class AutonomousAgent(BaseAgent):
     def executor(self) -> SkillPlanExecutor:
         """Lazy-load SkillPlanExecutor, sharing the agent's planner instance."""
         if self._executor is None:
-            config: AutonomousAgentConfig = self.config
+            config: AutonomousAgentConfig = self.config  # type: ignore[assignment]
             self._executor = SkillPlanExecutor(
                 skills_registry=self.skills_registry,
                 max_steps=config.max_steps,
@@ -230,7 +230,7 @@ class AutonomousAgent(BaseAgent):
         Returns:
             List of skill dicts with name, description, tools
         """
-        config: AutonomousAgentConfig = self.config
+        config: AutonomousAgentConfig = self.config  # type: ignore[assignment]
 
         # Get full skill catalog
         all_skills = self.discover_skills(task)
@@ -692,7 +692,9 @@ class AutonomousAgent(BaseAgent):
                 prev_outputs["_learning_guidance"] = learning_context[:2000]
             if workspace_dir:
                 try:
-                    from Jotty.core.capabilities.prompts.rules import load_project_rules
+                    from Jotty.core.capabilities.prompts.rules import (
+                        load_project_rules,  # type: ignore[import]
+                    )
 
                     rules = load_project_rules(workspace_dir)
                     if rules:
@@ -736,7 +738,9 @@ class AutonomousAgent(BaseAgent):
                         if fo_skill and fo_skill.tools:
                             write_tool = fo_skill.tools.get("write_file_tool")
                             if write_tool:
-                                from Jotty.core.modes.agent._plan_utils_mixin import PlanUtilsMixin
+                                from Jotty.core.modes.agent._plan_utils_mixin import (
+                                    PlanUtilsMixin,  # type: ignore[import-not-found]
+                                )
 
                                 fname = (
                                     PlanUtilsMixin._infer_filename_from_task(None, task)
@@ -783,10 +787,10 @@ class AutonomousAgent(BaseAgent):
         status_callback: Optional[Callable],
     ) -> tuple:
         """Execute plan steps with replanning on failure."""
-        config: AutonomousAgentConfig = self.config
+        config: AutonomousAgentConfig = self.config  # type: ignore[assignment]
         TOTAL_BUDGET = config.timeout  # wall-clock budget (seconds)
         budget_start = time.time()
-        outputs = {}
+        outputs: Dict[str, Any] = {}
         skills_used = []
         errors = []
         warnings = []
@@ -1057,7 +1061,7 @@ class AutonomousAgent(BaseAgent):
                 else:
                     text = str(response) if response else None
                 if text and len(text.strip()) > 10:
-                    return text.strip()
+                    return text.strip()  # type: ignore[no-any-return]
         except Exception as e:
             logger.debug(f"DSPy LLM call failed: {e}")
 

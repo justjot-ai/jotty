@@ -114,7 +114,7 @@ class LearningWorkflow:
         """Initialize learning workflow."""
         self.intent = intent
         self.pipeline = None
-        self.stage_configs = {}
+        self.stage_configs: Dict[str, Any] = {}
 
     @classmethod
     def from_intent(
@@ -252,7 +252,7 @@ class LearningWorkflow:
 
         # Determine problem counts based on depth
         depth_to_problems = {"quick": 5, "standard": 10, "deep": 20, "marathon": 50}
-        num_problems = depth_to_problems.get(self.intent.depth, 10)
+        num_problems = depth_to_problems.get(self.intent.depth, 10)  # type: ignore[arg-type]
 
         # Build base context
         base_context = f"""
@@ -272,7 +272,7 @@ Teaching Philosophy:
 """
 
         # Track previous stages
-        previous_stages = []
+        previous_stages: List[Any] = []
 
         # Stage prompts
         stage_prompts = {
@@ -472,7 +472,7 @@ Create structured document:
 6. Resources & Next Steps
 
 Professional formatting. Clear navigation.
-Output Format: {', '.join(self.intent.output_formats)}""",
+Output Format: {', '.join(self.intent.output_formats)}""",  # type: ignore[arg-type]
             ),
             "pdf_generation": (
                 "PDF Generator",
@@ -545,7 +545,7 @@ Perfect for review before test.""",
                 context_from = previous_stages.copy() if previous_stages else None
 
             # Add stage
-            self.pipeline.add_stage(
+            self.pipeline.add_stage(  # type: ignore[attr-defined]
                 name=deliverable,
                 swarms=swarms,
                 merge_strategy=merge_strategy,
@@ -562,7 +562,7 @@ Perfect for review before test.""",
                 merge_strategy = config.get("merge_strategy", MergeStrategy.BEST_OF_N)
                 context_from = config.get("context_from")
 
-                self.pipeline.add_stage(
+                self.pipeline.add_stage(  # type: ignore[attr-defined]
                     name=stage_name,
                     swarms=swarms,
                     merge_strategy=merge_strategy,
@@ -660,7 +660,7 @@ Perfect for review before test.""",
         if self.pipeline is None:
             self.build_pipeline()
 
-        return await self.pipeline.execute(auto_trace=True, verbose=verbose)
+        return await self.pipeline.execute(auto_trace=True, verbose=verbose)  # type: ignore[attr-defined]
 
     async def run_with_outputs(
         self,

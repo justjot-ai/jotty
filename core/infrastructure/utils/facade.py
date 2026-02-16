@@ -16,10 +16,10 @@ import threading
 from typing import TYPE_CHECKING, Dict, Optional
 
 if TYPE_CHECKING:
-    from Jotty.core.infrastructure.utils.budget_tracker import BudgetTracker
-    from Jotty.core.infrastructure.utils.llm_cache import LLMCallCache
-    from Jotty.core.infrastructure.utils.timeouts import CircuitBreaker
-    from Jotty.core.infrastructure.utils.tokenizer import SmartTokenizer
+    from Jotty.core.infrastructure.utils.budget_tracker import BudgetTracker  # type: ignore[import]
+    from Jotty.core.infrastructure.utils.llm_cache import LLMCallCache  # type: ignore[import]
+    from Jotty.core.infrastructure.utils.timeouts import CircuitBreaker  # type: ignore[import]
+    from Jotty.core.infrastructure.utils.tokenizer import SmartTokenizer  # type: ignore[import]
 
 _lock = threading.Lock()
 _singletons: Dict[str, object] = {}

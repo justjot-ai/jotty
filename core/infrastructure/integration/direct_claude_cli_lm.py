@@ -22,7 +22,9 @@ from typing import Any, Dict, List
 
 import dspy
 
-from Jotty.core.infrastructure.foundation.exceptions import LLMError
+from Jotty.core.infrastructure.foundation.exceptions import (
+    LLMError,  # type: ignore[import-not-found]
+)
 
 logger = logging.getLogger(__name__)
 
@@ -131,12 +133,12 @@ class DirectClaudeCLI(dspy.BaseLM):
         delay = min(self.BASE_DELAY * (2**attempt), self.MAX_DELAY)
         # Add jitter (±25%)
         jitter = delay * 0.25 * (2 * random.random() - 1)
-        return delay + jitter
+        return delay + jitter  # type: ignore[no-any-return]
 
     # Model aliases that Claude CLI accepts directly
     # The CLI handles these natively: 'sonnet', 'haiku', 'opus'
     # Only map if we need specific versions
-    MODEL_MAP = {
+    MODEL_MAP = {  # type: ignore[var-annotated]
         # Claude CLI accepts aliases directly - no mapping needed for standard aliases
         # Only add mappings for specific version overrides if needed
     }
@@ -186,7 +188,7 @@ class DirectClaudeCLI(dspy.BaseLM):
             input_text = prompt
         elif messages:
             # Better formatting for DSPy messages - extract system prompt and user content
-            parts = []
+            parts: List[Any] = []
             for msg in messages:
                 role = msg.get("role", "user")
                 content = msg.get("content", "")

@@ -28,14 +28,16 @@ import time
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from Jotty.core.infrastructure.foundation.exceptions import (
+from Jotty.core.infrastructure.foundation.exceptions import (  # type: ignore[import-not-found]
     ConfigurationError,
     DSPyError,
     ExecutionError,
     LLMError,
     ToolExecutionError,
 )
-from Jotty.core.infrastructure.utils.async_utils import StatusReporter
+from Jotty.core.infrastructure.utils.async_utils import (
+    StatusReporter,  # type: ignore[import-not-found, import]
+)
 
 from .step_processors import ParameterResolver, ToolResultProcessor
 from .tool_call_cache import ToolCallCache
@@ -96,7 +98,7 @@ class SkillPlanExecutor:
         """Lazy-load TaskPlanner."""
         if self._planner is None:
             try:
-                from ..agentic_planner import TaskPlanner
+                from ..agentic_planner import TaskPlanner  # type: ignore[import-not-found]
 
                 self._planner = TaskPlanner()
                 logger.debug("SkillPlanExecutor: Initialized TaskPlanner")
@@ -224,7 +226,7 @@ class SkillPlanExecutor:
                 self._skill_cache[cache_key] = selected
                 logger.debug(f"Skill selection cached: {task_type}")
 
-            return selected
+            return selected  # type: ignore[no-any-return]
         except asyncio.TimeoutError:
             logger.warning(
                 f"Skill selection timed out after {SKILL_SELECT_TIMEOUT}s — using top skills"
@@ -376,7 +378,7 @@ class SkillPlanExecutor:
                     timeout=PLAN_TIMEOUT,
                 )
             logger.debug(f"Plan reasoning: {reasoning}")
-            return steps
+            return steps  # type: ignore[no-any-return]
         except asyncio.TimeoutError:
             logger.warning(f"Planning timed out after {PLAN_TIMEOUT}s — using direct LLM fallback")
             return []
@@ -551,7 +553,7 @@ class SkillPlanExecutor:
         # Prefer claude-api-llm over claude-cli-llm when API key is available
         if step.skill_name == "claude-cli-llm":
             try:
-                from Jotty.core.infrastructure.foundation.direct_anthropic_lm import (
+                from Jotty.core.infrastructure.foundation.direct_anthropic_lm import (  # type: ignore[import-not-found, import]
                     is_api_key_available,
                 )
 
@@ -916,7 +918,7 @@ class SkillPlanExecutor:
                 cached_result = self._tool_cache.get(cache_key)
                 if cached_result is not None:
                     logger.info(f"Tool cache HIT: {step.skill_name}/{step.tool_name}")
-                    return cached_result
+                    return cached_result  # type: ignore[no-any-return]
 
             # Determine per-step timeout:
             # - LLM generation tools (claude-cli-llm): 180s (complex content takes time)
@@ -1147,7 +1149,7 @@ class SkillPlanExecutor:
         for name, func in skill.tools.items():
             if name.lower() == tool_name_lower:
                 logger.info(f"Strict tool lookup: matched '{tool_name}' → '{name}'")
-                return func
+                return func  # type: ignore[no-any-return]
         return None
 
     # =========================================================================
@@ -1171,7 +1173,9 @@ class SkillPlanExecutor:
 
         Returns fixed params dict, or None if unfixable.
         """
-        from Jotty.core.modes.agent._execution_types import TypeCoercer
+        from Jotty.core.modes.agent._execution_types import (
+            TypeCoercer,  # type: ignore[import-not-found]
+        )
 
         fixed = dict(params)
         any_fixed = False
@@ -1274,7 +1278,7 @@ class SkillPlanExecutor:
         if self.planner is not None:
             try:
                 task_type, reasoning, confidence = self.planner.infer_task_type(task)
-                return task_type.value
+                return task_type.value  # type: ignore[no-any-return]
             except (LLMError, DSPyError) as e:
                 logger.warning(f"Task type inference failed (LLM/DSPy): {e}")
             except Exception as e:
@@ -1478,7 +1482,7 @@ class SkillPlanExecutor:
                     if isinstance(item, Exception):
                         errors.append(f"Parallel step exception: {item}")
                         continue
-                    idx, result = item
+                    idx, result = item  # type: ignore[misc]
                     step = steps[idx]
                     if result.get("success"):
                         result = self._spill_large_values(result)
@@ -1580,7 +1584,7 @@ class SkillPlanExecutor:
         # enforce a total wall-clock budget. When exhausted, return partial
         # results (what we have so far) instead of a full timeout failure.
         TOTAL_EXECUTION_BUDGET = 240.0  # 4 minutes hard cap for all steps
-        outputs = {}
+        outputs: Dict[str, Any] = {}
         skills_used = []
         errors = []
         replan_count = 0

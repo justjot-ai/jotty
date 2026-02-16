@@ -122,7 +122,9 @@ class HippocampalExtractor:
         self.seen_patterns: Set[str] = set()
 
         # A-Team Fix: No keyword matching - use adaptive threshold
-        from Jotty.core.infrastructure.foundation.robust_parsing import AdaptiveThreshold
+        from Jotty.core.infrastructure.foundation.robust_parsing import (
+            AdaptiveThreshold,  # type: ignore[import-not-found, import]
+        )
 
         self._relevance_threshold = AdaptiveThreshold(initial_mean=0.5, initial_std=0.2)
 
@@ -390,12 +392,12 @@ class SharpWaveRippleConsolidator:
         actions = [ep.get("action", "") for ep in episodes]
 
         # Count action frequencies
-        action_counts = defaultdict(int)
+        action_counts = defaultdict(int)  # type: ignore[var-annotated]
         for action in actions:
             action_counts[str(action)] += 1
 
         if action_counts:
-            most_common = max(action_counts, key=action_counts.get)
+            most_common = max(action_counts, key=action_counts.get)  # type: ignore[arg-type]
             count = action_counts[most_common]
             if count >= self.config.pattern_extraction_threshold:
                 return f"{outcome_type.upper()}_PATTERN: Action '{most_common}' led to {outcome_type} {count} times"
@@ -501,8 +503,8 @@ class BrainStateMachine:
     def __init__(
         self,
         config: BrainModeConfig,
-        consolidator: SharpWaveRippleConsolidator = None,
-        extractor: HippocampalExtractor = None,
+        consolidator: SharpWaveRippleConsolidator = None,  # type: ignore[assignment]
+        extractor: HippocampalExtractor = None,  # type: ignore[assignment]
     ) -> None:
         self.config = config
         self.mode = BrainMode.ONLINE
@@ -738,7 +740,7 @@ class AgentAbstractor:
             total = stats.get("successes", 0) + stats.get("failures", 0)
             success_rate = stats.get("successes", 0) / total if total > 0 else 0.5
 
-            view["agents"][agent] = {
+            view["agents"][agent] = {  # type: ignore[index]
                 "success_rate": round(success_rate, 2),
                 "total_tasks": total,
                 "capabilities": list(stats.get("task_types", set())),
@@ -755,7 +757,7 @@ class AgentAbstractor:
         view = {"abstraction_level": "roles", "agent_count": len(agents), "roles": {}}
 
         for role_name, role in self.role_definitions.items():
-            view["roles"][role_name] = {
+            view["roles"][role_name] = {  # type: ignore[index]
                 "agent_count": len(role.agents),
                 "capabilities": list(role.capabilities),
                 "success_rate": round(role.avg_success_rate, 2),
@@ -826,7 +828,7 @@ class AgentAbstractor:
 
         # Return role with highest score, or 'general' if no clear winner
         if max(role_scores.values()) > 0:
-            return max(role_scores, key=role_scores.get)
+            return max(role_scores, key=role_scores.get)  # type: ignore[arg-type]
 
         return "general"
 

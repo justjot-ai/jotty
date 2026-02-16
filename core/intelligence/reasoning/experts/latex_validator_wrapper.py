@@ -37,7 +37,9 @@ except Exception:
 
 # Server URL (centralized default, overridable via env var)
 try:
-    from Jotty.core.infrastructure.foundation.config_defaults import DEFAULTS as _DEFAULTS
+    from Jotty.core.infrastructure.foundation.config_defaults import (
+        DEFAULTS as _DEFAULTS,  # type: ignore[import]
+    )
 
     _DEFAULT_LATEX_URL = _DEFAULTS.LATEX_VALIDATION_URL
 except ImportError:
@@ -198,7 +200,7 @@ def validate_via_python_latex_validator(
     """
     # Try pylatexenc if available
     try:
-        from pylatexenc.latex2text import LatexNodes2Text
+        from pylatexenc.latex2text import LatexNodes2Text  # type: ignore[import-not-found]
 
         # This validates by attempting to parse
         try:

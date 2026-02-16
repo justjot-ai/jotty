@@ -172,9 +172,11 @@ def _subsystems() -> Dict[str, Any]:
 def _swarms() -> list:
     """List available domain swarms (safe import)."""
     try:
-        from Jotty.core.intelligence.swarms._base.registry import SwarmRegistry
+        from Jotty.core.intelligence.swarms._base.registry import (
+            SwarmRegistry,  # type: ignore[import]
+        )
 
-        return SwarmRegistry.list_all()
+        return SwarmRegistry.list_all()  # type: ignore[no-any-return]
     except Exception:
         return []
 
@@ -217,18 +219,18 @@ def _providers() -> list:
     result = []
     for p in provider_info:
         installed = False
-        if p["module"]:
+        if p["module"]:  # type: ignore[index]
             try:
-                __import__(p["module"])
+                __import__(p["module"])  # type: ignore[index]
                 installed = True
             except ImportError:
                 pass
         else:
-            installed = None  # API-based, no local module
+            installed: bool | None = None  # API-based, no local module  # type: ignore[assignment]
         result.append(
             {
-                "name": p["name"],
-                "description": p["description"],
+                "name": p["name"],  # type: ignore[index]
+                "description": p["description"],  # type: ignore[index]
                 "installed": installed,
             }
         )

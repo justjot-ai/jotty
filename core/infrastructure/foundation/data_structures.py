@@ -942,7 +942,9 @@ class SwarmLearningConfig:
         # Set reproducibility seeds if configured
         if self.random_seed is not None:
             try:
-                from ..evaluation.reproducibility import set_reproducible_seeds
+                from ..evaluation.reproducibility import (
+                    set_reproducible_seeds,  # type: ignore[import-not-found]
+                )
 
                 set_reproducible_seeds(
                     random_seed=self.random_seed,
@@ -1054,49 +1056,49 @@ class SwarmLearningConfig:
     # Usage: memory_system.init(config.to_memory_config())
     # =========================================================================
 
-    def to_persistence_config(self) -> "PersistenceConfig":
+    def to_persistence_config(self) -> "PersistenceConfig":  # type: ignore[name-defined]
         """Extract persistence-specific config."""
         from .configs.persistence import PersistenceConfig
 
         return PersistenceConfig(**{f: getattr(self, f) for f in PersistenceView._FIELDS})
 
-    def to_execution_config(self) -> "ExecutionConfig":
+    def to_execution_config(self) -> "ExecutionConfig":  # type: ignore[name-defined]
         """Extract execution-specific config."""
         from .configs.execution import ExecutionConfig
 
         return ExecutionConfig(**{f: getattr(self, f) for f in ExecutionView._FIELDS})
 
-    def to_memory_config(self) -> "MemoryConfig":
+    def to_memory_config(self) -> "MemoryConfig":  # type: ignore[name-defined]
         """Extract memory-specific config."""
         from .configs.memory import MemoryConfig
 
         return MemoryConfig(**{f: getattr(self, f) for f in MemoryView._FIELDS})
 
-    def to_context_budget_config(self) -> "ContextBudgetConfig":
+    def to_context_budget_config(self) -> "ContextBudgetConfig":  # type: ignore[name-defined]
         """Extract context budget config."""
         from .configs.context_budget import ContextBudgetConfig
 
         return ContextBudgetConfig(**{f: getattr(self, f) for f in ContextBudgetView._FIELDS})
 
-    def to_learning_config(self) -> "LearningConfig":
+    def to_learning_config(self) -> "LearningConfig":  # type: ignore[name-defined]
         """Extract learning-specific config."""
         from .configs.learning import LearningConfig
 
         return LearningConfig(**{f: getattr(self, f) for f in LearningView._FIELDS})
 
-    def to_validation_config(self) -> "ValidationConfig":
+    def to_validation_config(self) -> "ValidationConfig":  # type: ignore[name-defined]
         """Extract validation-specific config."""
         from .configs.validation import ValidationConfig
 
         return ValidationConfig(**{f: getattr(self, f) for f in ValidationView._FIELDS})
 
-    def to_monitoring_config(self) -> "MonitoringConfig":
+    def to_monitoring_config(self) -> "MonitoringConfig":  # type: ignore[name-defined]
         """Extract monitoring-specific config."""
         from .configs.monitoring import MonitoringConfig
 
         return MonitoringConfig(**{f: getattr(self, f) for f in MonitoringView._FIELDS})
 
-    def to_intelligence_config(self) -> "IntelligenceConfig":
+    def to_intelligence_config(self) -> "IntelligenceConfig":  # type: ignore[name-defined]
         """Extract swarm intelligence config."""
         from .configs.intelligence import IntelligenceConfig
 
@@ -1105,14 +1107,14 @@ class SwarmLearningConfig:
     @classmethod
     def from_configs(
         cls,
-        persistence: "PersistenceConfig" = None,
-        execution: "ExecutionConfig" = None,
-        memory: "MemoryConfig" = None,
-        context_budget: "ContextBudgetConfig" = None,
-        learning: "LearningConfig" = None,
-        validation: "ValidationConfig" = None,
-        monitoring: "MonitoringConfig" = None,
-        intelligence: "IntelligenceConfig" = None,
+        persistence: "PersistenceConfig" = None,  # type: ignore[name-defined]
+        execution: "ExecutionConfig" = None,  # type: ignore[name-defined]
+        memory: "MemoryConfig" = None,  # type: ignore[name-defined]
+        context_budget: "ContextBudgetConfig" = None,  # type: ignore[name-defined]
+        learning: "LearningConfig" = None,  # type: ignore[name-defined]
+        validation: "ValidationConfig" = None,  # type: ignore[name-defined]
+        monitoring: "MonitoringConfig" = None,  # type: ignore[name-defined]
+        intelligence: "IntelligenceConfig" = None,  # type: ignore[name-defined]
         **overrides: Any,
     ) -> "SwarmConfig":
         """Build a SwarmConfig by composing focused sub-configs.

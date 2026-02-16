@@ -8,7 +8,10 @@ import logging
 import time
 from typing import Any, AsyncIterator, Dict, List, Optional
 
-from Jotty.core.interface.ui.a2ui import convert_to_a2ui_response, is_a2ui_response
+from Jotty.core.interface.ui.a2ui import (  # type: ignore[import]
+    convert_to_a2ui_response,
+    is_a2ui_response,
+)
 
 from .chat_context import ChatContext, ChatMessage
 from .chat_orchestrator import ChatOrchestrator
@@ -204,13 +207,13 @@ class ChatExecutor:
             return ""
 
         if isinstance(result, dict):
-            return result.get("response", result.get("output", str(result)))
+            return result.get("response", result.get("output", str(result)))  # type: ignore[return-value]
         elif hasattr(result, "response"):
-            return result.response
+            return result.response  # type: ignore[no-any-return]
         elif hasattr(result, "output"):
-            return result.output
+            return result.output  # type: ignore[no-any-return]
         elif hasattr(result, "final_output"):
-            return result.final_output
+            return result.final_output  # type: ignore[no-any-return]
         else:
             return str(result)
 

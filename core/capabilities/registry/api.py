@@ -65,7 +65,7 @@ class RegistryAPI:
 
         Returns a specific tool.
         """
-        tool = self.registry.get_tool(name)
+        tool = self.registry.get_tool(name)  # type: ignore[call-arg]
         if tool:
             return {
                 "success": True,
@@ -82,7 +82,7 @@ class RegistryAPI:
 
         Returns a specific widget.
         """
-        widget = self.registry.get_widget(value)
+        widget = self.registry.get_widget(value)  # type: ignore[attr-defined]
         if widget:
             return {
                 "success": True,

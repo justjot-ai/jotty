@@ -746,7 +746,7 @@ class ConsistencyChecker:
         avg_agreement = sum(r["agreement_rate"] for r in self.consistency_history) / total
         avg_similarity = sum(r.get("avg_similarity", 0) for r in self.consistency_history) / total
 
-        by_task = defaultdict(lambda: {"total": 0, "consistent": 0})
+        by_task = defaultdict(lambda: {"total": 0, "consistent": 0})  # type: ignore[var-annotated]
         for record in self.consistency_history:
             tt = record["task_type"]
             by_task[tt]["total"] += 1

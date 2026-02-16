@@ -704,7 +704,7 @@ class SwarmIntelligence:
         - Success patterns
         - Warnings from failures
         """
-        wisdom = {
+        wisdom = {  # type: ignore[var-annotated]
             "recommended_agent": None,
             "similar_experiences": [],
             "success_patterns": [],
@@ -715,14 +715,14 @@ class SwarmIntelligence:
         # Get best agent
         available = list(self.agent_profiles.keys())
         if task_type and available:
-            wisdom["recommended_agent"] = self.get_best_agent_for_task(task_type, available)
+            wisdom["recommended_agent"] = self.get_best_agent_for_task(task_type, available)  # type: ignore[assignment]
 
         # Find similar past experiences
         if self.collective_memory:
             recent = list(self.collective_memory)[-50:]  # deque doesn't support slicing
             for mem in recent:
                 if task_type and mem.get("task_type") == task_type:
-                    wisdom["similar_experiences"].append(
+                    wisdom["similar_experiences"].append(  # type: ignore[union-attr]
                         {
                             "agent": mem["agent"],
                             "success": mem["success"],
@@ -731,19 +731,19 @@ class SwarmIntelligence:
                     )
 
         # Extract patterns
-        successes = [m for m in wisdom["similar_experiences"] if m["success"]]
-        failures = [m for m in wisdom["similar_experiences"] if not m["success"]]
+        successes = [m for m in wisdom["similar_experiences"] if m["success"]]  # type: ignore[union-attr]
+        failures = [m for m in wisdom["similar_experiences"] if not m["success"]]  # type: ignore[union-attr]
 
         if successes:
-            wisdom["success_patterns"].append(
+            wisdom["success_patterns"].append(  # type: ignore[union-attr]
                 f"{len(successes)} successful executions for {task_type} tasks"
             )
 
         if failures:
-            wisdom["warnings"].append(f"{len(failures)} failures recorded - consider validation")
+            wisdom["warnings"].append(f"{len(failures)} failures recorded - consider validation")  # type: ignore[union-attr]
 
         # Confidence based on data
-        total = len(wisdom["similar_experiences"])
+        total = len(wisdom["similar_experiences"])  # type: ignore[arg-type]
         if total > 0:
             wisdom["confidence"] = min(1.0, total / 10)  # Max confidence at 10+ examples
 

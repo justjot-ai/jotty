@@ -251,7 +251,7 @@ class MCPMetadataProvider(BaseMetadataProvider):
 
             result = self._read_resource_fn(server=server_name, uri=uri)
             logger.info(f" Read MCP resource: {uri}")
-            return result
+            return result  # type: ignore[no-any-return]
 
         except Exception as e:
             logger.error(f" Failed to read MCP resource {uri}: {e}")
@@ -351,7 +351,7 @@ class MCPMetadataProvider(BaseMetadataProvider):
         if self._list_resources_fn:
             try:
                 resources = self.list_mcp_resources(limit=50)
-                context["available_mcp_resources"] = [
+                context["available_mcp_resources"] = [  # type: ignore[assignment]
                     {
                         "name": r.get("name"),
                         "uri": r.get("uri"),
@@ -375,7 +375,7 @@ class MCPMetadataProvider(BaseMetadataProvider):
                     if search_query and len(search_query) > 3:
                         results = self.search_mcp_resources(search_query, limit=5)
                         if results:
-                            context["mcp_search_results"] = results
+                            context["mcp_search_results"] = results  # type: ignore[assignment]
 
             except Exception as e:
                 logger.warning(f" Failed to fetch MCP resources: {e}")

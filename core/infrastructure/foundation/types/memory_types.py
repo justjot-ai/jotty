@@ -313,7 +313,7 @@ class MemoryEntry:
         return self.default_value
 
     def get_ucb_score(
-        self, goal: str, total_accesses: int, c: float = 2.0, goal_hierarchy: GoalHierarchy = None
+        self, goal: str, total_accesses: int, c: float = 2.0, goal_hierarchy: GoalHierarchy = None  # type: ignore[assignment]
     ) -> float:
         """Get UCB score for exploration-exploitation balance."""
         if goal_hierarchy:

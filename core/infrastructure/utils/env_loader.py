@@ -76,7 +76,7 @@ def get_env(key: str, default: Optional[str] = None) -> Optional[str]:
 
 def get_env_bool(key: str, default: bool = False) -> bool:
     """Get environment variable as boolean."""
-    value = get_env(key, "").lower()
+    value = get_env(key, "").lower()  # type: ignore[union-attr]
     if value in ("true", "1", "yes", "on"):
         return True
     elif value in ("false", "0", "no", "off"):

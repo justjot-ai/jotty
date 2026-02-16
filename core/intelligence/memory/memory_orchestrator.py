@@ -295,7 +295,7 @@ class SimpleBrain:
         A-Team Decision: No hardcoded thresholds (0.8, 0.2).
         Uses adaptive statistics and deterministic exploration.
         """
-        from Jotty.core.infrastructure.foundation.robust_parsing import (
+        from Jotty.core.infrastructure.foundation.robust_parsing import (  # type: ignore[import]
             AdaptiveThreshold,
             EpsilonGreedy,
             safe_hash,
@@ -320,7 +320,7 @@ class SimpleBrain:
             return True
 
         # Epsilon-greedy exploration (deterministic, not random!)
-        return self._exploration.should_explore()
+        return self._exploration.should_explore()  # type: ignore[no-any-return]
 
     def _should_consolidate(self) -> bool:
         """Check all consolidation triggers."""

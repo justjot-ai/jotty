@@ -15,7 +15,9 @@ from typing import Any, List
 from dspy import BaseLM
 
 from Jotty.core.infrastructure.foundation.config_defaults import LLM_TIMEOUT_SECONDS
-from Jotty.core.infrastructure.foundation.exceptions import InputValidationError
+from Jotty.core.infrastructure.foundation.exceptions import (
+    InputValidationError,  # type: ignore[import-not-found]
+)
 
 
 class CursorCLILM(BaseLM):
@@ -30,7 +32,7 @@ class CursorCLILM(BaseLM):
     def __init__(self, model: Any = "sonnet-4", **kwargs: Any) -> None:
         super().__init__(model=f"cursor-cli/{model}", **kwargs)
         self.cli_model = model
-        self.history = []
+        self.history: List[Any] = []
 
     def _extract_messages(self, messages: List) -> tuple:
         """
@@ -88,7 +90,7 @@ class CursorCLILM(BaseLM):
                 # Try common envelope fields
                 for key in ("result", "response", "message", "content"):
                     if key in response_data and response_data[key]:
-                        return response_data[key]
+                        return response_data[key]  # type: ignore[no-any-return]
         except (json.JSONDecodeError, TypeError):
             pass
 

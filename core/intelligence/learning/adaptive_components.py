@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Any, Dict, List
 
 logger = logging.getLogger(__name__)
 
-from Jotty.core.infrastructure.foundation.configs.learning import (
+from Jotty.core.infrastructure.foundation.configs.learning import (  # type: ignore[import-not-found, import]
     LearningConfig as FocusedLearningConfig,
 )
 from Jotty.core.infrastructure.foundation.data_structures import MemoryEntry, SwarmConfig
@@ -79,10 +79,10 @@ class AdaptiveLearningRate:
         4. Success rate declining → increase α (need to learn faster)
         """
         if not self.config.enable_adaptive_alpha:
-            return self.config.alpha
+            return self.config.alpha  # type: ignore[no-any-return]
 
         if len(self.td_errors) < 10:
-            return self.alpha
+            return self.alpha  # type: ignore[no-any-return]
 
         recent_errors = self.td_errors[-self.window_size :]
 
@@ -205,7 +205,7 @@ class AdaptiveLearningRate:
         self.alpha = self.alpha * (1 + adjustment)
         self.alpha = max(self.min_alpha, min(self.max_alpha, self.alpha))
 
-        return self.alpha
+        return self.alpha  # type: ignore[no-any-return]
 
     def reset(self) -> None:
         """Reset tracking."""
@@ -246,7 +246,7 @@ class IntermediateRewardCalculator:
         # Higher confidence proceed → higher reward
         reward = self.config.architect_proceed_reward * confidence
         self.step_rewards.append(reward)
-        return reward
+        return reward  # type: ignore[no-any-return]
 
     def reward_tool_success(self, tool_name: str, success: bool) -> float:
         """Reward for successful tool call."""
@@ -259,7 +259,7 @@ class IntermediateRewardCalculator:
             reward = -self.config.tool_success_reward * 0.5
 
         self.step_rewards.append(reward)
-        return reward
+        return reward  # type: ignore[no-any-return]
 
     def reward_partial_completion(self, completion_fraction: float) -> float:
         """Reward for partial task completion."""
@@ -330,7 +330,7 @@ class AdaptiveExploration:
             base_epsilon = min(0.5, base_epsilon + self.config.exploration_boost_on_stall)
 
         self.epsilon = base_epsilon
-        return self.epsilon
+        return self.epsilon  # type: ignore[no-any-return]
 
     def record_goal_visit(self, goal: str) -> None:
         """Record visit to a goal."""
@@ -362,7 +362,7 @@ class AdaptiveExploration:
 
         exploration_bonus = self.ucb_c * math.sqrt(math.log(total_accesses + 1) / memory.ucb_visits)
 
-        return value + exploration_bonus
+        return value + exploration_bonus  # type: ignore[no-any-return]
 
 
 # =============================================================================

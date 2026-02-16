@@ -40,7 +40,9 @@ class SectionSchemaRegistry:
             import os
 
             try:
-                from ..foundation.config_defaults import DEFAULTS as _DEFAULTS
+                from ..foundation.config_defaults import (
+                    DEFAULTS as _DEFAULTS,  # type: ignore[import-not-found]
+                )
 
                 _base = os.getenv("JUSTJOT_API_URL", _DEFAULTS.JUSTJOT_API_URL)
             except ImportError:

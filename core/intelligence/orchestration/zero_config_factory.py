@@ -10,8 +10,12 @@ import logging
 import re
 from typing import Any, List
 
-from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
-from Jotty.core.infrastructure.utils.async_utils import StatusReporter
+from Jotty.core.infrastructure.foundation.agent_config import (
+    AgentConfig,  # type: ignore[import-not-found, import]
+)
+from Jotty.core.infrastructure.utils.async_utils import (
+    StatusReporter,  # type: ignore[import-not-found, import]
+)
 
 logger = logging.getLogger(__name__)
 
@@ -240,7 +244,7 @@ class ZeroConfigAgentFactory:
                 return 0.0
             return len(words_a & words_b) / len(words_a | words_b)
 
-        unique_goals = []
+        unique_goals: List[Any] = []
         for goal in sub_goals:
             if not any(similarity(goal, existing) > 0.5 for existing in unique_goals):
                 unique_goals.append(goal)
@@ -329,8 +333,8 @@ class ZeroConfigAgentFactory:
             return "_".join(words[:2])[:18]
 
         if entities:
-            return entities[0].lower()
+            return entities[0].lower()  # type: ignore[no-any-return]
         if proper_nouns:
-            return proper_nouns[0].lower().replace(" ", "_")[:15]
+            return proper_nouns[0].lower().replace(" ", "_")[:15]  # type: ignore[no-any-return]
 
         return f"task_{index + 1}"

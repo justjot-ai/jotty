@@ -36,7 +36,7 @@ class TextToSpeech:
         """
         self.platform = platform
         self.provider_name = provider
-        self._provider = None
+        self._provider: Optional[VoiceProviderBase] = None  # type: ignore[name-defined]
 
     def _get_provider(self) -> Any:
         """Get or create provider instance."""
@@ -57,7 +57,7 @@ class TextToSpeech:
             Dict with success, audio_base64 or audio_path, format, provider, voice_id
         """
         provider = self._get_provider()
-        return await provider.text_to_speech(text, voice, **kwargs)
+        return await provider.text_to_speech(text, voice, **kwargs)  # type: ignore[no-any-return]
 
     async def stream(
         self, text: str, voice: Optional[str] = None, chunk_size: int = 1024

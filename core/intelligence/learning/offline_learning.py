@@ -23,7 +23,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import dspy
 
-from Jotty.core.infrastructure.foundation.configs.learning import (
+from Jotty.core.infrastructure.foundation.configs.learning import (  # type: ignore[import-not-found, import]
     LearningConfig as FocusedLearningConfig,
 )
 from Jotty.core.infrastructure.foundation.data_structures import (
@@ -348,13 +348,13 @@ class PatternDiscovery:
             try:
                 success_predictors = json.loads(result.success_predictors)
             except (json.JSONDecodeError, ValueError, TypeError) as e:
-                logger.debug(f"Success predictors parsing failed: {e}")
+                logger.debug(f"Success predictors parsing failed: {e}")  # type: ignore[name-defined]
                 success_predictors = [result.success_predictors]
 
             try:
                 failure_predictors = json.loads(result.failure_predictors)
             except (json.JSONDecodeError, ValueError, TypeError) as e:
-                logger.debug(f"Failure predictors parsing failed: {e}")
+                logger.debug(f"Failure predictors parsing failed: {e}")  # type: ignore[name-defined]
                 failure_predictors = [result.failure_predictors]
 
             return {
@@ -449,8 +449,8 @@ class OfflineLearner:
 
         # Statistics
         self.update_count = 0
-        self.patterns_discovered = []
-        self.counterfactual_lessons = []
+        self.patterns_discovered: List[Any] = []
+        self.counterfactual_lessons: List[Any] = []
 
     def store_episode(self, episode: StoredEpisode, td_error: float | None = None) -> None:
         """Store episode in buffer."""
@@ -538,7 +538,7 @@ class OfflineLearner:
         failures = self.buffer.get_by_outcome(success=False, n=50)
 
         # Determine domain from most common
-        domains = defaultdict(int)
+        domains = defaultdict(int)  # type: ignore[var-annotated]
         for ep in successes + failures:
             d = ep.kwargs.get("domain", "general")
             domains[d] += 1

@@ -24,20 +24,20 @@ class SessionMixin:
     def create_session(self, agent_name: str, context: str = "main") -> str:
         """Create isolated session for an agent."""
         session_id = hashlib.md5(f"{agent_name}:{context}:{time.time()}".encode()).hexdigest()[:12]
-        self.sessions[session_id] = AgentSession(
+        self.sessions[session_id] = AgentSession(  # type: ignore[attr-defined]
             session_id=session_id, agent_name=agent_name, context=context
         )
         return session_id
 
     def get_session(self, session_id: str) -> Optional[AgentSession]:
         """Get session by ID."""
-        return self.sessions.get(session_id)
+        return self.sessions.get(session_id)  # type: ignore[attr-defined, no-any-return]
 
     def session_send(
         self, session_id: str, from_agent: str, content: str, metadata: Dict | None = None
     ) -> bool:
         """Send message to a session (moltbot sessions_send pattern)."""
-        session = self.sessions.get(session_id)
+        session = self.sessions.get(session_id)  # type: ignore[attr-defined]
         if session:
             session.add_message(from_agent, content, metadata)
             return True
@@ -45,15 +45,15 @@ class SessionMixin:
 
     def session_history(self, session_id: str, limit: int = 20) -> List[Dict]:
         """Get session history (moltbot sessions_history pattern)."""
-        session = self.sessions.get(session_id)
+        session = self.sessions.get(session_id)  # type: ignore[attr-defined]
         if session:
-            return session.messages[-limit:]
+            return session.messages[-limit:]  # type: ignore[no-any-return]
         return []
 
     def sessions_list(self, agent_name: str | None = None) -> List[Dict]:
         """List sessions (moltbot sessions_list pattern)."""
         sessions = []
-        for sid, session in self.sessions.items():
+        for sid, session in self.sessions.items():  # type: ignore[attr-defined]
             if agent_name is None or session.agent_name == agent_name:
                 sessions.append(
                     {

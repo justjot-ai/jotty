@@ -50,7 +50,7 @@ class SupervisorStateManagerAdapter(TaskQueue):
                 agent_type=task.agent_type,
             )
 
-        return task_id
+        return task_id  # type: ignore[return-value]
 
     async def dequeue(self, filters: Optional[Dict[str, Any]] = None) -> Optional[Task]:
         """Get next pending task"""
@@ -86,7 +86,7 @@ class SupervisorStateManagerAdapter(TaskQueue):
         **kwargs: Any,
     ) -> bool:
         """Update task status"""
-        return self.state_manager.update_task_status(
+        return self.state_manager.update_task_status(  # type: ignore[no-any-return]
             task_id=task_id,
             status=status,
             pid=pid,
@@ -103,15 +103,15 @@ class SupervisorStateManagerAdapter(TaskQueue):
     async def get_running_count(self) -> int:
         """Get count of running tasks"""
         stats = self.state_manager.get_stats()
-        return stats.get("active_pids", 0)
+        return stats.get("active_pids", 0)  # type: ignore[no-any-return]
 
     async def get_running_count_by_agent(self, agent_type: str) -> int:
         """Get count of running tasks for specific agent type"""
-        return self.state_manager.get_running_count_by_agent(agent_type)
+        return self.state_manager.get_running_count_by_agent(agent_type)  # type: ignore[no-any-return]
 
     async def get_stats(self) -> Dict[str, Any]:
         """Get queue statistics"""
-        return self.state_manager.get_stats()
+        return self.state_manager.get_stats()  # type: ignore[no-any-return]
 
     async def get_tasks_by_status(self, status: str) -> List[Task]:
         """Get all tasks with given status"""
@@ -125,7 +125,7 @@ class SupervisorStateManagerAdapter(TaskQueue):
 
     async def update_task_priority(self, task_id: str, priority: int) -> bool:
         """Update task priority"""
-        return self.state_manager.update_task_priority(task_id, priority)
+        return self.state_manager.update_task_priority(task_id, priority)  # type: ignore[no-any-return]
 
     async def update_task_metadata(
         self,
@@ -139,7 +139,7 @@ class SupervisorStateManagerAdapter(TaskQueue):
         **kwargs: Any,
     ) -> bool:
         """Update task metadata"""
-        return self.state_manager.update_task_metadata(
+        return self.state_manager.update_task_metadata(  # type: ignore[no-any-return]
             task_id=task_id,
             title=title,
             description=description,
@@ -151,7 +151,7 @@ class SupervisorStateManagerAdapter(TaskQueue):
 
     async def delete_task(self, task_id: str) -> bool:
         """Delete a task"""
-        return self.state_manager.delete_task(task_id)
+        return self.state_manager.delete_task(task_id)  # type: ignore[no-any-return]
 
     async def create_task(
         self,
@@ -165,7 +165,7 @@ class SupervisorStateManagerAdapter(TaskQueue):
         **kwargs: Any,
     ) -> Optional[str]:
         """Create a new task"""
-        return self.state_manager.create_task(
+        return self.state_manager.create_task(  # type: ignore[no-any-return]
             title=title,
             description=description,
             priority=priority,
@@ -178,12 +178,12 @@ class SupervisorStateManagerAdapter(TaskQueue):
 
     async def reset_task_to_backlog(self, task_id: str) -> bool:
         """Reset failed task back to backlog"""
-        return self.state_manager.reset_task_to_backlog(task_id)
+        return self.state_manager.reset_task_to_backlog(task_id)  # type: ignore[no-any-return]
 
     async def validate_pids(self) -> int:
         """Clean up stale PIDs"""
-        return self.state_manager.validate_pids()
+        return self.state_manager.validate_pids()  # type: ignore[no-any-return]
 
     async def export_to_json(self) -> Dict[str, Any]:
         """Export state to JSON"""
-        return self.state_manager.export_to_json()
+        return self.state_manager.export_to_json()  # type: ignore[no-any-return]

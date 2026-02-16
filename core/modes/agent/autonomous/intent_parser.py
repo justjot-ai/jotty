@@ -7,9 +7,10 @@ Uses TaskPlanner for task type inference (no hardcoded keyword matching).
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
+from ..agent.agentic_planner import TaskPlanner  # type: ignore[import-not-found]
+
 # Shared types (no circular dependency)
-from ..agent._execution_types import TaskType
-from ..agent.agentic_planner import TaskPlanner
+from ..types.execution_types import TaskType
 
 
 @dataclass

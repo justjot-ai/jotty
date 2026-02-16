@@ -49,7 +49,7 @@ class SwarmInstaller:
             from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
 
             self._skills_registry = get_skills_registry()
-            self._skills_registry.init()
+            self._skills_registry.init()  # type: ignore[attr-defined]
 
     def _is_builtin_python_module(self, package: str) -> bool:
         """Check if package is a built-in Python module."""
@@ -278,7 +278,7 @@ class SwarmInstaller:
     async def _try_install_skill(self, skill_name: str) -> InstallationResult:
         """Try to install from skill registry (DRY: reuse existing skills)."""
         try:
-            skill = self._skills_registry.get_skill(skill_name)
+            skill = self._skills_registry.get_skill(skill_name)  # type: ignore[attr-defined]
             if skill:
                 logger.info(f" Found skill '{skill_name}' in registry")
                 return InstallationResult(
@@ -384,7 +384,7 @@ class SwarmInstaller:
         # Check skill registry
         try:
             self._init_dependencies()
-            skill = self._skills_registry.get_skill(package)
+            skill = self._skills_registry.get_skill(package)  # type: ignore[attr-defined]
             if skill:
                 return True
         except Exception:
@@ -403,10 +403,10 @@ class SwarmInstaller:
             List of InstallationResult for each dependency
         """
         self._init_dependencies()
-        results = []
+        results: List[Any] = []
 
         # Find skill directory
-        skill = self._skills_registry.get_skill(skill_name)
+        skill = self._skills_registry.get_skill(skill_name)  # type: ignore[attr-defined]
         if not skill:
             logger.warning(f"Skill {skill_name} not found in registry")
             return results

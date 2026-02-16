@@ -30,7 +30,10 @@ from typing import Any, Dict, List, Optional
 
 import dspy
 
-from Jotty.core.infrastructure.foundation.exceptions import InputValidationError, LLMError
+from Jotty.core.infrastructure.foundation.exceptions import (  # type: ignore[import]
+    InputValidationError,
+    LLMError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +61,7 @@ def reset_cost_tracker() -> None:
 
 
 # Model name mapping — centralized in config_defaults
-from Jotty.core.infrastructure.foundation.config_defaults import (
+from Jotty.core.infrastructure.foundation.config_defaults import (  # type: ignore[import]
     LLM_TEMPERATURE,
     LLM_TIMEOUT_SECONDS,
     MODEL_HAIKU,

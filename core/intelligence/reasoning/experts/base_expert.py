@@ -199,7 +199,7 @@ class BaseExpert(ABC):
             List of training cases
         """
         if self.config and self.config.training_gold_standards:
-            return self.config.training_gold_standards
+            return self.config.training_gold_standards  # type: ignore[no-any-return]
         return self._get_default_training_cases()
 
     def get_validation_data(self) -> List[Dict[str, Any]]:
@@ -210,7 +210,7 @@ class BaseExpert(ABC):
             List of validation cases
         """
         if self.config and self.config.validation_cases:
-            return self.config.validation_cases
+            return self.config.validation_cases  # type: ignore[no-any-return]
         return self._get_default_validation_cases()
 
     # =========================================================================
@@ -220,7 +220,7 @@ class BaseExpert(ABC):
     def _is_dspy_available(self) -> bool:
         """Check if DSPy is available."""
         try:
-            import dspy  # noqa: F401
+            import dspy  # noqa: F401  # type: ignore[import-untyped]
 
             return True
         except ImportError:

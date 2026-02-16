@@ -19,9 +19,9 @@ class LearningDelegationMixin:
 
     def _auto_load_learnings(self) -> Any:
         """Delegate to SwarmLearningPipeline."""
-        self.learning.auto_load()
+        self.learning.auto_load()  # type: ignore[attr-defined]
         # Sync credit_weights reference after load (may have been replaced)
-        self.credit_weights = self.learning.credit_weights
+        self.credit_weights = self.learning.credit_weights  # type: ignore[attr-defined]
         # Log MAS stats
         if hasattr(self, "mas_learning") and self.mas_learning:
             try:
@@ -35,7 +35,7 @@ class LearningDelegationMixin:
 
     def _auto_save_learnings(self) -> Any:
         """Delegate to SwarmLearningPipeline."""
-        self.learning.auto_save(
+        self.learning.auto_save(  # type: ignore[attr-defined]
             mas_learning=getattr(self, "mas_learning", None),
             swarm_terminal=getattr(self, "swarm_terminal", None),
             provider_registry=getattr(self, "provider_registry", None),
@@ -53,9 +53,9 @@ class LearningDelegationMixin:
         """Load learnings relevant to the current task."""
         if not hasattr(self, "mas_learning") or not self.mas_learning:
             return {}
-        return self.mas_learning.load_relevant_learnings(
+        return self.mas_learning.load_relevant_learnings(  # type: ignore[no-any-return]
             task_description=task_description,
-            agent_types=agent_types or [a.name for a in self.agents],
+            agent_types=agent_types or [a.name for a in self.agents],  # type: ignore[attr-defined]
         )
 
     def record_agent_result(
@@ -98,16 +98,16 @@ class LearningDelegationMixin:
 
     def get_transferable_context(self, query: str, agent: str | None = None) -> str:
         """Get transferable learnings as context for an agent."""
-        return self.learning.get_transferable_context(query, agent)
+        return self.learning.get_transferable_context(query, agent)  # type: ignore[attr-defined, no-any-return]
 
     def get_swarm_wisdom(self, query: str) -> str:
         """Get collective swarm wisdom for a task."""
-        return self.learning.get_swarm_wisdom(query)
+        return self.learning.get_swarm_wisdom(query)  # type: ignore[attr-defined, no-any-return]
 
     def get_agent_specializations(self) -> Dict[str, str]:
         """Get current specializations of all agents."""
-        return self.learning.get_agent_specializations()
+        return self.learning.get_agent_specializations()  # type: ignore[attr-defined, no-any-return]
 
     def get_best_agent_for_task(self, query: str) -> Optional[str]:
         """Recommend the best agent for a task."""
-        return self.learning.get_best_agent_for_task(query)
+        return self.learning.get_best_agent_for_task(query)  # type: ignore[attr-defined, no-any-return]

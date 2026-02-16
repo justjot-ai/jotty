@@ -132,7 +132,7 @@ class SurpriseEstimator:
     def _parse_score(self, score_str: str) -> float:
         """Parse score from LLM output."""
         if isinstance(score_str, (int, float)):
-            return float(score_str)
+            return float(score_str)  # type: ignore[unreachable]
 
         try:
             return float(score_str)
@@ -349,7 +349,7 @@ Key Content: {raw_content}"""
 
     def get_statistics(self) -> Dict[str, Any]:
         """Get storage statistics."""
-        detail_counts = defaultdict(int)
+        detail_counts = defaultdict(int)  # type: ignore[var-annotated]
         for mem in self.memories.values():
             detail_counts[mem.detail_level] += 1
 

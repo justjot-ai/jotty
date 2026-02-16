@@ -23,7 +23,9 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-from Jotty.core.infrastructure.foundation.exceptions import AgentExecutionError
+from Jotty.core.infrastructure.foundation.exceptions import (
+    AgentExecutionError,  # type: ignore[import-not-found]
+)
 
 logger = logging.getLogger(__name__)
 
@@ -221,7 +223,7 @@ class CandidateVerifier:
 
         if not successful:
             # Return least-bad candidate
-            return max(candidates, key=lambda c: c.confidence) if candidates else None
+            return max(candidates, key=lambda c: c.confidence) if candidates else None  # type: ignore[return-value]
 
         if len(successful) == 1:
             return successful[0]

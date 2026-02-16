@@ -133,7 +133,7 @@ def get_output_format_tools() -> Dict[str, Optional[str]]:
 
     # Add visualization tools from JustJot section registry
     try:
-        from Jotty.core.interface.ui.schema_validator import schema_registry
+        from Jotty.core.interface.ui.schema_validator import schema_registry  # type: ignore[import]
 
         for section_type in schema_registry.list_sections():
             # Convert section-type to format name (kebab-case to simple name)
@@ -656,7 +656,9 @@ The user has requested {section_name} visualization format. You MUST:
     async def _do_web_search_dspy(self, task: str) -> str:
         """Execute web search for DSPy execution path."""
         try:
-            from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
+            from Jotty.core.capabilities.registry.skills_registry import (
+                get_skills_registry,  # type: ignore[import]
+            )
 
             registry = get_skills_registry()
             registry.init()

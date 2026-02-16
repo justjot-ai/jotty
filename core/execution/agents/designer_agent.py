@@ -12,7 +12,10 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from Jotty.core.execution.base import AgentRuntimeConfig, BaseAgent
-from Jotty.core.execution.capabilities import LearningCapability, ValidationCapability
+from Jotty.core.execution.capabilities import (  # type: ignore[import-not-found, import]
+    LearningCapability,
+    ValidationCapability,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -134,7 +137,7 @@ class DesignerAgent(BaseAgent, LearningCapability, ValidationCapability):
 
         try:
             # Call DSPy agent
-            result = self._dspy_agent(
+            result = self._dspy_agent(  # type: ignore[misc]
                 ux_research=ux_research,
                 previous_feedback=previous_feedback,
             )
@@ -322,6 +325,6 @@ class DesignerAgent(BaseAgent, LearningCapability, ValidationCapability):
         )
 
         if result.success:
-            return result.output
+            return result.output  # type: ignore[no-any-return]
         else:
             raise ValueError(f"Design generation failed: {result.error}")

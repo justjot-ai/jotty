@@ -216,7 +216,7 @@ class _QuickSwarm:
                 messages=[{"role": "user", "content": f"{self.system_prompt}\n\nTask: {task}"}],
             )
 
-            output = response.content[0].text
+            output = response.content[0].text  # type: ignore[union-attr]
 
             # Calculate cost
             cost_usd = (response.usage.input_tokens * 0.25 / 1_000_000) + (

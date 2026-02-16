@@ -16,7 +16,7 @@ The compressor UNDERSTANDS the content and preserves what's important!
 import logging
 from typing import Any, Dict, Optional
 
-import dspy
+import dspy  # type: ignore[import-untyped]
 
 from . import utils as ctx_utils
 
@@ -71,7 +71,7 @@ class AgenticCompressor:
                 self.lm = dspy.settings.lm
 
         self.compressor = dspy.ChainOfThought(CompressionSignature)
-        self.compression_stats = []
+        self.compression_stats: List[Any] = []  # type: ignore[name-defined]
 
     async def compress(
         self,
@@ -180,7 +180,7 @@ class AgenticCompressor:
             logger.debug(f"Quality score parsing failed: {e}")
             pass
 
-        return compressed
+        return compressed  # type: ignore[no-any-return]
 
     # NEW: AgentSlack-compatible simpler API
     async def compress_simple(

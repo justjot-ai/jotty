@@ -50,7 +50,7 @@ class IncrementalConsolidator:
         self.failed_count = 0
 
         # DRY: Get existing consolidator
-        self._base_consolidator = None
+        self._base_consolidator: Optional[NoopConsolidator] = None  # type: ignore[name-defined]
 
         logger.info(
             f"♻️  IncrementalConsolidator initialized "

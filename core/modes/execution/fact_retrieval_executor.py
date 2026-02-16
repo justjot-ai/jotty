@@ -83,7 +83,7 @@ class FactRetrievalExecutor:
         if self._lm is None:
             # Use the already-configured DSPy LM (from benchmark setup)
             # This avoids interfering with existing DSPy configuration
-            import dspy
+            import dspy  # type: ignore[import-untyped]
 
             if dspy.settings.lm is not None:
                 self._lm = dspy.settings.lm
@@ -129,7 +129,7 @@ class FactRetrievalExecutor:
             steps = [ExecutionStep(text=question, depends_on=[], tools=analysis.tools_needed)]
 
         # Step 3: Execute each step
-        execution_context = {}
+        execution_context: Dict[str, Any] = {}
         for i, step in enumerate(steps):
             logger.info(f"Executing step {i+1}/{len(steps)}: {step.text}")
 
@@ -383,7 +383,7 @@ Steps:"""
         steps = []
         lines = response.strip().split("\n")
         current_step = None
-        current_tools = []
+        current_tools: List[Any] = []
 
         for line in lines:
             line = line.strip()
@@ -529,7 +529,7 @@ Answer:"""
                 else:
                     result = str(response)
 
-                return result.strip()
+                return result.strip()  # type: ignore[no-any-return]
             else:
                 # No tools available, use regular LLM
                 logger.warning("No tools available, falling back to LLM-only")

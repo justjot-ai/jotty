@@ -72,9 +72,9 @@ class SkillsManifest:
         self.skills_dir = Path(skills_dir)
 
         if manifest_path is None:
-            manifest_path = self.skills_dir / "skills_manifest.yaml"
+            manifest_path = self.skills_dir / "skills_manifest.yaml"  # type: ignore[assignment]
 
-        self.manifest_path = Path(manifest_path)
+        self.manifest_path = Path(manifest_path)  # type: ignore[arg-type]
 
         self.categories: Dict[str, CategoryInfo] = {}
         self.skills: Dict[str, SkillInfo] = {}
@@ -271,7 +271,7 @@ class SkillsManifest:
         }
 
         for cat_name, cat_info in self.categories.items():
-            summary["categories"][cat_name] = {
+            summary["categories"][cat_name] = {  # type: ignore[index]
                 "icon": cat_info.icon,
                 "description": cat_info.description,
                 "skill_count": len(cat_info.skills),

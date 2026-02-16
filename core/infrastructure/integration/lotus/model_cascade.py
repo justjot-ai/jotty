@@ -247,7 +247,7 @@ class ModelCascade:
         try:
             # Use DSPy or direct LM call for batch
             if self.lm_provider:
-                import dspy
+                import dspy  # type: ignore[import-untyped]
 
                 with dspy.context(lm=self.lm_provider):
                     responses = await self._call_lm_batch(prompts, model_name)
@@ -378,7 +378,7 @@ class ModelCascade:
                 return True, 0.8
             elif "no" in response_lower or "false" in response_lower:
                 return False, 0.8
-            return None, 0.5
+            return None, 0.5  # type: ignore[return-value]
 
         proxy_results = await self._batch_score(
             sample_items, prompt_fn, simple_parse, ModelTier.FAST

@@ -55,11 +55,11 @@ def _get_token_from_scope(scope: dict) -> str | None:
         if k.lower() == b"x-mcp-token":
             x_token = v.decode("latin1").strip()
     if auth and auth.lower().startswith("bearer "):
-        return auth[7:].strip()
+        return auth[7:].strip()  # type: ignore[no-any-return]
     return x_token
 
 
-def _unauthorized(scope, receive, send, msg: str = "Missing or invalid token") -> Any:
+def _unauthorized(scope, receive, send, msg: str = "Missing or invalid token") -> Any:  # type: ignore[name-defined]
     from starlette.responses import Response
 
     response = Response(msg, status_code=401, headers={"WWW-Authenticate": "Bearer"})

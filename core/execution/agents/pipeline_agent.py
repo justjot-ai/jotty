@@ -12,7 +12,10 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from Jotty.core.execution.base import AgentRuntimeConfig, BaseAgent
-from Jotty.core.execution.capabilities import LearningCapability, ValidationCapability
+from Jotty.core.execution.capabilities import (  # type: ignore[import]
+    LearningCapability,
+    ValidationCapability,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -142,7 +145,7 @@ class PipelineAgent(BaseAgent, LearningCapability, ValidationCapability):
                 for imp in improvements:
                     pattern = imp.get("teacher_output", "")
                     if pattern:
-                        return pattern
+                        return pattern  # type: ignore[no-any-return]
 
         # Generate basic pipeline
         if self.output_format == "mermaid":
@@ -349,6 +352,6 @@ class PipelineAgent(BaseAgent, LearningCapability, ValidationCapability):
         )
 
         if result.success:
-            return result.output
+            return result.output  # type: ignore[no-any-return]
         else:
             raise ValueError(f"Pipeline generation failed: {result.error}")

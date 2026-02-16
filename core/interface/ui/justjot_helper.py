@@ -296,7 +296,7 @@ def return_file_download(
         content["description"] = description
 
     # Always enable preview for supported formats
-    content["preview"] = preview
+    content["preview"] = preview  # type: ignore[assignment]
 
     # Generate preview URL based on format
     if preview:

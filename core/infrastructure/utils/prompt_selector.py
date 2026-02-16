@@ -49,7 +49,7 @@ class PromptSelector:
         try:
             if self.registry_path.exists():
                 with open(self.registry_path, "r") as f:
-                    return yaml.safe_load(f)
+                    return yaml.safe_load(f)  # type: ignore[no-any-return]
         except Exception as e:
             logger.warning(f"Failed to load prompt registry: {e}")
 

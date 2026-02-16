@@ -33,8 +33,8 @@ except ImportError:
         config_path = Path(__file__).parent.parent / "config.py"
         if config_path.exists():
             spec = importlib.util.spec_from_file_location("voice_config", config_path)
-            config_module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(config_module)
+            config_module = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
+            spec.loader.exec_module(config_module)  # type: ignore[union-attr]
             get_config = config_module.get_config
     except Exception:
         # Minimal fallback config
@@ -49,7 +49,7 @@ except ImportError:
 
             has_edge_tts = True  # edge-tts is free, no API key needed
 
-        def get_config() -> Any:
+        def get_config() -> Any:  # type: ignore[misc]
             return MinimalConfig()
 
 
@@ -96,38 +96,38 @@ def get_tts_provider(provider: str = "auto") -> VoiceProviderBase:
         # Priority: edge-tts (free) > OpenAI > ElevenLabs > local
         try:
             # Try Edge TTS first (free, no API key needed)
-            return EdgeTTSProvider()
+            return EdgeTTSProvider()  # type: ignore[return-value]
         except Exception:
             pass
 
         if config.has_whisper_api:  # OpenAI has TTS too
-            return WhisperProvider()
+            return WhisperProvider()  # type: ignore[return-value]
         elif config.has_elevenlabs:
-            return ElevenLabsProvider()
+            return ElevenLabsProvider()  # type: ignore[return-value]
         elif config.has_local_piper:
-            return LocalProvider()
+            return LocalProvider()  # type: ignore[return-value]
         else:
             # Fallback to Edge TTS (should always work)
             logger.warning("No preferred TTS provider, using Edge TTS (free)")
-            return EdgeTTSProvider()
+            return EdgeTTSProvider()  # type: ignore[return-value]
 
     elif provider == "edge" or provider == "edge-tts":
-        return EdgeTTSProvider()
+        return EdgeTTSProvider()  # type: ignore[return-value]
 
     elif provider == "openai" or provider == "whisper":
         if not config.has_whisper_api:
             raise RuntimeError("OpenAI not available. Set OPENAI_API_KEY")
-        return WhisperProvider()
+        return WhisperProvider()  # type: ignore[return-value]
 
     elif provider == "elevenlabs":
         if not config.has_elevenlabs:
             raise RuntimeError("ElevenLabs not available. Set ELEVENLABS_API_KEY")
-        return ElevenLabsProvider()
+        return ElevenLabsProvider()  # type: ignore[return-value]
 
     elif provider == "local":
         if not config.has_local_piper:
             raise RuntimeError("Local TTS not available. Install piper-tts")
-        return LocalProvider()
+        return LocalProvider()  # type: ignore[return-value]
 
     else:
         raise ValueError(f"Unknown TTS provider: {provider}")
@@ -152,11 +152,11 @@ def get_stt_provider(provider: str = "auto") -> VoiceProviderBase:
         # Priority: Groq (fast+free) > OpenAI > local
         groq_key = os.getenv("GROQ_API_KEY")
         if groq_key:
-            return GroqWhisperProvider(groq_key)
+            return GroqWhisperProvider(groq_key)  # type: ignore[return-value]
         elif config.has_whisper_api:
-            return WhisperProvider()
+            return WhisperProvider()  # type: ignore[return-value]
         elif config.has_local_whisper:
-            return LocalProvider()
+            return LocalProvider()  # type: ignore[return-value]
         else:
             raise RuntimeError(
                 "No STT provider available. Set GROQ_API_KEY or OPENAI_API_KEY or install whisper.cpp"
@@ -166,17 +166,17 @@ def get_stt_provider(provider: str = "auto") -> VoiceProviderBase:
         groq_key = os.getenv("GROQ_API_KEY")
         if not groq_key:
             raise RuntimeError("Groq not available. Set GROQ_API_KEY")
-        return GroqWhisperProvider(groq_key)
+        return GroqWhisperProvider(groq_key)  # type: ignore[return-value]
 
     elif provider == "openai" or provider == "whisper":
         if not config.has_whisper_api:
             raise RuntimeError("OpenAI Whisper not available. Set OPENAI_API_KEY")
-        return WhisperProvider()
+        return WhisperProvider()  # type: ignore[return-value]
 
     elif provider == "local":
         if not config.has_local_whisper:
             raise RuntimeError("Local STT not available. Install whisper.cpp")
-        return LocalProvider()
+        return LocalProvider()  # type: ignore[return-value]
 
     else:
         raise ValueError(f"Unknown STT provider: {provider}")

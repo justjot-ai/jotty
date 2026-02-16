@@ -29,7 +29,7 @@ import logging
 from typing import Any, Dict, List, Type
 
 import numpy as np
-import pandas as pd
+import pandas as pd  # type: ignore[import-untyped]
 
 from .base import SwarmTemplate
 

@@ -41,7 +41,7 @@ Usage:
 """
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -251,7 +251,7 @@ class SyntaxValidator(ValidationCapability):
     Can be used standalone or as part of a validation pipeline.
     """
 
-    def __init__(self, domain: str, syntax_checker: Optional[callable] = None, **kwargs):
+    def __init__(self, domain: str, syntax_checker: Optional[Callable] = None, **kwargs):
         """
         Initialize syntax validator.
 
@@ -263,7 +263,7 @@ class SyntaxValidator(ValidationCapability):
         super().__init__(domain=domain, **kwargs)
         self.syntax_checker = syntax_checker
 
-    async def _validate_impl(self, output: Any, **kwargs) -> Dict[str, Any]:
+    async def _validate_impl(self, output: Any, **kwargs) -> Dict[str, Any]:  # type: ignore[override]
         """Validate syntax."""
         if not self.syntax_checker:
             return {
@@ -274,7 +274,7 @@ class SyntaxValidator(ValidationCapability):
             }
 
         try:
-            errors = self.syntax_checker(output)
+            errors = self.syntax_checker(output)  # type: ignore[misc]
 
             return {
                 "valid": len(errors) == 0,

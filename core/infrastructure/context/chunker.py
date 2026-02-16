@@ -16,7 +16,7 @@ The chunker UNDERSTANDS the content structure!
 import logging
 from typing import Any, Callable, Dict, List
 
-import dspy
+import dspy  # type: ignore[import-untyped]
 
 from ..utils.tokenizer import SmartTokenizer
 
@@ -98,7 +98,7 @@ class ContextChunker:
         # Check if chunking needed
         if estimated_tokens <= max_chunk_size:
             logger.info(f" No chunking needed ({estimated_tokens} <= {max_chunk_size} tokens)")
-            return await processor_fn(content)
+            return await processor_fn(content)  # type: ignore[no-any-return]
 
         # Create content preview (head + tail, NO middle slicing!)
         preview_size = min(5000, content_length // 2)
@@ -185,7 +185,7 @@ class ContextChunker:
 
         logger.info(f" Combined results (confidence: {combined.confidence}/10)")
 
-        return combined.combined_result
+        return combined.combined_result  # type: ignore[no-any-return]
 
     # NEW: AgentSlack-compatible simpler API
     async def chunk(

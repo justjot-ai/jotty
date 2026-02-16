@@ -46,7 +46,7 @@ class SwarmProviderGateway:
         self._configured_lm: Optional[BaseLM] = None
 
         # DRY: Reuse existing UnifiedLMProvider
-        from Jotty.core.infrastructure.foundation.unified_lm_provider import (
+        from Jotty.core.infrastructure.foundation.unified_lm_provider import (  # type: ignore[import]
             UnifiedLMProvider,
             configure_dspy_lm,
         )
@@ -144,7 +144,9 @@ class SwarmProviderGateway:
                     # 5. Legacy OpenCode fallback
                     if not self._configured_lm:
                         try:
-                            from Jotty.core.infrastructure.foundation.opencode_lm import OpenCodeLM
+                            from Jotty.core.infrastructure.foundation.opencode_lm import (
+                                OpenCodeLM,  # type: ignore[import]
+                            )
 
                             self._configured_lm = OpenCodeLM(model="glm-4")
                             logger.info(" SwarmProviderGateway (async): Using OpenCode GLM")

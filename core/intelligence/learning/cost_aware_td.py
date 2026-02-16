@@ -48,7 +48,7 @@ class CostAwareTDLambda:
                              10.0 = extremely cost-sensitive
         """
         # DRY: Import and wrap existing learner
-        from Jotty.core.intelligence.learning import get_td_lambda
+        from Jotty.core.intelligence.learning import get_td_lambda  # type: ignore[import]
 
         self.base_learner = get_td_lambda()
 
@@ -103,7 +103,7 @@ class CostAwareTDLambda:
 
     def get_value(self, state: Dict[str, Any]) -> float:
         """Get value estimate for state (delegates to base)."""
-        return self.base_learner.get_value(state)
+        return self.base_learner.get_value(state)  # type: ignore[no-any-return]
 
     def get_stats(self) -> Dict[str, Any]:
         """Get learning statistics with cost savings."""

@@ -20,7 +20,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any, Dict, List
 
-import dspy
+import dspy  # type: ignore[import-untyped]
 
 logger = logging.getLogger(__name__)
 
@@ -175,7 +175,7 @@ class NashBargainingSolver:
             logger.info(f"   Fairness: {result.fairness_score}")
             logger.info(f"   Cooperation Bonus: {result.cooperation_bonus}")
 
-            return distribution
+            return distribution  # type: ignore[no-any-return]
 
         except Exception as e:
             logger.error(f" Failed to parse distribution: {e}")

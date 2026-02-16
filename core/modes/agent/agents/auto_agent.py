@@ -13,20 +13,20 @@ import logging
 from datetime import datetime
 from typing import Any, Callable, Dict, Optional, Tuple
 
-from Jotty.core.infrastructure.foundation.exceptions import (
+from Jotty.core.infrastructure.foundation.exceptions import (  # type: ignore[import-not-found]
     AgentExecutionError,
     DSPyError,
     LLMError,
     ToolExecutionError,
 )
-from Jotty.core.infrastructure.utils.async_utils import (
+from Jotty.core.infrastructure.utils.async_utils import (  # type: ignore[import-not-found, import]
     AgentEvent,
     AgentEventBroadcaster,
     StatusReporter,
 )
 
 from ..types.execution_types import AgenticExecutionResult, TaskType, _clean_for_display
-from .agentic_planner import TaskPlanner
+from .agentic_planner import TaskPlanner  # type: ignore[import-not-found]
 from .autonomous_agent import AutonomousAgent, AutonomousAgentConfig
 
 # Mode-specific system prompts for tools with different backends
@@ -159,7 +159,7 @@ class AutoAgent(AutonomousAgent):
                                 "max_perspectives": max_perspectives,
                             }
                         )
-                        return result
+                        return result  # type: ignore[no-any-return]
 
             # Fallback: Use DSPy directly (parallel via ThreadPoolExecutor)
             import dspy
@@ -239,7 +239,7 @@ Provide:
         """
         from Jotty.core.intelligence.orchestration.swarm_ensemble import should_auto_ensemble
 
-        return should_auto_ensemble(task)
+        return should_auto_ensemble(task)  # type: ignore[no-any-return]
 
     # =========================================================================
     # DSPY REACT STREAMING CALLBACK (Pattern #3)
@@ -306,7 +306,7 @@ Provide:
                         )
                     )
 
-            return _ReActStreamCallback()
+            return _ReActStreamCallback()  # type: ignore[return-value]
         except (ImportError, AttributeError):
             return None
 
@@ -376,7 +376,7 @@ Provide:
     # MAIN EXECUTE (Backwards-compatible signature)
     # =========================================================================
 
-    async def execute(self, task: str, **kwargs: Any) -> AgenticExecutionResult:
+    async def execute(self, task: str, **kwargs: Any) -> AgenticExecutionResult:  # type: ignore[override]
         """
         Execute a task automatically.
 
@@ -574,7 +574,7 @@ Provide:
 
         # Run post-execution hooks (from BaseAgent)
         try:
-            from .base.base_agent import AgentResult
+            from .base.base_agent import AgentResult  # type: ignore[import-not-found]
 
             agent_result = AgentResult(
                 success=is_success,

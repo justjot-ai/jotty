@@ -284,15 +284,15 @@ class MetricsCollector:
             )
             logger.info("Prometheus metrics enabled")
         else:
-            self.skill_executions = NoOpMetric()
-            self.skill_duration = NoOpMetric()
-            self.agent_executions = NoOpMetric()
-            self.llm_tokens = NoOpMetric()
-            self.llm_cost = NoOpMetric()
-            self.llm_calls = NoOpMetric()
-            self.memory_operations = NoOpMetric()
-            self.memory_size = NoOpMetric()
-            self.errors = NoOpMetric()
+            self.skill_executions = NoOpMetric()  # type: ignore[assignment]
+            self.skill_duration = NoOpMetric()  # type: ignore[assignment]
+            self.agent_executions = NoOpMetric()  # type: ignore[assignment]
+            self.llm_tokens = NoOpMetric()  # type: ignore[assignment]
+            self.llm_cost = NoOpMetric()  # type: ignore[assignment]
+            self.llm_calls = NoOpMetric()  # type: ignore[assignment]
+            self.memory_operations = NoOpMetric()  # type: ignore[assignment]
+            self.memory_size = NoOpMetric()  # type: ignore[assignment]
+            self.errors = NoOpMetric()  # type: ignore[assignment]
 
             if not PROMETHEUS_AVAILABLE:
                 logger.info("Prometheus not available - using no-op metrics")

@@ -85,11 +85,11 @@ def validate_via_renderer(mermaid_code: str, timeout: int = 3) -> Tuple[bool, st
             # Create JSON payload
             payload = json.dumps({"code": mermaid_code}).encode("utf-8")
 
-            req = urllib.request.Request(api_url, data=payload)
+            req = urllib.request.Request(api_url, data=payload)  # type: ignore[attr-defined]
             req.add_header("Content-Type", "application/json")
             req.add_header("User-Agent", "Mermaid-Validator/1.0")
 
-            with urllib.request.urlopen(req, timeout=timeout) as response:
+            with urllib.request.urlopen(req, timeout=timeout) as response:  # type: ignore[attr-defined]
                 status_code = response.getcode()
                 content_type = response.headers.get("Content-Type", "")
 
@@ -108,14 +108,14 @@ def validate_via_renderer(mermaid_code: str, timeout: int = 3) -> Tuple[bool, st
                 else:
                     return False, f"POST HTTP {status_code}", metadata
 
-        except urllib.error.HTTPError as e:
+        except urllib.error.HTTPError as e:  # type: ignore[attr-defined]
             # If POST fails, fall back to basic validation for large diagrams
             # Large diagrams are likely valid if they have correct structure
             if e.code == 414 or e.code >= 400:
                 # For very large diagrams, assume valid if structure looks correct
                 has_valid_structure = (
                     diagram_type != "unknown"
-                    and metadata["lines"] > 0
+                    and metadata["lines"] > 0  # type: ignore[operator]
                     and (
                         diagram_type in ["graph", "flowchart"]
                         or "-->" in mermaid_code
@@ -129,7 +129,7 @@ def validate_via_renderer(mermaid_code: str, timeout: int = 3) -> Tuple[bool, st
             return False, f"POST HTTP {e.code}: {e.reason}", metadata
         except Exception as e:
             # If POST fails, fall back to structure-based validation for large diagrams
-            has_valid_structure = diagram_type != "unknown" and metadata["lines"] > 0
+            has_valid_structure = diagram_type != "unknown" and metadata["lines"] > 0  # type: ignore[operator]
             if has_valid_structure:
                 return True, "Valid (large diagram, structure check)", metadata
             return False, f"POST error: {str(e)[:100]}", metadata
@@ -143,10 +143,10 @@ def validate_via_renderer(mermaid_code: str, timeout: int = 3) -> Tuple[bool, st
         url = f"https://mermaid.ink/img/{encoded}"
 
         # Make request with shorter timeout
-        req = urllib.request.Request(url)
+        req = urllib.request.Request(url)  # type: ignore[attr-defined]
         req.add_header("User-Agent", "Mermaid-Validator/1.0")
 
-        with urllib.request.urlopen(req, timeout=timeout) as response:
+        with urllib.request.urlopen(req, timeout=timeout) as response:  # type: ignore[attr-defined]
             status_code = response.getcode()
             content_type = response.headers.get("Content-Type", "")
 
@@ -168,13 +168,13 @@ def validate_via_renderer(mermaid_code: str, timeout: int = 3) -> Tuple[bool, st
             # Unexpected response
             return False, f"Unexpected response: {content_type}", metadata
 
-    except urllib.error.HTTPError as e:
+    except urllib.error.HTTPError as e:  # type: ignore[attr-defined]
         # HTTP error - check if it's URI too long (414)
         if e.code == 414:
             # For large diagrams that exceed URL length, use structure-based validation
             has_valid_structure = (
                 diagram_type != "unknown"
-                and metadata["lines"] > 0
+                and metadata["lines"] > 0  # type: ignore[operator]
                 and (
                     diagram_type in ["graph", "flowchart"]
                     or "-->" in mermaid_code
@@ -196,7 +196,7 @@ def validate_via_renderer(mermaid_code: str, timeout: int = 3) -> Tuple[bool, st
             pass
         return False, f"HTTP {e.code}: {e.reason}", metadata
 
-    except urllib.error.URLError as e:
+    except urllib.error.URLError as e:  # type: ignore[attr-defined]
         # Network/URL error
         return False, f"Network error: {str(e)}", metadata
 

@@ -67,7 +67,7 @@ class MetaAgent(BaseAgent):
     def __init__(
         self,
         signature: Type | None = None,
-        config: MetaAgentConfig = None,
+        config: MetaAgentConfig = None,  # type: ignore[assignment]
         gold_db: Any = None,
         improvement_history: Any = None,
     ) -> None:
@@ -96,7 +96,7 @@ class MetaAgent(BaseAgent):
 
         if self._dspy_module is None and self.signature is not None:
             try:
-                import dspy
+                import dspy  # type: ignore[import-untyped]
 
                 self._dspy_module = dspy.ChainOfThought(self.signature)
                 logger.debug(f"Initialized DSPy module for {self.config.name}")
@@ -356,7 +356,7 @@ class MetaAgent(BaseAgent):
         """
         if self.context is not None:
             states = self.context.get("agent_states", {})
-            return states.get(agent_name)
+            return states.get(agent_name)  # type: ignore[no-any-return]
         return None
 
     def publish_state(self, state: Dict[str, Any]) -> None:
@@ -374,7 +374,7 @@ class MetaAgent(BaseAgent):
     def get_all_agent_states(self) -> Dict[str, Any]:
         """Get states of all agents."""
         if self.context is not None:
-            return self.context.get("agent_states", {})
+            return self.context.get("agent_states", {})  # type: ignore[no-any-return]
         return {}
 
     # =========================================================================

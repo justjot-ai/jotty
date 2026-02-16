@@ -337,9 +337,9 @@ class BaseMetadataProvider:
                 raise
 
         # Set tool attributes for DSPy
-        safeguarded_tool.name = f"metadata_{name}"
-        safeguarded_tool.description = description
-        safeguarded_tool.__signature__ = signature  # Preserve signature for introspection
+        safeguarded_tool.name = f"metadata_{name}"  # type: ignore[KwArg(Any), VarArg(Any), VarArg(Any), KwArg(Any), attr-defined]
+        safeguarded_tool.description = description  # type: ignore[KwArg(Any), VarArg(Any), VarArg(Any), KwArg(Any), attr-defined]
+        safeguarded_tool.__signature__ = signature  # Preserve signature for introspection  # type: ignore[KwArg(Any), VarArg(Any), VarArg(Any), KwArg(Any), attr-defined]
 
         return safeguarded_tool
 

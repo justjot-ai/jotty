@@ -23,7 +23,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-import dspy
+import dspy  # type: ignore[import-untyped]
 
 logger = logging.getLogger(__name__)
 

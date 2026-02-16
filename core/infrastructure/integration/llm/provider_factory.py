@@ -122,14 +122,14 @@ class ProviderFactory:
             return prov.generate_sync(prompt, **kwargs)
         elif hasattr(prov, "generate"):
             # Class with static generate method
-            return prov.generate(prompt, **kwargs)
+            return prov.generate(prompt, **kwargs)  # type: ignore[no-any-return]
         else:
             raise RuntimeError(f"Provider {prov} does not have generate method")
 
     @staticmethod
     def list_available() -> dict:
         """List all available providers and their status."""
-        result = {"cloud": {}, "local": {}}
+        result = {"cloud": {}, "local": {}}  # type: ignore[var-annotated]
 
         # Check cloud providers
         result["cloud"]["anthropic"] = bool(os.getenv("ANTHROPIC_API_KEY"))

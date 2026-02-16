@@ -164,7 +164,7 @@ class EthicalRedTeam:
 
         # Check for bias
         biases = []
-        for name, count in selection_counts.items():
+        for name, count in selection_counts.items():  # type: ignore[assignment]
             deviation = abs(count - expected_count) / expected_count if expected_count > 0 else 0
             if deviation > self.bias_threshold:
                 biases.append(

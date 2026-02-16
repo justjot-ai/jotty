@@ -113,7 +113,7 @@ class ConsensusMixin:
             f"{v.agent_name}: {v.reasoning}" for v in votes if v.decision != final_decision
         ]
 
-        decision = SwarmDecision(
+        decision = SwarmDecision(  # type: ignore[assignment]
             question=question,
             votes=votes,
             final_decision=final_decision,
@@ -123,15 +123,15 @@ class ConsensusMixin:
 
         # ---- Update consensus stats (shared) ----
         for vote in votes:
-            self.register_agent(vote.agent_name)
-            profile = self.agent_profiles[vote.agent_name]
+            self.register_agent(vote.agent_name)  # type: ignore[attr-defined]
+            profile = self.agent_profiles[vote.agent_name]  # type: ignore[attr-defined]
             if vote.decision == final_decision:
                 profile.consensus_agreements += 1
             else:
                 profile.consensus_disagreements += 1
 
-        self.consensus_history.append(decision)
-        return decision
+        self.consensus_history.append(decision)  # type: ignore[attr-defined]
+        return decision  # type: ignore[return-value]
 
     # =========================================================================
     # TALLYING STRATEGIES (MALLM-inspired)
@@ -141,11 +141,11 @@ class ConsensusMixin:
         """Original: weight = confidence × trust."""
         vote_weights: Dict[str, float] = defaultdict(float)
         for vote in votes:
-            self.register_agent(vote.agent_name)
-            trust = self.agent_profiles[vote.agent_name].trust_score
+            self.register_agent(vote.agent_name)  # type: ignore[attr-defined]
+            trust = self.agent_profiles[vote.agent_name].trust_score  # type: ignore[attr-defined]
             vote_weights[vote.decision] += vote.confidence * trust
 
-        winner = max(vote_weights, key=vote_weights.get)
+        winner = max(vote_weights, key=vote_weights.get)  # type: ignore[arg-type]
         total = sum(vote_weights.values())
         strength = vote_weights[winner] / total if total > 0 else 0.0
         return winner, strength
@@ -161,7 +161,7 @@ class ConsensusMixin:
             counts[vote.decision] += 1
 
         total = len(votes)
-        winner = max(counts, key=counts.get)
+        winner = max(counts, key=counts.get)  # type: ignore[arg-type]
         fraction = counts[winner] / total if total > 0 else 0.0
 
         # consensus_strength = fraction if threshold met, else scaled down
@@ -200,12 +200,12 @@ class ConsensusMixin:
 
             # Check for majority
             total = sum(counts.values())
-            leader = max(counts, key=counts.get)
+            leader = max(counts, key=counts.get)  # type: ignore[arg-type]
             if counts[leader] / total > 0.5:
                 return leader, counts[leader] / total
 
             # Eliminate weakest
-            weakest = min(counts, key=counts.get)
+            weakest = min(counts, key=counts.get)  # type: ignore[arg-type]
             remaining.discard(weakest)
 
         winner = remaining.pop() if remaining else votes[0].decision
@@ -229,10 +229,10 @@ class ConsensusMixin:
             counts: Dict[str, int] = defaultdict(int)
             for v in votes:
                 counts[v.decision] += 1
-            winner = max(counts, key=counts.get)
+            winner = max(counts, key=counts.get)  # type: ignore[arg-type]
             return winner, 0.3
 
-        winner = max(approvals, key=approvals.get)
+        winner = max(approvals, key=approvals.get)  # type: ignore[arg-type]
         total_voters = len(votes)
         strength = approvals[winner] / total_voters if total_voters > 0 else 0.0
         return winner, strength

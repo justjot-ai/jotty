@@ -94,7 +94,7 @@ def _get_reward_condition_signature() -> None:
         if dspy is None:
             return None
 
-        class RewardConditionSignature(dspy.Signature):
+        class RewardConditionSignature(dspy.Signature):  # type: ignore[name-defined]
             """Evaluate if a reward condition is met based on current state."""
 
             condition_name = dspy.InputField(desc="Name of the condition to check")
@@ -108,7 +108,7 @@ def _get_reward_condition_signature() -> None:
             confidence = dspy.OutputField(desc="Confidence 0.0-1.0")
 
         _RewardConditionSignature = RewardConditionSignature
-    return _RewardConditionSignature
+    return _RewardConditionSignature  # type: ignore[return-value]
 
 
 class AgenticRewardEvaluator:
@@ -120,7 +120,7 @@ class AgenticRewardEvaluator:
     """
 
     def __init__(self) -> None:
-        sig = _get_reward_condition_signature()
+        sig = _get_reward_condition_signature()  # type: ignore[func-returns-value]
         if sig is not None:
             dspy = _get_dspy()
             self.evaluator = dspy.ChainOfThought(sig)

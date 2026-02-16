@@ -199,24 +199,24 @@ class JottyMemoryMCPServer:
                     response = {"content": [{"type": "text", "text": json.dumps(result)}]}
 
                 else:
-                    response = {"error": f"Unknown method: {method}"}
+                    response = {"error": f"Unknown method: {method}"}  # type: ignore[dict-item]
 
                 # Send response
                 print(json.dumps(response), flush=True)
 
             except Exception as e:
                 logger.error("Error: %s", e)
-                response = {"error": str(e)}
+                response = {"error": str(e)}  # type: ignore[dict-item]
                 print(json.dumps(response), flush=True)
 
-    async def run_http(self, port: int = 8082) -> Any:
+    async def run_http(self, port: int = 8082) -> Any:  # type: ignore[name-defined]
         """Run MCP server using HTTP (for easier testing)"""
         from aiohttp import web
 
-        async def list_tools(request) -> Any:
+        async def list_tools(request) -> Any:  # type: ignore[name-defined]
             return web.json_response({"tools": self.tools})
 
-        async def call_tool(request) -> Any:
+        async def call_tool(request) -> Any:  # type: ignore[name-defined]
             data = await request.json()
             tool_name = data.get("name")
             arguments = data.get("arguments", {})

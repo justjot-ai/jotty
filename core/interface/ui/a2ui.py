@@ -87,21 +87,21 @@ class A2UICard(A2UIWidget):
 
         if self.body:
             if isinstance(self.body, str):
-                widget["body"] = {"type": "text", "text": self.body}
+                widget["body"] = {"type": "text", "text": self.body}  # type: ignore[assignment]
             elif isinstance(self.body, list):
-                widget["body"] = [
+                widget["body"] = [  # type: ignore[assignment]
                     item.to_dict() if isinstance(item, A2UIWidget) else item for item in self.body
                 ]
             elif isinstance(self.body, A2UIWidget):
-                widget["body"] = self.body.to_dict()
+                widget["body"] = self.body.to_dict()  # type: ignore[assignment]
 
         if self.footer:
             if isinstance(self.footer, list):
-                widget["footer"] = [
+                widget["footer"] = [  # type: ignore[assignment]
                     item.to_dict() if isinstance(item, A2UIWidget) else item for item in self.footer
                 ]
             elif isinstance(self.footer, A2UIWidget):
-                widget["footer"] = self.footer.to_dict()
+                widget["footer"] = self.footer.to_dict()  # type: ignore[assignment]
 
         return widget
 
@@ -173,7 +173,7 @@ class A2UIButton(A2UIWidget):
     def to_dict(self) -> Dict[str, Any]:
         widget = {"type": "button", "label": self.label, "variant": self.variant}
         if self.action:
-            widget["action"] = self.action
+            widget["action"] = self.action  # type: ignore[assignment]
         return widget
 
 

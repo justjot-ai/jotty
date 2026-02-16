@@ -48,7 +48,7 @@ class InferenceMixin:
             logger.info(
                 f" Task type inferred: {cached[0].value} (confidence: {cached[2]:.2f}) [cached]"
             )
-            return cached
+            return cached  # type: ignore[no-any-return]
 
         try:
             import re
@@ -56,19 +56,19 @@ class InferenceMixin:
             import dspy
 
             # Prepare task for inference (preserves full context)
-            task_for_inference = self._abstract_task_for_planning(task)
+            task_for_inference = self._abstract_task_for_planning(task)  # type: ignore[attr-defined]
 
             # Use fast LM (Haiku) for classification - much faster than Sonnet
-            classification_lm = self._fast_lm or dspy.settings.lm
+            classification_lm = self._fast_lm or dspy.settings.lm  # type: ignore[attr-defined]
 
             # Call with fast LM for quick classification
             if classification_lm:
                 with dspy.context(lm=classification_lm):
-                    result = self.task_type_inferrer(task_description=task_for_inference)
-                logger.debug(f"Task type inference using fast model: {self._fast_model}")
+                    result = self.task_type_inferrer(task_description=task_for_inference)  # type: ignore[attr-defined]
+                logger.debug(f"Task type inference using fast model: {self._fast_model}")  # type: ignore[attr-defined]
             else:
                 # Fallback to default LM
-                result = self.task_type_inferrer(task_description=task_for_inference)
+                result = self.task_type_inferrer(task_description=task_for_inference)  # type: ignore[attr-defined]
 
             # Parse task_type field
             task_type_str = (
@@ -216,14 +216,14 @@ class InferenceMixin:
         try:
 
             # Clean task for inference
-            task_for_inference = self._abstract_task_for_planning(task)
+            task_for_inference = self._abstract_task_for_planning(task)  # type: ignore[attr-defined]
 
             # Use fast LM for quick classification
-            result = self._call_with_retry(
-                module=self.capability_inferrer,
+            result = self._call_with_retry(  # type: ignore[attr-defined]
+                module=self.capability_inferrer,  # type: ignore[attr-defined]
                 kwargs={"task_description": task_for_inference},
                 max_retries=2,
-                lm=self._fast_lm,
+                lm=self._fast_lm,  # type: ignore[attr-defined]
             )
 
             # Parse capabilities from result
@@ -425,7 +425,7 @@ class InferenceMixin:
 
         compression_ratio = 0.7
         current_conversation = conversation
-        last_error = None
+        last_error: Exception | None = None
 
         for attempt in range(max_retries + 1):
             try:
@@ -457,7 +457,7 @@ class InferenceMixin:
                     f"(ratio={compression_ratio / 0.7:.2f})"
                 )
 
-        raise last_error  # Should not reach here, but safety net
+        raise last_error  # Should not reach here, but safety net  # type: ignore[misc]
 
     @staticmethod
     def _compress_context(text: str, target_length: int) -> str:

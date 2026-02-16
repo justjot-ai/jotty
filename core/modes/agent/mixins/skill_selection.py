@@ -126,18 +126,18 @@ class SkillSelectionMixin:
 
         try:
 
-            result = self._call_with_retry(
-                module=self.skill_selector,
+            result = self._call_with_retry(  # type: ignore[attr-defined]
+                module=self.skill_selector,  # type: ignore[attr-defined]
                 kwargs={
                     "task_description": task,
                     "available_skills": skills_json,
                     "max_skills": max_skills,
                 },
                 compressible_fields=["available_skills"],
-                max_retries=self._max_compression_retries,
-                lm=self._fast_lm,
+                max_retries=self._max_compression_retries,  # type: ignore[attr-defined]
+                lm=self._fast_lm,  # type: ignore[attr-defined]
             )
-            logger.debug(f"Skill selection using fast model: {self._fast_model}")
+            logger.debug(f"Skill selection using fast model: {self._fast_model}")  # type: ignore[attr-defined]
 
             # Parse selected skills
             llm_selected_names = self._parse_selected_skills(result.selected_skills)
@@ -208,16 +208,16 @@ class SkillSelectionMixin:
         skill_priorities = {}
 
         try:
-            result = await self._acall_with_retry(
-                module=self.skill_selector,
+            result = await self._acall_with_retry(  # type: ignore[attr-defined]
+                module=self.skill_selector,  # type: ignore[attr-defined]
                 kwargs={
                     "task_description": task,
                     "available_skills": skills_json,
                     "max_skills": max_skills,
                 },
                 compressible_fields=["available_skills"],
-                max_retries=self._max_compression_retries,
-                lm=self._fast_lm,
+                max_retries=self._max_compression_retries,  # type: ignore[attr-defined]
+                lm=self._fast_lm,  # type: ignore[attr-defined]
             )
 
             llm_selected_names = self._parse_selected_skills(result.selected_skills)
@@ -346,14 +346,16 @@ class SkillSelectionMixin:
             if preferred in available_names:
                 return [preferred], f"Fallback: {preferred}"
 
-        return [skills[0].get("name")] if skills else [], "Fallback: first available"
+        return [skills[0].get("name")] if skills else [], "Fallback: first available"  # type: ignore[list-item]
 
     def _enrich_skills_with_tools(
         self, selected_skills: List[Dict[str, Any]]
     ) -> List[Dict[str, Any]]:
         """Enrich skill dicts with tool names from registry."""
         try:
-            from ..registry.skills_registry import get_skills_registry
+            from ..registry.skills_registry import (
+                get_skills_registry,  # type: ignore[import-not-found]
+            )
 
             registry = get_skills_registry()
             if not registry:

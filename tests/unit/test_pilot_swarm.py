@@ -167,7 +167,7 @@ class TestPilotPlannerAgent:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_plan_returns_subtasks(self):
-        with patch("Jotty.core.swarms.pilot_swarm.agents.BaseOlympiadAgent._get_lm"):
+        with patch("Jotty.core.intelligence.swarms.pilot_swarm.agents.BaseOlympiadAgent._get_lm"):
             from Jotty.core.intelligence.swarms.pilot_swarm.agents import PilotPlannerAgent
 
             agent = PilotPlannerAgent.__new__(PilotPlannerAgent)
@@ -216,7 +216,7 @@ class TestPilotSearchAgent:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_search_returns_findings(self):
-        with patch("Jotty.core.swarms.pilot_swarm.agents.BaseOlympiadAgent._get_lm"):
+        with patch("Jotty.core.intelligence.swarms.pilot_swarm.agents.BaseOlympiadAgent._get_lm"):
             from Jotty.core.intelligence.swarms.pilot_swarm.agents import PilotSearchAgent
 
             agent = PilotSearchAgent.__new__(PilotSearchAgent)
@@ -249,7 +249,7 @@ class TestPilotCoderAgent:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_code_returns_file_operations(self):
-        with patch("Jotty.core.swarms.pilot_swarm.agents.BaseOlympiadAgent._get_lm"):
+        with patch("Jotty.core.intelligence.swarms.pilot_swarm.agents.BaseOlympiadAgent._get_lm"):
             from Jotty.core.intelligence.swarms.pilot_swarm.agents import PilotCoderAgent
 
             agent = PilotCoderAgent.__new__(PilotCoderAgent)
@@ -289,7 +289,7 @@ class TestPilotTerminalAgent:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_execute_returns_commands(self):
-        with patch("Jotty.core.swarms.pilot_swarm.agents.BaseOlympiadAgent._get_lm"):
+        with patch("Jotty.core.intelligence.swarms.pilot_swarm.agents.BaseOlympiadAgent._get_lm"):
             from Jotty.core.intelligence.swarms.pilot_swarm.agents import PilotTerminalAgent
 
             agent = PilotTerminalAgent.__new__(PilotTerminalAgent)
@@ -326,7 +326,7 @@ class TestPilotSkillWriterAgent:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_write_skill_returns_files(self):
-        with patch("Jotty.core.swarms.pilot_swarm.agents.BaseOlympiadAgent._get_lm"):
+        with patch("Jotty.core.intelligence.swarms.pilot_swarm.agents.BaseOlympiadAgent._get_lm"):
             from Jotty.core.intelligence.swarms.pilot_swarm.agents import PilotSkillWriterAgent
 
             agent = PilotSkillWriterAgent.__new__(PilotSkillWriterAgent)
@@ -362,7 +362,7 @@ class TestPilotValidatorAgent:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_validate_success(self):
-        with patch("Jotty.core.swarms.pilot_swarm.agents.BaseOlympiadAgent._get_lm"):
+        with patch("Jotty.core.intelligence.swarms.pilot_swarm.agents.BaseOlympiadAgent._get_lm"):
             from Jotty.core.intelligence.swarms.pilot_swarm.agents import PilotValidatorAgent
 
             agent = PilotValidatorAgent.__new__(PilotValidatorAgent)
@@ -392,7 +392,7 @@ class TestPilotValidatorAgent:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_validate_failure(self):
-        with patch("Jotty.core.swarms.pilot_swarm.agents.BaseOlympiadAgent._get_lm"):
+        with patch("Jotty.core.intelligence.swarms.pilot_swarm.agents.BaseOlympiadAgent._get_lm"):
             from Jotty.core.intelligence.swarms.pilot_swarm.agents import PilotValidatorAgent
 
             agent = PilotValidatorAgent.__new__(PilotValidatorAgent)
@@ -548,7 +548,7 @@ class TestSwarmRegistration:
 
     @pytest.mark.unit
     def test_registered_in_swarm_registry(self):
-        from Jotty.core.intelligence.swarms.base_swarm import SwarmRegistry
+        from Jotty.core.intelligence.swarms._base.registry import SwarmRegistry
         from Jotty.core.intelligence.swarms.pilot_swarm import PilotSwarm
 
         swarm_class = SwarmRegistry.get("pilot")
@@ -556,19 +556,19 @@ class TestSwarmRegistration:
 
     @pytest.mark.unit
     def test_lazy_import_from_core_swarms(self):
-        from Jotty.core.execution.swarms import PilotSwarm
+        from Jotty.core.intelligence.swarms import PilotSwarm
 
         assert PilotSwarm is not None
 
     @pytest.mark.unit
     def test_lazy_import_pilot(self):
-        from Jotty.core.execution.swarms import pilot
+        from Jotty.core.intelligence.swarms import pilot
 
         assert callable(pilot)
 
     @pytest.mark.unit
     def test_lazy_import_types(self):
-        from Jotty.core.execution.swarms import SubtaskStatus, SubtaskType
+        from Jotty.core.intelligence.swarms import SubtaskStatus, SubtaskType
 
         assert len(SubtaskType) == 7
         assert len(SubtaskStatus) == 5

@@ -372,7 +372,7 @@ class LotusOptimizer:
     def get_cost_estimate(self) -> float:
         """Get total estimated cost."""
         cascade_stats = self.cascade.get_stats()
-        return cascade_stats.get("total_cost", 0.0)
+        return cascade_stats.get("total_cost", 0.0)  # type: ignore[no-any-return]
 
     def get_savings_estimate(self) -> Dict[str, float]:
         """

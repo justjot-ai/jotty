@@ -17,7 +17,7 @@ from .base_expert import BaseExpert
 logger = logging.getLogger(__name__)
 
 try:
-    import dspy
+    import dspy  # type: ignore[import-untyped]
 
     DSPY_AVAILABLE = True
 except ImportError:
@@ -104,7 +104,7 @@ class PlantUMLExpertAgent(BaseExpert):
             try:
                 from .dspy_improvements import inject_improvements_into_signature
 
-                signature_class = inject_improvements_into_signature(
+                signature_class = inject_improvements_into_signature(  # type: ignore[assignment]
                     PlantUMLGenerationSignature, improvements
                 )
             except ImportError:
@@ -392,5 +392,5 @@ State2 --> [*]
         task = f"Generate {diagram_type} diagram"
         context = {"description": description, "diagram_type": diagram_type, **kwargs}
 
-        output = await self.generate(task=task, context=context)
+        output = await self.generate(task=task, context=context)  # type: ignore[attr-defined]
         return str(output)

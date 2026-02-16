@@ -17,7 +17,11 @@ Modules:
 """
 
 # Tool interceptor moved to integration (2026-02-16)
-from Jotty.core.infrastructure.integration import ToolCall, ToolCallRegistry, ToolInterceptor
+from Jotty.core.infrastructure.integration import (  # type: ignore[import]
+    ToolCall,
+    ToolCallRegistry,
+    ToolInterceptor,
+)
 
 # Tool shed moved to skills/_tools/tool_selector.py (2026-02-16)
 from Jotty.skills._tools import AgenticToolSelector, CapabilityIndex, ToolShed, ToolShedSchema
@@ -58,7 +62,7 @@ except ImportError:
     from typing import Any
 
     @dataclass
-    class ToolResult:
+    class ToolResult:  # type: ignore[no-redef]
         """Result from tool execution."""
 
         success: bool

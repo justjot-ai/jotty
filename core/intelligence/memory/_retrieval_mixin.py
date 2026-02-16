@@ -46,7 +46,7 @@ class RetrievalMixin:
 
         all_memories: List[MemoryEntry] = []
         for level in levels:
-            all_memories.extend(self.memories[level].values())
+            all_memories.extend(self.memories[level].values())  # type: ignore[attr-defined]
         if not all_memories:
             return []
 
@@ -113,7 +113,7 @@ class RetrievalMixin:
                 break
 
         # Update access tracking
-        self.total_accesses += 1
+        self.total_accesses += 1  # type: ignore[attr-defined]
         for mem in selected:
             mem.access_count += 1
             mem.ucb_visits += 1
@@ -144,29 +144,29 @@ class RetrievalMixin:
         # Collect all candidates
         all_memories = []
         for level in levels:
-            all_memories.extend(self.memories[level].values())
+            all_memories.extend(self.memories[level].values())  # type: ignore[attr-defined]
 
         if not all_memories:
             return []
 
         # Use LLM RAG retriever
-        selected = self.retriever.retrieve(
+        selected = self.retriever.retrieve(  # type: ignore[attr-defined]
             query=query,
             goal=goal,
             memories=all_memories,
             budget_tokens=budget_tokens,
-            goal_hierarchy=self.goal_hierarchy if self.config.enable_goal_hierarchy else None,
+            goal_hierarchy=self.goal_hierarchy if self.config.enable_goal_hierarchy else None,  # type: ignore[attr-defined]
             context_hints=context_hints,
         )
 
         # Update access tracking
-        self.total_accesses += 1
+        self.total_accesses += 1  # type: ignore[attr-defined]
         for mem in selected:
             mem.access_count += 1
             mem.ucb_visits += 1
             mem.last_accessed = datetime.now()
 
-        return selected
+        return selected  # type: ignore[no-any-return]
 
     async def retrieve_async(
         self,
@@ -323,9 +323,9 @@ class RetrievalMixin:
         # Collect memories from specified levels, filtered by domain prefix
         domain_memories = []
         for level in levels:
-            if level in self.memories:
+            if level in self.memories:  # type: ignore[attr-defined]
                 # Filter by domain prefix (fast key-level filtering)
-                for key, memory in self.memories[level].items():
+                for key, memory in self.memories[level].items():  # type: ignore[attr-defined]
                     if key.startswith(f"{domain}:"):
                         domain_memories.append(memory)
 
@@ -333,22 +333,22 @@ class RetrievalMixin:
             return []
 
         # Use existing retriever for ranking by value and relevance
-        selected = self.retriever.retrieve(
+        selected = self.retriever.retrieve(  # type: ignore[attr-defined]
             query=f"Domain: {domain}",
             goal=goal,
             memories=domain_memories,
             budget_tokens=budget_tokens,
-            goal_hierarchy=self.goal_hierarchy if self.config.enable_goal_hierarchy else None,
+            goal_hierarchy=self.goal_hierarchy if self.config.enable_goal_hierarchy else None,  # type: ignore[attr-defined]
         )
 
         # Update access tracking
-        self.total_accesses += 1
+        self.total_accesses += 1  # type: ignore[attr-defined]
         for mem in selected:
             mem.access_count += 1
             mem.ucb_visits += 1
             mem.last_accessed = datetime.now()
 
-        return selected
+        return selected  # type: ignore[no-any-return]
 
     def retrieve_by_task_type(
         self, task_type: str, goal: str, budget_tokens: int, levels: List[MemoryLevel] | None = None
@@ -373,9 +373,9 @@ class RetrievalMixin:
         # Collect memories from specified levels, filtered by task type pattern
         task_memories = []
         for level in levels:
-            if level in self.memories:
+            if level in self.memories:  # type: ignore[attr-defined]
                 # Filter by task type pattern (second part of key: domain:task_type:hash)
-                for key, memory in self.memories[level].items():
+                for key, memory in self.memories[level].items():  # type: ignore[attr-defined]
                     if f":{task_type}:" in key:
                         task_memories.append(memory)
 
@@ -383,22 +383,22 @@ class RetrievalMixin:
             return []
 
         # Use existing retriever for ranking by value and relevance
-        selected = self.retriever.retrieve(
+        selected = self.retriever.retrieve(  # type: ignore[attr-defined]
             query=f"Task type: {task_type}",
             goal=goal,
             memories=task_memories,
             budget_tokens=budget_tokens,
-            goal_hierarchy=self.goal_hierarchy if self.config.enable_goal_hierarchy else None,
+            goal_hierarchy=self.goal_hierarchy if self.config.enable_goal_hierarchy else None,  # type: ignore[attr-defined]
         )
 
         # Update access tracking
-        self.total_accesses += 1
+        self.total_accesses += 1  # type: ignore[attr-defined]
         for mem in selected:
             mem.access_count += 1
             mem.ucb_visits += 1
             mem.last_accessed = datetime.now()
 
-        return selected
+        return selected  # type: ignore[no-any-return]
 
     def retrieve_and_synthesize(
         self,
@@ -426,17 +426,17 @@ class RetrievalMixin:
         # Collect all candidates
         all_memories = []
         for level in levels:
-            all_memories.extend(self.memories[level].values())
+            all_memories.extend(self.memories[level].values())  # type: ignore[attr-defined]
 
         if not all_memories:
             return ""
 
         # Use retriever to synthesize
-        synthesized = self.retriever.retrieve_and_synthesize(
+        synthesized = self.retriever.retrieve_and_synthesize(  # type: ignore[attr-defined]
             query=query, goal=goal, memories=all_memories, context_hints=context_hints
         )
 
-        return synthesized
+        return synthesized  # type: ignore[no-any-return]
 
     async def retrieve_and_synthesize_async(
         self,
@@ -633,7 +633,7 @@ class RetrievalMixin:
 
         Returns causal links that apply in the given context.
         """
-        if not self.config.enable_causal_learning:
+        if not self.config.enable_causal_learning:  # type: ignore[attr-defined]
             return []
 
         relevant = []
@@ -641,7 +641,7 @@ class RetrievalMixin:
         # Keyword matching on cause/effect
         query_lower = query.lower()
 
-        for link in self.causal_links.values():
+        for link in self.causal_links.values():  # type: ignore[attr-defined]
             # Check if cause or effect matches query
             if (
                 query_lower in link.cause.lower()

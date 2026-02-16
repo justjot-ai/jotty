@@ -53,7 +53,7 @@ logger = logging.getLogger(__name__)
 
 # Try to import DSPy for LLM-based analysis
 try:
-    import dspy
+    import dspy  # type: ignore[import-untyped]
 
     DSPY_AVAILABLE = True
 except ImportError:

@@ -53,7 +53,7 @@ class SwarmConfig:
     description: str
     default_prompts: List[str]
     merge_strategy: str = "BEST_OF_N"
-    best_practices: List[str] = None
+    best_practices: List[str] = None  # type: ignore[assignment]
 
     def __post_init__(self) -> None:
         if self.best_practices is None:

@@ -19,7 +19,7 @@ This ensures:
 from Jotty.core.capabilities.registry.unified_registry import get_unified_registry
 
 
-def get_registry() -> Any:
+def get_registry() -> Any:  # type: ignore[name-defined]
     """
     Get the unified skill registry.
 

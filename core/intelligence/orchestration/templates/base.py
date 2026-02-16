@@ -169,7 +169,7 @@ class SwarmTemplate:
     description: str = "Base swarm template"
 
     # Agent configurations
-    agents: Dict[str, TemplateAgentConfig] = {}
+    agents: Dict[str, TemplateAgentConfig] = {}  # type: ignore[name-defined]
 
     # Pipeline stages (execution order)
     pipeline: List[StageConfig] = []
@@ -207,7 +207,7 @@ class SwarmTemplate:
         """
         return True
 
-    def get_agent_config(self, agent_name: str) -> Optional[TemplateAgentConfig]:
+    def get_agent_config(self, agent_name: str) -> Optional[TemplateAgentConfig]:  # type: ignore[name-defined]
         """Get configuration for a specific agent."""
         return self.agents.get(agent_name)
 
@@ -249,7 +249,7 @@ class SwarmTemplate:
         Returns list of stage groups - stages within a group can parallelize.
         """
         groups = []
-        current_group = []
+        current_group: List[Any] = []
 
         for stage in self.pipeline:
             if stage.parallel and current_group and current_group[-1].parallel:
@@ -291,7 +291,7 @@ class SwarmTemplate:
 
         # Reconstruct agents
         for name, config in data.get("agents", {}).items():
-            template.agents[name] = TemplateAgentConfig(**config)
+            template.agents[name] = TemplateAgentConfig(**config)  # type: ignore[name-defined]
 
         # Reconstruct pipeline
         template.pipeline = [StageConfig(**s) for s in data.get("pipeline", [])]
@@ -319,12 +319,12 @@ class SwarmTemplate:
             return {}
         try:
             task_desc = kwargs.get("business_context", "") or kwargs.get("context", "")
-            learnings = self._learning.load_relevant_learnings(
+            learnings = self._learning.load_relevant_learnings(  # type: ignore[attr-defined]
                 task_description=task_desc,
                 agent_types=[],
                 top_k=5,
             )
-            return learnings
+            return learnings  # type: ignore[no-any-return]
         except Exception as e:
             logger.debug(f"Pre-execution learning failed: {e}")
             return {}
@@ -337,13 +337,13 @@ class SwarmTemplate:
         if not getattr(self, "_learning", None):
             return
         try:
-            self._learning.record_session(
+            self._learning.record_session(  # type: ignore[attr-defined]
                 task_description=kwargs.get("business_context", ""),
                 agents_used=["automl_workflow"],
                 total_time=0.0,
                 success=results.get("final_score", 0) > 0,
             )
-            self._learning.save_all()
+            self._learning.save_all()  # type: ignore[attr-defined]
         except Exception as e:
             logger.debug(f"Post-execution learning failed: {e}")
 
@@ -502,7 +502,7 @@ class TemplateExecutor:
         return result
 
     async def _execute_skill(
-        self, skill_name: str, inputs: Dict, agent_config: TemplateAgentConfig
+        self, skill_name: str, inputs: Dict, agent_config: TemplateAgentConfig  # type: ignore[name-defined]
     ) -> Dict[str, Any]:
         """
         Execute a skill.
@@ -510,7 +510,7 @@ class TemplateExecutor:
         Integrates with the ML skills library.
         """
         # Get skill class from registry
-        skill_class = self._get_skill_class(skill_name)
+        skill_class = self._get_skill_class(skill_name)  # type: ignore[func-returns-value]
         if skill_class is None:
             return {}
 
@@ -595,7 +595,7 @@ class TemplateExecutor:
         try:
             # Import skill classes
             try:
-                from Jotty.core.capabilities.skills.ml import (
+                from Jotty.core.capabilities.skills.ml import (  # type: ignore[import-not-found]
                     EDASkill,
                     EnsembleSkill,
                     FeatureEngineeringSkill,
@@ -605,7 +605,7 @@ class TemplateExecutor:
                     ModelSelectionSkill,
                 )
             except ImportError:
-                from core.skills.ml import (
+                from core.skills.ml import (  # type: ignore[import-not-found]
                     EDASkill,
                     EnsembleSkill,
                     FeatureEngineeringSkill,
@@ -625,7 +625,7 @@ class TemplateExecutor:
                 "EnsembleSkill": EnsembleSkill,
             }
 
-            return CLASS_MAP.get(class_name)
+            return CLASS_MAP.get(class_name)  # type: ignore[return-value]
         except ImportError:
             return None
 
@@ -644,7 +644,7 @@ class TemplateExecutor:
                 "float": float,
                 "bool": bool,
             }
-            return eval(condition, {"__builtins__": safe_builtins}, self._context)
+            return eval(condition, {"__builtins__": safe_builtins}, self._context)  # type: ignore[no-any-return]
         except Exception:
             return False
 

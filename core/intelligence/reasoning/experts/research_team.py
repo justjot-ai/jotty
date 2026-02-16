@@ -6,7 +6,7 @@ Creates academic-quality research papers using multi-agent workflow
 
 from typing import Any, Dict, List
 
-import dspy
+import dspy  # type: ignore[import-untyped]
 
 # =============================================================================
 # RESEARCH EXPERT SIGNATURES

@@ -23,7 +23,9 @@ from typing import Any, Dict, List, Optional, Tuple
 import dspy
 from dspy.clients.base_lm import BaseLM
 
-from Jotty.core.infrastructure.foundation.exceptions import InvalidConfigError
+from Jotty.core.infrastructure.foundation.exceptions import (
+    InvalidConfigError,  # type: ignore[import-not-found]
+)
 
 logger = logging.getLogger(__name__)
 
@@ -109,7 +111,7 @@ class ContextAwareLM(BaseLM):
     def inspect_history(self, n: int = 1) -> Dict:
         """Delegate to wrapped LM."""
         if hasattr(self._wrapped, "inspect_history"):
-            return self._wrapped.inspect_history(n)
+            return self._wrapped.inspect_history(n)  # type: ignore[no-any-return]
         return {"history": self.history[-n:] if self.history else []}
 
     def __getattr__(self, name: Any) -> Any:
@@ -162,7 +164,9 @@ class UnifiedLMProvider:
 
         # CLI providers — use direct subprocess wrappers
         if provider == "claude-cli":
-            from Jotty.core.infrastructure.integration.direct_claude_cli_lm import DirectClaudeCLI
+            from Jotty.core.infrastructure.integration.direct_claude_cli_lm import (
+                DirectClaudeCLI,  # type: ignore[import]
+            )
 
             lm = DirectClaudeCLI(model=model or "sonnet", **kwargs)
             return ContextAwareLM(lm) if inject_context else lm
@@ -609,7 +613,7 @@ class UnifiedLMProvider:
         }
 
         for name, config in api_providers.items():
-            has_key = bool(os.getenv(config["env_key"]))
+            has_key = bool(os.getenv(config["env_key"]))  # type: ignore[call-overload]
             providers[name] = {
                 "type": "api",
                 "available": has_key,

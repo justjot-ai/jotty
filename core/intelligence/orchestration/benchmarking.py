@@ -189,7 +189,7 @@ class SwarmBenchmarks:
 
         # 3. Specialization diversity (entropy of specializations)
         if agent_profiles:
-            spec_counts = defaultdict(int)
+            spec_counts = defaultdict(int)  # type: ignore[var-annotated]
             for profile in agent_profiles.values():
                 spec_counts[profile.specialization.value] += 1
 

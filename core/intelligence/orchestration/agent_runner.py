@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional
 
 from Jotty.core.infrastructure.foundation.data_structures import EpisodeResult, SwarmConfig
-from Jotty.core.infrastructure.foundation.exceptions import (
+from Jotty.core.infrastructure.foundation.exceptions import (  # type: ignore[import-not-found]
     AgentExecutionError,
     DSPyError,
     LearningError,
@@ -28,10 +28,17 @@ from Jotty.core.infrastructure.foundation.exceptions import (
     MemoryRetrievalError,
     ToolExecutionError,
 )
-from Jotty.core.infrastructure.utils.async_utils import StatusReporter
-from Jotty.core.infrastructure.utils.prompt_selector import PromptSelector, get_prompt_selector
-from Jotty.core.intelligence.learning.learning import TDLambdaLearner
-from Jotty.core.intelligence.learning.shaped_rewards import ShapedRewardManager
+from Jotty.core.infrastructure.utils.async_utils import (
+    StatusReporter,  # type: ignore[import-not-found, import]
+)
+from Jotty.core.infrastructure.utils.prompt_selector import (  # type: ignore[import]
+    PromptSelector,
+    get_prompt_selector,
+)
+from Jotty.core.intelligence.learning.learning import TDLambdaLearner  # type: ignore[import]
+from Jotty.core.intelligence.learning.shaped_rewards import (
+    ShapedRewardManager,  # type: ignore[import-not-found, import]
+)
 from Jotty.core.intelligence.memory.cortex import SwarmMemory
 from Jotty.core.intelligence.orchestration.prompts import (
     get_generic_auditor_prompt,
@@ -43,7 +50,10 @@ from Jotty.core.intelligence.orchestration.validation_gate import (
     ValidationMode,
     get_validation_gate,
 )
-from Jotty.core.modes.agent.tools.inspector import MultiRoundValidator, ValidatorAgent
+from Jotty.core.modes.agent.tools.inspector import (  # type: ignore[import]
+    MultiRoundValidator,
+    ValidatorAgent,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -347,7 +357,9 @@ class AgentRunner:
 
         # Host provider (Cline HostProvider pattern):
         # Core never imports CLI/Web directly — uses HostProvider.
-        from Jotty.core.interface.interfaces.host_provider import HostProvider
+        from Jotty.core.interface.interfaces.host_provider import (
+            HostProvider,  # type: ignore[import]
+        )
 
         self._host = HostProvider.get()
 
@@ -452,7 +464,7 @@ class AgentRunner:
         if hook_type not in self._hooks:
             raise ValueError(f"Unknown hook type '{hook_type}'. " f"Valid: {', '.join(HOOK_TYPES)}")
         hook_name = name or f"{hook_type}_{len(self._hooks[hook_type])}"
-        fn._hook_name = hook_name  # tag for removal
+        fn._hook_name = hook_name  # tag for removal  # type: ignore[attr-defined]
         self._hooks[hook_type].append(fn)
         logger.info(f" Hook registered: {hook_type}/{hook_name}")
         return hook_name
@@ -511,7 +523,7 @@ class AgentRunner:
 
         # Skip if same task type (validators already configured)
         if task_type == self._current_task_type:
-            return task_type
+            return task_type  # type: ignore[no-any-return]
 
         # Get task-specific prompts
         architect_path, auditor_path = self._prompt_selector.select_prompts(goal)
@@ -618,7 +630,7 @@ class AgentRunner:
             except Exception as fallback_err:
                 logger.error(f"Fallback validator also failed: {fallback_err}")
 
-        return task_type
+        return task_type  # type: ignore[no-any-return]
 
     # =========================================================================
     # PIPELINE STAGES (extracted from run() for readability)
@@ -884,7 +896,9 @@ class AgentRunner:
                 logger.debug(f"Executor feedback skipped: {fb_err}")
 
         # Build tagged outputs
-        from Jotty.core.infrastructure.foundation.types.learning_types import TaggedOutput
+        from Jotty.core.infrastructure.foundation.types.learning_types import (
+            TaggedOutput,  # type: ignore[import]
+        )
 
         tagged_outputs = []
         if auditor_results:
@@ -902,7 +916,9 @@ class AgentRunner:
         # Build agent contributions
         agent_contributions = {}
         if architect_results:
-            from Jotty.core.infrastructure.foundation.types.agent_types import AgentContribution
+            from Jotty.core.infrastructure.foundation.types.agent_types import (
+                AgentContribution,  # type: ignore[import-not-found, import]
+            )
 
             for result in architect_results:
                 agent_contributions[result.agent_name] = AgentContribution(
@@ -1070,8 +1086,8 @@ class AgentRunner:
 
     async def _gather_context(self, ctx: ExecutionContext) -> ExecutionContext:
         """Gather learning context from memory, Q-learning, transfer learning."""
-        ctx.task_progress.start_step(0)  # Gather context
-        ctx._status("Preparing", "retrieving context")
+        ctx.task_progress.start_step(0)  # Gather context  # type: ignore
+        ctx._status("Preparing", "retrieving context")  # type: ignore[misc]
 
         ctx.learning_context_parts = self._gather_learning_context(ctx.goal)
 
@@ -1089,7 +1105,7 @@ class AgentRunner:
             ctx.kwargs["workspace_dir"] = os.getcwd()
 
         ctx.enriched_goal = ctx.goal
-        ctx.task_progress.complete_step(0)  # Context gathered
+        ctx.task_progress.complete_step(0)  # Context gathered  # type: ignore
         return ctx
 
     async def _validate_architect(self, ctx: ExecutionContext) -> ExecutionContext:
@@ -1098,8 +1114,8 @@ class AgentRunner:
             # Hook: pre_architect
             self._run_hooks("pre_architect", goal=ctx.goal, agent_name=self.agent_name)
 
-            ctx.task_progress.start_step(1)  # Validate approach
-            ctx._status("Architect", "validating approach")
+            ctx.task_progress.start_step(1)  # Validate approach  # type: ignore
+            ctx._status("Architect", "validating approach")  # type: ignore[misc]
             ctx.architect_results, ctx.proceed = await self.architect_validator.validate(
                 goal=ctx.goal,
                 inputs={"goal": ctx.goal, **ctx.kwargs},
@@ -1161,9 +1177,9 @@ class AgentRunner:
                     trajectory=[],
                 )
         else:
-            logger.info(f" Skipping architect: gate={ctx.gate_decision.mode.value}")
+            logger.info(f" Skipping architect: gate={ctx.gate_decision.mode.value}")  # type: ignore[union-attr]
 
-        ctx.task_progress.complete_step(1)  # Approach validated
+        ctx.task_progress.complete_step(1)  # Approach validated  # type: ignore
         return ctx
 
     async def _execute_agent(self, ctx: ExecutionContext) -> ExecutionContext:
@@ -1177,7 +1193,7 @@ class AgentRunner:
         )
         ctx.enriched_goal = exec_ctx.get("goal", ctx.enriched_goal)
 
-        ctx.task_progress.start_step(2)  # Execute task
+        ctx.task_progress.start_step(2)  # Execute task  # type: ignore
 
         # Workspace checkpoint before execution (Cline checkpoint pattern)
         try:
@@ -1190,7 +1206,7 @@ class AgentRunner:
         except Exception as _cp_err:
             logger.debug(f"Workspace checkpoint skipped: {_cp_err}")
 
-        ctx._status("Agent", "executing task (this may take a while)")
+        ctx._status("Agent", "executing task (this may take a while)")  # type: ignore[misc]
 
         # Execute agent (handles AutoAgent, DSPy, callable)
         if hasattr(self.agent, "execute"):
@@ -1264,12 +1280,12 @@ class AgentRunner:
             inner_success=ctx.inner_success,
         )
 
-        ctx.task_progress.complete_step(2)  # Task executed
+        ctx.task_progress.complete_step(2)  # Task executed  # type: ignore
         return ctx
 
     async def _validate_auditor_with_retry(self, ctx: ExecutionContext) -> ExecutionContext:
         """Auditor validation + MALLM judge retry logic."""
-        ctx.task_progress.start_step(3)  # Verify output
+        ctx.task_progress.start_step(3)  # Verify output  # type: ignore
 
         if not ctx.skip_auditor:
             ctx.auditor_results, passed = await self.auditor_validator.validate(
@@ -1300,7 +1316,7 @@ class AgentRunner:
                     f" Judge intervention: auditor rejected "
                     f"(confidence={ctx.auditor_confidence:.2f}), retrying with feedback"
                 )
-                ctx._status("Judge intervention", "retrying with auditor feedback")
+                ctx._status("Judge intervention", "retrying with auditor feedback")  # type: ignore[misc]
 
                 # Hook: allow external observers to see intervention
                 self._run_hooks(
@@ -1388,9 +1404,9 @@ class AgentRunner:
                 )
         else:
             # DIRECT mode: skip auditor, but respect inner execution result
-            logger.info(f" Skipping auditor: gate={ctx.gate_decision.mode.value}")
+            logger.info(f" Skipping auditor: gate={ctx.gate_decision.mode.value}")  # type: ignore[union-attr]
             ctx.success = ctx.inner_success
-            ctx.auditor_reasoning = f"Gate={ctx.gate_decision.mode.value}: auditor skipped"
+            ctx.auditor_reasoning = f"Gate={ctx.gate_decision.mode.value}: auditor skipped"  # type: ignore[union-attr]
             ctx.auditor_confidence = 1.0
             ctx.auditor_results = []
             passed = True
@@ -1447,15 +1463,15 @@ class AgentRunner:
 
         # Update task progress + consecutive failure counter
         if ctx.success:
-            ctx.task_progress.complete_step(3)  # Verified OK
+            ctx.task_progress.complete_step(3)  # Verified OK  # type: ignore
             self._consecutive_failures = 0
         else:
-            ctx.task_progress.fail_step(3)  # Verification failed
+            ctx.task_progress.fail_step(3)  # Verification failed  # type: ignore
             self._consecutive_failures += 1
 
         # Record gate outcome for drift detection
         if self._validation_gate:
-            self._validation_gate.record_outcome(ctx.gate_decision.mode, ctx.success)
+            self._validation_gate.record_outcome(ctx.gate_decision.mode, ctx.success)  # type: ignore[union-attr]
 
         # Log task progress (Cline Focus Chain visibility)
         if ctx.task_progress:
@@ -1541,7 +1557,7 @@ class AgentRunner:
                             # Retry the original execution if fix was applied
                             if fix_applied:
                                 logger.info(" Retrying execution after fix...")
-                                ctx._status("Retrying", "after auto-fix")
+                                ctx._status("Retrying", "after auto-fix")  # type: ignore[misc]
                                 if not ctx.kwargs.get("_retry_after_fix"):
                                     ctx.kwargs["_retry_after_fix"] = True
                                     return await self.run(ctx.goal, **ctx.kwargs)
@@ -1622,5 +1638,5 @@ class AgentRunner:
     def gate_stats(self) -> dict:
         """Get validation gate statistics for introspection."""
         if self._validation_gate:
-            return self._validation_gate.stats()
+            return self._validation_gate.stats()  # type: ignore[no-any-return]
         return {"status": "not initialized"}

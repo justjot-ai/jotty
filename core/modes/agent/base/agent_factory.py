@@ -163,7 +163,7 @@ class UniversalRetryHandler:
             reasoning=f"Failed after {len(attempts)} attempts: {attempts[-1]['error']}",
             is_certain=False,
             needs_human_review=True,
-            error_history=[a["error"] for a in attempts],
+            error_history=[a["error"] for a in attempts],  # type: ignore[misc]
         )
 
     async def _call_agent(self, agent_func: Any, input_dict: Dict) -> Any:
@@ -292,7 +292,7 @@ class PatternDetector:
         """
         if not self.detector:
             # Return uncertainty, not heuristics!
-            return {p: None for p in (patterns or self.STANDARD_PATTERNS)}
+            return {p: None for p in (patterns or self.STANDARD_PATTERNS)}  # type: ignore[misc]
 
         patterns = patterns or self.STANDARD_PATTERNS
 
@@ -308,14 +308,14 @@ class PatternDetector:
         except Exception as e:
             logger.warning(f"Pattern detection failed: {e}")
             # Return uncertainty, NOT heuristics
-            return {p: None for p in patterns}
+            return {p: None for p in patterns}  # type: ignore[misc]
 
     def _parse_detected(self, detected_str: str) -> Dict[str, bool]:
         """Parse detected patterns from LLM output."""
         try:
             if isinstance(detected_str, dict):
-                return detected_str
-            return json.loads(detected_str)
+                return detected_str  # type: ignore[unreachable]
+            return json.loads(detected_str)  # type: ignore[no-any-return]
         except (json.JSONDecodeError, ValueError, TypeError) as e:
             # Try to extract from string if JSON parsing fails
             logger.debug(f"JSON parsing failed, extracting from string: {e}")

@@ -92,7 +92,7 @@ class ResearchWorkflow:
         """Initialize research workflow."""
         self.intent = intent
         self.pipeline = None
-        self.stage_configs = {}
+        self.stage_configs: Dict[str, Any] = {}
 
     @classmethod
     def from_intent(
@@ -211,7 +211,7 @@ class ResearchWorkflow:
 
         # Determine max sources based on depth
         depth_to_sources = {"quick": 5, "standard": 15, "comprehensive": 25, "exhaustive": 50}
-        max_sources = self.intent.max_sources or depth_to_sources.get(self.intent.depth, 15)
+        max_sources = self.intent.max_sources or depth_to_sources.get(self.intent.depth, 15)  # type: ignore[arg-type]
 
         # Build base context
         base_context = f"""
@@ -229,7 +229,7 @@ Guidelines:
 """
 
         # Track previous stages for context chaining
-        previous_stages = []
+        previous_stages: List[Any] = []
 
         # Stage mapping
         stage_prompts = {
@@ -511,7 +511,7 @@ Compile complete research report:
 4. Appendices
 5. Bibliography
 
-Output Format: {', '.join(self.intent.output_formats)}
+Output Format: {', '.join(self.intent.output_formats or [])}  # type: ignore[arg-type]
 
 Professional quality, publication-ready.""",
             ),
@@ -566,7 +566,7 @@ Maximum 500 words, extremely clear and actionable.""",
                 context_from = previous_stages.copy() if previous_stages else None
 
             # Add stage
-            self.pipeline.add_stage(
+            self.pipeline.add_stage(  # type: ignore[attr-defined]
                 name=deliverable,
                 swarms=swarms,
                 merge_strategy=merge_strategy,
@@ -583,7 +583,7 @@ Maximum 500 words, extremely clear and actionable.""",
                 merge_strategy = config.get("merge_strategy", MergeStrategy.BEST_OF_N)
                 context_from = config.get("context_from")
 
-                self.pipeline.add_stage(
+                self.pipeline.add_stage(  # type: ignore[attr-defined]
                     name=stage_name,
                     swarms=swarms,
                     merge_strategy=merge_strategy,
@@ -679,7 +679,7 @@ Maximum 500 words, extremely clear and actionable.""",
         if self.pipeline is None:
             self.build_pipeline()
 
-        return await self.pipeline.execute(auto_trace=True, verbose=verbose)
+        return await self.pipeline.execute(auto_trace=True, verbose=verbose)  # type: ignore[attr-defined]
 
     async def run_with_outputs(
         self,

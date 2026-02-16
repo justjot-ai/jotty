@@ -299,4 +299,4 @@ class CustomBenchmark(Benchmark):
             return self.validate_func(task, answer)
 
         # Default: exact match (case-insensitive, stripped)
-        return answer.strip().lower() == expected_answer.strip().lower()
+        return answer.strip().lower() == expected_answer.strip().lower()  # type: ignore[no-any-return]

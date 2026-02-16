@@ -72,7 +72,7 @@ class ChatOrchestrator:
         if hasattr(self.conductor, "select_agent"):
             agent = self.conductor.select_agent(message, history, context)
             logger.debug(f"Dynamic mode: Selected agent: {agent}")
-            return agent
+            return agent  # type: ignore[no-any-return]
 
         # Fallback: use conductor's agent selection logic
         if hasattr(self.conductor, "actors") and self.conductor.actors:

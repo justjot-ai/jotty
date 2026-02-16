@@ -14,7 +14,9 @@ import logging
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 if TYPE_CHECKING:
-    from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
+    from Jotty.core.infrastructure.foundation.agent_config import (
+        AgentConfig,  # type: ignore[import-not-found, import]
+    )
 
     from .learning_pipeline import SwarmLearningPipeline
     from .mas_learning import MASLearning
@@ -43,18 +45,18 @@ class LearningDelegate:
 
     @property
     def learning(self) -> "SwarmLearningPipeline":
-        return self._get_learning()
+        return self._get_learning()  # type: ignore[no-any-return]
 
     @property
     def mas_learning(self) -> Optional["MASLearning"]:
         try:
-            return self._get_mas()
+            return self._get_mas()  # type: ignore[no-any-return]
         except Exception:
             return None
 
     @property
     def agents(self) -> List["AgentConfig"]:
-        return self._get_agents()
+        return self._get_agents()  # type: ignore[no-any-return]
 
     def auto_load_learnings(self) -> None:
         """Load all persisted learnings."""
@@ -115,7 +117,7 @@ class LearningDelegate:
         """Record an agent's task result for learning."""
         mas = self.mas_learning
         if mas:
-            mas.record_agent_task(
+            mas.record_agent_task(  # type: ignore[attr-defined]
                 agent_type=agent_name,
                 task_type=task_type,
                 success=success,
@@ -135,7 +137,7 @@ class LearningDelegate:
         """Record session results for future learning."""
         mas = self.mas_learning
         if mas:
-            mas.record_session(
+            mas.record_session(  # type: ignore[call-arg]
                 task_description=task_description,
                 agent_performances=agent_performances,
                 fixes_applied=fixes_applied or [],

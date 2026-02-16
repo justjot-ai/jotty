@@ -191,7 +191,7 @@ class AnthropicAPIProvider:
                 model=model,
             )
 
-        from Jotty.core.infrastructure.foundation.direct_anthropic_lm import (
+        from Jotty.core.infrastructure.foundation.direct_anthropic_lm import (  # type: ignore[import-not-found, import]
             get_anthropic_client_kwargs,
         )
 
@@ -213,7 +213,7 @@ class AnthropicAPIProvider:
                 messages=[{"role": "user", "content": prompt}],
             )
 
-            text = message.content[0].text if message.content else ""
+            text = message.content[0].text if message.content else ""  # type: ignore[union-attr]
 
             return LLMResponse(
                 success=True,
@@ -335,7 +335,7 @@ class OpenAIProvider:
 
             return LLMResponse(
                 success=True,
-                text=text,
+                text=text,  # type: ignore[arg-type]
                 provider="openai",
                 model=model_id,
                 usage=(

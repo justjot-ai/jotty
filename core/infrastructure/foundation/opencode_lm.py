@@ -17,7 +17,9 @@ from typing import Any, Iterator, Optional
 
 from dspy.clients.base_lm import BaseLM
 
-from Jotty.core.infrastructure.foundation.exceptions import LLMError
+from Jotty.core.infrastructure.foundation.exceptions import (
+    LLMError,  # type: ignore[import-not-found]
+)
 
 REMOTE_HOST = os.getenv("OPENCODE_REMOTE_HOST", "cmd.prod.ancillary")
 OPENCODE_BIN = os.getenv("OPENCODE_BIN", "opencode")
@@ -71,7 +73,7 @@ class OpenCodeLM(BaseLM):
 
     def forward(
         self, prompt: str | None = None, messages: list | None = None, **kwargs: Any
-    ) -> Dict:
+    ) -> Dict:  # type: ignore[name-defined]
         """
         DSPy BaseLM required method
         Returns OpenAI-compatible response format
@@ -189,7 +191,7 @@ class OpenCodeLM(BaseLM):
         )
 
         # Stream response
-        for line in iter(process.stdout.readline, ""):
+        for line in iter(process.stdout.readline, ""):  # type: ignore[union-attr]
             if not line:
                 break
 

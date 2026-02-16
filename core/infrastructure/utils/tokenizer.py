@@ -58,7 +58,7 @@ class SmartTokenizer:
             encoding_name: tiktoken encoding name (default: cl100k_base)
         """
         self.encoding_name = encoding_name or self.DEFAULT_ENCODING
-        self._tiktoken_encoder = None
+        self._tiktoken_encoder: Optional[Encoding] = None  # type: ignore[name-defined]
         self._tiktoken_available = False
 
         # Try to load tiktoken
@@ -255,8 +255,8 @@ class SmartTokenizer:
         adjustments += len(urls) * 5
 
         # Special tokens (newlines, tabs)
-        adjustments += text.count("\n") * 0.5
-        adjustments += text.count("\t") * 0.5
+        adjustments += text.count("\n") * 0.5  # type: ignore[assignment]
+        adjustments += text.count("\t") * 0.5  # type: ignore[assignment]
 
         # Punctuation clusters
         punct_clusters = re.findall(r"[^\w\s]{3,}", text)

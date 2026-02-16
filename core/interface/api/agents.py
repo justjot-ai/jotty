@@ -14,8 +14,11 @@ This ensures:
 - Clean separation of concerns
 """
 
-from Jotty.core.modes.agent.agents.auto_agent import AutoAgent
-from Jotty.core.modes.agent.agents.chat_assistant import ChatAssistant, create_chat_assistant
+from Jotty.core.modes.agent.agents.auto_agent import AutoAgent  # type: ignore[import]
+from Jotty.core.modes.agent.agents.chat_assistant import (  # type: ignore[import]
+    ChatAssistant,
+    create_chat_assistant,
+)
 
 __all__ = [
     "ChatAssistant",

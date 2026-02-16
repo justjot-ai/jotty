@@ -7,7 +7,9 @@ Extracted from __init__.py to keep the lazy-import init clean.
 import asyncio
 from typing import Any, List
 
-from Jotty.core.infrastructure.foundation.data_structures import EpisodeResult
+from Jotty.core.infrastructure.foundation.data_structures import (
+    EpisodeResult,  # type: ignore[import]
+)
 
 from .agent_runner import AgentRunner
 

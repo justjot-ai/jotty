@@ -50,9 +50,11 @@ try:
 except ImportError:
     DSPY_AVAILABLE = False
 
-from Jotty.core.infrastructure.utils.context_utils import strip_enrichment_context
+from Jotty.core.infrastructure.utils.context_utils import (
+    strip_enrichment_context,  # type: ignore[import-not-found, import]
+)
 
-from .base import AgentConfig, ModelTier, StageConfig, SwarmTemplate
+from .base import AgentConfig, ModelTier, StageConfig, SwarmTemplate  # type: ignore[attr-defined]
 
 # =============================================================================
 # LLM-Based Task Classification (No Keyword Matching)
@@ -247,8 +249,8 @@ Use clear headings, bullet points, and professional formatting.""",
         """
         # Use cached result if available
         cache_key = hash(task)
-        if hasattr(self, "_classification_cache") and cache_key in self._classification_cache:
-            return self._classification_cache[cache_key]
+        if hasattr(self, "_classification_cache") and cache_key in self._classification_cache:  # type: ignore[has-type]
+            return self._classification_cache[cache_key]  # type: ignore[has-type, no-any-return]
 
         if not hasattr(self, "_classification_cache"):
             self._classification_cache = {}
@@ -288,15 +290,15 @@ Use clear headings, bullet points, and professional formatting.""",
 
     def detect_task_type(self, task: str) -> str:
         """LLM decides task type - no keywords."""
-        return self._classify_task(task)["task_type"]
+        return self._classify_task(task)["task_type"]  # type: ignore[no-any-return]
 
     def needs_web_search(self, task: str) -> bool:
         """LLM decides if web search needed - no keywords."""
-        return self._classify_task(task)["needs_web_search"]
+        return self._classify_task(task)["needs_web_search"]  # type: ignore[no-any-return]
 
     def get_output_format(self, task: str) -> str:
         """LLM decides output format - no keywords."""
-        return self._classify_task(task)["output_format"]
+        return self._classify_task(task)["output_format"]  # type: ignore[no-any-return]
 
     def validate_inputs(self, **kwargs: Any) -> bool:
         """Validate that required inputs are provided."""
@@ -305,7 +307,7 @@ Use clear headings, bullet points, and professional formatting.""",
 
     def clean_task_for_execution(self, task: str) -> str:
         """Clean task string by stripping injected enrichment context."""
-        return strip_enrichment_context(task)
+        return strip_enrichment_context(task)  # type: ignore[no-any-return]
 
     def get_search_query(self, task: str) -> str:
         """

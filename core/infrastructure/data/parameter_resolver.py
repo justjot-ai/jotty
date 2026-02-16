@@ -18,7 +18,7 @@ import json
 import logging
 from typing import Any, Dict, List, Optional, Tuple, Type
 
-import dspy
+import dspy  # type: ignore[import-untyped]
 
 logger = logging.getLogger(__name__)
 

@@ -71,7 +71,7 @@ class SwarmResearcher:
             from Jotty.core.capabilities.registry.skills_registry import get_skills_registry
 
             self._skills_registry = get_skills_registry()
-            self._skills_registry.init()
+            self._skills_registry.init()  # type: ignore[attr-defined]
 
         if self._tools_registry is None:
             from Jotty.core.capabilities.registry.tools_registry import get_tools_registry
@@ -79,7 +79,9 @@ class SwarmResearcher:
             self._tools_registry = get_tools_registry()
 
         if self._planner is None:
-            from Jotty.core.modes.agent.baseic_planner import TaskPlanner
+            from Jotty.core.modes.agent.baseic_planner import (
+                TaskPlanner,  # type: ignore[import-not-found]
+            )
 
             self._planner = TaskPlanner()
 
@@ -137,7 +139,7 @@ class SwarmResearcher:
                 )
 
         # STEP 2: Check web-search skill if available
-        web_search_skill = self._skills_registry.get_skill("web-search")
+        web_search_skill = self._skills_registry.get_skill("web-search")  # type: ignore[attr-defined]
         if web_search_skill:
             try:
                 search_result = await self._search_with_skill(web_search_skill, query)
@@ -185,7 +187,7 @@ class SwarmResearcher:
             # Execute skill's search tool
             if hasattr(skill, "execute"):
                 result = await skill.execute({"query": query})
-                return result
+                return result  # type: ignore[no-any-return]
 
             # Get tools - SkillDefinition.tools is Dict[str, Callable]
             tools = getattr(skill, "tools", {})
@@ -221,9 +223,9 @@ class SwarmResearcher:
                     if "search" in tool_name.lower() or "web" in tool_name.lower():
                         if callable(tool):
                             if asyncio.iscoroutinefunction(tool):
-                                return await tool(query=query)
+                                return await tool(query=query)  # type: ignore[no-any-return]
                             else:
-                                return tool(query=query)
+                                return tool(query=query)  # type: ignore[no-any-return]
         except Exception as e:
             logger.debug(f"Skill execution failed: {e}")
             import traceback
@@ -304,7 +306,7 @@ Format your response clearly with sections for tools, APIs, and documentation.
         # Enhanced parsing with multiple strategies
         lines = response.split("\n")
         current_section = None
-        current_finding = {}
+        current_finding: Dict[str, Any] = {}
 
         for line in lines:
             line = line.strip()
@@ -603,7 +605,7 @@ Format your response clearly with sections for tools, APIs, and documentation.
         try:
             # Get all skills (returns List[Dict[str, Any]])
             if hasattr(self._skills_registry, "list_skills"):
-                all_skills_data = self._skills_registry.list_skills()
+                all_skills_data = self._skills_registry.list_skills()  # type: ignore[attr-defined]
                 # Extract skill names from dicts
                 skill_names = [
                     s.get("name", s) if isinstance(s, dict) else s for s in all_skills_data
@@ -612,14 +614,14 @@ Format your response clearly with sections for tools, APIs, and documentation.
                 # Fallback: try to get all registered skills
                 skill_names = []
                 if hasattr(self._skills_registry, "_skills"):
-                    skill_names = list(self._skills_registry._skills.keys())
+                    skill_names = list(self._skills_registry._skills.keys())  # type: ignore[attr-defined]
 
             # Search by name and description
             for skill_name in skill_names:
                 if isinstance(skill_name, dict):
                     skill_name = skill_name.get("name", "")
 
-                skill = self._skills_registry.get_skill(skill_name)
+                skill = self._skills_registry.get_skill(skill_name)  # type: ignore[attr-defined]
                 if skill:
                     # Check if query matches skill name
                     skill_name_lower = skill_name.lower()
@@ -651,7 +653,7 @@ Format your response clearly with sections for tools, APIs, and documentation.
         try:
             # Get all tools (returns List[ToolSchema])
             all_tools = (
-                self._tools_registry.get_all() if hasattr(self._tools_registry, "get_all") else []
+                self._tools_registry.get_all() if hasattr(self._tools_registry, "get_all") else []  # type: ignore[attr-defined]
             )
             for tool in all_tools:
                 tool_name = tool.name if hasattr(tool, "name") else str(tool)
@@ -694,14 +696,14 @@ Format your response clearly with sections for tools, APIs, and documentation.
             # Check if tool exists in registries
             try:
                 # Check skills registry
-                skill = self._skills_registry.get_skill(tool)
+                skill = self._skills_registry.get_skill(tool)  # type: ignore[attr-defined]
                 if skill:
                     validated.append(tool)
                     continue
 
                 # Check tools registry (uses get() method)
                 if hasattr(self._tools_registry, "get"):
-                    tool_obj = self._tools_registry.get(tool)
+                    tool_obj = self._tools_registry.get(tool)  # type: ignore[attr-defined]
                     if tool_obj:
                         validated.append(tool)
                         continue
@@ -788,7 +790,7 @@ Format your response clearly with sections for tools, APIs, and documentation.
 
         Uses GitHub search API to find Python packages related to the capability.
         """
-        candidates = []
+        candidates: List[Any] = []
 
         try:
             import aiohttp
@@ -935,7 +937,7 @@ Format your response clearly with sections for tools, APIs, and documentation.
 
         Parses awesome-python and similar lists for relevant packages.
         """
-        candidates = []
+        candidates: List[Any] = []
 
         # Map capabilities to awesome-list sections
         capability_lower = capability.lower()
@@ -999,7 +1001,7 @@ Format your response clearly with sections for tools, APIs, and documentation.
         self, content: str, section_name: str
     ) -> List[ProviderCandidate]:
         """Parse awesome-list markdown to extract packages from a section."""
-        candidates = []
+        candidates: List[Any] = []
 
         # Find section
         section_pattern = rf"## {re.escape(section_name)}.*?\n(.*?)(?=\n## |\Z)"

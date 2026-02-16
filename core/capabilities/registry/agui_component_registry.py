@@ -280,7 +280,7 @@ class AGUIComponentRegistry:
         try:
             # Call adapter function with content and props
             result = adapter.to_a2ui_func({"content": content, **props})
-            return result
+            return result  # type: ignore[no-any-return]
         except Exception as e:
             logger.error(f"Error converting {section_type} to A2UI: {e}")
             return None
@@ -306,7 +306,7 @@ class AGUIComponentRegistry:
 
         try:
             result = adapter.to_agui_func({"content": content, **props})
-            return result
+            return result  # type: ignore[no-any-return]
         except Exception as e:
             logger.error(f"Error converting {section_type} to AGUI: {e}")
             return None

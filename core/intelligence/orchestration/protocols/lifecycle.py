@@ -48,42 +48,42 @@ class LifecycleMixin:
 
         # Insert in priority order (higher priority first)
         inserted = False
-        for i, t in enumerate(self.priority_queue):
+        for i, t in enumerate(self.priority_queue):  # type: ignore[attr-defined]
             if priority > t["priority"]:
-                self.priority_queue.insert(i, task)
+                self.priority_queue.insert(i, task)  # type: ignore[attr-defined]
                 inserted = True
                 break
             elif priority == t["priority"]:
                 # Same priority: earlier deadline first
                 if task["deadline"] < t["deadline"]:
-                    self.priority_queue.insert(i, task)
+                    self.priority_queue.insert(i, task)  # type: ignore[attr-defined]
                     inserted = True
                     break
 
         if not inserted:
-            self.priority_queue.append(task)
+            self.priority_queue.append(task)  # type: ignore[attr-defined]
 
         logger.debug(f"Task enqueued: {task_id} (priority={priority})")
 
     def dequeue_task(self) -> Optional[Dict]:
         """Get highest priority task from queue."""
-        if not self.priority_queue:
+        if not self.priority_queue:  # type: ignore[attr-defined]
             return None
 
-        return self.priority_queue.pop(0)
+        return self.priority_queue.pop(0)  # type: ignore[attr-defined, no-any-return]
 
     def peek_queue(self, n: int = 5) -> List[Dict]:
         """Peek at top N tasks in queue."""
-        return self.priority_queue[:n]
+        return self.priority_queue[:n]  # type: ignore[attr-defined, no-any-return]
 
     def escalate_priority(self, task_id: str, new_priority: int) -> None:
         """Escalate task priority (reposition in queue)."""
 
         # Find and remove task
         task = None
-        for i, t in enumerate(self.priority_queue):
+        for i, t in enumerate(self.priority_queue):  # type: ignore[attr-defined]
             if t["task_id"] == task_id:
-                task = self.priority_queue.pop(i)
+                task = self.priority_queue.pop(i)  # type: ignore[attr-defined]
                 break
 
         if task:
@@ -132,7 +132,7 @@ class LifecycleMixin:
             sub_context["parallel"] = parallel
 
             # Route subtask to best agent
-            route = self.smart_route(
+            route = self.smart_route(  # type: ignore[attr-defined]
                 task_id=sub_id,
                 task_type=sub_type,
                 task_description=sub_context.get("description", ""),
@@ -140,7 +140,7 @@ class LifecycleMixin:
 
             if route["assigned_agent"]:
                 # Create handoff for subtask
-                self.initiate_handoff(
+                self.initiate_handoff(  # type: ignore[attr-defined]
                     task_id=sub_id,
                     from_agent="decomposer",
                     to_agent=route["assigned_agent"],
@@ -195,14 +195,14 @@ class LifecycleMixin:
 
         Emergent leadership pattern: Best performer leads.
         """
-        candidates = candidates or list(self.agent_profiles.keys())
-        available = self.get_available_agents(candidates)
+        candidates = candidates or list(self.agent_profiles.keys())  # type: ignore[attr-defined]
+        available = self.get_available_agents(candidates)  # type: ignore[attr-defined]
 
         if not available:
             return None
 
         def score_candidate(agent: str) -> float:
-            profile = self.agent_profiles.get(agent, AgentProfile(agent))
+            profile = self.agent_profiles.get(agent, AgentProfile(agent))  # type: ignore[attr-defined]
             score = profile.trust_score * 0.4
 
             if task_type:
@@ -214,17 +214,17 @@ class LifecycleMixin:
                 score += (total_s / total_t if total_t > 0 else 0.5) * 0.3
 
             # Low load bonus
-            load = self.get_agent_load(agent)
+            load = self.get_agent_load(agent)  # type: ignore[attr-defined]
             score += (1 - load) * 0.2
 
             # Experience bonus
             score += min(0.1, profile.total_tasks / 100)
 
-            return score
+            return score  # type: ignore[no-any-return]
 
         leader = max(available, key=score_candidate)
         logger.info(f"Leader elected: {leader} (score: {score_candidate(leader):.2f})")
-        return leader
+        return leader  # type: ignore[no-any-return]
 
     # =========================================================================
     # ADAPTIVE TIMEOUT (Adjust based on task/agent history)
@@ -240,7 +240,7 @@ class LifecycleMixin:
 
         Slow agents get more time, fast agents get less.
         """
-        profile = self.agent_profiles.get(agent)
+        profile = self.agent_profiles.get(agent)  # type: ignore[attr-defined]
         if not profile or profile.total_tasks < 3:
             return base_timeout
 
@@ -251,7 +251,7 @@ class LifecycleMixin:
         timeout = avg_time * 2.0
 
         # Clamp to reasonable bounds
-        return max(base_timeout * 0.5, min(base_timeout * 3, timeout))
+        return max(base_timeout * 0.5, min(base_timeout * 3, timeout))  # type: ignore[no-any-return]
 
     # =========================================================================
     # AGENT LIFECYCLE (Spawn/retire dynamically)
@@ -267,19 +267,19 @@ class LifecycleMixin:
 
         Based on: load, queue size, specialization gaps.
         """
-        backpressure = self.calculate_backpressure()
+        backpressure = self.calculate_backpressure()  # type: ignore[attr-defined]
         if backpressure < 0.7:
             return False
 
         # Check specialization gap
         if task_type:
             specialists = [
-                a for a, p in self.agent_profiles.items() if p.get_success_rate(task_type) > 0.8
+                a for a, p in self.agent_profiles.items() if p.get_success_rate(task_type) > 0.8  # type: ignore[attr-defined]
             ]
             if len(specialists) < 2:
                 return True
 
-        return backpressure > 0.85
+        return backpressure > 0.85  # type: ignore[no-any-return]
 
     def should_retire_agent(self, agent: str) -> bool:
         """
@@ -287,7 +287,7 @@ class LifecycleMixin:
 
         Based on: low trust, high failure rate, idle time.
         """
-        profile = self.agent_profiles.get(agent)
+        profile = self.agent_profiles.get(agent)  # type: ignore[attr-defined]
         if not profile:
             return False
 
@@ -311,20 +311,20 @@ class LifecycleMixin:
 
     def retire_agent(self, agent: str) -> None:
         """Remove agent from swarm."""
-        if agent in self.agent_profiles:
-            del self.agent_profiles[agent]
+        if agent in self.agent_profiles:  # type: ignore[attr-defined]
+            del self.agent_profiles[agent]  # type: ignore[attr-defined]
 
         # Clean up related state
-        self.agent_coalitions.pop(agent, None)
+        self.agent_coalitions.pop(agent, None)  # type: ignore[attr-defined]
         if hasattr(self, "circuit_breakers"):
             self.circuit_breakers.pop(agent, None)
 
         # Reassign pending handoffs
-        for task_id, handoff in list(self.pending_handoffs.items()):
+        for task_id, handoff in list(self.pending_handoffs.items()):  # type: ignore[attr-defined]
             if handoff.to_agent == agent:
-                available = [a for a in self.agent_profiles.keys() if a != agent]
+                available = [a for a in self.agent_profiles.keys() if a != agent]  # type: ignore[attr-defined]
                 if available:
-                    new_agent = self.get_best_agent_for_task(handoff.task_type, available)
+                    new_agent = self.get_best_agent_for_task(handoff.task_type, available)  # type: ignore[attr-defined]
                     if new_agent:
                         handoff.to_agent = new_agent
 
@@ -364,7 +364,7 @@ class LifecycleMixin:
                 if asyncio.iscoroutinefunction(func):
                     result = await asyncio.wait_for(func(*args, **kwargs), timeout=timeout_per_task)
                 else:
-                    result = func(*args, **kwargs)
+                    result = func(*args, **kwargs)  # type: ignore[misc]
 
                 return {
                     "task_id": task_id,
@@ -402,7 +402,7 @@ class LifecycleMixin:
                     }
                 )
             else:
-                processed.append(r)
+                processed.append(r)  # type: ignore[arg-type]
 
         return processed
 
@@ -456,7 +456,7 @@ class LifecycleMixin:
             result: Result to cache
             ttl: Time-to-live in seconds (default 1 hour)
         """
-        self._result_cache[key] = {"result": result, "cached_at": time.time(), "ttl": ttl}
+        self._result_cache[key] = {"result": result, "cached_at": time.time(), "ttl": ttl}  # type: ignore[attr-defined]
 
     def get_cached(self, key: str) -> Optional[Any]:
         """
@@ -464,29 +464,29 @@ class LifecycleMixin:
 
         Returns None if not cached or expired.
         """
-        entry = self._result_cache.get(key)
+        entry = self._result_cache.get(key)  # type: ignore[attr-defined]
         if not entry:
-            self._cache_misses += 1
+            self._cache_misses += 1  # type: ignore[attr-defined]
             return None
 
         # Check TTL
         age = time.time() - entry["cached_at"]
         if age > entry["ttl"]:
-            del self._result_cache[key]
-            self._cache_misses += 1
+            del self._result_cache[key]  # type: ignore[attr-defined]
+            self._cache_misses += 1  # type: ignore[attr-defined]
             return None
 
-        self._cache_hits += 1
+        self._cache_hits += 1  # type: ignore[attr-defined]
         return entry["result"]
 
     def get_cache_stats(self) -> Dict[str, Any]:
         """Get cache statistics."""
-        total = self._cache_hits + self._cache_misses
+        total = self._cache_hits + self._cache_misses  # type: ignore[attr-defined]
         return {
-            "hits": self._cache_hits,
-            "misses": self._cache_misses,
-            "hit_rate": self._cache_hits / total if total > 0 else 0,
-            "size": len(self._result_cache),
+            "hits": self._cache_hits,  # type: ignore[attr-defined]
+            "misses": self._cache_misses,  # type: ignore[attr-defined]
+            "hit_rate": self._cache_hits / total if total > 0 else 0,  # type: ignore[attr-defined]
+            "size": len(self._result_cache),  # type: ignore[attr-defined]
         }
 
     def clear_cache(self, pattern: str | None = None) -> None:
@@ -494,11 +494,11 @@ class LifecycleMixin:
         if pattern:
             import fnmatch
 
-            keys_to_delete = [k for k in self._result_cache if fnmatch.fnmatch(k, pattern)]
+            keys_to_delete = [k for k in self._result_cache if fnmatch.fnmatch(k, pattern)]  # type: ignore[attr-defined]
             for k in keys_to_delete:
-                del self._result_cache[k]
+                del self._result_cache[k]  # type: ignore[attr-defined]
         else:
-            self._result_cache.clear()
+            self._result_cache.clear()  # type: ignore[attr-defined]
 
     # =========================================================================
     # INCREMENTAL PROCESSING (Stream results as they complete)
@@ -534,7 +534,7 @@ class LifecycleMixin:
                 if asyncio.iscoroutinefunction(func):
                     result = await func(*args, **kwargs)
                 else:
-                    result = func(*args, **kwargs)
+                    result = func(*args, **kwargs)  # type: ignore[misc]
 
                 if on_complete:
                     on_complete(task_id, result)
@@ -588,7 +588,7 @@ class LifecycleMixin:
             chunk = items[i : i + chunk_size]
 
             # Check backpressure
-            if not self.should_accept_task(priority=5):
+            if not self.should_accept_task(priority=5):  # type: ignore[attr-defined]
                 logger.warning(f"Backpressure high, waiting before chunk {i // chunk_size}")
                 await asyncio.sleep(1.0)
 

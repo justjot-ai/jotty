@@ -22,8 +22,10 @@ import threading
 from typing import TYPE_CHECKING, Dict
 
 if TYPE_CHECKING:
-    from Jotty.core.infrastructure.context.content_gate import ContentGate
-    from Jotty.core.infrastructure.context.context_manager import SmartContextManager
+    from Jotty.core.infrastructure.context.content_gate import ContentGate  # type: ignore[import]
+    from Jotty.core.infrastructure.context.context_manager import (
+        SmartContextManager,  # type: ignore[import]
+    )
 
 _lock = threading.Lock()
 _singletons: Dict[str, object] = {}

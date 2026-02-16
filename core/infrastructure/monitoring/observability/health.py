@@ -29,7 +29,7 @@ class HealthCheckResult:
     status: HealthStatus
     message: str
     duration_ms: float
-    metadata: Dict[str, Any] = None
+    metadata: Dict[str, Any] = None  # type: ignore[assignment]
 
 
 class HealthCheck:
@@ -134,7 +134,7 @@ class HealthCheck:
 
     def is_healthy(self) -> bool:
         """Check if system is healthy."""
-        return self.check_all()["status"] == HealthStatus.HEALTHY.value
+        return self.check_all()["status"] == HealthStatus.HEALTHY.value  # type: ignore[no-any-return]
 
 
 # Default health checks
@@ -170,7 +170,7 @@ def check_registry() -> bool:
 
 
 # Singleton instance
-_health_check: HealthCheck = None
+_health_check: HealthCheck = None  # type: ignore[assignment]
 
 
 def get_health_check() -> HealthCheck:

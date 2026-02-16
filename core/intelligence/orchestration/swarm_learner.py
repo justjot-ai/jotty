@@ -43,7 +43,7 @@ if DSPY_AVAILABLE:
         learning_summary = dspy.OutputField(desc="What the system learned")
 
 else:
-    SwarmLearnerSignature = None
+    SwarmLearnerSignature = None  # type: ignore[assignment, misc]
 
 
 class SwarmLearner:
@@ -67,7 +67,7 @@ class SwarmLearner:
         self.config = config
         self.learner = (
             dspy.ChainOfThought(SwarmLearnerSignature)
-            if DSPY_AVAILABLE and SwarmLearnerSignature
+            if DSPY_AVAILABLE and SwarmLearnerSignature  # type: ignore[truthy-function]
             else None
         )
 

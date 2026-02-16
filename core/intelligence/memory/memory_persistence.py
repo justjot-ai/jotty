@@ -11,7 +11,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from Jotty.core.infrastructure.foundation.data_structures import MemoryEntry, MemoryLevel
+from Jotty.core.infrastructure.foundation.data_structures import (  # type: ignore[import]
+    MemoryEntry,
+    MemoryLevel,
+)
 
 from .cortex import SwarmMemory
 

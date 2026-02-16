@@ -50,6 +50,6 @@ class ExecutionConfig:
             "actor_timeout": self.actor_timeout,
             "llm_timeout_seconds": self.llm_timeout_seconds,
         }
-        for name, val in _pos_float_fields.items():
+        for name, val in _pos_float_fields.items():  # type: ignore[assignment]
             if val <= 0:
                 raise ValueError(f"{name} must be > 0, got {val}")

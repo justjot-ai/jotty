@@ -71,7 +71,7 @@ class ProviderManager:
                 OpenInterpreterProvider({"auto_run": True}),
             ]:
                 try:
-                    self.provider_registry.register(provider)
+                    self.provider_registry.register(provider)  # type: ignore[attr-defined]
                 except Exception as e:
                     logger.debug(f"Could not register {provider.name}: {e}")
 
@@ -85,19 +85,19 @@ class ProviderManager:
                     provider.set_registry(self.provider_registry)
                     if hasattr(provider, "set_swarm_intelligence"):
                         provider.set_swarm_intelligence(si)
-                    self.provider_registry.register(provider)
+                    self.provider_registry.register(provider)  # type: ignore[attr-defined]
                 except Exception as e:
                     logger.debug(f"Could not register composite {provider.name}: {e}")
 
             # Load learned provider preferences
             provider_path = self._get_provider_registry_path()
             if provider_path.exists():
-                self.provider_registry.load_state(str(provider_path))
+                self.provider_registry.load_state(str(provider_path))  # type: ignore[attr-defined]
                 logger.info(f"Loaded provider learnings from {provider_path}")
 
             logger.info(
                 f"Provider registry initialized: "
-                f"{list(self.provider_registry.get_all_providers().keys())}"
+                f"{list(self.provider_registry.get_all_providers().keys())}"  # type: ignore[attr-defined]
             )
 
         except Exception as e:
@@ -167,7 +167,7 @@ class ProviderManager:
         """Get summary of provider registry state."""
         if not self.provider_registry:
             return {"available": False}
-        return {
+        return {  # type: ignore[unreachable]
             "available": True,
             **self.provider_registry.get_registry_summary(),
         }

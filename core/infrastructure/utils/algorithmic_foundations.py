@@ -28,7 +28,7 @@ ContentChunk = ContextChunk
 # Universal Context Management
 # NOTE: global_context_guard module was removed; provide stubs so dependents load.
 try:
-    from ..context.global_context_guard import (
+    from ..context.global_context_guard import (  # type: ignore[import-not-found]
         ContextOverflowInfo,
         GlobalContextGuard,
         OverflowDetector,
@@ -324,7 +324,7 @@ class MutualInformationRetriever:
             relevance_scores[id(mem)] = self._compute_relevance(content, query)
 
         # Greedy selection with MMR
-        selected = []
+        selected: List[Any] = []  # type: ignore[name-defined]
         remaining = list(memories)
 
         for _ in range(k):
@@ -359,7 +359,7 @@ class MutualInformationRetriever:
                 selected.append(best_mem)
                 remaining.remove(best_mem)
 
-        return selected
+        return selected  # type: ignore[no-any-return]
 
     def _compute_relevance(self, content: str, query: str) -> float:
         """Compute relevance (simple word overlap for efficiency)."""

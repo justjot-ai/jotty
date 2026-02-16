@@ -20,7 +20,7 @@ class OpenAIProvider(LLMProvider):
         self.model = model
         self.api_key = api_key or os.environ.get("OPENAI_API_KEY")
         self.base_url = base_url
-        self._client = None
+        self._client: Optional[OpenAI] = None  # type: ignore[name-defined]
 
     @property
     def client(self) -> Any:
@@ -30,7 +30,7 @@ class OpenAIProvider(LLMProvider):
             kwargs = {"api_key": self.api_key}
             if self.base_url:
                 kwargs["base_url"] = self.base_url
-            self._client = OpenAI(**kwargs)
+            self._client = OpenAI(**kwargs)  # type: ignore[arg-type]
         return self._client
 
     def convert_tools(self, tools: List[Dict]) -> List[Dict]:
@@ -84,7 +84,7 @@ class OpenAIProvider(LLMProvider):
         full_messages.extend(self._convert_messages(messages))
 
         full_content = ""
-        tool_calls = []
+        tool_calls: List[Any] = []
 
         stream = self.client.chat.completions.create(
             model=self.model,
@@ -132,7 +132,7 @@ class OpenAIProvider(LLMProvider):
                     args = json.loads(tc["arguments"]) if tc["arguments"] else {}
                 except json.JSONDecodeError:
                     args = {}
-                content.append(ToolUseBlock(id=tc["id"], name=tc["name"], input=args))
+                content.append(ToolUseBlock(id=tc["id"], name=tc["name"], input=args))  # type: ignore[arg-type]
 
         stop_reason = "tool_use" if tool_calls else "end_turn"
 
@@ -210,7 +210,7 @@ class OpenAIProvider(LLMProvider):
                     args = json.loads(tc.function.arguments) if tc.function.arguments else {}
                 except json.JSONDecodeError:
                     args = {}
-                content.append(ToolUseBlock(id=tc.id, name=tc.function.name, input=args))
+                content.append(ToolUseBlock(id=tc.id, name=tc.function.name, input=args))  # type: ignore[arg-type]
 
         stop_reason = "tool_use" if choice.message.tool_calls else "end_turn"
         if choice.finish_reason == "stop":

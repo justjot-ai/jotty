@@ -587,7 +587,11 @@ class TestUnifiedResult:
         mock_sr_cls.return_value = MagicMock()
         with patch.dict(
             "sys.modules",
-            {"Jotty.core.swarms.swarm_types": MagicMock(SwarmResult=mock_sr_cls)},
+            {
+                "Jotty.core.intelligence.swarms._base.swarm_types": MagicMock(
+                    SwarmResult=mock_sr_cls
+                )
+            },
         ):
             sr = ur.to_swarm_result()
             mock_sr_cls.assert_called_once()

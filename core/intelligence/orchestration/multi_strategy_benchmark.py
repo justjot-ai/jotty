@@ -11,7 +11,9 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-from Jotty.core.infrastructure.monitoring.observability import get_distributed_tracer
+from Jotty.core.infrastructure.monitoring.observability import (
+    get_distributed_tracer,  # type: ignore[import]
+)
 
 from ...infrastructure.monitoring.safety_gates import get_adaptive_threshold_manager
 from ..learning import get_cost_aware_td_lambda

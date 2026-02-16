@@ -9,7 +9,7 @@ import logging
 from typing import Any, Optional
 
 try:
-    import dspy
+    import dspy  # type: ignore[import-untyped]
 
     DSPY_AVAILABLE = True
 except ImportError:
@@ -51,7 +51,7 @@ class SkillBasedAgent(dspy.Module):
             self.predictor = None
 
         # Lazy load AutoAgent
-        self._auto_agent = None
+        self._auto_agent: Optional[AutoAgent] = None  # type: ignore[name-defined]
 
         logger.info(f" SkillBasedAgent created for skill: {skill_name}")
 
@@ -84,7 +84,7 @@ class SkillBasedAgent(dspy.Module):
                 result = asyncio.create_task(self._auto_agent.execute(task))
             except RuntimeError:
                 # No running loop — safe to use asyncio.run()
-                result = asyncio.run(self._auto_agent.execute(task))
+                result = asyncio.run(self._auto_agent.execute(task))  # type: ignore[arg-type]
 
             # Extract result
             if hasattr(result, "final_output"):

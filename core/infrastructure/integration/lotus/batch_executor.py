@@ -145,7 +145,7 @@ class BatchExecutor:
         if not self.batch_config.enabled:
             # Execute immediately if batching disabled
             result = await self._execute_single(prompt)
-            future = asyncio.Future()
+            future = asyncio.Future()  # type: ignore[var-annotated]
             future.set_result(result)
             return future
 

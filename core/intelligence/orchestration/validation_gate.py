@@ -361,7 +361,7 @@ class ValidationGate:
         try:
             # Single cheap call — ~100 input tokens, ~1 output token
             prompt = f"{_GATE_SYSTEM}\n\nTask: {goal[:300]}\n\nClassification:"
-            response = self._lm(prompt=prompt)
+            response = self._lm(prompt=prompt)  # type: ignore[misc]
 
             # Parse response
             text = ""

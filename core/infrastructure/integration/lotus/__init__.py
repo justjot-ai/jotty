@@ -39,7 +39,7 @@ Usage:
 """
 
 from .adaptive_validator import AdaptiveValidator, ValidationDecision
-from .batch_executor import BatchConfig, BatchExecutor, BatchResult
+from .batch_executor import BatchConfig, BatchExecutor, BatchResult  # type: ignore[attr-defined]
 from .config import CacheConfig, CascadeThresholds, LotusConfig
 from .model_cascade import CascadeResult, ModelCascade, ModelTier
 from .optimizer import LotusOptimizer

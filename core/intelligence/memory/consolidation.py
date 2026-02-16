@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
-import dspy
+import dspy  # type: ignore[import-untyped]
 
 from Jotty.core.infrastructure.foundation.data_structures import MemoryEntry, MemoryLevel
 
@@ -294,7 +294,7 @@ class ConsolidationValidator:
 
         # Check 3: Pattern should have some overlap with source memories
         if source_memories:
-            source_words = set()
+            source_words: Set[Any] = set()  # type: ignore[name-defined]
             for mem in source_memories:
                 content = mem.content if hasattr(mem, "content") else str(mem)
                 source_words.update(content.lower().split())
@@ -446,7 +446,7 @@ class MemoryLevelClassifier:
         except Exception as e:
             logger.debug(f"Classification failed: {e}, using heuristic")
             # Fallback to heuristic classification
-            return self._heuristic_classify(experience), 0.5, True
+            return self._heuristic_classify(experience), 0.5, True  # type: ignore[attr-defined]
 
 
 # =============================================================================

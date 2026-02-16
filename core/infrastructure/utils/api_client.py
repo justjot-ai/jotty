@@ -210,4 +210,4 @@ class BaseAPIClient(ABC):
                 "success": False,
                 "error": f"Token required. Set {self.TOKEN_ENV_VAR} env var or provide token parameter",
             }
-        return None
+        return None  # type: ignore[return-value]

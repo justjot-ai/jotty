@@ -124,7 +124,7 @@ class CompositeSkill:
 
         # Check if all succeeded
         all_success = all(
-            r.get("success", False) if not isinstance(r, Exception) else False for r in step_results
+            r.get("success", False) if not isinstance(r, Exception) else False for r in step_results  # type: ignore[union-attr]
         )
         results["_success"] = all_success
 
@@ -135,7 +135,7 @@ class CompositeSkill:
     ) -> Dict[str, Any]:
         """Execute steps with dependencies (mixed sequential/parallel)."""
         # Build dependency graph
-        executed = set()
+        executed: Set[Any] = set()  # type: ignore[name-defined]
         current_params = initial_params.copy()
 
         while len(executed) < len(self.steps):
@@ -173,13 +173,13 @@ class CompositeSkill:
                 executed.add(i)
 
                 # Update params for next steps
-                if result.get("success"):
-                    current_params.update(result)
+                if result.get("success"):  # type: ignore[union-attr]
+                    current_params.update(result)  # type: ignore[arg-type]
 
                 # Check if required step failed
-                if not result.get("success") and step.get("required", True):
+                if not result.get("success") and step.get("required", True):  # type: ignore[union-attr]
                     results["_success"] = False
-                    results["_error"] = f"Step {i} failed: {result.get('error')}"
+                    results["_error"] = f"Step {i} failed: {result.get('error')}"  # type: ignore[union-attr]
                     return results
 
         results["_success"] = True
@@ -223,7 +223,7 @@ class CompositeSkill:
             else:
                 result = tool_func(step_params)
 
-            return result
+            return result  # type: ignore[no-any-return]
         except Exception as e:
             logger.error(f"Step execution error: {e}", exc_info=True)
             return {"success": False, "error": f"Step execution failed: {str(e)}"}

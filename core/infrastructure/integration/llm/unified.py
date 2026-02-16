@@ -52,7 +52,7 @@ class UnifiedLLM:
         default_model: str = DEFAULT_MODEL_ALIAS,
         fallback_order: Optional[List[str]] = None,
         timeout: int = LLM_TIMEOUT_SECONDS,
-        cost_tracker: Optional["CostTracker"] = None,
+        cost_tracker: Optional["CostTracker"] = None,  # type: ignore[valid-type]
     ) -> None:
         """
         Initialize UnifiedLLM.
@@ -177,7 +177,7 @@ class UnifiedLLM:
             output_tokens = response.usage.get("output_tokens", 0)
 
         # Record the call
-        self.cost_tracker.record_llm_call(
+        self.cost_tracker.record_llm_call(  # type: ignore[attr-defined]
             provider=provider,
             model=model,
             input_tokens=input_tokens,
@@ -201,7 +201,7 @@ class UnifiedLLM:
                 model=model,
             )
 
-        return provider_class.generate(
+        return provider_class.generate(  # type: ignore[no-any-return]
             prompt=prompt, model=model, timeout=timeout, max_tokens=max_tokens, **kwargs
         )
 

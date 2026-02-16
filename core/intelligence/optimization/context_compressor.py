@@ -83,7 +83,7 @@ class ContextCompressor:
             compressed = self._truncate(context)
             method = "truncate"
         elif self.strategy == "summarize" and llm:
-            compressed = self._summarize(context, llm)
+            compressed = self._summarize(context, llm)  # type: ignore[assignment]
             method = "summarize"
         elif self.strategy == "key_points":
             compressed = self._extract_key_points(context)
@@ -117,7 +117,7 @@ class ContextCompressor:
             return context
 
         # Try to keep last N lines that fit
-        compressed_lines = []
+        compressed_lines: List[Any] = []
         current_length = 0
 
         for line in reversed(lines):

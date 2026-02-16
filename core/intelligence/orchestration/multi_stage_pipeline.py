@@ -15,7 +15,9 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-from Jotty.core.infrastructure.monitoring.observability import get_distributed_tracer
+from Jotty.core.infrastructure.monitoring.observability import (
+    get_distributed_tracer,  # type: ignore[import-not-found, import]
+)
 
 from .multi_swarm_coordinator import MergeStrategy, MultiSwarmCoordinator, SwarmResult
 
@@ -262,7 +264,7 @@ class MultiStagePipeline:
             stages=results,
             total_cost=total_cost,
             total_time=total_time,
-            final_result=results[-1] if results else None,
+            final_result=results[-1] if results else None,  # type: ignore[arg-type]
         )
 
 

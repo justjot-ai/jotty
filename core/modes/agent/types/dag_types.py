@@ -7,13 +7,44 @@ from enum import Enum
 from typing import Any, Dict, List, Optional
 
 import dspy
+from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
 
-from ..foundation.data_structures import SwarmConfig
-from ..learning.learning import AdaptiveLearningRate, TDLambdaLearner
-from ..memory.cortex import SwarmMemory
-from ..orchestration.swarm_roadmap import SwarmTaskBoard
-from ..persistence.shared_context import SharedContext
-from .axon import MessageBus
+
+# Lazy imports to avoid circular dependencies
+def _get_memory():
+    from Jotty.core.intelligence.memory.cortex import SwarmMemory
+
+    return SwarmMemory
+
+
+def _get_learner():
+    from Jotty.core.intelligence.learning.td_lambda import (
+        TDLambdaLearner,  # type: ignore[import-not-found, import]
+    )
+
+    return TDLambdaLearner
+
+
+def _get_adaptive_lr():
+    from Jotty.core.intelligence.learning.adaptive_components import (
+        AdaptiveLearningRate,  # type: ignore[import-not-found, import]
+    )
+
+    return AdaptiveLearningRate
+
+
+# Simple dict-based stubs for backward compatibility
+class SharedContext(dict):
+    """Simple dict-based context for backward compatibility."""
+
+    pass
+
+
+class MessageBus(dict):
+    """Simple dict-based message bus for backward compatibility."""
+
+    pass
+
 
 logger = logging.getLogger(__name__)
 
@@ -58,8 +89,8 @@ class DAGAgentMixin:
             "total_retries": 0,  # Added for BaseAgent compatibility
             "total_execution_time": 0.0,
         }
-        self._pre_hooks = []
-        self._post_hooks = []
+        self._pre_hooks: List[Any] = []
+        self._post_hooks: List[Any] = []
         self._initialized = False
 
     def add_pre_hook(self, hook: Any) -> None:
@@ -149,16 +180,17 @@ class SwarmResources:
     def __new__(cls, config: SwarmConfig = None) -> Any:
         if cls._instance is None:
             cls._instance = super().__new__(cls)
-            cls._instance._initialized = False
+            cls._instance._initialized = False  # type: ignore[has-type]
         return cls._instance
 
     def __init__(self, config: SwarmConfig = None) -> None:
-        if self._initialized:
+        if self._initialized:  # type: ignore[has-type]
             return
 
         self.config = config or SwarmConfig()
 
         # Shared memory - ALL agents use this
+        SwarmMemory = _get_memory()
         self.memory = SwarmMemory(
             config=self.config, agent_name="SwarmShared"  # Single shared instance
         )
@@ -170,6 +202,8 @@ class SwarmResources:
         self.bus = MessageBus()
 
         # Shared learner
+        AdaptiveLearningRate = _get_adaptive_lr()
+        TDLambdaLearner = _get_learner()
         adaptive_lr = AdaptiveLearningRate(self.config)
         self.learner = TDLambdaLearner(config=self.config, adaptive_lr=adaptive_lr)
 
@@ -438,7 +472,7 @@ class ExecutableDAG:
     Integrates with Jotty's SwarmTaskBoard for execution tracking.
     """
 
-    markovian_todo: SwarmTaskBoard
+    markovian_todo: SwarmTaskBoard  # type: ignore[name-defined]
     assignments: Dict[str, Actor]  # task_id -> Actor
     validation_passed: bool
     validation_issues: List[str] = field(default_factory=list)
@@ -519,7 +553,7 @@ class ExecutableDAG:
             "trajectory": [
                 {
                     "step_idx": s.step_idx,
-                    "timestamp": s.timestamp.isoformat(),
+                    "timestamp": s.timestamp.isoformat(),  # type: ignore[union-attr]
                     "action_type": s.action_type,
                     "action_content": s.action_content,
                     "observation": s.observation,

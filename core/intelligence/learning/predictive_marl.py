@@ -327,9 +327,9 @@ class LLMTrajectoryPredictor:
             actual_action = actual_steps[i].get("action", "")
 
             if pred_agent == actual_agent:
-                matches += 0.5
+                matches += 0.5  # type: ignore[assignment]
             if str(pred_action) == str(actual_action):
-                matches += 0.5
+                matches += 0.5  # type: ignore[assignment]
 
         return 1 - (matches / total) if total > 0 else 0.5
 
@@ -456,11 +456,13 @@ class LLMTrajectoryPredictor:
 
     def _parse_float(self, s: str, default: float) -> float:
         """Parse float from string - A-Team approved, no regex."""
-        from Jotty.core.infrastructure.foundation.robust_parsing import parse_float_robust
+        from Jotty.core.infrastructure.foundation.robust_parsing import (
+            parse_float_robust,  # type: ignore[import-not-found, import]
+        )
 
         result = parse_float_robust(s, default=default)
         if result is not None:
-            return max(0.0, min(1.0, result))
+            return max(0.0, min(1.0, result))  # type: ignore[no-any-return]
         return default
 
 

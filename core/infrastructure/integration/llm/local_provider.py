@@ -11,7 +11,7 @@ import os
 from dataclasses import dataclass
 from typing import Any, Dict
 
-from Jotty.core.infrastructure.foundation.config_defaults import (
+from Jotty.core.infrastructure.foundation.config_defaults import (  # type: ignore[import]
     LLM_TEMPERATURE,
     LLM_TIMEOUT_SECONDS,
 )
@@ -224,7 +224,9 @@ class LocalLLMProvider:
         result = {"ollama": False, "llamacpp": False}
 
         try:
-            from ..foundation.config_defaults import DEFAULTS as _DEFAULTS
+            from ..foundation.config_defaults import (
+                DEFAULTS as _DEFAULTS,  # type: ignore[import-not-found]
+            )
 
             _ollama_default = _DEFAULTS.OLLAMA_URL
         except ImportError:

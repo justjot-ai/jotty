@@ -83,7 +83,7 @@ class ExecutionOrchestrator:
             task_type = lp.transfer_learning.extractor.extract_task_type(goal)
             paradigm = lp.recommend_paradigm(task_type)
             logger.info(f"Auto paradigm: selected '{paradigm}' for task_type='{task_type}'")
-            return paradigm
+            return paradigm  # type: ignore[no-any-return]
         except Exception:
             return default
 

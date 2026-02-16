@@ -149,7 +149,7 @@ class WidgetParamSchema:
         if expected_py_type is None:
             return True  # Unknown type, allow it
 
-        return isinstance(value, expected_py_type)
+        return isinstance(value, expected_py_type)  # type: ignore[arg-type]
 
     def get_default_value(self, param_name: str) -> Any:
         """Get default value for parameter, if defined."""

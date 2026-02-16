@@ -18,7 +18,7 @@ import threading
 from typing import TYPE_CHECKING, Any, Dict, Optional, Union
 
 if TYPE_CHECKING:
-    from Jotty.core.infrastructure.foundation.configs import MemoryConfig
+    from Jotty.core.infrastructure.foundation.configs import MemoryConfig  # type: ignore[import]
     from Jotty.core.intelligence.memory.consolidation_engine import SharpWaveRippleConsolidator
     from Jotty.core.intelligence.memory.llm_rag import LLMRAGRetriever
     from Jotty.core.intelligence.memory.memory_orchestrator import BrainInspiredMemoryManager
@@ -28,7 +28,7 @@ _lock = threading.Lock()
 _singletons: Dict[str, object] = {}
 
 
-def _resolve_memory_config(config: Any) -> "SwarmConfig":
+def _resolve_memory_config(config: Any) -> "SwarmConfig":  # type: ignore[name-defined]
     """Convert MemoryConfig or SwarmConfig to SwarmConfig for internal use.
 
     Accepts:
@@ -38,13 +38,15 @@ def _resolve_memory_config(config: Any) -> "SwarmConfig":
     """
     if config is None:
 
-        return SwarmConfig()
+        return SwarmConfig()  # type: ignore[name-defined]
 
-    from Jotty.core.infrastructure.foundation.configs.memory import MemoryConfig
+    from Jotty.core.infrastructure.foundation.configs.memory import (
+        MemoryConfig,  # type: ignore[import-not-found]
+    )
 
     if isinstance(config, MemoryConfig):
 
-        return SwarmConfig.from_configs(memory=config)
+        return SwarmConfig.from_configs(memory=config)  # type: ignore[name-defined]
 
     # Assume SwarmConfig
     return config
@@ -111,7 +113,7 @@ def get_consolidator(config: Any = None) -> "SharpWaveRippleConsolidator":
 
 
 def get_rag_retriever(
-    config: Optional[Union["MemoryConfig", "SwarmConfig"]] = None,
+    config: Optional[Union["MemoryConfig", "SwarmConfig"]] = None,  # type: ignore[name-defined]
 ) -> "LLMRAGRetriever":
     """
     Return an LLMRAGRetriever for LLM-powered retrieval-augmented generation.

@@ -15,7 +15,9 @@ from typing import Any, Dict, List, Optional, Type, Union
 logger = logging.getLogger(__name__)
 
 
-from Jotty.core.infrastructure.foundation.exceptions import ValidationError
+from Jotty.core.infrastructure.foundation.exceptions import (
+    ValidationError,  # type: ignore[import-not-found]
+)
 
 
 class ParamValidator:
@@ -60,7 +62,7 @@ class ParamValidator:
     def __enter__(self) -> Any:
         return self
 
-    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> bool:
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> bool:  # type: ignore[exit-return]
         # Don't suppress exceptions
         return False
 
@@ -203,7 +205,7 @@ class ParamValidator:
             raise ValidationError(error_msg, param=name, value=value)
 
         self.validated[name] = value
-        return value
+        return value  # type: ignore[no-any-return]
 
     def validate_url(self, name: str, required: bool = True) -> Optional[str]:
         """Validate a URL parameter."""

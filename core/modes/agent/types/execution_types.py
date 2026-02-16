@@ -126,7 +126,7 @@ class TypeCoercer:
 
         method = getattr(cls, method_name)
         try:
-            return method(value)
+            return method(value)  # type: ignore[no-any-return]
         except Exception as exc:
             return value, f"Cannot coerce {repr(value)[:80]} to {type_hint}: {exc}"
 
@@ -1183,7 +1183,7 @@ class CapabilityIndex:
 
             # Check if we can produce the end_type
             if end_type in available_types:
-                return path
+                return path  # type: ignore[no-any-return]
 
             state_key = frozenset(available_types)
             if state_key in visited:
@@ -1366,7 +1366,7 @@ if PYDANTIC_AVAILABLE:
         def normalize_field_names(cls, data: Dict[str, Any]) -> Dict[str, Any]:
             """Normalize common LLM field name variations to expected names."""
             if not isinstance(data, dict):
-                return data
+                return data  # type: ignore[unreachable]
 
             if "skill_name" not in data or not data.get("skill_name"):
                 skill = data.get("skill", "")
@@ -1411,7 +1411,9 @@ else:
 # =============================================================================
 
 try:
-    from Jotty.core.infrastructure.utils.context_utils import strip_enrichment_context
+    from Jotty.core.infrastructure.utils.context_utils import (
+        strip_enrichment_context,  # type: ignore[import]
+    )
 except ImportError:
 
     def strip_enrichment_context(text: str) -> str:

@@ -59,7 +59,7 @@ class SwarmLearningAgent(DomainAgent):
     def _broadcast(self, event: str, data: Dict[str, Any]) -> Any:
         """Emit a status event via the singleton AgentEventBroadcaster."""
         try:
-            from Jotty.core.infrastructure.utils.async_utils import (
+            from Jotty.core.infrastructure.utils.async_utils import (  # type: ignore[import]
                 AgentEvent,
                 AgentEventBroadcaster,
             )

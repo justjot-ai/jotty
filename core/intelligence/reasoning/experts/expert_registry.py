@@ -72,21 +72,21 @@ class ExpertRegistry:
         """Get the Mermaid expert agent (sync version - no auto-train)."""
         name = "mermaid"
         if name not in self._experts:
-            self._experts[name] = MermaidExpertAgent()
-        return self._experts[name]
+            self._experts[name] = MermaidExpertAgent()  # type: ignore[assignment]
+        return self._experts[name]  # type: ignore[return-value]
 
     async def get_mermaid_expert_async(self, auto_train: bool = True) -> MermaidExpertAgent:
         """Get the Mermaid expert agent (async version with auto-train)."""
         name = "mermaid"
         if name not in self._experts:
-            self._experts[name] = MermaidExpertAgent()
+            self._experts[name] = MermaidExpertAgent()  # type: ignore[assignment]
 
         expert = self._experts[name]
 
         if auto_train and not expert.trained:
             await expert.train()
 
-        return expert
+        return expert  # type: ignore[return-value]
 
     def get_pipeline_expert(
         self, output_format: str = "mermaid", auto_train: bool = False
@@ -94,8 +94,8 @@ class ExpertRegistry:
         """Get the Pipeline expert agent (sync version - no auto-train)."""
         name = f"pipeline_{output_format}"
         if name not in self._experts:
-            self._experts[name] = PipelineExpertAgent(output_format=output_format)
-        return self._experts[name]
+            self._experts[name] = PipelineExpertAgent(output_format=output_format)  # type: ignore[assignment]
+        return self._experts[name]  # type: ignore[return-value]
 
     async def get_pipeline_expert_async(
         self, output_format: str = "mermaid", auto_train: bool = True
@@ -103,14 +103,14 @@ class ExpertRegistry:
         """Get the Pipeline expert agent (async version with auto-train)."""
         name = f"pipeline_{output_format}"
         if name not in self._experts:
-            self._experts[name] = PipelineExpertAgent(output_format=output_format)
+            self._experts[name] = PipelineExpertAgent(output_format=output_format)  # type: ignore[assignment]
 
         expert = self._experts[name]
 
         if auto_train and not expert.trained:
             await expert.train()
 
-        return expert
+        return expert  # type: ignore[return-value]
 
     def ensure_trained(self, name: str) -> None:
         """Ensure an expert agent is trained."""

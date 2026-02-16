@@ -50,9 +50,15 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 import dspy
-from core.foundation.types.agent_types import AgentMessage, CommunicationType, SharedScratchpad
-from core.persistence.scratchpad_persistence import ScratchpadPersistence
-from core.persistence.shared_context import SharedContext
+from Jotty.core.foundation.types.agent_types import (  # type: ignore[import-not-found]
+    AgentMessage,
+    CommunicationType,
+    SharedScratchpad,
+)
+from Jotty.core.persistence.scratchpad_persistence import (
+    ScratchpadPersistence,  # type: ignore[import-not-found]
+)
+from Jotty.core.persistence.shared_context import SharedContext  # type: ignore[import-not-found]
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

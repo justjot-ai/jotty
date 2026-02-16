@@ -21,7 +21,7 @@ import logging
 import time
 from collections import OrderedDict
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from .config import LotusConfig
 
@@ -106,7 +106,7 @@ class SemanticCache:
     """
 
     def __init__(
-        self, config: Optional[LotusConfig] = None, embedding_fn: Optional[callable] = None
+        self, config: Optional[LotusConfig] = None, embedding_fn: Optional[Callable] = None
     ) -> None:
         """
         Initialize semantic cache.
@@ -238,7 +238,7 @@ class SemanticCache:
         instruction_embedding = None
         if self.cache_config.use_semantic_matching and self.embedding_fn:
             try:
-                instruction_embedding = self.embedding_fn(instruction)
+                instruction_embedding = self.embedding_fn(instruction)  # type: ignore[misc]
                 self._instruction_embeddings[instruction_hash] = (key, instruction_embedding)
             except Exception as e:
                 logger.debug(f"Failed to generate embedding: {e}")
@@ -278,7 +278,7 @@ class SemanticCache:
             return None
 
         try:
-            query_embedding = self.embedding_fn(instruction)
+            query_embedding = self.embedding_fn(instruction)  # type: ignore[misc]
 
             best_similarity = 0.0
             best_key = None
@@ -296,7 +296,7 @@ class SemanticCache:
 
             if best_similarity >= self.cache_config.similarity_threshold:
                 if best_key in self._cache:
-                    entry = self._cache[best_key]
+                    entry = self._cache[best_key]  # type: ignore[index]
                     if not entry.is_expired(self.cache_config.ttl_seconds):
                         return entry.result
 
@@ -317,7 +317,7 @@ class SemanticCache:
         if norm_a == 0 or norm_b == 0:
             return 0.0
 
-        return dot_product / (norm_a * norm_b)
+        return dot_product / (norm_a * norm_b)  # type: ignore[no-any-return]
 
     def _evict(self, key: str) -> None:
         """Evict a specific key from cache."""
@@ -351,7 +351,7 @@ class SemanticCache:
         self,
         instruction: str,
         content: Any,
-        compute_fn: callable,
+        compute_fn: Callable,
     ) -> Any:
         """
         Get from cache or compute and cache result.
@@ -371,7 +371,7 @@ class SemanticCache:
             return result
 
         # Compute
-        result = compute_fn()
+        result = compute_fn()  # type: ignore[misc]
 
         # Cache
         self.put(instruction, content, result)
@@ -382,7 +382,7 @@ class SemanticCache:
         self,
         instruction: str,
         content: Any,
-        compute_fn: callable,
+        compute_fn: Callable,
     ) -> Any:
         """
         Async version of get_or_compute.
@@ -400,7 +400,7 @@ class SemanticCache:
             return result
 
         # Compute
-        result = await compute_fn()
+        result = await compute_fn()  # type: ignore[misc]
 
         # Cache
         self.put(instruction, content, result)

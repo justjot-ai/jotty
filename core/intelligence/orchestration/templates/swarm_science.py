@@ -24,7 +24,7 @@ Usage:
 
 from typing import Any, Dict
 
-from .base import AgentConfig, ModelTier, StageConfig, SwarmTemplate
+from .base import AgentConfig, ModelTier, StageConfig, SwarmTemplate  # type: ignore[attr-defined]
 
 # =============================================================================
 # PEDAGOGY CONSTANTS (used in prompts)

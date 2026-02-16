@@ -47,12 +47,12 @@ class LazyComponent(Generic[T]):
         # Fast path: check cache without lock
         cached = obj.__dict__.get(self._attr_name)
         if cached is not None:
-            return cached
+            return cached  # type: ignore[no-any-return]
         # Slow path: acquire lock, re-check, then create
         with self._lock:
             cached = obj.__dict__.get(self._attr_name)
             if cached is not None:
-                return cached
+                return cached  # type: ignore[no-any-return]
             instance = self._factory(obj)
             obj.__dict__[self._attr_name] = instance
             return instance

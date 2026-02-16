@@ -34,7 +34,7 @@ class DistributedTracer:
         self.trace_contexts: Dict[str, Dict[str, Any]] = {}
 
         # Lazy-import to avoid dependency issues
-        self._local_tracer = None
+        self._local_tracer: Optional[TracingContext] = None  # type: ignore[name-defined]
 
         logger.info(f"🔍 DistributedTracer initialized: service={service_name}")
 

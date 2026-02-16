@@ -69,7 +69,7 @@ class PipelineExpertAgent(BaseExpert):
         class PipelineAgent:
             def __init__(self, output_format: str) -> None:
                 self.output_format = output_format
-                self.learned_patterns = []
+                self.learned_patterns: List[Any] = []
 
             def forward(
                 self,
@@ -163,7 +163,7 @@ class PipelineExpertAgent(BaseExpert):
     # TRAINING AND VALIDATION DATA (BaseExpert interface)
     # =========================================================================
 
-    def _get_default_training_cases(self) -> List[Dict[str, Any]]:
+    def _get_default_training_cases(self) -> List[Dict[str, Any]]:  # type: ignore[override]
         """Get default training cases for pipelines."""
         if self.output_format == "mermaid":
             return [
@@ -198,7 +198,7 @@ class PipelineExpertAgent(BaseExpert):
         else:
             return []
 
-    def _get_default_validation_cases(self) -> List[Dict[str, Any]]:
+    def _get_default_validation_cases(self) -> List[Dict[str, Any]]:  # type: ignore[override]
         """Get default validation cases for pipelines."""
         if self.output_format == "mermaid":
             return [
@@ -243,5 +243,5 @@ class PipelineExpertAgent(BaseExpert):
             **kwargs,
         }
 
-        output = await self.generate(task=task, context=context)
+        output = await self.generate(task=task, context=context)  # type: ignore[attr-defined]
         return str(output)

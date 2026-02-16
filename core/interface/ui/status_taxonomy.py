@@ -126,7 +126,7 @@ class StatusTaxonomy:
             'completed'
         """
         canonical = self.normalize(status)
-        return self.CANONICAL_STATUSES[canonical]["kanban_column"]
+        return self.CANONICAL_STATUSES[canonical]["kanban_column"]  # type: ignore[return-value]
 
     def get_label(self, status: str) -> str:
         """
@@ -143,7 +143,7 @@ class StatusTaxonomy:
             'In Progress'
         """
         canonical = self.normalize(status)
-        return self.CANONICAL_STATUSES[canonical]["label"]
+        return self.CANONICAL_STATUSES[canonical]["label"]  # type: ignore[return-value]
 
     def get_all_statuses(self) -> list:
         """Get list of all canonical statuses."""

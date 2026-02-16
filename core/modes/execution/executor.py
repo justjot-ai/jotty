@@ -19,14 +19,18 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, AsyncGenerator, Callable, Dict, List, Optional
 
-from Jotty.core.infrastructure.foundation.exceptions import (
+from Jotty.core.infrastructure.foundation.exceptions import (  # type: ignore[import-not-found]
     ConfigurationError,
     ExecutionError,
     LLMError,
 )
-from Jotty.core.infrastructure.monitoring.observability.tracing import SpanStatus
+from Jotty.core.infrastructure.monitoring.observability.tracing import (  # type: ignore[import]
+    SpanStatus,  # type: ignore[import]
+)
 from Jotty.core.intelligence.orchestration.paradigm_executor import _extract_output_text
-from Jotty.core.intelligence.swarms._base.swarm_types import SwarmConfig
+from Jotty.core.intelligence.swarms._base.swarm_types import (  # type: ignore[import-not-found, import]
+    SwarmConfig,  # type: ignore[import-not-found, import]
+)
 
 from .tier_detector import TierDetector
 from .types import (
@@ -185,7 +189,7 @@ class LLMProvider:
                     )
 
                 # Add tool results to conversation
-                messages.append({"role": "user", "content": tool_results})
+                messages.append({"role": "user", "content": tool_results})  # type: ignore[dict-item]
                 logger.debug(
                     f"Continuing tool-calling loop iteration {iteration+1}/{MAX_ITERATIONS}"
                 )
@@ -362,7 +366,7 @@ class TierExecutor:
         # Observability (lazy-loaded)
         self._metrics = None
         self._tracer = None
-        self._cost_tracker = None
+        self._cost_tracker: Optional[ComplexityGate] = None
 
         logger.info("TierExecutor initialized")
 
@@ -380,7 +384,7 @@ class TierExecutor:
         """Lazy-load LLM provider."""
         if self._provider is None:
             self._provider = LLMProvider(
-                provider=self.config.provider,
+                provider=self.config.provider,  # type: ignore[arg-type]
                 model=self.config.model,
             )
         return self._provider
@@ -410,7 +414,9 @@ class TierExecutor:
     def metrics(self) -> Any:
         """Lazy-load MetricsCollector singleton."""
         if self._metrics is None:
-            from Jotty.core.infrastructure.monitoring.observability import get_metrics
+            from Jotty.core.infrastructure.monitoring.observability import (  # type: ignore[import-not-found]
+                get_metrics,  # type: ignore[import-not-found, import]
+            )
 
             self._metrics = get_metrics()
         return self._metrics
@@ -428,7 +434,9 @@ class TierExecutor:
     def cost_tracker(self) -> Any:
         """Lazy-load CostTracker instance."""
         if self._cost_tracker is None:
-            from Jotty.core.infrastructure.monitoring.monitoring.cost_tracker import CostTracker
+            from Jotty.core.infrastructure.monitoring.monitoring.cost_tracker import (  # type: ignore[import]
+                CostTracker,  # type: ignore[import]
+            )
 
             self._cost_tracker = CostTracker()
         return self._cost_tracker
@@ -437,7 +445,7 @@ class TierExecutor:
     def complexity_gate(self) -> Any:
         """Lazy-load ComplexityGate."""
         if self._complexity_gate is None:
-            self._complexity_gate = ComplexityGate()
+            self._complexity_gate = ComplexityGate()  # type: ignore[assignment]
         return self._complexity_gate
 
     # =========================================================================
@@ -447,7 +455,9 @@ class TierExecutor:
     def _create_planner(self) -> Optional[Any]:
         """Create TaskPlanner directly — no adapter wrapper."""
         try:
-            from Jotty.core.modes.agent.baseic_planner import TaskPlanner
+            from Jotty.core.modes.agent.baseic_planner import (  # type: ignore[import-not-found]
+                TaskPlanner,  # type: ignore[import-not-found]
+            )
 
             return TaskPlanner()
         except (ImportError, ConfigurationError) as e:
@@ -465,7 +475,10 @@ class TierExecutor:
         """
         try:
             from Jotty.core.infrastructure.foundation.data_structures import SharedScratchpad
-            from Jotty.core.modes.agent.inspector import MultiRoundValidator, ValidatorAgent
+            from Jotty.core.modes.agent.inspector import (  # type: ignore[import-not-found]
+                MultiRoundValidator,
+                ValidatorAgent,
+            )
 
             swarm_config_dict = self.config.to_swarm_config()
             swarm_config = SwarmConfig(**swarm_config_dict)
@@ -518,7 +531,9 @@ class TierExecutor:
 
         # FUNDAMENTAL FIX: Intent-based routing (replaces hacks)
         # Classify task intent using semantic understanding
-        from Jotty.core.modes.execution.intent_classifier import classify_task_intent
+        from Jotty.core.modes.execution.intent_classifier import (  # type: ignore[import]
+            classify_task_intent,  # type: ignore[import]
+        )
 
         attachments = kwargs.get("attachments", [])
         intent_analysis = classify_task_intent(goal, attachments)
@@ -698,7 +713,7 @@ class TierExecutor:
             return
 
         # All other tiers: queue-based bridge from status_callback
-        queue = asyncio.Queue()
+        queue = asyncio.Queue()  # type: ignore[var-annotated]
 
         def _callback(stage: str, detail: str) -> Any:
             queue.put_nowait(
@@ -1070,7 +1085,7 @@ Correct answer:"""
                     )
                     corrected = retry_response.get("content", "").strip()
                     if corrected and corrected != answer:
-                        return corrected
+                        return corrected  # type: ignore[no-any-return]
 
             # Check for year questions
             if any(word in question.lower() for word in ["year", "when was"]):
@@ -1535,17 +1550,17 @@ Correct answer:"""
         if TierExecutor._swarms_registered:
             return
         swarm_modules = [
-            "Jotty.core.swarms.coding_swarm",
-            "Jotty.core.swarms.research_swarm",
-            "Jotty.core.swarms.testing_swarm",
-            "Jotty.core.swarms.review_swarm",
-            "Jotty.core.swarms.data_analysis_swarm",
-            "Jotty.core.swarms.devops_swarm",
-            "Jotty.core.swarms.idea_writer_swarm",
-            "Jotty.core.swarms.fundamental_swarm",
-            "Jotty.core.swarms.learning_swarm",
-            "Jotty.core.swarms.arxiv_learning_swarm",
-            "Jotty.core.swarms.olympiad_learning_swarm",
+            "Jotty.core.intelligence.swarms.coding_swarm",
+            "Jotty.core.intelligence.swarms.research_swarm",
+            "Jotty.core.intelligence.swarms.templates.testing_swarm",
+            "Jotty.core.intelligence.swarms.templates.review_swarm",
+            "Jotty.core.intelligence.swarms.templates.data_analysis_swarm",
+            "Jotty.core.intelligence.swarms.templates.devops_swarm",
+            "Jotty.core.intelligence.swarms.templates.idea_writer_swarm",
+            "Jotty.core.intelligence.swarms.templates.fundamental_swarm",
+            "Jotty.core.intelligence.swarms.templates.learning_swarm",
+            "Jotty.core.intelligence.swarms.arxiv_learning_swarm",
+            "Jotty.core.intelligence.swarms.olympiad_learning_swarm",
         ]
         import importlib
 
@@ -1559,7 +1574,9 @@ Correct answer:"""
     def _select_swarm(self, goal: str, swarm_name: Optional[str] = None) -> Optional[Any]:
         """Select and instantiate the right domain swarm."""
         self._ensure_swarms_registered()
-        from Jotty.core.intelligence.swarms._base.registry import SwarmRegistry
+        from Jotty.core.intelligence.swarms._base.registry import (  # type: ignore[import-not-found]
+            SwarmRegistry,  # type: ignore[import-not-found, import]
+        )
 
         # Explicit swarm name takes priority
         if swarm_name:
@@ -1589,7 +1606,7 @@ Correct answer:"""
     # =========================================================================
     # HELPER METHODS
     # =========================================================================
-
+    # type: ignore[union-attr]
     async def _run_planner(
         self, goal: str, hint_skills: Optional[List[str]] = None
     ) -> Dict[str, Any]:
@@ -1606,7 +1623,7 @@ Correct answer:"""
 
         # If planner has .plan() (mock or legacy adapter), use it directly
         if hasattr(planner, "plan") and callable(getattr(planner, "plan")):
-            return await planner.plan(goal)
+            return await planner.plan(goal)  # type: ignore[no-any-return, union-attr]
 
         # Real TaskPlanner: use aplan_execution
         skills = []
@@ -1625,14 +1642,14 @@ Correct answer:"""
             skills = hint_dicts + skills
 
         try:
-            steps, reasoning = await planner.aplan_execution(
+            steps, reasoning = await planner.aplan_execution(  # type: ignore[union-attr]
                 task=goal,
                 task_type="general",
                 skills=skills,
             )
         except (LLMError, ExecutionError, RuntimeError) as e:
             logger.warning(f"Async planning failed, trying sync: {e}")
-            steps, reasoning = planner.plan_execution(
+            steps, reasoning = planner.plan_execution(  # type: ignore[union-attr]
                 task=goal,
                 task_type="general",
                 skills=skills,
@@ -1734,7 +1751,7 @@ Correct answer:"""
             return "No results generated."
 
         if len(results) == 1:
-            return results[0].get("output", "")
+            return results[0].get("output", "")  # type: ignore[no-any-return]
 
         aggregated = f"Results for: {goal}\n\n"
         for i, result in enumerate(results, 1):
@@ -1847,7 +1864,7 @@ Correct answer:"""
         validator = self.validator
 
         # Check if validator is a real MultiRoundValidator (not a mock or fallback)
-        from Jotty.core.modes.execution.executor import _FallbackValidator
+        from Jotty.core.modes.execution.executor import _FallbackValidator  # type: ignore[import]
 
         is_multi_round = (
             not isinstance(validator, _FallbackValidator)
@@ -1934,15 +1951,21 @@ Is this result correct and complete? Provide:
         backend = self.config.memory_backend
 
         if backend == "json":
-            from Jotty.core.modes.execution.memory.json_memory import JSONMemory
+            from Jotty.core.modes.execution.memory.json_memory import (  # type: ignore[import]
+                JSONMemory,  # type: ignore[import]
+            )
 
             return JSONMemory()
         elif backend == "redis":
-            from Jotty.core.modes.execution.memory.redis_memory import RedisMemory
+            from Jotty.core.modes.execution.memory.redis_memory import (  # type: ignore[import-not-found]
+                RedisMemory,  # type: ignore[import-not-found]
+            )
 
             return RedisMemory()
         else:
-            from Jotty.core.modes.execution.memory.noop_memory import NoOpMemory
+            from Jotty.core.modes.execution.memory.noop_memory import (  # type: ignore[import]
+                NoOpMemory,  # type: ignore[import]
+            )
 
             return NoOpMemory()
 
@@ -1974,7 +1997,7 @@ class _FallbackValidator:
             start = content.find("{")
             end = content.rfind("}") + 1
             if start >= 0 and end > start:
-                return _json.loads(content[start:end])
+                return _json.loads(content[start:end])  # type: ignore[no-any-return]
             return {"success": True, "confidence": 0.7, "feedback": content, "reasoning": ""}
         except (LLMError, ConnectionError, ValueError) as e:
             logger.warning(f"Validation LLM call failed: {e}")

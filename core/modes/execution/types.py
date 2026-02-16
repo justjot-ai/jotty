@@ -530,7 +530,7 @@ class AdaptiveTimeout:
             p95_idx = int(len(sorted_obs) * 0.95)
             p95 = sorted_obs[min(p95_idx, len(sorted_obs) - 1)]
         timeout = p95 * multiplier
-        return max(self.min_seconds, min(self.max_seconds, timeout))
+        return max(self.min_seconds, min(self.max_seconds, timeout))  # type: ignore[no-any-return]
 
 
 # Global adaptive timeout tracker

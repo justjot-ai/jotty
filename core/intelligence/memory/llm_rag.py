@@ -45,7 +45,9 @@ def _get_dspy() -> Any:
     return _dspy_module
 
 
-from Jotty.core.infrastructure.foundation.configs.memory import MemoryConfig as FocusedMemoryConfig
+from Jotty.core.infrastructure.foundation.configs.memory import (
+    MemoryConfig as FocusedMemoryConfig,  # type: ignore[import-not-found]
+)
 from Jotty.core.infrastructure.foundation.data_structures import (
     GoalHierarchy,
     MemoryEntry,
@@ -280,7 +282,7 @@ class EmbeddingPreFilter:
         """
         self.model_name = model_name
         self.top_k = top_k
-        self._available = None  # Lazy check
+        self._available: Optional[bool] = None
 
     @classmethod
     def _get_model(cls, model_name: str) -> Any:
@@ -297,8 +299,8 @@ class EmbeddingPreFilter:
                     "sentence-transformers not installed, embedding pre-filter disabled. "
                     "Install with: pip install sentence-transformers"
                 )
-                cls._model = False  # Mark as unavailable
-        return cls._model if cls._model is not False else None
+                cls._model = False  # Mark as unavailable  # type: ignore[assignment]
+        return cls._model if cls._model is not False else None  # type: ignore[comparison-overlap]
 
     @property
     def available(self) -> bool:
@@ -373,7 +375,7 @@ def _get_relevance_signature() -> Any:
     if _RelevanceSignature is None:
         dspy = _get_dspy()
 
-        class RelevanceSignature(dspy.Signature):
+        class RelevanceSignature(dspy.Signature):  # type: ignore[name-defined]
             """Score relevance of memories to a query using pure semantic understanding."""
 
             query: str = dspy.InputField(
@@ -400,7 +402,7 @@ def _get_memory_synthesis_signature() -> Any:
     if _MemorySynthesisSignature is None:
         dspy = _get_dspy()
 
-        class MemorySynthesisSignature(dspy.Signature):
+        class MemorySynthesisSignature(dspy.Signature):  # type: ignore[name-defined]
             """Brain-Inspired Memory Synthesis (Neuroscience-Aligned)."""
 
             query: str = dspy.InputField(desc="Current task/question")
@@ -689,7 +691,7 @@ def _get_dedup_signature() -> Any:
     if _DeduplicationSignature is None:
         dspy = _get_dspy()
 
-        class DeduplicationSignature(dspy.Signature):
+        class DeduplicationSignature(dspy.Signature):  # type: ignore[name-defined]
             """Check if two memories are semantically similar enough to merge."""
 
             memory_a: str = dspy.InputField(desc="First memory content")
@@ -849,7 +851,7 @@ def _get_causal_signature() -> Any:
     if _CausalExtractionSignature is None:
         dspy = _get_dspy()
 
-        class CausalExtractionSignature(dspy.Signature):
+        class CausalExtractionSignature(dspy.Signature):  # type: ignore[name-defined]
             """Extract causal relationships from episode experiences."""
 
             success_episodes: str = dspy.InputField(desc="Summary of successful episodes")

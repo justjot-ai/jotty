@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 # REFACTORING PHASE 1.2: Import TaskStatus from canonical location
-from Jotty.core.infrastructure.foundation.types import TaskStatus
+from Jotty.core.infrastructure.foundation.types import TaskStatus  # type: ignore[import]
 
 logger = logging.getLogger(__name__)
 

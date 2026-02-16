@@ -122,11 +122,11 @@ class PipelineSkill:
             else:
                 # If step failed and required, stop
                 if step.get("required", True):
-                    results["_success"] = False
-                    results["_error"] = f"Step {i} ({step_type}) failed: {step_result.get('error')}"
+                    results["_success"] = False  # type: ignore[assignment]
+                    results["_error"] = f"Step {i} ({step_type}) failed: {step_result.get('error')}"  # type: ignore[assignment]
                     return results
 
-        results["_success"] = True
+        results["_success"] = True  # type: ignore[assignment]
         return results
 
     def _resolve_params(
@@ -150,11 +150,11 @@ class PipelineSkill:
         """
         # If params is a function, call it
         if callable(params):
-            return params(current_params, results)
+            return params(current_params, results)  # type: ignore[no-any-return]
 
         # If params is a string, treat as template
         if isinstance(params, str):
-            return self._resolve_template_string(params, current_params, results)
+            return self._resolve_template_string(params, current_params, results)  # type: ignore[no-any-return]
 
         # If params is a dict, resolve recursively
         if isinstance(params, dict):
@@ -169,7 +169,7 @@ class PipelineSkill:
             return resolved
 
         # Otherwise return as-is
-        return params
+        return params  # type: ignore[no-any-return]
 
     def _resolve_template_string(
         self, template: str, current_params: Dict[str, Any], results: Dict[str, Any]
@@ -284,7 +284,7 @@ class PipelineSkill:
             else:
                 result = tool_func(resolved_params)
 
-            return result
+            return result  # type: ignore[no-any-return]
         except Exception as e:
             logger.error(f"Step execution error: {e}", exc_info=True)
             return {"success": False, "error": f"Step execution failed: {str(e)}"}

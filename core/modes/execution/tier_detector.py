@@ -7,7 +7,7 @@ Supports optional LLM fallback for ambiguous cases.
 """
 
 import logging
-from typing import Any, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 from .types import ExecutionTier
 
@@ -91,7 +91,9 @@ class TierDetector:
     ]
 
     def __init__(self, enable_llm_fallback: bool = False) -> None:
-        self.detection_cache = {}  # Simple cache for repeated queries
+        self.detection_cache: Dict[str, Any] = (
+            {}
+        )  # Simple cache for repeated queries  # type: ignore[name-defined]
         self._enable_llm_fallback = enable_llm_fallback
         self._llm_classifier = None
 
@@ -118,7 +120,7 @@ class TierDetector:
         if cache_key in self.detection_cache:
             tier = self.detection_cache[cache_key]
             logger.debug(f"Tier cache hit: {tier.name}")
-            return tier
+            return tier  # type: ignore[no-any-return]
 
         # Detect
         tier = self._detect_tier(goal, context)
@@ -186,15 +188,15 @@ class TierDetector:
         # Check cache
         cache_key = goal.lower().strip()[:100]
         if cache_key in self.detection_cache:
-            return self.detection_cache[cache_key]
+            return self.detection_cache[cache_key]  # type: ignore[no-any-return]
 
         tier, confidence = self._detect_tier_with_confidence(goal, context)
 
         if confidence < 0.7 and self._enable_llm_fallback:
             try:
                 if self._llm_classifier is None:
-                    self._llm_classifier = _TierClassifierLLM()
-                llm_tier = await self._llm_classifier.classify(goal)
+                    self._llm_classifier = _TierClassifierLLM()  # type: ignore[assignment]
+                llm_tier = await self._llm_classifier.classify(goal)  # type: ignore[attr-defined]
                 if llm_tier is not None:
                     logger.info(
                         f"LLM classifier overrode heuristic: "
@@ -306,7 +308,7 @@ class _TierClassifierLLM:
     }
 
     def __init__(self) -> None:
-        self._client = None
+        self._client: Optional[AsyncAnthropic] = None  # type: ignore[name-defined]
 
     def _get_client(self) -> Any:
         if self._client is None:

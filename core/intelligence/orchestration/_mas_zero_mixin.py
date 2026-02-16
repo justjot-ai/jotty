@@ -34,7 +34,7 @@ class MASZeroMixin:
 
     def _get_experience_library(self) -> Any:
         """Lazy-load per-problem ExperienceLibrary (reset per run)."""
-        if not hasattr(self, "_experience_library") or self._experience_library is None:
+        if not hasattr(self, "_experience_library") or self._experience_library is None:  # type: ignore[has-type]
             from .mas_zero import ExperienceLibrary
 
             self._experience_library = ExperienceLibrary()
@@ -261,13 +261,13 @@ class MASZeroMixin:
             for agent_config in getattr(self, "agents", []):
                 name = agent_config.name
                 result = best_results.get(name)
-                success = result.success if hasattr(result, "success") else False
+                success = result.success if hasattr(result, "success") else False  # type: ignore[union-attr]
 
                 if success:
                     continue  # Keep successful results
 
                 refinement_needed = True
-                runner = self.runners.get(name)
+                runner = self.runners.get(name)  # type: ignore[attr-defined]
                 if not runner:
                     continue
 
