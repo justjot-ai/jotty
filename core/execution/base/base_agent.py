@@ -64,8 +64,14 @@ class AgentRuntimeConfig:
     enable_context: bool = True
     enable_monitoring: bool = True
     enable_skills: bool = True
+    enable_safety_gates: bool = True  # Safety validation (PII, cost, malicious input)
     system_prompt: str = ""
     parameters: Dict[str, Any] = field(default_factory=dict)
+
+    # Safety gate configuration
+    safety_max_cost_usd: float = 1.0  # Maximum cost per execution
+    safety_min_quality: float = 0.7  # Minimum output quality threshold
+    safety_rate_limit_per_minute: int = 100  # Max API calls per minute
 
     def __post_init__(self) -> None:
         from Jotty.core.infrastructure.foundation.config_defaults import DEFAULTS
@@ -171,6 +177,7 @@ class BaseAgent(ABC):
         self._cost_tracker = None
         self._skills_registry = None
         self._lm = None
+        self._safety_validator = None  # Safety gates (ValidatorAgent)
 
         # Execution hooks
         self._pre_hooks: List[Callable] = []
@@ -215,6 +222,7 @@ class BaseAgent(ABC):
             return
 
         self._init_dspy_lm()
+        self._init_safety_gates()
         self._initialized = True
         logger.debug(f"BaseAgent '{self.config.name}' initialized")
 
@@ -286,6 +294,150 @@ class BaseAgent(ABC):
                     return
             except Exception as e:
                 logger.debug(f"DirectAnthropicLM not available: {e}")
+
+    def _init_safety_gates(self) -> None:
+        """Initialize safety gates (ValidatorAgent) with default constraints.
+
+        Safety gates protect against:
+        - Malicious input (prompt injection, jailbreaks)
+        - Cost overruns (budget limits)
+        - PII leakage (SSN, credit cards, emails)
+        - Low quality output
+        - Rate limit violations
+        """
+        if not self.config.enable_safety_gates:
+            logger.debug(f"Safety gates disabled for {self.config.name}")
+            return
+
+        try:
+            from Jotty.core.infrastructure.monitoring.safety_gates import (
+                CostBudgetConstraint,
+                MaliciousInputConstraint,
+                PIIConstraint,
+                QualityThresholdConstraint,
+                RateLimitConstraint,
+                ValidatorAgent,
+            )
+
+            # Create default safety constraints
+            constraints = [
+                MaliciousInputConstraint(enabled=True),
+                CostBudgetConstraint(
+                    max_cost_usd=self.config.safety_max_cost_usd,
+                    enabled=True,
+                ),
+                PIIConstraint(enabled=True),
+                QualityThresholdConstraint(
+                    min_quality=self.config.safety_min_quality,
+                    enabled=True,
+                ),
+                RateLimitConstraint(
+                    max_calls_per_minute=self.config.safety_rate_limit_per_minute,
+                    enabled=True,
+                ),
+            ]
+
+            self._safety_validator = ValidatorAgent(constraints=constraints)
+
+            # Register safety hooks
+            self.add_pre_hook(self._safety_pre_execution_gate)
+            self.add_post_hook(self._safety_post_execution_gate)
+
+            logger.info(
+                f"✓ Safety gates enabled for {self.config.name} "
+                f"(cost_limit=${self.config.safety_max_cost_usd}, "
+                f"quality_min={self.config.safety_min_quality})"
+            )
+        except Exception as e:
+            logger.warning(f"Could not initialize safety gates: {e}")
+            self._safety_validator = None
+
+    async def _safety_pre_execution_gate(self, agent: "BaseAgent", **kwargs: Any) -> None:
+        """Pre-execution safety gate - validates input before execution.
+
+        Args:
+            agent: The agent instance (same as self when called as hook)
+            **kwargs: Execution arguments
+
+        Checks:
+        - Malicious input (prompt injection, jailbreaks)
+        - Rate limits (not calling APIs too fast)
+        - Cost budget (have budget left)
+
+        Raises:
+            ValueError: If safety gate blocks execution
+        """
+        if not agent._safety_validator:
+            return
+
+        # Build validation context
+        context = {
+            "user_input": str(kwargs.get("task", kwargs.get("query", ""))),
+            "cost_usd": 0.0,  # Pre-execution cost is 0
+            "agent_name": agent.config.name,
+            "timestamp": time.time(),
+        }
+
+        # Run pre-execution validators
+        report = agent._safety_validator.validate_pre_execution(context)
+
+        if not report.passed:
+            # Collect blocking failures
+            failures = [f.message for f in report.blocking_failures]
+            error_msg = "; ".join(failures)
+            logger.error(f"🚨 SAFETY GATE BLOCKED PRE-EXECUTION: {error_msg}")
+            raise ValueError(f"Safety gate blocked execution: {error_msg}")
+
+        # Log warnings (non-blocking)
+        for warning in report.warnings:
+            logger.warning(f"⚠️  Safety warning (pre-execution): {warning.message}")
+
+    async def _safety_post_execution_gate(
+        self, agent: "BaseAgent", result: AgentResult, **kwargs: Any
+    ) -> None:
+        """Post-execution safety gate - validates output after execution.
+
+        Args:
+            agent: The agent instance (same as self when called as hook)
+            result: Execution result to validate
+            **kwargs: Execution arguments
+
+        Checks:
+        - PII in output (SSN, credit cards, emails, phone numbers)
+        - Quality threshold (minimum quality score)
+
+        Modifies result in-place if safety gate blocks output.
+        """
+        if not agent._safety_validator:
+            return
+
+        # Build validation context
+        context = {
+            "output": str(result.output) if result.output else "",
+            "quality_score": result.metadata.get("quality", 0.8),
+            "agent_name": agent.config.name,
+            "execution_time": result.execution_time,
+            "cost_usd": result.metadata.get("cost_usd", 0.0),
+            "timestamp": time.time(),
+        }
+
+        # Run post-execution validators
+        report = agent._safety_validator.validate_post_execution(context)
+
+        if not report.passed:
+            # Collect blocking failures
+            failures = [f.message for f in report.blocking_failures]
+            error_msg = "; ".join(failures)
+            logger.error(f"🚨 SAFETY GATE BLOCKED POST-EXECUTION: {error_msg}")
+
+            # Modify result in-place to mark as failed
+            result.success = False
+            result.error = f"Safety gate blocked output: {error_msg}"
+            result.output = None  # Clear potentially unsafe output
+
+        # Log warnings (non-blocking)
+        for warning in report.warnings:
+            logger.warning(f"⚠️  Safety warning (post-execution): {warning.message}")
 
     @property
     def memory(self) -> Any:
