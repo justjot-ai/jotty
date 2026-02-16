@@ -135,11 +135,8 @@ class SwarmProviderGateway:
                     # 3. DirectClaudeCLI (simple subprocess, ~3s per call)
                     if not self._configured_lm and shutil.which("claude"):
                         try:
-                            from Jotty.core.infrastructure.integration.direct_claude_cli_lm import (
-                                DirectClaudeCLI,
-                            )
 
-                            self._configured_lm = DirectClaudeCLI()
+                            self._configured_lm = UnifiedLMProvider.create_lm(provider="claude-cli")
                             logger.info(" SwarmProviderGateway (async): Using DirectClaudeCLI")
                         except Exception as e:
                             logger.debug(f"DirectClaudeCLI failed: {e}")

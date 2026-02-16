@@ -55,17 +55,17 @@ class CurriculumDesignerAgent(BaseOlympiadAgent):
         self._designer = self._create_module(CurriculumDesignerSignature)
 
     def _ensure_sonnet_lm(self) -> None:
-        """Create Sonnet LM instance for curriculum planning (does NOT set global)."""
+        """Create Sonnet LM instance for curriculum planning via UnifiedLMProvider."""
         try:
-            from Jotty.core.infrastructure.foundation.direct_anthropic_lm import (
-                DirectAnthropicLM,
-                is_api_key_available,
+            from Jotty.core.infrastructure.foundation.unified_lm_provider import (
+                UnifiedLMProvider,
             )
 
-            if is_api_key_available():
-                self._lm = DirectAnthropicLM(model="sonnet", max_tokens=8192)
-                logger.info("CurriculumDesigner using Sonnet model")
-                return
+            self._lm = UnifiedLMProvider.create_lm(
+                provider="anthropic", model="sonnet", max_tokens=8192
+            )
+            logger.info("CurriculumDesigner using Sonnet model via UnifiedLMProvider")
+            return
         except Exception as e:
             logger.debug(f"Sonnet not available for CurriculumDesigner: {e}")
         self._get_lm()

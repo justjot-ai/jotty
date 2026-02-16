@@ -146,20 +146,17 @@ class SkillPlanExecutor:
                 pass
 
         try:
-            from Jotty.core.infrastructure.foundation.direct_anthropic_lm import (
-                DirectAnthropicLM,
-                is_api_key_available,
+            from Jotty.core.infrastructure.foundation.unified_lm_provider import (
+                configure_dspy_lm,
             )
 
-            if is_api_key_available():
-                lm = DirectAnthropicLM()
-                dspy.configure(lm=lm)
-                logger.info("SkillPlanExecutor: Auto-configured DSPy LM with DirectAnthropicLM")
-                return
+            lm = configure_dspy_lm()
+            logger.info("✓ SkillPlanExecutor: Auto-configured DSPy LM via UnifiedLMProvider")
+            return
         except (ImportError, LLMError, ConfigurationError) as e:
-            logger.debug(f"DirectAnthropicLM not available (known): {e}")
+            logger.debug(f"UnifiedLMProvider not available (known): {e}")
         except Exception as e:
-            logger.debug(f"DirectAnthropicLM not available (unexpected): {e}", exc_info=True)
+            logger.debug(f"UnifiedLMProvider not available (unexpected): {e}", exc_info=True)
 
     # =========================================================================
     # SKILL SELECTION

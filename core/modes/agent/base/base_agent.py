@@ -55,6 +55,7 @@ class AgentRuntimeConfig:
 
     name: str = ""
     model: str = ""  # "" → DEFAULT_MODEL_ALIAS
+    llm_provider: str = ""  # "" → auto-detect from environment (anthropic/openai/groq/etc)
     temperature: float = 0.0  # 0.0 → LLM_TEMPERATURE
     max_tokens: int = 0  # 0 → LLM_MAX_OUTPUT_TOKENS
     max_retries: int = 0  # 0 → MAX_RETRIES
@@ -247,7 +248,7 @@ class BaseAgent(ABC):
         Thread-safe: uses _dspy_lm_lock to prevent races when multiple
         agents/swarms initialize concurrently.
 
-        Uses DirectAnthropicLM (if ANTHROPIC_API_KEY set) - fastest, ~0.5s.
+        Uses UnifiedLMProvider for consistent multi-provider support.
         """
         try:
             import dspy
@@ -264,28 +265,63 @@ class BaseAgent(ABC):
             # Load API keys from .env.anthropic if not in environment
             import os
 
-            if not os.environ.get("ANTHROPIC_API_KEY") or not os.environ.get("OPENROUTER_API_KEY"):
+            if not os.environ.get("ANTHROPIC_API_KEY") and not os.environ.get("OPENROUTER_API_KEY"):
                 self._load_api_keys()
 
-            # Try direct API first (fastest)
+            # Use UnifiedLMProvider for consistent LM initialization
             try:
-                from Jotty.core.infrastructure.foundation.direct_anthropic_lm import (
-                    DirectAnthropicLM,
-                    is_api_key_available,
+                from Jotty.core.infrastructure.foundation.unified_lm_provider import (
+                    UnifiedLMProvider,
                 )
 
-                if is_api_key_available():
-                    self._lm = DirectAnthropicLM(
-                        model=self.config.model,
-                        max_tokens=min(int(self.config.max_tokens), 8192),
-                    )
-                    dspy.configure(lm=self._lm)
-                    logger.info(
-                        f"Auto-configured DSPy LM with DirectAnthropicLM ({self.config.model}) - fastest"
-                    )
-                    return
+                # Determine provider (from config, env, or auto-detect)
+                provider = self.config.llm_provider or self._auto_detect_provider()
+
+                # Create LM via UnifiedLMProvider
+                self._lm = UnifiedLMProvider.create_lm(
+                    provider=provider,
+                    model=self.config.model,
+                    max_tokens=self.config.max_tokens,
+                    temperature=self.config.temperature,
+                    timeout=int(self.config.timeout),
+                )
+                dspy.configure(lm=self._lm)
+                logger.info(
+                    f"✓ Configured DSPy LM via UnifiedLMProvider "
+                    f"(provider={provider}, model={self.config.model})"
+                )
+                return
             except Exception as e:
-                logger.debug(f"DirectAnthropicLM not available: {e}")
+                logger.warning(f"UnifiedLMProvider initialization failed: {e}")
+                # Fallback to configure_dspy_lm (auto-detect)
+                try:
+                    from Jotty.core.infrastructure.foundation.unified_lm_provider import (
+                        configure_dspy_lm,
+                    )
+
+                    self._lm = configure_dspy_lm()
+                    logger.info("✓ Configured DSPy LM via auto-detection")
+                except Exception as e2:
+                    logger.error(f"LM initialization failed completely: {e2}")
+
+    def _auto_detect_provider(self) -> str:
+        """Auto-detect available LM provider from environment.
+        Priority: Anthropic > OpenAI > Groq > OpenRouter > Zen
+        """
+        import os
+
+        if os.environ.get("ANTHROPIC_API_KEY"):
+            return "anthropic"
+        elif os.environ.get("OPENAI_API_KEY"):
+            return "openai"
+        elif os.environ.get("GROQ_API_KEY"):
+            return "groq"
+        elif os.environ.get("OPENROUTER_API_KEY"):
+            return "openrouter"
+        elif os.environ.get("OPENCODE_ZEN_API_KEY"):
+            return "zen"
+        else:
+            return "anthropic"  # Default fallback
 
     @property
     def memory(self) -> Any:

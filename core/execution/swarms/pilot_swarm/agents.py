@@ -46,15 +46,15 @@ class PilotPlannerAgent(BaseOlympiadAgent):
     def _ensure_sonnet_lm(self) -> Any:
         """Create Sonnet LM for planning."""
         try:
-            from Jotty.core.infrastructure.foundation.direct_anthropic_lm import (
-                DirectAnthropicLM,
-                is_api_key_available,
+            from Jotty.core.infrastructure.foundation.unified_lm_provider import (
+                UnifiedLMProvider,
             )
 
-            if is_api_key_available():
-                self._lm = DirectAnthropicLM(model="sonnet", max_tokens=4096)
-                logger.info("PilotPlanner using Sonnet model")
-                return
+            self._lm = UnifiedLMProvider.create_lm(
+                provider="anthropic", model="sonnet", max_tokens=4096
+            )
+            logger.info("PilotPlanner using Sonnet model via UnifiedLMProvider")
+            return
         except Exception as e:
             logger.debug(f"Sonnet not available for PilotPlanner: {e}")
         self._get_lm()
@@ -194,15 +194,15 @@ class PilotCoderAgent(BaseOlympiadAgent):
     def _ensure_sonnet_lm(self) -> Any:
         """Create Sonnet LM for code generation."""
         try:
-            from Jotty.core.infrastructure.foundation.direct_anthropic_lm import (
-                DirectAnthropicLM,
-                is_api_key_available,
+            from Jotty.core.infrastructure.foundation.unified_lm_provider import (
+                UnifiedLMProvider,
             )
 
-            if is_api_key_available():
-                self._lm = DirectAnthropicLM(model="sonnet", max_tokens=8192)
-                logger.info("PilotCoder using Sonnet model")
-                return
+            self._lm = UnifiedLMProvider.create_lm(
+                provider="anthropic", model="sonnet", max_tokens=8192
+            )
+            logger.info("PilotCoder using Sonnet model")
+            return
         except Exception as e:
             logger.debug(f"Sonnet not available for PilotCoder: {e}")
         self._get_lm()
@@ -327,15 +327,15 @@ class PilotSkillWriterAgent(BaseOlympiadAgent):
     def _ensure_sonnet_lm(self) -> Any:
         """Create Sonnet LM for skill writing."""
         try:
-            from Jotty.core.infrastructure.foundation.direct_anthropic_lm import (
-                DirectAnthropicLM,
-                is_api_key_available,
+            from Jotty.core.infrastructure.foundation.unified_lm_provider import (
+                UnifiedLMProvider,
             )
 
-            if is_api_key_available():
-                self._lm = DirectAnthropicLM(model="sonnet", max_tokens=8192)
-                logger.info("PilotSkillWriter using Sonnet model")
-                return
+            self._lm = UnifiedLMProvider.create_lm(
+                provider="anthropic", model="sonnet", max_tokens=8192
+            )
+            logger.info("PilotSkillWriter using Sonnet model")
+            return
         except Exception as e:
             logger.debug(f"Sonnet not available for PilotSkillWriter: {e}")
         self._get_lm()

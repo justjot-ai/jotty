@@ -102,31 +102,36 @@ class ResearchSwarm(SwarmTemplate):
 
         # Auto-configure DSPy LM if needed
         if not hasattr(dspy.settings, "lm") or dspy.settings.lm is None:
-            # Try direct Anthropic API first (fastest, no subprocess)
+            # Use UnifiedLMProvider for consistent multi-provider support
             try:
-                from Jotty.core.infrastructure.foundation.direct_anthropic_lm import (
-                    DirectAnthropicLM,
-                    is_api_key_available,
+                import os
+
+                from Jotty.core.infrastructure.foundation.unified_lm_provider import (
+                    UnifiedLMProvider,
                 )
 
-                if is_api_key_available():
-                    lm = DirectAnthropicLM(model="haiku", max_tokens=8192)
-                    dspy.configure(lm=lm)
-                    logger.info(" Auto-configured DSPy with DirectAnthropicLM")
-                else:
-                    raise ValueError("No API key")
-            except Exception:
-                # Fallback to Claude CLI
+                # Auto-detect provider or use anthropic
+                provider = "anthropic" if os.environ.get("ANTHROPIC_API_KEY") else "openai"
+
+                lm = UnifiedLMProvider.create_lm(
+                    provider=provider,
+                    model="haiku",
+                    max_tokens=8192,
+                )
+                dspy.configure(lm=lm)
+                logger.info(f"✓ Auto-configured DSPy via UnifiedLMProvider (provider={provider})")
+            except Exception as e:
+                logger.warning(f"UnifiedLMProvider initialization failed: {e}")
+                # Fallback to auto-detection
                 try:
-                    from Jotty.core.infrastructure.integration.direct_claude_cli_lm import (
-                        DirectClaudeCLI,
+                    from Jotty.core.infrastructure.foundation.unified_lm_provider import (
+                        configure_dspy_lm,
                     )
 
-                    lm = DirectClaudeCLI()
-                    dspy.configure(lm=lm)
-                    logger.info(" Auto-configured DSPy with DirectClaudeCLI")
-                except Exception as e:
-                    logger.warning(f"Could not configure DSPy LM: {e}")
+                    lm = configure_dspy_lm()
+                    logger.info("✓ Auto-configured DSPy via configure_dspy_lm()")
+                except Exception as e2:
+                    logger.warning(f"Could not configure DSPy LM: {e2}")
 
         # Initialize shared resources
         try:

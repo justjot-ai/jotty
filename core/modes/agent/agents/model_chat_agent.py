@@ -172,9 +172,9 @@ class ModelChatAgent:
 
         # Initialize LLM
         try:
-            from Jotty.core.infrastructure.integration.direct_claude_cli_lm import DirectClaudeCLI
+            from Jotty.core.infrastructure.foundation.unified_lm_provider import UnifiedLMProvider
 
-            self._llm = DirectClaudeCLI(model=self._llm_model)
+            self._llm = UnifiedLMProvider.create_lm(provider="claude-cli", model=self._llm_model)
         except Exception as e:
             logger.warning(f"Failed to initialize LLM: {e}")
             self._llm = None

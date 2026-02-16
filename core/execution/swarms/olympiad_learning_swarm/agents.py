@@ -70,26 +70,29 @@ class BaseOlympiadAgent(SwarmLearningAgent):
         self._lm = None
 
     def _get_lm(self) -> Any:
-        """Get or create LLM instance. Tries Direct API first, then CLI fallback."""
+        """Get or create LLM instance via UnifiedLMProvider."""
         if self._lm is None:
             # If already configured globally, reuse it
             if hasattr(dspy.settings, "lm") and dspy.settings.lm is not None:
                 self._lm = dspy.settings.lm
                 return self._lm
 
-            # Try direct Anthropic API (fastest)
+            # Use UnifiedLMProvider for consistent multi-provider support
             try:
-                from Jotty.core.infrastructure.foundation.direct_anthropic_lm import (
-                    DirectAnthropicLM,
-                    is_api_key_available,
+                from Jotty.core.infrastructure.foundation.unified_lm_provider import (
+                    UnifiedLMProvider,
                 )
 
-                if is_api_key_available():
-                    self._lm = DirectAnthropicLM(model=self.model, max_tokens=8192)
-                    dspy.configure(lm=self._lm)
-                    return self._lm
+                self._lm = UnifiedLMProvider.create_lm(
+                    provider="anthropic",
+                    model=self.model,
+                    max_tokens=8192,
+                    timeout=120,
+                )
+                dspy.configure(lm=self._lm)
+                return self._lm
             except Exception as e:
-                logger.debug(f"DirectAnthropicLM not available: {e}")
+                logger.debug(f"UnifiedLMProvider not available: {e}")
 
         return self._lm
 
