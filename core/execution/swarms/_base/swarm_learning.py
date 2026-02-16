@@ -133,6 +133,30 @@ class SwarmLearning(SwarmLearningMixin, ABC):
         if self._initialized:
             return
 
+        # Load API keys from .env / .env.anthropic if not already in environment
+        import os
+
+        if not os.environ.get("ANTHROPIC_API_KEY") and not os.environ.get("OPENROUTER_API_KEY"):
+            from pathlib import Path as _Path
+
+            for env_name in (".env.anthropic", ".env"):
+                env_file = _Path(__file__).parents[4] / env_name
+                if env_file.exists():
+                    try:
+                        with open(env_file) as f:
+                            for _line in f:
+                                _line = _line.strip()
+                                if not _line or _line.startswith("#"):
+                                    continue
+                                if "=" in _line:
+                                    _key, _val = _line.split("=", 1)
+                                    _key, _val = _key.strip(), _val.strip()
+                                    if _val and _key not in os.environ:
+                                        os.environ[_key] = _val
+                                        logger.debug(f"Loaded {_key} from {env_file}")
+                    except Exception as e:
+                        logger.warning(f"Failed to load API keys from {env_file}: {e}")
+
         # Auto-configure DSPy if needed (thread-safe via shared lock)
         try:
             import dspy

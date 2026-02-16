@@ -826,6 +826,10 @@ class IdeaWriterSwarm(SwarmTemplate):
     - Professional polishing
     """
 
+    TASK_TYPE = "content_writing"
+    DEFAULT_TOOLS = ["outline_generate", "research", "section_write", "content_polish"]
+    RESULT_CLASS = WriterResult
+
     AGENT_TEAM = TeamCoordinator.define(
         (OutlineAgent, "Outline", "_outline_agent"),
         (ResearchAgent, "Research", "_research_agent"),
@@ -877,23 +881,26 @@ class IdeaWriterSwarm(SwarmTemplate):
         if not sections:
             sections = ["introduction", "body", "body", "conclusion"]
 
-        return await self._safe_execute_domain(
-            task_type="content_writing",
-            default_tools=["outline_generate", "research", "section_write", "content_polish"],
-            result_class=WriterResult,
+        self._run_input = {
+            "topic": topic[:200],
+            "sections": sections,
+        }
+
+        return await self.run_domain(
             execute_fn=lambda executor: self._execute_phases(
                 executor, topic, sections, custom_outline
             ),
-            output_data_fn=lambda result: {
-                "title": result.title,
-                "word_count": result.word_count,
-                "sections": result.sections_generated,
-            },
-            input_data_fn=lambda: {
-                "topic": topic[:200],
-                "sections": sections,
-            },
         )
+
+    def _build_output_data(self, result: WriterResult) -> Dict[str, Any]:  # type: ignore[override]
+        return {
+            "title": result.title,
+            "word_count": result.word_count,
+            "sections": result.sections_generated,
+        }
+
+    def _build_input_data(self) -> Dict[str, Any]:
+        return getattr(self, "_run_input", {})
 
     async def _execute_phases(
         self, executor: Any, topic: str, sections: List[str], custom_outline: Outline = None  # type: ignore[assignment]

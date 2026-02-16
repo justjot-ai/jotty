@@ -113,6 +113,10 @@ class PerspectiveLearningSwarm(SwarmTemplate):
     10. NarrativeEditor - Final polish and coherence pass
     """
 
+    TASK_TYPE = "perspective_teaching"
+    DEFAULT_TOOLS = ["curriculum", "perspectives", "multilingual", "assembly"]
+    RESULT_CLASS = PerspectiveLearningResult
+
     AGENT_TEAM = TeamCoordinator.define(
         (CurriculumDesignerAgent, "CurriculumDesigner", "_curriculum_designer"),
         (IntuitiveExplainerAgent, "IntuitiveExplainer", "_intuitive_explainer"),
@@ -177,8 +181,10 @@ class PerspectiveLearningSwarm(SwarmTemplate):
 
         logger.info(f"PerspectiveLearningSwarm starting: {topic} for {student_name}")
 
-        async def _run_phases(executor: PhaseExecutor) -> PerspectiveLearningResult:
-            return await self._execute_phases(
+        self._run_input = {"topic": topic, "student_name": student_name}
+
+        return await self.run_domain(
+            execute_fn=lambda executor: self._execute_phases(
                 executor,
                 topic,
                 student_name,
@@ -188,24 +194,24 @@ class PerspectiveLearningSwarm(SwarmTemplate):
                 central_idea,
                 config,  # type: ignore[arg-type]
                 send_telegram,
-            )
-
-        return await self._safe_execute_domain(
-            task_type="perspective_teaching",
-            default_tools=["curriculum", "perspectives", "multilingual", "assembly"],
-            result_class=PerspectiveLearningResult,
-            execute_fn=_run_phases,
-            output_data_fn=lambda r: {
-                "perspectives_count": (
-                    r.perspectives_generated if hasattr(r, "perspectives_generated") else 0
-                ),
-                "languages_count": (
-                    r.languages_generated if hasattr(r, "languages_generated") else 0
-                ),
-                "word_count": r.content.total_words if hasattr(r, "content") and r.content else 0,
-            },
-            input_data_fn=lambda: {"topic": topic, "student_name": student_name},
+            ),
         )
+
+    def _build_output_data(self, result: PerspectiveLearningResult) -> Dict[str, Any]:  # type: ignore[override]
+        return {
+            "perspectives_count": (
+                result.perspectives_generated if hasattr(result, "perspectives_generated") else 0
+            ),
+            "languages_count": (
+                result.languages_generated if hasattr(result, "languages_generated") else 0
+            ),
+            "word_count": (
+                result.content.total_words if hasattr(result, "content") and result.content else 0
+            ),
+        }
+
+    def _build_input_data(self) -> Dict[str, Any]:
+        return getattr(self, "_run_input", {})
 
     async def _execute_phases(
         self,

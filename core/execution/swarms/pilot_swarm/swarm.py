@@ -63,6 +63,10 @@ class PilotSwarm(SwarmTemplate):
     6. ValidatorAgent — validates goal completion
     """
 
+    TASK_TYPE = "pilot_execution"
+    DEFAULT_TOOLS = ["planning", "search", "code", "terminal", "skill_write", "validate"]
+    RESULT_CLASS = PilotResult
+
     AGENT_TEAM = TeamCoordinator.define(
         (PilotPlannerAgent, "Planner", "_planner"),
         (PilotSearchAgent, "Searcher", "_searcher"),
@@ -101,22 +105,24 @@ class PilotSwarm(SwarmTemplate):
 
         logger.info(f"PilotSwarm starting: {goal[:100]}")
 
-        async def _run_phases(executor: PhaseExecutor) -> PilotResult:
-            return await self._execute_phases(executor, goal, context, config, send_telegram)  # type: ignore[arg-type]
+        self._run_input = {"goal": goal}
 
-        return await self._safe_execute_domain(
-            task_type="pilot_execution",
-            default_tools=["planning", "search", "code", "terminal", "skill_write", "validate"],
-            result_class=PilotResult,
-            execute_fn=_run_phases,
-            output_data_fn=lambda r: {
-                "subtasks_completed": (
-                    r.subtasks_completed if hasattr(r, "subtasks_completed") else 0
-                ),
-                "artifacts_count": len(r.artifacts) if hasattr(r, "artifacts") else 0,
-            },
-            input_data_fn=lambda: {"goal": goal},
+        return await self.run_domain(
+            execute_fn=lambda executor: self._execute_phases(
+                executor, goal, context, config, send_telegram  # type: ignore[arg-type]
+            ),
         )
+
+    def _build_output_data(self, result: PilotResult) -> Dict[str, Any]:  # type: ignore[override]
+        return {
+            "subtasks_completed": (
+                result.subtasks_completed if hasattr(result, "subtasks_completed") else 0
+            ),
+            "artifacts_count": len(result.artifacts) if hasattr(result, "artifacts") else 0,
+        }
+
+    def _build_input_data(self) -> Dict[str, Any]:
+        return getattr(self, "_run_input", {})
 
     async def _execute_phases(
         self,

@@ -220,27 +220,29 @@ class BaseAgent(ABC):
         logger.debug(f"BaseAgent '{self.config.name}' initialized")
 
     def _load_api_keys(self) -> Any:
-        """Load API keys from .env.anthropic file if not in environment."""
+        """Load API keys from .env.anthropic and .env files if not in environment."""
         import os
         from pathlib import Path
 
-        # Look for .env.anthropic in project root (4 levels up from this file)
-        env_file = Path(__file__).parents[4] / ".env.anthropic"
-        if env_file.exists():
-            try:
-                with open(env_file) as f:
-                    for line in f:
-                        line = line.strip()
-                        if not line or line.startswith("#"):
-                            continue
-                        if "=" in line:
-                            key_name, key_val = line.split("=", 1)
-                            key_name, key_val = key_name.strip(), key_val.strip()
-                            if key_val and key_name not in os.environ:
-                                os.environ[key_name] = key_val
-                                logger.debug(f"Loaded {key_name} from {env_file}")
-            except Exception as e:
-                logger.warning(f"Failed to load API keys from {env_file}: {e}")
+        # Look for env files in project root (4 levels up from this file)
+        project_root = Path(__file__).parents[4]
+        for env_name in (".env.anthropic", ".env"):
+            env_file = project_root / env_name
+            if env_file.exists():
+                try:
+                    with open(env_file) as f:
+                        for line in f:
+                            line = line.strip()
+                            if not line or line.startswith("#"):
+                                continue
+                            if "=" in line:
+                                key_name, key_val = line.split("=", 1)
+                                key_name, key_val = key_name.strip(), key_val.strip()
+                                if key_val and key_name not in os.environ:
+                                    os.environ[key_name] = key_val
+                                    logger.debug(f"Loaded {key_name} from {env_file}")
+                except Exception as e:
+                    logger.warning(f"Failed to load API keys from {env_file}: {e}")
 
     def _init_dspy_lm(self) -> None:
         """Auto-configure DSPy LM if not already set.

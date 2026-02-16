@@ -623,6 +623,9 @@ class SwarmTemplate(SwarmLearning):
         Returns:
             SwarmResult from execute_fn, or error result on failure.
         """
+        # Ensure agents are initialized even when called directly (not via execute())
+        self._init_agents()
+
         executor = self._phase_executor()
         try:
             result = await execute_fn(executor)

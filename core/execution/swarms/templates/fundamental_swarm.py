@@ -817,6 +817,10 @@ class FundamentalSwarm(SwarmTemplate):
     - Investment thesis
     """
 
+    TASK_TYPE = "fundamental_analysis"
+    DEFAULT_TOOLS = ["financial_analyze", "ratio_analyze", "dcf_valuate"]
+    RESULT_CLASS = FundamentalResult
+
     # Declarative agent team - auto-initialized by SwarmTemplate
     AGENT_TEAM = TeamCoordinator.define(
         (FinancialStatementAgent, "FinancialStatement", "_financial_agent"),
@@ -876,33 +880,36 @@ class FundamentalSwarm(SwarmTemplate):
                 "shares_outstanding": 600000,
             }
 
-        return await self._safe_execute_domain(
-            task_type="fundamental_analysis",
-            default_tools=["financial_analyze", "ratio_analyze", "dcf_valuate"],
-            result_class=FundamentalResult,
+        self._run_input = {
+            "ticker": ticker,
+            "exchange": exchange,
+            "current_price": market_data.get("current_price", 0),
+            "market_cap": market_data.get("market_cap", 0),
+            "years_of_data": self.config.years_of_data,  # type: ignore[attr-defined]
+            "investment_style": self.config.investment_style.value,  # type: ignore[attr-defined]
+        }
+
+        return await self.run_domain(
             execute_fn=lambda executor: self._execute_phases(
                 executor, ticker, exchange, financial_data, market_data
             ),
-            output_data_fn=lambda result: {
-                "rating": result.thesis.rating.value if result.thesis else "N/A",
-                "target_price": result.thesis.target_price if result.thesis else 0,
-                "upside": result.thesis.upside if result.thesis else 0,
-                "intrinsic_value": result.valuations[0].intrinsic_value if result.valuations else 0,
-                "dcf_upside": result.valuations[0].upside_downside if result.valuations else 0,
-                "dcf_confidence": result.valuations[0].confidence if result.valuations else 0,
-                "moat_score": result.moat_score,
-                "earnings_quality": result.earnings_quality,
-                "num_valuations": len(result.valuations),
-            },
-            input_data_fn=lambda: {
-                "ticker": ticker,
-                "exchange": exchange,
-                "current_price": market_data.get("current_price", 0),
-                "market_cap": market_data.get("market_cap", 0),
-                "years_of_data": self.config.years_of_data,  # type: ignore[attr-defined]
-                "investment_style": self.config.investment_style.value,  # type: ignore[attr-defined]
-            },
         )
+
+    def _build_output_data(self, result: FundamentalResult) -> Dict[str, Any]:  # type: ignore[override]
+        return {
+            "rating": result.thesis.rating.value if result.thesis else "N/A",
+            "target_price": result.thesis.target_price if result.thesis else 0,
+            "upside": result.thesis.upside if result.thesis else 0,
+            "intrinsic_value": result.valuations[0].intrinsic_value if result.valuations else 0,
+            "dcf_upside": result.valuations[0].upside_downside if result.valuations else 0,
+            "dcf_confidence": result.valuations[0].confidence if result.valuations else 0,
+            "moat_score": result.moat_score,
+            "earnings_quality": result.earnings_quality,
+            "num_valuations": len(result.valuations),
+        }
+
+    def _build_input_data(self) -> Dict[str, Any]:
+        return getattr(self, "_run_input", {})
 
     async def _execute_phases(
         self,
