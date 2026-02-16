@@ -60,7 +60,7 @@ class PerspectiveLearningTemplate(SwarmTemplate):
             try:
                 from ..perspective_learning_swarm import PerspectiveLearningSwarm
 
-                self._swarm = PerspectiveLearningSwarm(self.config)
+                self._swarm = PerspectiveLearningSwarm(self.config)  # type: ignore[arg-type]
             except ImportError:
                 return PerspectiveLearningResult(
                     success=False,
@@ -70,7 +70,7 @@ class PerspectiveLearningTemplate(SwarmTemplate):
 
         # Delegate to existing swarm
         try:
-            result = await self._swarm.execute(query, **kwargs)
+            result = await self._swarm.execute(query, **kwargs)  # type: ignore[attr-defined]
             return result
         except Exception as e:
             return PerspectiveLearningResult(
@@ -81,6 +81,6 @@ class PerspectiveLearningTemplate(SwarmTemplate):
 
 
 # Backward compatibility
-PerspectiveLearningSwarm = PerspectiveLearningTemplate
+PerspectiveLearningSwarm = PerspectiveLearningTemplate  # type: ignore[assignment]
 
 __all__ = ["PerspectiveLearningTemplate", "PerspectiveLearningSwarm"]

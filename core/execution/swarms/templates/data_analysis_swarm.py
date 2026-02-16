@@ -694,7 +694,7 @@ class DataAnalysisSwarm(SwarmTemplate):
     DEFAULT_TOOLS = ["data_profile", "eda_analyze", "insight_generate"]
     RESULT_CLASS = AnalysisResult
 
-    def __init__(self, config: DataAnalysisConfig = None) -> None:
+    def __init__(self, config: DataAnalysisConfig = None) -> None:  # type: ignore[assignment]
         super().__init__(config or DataAnalysisConfig())
 
     async def _execute_domain(self, data: Any, **kwargs: Any) -> AnalysisResult:
@@ -785,7 +785,7 @@ class DataAnalysisSwarm(SwarmTemplate):
                 data_summary,
                 sample_data,
                 column_info,
-                config,
+                config,  # type: ignore[arg-type]
                 question,
                 target_column,
                 business_context,
@@ -842,7 +842,7 @@ class DataAnalysisSwarm(SwarmTemplate):
             "Data Profiling",
             "DataProfiler",
             AgentRole.ACTOR,
-            self._profiler.profile(data_summary, sample_data, column_info),
+            self._profiler.profile(data_summary, sample_data, column_info),  # type: ignore[attr-defined]
             input_data={
                 "rows": data_summary.get("shape", [0, 0])[0],
                 "cols": (
@@ -878,7 +878,7 @@ class DataAnalysisSwarm(SwarmTemplate):
                 (
                     "Statistical",
                     AgentRole.EXPERT,
-                    self._statistical_agent.analyze(
+                    self._statistical_agent.analyze(  # type: ignore[attr-defined]
                         json.dumps(data_summary), list(column_info.keys()), "Comprehensive analysis"
                     ),
                     ["stats_analyze"],
@@ -886,7 +886,7 @@ class DataAnalysisSwarm(SwarmTemplate):
                 (
                     "EDA",
                     AgentRole.ACTOR,
-                    self._eda_agent.explore(
+                    self._eda_agent.explore(  # type: ignore[attr-defined]
                         profile_result.get("profile_summary", ""),
                         json.dumps(data_summary),
                         question or "Explore the data",
@@ -915,7 +915,7 @@ class DataAnalysisSwarm(SwarmTemplate):
             (
                 "Insight",
                 AgentRole.EXPERT,
-                self._insight_agent.generate(analysis_summary, business_context, question),
+                self._insight_agent.generate(analysis_summary, business_context, question),  # type: ignore[attr-defined]
                 ["insight_generate"],
             ),
         ]
@@ -925,7 +925,7 @@ class DataAnalysisSwarm(SwarmTemplate):
                 (
                     "MLRecommender",
                     AgentRole.PLANNER,
-                    self._ml_recommender.recommend(
+                    self._ml_recommender.recommend(  # type: ignore[attr-defined]
                         profile_result.get("profile_summary", ""),
                         target_column,
                         f"Predict {target_column}",
@@ -964,7 +964,7 @@ class DataAnalysisSwarm(SwarmTemplate):
                 "Visualization Recommendations",
                 "Visualization",
                 AgentRole.ACTOR,
-                self._visualization_agent.recommend(
+                self._visualization_agent.recommend(  # type: ignore[attr-defined]
                     json.dumps(data_summary), insights_summary, "analysts"
                 ),
                 input_data={"include_viz": config.include_visualizations},
@@ -1019,7 +1019,7 @@ class DataAnalysisSwarm(SwarmTemplate):
             profile=profile,
             statistics=statistics,
             insights=insights if isinstance(insights, list) else [],
-            ml_recommendations=ml_rec,
+            ml_recommendations=ml_rec,  # type: ignore[arg-type]
             visualizations=visualizations,
             summary=summary.strip(),
             data_quality_score=quality_score,

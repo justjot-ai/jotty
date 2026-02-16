@@ -33,12 +33,12 @@ class ReviewMixin:
         Shifts review expectations left: the developer sees what reviewers
         will check BEFORE writing code, reducing first-round rejections.
         """
-        if not self._team_config:
+        if not self._team_config:  # type: ignore[attr-defined]
             return ""
         seen = set()
         criteria_lines = []
         for phase in ("functional", "quality"):
-            for persona in self._team_config.get_reviewers(phase):
+            for persona in self._team_config.get_reviewers(phase):  # type: ignore[attr-defined]
                 if persona.name in seen:
                     continue
                 seen.add(persona.name)
@@ -116,7 +116,7 @@ class ReviewMixin:
         accumulated_research = ResearchContext()
         research_findings_str = ""
 
-        config = self.config
+        config = self.config  # type: ignore[attr-defined]
         frameworks_json = json.dumps(getattr(config, "frameworks", []))
 
         for iteration in range(1, max_iterations + 1):
@@ -390,14 +390,14 @@ class ReviewMixin:
             "team_feedback": [],
         }
 
-        if not self._team_config:
+        if not self._team_config:  # type: ignore[attr-defined]
             return planning_result
 
         # Gather input from all personas (both functional and quality reviewers)
         all_personas = []
         seen = set()
         for phase in ("functional", "quality"):
-            for persona in self._team_config.get_reviewers(phase):
+            for persona in self._team_config.get_reviewers(phase):  # type: ignore[attr-defined]
                 if persona.name not in seen:
                     seen.add(persona.name)
                     all_personas.append(persona)
@@ -421,14 +421,14 @@ class ReviewMixin:
         for r in results:
             if isinstance(r, Exception):
                 continue
-            planning_result["team_feedback"].append(r)
-            if r.get("recommendations"):
+            planning_result["team_feedback"].append(r)  # type: ignore[attr-defined]
+            if r.get("recommendations"):  # type: ignore[union-attr]
                 feedback_parts.append(f"[{r['persona']}] RECOMMENDATIONS:\n{r['recommendations']}")
-            if r.get("implementation_notes"):
+            if r.get("implementation_notes"):  # type: ignore[union-attr]
                 feedback_parts.append(
                     f"[{r['persona']}] IMPLEMENTATION NOTES:\n{r['implementation_notes']}"
                 )
-            for concern in r.get("concerns", []):
+            for concern in r.get("concerns", []):  # type: ignore[union-attr]
                 if isinstance(concern, dict):
                     all_concerns.append(
                         f"[{r['persona']}] [{concern.get('severity', '?')}] {concern.get('description', '')}"
@@ -561,14 +561,14 @@ class ReviewMixin:
                     {"persona": "unknown", "verdict": "APPROVED", "issues": [], "feedback": ""}
                 )
             else:
-                parsed.append(r)
-                verdict = r.get("verdict", "?")
-                feedback_preview = r.get("feedback", "")[:100]
-                n_issues = len(r.get("issues", []))
+                parsed.append(r)  # type: ignore[arg-type]
+                verdict = r.get("verdict", "?")  # type: ignore[union-attr]
+                feedback_preview = r.get("feedback", "")[:100]  # type: ignore[union-attr]
+                n_issues = len(r.get("issues", []))  # type: ignore[union-attr]
                 detail = f" ({n_issues} issue(s))" if n_issues else ""
-                _progress("Phase 6", r.get("persona", "Reviewer"), f"{verdict}{detail}")
+                _progress("Phase 6", r.get("persona", "Reviewer"), f"{verdict}{detail}")  # type: ignore[union-attr]
                 if feedback_preview and verdict == "REJECTED":
-                    _progress("Phase 6", r.get("persona", "Reviewer"), f"  {feedback_preview}")
+                    _progress("Phase 6", r.get("persona", "Reviewer"), f"  {feedback_preview}")  # type: ignore[union-attr]
         return parsed
 
     def _collect_feedback(self, results: List[Dict[str, Any]]) -> str:
@@ -605,14 +605,14 @@ class ReviewMixin:
         """
         review_result = {
             "approved": True,
-            "team": self._team_config.name if self._team_config else "unknown",
+            "team": self._team_config.name if self._team_config else "unknown",  # type: ignore[attr-defined]
             "phase_a_results": [],
             "phase_b_results": [],
             "feedback": "",
             "rework_attempts": 0,
         }
 
-        if not self._team_config:
+        if not self._team_config:  # type: ignore[attr-defined]
             return review_result, files
 
         current_code = all_code
@@ -632,7 +632,7 @@ class ReviewMixin:
                 team_agreements += f"\n\n**Simplicity Check**: Code passed SimplicityJudge (score: {score:.2f}, verdict: {verdict})."
 
         # --- Phase 6a: Functional Review ---
-        func_reviewers = self._team_config.get_reviewers("functional")
+        func_reviewers = self._team_config.get_reviewers("functional")  # type: ignore[attr-defined]
         if func_reviewers:
             phase_a = await self._run_review_phase(
                 func_reviewers, current_code, requirements, "functional", team_agreements
@@ -642,10 +642,10 @@ class ReviewMixin:
             rejected = [r for r in phase_a if r.get("verdict") == "REJECTED"]
 
             # Arbitrator: validate rejections before rework
-            if rejected and getattr(self.config, "enable_arbitrator", True):
+            if rejected and getattr(self.config, "enable_arbitrator", True):  # type: ignore[attr-defined]
                 if not hasattr(self, "_arbitrator") or self._arbitrator is None:
                     self._arbitrator = ArbitratorAgent(
-                        self._memory, self._context, self._bus, self._agent_context("Verifier")
+                        self._memory, self._context, self._bus, self._agent_context("Verifier")  # type: ignore[attr-defined]
                     )
                 validated = []
                 for r in rejected:
@@ -670,7 +670,7 @@ class ReviewMixin:
                 )
                 review_result["rework_attempts"] += 1
 
-                opt_result = await self._optimizer.optimize(
+                opt_result = await self._optimizer.optimize(  # type: ignore[attr-defined]
                     code=current_code,
                     focus="review_feedback",
                     requirements=requirements,
@@ -689,7 +689,7 @@ class ReviewMixin:
                 review_result["phase_a_results"] = phase_a
 
         # --- Phase 6b: Code Quality Review ---
-        quality_reviewers = self._team_config.get_reviewers("quality")
+        quality_reviewers = self._team_config.get_reviewers("quality")  # type: ignore[attr-defined]
         if quality_reviewers:
             phase_b = await self._run_review_phase(
                 quality_reviewers, current_code, requirements, "quality", team_agreements
@@ -699,10 +699,10 @@ class ReviewMixin:
             rejected = [r for r in phase_b if r.get("verdict") == "REJECTED"]
 
             # Arbitrator: validate rejections before rework
-            if rejected and getattr(self.config, "enable_arbitrator", True):
+            if rejected and getattr(self.config, "enable_arbitrator", True):  # type: ignore[attr-defined]
                 if not hasattr(self, "_arbitrator") or self._arbitrator is None:
                     self._arbitrator = ArbitratorAgent(
-                        self._memory, self._context, self._bus, self._agent_context("Verifier")
+                        self._memory, self._context, self._bus, self._agent_context("Verifier")  # type: ignore[attr-defined]
                     )
                 validated = []
                 for r in rejected:
@@ -727,7 +727,7 @@ class ReviewMixin:
                 )
                 review_result["rework_attempts"] += 1
 
-                opt_result = await self._optimizer.optimize(
+                opt_result = await self._optimizer.optimize(  # type: ignore[attr-defined]
                     code=current_code,
                     focus="review_feedback",
                     requirements=requirements,
@@ -747,10 +747,10 @@ class ReviewMixin:
 
         # Final verdict
         all_results = review_result["phase_a_results"] + review_result["phase_b_results"]
-        all_approved = all(r.get("verdict") == "APPROVED" for r in all_results)
+        all_approved = all(r.get("verdict") == "APPROVED" for r in all_results)  # type: ignore[union-attr]
         review_result["approved"] = all_approved
         review_result["feedback"] = self._collect_feedback(
-            [r for r in all_results if r.get("verdict") == "REJECTED"]
+            [r for r in all_results if r.get("verdict") == "REJECTED"]  # type: ignore[union-attr]
         )
 
         verdict_str = "APPROVED" if all_approved else "REJECTED"

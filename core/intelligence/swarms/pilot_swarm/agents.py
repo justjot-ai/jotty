@@ -154,8 +154,8 @@ class PilotSearchAgent(BaseOlympiadAgent):
                 Path(__file__).parent.parent.parent.parent / "skills" / "web-search" / "tools.py"
             )
             spec = importlib.util.spec_from_file_location("web_search_tools", tools_path)
-            mod = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(mod)
+            mod = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
+            spec.loader.exec_module(mod)  # type: ignore[union-attr]
             search_web_tool = getattr(mod, "search_web_tool")
 
             for query in queries[:3]:

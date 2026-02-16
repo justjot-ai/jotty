@@ -128,23 +128,23 @@ class OlympiadLearningSwarm(SwarmTemplate):
     DEFAULT_TOOLS = ["curriculum", "decompose", "intuition", "patterns", "problems"]
     RESULT_CLASS = OlympiadLearningResult
 
-    def __init__(self, config: OlympiadLearningConfig = None) -> None:
+    def __init__(self, config: OlympiadLearningConfig = None) -> None:  # type: ignore[assignment]
         super().__init__(config or OlympiadLearningConfig())
-        self._optimization_mode = self.config.optimization_mode
+        self._optimization_mode = self.config.optimization_mode  # type: ignore[attr-defined]
 
     async def _execute_domain(
         self, topic: str | None = None, **kwargs: Any
     ) -> OlympiadLearningResult:
         """Execute learning content generation."""
-        return await self.teach(topic=topic, **kwargs)
+        return await self.teach(topic=topic, **kwargs)  # type: ignore[arg-type]
 
     async def teach(
         self,
         topic: str,
-        subject: Subject = None,
+        subject: Subject = None,  # type: ignore[assignment]
         student_name: str | None = None,
-        depth: LessonDepth = None,
-        target_tier: DifficultyTier = None,
+        depth: LessonDepth = None,  # type: ignore[assignment]
+        target_tier: DifficultyTier = None,  # type: ignore[assignment]
         target_level: str | None = None,
         send_telegram: bool | None = None,
     ) -> OlympiadLearningResult:
@@ -168,7 +168,7 @@ class OlympiadLearningSwarm(SwarmTemplate):
 
         config = self.config
         subject = subject or config.subject
-        student_name = student_name or config.student_name
+        student_name = student_name or config.student_name  # type: ignore[attr-defined]
         depth = depth or config.depth
         target_tier = target_tier or config.target_tier
         subject_str = subject.value if isinstance(subject, Subject) else str(subject)
@@ -189,7 +189,7 @@ class OlympiadLearningSwarm(SwarmTemplate):
                 student_name,
                 depth,
                 target_str,
-                config,
+                config,  # type: ignore[arg-type]
                 send_telegram,
             ),
         )
@@ -339,8 +339,8 @@ class OlympiadLearningSwarm(SwarmTemplate):
                 else None
             )
 
-        final_result.pdf_path = pdf_path
-        final_result.html_path = html_path
+        final_result.pdf_path = pdf_path  # type: ignore[assignment]
+        final_result.html_path = html_path  # type: ignore[assignment]
 
         # ── Live cost summary ──
         try:
@@ -371,8 +371,8 @@ class OlympiadLearningSwarm(SwarmTemplate):
                 student_name,
                 content,
                 result.get("complete_content", ""),
-                pdf_path=pdf_path,
-                html_path=html_path,
+                pdf_path=pdf_path,  # type: ignore[arg-type]
+                html_path=html_path,  # type: ignore[arg-type]
             )
 
         return final_result
@@ -399,7 +399,7 @@ class OlympiadLearningSwarm(SwarmTemplate):
             "Curriculum Architecture",
             "CurriculumArchitect",
             AgentRole.PLANNER,
-            self._curriculum_architect.design(
+            self._curriculum_architect.design(  # type: ignore[attr-defined]
                 subject=subject,
                 topic=topic,
                 student_name=student_name,
@@ -441,7 +441,7 @@ class OlympiadLearningSwarm(SwarmTemplate):
                     "ConceptDecomposer",
                     AgentRole.ACTOR,
                     rate_limited(
-                        self._concept_decomposer.decompose(
+                        self._concept_decomposer.decompose(  # type: ignore[attr-defined]
                             concept_name=topic,
                             concept_description=concept_desc,
                             subject=subject,
@@ -459,7 +459,7 @@ class OlympiadLearningSwarm(SwarmTemplate):
                     "IntuitionBuilder",
                     AgentRole.ACTOR,
                     rate_limited(
-                        self._intuition_builder.build(
+                        self._intuition_builder.build(  # type: ignore[attr-defined]
                             concept=f"{topic}: Core concepts in {subject}",
                             why_it_matters=f"Essential for international {subject} success",
                             student_name=student_name,
@@ -473,7 +473,7 @@ class OlympiadLearningSwarm(SwarmTemplate):
                     "PatternHunter",
                     AgentRole.ACTOR,
                     rate_limited(
-                        self._pattern_hunter.hunt(
+                        self._pattern_hunter.hunt(  # type: ignore[attr-defined]
                             topic=topic,
                             subject=subject,
                             concepts=concepts_str,
@@ -486,7 +486,7 @@ class OlympiadLearningSwarm(SwarmTemplate):
                     "SolutionStrategist",
                     AgentRole.ACTOR,
                     rate_limited(
-                        self._solution_strategist.strategize(
+                        self._solution_strategist.strategize(  # type: ignore[attr-defined]
                             topic=topic,
                             subject=subject,
                             concepts=concepts_str,
@@ -499,7 +499,7 @@ class OlympiadLearningSwarm(SwarmTemplate):
                     "MistakeAnalyzer",
                     AgentRole.ACTOR,
                     rate_limited(
-                        self._mistake_analyzer.analyze(
+                        self._mistake_analyzer.analyze(  # type: ignore[attr-defined]
                             topic=topic,
                             subject=subject,
                             concepts=concepts_str,
@@ -514,7 +514,7 @@ class OlympiadLearningSwarm(SwarmTemplate):
                     "ConnectionMapper",
                     AgentRole.ACTOR,
                     rate_limited(
-                        self._connection_mapper.map_connections(
+                        self._connection_mapper.map_connections(  # type: ignore[attr-defined]
                             topic=topic,
                             subject=subject,
                             concepts=concepts_str,
@@ -588,7 +588,7 @@ class OlympiadLearningSwarm(SwarmTemplate):
                         f"ProblemCrafter_{tier}_{idx}",
                         AgentRole.ACTOR,
                         rate_limited(
-                            self._problem_crafter.craft(
+                            self._problem_crafter.craft(  # type: ignore[attr-defined]
                                 topic=topic,
                                 subject=subject,
                                 concepts=concepts_str,
@@ -654,7 +654,7 @@ class OlympiadLearningSwarm(SwarmTemplate):
                 (
                     "NarrativeEditor",
                     AgentRole.REVIEWER,
-                    self._narrative_editor.edit(
+                    self._narrative_editor.edit(  # type: ignore[attr-defined]
                         assembled_content=complete_content,
                         running_example=running_example,
                         key_insights=key_insights,
@@ -667,7 +667,7 @@ class OlympiadLearningSwarm(SwarmTemplate):
                 (
                     "RankTips",
                     AgentRole.ACTOR,
-                    self._rank_tips.generate(
+                    self._rank_tips.generate(  # type: ignore[attr-defined]
                         topic=topic,
                         subject=subject,
                         target_level=target_level,
@@ -708,7 +708,7 @@ class OlympiadLearningSwarm(SwarmTemplate):
 
         # Append rank tips section to content
         if rank_tips:
-            complete_content += self._build_rank_tips_section(student_name, topic, rank_tips)
+            complete_content += self._build_rank_tips_section(student_name, topic, rank_tips)  # type: ignore[arg-type]
             logger.info(f"Phase 5: Added {len(rank_tips)} rank tips")
 
         # Build sections for the LessonContent
@@ -788,7 +788,7 @@ class OlympiadLearningSwarm(SwarmTemplate):
             "Unified Deep Generation",
             "UnifiedTopic",
             AgentRole.ACTOR,
-            self._unified_topic.generate_deep(
+            self._unified_topic.generate_deep(  # type: ignore[attr-defined]
                 student_name=student_name,
                 topic=topic,
                 subject=subject,
@@ -900,7 +900,7 @@ class OlympiadLearningSwarm(SwarmTemplate):
             "Designing Curriculum",
             "CurriculumArchitect",
             AgentRole.PLANNER,
-            self._curriculum_architect.design(
+            self._curriculum_architect.design(  # type: ignore[attr-defined]
                 subject=subject,
                 topic=topic,
                 student_name=student_name,
@@ -919,7 +919,7 @@ class OlympiadLearningSwarm(SwarmTemplate):
             "Decomposing Concept",
             "ConceptDecomposer",
             AgentRole.ACTOR,
-            self._concept_decomposer.decompose(
+            self._concept_decomposer.decompose(  # type: ignore[attr-defined]
                 concept_name=topic,
                 concept_description=f"{topic} in {subject}",
                 subject=subject,
@@ -940,7 +940,7 @@ class OlympiadLearningSwarm(SwarmTemplate):
             "Building Intuition",
             "IntuitionBuilder",
             AgentRole.ACTOR,
-            self._intuition_builder.build(
+            self._intuition_builder.build(  # type: ignore[attr-defined]
                 concept=f"{topic}: {subject} olympiad",
                 why_it_matters=f"Essential for international {subject} olympiad",
                 student_name=student_name,
@@ -957,7 +957,7 @@ class OlympiadLearningSwarm(SwarmTemplate):
             "Hunting Patterns",
             "PatternHunter",
             AgentRole.ACTOR,
-            self._pattern_hunter.hunt(
+            self._pattern_hunter.hunt(  # type: ignore[attr-defined]
                 topic=topic,
                 subject=subject,
                 concepts=concepts_str,
@@ -973,7 +973,7 @@ class OlympiadLearningSwarm(SwarmTemplate):
             "Building Strategies",
             "SolutionStrategist",
             AgentRole.ACTOR,
-            self._solution_strategist.strategize(
+            self._solution_strategist.strategize(  # type: ignore[attr-defined]
                 topic=topic,
                 subject=subject,
                 concepts=concepts_str,
@@ -1015,7 +1015,7 @@ class OlympiadLearningSwarm(SwarmTemplate):
                     f"Crafting {tier} Problem",
                     "ProblemCrafter",
                     AgentRole.ACTOR,
-                    self._problem_crafter.craft(
+                    self._problem_crafter.craft(  # type: ignore[attr-defined]
                         topic=topic,
                         subject=subject,
                         concepts=concepts_str,
@@ -1037,7 +1037,7 @@ class OlympiadLearningSwarm(SwarmTemplate):
             "Analyzing Mistakes",
             "MistakeAnalyzer",
             AgentRole.ACTOR,
-            self._mistake_analyzer.analyze(
+            self._mistake_analyzer.analyze(  # type: ignore[attr-defined]
                 topic=topic,
                 subject=subject,
                 concepts=concepts_str,
@@ -1054,7 +1054,7 @@ class OlympiadLearningSwarm(SwarmTemplate):
             "Mapping Connections",
             "ConnectionMapper",
             AgentRole.ACTOR,
-            self._connection_mapper.map_connections(
+            self._connection_mapper.map_connections(  # type: ignore[attr-defined]
                 topic=topic,
                 subject=subject,
                 concepts=concepts_str,
@@ -1535,7 +1535,7 @@ class OlympiadLearningSwarm(SwarmTemplate):
             pdf_path = await generate_lesson_pdf(
                 content=content,
                 output_path=output_path,
-                celebration_word=self.config.celebration_word,
+                celebration_word=self.config.celebration_word,  # type: ignore[attr-defined]
                 learning_time=learning_time,
             )
 
@@ -1568,7 +1568,7 @@ class OlympiadLearningSwarm(SwarmTemplate):
             html_path = await generate_lesson_html(
                 content=content,
                 output_path=output_path,
-                celebration_word=self.config.celebration_word,
+                celebration_word=self.config.celebration_word,  # type: ignore[attr-defined]
                 learning_time=learning_time,
             )
 
@@ -1608,7 +1608,7 @@ class OlympiadLearningSwarm(SwarmTemplate):
             return
 
         try:
-            celebration = self.config.celebration_word
+            celebration = self.config.celebration_word  # type: ignore[attr-defined]
             subject_str = content.subject.value if content.subject else "general"
 
             # Determine what files we have

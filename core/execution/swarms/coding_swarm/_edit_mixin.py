@@ -105,7 +105,7 @@ class EditMixin:
         """
         import os
 
-        max_iters = self.config.max_edit_iterations
+        max_iters = self.config.max_edit_iterations  # type: ignore[attr-defined]
         history = []
         current_files = edited_files.copy()
 
@@ -120,7 +120,7 @@ class EditMixin:
                     f.write(content)
 
             # Run tests
-            test_result = await self._run_tests(codebase_path)
+            test_result = await self._run_tests(codebase_path)  # type: ignore[attr-defined]
 
             if test_result["success"]:
                 _progress("Test", "Loop", f"PASS on iteration {iteration}")
@@ -208,7 +208,7 @@ class EditMixin:
         _coding_utils._active_progress_callback = progress_callback
         start_time = datetime.now()
 
-        config = self.config
+        config = self.config  # type: ignore[attr-defined]
         codebase_path = codebase_path or config.codebase_path
 
         # -----------------------------------------------------------------
@@ -217,7 +217,7 @@ class EditMixin:
         if target_files is None or len(target_files) == 0:
             if codebase_path and config.auto_discover_files:
                 _progress("Phase 0", "FileDiscovery", f"Scanning {codebase_path}...")
-                target_files = self._discover_files(codebase_path)
+                target_files = self._discover_files(codebase_path)  # type: ignore[attr-defined]
                 _progress("Phase 0", "FileDiscovery", f"Found {len(target_files)} file(s)")
             else:
                 return CodingResult(
@@ -237,7 +237,7 @@ class EditMixin:
         # -----------------------------------------------------------------
         test_files = {}
         if config.preserve_tests:
-            target_files, test_files = self._filter_test_files(target_files, preserve=True)
+            target_files, test_files = self._filter_test_files(target_files, preserve=True)  # type: ignore[attr-defined]
             if test_files:
                 _progress(
                     "Phase 0",
@@ -250,21 +250,21 @@ class EditMixin:
         # -----------------------------------------------------------------
         git_branch = None
         if config.git_integration and codebase_path:
-            git_branch = await self._git_prepare_branch(codebase_path, requirements)
+            git_branch = await self._git_prepare_branch(codebase_path, requirements)  # type: ignore[attr-defined]
 
-        self._init_agents()
+        self._init_agents()  # type: ignore[attr-defined]
 
         # Initialize edit-specific agents
         if not hasattr(self, "_codebase_analyzer") or self._codebase_analyzer is None:
             self._codebase_analyzer = CodebaseAnalyzerAgent(
-                self._memory, self._context, self._bus, self._agent_context("Architect")
+                self._memory, self._context, self._bus, self._agent_context("Architect")  # type: ignore[attr-defined]
             )
         if not hasattr(self, "_edit_planner") or self._edit_planner is None:
             self._edit_planner = EditPlannerAgent(
-                self._memory, self._context, self._bus, self._agent_context("Developer")
+                self._memory, self._context, self._bus, self._agent_context("Developer")  # type: ignore[attr-defined]
             )
 
-        config = self.config
+        config = self.config  # type: ignore[attr-defined]
         lang = config.language
 
         logger.info("=" * 60)
@@ -289,8 +289,8 @@ class EditMixin:
             if "error" in analysis:
                 return CodingResult(
                     success=False,
-                    swarm_name=self.config.name,
-                    domain=self.config.domain,
+                    swarm_name=self.config.name,  # type: ignore[attr-defined]
+                    domain=self.config.domain,  # type: ignore[attr-defined]
                     output={},
                     execution_time=(datetime.now() - start_time).total_seconds(),
                     error=analysis["error"],
@@ -316,8 +316,8 @@ class EditMixin:
             # =================================================================
             if config.analyze_dependencies and len(affected_files) > 1:
                 _progress("Phase 0.5", "DependencyAnalyzer", "Analyzing import graph...")
-                self._analyze_import_graph(target_files)
-                affected_files = self._get_edit_order(target_files, affected_files)
+                self._analyze_import_graph(target_files)  # type: ignore[attr-defined]
+                affected_files = self._get_edit_order(target_files, affected_files)  # type: ignore[attr-defined]
                 _progress(
                     "Phase 0.5",
                     "DependencyAnalyzer",
@@ -469,7 +469,7 @@ class EditMixin:
                 for filepath, new_content in edited_files.items():
                     old_content = original_files.get(filepath, "")
                     if old_content != new_content:
-                        diff = self._generate_unified_diff(old_content, new_content, filepath)
+                        diff = self._generate_unified_diff(old_content, new_content, filepath)  # type: ignore[attr-defined]
                         if diff:
                             diffs[filepath] = diff
                 _progress("Phase 2", "DiffGenerator", f"Generated {len(diffs)} diff(s)")
@@ -493,7 +493,7 @@ class EditMixin:
                         os.makedirs(os.path.dirname(full_path), exist_ok=True)
                         with open(full_path, "w", encoding="utf-8") as f:
                             f.write(content)
-                    git_committed = await self._git_commit_changes(
+                    git_committed = await self._git_commit_changes(  # type: ignore[attr-defined]
                         codebase_path, modified_files, requirements
                     )
 
@@ -515,8 +515,8 @@ class EditMixin:
 
             result = CodingResult(
                 success=True,
-                swarm_name=self.config.name,
-                domain=self.config.domain,
+                swarm_name=self.config.name,  # type: ignore[attr-defined]
+                domain=self.config.domain,  # type: ignore[attr-defined]
                 output={"files": list(edited_files.keys()), "mode": "edit"},
                 execution_time=exec_time,
                 code=code_output,
@@ -559,8 +559,8 @@ class EditMixin:
             traceback.print_exc()
             return CodingResult(
                 success=False,
-                swarm_name=self.config.name,
-                domain=self.config.domain,
+                swarm_name=self.config.name,  # type: ignore[attr-defined]
+                domain=self.config.domain,  # type: ignore[attr-defined]
                 output={},
                 execution_time=(datetime.now() - start_time).total_seconds(),
                 error=str(e),

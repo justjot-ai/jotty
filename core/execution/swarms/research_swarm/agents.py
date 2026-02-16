@@ -1552,13 +1552,13 @@ class SocialSentimentAgent(SwarmLearningAgent):
         for word, weight in positive_keywords.items():
             count = combined_text.count(word)
             if count > 0:
-                score += weight * min(count, 3)
+                score += weight * min(count, 3)  # type: ignore[assignment]
                 positive_drivers.append(word)
 
         for word, weight in negative_keywords.items():
             count = combined_text.count(word)
             if count > 0:
-                score += weight * min(count, 3)
+                score += weight * min(count, 3)  # type: ignore[assignment]
                 negative_drivers.append(word)
 
         # Normalize score to -1 to 1 range

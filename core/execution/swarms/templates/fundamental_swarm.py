@@ -829,7 +829,7 @@ class FundamentalSwarm(SwarmTemplate):
     )
     SWARM_SIGNATURE = FundamentalSwarmSignature
 
-    def __init__(self, config: FundamentalConfig = None) -> None:
+    def __init__(self, config: FundamentalConfig = None) -> None:  # type: ignore[assignment]
         super().__init__(config or FundamentalConfig())
 
     async def _execute_domain(self, ticker: str, **kwargs: Any) -> FundamentalResult:
@@ -899,8 +899,8 @@ class FundamentalSwarm(SwarmTemplate):
                 "exchange": exchange,
                 "current_price": market_data.get("current_price", 0),
                 "market_cap": market_data.get("market_cap", 0),
-                "years_of_data": self.config.years_of_data,
-                "investment_style": self.config.investment_style.value,
+                "years_of_data": self.config.years_of_data,  # type: ignore[attr-defined]
+                "investment_style": self.config.investment_style.value,  # type: ignore[attr-defined]
             },
         )
 
@@ -934,13 +934,13 @@ class FundamentalSwarm(SwarmTemplate):
                 (
                     "FinancialStatement",
                     AgentRole.ACTOR,
-                    self._financial_agent.analyze(ticker, financial_data, 5),
+                    self._financial_agent.analyze(ticker, financial_data, 5),  # type: ignore[attr-defined]
                     ["financial_analyze"],
                 ),
                 (
                     "RatioAnalysis",
                     AgentRole.ACTOR,
-                    self._ratio_agent.analyze(financial_data, "Technology", market_data),
+                    self._ratio_agent.analyze(financial_data, "Technology", market_data),  # type: ignore[attr-defined]
                     ["ratio_analyze"],
                 ),
             ],
@@ -953,7 +953,7 @@ class FundamentalSwarm(SwarmTemplate):
             (
                 "QualityEarnings",
                 AgentRole.EXPERT,
-                self._quality_agent.assess(
+                self._quality_agent.assess(  # type: ignore[attr-defined]
                     financial_data, {"operating": financial_data.get("cash_flow_operations", [])}
                 ),
                 ["quality_assess"],
@@ -961,7 +961,7 @@ class FundamentalSwarm(SwarmTemplate):
             (
                 "Moat",
                 AgentRole.EXPERT,
-                self._moat_agent.analyze(
+                self._moat_agent.analyze(  # type: ignore[attr-defined]
                     ticker,
                     f"{ticker} is a leading company in its industry",
                     "Competitive industry with multiple players",
@@ -991,7 +991,7 @@ class FundamentalSwarm(SwarmTemplate):
             "DCF Valuation",
             "Valuation",
             AgentRole.EXPERT,
-            self._valuation_agent.dcf_valuation(
+            self._valuation_agent.dcf_valuation(  # type: ignore[attr-defined]
                 ticker,
                 financial_data,
                 {"revenue_growth": 0.10, "terminal_growth": 0.03},
@@ -1025,7 +1025,7 @@ class FundamentalSwarm(SwarmTemplate):
             "Investment Thesis",
             "Thesis",
             AgentRole.PLANNER,
-            self._thesis_agent.generate(
+            self._thesis_agent.generate(  # type: ignore[attr-defined]
                 ticker,
                 financial_summary,
                 valuation_summary,

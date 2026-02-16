@@ -77,13 +77,13 @@ class CodingSwarm(CodebaseMixin, EditMixin, ReviewMixin, PersistenceMixin, Swarm
     DEFAULT_TOOLS = ["code_generate", "code_optimize", "test_generate"]
     RESULT_CLASS = CodingResult
 
-    def __init__(self, config: CodingConfig = None) -> None:
+    def __init__(self, config: CodingConfig = None) -> None:  # type: ignore[assignment]
         super().__init__(config or CodingConfig())
 
         # Team configuration
         self._team_config: Optional[TeamConfig] = None
-        if self.config.team:
-            self._team_config = TEAM_PRESETS.get(self.config.team)
+        if self.config.team:  # type: ignore[attr-defined]
+            self._team_config = TEAM_PRESETS.get(self.config.team)  # type: ignore[attr-defined]
 
         # Scope classifier (uses DSPy's configured LM)
         self._scope_classifier = dspy.ChainOfThought(ScopeClassificationSignature)
@@ -461,8 +461,8 @@ class CodingSwarm(CodebaseMixin, EditMixin, ReviewMixin, PersistenceMixin, Swarm
     async def _execute_domain(
         self,
         requirements: str,
-        language: CodeLanguage = None,
-        style: CodeStyle = None,
+        language: CodeLanguage = None,  # type: ignore[assignment]
+        style: CodeStyle = None,  # type: ignore[assignment]
         **kwargs: Any,
     ) -> CodingResult:
         """Execute code generation (called by SwarmTemplate.execute())."""
@@ -471,8 +471,8 @@ class CodingSwarm(CodebaseMixin, EditMixin, ReviewMixin, PersistenceMixin, Swarm
     async def generate(
         self,
         requirements: str,
-        language: CodeLanguage = None,
-        style: CodeStyle = None,
+        language: CodeLanguage = None,  # type: ignore[assignment]
+        style: CodeStyle = None,  # type: ignore[assignment]
         include_tests: bool | None = None,
         include_docs: bool | None = None,
         progress_callback: Any = None,
@@ -505,8 +505,8 @@ class CodingSwarm(CodebaseMixin, EditMixin, ReviewMixin, PersistenceMixin, Swarm
         config = self.config
         lang = language or config.language
         code_style = style or config.style
-        gen_tests = include_tests if include_tests is not None else config.include_tests
-        gen_docs = include_docs if include_docs is not None else config.include_docs
+        gen_tests = include_tests if include_tests is not None else config.include_tests  # type: ignore[attr-defined]
+        gen_docs = include_docs if include_docs is not None else config.include_docs  # type: ignore[attr-defined]
 
         # FAST PATH: Detect trivial tasks and reduce LLM calls
         is_trivial = self._is_trivial_task(requirements)
@@ -514,7 +514,7 @@ class CodingSwarm(CodebaseMixin, EditMixin, ReviewMixin, PersistenceMixin, Swarm
             # Override config for speed: 1 iteration, skip team planning/review
             config = type(config)(
                 **{
-                    **config.to_flat_dict(),
+                    **config.to_flat_dict(),  # type: ignore[attr-defined]
                     "max_design_iterations": 1,
                     "skip_team_planning": True,
                     "skip_team_review": True,
@@ -875,7 +875,7 @@ class CodingSwarm(CodebaseMixin, EditMixin, ReviewMixin, PersistenceMixin, Swarm
             nonlocal completed_count
             comp_name = comp.get("name", "component") if isinstance(comp, dict) else str(comp)
             _progress("Phase 3", "Developer", f"  Writing {comp_name}...")
-            result = await self._developer.generate(
+            result = await self._developer.generate(  # type: ignore[attr-defined]
                 architecture=enriched_arch,
                 component=comp_name,
                 language=lang.value,
@@ -1010,7 +1010,7 @@ class CodingSwarm(CodebaseMixin, EditMixin, ReviewMixin, PersistenceMixin, Swarm
         async def _optimize_one(fname: str, code_str: str) -> Any:
             nonlocal optimized_count
             _progress("Phase 4", "Optimizer", f"  Optimizing {fname}...")
-            opt_result = await self._optimizer.optimize(
+            opt_result = await self._optimizer.optimize(  # type: ignore[attr-defined]
                 code=code_str,
                 focus="readability",
                 constraints="Maintain all functionality",
@@ -1125,14 +1125,14 @@ class CodingSwarm(CodebaseMixin, EditMixin, ReviewMixin, PersistenceMixin, Swarm
                                 "Debugger",
                                 f"Fixing syntax in {fname} (attempt {attempt+1})...",
                             )
-                            fix_result = await self._debugger.debug(
+                            fix_result = await self._debugger.debug(  # type: ignore[attr-defined]
                                 code=files[fname],
                                 error_message=error_text,
                                 context=f"Fix the syntax error. Return ONLY the corrected Python code, no markdown fences. File: {fname}",
                             )
                             if fix_result and "fix" in fix_result and "error" not in fix_result:
                                 files[fname] = _strip_code_fences(fix_result["fix"])
-                                validation_metadata["errors_fixed"].append(f"{fname}: syntax")
+                                validation_metadata["errors_fixed"].append(f"{fname}: syntax")  # type: ignore[attr-defined]
 
                 # --- Pass 2: Run main file ONLY if all syntax passed ---
                 if syntax_ok and main_file and main_file in files and main_file.endswith(".py"):
@@ -1150,14 +1150,14 @@ class CodingSwarm(CodebaseMixin, EditMixin, ReviewMixin, PersistenceMixin, Swarm
                                 "Debugger",
                                 f"Fixing runtime error in {main_file} (attempt {attempt+1})...",
                             )
-                            fix_result = await self._debugger.debug(
+                            fix_result = await self._debugger.debug(  # type: ignore[attr-defined]
                                 code=files[main_file],
                                 error_message=error_text,
                                 context=f"Fix the runtime error. Return ONLY the corrected Python code, no markdown fences. File: {main_file}",
                             )
                             if fix_result and "fix" in fix_result and "error" not in fix_result:
                                 files[main_file] = _strip_code_fences(fix_result["fix"])
-                                validation_metadata["errors_fixed"].append(f"{main_file}: runtime")
+                                validation_metadata["errors_fixed"].append(f"{main_file}: runtime")  # type: ignore[attr-defined]
                         else:
                             # Non-fixable runtime error (EOF, FileNotFound, etc.) -- not a code bug
                             _progress(
@@ -1220,7 +1220,7 @@ class CodingSwarm(CodebaseMixin, EditMixin, ReviewMixin, PersistenceMixin, Swarm
             _progress("Phase 5", "Verifier", "Verifying code against requirements...")
 
             all_code = "\n\n".join(files.values())
-            verification_result = await self._verifier.verify(
+            verification_result = await self._verifier.verify(  # type: ignore[attr-defined]
                 code=all_code,
                 original_requirements=requirements,
                 architecture=arch_result.get("architecture", ""),
@@ -1254,7 +1254,7 @@ class CodingSwarm(CodebaseMixin, EditMixin, ReviewMixin, PersistenceMixin, Swarm
 
                     # One attempt with debugger -- non-blocking
                     try:
-                        debug_result = await self._debugger.debug(
+                        debug_result = await self._debugger.debug(  # type: ignore[attr-defined]
                             code=all_code,
                             error_message=issues_desc,
                             context=f"Return ONLY corrected Python code, no markdown fences. Requirements: {requirements}",
@@ -1306,7 +1306,7 @@ class CodingSwarm(CodebaseMixin, EditMixin, ReviewMixin, PersistenceMixin, Swarm
                 f"Evaluating complexity ({file_count} files, {total_lines} lines)...",
             )
 
-            simplicity_result = await self._simplicity_judge.judge(
+            simplicity_result = await self._simplicity_judge.judge(  # type: ignore[attr-defined]
                 code=all_code_str,
                 requirements=requirements,
                 file_count=file_count,
@@ -1333,7 +1333,7 @@ class CodingSwarm(CodebaseMixin, EditMixin, ReviewMixin, PersistenceMixin, Swarm
                         i.get("simpler_alternative", i.get("issue", "")) for i in issues[:3]
                     )
                     try:
-                        opt_result = await self._optimizer.optimize(
+                        opt_result = await self._optimizer.optimize(  # type: ignore[attr-defined]
                             code=all_code_str,
                             requirements=requirements,
                             focus="simplification",
@@ -1408,7 +1408,7 @@ class CodingSwarm(CodebaseMixin, EditMixin, ReviewMixin, PersistenceMixin, Swarm
             "TestGeneration",
             "TestWriter",
             AgentRole.ACTOR,
-            self._test_writer.generate_tests(
+            self._test_writer.generate_tests(  # type: ignore[attr-defined]
                 code=all_code, framework=test_framework, coverage_target="80%"
             ),
             input_data={"gen_tests": gen_tests},
@@ -1452,7 +1452,7 @@ class CodingSwarm(CodebaseMixin, EditMixin, ReviewMixin, PersistenceMixin, Swarm
             "Documentation",
             "DocWriter",
             AgentRole.ACTOR,
-            self._doc_writer.document(
+            self._doc_writer.document(  # type: ignore[attr-defined]
                 code=all_code, architecture=arch_result["architecture"], audience="developers"
             ),
             input_data={"gen_docs": gen_docs},
@@ -1601,14 +1601,14 @@ class CodingSwarm(CodebaseMixin, EditMixin, ReviewMixin, PersistenceMixin, Swarm
     async def debug(self, code: str, error: str, context: str = "") -> Dict[str, Any]:
         """Debug code and provide fix."""
         self._init_agents()
-        return await self._debugger.debug(code, error, context)
+        return await self._debugger.debug(code, error, context)  # type: ignore[attr-defined]
 
     async def refactor(
         self, code: str, focus: str = "readability", requirements: str = ""
     ) -> Dict[str, Any]:
         """Refactor/optimize code."""
         self._init_agents()
-        return await self._optimizer.optimize(code, focus, requirements=requirements)
+        return await self._optimizer.optimize(code, focus, requirements=requirements)  # type: ignore[attr-defined]
 
 
 # =============================================================================

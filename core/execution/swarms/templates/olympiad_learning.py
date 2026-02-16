@@ -60,7 +60,7 @@ class OlympiadLearningTemplate(SwarmTemplate):
             try:
                 from ..olympiad_learning_swarm import OlympiadLearningSwarm
 
-                self._swarm = OlympiadLearningSwarm(self.config)
+                self._swarm = OlympiadLearningSwarm(self.config)  # type: ignore[arg-type]
             except ImportError:
                 return OlympiadLearningResult(
                     success=False,
@@ -70,7 +70,7 @@ class OlympiadLearningTemplate(SwarmTemplate):
 
         # Delegate to existing swarm
         try:
-            result = await self._swarm.execute(query, **kwargs)
+            result = await self._swarm.execute(query, **kwargs)  # type: ignore[attr-defined]
             return result
         except Exception as e:
             return OlympiadLearningResult(
@@ -81,6 +81,6 @@ class OlympiadLearningTemplate(SwarmTemplate):
 
 
 # Backward compatibility
-OlympiadLearningSwarm = OlympiadLearningTemplate
+OlympiadLearningSwarm = OlympiadLearningTemplate  # type: ignore[assignment]
 
 __all__ = ["OlympiadLearningTemplate", "OlympiadLearningSwarm"]

@@ -165,7 +165,7 @@ class ResearchTemplate(SwarmTemplate):
             logger.warning(f"SwarmResources not available: {e}")
 
         # Initialize DSPy modules
-        if self.config.use_llm_analysis:
+        if self.config.use_llm_analysis:  # type: ignore[attr-defined]
             from ..research_swarm.signatures import (
                 PeerSelectionSignature,
                 SentimentAnalysisSignature,
@@ -232,7 +232,7 @@ class ResearchTemplate(SwarmTemplate):
         logger = logging.getLogger(__name__)
         logger.info(f"🔍 Research Template starting for {ticker} ({exchange})")
         logger.info(
-            f"   Config: LLM={self.config.use_llm_analysis}, "
+            f"   Config: LLM={self.config.use_llm_analysis}, "  # type: ignore[attr-defined]
             f"Peers={self.config.include_peers}, "
             f"Sentiment={self.config.include_sentiment}"
         )

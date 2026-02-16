@@ -32,7 +32,7 @@ class PersistenceMixin:
         """
         try:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            base_dir = Path(self.config.output_dir) / timestamp
+            base_dir = Path(self.config.output_dir) / timestamp  # type: ignore[attr-defined]
 
             # Create directory structure
             src_dir = base_dir / "src"

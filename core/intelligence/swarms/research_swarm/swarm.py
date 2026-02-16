@@ -149,7 +149,7 @@ class ResearchSwarm(SwarmTemplate):
             logger.warning(f"SwarmResources not available: {e}")
 
         # Initialize DSPy modules
-        if self.config.use_llm_analysis:
+        if self.config.use_llm_analysis:  # type: ignore[attr-defined]
             self._stock_analyzer = dspy.ChainOfThought(StockAnalysisSignature)
             self._sentiment_module = dspy.ChainOfThought(SentimentAnalysisSignature)
             self._peer_selector = dspy.Predict(PeerSelectionSignature)
@@ -186,12 +186,12 @@ class ResearchSwarm(SwarmTemplate):
         """
         # Parse inputs before entering executor
         ticker = ticker or self._extract_ticker(query)
-        exchange = exchange or self.config.exchange
-        send_tg = send_telegram if send_telegram is not None else self.config.send_telegram
+        exchange = exchange or self.config.exchange  # type: ignore[attr-defined]
+        send_tg = send_telegram if send_telegram is not None else self.config.send_telegram  # type: ignore[attr-defined]
 
         logger.info(f"Research Swarm starting for {ticker} ({exchange})")
         logger.info(
-            f"   Config: LLM={self.config.use_llm_analysis}, Peers={self.config.include_peers}, Sentiment={self.config.include_sentiment}"
+            f"   Config: LLM={self.config.use_llm_analysis}, Peers={self.config.include_peers}, Sentiment={self.config.include_sentiment}"  # type: ignore[attr-defined]
         )
 
         # Default tools used across research phases
@@ -289,32 +289,32 @@ class ResearchSwarm(SwarmTemplate):
         # =================================================================
         # PHASE 1: PARALLEL DATA COLLECTION
         # =================================================================
-        if self.config.parallel_fetch:
+        if self.config.parallel_fetch:  # type: ignore[attr-defined]
             # Build parallel task list for data collection
             fetch_task_list = [
                 (
                     "DataFetcher",
                     AgentRole.ACTOR,
-                    self._data_fetcher.fetch(ticker, exchange),
+                    self._data_fetcher.fetch(ticker, exchange),  # type: ignore[attr-defined]
                     ["data_fetch"],
                 ),
                 (
                     "WebSearch",
                     AgentRole.ACTOR,
-                    self._web_searcher.search(ticker, self.config.max_web_results),
+                    self._web_searcher.search(ticker, self.config.max_web_results),  # type: ignore[attr-defined]
                     ["web_search"],
                 ),
             ]
-            if self.config.use_screener:
+            if self.config.use_screener:  # type: ignore[attr-defined]
                 fetch_task_list.append(
-                    ("Screener", AgentRole.ACTOR, self._screener_agent.fetch(ticker), ["screener"])
+                    ("Screener", AgentRole.ACTOR, self._screener_agent.fetch(ticker), ["screener"])  # type: ignore[attr-defined]
                 )
-            if self.config.include_technical:
+            if self.config.include_technical:  # type: ignore[attr-defined]
                 fetch_task_list.append(
                     (
                         "TechnicalAnalyzer",
                         AgentRole.ACTOR,
-                        self._technical_analyzer.analyze(ticker, self.config.technical_timeframes),
+                        self._technical_analyzer.analyze(ticker, self.config.technical_timeframes),  # type: ignore[attr-defined]
                         ["technical_analysis"],
                     )
                 )
@@ -339,13 +339,13 @@ class ResearchSwarm(SwarmTemplate):
             # Extract optional results by position
             idx = 2
             screener_data = {}
-            if self.config.use_screener:
+            if self.config.use_screener:  # type: ignore[attr-defined]
                 r = fetch_results[idx]
                 screener_data = r if not (isinstance(r, dict) and "error" in r) else {}
                 idx += 1
 
             technical_data = {}
-            if self.config.include_technical and idx < len(fetch_results):
+            if self.config.include_technical and idx < len(fetch_results):  # type: ignore[attr-defined]
                 r = fetch_results[idx]
                 technical_data = r if not (isinstance(r, dict) and "error" in r) else {}
         else:
@@ -355,7 +355,7 @@ class ResearchSwarm(SwarmTemplate):
                 "Data Fetching",
                 "DataFetcher",
                 AgentRole.ACTOR,
-                self._data_fetcher.fetch(ticker, exchange),
+                self._data_fetcher.fetch(ticker, exchange),  # type: ignore[attr-defined]
                 input_data={"ticker": ticker, "exchange": exchange},
                 tools_used=["data_fetch"],
             )
@@ -364,29 +364,29 @@ class ResearchSwarm(SwarmTemplate):
                 "Web Search",
                 "WebSearch",
                 AgentRole.ACTOR,
-                self._web_searcher.search(ticker, self.config.max_web_results),
+                self._web_searcher.search(ticker, self.config.max_web_results),  # type: ignore[attr-defined]
                 input_data={"ticker": ticker},
                 tools_used=["web_search"],
             )
             screener_data = {}
-            if self.config.use_screener:
+            if self.config.use_screener:  # type: ignore[attr-defined]
                 screener_data = await executor.run_phase(
                     1,
                     "Screener Fetch",
                     "Screener",
                     AgentRole.ACTOR,
-                    self._screener_agent.fetch(ticker),
+                    self._screener_agent.fetch(ticker),  # type: ignore[attr-defined]
                     input_data={"ticker": ticker},
                     tools_used=["screener"],
                 )
             technical_data = {}
-            if self.config.include_technical:
+            if self.config.include_technical:  # type: ignore[attr-defined]
                 technical_data = await executor.run_phase(
                     1,
                     "Technical Analysis",
                     "TechnicalAnalyzer",
                     AgentRole.ACTOR,
-                    self._technical_analyzer.analyze(ticker, self.config.technical_timeframes),
+                    self._technical_analyzer.analyze(ticker, self.config.technical_timeframes),  # type: ignore[attr-defined]
                     input_data={"ticker": ticker},
                     tools_used=["technical_analysis"],
                 )
@@ -413,12 +413,12 @@ class ResearchSwarm(SwarmTemplate):
         analysis_task_list = []
 
         # Sentiment analysis
-        if self.config.include_sentiment and web_data.get("news_text"):
+        if self.config.include_sentiment and web_data.get("news_text"):  # type: ignore[attr-defined]
             analysis_task_list.append(
                 (
                     "Sentiment",
                     AgentRole.ACTOR,
-                    self._sentiment_analyzer.analyze(
+                    self._sentiment_analyzer.analyze(  # type: ignore[attr-defined]
                         merged_data.get("company_name", ticker), web_data.get("news_text", "")
                     ),
                     ["sentiment_analysis"],
@@ -435,12 +435,12 @@ class ResearchSwarm(SwarmTemplate):
             )
 
         # Social Sentiment analysis
-        if self.config.include_social_sentiment and web_data.get("news_text"):
+        if self.config.include_social_sentiment and web_data.get("news_text"):  # type: ignore[attr-defined]
             analysis_task_list.append(
                 (
                     "SocialSentiment",
                     AgentRole.ACTOR,
-                    self._social_sentiment_agent.analyze(
+                    self._social_sentiment_agent.analyze(  # type: ignore[attr-defined]
                         merged_data.get("company_name", ticker),
                         web_data.get("news_text", ""),
                         "",  # Forum text - can be extended to scrape forums
@@ -465,12 +465,12 @@ class ResearchSwarm(SwarmTemplate):
             )
 
         # Peer comparison
-        if self.config.include_peers:
+        if self.config.include_peers:  # type: ignore[attr-defined]
             analysis_task_list.append(
                 (
                     "PeerComparator",
                     AgentRole.ACTOR,
-                    self._peer_comparator.compare(
+                    self._peer_comparator.compare(  # type: ignore[attr-defined]
                         ticker,
                         merged_data.get("sector", ""),
                         merged_data.get("industry", ""),
@@ -490,12 +490,12 @@ class ResearchSwarm(SwarmTemplate):
             )
 
         # LLM analysis
-        if self.config.use_llm_analysis:
+        if self.config.use_llm_analysis:  # type: ignore[attr-defined]
             analysis_task_list.append(
                 (
                     "LLMAnalyzer",
                     AgentRole.ACTOR,
-                    self._llm_analyzer.analyze(merged_data, web_data.get("news_text", "")),
+                    self._llm_analyzer.analyze(merged_data, web_data.get("news_text", "")),  # type: ignore[attr-defined]
                     ["llm_analysis"],
                 )
             )
@@ -540,19 +540,19 @@ class ResearchSwarm(SwarmTemplate):
         # PHASE 3: CHART GENERATION (if enabled)
         # =================================================================
         chart_paths = []
-        if self.config.include_charts:
+        if self.config.include_charts:  # type: ignore[attr-defined]
             chart_result = await executor.run_phase(
                 3,
                 "Chart Generation",
                 "ChartGenerator",
                 AgentRole.ACTOR,
-                self._chart_generator.generate(
+                self._chart_generator.generate(  # type: ignore[attr-defined]
                     ticker,
                     merged_data,
                     self.config.output_dir,
-                    timeframes=self.config.technical_timeframes,
+                    timeframes=self.config.technical_timeframes,  # type: ignore[attr-defined]
                     technical_data=technical_data,
-                    include_heiken_ashi=self.config.include_heiken_ashi,
+                    include_heiken_ashi=self.config.include_heiken_ashi,  # type: ignore[attr-defined]
                 ),
                 input_data={"ticker": ticker},
                 tools_used=["chart_generation"],
@@ -569,7 +569,7 @@ class ResearchSwarm(SwarmTemplate):
             "Report Generation",
             "ReportGenerator",
             AgentRole.ACTOR,
-            self._report_generator.generate(
+            self._report_generator.generate(  # type: ignore[attr-defined]
                 ticker=ticker,
                 data=merged_data,
                 analysis=llm_result,
@@ -621,13 +621,13 @@ class ResearchSwarm(SwarmTemplate):
             agent_contributions={
                 "DataFetcher": 0.15,
                 "WebSearch": 0.10,
-                "Sentiment": 0.05 if self.config.include_sentiment else 0,
-                "SocialSentiment": 0.05 if self.config.include_social_sentiment else 0,
-                "LLMAnalysis": 0.20 if self.config.use_llm_analysis else 0,
-                "PeerComparison": 0.08 if self.config.include_peers else 0,
-                "TechnicalAnalysis": 0.15 if self.config.include_technical else 0,
-                "Screener": 0.07 if self.config.use_screener else 0,
-                "ChartGenerator": 0.05 if self.config.include_charts else 0,
+                "Sentiment": 0.05 if self.config.include_sentiment else 0,  # type: ignore[attr-defined]
+                "SocialSentiment": 0.05 if self.config.include_social_sentiment else 0,  # type: ignore[attr-defined]
+                "LLMAnalysis": 0.20 if self.config.use_llm_analysis else 0,  # type: ignore[attr-defined]
+                "PeerComparison": 0.08 if self.config.include_peers else 0,  # type: ignore[attr-defined]
+                "TechnicalAnalysis": 0.15 if self.config.include_technical else 0,  # type: ignore[attr-defined]
+                "Screener": 0.07 if self.config.use_screener else 0,  # type: ignore[attr-defined]
+                "ChartGenerator": 0.05 if self.config.include_charts else 0,  # type: ignore[attr-defined]
                 "ReportGenerator": 0.10,
             },
             # Enhanced fields
@@ -641,7 +641,7 @@ class ResearchSwarm(SwarmTemplate):
         )
 
         # Store in memory for learning
-        if self.config.learn_from_research and self._memory:
+        if self.config.learn_from_research and self._memory:  # type: ignore[attr-defined]
             await self._store_learning(result)
 
         logger.info(f"Research complete: {ticker} = {result.rating} ({result.current_price:,.2f})")
@@ -680,7 +680,7 @@ class ResearchSwarm(SwarmTemplate):
         out_dir = output_dir or getattr(
             self.config, "output_dir", os.path.expanduser("~/jotty/reports")
         )
-        Path(out_dir).mkdir(parents=True, exist_ok=True)
+        Path(out_dir).mkdir(parents=True, exist_ok=True)  # type: ignore[arg-type]
 
         # Ensure agents (e.g. _web_searcher) are created
         if not getattr(self, "_agents_initialized", False):
@@ -695,7 +695,7 @@ class ResearchSwarm(SwarmTemplate):
                     f"{topic} do's and don'ts",
                     f"{topic} articles links",
                 ]
-            web_data = await self._web_searcher.search_topic(
+            web_data = await self._web_searcher.search_topic(  # type: ignore[attr-defined]
                 topic, sub_queries=sub_queries, max_results=max_web_results
             )
             web_text = web_data.get("news_text", "") or ""
@@ -738,7 +738,7 @@ class ResearchSwarm(SwarmTemplate):
             # Phase 3: Write markdown report
             safe_topic = re.sub(r"[^\w\s-]", "", topic)[:50].strip() or "topic"
             safe_topic = re.sub(r"[-\s]+", "_", safe_topic)
-            md_path = os.path.join(out_dir, f"research_{safe_topic}.md")
+            md_path = os.path.join(out_dir, f"research_{safe_topic}.md")  # type: ignore[arg-type]
             with open(md_path, "w", encoding="utf-8") as f:
                 f.write(f"# {topic}\n\n")
                 f.write(summary)
@@ -756,7 +756,7 @@ class ResearchSwarm(SwarmTemplate):
                 if doc_skill and doc_skill.tools:
                     convert_tool = doc_skill.tools.get("convert_to_pdf_tool")
                     if convert_tool:
-                        pdf_path = os.path.join(out_dir, f"research_{safe_topic}.pdf")
+                        pdf_path = os.path.join(out_dir, f"research_{safe_topic}.pdf")  # type: ignore[arg-type]
                         pdf_result = convert_tool(
                             {
                                 "input_file": md_path,
@@ -926,7 +926,7 @@ Sentiment: {result.sentiment_label} ({result.sentiment_score:+.2f})
 Execution: {result.execution_time:.1f}s
 Success: {result.success}"""
 
-            self._memory.store(
+            self._memory.store(  # type: ignore[attr-defined]
                 content=content,
                 level=MemoryLevel.EPISODIC,
                 context={
@@ -975,7 +975,7 @@ def research_sync(query: str, **kwargs: Any) -> ResearchResult:
 
 # Set AGENT_TEAM and SWARM_SIGNATURE now that all agent classes are defined
 ResearchSwarm.SWARM_SIGNATURE = ResearchSwarmSignature
-ResearchSwarm.AGENT_TEAM = TeamCoordinator.define(
+ResearchSwarm.AGENT_TEAM = TeamCoordinator.define(  # type: ignore[assignment]
     (DataFetcherAgent, "DataFetcher", "_data_fetcher"),
     (WebSearchAgent, "WebSearch", "_web_searcher"),
     (SentimentAgent, "Sentiment", "_sentiment_analyzer"),

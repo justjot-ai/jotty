@@ -629,7 +629,7 @@ class ReviewSwarm(SwarmTemplate):
     DEFAULT_TOOLS = ["code_review", "security_review", "performance_review"]
     RESULT_CLASS = ReviewResult
 
-    def __init__(self, config: ReviewConfig = None) -> None:
+    def __init__(self, config: ReviewConfig = None) -> None:  # type: ignore[assignment]
         super().__init__(config or ReviewConfig())
 
     async def review(
@@ -668,7 +668,7 @@ class ReviewSwarm(SwarmTemplate):
             ReviewResult with all findings
         """
         config = self.config
-        lang = language or config.language
+        lang = language or config.language  # type: ignore[attr-defined]
 
         logger.info(f"ReviewSwarm starting: {lang}")
 
@@ -676,9 +676,9 @@ class ReviewSwarm(SwarmTemplate):
             "language": lang,
             "context": context,
             "code_length": len(code),
-            "strictness": config.strictness,
-            "style_guide": config.style_guide,
-            "review_types": [rt.value for rt in config.review_types],
+            "strictness": config.strictness,  # type: ignore[attr-defined]
+            "style_guide": config.style_guide,  # type: ignore[attr-defined]
+            "review_types": [rt.value for rt in config.review_types],  # type: ignore[attr-defined]
         }
 
         return await self.run_domain(
@@ -713,7 +713,7 @@ class ReviewSwarm(SwarmTemplate):
                 (
                     "CodeReviewer",
                     AgentRole.REVIEWER,
-                    self._code_reviewer.review(
+                    self._code_reviewer.review(  # type: ignore[attr-defined]
                         code, lang, context or "Code review", config.strictness
                     ),
                     ["code_review"],
@@ -721,19 +721,19 @@ class ReviewSwarm(SwarmTemplate):
                 (
                     "SecurityScanner",
                     AgentRole.EXPERT,
-                    self._security_scanner.scan(code, lang, context),
+                    self._security_scanner.scan(code, lang, context),  # type: ignore[attr-defined]
                     ["security_scan"],
                 ),
                 (
                     "PerformanceAnalyzer",
                     AgentRole.EXPERT,
-                    self._performance_analyzer.analyze(code, lang),
+                    self._performance_analyzer.analyze(code, lang),  # type: ignore[attr-defined]
                     ["performance_analyze"],
                 ),
                 (
                     "ArchitectureReviewer",
                     AgentRole.EXPERT,
-                    self._architecture_reviewer.review(code, context),
+                    self._architecture_reviewer.review(code, context),  # type: ignore[attr-defined]
                     ["arch_review"],
                 ),
             ],
@@ -749,7 +749,7 @@ class ReviewSwarm(SwarmTemplate):
             "Style Check",
             "StyleChecker",
             AgentRole.REVIEWER,
-            self._style_checker.check(code, lang, config.style_guide),
+            self._style_checker.check(code, lang, config.style_guide),  # type: ignore[attr-defined]
             input_data={"language": lang},
             tools_used=["style_check"],
         )
@@ -762,7 +762,7 @@ class ReviewSwarm(SwarmTemplate):
             "Review Synthesis",
             "ReviewSynthesizer",
             AgentRole.ORCHESTRATOR,
-            self._synthesizer.synthesize(
+            self._synthesizer.synthesize(  # type: ignore[attr-defined]
                 code_result, security_result, performance_result, architecture_result, context
             ),
             input_data={"reviews_count": 4},

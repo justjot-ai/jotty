@@ -616,7 +616,7 @@ class TestingSwarm(SwarmTemplate):
     DEFAULT_TOOLS = ["code_analyze", "unit_test_generate", "integration_test_generate"]
     RESULT_CLASS = TestingResult
 
-    def __init__(self, config: TestingConfig = None) -> None:
+    def __init__(self, config: TestingConfig = None) -> None:  # type: ignore[assignment]
         super().__init__(config or TestingConfig())
 
     async def _execute_domain(
@@ -630,7 +630,7 @@ class TestingSwarm(SwarmTemplate):
         code: str,
         language: str | None = None,
         test_types: List[TestType] | None = None,
-        framework: TestFramework = None,
+        framework: TestFramework = None,  # type: ignore[assignment]
         **kwargs: Any,
     ) -> TestingResult:
         """
@@ -646,8 +646,8 @@ class TestingSwarm(SwarmTemplate):
             TestingResult with test suite
         """
         config = self.config
-        lang = language or config.language
-        types = test_types or config.test_types
+        lang = language or config.language  # type: ignore[attr-defined]
+        types = test_types or config.test_types  # type: ignore[attr-defined]
         fw = framework or config.framework
 
         logger.info(f"TestingSwarm starting: {lang}, {fw.value}")
@@ -701,7 +701,7 @@ class TestingSwarm(SwarmTemplate):
             "Code Analysis",
             "CodeAnalyzer",
             AgentRole.EXPERT,
-            self._analyzer.analyze(code, lang),
+            self._analyzer.analyze(code, lang),  # type: ignore[attr-defined]
             input_data={"code_length": len(code)},
             tools_used=["code_analyze"],
         )
@@ -743,7 +743,7 @@ class TestingSwarm(SwarmTemplate):
                     (
                         f"UnitTest({unit_name})",
                         AgentRole.ACTOR,
-                        self._unit_tester.generate(
+                        self._unit_tester.generate(  # type: ignore[attr-defined]
                             code=code,
                             unit=unit_name,
                             framework=fw.value,
@@ -788,7 +788,7 @@ class TestingSwarm(SwarmTemplate):
                     (
                         f"IntegrationTest({point})",
                         AgentRole.ACTOR,
-                        self._integration_tester.generate(
+                        self._integration_tester.generate(  # type: ignore[attr-defined]
                             code=code,
                             integration_point=point,
                             framework=fw.value,
@@ -826,7 +826,7 @@ class TestingSwarm(SwarmTemplate):
                 "E2E Test Generation",
                 "E2ETest",
                 AgentRole.ACTOR,
-                self._e2e_tester.generate(
+                self._e2e_tester.generate(  # type: ignore[attr-defined]
                     code=code,
                     user_flow="Main user journey",
                     framework="playwright",
@@ -856,7 +856,7 @@ class TestingSwarm(SwarmTemplate):
             "Coverage Analysis",
             "Coverage",
             AgentRole.EXPERT,
-            self._coverage_agent.analyze(code, combined_tests),
+            self._coverage_agent.analyze(code, combined_tests),  # type: ignore[attr-defined]
             input_data={"test_count": len(all_tests)},
             tools_used=["coverage_analyze"],
         )
@@ -872,7 +872,7 @@ class TestingSwarm(SwarmTemplate):
             "Quality Assessment",
             "Quality",
             AgentRole.REVIEWER,
-            self._quality_agent.assess(combined_tests, code),
+            self._quality_agent.assess(combined_tests, code),  # type: ignore[attr-defined]
             input_data={"test_count": len(all_tests)},
             tools_used=["quality_assess"],
         )
@@ -926,7 +926,7 @@ class TestingSwarm(SwarmTemplate):
     async def analyze_coverage(self, code: str, existing_tests: str) -> CoverageReport:
         """Analyze coverage of existing tests."""
         self._init_agents()
-        result = await self._coverage_agent.analyze(code, existing_tests)
+        result = await self._coverage_agent.analyze(code, existing_tests)  # type: ignore[attr-defined]
         return CoverageReport(
             line_coverage=result.get("estimated_coverage", 0.0),
             branch_coverage=result.get("estimated_coverage", 0.0) * 0.9,

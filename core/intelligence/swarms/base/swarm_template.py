@@ -173,7 +173,7 @@ class PhaseExecutor:
                 result = {"error": str(raw)}
                 success = False
             else:
-                result = raw
+                result = raw  # type: ignore[assignment]
                 success = not (isinstance(result, dict) and "error" in result)
 
             output_data = {}
@@ -537,7 +537,7 @@ class SwarmTemplate(SwarmLearning):
             except Exception:
                 pass  # Non-blocking
 
-        return await self.AGENT_TEAM.execute(task, context, **kwargs)
+        return await self.AGENT_TEAM.execute(task, context, **kwargs)  # type: ignore[union-attr]
 
     async def _record_pattern_success(
         self, task: Any, pattern: CoordinationPattern, success: bool

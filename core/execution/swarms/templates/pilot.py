@@ -60,7 +60,7 @@ class PilotTemplate(SwarmTemplate):
             try:
                 from ..pilot_swarm import PilotSwarm
 
-                self._swarm = PilotSwarm(self.config)
+                self._swarm = PilotSwarm(self.config)  # type: ignore[arg-type]
             except ImportError:
                 return PilotResult(
                     success=False,
@@ -70,7 +70,7 @@ class PilotTemplate(SwarmTemplate):
 
         # Delegate to existing swarm
         try:
-            result = await self._swarm.execute(query, **kwargs)
+            result = await self._swarm.execute(query, **kwargs)  # type: ignore[attr-defined]
             return result
         except Exception as e:
             return PilotResult(
@@ -81,6 +81,6 @@ class PilotTemplate(SwarmTemplate):
 
 
 # Backward compatibility
-PilotSwarm = PilotTemplate
+PilotSwarm = PilotTemplate  # type: ignore[assignment]
 
 __all__ = ["PilotTemplate", "PilotSwarm"]

@@ -72,12 +72,12 @@ class PilotSwarm(SwarmTemplate):
         (PilotValidatorAgent, "Validator", "_validator"),
     )
 
-    def __init__(self, config: PilotConfig = None) -> None:
+    def __init__(self, config: PilotConfig = None) -> None:  # type: ignore[assignment]
         super().__init__(config or PilotConfig())
 
     async def _execute_domain(self, topic: str | None = None, **kwargs: Any) -> PilotResult:
         """Execute goal completion."""
-        return await self.run_goal(goal=topic, **kwargs)
+        return await self.run_goal(goal=topic, **kwargs)  # type: ignore[arg-type]
 
     async def run_goal(
         self,
@@ -102,7 +102,7 @@ class PilotSwarm(SwarmTemplate):
         logger.info(f"PilotSwarm starting: {goal[:100]}")
 
         async def _run_phases(executor: PhaseExecutor) -> PilotResult:
-            return await self._execute_phases(executor, goal, context, config, send_telegram)
+            return await self._execute_phases(executor, goal, context, config, send_telegram)  # type: ignore[arg-type]
 
         return await self._safe_execute_domain(
             task_type="pilot_execution",
@@ -141,7 +141,7 @@ class PilotSwarm(SwarmTemplate):
             "Goal Decomposition",
             "Planner",
             AgentRole.PLANNER,
-            self._planner.plan(
+            self._planner.plan(  # type: ignore[attr-defined]
                 goal=goal,
                 available_swarms="\n".join(AVAILABLE_SWARMS),
                 context=context or "",
@@ -251,7 +251,7 @@ class PilotSwarm(SwarmTemplate):
                 "Goal Validation",
                 "Validator",
                 AgentRole.REVIEWER,
-                self._validator.validate(goal=goal, results_summary=results_summary),
+                self._validator.validate(goal=goal, results_summary=results_summary),  # type: ignore[attr-defined]
                 tools_used=["validation"],
             )
 
@@ -276,7 +276,7 @@ class PilotSwarm(SwarmTemplate):
                 "Re-planning",
                 "Planner",
                 AgentRole.PLANNER,
-                self._planner.plan(
+                self._planner.plan(  # type: ignore[attr-defined]
                     goal=goal,
                     available_swarms="\n".join(AVAILABLE_SWARMS),
                     context=replan_context,
@@ -387,13 +387,13 @@ class PilotSwarm(SwarmTemplate):
         self, subtask: Subtask, context: str, config: PilotConfig
     ) -> Dict[str, Any]:
         """Execute a search subtask."""
-        return await self._searcher.search(task=subtask.description, context=context)
+        return await self._searcher.search(task=subtask.description, context=context)  # type: ignore[attr-defined]
 
     async def _execute_code(
         self, subtask: Subtask, context: str, config: PilotConfig
     ) -> Dict[str, Any]:
         """Execute a coding subtask — generates code, reads, edits, or writes files."""
-        result = await self._coder.code(task=subtask.description, context=context)
+        result = await self._coder.code(task=subtask.description, context=context)  # type: ignore[attr-defined]
 
         if result.get("file_operations"):
             for op in result["file_operations"]:
@@ -443,7 +443,7 @@ class PilotSwarm(SwarmTemplate):
         self, subtask: Subtask, context: str, config: PilotConfig
     ) -> Dict[str, Any]:
         """Execute a terminal subtask — runs safe shell commands."""
-        result = await self._terminal.execute(task=subtask.description, context=context)
+        result = await self._terminal.execute(task=subtask.description, context=context)  # type: ignore[attr-defined]
 
         if not config.allow_terminal:
             result["note"] = "Terminal execution disabled — commands generated but not run"
@@ -507,7 +507,7 @@ class PilotSwarm(SwarmTemplate):
             c for c in raw_name.lower().replace(" ", "-") if c.isalnum() or c == "-"
         )[:30]
 
-        result = await self._skill_writer.write_skill(
+        result = await self._skill_writer.write_skill(  # type: ignore[attr-defined]
             description=subtask.description,
             skill_name=skill_name,
         )
@@ -561,7 +561,7 @@ class PilotSwarm(SwarmTemplate):
         self, subtask: Subtask, context: str, config: PilotConfig
     ) -> Dict[str, Any]:
         """Execute an analysis subtask using LLM reasoning."""
-        return await self._searcher.search(task=subtask.description, context=context)
+        return await self._searcher.search(task=subtask.description, context=context)  # type: ignore[attr-defined]
 
     async def _execute_browse(
         self, subtask: Subtask, context: str, config: PilotConfig
@@ -662,7 +662,7 @@ class PilotSwarm(SwarmTemplate):
                 logger.debug(f"    browser_navigate_tool failed: {e}")
 
         logger.warning(f"    No web tool available for {url}, falling back to search")
-        return await self._searcher.search(
+        return await self._searcher.search(  # type: ignore[attr-defined]
             task=f"Fetch content from {url}: {task}", context=context
         )
 
@@ -705,11 +705,11 @@ class PilotSwarm(SwarmTemplate):
         except Exception:
             pass
 
-        return await self._searcher.search(task=task, context=context)
+        return await self._searcher.search(task=task, context=context)  # type: ignore[attr-defined]
 
     async def _browse_url_fallback(self, task: str, context: str) -> Dict[str, Any]:
         """No clear target — fall back to search with browse intent."""
-        return await self._searcher.search(task=f"Browse and find: {task}", context=context)
+        return await self._searcher.search(task=f"Browse and find: {task}", context=context)  # type: ignore[attr-defined]
 
     @staticmethod
     def _load_skill_tool(tools_path: Path, module_name: str, *func_names: str) -> Any:
@@ -718,8 +718,8 @@ class PilotSwarm(SwarmTemplate):
             import importlib.util
 
             spec = importlib.util.spec_from_file_location(module_name, str(tools_path))
-            mod = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(mod)
+            mod = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
+            spec.loader.exec_module(mod)  # type: ignore[union-attr]
             for name in func_names:
                 tool = getattr(mod, name, None)
                 if tool:

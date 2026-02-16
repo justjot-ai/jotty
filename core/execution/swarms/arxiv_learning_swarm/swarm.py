@@ -84,10 +84,10 @@ class ArxivLearningSwarm(SwarmTemplate):
     DEFAULT_TOOLS = ["arxiv_fetch", "concept_extract", "content_generate"]
     RESULT_CLASS = ArxivLearningResult
 
-    def __init__(self, config: ArxivLearningConfig = None) -> None:
+    def __init__(self, config: ArxivLearningConfig = None) -> None:  # type: ignore[assignment]
         super().__init__(config or ArxivLearningConfig())
         # Optimization mode from config: "unified" (fast, 2 LLM calls) or "sequential" (original, 10+ calls)
-        self._optimization_mode = self.config.optimization_mode
+        self._optimization_mode = self.config.optimization_mode  # type: ignore[attr-defined]
 
     def set_optimization_mode(self, mode: str) -> None:
         """
@@ -112,7 +112,7 @@ class ArxivLearningSwarm(SwarmTemplate):
         self,
         paper_id: str | None = None,
         topic: str | None = None,
-        depth: LearningDepth = None,
+        depth: LearningDepth = None,  # type: ignore[assignment]
         send_telegram: bool | None = None,
     ) -> ArxivLearningResult:
         """
@@ -147,7 +147,7 @@ class ArxivLearningSwarm(SwarmTemplate):
 
         return await self.run_domain(
             execute_fn=lambda executor: self._execute_phases(
-                executor, paper_id, topic, learning_depth, send_telegram, config
+                executor, paper_id, topic, learning_depth, send_telegram, config  # type: ignore[arg-type]
             ),
         )
 
@@ -376,9 +376,9 @@ class ArxivLearningSwarm(SwarmTemplate):
         """Fetch paper by ID or topic. Returns PaperInfo or None."""
         paper = None
         if paper_id:
-            paper = await self._paper_fetcher.fetch_by_id(paper_id)
+            paper = await self._paper_fetcher.fetch_by_id(paper_id)  # type: ignore[attr-defined]
         elif topic:
-            papers = await self._paper_fetcher.search_by_topic(topic, 1)
+            papers = await self._paper_fetcher.search_by_topic(topic, 1)  # type: ignore[attr-defined]
             paper = papers[0] if papers else None
         return paper
 
@@ -392,7 +392,7 @@ class ArxivLearningSwarm(SwarmTemplate):
                 logger.info(f" Loaded {len(concepts)} concepts from cache")
 
         if not concepts:
-            concepts = await self._concept_extractor.extract(paper)
+            concepts = await self._concept_extractor.extract(paper)  # type: ignore[attr-defined]
 
             if not concepts:
                 # Create default concept from abstract
@@ -432,9 +432,9 @@ class ArxivLearningSwarm(SwarmTemplate):
             Dict with keys: intuitions, math_explanations, examples,
             draft_content, progressive_result, polished
         """
-        if self._optimization_mode == "parallel_deep" and self._unified_learner:
+        if self._optimization_mode == "parallel_deep" and self._unified_learner:  # type: ignore[attr-defined]
             return await self._content_parallel_deep(executor, paper, concepts, config)
-        elif self._optimization_mode == "unified" and self._unified_learner:
+        elif self._optimization_mode == "unified" and self._unified_learner:  # type: ignore[attr-defined]
             return await self._content_unified(executor, paper, concepts, config)
         elif self._optimization_mode == "parallel":
             return await self._content_parallel(executor, paper, concepts, learning_depth, config)
@@ -461,7 +461,7 @@ class ArxivLearningSwarm(SwarmTemplate):
                 "Parallel Deep Content Generation",
                 "ParallelDeepLearner",
                 AgentRole.PLANNER,
-                self._unified_learner.generate_parallel(
+                self._unified_learner.generate_parallel(  # type: ignore[attr-defined]
                     paper=paper,
                     concepts=concepts,
                     audience_level=config.audience.value,
@@ -507,7 +507,7 @@ class ArxivLearningSwarm(SwarmTemplate):
                 "Unified Content Generation",
                 "UnifiedLearner",
                 AgentRole.PLANNER,
-                self._unified_learner.generate_all(
+                self._unified_learner.generate_all(  # type: ignore[attr-defined]
                     paper=paper,
                     concepts=concepts,
                     audience_level=config.audience.value,
@@ -552,7 +552,7 @@ class ArxivLearningSwarm(SwarmTemplate):
             (
                 f"IntuitionBuilder({c.name})",
                 AgentRole.ACTOR,
-                rate_limited_call(self._intuition_builder.build(c, config.audience.value)),
+                rate_limited_call(self._intuition_builder.build(c, config.audience.value)),  # type: ignore[attr-defined]
                 ["intuition_build"],
             )
             for c in concepts[:3]
@@ -574,7 +574,7 @@ class ArxivLearningSwarm(SwarmTemplate):
                         f"MathSimplifier({c.name})",
                         AgentRole.ACTOR,
                         rate_limited_call(
-                            self._math_simplifier.simplify(
+                            self._math_simplifier.simplify(  # type: ignore[attr-defined]
                                 c, intuitions.get(c.name, {}), config.audience.value
                             )
                         ),
@@ -596,7 +596,7 @@ class ArxivLearningSwarm(SwarmTemplate):
                     f"ExampleGenerator({c.name})",
                     AgentRole.ACTOR,
                     rate_limited_call(
-                        self._example_generator.generate(
+                        self._example_generator.generate(  # type: ignore[attr-defined]
                             c, intuitions.get(c.name, {}), math_explanations.get(c.name, {})
                         )
                     ),
@@ -657,7 +657,7 @@ class ArxivLearningSwarm(SwarmTemplate):
                     f"Building Intuition ({concept.name})",
                     "IntuitionBuilder",
                     AgentRole.ACTOR,
-                    self._intuition_builder.build(concept, config.audience.value),
+                    self._intuition_builder.build(concept, config.audience.value),  # type: ignore[attr-defined]
                     input_data={"concept": concept.name},
                     tools_used=["intuition_build"],
                 )
@@ -678,7 +678,7 @@ class ArxivLearningSwarm(SwarmTemplate):
                             f"Simplifying Math ({concept.name})",
                             "MathSimplifier",
                             AgentRole.ACTOR,
-                            self._math_simplifier.simplify(
+                            self._math_simplifier.simplify(  # type: ignore[attr-defined]
                                 concept, intuitions.get(concept.name, {}), config.audience.value
                             ),
                             input_data={"concept": concept.name},
@@ -700,7 +700,7 @@ class ArxivLearningSwarm(SwarmTemplate):
                         f"Generating Example ({concept.name})",
                         "ExampleGenerator",
                         AgentRole.ACTOR,
-                        self._example_generator.generate(
+                        self._example_generator.generate(  # type: ignore[attr-defined]
                             concept,
                             intuitions.get(concept.name, {}),
                             math_explanations.get(concept.name, {}),
@@ -720,7 +720,7 @@ class ArxivLearningSwarm(SwarmTemplate):
             "Building Progressive Content",
             "ProgressiveBuilder",
             AgentRole.PLANNER,
-            self._progressive_builder.build(
+            self._progressive_builder.build(  # type: ignore[attr-defined]
                 paper, concepts, intuitions, math_explanations, examples, config.celebration_word
             ),
             input_data={
@@ -738,7 +738,7 @@ class ArxivLearningSwarm(SwarmTemplate):
             "Polishing Content",
             "ContentPolisher",
             AgentRole.REVIEWER,
-            self._content_polisher.polish(draft_content, config.style.value, config.audience.value),
+            self._content_polisher.polish(draft_content, config.style.value, config.audience.value),  # type: ignore[attr-defined]
             input_data={"draft_length": len(draft_content)},
             tools_used=["content_polish"],
         )
@@ -880,12 +880,12 @@ class ArxivLearningSwarm(SwarmTemplate):
             return await self._generate_pdf(paper, learning_content)
 
         async def gen_pptx() -> Any:
-            if self.config.generate_pptx:
+            if self.config.generate_pptx:  # type: ignore[attr-defined]
                 return await self._generate_pptx(paper, learning_content)
             return (None, None)
 
         async def gen_html() -> Any:
-            if self.config.generate_html:
+            if self.config.generate_html:  # type: ignore[attr-defined]
                 return await self._generate_html(paper, learning_content)
             return None
 
@@ -943,16 +943,16 @@ class ArxivLearningSwarm(SwarmTemplate):
         self._init_agents()
 
         # Use LOTUS for semantic search if available and enabled
-        if self.config.use_lotus and LOTUS_AVAILABLE:
+        if self.config.use_lotus and LOTUS_AVAILABLE:  # type: ignore[attr-defined]
             logger.info(" Using LOTUS for semantic paper search...")
-            papers = await self._paper_fetcher.search_and_rank_with_lotus(
+            papers = await self._paper_fetcher.search_and_rank_with_lotus(  # type: ignore[attr-defined]
                 topic=topic,
                 max_results=max_papers,
                 rank_by=rank_by,
-                lotus_model=self.config.lotus_model,
+                lotus_model=self.config.lotus_model,  # type: ignore[attr-defined]
             )
         else:
-            papers = await self._paper_fetcher.search_by_topic(topic, max_papers)
+            papers = await self._paper_fetcher.search_by_topic(topic, max_papers)  # type: ignore[attr-defined]
 
         results = []
         for paper in papers:
@@ -969,7 +969,7 @@ class ArxivLearningSwarm(SwarmTemplate):
                 generate_concept_visualization,
             )
 
-            celebration = self.config.celebration_word
+            celebration = self.config.celebration_word  # type: ignore[attr-defined]
 
             # Prepare concepts for PDF
             concepts_data = [
@@ -1100,7 +1100,7 @@ class ArxivLearningSwarm(SwarmTemplate):
                 is_libreoffice_available,
             )
 
-            celebration = self.config.celebration_word
+            celebration = self.config.celebration_word  # type: ignore[attr-defined]
 
             # Prepare concepts for PPTX
             concepts_data = [
@@ -1158,7 +1158,7 @@ class ArxivLearningSwarm(SwarmTemplate):
                 logger.info(f" Generated PPTX: {pptx_path}")
 
                 # Convert PPTX to PDF if enabled (default: True)
-                if self.config.convert_pptx_to_pdf:
+                if self.config.convert_pptx_to_pdf:  # type: ignore[attr-defined]
                     if is_libreoffice_available():
                         logger.info(" Converting PPTX to PDF...")
                         pptx_pdf_path = await convert_pptx_to_pdf(pptx_path)
@@ -1186,7 +1186,7 @@ class ArxivLearningSwarm(SwarmTemplate):
                 generate_learning_html,
             )
 
-            celebration = self.config.celebration_word
+            celebration = self.config.celebration_word  # type: ignore[attr-defined]
 
             # Build comprehensive paper_data for HTML generator
             paper_data = {
@@ -1277,7 +1277,7 @@ class ArxivLearningSwarm(SwarmTemplate):
             return
 
         try:
-            celebration = self.config.celebration_word
+            celebration = self.config.celebration_word  # type: ignore[attr-defined]
 
             # Determine what files we'll send
             has_pptx_pdf = pptx_pdf_path and Path(pptx_pdf_path).exists()
@@ -1453,15 +1453,15 @@ class ArxivLearningSwarm(SwarmTemplate):
     def get_learning_stats(self) -> Dict[str, Any]:
         """Get learning statistics."""
         stats = {
-            "evaluations_count": len(self._evaluations) if self._evaluations else 0,
+            "evaluations_count": len(self._evaluations) if self._evaluations else 0,  # type: ignore[attr-defined]
             "traces_count": len(self._traces) if self._traces else 0,
             "improvements_suggested": 0,
             "avg_score": 0.0,
         }
 
-        if self._evaluations:
-            stats["avg_score"] = sum(e.overall_score for e in self._evaluations) / len(
-                self._evaluations
+        if self._evaluations:  # type: ignore[attr-defined]
+            stats["avg_score"] = sum(e.overall_score for e in self._evaluations) / len(  # type: ignore[attr-defined]
+                self._evaluations  # type: ignore[attr-defined]
             )
 
         if self._improvement_history:

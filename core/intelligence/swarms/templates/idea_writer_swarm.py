@@ -833,11 +833,11 @@ class IdeaWriterSwarm(SwarmTemplate):
     )
     SWARM_SIGNATURE = IdeaWriterSwarmSignature
 
-    def __init__(self, config: WriterConfig = None) -> None:
+    def __init__(self, config: WriterConfig = None) -> None:  # type: ignore[assignment]
         super().__init__(config or WriterConfig())
 
     async def write(
-        self, topic: str, sections: List[str] | None = None, custom_outline: Outline = None
+        self, topic: str, sections: List[str] | None = None, custom_outline: Outline = None  # type: ignore[assignment]
     ) -> WriterResult:
         """
         Write content on a topic.
@@ -856,7 +856,7 @@ class IdeaWriterSwarm(SwarmTemplate):
         self,
         topic: str,
         sections: List[str] | None = None,
-        custom_outline: Outline = None,
+        custom_outline: Outline = None,  # type: ignore[assignment]
         **kwargs: Any,
     ) -> WriterResult:
         """
@@ -896,7 +896,7 @@ class IdeaWriterSwarm(SwarmTemplate):
         )
 
     async def _execute_phases(
-        self, executor: Any, topic: str, sections: List[str], custom_outline: Outline = None
+        self, executor: Any, topic: str, sections: List[str], custom_outline: Outline = None  # type: ignore[assignment]
     ) -> WriterResult:
         """
         Domain-specific phase logic using PhaseExecutor.
@@ -925,7 +925,7 @@ class IdeaWriterSwarm(SwarmTemplate):
                 "Outline Generation",
                 "Outline",
                 AgentRole.PLANNER,
-                self._outline_agent.generate(topic, config),
+                self._outline_agent.generate(topic, config),  # type: ignore[attr-defined]
                 input_data={"topic": topic[:100]},
                 tools_used=["outline_generate"],
             )
@@ -941,14 +941,14 @@ class IdeaWriterSwarm(SwarmTemplate):
         # PHASE 2: RESEARCH
         # =================================================================
         research = {}
-        if config.include_research:
+        if config.include_research:  # type: ignore[attr-defined]
             research = await executor.run_phase(
                 2,
                 "Research",
                 "Research",
                 AgentRole.EXPERT,
-                self._research_agent.research(topic, outline, depth="moderate"),
-                input_data={"include_research": config.include_research},
+                self._research_agent.research(topic, outline, depth="moderate"),  # type: ignore[attr-defined]
+                input_data={"include_research": config.include_research},  # type: ignore[attr-defined]
                 tools_used=["research"],
             )
 
@@ -976,7 +976,7 @@ class IdeaWriterSwarm(SwarmTemplate):
                     (
                         f"SectionWriter({section_type})",
                         AgentRole.ACTOR,
-                        writer.write(topic, ctx, research, config),
+                        writer.write(topic, ctx, research, config),  # type: ignore[arg-type]
                         ["section_write"],
                     )
                 )
@@ -1009,7 +1009,7 @@ class IdeaWriterSwarm(SwarmTemplate):
             "Polish",
             "Polish",
             AgentRole.REVIEWER,
-            self._polish_agent.polish(full_content, config),
+            self._polish_agent.polish(full_content, config),  # type: ignore[attr-defined]
             input_data={"content_length": len(full_content)},
             tools_used=["content_polish"],
         )
@@ -1028,9 +1028,9 @@ class IdeaWriterSwarm(SwarmTemplate):
             sources=research.get("sources", []),
             outline=outline,
             metadata={
-                "content_type": config.content_type.value,
-                "tone": config.tone.value,
-                "audience": config.audience,
+                "content_type": config.content_type.value,  # type: ignore[attr-defined]
+                "tone": config.tone.value,  # type: ignore[attr-defined]
+                "audience": config.audience,  # type: ignore[attr-defined]
             },
         )
 

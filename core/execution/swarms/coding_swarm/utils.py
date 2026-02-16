@@ -178,7 +178,7 @@ async def _stream_call(
                 "Attempt %d/%d: Timeout after %.0fs", attempt, max_retries, timeout / 1.5
             )
         except Exception as e:
-            last_error = e
+            last_error = e  # type: ignore[assignment]
             if attempt < max_retries:
                 await asyncio.sleep(2**attempt)  # Exponential backoff
 

@@ -87,19 +87,19 @@ class SwarmLearningMixin(SwarmCoordinationMixin, SwarmKnowledgeMixin):
 
         try:
             # 1. Auto-connect SwarmIntelligence if not connected
-            if not self._swarm_intelligence:
-                self.connect_swarm_intelligence()
+            if not self._swarm_intelligence:  # type: ignore[attr-defined]
+                self.connect_swarm_intelligence()  # type: ignore[attr-defined]
 
-            si = self._swarm_intelligence
+            si = self._swarm_intelligence  # type: ignore[attr-defined]
             if not si:
                 self._learned_context = learned_context
                 return learned_context
 
             # 2. Auto-warmup if first run (no feedback history yet)
             stats = si.curriculum_generator.get_curriculum_stats()
-            save_path = self._get_intelligence_save_path()
+            save_path = self._get_intelligence_save_path()  # type: ignore[attr-defined]
             if stats["feedback_count"] == 0 and not Path(save_path).exists():
-                await self._run_auto_warmup()
+                await self._run_auto_warmup()  # type: ignore[attr-defined]
                 learned_context["warmup_completed"] = True
                 logger.info("Auto-warmup complete — seeded initial learning data")
 
@@ -119,17 +119,17 @@ class SwarmLearningMixin(SwarmCoordinationMixin, SwarmKnowledgeMixin):
                     }
 
             # 4. Analyze tool success rates via ToolManager
-            tool_analysis = self._manage_tools()
+            tool_analysis = self._manage_tools()  # type: ignore[attr-defined]
             learned_context["tool_performance"] = stats.get("tool_success_rates", {})
             learned_context["weak_tools"] = tool_analysis.get("weak_tools", [])
             learned_context["strong_tools"] = tool_analysis.get("strong_tools", [])
 
             # 5. STITCH: Combine weak tool + inconsistent agent = PRIORITY
             recommendations = []
-            for weak in learned_context["weak_tools"]:
+            for weak in learned_context["weak_tools"]:  # type: ignore[attr-defined]
                 tool_name = weak["tool"]
                 rate = weak["success_rate"]
-                for agent_name, agent_data in learned_context["agent_scores"].items():
+                for agent_name, agent_data in learned_context["agent_scores"].items():  # type: ignore[attr-defined]
                     consistency = agent_data.get("consistency", 0.5)
                     if consistency < 0.5:
                         recommendations.insert(
@@ -157,7 +157,7 @@ class SwarmLearningMixin(SwarmCoordinationMixin, SwarmKnowledgeMixin):
                         )
 
             # Add agent-only warnings (consistent tool but inconsistent agent)
-            for agent_name, agent_data in learned_context["agent_scores"].items():
+            for agent_name, agent_data in learned_context["agent_scores"].items():  # type: ignore[attr-defined]
                 consistency = agent_data.get("consistency", 0.5)
                 if consistency < 0.5 and not any(
                     r.get("agent") == agent_name for r in recommendations
@@ -220,10 +220,10 @@ class SwarmLearningMixin(SwarmCoordinationMixin, SwarmKnowledgeMixin):
 
             self._learned_context = learned_context
             if learned_context["has_learning"]:
-                expert_count = len(learned_context.get("expert_knowledge", []))
+                expert_count = len(learned_context.get("expert_knowledge", []))  # type: ignore[arg-type]
                 logger.info(
-                    f"Pre-execution learning: {len(learned_context['tool_performance'])} tools tracked, "
-                    f"{len(learned_context['agent_scores'])} agents scored, "
+                    f"Pre-execution learning: {len(learned_context['tool_performance'])} tools tracked, "  # type: ignore[arg-type]
+                    f"{len(learned_context['agent_scores'])} agents scored, "  # type: ignore[arg-type]
                     f"{len(recommendations)} recommendations, "
                     f"{expert_count} expert patterns loaded"
                 )
@@ -271,7 +271,7 @@ class SwarmLearningMixin(SwarmCoordinationMixin, SwarmKnowledgeMixin):
         """
         try:
             # 1. Send executor feedback (tools, success, timing)
-            self._send_executor_feedback(
+            self._send_executor_feedback(  # type: ignore[attr-defined]
                 task_type=task_type,
                 success=success,
                 tools_used=tools_used,
@@ -279,7 +279,7 @@ class SwarmLearningMixin(SwarmCoordinationMixin, SwarmKnowledgeMixin):
                 error_type=None if success else "execution_failure",
             )
 
-            si = self._swarm_intelligence
+            si = self._swarm_intelligence  # type: ignore[attr-defined]
             if not si:
                 return
 
@@ -299,7 +299,7 @@ class SwarmLearningMixin(SwarmCoordinationMixin, SwarmKnowledgeMixin):
                 # No manual truncation needed.
 
             # 3. Re-analyze tools and update assignments
-            self._manage_tools()
+            self._manage_tools()  # type: ignore[attr-defined]
 
             # 3a. Post-execution coordination protocols (byzantine verify,
             #     circuit breakers, gossip broadcast, coalition cleanup,
@@ -314,9 +314,9 @@ class SwarmLearningMixin(SwarmCoordinationMixin, SwarmKnowledgeMixin):
 
             # 4. Evaluate output against gold standard (centralized for all swarms)
             evaluation = None
-            if success and output_data and self.config.enable_self_improvement:
+            if success and output_data and self.config.enable_self_improvement:  # type: ignore[attr-defined]
                 try:
-                    evaluation = await self._evaluate_output(
+                    evaluation = await self._evaluate_output(  # type: ignore[attr-defined]
                         output=output_data, task_type=task_type, input_data=input_data or {}
                     )
                     if evaluation:
@@ -330,9 +330,9 @@ class SwarmLearningMixin(SwarmCoordinationMixin, SwarmKnowledgeMixin):
                     logger.debug(f"Evaluation skipped (unexpected): {eval_err}")
 
             # 4a. Audit evaluation quality (non-blocking)
-            if evaluation and self._auditor and output_data:
+            if evaluation and self._auditor and output_data:  # type: ignore[attr-defined]
                 try:
-                    audit_result = await self._auditor.audit_evaluation(
+                    audit_result = await self._auditor.audit_evaluation(  # type: ignore[attr-defined]
                         evaluation={
                             "scores": evaluation.scores,
                             "overall_score": evaluation.overall_score,
@@ -370,12 +370,12 @@ class SwarmLearningMixin(SwarmCoordinationMixin, SwarmKnowledgeMixin):
                 evaluation
                 and evaluation.overall_score >= 0.9
                 and evaluation.result in (EvaluationResult.EXCELLENT, EvaluationResult.GOOD)
-                and self._gold_db
+                and self._gold_db  # type: ignore[attr-defined]
                 and output_data
                 and input_data
             ):
                 try:
-                    self._curate_gold_standard(task_type, input_data, output_data, evaluation)
+                    self._curate_gold_standard(task_type, input_data, output_data, evaluation)  # type: ignore[attr-defined]
                 except (LearningError, MemoryStorageError) as e:
                     logger.warning(f"Gold standard curation failed (recoverable): {e}")
                 except Exception as e:
@@ -385,12 +385,12 @@ class SwarmLearningMixin(SwarmCoordinationMixin, SwarmKnowledgeMixin):
             if (
                 evaluation
                 and evaluation.overall_score >= 0.9
-                and self._learner
+                and self._learner  # type: ignore[attr-defined]
                 and output_data
                 and input_data
             ):
                 try:
-                    learnings = await self._learner.extract_learnings(
+                    learnings = await self._learner.extract_learnings(  # type: ignore[attr-defined]
                         input_data=input_data,
                         output_data=output_data,
                         evaluation={
@@ -398,9 +398,9 @@ class SwarmLearningMixin(SwarmCoordinationMixin, SwarmKnowledgeMixin):
                             "overall_score": evaluation.overall_score,
                             "feedback": evaluation.feedback,
                         },
-                        domain=self.config.domain,
+                        domain=self.config.domain,  # type: ignore[attr-defined]
                     )
-                    if learnings and self._improvement_history:
+                    if learnings and self._improvement_history:  # type: ignore[attr-defined]
                         now = datetime.now().isoformat()
                         for learning in learnings:
                             suggestion = ImprovementSuggestion(
@@ -415,7 +415,7 @@ class SwarmLearningMixin(SwarmCoordinationMixin, SwarmKnowledgeMixin):
                             sid = hashlib.md5(
                                 f"{suggestion.agent_role.value}:{suggestion.description}:{now}".encode()
                             ).hexdigest()[:12]
-                            self._improvement_history.history.append(
+                            self._improvement_history.history.append(  # type: ignore[attr-defined]
                                 {
                                     "id": sid,
                                     "suggestion": asdict(suggestion),
@@ -427,7 +427,7 @@ class SwarmLearningMixin(SwarmCoordinationMixin, SwarmKnowledgeMixin):
                                     "notes": "Auto-extracted from excellent execution",
                                 }
                             )
-                        self._improvement_history._save_history()
+                        self._improvement_history._save_history()  # type: ignore[attr-defined]
                         logger.info(
                             f"Extracted {len(learnings)} learnings from excellent execution"
                         )
@@ -437,7 +437,7 @@ class SwarmLearningMixin(SwarmCoordinationMixin, SwarmKnowledgeMixin):
                     logger.debug(f"Learning extraction failed (unexpected): {e}")
 
             # 5. Run improvement cycle if evaluation below threshold
-            if evaluation and evaluation.overall_score < self.config.improvement_threshold:
+            if evaluation and evaluation.overall_score < self.config.improvement_threshold:  # type: ignore[attr-defined]
                 try:
                     suggestions = await self._run_improvement_cycle()
                     if suggestions:
@@ -449,7 +449,7 @@ class SwarmLearningMixin(SwarmCoordinationMixin, SwarmKnowledgeMixin):
 
             # 6. Save state to disk
             try:
-                save_path = self._get_intelligence_save_path()
+                save_path = self._get_intelligence_save_path()  # type: ignore[attr-defined]
                 si.save(save_path)
                 logger.debug(f"Post-execution learning state saved to {save_path}")
             except (OSError, IOError) as save_err:
@@ -483,32 +483,32 @@ class SwarmLearningMixin(SwarmCoordinationMixin, SwarmKnowledgeMixin):
 
     async def _run_improvement_cycle(self) -> List[ImprovementSuggestion]:
         """Run the self-improvement cycle."""
-        if not self.config.enable_self_improvement or not self._reviewer:
+        if not self.config.enable_self_improvement or not self._reviewer:  # type: ignore[attr-defined]
             return []
 
         # Check if improvement is needed (persistent across sessions)
-        recent_evals = self._evaluation_history.get_recent(10)
-        avg_score = self._evaluation_history.get_average_score(10)
-        if not recent_evals or avg_score >= self.config.improvement_threshold:
+        recent_evals = self._evaluation_history.get_recent(10)  # type: ignore[attr-defined]
+        avg_score = self._evaluation_history.get_average_score(10)  # type: ignore[attr-defined]
+        if not recent_evals or avg_score >= self.config.improvement_threshold:  # type: ignore[attr-defined]
             logger.info(f"Performance good ({avg_score:.2f}), skipping improvement cycle")
             return []
 
         # Get suggestions from reviewer
         agent_configs = {
-            AgentRole.EXPERT: self._expert.config if self._expert else None,
-            AgentRole.REVIEWER: self._reviewer.config if self._reviewer else None,
-            AgentRole.PLANNER: self._planner.config if self._planner else None,
-            AgentRole.ACTOR: self._actor.config if self._actor else None,
-            AgentRole.AUDITOR: self._auditor.config if self._auditor else None,
-            AgentRole.LEARNER: self._learner.config if self._learner else None,
+            AgentRole.EXPERT: self._expert.config if self._expert else None,  # type: ignore[attr-defined]
+            AgentRole.REVIEWER: self._reviewer.config if self._reviewer else None,  # type: ignore[attr-defined]
+            AgentRole.PLANNER: self._planner.config if self._planner else None,  # type: ignore[attr-defined]
+            AgentRole.ACTOR: self._actor.config if self._actor else None,  # type: ignore[attr-defined]
+            AgentRole.AUDITOR: self._auditor.config if self._auditor else None,  # type: ignore[attr-defined]
+            AgentRole.LEARNER: self._learner.config if self._learner else None,  # type: ignore[attr-defined]
         }
         agent_configs = {k: v for k, v in agent_configs.items() if v}
 
-        suggestions = await self._reviewer.analyze_and_suggest(recent_evals, agent_configs)
+        suggestions = await self._reviewer.analyze_and_suggest(recent_evals, agent_configs)  # type: ignore[attr-defined]
 
         # Record suggestions
         for suggestion in suggestions:
-            self._improvement_history.record_suggestion(suggestion)
+            self._improvement_history.record_suggestion(suggestion)  # type: ignore[attr-defined]
 
         return suggestions
 
@@ -533,7 +533,7 @@ class SwarmLearningMixin(SwarmCoordinationMixin, SwarmKnowledgeMixin):
             success=success,
             error=error,
         )
-        self._traces.append(trace)
+        self._traces.append(trace)  # type: ignore[attr-defined]
 
         # Fire TUI trace callback if active
         try:
@@ -558,8 +558,8 @@ class SwarmLearningMixin(SwarmCoordinationMixin, SwarmKnowledgeMixin):
         # Only per-agent recording happens here (below).
 
         # MorphAgent: Update agent profile for per-agent tracking
-        swarm_name = self.config.name or "base_swarm"
-        si = self._swarm_intelligence
+        swarm_name = self.config.name or "base_swarm"  # type: ignore[attr-defined]
+        si = self._swarm_intelligence  # type: ignore[attr-defined]
         if si and hasattr(si, "agent_profiles"):
             si.register_agent(agent_name)
             # Record task result under individual agent name (not swarm name)
@@ -598,14 +598,14 @@ class SwarmLearningMixin(SwarmCoordinationMixin, SwarmKnowledgeMixin):
                 logger.debug(f"Circuit breaker update failed for {agent_name}: {e}")
 
         # Store in memory for learning
-        if self._memory and self.config.enable_learning:
+        if self._memory and self.config.enable_learning:  # type: ignore[attr-defined]
             try:
                 from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
 
-                self._memory.store(
+                self._memory.store(  # type: ignore[attr-defined]
                     content=json.dumps(asdict(trace), default=str),
                     level=MemoryLevel.EPISODIC,
-                    context={"swarm": self.config.name, "agent": agent_name},
+                    context={"swarm": self.config.name, "agent": agent_name},  # type: ignore[attr-defined]
                     goal=f"Execution trace: {agent_name}",
                 )
             except (MemoryStorageError, MemoryError) as e:
@@ -617,8 +617,8 @@ class SwarmLearningMixin(SwarmCoordinationMixin, SwarmKnowledgeMixin):
         self, suggestion_id: str, success: bool, impact: float, notes: str = ""
     ) -> Any:
         """Record the outcome of an applied improvement."""
-        if self._improvement_history:
-            self._improvement_history.record_outcome(suggestion_id, success, impact, notes)
+        if self._improvement_history:  # type: ignore[attr-defined]
+            self._improvement_history.record_outcome(suggestion_id, success, impact, notes)  # type: ignore[attr-defined]
 
 
 # =============================================================================

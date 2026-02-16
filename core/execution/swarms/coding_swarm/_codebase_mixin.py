@@ -37,9 +37,9 @@ class CodebaseMixin:
                 CodeLanguage.JAVA: [".java"],
                 CodeLanguage.GO: [".go"],
                 CodeLanguage.RUST: [".rs"],
-                CodeLanguage.CPP: [".cpp", ".hpp", ".h", ".cc"],
+                CodeLanguage.CPP: [".cpp", ".hpp", ".h", ".cc"],  # type: ignore[attr-defined]
             }
-            extensions = lang_extensions.get(self.config.language, [".py"])
+            extensions = lang_extensions.get(self.config.language, [".py"])  # type: ignore[attr-defined]
 
         # Directories to skip
         skip_dirs = {
@@ -268,7 +268,7 @@ class CodebaseMixin:
             # Generate branch name from requirements
             slug = re.sub(r"[^a-z0-9]+", "-", requirements.lower()[:40]).strip("-")
             timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-            branch_name = f"{self.config.git_branch_prefix}/{slug}-{timestamp}"
+            branch_name = f"{self.config.git_branch_prefix}/{slug}-{timestamp}"  # type: ignore[attr-defined]
 
             # Create and checkout branch
             subprocess.run(
@@ -373,7 +373,7 @@ class CodebaseMixin:
                 return "python3 -m pytest -x"
 
         # Default to pytest for Python
-        if self.config.language == CodeLanguage.PYTHON:
+        if self.config.language == CodeLanguage.PYTHON:  # type: ignore[attr-defined]
             return "python3 -m pytest -x"
 
         return None
@@ -392,7 +392,7 @@ class CodebaseMixin:
         """
         import subprocess
 
-        cmd = test_command or self.config.test_command or self._detect_test_command(codebase_path)
+        cmd = test_command or self.config.test_command or self._detect_test_command(codebase_path)  # type: ignore[attr-defined]
         if not cmd:
             return {
                 "success": False,
@@ -411,7 +411,7 @@ class CodebaseMixin:
                 cwd=codebase_path,
                 capture_output=True,
                 text=True,
-                timeout=self.config.test_timeout,
+                timeout=self.config.test_timeout,  # type: ignore[attr-defined]
             )
 
             output = result.stdout + "\n" + result.stderr

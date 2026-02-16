@@ -39,8 +39,8 @@ except ImportError:
     DeveloperAgent = BaseAgent
     TestWriterAgent = BaseAgent
 
-    from .._base.swarm_learning import SwarmBaseConfig as CodingConfig
-    from .._base.swarm_learning import SwarmResult as CodingResult
+    from .._base.swarm_learning import SwarmBaseConfig as CodingConfig  # type: ignore[assignment]
+    from .._base.swarm_learning import SwarmResult as CodingResult  # type: ignore[assignment]
 
 
 class CodingTemplate(SwarmTemplate):

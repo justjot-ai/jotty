@@ -62,8 +62,8 @@ class WorkspaceManager:
             )
         import os
 
-        filepath = os.path.join(self._workspace_dir, filename)
-        return await self._terminal.write_file(filepath, content)
+        filepath = os.path.join(self._workspace_dir, filename)  # type: ignore[arg-type]
+        return await self._terminal.write_file(filepath, content)  # type: ignore[attr-defined]
 
     async def bash(self, command: str, timeout: int = 30) -> "CommandResult":
         """Execute a bash command in the workspace."""
@@ -73,7 +73,7 @@ class WorkspaceManager:
             return CommandResult(
                 success=False, command=command, output="", error="WorkspaceManager unavailable"
             )
-        return await self._terminal.execute(
+        return await self._terminal.execute(  # type: ignore[attr-defined]
             command, timeout=timeout, working_dir=self._workspace_dir
         )
 
@@ -90,12 +90,12 @@ class WorkspaceManager:
             )
         import os
 
-        filepath = os.path.join(self._workspace_dir, filename)
+        filepath = os.path.join(self._workspace_dir, filename)  # type: ignore[arg-type]
         if language == "python":
-            return await self._terminal.execute(
+            return await self._terminal.execute(  # type: ignore[attr-defined]
                 f"python3 -m py_compile {filepath}", timeout=15, working_dir=self._workspace_dir
             )
-        return await self._terminal.execute(
+        return await self._terminal.execute(  # type: ignore[attr-defined]
             f"cat {filepath}", timeout=5, working_dir=self._workspace_dir
         )
 
@@ -109,8 +109,8 @@ class WorkspaceManager:
             )
         import os
 
-        filepath = os.path.join(self._workspace_dir, filename)
-        return await self._terminal.execute(
+        filepath = os.path.join(self._workspace_dir, filename)  # type: ignore[arg-type]
+        return await self._terminal.execute(  # type: ignore[attr-defined]
             f"python3 {filepath}", timeout=timeout, working_dir=self._workspace_dir
         )
 
@@ -127,11 +127,11 @@ class WorkspaceManager:
         if test_filename:
             import os
 
-            filepath = os.path.join(self._workspace_dir, test_filename)
+            filepath = os.path.join(self._workspace_dir, test_filename)  # type: ignore[arg-type]
             cmd = f"python3 -m pytest {filepath} -v --tb=short"
         else:
             cmd = f"python3 -m pytest {self._workspace_dir} -v --tb=short"
-        return await self._terminal.execute(cmd, timeout=timeout, working_dir=self._workspace_dir)
+        return await self._terminal.execute(cmd, timeout=timeout, working_dir=self._workspace_dir)  # type: ignore[attr-defined]
 
     async def pip_install(self, packages: List[str]) -> "CommandResult":
         """Install pip packages."""
@@ -145,7 +145,7 @@ class WorkspaceManager:
                 error="" if not packages else "WorkspaceManager unavailable",
             )
         pkg_str = " ".join(packages)
-        return await self._terminal.execute(
+        return await self._terminal.execute(  # type: ignore[attr-defined]
             f"pip install {pkg_str}", timeout=60, working_dir=self._workspace_dir
         )
 

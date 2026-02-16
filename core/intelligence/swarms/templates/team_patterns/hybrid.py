@@ -12,7 +12,7 @@ class HybridTemplate(SwarmLearning):
     AGENT_TEAM = TeamCoordinator.define(pattern=CoordinationPattern.AUTO)
     TEMPLATE_NAME = "hybrid_team"
 
-    def __init__(self, config: SwarmBaseConfig = None) -> None:
+    def __init__(self, config: SwarmBaseConfig = None) -> None:  # type: ignore[assignment]
         super().__init__(config or SwarmBaseConfig(name="HybridTeam", domain="hybrid"))
 
     async def execute(self, **kwargs) -> SwarmResult:

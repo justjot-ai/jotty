@@ -60,21 +60,21 @@ class SwarmKnowledgeMixin:
             List of expert improvement dicts with 'learned_pattern', 'domain',
             'source', etc. Empty list if memory unavailable.
         """
-        if not self._memory:
+        if not self._memory:  # type: ignore[attr-defined]
             # Try initializing shared resources to get memory
-            if not self._initialized:
-                self._init_shared_resources()
-            if not self._memory:
+            if not self._initialized:  # type: ignore[attr-defined]
+                self._init_shared_resources()  # type: ignore[attr-defined]
+            if not self._memory:  # type: ignore[attr-defined]
                 return []
 
-        domain = getattr(self.config, "domain", None) or self.config.name or "general"
-        swarm_name = self.config.name or "base_swarm"
+        domain = getattr(self.config, "domain", None) or self.config.name or "general"  # type: ignore[attr-defined]
+        swarm_name = self.config.name or "base_swarm"  # type: ignore[attr-defined]
 
         try:
             from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
 
             # Primary: domain-scoped retrieval (key-prefix filtering)
-            memory_entries = self._memory.retrieve_by_domain(
+            memory_entries = self._memory.retrieve_by_domain(  # type: ignore[attr-defined]
                 domain=domain,
                 goal=f"expert_{domain}_improvements",
                 budget_tokens=5000,
@@ -83,7 +83,7 @@ class SwarmKnowledgeMixin:
 
             if not memory_entries:
                 # Fallback: context-aware retrieval prioritizing wisdom (META > SEMANTIC)
-                memory_entries = self._memory.retrieve_for_context(
+                memory_entries = self._memory.retrieve_for_context(  # type: ignore[attr-defined]
                     query=f"expert improvements for {swarm_name}",
                     goal=f"expert_{domain}_improvements",
                     context_type="planning",
@@ -145,7 +145,7 @@ class SwarmKnowledgeMixin:
                 )
 
         # Source 2: Collective memory from SwarmIntelligence
-        si = self._swarm_intelligence
+        si = self._swarm_intelligence  # type: ignore[attr-defined]
         if si and si.collective_memory:
             failed_tasks = [
                 m for m in list(si.collective_memory)[-50:] if not m.get("success", True)
@@ -161,12 +161,12 @@ class SwarmKnowledgeMixin:
                 )
 
         # Source 3: Execution traces stored in memory
-        if self._memory:
+        if self._memory:  # type: ignore[attr-defined]
             try:
                 from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
 
-                failure_entries = self._memory.retrieve(
-                    query=f"failed execution error {self.config.name or 'swarm'}",
+                failure_entries = self._memory.retrieve(  # type: ignore[attr-defined]
+                    query=f"failed execution error {self.config.name or 'swarm'}",  # type: ignore[attr-defined]
                     goal="failure_analysis",
                     budget_tokens=2000,
                     levels=[MemoryLevel.META],
@@ -205,11 +205,11 @@ class SwarmKnowledgeMixin:
             tools_used: List of tool names used
             task_type: Type of task executed
         """
-        if not self._memory:
+        if not self._memory:  # type: ignore[attr-defined]
             return
 
-        domain = getattr(self.config, "domain", None) or self.config.name or "general"
-        swarm_name = self.config.name or "base_swarm"
+        domain = getattr(self.config, "domain", None) or self.config.name or "general"  # type: ignore[attr-defined]
+        swarm_name = self.config.name or "base_swarm"  # type: ignore[attr-defined]
 
         try:
             from Jotty.core.infrastructure.foundation.data_structures import MemoryLevel
@@ -248,7 +248,7 @@ class SwarmKnowledgeMixin:
                 "source": "swarm_lifecycle",
             }
 
-            self._memory.store(
+            self._memory.store(  # type: ignore[attr-defined]
                 content=json.dumps(improvement, ensure_ascii=False),
                 level=level,
                 context=context,
@@ -283,10 +283,10 @@ class SwarmKnowledgeMixin:
             Agent Notes: ContentPolisher has inconsistent outputs (consistency=0.3)
             Action: Validate content_generate output carefully before using.'
         """
-        if not self._learned_context or not self._learned_context.get("has_learning"):
+        if not self._learned_context or not self._learned_context.get("has_learning"):  # type: ignore[attr-defined]
             return ""
 
-        ctx = self._learned_context
+        ctx = self._learned_context  # type: ignore[attr-defined]
         lines = ["## Prior Learning"]
 
         # Tool performance summary
@@ -362,7 +362,7 @@ class SwarmKnowledgeMixin:
                 agent_notes.extend(low_performers)
 
         # Specialization label from AgentProfile
-        si = self._swarm_intelligence
+        si = self._swarm_intelligence  # type: ignore[attr-defined]
         if si and agent_name and agent_name in getattr(si, "agent_profiles", {}):
             from Jotty.core.intelligence.orchestration.swarm_intelligence import AgentSpecialization
 

@@ -113,8 +113,8 @@ class LearningConfig(SwarmBaseConfig):
     improvement_threshold: float = 0.7
     min_samples_for_learning: int = 5
     auto_apply_improvements: bool = False
-    gold_standard_path: str = None
-    history_path: str = None
+    gold_standard_path: str = None  # type: ignore[assignment]
+    history_path: str = None  # type: ignore[assignment]
 
     def __post_init__(self) -> None:
         self.name = "LearningSwarm"
@@ -689,7 +689,7 @@ class LearningSwarm(SwarmTemplate):
     DEFAULT_TOOLS = ["performance_evaluate", "gold_curate", "prompt_optimize"]
     RESULT_CLASS = LearningResult
 
-    def __init__(self, config: LearningConfig = None) -> None:
+    def __init__(self, config: LearningConfig = None) -> None:  # type: ignore[assignment]
         super().__init__(config or LearningConfig())
 
         # Data stores
@@ -806,7 +806,7 @@ class LearningSwarm(SwarmTemplate):
             "Performance Evaluation",
             "PerformanceEvaluator",
             AgentRole.EXPERT,
-            self._evaluator.evaluate(
+            self._evaluator.evaluate(  # type: ignore[attr-defined]
                 evaluations, traces, {"name": swarm_name, "domain": swarm_name}
             ),
             input_data={"swarm_name": swarm_name, "evaluations": len(evaluations)},
@@ -818,10 +818,10 @@ class LearningSwarm(SwarmTemplate):
         # =================================================================
         gold_standards_created = 0
 
-        if config.learning_mode in [LearningMode.CURATE, LearningMode.FULL_CYCLE]:
+        if config.learning_mode in [LearningMode.CURATE, LearningMode.FULL_CYCLE]:  # type: ignore[attr-defined]
             # Get successful outputs
             successful_outputs = [t.output_data for t in traces if t.success][
-                : config.evaluation_samples
+                : config.evaluation_samples  # type: ignore[attr-defined]
             ]
 
             if successful_outputs:
@@ -830,7 +830,7 @@ class LearningSwarm(SwarmTemplate):
                     "Gold Standard Curation",
                     "GoldCurator",
                     AgentRole.ACTOR,
-                    self._curator.curate(successful_outputs, swarm_name, ["general"]),
+                    self._curator.curate(successful_outputs, swarm_name, ["general"]),  # type: ignore[attr-defined]
                     input_data={"swarm_name": swarm_name},
                     tools_used=["gold_curate"],
                 )
@@ -841,18 +841,18 @@ class LearningSwarm(SwarmTemplate):
         # =================================================================
         optimizations = []
 
-        if config.learning_mode in [LearningMode.OPTIMIZE, LearningMode.FULL_CYCLE]:
+        if config.learning_mode in [LearningMode.OPTIMIZE, LearningMode.FULL_CYCLE]:  # type: ignore[attr-defined]
             parallel_tasks = []
 
             if (
-                OptimizationType.PROMPT in config.optimization_types
-                or OptimizationType.ALL in config.optimization_types
+                OptimizationType.PROMPT in config.optimization_types  # type: ignore[attr-defined]
+                or OptimizationType.ALL in config.optimization_types  # type: ignore[attr-defined]
             ):
                 parallel_tasks.append(
                     (
                         "PromptOptimizer",
                         AgentRole.ACTOR,
-                        self._prompt_optimizer.optimize(
+                        self._prompt_optimizer.optimize(  # type: ignore[attr-defined]
                             "Current prompt placeholder", performance.weaknesses, []
                         ),
                         ["prompt_optimize"],
@@ -860,14 +860,14 @@ class LearningSwarm(SwarmTemplate):
                 )
 
             if (
-                OptimizationType.WORKFLOW in config.optimization_types
-                or OptimizationType.ALL in config.optimization_types
+                OptimizationType.WORKFLOW in config.optimization_types  # type: ignore[attr-defined]
+                or OptimizationType.ALL in config.optimization_types  # type: ignore[attr-defined]
             ):
                 parallel_tasks.append(
                     (
                         "WorkflowOptimizer",
                         AgentRole.ACTOR,
-                        self._workflow_optimizer.optimize(
+                        self._workflow_optimizer.optimize(  # type: ignore[attr-defined]
                             "Sequential workflow",
                             {"avg_time": performance.avg_execution_time},
                             performance.weaknesses,
@@ -877,14 +877,14 @@ class LearningSwarm(SwarmTemplate):
                 )
 
             if (
-                OptimizationType.PARAMETERS in config.optimization_types
-                or OptimizationType.ALL in config.optimization_types
+                OptimizationType.PARAMETERS in config.optimization_types  # type: ignore[attr-defined]
+                or OptimizationType.ALL in config.optimization_types  # type: ignore[attr-defined]
             ):
                 parallel_tasks.append(
                     (
                         "ParameterTuner",
                         AgentRole.ACTOR,
-                        self._parameter_tuner.tune(
+                        self._parameter_tuner.tune(  # type: ignore[attr-defined]
                             {"temperature": 0.7, "max_tokens": 4096}, {}, {}
                         ),
                         ["param_tune"],
@@ -902,13 +902,13 @@ class LearningSwarm(SwarmTemplate):
         # =================================================================
         cross_domain_insights = []
 
-        if config.learning_mode == LearningMode.FULL_CYCLE:
+        if config.learning_mode == LearningMode.FULL_CYCLE:  # type: ignore[attr-defined]
             meta_result = await executor.run_phase(
                 4,
                 "Meta-Learning",
                 "MetaLearner",
                 AgentRole.EXPERT,
-                self._meta_learner.learn(
+                self._meta_learner.learn(  # type: ignore[attr-defined]
                     {swarm_name: performance}, [], {swarm_name: "Standard multi-agent architecture"}
                 ),
                 input_data={"full_cycle": True},

@@ -129,7 +129,7 @@ class SwarmCoordinationMixin:
             try:
                 coord["coalition_formed"] = None
                 if len(available) >= 3 and not si.coalitions:
-                    task_type = getattr(self.config, "domain", "general")
+                    task_type = getattr(self.config, "domain", "general")  # type: ignore[attr-defined]
                     coalition = si.form_coalition(
                         task_type=task_type,
                         min_agents=min(2, len(available)),
@@ -185,7 +185,7 @@ class SwarmCoordinationMixin:
         if not si:
             return
 
-        swarm_name = self.config.name or "base_swarm"
+        swarm_name = self.config.name or "base_swarm"  # type: ignore[attr-defined]
 
         try:
             # 1. Byzantine verify: verify the swarm-level execution result.
