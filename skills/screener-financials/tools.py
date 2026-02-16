@@ -55,16 +55,20 @@ def _make_request(
         if proxies:
             logger.debug(f"Using proxy: {proxies.get('http', 'none')}")
 
+    # No-proxy sentinel: explicitly bypasses env vars (HTTPS_PROXY etc.)
+    _NO_PROXY: Dict[str, str] = {"http": "", "https": ""}
+
     # Try with proxy first, then fallback to direct connection
     proxy_attempts = 0
     max_proxy_attempts = 2 if use_proxy else 0
 
     for attempt in range(max_retries):
         try:
-            # Try proxy first (if enabled and available)
-            current_proxies = (
-                proxies if (use_proxy and proxy_attempts < max_proxy_attempts) else None
-            )
+            # Try proxy first (if enabled and available), then direct (bypass env proxy)
+            if use_proxy and proxy_attempts < max_proxy_attempts and proxies:
+                current_proxies = proxies
+            else:
+                current_proxies = _NO_PROXY  # Direct — bypass env HTTPS_PROXY
 
             response = requests.get(
                 url, headers=headers, proxies=current_proxies, timeout=15, allow_redirects=True
@@ -72,7 +76,7 @@ def _make_request(
 
             # Check if blocked
             if response.status_code == 403 or "blocked" in response.text.lower():
-                if current_proxies:
+                if current_proxies and current_proxies is not _NO_PROXY:
                     _proxy_rotator.mark_failed(current_proxies.get("http", ""))
                     proxy_attempts += 1
                     if proxy_attempts < max_proxy_attempts:
@@ -80,7 +84,7 @@ def _make_request(
                         time.sleep(1)
                         continue
                     else:
-                        # Fallback to direct connection
+                        # Fallback to truly direct connection
                         logger.info("Proxies failed, falling back to direct connection")
                         proxies = None
                         continue
@@ -94,9 +98,12 @@ def _make_request(
 
         except requests.RequestException as e:
             # If proxy error, try direct connection
-            if current_proxies and ("proxy" in str(e).lower() or "tunnel" in str(e).lower()):
-                if current_proxies:
-                    _proxy_rotator.mark_failed(current_proxies.get("http", ""))
+            if (
+                current_proxies
+                and current_proxies is not _NO_PROXY
+                and ("proxy" in str(e).lower() or "tunnel" in str(e).lower())
+            ):
+                _proxy_rotator.mark_failed(current_proxies.get("http", ""))
                 proxy_attempts += 1
 
                 if proxy_attempts < max_proxy_attempts:
@@ -105,7 +112,7 @@ def _make_request(
                     time.sleep(1)
                     continue
                 else:
-                    # Fallback to direct connection
+                    # Fallback to truly direct connection (bypass env proxy)
                     logger.info("All proxies failed, using direct connection")
                     proxies = None
                     if attempt < max_retries - 1:

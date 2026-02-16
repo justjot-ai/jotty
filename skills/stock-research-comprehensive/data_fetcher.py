@@ -234,13 +234,13 @@ class ResearchDataFetcher:
             ticker_upper in INDIAN_TICKERS or exchange.upper() in ("NSE", "BSE", "INDIA")
         )
 
-        # Format ticker for Yahoo Finance
+        # Format ticker for Yahoo Finance (avoid double-suffix like RELIANCE.NS.NS)
         if is_us_ticker:
             yf_ticker = ticker_upper  # No suffix for US stocks
         elif exchange.upper() == "NSE":
-            yf_ticker = f"{ticker}.NS"
+            yf_ticker = ticker_upper if ticker_upper.endswith(".NS") else f"{ticker_upper}.NS"
         elif exchange.upper() == "BSE":
-            yf_ticker = f"{ticker}.BO"
+            yf_ticker = ticker_upper if ticker_upper.endswith(".BO") else f"{ticker_upper}.BO"
         else:
             yf_ticker = ticker
 

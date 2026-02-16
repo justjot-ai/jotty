@@ -135,8 +135,10 @@ class FundamentalFeaturesSkill(MLSkill):
 
         yf = self._ensure_yfinance()
 
-        # Download quarterly financial history
-        ticker_symbol = f"{symbol}{self.NSE_SUFFIX}"
+        # Download quarterly financial history (avoid double-suffix)
+        ticker_symbol = (
+            symbol if symbol.upper().endswith(self.NSE_SUFFIX) else f"{symbol}{self.NSE_SUFFIX}"
+        )
         ticker = yf.Ticker(ticker_symbol)
 
         try:
@@ -461,7 +463,9 @@ class FundamentalFeaturesSkill(MLSkill):
         sector_pes = []
         for s in sector_stocks[:5]:  # Limit to 5 for speed
             try:
-                ticker = yf.Ticker(f"{s}{self.NSE_SUFFIX}")
+                ticker = yf.Ticker(
+                    s if s.upper().endswith(self.NSE_SUFFIX) else f"{s}{self.NSE_SUFFIX}"
+                )
                 s_info = ticker.info or {}
                 s_pe = s_info.get("trailingPE")
                 if s_pe and 0 < s_pe < 200:

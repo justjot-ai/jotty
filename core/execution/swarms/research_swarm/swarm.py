@@ -5,13 +5,14 @@ import logging
 import os
 import re
 import time
-import traceback
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import dspy
 
+from .._base.registry import register_swarm
 from .._base.swarm_signatures import ResearchSwarmSignature
+from .._base.swarm_types import AgentRole
 from ..base import SwarmTemplate, TeamCoordinator
 from ..base.swarm_template import PhaseExecutor
 from .agents import (
@@ -38,6 +39,7 @@ from .types import ResearchConfig, ResearchResult, TopicResearchResult
 logger = logging.getLogger(__name__)
 
 
+@register_swarm("research")
 class ResearchSwarm(SwarmTemplate):
     """
     World-Class Research Swarm with parallel agents and LLM analysis.
@@ -80,8 +82,7 @@ class ResearchSwarm(SwarmTemplate):
         "technical_analysis",
         "screener",
     ]
-    # Note: ResearchResult is not a SwarmResult subclass, so run_domain()
-    # cannot be used here — custom error handling is required.
+    RESULT_CLASS = ResearchResult
 
     def __init__(self, config: Optional[ResearchConfig] = None) -> None:
         """Initialize research swarm."""
@@ -96,67 +97,20 @@ class ResearchSwarm(SwarmTemplate):
         self._technical_signals_module = None
 
     def _init_shared_resources(self) -> None:
-        """Initialize shared swarm resources."""
+        """Initialize shared swarm resources + research-specific DSPy modules."""
         if self._initialized:
             return
 
-        # Auto-configure DSPy LM if needed
-        if not hasattr(dspy.settings, "lm") or dspy.settings.lm is None:
-            # Use UnifiedLMProvider for consistent multi-provider support
-            try:
-                import os
+        # Parent handles DSPy LM config, shared resources, and self-improvement
+        super()._init_shared_resources()
 
-                from Jotty.core.infrastructure.foundation.unified_lm_provider import (
-                    UnifiedLMProvider,
-                )
-
-                # Auto-detect provider or use anthropic
-                provider = "anthropic" if os.environ.get("ANTHROPIC_API_KEY") else "openai"
-
-                lm = UnifiedLMProvider.create_lm(
-                    provider=provider,
-                    model="haiku",
-                    max_tokens=8192,
-                )
-                dspy.configure(lm=lm)
-                logger.info(f"✓ Auto-configured DSPy via UnifiedLMProvider (provider={provider})")
-            except Exception as e:
-                logger.warning(f"UnifiedLMProvider initialization failed: {e}")
-                # Fallback to auto-detection
-                try:
-                    from Jotty.core.infrastructure.foundation.unified_lm_provider import (
-                        configure_dspy_lm,
-                    )
-
-                    lm = configure_dspy_lm()
-                    logger.info("✓ Auto-configured DSPy via configure_dspy_lm()")
-                except Exception as e2:
-                    logger.warning(f"Could not configure DSPy LM: {e2}")
-
-        # Initialize shared resources
-        try:
-            from Jotty.core.modes.agent.planners.swarm_resources_stub import SwarmResources
-
-            jotty_config = SwarmConfig()
-            resources = SwarmResources.get_instance(jotty_config)
-
-            self._memory = resources.memory
-            self._context = resources.context
-            self._bus = resources.bus
-
-            logger.info(" Shared swarm resources initialized")
-        except Exception as e:
-            logger.warning(f"SwarmResources not available: {e}")
-
-        # Initialize DSPy modules
+        # Initialize research-specific DSPy modules
         if self.config.use_llm_analysis:  # type: ignore[attr-defined]
             self._stock_analyzer = dspy.ChainOfThought(StockAnalysisSignature)
             self._sentiment_module = dspy.ChainOfThought(SentimentAnalysisSignature)
             self._peer_selector = dspy.Predict(PeerSelectionSignature)
             self._social_sentiment_module = dspy.ChainOfThought(SocialSentimentSignature)
             self._technical_signals_module = dspy.Predict(TechnicalSignalsSignature)
-
-        self._initialized = True
 
     async def _execute_domain(self, query: str, **kwargs: Any) -> ResearchResult:
         """Execute research (called by SwarmTemplate.execute())."""
@@ -172,7 +126,7 @@ class ResearchSwarm(SwarmTemplate):
         """
         Execute comprehensive research on a company/stock.
 
-        Uses _safe_execute_domain to handle try/except, timing, and
+        Delegates to run_domain() which handles try/except, timing, and
         post-execution learning automatically via PhaseExecutor.
 
         Args:
@@ -184,6 +138,9 @@ class ResearchSwarm(SwarmTemplate):
         Returns:
             ResearchResult with all data and analysis
         """
+        # Initialize agents
+        self._init_agents()
+
         # Parse inputs before entering executor
         ticker = ticker or self._extract_ticker(query)
         exchange = exchange or self.config.exchange  # type: ignore[attr-defined]
@@ -194,72 +151,25 @@ class ResearchSwarm(SwarmTemplate):
             f"   Config: LLM={self.config.use_llm_analysis}, Peers={self.config.include_peers}, Sentiment={self.config.include_sentiment}"  # type: ignore[attr-defined]
         )
 
-        # Default tools used across research phases
-        default_tools = [
-            "data_fetch",
-            "web_search",
-            "sentiment_analysis",
-            "llm_analysis",
-            "peer_comparison",
-            "chart_generation",
-            "report_generation",
-            "technical_analysis",
-            "screener",
-        ]
+        self._run_input = {"ticker": ticker, "exchange": exchange, "query": query}
 
-        async def _execute_fn(executor: PhaseExecutor) -> ResearchResult:
-            return await self._execute_phases(executor, ticker, exchange, send_tg)
+        return await self.run_domain(
+            execute_fn=lambda executor: self._execute_phases(executor, ticker, exchange, send_tg),
+        )
 
-        def _output_data_fn(result: ResearchResult) -> Dict[str, Any]:
-            return {
-                "ticker": result.ticker,
-                "rating": result.rating,
-                "confidence": str(result.rating_confidence),
-                "sentiment": result.sentiment_label,
-                "success": str(result.success),
-            }
+    def _build_output_data(self, result: ResearchResult) -> Dict[str, Any]:
+        """Extract output metrics for post-execution learning."""
+        return {
+            "ticker": result.ticker,
+            "rating": result.rating,
+            "confidence": str(result.rating_confidence),
+            "sentiment": result.sentiment_label,
+            "success": str(result.success),
+        }
 
-        def _input_data_fn() -> Dict[str, Any]:
-            return {"ticker": ticker, "exchange": exchange, "query": query}
-
-        # Use _safe_execute_domain for try/except + learning boilerplate.
-        # Since ResearchResult is not a SwarmResult subclass, we wrap with
-        # custom error handling.
-        executor = self._phase_executor()
-        try:
-            result = await _execute_fn(executor)
-
-            # Record post-execution learning (success path)
-            exec_time = executor.elapsed()
-            await self._post_execute_learning(
-                success=result.success if hasattr(result, "success") else True,
-                execution_time=exec_time,
-                tools_used=self._get_active_tools(default_tools),
-                task_type="research",
-                output_data=_output_data_fn(result),
-                input_data=_input_data_fn(),
-            )
-            self._learning_recorded = True
-            return result
-
-        except Exception as e:
-            logger.error(f"Research swarm error: {e}")
-            traceback.print_exc()
-            exec_time = executor.elapsed()
-            await self._post_execute_learning(
-                success=False,
-                execution_time=exec_time,
-                tools_used=self._get_active_tools(default_tools),
-                task_type="research",
-            )
-            self._learning_recorded = True
-            return ResearchResult(
-                success=False,
-                ticker=ticker,
-                company_name=ticker,
-                error=str(e),
-                execution_time=exec_time,
-            )
+    def _build_input_data(self) -> Dict[str, Any]:
+        """Extract input metrics for post-execution learning."""
+        return getattr(self, "_run_input", {})
 
     async def _execute_phases(
         self,
@@ -598,7 +508,17 @@ class ResearchSwarm(SwarmTemplate):
             trend = technical_data.get("trend", "NEUTRAL")
 
         result = ResearchResult(
+            # SwarmResult base fields
             success=True,
+            swarm_name=self.config.name,
+            domain=self.config.domain,
+            output={
+                "ticker": ticker,
+                "rating": llm_result.get("rating", "HOLD"),
+                "pdf_path": report_result.get("pdf_path", ""),
+            },
+            execution_time=exec_time,
+            # Research-specific fields
             ticker=ticker,
             company_name=merged_data.get("company_name", ticker),
             current_price=merged_data.get("current_price", 0),
@@ -617,7 +537,6 @@ class ResearchSwarm(SwarmTemplate):
             telegram_sent=report_result.get("telegram_sent", False),
             data_sources=merged_data.get("sources", []),
             news_count=web_data.get("news_count", 0),
-            execution_time=exec_time,
             agent_contributions={
                 "DataFetcher": 0.15,
                 "WebSearch": 0.10,
@@ -858,7 +777,7 @@ class ResearchSwarm(SwarmTemplate):
         }
 
         for word in words:
-            clean = re.sub(r"[,.\-:]", "", word)
+            clean = re.sub(r"[,\-:]", "", word)
             if clean and clean not in skip_words and len(clean) <= 15:
                 return clean
 

@@ -124,7 +124,7 @@ class PaperFetcherAgent(SwarmLearningAgent):
 
                 registry = get_skills_registry()
                 registry.init()
-                skill = registry.get_skill("arxiv-downloader")
+                skill = registry.get_skill("downloading-arxiv")
                 self._skill_tools = skill.tools if skill else {}
             except Exception:
                 self._skill_tools = {}

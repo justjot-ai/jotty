@@ -37,7 +37,8 @@ COLORS = {
 
 # CSS Template for WeasyPrint/HTML to PDF conversion
 CSS_TEMPLATE = """
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+/* Google Fonts @import removed — causes timeout behind proxy and WeasyPrint
+   gracefully falls back to system sans-serif via the font-family stack */
 
 @page {
     size: A4;
@@ -456,19 +457,19 @@ blockquote {
     letter-spacing: 2pt;
 }
 
-.rating-buy {
+.rating-badge.rating-buy {
     background: linear-gradient(135deg, #38a169 0%, #276749 100%);
     color: #ffffff;
     box-shadow: 0 4pt 12pt rgba(56, 161, 105, 0.3);
 }
 
-.rating-hold {
+.rating-badge.rating-hold {
     background: linear-gradient(135deg, #d69e2e 0%, #b7791f 100%);
     color: #ffffff;
     box-shadow: 0 4pt 12pt rgba(214, 158, 46, 0.3);
 }
 
-.rating-sell {
+.rating-badge.rating-sell {
     background: linear-gradient(135deg, #e53e3e 0%, #c53030 100%);
     color: #ffffff;
     box-shadow: 0 4pt 12pt rgba(229, 62, 62, 0.3);
@@ -804,10 +805,16 @@ def _enhance_html(html: str) -> str:
         html,
     )
 
-    # Style inline rating badges
-    html = re.sub(r"\s*BUY", '<span class="rating-box rating-buy">BUY</span>', html)
-    html = re.sub(r"\s*HOLD", '<span class="rating-box rating-hold">HOLD</span>', html)
-    html = re.sub(r"\s*SELL", '<span class="rating-box rating-sell">SELL</span>', html)
+    # Style inline rating badges (word-boundary protected to avoid matching inside other words)
+    html = re.sub(
+        r"(?<![A-Za-z])BUY(?![A-Za-z])", '<span class="rating-box rating-buy">BUY</span>', html
+    )
+    html = re.sub(
+        r"(?<![A-Za-z])HOLD(?![A-Za-z])", '<span class="rating-box rating-hold">HOLD</span>', html
+    )
+    html = re.sub(
+        r"(?<![A-Za-z])SELL(?![A-Za-z])", '<span class="rating-box rating-sell">SELL</span>', html
+    )
 
     # Style scenario analysis section headers with background boxes
     html = re.sub(
@@ -863,14 +870,10 @@ def _enhance_html(html: str) -> str:
         flags=re.DOTALL,
     )
 
-    # Style impact badges in catalysts (contained styling)
-    html = re.sub(r" High", '<strong style="color:#e53e3e">High</strong>', html)
-    html = re.sub(r" Medium", '<strong style="color:#d69e2e">Medium</strong>', html)
-    html = re.sub(r" Low", '<strong style="color:#38a169">Low</strong>', html)
-
-    # Style checkmarks and warnings (contained styling)
-    html = re.sub(r" ", '<span style="color:#38a169;font-weight:bold"></span> ', html)
-    html = re.sub(r" ", '<span style="color:#d69e2e;font-weight:bold"></span> ', html)
+    # Style checkmarks (✓ U+2713) and warnings (⚠ U+26A0) with color
+    html = re.sub(r"\u2713", '<span style="color:#38a169;font-weight:bold">\u2713</span>', html)
+    html = re.sub(r"\u2714", '<span style="color:#38a169;font-weight:bold">\u2714</span>', html)
+    html = re.sub(r"\u26A0", '<span style="color:#d69e2e;font-weight:bold">\u26A0</span>', html)
 
     return html
 
@@ -1031,10 +1034,28 @@ async def convert_md_to_pdf(
 
     # Try WeasyPrint first (best quality)
     try:
+        import re as _re
+        import sys
+
         from weasyprint import CSS, HTML
 
-        html_doc = HTML(string=html_content, base_url=str(md_file.parent))
-        html_doc.write_pdf(output_path)
+        # WeasyPrint hits recursion limits on complex CSS (gradients, box-shadow)
+        old_limit = sys.getrecursionlimit()
+        sys.setrecursionlimit(max(old_limit, 15000))
+        try:
+            html_doc = HTML(string=html_content, base_url=str(md_file.parent))
+            html_doc.write_pdf(output_path)
+        except RecursionError:
+            # Fallback: simplify CSS (flat colors, no box-shadows) and retry
+            simple_html = _re.sub(
+                r"linear-gradient\([^)]+,\s*([#\w]+)\s+\d+%\)", r"\1", html_content
+            )
+            simple_html = _re.sub(r"box-shadow:[^;]+;", "", simple_html)
+            sys.setrecursionlimit(max(old_limit, 20000))
+            html_doc = HTML(string=simple_html, base_url=str(md_file.parent))
+            html_doc.write_pdf(output_path)
+        finally:
+            sys.setrecursionlimit(old_limit)
         return output_path
 
     except ImportError:

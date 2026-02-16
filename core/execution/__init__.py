@@ -28,7 +28,7 @@ Example:
 """
 
 # Base classes
-from .base import AgentResult, AgentRuntimeConfig, BaseAgent, BaseSwarm, PhaseExecutor
+from .base import AgentResult, AgentRuntimeConfig, BaseAgent
 
 # Capabilities
 from .capabilities import (
@@ -37,6 +37,8 @@ from .capabilities import (
     SyntaxValidator,
     ValidationCapability,
 )
+from .swarms.base.swarm_template import PhaseExecutor
+from .swarms.base.swarm_template import SwarmTemplate as BaseSwarm
 
 # Re-export for convenience
 __all__ = [

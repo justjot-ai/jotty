@@ -627,6 +627,21 @@ class SwarmTemplate(SwarmLearning):
         try:
             result = await execute_fn(executor)
 
+            # Validate result type — catch mismatched return types early
+            if not isinstance(result, result_class):
+                logger.warning(
+                    "%s._execute_domain returned %s, expected %s — wrapping in error result",
+                    self.__class__.__name__,
+                    type(result).__name__,
+                    result_class.__name__,
+                )
+                return executor.build_error_result(
+                    result_class,
+                    TypeError(f"Expected {result_class.__name__}, got {type(result).__name__}"),
+                    self.config.name,
+                    self.config.domain,
+                )
+
             # Record post-execution learning (success path)
             exec_time = executor.elapsed()
             output_data = output_data_fn(result) if output_data_fn else None

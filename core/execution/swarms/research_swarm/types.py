@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List
 
-from .._base.swarm_types import SwarmConfig
+from .._base.swarm_types import SwarmConfig, SwarmResult
 
 logger = logging.getLogger(__name__)
 
@@ -54,12 +54,16 @@ class ResearchConfig(SwarmConfig):
 
 
 @dataclass
-class ResearchResult:
-    """Result from research swarm."""
+class ResearchResult(SwarmResult):
+    """Result from research swarm.
 
-    success: bool
-    ticker: str
-    company_name: str
+    Inherits from SwarmResult to gain standard fields (success, swarm_name,
+    domain, output, execution_time, error, agent_traces, metadata) and
+    compatibility with run_domain() / _safe_execute_domain().
+    """
+
+    ticker: str = ""
+    company_name: str = ""
     current_price: float = 0.0
     target_price: float = 0.0
     rating: str = "HOLD"
@@ -76,10 +80,8 @@ class ResearchResult:
     telegram_sent: bool = False
     data_sources: List[str] = field(default_factory=list)
     news_count: int = 0
-    error: str = ""
-    execution_time: float = 0.0
     agent_contributions: Dict[str, float] = field(default_factory=dict)
-    # New enhanced fields
+    # Enhanced fields
     technical_signals: Dict[str, Any] = field(default_factory=dict)
     support_levels: List[float] = field(default_factory=list)
     resistance_levels: List[float] = field(default_factory=list)

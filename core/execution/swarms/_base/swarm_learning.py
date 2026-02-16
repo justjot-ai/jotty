@@ -184,7 +184,9 @@ class SwarmLearning(SwarmLearningMixin, ABC):
 
             from Jotty.core.modes.agent.planners.swarm_resources_stub import SwarmResources
 
-            jotty_config = getattr(self.config, "jotty_config", None) or SwarmConfig()
+            from .swarm_types import SwarmConfig as _SwarmConfig
+
+            jotty_config = getattr(self.config, "jotty_config", None) or _SwarmConfig()
             resources = SwarmResources.get_instance(jotty_config)
 
             self._memory = resources.memory

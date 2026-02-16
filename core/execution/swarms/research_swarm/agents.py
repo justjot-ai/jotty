@@ -474,10 +474,16 @@ class PeerComparisonAgent(SwarmLearningAgent):
             peer_data = {}
             for peer in cleaned_peers:
                 try:
-                    # Use yfinance directly
+                    # Use yfinance directly — add exchange suffix back
                     import yfinance as yf
 
-                    stock = yf.Ticker(peer)
+                    if exchange.upper() == "NSE":
+                        yf_peer = f"{peer}.NS"
+                    elif exchange.upper() == "BSE":
+                        yf_peer = f"{peer}.BO"
+                    else:
+                        yf_peer = peer
+                    stock = yf.Ticker(yf_peer)
                     info = stock.info
                     current_price = info.get("currentPrice") or info.get("regularMarketPrice") or 0
 
@@ -850,6 +856,13 @@ class EnhancedChartGeneratorAgent(SwarmLearningAgent):
         if not chart_paths and data.get("price_history"):
             prices = data.get("price_history", [])
             volumes = data.get("volume_history", [])
+            # Ensure prices/volumes are flat lists of numbers (not dicts from Yahoo)
+            if prices and isinstance(prices[0], dict):
+                prices = [p.get("close", p.get("Close", 0)) for p in prices if isinstance(p, dict)]
+            if volumes and isinstance(volumes[0], dict):
+                volumes = [
+                    v.get("volume", v.get("Volume", 0)) for v in volumes if isinstance(v, dict)
+                ]
 
             if prices and len(prices) >= 20:
                 basic_chart = self._generate_basic_chart(
@@ -892,11 +905,13 @@ class EnhancedChartGeneratorAgent(SwarmLearningAgent):
             return None
 
         data_dir = Path(data_path) / tf_dir
-        pattern = f"*-{ticker}-*.csv.gz"
+        # Local data files use bare ticker names (e.g., RELIANCE not RELIANCE.NS)
+        bare_ticker = ticker.replace(".NS", "").replace(".BO", "")
+        pattern = f"*-{bare_ticker}-*.csv.gz"
         files = sorted(data_dir.glob(pattern))
 
         if not files:
-            pattern = f"*{ticker}*.csv.gz"
+            pattern = f"*{bare_ticker}*.csv.gz"
             files = sorted(data_dir.glob(pattern))
 
         if not files:

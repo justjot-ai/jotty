@@ -43,15 +43,16 @@ async def test_research_swarm():
         config = ResearchConfig(send_telegram=False)
         swarm = ResearchSwarm(config=config)
 
-        # Simple research task - using ticker (ResearchSwarm is for stock research)
+        # Indian stock on NSE (yfinance needs .NS suffix)
         result = await swarm.research(
-            query="AAPL", exchange="NYSE", send_telegram=False  # Apple stock ticker
+            query="Reliance Industries", ticker="RELIANCE.NS", exchange="NSE", send_telegram=False
         )
 
         print(f"\n✅ ResearchSwarm Success!")
-        print(f"   Query: AAPL (Apple Inc.)")
-        print(f"   Ticker: {result.ticker if hasattr(result, 'ticker') else 'N/A'}")
-        print(f"   Analysis available: {bool(result.data if hasattr(result, 'data') else False)}")
+        print(f"   Ticker: {getattr(result, 'ticker', 'N/A')}")
+        print(f"   Rating: {getattr(result, 'rating', 'N/A')}")
+        print(f"   PDF: {getattr(result, 'pdf_path', 'N/A')}")
+        print(f"   Success: {getattr(result, 'success', 'N/A')}")
 
         return {"status": "success", "swarm": "ResearchSwarm", "result": result}
 
@@ -73,14 +74,14 @@ async def test_arxiv_swarm():
         from Jotty.core.execution.swarms.arxiv_learning_swarm import learn_paper
 
         # Simple arxiv research task  # "Attention is All You Need" paper
-        result = await learn_paper(arxiv_id="1706.03762", send_telegram=False)
+        result = await learn_paper(paper_id="1706.03762", send_telegram=False)
 
         print(f"\n✅ ArxivLearningSwarm Success!")
         print(f"   Paper: Attention is All You Need (arXiv:1706.03762)")
-        if hasattr(result, "papers"):
-            print(f"   Papers found: {len(result.papers)}")
-        elif hasattr(result, "content"):
-            print(f"   Content generated: {len(result.content)} characters")
+        if hasattr(result, "pdf_path") and result.pdf_path:
+            print(f"   PDF: {result.pdf_path}")
+        if hasattr(result, "content") and result.content:
+            print(f"   Content: {str(result.content)[:100]}...")
 
         return {"status": "success", "swarm": "ArxivLearningSwarm", "result": result}
 
@@ -124,10 +125,10 @@ async def test_olympiad_swarm():
         print(f"\n✅ OlympiadLearningSwarm Success!")
         print(f"   Subject: Mathematics")
         print(f"   Topic: Basic Addition")
-        if hasattr(result, "content"):
-            print(f"   Content generated: {len(result.content)} characters")
-        elif hasattr(result, "html_content"):
-            print(f"   HTML content generated: {len(result.html_content)} characters")
+        if hasattr(result, "pdf_path"):
+            print(f"   PDF: {result.pdf_path}")
+        if hasattr(result, "html_path"):
+            print(f"   HTML: {result.html_path}")
 
         return {"status": "success", "swarm": "OlympiadLearningSwarm", "result": result}
 

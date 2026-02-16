@@ -85,10 +85,12 @@ def load_ohlcv(
         return None
 
     # Find matching files for the ticker
-    pattern = f"*-{ticker}-*.csv.gz"
+    # Local data files use bare ticker names (e.g., RELIANCE not RELIANCE.NS)
+    bare_ticker = ticker.replace(".NS", "").replace(".BO", "")
+    pattern = f"*-{bare_ticker}-*.csv.gz"
     files = list(data_dir.glob(pattern))
     if not files:
-        pattern = f"*{ticker}*.csv.gz"
+        pattern = f"*{bare_ticker}*.csv.gz"
         files = list(data_dir.glob(pattern))
     if not files:
         logger.warning(f"No data files found for {ticker} in {data_dir}")
