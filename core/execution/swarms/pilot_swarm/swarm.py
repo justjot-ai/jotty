@@ -24,6 +24,12 @@ import subprocess
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from Jotty.core.intelligence.orchestration.sandbox_manager import (
+    SandboxManager,
+    TrustLevel,
+    get_sandbox_manager,
+)
+
 from .._base.swarm_learning import AgentRole, register_swarm
 from ..base import PhaseExecutor, SwarmTemplate, TeamCoordinator
 from .agents import (
@@ -398,7 +404,108 @@ class PilotSwarm(SwarmTemplate):
     async def _execute_code(
         self, subtask: Subtask, context: str, config: PilotConfig
     ) -> Dict[str, Any]:
-        """Execute a coding subtask — generates code, reads, edits, or writes files."""
+        """Execute a coding subtask with two-phase generation for complex tasks.
+
+        Phase A: Plan files (lightweight metadata — file_path, description, language).
+        Phase B: Write each file individually with accumulating project context.
+
+        Fast path: If the plan yields ≤2 files, fall back to single-shot code().
+        """
+        # Phase A: Plan files
+        plan = await self._coder.plan_files(task=subtask.description, context=context)  # type: ignore[attr-defined]
+        files = plan.get("files", [])
+
+        # Fast path — ≤2 files, use single-shot (no regression for simple tasks)
+        if len(files) <= 2:
+            return await self._execute_code_single_shot(subtask, context, config)
+
+        # Determine project directory
+        project_name = plan.get("project_name", "project")
+        base_dir = config.project_base_dir or "/tmp/pilot_projects"
+        project_dir = Path(base_dir) / project_name
+
+        # Phase B: Write each file individually
+        architecture_notes = plan.get("architecture_notes", "")
+        sandbox = self._get_sandbox()
+        file_operations = []
+        written_summaries: List[str] = []
+
+        for file_info in files:
+            if not isinstance(file_info, dict):
+                continue
+
+            file_path = file_info.get("file_path", "")
+            description = file_info.get("description", "")
+            language = file_info.get("language", "")
+
+            if not file_path:
+                continue
+
+            # Prefix relative paths with project directory
+            if not Path(file_path).is_absolute():
+                file_path = str(project_dir / file_path)
+
+            project_ctx = self._build_project_context(architecture_notes, written_summaries)
+
+            result = await self._coder.write_single_file(  # type: ignore[attr-defined]
+                file_path=file_path,
+                description=description,
+                project_context=project_ctx,
+            )
+            content = result.get("content", "")
+
+            # Validate Python files via SandboxManager (syntax check)
+            if sandbox and language == "python" and content:
+                try:
+                    # Escape triple quotes in content for safe embedding
+                    safe_content = content.replace("\\", "\\\\").replace("'", "\\'")
+                    validation = await sandbox.execute_sandboxed(
+                        code=f"import ast; ast.parse('''{safe_content}''')",
+                        trust_level=TrustLevel.DANGEROUS,
+                    )
+                    if not validation.success:
+                        logger.warning(f"    Syntax error in {file_path}: {validation.error[:200]}")
+                except Exception as e:
+                    logger.debug(f"    Sandbox validation skipped for {file_path}: {e}")
+
+            # Write file if allowed
+            if config.allow_file_write and content:
+                try:
+                    path = Path(file_path)
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_text(content)
+                    logger.info(f"    Wrote: {file_path} ({len(content)} chars)")
+                except Exception as e:
+                    logger.warning(f"    Failed to write {file_path}: {e}")
+
+            file_operations.append(
+                {
+                    "file_path": file_path,
+                    "action": "create",
+                    "content": content,
+                    "description": description,
+                }
+            )
+            written_summaries.append(f"{file_path}: {result.get('explanation', description)}")
+
+        logger.info(f"    Two-phase code generation: {len(file_operations)} files written")
+
+        # Auto-test after all files are written
+        test_result: Dict[str, Any] = {}
+        if config.auto_test and config.allow_file_write and config.allow_terminal:
+            test_result = await self._auto_test_project(project_dir, file_operations)
+
+        return {
+            "file_operations": file_operations,
+            "explanation": architecture_notes,
+            "project_dir": str(project_dir),
+            "test_result": test_result,
+        }
+
+    async def _execute_code_single_shot(
+        self, subtask: Subtask, context: str, config: PilotConfig
+    ) -> Dict[str, Any]:
+        """Execute a coding subtask using single-shot code() — fast path for ≤2 files."""
         result = await self._coder.code(task=subtask.description, context=context)  # type: ignore[attr-defined]
 
         if result.get("file_operations"):
@@ -445,6 +552,127 @@ class PilotSwarm(SwarmTemplate):
 
         return result
 
+    def _get_sandbox(self) -> Optional[SandboxManager]:
+        """Lazy-init SandboxManager singleton for code validation and terminal execution."""
+        if not hasattr(self, "_sandbox"):
+            try:
+                self._sandbox: Optional[SandboxManager] = get_sandbox_manager()
+            except Exception as e:
+                logger.debug(f"SandboxManager not available: {e}")
+                self._sandbox = None
+        return self._sandbox
+
+    async def _auto_test_project(self, project_dir: Path, file_operations: list) -> Dict[str, Any]:
+        """Auto-test generated project: venv -> install deps -> run pytest."""
+
+        # 1. Check if requirements.txt exists in generated files
+        req_file = project_dir / "requirements.txt"
+        has_requirements = req_file.exists()
+
+        # 2. Check for test files
+        test_files = list(project_dir.rglob("test_*.py")) + list(project_dir.rglob("*_test.py"))
+        has_tests = bool(test_files)
+
+        if not has_requirements and not has_tests:
+            logger.info("    No requirements.txt or tests found — skipping auto-test")
+            return {"skipped": True, "reason": "No requirements.txt or test files found"}
+
+        # 3. Create venv in project_dir/.venv
+        venv_dir = project_dir / ".venv"
+        try:
+            result = subprocess.run(
+                ["python3", "-m", "venv", str(venv_dir)],
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+            if result.returncode != 0:
+                return {"success": False, "error": f"Venv creation failed: {result.stderr}"}
+            logger.info(f"    Created venv: {venv_dir}")
+        except Exception as e:
+            return {"success": False, "error": f"Venv creation failed: {e}"}
+
+        pip_path = venv_dir / "bin" / "pip"
+        python_path = venv_dir / "bin" / "python"
+
+        # 4. Install requirements
+        if has_requirements:
+            try:
+                result = subprocess.run(
+                    [str(pip_path), "install", "-r", str(req_file), "--quiet"],
+                    capture_output=True,
+                    text=True,
+                    timeout=300,
+                    cwd=str(project_dir),
+                )
+                if result.returncode != 0:
+                    logger.warning(f"    pip install failed: {result.stderr[:500]}")
+                    return {
+                        "success": False,
+                        "phase": "install",
+                        "error": result.stderr[:1000],
+                        "venv_dir": str(venv_dir),
+                    }
+                logger.info("    Installed requirements")
+            except Exception as e:
+                return {"success": False, "phase": "install", "error": str(e)}
+
+        # 5. Run pytest if test files exist
+        if has_tests:
+            try:
+                result = subprocess.run(
+                    [str(python_path), "-m", "pytest", "-v", "--tb=short", "--no-header"],
+                    capture_output=True,
+                    text=True,
+                    timeout=120,
+                    cwd=str(project_dir),
+                )
+                test_output = result.stdout[-2000:] if result.stdout else ""
+                test_errors = result.stderr[-500:] if result.stderr else ""
+                passed = result.returncode == 0
+
+                logger.info(
+                    f"    Tests: {'PASSED' if passed else 'FAILED'} (rc={result.returncode})"
+                )
+                if not passed:
+                    logger.info(f"    Test output:\n{test_output[-500:]}")
+
+                return {
+                    "success": passed,
+                    "phase": "test",
+                    "returncode": result.returncode,
+                    "output": test_output,
+                    "errors": test_errors,
+                    "test_files": [str(f.relative_to(project_dir)) for f in test_files],
+                    "venv_dir": str(venv_dir),
+                    "project_dir": str(project_dir),
+                }
+            except subprocess.TimeoutExpired:
+                return {"success": False, "phase": "test", "error": "Tests timed out (120s)"}
+            except Exception as e:
+                return {"success": False, "phase": "test", "error": str(e)}
+
+        # Requirements installed but no tests to run
+        return {
+            "success": True,
+            "phase": "install_only",
+            "venv_dir": str(venv_dir),
+            "project_dir": str(project_dir),
+            "note": "Requirements installed but no test files found",
+        }
+
+    @staticmethod
+    def _build_project_context(architecture_notes: str, written_summaries: List[str]) -> str:
+        """Build accumulating project context for per-file generation."""
+        parts = []
+        if architecture_notes:
+            parts.append(f"ARCHITECTURE:\n{architecture_notes}")
+        if written_summaries:
+            parts.append("ALREADY WRITTEN FILES:")
+            for summary in written_summaries:
+                parts.append(f"  - {summary}")
+        return "\n\n".join(parts) if parts else "No previous context."
+
     async def _execute_terminal(
         self, subtask: Subtask, context: str, config: PilotConfig
     ) -> Dict[str, Any]:
@@ -474,29 +702,61 @@ class PilotSwarm(SwarmTemplate):
                 )
                 continue
 
-            try:
-                cwd = config.working_directory or str(Path.cwd())
-                proc = subprocess.run(
-                    command,
-                    shell=True,
-                    capture_output=True,
-                    text=True,
-                    timeout=30,
-                    cwd=cwd,
-                )
-                command_outputs.append(
-                    {
-                        "command": command,
-                        "stdout": proc.stdout[:2000] if proc.stdout else "",
-                        "stderr": proc.stderr[:500] if proc.stderr else "",
-                        "returncode": proc.returncode,
-                    }
-                )
-                logger.info(f"    Ran: {command} (rc={proc.returncode})")
-            except subprocess.TimeoutExpired:
-                command_outputs.append({"command": command, "error": "Timed out (30s)"})
-            except Exception as e:
-                command_outputs.append({"command": command, "error": str(e)})
+            # Use SandboxManager for proper isolation + secret stripping
+            sandbox = self._get_sandbox()
+            if sandbox:
+                try:
+                    cwd = config.working_directory or str(Path.cwd())
+                    # Wrap command in subprocess call for shell execution
+                    wrapper_code = (
+                        f"import subprocess, os\n"
+                        f"os.chdir({cwd!r})\n"
+                        f"proc = subprocess.run({command!r}, shell=True, "
+                        f"capture_output=True, text=True, timeout=30)\n"
+                        f"print(proc.stdout)\n"
+                        f"import sys; sys.stderr.write(proc.stderr)\n"
+                        f"sys.exit(proc.returncode)"
+                    )
+                    sandbox_result = await sandbox.execute_sandboxed(
+                        code=wrapper_code,
+                        trust_level=TrustLevel.SANDBOXED,
+                    )
+                    command_outputs.append(
+                        {
+                            "command": command,
+                            "stdout": sandbox_result.stdout[:2000] if sandbox_result.stdout else "",
+                            "stderr": sandbox_result.stderr[:500] if sandbox_result.stderr else "",
+                            "returncode": sandbox_result.exit_code,
+                        }
+                    )
+                    logger.info(f"    Ran (sandboxed): {command} (rc={sandbox_result.exit_code})")
+                except Exception as e:
+                    command_outputs.append({"command": command, "error": str(e)})
+            else:
+                # Fallback: raw subprocess if SandboxManager unavailable
+                try:
+                    cwd = config.working_directory or str(Path.cwd())
+                    proc = subprocess.run(
+                        command,
+                        shell=True,
+                        capture_output=True,
+                        text=True,
+                        timeout=30,
+                        cwd=cwd,
+                    )
+                    command_outputs.append(
+                        {
+                            "command": command,
+                            "stdout": proc.stdout[:2000] if proc.stdout else "",
+                            "stderr": proc.stderr[:500] if proc.stderr else "",
+                            "returncode": proc.returncode,
+                        }
+                    )
+                    logger.info(f"    Ran: {command} (rc={proc.returncode})")
+                except subprocess.TimeoutExpired:
+                    command_outputs.append({"command": command, "error": "Timed out (30s)"})
+                except Exception as e:
+                    command_outputs.append({"command": command, "error": str(e)})
 
         result["command_outputs"] = command_outputs
         return result

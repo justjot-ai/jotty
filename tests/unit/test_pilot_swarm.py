@@ -635,9 +635,11 @@ class TestSignatures:
     def test_all_signatures_importable(self):
         import dspy
         from Jotty.core.execution.swarms.pilot_swarm.signatures import (
+            CodePlanSignature,
             CoderSignature,
             PlannerSignature,
             SearchSignature,
+            SingleFileWriteSignature,
             SkillWriterSignature,
             TerminalSignature,
             ValidatorSignature,
@@ -647,6 +649,8 @@ class TestSignatures:
             PlannerSignature,
             SearchSignature,
             CoderSignature,
+            CodePlanSignature,
+            SingleFileWriteSignature,
             TerminalSignature,
             SkillWriterSignature,
             ValidatorSignature,
@@ -658,7 +662,28 @@ class TestSignatures:
         from Jotty.core.execution.swarms.pilot_swarm import signatures
 
         all_sigs = signatures.__all__
-        assert len(all_sigs) == 6
+        assert len(all_sigs) == 8
+
+    @pytest.mark.unit
+    def test_code_plan_signature_fields(self):
+        """CodePlanSignature has expected input/output fields."""
+        from Jotty.core.execution.swarms.pilot_swarm.signatures import CodePlanSignature
+
+        assert "task" in CodePlanSignature.input_fields
+        assert "context" in CodePlanSignature.input_fields
+        assert "files_json" in CodePlanSignature.output_fields
+        assert "architecture_notes" in CodePlanSignature.output_fields
+
+    @pytest.mark.unit
+    def test_single_file_write_signature_fields(self):
+        """SingleFileWriteSignature has expected input/output fields."""
+        from Jotty.core.execution.swarms.pilot_swarm.signatures import SingleFileWriteSignature
+
+        assert "file_path" in SingleFileWriteSignature.input_fields
+        assert "file_description" in SingleFileWriteSignature.input_fields
+        assert "project_context" in SingleFileWriteSignature.input_fields
+        assert "file_content" in SingleFileWriteSignature.output_fields
+        assert "explanation" in SingleFileWriteSignature.output_fields
 
 
 # =============================================================================
@@ -1476,7 +1501,7 @@ class TestSubtaskRetry:
 
 
 class TestCodeHandlerReadEdit:
-    """Test _execute_code with read/edit actions."""
+    """Test _execute_code_single_shot with read/edit actions."""
 
     @pytest.mark.unit
     @pytest.mark.asyncio
@@ -1502,7 +1527,7 @@ class TestCodeHandlerReadEdit:
         swarm._coder.code = mock_code
 
         subtask = Subtask(id="s1", type=SubtaskType.CODE, description="Read a file")
-        result = await swarm._execute_code(subtask, "", config)
+        result = await swarm._execute_code_single_shot(subtask, "", config)
 
         assert result["file_operations"][0]["read_content"] == "print('hello')"
 
@@ -1536,7 +1561,7 @@ class TestCodeHandlerReadEdit:
         swarm._coder.code = mock_code
 
         subtask = Subtask(id="s1", type=SubtaskType.CODE, description="Edit a file")
-        result = await swarm._execute_code(subtask, "", config)
+        result = await swarm._execute_code_single_shot(subtask, "", config)
 
         assert result["file_operations"][0]["edit_success"] is True
         assert "return 42" in test_file.read_text()
@@ -1570,7 +1595,1021 @@ class TestCodeHandlerReadEdit:
         swarm._coder.code = mock_code
 
         subtask = Subtask(id="s1", type=SubtaskType.CODE, description="Edit")
-        result = await swarm._execute_code(subtask, "", config)
+        result = await swarm._execute_code_single_shot(subtask, "", config)
 
         # File should be unchanged
         assert test_file.read_text() == "original content"
+
+
+# =============================================================================
+# TWO-PHASE CODE GENERATION TESTS
+# =============================================================================
+
+
+class TestTwoPhaseCodeGeneration:
+    """Test the new two-phase code generation (plan → write loop)."""
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_plan_files_returns_metadata(self):
+        """plan_files() returns file list with metadata (no code content)."""
+        mock_plan_result = MagicMock()
+        mock_plan_result.files_json = json.dumps(
+            [
+                {
+                    "file_path": "app/main.py",
+                    "description": "FastAPI entry point",
+                    "language": "python",
+                },
+                {
+                    "file_path": "app/models.py",
+                    "description": "Pydantic models",
+                    "language": "python",
+                },
+                {"file_path": "app/routes.py", "description": "API routes", "language": "python"},
+            ]
+        )
+        mock_plan_result.architecture_notes = "Layered architecture with FastAPI"
+
+        with patch(
+            "Jotty.core.execution.swarms.pilot_swarm.agents.BaseOlympiadAgent.__init__",
+            return_value=None,
+        ):
+            from Jotty.core.execution.swarms.pilot_swarm.agents import PilotCoderAgent
+
+            agent = PilotCoderAgent.__new__(PilotCoderAgent)
+            agent._lm = MagicMock()
+            agent._file_writer_lm = None
+            agent.model = "haiku"
+            agent.use_fast_predict = True
+            agent.llm_timeout = 90
+            agent._planner = MagicMock(return_value=mock_plan_result)
+            agent._broadcast = MagicMock()
+
+            result = await agent.plan_files(
+                task="Create a REST API with FastAPI",
+                context="No existing code",
+            )
+
+        assert isinstance(result, dict)
+        assert len(result["files"]) == 3
+        assert result["files"][0]["file_path"] == "app/main.py"
+        assert result["files"][0]["language"] == "python"
+        # Verify no code content in plan
+        for f in result["files"]:
+            assert "content" not in f
+        assert "FastAPI" in result["architecture_notes"]
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_write_single_file_returns_content(self):
+        """write_single_file() returns file content and explanation."""
+        mock_result = MagicMock()
+        mock_result.file_content = (
+            "from fastapi import FastAPI\n\napp = FastAPI()\n\n"
+            '@app.get("/")\ndef root():\n    return {"message": "Hello"}\n'
+        )
+        mock_result.explanation = "Created FastAPI entry point with root endpoint"
+
+        with patch(
+            "Jotty.core.execution.swarms.pilot_swarm.agents.BaseOlympiadAgent.__init__",
+            return_value=None,
+        ):
+            from Jotty.core.execution.swarms.pilot_swarm.agents import PilotCoderAgent
+
+            agent = PilotCoderAgent.__new__(PilotCoderAgent)
+            agent._lm = MagicMock()
+            agent._file_writer_lm = MagicMock()
+            agent.model = "haiku"
+            agent.use_fast_predict = True
+            agent.llm_timeout = 90
+            agent._broadcast = MagicMock()
+            agent._file_writer = MagicMock(return_value=mock_result)
+
+            result = await agent.write_single_file(
+                file_path="app/main.py",
+                description="FastAPI entry point",
+                project_context="Layered architecture",
+            )
+
+        assert result["file_path"] == "app/main.py"
+        assert "FastAPI" in result["content"]
+        assert "entry point" in result["explanation"].lower()
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_write_single_file_strips_markdown_fences(self):
+        """write_single_file() strips markdown code fences from LLM output."""
+        mock_result = MagicMock()
+        mock_result.file_content = '```python\nprint("hello")\n```'
+        mock_result.explanation = "Simple script"
+
+        with patch(
+            "Jotty.core.execution.swarms.pilot_swarm.agents.BaseOlympiadAgent.__init__",
+            return_value=None,
+        ):
+            from Jotty.core.execution.swarms.pilot_swarm.agents import PilotCoderAgent
+
+            agent = PilotCoderAgent.__new__(PilotCoderAgent)
+            agent._lm = MagicMock()
+            agent._file_writer_lm = MagicMock()
+            agent.model = "haiku"
+            agent.use_fast_predict = True
+            agent.llm_timeout = 90
+            agent._broadcast = MagicMock()
+            agent._file_writer = MagicMock(return_value=mock_result)
+
+            result = await agent.write_single_file(file_path="hello.py", description="Hello script")
+
+        assert "```" not in result["content"]
+        assert 'print("hello")' in result["content"]
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_execute_code_fast_path(self):
+        """≤2 files in plan → delegates to _execute_code_single_shot."""
+        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+
+        swarm = PilotSwarm.__new__(PilotSwarm)
+        config = PilotConfig(allow_file_write=False)
+        subtask = Subtask(id="s1", type=SubtaskType.CODE, description="Create a script")
+
+        mock_coder = MagicMock()
+        mock_coder.plan_files = AsyncMock(
+            return_value={
+                "files": [{"file_path": "main.py", "description": "Entry", "language": "python"}],
+                "architecture_notes": "Simple script",
+            }
+        )
+        swarm._coder = mock_coder
+
+        swarm._execute_code_single_shot = AsyncMock(
+            return_value={
+                "file_operations": [
+                    {"file_path": "main.py", "action": "create", "content": "print()"}
+                ],
+                "explanation": "Created",
+            }
+        )
+
+        result = await swarm._execute_code(subtask, "ctx", config)
+
+        swarm._execute_code_single_shot.assert_called_once_with(subtask, "ctx", config)
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_execute_code_multi_file(self):
+        """3+ files in plan → writes each file individually."""
+        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+
+        swarm = PilotSwarm.__new__(PilotSwarm)
+        config = PilotConfig(allow_file_write=False)
+        subtask = Subtask(id="s1", type=SubtaskType.CODE, description="Create API")
+
+        file_plan = [
+            {"file_path": "app/main.py", "description": "Entry", "language": "python"},
+            {"file_path": "app/models.py", "description": "Models", "language": "python"},
+            {"file_path": "app/routes.py", "description": "Routes", "language": "python"},
+            {"file_path": "requirements.txt", "description": "Deps", "language": "text"},
+        ]
+
+        mock_coder = MagicMock()
+        mock_coder.plan_files = AsyncMock(
+            return_value={
+                "files": file_plan,
+                "architecture_notes": "Clean layered architecture",
+            }
+        )
+
+        call_count = 0
+
+        async def mock_write(file_path, description, project_context=""):
+            nonlocal call_count
+            call_count += 1
+            return {
+                "file_path": file_path,
+                "content": f"# {file_path}\n",
+                "explanation": f"Created {file_path}",
+            }
+
+        mock_coder.write_single_file = mock_write
+        swarm._coder = mock_coder
+        swarm._sandbox = None
+
+        result = await swarm._execute_code(subtask, "ctx", config)
+
+        assert len(result["file_operations"]) == 4
+        assert call_count == 4
+        assert result["explanation"] == "Clean layered architecture"
+        # Relative paths get prefixed with project_dir (defaults to /tmp/pilot_projects/project/)
+        paths = [op["file_path"] for op in result["file_operations"]]
+        project_dir = result["project_dir"]
+        assert all(p.startswith(project_dir) for p in paths)
+        # Verify file names preserved
+        basenames = [p.split("/")[-1] for p in paths]
+        assert basenames == ["main.py", "models.py", "routes.py", "requirements.txt"]
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_execute_code_multi_file_accumulates_context(self):
+        """Each file gets context from previously written files."""
+        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+
+        swarm = PilotSwarm.__new__(PilotSwarm)
+        config = PilotConfig(allow_file_write=False)
+        subtask = Subtask(id="s1", type=SubtaskType.CODE, description="Create API")
+
+        file_plan = [
+            {"file_path": "a.py", "description": "First", "language": "python"},
+            {"file_path": "b.py", "description": "Second", "language": "python"},
+            {"file_path": "c.py", "description": "Third", "language": "python"},
+        ]
+
+        mock_coder = MagicMock()
+        mock_coder.plan_files = AsyncMock(
+            return_value={
+                "files": file_plan,
+                "architecture_notes": "Sequential deps",
+            }
+        )
+
+        captured_contexts = []
+
+        async def mock_write(file_path, description, project_context=""):
+            captured_contexts.append(project_context)
+            return {
+                "file_path": file_path,
+                "content": f"# {file_path}\n",
+                "explanation": f"Created {file_path}",
+            }
+
+        mock_coder.write_single_file = mock_write
+        swarm._coder = mock_coder
+        swarm._sandbox = None
+
+        await swarm._execute_code(subtask, "", config)
+
+        # First file: no previous files
+        assert "ALREADY WRITTEN FILES" not in captured_contexts[0]
+        # Second file: should see first file
+        assert "a.py" in captured_contexts[1]
+        # Third file: should see first two
+        assert "a.py" in captured_contexts[2]
+        assert "b.py" in captured_contexts[2]
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_execute_code_multi_file_writes_to_disk(self, tmp_path):
+        """Multi-file path writes files to disk when allow_file_write=True."""
+        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+
+        swarm = PilotSwarm.__new__(PilotSwarm)
+        config = PilotConfig(allow_file_write=True)
+        subtask = Subtask(id="s1", type=SubtaskType.CODE, description="Create project")
+
+        file_plan = [
+            {
+                "file_path": str(tmp_path / "src" / "main.py"),
+                "description": "Main",
+                "language": "python",
+            },
+            {
+                "file_path": str(tmp_path / "src" / "utils.py"),
+                "description": "Utils",
+                "language": "python",
+            },
+            {
+                "file_path": str(tmp_path / "README.md"),
+                "description": "Readme",
+                "language": "markdown",
+            },
+        ]
+
+        mock_coder = MagicMock()
+        mock_coder.plan_files = AsyncMock(
+            return_value={
+                "files": file_plan,
+                "architecture_notes": "Simple project",
+            }
+        )
+
+        from pathlib import Path as _Path
+
+        async def mock_write(file_path, description, project_context=""):
+            return {
+                "file_path": file_path,
+                "content": f"# Generated: {_Path(file_path).name}\n",
+                "explanation": f"Created {file_path}",
+            }
+
+        mock_coder.write_single_file = mock_write
+        swarm._coder = mock_coder
+        swarm._sandbox = None
+
+        await swarm._execute_code(subtask, "", config)
+
+        # Verify files were actually written
+        assert (tmp_path / "src" / "main.py").exists()
+        assert (tmp_path / "src" / "utils.py").exists()
+        assert (tmp_path / "README.md").exists()
+        assert "Generated: main.py" in (tmp_path / "src" / "main.py").read_text()
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_sandbox_validation_on_python_files(self):
+        """Python files are validated via SandboxManager syntax check."""
+        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+
+        swarm = PilotSwarm.__new__(PilotSwarm)
+        config = PilotConfig(allow_file_write=False)
+        subtask = Subtask(id="s1", type=SubtaskType.CODE, description="Create code")
+
+        file_plan = [
+            {"file_path": "a.py", "description": "First", "language": "python"},
+            {"file_path": "b.py", "description": "Second", "language": "python"},
+            {"file_path": "c.js", "description": "JS file", "language": "javascript"},
+        ]
+
+        mock_coder = MagicMock()
+        mock_coder.plan_files = AsyncMock(
+            return_value={
+                "files": file_plan,
+                "architecture_notes": "Mixed",
+            }
+        )
+
+        async def mock_write(file_path, description, project_context=""):
+            return {
+                "file_path": file_path,
+                "content": f"print('{file_path}')\n",
+                "explanation": f"Created {file_path}",
+            }
+
+        mock_coder.write_single_file = mock_write
+        swarm._coder = mock_coder
+
+        mock_sandbox = MagicMock()
+        mock_sandbox.execute_sandboxed = AsyncMock(return_value=MagicMock(success=True, error=""))
+        swarm._sandbox = mock_sandbox
+
+        await swarm._execute_code(subtask, "", config)
+
+        # Only the 2 Python files should be validated, not the JS file
+        assert mock_sandbox.execute_sandboxed.call_count == 2
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_sandbox_failure_does_not_block(self):
+        """Syntax error in generated code logs warning but doesn't stop execution."""
+        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+
+        swarm = PilotSwarm.__new__(PilotSwarm)
+        config = PilotConfig(allow_file_write=False)
+        subtask = Subtask(id="s1", type=SubtaskType.CODE, description="Create code")
+
+        file_plan = [
+            {"file_path": "bad.py", "description": "Bad", "language": "python"},
+            {"file_path": "good.py", "description": "Good", "language": "python"},
+            {"file_path": "also.py", "description": "Also good", "language": "python"},
+        ]
+
+        mock_coder = MagicMock()
+        mock_coder.plan_files = AsyncMock(
+            return_value={
+                "files": file_plan,
+                "architecture_notes": "Test",
+            }
+        )
+
+        async def mock_write(file_path, description, project_context=""):
+            return {
+                "file_path": file_path,
+                "content": "def broken(\n" if "bad" in file_path else "print('ok')\n",
+                "explanation": f"Created {file_path}",
+            }
+
+        mock_coder.write_single_file = mock_write
+        swarm._coder = mock_coder
+
+        call_idx = 0
+
+        async def mock_sandbox_exec(**kwargs):
+            nonlocal call_idx
+            call_idx += 1
+            if call_idx == 1:
+                return MagicMock(success=False, error="SyntaxError: unexpected EOF")
+            return MagicMock(success=True, error="")
+
+        mock_sandbox = MagicMock()
+        mock_sandbox.execute_sandboxed = mock_sandbox_exec
+        swarm._sandbox = mock_sandbox
+
+        result = await swarm._execute_code(subtask, "", config)
+
+        # All 3 files should still be in the result
+        assert len(result["file_operations"]) == 3
+
+
+# =============================================================================
+# HELPER METHOD TESTS (project context, sandbox)
+# =============================================================================
+
+
+class TestProjectContextBuilder:
+    """Test _build_project_context() and _get_sandbox()."""
+
+    @pytest.mark.unit
+    def test_build_project_context_empty(self):
+        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+
+        result = PilotSwarm._build_project_context("", [])
+        assert result == "No previous context."
+
+    @pytest.mark.unit
+    def test_build_project_context_with_notes(self):
+        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+
+        result = PilotSwarm._build_project_context("Clean architecture", [])
+        assert "ARCHITECTURE:" in result
+        assert "Clean architecture" in result
+
+    @pytest.mark.unit
+    def test_build_project_context_with_summaries(self):
+        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+
+        summaries = ["app/main.py: Entry point", "app/models.py: Data models"]
+        result = PilotSwarm._build_project_context("Notes", summaries)
+        assert "ALREADY WRITTEN FILES:" in result
+        assert "app/main.py" in result
+        assert "app/models.py" in result
+
+    @pytest.mark.unit
+    def test_build_project_context_accumulates(self):
+        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+
+        ctx1 = PilotSwarm._build_project_context("Notes", ["a.py: file A"])
+        ctx2 = PilotSwarm._build_project_context("Notes", ["a.py: file A", "b.py: file B"])
+        assert len(ctx2) > len(ctx1)
+        assert "b.py" in ctx2
+
+    @pytest.mark.unit
+    def test_get_sandbox_returns_manager(self):
+        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+
+        swarm = PilotSwarm.__new__(PilotSwarm)
+
+        with patch("Jotty.core.execution.swarms.pilot_swarm.swarm.get_sandbox_manager") as mock_get:
+            mock_manager = MagicMock()
+            mock_get.return_value = mock_manager
+            result = swarm._get_sandbox()
+            assert result is mock_manager
+
+    @pytest.mark.unit
+    def test_get_sandbox_caches_result(self):
+        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+
+        swarm = PilotSwarm.__new__(PilotSwarm)
+
+        with patch("Jotty.core.execution.swarms.pilot_swarm.swarm.get_sandbox_manager") as mock_get:
+            mock_manager = MagicMock()
+            mock_get.return_value = mock_manager
+            result1 = swarm._get_sandbox()
+            result2 = swarm._get_sandbox()
+            mock_get.assert_called_once()
+            assert result1 is result2
+
+    @pytest.mark.unit
+    def test_get_sandbox_returns_none_on_error(self):
+        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+
+        swarm = PilotSwarm.__new__(PilotSwarm)
+
+        with patch(
+            "Jotty.core.execution.swarms.pilot_swarm.swarm.get_sandbox_manager",
+            side_effect=RuntimeError("Docker unavailable"),
+        ):
+            result = swarm._get_sandbox()
+            assert result is None
+
+
+# =============================================================================
+# TERMINAL SANDBOX INTEGRATION TESTS
+# =============================================================================
+
+
+class TestTerminalSandboxIntegration:
+    """Test _execute_terminal() uses SandboxManager when available."""
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_terminal_uses_sandbox(self):
+        """Terminal commands use SandboxManager for isolation."""
+        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+
+        swarm = PilotSwarm.__new__(PilotSwarm)
+        config = PilotConfig(allow_terminal=True)
+        subtask = Subtask(id="t1", type=SubtaskType.TERMINAL, description="Run tests")
+
+        mock_terminal = MagicMock()
+        mock_terminal.execute = AsyncMock(
+            return_value={
+                "commands": [{"command": "pytest tests/", "purpose": "Run tests", "safe": True}],
+                "safety_assessment": "Safe",
+            }
+        )
+        swarm._terminal = mock_terminal
+
+        mock_sandbox = MagicMock()
+        mock_sandbox.execute_sandboxed = AsyncMock(
+            return_value=MagicMock(
+                success=True,
+                stdout="3 passed",
+                stderr="",
+                exit_code=0,
+            )
+        )
+        swarm._sandbox = mock_sandbox
+
+        result = await swarm._execute_terminal(subtask, "context", config)
+
+        mock_sandbox.execute_sandboxed.assert_called_once()
+        assert result["command_outputs"][0]["stdout"] == "3 passed"
+        assert result["command_outputs"][0]["returncode"] == 0
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_terminal_falls_back_without_sandbox(self):
+        """Terminal uses raw subprocess when sandbox unavailable."""
+        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+
+        swarm = PilotSwarm.__new__(PilotSwarm)
+        config = PilotConfig(allow_terminal=True)
+        subtask = Subtask(id="t1", type=SubtaskType.TERMINAL, description="Echo")
+
+        mock_terminal = MagicMock()
+        mock_terminal.execute = AsyncMock(
+            return_value={
+                "commands": [{"command": "echo hello", "purpose": "Echo", "safe": True}],
+                "safety_assessment": "Safe",
+            }
+        )
+        swarm._terminal = mock_terminal
+        swarm._sandbox = None
+
+        with patch("subprocess.run") as mock_run:
+            mock_proc = MagicMock()
+            mock_proc.stdout = "hello\n"
+            mock_proc.stderr = ""
+            mock_proc.returncode = 0
+            mock_run.return_value = mock_proc
+
+            result = await swarm._execute_terminal(subtask, "", config)
+
+        assert mock_run.called
+        assert result["command_outputs"][0]["stdout"] == "hello\n"
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_terminal_skips_unsafe_commands(self):
+        """Unsafe commands are skipped regardless of sandbox."""
+        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+
+        swarm = PilotSwarm.__new__(PilotSwarm)
+        config = PilotConfig(allow_terminal=True)
+        subtask = Subtask(id="t1", type=SubtaskType.TERMINAL, description="Delete")
+
+        mock_terminal = MagicMock()
+        mock_terminal.execute = AsyncMock(
+            return_value={
+                "commands": [{"command": "rm -rf /", "purpose": "Destroy", "safe": False}],
+                "safety_assessment": "Dangerous!",
+            }
+        )
+        swarm._terminal = mock_terminal
+
+        mock_sandbox = MagicMock()
+        swarm._sandbox = mock_sandbox
+
+        result = await swarm._execute_terminal(subtask, "", config)
+
+        assert result["command_outputs"][0]["skipped"] is True
+        mock_sandbox.execute_sandboxed.assert_not_called()
+
+
+# =============================================================================
+# PROJECT DIRECTORY + PROJECT NAME TESTS
+# =============================================================================
+
+
+class TestProjectNameAndDirectory:
+    """Test project_name extraction from CodePlanSignature and directory wrapping."""
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_code_plan_returns_project_name(self):
+        """plan_files() returns sanitized project_name."""
+        mock_plan_result = MagicMock()
+        mock_plan_result.files_json = json.dumps(
+            [
+                {"file_path": "app.py", "description": "Main", "language": "python"},
+                {"file_path": "models.py", "description": "Models", "language": "python"},
+                {"file_path": "tests/test_app.py", "description": "Tests", "language": "python"},
+            ]
+        )
+        mock_plan_result.architecture_notes = "REST API"
+        mock_plan_result.project_name = "Stock Trading Platform"
+
+        with patch(
+            "Jotty.core.execution.swarms.pilot_swarm.agents.BaseOlympiadAgent.__init__",
+            return_value=None,
+        ):
+            from Jotty.core.execution.swarms.pilot_swarm.agents import PilotCoderAgent
+
+            agent = PilotCoderAgent.__new__(PilotCoderAgent)
+            agent._lm = MagicMock()
+            agent._file_writer_lm = None
+            agent.model = "haiku"
+            agent.use_fast_predict = True
+            agent.llm_timeout = 90
+            agent._planner = MagicMock(return_value=mock_plan_result)
+            agent._broadcast = MagicMock()
+
+            result = await agent.plan_files(task="Create a trading platform")
+
+        assert result["project_name"] == "stock-trading-platform"
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_project_name_sanitization(self):
+        """Special characters, spaces, and long names are sanitized."""
+        import re
+
+        test_cases = [
+            ("My Cool Project!!", "my-cool-project"),
+            ("UPPERCASE NAME", "uppercase-name"),
+            ("has spaces and @#$ chars", "has-spaces-and--chars"),
+            ("a" * 60, "a" * 40),  # truncated to 40
+            ("", "project"),  # empty → fallback
+        ]
+
+        for raw, expected in test_cases:
+            sanitized = re.sub(r"[^a-z0-9-]", "", raw.lower().replace(" ", "-"))[:40]
+            if not sanitized:
+                sanitized = "project"
+            assert sanitized == expected, f"Failed for {raw!r}: got {sanitized!r}"
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_execute_code_creates_project_dir(self, tmp_path):
+        """Files are written under project_dir, not CWD."""
+        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+
+        swarm = PilotSwarm.__new__(PilotSwarm)
+        config = PilotConfig(allow_file_write=True, project_base_dir=str(tmp_path))
+        subtask = Subtask(id="s1", type=SubtaskType.CODE, description="Create API")
+
+        file_plan = [
+            {"file_path": "main.py", "description": "Entry", "language": "python"},
+            {"file_path": "models.py", "description": "Models", "language": "python"},
+            {"file_path": "utils.py", "description": "Utils", "language": "python"},
+        ]
+
+        mock_coder = MagicMock()
+        mock_coder.plan_files = AsyncMock(
+            return_value={
+                "files": file_plan,
+                "architecture_notes": "Simple project",
+                "project_name": "my-api",
+            }
+        )
+
+        async def mock_write(file_path, description, project_context=""):
+            return {
+                "file_path": file_path,
+                "content": f"# {file_path}\n",
+                "explanation": f"Created {file_path}",
+            }
+
+        mock_coder.write_single_file = mock_write
+        swarm._coder = mock_coder
+        swarm._sandbox = None
+
+        result = await swarm._execute_code(subtask, "", config)
+
+        # Verify project_dir in result
+        assert result["project_dir"] == str(tmp_path / "my-api")
+
+        # Verify files are under project dir
+        for op in result["file_operations"]:
+            assert op["file_path"].startswith(str(tmp_path / "my-api"))
+
+        # Verify files were written to disk
+        assert (tmp_path / "my-api" / "main.py").exists()
+        assert (tmp_path / "my-api" / "models.py").exists()
+        assert (tmp_path / "my-api" / "utils.py").exists()
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_execute_code_prefixes_relative_paths(self):
+        """Relative paths get project_dir prefix."""
+        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+
+        swarm = PilotSwarm.__new__(PilotSwarm)
+        config = PilotConfig(allow_file_write=False, project_base_dir="/tmp/test_proj")
+        subtask = Subtask(id="s1", type=SubtaskType.CODE, description="Create API")
+
+        file_plan = [
+            {"file_path": "src/app.py", "description": "App", "language": "python"},
+            {"file_path": "src/config.py", "description": "Config", "language": "python"},
+            {"file_path": "requirements.txt", "description": "Deps", "language": "text"},
+        ]
+
+        mock_coder = MagicMock()
+        mock_coder.plan_files = AsyncMock(
+            return_value={
+                "files": file_plan,
+                "architecture_notes": "Notes",
+                "project_name": "test-app",
+            }
+        )
+
+        async def mock_write(file_path, description, project_context=""):
+            return {
+                "file_path": file_path,
+                "content": f"# content\n",
+                "explanation": f"Created",
+            }
+
+        mock_coder.write_single_file = mock_write
+        swarm._coder = mock_coder
+        swarm._sandbox = None
+
+        result = await swarm._execute_code(subtask, "", config)
+
+        paths = [op["file_path"] for op in result["file_operations"]]
+        assert paths == [
+            "/tmp/test_proj/test-app/src/app.py",
+            "/tmp/test_proj/test-app/src/config.py",
+            "/tmp/test_proj/test-app/requirements.txt",
+        ]
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_execute_code_preserves_absolute_paths(self):
+        """Absolute paths are left unchanged."""
+        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+
+        swarm = PilotSwarm.__new__(PilotSwarm)
+        config = PilotConfig(allow_file_write=False)
+        subtask = Subtask(id="s1", type=SubtaskType.CODE, description="Create files")
+
+        file_plan = [
+            {"file_path": "/absolute/path/app.py", "description": "App", "language": "python"},
+            {"file_path": "relative.py", "description": "Rel", "language": "python"},
+            {"file_path": "/absolute/other.py", "description": "Other", "language": "python"},
+        ]
+
+        mock_coder = MagicMock()
+        mock_coder.plan_files = AsyncMock(
+            return_value={
+                "files": file_plan,
+                "architecture_notes": "Mixed paths",
+                "project_name": "mixed",
+            }
+        )
+
+        async def mock_write(file_path, description, project_context=""):
+            return {"file_path": file_path, "content": "# x\n", "explanation": "Created"}
+
+        mock_coder.write_single_file = mock_write
+        swarm._coder = mock_coder
+        swarm._sandbox = None
+
+        result = await swarm._execute_code(subtask, "", config)
+
+        paths = [op["file_path"] for op in result["file_operations"]]
+        # Absolute paths kept as-is, relative prefixed
+        assert paths[0] == "/absolute/path/app.py"
+        assert paths[1].startswith("/tmp/pilot_projects/mixed/")
+        assert paths[2] == "/absolute/other.py"
+
+    @pytest.mark.unit
+    def test_code_plan_signature_has_project_name_field(self):
+        """CodePlanSignature has project_name output field."""
+        from Jotty.core.execution.swarms.pilot_swarm.signatures import CodePlanSignature
+
+        assert "project_name" in CodePlanSignature.output_fields
+
+
+# =============================================================================
+# AUTO-TEST TESTS
+# =============================================================================
+
+
+class TestAutoTest:
+    """Test _auto_test_project() method."""
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_auto_test_skipped_no_requirements_no_tests(self, tmp_path):
+        """Skipped when no requirements.txt or test files exist."""
+        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+
+        swarm = PilotSwarm.__new__(PilotSwarm)
+        project_dir = tmp_path / "empty-project"
+        project_dir.mkdir()
+
+        result = await swarm._auto_test_project(project_dir, [])
+
+        assert result["skipped"] is True
+        assert "No requirements.txt" in result["reason"]
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_auto_test_creates_venv_and_runs(self, tmp_path):
+        """Mock subprocess to verify venv creation, pip install, and pytest flow."""
+        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+
+        swarm = PilotSwarm.__new__(PilotSwarm)
+        project_dir = tmp_path / "test-project"
+        project_dir.mkdir()
+
+        # Create requirements.txt and test file
+        (project_dir / "requirements.txt").write_text("requests\n")
+        tests_dir = project_dir / "tests"
+        tests_dir.mkdir()
+        (tests_dir / "test_app.py").write_text("def test_one(): assert True\n")
+
+        call_log = []
+
+        def mock_subprocess_run(cmd, **kwargs):
+            call_log.append(cmd)
+            mock_result = MagicMock()
+            mock_result.returncode = 0
+            mock_result.stdout = "1 passed\n"
+            mock_result.stderr = ""
+            return mock_result
+
+        with patch("subprocess.run", side_effect=mock_subprocess_run):
+            result = await swarm._auto_test_project(project_dir, [])
+
+        assert result["success"] is True
+        assert result["phase"] == "test"
+        # Should have 3 calls: venv, pip install, pytest
+        assert len(call_log) == 3
+        assert "venv" in str(call_log[0])
+        assert "pip" in str(call_log[1])
+        assert "pytest" in str(call_log[2])
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_auto_test_pip_failure(self, tmp_path):
+        """Returns failure when pip install fails."""
+        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+
+        swarm = PilotSwarm.__new__(PilotSwarm)
+        project_dir = tmp_path / "bad-deps"
+        project_dir.mkdir()
+        (project_dir / "requirements.txt").write_text("nonexistent-package-xyz\n")
+
+        call_count = [0]
+
+        def mock_subprocess_run(cmd, **kwargs):
+            call_count[0] += 1
+            mock_result = MagicMock()
+            if call_count[0] == 1:
+                # venv creation succeeds
+                mock_result.returncode = 0
+                mock_result.stderr = ""
+            else:
+                # pip install fails
+                mock_result.returncode = 1
+                mock_result.stderr = "No matching distribution found"
+            mock_result.stdout = ""
+            return mock_result
+
+        with patch("subprocess.run", side_effect=mock_subprocess_run):
+            result = await swarm._auto_test_project(project_dir, [])
+
+        assert result["success"] is False
+        assert result["phase"] == "install"
+        assert "No matching distribution" in result["error"]
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_auto_test_disabled_via_config(self):
+        """auto_test=False skips testing entirely."""
+        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+
+        swarm = PilotSwarm.__new__(PilotSwarm)
+        config = PilotConfig(
+            allow_file_write=True,
+            allow_terminal=True,
+            auto_test=False,
+        )
+        subtask = Subtask(id="s1", type=SubtaskType.CODE, description="Create project")
+
+        file_plan = [
+            {"file_path": "a.py", "description": "A", "language": "python"},
+            {"file_path": "b.py", "description": "B", "language": "python"},
+            {"file_path": "c.py", "description": "C", "language": "python"},
+        ]
+
+        mock_coder = MagicMock()
+        mock_coder.plan_files = AsyncMock(
+            return_value={
+                "files": file_plan,
+                "architecture_notes": "Notes",
+                "project_name": "test-proj",
+            }
+        )
+
+        async def mock_write(file_path, description, project_context=""):
+            return {"file_path": file_path, "content": "# x\n", "explanation": "Created"}
+
+        mock_coder.write_single_file = mock_write
+        swarm._coder = mock_coder
+        swarm._sandbox = None
+
+        result = await swarm._execute_code(subtask, "", config)
+
+        # test_result should be empty (auto_test=False)
+        assert result.get("test_result") == {}
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_auto_test_install_only(self, tmp_path):
+        """Requirements installed but no test files → install_only phase."""
+        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+
+        swarm = PilotSwarm.__new__(PilotSwarm)
+        project_dir = tmp_path / "no-tests"
+        project_dir.mkdir()
+        (project_dir / "requirements.txt").write_text("flask\n")
+        # No test files
+
+        def mock_subprocess_run(cmd, **kwargs):
+            mock_result = MagicMock()
+            mock_result.returncode = 0
+            mock_result.stdout = ""
+            mock_result.stderr = ""
+            return mock_result
+
+        with patch("subprocess.run", side_effect=mock_subprocess_run):
+            result = await swarm._auto_test_project(project_dir, [])
+
+        assert result["success"] is True
+        assert result["phase"] == "install_only"
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    async def test_auto_test_venv_failure(self, tmp_path):
+        """Returns failure when venv creation fails."""
+        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+
+        swarm = PilotSwarm.__new__(PilotSwarm)
+        project_dir = tmp_path / "venv-fail"
+        project_dir.mkdir()
+        (project_dir / "requirements.txt").write_text("flask\n")
+
+        def mock_subprocess_run(cmd, **kwargs):
+            mock_result = MagicMock()
+            mock_result.returncode = 1
+            mock_result.stderr = "ensurepip not available"
+            mock_result.stdout = ""
+            return mock_result
+
+        with patch("subprocess.run", side_effect=mock_subprocess_run):
+            result = await swarm._auto_test_project(project_dir, [])
+
+        assert result["success"] is False
+        assert "Venv creation failed" in result["error"]
+
+
+# =============================================================================
+# CONFIG AUTO-TEST FIELD TESTS
+# =============================================================================
+
+
+class TestConfigAutoTestFields:
+    """Test auto_test and project_base_dir config fields."""
+
+    @pytest.mark.unit
+    def test_config_has_auto_test_field(self):
+        config = PilotConfig()
+        assert config.auto_test is True
+
+    @pytest.mark.unit
+    def test_config_has_project_base_dir_field(self):
+        config = PilotConfig()
+        assert config.project_base_dir == ""
+
+    @pytest.mark.unit
+    def test_config_auto_test_can_be_disabled(self):
+        config = PilotConfig(auto_test=False)
+        assert config.auto_test is False
+
+    @pytest.mark.unit
+    def test_config_project_base_dir_custom(self):
+        config = PilotConfig(project_base_dir="/custom/path")
+        assert config.project_base_dir == "/custom/path"

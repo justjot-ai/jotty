@@ -191,6 +191,75 @@ class SkillWriterSignature(dspy.Signature):
     )
 
 
+class CodePlanSignature(dspy.Signature):
+    """Plan what files need to be created for a coding task.
+
+    You are an expert software architect. Given a coding task, determine
+    exactly which files need to be created or modified. Output ONLY file
+    metadata — do NOT include any actual code content.
+
+    RULES:
+    1. Each file entry has file_path, description, and language — nothing else
+    2. Order files by dependency (foundational files first)
+    3. Be specific about what each file should contain
+    4. Include configuration files, tests, and documentation if appropriate
+    5. Use full file paths
+    """
+
+    task: str = dspy.InputField(desc="What code to write, what files to create or edit")
+    context: str = dspy.InputField(
+        desc="Relevant context: existing code, requirements, previous results"
+    )
+
+    project_name: str = dspy.OutputField(
+        desc="Short kebab-case project directory name (e.g. 'crypto-trading-platform', "
+        "'fastapi-auth-service'). 2-4 words, descriptive. This becomes the root folder."
+    )
+    files_json: str = dspy.OutputField(
+        desc="JSON list of files to create. Each MUST have: "
+        "{file_path (str — relative path within the project directory), "
+        "description (str — 2-3 sentences: what this file contains and its purpose), "
+        "language (str — python, javascript, typescript, yaml, json, markdown, etc.)}. "
+        "NO code content — only metadata. Order by dependency."
+    )
+    architecture_notes: str = dspy.OutputField(
+        desc="Brief architecture overview (3-5 sentences): key design decisions, "
+        "how files interact, important patterns used."
+    )
+
+
+class SingleFileWriteSignature(dspy.Signature):
+    """Write the complete content of ONE file.
+
+    You are an expert software engineer. Given a file's purpose and the
+    project context, write the complete, production-quality file content.
+
+    RULES:
+    1. Output ONLY the raw file content — no JSON wrapping, no markdown fences
+    2. Code must be complete and runnable — no placeholders or TODOs
+    3. Include all necessary imports
+    4. Follow the language's conventions (PEP 8 for Python, etc.)
+    5. Handle errors gracefully
+    6. Be consistent with the project context (use same patterns, imports, etc.)
+    """
+
+    file_path: str = dspy.InputField(desc="Full path of the file to write")
+    file_description: str = dspy.InputField(
+        desc="What this file should contain and its purpose (2-3 sentences)"
+    )
+    project_context: str = dspy.InputField(
+        desc="Architecture notes + summaries of already-written files for consistency"
+    )
+
+    file_content: str = dspy.OutputField(
+        desc="Complete file content. Raw code only — no JSON wrapping, no markdown fences, "
+        "no explanatory text. Just the file content exactly as it should be saved."
+    )
+    explanation: str = dspy.OutputField(
+        desc="Brief explanation of what was created and key design choices (1-2 sentences)."
+    )
+
+
 class ValidatorSignature(dspy.Signature):
     """Validate whether a goal has been achieved by examining results.
 
@@ -219,6 +288,8 @@ __all__ = [
     "PlannerSignature",
     "SearchSignature",
     "CoderSignature",
+    "CodePlanSignature",
+    "SingleFileWriteSignature",
     "TerminalSignature",
     "SkillWriterSignature",
     "ValidatorSignature",

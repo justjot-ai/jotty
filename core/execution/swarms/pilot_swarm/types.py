@@ -63,6 +63,8 @@ class PilotConfig(SwarmConfig):
     allow_delegation: bool = True
     send_telegram: bool = False
     working_directory: str = ""
+    auto_test: bool = True
+    project_base_dir: str = ""
     llm_model: str = "haiku"
     use_fast_predict: bool = True
     llm_timeout: int = 0

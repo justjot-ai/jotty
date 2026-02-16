@@ -10,14 +10,17 @@
 """
 
 import logging
+import re
 from typing import Any, Dict
 
 from Jotty.core.execution.swarms.olympiad_learning_swarm.agents import BaseOlympiadAgent
 
 from .signatures import (
+    CodePlanSignature,
     CoderSignature,
     PlannerSignature,
     SearchSignature,
+    SingleFileWriteSignature,
     SkillWriterSignature,
     TerminalSignature,
     ValidatorSignature,
@@ -184,12 +187,18 @@ class PilotCoderAgent(BaseOlympiadAgent):
     """Generates code and file content.
 
     Uses Sonnet for higher quality code generation.
+    Supports two-phase generation for complex tasks (3+ files):
+      Phase A: plan_files() → lightweight metadata list
+      Phase B: write_single_file() → one file at a time with full context
     """
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._ensure_sonnet_lm()
         self._coder = self._create_module(CoderSignature)
+        self._planner = self._create_module(CodePlanSignature)
+        self._file_writer_lm = None  # Lazy-init with higher max_tokens
+        self._file_writer = self._create_module(SingleFileWriteSignature)
 
     def _ensure_sonnet_lm(self) -> Any:
         """Create Sonnet LM for planning via UnifiedLMProvider."""
@@ -207,8 +216,26 @@ class PilotCoderAgent(BaseOlympiadAgent):
             logger.debug(f"Sonnet not available for PilotCoder: {e}")
         self._get_lm()
 
+    def _get_file_writer_lm(self) -> Any:
+        """Get or create a high-token-limit LM for single-file writing."""
+        if self._file_writer_lm is not None:
+            return self._file_writer_lm
+        try:
+            from Jotty.core.infrastructure.foundation.unified_lm_provider import (
+                UnifiedLMProvider,
+            )
+
+            self._file_writer_lm = UnifiedLMProvider.create_lm(
+                provider="anthropic", model="sonnet", max_tokens=16384
+            )
+            logger.info("PilotCoder file-writer using Sonnet with max_tokens=16384")
+            return self._file_writer_lm
+        except Exception as e:
+            logger.debug(f"High-token LM not available: {e}, falling back to default")
+            return self._lm
+
     async def code(self, task: str, context: str = "") -> Dict[str, Any]:
-        """Generate code or file content."""
+        """Generate code or file content (single-shot, for ≤2 files)."""
         try:
             result = self._call_with_own_lm(
                 self._coder,
@@ -228,6 +255,91 @@ class PilotCoderAgent(BaseOlympiadAgent):
         except Exception as e:
             logger.error(f"Code generation failed: {e}")
             return {"file_operations": [], "explanation": f"Failed: {e}"}
+
+    async def plan_files(self, task: str, context: str = "") -> Dict[str, Any]:
+        """Phase A: Plan what files to create (metadata only, no code content).
+
+        Returns:
+            {"files": [...], "architecture_notes": str, "project_name": str}
+        """
+        try:
+            result = self._call_with_own_lm(
+                self._planner,
+                task=task,
+                context=context or "No previous context.",
+            )
+
+            files = self._parse_json_output(str(result.files_json))
+            architecture_notes = str(result.architecture_notes)
+
+            # Extract and sanitize project name
+            project_name = str(result.project_name).strip()
+            project_name = re.sub(r"[^a-z0-9-]", "", project_name.lower().replace(" ", "-"))[:40]
+
+            self._broadcast(
+                "code_plan_created",
+                {"task": task[:50], "file_count": len(files) if isinstance(files, list) else 0},
+            )
+
+            return {
+                "files": files if isinstance(files, list) else [],
+                "architecture_notes": architecture_notes,
+                "project_name": project_name or "project",
+            }
+
+        except Exception as e:
+            logger.error(f"Code planning failed: {e}")
+            return {
+                "files": [],
+                "architecture_notes": f"Planning failed: {e}",
+                "project_name": "project",
+            }
+
+    async def write_single_file(
+        self, file_path: str, description: str, project_context: str = ""
+    ) -> Dict[str, Any]:
+        """Phase B: Write the complete content of one file.
+
+        Uses a higher max_tokens limit (16384) since a single file can be long,
+        but won't be truncated like 10 files jammed into one JSON blob.
+
+        Returns:
+            {"file_path": str, "content": str, "explanation": str}
+        """
+        try:
+            writer_lm = self._get_file_writer_lm()
+
+            import dspy
+
+            with dspy.context(lm=writer_lm):
+                result = self._file_writer(
+                    file_path=file_path,
+                    file_description=description,
+                    project_context=project_context or "No previous context.",
+                )
+
+            content = str(result.file_content)
+            # Strip markdown code fences if the LLM wrapped the output
+            if content.startswith("```"):
+                lines = content.split("\n")
+                # Remove first line (```lang) and last line (```)
+                if lines[-1].strip() == "```":
+                    lines = lines[1:-1]
+                elif lines[0].strip().startswith("```"):
+                    lines = lines[1:]
+                content = "\n".join(lines)
+
+            self._broadcast("single_file_written", {"file_path": file_path})
+
+            return {
+                "file_path": file_path,
+                "content": content,
+                "explanation": str(result.explanation),
+            }
+
+        except Exception as e:
+            logger.error(f"Single file write failed for {file_path}: {e}")
+            return {"file_path": file_path, "content": "", "explanation": f"Failed: {e}"}
 
 
 # =============================================================================
