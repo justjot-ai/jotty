@@ -959,8 +959,11 @@ def deploy_sync(app_name: str, **kwargs: Any) -> DevOpsResult:
 # EXPORTS
 # =============================================================================
 
+DevopsTemplate = DevOpsSwarm
+
 __all__ = [
     "DevOpsSwarm",
+    "DevopsTemplate",
     "DevOpsConfig",
     "DevOpsResult",
     "InfrastructureSpec",

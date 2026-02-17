@@ -885,3 +885,7 @@ JSON only:""",
     # =========================================================================
     # MLFLOW INTEGRATION
     # =========================================================================
+
+
+# Aliases for template registry
+MlComprehensiveTemplate = SwarmMLComprehensive

@@ -1095,8 +1095,11 @@ def write_sync(topic: str, **kwargs: Any) -> WriterResult:
 # EXPORTS
 # =============================================================================
 
+IdeaWriterTemplate = IdeaWriterSwarm
+
 __all__ = [
     "IdeaWriterSwarm",
+    "IdeaWriterTemplate",
     "WriterConfig",
     "WriterResult",
     "ContentResult",

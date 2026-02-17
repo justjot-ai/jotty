@@ -957,8 +957,12 @@ def review_code_sync(code: str, **kwargs: Any) -> ReviewResult:
 # EXPORTS
 # =============================================================================
 
+# Alias: templates/__init__.py may resolve "ReviewTemplate" from this module
+ReviewTemplate = ReviewSwarm
+
 __all__ = [
     "ReviewSwarm",
+    "ReviewTemplate",
     "ReviewConfig",
     "ReviewResult",
     "ReviewComment",

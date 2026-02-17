@@ -25,45 +25,46 @@ import importlib as _importlib
 from typing import Any
 
 _LAZY_IMPORTS: dict[str, str] = {
-    # Template classes
-    "ArxivLearningTemplate": ".arxiv_learning",
+    # Real swarm implementations (with DSPy agents, full _execute_domain)
+    "ReviewSwarm": ".review_swarm",
+    "ReviewTemplate": ".review_swarm",
+    "TestingSwarm": ".testing_swarm",
+    "TestingTemplate": ".testing_swarm",
+    "DataAnalysisSwarm": ".data_analysis_swarm",
+    "DataAnalysisTemplate": ".data_analysis_swarm",
+    "DevOpsSwarm": ".devops_swarm",
+    "DevopsTemplate": ".devops_swarm",
+    "FundamentalSwarm": ".fundamental_swarm",
+    "FundamentalTemplate": ".fundamental_swarm",
+    "IdeaWriterSwarm": ".idea_writer_swarm",
+    "IdeaWriterTemplate": ".idea_writer_swarm",
+    "LearningSwarm": ".learning_swarm",
+    "LearningTemplate": ".learning_swarm",
+    "SwarmML": ".swarm_ml",
+    "MLTemplate": ".swarm_ml",
+    "SwarmMLComprehensive": ".swarm_ml_comprehensive",
+    "MlComprehensiveTemplate": ".swarm_ml_comprehensive",
+    # Templates with their own modules
     "CodingTemplate": ".coding",
-    "DataAnalysisTemplate": ".data_analysis",
-    "DevopsTemplate": ".devops",
-    "FundamentalTemplate": ".fundamental",
-    "IdeaWriterTemplate": ".idea_writer",
-    "LearningTemplate": ".learning",
-    "MLTemplate": ".ml",
-    "MlComprehensiveTemplate": ".ml_comprehensive",
+    "ResearchTemplate": ".research",
+    "ArxivLearningTemplate": ".arxiv_learning",
     "OlympiadLearningTemplate": ".olympiad_learning",
     "PerspectiveLearningTemplate": ".perspective_learning",
     "PilotTemplate": ".pilot",
-    "ResearchTemplate": ".research",
-    "ReviewTemplate": ".review",
-    "TestingTemplate": ".testing",
     # Team patterns
     "CollaborativeTemplate": ".team_patterns.collaborative",
     "HybridTemplate": ".team_patterns.hybrid",
     "SequentialTemplate": ".team_patterns.sequential",
 }
 
-# Backward compatibility aliases (map to their template class)
+# Backward compatibility aliases (map to their canonical class)
 _ALIASES: dict[str, str] = {
     "CodingSwarm": "CodingTemplate",
     "ResearchSwarm": "ResearchTemplate",
-    "ReviewSwarm": "ReviewTemplate",
-    "TestingSwarm": "TestingTemplate",
-    "DataAnalysisSwarm": "DataAnalysisTemplate",
-    "DevOpsSwarm": "DevopsTemplate",
-    "FundamentalSwarm": "FundamentalTemplate",
-    "IdeaWriterSwarm": "IdeaWriterTemplate",
-    "LearningSwarm": "LearningTemplate",
     "ArxivLearningSwarm": "ArxivLearningTemplate",
     "OlympiadLearningSwarm": "OlympiadLearningTemplate",
     "PerspectiveLearningSwarm": "PerspectiveLearningTemplate",
     "PilotSwarm": "PilotTemplate",
-    "SwarmML": "MLTemplate",
-    "SwarmMLComprehensive": "MlComprehensiveTemplate",
     "CollaborativeTeam": "CollaborativeTemplate",
     "HybridTeam": "HybridTemplate",
     "SequentialTeam": "SequentialTemplate",

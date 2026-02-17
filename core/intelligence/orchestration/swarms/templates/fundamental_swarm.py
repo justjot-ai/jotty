@@ -1111,8 +1111,11 @@ def analyze_fundamentals_sync(ticker: str, **kwargs: Any) -> FundamentalResult:
 # EXPORTS
 # =============================================================================
 
+FundamentalTemplate = FundamentalSwarm
+
 __all__ = [
     "FundamentalSwarm",
+    "FundamentalTemplate",
     "FundamentalConfig",
     "FundamentalResult",
     "FinancialMetrics",

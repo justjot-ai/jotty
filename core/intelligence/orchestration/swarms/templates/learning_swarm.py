@@ -996,8 +996,11 @@ def improve_swarm_sync(swarm_name: str, **kwargs: Any) -> LearningResult:
 # EXPORTS
 # =============================================================================
 
+LearningTemplate = LearningSwarm
+
 __all__ = [
     "LearningSwarm",
+    "LearningTemplate",
     "LearningConfig",
     "LearningResult",
     "SwarmPerformance",

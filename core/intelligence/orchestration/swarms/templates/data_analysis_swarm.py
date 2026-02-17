@@ -1052,8 +1052,11 @@ def analyze_data_sync(data: Any, **kwargs: Any) -> AnalysisResult:
 # EXPORTS
 # =============================================================================
 
+DataAnalysisTemplate = DataAnalysisSwarm
+
 __all__ = [
     "DataAnalysisSwarm",
+    "DataAnalysisTemplate",
     "DataAnalysisConfig",
     "AnalysisResult",
     "DataProfile",

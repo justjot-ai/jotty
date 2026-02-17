@@ -548,4 +548,5 @@ Code only:""",
         )
 
 
-# Alias for convenience
+# Aliases for template registry
+MLTemplate = SwarmML

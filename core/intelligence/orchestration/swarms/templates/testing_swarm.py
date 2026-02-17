@@ -963,8 +963,12 @@ def test_sync(code: str, **kwargs: Any) -> TestingResult:
 # EXPORTS
 # =============================================================================
 
+# Alias: templates/__init__.py may resolve "TestingTemplate" from this module
+TestingTemplate = TestingSwarm
+
 __all__ = [
     "TestingSwarm",
+    "TestingTemplate",
     "TestingConfig",
     "TestingResult",
     "TestSuite",
