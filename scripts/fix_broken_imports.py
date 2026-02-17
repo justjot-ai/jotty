@@ -13,7 +13,7 @@ files_to_fix = [
     "core/intelligence/orchestration/_ensemble_mixin.py",
     "core/intelligence/orchestration/_feature_engineering_mixin.py",
     "core/intelligence/orchestration/_feature_selection_mixin.py",
-    "core/intelligence/orchestration/_learning_delegation_mixin.py",
+    # _learning_delegation_mixin.py removed — superseded by learning_delegate.py
     "core/intelligence/orchestration/_mas_zero_mixin.py",
     "core/intelligence/orchestration/_model_pipeline_mixin.py",
     "core/intelligence/orchestration/templates/_deployment_mixin.py",

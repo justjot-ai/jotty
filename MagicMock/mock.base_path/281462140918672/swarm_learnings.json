@@ -1,0 +1,45 @@
+{
+  "q_table": {},
+  "experience_buffer": [],
+  "tier1_working": [],
+  "tier2_clusters": {},
+  "tier3_archive": [],
+  "tier1_threshold": 0.8,
+  "last_episode_reward": 0.0,
+  "alpha": "<MagicMock name='mock.alpha' id='281462140657232'>",
+  "gamma": "<MagicMock name='mock.gamma' id='281462140662224'>",
+  "epsilon": "<MagicMock name='mock.epsilon' id='281462140607888'>",
+  "retention_weights": {
+    "weights": {
+      "q_value": {
+        "name": "q_value",
+        "value": 0.4000000000000001,
+        "momentum": 0.0,
+        "learning_rate": 0.01,
+        "updates": 0
+      },
+      "novelty": {
+        "name": "novelty",
+        "value": 0.30000000000000004,
+        "momentum": 0.0,
+        "learning_rate": 0.01,
+        "updates": 0
+      },
+      "causal_impact": {
+        "name": "causal_impact",
+        "value": 0.20000000000000004,
+        "momentum": 0.0,
+        "learning_rate": 0.01,
+        "updates": 0
+      },
+      "staleness": {
+        "name": "staleness",
+        "value": 0.10000000000000002,
+        "momentum": 0.0,
+        "learning_rate": 0.01,
+        "updates": 0
+      }
+    },
+    "learning_rate": 0.01
+  }
+}

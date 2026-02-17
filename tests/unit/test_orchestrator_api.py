@@ -523,3 +523,172 @@ class TestArchitectureIntegrity:
 
         source = inspect.getsource(workflow_api)
         assert "use_cases" not in source
+
+    @pytest.mark.unit
+    def test_run_signature_has_learn(self):
+        """run() should accept learn kwarg."""
+        import inspect
+        from Jotty.core.intelligence.orchestration.core.swarm_manager import Orchestrator
+
+        sig = inspect.signature(Orchestrator.run)
+        params = set(sig.parameters.keys())
+        assert "learn" in params
+
+    @pytest.mark.unit
+    def test_chat_signature_has_learn(self):
+        """chat() should accept learn kwarg."""
+        import inspect
+        from Jotty.core.intelligence.orchestration.core.swarm_manager import Orchestrator
+
+        sig = inspect.signature(Orchestrator.chat)
+        params = set(sig.parameters.keys())
+        assert "learn" in params
+
+
+# ============================================================================
+# Test: learn=True/False flag
+# ============================================================================
+
+
+class TestLearnFlag:
+    """Test learn=True (default) and learn=False behavior."""
+
+    @pytest.mark.asyncio
+    @pytest.mark.unit
+    async def test_run_learn_true_records(self, orchestrator, mock_learning_service):
+        """run(learn=True) should record to LearningService."""
+        mock_learning_service.build_context_string.return_value = ""
+        await orchestrator.run("Test task", learn=True)
+
+        mock_learning_service.record.assert_called_once()
+
+    @pytest.mark.asyncio
+    @pytest.mark.unit
+    async def test_run_learn_false_skips_recording(self, orchestrator, mock_learning_service):
+        """run(learn=False) should NOT record to LearningService."""
+        await orchestrator.run("Test task", learn=False)
+
+        mock_learning_service.record.assert_not_called()
+        mock_learning_service.build_context_string.assert_not_called()
+
+    @pytest.mark.asyncio
+    @pytest.mark.unit
+    async def test_run_learn_default_is_true(self, orchestrator, mock_learning_service):
+        """run() with no learn flag should default to learn=True."""
+        mock_learning_service.build_context_string.return_value = ""
+        await orchestrator.run("Default task")
+
+        mock_learning_service.record.assert_called_once()
+
+    @pytest.mark.asyncio
+    @pytest.mark.unit
+    async def test_chat_learn_true_starts_episode(self, orchestrator, mock_learning_service):
+        """chat(learn=True) should start and end episode."""
+        with patch(
+            "Jotty.core.intelligence.orchestration.execution.unified_executor.ChatExecutor"
+        ) as MockCE:
+            mock_executor = MagicMock()
+            mock_executor.execute = AsyncMock(return_value=MockResult())
+            MockCE.return_value = mock_executor
+
+            await orchestrator.chat("Hello!", learn=True)
+
+            mock_learning_service.start_episode.assert_called_once()
+            mock_learning_service.end_episode.assert_called_once()
+
+    @pytest.mark.asyncio
+    @pytest.mark.unit
+    async def test_chat_learn_false_skips_episode(self, orchestrator, mock_learning_service):
+        """chat(learn=False) should NOT start or end episode."""
+        with patch(
+            "Jotty.core.intelligence.orchestration.execution.unified_executor.ChatExecutor"
+        ) as MockCE:
+            mock_executor = MagicMock()
+            mock_executor.execute = AsyncMock(return_value=MockResult())
+            MockCE.return_value = mock_executor
+
+            await orchestrator.chat("Quick test", learn=False)
+
+            mock_learning_service.start_episode.assert_not_called()
+            mock_learning_service.end_episode.assert_not_called()
+
+    @pytest.mark.asyncio
+    @pytest.mark.unit
+    async def test_run_learn_injects_guidance(self, orchestrator, mock_learning_service):
+        """run(learn=True) should inject LearningService guidance into context."""
+        mock_learning_service.build_context_string.return_value = "[Guidance] Use tool X"
+        await orchestrator.run("Test task")
+
+        mock_learning_service.build_context_string.assert_called_once()
+        call_kwargs = orchestrator._engine.run.call_args[1]
+        assert "[Guidance] Use tool X" in call_kwargs.get("learning_context", "")
+
+
+# ============================================================================
+# Test: SwarmLearningPipeline records to LearningService
+# ============================================================================
+
+
+class TestLearningPipelineIntegration:
+    """Test that SwarmLearningPipeline.post_episode() records to LearningService."""
+
+    @pytest.mark.unit
+    def test_post_episode_records_to_learning_service(self):
+        """post_episode() should call LearningService.record()."""
+        from unittest.mock import patch as _patch
+
+        from Jotty.core.infrastructure.foundation.data_structures import (
+            EpisodeResult,
+            SwarmConfig,
+        )
+        from Jotty.core.intelligence.orchestration.learning.swarm_learning_pipeline import (
+            SwarmLearningPipeline,
+        )
+
+        config = MagicMock(spec=SwarmConfig)
+        config.base_path = None
+        config.domain = "test"
+        config.learning_components = None
+
+        with _patch(
+            "Jotty.core.intelligence.orchestration.learning."
+            "swarm_learning_pipeline.SwarmLearningPipeline.__init__",
+            return_value=None,
+        ):
+            pipeline = SwarmLearningPipeline.__new__(SwarmLearningPipeline)
+            pipeline.config = config
+            pipeline.episode_count = 0
+            pipeline.effectiveness = MagicMock()
+            pipeline.effectiveness.improvement_report.return_value = {}
+            pipeline.transfer_learning = MagicMock()
+            pipeline.transfer_learning.extractor.extract_task_type.return_value = "test_task"
+
+            result = MagicMock(spec=EpisodeResult)
+            result.success = True
+            result.output = "test output"
+            result.trajectory = []
+            result.agent_name = "test_agent"
+
+            mock_ls = MagicMock()
+            with _patch(
+                "Jotty.core.intelligence.learning.learning_service." "LearningService.get_instance",
+                return_value=mock_ls,
+            ):
+                pipeline._record_to_learning_service(
+                    {
+                        "result": result,
+                        "goal": "test goal",
+                        "agents": [],
+                        "agent_name": "test_agent",
+                        "task_type": "test_task",
+                        "episode_reward": 0.8,
+                    },
+                    execution_time=1.5,
+                )
+
+                mock_ls.record.assert_called_once()
+                call_kwargs = mock_ls.record.call_args[1]
+                assert call_kwargs["unit_name"] == "test_agent"
+                assert call_kwargs["unit_type"] == "swarm_pipeline"
+                assert call_kwargs["success"] is True
+                assert call_kwargs["quality"] == 0.8

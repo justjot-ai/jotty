@@ -1204,6 +1204,8 @@ class ExecutionEngine:
                     )
 
             # 2. Effectiveness: are we improving or degrading on this type?
+            #    Reads from BOTH in-memory EffectivenessTracker (fast, current session)
+            #    AND LearningService (SQLite, cross-session history).
             eff_report = lp.effectiveness.improvement_report()
             task_eff = eff_report.get(task_type)
             if task_eff and task_eff.get("trend") is not None:
@@ -1220,6 +1222,22 @@ class ExecutionEngine:
                         f"[Learned] Performance IMPROVING on '{task_type}' — "
                         f"current approach is working."
                     )
+
+            # Cross-session effectiveness from LearningService (SQLite)
+            try:
+                from Jotty.core.intelligence.learning.learning_service import LearningService
+
+                ls = LearningService.get_instance()
+                ls_report = ls.improvement_report(domain=task_type)
+                if ls_report and ls_report.get("recent_success_rate") is not None:
+                    ls_trend = ls_report.get("trend", 0)
+                    if ls_trend < -0.15 and not task_eff:
+                        learned_hints.append(
+                            f"[Learned/History] Cross-session performance declining "
+                            f"on '{task_type}'. Try alternative approaches."
+                        )
+            except Exception:
+                pass
 
             # 3. Transfer learning: relevant past learnings
             learnings = lp.transfer_learning.get_relevant_learnings(goal, top_k=2)
@@ -2671,7 +2689,7 @@ class Orchestrator:
 
     # =========================================================================
     # Provider, Ensemble, Learning methods — see _provider_mixin.py,
-    # _ensemble_mixin.py, _learning_delegation_mixin.py
+    # _ensemble_mixin.py, learning_delegate.py
     # =========================================================================
 
     def _register_agents_with_axon(self) -> None:
@@ -2807,6 +2825,7 @@ class Orchestrator:
         stages: Optional[List[Dict[str, Any]]] = None,
         swarm: Optional[Any] = None,
         agent: Optional[Any] = None,
+        learn: bool = True,
         status_callback: Optional[Callable] = None,
         **kwargs: Any,
     ) -> Any:
@@ -2820,6 +2839,7 @@ class Orchestrator:
         - stages=[...]         → multi-stage pipeline with dependencies
 
         All modes share LearningService, Memory, Tools, Providers.
+        Learning is fire-and-forget: never blocks the result.
 
         Args:
             goal: Task goal/description (natural language)
@@ -2827,6 +2847,8 @@ class Orchestrator:
             stages: Pipeline stage definitions (triggers pipeline mode)
             swarm: SwarmTemplate class or instance (triggers swarm mode)
             agent: BaseAgent instance (triggers single-agent mode)
+            learn: If True (default), record outcomes + run post-episode learning.
+                   Set False for tests, benchmarks, or latency-critical paths.
             status_callback: Optional progress callback(stage, detail)
             **kwargs: Additional arguments passed to the execution engine
 
@@ -2834,14 +2856,14 @@ class Orchestrator:
             ExecutionResult (or AsyncIterator[StreamEvent] if stream=True)
 
         Examples:
-            # Auto-detect
+            # Auto-detect with learning (default)
             result = await orchestrator.run("What is GDP?")
+
+            # Skip learning (tests / benchmarks)
+            result = await orchestrator.run("Quick test", learn=False)
 
             # Explicit swarm
             result = await orchestrator.run("Analyze data", swarm=DataAnalysisSwarm)
-
-            # Explicit agent
-            result = await orchestrator.run("Review code", agent=security_reviewer)
 
             # Pipeline
             result = await orchestrator.run("Build and test API", stages=[
@@ -2849,8 +2871,9 @@ class Orchestrator:
                 {"name": "test", "swarm": TestingSwarm, "depends_on": ["design"]},
             ])
 
-            # Streaming
-            async for event in orchestrator.run("Research AI", stream=True):
+            # Streaming (await first, then iterate)
+            stream = await orchestrator.run("Research AI", stream=True)
+            async for event in stream:
                 print(event)
         """
         import time as _time
@@ -2860,53 +2883,68 @@ class Orchestrator:
         learning = LearningService.get_instance()
         run_start = _time.time()
 
-        # Route to the appropriate execution path
+        # ── PRE-EXECUTION: inject learning guidance into context ──
+        if learn:
+            try:
+                guidance_str = learning.build_context_string(domain="general", task_type="run")
+                if guidance_str:
+                    kwargs.setdefault("learning_context", "")
+                    kwargs["learning_context"] += "\n" + guidance_str
+            except Exception as e:
+                logger.debug(f"Pre-execution learning guidance failed: {e}")
+
+        execution_mode = (
+            "pipeline" if stages else "swarm" if swarm else "agent" if agent else "auto"
+        )
+
+        # ── EXECUTION: route to the appropriate path ──
         if stages is not None:
-            # Pipeline mode
             result = await self._run_pipeline(
                 goal, stages=stages, status_callback=status_callback, **kwargs
             )
         elif swarm is not None:
-            # Explicit swarm mode
             result = await self._run_swarm(
                 goal, swarm=swarm, status_callback=status_callback, stream=stream, **kwargs
             )
         elif agent is not None:
-            # Explicit single-agent mode
             result = await self._run_agent(
                 goal, agent=agent, status_callback=status_callback, stream=stream, **kwargs
             )
         elif stream:
-            # Auto-detect with streaming — use ExecutionEngine
             kwargs["status_callback"] = status_callback
             return self._run_stream(goal, **kwargs)
         else:
-            # Auto-detect (default swarm-based routing)
             kwargs["status_callback"] = status_callback
             result = await self._ensure_engine().run(goal, **kwargs)
 
-        # Record to LearningService
-        run_time = _time.time() - run_start
-        success = getattr(result, "success", True) if result else False
-        try:
-            learning.record(
-                unit_name="Orchestrator",
-                unit_type="orchestrator",
-                domain="general",
-                task_type="run",
-                context={"goal": str(goal)[:300]},
-                action={
-                    "mode": (
-                        "pipeline" if stages else "swarm" if swarm else "agent" if agent else "auto"
-                    )
-                },
-                outcome={"output_length": len(str(result)) if result else 0},
-                success=success,
-                quality=0.8 if success else 0.0,
-                execution_time=run_time,
-            )
-        except Exception as e:
-            logger.debug(f"LearningService record failed: {e}")
+        # ── POST-EXECUTION: learning (fire-and-forget, never blocks result) ──
+        if learn:
+            run_time = _time.time() - run_start
+            success = getattr(result, "success", True) if result else False
+            quality = getattr(result, "quality_score", 0.8 if success else 0.0)
+
+            # 1. Record to LearningService (SQLite — lightweight, always runs)
+            try:
+                learning.record(
+                    unit_name="Orchestrator",
+                    unit_type="orchestrator",
+                    domain="general",
+                    task_type="run",
+                    context={"goal": str(goal)[:300]},
+                    action={"mode": execution_mode},
+                    outcome={"output_length": len(str(result)) if result else 0},
+                    success=success,
+                    quality=quality,
+                    execution_time=run_time,
+                )
+            except Exception as e:
+                logger.debug(f"LearningService record failed: {e}")
+
+            # 2. Full learning pipeline (heavy — background, fire-and-forget)
+            #    Runs: stigmergy, byzantine, credit, effectiveness, MAS, TD-Lambda,
+            #    transfer learning, prompt evolution, curriculum, etc.
+            if isinstance(result, EpisodeResult):
+                self._schedule_background_learning(result, goal)
 
         return result
 
@@ -2916,6 +2954,7 @@ class Orchestrator:
         *,
         history: Optional[List[Dict[str, Any]]] = None,
         stream: bool = False,
+        learn: bool = True,
         provider: Optional[str] = None,
         model: Optional[str] = None,
         status_callback: Optional[Callable[[str, str], None]] = None,
@@ -2930,11 +2969,14 @@ class Orchestrator:
 
         Tool calling, streaming, session context via history.
         Uses ChatExecutor internally, wrapped with LearningService.
+        Learning is fire-and-forget: never blocks the result.
 
         Args:
             message: User message
             history: Conversation history (list of {role, content} dicts)
             stream: If True, returns AsyncIterator[StreamEvent]
+            learn: If True (default), record outcomes to LearningService.
+                   Set False for tests, benchmarks, or latency-critical paths.
             provider: LLM provider ('anthropic', 'openai', etc.). Auto-detects if None.
             model: Model name (uses provider default if not specified)
             status_callback: Progress callback(stage, detail)
@@ -2948,17 +2990,15 @@ class Orchestrator:
             LLMExecutionResult (or AsyncIterator[StreamEvent] if stream=True)
 
         Examples:
-            # Simple chat
+            # Simple chat (learning on by default)
             result = await orchestrator.chat("Hello!")
 
-            # With history
-            result = await orchestrator.chat("Follow up", history=[
-                {"role": "user", "content": "What is AI?"},
-                {"role": "assistant", "content": "AI is..."},
-            ])
+            # Skip learning (tests / benchmarks)
+            result = await orchestrator.chat("Quick test", learn=False)
 
-            # Streaming
-            async for event in orchestrator.chat("Explain quantum physics", stream=True):
+            # Streaming (await first, then iterate)
+            stream = await orchestrator.chat("Explain quantum physics", stream=True)
+            async for event in stream:
                 print(event)
         """
         import time as _time
@@ -2971,31 +3011,35 @@ class Orchestrator:
         learning = LearningService.get_instance()
         chat_start = _time.time()
 
-        # Start learning episode
+        # ── PRE-EXECUTION: start episode + query guidance ──
         episode_id = None
-        try:
-            episode_id = learning.start_episode(
-                unit_name="Orchestrator",
-                unit_type="chat",
-                domain="conversational",
-                task_type="chat",
-                context={"message": message[:300], "history_len": len(history or [])},
-            )
-        except Exception as e:
-            logger.debug(f"LearningService episode start failed: {e}")
+        if learn:
+            try:
+                episode_id = learning.start_episode(
+                    unit_name="Orchestrator",
+                    unit_type="chat",
+                    domain="conversational",
+                    task_type="chat",
+                    context={"message": message[:300], "history_len": len(history or [])},
+                )
+            except Exception as e:
+                logger.debug(f"LearningService episode start failed: {e}")
 
-        # Query learning for chat guidance
-        guidance = {}
-        try:
-            guidance = learning.query(
-                domain="conversational",
-                task_type="chat",
-                context={"message": message[:200]},
-            )
-        except Exception:
-            pass
+            try:
+                guidance = learning.query(
+                    domain="conversational",
+                    task_type="chat",
+                    context={"message": message[:200]},
+                )
+                if guidance and guidance.get("guidance"):
+                    kwargs.setdefault("learning_context", "")
+                    kwargs["learning_context"] += "\n[Learned guidance] " + str(
+                        guidance["guidance"]
+                    )
+            except Exception:
+                pass
 
-        # Create ChatExecutor with provided or auto-detected config
+        # ── EXECUTION ──
         executor = _ChatExecutor(
             provider=provider,
             model=model,
@@ -3006,25 +3050,24 @@ class Orchestrator:
             max_steps=max_steps,
         )
 
+        if stream:
+            return self._chat_stream_with_learning(
+                executor, message, history, episode_id, learning, chat_start
+            )
+
+        # Non-streaming execution
         result = None
         error_msg = None
         try:
-            if stream:
-                # Streaming: return async generator wrapped with learning
-                return self._chat_stream_with_learning(
-                    executor, message, history, episode_id, learning, chat_start
-                )
-            else:
-                # Non-streaming execution
-                result = await executor.execute(message, history=history)
-                return result
+            result = await executor.execute(message, history=history)
+            return result
         except Exception as e:
             error_msg = str(e)
             logger.error(f"Chat execution failed: {e}", exc_info=True)
             raise
         finally:
-            # End learning episode (skip if streaming — handled in generator)
-            if not stream and episode_id:
+            # ── POST-EXECUTION: record episode (fire-and-forget) ──
+            if learn and episode_id:
                 chat_time = _time.time() - chat_start
                 success = getattr(result, "success", False) if result else False
                 try:

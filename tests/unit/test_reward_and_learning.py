@@ -12,7 +12,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
-from Jotty.core.intelligence.orchestration.learning.learning_pipeline import (
+from Jotty.core.intelligence.orchestration.learning.swarm_learning_pipeline import (
     EffectivenessTracker,
     SwarmLearningPipeline,
 )

@@ -929,7 +929,12 @@ class SwarmLearningPipeline:
         mas_learning: Any = None,
         swarm_terminal: Any = None,
     ) -> Any:
-        """Post-episode learning: run all enabled learning steps."""
+        """Post-episode learning: run all enabled learning steps.
+
+        Records to both:
+        - LearningService (SQLite — unified, queryable, persistent)
+        - Individual JSON-based stores (backward-compatible, per-component)
+        """
         self.episode_count += 1
         episode_reward = self._compute_episode_reward(result, goal)
         try:
@@ -937,6 +942,7 @@ class SwarmLearningPipeline:
         except Exception:
             task_type = "general"
         agent_name = getattr(result, "agent_name", agents[0].name if agents else "unknown")
+        execution_time = getattr(result, "execution_time", 0.0)
 
         ctx = {
             "result": result,
@@ -949,8 +955,78 @@ class SwarmLearningPipeline:
             "mas_learning": mas_learning,
             "swarm_terminal": swarm_terminal,
         }
+
+        # ── 1. Record to LearningService (single source of truth: SQLite) ──
+        self._record_to_learning_service(ctx, execution_time)
+
+        # ── 2. Run all component-level learning steps (stigmergy, byzantine, etc.) ──
         self._run_learning_steps(ctx)
+
         logger.debug(f"Post-episode learning complete (episode #{self.episode_count})")
+
+    def _record_to_learning_service(self, ctx: dict, execution_time: float) -> None:
+        """Record episode to LearningService for unified persistence and querying."""
+        try:
+            from Jotty.core.intelligence.learning.learning_service import LearningService
+
+            ls = LearningService.get_instance()
+
+            # Build rich context from execution
+            tools_used = []
+            result = ctx["result"]
+            if hasattr(result, "trajectory") and result.trajectory:
+                for step in result.trajectory:
+                    if isinstance(step, dict) and step.get("tool"):
+                        tools_used.append(step["tool"])
+
+            ls.record(
+                unit_name=ctx["agent_name"],
+                unit_type="swarm_pipeline",
+                domain=ctx["task_type"],
+                task_type=ctx["task_type"],
+                context={
+                    "goal": str(ctx["goal"])[:500],
+                    "episode": self.episode_count,
+                    "agents": [a.name for a in ctx["agents"]] if ctx["agents"] else [],
+                    "tools_used": tools_used[:10],
+                },
+                action={
+                    "approach": ctx["task_type"],
+                    "agent": ctx["agent_name"],
+                },
+                outcome={
+                    "output_length": len(str(result.output)) if result.output else 0,
+                    "has_error": bool(getattr(result, "error", None)),
+                },
+                success=result.success,
+                quality=ctx["episode_reward"],
+                execution_time=execution_time,
+            )
+
+            # Also record effectiveness data as a pattern if enough data
+            if self.episode_count % 5 == 0:
+                report = self.effectiveness.improvement_report()
+                global_stats = report.get("_global", {})
+                if global_stats:
+                    ls.record(
+                        unit_name="effectiveness_tracker",
+                        unit_type="meta",
+                        domain="system",
+                        task_type="effectiveness_snapshot",
+                        context={
+                            "episode": self.episode_count,
+                            "recent_rate": global_stats.get("recent_rate", 0),
+                            "historical_rate": global_stats.get("historical_rate", 0),
+                            "trend": global_stats.get("trend", 0),
+                        },
+                        action={"type": "snapshot"},
+                        outcome=report,
+                        success=global_stats.get("trend", 0) >= 0,
+                        quality=global_stats.get("recent_rate", 0),
+                        execution_time=0.0,
+                    )
+        except Exception as e:
+            logger.debug(f"LearningService recording in post_episode failed: {e}")
 
     # -- Individual learning steps (each receives ctx dict) --
 
