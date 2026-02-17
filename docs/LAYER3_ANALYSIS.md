@@ -27,7 +27,7 @@ core/intelligence/orchestration/
 
 ### modes/ (51 files)
 ```
-core/modes/
+core/intelligence/
 ├── agent/
 │   └── base/
 │       ├── chat_assistant.py    # ChatAssistant
@@ -66,7 +66,7 @@ core/modes/
 
 - **core/interface/api/chat_api.py**
   ```python
-  from Jotty.core.modes.agent.base.chat_assistant import create_chat_assistant
+  from Jotty.core.intelligence.reasoning.base.chat_assistant import create_chat_assistant
   ```
 
 - Various internal core modules
@@ -120,7 +120,7 @@ Looking at the code:
 
 ### Option C: Move use_cases to modes/use_cases/ (Recommended)
 ```
-core/modes/
+core/intelligence/
 ├── use_cases/           # ← MOVE from core/interface/
 │   ├── base.py
 │   ├── chat/
@@ -133,7 +133,7 @@ core/modes/
 **Benefits:**
 - ✅ Keeps all execution logic in one place (modes/)
 - ✅ Preserves all features
-- ✅ Simple import updates (from core.interface.use_cases → core.modes.use_cases)
+- ✅ Simple import updates (from core.interface.use_cases → core.intelligence.orchestration.use_cases)
 - ✅ Backward compatibility via shim in core/interface/
 
 ---
@@ -160,11 +160,11 @@ core/modes/
 
 **MOVE use_cases/ to modes/use_cases/** with backward compat shim:
 
-1. Move `core/interface/use_cases/` → `core/modes/use_cases/`
+1. Move `core/interface/use_cases/` → `core/intelligence/orchestration/use_cases/`
 2. Create shim in `core/interface/use_cases/__init__.py`:
    ```python
-   # Deprecated: Moved to core/modes/use_cases/
-   from Jotty.core.modes.use_cases import *
+   # Deprecated: Moved to core/intelligence/orchestration/use_cases/
+   from Jotty.core.intelligence.orchestration.use_cases import *
    ```
 3. Update imports in api/ layer to use new path
 4. Test thoroughly

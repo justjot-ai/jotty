@@ -90,7 +90,9 @@ class SkillToAgentConverter:
 
             # Step 3: Create DSPy module that uses AutoAgent
             # Use SkillBasedAgent which wraps AutoAgent execution
-            from Jotty.core.modes.agent.agents.skill_based_agent import SkillBasedAgent
+            from Jotty.core.intelligence.reasoning.agent.agents.skill_based_agent import (
+                SkillBasedAgent,
+            )
 
             dspy_module = SkillBasedAgent(
                 skill_name=skill.name,

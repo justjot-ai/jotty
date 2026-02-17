@@ -94,7 +94,7 @@ agents = self._create_zero_config_agents(agents)
 **Location:** `core/intelligence/orchestration/zero_config_factory.py:48`
 **Error:**
 ```python
-ModuleNotFoundError: No module named 'Jotty.core.modes.agent.auto_agent'
+ModuleNotFoundError: No module named 'Jotty.core.intelligence.reasoning.auto_agent'
 ```
 
 **Root Cause:**
@@ -103,10 +103,10 @@ Import path was wrong after layer reorganization.
 **Fix:**
 ```python
 # Before (BROKEN):
-from Jotty.core.modes.agent.auto_agent import AutoAgent
+from Jotty.core.intelligence.reasoning.auto_agent import AutoAgent
 
 # After (FIXED):
-from Jotty.core.modes.agent.base.auto_agent import AutoAgent
+from Jotty.core.intelligence.reasoning.base.auto_agent import AutoAgent
 ```
 
 **Affected:** `examples/orchestration/01_basic_swarm.py`
@@ -117,7 +117,7 @@ from Jotty.core.modes.agent.base.auto_agent import AutoAgent
 **Location:** `core/intelligence/orchestration/swarm_manager.py:149`
 **Error:**
 ```python
-ModuleNotFoundError: No module named 'Jotty.core.modes.agent.baseic_planner'
+ModuleNotFoundError: No module named 'Jotty.core.intelligence.reasoning.baseic_planner'
 ```
 
 **Root Cause:**
@@ -126,10 +126,10 @@ Typo "baseic" instead of "agentic" + wrong path.
 **Fix:**
 ```python
 # Before (BROKEN - 2 issues):
-from Jotty.core.modes.agent.baseic_planner import TaskPlanner  # "baseic" typo + missing .base
+from Jotty.core.intelligence.reasoning.baseic_planner import TaskPlanner  # "baseic" typo + missing .base
 
 # After (FIXED):
-from Jotty.core.modes.agent.base.agentic_planner import TaskPlanner
+from Jotty.core.intelligence.reasoning.base.agentic_planner import TaskPlanner
 ```
 
 **Affected:** `examples/orchestration/01_basic_swarm.py`
@@ -137,10 +137,10 @@ from Jotty.core.modes.agent.base.agentic_planner import TaskPlanner
 ---
 
 ### 6. ✅ Relative Import Path (agentic_planner)
-**Location:** `core/modes/agent/base/agentic_planner.py:198`
+**Location:** `core/intelligence/reasoning/base/agentic_planner.py:198`
 **Error:**
 ```python
-ModuleNotFoundError: No module named 'Jotty.core.modes.agent.foundation'
+ModuleNotFoundError: No module named 'Jotty.core.intelligence.reasoning.foundation'
 ```
 
 **Root Cause:**
@@ -235,7 +235,7 @@ Trace ID propagates through all operations
 2. `examples/multi_swarm/03_distributed_tracing.py` - Added DSPy setup
 3. `core/intelligence/orchestration/swarm_manager.py` - Fixed _agent_factory order + imports
 4. `core/intelligence/orchestration/zero_config_factory.py` - Fixed auto_agent import
-5. `core/modes/agent/base/agentic_planner.py` - Fixed foundation import
+5. `core/intelligence/reasoning/base/agentic_planner.py` - Fixed foundation import
 6. `core/intelligence/orchestration/swarm_manager.py` - Fixed context_guard → SmartContextManager (consolidation bug)
 
 ---

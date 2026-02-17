@@ -87,7 +87,7 @@ def test_gold_standard_disabled_by_default():
 
 def test_expert_template_imports():
     """Expert template functions import successfully."""
-    from core.experts.expert_templates import (
+    from Jotty.core.intelligence.reasoning.agents.expert_templates import (
         create_custom_expert,
         create_latex_math_expert,
         create_mermaid_expert,
@@ -125,7 +125,7 @@ def test_team_template_imports():
 
 def test_expert_agent_deprecated():
     """ExpertAgent class shows deprecation warning."""
-    from core.experts import ExpertAgent, ExpertAgentConfig
+    from Jotty.core.intelligence.reasoning.agents import ExpertAgent, ExpertAgentConfig
 
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
@@ -162,7 +162,7 @@ def test_expert_templates_export():
     assert hasattr(experts, "create_latex_math_expert")
     assert hasattr(experts, "create_custom_expert")
 
-    print("✓ Expert templates exported from core.experts")
+    print("✓ Expert templates exported from Jotty.core.intelligence.reasoning.agents")
 
 
 def test_team_templates_export():
@@ -181,7 +181,7 @@ def test_team_templates_export():
 def test_expert_is_single_agent_orchestrator():
     """Expert templates return SingleAgentOrchestrator instances."""
     import dspy
-    from core.experts.expert_templates import create_custom_expert
+    from Jotty.core.intelligence.reasoning.agents.expert_templates import create_custom_expert
     from core.foundation import SwarmConfig
     from core.orchestration import SingleAgentOrchestrator
 
@@ -207,7 +207,7 @@ def test_expert_is_single_agent_orchestrator():
 
 def test_backward_compatibility_expert_agent():
     """Old ExpertAgent interface still works (deprecated)."""
-    from core.experts import ExpertAgent, ExpertAgentConfig
+    from Jotty.core.intelligence.reasoning.agents import ExpertAgent, ExpertAgentConfig
 
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")

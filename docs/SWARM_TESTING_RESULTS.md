@@ -11,7 +11,7 @@ Successfully tested swarm templates with real LLM API calls. Fixed multiple impo
 ## Issues Fixed
 
 ### 1. Import Path Issues (8 files)
-- **Problem:** Swarms imported from `core.modes.agent.dag_agents` instead of `core.modes.agent.planners.dag_agents`
+- **Problem:** Swarms imported from `core.intelligence.reasoning.dag_agents` instead of `core.intelligence.reasoning.planners.dag_agents`
 - **Files Fixed:**
   - `core/intelligence/swarms/research_swarm/swarm.py`
   - `core/intelligence/swarms/templates/research.py`
@@ -32,7 +32,7 @@ Successfully tested swarm templates with real LLM API calls. Fixed multiple impo
 
 ### 4. SwarmResources Missing Module
 - **Problem:** `SwarmResources` tried to import non-existent modules
-- **Solution:** Created minimal stub `core/modes/agent/planners/swarm_resources_stub.py`
+- **Solution:** Created minimal stub `core/intelligence/reasoning/planners/swarm_resources_stub.py`
 - **Impact:** Swarms gracefully degrade without SwarmResources (already designed for optional usage)
 
 ## Test Results

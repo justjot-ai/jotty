@@ -3,20 +3,20 @@
 ## Date: 2026-02-15
 
 ## Objective
-Move `core/interface/use_cases/` to `core/modes/use_cases/` to consolidate all execution logic in Layer 2 (modes/).
+Move `core/interface/use_cases/` to `core/intelligence/orchestration/use_cases/` to consolidate all execution logic in Layer 2 (modes/).
 
 ---
 
 ## ✅ What We Accomplished
 
 ### 1. **Moved use_cases to modes/ (196K, 12 files)**
-- ✅ **MOVED:** `core/interface/use_cases/` → `core/modes/use_cases/`
+- ✅ **MOVED:** `core/interface/use_cases/` → `core/intelligence/orchestration/use_cases/`
 - ✅ **ALL FILES PRESERVED:** 12 Python files, 196K total
 - ✅ **NO DELETION:** Everything moved intact
 
 ### 2. **Created Backward Compatibility Shim**
 - ✅ **Created:** `core/interface/use_cases/__init__.py` (12K)
-- ✅ **Function:** Re-exports from `core.modes.use_cases`
+- ✅ **Function:** Re-exports from `core.intelligence.orchestration.use_cases`
 - ✅ **Deprecation warnings:** Alerts users to update imports
 - ✅ **TESTED:** Shim works perfectly (Python import test passed)
 
@@ -47,7 +47,7 @@ core/interface/
 ├── interfaces/
 └── ui/
 
-core/modes/           # ❌ Some execution logic here
+core/intelligence/           # ❌ Some execution logic here
 ├── agent/
 ├── workflow/
 └── execution/
@@ -61,7 +61,7 @@ core/interface/       # LAYER 3: Thin API layer
 ├── ui/               # A2UI formatting
 └── use_cases/        # ✅ Shim for backward compat (12K)
 
-core/modes/           # LAYER 2: All execution logic
+core/intelligence/           # LAYER 2: All execution logic
 ├── agent/
 ├── chat/
 ├── execution/
@@ -77,7 +77,7 @@ core/modes/           # LAYER 2: All execution logic
 ## 🔧 Files Moved (12 total)
 
 ```
-core/modes/use_cases/
+core/intelligence/orchestration/use_cases/
 ├── __init__.py
 ├── base.py                      # BaseUseCase, UseCaseConfig, UseCaseResult
 ├── chat/
@@ -102,7 +102,7 @@ core/modes/use_cases/
 ```python
 # unified.py, chat_api.py, workflow_api.py
 OLD: from Jotty.core.interface.use_cases import ChatUseCase
-NEW: from Jotty.core.modes.use_cases import ChatUseCase
+NEW: from Jotty.core.intelligence.orchestration.use_cases import ChatUseCase
 ```
 
 ### Backward Compatibility (Old imports still work)
@@ -152,7 +152,7 @@ from Jotty.core.interface.use_cases import ChatUseCase  # Works via shim! ⚠️
 - ✅ `ui/` - A2UI response formatting
 - ✅ `use_cases/` - Backward compat shim only
 
-**Layer 2 (core/modes/)** - ALL execution logic
+**Layer 2 (core/intelligence/)** - ALL execution logic
 - ✅ `agent/` - Agent implementations
 - ✅ `chat/` - Chat mode (empty, can be removed)
 - ✅ `execution/` - Execution engine
@@ -172,14 +172,14 @@ from Jotty.core.interface.use_cases import ChatUseCase  # Works via shim! ⚠️
 ### Optional Cleanup (Later)
 
 1. **Remove chat/ from modes/**
-   - `core/modes/chat/` is empty, can be removed
+   - `core/intelligence/chat/` is empty, can be removed
 
 2. **Remove shim (after deprecation period)**
    - Once all code updated, delete `core/interface/use_cases/`
 
 3. **Consolidate duplicate ChatExecutor**
    - Two implementations exist:
-     - `core/modes/use_cases/chat/chat_executor.py` (356 lines)
+     - `core/intelligence/orchestration/use_cases/chat/chat_executor.py` (356 lines)
      - `core/intelligence/orchestration/unified_executor.py` (1043 lines)
    - Decide which to keep or how to merge
 
@@ -189,7 +189,7 @@ from Jotty.core.interface.use_cases import ChatUseCase  # Works via shim! ⚠️
 
 ```bash
 Moved:
- core/interface/use_cases/  → core/modes/use_cases/  (196K, 12 files)
+ core/interface/use_cases/  → core/intelligence/orchestration/use_cases/  (196K, 12 files)
 
 Created:
  + core/interface/use_cases/__init__.py  (shim, 12K)

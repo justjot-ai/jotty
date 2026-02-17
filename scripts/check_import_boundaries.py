@@ -172,7 +172,6 @@ ORCHESTRATION_SUB_MODULES: Dict[str, Set[str]] = {
         "swarm_intelligence.py",
         "paradigm_executor.py",
         "ensemble_manager.py",
-        "swarm_ensemble.py",
     },
     "public_api": {
         "facade.py",

@@ -10,7 +10,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.experts import MermaidExpertAgent, PipelineExpertAgent
+from Jotty.core.intelligence.reasoning.agents import MermaidExpertAgent, PipelineExpertAgent
 
 
 async def test_mermaid_expert():

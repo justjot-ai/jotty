@@ -21,7 +21,7 @@ Test all 13 swarm templates with real LLM calls via unified LM provider to evalu
 - ❌ Nested Claude Code sessions not allowed
 - ❌ Missing API keys (OpenAI, Anthropic)
 - ❌ Missing module dependencies:
-  - `Jotty.core.modes.agent.dag_agents`
+  - `Jotty.core.intelligence.reasoning.dag_agents`
   - `Jotty.core.intelligence.swarms.agent`
 - ❌ Method signature mismatches:
   - `ResearchSwarm.research()` doesn't accept `max_sources`
@@ -108,7 +108,7 @@ For each swarm, analyzed:
    ```
 
 2. Fix missing dependencies:
-   - Create `core/modes/agent/dag_agents.py` or remove import
+   - Create `core/intelligence/reasoning/dag_agents.py` or remove import
    - Create `core/intelligence/swarms/agent.py` or remove import
 
 3. Document swarm APIs:

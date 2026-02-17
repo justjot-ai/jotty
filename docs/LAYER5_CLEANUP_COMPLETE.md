@@ -68,7 +68,7 @@ core/interface/       # LAYER 3: Thin API layer for SDK
 ├── api/              # 152K - JottyAPI, ChatAPI, WorkflowAPI
 ├── interfaces/       # 68K - Base interfaces
 ├── ui/               # 120K - A2UI response formatting
-└── use_cases/        # 196K - Business logic (will merge to core/modes)
+└── use_cases/        # 196K - Business logic (merged to core/intelligence/orchestration/use_cases)
 
 sdk/                  # LAYER 4: SDK (already existed)
 └── client.py         # 39K - Jotty() SDK client
@@ -117,7 +117,7 @@ web.py                # Root-level convenience entry point
 
 ## 📝 Next Steps (Layer 3 → Layer 2 Cleanup)
 
-### Identified Overlap: core/modes vs core/interface/use_cases
+### Identified Overlap: core/intelligence vs core/interface/use_cases (RESOLVED)
 
 **Both have chat and workflow implementations:**
 
@@ -126,13 +126,13 @@ core/interface/use_cases/
 ├── chat/                  # ChatExecutor, ChatOrchestrator
 └── workflow/              # WorkflowExecutor, WorkflowOrchestrator
 
-core/modes/
+core/intelligence/
 ├── agent/base/            # ChatAssistant, ChatAssistantV2
 └── workflow/              # AutoWorkflow, ResearchWorkflow
 ```
 
 **Plan:**
-1. Merge `core/interface/use_cases/` into `core/modes/`
+1. Merge `core/interface/use_cases/` into `core/intelligence/`
 2. Consolidate overlapping chat/workflow implementations
 3. Keep `core/interface/` as thin API layer only
 

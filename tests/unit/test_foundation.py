@@ -368,7 +368,7 @@ class TestBaseAgentRuntimeConfig:
     @pytest.mark.unit
     def test_default_sentinel_resolution(self):
         """Zero sentinels resolve from DEFAULTS."""
-        from Jotty.core.modes.agent.base.base_agent import AgentRuntimeConfig
+        from Jotty.core.intelligence.reasoning.base.base_agent import AgentRuntimeConfig
 
         config = AgentRuntimeConfig()
         assert config.model != ""
@@ -379,7 +379,7 @@ class TestBaseAgentRuntimeConfig:
     @pytest.mark.unit
     def test_explicit_values_preserved(self):
         """Explicit non-zero values are preserved."""
-        from Jotty.core.modes.agent.base.base_agent import AgentRuntimeConfig
+        from Jotty.core.intelligence.reasoning.base.base_agent import AgentRuntimeConfig
 
         config = AgentRuntimeConfig(
             name="MyAgent",
@@ -397,7 +397,7 @@ class TestBaseAgentRuntimeConfig:
     @pytest.mark.unit
     def test_enable_flags_defaults(self):
         """Enable flags default to True."""
-        from Jotty.core.modes.agent.base.base_agent import AgentRuntimeConfig
+        from Jotty.core.intelligence.reasoning.base.base_agent import AgentRuntimeConfig
 
         config = AgentRuntimeConfig()
         assert config.enable_memory is True
@@ -408,7 +408,7 @@ class TestBaseAgentRuntimeConfig:
     @pytest.mark.unit
     def test_enable_flags_override(self):
         """Enable flags can be disabled."""
-        from Jotty.core.modes.agent.base.base_agent import AgentRuntimeConfig
+        from Jotty.core.intelligence.reasoning.base.base_agent import AgentRuntimeConfig
 
         config = AgentRuntimeConfig(
             enable_memory=False,
@@ -1095,7 +1095,7 @@ class TestAgentResult:
     @pytest.mark.unit
     def test_to_dict(self):
         """AgentResult.to_dict() includes all fields."""
-        from Jotty.core.modes.agent.base.base_agent import AgentResult
+        from Jotty.core.intelligence.reasoning.base.base_agent import AgentResult
 
         result = AgentResult(
             success=True,
@@ -1119,7 +1119,7 @@ class TestAgentResult:
     @pytest.mark.unit
     def test_to_dict_with_error(self):
         """AgentResult.to_dict() serializes errors correctly."""
-        from Jotty.core.modes.agent.base.base_agent import AgentResult
+        from Jotty.core.intelligence.reasoning.base.base_agent import AgentResult
 
         result = AgentResult(
             success=False,
@@ -1140,7 +1140,7 @@ class TestBaseAgentMemoryContext:
     """Tests for BaseAgent store_memory, retrieve_memory, context methods."""
 
     def _make_agent(self):
-        from Jotty.core.modes.agent.base.base_agent import AgentRuntimeConfig, BaseAgent
+        from Jotty.core.intelligence.reasoning.base.base_agent import AgentRuntimeConfig, BaseAgent
 
         class _Dummy(BaseAgent):
             async def _execute_impl(self, **kw):

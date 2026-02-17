@@ -3,7 +3,7 @@
 ## 🔴 CRITICAL (Must Fix - Runtime Bugs)
 
 ### 1. Undefined Name Errors (2 instances)
-**File:** `core/modes/execution/executor.py`
+**File:** `core/intelligence/orchestration/execution/executor.py`
 **Lines:** 474, 1432
 **Error:** `F821 undefined name 'SwarmConfig'`
 **Impact:** Runtime crash when code path is hit
@@ -60,7 +60,7 @@ except Exception as e:
 ### 4. Import Shadowing (3 instances)
 **Files:**
 - `core/infrastructure/monitoring/evaluation/gaia_adapter.py:489` (ExecutionConfig)
-- `core/modes/agent/planners/agentic_planner.py:331,454` (field)
+- `core/intelligence/reasoning/planners/agentic_planner.py:331,454` (field)
 
 **Impact:** Can cause confusion, potential bugs
 **Effort:** 5 minutes
@@ -86,8 +86,8 @@ for execution_config in configs:  # was: for ExecutionConfig in configs
 - `core/intelligence/orchestration/direct_chat_executor.py`: Dict
 - `core/intelligence/orchestration/validation_gate.py`: field, List
 - `core/interface/api/mode_router.py`: ResponseFormat
-- `core/modes/agent/planners/agentic_planner.py`: ExecutionTrajectory
-- `core/modes/execution/executor.py`: re, SwarmLearningConfig
+- `core/intelligence/reasoning/planners/agentic_planner.py`: ExecutionTrajectory
+- `core/intelligence/orchestration/execution/executor.py`: re, SwarmLearningConfig
 
 **Fix:**
 ```bash
@@ -103,7 +103,7 @@ autoflake --remove-all-unused-imports --in-place <files>
 - `apps/cli/app.py`: Lines 21-29, 33
 - `apps/telegram/bot.py`: Lines 20, 21, 28, 32
 - `core/interface/api/mode_router.py`: Line 32
-- `core/modes/agent/planners/agentic_planner.py`: Lines 109-111, 203, 205
+- `core/intelligence/reasoning/planners/agentic_planner.py`: Lines 109-111, 203, 205
 
 **Fix:**
 ```bash
@@ -117,8 +117,8 @@ isort <files>
 
 **Files:**
 - `core/infrastructure/monitoring/evaluation/gaia_adapter.py`: Lines 646, 654, 776
-- `core/modes/agent/planners/agentic_planner.py`: Lines 214, 223, 534, 556, 623, 684, 695
-- `core/modes/execution/executor.py`: Lines 996, 1386
+- `core/intelligence/reasoning/planners/agentic_planner.py`: Lines 214, 223, 534, 556, 623, 684, 695
+- `core/intelligence/orchestration/execution/executor.py`: Lines 996, 1386
 
 **Fix:**
 ```python
@@ -131,7 +131,7 @@ logger.info("Starting process")
 
 ### 8. Unused Variables (2 instances)
 **Files:**
-- `core/modes/execution/executor.py:1509`: variable 'si'
+- `core/intelligence/orchestration/execution/executor.py:1509`: variable 'si'
 - `core/infrastructure/monitoring/evaluation/gaia_signatures.py:19`: redefinition
 
 **Impact:** Dead code

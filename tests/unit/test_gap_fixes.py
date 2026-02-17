@@ -62,7 +62,9 @@ def _agent_spec(name, capabilities=None):
 
 
 def _pipeline():
-    from Jotty.core.intelligence.orchestration.learning_pipeline import SwarmLearningPipeline
+    from Jotty.core.intelligence.orchestration.learning.learning_pipeline import (
+        SwarmLearningPipeline,
+    )
 
     return SwarmLearningPipeline(_cfg())
 
@@ -80,7 +82,7 @@ class TestGap1AgentSelection:
 
     def test_stigmergy_reorders_agents(self):
         """After depositing strong signals, agents should be reordered."""
-        from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
+        from Jotty.core.intelligence.orchestration.core.swarm_manager import Orchestrator
 
         sm = Orchestrator(
             agents=[
@@ -131,7 +133,7 @@ class TestGap1AgentSelection:
 
     def test_byzantine_filters_untrusted_agents(self):
         """Agents with trust < 0.2 should be excluded from execution."""
-        from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
+        from Jotty.core.intelligence.orchestration.core.swarm_manager import Orchestrator
 
         sm = Orchestrator(
             agents=[
@@ -192,7 +194,7 @@ class TestGap2AdaptiveRefinement:
 
     def test_refinement_stops_early_on_adaptive_signal(self):
         """If adaptive learning says stop, refinement should exit early."""
-        from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
+        from Jotty.core.intelligence.orchestration.core.swarm_manager import Orchestrator
 
         sm = Orchestrator(
             agents=[
@@ -248,7 +250,7 @@ class TestGap2AdaptiveRefinement:
     )
     def test_refinement_runs_full_without_convergence(self):
         """Without convergence signal, refinement should run all iterations."""
-        from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
+        from Jotty.core.intelligence.orchestration.core.swarm_manager import Orchestrator
 
         sm = Orchestrator(
             agents=[
@@ -372,7 +374,7 @@ class TestGap3CurriculumQueue:
 
     def test_swarm_manager_exposes_pending_count(self):
         """Orchestrator.pending_training_tasks should reflect queue state."""
-        from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
+        from Jotty.core.intelligence.orchestration.core.swarm_manager import Orchestrator
 
         sm = Orchestrator(
             agents=[_agent_spec("tester", capabilities=["test"])],

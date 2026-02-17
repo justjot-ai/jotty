@@ -5,9 +5,9 @@
 
 ---
 
-## 🔴 Problem: Broken Import Architecture in `core/modes/agent/`
+## 🔴 Problem: Broken Import Architecture in `core/intelligence/reasoning/`
 
-The `core/modes/agent/` module has **systematic import path issues** due to incorrect relative imports that assume a different directory structure.
+The `core/intelligence/reasoning/` module has **systematic import path issues** due to incorrect relative imports that assume a different directory structure.
 
 ---
 
@@ -27,7 +27,7 @@ The `core/modes/agent/` module has **systematic import path issues** due to inco
 
 ## 🔍 Root Cause
 
-**The `core/modes/agent/` module uses relative imports like:**
+**The `core/intelligence/reasoning/` module uses relative imports like:**
 ```python
 from ..foundation.data_structures import SwarmConfig
 from ..learning.learning import TDLambdaLearner
@@ -35,9 +35,9 @@ from ..memory.memory import MemorySystem
 ```
 
 **But these modules don't exist at those paths:**
-- ❌ `core/modes/agent/foundation/` doesn't exist
-- ❌ `core/modes/agent/learning/` doesn't exist
-- ❌ `core/modes/agent/memory/` doesn't exist
+- ❌ `core/intelligence/reasoning/foundation/` doesn't exist
+- ❌ `core/intelligence/reasoning/learning/` doesn't exist
+- ❌ `core/intelligence/reasoning/memory/` doesn't exist
 
 **They actually live in:**
 - ✅ `core/infrastructure/foundation/`
@@ -48,7 +48,7 @@ from ..memory.memory import MemorySystem
 
 ## 🎯 Why This Happened
 
-The `core/modes/agent/` module appears to be **legacy code** from an older architecture where these modules were co-located. After restructuring into the clean 5-layer architecture, the imports were not updated.
+The `core/intelligence/reasoning/` module appears to be **legacy code** from an older architecture where these modules were co-located. After restructuring into the clean 5-layer architecture, the imports were not updated.
 
 ---
 
@@ -67,12 +67,12 @@ The `core/modes/agent/` module appears to be **legacy code** from an older archi
 
 ### Option 2: Check if Agent Module is Actually Used
 **Investigate:**
-- Is `core/modes/agent/` even used in production?
+- Is `core/intelligence/reasoning/` even used in production?
 - Are these DAG agents critical?
 - Can they be deprecated?
 
 ### Option 3: Create Compatibility Layer
-**Create:** `core/modes/agent/compat.py` that re-exports from correct locations
+**Create:** `core/intelligence/reasoning/compat.py` that re-exports from correct locations
 
 **Pros:**
 - ⚠️ Quick fix
@@ -128,7 +128,7 @@ The comprehensive code analysis provides more value than runtime tests would.
 
 ## ✅ What Was Successfully Fixed
 
-1. ✅ **8 dag_agents import paths** - Changed from `core.modes.agent.dag_agents` to `core.modes.agent.planners.dag_agents`
+1. ✅ **8 dag_agents import paths** - Changed from `core.intelligence.reasoning.dag_agents` to `core.intelligence.reasoning.planners.dag_agents`
 2. ✅ **3 foundation imports** - Changed from relative to absolute imports
 3. ✅ **Documentation created** - Clear record of issues and fixes
 
@@ -136,7 +136,7 @@ The comprehensive code analysis provides more value than runtime tests would.
 
 ## ⚠️ What Still Needs Work
 
-1. ❌ **~20+ more import paths** in `core/modes/agent/`
+1. ❌ **~20+ more import paths** in `core/intelligence/reasoning/`
 2. ❌ **Verification testing** - Can't test until all imports fixed
 3. ❌ **Architecture decision** - Keep fixing or deprecate module?
 
@@ -145,13 +145,13 @@ The comprehensive code analysis provides more value than runtime tests would.
 ## 🎯 Next Steps (User Decision Needed)
 
 **Option A: Continue Fixing Imports**
-- Fix all remaining imports in `core/modes/agent/`
+- Fix all remaining imports in `core/intelligence/reasoning/`
 - Estimated: 20-30 more files
 - Time: 30-60 minutes
 - Risk: Medium (might break other things)
 
 **Option B: Verify Usage First**
-- Check if `core/modes/agent/` is actually used
+- Check if `core/intelligence/reasoning/` is actually used
 - If unused, mark as deprecated
 - If used, prioritize fixes
 - Time: 10 minutes investigation

@@ -10,7 +10,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.experts.memory_integration import (
+from Jotty.core.intelligence.reasoning.agents.memory_integration import (
     retrieve_improvements_from_memory,
     sync_improvements_to_memory,
 )

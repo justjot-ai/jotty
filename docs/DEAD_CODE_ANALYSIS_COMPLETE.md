@@ -33,16 +33,16 @@ Identify truly dead code in core/ folder while filtering out architectural patte
 
 ##### 1. Duplicate Workflow Files (6 files, ~3,500 lines)
 
-**Location:** `core/modes/workflow/`
+**Location:** `core/intelligence/orchestration/pipelines/`
 **Issue:** Duplicates of files in `core/execution/workflows/`
 
 ```
-core/modes/workflow/auto_workflow.py           (490 lines) ← DUPLICATE
-core/modes/workflow/learning_workflow.py       (800 lines) ← DUPLICATE
-core/modes/workflow/research_workflow.py       (786 lines) ← DUPLICATE
-core/modes/workflow/smart_swarm_registry.py    (331 lines) ← DUPLICATE
-core/modes/workflow/output_channels.py         (399 lines) ← MOVED to skills/messaging-tools/
-core/modes/workflow/output_formats.py          (551 lines) ← MOVED to skills/document-tools/
+core/intelligence/orchestration/pipelines/auto_workflow.py           (490 lines) ← DUPLICATE
+core/intelligence/orchestration/pipelines/learning_workflow.py       (800 lines) ← DUPLICATE
+core/intelligence/orchestration/pipelines/research_workflow.py       (786 lines) ← DUPLICATE
+core/intelligence/orchestration/pipelines/smart_swarm_registry.py    (331 lines) ← DUPLICATE
+core/intelligence/orchestration/pipelines/output_channels.py         (399 lines) ← MOVED to skills/messaging-tools/
+core/intelligence/orchestration/pipelines/output_formats.py          (551 lines) ← MOVED to skills/document-tools/
 ```
 
 **Recommendation:** ✅ **DELETE** - Already have working versions in `core/execution/workflows/`
@@ -169,12 +169,12 @@ core/infrastructure/utils/algorithmic_foundations.py (419 lines)
 These are confirmed duplicates with working versions in `core/execution/workflows/`:
 
 ```bash
-rm -f core/modes/workflow/auto_workflow.py
-rm -f core/modes/workflow/learning_workflow.py
-rm -f core/modes/workflow/research_workflow.py
-rm -f core/modes/workflow/smart_swarm_registry.py
-rm -f core/modes/workflow/output_channels.py  # Already moved to skills/messaging-tools/
-rm -f core/modes/workflow/output_formats.py   # Already moved to skills/document-tools/
+rm -f core/intelligence/orchestration/pipelines/auto_workflow.py
+rm -f core/intelligence/orchestration/pipelines/learning_workflow.py
+rm -f core/intelligence/orchestration/pipelines/research_workflow.py
+rm -f core/intelligence/orchestration/pipelines/smart_swarm_registry.py
+rm -f core/intelligence/orchestration/pipelines/output_channels.py  # Already moved to skills/messaging-tools/
+rm -f core/intelligence/orchestration/pipelines/output_formats.py   # Already moved to skills/document-tools/
 ```
 
 **Impact:** Removes duplicate code, simplifies codebase

@@ -30,14 +30,18 @@ import pytest
 # Guarded imports with skip markers
 # ---------------------------------------------------------------------------
 try:
-    from Jotty.core.modes.agent.base.base_agent import AgentResult, AgentRuntimeConfig, BaseAgent
+    from Jotty.core.intelligence.reasoning.base.base_agent import (
+        AgentResult,
+        AgentRuntimeConfig,
+        BaseAgent,
+    )
 
     BASE_AGENT_AVAILABLE = True
 except ImportError:
     BASE_AGENT_AVAILABLE = False
 
 try:
-    from Jotty.core.modes.agent.agents.domain_agent import (
+    from Jotty.core.intelligence.reasoning.agents.domain_agent import (
         DomainAgent,
         DomainAgentConfig,
         create_domain_agent,
@@ -48,7 +52,7 @@ except ImportError:
     DOMAIN_AGENT_AVAILABLE = False
 
 try:
-    from Jotty.core.modes.agent.agents.swarm_agent import SwarmLearningAgent
+    from Jotty.core.intelligence.reasoning.agents.swarm_agent import SwarmLearningAgent
 
     SWARM_AGENT_AVAILABLE = True
 except ImportError:
@@ -57,7 +61,7 @@ except ImportError:
 try:
     from Jotty.core.infrastructure.foundation.types.enums import ValidationRound
     from Jotty.core.infrastructure.foundation.types.validation_types import ValidationResult
-    from Jotty.core.modes.agent.agents.validation_agent import (
+    from Jotty.core.intelligence.reasoning.agents.validation_agent import (
         AgentMessage,
         SharedScratchpad,
         ValidationAgent,
@@ -69,14 +73,14 @@ except ImportError:
     VALIDATION_AGENT_AVAILABLE = False
 
 try:
-    from Jotty.core.modes.agent.executors.skill_plan_executor import ToolCallCache
+    from Jotty.core.intelligence.reasoning.executors.skill_plan_executor import ToolCallCache
 
     TOOL_CACHE_AVAILABLE = True
 except ImportError:
     TOOL_CACHE_AVAILABLE = False
 
 try:
-    from Jotty.core.modes.agent.agents.autonomous_agent import ExecutionContextManager
+    from Jotty.core.intelligence.reasoning.agents.autonomous_agent import ExecutionContextManager
 
     EXEC_CTX_AVAILABLE = True
 except ImportError:

@@ -51,7 +51,7 @@ def convert_skill_to_agent(
 def test_skill_agent(agent_name: str, test_task: str) -> Dict[str, Any]:
     """Test a converted skill agent with a sample task."""
     try:
-        from Jotty.core.modes.agent.agents.skill_based_agent import SkillBasedAgent
+        from Jotty.core.intelligence.reasoning.agent.agents.skill_based_agent import SkillBasedAgent
 
         # Load the agent
         agent = SkillBasedAgent(name=agent_name)

@@ -12,7 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.experts import ExpertAgentConfig, MermaidExpertAgent
+from Jotty.core.intelligence.reasoning.agents import ExpertAgentConfig, MermaidExpertAgent
 from core.foundation.data_structures import MemoryLevel, SwarmConfig
 from core.memory.cortex import SwarmMemory
 
@@ -172,7 +172,9 @@ async def test_complex_scenarios():
     expert = MermaidExpertAgent(config=config, memory=memory)
 
     # Add some mock improvements to memory for testing
-    from core.experts.memory_integration import store_improvement_to_memory
+    from Jotty.core.intelligence.reasoning.agents.memory_integration import (
+        store_improvement_to_memory,
+    )
 
     test_improvement = {
         "learned_pattern": "When generating flowcharts, use 'flowchart TD' instead of 'graph TD'",

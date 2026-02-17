@@ -375,7 +375,7 @@ class TestHybridActionRouter:
     @pytest.mark.unit
     def test_format_skills_includes_executor_type(self):
         """_format_skills_for_planner should include executor_type when present."""
-        from Jotty.core.modes.agent.agentic_planner import TaskPlanner
+        from Jotty.core.intelligence.reasoning.planners.agentic_planner import TaskPlanner
 
         planner = TaskPlanner.__new__(TaskPlanner)
         planner._fast_lm = None
@@ -412,7 +412,9 @@ class TestHybridActionRouter:
     @pytest.mark.unit
     def test_executor_type_in_planner_signature(self):
         """ExecutionPlanningSignature should mention hybrid routing."""
-        from Jotty.core.modes.agent.planner_signatures import ExecutionPlanningSignature
+        from Jotty.core.intelligence.reasoning.types.planner_signatures import (
+            ExecutionPlanningSignature,
+        )
 
         docstring = ExecutionPlanningSignature.__doc__
         assert "HYBRID ACTION ROUTING" in docstring
@@ -515,35 +517,35 @@ class TestMASBenchResult:
 
     def test_step_ratio(self):
         """step_ratio should be total_steps / optimal_steps."""
-        from Jotty.core.intelligence.orchestration.benchmarking import MASBenchResult
+        from Jotty.core.intelligence.orchestration.learning.benchmarking import MASBenchResult
 
         r = MASBenchResult(task_id="t1", total_steps=10, optimal_steps=5)
         assert r.step_ratio == 2.0
 
     def test_step_ratio_zero_optimal(self):
         """step_ratio should handle optimal_steps=0."""
-        from Jotty.core.intelligence.orchestration.benchmarking import MASBenchResult
+        from Jotty.core.intelligence.orchestration.learning.benchmarking import MASBenchResult
 
         r = MASBenchResult(task_id="t1", total_steps=5, optimal_steps=0)
         assert r.step_ratio == 5.0
 
     def test_shortcut_success_rate(self):
         """SSR should be successes / calls."""
-        from Jotty.core.intelligence.orchestration.benchmarking import MASBenchResult
+        from Jotty.core.intelligence.orchestration.learning.benchmarking import MASBenchResult
 
         r = MASBenchResult(task_id="t1", shortcut_calls=10, shortcut_successes=8)
         assert r.shortcut_success_rate == 0.8
 
     def test_gui_shortcut_ratio(self):
         """GSAR should be shortcut / gui steps."""
-        from Jotty.core.intelligence.orchestration.benchmarking import MASBenchResult
+        from Jotty.core.intelligence.orchestration.learning.benchmarking import MASBenchResult
 
         r = MASBenchResult(task_id="t1", gui_steps=2, shortcut_steps=6)
         assert r.gui_shortcut_ratio == 3.0
 
     def test_to_dict(self):
         """to_dict should include all metrics."""
-        from Jotty.core.intelligence.orchestration.benchmarking import MASBenchResult
+        from Jotty.core.intelligence.orchestration.learning.benchmarking import MASBenchResult
 
         r = MASBenchResult(
             task_id="t1",
@@ -564,7 +566,7 @@ class TestMASBenchRunner:
     """Tests for MASBenchRunner evaluation harness."""
 
     def _make_runner(self):
-        from Jotty.core.intelligence.orchestration.benchmarking import MASBenchRunner
+        from Jotty.core.intelligence.orchestration.learning.benchmarking import MASBenchRunner
 
         return MASBenchRunner()
 
@@ -641,7 +643,7 @@ class TestMASBenchRunner:
 
     def test_aggregate_metrics(self):
         """compute_aggregate_metrics should compute all 7 MAS-Bench metrics."""
-        from Jotty.core.intelligence.orchestration.benchmarking import (
+        from Jotty.core.intelligence.orchestration.learning.benchmarking import (
             MASBenchResult,
             MASBenchRunner,
         )
@@ -684,7 +686,7 @@ class TestMASBenchRunner:
 
     def test_aggregate_empty_results(self):
         """Empty results should return zeroed metrics."""
-        from Jotty.core.intelligence.orchestration.benchmarking import MASBenchRunner
+        from Jotty.core.intelligence.orchestration.learning.benchmarking import MASBenchRunner
 
         metrics = MASBenchRunner.compute_aggregate_metrics([])
         assert metrics["SR"] == 0
@@ -692,7 +694,7 @@ class TestMASBenchRunner:
 
     def test_aggregate_by_difficulty(self):
         """Should break down SR by difficulty level."""
-        from Jotty.core.intelligence.orchestration.benchmarking import (
+        from Jotty.core.intelligence.orchestration.learning.benchmarking import (
             MASBenchResult,
             MASBenchRunner,
         )
@@ -709,7 +711,7 @@ class TestMASBenchRunner:
 
     def test_aggregate_single_vs_cross_app(self):
         """Should break down SR by single-app vs cross-app."""
-        from Jotty.core.intelligence.orchestration.benchmarking import (
+        from Jotty.core.intelligence.orchestration.learning.benchmarking import (
             MASBenchResult,
             MASBenchRunner,
         )
@@ -726,7 +728,7 @@ class TestMASBenchRunner:
 
     def test_summary_format(self):
         """summary() should return formatted string."""
-        from Jotty.core.intelligence.orchestration.benchmarking import (
+        from Jotty.core.intelligence.orchestration.learning.benchmarking import (
             MASBenchResult,
             MASBenchRunner,
         )
@@ -773,7 +775,7 @@ class TestAndroidToolSchemas:
 
     def test_all_tools_have_returns_section(self):
         """Every android tool should have a Returns section in docstring."""
-        from Jotty.core.modes.agent._execution_types import ToolSchema
+        from Jotty.core.intelligence.reasoning.types.execution_types import ToolSchema
 
         tools = self._get_tools()
         missing = []
@@ -785,7 +787,7 @@ class TestAndroidToolSchemas:
 
     def test_tap_tool_schema(self):
         """tap_tool should have x, y required params and x, y, action outputs."""
-        from Jotty.core.modes.agent._execution_types import ToolSchema
+        from Jotty.core.intelligence.reasoning.types.execution_types import ToolSchema
 
         tools = self._get_tools()
         schema = ToolSchema.from_tool_function(tools["tap_tool"], "tap_tool")
@@ -796,7 +798,7 @@ class TestAndroidToolSchemas:
 
     def test_screenshot_tool_schema(self):
         """screenshot_tool should declare image_base64, width, height outputs."""
-        from Jotty.core.modes.agent._execution_types import ToolSchema
+        from Jotty.core.intelligence.reasoning.types.execution_types import ToolSchema
 
         tools = self._get_tools()
         schema = ToolSchema.from_tool_function(tools["screenshot_tool"], "screenshot_tool")
@@ -806,7 +808,7 @@ class TestAndroidToolSchemas:
 
     def test_get_ui_tree_tool_schema(self):
         """get_ui_tree_tool should declare tree, node_count, interactive_elements outputs."""
-        from Jotty.core.modes.agent._execution_types import ToolSchema
+        from Jotty.core.intelligence.reasoning.types.execution_types import ToolSchema
 
         tools = self._get_tools()
         schema = ToolSchema.from_tool_function(tools["get_ui_tree_tool"], "get_ui_tree_tool")

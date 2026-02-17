@@ -19,7 +19,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 # Import types
-from Jotty.core.execution.swarms.pilot_swarm.types import (
+from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.types import (
     AVAILABLE_SWARMS,
     PilotConfig,
     PilotResult,
@@ -167,8 +167,12 @@ class TestPilotPlannerAgent:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_plan_returns_subtasks(self):
-        with patch("Jotty.core.execution.swarms.pilot_swarm.agents.BaseOlympiadAgent._get_lm"):
-            from Jotty.core.execution.swarms.pilot_swarm.agents import PilotPlannerAgent
+        with patch(
+            "Jotty.core.intelligence.orchestration.swarms.pilot_swarm.agents.BaseOlympiadAgent._get_lm"
+        ):
+            from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.agents import (
+                PilotPlannerAgent,
+            )
 
             agent = PilotPlannerAgent.__new__(PilotPlannerAgent)
             agent.model = "sonnet"
@@ -216,8 +220,12 @@ class TestPilotSearchAgent:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_search_returns_findings(self):
-        with patch("Jotty.core.execution.swarms.pilot_swarm.agents.BaseOlympiadAgent._get_lm"):
-            from Jotty.core.execution.swarms.pilot_swarm.agents import PilotSearchAgent
+        with patch(
+            "Jotty.core.intelligence.orchestration.swarms.pilot_swarm.agents.BaseOlympiadAgent._get_lm"
+        ):
+            from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.agents import (
+                PilotSearchAgent,
+            )
 
             agent = PilotSearchAgent.__new__(PilotSearchAgent)
             agent.model = "haiku"
@@ -249,8 +257,12 @@ class TestPilotCoderAgent:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_code_returns_file_operations(self):
-        with patch("Jotty.core.execution.swarms.pilot_swarm.agents.BaseOlympiadAgent._get_lm"):
-            from Jotty.core.execution.swarms.pilot_swarm.agents import PilotCoderAgent
+        with patch(
+            "Jotty.core.intelligence.orchestration.swarms.pilot_swarm.agents.BaseOlympiadAgent._get_lm"
+        ):
+            from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.agents import (
+                PilotCoderAgent,
+            )
 
             agent = PilotCoderAgent.__new__(PilotCoderAgent)
             agent.model = "sonnet"
@@ -289,8 +301,12 @@ class TestPilotTerminalAgent:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_execute_returns_commands(self):
-        with patch("Jotty.core.execution.swarms.pilot_swarm.agents.BaseOlympiadAgent._get_lm"):
-            from Jotty.core.execution.swarms.pilot_swarm.agents import PilotTerminalAgent
+        with patch(
+            "Jotty.core.intelligence.orchestration.swarms.pilot_swarm.agents.BaseOlympiadAgent._get_lm"
+        ):
+            from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.agents import (
+                PilotTerminalAgent,
+            )
 
             agent = PilotTerminalAgent.__new__(PilotTerminalAgent)
             agent.model = "haiku"
@@ -326,8 +342,12 @@ class TestPilotSkillWriterAgent:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_write_skill_returns_files(self):
-        with patch("Jotty.core.execution.swarms.pilot_swarm.agents.BaseOlympiadAgent._get_lm"):
-            from Jotty.core.execution.swarms.pilot_swarm.agents import PilotSkillWriterAgent
+        with patch(
+            "Jotty.core.intelligence.orchestration.swarms.pilot_swarm.agents.BaseOlympiadAgent._get_lm"
+        ):
+            from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.agents import (
+                PilotSkillWriterAgent,
+            )
 
             agent = PilotSkillWriterAgent.__new__(PilotSkillWriterAgent)
             agent.model = "sonnet"
@@ -362,8 +382,12 @@ class TestPilotValidatorAgent:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_validate_success(self):
-        with patch("Jotty.core.execution.swarms.pilot_swarm.agents.BaseOlympiadAgent._get_lm"):
-            from Jotty.core.execution.swarms.pilot_swarm.agents import PilotValidatorAgent
+        with patch(
+            "Jotty.core.intelligence.orchestration.swarms.pilot_swarm.agents.BaseOlympiadAgent._get_lm"
+        ):
+            from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.agents import (
+                PilotValidatorAgent,
+            )
 
             agent = PilotValidatorAgent.__new__(PilotValidatorAgent)
             agent.model = "haiku"
@@ -392,8 +416,12 @@ class TestPilotValidatorAgent:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_validate_failure(self):
-        with patch("Jotty.core.execution.swarms.pilot_swarm.agents.BaseOlympiadAgent._get_lm"):
-            from Jotty.core.execution.swarms.pilot_swarm.agents import PilotValidatorAgent
+        with patch(
+            "Jotty.core.intelligence.orchestration.swarms.pilot_swarm.agents.BaseOlympiadAgent._get_lm"
+        ):
+            from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.agents import (
+                PilotValidatorAgent,
+            )
 
             agent = PilotValidatorAgent.__new__(PilotValidatorAgent)
             agent.model = "haiku"
@@ -429,7 +457,7 @@ class TestSwarmHelpers:
 
     @pytest.mark.unit
     def test_build_context_empty(self):
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         swarm = PilotSwarm.__new__(PilotSwarm)
         ctx = swarm._build_context({})
@@ -437,7 +465,7 @@ class TestSwarmHelpers:
 
     @pytest.mark.unit
     def test_build_context_with_results(self):
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         swarm = PilotSwarm.__new__(PilotSwarm)
         ctx = swarm._build_context(
@@ -452,7 +480,7 @@ class TestSwarmHelpers:
 
     @pytest.mark.unit
     def test_build_results_summary(self):
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         swarm = PilotSwarm.__new__(PilotSwarm)
 
@@ -485,7 +513,7 @@ class TestSwarmHelpers:
 
     @pytest.mark.unit
     def test_build_results_summary_with_skill(self):
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         swarm = PilotSwarm.__new__(PilotSwarm)
 
@@ -548,27 +576,27 @@ class TestSwarmRegistration:
 
     @pytest.mark.unit
     def test_registered_in_swarm_registry(self):
-        from Jotty.core.execution.swarms._base.registry import SwarmRegistry
-        from Jotty.core.execution.swarms.pilot_swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms._base.registry import SwarmRegistry
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm import PilotSwarm
 
         swarm_class = SwarmRegistry.get("pilot")
         assert swarm_class is PilotSwarm
 
     @pytest.mark.unit
     def test_lazy_import_from_core_swarms(self):
-        from Jotty.core.execution.swarms import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms import PilotSwarm
 
         assert PilotSwarm is not None
 
     @pytest.mark.unit
     def test_lazy_import_pilot(self):
-        from Jotty.core.execution.swarms import pilot
+        from Jotty.core.intelligence.orchestration.swarms import pilot
 
         assert callable(pilot)
 
     @pytest.mark.unit
     def test_lazy_import_types(self):
-        from Jotty.core.execution.swarms import SubtaskStatus, SubtaskType
+        from Jotty.core.intelligence.orchestration.swarms import SubtaskStatus, SubtaskType
 
         assert len(SubtaskType) == 7
         assert len(SubtaskStatus) == 5
@@ -585,7 +613,7 @@ class TestSwarmExecution:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_swarm_instantiation(self):
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         swarm = PilotSwarm()
         assert swarm.config.name == "PilotSwarm"
@@ -594,7 +622,7 @@ class TestSwarmExecution:
     @pytest.mark.unit
     @pytest.mark.asyncio
     async def test_swarm_with_custom_config(self):
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         config = PilotConfig(max_subtasks=5, allow_terminal=False)
         swarm = PilotSwarm(config)
@@ -612,13 +640,13 @@ class TestConvenienceFunctions:
 
     @pytest.mark.unit
     def test_pilot_is_callable(self):
-        from Jotty.core.execution.swarms.pilot_swarm import pilot
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm import pilot
 
         assert callable(pilot)
 
     @pytest.mark.unit
     def test_pilot_sync_is_callable(self):
-        from Jotty.core.execution.swarms.pilot_swarm import pilot_sync
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm import pilot_sync
 
         assert callable(pilot_sync)
 
@@ -634,7 +662,7 @@ class TestSignatures:
     @pytest.mark.unit
     def test_all_signatures_importable(self):
         import dspy
-        from Jotty.core.execution.swarms.pilot_swarm.signatures import (
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.signatures import (
             CodePlanSignature,
             CoderSignature,
             PlannerSignature,
@@ -659,7 +687,7 @@ class TestSignatures:
 
     @pytest.mark.unit
     def test_signature_count(self):
-        from Jotty.core.execution.swarms.pilot_swarm import signatures
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm import signatures
 
         all_sigs = signatures.__all__
         assert len(all_sigs) == 8
@@ -667,7 +695,9 @@ class TestSignatures:
     @pytest.mark.unit
     def test_code_plan_signature_fields(self):
         """CodePlanSignature has expected input/output fields."""
-        from Jotty.core.execution.swarms.pilot_swarm.signatures import CodePlanSignature
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.signatures import (
+            CodePlanSignature,
+        )
 
         assert "task" in CodePlanSignature.input_fields
         assert "context" in CodePlanSignature.input_fields
@@ -677,7 +707,9 @@ class TestSignatures:
     @pytest.mark.unit
     def test_single_file_write_signature_fields(self):
         """SingleFileWriteSignature has expected input/output fields."""
-        from Jotty.core.execution.swarms.pilot_swarm.signatures import SingleFileWriteSignature
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.signatures import (
+            SingleFileWriteSignature,
+        )
 
         assert "file_path" in SingleFileWriteSignature.input_fields
         assert "file_description" in SingleFileWriteSignature.input_fields
@@ -696,8 +728,10 @@ class TestAgentsImport:
 
     @pytest.mark.unit
     def test_all_agents_importable(self):
-        from Jotty.core.execution.swarms.olympiad_learning_swarm.agents import BaseOlympiadAgent
-        from Jotty.core.execution.swarms.pilot_swarm.agents import (
+        from Jotty.core.intelligence.orchestration.swarms.olympiad_learning_swarm.agents import (
+            BaseOlympiadAgent,
+        )
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.agents import (
             PilotCoderAgent,
             PilotPlannerAgent,
             PilotSearchAgent,
@@ -798,7 +832,7 @@ class TestBrowseHandler:
     @pytest.mark.unit
     def test_browse_type_in_dispatch(self):
         """Verify BROWSE has its own handler, not a search fallback."""
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         swarm = PilotSwarm()
         swarm._init_agents()
@@ -818,7 +852,7 @@ class TestBrowseHandler:
     @pytest.mark.asyncio
     async def test_browse_fallback_when_no_vlm(self):
         """When visual-inspector is unavailable, browse falls back to search."""
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         swarm = PilotSwarm()
         swarm._init_agents()
@@ -845,7 +879,9 @@ class TestBrowseHandler:
     @pytest.mark.unit
     def test_browse_in_planner_signature(self):
         """Verify planner signature mentions browse type."""
-        from Jotty.core.execution.swarms.pilot_swarm.signatures import PlannerSignature
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.signatures import (
+            PlannerSignature,
+        )
 
         # Check the docstring includes browse
         assert "browse" in PlannerSignature.__doc__.lower()
@@ -862,7 +898,7 @@ class TestRetryLoop:
     @pytest.mark.unit
     def test_build_replan_context(self):
         """Replan context includes completed work and remaining gaps."""
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         subtasks = [
             Subtask(
@@ -900,7 +936,7 @@ class TestRetryLoop:
     @pytest.mark.unit
     def test_build_replan_context_extracts_rich_keys(self):
         """Replan context extracts key_findings, read_content, visual_analysis."""
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         subtasks = [
             Subtask(
@@ -942,7 +978,7 @@ class TestRetryLoop:
     @pytest.mark.asyncio
     async def test_retry_loop_triggers_on_validation_failure(self):
         """When validator returns failure, planner is called again."""
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         swarm = PilotSwarm.__new__(PilotSwarm)
         swarm.config = PilotConfig(max_retries=1)
@@ -1007,7 +1043,7 @@ class TestRetryLoop:
     @pytest.mark.asyncio
     async def test_retry_loop_respects_max_retries(self):
         """Retry loop exits after max_retries even if validation keeps failing."""
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         swarm = PilotSwarm.__new__(PilotSwarm)
         swarm.config = PilotConfig(max_retries=2)
@@ -1059,7 +1095,7 @@ class TestRetryLoop:
     @pytest.mark.asyncio
     async def test_empty_replan_stops_retries(self):
         """If replanner returns no subtasks, stop retrying immediately."""
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         swarm = PilotSwarm.__new__(PilotSwarm)
         swarm.config = PilotConfig(max_retries=3)
@@ -1139,7 +1175,7 @@ class TestFileReadEdit:
     @pytest.mark.unit
     def test_read_file_returns_content(self, tmp_path):
         """Read existing file returns its content."""
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         f = tmp_path / "test.txt"
         f.write_text("hello world")
@@ -1149,7 +1185,7 @@ class TestFileReadEdit:
     @pytest.mark.unit
     def test_read_file_not_found(self):
         """Read non-existent file returns error message."""
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         result = PilotSwarm._read_file("/nonexistent/path/abc.txt")
         assert "[ERROR]" in result
@@ -1158,7 +1194,7 @@ class TestFileReadEdit:
     @pytest.mark.unit
     def test_read_file_truncates(self, tmp_path):
         """Read large file truncates at max_chars."""
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         f = tmp_path / "big.txt"
         f.write_text("x" * 10000)
@@ -1169,7 +1205,7 @@ class TestFileReadEdit:
     @pytest.mark.unit
     def test_edit_file_replaces_content(self, tmp_path):
         """Edit file replaces old_content with new_content."""
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         f = tmp_path / "code.py"
         f.write_text("def foo():\n    return 1\n")
@@ -1181,7 +1217,7 @@ class TestFileReadEdit:
     @pytest.mark.unit
     def test_edit_file_old_content_not_found(self, tmp_path):
         """Edit file returns False when old_content doesn't match."""
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         f = tmp_path / "code.py"
         f.write_text("def foo():\n    return 1\n")
@@ -1192,7 +1228,7 @@ class TestFileReadEdit:
     @pytest.mark.unit
     def test_edit_file_missing_file(self):
         """Edit file returns False for non-existent file."""
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         success = PilotSwarm._edit_file("/nonexistent/file.py", "old", "new")
         assert success is False
@@ -1209,7 +1245,7 @@ class TestParallelExecution:
     @pytest.mark.unit
     def test_compute_waves_no_deps(self):
         """Subtasks with no deps all go in wave 0."""
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         subtasks = [
             Subtask(id="s1", type=SubtaskType.SEARCH, description="A"),
@@ -1223,7 +1259,7 @@ class TestParallelExecution:
     @pytest.mark.unit
     def test_compute_waves_linear_deps(self):
         """Linear chain: s1 → s2 → s3, one per wave."""
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         subtasks = [
             Subtask(id="s1", type=SubtaskType.SEARCH, description="A"),
@@ -1239,7 +1275,7 @@ class TestParallelExecution:
     @pytest.mark.unit
     def test_compute_waves_diamond_deps(self):
         """Diamond: s1 → s2,s3 → s4."""
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         subtasks = [
             Subtask(id="s1", type=SubtaskType.SEARCH, description="A"),
@@ -1258,7 +1294,7 @@ class TestParallelExecution:
     @pytest.mark.unit
     def test_compute_waves_circular_deps_handled(self):
         """Circular deps get dumped into final wave."""
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         subtasks = [
             Subtask(id="s1", type=SubtaskType.SEARCH, description="A", depends_on=["s2"]),
@@ -1273,7 +1309,7 @@ class TestParallelExecution:
     @pytest.mark.unit
     def test_compute_waves_empty(self):
         """Empty input returns empty waves."""
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         waves = PilotSwarm._compute_waves([])
         assert waves == []
@@ -1287,7 +1323,7 @@ class TestParallelExecution:
         """
         import time
 
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         swarm = PilotSwarm.__new__(PilotSwarm)
         swarm.config = PilotConfig(max_concurrent=3)
@@ -1346,7 +1382,7 @@ class TestImprovedContext:
     @pytest.mark.unit
     def test_context_includes_read_content(self):
         """Context includes read_content from file operations."""
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         swarm = PilotSwarm.__new__(PilotSwarm)
 
@@ -1369,7 +1405,7 @@ class TestImprovedContext:
     @pytest.mark.unit
     def test_context_uses_8_results(self):
         """Context keeps last 8 results (increased from 5)."""
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         swarm = PilotSwarm.__new__(PilotSwarm)
 
@@ -1398,7 +1434,7 @@ class TestSubtaskRetry:
     @pytest.mark.asyncio
     async def test_retry_on_timeout(self):
         """Retries on TimeoutError and succeeds on second attempt."""
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         swarm = PilotSwarm.__new__(PilotSwarm)
         swarm.config = PilotConfig()
@@ -1426,7 +1462,7 @@ class TestSubtaskRetry:
     @pytest.mark.asyncio
     async def test_no_retry_on_value_error(self):
         """Does NOT retry on ValueError — raises immediately."""
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         swarm = PilotSwarm.__new__(PilotSwarm)
         swarm.config = PilotConfig()
@@ -1445,7 +1481,7 @@ class TestSubtaskRetry:
     @pytest.mark.asyncio
     async def test_retry_exhausted_raises(self):
         """After max retries, the transient error is raised."""
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         swarm = PilotSwarm.__new__(PilotSwarm)
         swarm.config = PilotConfig()
@@ -1470,7 +1506,7 @@ class TestSubtaskRetry:
     @pytest.mark.asyncio
     async def test_retry_on_rate_limit_string(self):
         """Retries when error message contains rate limit indicator."""
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         swarm = PilotSwarm.__new__(PilotSwarm)
         swarm.config = PilotConfig()
@@ -1507,7 +1543,7 @@ class TestCodeHandlerReadEdit:
     @pytest.mark.asyncio
     async def test_code_read_action(self, tmp_path):
         """Read action populates read_content in file operation."""
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         swarm = PilotSwarm.__new__(PilotSwarm)
         config = PilotConfig()
@@ -1535,7 +1571,7 @@ class TestCodeHandlerReadEdit:
     @pytest.mark.asyncio
     async def test_code_edit_action(self, tmp_path):
         """Edit action surgically replaces content."""
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         swarm = PilotSwarm.__new__(PilotSwarm)
         config = PilotConfig(allow_file_write=True)
@@ -1570,7 +1606,7 @@ class TestCodeHandlerReadEdit:
     @pytest.mark.asyncio
     async def test_code_edit_skipped_when_writes_disabled(self, tmp_path):
         """Edit action skipped when allow_file_write is False."""
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         swarm = PilotSwarm.__new__(PilotSwarm)
         config = PilotConfig(allow_file_write=False)
@@ -1632,10 +1668,12 @@ class TestTwoPhaseCodeGeneration:
         mock_plan_result.architecture_notes = "Layered architecture with FastAPI"
 
         with patch(
-            "Jotty.core.execution.swarms.pilot_swarm.agents.BaseOlympiadAgent.__init__",
+            "Jotty.core.intelligence.orchestration.swarms.pilot_swarm.agents.BaseOlympiadAgent.__init__",
             return_value=None,
         ):
-            from Jotty.core.execution.swarms.pilot_swarm.agents import PilotCoderAgent
+            from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.agents import (
+                PilotCoderAgent,
+            )
 
             agent = PilotCoderAgent.__new__(PilotCoderAgent)
             agent._lm = MagicMock()
@@ -1672,10 +1710,12 @@ class TestTwoPhaseCodeGeneration:
         mock_result.explanation = "Created FastAPI entry point with root endpoint"
 
         with patch(
-            "Jotty.core.execution.swarms.pilot_swarm.agents.BaseOlympiadAgent.__init__",
+            "Jotty.core.intelligence.orchestration.swarms.pilot_swarm.agents.BaseOlympiadAgent.__init__",
             return_value=None,
         ):
-            from Jotty.core.execution.swarms.pilot_swarm.agents import PilotCoderAgent
+            from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.agents import (
+                PilotCoderAgent,
+            )
 
             agent = PilotCoderAgent.__new__(PilotCoderAgent)
             agent._lm = MagicMock()
@@ -1705,10 +1745,12 @@ class TestTwoPhaseCodeGeneration:
         mock_result.explanation = "Simple script"
 
         with patch(
-            "Jotty.core.execution.swarms.pilot_swarm.agents.BaseOlympiadAgent.__init__",
+            "Jotty.core.intelligence.orchestration.swarms.pilot_swarm.agents.BaseOlympiadAgent.__init__",
             return_value=None,
         ):
-            from Jotty.core.execution.swarms.pilot_swarm.agents import PilotCoderAgent
+            from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.agents import (
+                PilotCoderAgent,
+            )
 
             agent = PilotCoderAgent.__new__(PilotCoderAgent)
             agent._lm = MagicMock()
@@ -1728,7 +1770,7 @@ class TestTwoPhaseCodeGeneration:
     @pytest.mark.asyncio
     async def test_execute_code_fast_path(self):
         """≤2 files in plan → delegates to _execute_code_single_shot."""
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         swarm = PilotSwarm.__new__(PilotSwarm)
         config = PilotConfig(allow_file_write=False)
@@ -1760,7 +1802,7 @@ class TestTwoPhaseCodeGeneration:
     @pytest.mark.asyncio
     async def test_execute_code_multi_file(self):
         """3+ files in plan → writes each file individually."""
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         swarm = PilotSwarm.__new__(PilotSwarm)
         config = PilotConfig(allow_file_write=False)
@@ -1813,7 +1855,7 @@ class TestTwoPhaseCodeGeneration:
     @pytest.mark.asyncio
     async def test_execute_code_multi_file_accumulates_context(self):
         """Each file gets context from previously written files."""
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         swarm = PilotSwarm.__new__(PilotSwarm)
         config = PilotConfig(allow_file_write=False)
@@ -1861,7 +1903,7 @@ class TestTwoPhaseCodeGeneration:
     @pytest.mark.asyncio
     async def test_execute_code_multi_file_writes_to_disk(self, tmp_path):
         """Multi-file path writes files to disk when allow_file_write=True."""
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         swarm = PilotSwarm.__new__(PilotSwarm)
         config = PilotConfig(allow_file_write=True)
@@ -1918,7 +1960,7 @@ class TestTwoPhaseCodeGeneration:
     @pytest.mark.asyncio
     async def test_sandbox_validation_on_python_files(self):
         """Python files are validated via SandboxManager syntax check."""
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         swarm = PilotSwarm.__new__(PilotSwarm)
         config = PilotConfig(allow_file_write=False)
@@ -1961,7 +2003,7 @@ class TestTwoPhaseCodeGeneration:
     @pytest.mark.asyncio
     async def test_sandbox_failure_does_not_block(self):
         """Syntax error in generated code logs warning but doesn't stop execution."""
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         swarm = PilotSwarm.__new__(PilotSwarm)
         config = PilotConfig(allow_file_write=False)
@@ -2020,14 +2062,14 @@ class TestProjectContextBuilder:
 
     @pytest.mark.unit
     def test_build_project_context_empty(self):
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         result = PilotSwarm._build_project_context("", [])
         assert result == "No previous context."
 
     @pytest.mark.unit
     def test_build_project_context_with_notes(self):
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         result = PilotSwarm._build_project_context("Clean architecture", [])
         assert "ARCHITECTURE:" in result
@@ -2035,7 +2077,7 @@ class TestProjectContextBuilder:
 
     @pytest.mark.unit
     def test_build_project_context_with_summaries(self):
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         summaries = ["app/main.py: Entry point", "app/models.py: Data models"]
         result = PilotSwarm._build_project_context("Notes", summaries)
@@ -2045,7 +2087,7 @@ class TestProjectContextBuilder:
 
     @pytest.mark.unit
     def test_build_project_context_accumulates(self):
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         ctx1 = PilotSwarm._build_project_context("Notes", ["a.py: file A"])
         ctx2 = PilotSwarm._build_project_context("Notes", ["a.py: file A", "b.py: file B"])
@@ -2054,11 +2096,13 @@ class TestProjectContextBuilder:
 
     @pytest.mark.unit
     def test_get_sandbox_returns_manager(self):
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         swarm = PilotSwarm.__new__(PilotSwarm)
 
-        with patch("Jotty.core.execution.swarms.pilot_swarm.swarm.get_sandbox_manager") as mock_get:
+        with patch(
+            "Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm.get_sandbox_manager"
+        ) as mock_get:
             mock_manager = MagicMock()
             mock_get.return_value = mock_manager
             result = swarm._get_sandbox()
@@ -2066,11 +2110,13 @@ class TestProjectContextBuilder:
 
     @pytest.mark.unit
     def test_get_sandbox_caches_result(self):
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         swarm = PilotSwarm.__new__(PilotSwarm)
 
-        with patch("Jotty.core.execution.swarms.pilot_swarm.swarm.get_sandbox_manager") as mock_get:
+        with patch(
+            "Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm.get_sandbox_manager"
+        ) as mock_get:
             mock_manager = MagicMock()
             mock_get.return_value = mock_manager
             result1 = swarm._get_sandbox()
@@ -2080,12 +2126,12 @@ class TestProjectContextBuilder:
 
     @pytest.mark.unit
     def test_get_sandbox_returns_none_on_error(self):
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         swarm = PilotSwarm.__new__(PilotSwarm)
 
         with patch(
-            "Jotty.core.execution.swarms.pilot_swarm.swarm.get_sandbox_manager",
+            "Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm.get_sandbox_manager",
             side_effect=RuntimeError("Docker unavailable"),
         ):
             result = swarm._get_sandbox()
@@ -2104,7 +2150,7 @@ class TestTerminalSandboxIntegration:
     @pytest.mark.asyncio
     async def test_terminal_uses_sandbox(self):
         """Terminal commands use SandboxManager for isolation."""
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         swarm = PilotSwarm.__new__(PilotSwarm)
         config = PilotConfig(allow_terminal=True)
@@ -2140,7 +2186,7 @@ class TestTerminalSandboxIntegration:
     @pytest.mark.asyncio
     async def test_terminal_falls_back_without_sandbox(self):
         """Terminal uses raw subprocess when sandbox unavailable."""
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         swarm = PilotSwarm.__new__(PilotSwarm)
         config = PilotConfig(allow_terminal=True)
@@ -2172,7 +2218,7 @@ class TestTerminalSandboxIntegration:
     @pytest.mark.asyncio
     async def test_terminal_skips_unsafe_commands(self):
         """Unsafe commands are skipped regardless of sandbox."""
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         swarm = PilotSwarm.__new__(PilotSwarm)
         config = PilotConfig(allow_terminal=True)
@@ -2220,10 +2266,12 @@ class TestProjectNameAndDirectory:
         mock_plan_result.project_name = "Stock Trading Platform"
 
         with patch(
-            "Jotty.core.execution.swarms.pilot_swarm.agents.BaseOlympiadAgent.__init__",
+            "Jotty.core.intelligence.orchestration.swarms.pilot_swarm.agents.BaseOlympiadAgent.__init__",
             return_value=None,
         ):
-            from Jotty.core.execution.swarms.pilot_swarm.agents import PilotCoderAgent
+            from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.agents import (
+                PilotCoderAgent,
+            )
 
             agent = PilotCoderAgent.__new__(PilotCoderAgent)
             agent._lm = MagicMock()
@@ -2262,7 +2310,7 @@ class TestProjectNameAndDirectory:
     @pytest.mark.asyncio
     async def test_execute_code_creates_project_dir(self, tmp_path):
         """Files are written under project_dir, not CWD."""
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         swarm = PilotSwarm.__new__(PilotSwarm)
         config = PilotConfig(allow_file_write=True, project_base_dir=str(tmp_path))
@@ -2312,7 +2360,7 @@ class TestProjectNameAndDirectory:
     @pytest.mark.asyncio
     async def test_execute_code_prefixes_relative_paths(self):
         """Relative paths get project_dir prefix."""
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         swarm = PilotSwarm.__new__(PilotSwarm)
         config = PilotConfig(allow_file_write=False, project_base_dir="/tmp/test_proj")
@@ -2357,7 +2405,7 @@ class TestProjectNameAndDirectory:
     @pytest.mark.asyncio
     async def test_execute_code_preserves_absolute_paths(self):
         """Absolute paths are left unchanged."""
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         swarm = PilotSwarm.__new__(PilotSwarm)
         config = PilotConfig(allow_file_write=False)
@@ -2396,7 +2444,9 @@ class TestProjectNameAndDirectory:
     @pytest.mark.unit
     def test_code_plan_signature_has_project_name_field(self):
         """CodePlanSignature has project_name output field."""
-        from Jotty.core.execution.swarms.pilot_swarm.signatures import CodePlanSignature
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.signatures import (
+            CodePlanSignature,
+        )
 
         assert "project_name" in CodePlanSignature.output_fields
 
@@ -2413,7 +2463,7 @@ class TestAutoTest:
     @pytest.mark.asyncio
     async def test_auto_test_skipped_no_requirements_no_tests(self, tmp_path):
         """Skipped when no requirements.txt or test files exist."""
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         swarm = PilotSwarm.__new__(PilotSwarm)
         project_dir = tmp_path / "empty-project"
@@ -2428,7 +2478,7 @@ class TestAutoTest:
     @pytest.mark.asyncio
     async def test_auto_test_creates_venv_and_runs(self, tmp_path):
         """Mock subprocess to verify venv creation, pip install, and pytest flow."""
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         swarm = PilotSwarm.__new__(PilotSwarm)
         project_dir = tmp_path / "test-project"
@@ -2465,7 +2515,7 @@ class TestAutoTest:
     @pytest.mark.asyncio
     async def test_auto_test_pip_failure(self, tmp_path):
         """Returns failure when pip install fails."""
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         swarm = PilotSwarm.__new__(PilotSwarm)
         project_dir = tmp_path / "bad-deps"
@@ -2499,7 +2549,7 @@ class TestAutoTest:
     @pytest.mark.asyncio
     async def test_auto_test_disabled_via_config(self):
         """auto_test=False skips testing entirely."""
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         swarm = PilotSwarm.__new__(PilotSwarm)
         config = PilotConfig(
@@ -2540,7 +2590,7 @@ class TestAutoTest:
     @pytest.mark.asyncio
     async def test_auto_test_install_only(self, tmp_path):
         """Requirements installed but no test files → install_only phase."""
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         swarm = PilotSwarm.__new__(PilotSwarm)
         project_dir = tmp_path / "no-tests"
@@ -2565,7 +2615,7 @@ class TestAutoTest:
     @pytest.mark.asyncio
     async def test_auto_test_venv_failure(self, tmp_path):
         """Returns failure when venv creation fails."""
-        from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+        from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
         swarm = PilotSwarm.__new__(PilotSwarm)
         project_dir = tmp_path / "venv-fail"

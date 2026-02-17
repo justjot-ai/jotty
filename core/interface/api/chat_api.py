@@ -11,8 +11,11 @@ from Jotty.core.infrastructure.foundation.agent_config import (
     AgentConfig,  # type: ignore[import-not-found, import]
 )
 from Jotty.core.intelligence.orchestration import Orchestrator
-from Jotty.core.modes.agent.agents.chat_assistant import create_chat_assistant
-from Jotty.core.modes.use_cases.chat import ChatMessage, ChatUseCase  # type: ignore[import]
+from Jotty.core.intelligence.orchestration.use_cases.chat import (  # type: ignore[import]
+    ChatMessage,
+    ChatUseCase,
+)
+from Jotty.core.intelligence.reasoning.agents.chat_assistant import create_chat_assistant
 
 logger = logging.getLogger(__name__)
 

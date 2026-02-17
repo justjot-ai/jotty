@@ -216,8 +216,8 @@ core/execution/
 
 **Before (Fragmented):**
 ```
-core/modes/agent/          # Some execution
-core/modes/workflow/       # More execution
+core/intelligence/reasoning/          # Some execution
+core/intelligence/orchestration/pipelines/       # More execution
 core/intelligence/swarms/  # Even more execution
 ```
 
@@ -243,8 +243,8 @@ core/
 
 **Before:**
 ```python
-from core.modes.agent import BaseAgent
-from core.modes.workflow import AutoWorkflow
+from core.intelligence.agent import BaseAgent
+from core.intelligence.workflow import AutoWorkflow
 from core.intelligence.swarms import CodingSwarm
 # Different locations!
 ```

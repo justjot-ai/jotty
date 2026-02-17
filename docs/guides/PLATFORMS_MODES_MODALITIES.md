@@ -9,7 +9,7 @@ Jotty has three architectural concepts that work together:
 | Concept | What It Means | Examples | Location |
 |---------|---------------|----------|----------|
 | **Platforms** | WHERE users interact | WhatsApp, Telegram, CLI, Web | `apps/` |
-| **Modes** | HOW execution happens | Chat, Workflow, Streaming | `core/modes/` |
+| **Modes** | HOW execution happens | Chat, Workflow, Streaming | `core/intelligence/` |
 | **Modalities** | WHAT medium is used | Text, Voice, Image | `core/interface/modalities/` |
 
 ## Industry Standards
@@ -57,7 +57,7 @@ These naming conventions match industry leaders:
 └────────────────────────┬────────────────────────────────────┘
                          ↓ Uses
 ┌────────────────────────┴────────────────────────────────────┐
-│  MODES (core/modes/)                                        │
+│  MODES (core/intelligence/)                                        │
 │  ├── chat/         → Chat execution mode                    │
 │  ├── workflow/     → Multi-step workflow mode               │
 │  └── streaming/    → Streaming execution mode               │
@@ -219,7 +219,7 @@ audio = text_to_speech(
 
 **No breaking changes** - This is purely additive:
 - Existing `apps/` (platforms) unchanged
-- Existing `core/modes/` unchanged
+- Existing `core/intelligence/` unchanged
 - New `core/interface/modalities/` added
 
 **Documentation updated:**

@@ -12,8 +12,8 @@ Successfully demonstrated that Jotty swarms work with real LLM API calls via the
 ## Bugs Fixed (10 total)
 
 ### 1. Import Path Errors (8 files)
-**Before:** `from Jotty.core.modes.agent.dag_agents import`
-**After:** `from Jotty.core.modes.agent.planners.dag_agents import`
+**Before:** `from Jotty.core.intelligence.reasoning.dag_agents import`
+**After:** `from Jotty.core.intelligence.reasoning.planners.dag_agents import`
 
 **Files:**
 - core/execution/swarms/research_swarm/swarm.py
@@ -135,8 +135,8 @@ Successfully demonstrated that Jotty swarms work with real LLM API calls via the
 - `scripts/test_olympiad_real.py` - Focused OlympiadSwarm test ✅
 
 ### Code Fixes
-- `core/modes/agent/planners/swarm_resources_stub.py` - Minimal stub
-- `core/modes/agent/planners/dag_agents.py` - Simplified imports
+- `core/intelligence/reasoning/planners/swarm_resources_stub.py` - Minimal stub
+- `core/intelligence/reasoning/planners/dag_agents.py` - Simplified imports
 - Fixed 8 import paths across swarm files
 - Fixed 5 syntax errors in swarm_learning.py
 - Added AgentRole import to research_swarm

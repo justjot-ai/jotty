@@ -19,8 +19,8 @@ print(f"API Key: {api_key[:20] if api_key else 'NOT FOUND'}...")
 
 async def test():
     print("\n1. Importing ResearchSwarm...")
-    from Jotty.core.execution.swarms.research_swarm import ResearchSwarm
-    from Jotty.core.execution.swarms.research_swarm.types import ResearchConfig
+    from Jotty.core.intelligence.orchestration.swarms.research_swarm import ResearchSwarm
+    from Jotty.core.intelligence.orchestration.swarms.research_swarm.types import ResearchConfig
 
     print("2. Creating config...")
     config = ResearchConfig(

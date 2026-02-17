@@ -63,7 +63,7 @@ def extract_output(result) -> str:
 # USE CASE 1: Comparison Report
 # ══════════════════════════════════════════════════════════════
 async def test_comparison_report():
-    from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
+    from Jotty.core.intelligence.orchestration.core.swarm_manager import Orchestrator
 
     print(f'\n{B}{"═"*60}{E}')
     print(f"{B}  USE CASE 1: AI Coding Assistant Comparison Report{E}")
@@ -120,7 +120,7 @@ async def test_comparison_report():
 # USE CASE 2: Python CLI Tool
 # ══════════════════════════════════════════════════════════════
 async def test_cli_tool():
-    from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
+    from Jotty.core.intelligence.orchestration.core.swarm_manager import Orchestrator
 
     print(f'\n{B}{"═"*60}{E}')
     print(f"{B}  USE CASE 2: Python CSV Analyzer CLI Tool{E}")
@@ -174,7 +174,7 @@ async def test_cli_tool():
 # USE CASE 3: Technical Explanation (Knowledge Q&A)
 # ══════════════════════════════════════════════════════════════
 async def test_cap_theorem():
-    from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
+    from Jotty.core.intelligence.orchestration.core.swarm_manager import Orchestrator
 
     print(f'\n{B}{"═"*60}{E}')
     print(f"{B}  USE CASE 3: CAP Theorem Technical Explanation{E}")

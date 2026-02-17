@@ -199,7 +199,7 @@ assert cli_host._COLOR_GREEN in colored
 **Test Code:**
 ```python
 from Jotty import Jotty
-from Jotty.core.modes.agent.base.chat_assistant import create_chat_assistant
+from Jotty.core.intelligence.reasoning.base.chat_assistant import create_chat_assistant
 
 # Create Jotty instance
 jotty = Jotty()

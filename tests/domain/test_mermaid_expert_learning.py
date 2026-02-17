@@ -22,7 +22,7 @@ except ImportError:
     print("⚠️  DSPy not available")
     sys.exit(1)
 
-from core.experts import ExpertAgentConfig, MermaidExpertAgent
+from Jotty.core.intelligence.reasoning.agents import ExpertAgentConfig, MermaidExpertAgent
 
 
 async def test_mermaid_expert_learning():

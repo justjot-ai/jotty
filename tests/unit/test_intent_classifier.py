@@ -3,7 +3,7 @@ Tests for Intent Classification System
 """
 
 import pytest
-from Jotty.core.modes.execution.intent_classifier import (
+from Jotty.core.intelligence.orchestration.execution.intent_classifier import (
     IntentClassifier,
     TaskIntent,
 )

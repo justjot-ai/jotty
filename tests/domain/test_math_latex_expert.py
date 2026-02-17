@@ -12,8 +12,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.experts import ExpertAgentConfig, MathLaTeXExpertAgent
-from core.experts.math_latex_renderer import validate_math_latex_syntax
+from Jotty.core.intelligence.reasoning.agents import ExpertAgentConfig, MathLaTeXExpertAgent
+from Jotty.core.intelligence.reasoning.agents.math_latex_renderer import validate_math_latex_syntax
 
 # Test Cases for Math LaTeX
 TEST_CASES = [

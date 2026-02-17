@@ -118,8 +118,8 @@ python scripts/autofix_mypy_errors.py --category assignment   # Fix specific cat
   • var-annotated: 6 error(s)
 
 🔧 Found 9 auto-fixable error(s)
-  ✅ Fixed core/modes/workflow/smart_swarm_registry.py:54 (None assignment)
-  ✅ Fixed core/modes/agent/base/section_tools.py:102 (missing annotation)
+  ✅ Fixed core/intelligence/orchestration/pipelines/smart_swarm_registry.py:54 (None assignment)
+  ✅ Fixed core/intelligence/reasoning/base/section_tools.py:102 (missing annotation)
 
 ✅ Fixed 9 error(s) in 2 file(s)
 ```
@@ -235,7 +235,7 @@ These don't block functionality:
 ```
 - jotty_sdk (test file)
 - jotty_api_client (test file)
-- core.modes.agent.ui.schema_validator (actual missing file)
+- core.intelligence.reasoning.ui.schema_validator (actual missing file)
 ```
 
 **Why not auto-fix:**

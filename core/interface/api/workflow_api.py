@@ -8,7 +8,9 @@ import logging
 from typing import Any, AsyncIterator, Dict, List, Optional
 
 from Jotty.core.intelligence.orchestration import Orchestrator
-from Jotty.core.modes.use_cases.workflow import WorkflowUseCase  # type: ignore[import]
+from Jotty.core.intelligence.orchestration.use_cases.workflow import (
+    WorkflowUseCase,  # type: ignore[import]
+)
 
 logger = logging.getLogger(__name__)
 

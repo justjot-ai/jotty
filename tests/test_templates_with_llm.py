@@ -7,7 +7,7 @@ This tests the simple stub templates to verify they work end-to-end.
 import asyncio
 import os
 
-from core.execution.swarms.templates import (
+from core.intelligence.orchestration.swarms.templates import (
     DataAnalysisTemplate,
     MLTemplate,
     ReviewTemplate,

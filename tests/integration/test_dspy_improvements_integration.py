@@ -20,8 +20,8 @@ except ImportError:
     print("❌ DSPy not available")
     sys.exit(1)
 
-from core.experts import ExpertAgentConfig, MermaidExpertAgent
-from core.experts.dspy_improvements import (
+from Jotty.core.intelligence.reasoning.agents import ExpertAgentConfig, MermaidExpertAgent
+from Jotty.core.intelligence.reasoning.agents.dspy_improvements import (
     apply_improvements_to_dspy_module,
 )
 

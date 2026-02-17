@@ -49,10 +49,10 @@ async def test_real_coordination():
     print("\n[2/4] Initializing Expert Agents")
     print("-" * 90)
 
-    from core.experts.math_latex_expert import MathLaTeXExpertAgent
-    from core.experts.mermaid_expert import MermaidExpertAgent
-    from core.experts.pipeline_expert import PipelineExpertAgent
-    from core.experts.plantuml_expert import PlantUMLExpertAgent
+    from Jotty.core.intelligence.reasoning.agents.math_latex_expert import MathLaTeXExpertAgent
+    from Jotty.core.intelligence.reasoning.agents.mermaid_expert import MermaidExpertAgent
+    from Jotty.core.intelligence.reasoning.agents.pipeline_expert import PipelineExpertAgent
+    from Jotty.core.intelligence.reasoning.agents.plantuml_expert import PlantUMLExpertAgent
 
     experts = {
         "math": MathLaTeXExpertAgent(),

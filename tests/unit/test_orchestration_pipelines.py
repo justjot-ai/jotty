@@ -23,7 +23,7 @@ import pytest
 # Conditional imports with pytest.skip support
 # ---------------------------------------------------------------------------
 try:
-    from Jotty.core.intelligence.orchestration.sandbox_manager import (
+    from Jotty.core.intelligence.orchestration.execution.sandbox_manager import (
         SandboxConfig,
         SandboxManager,
         SandboxResult,
@@ -36,21 +36,25 @@ except ImportError:
     HAS_SANDBOX = False
 
 try:
-    from Jotty.core.intelligence.orchestration.learning_pipeline import EffectivenessTracker
+    from Jotty.core.intelligence.orchestration.learning.learning_pipeline import (
+        EffectivenessTracker,
+    )
 
     HAS_EFFECTIVENESS = True
 except ImportError:
     HAS_EFFECTIVENESS = False
 
 try:
-    from Jotty.core.intelligence.orchestration.paradigm_executor import ParadigmExecutor
+    from Jotty.core.intelligence.orchestration.coordination.paradigm_executor import (
+        ParadigmExecutor,
+    )
 
     HAS_PARADIGM = True
 except ImportError:
     HAS_PARADIGM = False
 
 try:
-    from Jotty.core.intelligence.orchestration.optimization_pipeline import (
+    from Jotty.core.intelligence.orchestration.learning.optimization_pipeline import (
         IterationResult,
         OptimizationConfig,
         OptimizationPipeline,

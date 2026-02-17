@@ -59,7 +59,7 @@ class SwarmTester:
         start = time.time()
 
         try:
-            from Jotty.core.execution.swarms import research
+            from Jotty.core.intelligence.orchestration.swarms import research
 
             result = await research(
                 query="What are the top 3 programming languages in 2026?",
@@ -102,7 +102,7 @@ class SwarmTester:
         start = time.time()
 
         try:
-            from Jotty.core.execution.swarms import code
+            from Jotty.core.intelligence.orchestration.swarms import code
 
             result = await code(
                 task="Write a Python function to calculate factorial",
@@ -145,7 +145,7 @@ class SwarmTester:
         start = time.time()
 
         try:
-            from Jotty.core.execution.swarms import learn_paper
+            from Jotty.core.intelligence.orchestration.swarms import learn_paper
 
             result = await learn_paper(
                 arxiv_id="2301.00001", depth="quick", audience="undergraduate"  # Sample paper
@@ -186,7 +186,7 @@ class SwarmTester:
         start = time.time()
 
         try:
-            from Jotty.core.execution.swarms import learn_topic
+            from Jotty.core.intelligence.orchestration.swarms import learn_topic
 
             result = await learn_topic(
                 subject="mathematics",
@@ -231,7 +231,7 @@ class SwarmTester:
         start = time.time()
 
         try:
-            from Jotty.core.execution.swarms import analyze_data
+            from Jotty.core.intelligence.orchestration.swarms import analyze_data
 
             # Create simple test data
             import pandas as pd
@@ -277,7 +277,7 @@ class SwarmTester:
         start = time.time()
 
         try:
-            from Jotty.core.execution.swarms import test
+            from Jotty.core.intelligence.orchestration.swarms import test
 
             sample_code = """
 def add(a, b):
@@ -323,7 +323,7 @@ def add(a, b):
         start = time.time()
 
         try:
-            from Jotty.core.execution.swarms import review_code
+            from Jotty.core.intelligence.orchestration.swarms import review_code
 
             sample_code = """
 def calculate_total(items):
@@ -372,7 +372,7 @@ def calculate_total(items):
         start = time.time()
 
         try:
-            from Jotty.core.execution.swarms import write
+            from Jotty.core.intelligence.orchestration.swarms import write
 
             result = await write(
                 topic="The Future of AI", content_type="article", tone="informative", word_count=500
@@ -413,7 +413,7 @@ def calculate_total(items):
         start = time.time()
 
         try:
-            from Jotty.core.execution.swarms import pilot
+            from Jotty.core.intelligence.orchestration.swarms import pilot
 
             result = await pilot(goal="Create a simple Python calculator", max_iterations=3)
 

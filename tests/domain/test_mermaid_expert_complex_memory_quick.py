@@ -12,7 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.experts import ExpertAgentConfig, MermaidExpertAgent
+from Jotty.core.intelligence.reasoning.agents import ExpertAgentConfig, MermaidExpertAgent
 from core.foundation.data_structures import SwarmConfig
 from core.memory.cortex import SwarmMemory
 

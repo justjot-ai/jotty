@@ -8,7 +8,7 @@ import time
 from unittest.mock import MagicMock
 
 import pytest
-from Jotty.core.interface.use_cases.base import (
+from Jotty.core.intelligence.orchestration.use_cases.base import (
     BaseUseCase,
     UseCaseConfig,
     UseCaseResult,

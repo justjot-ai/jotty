@@ -241,7 +241,7 @@ class MermaidAgent(BaseAgent, LearningCapability, ValidationCapability):
 
 ### Task #34: Migrate Workflows
 
-**From:** `core/modes/workflow/`
+**From:** `core/intelligence/orchestration/pipelines/`
 **To:** `core/execution/workflows/`
 
 **Workflows to migrate:**
@@ -259,7 +259,7 @@ grep -r "from.*intelligence.swarms import" .
 grep -r "from.*modes.workflow import" .
 
 # Update to new paths
-# FROM: from Jotty.core.modes.agent.base import BaseAgent
+# FROM: from Jotty.core.intelligence.reasoning.base import BaseAgent
 # TO:   from Jotty.core.execution.base import BaseAgent
 
 # FROM: from Jotty.core.intelligence.swarms import CodingSwarm
@@ -270,11 +270,11 @@ grep -r "from.*modes.workflow import" .
 
 Create `__init__.py` files in old locations with deprecation warnings:
 
-**`core/modes/agent/__init__.py`:**
+**`core/intelligence/reasoning/__init__.py`:**
 ```python
 import warnings
 warnings.warn(
-    "core.modes.agent is deprecated. Use core.execution.base instead.",
+    "core.intelligence.agent is deprecated. Use core.execution.base instead.",
     DeprecationWarning
 )
 from Jotty.core.execution.base import *

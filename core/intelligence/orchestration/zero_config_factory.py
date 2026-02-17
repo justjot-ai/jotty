@@ -51,7 +51,7 @@ class ZeroConfigAgentFactory:
         """
         import dspy
 
-        from Jotty.core.modes.agent.agents.auto_agent import AutoAgent
+        from Jotty.core.intelligence.reasoning.agents.auto_agent import AutoAgent
 
         _status = StatusReporter(status_callback, logger, emoji="")
 

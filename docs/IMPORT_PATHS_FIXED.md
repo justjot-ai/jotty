@@ -11,13 +11,13 @@
 Multiple files were importing from incorrect path:
 ```python
 # ❌ WRONG
-from Jotty.core.modes.agent.dag_agents import SwarmResources
+from Jotty.core.intelligence.reasoning.dag_agents import SwarmResources
 from ..agent.dag_agents import SwarmResources
 ```
 
 **Actual location:**
 ```
-core/modes/agent/planners/dag_agents.py
+core/intelligence/reasoning/planners/dag_agents.py
 ```
 
 ---
@@ -43,8 +43,8 @@ core/modes/agent/planners/dag_agents.py
 **Correct import:**
 ```python
 # ✅ CORRECT
-from Jotty.core.modes.agent.planners.dag_agents import SwarmResources
-from Jotty.core.modes.agent.planners.dag_agents import TaskBreakdownAgent, TodoCreatorAgent
+from Jotty.core.intelligence.reasoning.planners.dag_agents import SwarmResources
+from Jotty.core.intelligence.reasoning.planners.dag_agents import TaskBreakdownAgent, TodoCreatorAgent
 ```
 
 ---
@@ -53,7 +53,7 @@ from Jotty.core.modes.agent.planners.dag_agents import TaskBreakdownAgent, TodoC
 
 ```bash
 # Fixed absolute imports (6 files)
-sed -i 's|from Jotty.core.modes.agent.dag_agents import|from Jotty.core.modes.agent.planners.dag_agents import|g' \
+sed -i 's|from Jotty.core.intelligence.reasoning.dag_agents import|from Jotty.core.intelligence.reasoning.planners.dag_agents import|g' \
   core/intelligence/swarms/research_swarm/swarm.py \
   core/intelligence/swarms/templates/research.py \
   core/intelligence/orchestration/swarm_dag_executor.py \
@@ -61,7 +61,7 @@ sed -i 's|from Jotty.core.modes.agent.dag_agents import|from Jotty.core.modes.ag
   core/execution/swarms/templates/research.py
 
 # Fixed relative imports (2 files)
-sed -i 's|from ..agent.dag_agents import|from Jotty.core.modes.agent.planners.dag_agents import|g' \
+sed -i 's|from ..agent.dag_agents import|from Jotty.core.intelligence.reasoning.planners.dag_agents import|g' \
   core/intelligence/swarms/_base/swarm_learning.py \
   core/execution/swarms/_base/swarm_learning.py
 ```
@@ -90,10 +90,10 @@ $ grep -rn "from.*dag_agents import" core/ --include="*.py" | grep -v "planners.
 ## Root Cause
 
 The `dag_agents.py` file was moved from:
-- `core/modes/agent/dag_agents.py` (old location)
+- `core/intelligence/reasoning/dag_agents.py` (old location)
 
 To:
-- `core/modes/agent/planners/dag_agents.py` (new location)
+- `core/intelligence/reasoning/planners/dag_agents.py` (new location)
 
 But imports were not updated throughout the codebase.
 
@@ -102,7 +102,7 @@ But imports were not updated throughout the codebase.
 ## Impact
 
 **Before:**
-- ❌ `ModuleNotFoundError: No module named 'Jotty.core.modes.agent.dag_agents'`
+- ❌ `ModuleNotFoundError: No module named 'Jotty.core.intelligence.reasoning.dag_agents'`
 - ❌ Tests fail
 - ❌ Swarms fail to initialize
 

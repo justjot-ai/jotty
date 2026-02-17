@@ -7,8 +7,8 @@ Tests the new capability mixins in core/execution/capabilities/
 import logging
 
 import pytest
-from Jotty.core.execution.base import AgentRuntimeConfig, BaseAgent
-from Jotty.core.execution.capabilities import (
+from Jotty.core.intelligence.reasoning.base import AgentRuntimeConfig, BaseAgent
+from Jotty.core.intelligence.reasoning.capabilities import (
     LearningCapability,
     MemoryCapability,
     ValidationCapability,

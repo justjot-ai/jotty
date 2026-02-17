@@ -7,17 +7,17 @@
 
 ## Architecture Decision: Where Things Go
 
-### 1. Capability Mixins → `core/modes/agent/capabilities/`
+### 1. Capability Mixins → `core/intelligence/reasoning/capabilities/`
 
 **Rationale:**
 - Capabilities are core agent functionality
 - Lives with BaseAgent (single agent hierarchy)
 - Reusable by ALL agents (swarm agents, experts, domain agents)
-- Clear namespace: `from core.modes.agent.capabilities import LearningCapability`
+- Clear namespace: `from core.intelligence.reasoning.capabilities import LearningCapability`
 
 **Structure:**
 ```
-core/modes/agent/
+core/intelligence/reasoning/
 ├── base/
 │   ├── base_agent.py          # Core BaseAgent
 │   ├── domain_agent.py         # DSPy-based agents
@@ -164,7 +164,7 @@ improvements = memory.retrieve(
 
 **Files to create:**
 
-1. **`core/modes/agent/capabilities/__init__.py`**
+1. **`core/intelligence/reasoning/capabilities/__init__.py`**
 ```python
 """
 Agent Capability Mixins
@@ -189,13 +189,13 @@ __all__ = [
 ]
 ```
 
-2. **`core/modes/agent/capabilities/learning_capability.py`** (Full implementation below)
+2. **`core/intelligence/reasoning/capabilities/learning_capability.py`** (Full implementation below)
 
-3. **`core/modes/agent/capabilities/validation_capability.py`**
+3. **`core/intelligence/reasoning/capabilities/validation_capability.py`**
 
-4. **`core/modes/agent/capabilities/memory_capability.py`**
+4. **`core/intelligence/reasoning/capabilities/memory_capability.py`**
 
-5. **`core/modes/agent/capabilities/optimization_capability.py`**
+5. **`core/intelligence/reasoning/capabilities/optimization_capability.py`**
 
 ### Phase 2: Create Knowledge Repository (Week 1)
 
@@ -259,8 +259,8 @@ class MermaidExpert(BaseExpert):
         return MermaidModule()
 
 # NEW (BaseAgent + mixins)
-from core.modes.agent.base import BaseAgent
-from core.modes.agent.capabilities import LearningCapability, ValidationCapability
+from core.intelligence.reasoning.base import BaseAgent
+from core.intelligence.reasoning.capabilities import LearningCapability, ValidationCapability
 from core.intelligence.knowledge import load_gold_standards
 
 class MermaidAgent(BaseAgent, LearningCapability, ValidationCapability):
@@ -322,7 +322,7 @@ class MermaidAgent(BaseAgent, LearningCapability, ValidationCapability):
 ```python
 # core/intelligence/swarms/research_swarm/agents.py
 
-from core.modes.agent.capabilities import LearningCapability
+from core.intelligence.reasoning.capabilities import LearningCapability
 from core.intelligence.knowledge import load_gold_standards
 
 class DataFetcherAgent(BaseAgent, LearningCapability):
@@ -397,7 +397,7 @@ core/
 ## Migration Checklist
 
 ### Week 1: Foundation
-- [ ] Create `core/modes/agent/capabilities/` directory
+- [ ] Create `core/intelligence/reasoning/capabilities/` directory
 - [ ] Implement `LearningCapability` mixin
 - [ ] Implement `ValidationCapability` mixin
 - [ ] Implement `MemoryCapability` mixin

@@ -19,13 +19,17 @@ class TestEffectivenessTracker:
     """Tests for EffectivenessTracker improvement measurement."""
 
     def test_initial_not_improving(self):
-        from Jotty.core.intelligence.orchestration.learning_pipeline import EffectivenessTracker
+        from Jotty.core.intelligence.orchestration.learning.learning_pipeline import (
+            EffectivenessTracker,
+        )
 
         tracker = EffectivenessTracker(recent_window=5, historical_window=10)
         assert tracker.is_improving() is False
 
     def test_record_and_report(self):
-        from Jotty.core.intelligence.orchestration.learning_pipeline import EffectivenessTracker
+        from Jotty.core.intelligence.orchestration.learning.learning_pipeline import (
+            EffectivenessTracker,
+        )
 
         tracker = EffectivenessTracker(recent_window=3, historical_window=5)
 
@@ -42,7 +46,9 @@ class TestEffectivenessTracker:
         )
 
     def test_improvement_detected(self):
-        from Jotty.core.intelligence.orchestration.learning_pipeline import EffectivenessTracker
+        from Jotty.core.intelligence.orchestration.learning.learning_pipeline import (
+            EffectivenessTracker,
+        )
 
         tracker = EffectivenessTracker(recent_window=3, historical_window=5)
 
@@ -56,7 +62,9 @@ class TestEffectivenessTracker:
         assert tracker.is_improving("search") is True
 
     def test_no_improvement_when_declining(self):
-        from Jotty.core.intelligence.orchestration.learning_pipeline import EffectivenessTracker
+        from Jotty.core.intelligence.orchestration.learning.learning_pipeline import (
+            EffectivenessTracker,
+        )
 
         tracker = EffectivenessTracker(recent_window=3, historical_window=5)
 
@@ -70,7 +78,9 @@ class TestEffectivenessTracker:
         assert tracker.is_improving("code") is False
 
     def test_serialization_roundtrip(self):
-        from Jotty.core.intelligence.orchestration.learning_pipeline import EffectivenessTracker
+        from Jotty.core.intelligence.orchestration.learning.learning_pipeline import (
+            EffectivenessTracker,
+        )
 
         tracker = EffectivenessTracker()
         tracker.record("task_a", success=True, quality=0.8, agent="agent1")
@@ -83,7 +93,9 @@ class TestEffectivenessTracker:
         assert len(restored._global) == 2
 
     def test_global_vs_per_task(self):
-        from Jotty.core.intelligence.orchestration.learning_pipeline import EffectivenessTracker
+        from Jotty.core.intelligence.orchestration.learning.learning_pipeline import (
+            EffectivenessTracker,
+        )
 
         tracker = EffectivenessTracker(recent_window=3, historical_window=5)
 
@@ -153,13 +165,17 @@ class TestCreditAssignment:
     """Tests for CreditAssignment component."""
 
     def test_credit_assignment_creates(self):
-        from Jotty.core.intelligence.orchestration.credit_assignment import CreditAssignment
+        from Jotty.core.intelligence.orchestration.learning.credit_assignment import (
+            CreditAssignment,
+        )
 
         ca = CreditAssignment()
         assert ca is not None
 
     def test_record_improvement_application(self):
-        from Jotty.core.intelligence.orchestration.credit_assignment import CreditAssignment
+        from Jotty.core.intelligence.orchestration.learning.credit_assignment import (
+            CreditAssignment,
+        )
 
         ca = CreditAssignment()
         improvement = {"id": "imp_1", "description": "Better prompt", "credit": 0.0}

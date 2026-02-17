@@ -57,7 +57,7 @@ async def real_learning_test():
     print("[1/5] Configuring Real Claude CLI")
     print("-" * 90)
 
-    from core.experts.mermaid_expert import MermaidExpertAgent
+    from Jotty.core.intelligence.reasoning.agents.mermaid_expert import MermaidExpertAgent
     from Jotty.core.infrastructure.integration.direct_claude_cli_lm import DirectClaudeCLI
 
     lm = DirectClaudeCLI(model="sonnet")

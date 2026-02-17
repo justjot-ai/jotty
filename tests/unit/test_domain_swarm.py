@@ -23,9 +23,16 @@ import asyncio
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-from Jotty.core.execution.swarms._base.swarm_types import AgentRole, SwarmBaseConfig, SwarmResult
-from Jotty.core.execution.swarms.base.swarm_template import PhaseExecutor, SwarmTemplate
-from Jotty.core.execution.swarms.base.team_coordinator import (
+from Jotty.core.intelligence.orchestration.swarms._base.swarm_types import (
+    AgentRole,
+    SwarmBaseConfig,
+    SwarmResult,
+)
+from Jotty.core.intelligence.orchestration.swarms.base.swarm_template import (
+    PhaseExecutor,
+    SwarmTemplate,
+)
+from Jotty.core.intelligence.orchestration.swarms.base.team_coordinator import (
     AgentSpec,
     CoordinationPattern,
     MergeStrategy,
@@ -1118,7 +1125,9 @@ class TestSwarmTemplateInit:
 class TestSwarmTemplateInitAgents:
     """Test SwarmTemplate._init_agents method."""
 
-    @patch("Jotty.core.execution.swarms.base.swarm_template.SwarmTemplate._init_shared_resources")
+    @patch(
+        "Jotty.core.intelligence.orchestration.swarms.base.swarm_template.SwarmTemplate._init_shared_resources"
+    )
     def test_init_agents_basic(self, mock_init_shared):
         """Test basic agent initialization."""
 
@@ -1146,7 +1155,9 @@ class TestSwarmTemplateInitAgents:
         assert hasattr(swarm, "_agent1")
         mock_init_shared.assert_called_once()
 
-    @patch("Jotty.core.execution.swarms.base.swarm_template.SwarmTemplate._init_shared_resources")
+    @patch(
+        "Jotty.core.intelligence.orchestration.swarms.base.swarm_template.SwarmTemplate._init_shared_resources"
+    )
     def test_init_agents_multiple(self, mock_init_shared):
         """Test initializing multiple agents."""
 
@@ -1180,7 +1191,9 @@ class TestSwarmTemplateInitAgents:
         assert hasattr(swarm, "_agent1")
         assert hasattr(swarm, "_agent2")
 
-    @patch("Jotty.core.execution.swarms.base.swarm_template.SwarmTemplate._init_shared_resources")
+    @patch(
+        "Jotty.core.intelligence.orchestration.swarms.base.swarm_template.SwarmTemplate._init_shared_resources"
+    )
     def test_init_agents_idempotent(self, mock_init_shared):
         """Test _init_agents is idempotent."""
 
@@ -1682,7 +1695,9 @@ class TestSwarmTemplateHelpers:
         swarm = TestSwarm(config)
 
         # CompositeAgent is imported inside to_composite method
-        with patch("Jotty.core.agents.base.composite_agent.CompositeAgent") as mock_composite:
+        with patch(
+            "Jotty.core.intelligence.reasoning.agents.composite_agent.CompositeAgent"
+        ) as mock_composite:
             mock_composite.from_swarm = Mock(return_value=Mock())
             composite = swarm.to_composite()
 

@@ -11,8 +11,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.experts import ExpertAgentConfig, MermaidExpertAgent
-from core.experts.memory_integration import (
+from Jotty.core.intelligence.reasoning.agents import ExpertAgentConfig, MermaidExpertAgent
+from Jotty.core.intelligence.reasoning.agents.memory_integration import (
     retrieve_improvements_from_memory,
     store_improvement_to_memory,
 )

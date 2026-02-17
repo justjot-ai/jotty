@@ -11,8 +11,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.experts.domain_validators import get_validator
-from core.experts.training_data_loader import TrainingDataLoader
+from Jotty.core.intelligence.reasoning.agents.domain_validators import get_validator
+from Jotty.core.intelligence.reasoning.agents.training_data_loader import TrainingDataLoader
 
 
 async def test_with_mock_data():

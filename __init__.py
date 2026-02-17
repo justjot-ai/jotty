@@ -26,8 +26,8 @@ Full Control:
     from Jotty import Orchestrator, AgentConfig
 
     # Or use the high-level entry points:
-    from Jotty.core.modes.agent import AutoAgent      # Workflow execution
-    from Jotty.core.modes.agent import ChatAssistant   # Chat mode
+    from Jotty.core.intelligence.reasoning.agent import AutoAgent      # Workflow execution
+    from Jotty.core.intelligence.reasoning.agent import ChatAssistant   # Chat mode
     from Jotty.core.interface.api import ModeRouter         # Programmatic API
 
 See docs/JOTTY_ARCHITECTURE.md for complete documentation.
@@ -73,15 +73,15 @@ __author__ = "Jotty AI"
 _LAZY_IMPORTS: dict[str, str] = {
     # --- TIERED EXECUTION ---
     "Jotty": ".jotty",
-    "ExecutionTier": ".core.modes.execution.types",
-    "ExecutionConfig": ".core.modes.execution.types",
-    "ExecutionResult": ".core.modes.execution.types",
-    "TierExecutor": ".core.modes.execution.executor",
-    "TierDetector": ".core.modes.execution.tier_detector",
+    "ExecutionTier": ".core.intelligence.orchestration.execution.types",
+    "ExecutionConfig": ".core.intelligence.orchestration.execution.types",
+    "ExecutionResult": ".core.intelligence.orchestration.execution.types",
+    "TierExecutor": ".core.intelligence.orchestration.execution.tier_executor",
+    "TierDetector": ".core.intelligence.orchestration.execution.tier_detector",
     # --- COMPOSITE AGENT (Agent/Swarm Unification) ---
-    "CompositeAgent": ".core.modes.agent.base.composite_agent",
-    "CompositeAgentConfig": ".core.modes.agent.base.composite_agent",
-    "UnifiedResult": ".core.modes.agent.base.composite_agent",
+    "CompositeAgent": ".core.intelligence.reasoning.agent.base.composite_agent",
+    "CompositeAgentConfig": ".core.intelligence.reasoning.agent.base.composite_agent",
+    "UnifiedResult": ".core.intelligence.reasoning.agent.base.composite_agent",
     # --- ORCHESTRATION & FOUNDATION ---
     "Orchestrator": ".core.intelligence.orchestration",
     "TodoItem": ".core.intelligence.orchestration.swarm_roadmap",
@@ -153,12 +153,12 @@ _LAZY_IMPORTS: dict[str, str] = {
     "CircuitBreaker": ".core.infrastructure.utils.timeouts",
     "LLMCallCache": ".core.infrastructure.utils.llm_cache",
     "SmartTokenizer": ".core.infrastructure.utils.tokenizer",
-    "ChatExecutor": ".core.intelligence.orchestration.unified_executor",
+    "ChatExecutor": ".core.intelligence.orchestration.execution.unified_executor",
     # --- ORCHESTRATION (hidden components surfaced) ---
-    "SwarmIntelligence": ".core.intelligence.orchestration.swarm_intelligence",
-    "ParadigmExecutor": ".core.intelligence.orchestration.paradigm_executor",
-    "EnsembleManager": ".core.intelligence.orchestration.ensemble_manager",
-    "ModelTierRouter": ".core.intelligence.orchestration.model_tier_router",
+    "SwarmIntelligence": ".core.intelligence.orchestration.intelligence.swarm_intelligence",
+    "ParadigmExecutor": ".core.intelligence.orchestration.coordination.paradigm_executor",
+    "EnsembleManager": ".core.intelligence.orchestration.coordination.ensemble_manager",
+    "ModelTierRouter": ".core.intelligence.orchestration.routing.model_tier_router",
 }
 
 

@@ -9,8 +9,8 @@ Run with: pytest tests/test_review_template.py -v -s
 import logging
 
 import pytest
-from Jotty.core.execution.swarms._base.swarm_learning import SwarmBaseConfig
-from Jotty.core.execution.swarms.templates.review import ReviewTemplate
+from Jotty.core.intelligence.orchestration.swarms._base.swarm_learning import SwarmBaseConfig
+from Jotty.core.intelligence.orchestration.swarms.templates.review import ReviewTemplate
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -74,7 +74,7 @@ def add(a, b):
 
 def test_review_template_backward_compatibility():
     """Test backward compatibility alias."""
-    from Jotty.core.execution.swarms.templates.review import ReviewSwarm
+    from Jotty.core.intelligence.orchestration.swarms.templates.review import ReviewSwarm
 
     assert ReviewSwarm is ReviewTemplate
 

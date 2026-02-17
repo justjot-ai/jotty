@@ -19,7 +19,7 @@ except ImportError:
     print("⚠️  DSPy not available. Install with: pip install dspy-ai")
     sys.exit(1)
 
-from core.experts import MermaidExpertAgent
+from Jotty.core.intelligence.reasoning.agents import MermaidExpertAgent
 
 
 async def test_mermaid_expert_with_llm():

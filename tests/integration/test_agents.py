@@ -20,14 +20,18 @@ import asyncio
 from unittest.mock import AsyncMock, Mock
 
 import pytest
-from Jotty.core.modes.agent.agents.composite_agent import (
+from Jotty.core.intelligence.reasoning.agents.composite_agent import (
     CompositeAgent,
     CompositeAgentConfig,
     CoordinationPattern,
     MergeStrategy,
     UnifiedResult,
 )
-from Jotty.core.modes.agent.base.base_agent import AgentResult, AgentRuntimeConfig, BaseAgent
+from Jotty.core.intelligence.reasoning.base.base_agent import (
+    AgentResult,
+    AgentRuntimeConfig,
+    BaseAgent,
+)
 
 # =============================================================================
 # BaseAgent

@@ -25,7 +25,7 @@ except ImportError:
     print("❌ DSPy not available. Install with: pip install dspy-ai")
     sys.exit(1)
 
-from core.experts import ExpertAgentConfig, MermaidExpertAgent
+from Jotty.core.intelligence.reasoning.agents import ExpertAgentConfig, MermaidExpertAgent
 
 # Import Claude CLI wrapper
 try:

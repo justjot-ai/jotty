@@ -16,11 +16,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 try:
-    from Jotty.core.intelligence.orchestration.byzantine_verification import (
+    from Jotty.core.intelligence.orchestration.learning.byzantine_verification import (
         ByzantineVerifier,
         ConsistencyChecker,
     )
-    from Jotty.core.intelligence.orchestration.validation_gate import (
+    from Jotty.core.intelligence.orchestration.execution.validation_gate import (
         _GATE_SYSTEM,
         NEVER_SKIP_PATTERNS,
         GateDecision,
@@ -742,7 +742,7 @@ class TestGetValidationGate:
     """Test module-level singleton."""
 
     def test_singleton_returns_same_instance(self):
-        import Jotty.core.intelligence.orchestration.validation_gate as vg_module
+        import Jotty.core.intelligence.orchestration.execution.validation_gate as vg_module
 
         # Reset singleton
         vg_module._default_gate = None
@@ -753,7 +753,7 @@ class TestGetValidationGate:
         vg_module._default_gate = None
 
     def test_singleton_reset(self):
-        import Jotty.core.intelligence.orchestration.validation_gate as vg_module
+        import Jotty.core.intelligence.orchestration.execution.validation_gate as vg_module
 
         vg_module._default_gate = None
         g1 = get_validation_gate(enable_llm=False)

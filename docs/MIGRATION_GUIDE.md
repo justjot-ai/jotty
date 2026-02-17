@@ -8,14 +8,14 @@ will be removed in **v3.0**.
 
 ## 1. Use Cases (Layer 3 → Layer 2)
 
-All execution use cases moved from `core/interface/use_cases/` to `core/modes/use_cases/`.
+All execution use cases moved from `core/interface/use_cases/` to `core/intelligence/orchestration/use_cases/`.
 
 ```python
 # OLD (deprecated — emits DeprecationWarning)
 from Jotty.core.interface.use_cases import ChatUseCase, WorkflowUseCase
 
 # NEW
-from Jotty.core.modes.use_cases import ChatUseCase, WorkflowUseCase
+from Jotty.core.intelligence.orchestration.use_cases import ChatUseCase, WorkflowUseCase
 ```
 
 **Shim location:** `core/interface/use_cases/__init__.py` (`__getattr__` redirect)
@@ -129,14 +129,14 @@ Both return the same `SmartContextManager` singleton.
 
 ```python
 # OLD (deprecated — parameter ignored)
-from Jotty.core.modes.agent.autonomous.intent_parser import IntentParser
+from Jotty.core.intelligence.reasoning.autonomous.intent_parser import IntentParser
 parser = IntentParser(auto_agent=some_agent)
 
 # NEW
 parser = IntentParser()  # uses TaskPlanner internally
 ```
 
-**Shim location:** `core/modes/agent/autonomous/intent_parser.py`
+**Shim location:** `core/intelligence/reasoning/autonomous/intent_parser.py`
 
 ---
 
@@ -150,7 +150,7 @@ result = await executor.execute(goal, skip_swarm_selection=True)
 result = await executor.execute(goal)
 ```
 
-**Shim location:** `core/modes/execution/executor.py`
+**Shim location:** `core/intelligence/orchestration/execution/executor.py`
 
 ---
 
@@ -158,7 +158,7 @@ result = await executor.execute(goal)
 
 | Deprecated API | Replacement | Shim Type |
 |----------------|-------------|-----------|
-| `core.interface.use_cases.*` | `core.modes.use_cases.*` | `__getattr__` redirect |
+| `core.interface.use_cases.*` | `core.intelligence.orchestration.use_cases.*` | `__getattr__` redirect |
 | `Orchestrator` | `Jotty()` SDK client | Warning in `__init__` |
 | `LearningManager` (old module) | `learning_coordinator` / facade | Module re-export |
 | `SwarmBaseConfig` | `SwarmConfig` | `__getattr__` redirect |

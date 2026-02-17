@@ -37,16 +37,16 @@ except ImportError:
 # Try importing the module under test
 try:
     from Jotty.core.infrastructure.foundation.exceptions import AgentExecutionError
-    from Jotty.core.modes.agent.planners.agentic_planner import (
+    from Jotty.core.intelligence.reasoning.planners.agentic_planner import (
         DSPY_AVAILABLE as MODULE_DSPY_AVAILABLE,
     )
-    from Jotty.core.modes.agent.planners.agentic_planner import (
+    from Jotty.core.intelligence.reasoning.planners.agentic_planner import (
         TaskPlan,
         TaskPlanner,
         _get_dspy,
         create_agentic_planner,
     )
-    from Jotty.core.modes.agent.types.execution_types import ExecutionStep, TaskType
+    from Jotty.core.intelligence.reasoning.types.execution_types import ExecutionStep, TaskType
 
     PLANNER_AVAILABLE = True
 except ImportError:
@@ -614,7 +614,7 @@ class TestInferTaskType:
     def setup_method(self):
         self.planner = _make_mock_planner()
         # Clear the per-session cache between tests
-        from Jotty.core.modes.agent._inference_mixin import InferenceMixin
+        from Jotty.core.intelligence.reasoning.mixins.inference import InferenceMixin
 
         InferenceMixin._task_type_cache.clear()
 

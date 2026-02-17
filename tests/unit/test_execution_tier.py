@@ -21,7 +21,7 @@ import pytest
 # ---------------------------------------------------------------------------
 
 try:
-    from core.execution.types import (
+    from core.intelligence.orchestration.execution.types import (
         AdaptiveTimeout,
         CircuitBreaker,
         CircuitState,
@@ -48,22 +48,26 @@ except ImportError:
     HAS_TYPES = False
 
 try:
-    from core.execution.tier_detector import TierDetector
+    from core.intelligence.orchestration.execution.tier_detector import TierDetector
 
     HAS_DETECTOR = True
 except ImportError:
     HAS_DETECTOR = False
 
 try:
-    from core.execution.memory.json_memory import JSONMemory
-    from core.execution.memory.noop_memory import NoOpMemory
+    from core.intelligence.orchestration.execution.memory.json_memory import JSONMemory
+    from core.intelligence.orchestration.execution.memory.noop_memory import NoOpMemory
 
     HAS_MEMORY = True
 except ImportError:
     HAS_MEMORY = False
 
 try:
-    from core.execution.executor import LLMProvider, TierExecutor, _FallbackValidator
+    from core.intelligence.orchestration.execution.tier_executor import (
+        LLMProvider,
+        TierExecutor,
+        _FallbackValidator,
+    )
 
     HAS_EXECUTOR = True
 except ImportError:
@@ -76,7 +80,9 @@ except ImportError:
 
 
 @pytest.mark.unit
-@pytest.mark.skipif(not HAS_TYPES, reason="core.execution.types not importable")
+@pytest.mark.skipif(
+    not HAS_TYPES, reason="core.intelligence.orchestration.execution.types not importable"
+)
 class TestExecutionTierEnum:
     """Tests for ExecutionTier IntEnum values and behaviour."""
 
@@ -129,7 +135,9 @@ class TestExecutionTierEnum:
 
 
 @pytest.mark.unit
-@pytest.mark.skipif(not HAS_TYPES, reason="core.execution.types not importable")
+@pytest.mark.skipif(
+    not HAS_TYPES, reason="core.intelligence.orchestration.execution.types not importable"
+)
 class TestExecutionConfig:
     """Tests for ExecutionConfig defaults and to_swarm_config()."""
 
@@ -167,7 +175,9 @@ class TestExecutionConfig:
 
 
 @pytest.mark.unit
-@pytest.mark.skipif(not HAS_TYPES, reason="core.execution.types not importable")
+@pytest.mark.skipif(
+    not HAS_TYPES, reason="core.intelligence.orchestration.execution.types not importable"
+)
 class TestExecutionStep:
     """Tests for ExecutionStep properties."""
 
@@ -195,7 +205,9 @@ class TestExecutionStep:
 
 
 @pytest.mark.unit
-@pytest.mark.skipif(not HAS_TYPES, reason="core.execution.types not importable")
+@pytest.mark.skipif(
+    not HAS_TYPES, reason="core.intelligence.orchestration.execution.types not importable"
+)
 class TestExecutionResult:
     """Tests for ExecutionResult serialisation and __str__."""
 
@@ -228,7 +240,9 @@ class TestExecutionResult:
 
 
 @pytest.mark.unit
-@pytest.mark.skipif(not HAS_TYPES, reason="core.execution.types not importable")
+@pytest.mark.skipif(
+    not HAS_TYPES, reason="core.intelligence.orchestration.execution.types not importable"
+)
 class TestErrorType:
     """Tests for ErrorType.classify()."""
 
@@ -249,7 +263,9 @@ class TestErrorType:
 
 
 @pytest.mark.unit
-@pytest.mark.skipif(not HAS_TYPES, reason="core.execution.types not importable")
+@pytest.mark.skipif(
+    not HAS_TYPES, reason="core.intelligence.orchestration.execution.types not importable"
+)
 class TestValidationVerdict:
     """Tests for ValidationVerdict convenience constructors."""
 
@@ -276,7 +292,9 @@ class TestValidationVerdict:
 
 
 @pytest.mark.unit
-@pytest.mark.skipif(not HAS_TYPES, reason="core.execution.types not importable")
+@pytest.mark.skipif(
+    not HAS_TYPES, reason="core.intelligence.orchestration.execution.types not importable"
+)
 class TestCircuitBreaker:
     """Tests for CircuitBreaker state machine."""
 
@@ -324,7 +342,9 @@ class TestCircuitBreaker:
 
 
 @pytest.mark.unit
-@pytest.mark.skipif(not HAS_TYPES, reason="core.execution.types not importable")
+@pytest.mark.skipif(
+    not HAS_TYPES, reason="core.intelligence.orchestration.execution.types not importable"
+)
 class TestAdaptiveTimeout:
     """Tests for AdaptiveTimeout P95 calculation."""
 
@@ -352,7 +372,9 @@ class TestAdaptiveTimeout:
 
 
 @pytest.mark.unit
-@pytest.mark.skipif(not HAS_TYPES, reason="core.execution.types not importable")
+@pytest.mark.skipif(
+    not HAS_TYPES, reason="core.intelligence.orchestration.execution.types not importable"
+)
 class TestDeadLetterQueue:
     """Tests for DeadLetterQueue enqueue / retry logic."""
 
@@ -402,7 +424,9 @@ class TestDeadLetterQueue:
 
 
 @pytest.mark.unit
-@pytest.mark.skipif(not HAS_TYPES, reason="core.execution.types not importable")
+@pytest.mark.skipif(
+    not HAS_TYPES, reason="core.intelligence.orchestration.execution.types not importable"
+)
 class TestTimeoutWarning:
     """Tests for TimeoutWarning threshold warnings."""
 
@@ -432,7 +456,10 @@ class TestTimeoutWarning:
 
 
 @pytest.mark.unit
-@pytest.mark.skipif(not HAS_DETECTOR, reason="core.execution.tier_detector not importable")
+@pytest.mark.skipif(
+    not HAS_DETECTOR,
+    reason="core.intelligence.orchestration.execution.tier_detector not importable",
+)
 class TestTierDetector:
     """Tests for TierDetector keyword-based tier detection."""
 
@@ -630,7 +657,10 @@ class TestTierDetector:
 
 
 @pytest.mark.unit
-@pytest.mark.skipif(not HAS_DETECTOR, reason="core.execution.tier_detector not importable")
+@pytest.mark.skipif(
+    not HAS_DETECTOR,
+    reason="core.intelligence.orchestration.execution.tier_detector not importable",
+)
 class TestTierDetectorAsync:
     """Tests for async detection and LLM fallback."""
 
@@ -697,13 +727,16 @@ class TestTierDetectorAsync:
 
 
 @pytest.mark.unit
-@pytest.mark.skipif(not HAS_DETECTOR, reason="core.execution.tier_detector not importable")
+@pytest.mark.skipif(
+    not HAS_DETECTOR,
+    reason="core.intelligence.orchestration.execution.tier_detector not importable",
+)
 class TestTierClassifierLLM:
     """Tests for _TierClassifierLLM.classify() with mocked Anthropic."""
 
     @pytest.mark.asyncio
     async def test_classify_returns_tier(self):
-        from core.execution.tier_detector import _TierClassifierLLM
+        from core.intelligence.orchestration.execution.tier_detector import _TierClassifierLLM
 
         classifier = _TierClassifierLLM()
         mock_client = AsyncMock()
@@ -719,7 +752,7 @@ class TestTierClassifierLLM:
 
     @pytest.mark.asyncio
     async def test_classify_parses_digit_from_text(self):
-        from core.execution.tier_detector import _TierClassifierLLM
+        from core.intelligence.orchestration.execution.tier_detector import _TierClassifierLLM
 
         classifier = _TierClassifierLLM()
         mock_client = AsyncMock()
@@ -735,7 +768,7 @@ class TestTierClassifierLLM:
 
     @pytest.mark.asyncio
     async def test_classify_returns_none_for_unparseable(self):
-        from core.execution.tier_detector import _TierClassifierLLM
+        from core.intelligence.orchestration.execution.tier_detector import _TierClassifierLLM
 
         classifier = _TierClassifierLLM()
         mock_client = AsyncMock()
@@ -751,7 +784,7 @@ class TestTierClassifierLLM:
 
     @pytest.mark.asyncio
     async def test_classify_returns_none_for_empty_content(self):
-        from core.execution.tier_detector import _TierClassifierLLM
+        from core.intelligence.orchestration.execution.tier_detector import _TierClassifierLLM
 
         classifier = _TierClassifierLLM()
         mock_client = AsyncMock()
@@ -770,7 +803,9 @@ class TestTierClassifierLLM:
 
 
 @pytest.mark.unit
-@pytest.mark.skipif(not HAS_MEMORY, reason="core.execution.memory not importable")
+@pytest.mark.skipif(
+    not HAS_MEMORY, reason="core.intelligence.orchestration.execution.memory not importable"
+)
 class TestNoOpMemory:
     """Tests for NoOpMemory — all operations are no-ops."""
 
@@ -810,7 +845,9 @@ class TestNoOpMemory:
 
 
 @pytest.mark.unit
-@pytest.mark.skipif(not HAS_MEMORY, reason="core.execution.memory not importable")
+@pytest.mark.skipif(
+    not HAS_MEMORY, reason="core.intelligence.orchestration.execution.memory not importable"
+)
 class TestJSONMemory:
     """Tests for JSONMemory — file-based storage with TTL."""
 
@@ -921,7 +958,10 @@ class TestJSONMemory:
 
 
 @pytest.mark.unit
-@pytest.mark.skipif(not HAS_EXECUTOR, reason="core.execution.executor not importable")
+@pytest.mark.skipif(
+    not HAS_EXECUTOR,
+    reason="core.intelligence.orchestration.execution.tier_executor not importable",
+)
 class TestTierExecutorInit:
     """Tests for TierExecutor initialisation and lazy properties."""
 
@@ -975,7 +1015,10 @@ class TestTierExecutorInit:
 
 
 @pytest.mark.unit
-@pytest.mark.skipif(not HAS_EXECUTOR, reason="core.execution.executor not importable")
+@pytest.mark.skipif(
+    not HAS_EXECUTOR,
+    reason="core.intelligence.orchestration.execution.tier_executor not importable",
+)
 class TestTierExecutorMemoryBackend:
     """Tests for _create_memory_backend routing."""
 
@@ -983,7 +1026,9 @@ class TestTierExecutorMemoryBackend:
         executor = TierExecutor.__new__(TierExecutor)
         executor.config = ExecutionConfig(memory_backend="json")
         executor._memory = None
-        with patch("core.execution.executor.TierExecutor._create_memory_backend") as mock_create:
+        with patch(
+            "core.intelligence.orchestration.execution.tier_executor.TierExecutor._create_memory_backend"
+        ) as mock_create:
             mock_create.return_value = Mock()
             backend = executor._create_memory_backend()
             assert backend is not None
@@ -997,7 +1042,10 @@ class TestTierExecutorMemoryBackend:
 
 
 @pytest.mark.unit
-@pytest.mark.skipif(not HAS_EXECUTOR, reason="core.execution.executor not importable")
+@pytest.mark.skipif(
+    not HAS_EXECUTOR,
+    reason="core.intelligence.orchestration.execution.tier_executor not importable",
+)
 class TestTierExecutorParsePlan:
     """Tests for TierExecutor._parse_plan()."""
 
@@ -1048,7 +1096,10 @@ class TestTierExecutorParsePlan:
 
 
 @pytest.mark.unit
-@pytest.mark.skipif(not HAS_EXECUTOR, reason="core.execution.executor not importable")
+@pytest.mark.skipif(
+    not HAS_EXECUTOR,
+    reason="core.intelligence.orchestration.execution.tier_executor not importable",
+)
 class TestTierExecutorFallbackAggregate:
     """Tests for _fallback_aggregate helper."""
 
@@ -1076,7 +1127,10 @@ class TestTierExecutorFallbackAggregate:
 
 
 @pytest.mark.unit
-@pytest.mark.skipif(not HAS_EXECUTOR, reason="core.execution.executor not importable")
+@pytest.mark.skipif(
+    not HAS_EXECUTOR,
+    reason="core.intelligence.orchestration.execution.tier_executor not importable",
+)
 class TestTierExecutorEnrichWithMemory:
     """Tests for _enrich_with_memory helper."""
 
@@ -1113,7 +1167,10 @@ class TestTierExecutorEnrichWithMemory:
 
 
 @pytest.mark.unit
-@pytest.mark.skipif(not HAS_EXECUTOR, reason="core.execution.executor not importable")
+@pytest.mark.skipif(
+    not HAS_EXECUTOR,
+    reason="core.intelligence.orchestration.execution.tier_executor not importable",
+)
 class TestLLMProvider:
     """Tests for LLMProvider initialisation."""
 
@@ -1138,7 +1195,10 @@ class TestLLMProvider:
 
 
 @pytest.mark.unit
-@pytest.mark.skipif(not HAS_EXECUTOR, reason="core.execution.executor not importable")
+@pytest.mark.skipif(
+    not HAS_EXECUTOR,
+    reason="core.intelligence.orchestration.execution.tier_executor not importable",
+)
 class TestFallbackValidator:
     """Tests for _FallbackValidator with mocked provider."""
 
@@ -1180,7 +1240,9 @@ class TestFallbackValidator:
 
 
 @pytest.mark.unit
-@pytest.mark.skipif(not HAS_TYPES, reason="core.execution.types not importable")
+@pytest.mark.skipif(
+    not HAS_TYPES, reason="core.intelligence.orchestration.execution.types not importable"
+)
 class TestStreamEventType:
     """Tests for StreamEventType enum."""
 
@@ -1203,7 +1265,9 @@ class TestStreamEventType:
 
 
 @pytest.mark.unit
-@pytest.mark.skipif(not HAS_TYPES, reason="core.execution.types not importable")
+@pytest.mark.skipif(
+    not HAS_TYPES, reason="core.intelligence.orchestration.execution.types not importable"
+)
 class TestExecutionPlan:
     """Tests for ExecutionPlan computed properties."""
 
@@ -1240,7 +1304,9 @@ class TestExecutionPlan:
 
 
 @pytest.mark.unit
-@pytest.mark.skipif(not HAS_TYPES, reason="core.execution.types not importable")
+@pytest.mark.skipif(
+    not HAS_TYPES, reason="core.intelligence.orchestration.execution.types not importable"
+)
 class TestBackwardCompatAlias:
     """Tests for ValidationResult alias."""
 

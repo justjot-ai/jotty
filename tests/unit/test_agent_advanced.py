@@ -32,28 +32,32 @@ if _jotty_parent not in sys.path:
 
 # Try importing core modules with skipif fallback
 try:
-    from Jotty.core.execution.swarms.base.team_coordinator import (
+    from Jotty.core.intelligence.orchestration.swarms.base.team_coordinator import (
         CoordinationPattern,
         MergeStrategy,
     )
-    from Jotty.core.modes.agent.agents.autonomous_agent import (
+    from Jotty.core.intelligence.reasoning.agents.autonomous_agent import (
         AutonomousAgent,
         AutonomousAgentConfig,
         ExecutionContextManager,
         create_autonomous_agent,
     )
-    from Jotty.core.modes.agent.agents.composite_agent import (
+    from Jotty.core.intelligence.reasoning.agents.composite_agent import (
         CompositeAgent,
         CompositeAgentConfig,
         UnifiedResult,
     )
-    from Jotty.core.modes.agent.agents.meta_agent import (
+    from Jotty.core.intelligence.reasoning.agents.meta_agent import (
         MetaAgent,
         MetaAgentConfig,
         create_meta_agent,
     )
-    from Jotty.core.modes.agent.base.base_agent import AgentResult, AgentRuntimeConfig, BaseAgent
-    from Jotty.core.modes.agent.executors.skill_plan_executor import (
+    from Jotty.core.intelligence.reasoning.base.base_agent import (
+        AgentResult,
+        AgentRuntimeConfig,
+        BaseAgent,
+    )
+    from Jotty.core.intelligence.reasoning.executors.skill_plan_executor import (
         SkillPlanExecutor,
         ToolCallCache,
     )
@@ -63,14 +67,14 @@ except ImportError as e:
     AGENTS_AVAILABLE = False
 
 try:
-    from Jotty.core.modes.agent.auto_agent import AutoAgent
+    from Jotty.core.intelligence.reasoning.agents.auto_agent import AutoAgent
 
     AUTO_AGENT_AVAILABLE = True
 except ImportError:
     AUTO_AGENT_AVAILABLE = False
 
 try:
-    from Jotty.core.modes.agent._execution_types import (
+    from Jotty.core.intelligence.reasoning.types.execution_types import (
         AgenticExecutionResult,
         ExecutionStep,
         TaskType,
@@ -587,7 +591,11 @@ class TestUnifiedResult:
         mock_sr_cls.return_value = MagicMock()
         with patch.dict(
             "sys.modules",
-            {"Jotty.core.execution.swarms._base.swarm_types": MagicMock(SwarmResult=mock_sr_cls)},
+            {
+                "Jotty.core.intelligence.orchestration.swarms._base.swarm_types": MagicMock(
+                    SwarmResult=mock_sr_cls
+                )
+            },
         ):
             sr = ur.to_swarm_result()
             mock_sr_cls.assert_called_once()
@@ -1387,7 +1395,7 @@ class TestAutoAgent:
         with patch.object(BaseAgent, "_ensure_initialized"):
             agent = AutoAgent()
         with patch(
-            "Jotty.core.orchestration.swarm_ensemble.should_auto_ensemble",
+            "Jotty.core.intelligence.orchestration.coordination.ensemble_manager.should_auto_ensemble",
             return_value=(True, 3),
         ):
             should, perspectives = agent._should_auto_ensemble("complex analysis task")

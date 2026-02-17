@@ -57,7 +57,7 @@
 **Fix:** Uncommented return statements (removed `#` before `return`)
 
 ### 7. SwarmResources Missing Module
-**Solution:** Created stub at `core/modes/agent/planners/swarm_resources_stub.py`
+**Solution:** Created stub at `core/intelligence/reasoning/planners/swarm_resources_stub.py`
 **Impact:** Warning only, swarms work without it
 
 ### 8. ArxivLearningSwarm Wrong Parameter
@@ -141,8 +141,8 @@ def __getattr__(name):
 5. `core/intelligence/orchestration/swarm_dag_executor.py` - 2 fixes
 6. `core/intelligence/swarms/_base/swarm_learning.py` - 6 fixes
 7. `core/execution/swarms/_base/swarm_learning.py` - 1 fix
-8. `core/modes/agent/planners/swarm_resources_stub.py` - Created
-9. `core/modes/agent/planners/dag_agents.py` - Simplified
+8. `core/intelligence/reasoning/planners/swarm_resources_stub.py` - Created
+9. `core/intelligence/reasoning/planners/dag_agents.py` - Simplified
 
 ### Test & Documentation (6)
 10. `scripts/test_all_swarms_systematic.py` - Created + fixed

@@ -26,11 +26,11 @@ print("=" * 80)
 imports = [
     "Jotty",
     "Jotty.core",
-    "Jotty.core.execution",
-    "Jotty.core.execution.swarms",
-    "Jotty.core.execution.swarms.olympiad_learning_swarm",
     "Jotty.core.intelligence",
-    "Jotty.core.execution.swarms",
+    "Jotty.core.intelligence.orchestration.swarms",
+    "Jotty.core.intelligence.orchestration.swarms.olympiad_learning_swarm",
+    "Jotty.core.intelligence",
+    "Jotty.core.intelligence.orchestration.swarms",
     "Jotty.core.infrastructure",
     "dspy",
 ]

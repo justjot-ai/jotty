@@ -3,9 +3,9 @@
 Update imports to use new core/execution/ structure.
 
 Migrates:
-- from Jotty.core.modes.agent → from Jotty.core.execution.base
-- from Jotty.core.execution.swarms → from Jotty.core.execution.swarms
-- from Jotty.core.modes.workflow → from Jotty.core.execution.workflows
+- from Jotty.core.intelligence.reasoning.agent → from Jotty.core.intelligence.reasoning.base
+- from Jotty.core.intelligence.orchestration.swarms → from Jotty.core.intelligence.orchestration.swarms
+- from Jotty.core.intelligence.orchestration.pipelines → from Jotty.core.intelligence.orchestration.pipelines
 """
 
 import re
@@ -18,38 +18,38 @@ IMPORT_REPLACEMENTS = [
     # Agent imports
     (
         r"from Jotty\.core\.modes\.agent\.base import",
-        "from Jotty.core.execution.base import",
+        "from Jotty.core.intelligence.reasoning.base import",
     ),
     (
         r"from Jotty\.core\.modes\.agent\.agents import",
-        "from Jotty.core.execution.agents import",
+        "from Jotty.core.intelligence.reasoning.agents import",
     ),
     (
         r"from Jotty\.core\.modes\.agent import",
-        "from Jotty.core.execution.base import",
+        "from Jotty.core.intelligence.reasoning.base import",
     ),
-    # Swarm imports (now canonical location is core.execution.swarms)
+    # Swarm imports (now canonical location is core.intelligence.orchestration.swarms)
     (
         r"from Jotty\.core\.execution\.swarms\.templates import",
-        "from Jotty.core.execution.swarms.templates import",
+        "from Jotty.core.intelligence.orchestration.swarms.templates import",
     ),
     (
         r"from Jotty\.core\.execution\.swarms\.base import",
-        "from Jotty.core.execution.swarms.base import",
+        "from Jotty.core.intelligence.orchestration.swarms.base import",
     ),
     (
         r"from Jotty\.core\.execution\.swarms import",
-        "from Jotty.core.execution.swarms import",
+        "from Jotty.core.intelligence.orchestration.swarms import",
     ),
     # Workflow imports
     (
         r"from Jotty\.core\.modes\.workflow import",
-        "from Jotty.core.execution.workflows import",
+        "from Jotty.core.intelligence.orchestration.pipelines import",
     ),
     # Intelligence reasoning experts (now in execution/agents)
     (
         r"from Jotty\.core\.intelligence\.reasoning\.experts import",
-        "from Jotty.core.execution.agents import",
+        "from Jotty.core.intelligence.reasoning.agents import",
     ),
 ]
 

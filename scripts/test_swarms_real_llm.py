@@ -36,8 +36,8 @@ async def test_research_swarm():
     print("=" * 80)
 
     try:
-        from Jotty.core.execution.swarms.research_swarm import ResearchSwarm
-        from Jotty.core.execution.swarms.research_swarm.types import ResearchConfig
+        from Jotty.core.intelligence.orchestration.swarms.research_swarm import ResearchSwarm
+        from Jotty.core.intelligence.orchestration.swarms.research_swarm.types import ResearchConfig
 
         # Create swarm with correct config
         config = ResearchConfig(send_telegram=False)
@@ -71,7 +71,7 @@ async def test_arxiv_swarm():
     print("=" * 80)
 
     try:
-        from Jotty.core.execution.swarms.arxiv_learning_swarm import learn_paper
+        from Jotty.core.intelligence.orchestration.swarms.arxiv_learning_swarm import learn_paper
 
         # Simple arxiv research task  # "Attention is All You Need" paper
         result = await learn_paper(paper_id="1706.03762", send_telegram=False)
@@ -100,8 +100,10 @@ async def test_olympiad_swarm():
     print("=" * 80)
 
     try:
-        from Jotty.core.execution.swarms.olympiad_learning_swarm import OlympiadLearningSwarm
-        from Jotty.core.execution.swarms.olympiad_learning_swarm.types import (
+        from Jotty.core.intelligence.orchestration.swarms.olympiad_learning_swarm import (
+            OlympiadLearningSwarm,
+        )
+        from Jotty.core.intelligence.orchestration.swarms.olympiad_learning_swarm.types import (
             OlympiadLearningConfig,
             Subject,
             LessonDepth,

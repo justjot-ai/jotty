@@ -77,7 +77,7 @@ class TestExecutionTypesExtraction:
 
     def test_swarms_reexport_still_works(self):
         """Backward compat: importing from swarms still works."""
-        from Jotty.core.execution.swarms.base.team_coordinator import (
+        from Jotty.core.intelligence.orchestration.swarms.base.team_coordinator import (
             CoordinationPattern,
             MergeStrategy,
         )
@@ -86,7 +86,7 @@ class TestExecutionTypesExtraction:
         assert MergeStrategy.FIRST.value == "first"
 
     def test_swarms_init_reexport(self):
-        from Jotty.core.execution.swarms import CoordinationPattern, MergeStrategy
+        from Jotty.core.intelligence.orchestration.swarms import CoordinationPattern, MergeStrategy
 
         assert len(CoordinationPattern) == 12
         assert len(MergeStrategy) == 5
@@ -127,8 +127,10 @@ class TestExecutionTypesExtraction:
         from Jotty.core.infrastructure.foundation.types.execution_types import (
             CoordinationPattern as CP1,
         )
-        from Jotty.core.execution.swarms import CoordinationPattern as CP3
-        from Jotty.core.execution.swarms.base.team_coordinator import CoordinationPattern as CP2
+        from Jotty.core.intelligence.orchestration.swarms import CoordinationPattern as CP3
+        from Jotty.core.intelligence.orchestration.swarms.base.team_coordinator import (
+            CoordinationPattern as CP2,
+        )
 
         assert CP1 is CP2 is CP3
 
@@ -1345,7 +1347,7 @@ _tc_instance = None
 def _get_tc():
     global _tc_instance
     if _tc_instance is None:
-        from Jotty.core.modes.execution.intent_classifier import TaskClassifier
+        from Jotty.core.intelligence.orchestration.execution.intent_classifier import TaskClassifier
 
         _tc_instance = TaskClassifier()
     return _tc_instance
@@ -1633,7 +1635,7 @@ class TestTaskClassifierProperties:
     )
     def test_has_intent(self, goal, _):
         """Result always has a valid TaskIntent."""
-        from Jotty.core.modes.execution.intent_classifier import TaskIntent
+        from Jotty.core.intelligence.orchestration.execution.intent_classifier import TaskIntent
 
         tc = _get_tc()
         result = tc.classify_swarm(goal)
@@ -1652,7 +1654,9 @@ class TestTaskClassifierProperties:
 
     def test_none_result_has_zero_or_low_confidence(self):
         """When swarm_name is None, confidence should be below threshold."""
-        from Jotty.core.modes.execution.intent_classifier import CONFIDENCE_THRESHOLD
+        from Jotty.core.intelligence.orchestration.execution.intent_classifier import (
+            CONFIDENCE_THRESHOLD,
+        )
 
         tc = _get_tc()
         for goal in ["Hello", "Good morning", "Thanks"]:
@@ -1664,7 +1668,9 @@ class TestTaskClassifierProperties:
 
     def test_singleton_returns_same_instance(self):
         """get_task_classifier() returns the same singleton."""
-        from Jotty.core.modes.execution.intent_classifier import get_task_classifier
+        from Jotty.core.intelligence.orchestration.execution.intent_classifier import (
+            get_task_classifier,
+        )
 
         tc1 = get_task_classifier()
         tc2 = get_task_classifier()
@@ -1679,8 +1685,8 @@ class TestResearchSwarmRegistration:
         """Importing research_swarm registers 'research' in SwarmRegistry."""
         import importlib
 
-        importlib.import_module("Jotty.core.execution.swarms.research_swarm")
-        from Jotty.core.execution.swarms._base.registry import SwarmRegistry
+        importlib.import_module("Jotty.core.intelligence.orchestration.swarms.research_swarm")
+        from Jotty.core.intelligence.orchestration.swarms._base.registry import SwarmRegistry
 
         assert (
             "research" in SwarmRegistry.list_all()
@@ -1688,8 +1694,8 @@ class TestResearchSwarmRegistration:
 
     def test_ensure_swarms_registered_all_11(self):
         """After _ensure_swarms_registered(), all 11 swarms are present."""
-        from Jotty.core.execution.swarms._base.registry import SwarmRegistry
-        from Jotty.core.modes.execution.executor import TierExecutor
+        from Jotty.core.intelligence.orchestration.swarms._base.registry import SwarmRegistry
+        from Jotty.core.intelligence.orchestration.execution.tier_executor import TierExecutor
 
         # Reset registration state
         TierExecutor._swarms_registered = False
@@ -1722,8 +1728,11 @@ class TestSelectSwarmIntegration:
         """_select_swarm() delegates to TaskClassifier and returns a swarm."""
         from unittest.mock import MagicMock, patch
 
-        from Jotty.core.modes.execution.executor import TierExecutor
-        from Jotty.core.modes.execution.intent_classifier import TaskClassification, TaskIntent
+        from Jotty.core.intelligence.orchestration.execution.tier_executor import TierExecutor
+        from Jotty.core.intelligence.orchestration.execution.intent_classifier import (
+            TaskClassification,
+            TaskIntent,
+        )
 
         mock_classification = TaskClassification(
             swarm_name="coding",
@@ -1735,13 +1744,15 @@ class TestSelectSwarmIntegration:
         executor = TierExecutor.__new__(TierExecutor)
 
         with patch.object(TierExecutor, "_ensure_swarms_registered"):
-            with patch("Jotty.core.execution.intent_classifier.get_task_classifier") as mock_get_tc:
+            with patch(
+                "Jotty.core.intelligence.orchestration.execution.intent_classifier.get_task_classifier"
+            ) as mock_get_tc:
                 mock_tc = MagicMock()
                 mock_tc.classify_swarm.return_value = mock_classification
                 mock_get_tc.return_value = mock_tc
 
                 with patch(
-                    "Jotty.core.execution.swarms._base.registry.SwarmRegistry.create"
+                    "Jotty.core.intelligence.orchestration.swarms._base.registry.SwarmRegistry.create"
                 ) as mock_create:
                     mock_swarm = MagicMock()
                     mock_create.return_value = mock_swarm

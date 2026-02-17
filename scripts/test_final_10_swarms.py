@@ -22,8 +22,8 @@ results = []
 
 async def test_research():
     print("Testing ResearchSwarm...")
-    from Jotty.core.execution.swarms.research_swarm import ResearchSwarm
-    from Jotty.core.execution.swarms.research_swarm.types import ResearchConfig
+    from Jotty.core.intelligence.orchestration.swarms.research_swarm import ResearchSwarm
+    from Jotty.core.intelligence.orchestration.swarms.research_swarm.types import ResearchConfig
 
     config = ResearchConfig(send_telegram=False, include_charts=False)
     swarm = ResearchSwarm(config)

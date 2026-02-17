@@ -30,7 +30,9 @@ def _make_config() -> SwarmConfig:
 
 
 def _make_pipeline():
-    from Jotty.core.intelligence.orchestration.learning_pipeline import SwarmLearningPipeline
+    from Jotty.core.intelligence.orchestration.learning.learning_pipeline import (
+        SwarmLearningPipeline,
+    )
 
     return SwarmLearningPipeline(_make_config())
 
@@ -275,7 +277,9 @@ class TestCurriculumWiring:
             assert 0.0 <= t.difficulty <= 1.0
 
     def test_generate_with_profiles(self):
-        from Jotty.core.intelligence.orchestration.swarm_data_structures import AgentProfile
+        from Jotty.core.intelligence.orchestration.intelligence.swarm_data_structures import (
+            AgentProfile,
+        )
 
         lp = _make_pipeline()
         profiles = {
@@ -294,7 +298,7 @@ class TestSandboxWiring:
     """Test sandbox manager is wired into SwarmTerminal."""
 
     def test_sandbox_attached(self):
-        from Jotty.core.intelligence.orchestration.swarm_terminal import SwarmTerminal
+        from Jotty.core.intelligence.orchestration.state.swarm_terminal import SwarmTerminal
 
         terminal = SwarmTerminal()
         assert hasattr(terminal, "_sandbox")
@@ -303,7 +307,7 @@ class TestSandboxWiring:
 
     @pytest.mark.asyncio
     async def test_execute_sandboxed_basic(self):
-        from Jotty.core.intelligence.orchestration.swarm_terminal import SwarmTerminal
+        from Jotty.core.intelligence.orchestration.state.swarm_terminal import SwarmTerminal
 
         terminal = SwarmTerminal()
         result = await terminal.execute_sandboxed(
@@ -315,7 +319,7 @@ class TestSandboxWiring:
 
     @pytest.mark.asyncio
     async def test_execute_sandboxed_error(self):
-        from Jotty.core.intelligence.orchestration.swarm_terminal import SwarmTerminal
+        from Jotty.core.intelligence.orchestration.state.swarm_terminal import SwarmTerminal
 
         terminal = SwarmTerminal()
         result = await terminal.execute_sandboxed(
@@ -367,7 +371,7 @@ class TestFullIntegration:
     def test_swarm_manager_status_includes_dormant_stats(self):
         """Orchestrator.status() should include stats from wired modules."""
         from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
-        from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
+        from Jotty.core.intelligence.orchestration.core.swarm_manager import Orchestrator
 
         # Create a minimal AgentConfig with a dummy agent
         dummy_agent = type("DummyAgent", (), {"forward": lambda self, **kw: None})()

@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from unittest.mock import patch
 
 import pytest
-from Jotty.core.modes.execution.memory import JSONMemory, NoOpMemory
+from Jotty.core.intelligence.orchestration.execution.memory import JSONMemory, NoOpMemory
 
 # =============================================================================
 # JSONMemory Tests
@@ -83,7 +83,9 @@ class TestJSONMemoryExpiry:
 
         # Patch datetime.now to simulate time passing beyond TTL
         future_time = datetime.now() + timedelta(hours=2)
-        with patch("Jotty.core.execution.memory.json_memory.datetime") as mock_dt:
+        with patch(
+            "Jotty.core.intelligence.orchestration.execution.memory.json_memory.datetime"
+        ) as mock_dt:
             mock_dt.now.return_value = future_time
             mock_dt.fromisoformat = datetime.fromisoformat
 

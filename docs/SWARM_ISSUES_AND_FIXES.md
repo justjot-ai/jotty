@@ -37,11 +37,11 @@ async def research(...):
 
 **Problem:**
 ```python
-ModuleNotFoundError: No module named 'Jotty.core.modes.agent.dag_agents'
+ModuleNotFoundError: No module named 'Jotty.core.intelligence.reasoning.dag_agents'
 ```
 
 **Root Cause:**
-- Module moved from `core/modes/agent/dag_agents.py` to `core/modes/agent/planners/dag_agents.py`
+- Module moved from `core/intelligence/reasoning/dag_agents.py` to `core/intelligence/reasoning/planners/dag_agents.py`
 - 8 swarm files still had old import path
 
 **Files Fixed:**
@@ -56,10 +56,10 @@ ModuleNotFoundError: No module named 'Jotty.core.modes.agent.dag_agents'
 **Fix:**
 ```python
 # Before
-from Jotty.core.modes.agent.dag_agents import get_swarm_resources
+from Jotty.core.intelligence.reasoning.dag_agents import get_swarm_resources
 
 # After
-from Jotty.core.modes.agent.planners.dag_agents import get_swarm_resources
+from Jotty.core.intelligence.reasoning.planners.dag_agents import get_swarm_resources
 ```
 
 **Status:** ✅ Fixed
@@ -127,7 +127,7 @@ SwarmResources not available: No module named 'Jotty.core.intelligence.swarms.ag
 ```
 
 **Solution:**
-Created minimal stub at `core/modes/agent/planners/swarm_resources_stub.py`
+Created minimal stub at `core/intelligence/reasoning/planners/swarm_resources_stub.py`
 
 **Impact:**
 - Warning only - swarms work without SwarmResources

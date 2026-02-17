@@ -7,7 +7,7 @@ Tests the new MermaidAgent in core/execution/agents/
 import logging
 
 import pytest
-from Jotty.core.execution.agents import MermaidAgent
+from Jotty.core.intelligence.reasoning.agents import MermaidAgent
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

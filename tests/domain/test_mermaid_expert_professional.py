@@ -13,9 +13,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.experts import ExpertAgentConfig, MermaidExpertAgent
-from core.experts.memory_integration import sync_improvements_to_memory
-from core.experts.mermaid_renderer import validate_mermaid_syntax
+from Jotty.core.intelligence.reasoning.agents import ExpertAgentConfig, MermaidExpertAgent
+from Jotty.core.intelligence.reasoning.agents.memory_integration import sync_improvements_to_memory
+from Jotty.core.intelligence.reasoning.agents.mermaid_renderer import validate_mermaid_syntax
 from core.foundation.data_structures import SwarmConfig
 from core.memory.cortex import SwarmMemory
 

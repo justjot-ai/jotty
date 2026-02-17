@@ -55,8 +55,8 @@ def _make_four_agent_relay_swarm():
     """4 agents in relay order: Researcher → Analyst → Writer → Editor."""
     from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
     from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
-    from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
-    from Jotty.core.modes.agent.auto_agent import AutoAgent
+    from Jotty.core.intelligence.orchestration.core.swarm_manager import Orchestrator
+    from Jotty.core.intelligence.reasoning.agents.auto_agent import AutoAgent
 
     agents = [
         AgentConfig(
@@ -108,8 +108,8 @@ def _make_three_agent_fanout_swarm():
     """3 agents for parallel fanout: each gets a distinct sub-goal."""
     from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
     from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
-    from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
-    from Jotty.core.modes.agent.auto_agent import AutoAgent
+    from Jotty.core.intelligence.orchestration.core.swarm_manager import Orchestrator
+    from Jotty.core.intelligence.reasoning.agents.auto_agent import AutoAgent
 
     agents = [
         AgentConfig(
@@ -311,8 +311,8 @@ async def test_complex_debate_two_agents_then_synthesize():
     """
     from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
     from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
-    from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
-    from Jotty.core.modes.agent.auto_agent import AutoAgent
+    from Jotty.core.intelligence.orchestration.core.swarm_manager import Orchestrator
+    from Jotty.core.intelligence.reasoning.agents.auto_agent import AutoAgent
 
     agents = [
         AgentConfig(
@@ -377,8 +377,8 @@ async def test_complex_refinement_draft_then_edit():
     """
     from Jotty.core.infrastructure.foundation.agent_config import AgentConfig
     from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
-    from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
-    from Jotty.core.modes.agent.auto_agent import AutoAgent
+    from Jotty.core.intelligence.orchestration.core.swarm_manager import Orchestrator
+    from Jotty.core.intelligence.reasoning.agents.auto_agent import AutoAgent
 
     agents = [
         AgentConfig(

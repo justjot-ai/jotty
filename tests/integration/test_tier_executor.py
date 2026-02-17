@@ -21,13 +21,13 @@ from datetime import datetime
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-from Jotty.core.modes.execution.executor import (
+from Jotty.core.intelligence.orchestration.execution.tier_executor import (
     ComplexityGate,
     LLMProvider,
     TierExecutor,
     _FallbackValidator,
 )
-from Jotty.core.modes.execution.types import (
+from Jotty.core.intelligence.orchestration.execution.types import (
     ExecutionConfig,
     ExecutionPlan,
     ExecutionTier,

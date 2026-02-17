@@ -3,10 +3,10 @@ Agent Facades for SDK
 ======================
 
 Provides agent classes to SDK via interface layer.
-SDK should import from here, not directly from core.modes.
+SDK should import from here, not directly from core.intelligence.reasoning.
 
 Architecture:
-    SDK → core/interface/api/agents.py → core/modes/agent/
+    SDK → core/interface/api/agents.py → core/intelligence/reasoning/agents/
 
 This ensures:
 - SDK respects layer boundaries
@@ -14,8 +14,8 @@ This ensures:
 - Clean separation of concerns
 """
 
-from Jotty.core.modes.agent.agents.auto_agent import AutoAgent  # type: ignore[import]
-from Jotty.core.modes.agent.agents.chat_assistant import (  # type: ignore[import]
+from Jotty.core.intelligence.reasoning.agents.auto_agent import AutoAgent  # type: ignore[import]
+from Jotty.core.intelligence.reasoning.agents.chat_assistant import (  # type: ignore[import]
     ChatAssistant,
     create_chat_assistant,
 )

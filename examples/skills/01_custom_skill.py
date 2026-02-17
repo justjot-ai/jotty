@@ -105,7 +105,7 @@ def get_forecast(city: str, days: int = 3) -> Dict[str, Any]:
     print(
         """
 from Jotty.core.capabilities.registry import get_unified_registry
-from Jotty.core.modes.agent import AutoAgent
+from Jotty.core.intelligence.reasoning.agent import AutoAgent
 
 # Get registry
 registry = get_unified_registry()

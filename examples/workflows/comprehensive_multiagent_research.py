@@ -25,9 +25,11 @@ if env_path.exists():
 
 
 async def main():
-    from Jotty.core.intelligence.orchestration.multi_stage_pipeline import MergeStrategy
-    from Jotty.core.intelligence.orchestration.swarm_adapter import SwarmAdapter
-    from Jotty.core.modes.workflow import (
+    from Jotty.core.intelligence.orchestration.coordination.multi_stage_pipeline import (
+        MergeStrategy,
+    )
+    from Jotty.core.intelligence.orchestration.core.swarm_adapter import SwarmAdapter
+    from Jotty.core.intelligence.orchestration.pipelines import (
         OutputChannelManager,
         OutputFormatManager,
         ResearchDepth,

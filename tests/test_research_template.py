@@ -13,8 +13,8 @@ import os
 from pathlib import Path
 
 import pytest
-from Jotty.core.execution.swarms.research_swarm.types import ResearchConfig
-from Jotty.core.execution.swarms.templates.research import ResearchTemplate
+from Jotty.core.intelligence.orchestration.swarms.research_swarm.types import ResearchConfig
+from Jotty.core.intelligence.orchestration.swarms.templates.research import ResearchTemplate
 
 # Setup logging for detailed output
 logging.basicConfig(
@@ -239,7 +239,7 @@ async def test_research_template_ticker_extraction():
 
 def test_research_template_backward_compatibility():
     """Test backward compatibility alias."""
-    from Jotty.core.execution.swarms.templates.research import ResearchSwarm
+    from Jotty.core.intelligence.orchestration.swarms.templates.research import ResearchSwarm
 
     assert ResearchSwarm is ResearchTemplate
 

@@ -106,7 +106,7 @@ def analyze_integration(base_dir):
             is_imported = True
 
         # Check if imported as part of package
-        # e.g., "core.execution.agents.mermaid_agent" imported via "from core.execution.agents import mermaid_agent"
+        # e.g., "core.intelligence.reasoning.agents.mermaid_agent" imported via "from core.intelligence.reasoning.agents import mermaid_agent"
         for imp in all_imports:
             if module_path.startswith(imp) or imp.startswith(module_path):
                 is_imported = True

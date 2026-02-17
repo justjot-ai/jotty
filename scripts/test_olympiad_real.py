@@ -37,8 +37,10 @@ async def test_olympiad_swarm():
     print(f"Provider: Anthropic Claude")
 
     try:
-        from Jotty.core.execution.swarms.olympiad_learning_swarm import OlympiadLearningSwarm
-        from Jotty.core.execution.swarms.olympiad_learning_swarm.types import (
+        from Jotty.core.intelligence.orchestration.swarms.olympiad_learning_swarm import (
+            OlympiadLearningSwarm,
+        )
+        from Jotty.core.intelligence.orchestration.swarms.olympiad_learning_swarm.types import (
             OlympiadLearningConfig,
             Subject,
             LessonDepth,

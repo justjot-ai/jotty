@@ -63,7 +63,7 @@ E = "\033[0m"
 
 async def main():
     from Jotty.core.infrastructure.foundation.config_defaults import DEFAULTS
-    from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
+    from Jotty.core.intelligence.orchestration.core.swarm_manager import Orchestrator
 
     print(f'\n{B}{"═" * 70}{E}')
     print(f"{B}  JOTTY V2 — REAL-WORLD SWARM TEST: AI PAPERS REPORT{E}")

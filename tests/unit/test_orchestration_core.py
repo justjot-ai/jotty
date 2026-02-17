@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 from Jotty.core.infrastructure.foundation.data_structures import SwarmConfig
-from Jotty.core.intelligence.orchestration.agent_runner import (
+from Jotty.core.intelligence.orchestration.execution.agent_runner import (
     HOOK_TYPES,
     AgentRunner,
     AgentRunnerConfig,
@@ -57,14 +57,14 @@ except ImportError:
 
 # Conditional imports for modules with complex dependency chains
 try:
-    from Jotty.core.intelligence.orchestration.provider_manager import ProviderManager
+    from Jotty.core.intelligence.orchestration.routing.provider_manager import ProviderManager
 
     HAS_PROVIDER_MANAGER = True
 except ImportError:
     HAS_PROVIDER_MANAGER = False
 
 try:
-    from Jotty.core.intelligence.orchestration.ensemble_manager import EnsembleManager
+    from Jotty.core.intelligence.orchestration.coordination.ensemble_manager import EnsembleManager
 
     HAS_ENSEMBLE_MANAGER = True
 except ImportError:
@@ -1177,7 +1177,9 @@ class TestOrchestrationLazyLoading:
 
     def test_getattr_resolves_execution_context_via_agent_runner(self):
         """ExecutionContext is accessible via agent_runner module."""
-        from Jotty.core.intelligence.orchestration.agent_runner import ExecutionContext as EC
+        from Jotty.core.intelligence.orchestration.execution.agent_runner import (
+            ExecutionContext as EC,
+        )
 
         assert EC is ExecutionContext
 
@@ -1422,7 +1424,7 @@ class TestEnsembleManager:
 # =============================================================================
 
 try:
-    from Jotty.core.intelligence.orchestration.swarm_data_structures import (
+    from Jotty.core.intelligence.orchestration.intelligence.swarm_data_structures import (
         AgentProfile,
         AgentSession,
         AgentSpecialization,
@@ -1441,7 +1443,7 @@ except ImportError:
 
 try:
     from Jotty.core.infrastructure.foundation.types import TaskStatus
-    from Jotty.core.intelligence.orchestration.swarm_roadmap import (
+    from Jotty.core.intelligence.orchestration.state.swarm_roadmap import (
         AgenticState,
         DecomposedQFunction,
         StateCheckpointer,
@@ -1457,14 +1459,16 @@ except ImportError:
     HAS_SWARM_ROADMAP = False
 
 try:
-    from Jotty.core.intelligence.orchestration.swarm_intelligence import SwarmIntelligence
+    from Jotty.core.intelligence.orchestration.intelligence.swarm_intelligence import (
+        SwarmIntelligence,
+    )
 
     HAS_SWARM_INTELLIGENCE = True
 except ImportError:
     HAS_SWARM_INTELLIGENCE = False
 
 try:
-    from Jotty.core.intelligence.orchestration.swarm_state_manager import (
+    from Jotty.core.intelligence.orchestration.state.swarm_state_manager import (
         AgentStateTracker,
         SwarmStateManager,
     )

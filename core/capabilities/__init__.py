@@ -78,7 +78,7 @@ def _execution_paths() -> Dict[str, Any]:
         "workflow": {
             "description": "Multi-step planning and orchestration with agents",
             "import_path": "from Jotty import Jotty; jotty = Jotty(); await jotty.plan('...')",
-            "class": "Jotty.core.execution.executor.TierExecutor",
+            "class": "Jotty.core.intelligence.orchestration.execution.tier_executor.TierExecutor",
             "tier": "Tier 2-3 (AGENTIC/LEARNING)",
         },
         "swarm": {
@@ -172,7 +172,7 @@ def _subsystems() -> Dict[str, Any]:
 def _swarms() -> list:
     """List available domain swarms (safe import)."""
     try:
-        from Jotty.core.execution.swarms._base.registry import (
+        from Jotty.core.intelligence.orchestration.swarms._base.registry import (
             SwarmRegistry,  # type: ignore[import]
         )
 
@@ -356,7 +356,7 @@ def _explanations() -> Dict[str, str]:
             "  jotty = Jotty()\n"
             "  result = await jotty.plan('Research AI and create report')\n\n"
             "Or via TierExecutor:\n"
-            "  from Jotty.core.modes.execution import TierExecutor, ExecutionConfig\n"
+            "  from Jotty.core.intelligence.orchestration.execution import TierExecutor, ExecutionConfig\n"
             "  executor = TierExecutor(config=ExecutionConfig())"
         ),
         "swarm": (

@@ -282,7 +282,9 @@ class TestJottyGAIAAdapterRun:
         mock_jotty.run = AsyncMock(return_value=FakeExecutionResult())
         adapter._jotty = mock_jotty
 
-        with patch("Jotty.core.execution.types.ExecutionTier") as mock_tier_cls:
+        with patch(
+            "Jotty.core.intelligence.orchestration.execution.types.ExecutionTier"
+        ) as mock_tier_cls:
             # Create a fake enum
             mock_tier = Mock()
             mock_tier.name = "AGENTIC"

@@ -23,26 +23,26 @@ if TYPE_CHECKING:
     from Jotty.core.infrastructure.foundation.data_structures import (
         SwarmConfig,  # type: ignore[import]
     )
-    from Jotty.core.intelligence.orchestration.ensemble_manager import (
+    from Jotty.core.intelligence.orchestration.coordination.ensemble_manager import (
         EnsembleManager,  # type: ignore[import]
     )
-    from Jotty.core.intelligence.orchestration.model_tier_router import (
-        ModelTierRouter,  # type: ignore[import]
-    )
-    from Jotty.core.intelligence.orchestration.paradigm_executor import (
+    from Jotty.core.intelligence.orchestration.coordination.paradigm_executor import (
         ParadigmExecutor,  # type: ignore[import]
     )
-    from Jotty.core.intelligence.orchestration.provider_manager import (
-        ProviderManager,  # type: ignore[import]
-    )
-    from Jotty.core.intelligence.orchestration.swarm_intelligence import (
+    from Jotty.core.intelligence.orchestration.intelligence.swarm_intelligence import (
         SwarmIntelligence,  # type: ignore[import]
     )
-    from Jotty.core.intelligence.orchestration.swarm_router import (
-        SwarmRouter,  # type: ignore[import]
-    )
-    from Jotty.core.intelligence.orchestration.training_daemon import (
+    from Jotty.core.intelligence.orchestration.learning.training_daemon import (
         TrainingDaemon,  # type: ignore[import]
+    )
+    from Jotty.core.intelligence.orchestration.routing.model_tier_router import (
+        ModelTierRouter,  # type: ignore[import]
+    )
+    from Jotty.core.intelligence.orchestration.routing.provider_manager import (
+        ProviderManager,  # type: ignore[import]
+    )
+    from Jotty.core.intelligence.orchestration.routing.swarm_router import (
+        SwarmRouter,  # type: ignore[import]
     )
 
 _lock = threading.Lock()
@@ -63,14 +63,16 @@ def get_swarm_intelligence(config: Any = None) -> "SwarmIntelligence":
         SwarmIntelligence instance.
     """
     if config is not None:
-        from Jotty.core.intelligence.orchestration.swarm_intelligence import SwarmIntelligence
+        from Jotty.core.intelligence.orchestration.intelligence.swarm_intelligence import (
+            SwarmIntelligence,
+        )
 
         return SwarmIntelligence(config=config)
     key = "swarm_intelligence"
     if key not in _singletons:
         with _lock:
             if key not in _singletons:
-                from Jotty.core.intelligence.orchestration.swarm_intelligence import (
+                from Jotty.core.intelligence.orchestration.intelligence.swarm_intelligence import (
                     SwarmIntelligence,
                 )
 
@@ -90,7 +92,9 @@ def get_paradigm_executor(
     Returns:
         ParadigmExecutor instance (if manager provided) or class (if not).
     """
-    from Jotty.core.intelligence.orchestration.paradigm_executor import ParadigmExecutor
+    from Jotty.core.intelligence.orchestration.coordination.paradigm_executor import (
+        ParadigmExecutor,
+    )
 
     if manager is not None:
         return ParadigmExecutor(manager)
@@ -107,7 +111,7 @@ def get_training_daemon(manager: Any = None) -> Union["TrainingDaemon", Type["Tr
     Returns:
         TrainingDaemon instance (if manager provided) or class (if not).
     """
-    from Jotty.core.intelligence.orchestration.training_daemon import TrainingDaemon
+    from Jotty.core.intelligence.orchestration.learning.training_daemon import TrainingDaemon
 
     if manager is not None:
         return TrainingDaemon(manager)
@@ -127,7 +131,9 @@ def get_ensemble_manager() -> "EnsembleManager":
     if key not in _singletons:
         with _lock:
             if key not in _singletons:
-                from Jotty.core.intelligence.orchestration.ensemble_manager import EnsembleManager
+                from Jotty.core.intelligence.orchestration.coordination.ensemble_manager import (
+                    EnsembleManager,
+                )
 
                 _singletons[key] = EnsembleManager()
     return _singletons[key]
@@ -143,7 +149,7 @@ def get_provider_manager(config: Optional["SwarmConfig"] = None) -> "ProviderMan
     Returns:
         ProviderManager instance.
     """
-    from Jotty.core.intelligence.orchestration.provider_manager import ProviderManager
+    from Jotty.core.intelligence.orchestration.routing.provider_manager import ProviderManager
 
     return ProviderManager(
         config=config,
@@ -161,7 +167,7 @@ def get_model_tier_router(default_provider: str | None = None) -> "ModelTierRout
     Returns:
         ModelTierRouter instance.
     """
-    from Jotty.core.intelligence.orchestration.model_tier_router import ModelTierRouter
+    from Jotty.core.intelligence.orchestration.routing.model_tier_router import ModelTierRouter
 
     return ModelTierRouter(default_provider=default_provider)
 
@@ -179,7 +185,7 @@ def get_swarm_router() -> "SwarmRouter":
     if key not in _singletons:
         with _lock:
             if key not in _singletons:
-                from Jotty.core.intelligence.orchestration.swarm_router import SwarmRouter
+                from Jotty.core.intelligence.orchestration.routing.swarm_router import SwarmRouter
 
                 _singletons[key] = SwarmRouter()
     return _singletons[key]

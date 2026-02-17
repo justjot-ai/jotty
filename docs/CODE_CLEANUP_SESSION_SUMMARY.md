@@ -37,12 +37,12 @@ Created **`scripts/find_truly_dead_code.py`** - Sophisticated analysis that dist
 
 | File | Lines | Status |
 |------|-------|--------|
-| `core/modes/workflow/auto_workflow.py` | 490 | ✅ Deleted |
-| `core/modes/workflow/learning_workflow.py` | 800 | ✅ Deleted |
-| `core/modes/workflow/research_workflow.py` | 786 | ✅ Deleted |
-| `core/modes/workflow/smart_swarm_registry.py` | 331 | ✅ Deleted |
-| `core/modes/workflow/output_channels.py` | 399 | ✅ Deleted |
-| `core/modes/workflow/output_formats.py` | 551 | ✅ Deleted |
+| `core/intelligence/orchestration/pipelines/auto_workflow.py` | 490 | ✅ Deleted |
+| `core/intelligence/orchestration/pipelines/learning_workflow.py` | 800 | ✅ Deleted |
+| `core/intelligence/orchestration/pipelines/research_workflow.py` | 786 | ✅ Deleted |
+| `core/intelligence/orchestration/pipelines/smart_swarm_registry.py` | 331 | ✅ Deleted |
+| `core/intelligence/orchestration/pipelines/output_channels.py` | 399 | ✅ Deleted |
+| `core/intelligence/orchestration/pipelines/output_formats.py` | 551 | ✅ Deleted |
 
 **Reason:** Duplicates of working versions in `core/execution/workflows/`
 

@@ -35,7 +35,7 @@ async def real_learning_hard():
     print("\nComplex task that requires learning to get right\n")
 
     # Configure
-    from core.experts.plantuml_expert import PlantUMLExpertAgent
+    from Jotty.core.intelligence.reasoning.agents.plantuml_expert import PlantUMLExpertAgent
     from Jotty.core.infrastructure.integration.direct_claude_cli_lm import DirectClaudeCLI
 
     lm = DirectClaudeCLI(model="sonnet")

@@ -29,7 +29,7 @@ def test_dspy_imports():
         return False
 
     try:
-        from Jotty.core.modes.agent.dspy_mcp_agent import DSPyMCPAgent
+        from Jotty.core.intelligence.reasoning.agent.dspy_mcp_agent import DSPyMCPAgent
 
         print("✅ DSPyMCPAgent imported successfully")
     except ImportError as e:
@@ -139,7 +139,7 @@ def test_dspy_agent_creation():
     try:
         import asyncio
 
-        from Jotty.core.modes.agent.dspy_mcp_agent import DSPyMCPAgent
+        from Jotty.core.intelligence.reasoning.agent.dspy_mcp_agent import DSPyMCPAgent
 
         async def create_agent():
             agent = DSPyMCPAgent(

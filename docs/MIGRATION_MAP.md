@@ -41,10 +41,10 @@
 
 | Old Location | New Location | Status |
 |--------------|--------------|--------|
-| `core/agents/` | `core/modes/agent/` | ✅ Complete |
-| `core/workflows/` | `core/modes/workflow/` | ✅ Complete |
-| `core/execution/` | `core/modes/execution/` | ✅ Complete |
-| `core/autonomous/` | `core/modes/agent/autonomous/` | ✅ Complete |
+| `core/agents/` | `core/intelligence/reasoning/` | ✅ Complete |
+| `core/workflows/` | `core/intelligence/orchestration/pipelines/` | ✅ Complete |
+| `core/execution/` | `core/intelligence/orchestration/execution/` | ✅ Complete |
+| `core/autonomous/` | `core/intelligence/reasoning/autonomous/` | ✅ Complete |
 
 ---
 

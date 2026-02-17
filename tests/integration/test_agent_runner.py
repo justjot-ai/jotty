@@ -23,7 +23,7 @@ import pytest
 # ---------------------------------------------------------------------------
 try:
     from Jotty.core.infrastructure.foundation.data_structures import EpisodeResult, SwarmConfig
-    from Jotty.core.intelligence.orchestration.agent_runner import (
+    from Jotty.core.intelligence.orchestration.execution.agent_runner import (
         HOOK_TYPES,
         AgentRunner,
         AgentRunnerConfig,

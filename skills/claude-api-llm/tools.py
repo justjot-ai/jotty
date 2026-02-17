@@ -571,7 +571,7 @@ class AgenticToolExecutor:
             return {"success": False, "error": "command is required"}
 
         try:
-            from Jotty.core.intelligence.orchestration.sandbox_manager import (
+            from Jotty.core.intelligence.orchestration.execution.sandbox_manager import (
                 SandboxManager,
                 TrustLevel,
             )

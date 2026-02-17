@@ -24,7 +24,7 @@
 
 ### 1.1 Delete Empty Directories
 ```
-❌ DELETED: core/modes/chat/ (empty)
+❌ DELETED: core/intelligence/chat/ (empty)
 ```
 
 ### 1.2 Create SDK Interface Facades
@@ -62,7 +62,7 @@ from ..core.interface.api.registry import get_unified_registry
 
 **Before:**
 ```
-core/modes/agent/base/  (20+ files, 1.8MB, hard to navigate)
+core/intelligence/reasoning/base/  (20+ files, 1.8MB, hard to navigate)
 ├── _execution_types.py     (1435 lines)
 ├── _plan_utils_mixin.py    (1482 lines)
 ├── inspector.py            (1623 lines)
@@ -76,7 +76,7 @@ core/modes/agent/base/  (20+ files, 1.8MB, hard to navigate)
 
 **After:**
 ```
-core/modes/agent/
+core/intelligence/reasoning/
 ├── base/                    # Core infrastructure (3 files)
 │   ├── base_agent.py
 │   ├── agent_factory.py
@@ -131,12 +131,12 @@ core/modes/agent/
 **Example updates:**
 ```python
 # Before
-from Jotty.core.modes.agent.base.chat_assistant import ChatAssistant
-from Jotty.core.modes.agent.base._execution_types import ExecutionResult
+from Jotty.core.intelligence.reasoning.base.chat_assistant import ChatAssistant
+from Jotty.core.intelligence.reasoning.base._execution_types import ExecutionResult
 
 # After
-from Jotty.core.modes.agent.agents.chat_assistant import ChatAssistant
-from Jotty.core.modes.agent.types.execution_types import ExecutionResult
+from Jotty.core.intelligence.reasoning.agents.chat_assistant import ChatAssistant
+from Jotty.core.intelligence.reasoning.types.execution_types import ExecutionResult
 ```
 
 ### 2.4 Benefits
@@ -169,9 +169,9 @@ core/interface/
 └── use_cases/        # 12K - Backward compat shim
 ```
 
-**core/modes/ (63 files, now well-organized):**
+**core/intelligence/ (63 files, now well-organized):**
 ```
-core/modes/
+core/intelligence/
 ├── agent/            # 1.8M - Now organized into 7 subdirectories
 ├── execution/        # 404K - Execution engine
 ├── use_cases/        # 196K - Use case wrappers (moved from interface)
@@ -195,7 +195,7 @@ sdk/
 ```
 apps/              # Mix of cli, frontend, telegram_bot
 core/interface/    # Had cli/, web_app/, use_cases/ (wrong layer!)
-core/modes/        # Some execution logic
+core/intelligence/        # Some execution logic
   /agent/base/     # 20+ files in one directory
 sdk/               # Bypassed interface layer
 ```
@@ -225,7 +225,7 @@ sdk/               # Bypassed interface layer
 └────────────────────────┬────────────────────────────────┘
                          ↓ Uses
 ┌────────────────────────┴────────────────────────────────┐
-│  LAYER 2: CORE MODES (core/modes/)                      │
+│  LAYER 2: CORE MODES (core/intelligence/)                      │
 │  ├── agent/      → Organized into 7 subdirectories ✅   │
 │  ├── execution/  → Execution engine                     │
 │  ├── use_cases/  → Moved here from interface ✅         │
@@ -309,7 +309,7 @@ pytest tests/ -v
 python3 -c "from jotty import Jotty; print('SDK OK')"
 
 # 3. Test agent imports
-python3 -c "from Jotty.core.modes.agent.agents import ChatAssistant; print('Agents OK')"
+python3 -c "from Jotty.core.intelligence.reasoning.agents import ChatAssistant; print('Agents OK')"
 
 # 4. Test interface layer
 python3 -c "from Jotty.core.interface.api import JottyAPI; print('Interface OK')"

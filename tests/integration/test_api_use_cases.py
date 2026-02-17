@@ -22,7 +22,7 @@ import pytest
 # ---------------------------------------------------------------------------
 
 try:
-    from Jotty.core.interface.use_cases.base import (
+    from Jotty.core.intelligence.orchestration.use_cases.base import (
         BaseUseCase,
         UseCaseConfig,
         UseCaseResult,
@@ -34,14 +34,17 @@ except ImportError:
     HAS_USE_CASE_BASE = False
 
 try:
-    from Jotty.core.interface.use_cases.chat.chat_context import ChatContext, ChatMessage
+    from Jotty.core.intelligence.orchestration.use_cases.chat.chat_context import (
+        ChatContext,
+        ChatMessage,
+    )
 
     HAS_CHAT_CONTEXT = True
 except ImportError:
     HAS_CHAT_CONTEXT = False
 
 try:
-    from Jotty.core.interface.use_cases.workflow.workflow_context import (
+    from Jotty.core.intelligence.orchestration.use_cases.workflow.workflow_context import (
         WorkflowContext,
         WorkflowTask,
     )

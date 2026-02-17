@@ -8,7 +8,7 @@ across all platforms (WhatsApp, Telegram, CLI, Web).
 ## Terminology
 
 - **Platforms** (apps/): WHERE users interact (WhatsApp, Telegram, CLI, Web)
-- **Modes** (core/modes/): HOW execution happens (Chat, Workflow, Streaming)
+- **Modes** (core/intelligence/): HOW execution happens (Chat, Workflow, Streaming)
 - **Modalities** (here): WHAT medium is used (Text, Voice, Image, Video)
 
 ## Usage

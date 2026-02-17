@@ -18,7 +18,9 @@ pytestmark = pytest.mark.skipif(
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.experts.plantuml_expert import PlantUMLExpertAgent as PlantUMLExpert
+from Jotty.core.intelligence.reasoning.agents.plantuml_expert import (
+    PlantUMLExpertAgent as PlantUMLExpert,
+)
 
 
 async def test_github_loading():

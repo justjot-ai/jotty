@@ -21,14 +21,14 @@ import pytest
 
 # Import learning mixin
 # Import evaluation components
-from Jotty.core.execution.swarms._base.evaluation import (
+from Jotty.core.intelligence.orchestration.swarms._base.evaluation import (
     EvaluationHistory,
     GoldStandardDB,
     ImprovementHistory,
 )
 
 # Import improvement agents
-from Jotty.core.execution.swarms._base.improvement_agents import (
+from Jotty.core.intelligence.orchestration.swarms._base.improvement_agents import (
     ActorAgent,
     AuditorAgent,
     CollapsedEvaluator,
@@ -40,10 +40,10 @@ from Jotty.core.execution.swarms._base.improvement_agents import (
 )
 
 # Import base swarm
-from Jotty.core.execution.swarms._base.swarm_learning import SwarmLearning
+from Jotty.core.intelligence.orchestration.swarms._base.swarm_learning import SwarmLearning
 
 # Import swarm types
-from Jotty.core.execution.swarms._base.swarm_types import (
+from Jotty.core.intelligence.orchestration.swarms._base.swarm_types import (
     AgentRole,
     Evaluation,
     EvaluationResult,

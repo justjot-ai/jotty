@@ -29,8 +29,10 @@ def test_import(name: str, import_func):
 
 
 def test_olympiad():
-    from Jotty.core.execution.swarms.olympiad_learning_swarm import OlympiadLearningSwarm
-    from Jotty.core.execution.swarms.olympiad_learning_swarm.types import (
+    from Jotty.core.intelligence.orchestration.swarms.olympiad_learning_swarm import (
+        OlympiadLearningSwarm,
+    )
+    from Jotty.core.intelligence.orchestration.swarms.olympiad_learning_swarm.types import (
         OlympiadLearningConfig,
         Subject,
     )
@@ -40,28 +42,30 @@ def test_olympiad():
 
 
 def test_research():
-    from Jotty.core.execution.swarms.research_swarm import ResearchSwarm
-    from Jotty.core.execution.swarms.research_swarm.types import ResearchConfig
+    from Jotty.core.intelligence.orchestration.swarms.research_swarm import ResearchSwarm
+    from Jotty.core.intelligence.orchestration.swarms.research_swarm.types import ResearchConfig
 
     config = ResearchConfig(send_telegram=False)
     swarm = ResearchSwarm(config)
 
 
 def test_arxiv():
-    from Jotty.core.execution.swarms.arxiv_learning_swarm import learn_paper
+    from Jotty.core.intelligence.orchestration.swarms.arxiv_learning_swarm import learn_paper
 
 
 def test_coding():
-    from Jotty.core.execution.swarms.coding_swarm import CodingSwarm
-    from Jotty.core.execution.swarms.coding_swarm.types import CodingConfig
+    from Jotty.core.intelligence.orchestration.swarms.coding_swarm import CodingSwarm
+    from Jotty.core.intelligence.orchestration.swarms.coding_swarm.types import CodingConfig
 
     config = CodingConfig()
     swarm = CodingSwarm(config)
 
 
 def test_perspective():
-    from Jotty.core.execution.swarms.perspective_learning_swarm import PerspectiveLearningSwarm
-    from Jotty.core.execution.swarms.perspective_learning_swarm.types import (
+    from Jotty.core.intelligence.orchestration.swarms.perspective_learning_swarm import (
+        PerspectiveLearningSwarm,
+    )
+    from Jotty.core.intelligence.orchestration.swarms.perspective_learning_swarm.types import (
         PerspectiveLearningConfig,
     )
 
@@ -70,33 +74,35 @@ def test_perspective():
 
 
 def test_pilot():
-    from Jotty.core.execution.swarms.pilot_swarm import PilotSwarm
-    from Jotty.core.execution.swarms.pilot_swarm.types import PilotConfig
+    from Jotty.core.intelligence.orchestration.swarms.pilot_swarm import PilotSwarm
+    from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.types import PilotConfig
 
     config = PilotConfig()
     swarm = PilotSwarm(config)
 
 
 def test_testing():
-    from Jotty.core.execution.swarms.templates.testing import TestingSwarm
+    from Jotty.core.intelligence.orchestration.swarms.templates.testing import TestingSwarm
 
     swarm = TestingSwarm()
 
 
 def test_review():
-    from Jotty.core.execution.swarms.templates.review import ReviewSwarm
+    from Jotty.core.intelligence.orchestration.swarms.templates.review import ReviewSwarm
 
     swarm = ReviewSwarm()
 
 
 def test_data_analysis():
-    from Jotty.core.execution.swarms.templates.data_analysis_swarm import DataAnalysisSwarm
+    from Jotty.core.intelligence.orchestration.swarms.templates.data_analysis_swarm import (
+        DataAnalysisSwarm,
+    )
 
     swarm = DataAnalysisSwarm()
 
 
 def test_devops():
-    from Jotty.core.execution.swarms.templates.devops_swarm import DevOpsSwarm
+    from Jotty.core.intelligence.orchestration.swarms.templates.devops_swarm import DevOpsSwarm
 
     swarm = DevOpsSwarm()
 

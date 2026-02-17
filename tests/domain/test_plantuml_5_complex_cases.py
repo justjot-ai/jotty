@@ -12,8 +12,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.experts import ExpertAgentConfig, PlantUMLExpertAgent
-from core.experts.plantuml_renderer import validate_plantuml_syntax
+from Jotty.core.intelligence.reasoning.agents import ExpertAgentConfig, PlantUMLExpertAgent
+from Jotty.core.intelligence.reasoning.agents.plantuml_renderer import validate_plantuml_syntax
 
 # 5 Complex Test Cases (including large diagrams for 414 testing)
 TEST_CASES = [

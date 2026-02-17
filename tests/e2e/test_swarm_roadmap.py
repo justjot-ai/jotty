@@ -30,7 +30,7 @@ except ImportError:
 
 # Try importing the modules under test
 try:
-    from Jotty.core.intelligence.orchestration.swarm_roadmap import (
+    from Jotty.core.intelligence.orchestration.state.swarm_roadmap import (
         AgenticState,
         DecomposedQFunction,
         SubtaskState,

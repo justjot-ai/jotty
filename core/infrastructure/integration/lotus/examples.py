@@ -216,7 +216,7 @@ def example_enhance_swarm() -> None:
     """
     # Option 1: Enable during initialization
     code1 = """
-from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
+from Jotty.core.intelligence.orchestration.core.swarm_manager import Orchestrator
 
 # LOTUS is enabled by default
 swarm = Orchestrator(

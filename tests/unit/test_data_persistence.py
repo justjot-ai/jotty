@@ -91,7 +91,10 @@ except ImportError:
     HAS_INFO_STORAGE = False
 
 try:
-    from Jotty.core.modes.agent.feedback_channel import FeedbackMessage, FeedbackType
+    from Jotty.core.intelligence.reasoning.tools.feedback_channel import (
+        FeedbackMessage,
+        FeedbackType,
+    )
 
     HAS_FEEDBACK_CHANNEL = True
 except ImportError:

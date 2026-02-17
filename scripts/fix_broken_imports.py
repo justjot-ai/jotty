@@ -4,7 +4,6 @@
 from pathlib import Path
 
 files_to_fix = [
-    "core/intelligence/orchestration/_session_mixin.py",
     "core/intelligence/orchestration/protocols/coordination.py",
     "core/intelligence/orchestration/protocols/routing.py",
     "core/intelligence/orchestration/protocols/resilience.py",

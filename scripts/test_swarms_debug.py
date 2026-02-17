@@ -23,8 +23,8 @@ print(f"API Key: {api_key[:20] if api_key else 'NOT FOUND'}...")
 
 async def test_research():
     print("\n>>> Importing ResearchSwarm...")
-    from Jotty.core.execution.swarms.research_swarm import ResearchSwarm
-    from Jotty.core.execution.swarms.research_swarm.types import ResearchConfig
+    from Jotty.core.intelligence.orchestration.swarms.research_swarm import ResearchSwarm
+    from Jotty.core.intelligence.orchestration.swarms.research_swarm.types import ResearchConfig
 
     print(">>> Creating config...")
     config = ResearchConfig(
@@ -48,8 +48,10 @@ async def test_research():
 
 async def test_olympiad():
     print("\n>>> Importing OlympiadLearningSwarm...")
-    from Jotty.core.execution.swarms.olympiad_learning_swarm import OlympiadLearningSwarm
-    from Jotty.core.execution.swarms.olympiad_learning_swarm.types import (
+    from Jotty.core.intelligence.orchestration.swarms.olympiad_learning_swarm import (
+        OlympiadLearningSwarm,
+    )
+    from Jotty.core.intelligence.orchestration.swarms.olympiad_learning_swarm.types import (
         OlympiadLearningConfig,
         Subject,
         LessonDepth,

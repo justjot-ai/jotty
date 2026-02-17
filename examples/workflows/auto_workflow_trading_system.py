@@ -35,7 +35,7 @@ load_dotenv(Path(__file__).parent.parent / "Jotty" / ".env.anthropic")
 
 async def main():
     from Jotty.core.intelligence.orchestration import MergeStrategy, SwarmAdapter
-    from Jotty.core.modes.workflow import AutoWorkflow
+    from Jotty.core.intelligence.orchestration.pipelines import AutoWorkflow
 
     print("\n" + "=" * 80)
     print("COMPLEX FLEXIBILITY TEST")

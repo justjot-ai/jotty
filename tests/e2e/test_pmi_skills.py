@@ -677,7 +677,7 @@ class TestFinancialAnalysis:
 # TestToolSchemaOutputs — verify output field parsing from docstrings
 # =============================================================================
 
-from Jotty.core.modes.agent._execution_types import ToolSchema
+from Jotty.core.intelligence.reasoning.types.execution_types import ToolSchema
 
 
 @pytest.mark.unit
@@ -840,7 +840,7 @@ class TestIOContractEnrichment:
         inputs_needed=None,
         outputs_produced=None,
     ):
-        from Jotty.core.modes.agent._execution_types import ExecutionStep
+        from Jotty.core.intelligence.reasoning.types.execution_types import ExecutionStep
 
         return ExecutionStep(
             skill_name=skill_name,
@@ -854,7 +854,7 @@ class TestIOContractEnrichment:
         )
 
     def _make_mixin(self):
-        from Jotty.core.modes.agent._plan_utils_mixin import PlanUtilsMixin
+        from Jotty.core.intelligence.reasoning.mixins.plan_utils import PlanUtilsMixin
 
         return PlanUtilsMixin()
 
@@ -936,7 +936,7 @@ class TestIOContractEnrichment:
 
         This test mocks the registry to provide a tool with declared outputs.
         """
-        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
+        from Jotty.core.intelligence.reasoning.types.execution_types import ToolParam, ToolSchema
 
         mixin = self._make_mixin()
 
@@ -988,7 +988,7 @@ class TestIOContractEnrichment:
     @pytest.mark.unit
     def test_upgrade_data_param_to_data_field(self):
         """data param should match data output field via exact match."""
-        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
+        from Jotty.core.intelligence.reasoning.types.execution_types import ToolParam, ToolSchema
 
         mixin = self._make_mixin()
         step0 = self._make_step(output_key="fetch")
@@ -1016,7 +1016,7 @@ class TestIOContractEnrichment:
     @pytest.mark.unit
     def test_no_upgrade_when_no_match(self):
         """Bare ref with no matching field should stay as-is."""
-        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
+        from Jotty.core.intelligence.reasoning.types.execution_types import ToolParam, ToolSchema
 
         mixin = self._make_mixin()
         step0 = self._make_step(output_key="src")
@@ -1063,7 +1063,7 @@ class TestIOContractEnrichment:
     @pytest.mark.unit
     def test_multiple_refs_in_single_param(self):
         """Multiple template refs in one param value should all be processed."""
-        from Jotty.core.modes.agent._execution_types import ToolParam, ToolSchema
+        from Jotty.core.intelligence.reasoning.types.execution_types import ToolParam, ToolSchema
 
         mixin = self._make_mixin()
         step0 = self._make_step(output_key="a")

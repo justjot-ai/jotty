@@ -34,7 +34,9 @@ def benchmark_discovery():
 
 def benchmark_swarm_init():
     """Measure swarm initialization."""
-    from Jotty.core.execution.swarms.olympiad_learning_swarm import OlympiadLearningSwarm
+    from Jotty.core.intelligence.orchestration.swarms.olympiad_learning_swarm import (
+        OlympiadLearningSwarm,
+    )
 
     start = time.time()
     swarm = OlympiadLearningSwarm()

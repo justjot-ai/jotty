@@ -42,10 +42,10 @@ async def test_multi_agent_system():
     print("=" * 70)
 
     # Import our DRY-refactored experts
-    from core.experts.math_latex_expert import MathLaTeXExpertAgent
-    from core.experts.mermaid_expert import MermaidExpertAgent
-    from core.experts.pipeline_expert import PipelineExpertAgent
-    from core.experts.plantuml_expert import PlantUMLExpertAgent
+    from Jotty.core.intelligence.reasoning.agents.math_latex_expert import MathLaTeXExpertAgent
+    from Jotty.core.intelligence.reasoning.agents.mermaid_expert import MermaidExpertAgent
+    from Jotty.core.intelligence.reasoning.agents.pipeline_expert import PipelineExpertAgent
+    from Jotty.core.intelligence.reasoning.agents.plantuml_expert import PlantUMLExpertAgent
 
     # Step 1: Initialize all expert agents
     print("\n[STEP 1] Initializing Expert Agents...")

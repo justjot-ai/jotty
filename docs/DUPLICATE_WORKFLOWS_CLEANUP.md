@@ -7,7 +7,7 @@
 
 ## 🎯 Objective
 
-Remove duplicate workflow files from `core/modes/workflow/` that are already present in the canonical location `core/execution/workflows/`.
+Remove duplicate workflow files from `core/intelligence/orchestration/pipelines/` that are already present in the canonical location `core/execution/workflows/`.
 
 ---
 
@@ -17,12 +17,12 @@ Remove duplicate workflow files from `core/modes/workflow/` that are already pre
 
 | File | Lines | Status |
 |------|-------|--------|
-| `core/modes/workflow/auto_workflow.py` | 490 | ✅ Deleted (duplicate of execution/workflows/) |
-| `core/modes/workflow/learning_workflow.py` | 800 | ✅ Deleted (duplicate of execution/workflows/) |
-| `core/modes/workflow/research_workflow.py` | 786 | ✅ Deleted (duplicate of execution/workflows/) |
-| `core/modes/workflow/smart_swarm_registry.py` | 331 | ✅ Deleted (duplicate of execution/workflows/) |
-| `core/modes/workflow/output_channels.py` | 399 | ✅ Deleted (moved to skills/messaging-tools/) |
-| `core/modes/workflow/output_formats.py` | 551 | ✅ Deleted (moved to skills/document-tools/) |
+| `core/intelligence/orchestration/pipelines/auto_workflow.py` | 490 | ✅ Deleted (duplicate of execution/workflows/) |
+| `core/intelligence/orchestration/pipelines/learning_workflow.py` | 800 | ✅ Deleted (duplicate of execution/workflows/) |
+| `core/intelligence/orchestration/pipelines/research_workflow.py` | 786 | ✅ Deleted (duplicate of execution/workflows/) |
+| `core/intelligence/orchestration/pipelines/smart_swarm_registry.py` | 331 | ✅ Deleted (duplicate of execution/workflows/) |
+| `core/intelligence/orchestration/pipelines/output_channels.py` | 399 | ✅ Deleted (moved to skills/messaging-tools/) |
+| `core/intelligence/orchestration/pipelines/output_formats.py` | 551 | ✅ Deleted (moved to skills/document-tools/) |
 
 **Total removed:** 3,357 lines of duplicate code
 
@@ -30,7 +30,7 @@ Remove duplicate workflow files from `core/modes/workflow/` that are already pre
 
 ## 🔄 Backward Compatibility
 
-Updated `core/modes/workflow/__init__.py` to re-export from canonical locations:
+Updated `core/intelligence/orchestration/pipelines/__init__.py` to re-export from canonical locations:
 
 ```python
 # Re-export from canonical location
@@ -44,7 +44,7 @@ from Jotty.skills.document_tools import OutputFormatManager, ...
 from Jotty.skills.messaging_tools import OutputChannelManager, ...
 ```
 
-**Benefit:** Any future imports from `core.modes.workflow` will still work (re-exported)
+**Benefit:** Any future imports from `core.intelligence.workflow` will still work (re-exported)
 
 ---
 
@@ -133,7 +133,7 @@ core/
 
 **Pattern established:**
 ```
-core/modes/workflow/        → Definitions + re-exports
+core/intelligence/orchestration/pipelines/        → Definitions + re-exports
 core/execution/workflows/   → Canonical implementations
 ```
 

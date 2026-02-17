@@ -17,14 +17,14 @@ import logging
 from pathlib import Path
 from typing import AsyncGenerator, Callable, Dict, List, Optional
 
-from .core.modes.execution import (
+from .core.intelligence.orchestration.execution import (
     ExecutionConfig,
     ExecutionResult,
     ExecutionTier,
     TierDetector,
     TierExecutor,
 )
-from .core.modes.execution.types import StreamEvent
+from .core.intelligence.orchestration.execution.types import StreamEvent
 
 logger = logging.getLogger(__name__)
 
@@ -396,7 +396,9 @@ class Jotty:
             result = await jotty.chat_executor.execute(prompt, tools)
         """
         if not hasattr(self, "_chat_executor"):
-            from Jotty.core.intelligence.orchestration.unified_executor import ChatExecutor
+            from Jotty.core.intelligence.orchestration.execution.unified_executor import (
+                ChatExecutor,
+            )
 
             self._chat_executor = ChatExecutor()
         return self._chat_executor
@@ -430,7 +432,7 @@ class Jotty:
             swarms = Jotty.list_swarms()
             print(swarms)  # ['coding', 'research', 'testing', ...]
         """
-        from Jotty.core.execution.swarms._base.registry import SwarmRegistry
+        from Jotty.core.intelligence.orchestration.swarms._base.registry import SwarmRegistry
 
         return SwarmRegistry.list_all()
 

@@ -9,9 +9,16 @@ and factory methods (from_swarm, compose).
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from Jotty.core.execution.swarms._base.swarm_types import AgentRole, ExecutionTrace, SwarmResult
-from Jotty.core.execution.swarms.base.team_coordinator import CoordinationPattern, MergeStrategy
-from Jotty.core.modes.agent.agents.composite_agent import (
+from Jotty.core.intelligence.orchestration.swarms._base.swarm_types import (
+    AgentRole,
+    ExecutionTrace,
+    SwarmResult,
+)
+from Jotty.core.intelligence.orchestration.swarms.base.team_coordinator import (
+    CoordinationPattern,
+    MergeStrategy,
+)
+from Jotty.core.intelligence.reasoning.agents.composite_agent import (
     CompositeAgent,
     CompositeAgentConfig,
     UnifiedResult,
@@ -295,8 +302,8 @@ class TestCompositeAgent:
 
 
 # Import _COORDINATION_DISPATCH for dispatch table tests
-from Jotty.core.modes.agent.agents.composite_agent import _COORDINATION_DISPATCH
-from Jotty.core.modes.agent.base.base_agent import AgentResult
+from Jotty.core.intelligence.reasoning.agents.composite_agent import _COORDINATION_DISPATCH
+from Jotty.core.intelligence.reasoning.base.base_agent import AgentResult
 
 
 def _make_successful_agent_result(output, agent_name="TestAgent"):

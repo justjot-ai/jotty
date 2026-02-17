@@ -108,6 +108,20 @@ class ContextAwareLM(BaseLM):
         prompt, messages = self._inject_context(prompt, messages)
         return self._wrapped(prompt=prompt, messages=messages, **kwargs)
 
+    def forward(
+        self, prompt: str | None = None, messages: List[Dict] | None = None, **kwargs: Any
+    ) -> Any:
+        """Sync forward — delegate to wrapped LM with injected context."""
+        prompt, messages = self._inject_context(prompt, messages)
+        return self._wrapped.forward(prompt=prompt, messages=messages, **kwargs)
+
+    async def aforward(
+        self, prompt: str | None = None, messages: List[Dict] | None = None, **kwargs: Any
+    ) -> Any:
+        """Async forward — delegate to wrapped LM with injected context."""
+        prompt, messages = self._inject_context(prompt, messages)
+        return await self._wrapped.aforward(prompt=prompt, messages=messages, **kwargs)
+
     def inspect_history(self, n: int = 1) -> Dict:
         """Delegate to wrapped LM."""
         if hasattr(self._wrapped, "inspect_history"):

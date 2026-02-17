@@ -7,7 +7,7 @@
 
 ## Core Principle: One Agent Hierarchy
 
-**All agents live in `core/modes/agent/`** - No exceptions!
+**All agents live in `core/intelligence/reasoning/`** - No exceptions!
 
 The distinction between "agents" and "experts" is eliminated:
 - **Agent** = BaseAgent
@@ -81,7 +81,7 @@ core/
 │   │
 │   ├── reasoning/
 │   │   └── experts/                     # ⚠️ DEPRECATED - Remove after migration
-│   │       └── README.md                # "Moved to core/modes/agent/agents/domain/"
+│   │       └── README.md                # "Moved to core/intelligence/reasoning/agents/domain/"
 │   │
 │   └── memory/
 │       └── cortex.py                    # Stores learned improvements
@@ -95,24 +95,24 @@ core/
 
 ```python
 # Base agent
-from core.modes.agent.base import BaseAgent, AgentRuntimeConfig
+from core.intelligence.reasoning.base import BaseAgent, AgentRuntimeConfig
 
 # Capabilities
-from core.modes.agent.capabilities import (
+from core.intelligence.reasoning.capabilities import (
     LearningCapability,
     ValidationCapability,
     MemoryCapability,
 )
 
 # Domain specialists
-from core.modes.agent.agents.domain import (
+from core.intelligence.reasoning.agents.domain import (
     MermaidAgent,
     PlantUMLAgent,
     LatexAgent,
 )
 
 # Swarm agents
-from core.modes.agent.agents.swarm import SwarmAgent
+from core.intelligence.reasoning.agents.swarm import SwarmAgent
 
 # Gold standards
 from core.intelligence.knowledge import load_gold_standards
@@ -123,12 +123,12 @@ from core.intelligence.knowledge import load_gold_standards
 ```python
 # ❌ OLD (confusing):
 from core.intelligence.reasoning.experts import MermaidExpert
-from core.modes.agent.agents import SwarmAgent
+from core.intelligence.reasoning.agents import SwarmAgent
 # Why are similar things in different places?
 
 # ✅ NEW (clear):
-from core.modes.agent.agents.domain import MermaidAgent
-from core.modes.agent.agents.swarm import SwarmAgent
+from core.intelligence.reasoning.agents.domain import MermaidAgent
+from core.intelligence.reasoning.agents.swarm import SwarmAgent
 # All agents in one hierarchy!
 ```
 
@@ -139,7 +139,7 @@ from core.modes.agent.agents.swarm import SwarmAgent
 ### Simple Agent (No Learning)
 
 ```python
-from core.modes.agent.base import BaseAgent, AgentRuntimeConfig
+from core.intelligence.reasoning.base import BaseAgent, AgentRuntimeConfig
 
 class SimpleAgent(BaseAgent):
     """Basic agent without learning."""
@@ -151,8 +151,8 @@ class SimpleAgent(BaseAgent):
 ### Domain Specialist (With Learning)
 
 ```python
-from core.modes.agent.base import BaseAgent, AgentRuntimeConfig
-from core.modes.agent.capabilities import LearningCapability, ValidationCapability
+from core.intelligence.reasoning.base import BaseAgent, AgentRuntimeConfig
+from core.intelligence.reasoning.capabilities import LearningCapability, ValidationCapability
 from core.intelligence.knowledge import load_gold_standards
 
 class MermaidAgent(BaseAgent, LearningCapability, ValidationCapability):
@@ -202,17 +202,17 @@ class MermaidAgent(BaseAgent, LearningCapability, ValidationCapability):
 
 **Create directories:**
 ```bash
-mkdir -p core/modes/agent/capabilities
-mkdir -p core/modes/agent/agents/domain
-mkdir -p core/modes/agent/agents/swarm
-mkdir -p core/modes/agent/agents/research
+mkdir -p core/intelligence/reasoning/capabilities
+mkdir -p core/intelligence/reasoning/agents/domain
+mkdir -p core/intelligence/reasoning/agents/swarm
+mkdir -p core/intelligence/reasoning/agents/research
 mkdir -p core/intelligence/knowledge/gold_standards/{mermaid,plantuml,latex,coding}
 ```
 
 **Create capability mixins:**
-- `core/modes/agent/capabilities/learning_capability.py`
-- `core/modes/agent/capabilities/validation_capability.py`
-- `core/modes/agent/capabilities/memory_capability.py`
+- `core/intelligence/reasoning/capabilities/learning_capability.py`
+- `core/intelligence/reasoning/capabilities/validation_capability.py`
+- `core/intelligence/reasoning/capabilities/memory_capability.py`
 
 **Create knowledge loaders:**
 - `core/intelligence/knowledge/loaders/json_loader.py`
@@ -225,27 +225,27 @@ mkdir -p core/intelligence/knowledge/gold_standards/{mermaid,plantuml,latex,codi
 ```bash
 # Mermaid
 mv core/intelligence/reasoning/experts/mermaid_expert.py \
-   core/modes/agent/agents/domain/mermaid_agent.py
+   core/intelligence/reasoning/agents/domain/mermaid_agent.py
 
 # PlantUML
 mv core/intelligence/reasoning/experts/plantuml_expert.py \
-   core/modes/agent/agents/domain/plantuml_agent.py
+   core/intelligence/reasoning/agents/domain/plantuml_agent.py
 
 # LaTeX
 mv core/intelligence/reasoning/experts/math_latex_expert.py \
-   core/modes/agent/agents/domain/latex_agent.py
+   core/intelligence/reasoning/agents/domain/latex_agent.py
 
 # Backend
 mv core/intelligence/reasoning/experts/backend_expert.py \
-   core/modes/agent/agents/domain/backend_agent.py
+   core/intelligence/reasoning/agents/domain/backend_agent.py
 
 # Frontend
 mv core/intelligence/reasoning/experts/frontend_expert.py \
-   core/modes/agent/agents/domain/frontend_agent.py
+   core/intelligence/reasoning/agents/domain/frontend_agent.py
 
 # Designer
 mv core/intelligence/reasoning/experts/designer_expert.py \
-   core/modes/agent/agents/domain/designer_agent.py
+   core/intelligence/reasoning/agents/domain/designer_agent.py
 ```
 
 **Refactor each file:**
@@ -263,7 +263,7 @@ grep -r "from.*intelligence.reasoning.experts import" . | cut -d: -f1 | sort -u
 
 # Update to new location
 # FROM: from core.intelligence.reasoning.experts import MermaidExpert
-# TO:   from core.modes.agent.agents.domain import MermaidAgent
+# TO:   from core.intelligence.reasoning.agents.domain import MermaidAgent
 ```
 
 ### Phase 4: Move Training Data (Week 4)
@@ -286,7 +286,7 @@ mv core/intelligence/reasoning/experts/data/plantuml_expert/*.json \
 rm -rf core/intelligence/reasoning/experts/
 
 # Add README explaining migration
-echo "DEPRECATED: Moved to core/modes/agent/agents/domain/" > \
+echo "DEPRECATED: Moved to core/intelligence/reasoning/agents/domain/" > \
   core/intelligence/reasoning/experts/README.md
 ```
 
@@ -298,7 +298,7 @@ echo "DEPRECATED: Moved to core/modes/agent/agents/domain/" > \
 
 ✅ **One place to look**: All agents in `modes/agent/agents/`
 ✅ **Clear organization**: domain/, swarm/, research/ subdirs
-✅ **Consistent imports**: All from `core.modes.agent`
+✅ **Consistent imports**: All from `core.intelligence.agent`
 ✅ **Easy discovery**: Browse `agents/` to see all available agents
 ✅ **No confusion**: No more "is this an agent or expert?"
 
@@ -345,7 +345,7 @@ modes/agent/agents/
 ## Decision: APPROVED ✅
 
 **Final Structure:**
-- ALL agents → `core/modes/agent/agents/`
+- ALL agents → `core/intelligence/reasoning/agents/`
 - Training data → `core/intelligence/knowledge/gold_standards/`
 - Learned improvements → `SwarmMemory` (not files)
 

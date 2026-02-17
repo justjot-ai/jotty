@@ -21,8 +21,8 @@ print(f"API key: {api_key[:20]}...")
 
 
 async def main():
-    from Jotty.core.execution.swarms.research_swarm import ResearchSwarm
-    from Jotty.core.execution.swarms.research_swarm.types import ResearchConfig
+    from Jotty.core.intelligence.orchestration.swarms.research_swarm import ResearchSwarm
+    from Jotty.core.intelligence.orchestration.swarms.research_swarm.types import ResearchConfig
 
     config = ResearchConfig(send_telegram=False)
     swarm = ResearchSwarm(config=config)

@@ -123,8 +123,8 @@ core/
 
 **Before (Fragmented):**
 ```
-core/modes/agent/              # Some agents
-core/modes/workflow/           # Workflows
+core/intelligence/reasoning/              # Some agents
+core/intelligence/orchestration/pipelines/           # Workflows
 core/intelligence/swarms/      # Swarms
 core/intelligence/reasoning/   # Experts
 ```
@@ -174,8 +174,8 @@ execution/agents/
 
 **Before (Confusing):**
 ```python
-from core.modes.agent import BaseAgent
-from core.modes.workflow import AutoWorkflow
+from core.intelligence.agent import BaseAgent
+from core.intelligence.workflow import AutoWorkflow
 from core.intelligence.swarms import CodingSwarm
 from core.intelligence.reasoning.experts import MermaidExpert
 ```
@@ -343,11 +343,11 @@ result = await workflow.run()
 
 | Original Location | New Location | Type |
 |-------------------|--------------|------|
-| `core/modes/agent/base/base_agent.py` | `core/execution/base/base_agent.py` | Base class |
+| `core/intelligence/reasoning/base/base_agent.py` | `core/execution/base/base_agent.py` | Base class |
 | `core/intelligence/swarms/base/swarm_template.py` | `core/execution/base/base_swarm.py` | Base class |
 | `core/intelligence/reasoning/experts/*_expert.py` | `core/execution/agents/*_agent.py` | 9 agents |
 | `core/intelligence/swarms/*` | `core/execution/swarms/*` | 30+ swarms |
-| `core/modes/workflow/*` | `core/execution/workflows/*` | 3 workflows |
+| `core/intelligence/orchestration/pipelines/*` | `core/execution/workflows/*` | 3 workflows |
 
 ---
 

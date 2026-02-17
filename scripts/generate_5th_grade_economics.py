@@ -22,11 +22,11 @@ from pathlib import Path
 # Add Jotty to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from Jotty.core.execution.swarms.olympiad_learning_swarm import (
+from Jotty.core.intelligence.orchestration.swarms.olympiad_learning_swarm import (
     OlympiadLearningConfig,
     OlympiadLearningSwarm,
 )
-from Jotty.core.execution.swarms.olympiad_learning_swarm.types import (
+from Jotty.core.intelligence.orchestration.swarms.olympiad_learning_swarm.types import (
     DifficultyTier,
     LessonDepth,
     Subject,

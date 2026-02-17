@@ -49,7 +49,7 @@ class MypyErrorParser:
     """Parse mypy output to extract errors."""
 
     # Regex to match mypy error lines like:
-    # core/modes/workflow/smart_swarm_registry.py:54:33: error: Incompatible types in assignment (expression has type "None", variable has type "list[str]")  [assignment]
+    # core/intelligence/orchestration/pipelines/registry.py:54:33: error: Incompatible types in assignment (expression has type "None", variable has type "list[str]")  [assignment]
     ERROR_PATTERN = re.compile(
         r"^(?P<file>[\w/._-]+\.py):(?P<line>\d+):(?P<column>\d+):\s+"
         r"error:\s+(?P<message>.+?)\s+\[(?P<code>[\w-]+)\]",

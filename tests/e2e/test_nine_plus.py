@@ -70,7 +70,9 @@ def _agent_spec(name, capabilities=None):
 
 
 def _pipeline(base_path=None):
-    from Jotty.core.intelligence.orchestration.learning_pipeline import SwarmLearningPipeline
+    from Jotty.core.intelligence.orchestration.learning.learning_pipeline import (
+        SwarmLearningPipeline,
+    )
 
     return SwarmLearningPipeline(_cfg(base_path))
 
@@ -85,7 +87,7 @@ class TestTrainingScheduler:
 
     def test_training_loop_drains_queue(self):
         """Loop should execute queued tasks and return results."""
-        from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
+        from Jotty.core.intelligence.orchestration.core.swarm_manager import Orchestrator
 
         sm = Orchestrator(
             agents=[_agent_spec("trainer", capabilities=["learn"])],
@@ -121,7 +123,7 @@ class TestTrainingScheduler:
 
     def test_training_loop_stops_on_convergence(self):
         """Loop should stop early when adaptive learning says converged."""
-        from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
+        from Jotty.core.intelligence.orchestration.core.swarm_manager import Orchestrator
 
         sm = Orchestrator(
             agents=[_agent_spec("trainer", capabilities=["learn"])],
@@ -163,7 +165,7 @@ class TestTrainingScheduler:
 
     def test_training_loop_stops_on_empty_queue(self):
         """Loop should stop when queue is drained."""
-        from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
+        from Jotty.core.intelligence.orchestration.core.swarm_manager import Orchestrator
 
         sm = Orchestrator(
             agents=[_agent_spec("trainer", capabilities=["learn"])],
@@ -376,7 +378,7 @@ class TestRealWorldIntegration:
         3. Check byzantine has verifications
         4. Check adaptive learning updated
         """
-        from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
+        from Jotty.core.intelligence.orchestration.core.swarm_manager import Orchestrator
 
         sm = Orchestrator(
             agents=[_agent_spec("analyst", capabilities=["Explain what 2+2 is"])],
@@ -448,7 +450,7 @@ class TestFullLifecycle:
             # Load just stigmergy (the feature we're testing)
             stig_path = Path(tmpdir) / "stigmergy.json"
             if stig_path.exists():
-                from Jotty.core.intelligence.orchestration.stigmergy import StigmergyLayer
+                from Jotty.core.intelligence.orchestration.learning.stigmergy import StigmergyLayer
 
                 with open(stig_path) as f:
                     lp2.stigmergy = StigmergyLayer.from_dict(json.load(f))
@@ -463,7 +465,7 @@ class TestFullLifecycle:
 
     def test_training_loop_with_mocked_execution(self):
         """Full training loop: plateau → queue → train → learn."""
-        from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
+        from Jotty.core.intelligence.orchestration.core.swarm_manager import Orchestrator
 
         sm = Orchestrator(
             agents=[_agent_spec("learner", capabilities=["learn new skills"])],

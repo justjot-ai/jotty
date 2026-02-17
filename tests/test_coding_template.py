@@ -13,8 +13,8 @@ import os
 from pathlib import Path
 
 import pytest
-from Jotty.core.execution.swarms.coding_swarm.types import CodingConfig
-from Jotty.core.execution.swarms.templates.coding import CodingTemplate
+from Jotty.core.intelligence.orchestration.swarms.coding_swarm.types import CodingConfig
+from Jotty.core.intelligence.orchestration.swarms.templates.coding import CodingTemplate
 
 # Setup logging for detailed output
 logging.basicConfig(
@@ -247,7 +247,7 @@ async def test_coding_template_different_languages():
 
 def test_coding_template_backward_compatibility():
     """Test backward compatibility alias."""
-    from Jotty.core.execution.swarms.templates.coding import CodingSwarm
+    from Jotty.core.intelligence.orchestration.swarms.templates.coding import CodingSwarm
 
     assert CodingSwarm is CodingTemplate
 

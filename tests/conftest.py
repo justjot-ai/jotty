@@ -343,7 +343,9 @@ def reset_singletons():
 
     reset_prompt_selector()
     # AutoML workflow
-    from Jotty.core.execution.workflows.automl_workflow import reset_automl_workflow
+    from Jotty.core.intelligence.orchestration.pipelines.automl_pipeline import (
+        reset_automl_workflow,
+    )
 
     reset_automl_workflow()
     # Dict-based caches
@@ -497,8 +499,8 @@ def v3_executor(
     mock_provider, mock_registry, mock_planner, mock_validator, mock_v3_memory, mock_complexity_gate
 ):
     """Pre-wired TierExecutor with all mocks injected."""
-    from Jotty.core.modes.execution.executor import TierExecutor
-    from Jotty.core.modes.execution.types import ExecutionConfig
+    from Jotty.core.intelligence.orchestration.execution.tier_executor import TierExecutor
+    from Jotty.core.intelligence.orchestration.execution.types import ExecutionConfig
 
     executor = TierExecutor(config=ExecutionConfig())
     executor._provider = mock_provider
@@ -549,7 +551,7 @@ def v3_observability_helpers():
 @pytest.fixture
 def make_concrete_agent():
     """Factory to create a concrete BaseAgent subclass with controllable _execute_impl."""
-    from Jotty.core.modes.agent.base.base_agent import AgentRuntimeConfig, BaseAgent
+    from Jotty.core.intelligence.reasoning.base.base_agent import AgentRuntimeConfig, BaseAgent
 
     def _factory(name="TestAgent", output="agent output", raises=None, **config_kw):
         class ConcreteAgent(BaseAgent):
@@ -570,7 +572,7 @@ def make_concrete_agent():
 @pytest.fixture
 def make_domain_agent():
     """Factory to create a DomainAgent with a mocked DSPy module."""
-    from Jotty.core.modes.agent.agents.domain_agent import DomainAgent, DomainAgentConfig
+    from Jotty.core.intelligence.reasoning.agents.domain_agent import DomainAgent, DomainAgentConfig
 
     def _factory(name="TestDomainAgent", module_output=None, signature=None, **config_kw):
         config = DomainAgentConfig(name=name, **config_kw)
@@ -588,7 +590,7 @@ def make_domain_agent():
 @pytest.fixture
 def make_swarm_result():
     """Factory to create SwarmResult instances."""
-    from Jotty.core.execution.swarms._base.swarm_types import SwarmResult
+    from Jotty.core.intelligence.orchestration.swarms._base.swarm_types import SwarmResult
 
     def _factory(success=True, output=None, name="TestSwarm", domain="test", **kw):
         return SwarmResult(
@@ -606,7 +608,7 @@ def make_swarm_result():
 @pytest.fixture
 def make_agent_result():
     """Factory to create AgentResult instances."""
-    from Jotty.core.modes.agent.base.base_agent import AgentResult
+    from Jotty.core.intelligence.reasoning.base.base_agent import AgentResult
 
     def _factory(success=True, output="result", name="TestAgent", **kw):
         return AgentResult(

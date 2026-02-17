@@ -11,7 +11,7 @@ Jotty has three distinct concepts that are often confused:
 | Concept | What It Means | Examples | Location |
 |---------|---------------|----------|----------|
 | **Platforms** | WHERE users interact | WhatsApp, Telegram, CLI, Web | `apps/` |
-| **Modes** | HOW execution happens | Chat, Workflow, Streaming | `core/modes/` |
+| **Modes** | HOW execution happens | Chat, Workflow, Streaming | `core/intelligence/` |
 | **Modalities** | WHAT medium is used | Text, Voice, Image | `core/interface/modalities/` |
 
 **Example:**
@@ -61,16 +61,14 @@ Jotty follows world-class clean architecture with strict layering:
 ┌────────────────────────┴────────────────────────────────────┐
 │  LAYER 3: CORE API (core/interface/)                        │
 │  ├── api/           → JottyAPI, ChatAPI, WorkflowAPI        │
-│  ├── modalities/    → Text/Voice handlers (NEW)             │
-│  └── use_cases/     → Chat, Workflow use cases              │
+│  └── modalities/    → Text/Voice handlers                   │
 └────────────────────────┬────────────────────────────────────┘
                          ↓ Uses
 ┌────────────────────────┴────────────────────────────────────┐
 │  LAYER 2: CORE FRAMEWORK (core/)                            │
-│  ├── interface/      → Interfaces, use cases, messages      │
-│  ├── modes/          → Agent, workflow, execution           │
+│  ├── interface/      → Interfaces, messages, modalities     │
 │  ├── capabilities/   → Skills, registry, tools (273 skills) │
-│  ├── intelligence/   → Learning, memory, swarms             │
+│  ├── intelligence/   → Agents, swarms, learning, memory     │
 │  └── infrastructure/ → Foundation, utils, context           │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -275,24 +273,24 @@ from Jotty.core.capabilities.sdk.skill_sdk.tool_helpers import format_json
 
 ```python
 # AGENT — Agent-based execution
-from Jotty.core.modes.agent.base import (
+from Jotty.core.intelligence.reasoning.base import (
     BaseAgent,               # Base agent class
     AgentRuntimeConfig,      # Runtime configuration
     AgentResult,             # Agent results
 )
-from Jotty.core.modes.agent.base.auto_agent import AutoAgent
-from Jotty.core.modes.agent.base.chat_assistant import ChatAssistant
-from Jotty.core.modes.agent.base.domain_agent import DomainAgent
+from Jotty.core.intelligence.reasoning.base.auto_agent import AutoAgent
+from Jotty.core.intelligence.reasoning.base.chat_assistant import ChatAssistant
+from Jotty.core.intelligence.reasoning.base.domain_agent import DomainAgent
 
 # AUTONOMOUS — Autonomous execution
-from Jotty.core.modes.agent.autonomous.intent_parser import IntentParser
+from Jotty.core.intelligence.reasoning.autonomous.intent_parser import IntentParser
 
 # WORKFLOW — Workflow execution
-from Jotty.core.modes.workflow.auto_workflow import AutoWorkflow
-from Jotty.core.modes.workflow.research_workflow import ResearchWorkflow
+from Jotty.core.intelligence.workflow.auto_workflow import AutoWorkflow
+from Jotty.core.intelligence.workflow.research_workflow import ResearchWorkflow
 
 # EXECUTION — Executors
-from Jotty.core.modes.execution.executor import Executor
+from Jotty.core.intelligence.orchestration.execution.executor import Executor
 ```
 
 ### Layer 1: INTERFACE (Entry Points)
@@ -636,13 +634,6 @@ Jotty/
 │   │   ├── api/             # JottyAPI, ChatAPI, WorkflowAPI
 │   │   ├── interfaces/      # Messages, hosts, adapters
 │   │   ├── ui/              # A2UI response formatting
-│   │   └── use_cases/       # ⚠️ DEPRECATED (backward compat shim)
-│   │
-│   ├── modes/               # LAYER 2: Execution Modes
-│   │   ├── agent/           # BaseAgent, AutoAgent, ChatAssistant
-│   │   ├── workflow/        # Auto workflows, research, learning
-│   │   ├── execution/       # Executors, intent classifiers
-│   │   └── use_cases/       # Use case wrappers (ChatExecutor, WorkflowExecutor)
 │   │
 │   ├── capabilities/        # Skills & Tools
 │   │   ├── skills/          # 273 skills (web-search, calculator, etc.)
@@ -651,12 +642,26 @@ Jotty/
 │   │   ├── sdk/             # Skill development kit
 │   │   └── semantic/        # Query engine, visualization
 │   │
-│   ├── intelligence/        # Brain Layer
+│   ├── intelligence/        # Brain + Execution (unified)
 │   │   ├── learning/        # TD-Lambda, Q-learning, RL
 │   │   ├── memory/          # 5-level memory system
-│   │   ├── orchestration/   # SwarmIntelligence, paradigms
-│   │   ├── swarms/          # SwarmLearning, domain swarms
-│   │   └── reasoning/       # Expert agents, templates
+│   │   ├── orchestration/   # Swarm coordination, execution, use cases
+│   │   │   ├── execution/   # TierExecutor, agent runner, intent classifier
+│   │   │   ├── pipelines/   # AutoWorkflow, ResearchWorkflow, LearningWorkflow
+│   │   │   ├── swarms/      # 30+ domain swarms
+│   │   │   ├── use_cases/   # ChatUseCase, WorkflowUseCase
+│   │   │   └── ...          # coordination, learning, routing, state
+│   │   └── reasoning/       # All agents + infrastructure
+│   │       ├── base/        # BaseAgent (canonical)
+│   │       ├── agents/      # 35+ agents (Auto, Chat, Domain, Expert, Swarm)
+│   │       ├── capabilities/ # LearningCapability, MemoryCapability
+│   │       ├── planners/    # TaskPlanner, DAG agents
+│   │       ├── executors/   # SkillPlanExecutor
+│   │       ├── tools/       # Inspector, Axon, FeedbackChannel
+│   │       ├── types/       # ExecutionTypes, DAGTypes
+│   │       ├── mixins/      # Inference, PlanUtils
+│   │       ├── autonomous/  # IntentParser, EnhancedExecutor
+│   │       └── factory/     # AgentFactory
 │   │
 │   └── infrastructure/      # Foundation
 │       ├── foundation/      # Data structures, configs, types
@@ -672,10 +677,10 @@ Jotty/
 
 CLEANUP COMPLETE (2026-02-15):
 ✅ LAYER 5: Deleted 67MB duplicates, consolidated 5 apps (api, cli, web, telegram, whatsapp)
-✅ LAYER 3→2: Moved use_cases to modes/ (196K), all execution in Layer 2
-✅ Clean architecture: apps → sdk → core/interface/api → core/modes
+✅ LAYER 3→2: Moved use_cases to intelligence/ (196K), all execution in Layer 2
+✅ Clean architecture: apps → sdk → core/interface/api → core/intelligence
 ✅ Follows Google, Amazon, Stripe, GitHub patterns
-✅ Backward compat shims for safe migration
+✅ core/modes/ eliminated — merged into core/intelligence/
 
 See: LAYER5_CLEANUP_COMPLETE.md, LAYER3_CLEANUP_COMPLETE.md
 ```

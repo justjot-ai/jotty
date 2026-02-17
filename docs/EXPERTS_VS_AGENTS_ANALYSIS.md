@@ -7,7 +7,7 @@
 
 ## Current Architecture
 
-### 1. BaseAgent (`core/modes/agent/base/base_agent.py`)
+### 1. BaseAgent (`core/intelligence/reasoning/base/base_agent.py`)
 
 **Purpose:** Generic agent framework for all task execution
 
@@ -248,14 +248,14 @@ class SimpleAgent(BaseAgent):
 ### Phase 1: Create Capability Mixins
 
 **Files to create:**
-1. `core/modes/agent/capabilities/learning_capability.py`
-2. `core/modes/agent/capabilities/validation_capability.py`
-3. `core/modes/agent/capabilities/memory_capability.py`
-4. `core/modes/agent/capabilities/__init__.py`
+1. `core/intelligence/reasoning/capabilities/learning_capability.py`
+2. `core/intelligence/reasoning/capabilities/validation_capability.py`
+3. `core/intelligence/reasoning/capabilities/memory_capability.py`
+4. `core/intelligence/reasoning/capabilities/__init__.py`
 
 **Example: LearningCapability**
 ```python
-# core/modes/agent/capabilities/learning_capability.py
+# core/intelligence/reasoning/capabilities/learning_capability.py
 from typing import Any, Callable, Dict, List, Optional
 
 class LearningCapability:
@@ -349,7 +349,7 @@ class MermaidAgent(BaseAgent, LearningCapability, ValidationCapability):
 **Enable learning in templates:**
 ```python
 # core/intelligence/swarms/templates/research.py
-from core.modes.agent.capabilities import LearningCapability
+from core.intelligence.reasoning.capabilities import LearningCapability
 
 class ResearchAgent(BaseAgent, LearningCapability):
     def __init__(self, config, gold_standards=None):
@@ -384,7 +384,7 @@ class ResearchAgent(BaseAgent, LearningCapability):
 
 ```python
 # Current
-from core.modes.agent.base import BaseAgent
+from core.intelligence.reasoning.base import BaseAgent
 
 class SimpleAgent(BaseAgent):
     async def _execute_impl(self, **kwargs):
@@ -400,8 +400,8 @@ class SimpleAgent(BaseAgent):
 # N/A
 
 # New (with LearningCapability)
-from core.modes.agent.base import BaseAgent
-from core.modes.agent.capabilities import LearningCapability
+from core.intelligence.reasoning.base import BaseAgent
+from core.intelligence.reasoning.capabilities import LearningCapability
 
 class LearnableAgent(BaseAgent, LearningCapability):
     def __init__(self, config, gold_standards=None):
@@ -429,8 +429,8 @@ class MermaidExpert(BaseExpert):
         return MermaidModule()
 
 # New (BaseAgent + mixins)
-from core.modes.agent.base import BaseAgent
-from core.modes.agent.capabilities import LearningCapability, ValidationCapability
+from core.intelligence.reasoning.base import BaseAgent
+from core.intelligence.reasoning.capabilities import LearningCapability, ValidationCapability
 
 class MermaidAgent(BaseAgent, LearningCapability, ValidationCapability):
     def __init__(self, config=None, gold_standards=None):

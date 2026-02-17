@@ -16,7 +16,7 @@ sys.path.insert(0, str(project_root))
 import subprocess
 
 import dspy
-from Jotty.core.execution.agents import MermaidExpertAgent
+from Jotty.core.intelligence.reasoning.agents import MermaidExpertAgent
 
 # Configure DSPy with Claude CLI wrapper if available
 try:

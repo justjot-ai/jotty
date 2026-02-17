@@ -28,7 +28,7 @@ import pytest
 # Guarded imports with skip markers
 # ---------------------------------------------------------------------------
 try:
-    from Jotty.core.intelligence.orchestration.mas_learning import (
+    from Jotty.core.intelligence.orchestration.learning.mas_learning import (
         FixRecord,
         MASLearning,
         SessionLearning,

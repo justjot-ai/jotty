@@ -45,12 +45,12 @@ Different components were creating their own LLM instances, causing:
 - Handles simple queries like "hi" with single shared LLM call
 
 ### 5. Executor (Validation)
-**File:** `core/modes/execution/executor.py`
+**File:** `core/intelligence/orchestration/execution/executor.py`
 - **Before:** Created `dspy.LM()` for auditor validation
 - **After:** Injects `get_global_lm()` into auditor
 
 ### 6. Agentic Planner (Fast Routing)
-**File:** `core/modes/agent/planners/agentic_planner.py`
+**File:** `core/intelligence/reasoning/planners/agentic_planner.py`
 - **Before:** Complex fallback chain (Gemini Flash → Haiku → default)
 - **After:** Uses `get_global_lm()` with Haiku model
 

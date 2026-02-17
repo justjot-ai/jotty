@@ -39,7 +39,7 @@ cp -r core/intelligence/swarms/* core/execution/swarms/
 from ..agent.dag_agents import SwarmResources
 
 # AFTER (working)
-from Jotty.core.modes.agent.planners.swarm_resources_stub import SwarmResources
+from Jotty.core.intelligence.reasoning.planners.swarm_resources_stub import SwarmResources
 ```
 
 **Result:** ✅ SwarmResources import succeeds (uses stub with no dependencies)

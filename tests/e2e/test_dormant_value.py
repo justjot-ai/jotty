@@ -28,7 +28,9 @@ def _cfg():
 
 
 def _pipeline():
-    from Jotty.core.intelligence.orchestration.learning_pipeline import SwarmLearningPipeline
+    from Jotty.core.intelligence.orchestration.learning.learning_pipeline import (
+        SwarmLearningPipeline,
+    )
 
     return SwarmLearningPipeline(_cfg())
 
@@ -396,7 +398,9 @@ class TestCurriculumValue:
 
     def test_weak_agent_gets_targeted_tasks(self):
         """Tasks for a weak agent should target their weakness."""
-        from Jotty.core.intelligence.orchestration.swarm_data_structures import AgentProfile
+        from Jotty.core.intelligence.orchestration.intelligence.swarm_data_structures import (
+            AgentProfile,
+        )
 
         lp = _pipeline()
 
@@ -424,7 +428,7 @@ class TestSandboxValue:
 
     @pytest.mark.asyncio
     async def test_safe_code_succeeds(self):
-        from Jotty.core.intelligence.orchestration.swarm_terminal import SwarmTerminal
+        from Jotty.core.intelligence.orchestration.state.swarm_terminal import SwarmTerminal
 
         t = SwarmTerminal()
         result = await t.execute_sandboxed("print(2 + 2)")
@@ -434,7 +438,7 @@ class TestSandboxValue:
     @pytest.mark.asyncio
     async def test_error_code_fails_gracefully(self):
         """Bad code should fail without crashing the host process."""
-        from Jotty.core.intelligence.orchestration.swarm_terminal import SwarmTerminal
+        from Jotty.core.intelligence.orchestration.state.swarm_terminal import SwarmTerminal
 
         t = SwarmTerminal()
         result = await t.execute_sandboxed("import sys; sys.exit(1)")
@@ -444,7 +448,7 @@ class TestSandboxValue:
     @pytest.mark.asyncio
     async def test_infinite_loop_times_out(self):
         """Infinite loops should not hang — subprocess has a timeout."""
-        from Jotty.core.intelligence.orchestration.swarm_terminal import SwarmTerminal
+        from Jotty.core.intelligence.orchestration.state.swarm_terminal import SwarmTerminal
 
         t = SwarmTerminal()
         # Explicitly short timeout — should kill the subprocess

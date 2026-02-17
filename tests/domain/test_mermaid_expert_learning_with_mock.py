@@ -20,7 +20,7 @@ except ImportError:
     print("⚠️  DSPy not available")
     sys.exit(1)
 
-from core.experts.base_expert import BaseExpert
+from Jotty.core.intelligence.reasoning.agents.base_expert import BaseExpert
 
 
 class MockLearningAgent:

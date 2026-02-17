@@ -30,7 +30,10 @@ from .base import (
 
 # Lazy import to avoid circular dependency
 if TYPE_CHECKING:
-    from Jotty.core.intelligence.orchestration.sandbox_manager import SandboxManager, TrustLevel
+    from Jotty.core.intelligence.orchestration.execution.sandbox_manager import (
+        SandboxManager,
+        TrustLevel,
+    )
 
 # Import adaptive weights (no circular dependency)
 try:
@@ -474,14 +477,16 @@ class ProviderRegistry:
     def _get_sandbox_manager(self) -> "SandboxManager":
         """Lazy load sandbox manager."""
         if self._sandbox_manager is None:
-            from Jotty.core.intelligence.orchestration.sandbox_manager import SandboxManager
+            from Jotty.core.intelligence.orchestration.execution.sandbox_manager import (
+                SandboxManager,
+            )
 
             self._sandbox_manager = SandboxManager()
         return self._sandbox_manager
 
     def _get_trust_level_enum(self, level: str) -> "TrustLevel":
         """Convert string to TrustLevel enum."""
-        from Jotty.core.intelligence.orchestration.sandbox_manager import TrustLevel
+        from Jotty.core.intelligence.orchestration.execution.sandbox_manager import TrustLevel
 
         level_map = {
             "trusted": TrustLevel.TRUSTED,
@@ -526,7 +531,7 @@ class ProviderRegistry:
         - Code execution capabilities: DANGEROUS
         - Default: SANDBOXED
         """
-        from Jotty.core.intelligence.orchestration.sandbox_manager import TrustLevel
+        from Jotty.core.intelligence.orchestration.execution.sandbox_manager import TrustLevel
 
         # Check if trusted package
         if provider.name.lower() in self.TRUSTED_PACKAGES:
@@ -747,7 +752,7 @@ class ProviderRegistry:
         trust_level = self._trust_levels.get(provider.name)
 
         # Check if sandboxed execution needed
-        from Jotty.core.intelligence.orchestration.sandbox_manager import TrustLevel
+        from Jotty.core.intelligence.orchestration.execution.sandbox_manager import TrustLevel
 
         needs_sandbox = force_sandbox or (trust_level and trust_level != TrustLevel.TRUSTED)
 

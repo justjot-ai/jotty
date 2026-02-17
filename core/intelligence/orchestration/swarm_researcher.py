@@ -79,7 +79,7 @@ class SwarmResearcher:
             self._tools_registry = get_tools_registry()
 
         if self._planner is None:
-            from Jotty.core.modes.agent.baseic_planner import (
+            from Jotty.core.intelligence.reasoning.planners.agentic_planner import (
                 TaskPlanner,  # type: ignore[import-not-found]
             )
 

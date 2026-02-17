@@ -57,12 +57,12 @@ needs=["analysis", "charts"]
 
 Fixed 6 pre-existing import errors from the rename:
 
-1. `core/modes/agent/agents/autonomous_agent.py` - Fixed `base_agent` import
-2. `core/modes/agent/agents/autonomous_agent.py` - Fixed `skill_plan_executor` import
-3. `core/modes/agent/base/__init__.py` - Fixed 6 imports (composite_agent, domain_agent, meta_agent, skill_plan_executor, swarm_agent, validation_agent)
-4. `core/modes/agent/agents/composite_agent.py` - Fixed `base_agent` import
-5. `core/modes/agent/agents/domain_agent.py` - Fixed `base_agent` import
-6. `core/modes/agent/agents/meta_agent.py` - Fixed `base_agent` import
+1. `core/intelligence/reasoning/agents/autonomous_agent.py` - Fixed `base_agent` import
+2. `core/intelligence/reasoning/agents/autonomous_agent.py` - Fixed `skill_plan_executor` import
+3. `core/intelligence/reasoning/base/__init__.py` - Fixed 6 imports (composite_agent, domain_agent, meta_agent, skill_plan_executor, swarm_agent, validation_agent)
+4. `core/intelligence/reasoning/agents/composite_agent.py` - Fixed `base_agent` import
+5. `core/intelligence/reasoning/agents/domain_agent.py` - Fixed `base_agent` import
+6. `core/intelligence/reasoning/agents/meta_agent.py` - Fixed `base_agent` import
 7. `core/intelligence/swarms/swarm_learning.py` - Added missing exports (ImprovementSuggestion, ImprovementType, SwarmRegistry, register_swarm)
 
 ## How It Works

@@ -142,7 +142,7 @@ class TestOvernightEnhancementsIntegration:
                 self.name = name
 
             async def execute(self, task):
-                from Jotty.core.intelligence.orchestration.multi_swarm_coordinator import (
+                from Jotty.core.intelligence.orchestration.coordination.multi_swarm_coordinator import (
                     SwarmResult,
                 )
 
@@ -228,7 +228,7 @@ class TestIndividualEnhancements:
 
     def test_multi_swarm_coordinator_initialization(self):
         """Test multi-swarm coordinator initializes correctly."""
-        from Jotty.core.intelligence.orchestration.multi_swarm_coordinator import (
+        from Jotty.core.intelligence.orchestration.coordination.multi_swarm_coordinator import (
             get_multi_swarm_coordinator,
             reset_multi_swarm_coordinator,
         )

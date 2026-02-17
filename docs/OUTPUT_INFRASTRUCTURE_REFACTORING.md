@@ -60,9 +60,9 @@ The user correctly identified that output utilities should be available to ALL e
 1. ✅ `core/execution/workflows/__init__.py`
 2. ✅ `core/execution/workflows/learning_workflow.py`
 3. ✅ `core/execution/workflows/research_workflow.py`
-4. ✅ `core/modes/workflow/__init__.py`
-5. ✅ `core/modes/workflow/learning_workflow.py`
-6. ✅ `core/modes/workflow/research_workflow.py`
+4. ✅ `core/intelligence/orchestration/pipelines/__init__.py`
+5. ✅ `core/intelligence/orchestration/pipelines/learning_workflow.py`
+6. ✅ `core/intelligence/orchestration/pipelines/research_workflow.py`
 
 All imports updated from:
 ```python

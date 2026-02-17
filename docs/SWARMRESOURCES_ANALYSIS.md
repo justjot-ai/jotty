@@ -85,7 +85,7 @@ class SwarmResources:
 ```python
 def _init_shared_resources(self) -> None:
     try:
-        from Jotty.core.modes.agent.planners.dag_agents import SwarmResources
+        from Jotty.core.intelligence.reasoning.planners.dag_agents import SwarmResources
 
         jotty_config = SwarmConfig()
         resources = SwarmResources.get_instance(jotty_config)
@@ -308,7 +308,7 @@ Document that SwarmResources is legacy/unused
 # BEFORE (current)
 def _init_shared_resources(self):
     try:
-        from Jotty.core.modes.agent.planners.dag_agents import SwarmResources
+        from Jotty.core.intelligence.reasoning.planners.dag_agents import SwarmResources
         resources = SwarmResources.get_instance(...)
         self._memory = resources.memory      # Never used
         self._context = resources.context    # Never used

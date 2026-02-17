@@ -429,7 +429,7 @@ class JottyGAIAAdapter:
 
         Returns the agent's answer as a string.
         """
-        from Jotty.core.modes.execution.types import (  # type: ignore[import-not-found, import]
+        from Jotty.core.intelligence.orchestration.execution.types import (  # type: ignore[import-not-found, import]
             ExecutionConfig,
             ExecutionTier,
         )
@@ -550,7 +550,6 @@ class JottyGAIAAdapter:
             for attempt in attempts:
                 if attempt["answer"] == best_answer:
                     self.last_result = attempt["result"]
-                    last_raw_answer: str | None
                     return best_answer
 
             # Fallback to first if no match

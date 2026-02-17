@@ -14,8 +14,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.experts import ExpertAgentConfig, PlantUMLExpertAgent
-from core.experts.memory_integration import (
+from Jotty.core.intelligence.reasoning.agents import ExpertAgentConfig, PlantUMLExpertAgent
+from Jotty.core.intelligence.reasoning.agents.memory_integration import (
     consolidate_improvements,
     retrieve_improvements_from_memory,
     store_improvement_to_memory,

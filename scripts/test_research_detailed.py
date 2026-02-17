@@ -14,8 +14,8 @@ load_dotenv(Path(__file__).parent.parent / ".env")
 
 
 async def test():
-    from Jotty.core.execution.swarms.research_swarm import ResearchSwarm
-    from Jotty.core.execution.swarms.research_swarm.types import ResearchConfig
+    from Jotty.core.intelligence.orchestration.swarms.research_swarm import ResearchSwarm
+    from Jotty.core.intelligence.orchestration.swarms.research_swarm.types import ResearchConfig
 
     print("Testing ResearchSwarm with FULL output...\n")
 

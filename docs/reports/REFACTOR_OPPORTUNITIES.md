@@ -5,25 +5,25 @@
 ## Overview
 After completing Layer 5 and Layer 3→2 cleanup, additional refactoring opportunities exist in:
 - `core/interface/` (17 files)
-- `core/modes/` (63 files, 2.8MB)
+- `core/intelligence/` (63 files, 2.8MB)
 - `sdk/` (9 files)
 
 ---
 
 ## 🔍 Findings
 
-### 1. **QUICK WIN: Delete Empty `core/modes/chat/` Directory**
+### 1. **QUICK WIN: Delete Empty `core/intelligence/chat/` Directory**
 
 **Status:** EMPTY (0 files)
 ```bash
-$ ls -la core/modes/chat/
+$ ls -la core/intelligence/chat/
 total 0
 drwxr-xr-x. 2 opc opc 6 Feb 15 14:35 .
 ```
 
 **Action:**
 ```bash
-rmdir core/modes/chat/
+rmdir core/intelligence/chat/
 ```
 
 **Savings:** Cleanup empty directory
@@ -31,11 +31,11 @@ rmdir core/modes/chat/
 
 ---
 
-### 2. **core/modes/agent/base/** - TOO MANY FILES (20+ files, 1.8MB)
+### 2. **core/intelligence/reasoning/base/** - TOO MANY FILES (20+ files, 1.8MB)
 
 **Current Structure:**
 ```
-core/modes/agent/base/
+core/intelligence/reasoning/base/
 ├── __init__.py
 ├── section_tools.py           #
 ├── model_chat_agent.py         #
@@ -69,7 +69,7 @@ core/modes/agent/base/
 
 **Proposed Reorganization:**
 ```
-core/modes/agent/
+core/intelligence/reasoning/
 ├── base/
 │   ├── __init__.py
 │   ├── base_agent.py           # Core base agent
@@ -198,7 +198,7 @@ from ..core.registry import get_unified_registry         # ❌ Should use interf
 2. **Create facade for agents in `core/interface/api/agents.py`:**
    ```python
    # core/interface/api/agents.py
-   from Jotty.core.modes.agent.base import ChatAssistant, AutoAgent
+   from Jotty.core.intelligence.reasoning.base import ChatAssistant, AutoAgent
 
    __all__ = ['ChatAssistant', 'AutoAgent']
    ```
@@ -222,14 +222,14 @@ from ..core.registry import get_unified_registry         # ❌ Should use interf
 
 ---
 
-### 5. **core/modes/use_cases/** vs **core/modes/execution/**
+### 5. **core/intelligence/orchestration/use_cases/** vs **core/intelligence/orchestration/execution/**
 
 **Potential Overlap:**
 ```
-core/modes/use_cases/
+core/intelligence/orchestration/use_cases/
 └── chat/chat_executor.py        # ChatExecutor (356 lines)
 
-core/modes/execution/
+core/intelligence/orchestration/execution/
 └── executor.py                  # Executor (1836 lines)
 ```
 
@@ -240,8 +240,8 @@ core/modes/execution/
 **Need to investigate:**
 ```bash
 # Check if they're related
-grep -n "class.*Executor" core/modes/use_cases/chat/chat_executor.py
-grep -n "class.*Executor" core/modes/execution/executor.py
+grep -n "class.*Executor" core/intelligence/orchestration/use_cases/chat/chat_executor.py
+grep -n "class.*Executor" core/intelligence/orchestration/execution/executor.py
 ```
 
 ---
@@ -261,11 +261,11 @@ grep -n "class.*Executor" core/modes/execution/executor.py
 ## 🎯 Recommended Priority
 
 ### Phase 1: Quick Wins (10 minutes)
-1. ✅ Delete `core/modes/chat/` (empty)
+1. ✅ Delete `core/intelligence/chat/` (empty)
 2. ✅ Fix SDK import violations (add facades)
 
 ### Phase 2: Architecture Improvements (3-4 hours)
-3. Reorganize `core/modes/agent/base/` into subdirectories
+3. Reorganize `core/intelligence/reasoning/base/` into subdirectories
 4. Split `mode_router.py` if too large
 
 ### Phase 3: Deep Analysis (TBD)
@@ -279,7 +279,7 @@ grep -n "class.*Executor" core/modes/execution/executor.py
 
 **Ask User:**
 1. Should we proceed with Phase 1 quick wins?
-2. Should we reorganize `core/modes/agent/base/`?
+2. Should we reorganize `core/intelligence/reasoning/base/`?
 3. Where should `ui/` live - interface or sdk?
 4. Where should OpenAPI files live - interface or sdk?
 

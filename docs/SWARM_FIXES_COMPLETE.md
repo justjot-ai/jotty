@@ -41,7 +41,7 @@ async def research(...):
 ### 2. Import Path Errors (8 Files) ✅
 
 **Impact:** All swarms failed to import
-**Error:** `ModuleNotFoundError: No module named 'Jotty.core.modes.agent.dag_agents'`
+**Error:** `ModuleNotFoundError: No module named 'Jotty.core.intelligence.reasoning.dag_agents'`
 
 **Files Fixed:**
 ```
@@ -57,7 +57,7 @@ core/execution/swarms/_base/swarm_learning.py
 **Fix:**
 ```python
 # Changed in all 8 files
-from Jotty.core.modes.agent.planners.dag_agents import get_swarm_resources
+from Jotty.core.intelligence.reasoning.planners.dag_agents import get_swarm_resources
 ```
 
 ---
@@ -109,7 +109,7 @@ return self._swarm_intelligence.method(
 
 **Solution:** Created minimal stub
 ```python
-# File: core/modes/agent/planners/swarm_resources_stub.py
+# File: core/intelligence/reasoning/planners/swarm_resources_stub.py
 
 class SwarmResources:
     def __init__(self, config=None):
@@ -221,8 +221,8 @@ def __getattr__(name):
 7. `core/execution/swarms/_base/swarm_learning.py` - Fixed import path
 
 **New Files:**
-8. `core/modes/agent/planners/swarm_resources_stub.py` - Created stub
-9. `core/modes/agent/planners/dag_agents.py` - Simplified (uses stub)
+8. `core/intelligence/reasoning/planners/swarm_resources_stub.py` - Created stub
+9. `core/intelligence/reasoning/planners/dag_agents.py` - Simplified (uses stub)
 
 **Test Scripts:**
 10. `scripts/test_all_swarms_systematic.py` - Created

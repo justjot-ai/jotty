@@ -117,14 +117,18 @@ async def main():
     # ---- Batch 1: Core swarms ----
     print("\n--- Batch 1: Core swarms (Fundamental, IdeaWriter, Pilot) ---")
 
-    from Jotty.core.execution.swarms.templates.fundamental_swarm import FundamentalSwarm
+    from Jotty.core.intelligence.orchestration.swarms.templates.fundamental_swarm import (
+        FundamentalSwarm,
+    )
 
     await run_test(
         "1. FundamentalSwarm.analyze('RELIANCE.NS')",
         FundamentalSwarm().analyze("RELIANCE.NS"),
     )
 
-    from Jotty.core.execution.swarms.templates.idea_writer_swarm import IdeaWriterSwarm
+    from Jotty.core.intelligence.orchestration.swarms.templates.idea_writer_swarm import (
+        IdeaWriterSwarm,
+    )
 
     await run_test(
         "2. IdeaWriterSwarm.write('AGI labor markets')",
@@ -134,7 +138,7 @@ async def main():
         ),
     )
 
-    from Jotty.core.execution.swarms.pilot_swarm.swarm import PilotSwarm
+    from Jotty.core.intelligence.orchestration.swarms.pilot_swarm.swarm import PilotSwarm
 
     await run_test(
         "3. PilotSwarm.run_goal('trading platform arch')",
@@ -150,7 +154,7 @@ async def main():
     # ---- Batch 2: Learning swarms ----
     print("\n--- Batch 2: Learning swarms (Perspective, Olympiad) ---")
 
-    from Jotty.core.execution.swarms.perspective_learning_swarm.swarm import (
+    from Jotty.core.intelligence.orchestration.swarms.perspective_learning_swarm.swarm import (
         PerspectiveLearningSwarm,
     )
 
@@ -164,7 +168,9 @@ async def main():
         ),
     )
 
-    from Jotty.core.execution.swarms.olympiad_learning_swarm.swarm import OlympiadLearningSwarm
+    from Jotty.core.intelligence.orchestration.swarms.olympiad_learning_swarm.swarm import (
+        OlympiadLearningSwarm,
+    )
 
     await run_test(
         "5. OlympiadLearningSwarm.teach('combinatorics')",
@@ -180,7 +186,7 @@ async def main():
     # ---- Batch 3: Code swarms ----
     print("\n--- Batch 3: Code swarms (Coding, Review, Testing) ---")
 
-    from Jotty.core.execution.swarms.coding_swarm.swarm import CodingSwarm
+    from Jotty.core.intelligence.orchestration.swarms.coding_swarm.swarm import CodingSwarm
 
     await run_test(
         "6. CodingSwarm.generate('LRU cache')",
@@ -195,7 +201,7 @@ async def main():
         ),
     )
 
-    from Jotty.core.execution.swarms.templates.review_swarm import ReviewSwarm
+    from Jotty.core.intelligence.orchestration.swarms.templates.review_swarm import ReviewSwarm
 
     buggy_code = """
 import threading
@@ -237,7 +243,7 @@ class UserDB:
         ),
     )
 
-    from Jotty.core.execution.swarms.templates.testing_swarm import TestingSwarm
+    from Jotty.core.intelligence.orchestration.swarms.templates.testing_swarm import TestingSwarm
 
     scheduler_code = """
 from datetime import datetime, timedelta
@@ -304,7 +310,9 @@ class Scheduler:
     # ---- Batch 4: Infrastructure & analysis ----
     print("\n--- Batch 4: Infrastructure & analysis (DataAnalysis, DevOps, Learning) ---")
 
-    from Jotty.core.execution.swarms.templates.data_analysis_swarm import DataAnalysisSwarm
+    from Jotty.core.intelligence.orchestration.swarms.templates.data_analysis_swarm import (
+        DataAnalysisSwarm,
+    )
 
     await run_test(
         "9. DataAnalysisSwarm.analyze('e-commerce decline')",
@@ -362,7 +370,7 @@ class Scheduler:
         ),
     )
 
-    from Jotty.core.execution.swarms.templates.devops_swarm import DevOpsSwarm
+    from Jotty.core.intelligence.orchestration.swarms.templates.devops_swarm import DevOpsSwarm
 
     await run_test(
         "10. DevOpsSwarm.design_infrastructure('K8s SaaS')",
@@ -381,7 +389,7 @@ class Scheduler:
         ),
     )
 
-    from Jotty.core.execution.swarms.templates.learning_swarm import LearningSwarm
+    from Jotty.core.intelligence.orchestration.swarms.templates.learning_swarm import LearningSwarm
 
     await run_test(
         "11. LearningSwarm.evaluate_and_improve('coding_swarm')",
@@ -393,7 +401,7 @@ class Scheduler:
     # ---- Batch 5: Research swarms ----
     print("\n--- Batch 5: Research swarms (Research, ArXiv) ---")
 
-    from Jotty.core.execution.swarms.research_swarm.swarm import ResearchSwarm
+    from Jotty.core.intelligence.orchestration.swarms.research_swarm.swarm import ResearchSwarm
 
     await run_test(
         "12. ResearchSwarm.research('transformers vs SSMs')",
@@ -406,7 +414,9 @@ class Scheduler:
         ),
     )
 
-    from Jotty.core.execution.swarms.arxiv_learning_swarm.swarm import ArxivLearningSwarm
+    from Jotty.core.intelligence.orchestration.swarms.arxiv_learning_swarm.swarm import (
+        ArxivLearningSwarm,
+    )
 
     await run_test(
         "13. ArxivLearningSwarm.learn('attention mechanisms')",

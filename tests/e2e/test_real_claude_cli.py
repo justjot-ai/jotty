@@ -73,10 +73,10 @@ async def test_real_claude_cli():
     print("-" * 80)
 
     try:
-        from core.experts.math_latex_expert import MathLaTeXExpertAgent
-        from core.experts.mermaid_expert import MermaidExpertAgent
-        from core.experts.pipeline_expert import PipelineExpertAgent
-        from core.experts.plantuml_expert import PlantUMLExpertAgent
+        from Jotty.core.intelligence.reasoning.agents.math_latex_expert import MathLaTeXExpertAgent
+        from Jotty.core.intelligence.reasoning.agents.mermaid_expert import MermaidExpertAgent
+        from Jotty.core.intelligence.reasoning.agents.pipeline_expert import PipelineExpertAgent
+        from Jotty.core.intelligence.reasoning.agents.plantuml_expert import PlantUMLExpertAgent
 
         # All experts inherit from BaseExpert (our DRY refactoring!)
         math_expert = MathLaTeXExpertAgent()

@@ -8,7 +8,7 @@ from pathlib import Path
 
 
 def main():
-    from Jotty.core.modes.workflow import OutputChannelManager
+    from Jotty.core.intelligence.orchestration.pipelines import OutputChannelManager
 
     print("\n" + "=" * 80)
     print("CHANNEL DELIVERY TEST: Telegram & WhatsApp")

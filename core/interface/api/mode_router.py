@@ -140,7 +140,7 @@ class ModeRouter:
 
     def _get_executor(self, context: Optional[ExecutionContext] = None) -> Any:
         """Get ChatExecutor with callbacks from context."""
-        from Jotty.core.intelligence.orchestration.unified_executor import ChatExecutor
+        from Jotty.core.intelligence.orchestration.execution.unified_executor import ChatExecutor
 
         status_cb = context.status_callback if context else None
         stream_cb = context.stream_callback if context else None
@@ -152,7 +152,7 @@ class ModeRouter:
     def _get_auto_agent(self, context: Optional[ExecutionContext] = None) -> None:
         """Get or create AutoAgent."""
         try:
-            from Jotty.core.modes.agent.auto_agent import (
+            from Jotty.core.intelligence.reasoning.agents.auto_agent import (
                 AutoAgent,  # type: ignore[import-not-found]
             )
 
@@ -249,8 +249,10 @@ class ModeRouter:
 
         This gives 40-100x ROI on routing cost while preserving quality.
         """
-        from Jotty.core.intelligence.orchestration.direct_chat_executor import DirectChatExecutor
-        from Jotty.core.intelligence.orchestration.validation_gate import (
+        from Jotty.core.intelligence.orchestration.execution.direct_chat_executor import (
+            DirectChatExecutor,
+        )
+        from Jotty.core.intelligence.orchestration.execution.validation_gate import (
             ValidationGate,
             ValidationMode,
         )

@@ -341,7 +341,7 @@ Move swarms from `core/intelligence/swarms/` to `core/execution/swarms/`:
 
 ### Task #34: Migrate Workflows
 
-Move workflows from `core/modes/workflow/` to `core/execution/workflows/`:
+Move workflows from `core/intelligence/orchestration/pipelines/` to `core/execution/workflows/`:
 - auto_workflow.py
 - research_workflow.py
 - learning_workflow.py

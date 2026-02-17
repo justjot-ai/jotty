@@ -62,8 +62,8 @@ async def test_swarm(name: str, test_func):
 
 
 async def test_research():
-    from Jotty.core.execution.swarms.research_swarm import ResearchSwarm
-    from Jotty.core.execution.swarms.research_swarm.types import ResearchConfig
+    from Jotty.core.intelligence.orchestration.swarms.research_swarm import ResearchSwarm
+    from Jotty.core.intelligence.orchestration.swarms.research_swarm.types import ResearchConfig
 
     # Use NASDAQ with a real US ticker
     config = ResearchConfig(
@@ -78,8 +78,10 @@ async def test_research():
 
 
 async def test_olympiad():
-    from Jotty.core.execution.swarms.olympiad_learning_swarm import OlympiadLearningSwarm
-    from Jotty.core.execution.swarms.olympiad_learning_swarm.types import (
+    from Jotty.core.intelligence.orchestration.swarms.olympiad_learning_swarm import (
+        OlympiadLearningSwarm,
+    )
+    from Jotty.core.intelligence.orchestration.swarms.olympiad_learning_swarm.types import (
         OlympiadLearningConfig,
         Subject,
         LessonDepth,

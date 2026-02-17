@@ -126,11 +126,11 @@ def main():
     top_swarm = matches[0][0]
     print("📦 Quick Start:")
     if "olympiad" in top_swarm or "arxiv" in top_swarm or "research" in top_swarm:
-        module = f"Jotty.core.execution.swarms.{top_swarm}"
+        module = f"Jotty.core.intelligence.orchestration.swarms.{top_swarm}"
         print(f"   from {module} import *")
     else:
         print(
-            f"   from Jotty.core.execution.swarms import {top_swarm.replace('_swarm', '').title()}Swarm"
+            f"   from Jotty.core.intelligence.orchestration.swarms import {top_swarm.replace('_swarm', '').title()}Swarm"
         )
 
 

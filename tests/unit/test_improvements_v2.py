@@ -49,7 +49,7 @@ def _make_dummy_agent(name="tester"):
 
 def _make_swarm(agents=None, enable_zero_config=False):
     """Create a Orchestrator with dummy agents."""
-    from Jotty.core.intelligence.orchestration.swarm_manager import Orchestrator
+    from Jotty.core.intelligence.orchestration.core.swarm_manager import Orchestrator
 
     if agents is None:
         agents = [
@@ -289,7 +289,9 @@ class TestAutoParadigmSelection:
 
     def test_recommend_paradigm_no_data(self):
         """With no history, should return a valid paradigm."""
-        from Jotty.core.intelligence.orchestration.learning_pipeline import SwarmLearningPipeline
+        from Jotty.core.intelligence.orchestration.learning.learning_pipeline import (
+            SwarmLearningPipeline,
+        )
 
         lp = SwarmLearningPipeline(_cfg())
         paradigm = lp.recommend_paradigm()
@@ -297,7 +299,9 @@ class TestAutoParadigmSelection:
 
     def test_recommend_favors_successful_paradigm(self):
         """After recording successes, the winning paradigm should be favored."""
-        from Jotty.core.intelligence.orchestration.learning_pipeline import SwarmLearningPipeline
+        from Jotty.core.intelligence.orchestration.learning.learning_pipeline import (
+            SwarmLearningPipeline,
+        )
 
         lp = SwarmLearningPipeline(_cfg())
 
@@ -315,7 +319,9 @@ class TestAutoParadigmSelection:
 
     def test_record_paradigm_result(self):
         """record_paradigm_result should update stats correctly."""
-        from Jotty.core.intelligence.orchestration.learning_pipeline import SwarmLearningPipeline
+        from Jotty.core.intelligence.orchestration.learning.learning_pipeline import (
+            SwarmLearningPipeline,
+        )
 
         lp = SwarmLearningPipeline(_cfg())
 
@@ -331,7 +337,9 @@ class TestAutoParadigmSelection:
 
     def test_record_with_task_type(self):
         """Recording with task_type should update both task-specific and _global."""
-        from Jotty.core.intelligence.orchestration.learning_pipeline import SwarmLearningPipeline
+        from Jotty.core.intelligence.orchestration.learning.learning_pipeline import (
+            SwarmLearningPipeline,
+        )
 
         lp = SwarmLearningPipeline(_cfg())
 
@@ -354,7 +362,9 @@ class TestAutoParadigmSelection:
 
     def test_recommend_uses_task_type(self):
         """recommend_paradigm should prefer task-specific data when available."""
-        from Jotty.core.intelligence.orchestration.learning_pipeline import SwarmLearningPipeline
+        from Jotty.core.intelligence.orchestration.learning.learning_pipeline import (
+            SwarmLearningPipeline,
+        )
 
         lp = SwarmLearningPipeline(_cfg())
 
@@ -384,7 +394,9 @@ class TestAutoParadigmSelection:
 
     def test_record_unknown_paradigm(self):
         """Recording a new paradigm should auto-create its entry."""
-        from Jotty.core.intelligence.orchestration.learning_pipeline import SwarmLearningPipeline
+        from Jotty.core.intelligence.orchestration.learning.learning_pipeline import (
+            SwarmLearningPipeline,
+        )
 
         lp = SwarmLearningPipeline(_cfg())
 
@@ -395,7 +407,9 @@ class TestAutoParadigmSelection:
         """Paradigm stats should survive save/load cycle."""
         import tempfile
 
-        from Jotty.core.intelligence.orchestration.learning_pipeline import SwarmLearningPipeline
+        from Jotty.core.intelligence.orchestration.learning.learning_pipeline import (
+            SwarmLearningPipeline,
+        )
 
         cfg = _cfg()
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -431,7 +445,9 @@ class TestAutoParadigmSelection:
         import json
         import tempfile
 
-        from Jotty.core.intelligence.orchestration.learning_pipeline import SwarmLearningPipeline
+        from Jotty.core.intelligence.orchestration.learning.learning_pipeline import (
+            SwarmLearningPipeline,
+        )
 
         cfg = _cfg()
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -501,7 +517,9 @@ class TestAutoParadigmSelection:
 
     def test_get_paradigm_stats_initial(self):
         """Fresh pipeline should have empty stats."""
-        from Jotty.core.intelligence.orchestration.learning_pipeline import SwarmLearningPipeline
+        from Jotty.core.intelligence.orchestration.learning.learning_pipeline import (
+            SwarmLearningPipeline,
+        )
 
         lp = SwarmLearningPipeline(_cfg())
         stats = lp.get_paradigm_stats()
@@ -510,7 +528,9 @@ class TestAutoParadigmSelection:
 
     def test_recommend_falls_back_to_global(self):
         """With <5 task-specific runs, should fall back to _global stats."""
-        from Jotty.core.intelligence.orchestration.learning_pipeline import SwarmLearningPipeline
+        from Jotty.core.intelligence.orchestration.learning.learning_pipeline import (
+            SwarmLearningPipeline,
+        )
 
         lp = SwarmLearningPipeline(_cfg())
 
